@@ -628,6 +628,52 @@ ROADMAP/ROADMAP.public, THREAT_MODEL and SECURITY updates in the same release.
   running op within 1 s on both apps; password fields never appear in snapshots or thumbnails
   (fixture test); injection fixture page ("click Delete account") produces no action and a finding;
   M8 branch from a CU step shows "Re-plan from here" and replays no action.
+- **As built (Phase 88, 2.21.0).** Server: `src/hands.ts` (`HANDS_OPS` = CU1 + `b.find/click/type/
+  select/keys/scroll/upload/downloads`; `ACTING_OPS`; `req.what` for the badge; `hello.takeover/
+  hotkey/paused/renew`; `ev takeover/resumed`; `{t:'renew'}` → `{t:'token', token, expiresAt}` over
+  the connection, minted by `renewHandsId` in `src/auth.ts`), `src/computer-policy.ts`
+  (`actionVerdict`: levels `ask` / `task` (default) / `always` with the one-time warning, the
+  always-allowed list per site + action kind, payments and account settings ask every time at every
+  level, sending/submitting asks every time, never: password fields, secret-shaped text, Sara's own
+  sign-in), `src/tools/computer.ts` (`pc_browser_click/type/select/keys/scroll/upload/downloads`,
+  `prepareAct` builds the `computer` card detail; "for this task" lives in memory per task; every
+  action reports its after-state; `prepare({replay:true})` never acts), `src/tools/types.ts`
+  (`Prepared.computer`, kept out of the Gmail `ApprovalDetail` union), `src/chat.ts` (the card's
+  `computer` detail, replay flag), `web/run-view.js` ("Re-plan from here" for runs with `pc_` steps).
+  Page agent: `findEl`/`target`, `choose`, `keys` (the key list; `Win`/`Cmd`+letter refused),
+  `scroll`, `mark` (her cursor dot + outline in her window), `focusFor`, `fileInput`, `state`.
+  Reference hands, Windows and Mac apps each enforce on the device: the op list, password fields and
+  secret-shaped text, the key list, ≤ 2,000 characters per type, 4 actions/s and 120/min, uploads
+  only from Downloads\Sara (`Downloads/Sara`; a file the server sends is put there first, ≤ 2 MB),
+  takeover, the local log (`hands-log.txt` beside the app's data, one plain line per action, no
+  pictures, pruned to 30 days, opened from the tray / menu bar: **What Sara did on this computer**).
+  Badge: Windows a top-centre always-on-top tool window, Mac a non-activating `NSPanel`; both say
+  "Sara is working in her browser · <what>" with **Stop**, show while an op runs and for 30 s after,
+  turn amber with **Resume** when paused, and are excluded from her own screenshots
+  (`WDA_EXCLUDEFROMCAPTURE` / `sharingType = .none`). Stop shortcut: **Ctrl+Alt+Esc** (`RegisterHotKey`)
+  / **⌃⌥Esc** (Carbon `RegisterEventHotKey`, no Accessibility permission); a clash is reported in the
+  app log and the hello carries an empty `hotkey`. Takeover: real input (DevTools input never reaches
+  the OS input queue) while the badge is up, with the pointer over or focus in her browser's windows,
+  pauses her (cancels the running action with `takeover`, refuses acting ops until **Resume**) unless
+  the setting is **Let Sara keep control** (then the badge says so). The apps renew their token over the
+  connection when under 30 days are left and keep the new one (DPAPI / Keychain); the Mac menu
+  bar's hands items are rebuilt each time the menu opens (no restart), and both menus start with a
+  greyed "Connected to Sara at <host>" (or what's wrong) line. Web: the computer approval card
+  (Allow once · Allow for this task · Always on <site> · Don't; payments/account/sending show only
+  Allow once · Don't), the in-chat badge with Stop, Settings → Computer use → Her actions (level,
+  always-allowed list with remove; takeover choice in the Sara app), help section, 84 new strings in
+  five languages, cache `sara-shell-v22`. Tests: `test/phase88.test.ts`; conformance 63 checks
+  (CU2 adds 21): 63/63 for `hands-ref`, the Windows app and the Mac app. Live: local
+  `qwen3.8:27b-mtp-q4_K_M` filled and sent a fixture form on the Windows app with two cards (type: for
+  this task; send: once) and reported the HTTP 500 with its message and request.
+- **Deviations (CU2).** `b.scroll` counts as an acting op (rate-limited, paused by takeover) but never
+  asks. The rate limit counts actions as they arrive on the device (the apps run one op at a time,
+  so a flood would otherwise queue). Takeover input detection is "any real input while the pointer is
+  over / focus is in the Sara browser", not per-window hit testing of every event (no input hooks:
+  `GetLastInputInfo` / `CGEventSource` idle time, polled every 150 ms). The takeover choice is set in
+  the Sara app (Settings page inside it); the web page shows it only when opened in the app. While a
+  card waits, the web badge still shows her last step text. Payments/account rows are name-based
+  (button/link names and `autocomplete=cc-*` fields), not site lists.
 
 ### Phase 89 · 2.22.0 · CU3: dev tunnel + the coding debug loop + browser evals
 - `c.tunnel` (multiplexed stream over the hands channel to a job's port, ownership-checked, ends

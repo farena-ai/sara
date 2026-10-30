@@ -148,7 +148,12 @@ export interface Settings {
    * Phase 87 (computer use, docs/design/COMPUTER_USE.md §0.7): server-wide choices. `members`: household
    * members may let Sara use their OWN computers (off by default; owner only).
    */
-  computerUse?: { members?: boolean };
+  /**
+   * Phase 87/88 (computer use): the member switch; how her actions in the Sara browser are approved
+   * (level: ask every time / once per task (default) / always allowed, with a one-time warning), and the
+   * site + action kinds the owner chose "Always" for on a card. Payments and account settings ask every time.
+   */
+  computerUse?: { members?: boolean; level?: 'ask' | 'task' | 'always'; alwaysWarned?: boolean; always?: { site: string; kind: string; at: string }[] };
   /** Discord bridge (Phase 6). Bot token lives in the vault (bridge:discord). */
   discord?: Partial<DiscordSettings>;
   /** Automatic backups (Phase 6). */

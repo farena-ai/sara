@@ -182,12 +182,40 @@ on fds 3 and 4). Both bundle `desktop/shared/page-agent.js` (Windows: RCDATA `ID
 - The tray / menu bar menu has **Stop Sara on this computer** and **Don't let Sara use this
   computer** while it's on. Quitting the app closes the connection and the Sara browser.
 - Check an app's hands: `node scripts/hands-conformance.ts --server <url> --token-file <owner token
-  file> --device <computer name>` (42 checks: the command set, refusals on the device, logs, pictures,
-  deadlines). For a Mac reached over SSH, forward the server and a fixture port with `ssh -R` and pass
+  file> --device <computer name>` (63 checks since Phase 88: the command set, refusals on the device, logs, pictures,
+  deadlines, acting). For a Mac reached over SSH, forward the server and a fixture port with `ssh -R` and pass
   `--fixture-port`.
 - Testing the Windows app next to an installed one: build with `-DSARA_TEST_HOOKS=ON` and start it
   with `SARA_DESKTOP_TEST_DIR` (its own data folder, profile, lock and Sara browser profile). On the
   Mac, a copy with another bundle id has its own preferences, WebKit data and Keychain item.
+
+### Sara's hands act (Phase 88, computer use CU2)
+
+- She clicks, types, chooses, presses keys from a short list, scrolls and uploads in the Sara browser
+  only, through the shared page agent (`find` by ref, label or picture point) and real DevTools
+  input. The app refuses on its own: password fields, key- or token-shaped text, keys not on the list,
+  more than 2,000 characters, more than 4 actions a second or 120 a minute, uploads from anywhere but
+  `Downloads\Sara` (Mac `~/Downloads/Sara`). Test runs use `hands-downloads` in their data folder.
+- **The badge**: top centre, always on top, "Sara is working in her browser · <what>" with **Stop**;
+  amber with **Resume** when paused; never in her own pictures. **Stop shortcut**: Ctrl+Alt+Esc
+  (Windows) / ⌃⌥Esc (Mac); if another app has it, the tray / menu bar Stop item still works.
+- **Takeover** (setting "When you move the mouse", kept as `handsTakeover` in `desktop.ini` /
+  `hands.<server>.takeover`): real mouse or keyboard input in her browser pauses her (default) or,
+  with **Let Sara keep control**, she carries on and the badge says so.
+- **What Sara did on this computer** (tray / menu bar) opens `hands-log.txt` in the app's data folder:
+  one line per action, no pictures, 30 days.
+- The apps renew their hands token over the connection when under 30 days are left
+  (`handsExpires` / `hands.<server>.expires`). The menus show "Connected to Sara at <host>".
+- Test hooks: Windows `-DSARA_TEST_HOOKS=ON` builds label the window and badge **TEST**, accept
+  `WM_APP` messages to the badge window for "the person moved the mouse" / Resume, and
+  `SARA_TEST_BADGE_VISIBLE=1` lets a screenshot see the badge. Mac `SARA_DEBUG=1` builds with another
+  bundle id (e.g. `com.backstagecoding.sara.desktop.cu2test`) take `SARA_TEST_HANDS_TOKEN=<file>` (its
+  own Keychain item), and a distributed notification `<bundle id>.handsTest` with `input`, `resume`,
+  `hotkey`, `shot:<png>` or `off`. Start a test copy with `open -n --env …` (LaunchServices: the GUI
+  session's Keychain); a re-signed binary would be asked about its old Keychain item, so delete the
+  test item (`security delete-generic-password -s <bundle id>.hands`) before starting a rebuilt copy.
+- Conformance: 63 checks (CU2 adds find/click/type/select/keys/scroll/upload/downloads, refusals,
+  stale refs, rate limit, Stop within a second).
 
 ### Sara-Setup.exe: her server and the app together (Phase 46c)
 

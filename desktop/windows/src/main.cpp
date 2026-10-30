@@ -83,7 +83,7 @@ static const UINT_PTR kRemoveTimer = 7;
 static const UINT_PTR kNowTimer = 8;            // Phase 75 stage 2: "Now" in the tray menu, every 45 s
 static const int kHotkeyId = 1;                 // the quick-ask shortcut (RegisterHotKey)
 enum MenuId {
-  ID_OPEN = 100, ID_LOGIN, ID_QUIT, ID_CHANGE, ID_SETTINGS, ID_HELP, ID_ASK, ID_HEADER, ID_SHORTCUT_OFF, ID_SENDTO, ID_HANDS_STOP, ID_HANDS_OFF,
+  ID_OPEN = 100, ID_LOGIN, ID_QUIT, ID_CHANGE, ID_SETTINGS, ID_HELP, ID_ASK, ID_HEADER, ID_SHORTCUT_OFF, ID_SENDTO, ID_HANDS_STOP, ID_HANDS_OFF, ID_HANDS_RESUME, ID_HANDS_LOG, ID_HANDS_STATUS,
   ID_SERVER0 = 200, ID_NOW0 = 300, ID_ALLOW0 = 340, ID_DENY0 = 380, ID_SHORTCUT0 = 420
 };
 static const size_t kNowMax = 10;
@@ -1047,6 +1047,18 @@ static std::wstring computerName() {
   if (GetComputerNameExW(ComputerNamePhysicalDnsHostname, n, &len)) return n;
   return L"this computer";
 }
+/** Phase 88: Downloads\\Sara (test runs: a folder in their own data folder). */
+static std::wstring handsDownloads() {
+  std::wstring dir;
+  if (testRun()) dir = dataDir() + L"\\hands-downloads";
+  else {
+    wchar_t* p = nullptr;
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Downloads, 0, nullptr, &p))) dir = std::wstring(p) + L"\\Sara";
+    CoTaskMemFree(p);
+  }
+  if (!dir.empty()) CreateDirectoryW(dir.c_str(), nullptr);
+  return dir;
+}
 static std::wstring handsBrowserProfile() {
   std::wstring dir = dataDir() + L"\\hands-browser";
   CreateDirectoryW(dir.c_str(), nullptr);
@@ -1065,6 +1077,19 @@ static void handsSync() {
   h.pageAgent = pageAgentJs();
   h.appVersion = std::wstring(L"Sara for Windows ") + kVersion;
   h.localOnly = getIni(handsSection(), L"handsLocalOnly") == L"1";
+  // Phase 88: her actions: takeover choice, Downloads\Sara, the local log, token renewal, TEST label.
+  h.keepControl = getIni(handsSection(), L"handsTakeover") == L"keep";
+  h.downloadsDir = handsDownloads();
+  h.logFile = dataDir() + L"\\hands-log.txt";
+  h.expiresAt = toUtf8(getIni(handsSection(), L"handsExpires"));
+  h.testLabel = testRun();
+  std::wstring section = handsSection();
+  h.onToken = [section](const std::string& tok, const std::string& exp) {
+    std::wstring sealed = sarahands::protect(tok);
+    if (sealed.empty()) return;
+    setIni(section, L"handsToken", sealed);
+    setIni(section, L"handsExpires", fromUtf8(exp));
+  };
   h.log = [](const std::wstring& line) {
     static std::mutex m;
     std::lock_guard<std::mutex> l(m);
@@ -1079,7 +1104,8 @@ static void handsOff() {
 static std::wstring handsPrefsJson() {
   return std::wstring(L",\"handsSupported\":true,\"handsOptIn\":") + (handsOn() ? L"true" : L"false") + L",\"handsLocalOnly\":" + (getIni(handsSection(), L"handsLocalOnly") == L"1" ? L"true" : L"false") +
          L",\"handsConnected\":" + (sarahands::connected() ? L"true" : L"false") + L",\"handsDeviceId\":\"" + jsonEscape(getIni(handsSection(), L"handsId")) + L"\",\"handsError\":\"" +
-         jsonEscape(sarahands::lastError()) + L"\",\"handsBrowser\":" + (sarahands::browserPath().empty() ? L"false" : L"true") + L",\"computerName\":\"" + jsonEscape(computerName()) + L"\"";
+         jsonEscape(sarahands::lastError()) + L"\",\"handsBrowser\":" + (sarahands::browserPath().empty() ? L"false" : L"true") + L",\"computerName\":\"" + jsonEscape(computerName()) + L"\"" +
+         L",\"handsTakeover\":\"" + (getIni(handsSection(), L"handsTakeover") == L"keep" ? L"keep" : L"pause") + L"\",\"handsHotkey\":\"" + jsonEscape(sarahands::hotkeyLabel()) + L"\"";
 }
 
 // Her face for the tray menu: the page's PNG, decoded and scaled with WIC (premultiplied alpha).
@@ -1922,7 +1948,12 @@ static void trayMenu() {
   AppendMenuW(m, MF_STRING | needsServer, ID_SETTINGS, L"Settings…");
   // Phase 87: Stop her on this computer, and switch "Let Sara use this computer" off.
   if (handsOn()) {
-    AppendMenuW(m, MF_STRING | (sarahands::connected() ? 0 : MF_GRAYED), ID_HANDS_STOP, L"Stop Sara on this computer");
+    // Phase 88: "Connected to Sara at …" (or what's wrong), Resume after a takeover, her own log.
+    std::wstring status = sarahands::statusLine();
+    if (!status.empty()) AppendMenuW(m, MF_STRING | MF_GRAYED, ID_HANDS_STATUS, status.c_str());
+    AppendMenuW(m, MF_STRING | (sarahands::connected() ? 0 : MF_GRAYED), ID_HANDS_STOP, L"Stop Sara on this computer\tCtrl+Alt+Esc");
+    if (sarahands::paused()) AppendMenuW(m, MF_STRING, ID_HANDS_RESUME, L"Resume Sara");
+    AppendMenuW(m, MF_STRING, ID_HANDS_LOG, L"What Sara did on this computer");
     AppendMenuW(m, MF_STRING, ID_HANDS_OFF, L"Don't let Sara use this computer");
   }
   AppendMenuW(m, MF_SEPARATOR, 0, nullptr);
@@ -2389,6 +2420,12 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
       setIni(handsSection(), L"handsLocalOnly", on ? L"1" : L"0");
       sarahands::setLocalOnly(on);
     }
+    else if (key == L"handsTakeover") {
+      // Phase 88: "When you move the mouse": pause Sara (default) or let her keep control.
+      bool keepIt = m[L"value"] == L"keep";
+      setIni(handsSection(), L"handsTakeover", keepIt ? L"keep" : L"pause");
+      sarahands::setTakeover(keepIt);
+    }
     else return reply(id, L"null", L"Unknown setting");
     return reply(id, prefsJson());
   }
@@ -2853,6 +2890,14 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         case ID_SENDTO: setSendTo(!sendToOn()); break;
         case ID_HANDS_STOP: sarahands::pressStop(); break;
         case ID_HANDS_OFF: handsOff(); break;
+        case ID_HANDS_RESUME: sarahands::resume(); break;
+        case ID_HANDS_LOG: {
+          // Phase 88: her local record (plain text, no pictures), opened for the owner.
+          std::wstring f = dataDir() + L"\\hands-log.txt";
+          if (GetFileAttributesW(f.c_str()) == INVALID_FILE_ATTRIBUTES) CloseHandle(CreateFileW(f.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr));
+          ShellExecuteW(nullptr, L"open", f.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+          break;
+        }
         default:
           if (LOWORD(wp) >= ID_NOW0 && LOWORD(wp) < ID_NOW0 + kNowMax) {
             size_t i = LOWORD(wp) - ID_NOW0;
@@ -3033,7 +3078,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR cmd, int show) {
   if (swscanf_s(place.c_str(), L"%d,%d,%d,%d,%d", &l, &t, &r, &b, &mx) == 5 && r - l > 300 && b - t > 300) {
     x = l; y = t; w = r - l; hgt = b - t; maximized = mx == 1;
   }
-  g_wnd = CreateWindowExW(0, kWindowClass, L"Sara", WS_OVERLAPPEDWINDOW, x, y, w, hgt, nullptr, nullptr, inst, nullptr);
+  g_wnd = CreateWindowExW(0, kWindowClass, testRun() ? L"Sara (TEST)" : L"Sara", WS_OVERLAPPEDWINDOW, x, y, w, hgt, nullptr, nullptr, inst, nullptr);
   applyTheme();
   if (g_customFrame) {
     extendFrame();

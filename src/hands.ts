@@ -14,14 +14,25 @@
 //   server → device  {t:'cancel', id} | {t:'cancel', all:true}
 //   device → server  {t:'ev', kind, ...}   (stopped by:'user' ends the task at once)
 //   device → server  binary: 4-byte big-endian header length, JSON header {id | frame, kind, mime, w, h, viewId}, bytes
+// Phase 88 (CU2) adds, all optional for older devices:
+//   server → device  req.what: one plain line for the device's "Sara is working" badge
+//   device → server  hello.takeover 'pause' | 'keep', hello.hotkey, hello.paused, hello.renew
+//   device → server  {t:'ev', kind:'takeover' | 'resumed'}  (the person took over / pressed Resume there)
+//   device → server  {t:'renew'}  →  server → device {t:'token', token, expiresAt}  (a fresh hands token)
 import { randomUUID } from 'node:crypto';
 import type { EventHub } from './events.ts';
 import type { WsConnection } from './ws.ts';
 
 export const HANDS_PROTOCOL = 1;
-/** CU1's command set: look, read, navigate, pictures and logs. Nothing that clicks or types (CU2). */
+/** CU1's command set: look, read, navigate, pictures and logs. */
 export const CU1_OPS = ['b.start', 'b.tabs', 'b.open', 'b.navigate', 'b.snapshot', 'b.read', 'b.screenshot', 'b.logs', 'b.request', 'b.close', 'c.ping'] as const;
-export type HandsOp = (typeof CU1_OPS)[number];
+/** Phase 88 (CU2): acting in the Sara browser (b.find only says what a target is, for the approval card). */
+export const CU2_OPS = ['b.find', 'b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload', 'b.downloads'] as const;
+/** The whole command set of a CU2 device. Still nothing on the desktop (d.*), no logins (b.login), no scripts. */
+export const HANDS_OPS = [...CU1_OPS, ...CU2_OPS] as const;
+export type HandsOp = (typeof HANDS_OPS)[number];
+/** Ops that act (they count against the device's input rate limit and stop on takeover). */
+export const ACTING_OPS: ReadonlySet<string> = new Set(['b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload']);
 export const HANDS_ERROR_CODES = ['denied_local', 'blocked_window', 'takeover', 'stopped', 'stale_view', 'not_found', 'timeout', 'perm_missing', 'rate_limited', 'unsupported'] as const;
 /** Default deadline of an op (b.open waits for a whole page). */
 export const DEFAULT_DEADLINE_MS = 30_000;
@@ -57,6 +68,14 @@ export interface HandsHello {
   localOnly?: boolean;
   /** The ops this device runs (its own allowlist). */
   ops?: string[];
+  /** Phase 88: "When you move the mouse" on that computer: pause Sara (default) or let her keep control. */
+  takeover?: 'pause' | 'keep';
+  /** Phase 88: the stop shortcut there ("Ctrl+Alt+Esc"), for the page to show. */
+  hotkey?: string;
+  /** Phase 88: paused there because the person took over. */
+  paused?: boolean;
+  /** Phase 88: the device can take a fresh token over this connection. */
+  renew?: boolean;
 }
 
 export interface HandsImage {
@@ -98,6 +117,9 @@ export interface HandsDeviceView {
   /** A conversation is using this computer right now. */
   busy: boolean;
   frames: number;
+  takeover?: 'pause' | 'keep';
+  hotkey?: string;
+  paused?: boolean;
 }
 
 interface Pending {
@@ -124,6 +146,9 @@ interface Device {
   lease?: { conversationId: string; until: number };
   heartbeat?: NodeJS.Timeout;
   helloWaiters: (() => void)[];
+  /** Phase 88: makes a fresh token for this device (set by the upgrade route). */
+  renew?: () => { token: string; expiresAt: string } | undefined;
+  lastRenew?: number;
 }
 
 /** Splits a binary frame into its JSON header and the picture bytes (undefined when malformed). */
@@ -187,8 +212,9 @@ export class HandsHub {
   }
 
   /** A device connected (a second connection for the same device replaces the first). */
-  attach(id: string, label: string, ws: WsConnection): void {
+  attach(id: string, label: string, ws: WsConnection, opts: { renew?: () => { token: string; expiresAt: string } | undefined } = {}): void {
     const d = this.#device(id, label);
+    if (opts.renew) d.renew = opts.renew;
     const old = d.ws;
     if (old && old !== ws) {
       this.#dropConnection(d, 'replaced by a new connection');
@@ -253,6 +279,10 @@ export class HandsHub {
         busy: m.busy === true,
         localOnly: m.localOnly === true,
         ...(Array.isArray(m.ops) ? { ops: (m.ops as unknown[]).slice(0, 80).map((x) => plain(x, 40)) } : {}),
+        ...(m.takeover === 'keep' || m.takeover === 'pause' ? { takeover: m.takeover } : {}),
+        ...(m.hotkey ? { hotkey: plain(m.hotkey, 30) } : {}),
+        paused: m.paused === true,
+        renew: m.renew === true,
       };
       for (const w of d.helloWaiters.splice(0)) w();
       this.#publish({ deviceId: d.id, state: 'online' });
@@ -268,8 +298,23 @@ export class HandsHub {
       }
       return;
     }
+    if (m.t === 'renew') {
+      // Phase 88: the app renews its own token before the 90 days end (at most once per 10 minutes).
+      const now = Date.now();
+      if (!d.renew || (d.lastRenew && now - d.lastRenew < 10 * 60_000)) return;
+      d.lastRenew = now;
+      const r = d.renew();
+      if (r) d.ws?.send(JSON.stringify({ t: 'token', token: r.token, expiresAt: r.expiresAt }));
+      return;
+    }
     if (m.t === 'ev') {
       const kind = plain(m.kind, 30);
+      if ((kind === 'takeover' || kind === 'resumed') && d.hello) {
+        // Phase 88: the person moved the mouse or typed in the Sara browser (or pressed Resume there).
+        d.hello.paused = kind === 'takeover';
+        this.#publish({ deviceId: d.id, paused: d.hello.paused, ...(d.lease ? { conversationId: d.lease.conversationId } : {}) });
+        return;
+      }
       if (kind === 'stopped') {
         // Stop on the computer (its button, tray or hotkey) ends the task at once.
         for (const p of [...this.#pending.values()]) if (p.deviceId === d.id) this.#settle(p, new HandsError('stopped', 'Stopped on the computer.'));
@@ -283,6 +328,7 @@ export class HandsHub {
         const o = (m.optIn ?? {}) as Record<string, unknown>;
         d.hello.optIn = { browser: o.browser === true, desktop: o.desktop === true };
         if (typeof m.localOnly === 'boolean') d.hello.localOnly = m.localOnly;
+        if (m.takeover === 'keep' || m.takeover === 'pause') d.hello.takeover = m.takeover;
       }
       this.#publish({ deviceId: d.id, ev: kind, ...(d.lease ? { conversationId: d.lease.conversationId } : {}) });
     }
@@ -346,12 +392,14 @@ export class HandsHub {
    * Asks a device to run one op. Resolves with its result (and any pictures that came with it);
    * rejects with a HandsError (the device's own code, or offline / timeout / stopped).
    */
-  async request(deviceId: string, op: string, args: Record<string, unknown> = {}, opts: { signal?: AbortSignal; deadlineMs?: number; runId?: number; id?: string } = {}): Promise<HandsReply> {
+  async request(deviceId: string, op: string, args: Record<string, unknown> = {}, opts: { signal?: AbortSignal; deadlineMs?: number; runId?: number; id?: string; what?: string } = {}): Promise<HandsReply> {
     const d = this.#devices.get(deviceId);
     if (!d?.ws?.open) throw new HandsError('offline', 'That computer is not connected right now (the Sara app is closed, asleep or offline).');
     await this.#ready(d);
     if (!d.hello) throw new HandsError('offline', "That computer didn't say hello: update the Sara app there.");
     if (op.startsWith('b.') && !d.hello.optIn.browser) throw new HandsError('denied_local', '"Let Sara use this computer" is off on that computer.');
+    // Phase 88: paused there because the person took over: nothing acts until they press Resume there.
+    if (d.hello.paused && ACTING_OPS.has(op)) throw new HandsError('takeover', 'Paused: the owner took over the Sara browser on that computer. Wait until they press Resume there.');
     if (opts.signal?.aborted) throw new HandsError('stopped', 'Stopped.');
     // A retried request with the same id gets the first answer (the device answers it once).
     if (opts.id && this.#pending.has(opts.id)) return this.#pending.get(opts.id)!.promise;
@@ -383,7 +431,10 @@ export class HandsHub {
       off: () => opts.signal?.removeEventListener('abort', onAbort),
     };
     this.#pending.set(id, p);
-    d.ws.send(JSON.stringify({ t: 'req', id, op, args, ...(opts.runId ? { runId: opts.runId } : {}), deadlineMs }));
+    const what = opts.what ? plain(opts.what, 120) : '';
+    d.ws.send(JSON.stringify({ t: 'req', id, op, args, ...(opts.runId ? { runId: opts.runId } : {}), deadlineMs, ...(what ? { what } : {}) }));
+    // Phase 88: the chat's "Sara is working" badge (what she is doing, on which computer).
+    if (op !== 'c.ping') this.#publish({ deviceId, working: true, op, ...(what ? { what } : {}), ...(d.lease ? { conversationId: d.lease.conversationId } : {}) });
     return promise;
   }
 
@@ -450,6 +501,9 @@ export class HandsHub {
         ...(d.lastSeen ? { lastSeen: d.lastSeen } : prev?.lastSeen ? { lastSeen: prev.lastSeen } : {}),
         busy: Boolean(d.lease && d.lease.until > now),
         frames: d.frameN,
+        ...(h?.takeover ? { takeover: h.takeover } : {}),
+        ...(h?.hotkey ? { hotkey: h.hotkey } : {}),
+        ...(h?.paused ? { paused: true } : {}),
       });
     }
     return [...out.values()];

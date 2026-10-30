@@ -2,7 +2,8 @@
 // web page for her. It is used by the server's testing browser (src/browser.ts), by the reference
 // hands (src/hands-ref.ts) and by the Sara browser of the Windows and Mac apps (bundled into each).
 // It only reads the page or finds an element and its position: clicks and typing are real input
-// events sent through the DevTools protocol by the code that runs it. No other expression is ever
+// events sent through the DevTools protocol by the code that runs it (Phase 88: target, focusFor,
+// choose, scroll, keys, fileInput, mark and state for the hands' acting ops). No other expression is ever
 // evaluated in a page by Sara: callers run exactly this file followed by `.call("<name>", <json>)`.
 //
 // The file is one expression (no trailing semicolon) so callers can write `(<file>).call(n, args)`.
@@ -48,8 +49,9 @@
     return (e.id ? t + '#' + e.id : t) + (n ? ' "' + n + '"' : '');
   }
 
-  // Finds an element by CSS selector or its visible text (the testing browser's click/type).
-  function find(a) {
+  // Finds an element by CSS selector or its visible text (the testing browser's click/type, and the
+  // hands' "text" targeting): the element itself, or null / {error}.
+  function findEl(a) {
     var el = null;
     if (a.selector) {
       try {
@@ -75,6 +77,11 @@
         el = leaves.find(function (e) { return tx(e) === want; }) || leaves.find(function (e) { return tx(e).indexOf(want) >= 0; }) || null;
       }
     }
+    return el;
+  }
+  function find(a) {
+    var el = findEl(a);
+    if (el && el.error) return el;
     if (!el) return { found: false };
     el.scrollIntoView({ block: 'center', inline: 'center' });
     var r = el.getBoundingClientRect();
@@ -183,11 +190,19 @@
     }
     return out;
   }
+  function nameFor(e, role) {
+    var nm = labelFor(e) || (role === 'textbox' || role === 'password' || role === 'combobox' ? String(e.getAttribute('placeholder') || e.name || '') : name(e));
+    return mask(String(nm).replace(/\s+/g, ' ').trim().slice(0, 80));
+  }
+  /** What an element is, short (the hands check it didn't change between looking and acting). */
+  function fp(e) {
+    var role = roleOf(e);
+    return role + '|' + nameFor(e, role).toLowerCase().slice(0, 40);
+  }
   function itemOf(e, i) {
     var role = roleOf(e);
     var secret = isSecretField(e);
-    var nm = labelFor(e) || (role === 'textbox' || role === 'password' || role === 'combobox' ? String(e.getAttribute('placeholder') || e.name || '') : name(e));
-    var it = { ref: 'e' + (i + 1), role: role, name: mask(String(nm).replace(/\s+/g, ' ').trim().slice(0, 80)) };
+    var it = { ref: 'e' + (i + 1), role: role, name: nameFor(e, role) };
     var r = e.getBoundingClientRect();
     it.box = { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
     var t = e.tagName;
@@ -225,7 +240,190 @@
     return { title: mask(document.title), url: location.href, text: t.slice(0, max), more: t.length > max };
   }
 
-  var API = { find: find, read: read, check: check, snapshot: snapshot, text: text };
+
+  // ---- Phase 88 (CU2): acting. The agent finds the target and says what it is; the click, the typing
+  // and the keys are real input events the caller sends through DevTools at the point it returns. ----
+  var CARD = /(^|\s)cc-(number|csc|exp|exp-month|exp-year|name|type)\b/;
+  function isCardField(e) {
+    if (!e || (e.tagName !== 'INPUT' && e.tagName !== 'SELECT')) return false;
+    var ac = String(e.getAttribute('autocomplete') || '').toLowerCase();
+    var nm = (String(e.name || '') + ' ' + String(e.id || '') + ' ' + String(e.getAttribute('placeholder') || '') + ' ' + labelFor(e)).toLowerCase();
+    return CARD.test(ac) || /card.?number|cardnumber|\bcvc\b|\bcvv\b|security code|expiry|expiration/.test(nm);
+  }
+  function pageFacts() {
+    var card = false, pw = false;
+    var list = document.querySelectorAll('input, select');
+    for (var i = 0; i < list.length && i < 500; i++) {
+      if (isCardField(list[i])) card = true;
+      if (String(list[i].type || '').toLowerCase() === 'password') pw = true;
+    }
+    return { url: location.href, title: mask(document.title), hasCard: card, hasPassword: pw };
+  }
+  function editable(e) {
+    if (!e) return false;
+    if (e.isContentEditable) return true;
+    if (e.tagName === 'TEXTAREA') return !e.disabled && !e.readOnly;
+    if (e.tagName !== 'INPUT') return false;
+    var ty = String(e.type || 'text').toLowerCase();
+    return !e.disabled && !e.readOnly && !/^(button|submit|reset|image|checkbox|radio|file|hidden|range|color)$/.test(ty);
+  }
+  /** The element a ref (from snapshot, checked against `expect`), a text or a picture point means. */
+  function resolve(a) {
+    if (a.ref) {
+      var n = Number(String(a.ref).replace(/^e/, '')) - 1;
+      var els = elements();
+      if (!(n >= 0 && n < els.length)) return { stale: 'There is no ' + a.ref + ' on the page now: look again.' };
+      var e = els[n];
+      if (a.expect && fp(e) !== String(a.expect)) return { stale: 'The page changed since you looked (' + a.ref + ' is now ' + desc(e) + '): look again.' };
+      return { el: e };
+    }
+    if (a.text) {
+      var f = findEl({ text: String(a.text), field: a.field === true });
+      if (f && f.error) return { missing: f.error };
+      return f ? { el: f } : { missing: 'Nothing called "' + String(a.text).slice(0, 80) + '" on the page.' };
+    }
+    if (a.x !== undefined && a.y !== undefined) {
+      var w = Number(a.w) || innerWidth, h = Number(a.h) || innerHeight;
+      var x = Number(a.x) * innerWidth / w, y = Number(a.y) * innerHeight / h;
+      if (!(x >= 0 && y >= 0 && x < innerWidth && y < innerHeight)) return { missing: 'That point is outside the page.' };
+      var at = document.elementFromPoint(x, y);
+      return { el: at || document.body, point: { x: x, y: y } };
+    }
+    return { missing: 'Say what to act on: a ref from pc_browser_look, its text, or a point on a screenshot.' };
+  }
+  function targetOf(a, scroll) {
+    var r = resolve(a);
+    if (r.stale) return { found: false, stale: true, error: r.stale };
+    if (r.missing) return { found: false, error: r.missing };
+    var e = r.el;
+    if (!r.point && scroll !== false) e.scrollIntoView({ block: 'center', inline: 'center' });
+    var b = e.getBoundingClientRect();
+    var x = r.point ? r.point.x : b.left + b.width / 2, y = r.point ? r.point.y : b.top + b.height / 2;
+    var top = document.elementFromPoint(x, y);
+    var covered = !r.point && top && top !== e && !e.contains(top) && !top.contains(e) ? desc(top) : '';
+    var role = roleOf(e);
+    var form = e.form || (e.closest && e.closest('form'));
+    return {
+      found: true, x: Math.round(x), y: Math.round(y), box: { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height) },
+      desc: mask(desc(e)), role: role, name: nameFor(e, role), fp: fp(e), tag: e.tagName.toLowerCase(), type: String(e.type || '').toLowerCase(),
+      secret: isSecretField(e), card: isCardField(e), editable: editable(e), disabled: Boolean(e.disabled), covered: mask(covered),
+      formText: form ? mask(String(form.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 300)) : '',
+      page: pageFacts(),
+    };
+  }
+  function target(a) { return targetOf(a, true); }
+  /** Focuses the target for typing (after the caller's real click) and selects what's there when `clear`. */
+  function focusFor(a) {
+    var t = targetOf(a, false);
+    if (!t.found) return t;
+    var e = resolve(a).el;
+    if (isSecretField(e)) return { found: true, secret: true, error: 'That is a password field: Sara never types into those.' };
+    if (!editable(e)) return { found: true, error: desc(e) + ' is not a text field.' };
+    if (document.activeElement !== e) e.focus();
+    if (a.clear) {
+      if (e.isContentEditable) { var rg = document.createRange(); rg.selectNodeContents(e); var sel = getSelection(); sel.removeAllRanges(); sel.addRange(rg); }
+      else if (e.select) e.select();
+    } else if (!e.isContentEditable && typeof e.value === 'string' && e.setSelectionRange) {
+      try { e.setSelectionRange(e.value.length, e.value.length); } catch (err) { /* some types have no caret */ }
+    }
+    return { found: true, focused: document.activeElement === e, desc: mask(desc(e)) };
+  }
+  /** Picks an option in a list (select). */
+  function choose(a) {
+    var r = resolve(a);
+    if (r.stale) return { stale: true, error: r.stale };
+    if (r.missing) return { error: r.missing };
+    var e = r.el;
+    if (e.tagName !== 'SELECT') e = e.querySelector ? e.querySelector('select') : null;
+    if (!e || e.tagName !== 'SELECT') return { error: 'That is not a list to choose from.' };
+    if (e.disabled) return { error: 'That list is disabled.' };
+    var w = String(a.option || '').trim().toLowerCase();
+    var opts = Array.prototype.slice.call(e.options);
+    var o = opts.find(function (x) { return x.text.trim().toLowerCase() === w || x.value.toLowerCase() === w; }) || opts.find(function (x) { return x.text.trim().toLowerCase().indexOf(w) >= 0; });
+    if (!w || !o) return { error: 'No option "' + String(a.option || '') + '" in that list. Options: ' + opts.slice(0, 20).map(function (x) { return '"' + x.text.trim() + '"'; }).join(', ') };
+    e.focus();
+    e.value = o.value;
+    e.dispatchEvent(new Event('input', { bubbles: true }));
+    e.dispatchEvent(new Event('change', { bubbles: true }));
+    var b = e.getBoundingClientRect();
+    return { selected: mask(o.text.trim()), desc: mask(desc(e)), x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) };
+  }
+  function scroll(a) {
+    if (a.ref || a.text) {
+      var r = resolve(a);
+      if (r.stale) return { stale: true, error: r.stale };
+      if (r.missing) return { error: r.missing };
+      r.el.scrollIntoView({ block: 'center' });
+    } else window.scrollBy(0, Math.max(-20000, Math.min(20000, Number(a.dy) || innerHeight * 0.8)));
+    var se = document.scrollingElement || document.documentElement;
+    return { scrollY: Math.round(scrollY), maxY: Math.max(0, Math.round(se.scrollHeight - innerHeight)) };
+  }
+  // The keys she may press (a fixed list, checked here on the device): named keys, and Ctrl / Shift /
+  // Alt / Meta with one letter or digit. The caller sends exactly these key events.
+  var NAMED = { enter: ['Enter', 'Enter', 13, '\r'], tab: ['Tab', 'Tab', 9, ''], escape: ['Escape', 'Escape', 27, ''], esc: ['Escape', 'Escape', 27, ''], backspace: ['Backspace', 'Backspace', 8, ''], delete: ['Delete', 'Delete', 46, ''], space: [' ', 'Space', 32, ' '], arrowup: ['ArrowUp', 'ArrowUp', 38, ''], arrowdown: ['ArrowDown', 'ArrowDown', 40, ''], arrowleft: ['ArrowLeft', 'ArrowLeft', 37, ''], arrowright: ['ArrowRight', 'ArrowRight', 39, ''], up: ['ArrowUp', 'ArrowUp', 38, ''], down: ['ArrowDown', 'ArrowDown', 40, ''], left: ['ArrowLeft', 'ArrowLeft', 37, ''], right: ['ArrowRight', 'ArrowRight', 39, ''], home: ['Home', 'Home', 36, ''], end: ['End', 'End', 35, ''], pageup: ['PageUp', 'PageUp', 33, ''], pagedown: ['PageDown', 'PageDown', 34, ''] };
+  var MODS = { ctrl: 2, control: 2, shift: 8, alt: 1, option: 1, meta: 4, cmd: 4, command: 4 };
+  var COMMANDS = { a: 'selectAll', c: 'copy', v: 'paste', x: 'cut', z: 'undo', y: 'redo' };
+  function keys(a) {
+    var combo = String(a.combo || '').trim();
+    if (!combo || combo.length > 40) return { error: 'Say which keys, like "Enter", "Tab", "Shift+Tab" or "Ctrl+A".' };
+    var parts = combo.split('+').map(function (p) { return p.trim().toLowerCase(); }).filter(Boolean);
+    var mods = 0, main = null;
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i];
+      if (MODS[p] && i < parts.length - 1) { mods |= MODS[p]; continue; }
+      if (i !== parts.length - 1) return { error: 'Not a key combination Sara presses: ' + combo };
+      if (NAMED[p]) { var n = NAMED[p]; main = { key: n[0], code: n[1], vk: n[2], text: n[3] }; }
+      else if (/^[a-z0-9]$/.test(p)) { var up = p.toUpperCase(); main = { key: mods & 8 ? up : p, code: /[a-z]/.test(p) ? 'Key' + up : 'Digit' + p, vk: up.charCodeAt(0), text: mods & 8 ? up : p }; }
+      else return { error: 'Not a key Sara presses: ' + parts[i] + ' (Enter, Tab, Escape, Backspace, Delete, Space, arrows, Home, End, PageUp, PageDown, or Ctrl/Shift/Alt/Meta with a letter or digit).' };
+    }
+    if (!main) return { error: 'Say which key.' };
+    var chord = (mods & (2 | 1 | 4)) !== 0;
+    var down = { type: main.text && !chord ? 'keyDown' : 'rawKeyDown', key: main.key, code: main.code, windowsVirtualKeyCode: main.vk, modifiers: mods };
+    if (main.text && !chord) down.text = main.text;
+    if (chord && (mods & (2 | 4)) && COMMANDS[main.key.toLowerCase()]) down.commands = [COMMANDS[main.key.toLowerCase()]];
+    return { events: [down, { type: 'keyUp', key: main.key, code: main.code, windowsVirtualKeyCode: main.vk, modifiers: mods }], combo: combo };
+  }
+  /** The upload target: the file input itself (the caller hands the file to the browser for it). */
+  function fileInput(a) {
+    var r = resolve(a);
+    if (!r.el) return null;
+    var e = r.el;
+    if (!(e.tagName === 'INPUT' && String(e.type).toLowerCase() === 'file')) e = (e.control && e.control.type === 'file' ? e.control : null) || (e.querySelector && e.querySelector('input[type=file]')) || (e.closest && e.closest('label') && e.closest('label').querySelector('input[type=file]'));
+    return e && e.tagName === 'INPUT' && String(e.type).toLowerCase() === 'file' && !e.disabled ? e : null;
+  }
+  /** Her visible cursor and highlight in the Sara browser, so the person watching sees where she acts. */
+  function mark(a) {
+    var old = document.getElementById('sara-agent-mark');
+    if (old) old.remove();
+    var m = document.createElement('div');
+    m.id = 'sara-agent-mark';
+    m.setAttribute('aria-hidden', 'true');
+    var bx = a.box && a.box.w > 0 ? a.box : { x: Number(a.x) - 14, y: Number(a.y) - 14, w: 28, h: 28 };
+    var st = m.style;
+    st.position = 'fixed'; st.left = bx.x - 3 + 'px'; st.top = bx.y - 3 + 'px'; st.width = bx.w + 6 + 'px'; st.height = bx.h + 6 + 'px';
+    st.border = '3px solid #ff3d8b'; st.borderRadius = '8px'; st.boxShadow = '0 0 0 4px rgba(255,61,139,.25)'; st.pointerEvents = 'none'; st.zIndex = '2147483647'; st.boxSizing = 'border-box'; st.transition = 'opacity .4s';
+    var dot = document.createElement('div');
+    var ds = dot.style;
+    ds.position = 'absolute'; ds.left = Number(a.x) - bx.x + 3 - 7 + 'px'; ds.top = Number(a.y) - bx.y + 3 - 7 + 'px'; ds.width = '14px'; ds.height = '14px'; ds.borderRadius = '50%'; ds.background = '#ff3d8b'; ds.border = '2px solid #fff';
+    var tag = document.createElement('div');
+    tag.textContent = String(a.label || 'Sara').slice(0, 40);
+    var ts = tag.style;
+    ts.position = 'absolute'; ts.left = '0'; ts.top = '-22px'; ts.font = '600 12px system-ui, sans-serif'; ts.color = '#fff'; ts.background = '#ff3d8b'; ts.padding = '1px 6px'; ts.borderRadius = '6px'; ts.whiteSpace = 'nowrap';
+    m.appendChild(dot);
+    m.appendChild(tag);
+    (document.body || document.documentElement).appendChild(m);
+    setTimeout(function () { st.opacity = '0'; }, 1600);
+    setTimeout(function () { if (m.parentNode) m.parentNode.removeChild(m); }, 2100);
+    return { shown: true };
+  }
+  /** What the page is like now (the after-state of an action). */
+  function state() {
+    var alerts = Array.prototype.slice.call(document.querySelectorAll('[role=alert], [role=status], .error, .alert')).filter(vis).map(function (e) { return mask(String(e.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 160)); }).filter(Boolean).slice(0, 4);
+    var h = document.querySelector('h1');
+    return { url: location.href, title: mask(document.title), count: elements().length, heading: h ? mask(String(h.innerText || '').trim().slice(0, 120)) : '', alerts: alerts, focus: document.activeElement && document.activeElement !== document.body ? mask(desc(document.activeElement)) : '' };
+  }
+
+  var API = { find: find, read: read, check: check, snapshot: snapshot, text: text, target: target, focusFor: focusFor, choose: choose, scroll: scroll, keys: keys, fileInput: fileInput, mark: mark, state: state };
   return {
     version: 1,
     call: function (fn, args) {

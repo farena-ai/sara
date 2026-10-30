@@ -417,6 +417,19 @@ export class OwnerAuth {
     return { token: `${HANDS_TOKEN_PREFIX}${id}.${secret}`, id, expiresAt: new Date(now.getTime() + DEVICE_TOKEN_MAX_MS).toISOString() };
   }
 
+  /** Phase 88: a fresh secret for a hands device that is connected with a valid token right now (the app renews over its own connection). */
+  renewHandsId(id: string): { token: string; id: string; expiresAt: string } | undefined {
+    const d = this.#owner.sessions?.find((x) => x.id === id && x.kind === 'hands');
+    if (!d?.tokenHash) return undefined;
+    const now = this.#now();
+    const secret = randomBytes(32).toString('base64url');
+    d.tokenHash = sha256(secret);
+    d.createdAt = now.toISOString();
+    d.lastSeen = now.toISOString();
+    this.#save();
+    return { token: `${HANDS_TOKEN_PREFIX}${id}.${secret}`, id, expiresAt: new Date(now.getTime() + DEVICE_TOKEN_MAX_MS).toISOString() };
+  }
+
   /** Phase 71: whether a device or app sign-in with this id is listed here (routing only; tokens are still checked). */
   hasDevice(id: string): boolean {
     return Boolean(this.#owner.sessions?.some((x) => x.id === id));

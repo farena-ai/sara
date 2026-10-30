@@ -68,8 +68,9 @@ interface Pending {
  * for real ('real'). A plain Allow on that card (bridges, older apps) applies the diff.
  */
 /** Phase 86: 'redteam' = "Red-team first" on the ship card (the action does not run; a red-team run starts). */
-export type ApprovalHow = 'override' | 'deny' | 'update' | 'apply' | 'discard' | 'real' | 'redteam';
-export const APPROVAL_HOWS: readonly ApprovalHow[] = ['override', 'deny', 'update', 'apply', 'discard', 'real', 'redteam'];
+/** Phase 88: 'task' = "Allow for this task", 'always' = "Always on this site" on a computer-use card (both allow). */
+export type ApprovalHow = 'override' | 'deny' | 'update' | 'apply' | 'discard' | 'real' | 'redteam' | 'task' | 'always';
+export const APPROVAL_HOWS: readonly ApprovalHow[] = ['override', 'deny', 'update', 'apply', 'discard', 'real', 'redteam', 'task', 'always'];
 
 /** Holds tool calls waiting for the owner's approve/deny click. */
 export class ApprovalBroker {
@@ -106,7 +107,7 @@ export class ApprovalBroker {
     // \"Apply\" and \"Run for real\" are the owner's explicit yes.
     if (how) this.#how.set(id, how);
     // Phase 86: "Red-team first" never runs the call either (a red-team run starts instead).
-    p.resolve(how === 'update' || how === 'deny' || how === 'discard' || how === 'redteam' ? false : how === 'apply' || how === 'real' ? true : approved);
+    p.resolve(how === 'update' || how === 'deny' || how === 'discard' || how === 'redteam' ? false : how === 'apply' || how === 'real' || how === 'task' || how === 'always' ? true : approved);
     return true;
   }
 

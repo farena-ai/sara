@@ -205,7 +205,7 @@ export function pageAgentSource(): string {
   return (pageAgentText ??= readFileSync(PAGE_AGENT_PATH, 'utf8').trim().replace(/;\s*$/, ''));
 }
 /** The one expression evaluated in a page: the agent, then one of its named functions with JSON arguments. */
-export function pageAgentCall(fn: 'find' | 'read' | 'check' | 'snapshot' | 'text', args: unknown): string {
+export function pageAgentCall(fn: 'find' | 'read' | 'check' | 'snapshot' | 'text' | 'target' | 'focusFor' | 'choose' | 'scroll' | 'keys' | 'fileInput' | 'mark' | 'state' | (string & {}), args: unknown): string {
   return `(${pageAgentSource()}).call(${JSON.stringify(fn)}, ${JSON.stringify(args ?? {})})`;
 }
 

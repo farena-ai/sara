@@ -14,6 +14,7 @@
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { APPS_PAGE } from '../cards.ts';
+import { ACT_LEVELS, actLevel, type ActLevel } from '../computer-policy.ts';
 import { HandsError } from '../hands.ts';
 import { HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
 import { acceptWebSocket, refuseUpgrade } from '../ws.ts';
@@ -36,7 +37,8 @@ export function createHandsUpgrade(ctx: RouteCtx): (req: IncomingMessage, socket
     if (opts.member && opts.member.record()?.status !== 'active') return refuseUpgrade(socket, 403, 'Forbidden');
     const ws = acceptWebSocket(req, socket, head);
     if (!ws) return;
-    hub.attach(id, auth.deviceLabelOf(id) ?? "Sara's hands", ws);
+    // Phase 88: the app renews its token over this connection (it holds a valid one right now).
+    hub.attach(id, auth.deviceLabelOf(id) ?? "Sara's hands", ws, { renew: () => auth.renewHandsId(id) });
   };
 }
 
@@ -50,14 +52,32 @@ export function createHandsRoutes(ctx: RouteCtx): RouteHandler {
     if (!hub) throw new HttpError(404, 'Computer use is not available here.');
     // Members: only with the owner's switch on, and the server-wide choices stay the owner's.
     if (opts.member && (!hub.allowed() || (a === 'computer' && !b && method !== 'GET'))) throw new HttpError(403, 'Only the owner of this server can use this.', OWNER_ONLY);
-    const settingsView = () => ({ members: app.settings.get().computerUse?.members === true });
+    const settingsView = () => {
+      const cu = app.settings.get().computerUse ?? {};
+      return { members: cu.members === true, level: actLevel(cu.level), always: (cu.always ?? []).map((x) => ({ site: x.site, kind: x.kind, at: x.at })), alwaysWarned: cu.alwaysWarned === true };
+    };
 
     if (a === 'computer') {
       if (!b && method === 'GET') return send(res, 200, { ...settingsView(), allowed: hub.allowed(), role: opts.member ? 'member' : 'owner' });
       if (!b && method === 'PUT') {
         const body = await readJson(req);
         if (body.members !== undefined && typeof body.members !== 'boolean') throw new HttpError(400, 'members must be true or false.');
-        if (typeof body.members === 'boolean') app.settings.update({ computerUse: { ...(app.settings.get().computerUse ?? {}), members: body.members } });
+        if (body.level !== undefined && !ACT_LEVELS.includes(body.level as never)) throw new HttpError(400, 'level: ask, task or always.');
+        const cu = { ...(app.settings.get().computerUse ?? {}) };
+        if (typeof body.members === 'boolean') cu.members = body.members;
+        // Phase 88: "Always allowed" shows its warning once (the page asks before sending this).
+        if (body.level !== undefined) {
+          if (body.level === 'always' && body.warned !== true && cu.alwaysWarned !== true) throw new HttpError(400, 'Always allowed needs the warning first.');
+          cu.level = body.level as ActLevel;
+          if (body.level === 'always') cu.alwaysWarned = true;
+        }
+        if (body.alwaysWarned === true) cu.alwaysWarned = true;
+        // Remove one "always allowed" site + kind (or all of them).
+        if (body.removeAlways !== undefined) {
+          const rm = body.removeAlways as { site?: unknown; kind?: unknown } | 'all';
+          cu.always = rm === 'all' ? [] : (cu.always ?? []).filter((x) => !(typeof rm === 'object' && rm && x.site === rm.site && x.kind === rm.kind));
+        }
+        app.settings.update({ computerUse: cu });
         return send(res, 200, settingsView());
       }
       if (b === 'frame' && c && !d && method === 'GET') {

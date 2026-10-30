@@ -1,5 +1,9 @@
 // Phase 87 (computer use CU1, docs/design/COMPUTER_USE.md §10.2): the hands conformance check.
-// Runs CU1's command set against one hands device connected to a Sara server, through the owner's
+// Phase 88 (CU2) adds the acting checks (section 8): find, click (ref, text, point), type, select,
+// keys, scroll, upload, downloads, the after-state, stale refs, the device's refusals (password
+// fields, secret-shaped text, keys off its list, long text, file names outside Downloads/Sara), the
+// input rate limit and Stop within a second.
+// Runs the command set against one hands device connected to a Sara server, through the owner's
 // test route (POST /api/hands/<id>/op), with a local fixture site (a console error, an HTTP 500, a
 // password field, a key-shaped text, a redirect to Sara's own server, a slow page). The same script
 // checks the reference hands (--ref), the Windows app and the Mac app.
@@ -10,7 +14,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { CU1_OPS } from '../src/hands.ts';
+import { CU1_OPS, HANDS_OPS } from '../src/hands.ts';
 import { HandsRef } from '../src/hands-ref.ts';
 
 const arg = (k: string) => {
@@ -45,6 +49,25 @@ function fixture(req: IncomingMessage, res: ServerResponse): void {
   }
   if (url.pathname === '/slow') return void setTimeout(() => html('Slow', '<p>late</p>'), 15_000);
   if (url.pathname === '/page2') return html('Second page', '<h1>Second page</h1><p>Page two text.</p>');
+  if (req.method === 'POST' && url.pathname === '/submit') {
+    req.resume();
+    res.writeHead(500, { 'content-type': 'text/html' });
+    return void res.end('<!doctype html><title>Error</title><h1>Internal Server Error</h1><p role="alert">the form could not be saved</p>');
+  }
+  if (url.pathname === '/form')
+    return html(
+      'Sara hands form',
+      `<h1>Form</h1><form method="post" action="/submit">
+<label>Name <input name="name"></label>
+<label>Topic <select name="topic"><option>General</option><option>Billing</option></select></label>
+<label>Password <input type="password" name="pw"></label>
+<label>Attachment <input type="file" name="file" onchange="document.getElementById('picked').textContent=this.files[0].name"></label>
+<p id="picked">nothing picked</p>
+<button type="button" onclick="var c=document.getElementById('count');c.textContent=Number(c.textContent)+1">Add one</button> <span id="count">0</span>
+<a href="/slow">Slow page</a>
+<div style="height:1600px"></div>
+<button type="submit">Submit</button></form>`,
+    );
   html(
     'Sara hands fixture',
     `<h1>Hello from the fixture</h1>
@@ -101,8 +124,9 @@ async function main(): Promise<number> {
     const op = async (name: string, args: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => (await api('POST', `/api/hands/${deviceId}/op`, { op: name, args, ...extra })).json;
 
     // 1. hello
-    check('hello: connected, protocol 1, the CU1 command set, browser opt-in on', dev.connected === true && Array.isArray(dev.ops) && CU1_OPS.every((o) => dev.ops.includes(o)) && dev.optIn?.browser === true, `ops: ${(dev.ops ?? []).join(' ')}`);
-    check('hello: nothing beyond CU1 advertised (no click/type/desktop ops)', Array.isArray(dev.ops) && !dev.ops.some((o: string) => /^b\.(click|type|select|keys|scroll|upload|login)|^d\./.test(o)), '');
+    check('hello: connected, protocol 1, the CU1 + CU2 command set, browser opt-in on', dev.connected === true && Array.isArray(dev.ops) && HANDS_OPS.every((o) => dev.ops.includes(o)) && CU1_OPS.every((o) => dev.ops.includes(o)) && dev.optIn?.browser === true, `ops: ${(dev.ops ?? []).join(' ')}`);
+    check('hello: nothing beyond CU2 advertised (no logins, scripts or desktop ops)', Array.isArray(dev.ops) && !dev.ops.some((o: string) => /^b\.(login|evaluate|eval|script)|^d\./.test(o)), '');
+    check('hello: the takeover choice and the stop shortcut', dev.takeover === 'pause' || dev.takeover === 'keep', `takeover ${dev.takeover ?? '?'}, shortcut ${dev.hotkey || '(none)'}`);
     const ping = await op('c.ping');
     check('c.ping', ping.ok === true && ping.result?.pong === true);
     const start = await op('b.start');
@@ -168,7 +192,7 @@ async function main(): Promise<number> {
     check('b.open newTab + b.close', nt.ok === true && closed.ok === true);
 
     // 6. refused on the device
-    for (const [o, a] of [['b.click', { ref: 'e1' }], ['b.type', { ref: 'e2', text: 'x' }], ['d.shot', {}], ['b.evaluate', { expression: '1+1' }]] as [string, Record<string, unknown>][]) {
+    for (const [o, a] of [['b.login', { name: 'x' }], ['d.click', { x: 1, y: 1 }], ['d.shot', {}], ['b.evaluate', { expression: '1+1' }]] as [string, Record<string, unknown>][]) {
       const x = await op(o, a);
       check(`refused on the device: ${o} (not in the command set)`, x.ok === false && x.error?.code === 'unsupported', x.ok ? 'it ran' : x.error?.code);
     }
@@ -192,6 +216,71 @@ async function main(): Promise<number> {
     check('deadline: a slow page ends with timeout', slow.ok === false && /timeout|stopped/.test(String(slow.error?.code)) && Date.now() - t0 < 12_000, `${slow.error?.code} after ${Date.now() - t0} ms${slow.ok ? '' : `: ${String(slow.error?.message).slice(0, 80)}`}`);
     const alive = await op('c.ping');
     check('still answering after a timeout', alive.ok === true);
+
+    // 8. Phase 88 (CU2): acting. Actions are spaced (the device allows 4 a second).
+    const pause = (ms = 300) => new Promise((res) => setTimeout(res, ms));
+    const act = async (name: string, args: Record<string, unknown> = {}) => {
+      await pause();
+      return op(name, args);
+    };
+    const fo = await op('b.open', { url: `${base}/form` });
+    check('CU2: the form page opens', fo.ok === true && fo.result?.title === 'Sara hands form', fo.ok ? fo.result?.title : fo.error?.message);
+    const f1 = await op('b.find', { text: 'Name', field: true });
+    check('b.find: a field by its label (what it is, where, the page)', f1.ok === true && f1.result?.found === true && f1.result?.role === 'textbox' && Number(f1.result?.x) > 0 && String(f1.result?.page?.url).endsWith('/form'), f1.ok ? `${f1.result?.role} ${f1.result?.name}` : f1.error?.message);
+    const ty = await act('b.type', { text: 'Name', field: true, value: 'Ada', clear: true });
+    check('b.type: types into the field (a real click first), with the after-state', ty.ok === true && typeof ty.result?.state?.url === 'string' && ty.result?.navigated === false, ty.ok ? '' : ty.error?.message);
+    const se = await act('b.select', { text: 'Topic', field: true, option: 'Billing' });
+    check('b.select: chooses an option', se.ok === true && se.result?.selected === 'Billing', se.ok ? se.result?.selected : se.error?.message);
+    const sn = await op('b.snapshot', {});
+    const its = (sn.result?.items ?? []) as Record<string, any>[];
+    check('the look shows what was typed and chosen', its.some((i) => i.role === 'textbox' && i.value === 'Ada') && its.some((i) => i.role === 'combobox' && i.value === 'Billing'));
+    const addOne = its.find((i) => i.name === 'Add one');
+    const ck = addOne ? await act('b.click', { ref: addOne.ref, expect: 'button|add one', thumb: 320 }) : { ok: false, error: { message: 'no Add one' } };
+    const afterClick = String((await op('b.read', {})).result?.text ?? '');
+    check('b.click by ref: a real click (the page counted it), a thumbnail', ck.ok === true && /Add one 1/.test(afterClick) && (ck.images ?? []).some((i: any) => i.kind === 'thumb'), ck.ok ? afterClick.match(/Add one \d+/)?.[0] : ck.error?.message);
+    const stale = addOne ? await act('b.click', { ref: addOne.ref, expect: 'button|place order' }) : { ok: false, error: { code: 'none' } };
+    check('b.click on a ref that changed: stale_view (nothing clicked)', stale.ok === false && stale.error?.code === 'stale_view', stale.ok ? 'it clicked' : stale.error?.code);
+    const ft = await op('b.find', { text: 'Add one' });
+    const shotNow = await op('b.screenshot', { maxWidth: 640, quality: 50 });
+    const sw = Number(shotNow.result?.w) || 0;
+    const sh = Number(shotNow.result?.h) || 0;
+    const vw = Number(sn.result?.width) || 1;
+    const vh = Number(sn.result?.height) || 1;
+    const pt = await act('b.click', { x: (Number(ft.result?.x) * sw) / vw, y: (Number(ft.result?.y) * sh) / vh, w: sw, h: sh });
+    check('b.click at a point of a screenshot (picture pixels mapped to the page)', pt.ok === true && /Add one 2/.test(String((await op('b.read', {})).result?.text)), pt.ok ? '' : pt.error?.message);
+    const kOk = await act('b.keys', { combo: 'Shift+Tab' });
+    const kBad = await act('b.keys', { combo: 'Win+R' });
+    check('b.keys: keys on the list work; anything else is refused on the device', kOk.ok === true && kBad.ok === false && kBad.error?.code === 'denied_local', `${kOk.ok ? 'ok' : kOk.error?.message} / ${kBad.ok ? 'it pressed Win+R' : kBad.error?.code}`);
+    const pwT = await act('b.type', { text: 'Password', field: true, value: PASSWORD });
+    check('b.type into a password field is refused on the device', pwT.ok === false && pwT.error?.code === 'denied_local' && !JSON.stringify(pwT).includes(PASSWORD), pwT.ok ? 'it typed' : pwT.error?.code);
+    const secT = await act('b.type', { text: 'Name', field: true, value: FAKE_KEY });
+    check('b.type of key-shaped text is refused on the device', secT.ok === false && secT.error?.code === 'denied_local', secT.ok ? 'it typed' : secT.error?.code);
+    const longT = await act('b.type', { text: 'Name', field: true, value: 'x'.repeat(2001) });
+    check('b.type of more than 2,000 characters is refused', longT.ok === false && longT.error?.code === 'denied_local', longT.ok ? 'it typed' : longT.error?.code);
+    const up = await act('b.upload', { text: 'Attachment', field: true, file: { name: 'conformance.txt', data: Buffer.from('hello from the conformance check').toString('base64') } });
+    check('b.upload: a file from the server goes through Downloads/Sara into the field', up.ok === true && /conformance\.txt/.test(String((await op('b.read', {})).result?.text)), up.ok ? up.result?.name : up.error?.message);
+    const upBad = await act('b.upload', { text: 'Attachment', field: true, name: '../../Windows/win.ini' });
+    check('b.upload of a file outside Downloads/Sara is refused', upBad.ok === false && upBad.error?.code === 'denied_local', upBad.ok ? 'it uploaded' : upBad.error?.code);
+    const dl = await op('b.downloads', {});
+    check('b.downloads: lists Downloads/Sara', dl.ok === true && (dl.result?.files ?? []).some((f: any) => f.name === 'conformance.txt'), dl.ok ? `${(dl.result?.files ?? []).length} files` : dl.error?.message);
+    const sc = await act('b.scroll', { dy: 600 });
+    check('b.scroll: scrolls the page', sc.ok === true && Number(sc.result?.scrollY) > 0, sc.ok ? `${sc.result?.scrollY}/${sc.result?.maxY}` : sc.error?.message);
+    const sub = await act('b.click', { text: 'Submit' });
+    check('after-state: submitting shows the new page, its message and the failed POST', sub.ok === true && sub.result?.navigated === true && Number(sub.result?.newFailed) >= 1 && JSON.stringify(sub.result?.state ?? {}).includes('could not be saved'), sub.ok ? `navigated ${sub.result?.navigated}, new failed ${sub.result?.newFailed}` : sub.error?.message);
+    await pause(1100);
+    const burst = await Promise.all([1, 2, 3, 4, 5, 6].map(() => op('b.scroll', { dy: 10 })));
+    check('rate limit: at most 4 actions a second on the device', burst.some((x) => x.ok === false && x.error?.code === 'rate_limited') && burst.some((x) => x.ok === true), burst.map((x) => (x.ok ? 'ok' : x.error?.code)).join(' '));
+    await pause(1100);
+    await op('b.open', { url: `${base}/form` });
+    const slowClick = act('b.click', { text: 'Slow page' });
+    await pause(900);
+    const t1 = Date.now();
+    await api('POST', `/api/hands/${deviceId}/stop`, {});
+    const stopped = await slowClick;
+    check('Stop cancels a running action within a second', stopped.ok === false && /stopped/.test(String(stopped.error?.code)) && Date.now() - t1 < 1000, `${stopped.ok ? 'it finished' : stopped.error?.code} after ${Date.now() - t1} ms`);
+    const tp = Date.now();
+    const live = await op('c.ping');
+    check('the device is free again at once after Stop (the action really ended there)', live.ok === true && Date.now() - tp < 1500, `${Date.now() - tp} ms`);
   } catch (err) {
     check('setup', false, (err as Error).message);
   } finally {

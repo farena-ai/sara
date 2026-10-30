@@ -350,11 +350,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     let m = NSMenu()
     m.addItem(withTitle: "Open Sara", action: #selector(openFromMenu), keyEquivalent: "")
     m.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: "")
-    // Phase 87: Stop her on this Mac, and switch "Let Sara use this computer" off.
-    if prefs.bool(forKey: "hands.\(Servers.activeId ?? "").on") {
-      m.addItem(withTitle: "Stop Sara on this Mac", action: #selector(handsStopFromMenu), keyEquivalent: "")
-      m.addItem(withTitle: "Don't let Sara use this Mac", action: #selector(handsOffFromMenu), keyEquivalent: "")
-    }
+    // Phase 87/88: the hands items (status, Stop, Resume, the log, off) are put in each time the
+    // menu opens (refreshHandsItems), so they follow the setting without a restart.
     m.addItem(.separator())
     addSubmenus(to: m)
     m.addItem(.separator())
@@ -536,6 +533,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         // Phase 87: "Screenshots only to models on this computer" (the server hears it at once).
         prefs.set(on, forKey: "hands.\(Servers.activeId ?? "").localOnly")
         Hands.shared?.tellLocalOnly(on)
+      case "handsTakeover":
+        // Phase 88: "When you move the mouse": pause Sara (default) or let her keep control.
+        let keepIt = body["value"] as? String == "keep"
+        prefs.set(keepIt ? "keep" : "pause", forKey: "hands.\(Servers.activeId ?? "").takeover")
+        Hands.shared?.tellTakeover(keepIt)
       default: return replyHandler(nil, "Unknown setting")
       }
       replyHandler(prefsDict(), nil)
@@ -605,6 +607,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     d["handsConnected"] = Hands.shared?.connected ?? false
     d["handsDeviceId"] = prefs.string(forKey: "hands.\(sid).deviceId") ?? ""
     d["handsError"] = Hands.shared?.lastError ?? ""
+    d["handsTakeover"] = prefs.string(forKey: "hands.\(sid).takeover") == "keep" ? "keep" : "pause"
+    d["handsHotkey"] = (Hands.shared?.hotkeyOk ?? false) ? "⌃⌥Esc" : ""
     d["handsBrowser"] = HandsBrowser.find() != nil
     d["computerName"] = Host.current().localizedName ?? "this Mac"
     return d
@@ -615,13 +619,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
   func handsSync() {
     Hands.shared?.stop()
     Hands.shared = nil
+    #if DEBUG
+    // Test builds with another bundle id only: SARA_TEST_HANDS_TOKEN=<file> puts a paired hands token
+    // into this copy's own Keychain item and switches its hands on (no pairing page over SSH).
+    if Bundle.main.bundleIdentifier != "com.backstagecoding.sara.desktop", let sid = Servers.activeId,
+       let f = ProcessInfo.processInfo.environment["SARA_TEST_HANDS_TOKEN"], let tok = try? String(contentsOfFile: f, encoding: .utf8) {
+      let t = tok.trimmingCharacters(in: .whitespacesAndNewlines)
+      if t.hasPrefix("sara_hands."), HandsKeychain.load(account: sid) == nil || ProcessInfo.processInfo.environment["SARA_TEST_HANDS_REPLACE"] == "1", HandsKeychain.save(t, account: sid) {
+        prefs.set(true, forKey: "hands.\(sid).on")
+        if let exp = ProcessInfo.processInfo.environment["SARA_TEST_HANDS_EXPIRES"] { prefs.set(exp, forKey: "hands.\(sid).expires") }
+        testLog("hands: test token stored")
+      }
+    }
+    #endif
     guard let sid = Servers.activeId, let s = server, prefs.bool(forKey: "hands.\(sid).on"), let token = HandsKeychain.load(account: sid), token.hasPrefix("sara_hands.") else { return }
     let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent(Bundle.main.bundleIdentifier ?? "Sara")
     let agentURL = Bundle.main.url(forResource: "page-agent", withExtension: "js")
     var agent = (agentURL.flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     while agent.hasSuffix(";") { agent.removeLast() }
+    // Phase 88: Downloads/Sara (test builds: a folder in the app's own support folder), the local
+    // log, the takeover choice, the TEST label, and a renewed token kept in the Keychain.
+    var testLabel = false
+    #if DEBUG
+    testLabel = Bundle.main.bundleIdentifier != "com.backstagecoding.sara.desktop"
+    #endif
+    let downloads = testLabel ? support.appendingPathComponent("hands-downloads")
+      : FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0].appendingPathComponent("Sara")
+    try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
     let h = Hands(server: s, token: token, computer: Host.current().localizedName ?? "this Mac", profileDir: support.appendingPathComponent("hands-browser/\(sid)"),
-                  pageAgent: agent, version: "Sara for Mac \(appVersion)", localOnly: prefs.bool(forKey: "hands.\(sid).localOnly"))
+                  pageAgent: agent, version: "Sara for Mac \(appVersion)", localOnly: prefs.bool(forKey: "hands.\(sid).localOnly"),
+                  keep: prefs.string(forKey: "hands.\(sid).takeover") == "keep", downloadsDir: downloads,
+                  logFile: support.appendingPathComponent("hands-log.txt"), expiresAt: prefs.string(forKey: "hands.\(sid).expires") ?? "", testLabel: testLabel)
+    h.onToken = { tok, exp in
+      if HandsKeychain.save(tok, account: sid) { prefs.set(exp, forKey: "hands.\(sid).expires") }
+    }
     Hands.shared = h
     h.start()
   }
@@ -630,9 +661,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     Hands.shared = nil
     guard let sid = Servers.activeId else { return }
     HandsKeychain.delete(account: sid)
-    for k in ["on", "deviceId"] { prefs.removeObject(forKey: "hands.\(sid).\(k)") }
+    for k in ["on", "deviceId", "expires"] { prefs.removeObject(forKey: "hands.\(sid).\(k)") }
   }
   @objc func handsStopFromMenu() { Hands.shared?.pressStop() }
+  @objc func handsResumeFromMenu() { Hands.shared?.resume() }
+  @objc func handsLogFromMenu() {
+    // Phase 88: her local record (plain text, no pictures), opened for the owner.
+    let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent(Bundle.main.bundleIdentifier ?? "Sara")
+    let f = support.appendingPathComponent("hands-log.txt")
+    if !FileManager.default.fileExists(atPath: f.path) { try? "".write(to: f, atomically: true, encoding: .utf8) }
+    NSWorkspace.shared.open(f)
+  }
+  /// Phase 88: the menu bar menu's hands items, rebuilt each time it opens (no restart needed after
+  /// "Let Sara use this computer" changes): "Connected to Sara at …", Stop, Resume, the log, Off.
+  static let handsTag = 7600
+  func refreshHandsItems(in m: NSMenu) {
+    for item in m.items where item.tag >= AppDelegate.handsTag && item.tag < AppDelegate.handsTag + 10 { m.removeItem(item) }
+    guard prefs.bool(forKey: "hands.\(Servers.activeId ?? "").on") else { return }
+    var at = (m.items.firstIndex { $0.title == "Settings…" } ?? 1) + 1
+    func put(_ title: String, _ action: Selector?, _ tag: Int, enabled: Bool = true) {
+      let it = NSMenuItem(title: title, action: action, keyEquivalent: "")
+      it.target = self
+      it.tag = AppDelegate.handsTag + tag
+      it.isEnabled = enabled
+      m.insertItem(it, at: at)
+      at += 1
+    }
+    let h = Hands.shared
+    put(h?.statusLine ?? "Not connected to Sara", nil, 0, enabled: false)
+    put("Stop Sara on this Mac" + ((h?.hotkeyOk ?? false) ? "   ⌃⌥Esc" : ""), #selector(handsStopFromMenu), 1, enabled: h?.connected ?? false)
+    if h?.paused ?? false { put("Resume Sara", #selector(handsResumeFromMenu), 2) }
+    put("What Sara did on this Mac", #selector(handsLogFromMenu), 3)
+    put("Don't let Sara use this Mac", #selector(handsOffFromMenu), 4)
+  }
   @objc func handsOffFromMenu() { handsOff() }
 
   // MARK: notifications
@@ -787,6 +848,7 @@ extension AppDelegate: NSMenuDelegate {
     // Phase 75 stage 2: her face, mood, Ask and "Now" at the top of the menu bar menu.
     if menu === statusItem?.menu {
       refreshNowItems(in: menu)
+      refreshHandsItems(in: menu)
       quick?.refresh()  // fresh for the next time it opens
     }
   }

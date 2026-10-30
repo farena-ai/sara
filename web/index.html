@@ -273,6 +273,7 @@
       <div id="demo-bar" class="offrecord-bar" hidden>👋 <strong>Demo.</strong> Conversations here aren't saved and disappear after a few hours; please don't share personal information. On your own server Sara also remembers, plans, codes and connects to your mail, calendar and phone.</div>
       <div id="offrecord-bar" class="offrecord-bar" hidden>🕶 <strong>Off the record.</strong> Nothing here is saved: she won't remember it, it isn't in backups, and it's gone when you close it or the server restarts. No tools or photos here. <button id="offrecord-end" type="button" class="ghost small">Close it now</button></div>
       <div id="jobs-strip" class="jobs-strip" hidden></div>
+      <div id="cu-badge" class="cu-badge" role="status" hidden><span class="cu-badge-dot" aria-hidden="true"></span><span id="cu-badge-text" class="cu-badge-text"></span> <button id="cu-badge-stop" type="button" class="danger small">Stop</button></div>
       <div id="cu-live" class="cu-live" role="region" aria-label="Live view" hidden>
         <img id="cu-live-img" class="cu-live-img" alt="What Sara sees in the Sara browser">
         <div class="cu-live-bar"><span id="cu-live-text" class="cu-live-text"></span> <button id="cu-live-big" type="button" class="ghost small">Bigger</button> <button id="cu-live-stop" type="button" class="danger small">Stop</button></div>
@@ -1492,11 +1493,13 @@
       <p id="dk-version" class="muted small"></p>
         </section>
         <section class="settings-page" data-page="co-computer" data-group="Connections" data-title="Computer use" hidden>
-      <p class="muted small">Sara can use a browser on your own computer to look at your web apps and sites: open pages, read them, take screenshots and check console errors. She can't click or type there yet. It works through the Sara app for Windows or Mac and is off until you switch it on there.</p>
+      <p class="muted small">Sara can use her own browser on your computer: open pages, read them, take screenshots, check console errors, and click, type, choose and upload to fill in forms. You see a "Sara is working" badge with Stop while she does. It works through the Sara app for Windows or Mac and is off until you switch it on there.</p>
       <div id="cu-this" class="cu-this" hidden>
         <h3>This computer</h3>
-        <label class="row"><input id="cu-optin" type="checkbox" data-noauto> Let Sara use this computer <button type="button" class="tip" data-tip="Off by default. On: Sara may open her own browser window here (its own profile, never yours) to look at pages and read their errors. You see everything she does and can stop it any time.">?</button></label>
+        <label class="row"><input id="cu-optin" type="checkbox" data-noauto> Let Sara use this computer <button type="button" class="tip" data-tip="Off by default. On: Sara may use her own browser window here (its own profile, never yours) to look at pages, read their errors, click and type. You see what she does and can stop her any time.">?</button></label>
         <label class="row"><input id="cu-localonly" type="checkbox" data-noauto> Screenshots only to models on this computer <button type="button" class="tip" data-tip="Pictures of this screen then go only to a model on your own hardware (like Ollama). With a cloud model she works from the page's text instead. Private local mode always does this.">?</button></label>
+        <label class="row">When you move the mouse <select id="cu-takeover" data-noauto><option value="pause">Pause Sara</option><option value="keep">Let Sara keep control</option></select> <button type="button" class="tip" data-tip="Pause Sara (default): if you use her browser window, she stops until you press Resume on her badge. Let Sara keep control: she goes on and the badge says so. Stop always works.">?</button></label>
+        <p class="row small">Stop shortcut: <kbd id="cu-hotkey">Ctrl+Alt+Esc</kbd> <button type="button" class="tip" data-tip="Press these keys anywhere on this computer to stop Sara at once. The badge at the top of the screen and the app's menu have Stop too.">?</button></p>
         <p class="small"><span id="cu-this-status" class="muted small" role="status"></span></p>
       </div>
       <div id="cu-get" class="cu-get" hidden>
@@ -1507,6 +1510,13 @@
       <h3>Your computers</h3>
       <ul id="cu-list" class="cu-list"></ul>
       <p id="cu-none" class="muted small" hidden>No computer lets Sara use it yet.</p>
+      <div id="cu-acts" hidden>
+        <h3>Her actions</h3>
+        <label class="row">Approvals for clicking and typing <select id="cu-level" data-noauto><option value="task">Ask once per task</option><option value="ask">Ask every time</option><option value="always">Always allowed</option></select> <button type="button" class="tip" data-tip="Once per task (default): her first action on a site asks. Every time: each action asks. Always allowed: no cards. Payments and account settings always ask.">?</button></label>
+        <h4>Always allowed on these sites</h4>
+        <ul id="cu-always" class="cu-list"></ul>
+        <p id="cu-always-none" class="muted small">None yet. Press Always on a card to add a site here.</p>
+      </div>
       <div id="cu-owner" hidden>
         <h3>Household</h3>
         <label class="row"><input id="cu-members" type="checkbox"> Let household members use computer use <button type="button" class="tip" data-tip="Off by default. On: people in your household can let Sara use their own computers from their own Sara app. Never yours: each person's computers are only theirs.">?</button></label>
@@ -2635,15 +2645,25 @@
       <p class="small"><button id="report-send" type="button">Report</button> <span id="report-status" class="muted" role="status"></span></p>
     </form>
   </dialog>
+  <!-- Phase 88: the one-time warning before "Always allowed" -->
+  <dialog id="cu-always-warn" class="proof-dlg" aria-labelledby="cu-always-warn-title">
+    <form method="dialog" class="proof-form">
+      <h3 id="cu-always-warn-title">Let her act without asking?</h3>
+      <p>With Always allowed, Sara clicks, types and chooses in her browser without approval cards, also when you've walked away. Only payments, purchases and account settings still ask, and she never types passwords.</p>
+      <p class="muted small">Pages can contain text that tries to trick her. Use this for tasks you trust, and keep an eye on the badge. You can switch back here any time.</p>
+      <div class="proof-actions"><button type="submit" value="no" class="ghost">Keep asking</button><button id="cu-always-yes" type="submit" value="yes">Always allow</button></div>
+    </form>
+  </dialog>
   <!-- Phase 87: the first time "Let Sara use this computer" is switched on -->
   <dialog id="cu-explain" class="proof-dlg" aria-labelledby="cu-explain-title">
     <form method="dialog" class="proof-form">
       <h3 id="cu-explain-title">Let Sara use this computer?</h3>
       <ul class="cu-explain-list">
         <li>She opens her own browser window here, with its own profile: never your browser, your tabs or your passwords.</li>
-        <li>For now she only looks: opens pages, reads them, takes screenshots and reads console and network errors. She can't click or type yet.</li>
+        <li>She opens pages, reads them, takes screenshots and reads errors, and she can click, type, choose and upload there. Her first action on a site asks you; payments and account settings always ask. She never types passwords.</li>
         <li>Sites you didn't name ask you first. Screenshots go to the model you chose, unless you keep them on this computer.</li>
-        <li>Every step is in Runs with a small picture. Stop her any time with Stop in the chat or in the app.</li>
+        <li>A "Sara is working" badge shows at the top of the screen while she acts. Stop her with its Stop button, Ctrl+Alt+Esc (⌃⌥Esc on a Mac), the app's menu or Stop in the chat. If you use her window, she pauses.</li>
+        <li>Every step is in Runs with a small picture.</li>
       </ul>
       <div class="proof-actions"><button id="cu-explain-no" type="submit" value="no" class="ghost">Not now</button><button id="cu-explain-yes" type="submit" value="yes">Turn it on</button></div>
     </form>

@@ -7,8 +7,12 @@
 // (desktop/shared/page-agent.js) for reading pages.
 //
 // What it does on its own, whatever the server asks (§2, §4.1, §7.7):
-// - only its own command set (CU1: look, read, navigate, pictures, logs); anything else is refused
-//   with `unsupported`;
+// - only its own command set (CU1: look, read, navigate, pictures, logs; Phase 88 / CU2: find, click,
+//   type, select, keys, scroll, upload, downloads); anything else is refused with `unsupported`;
+// - Phase 88: never types into password fields or text shaped like a key or a Sara sign-in; only the
+//   keys on the page agent's list; at most 4 actions a second and 120 a minute, 2,000 characters per
+//   action; uploads only from its own Downloads/Sara folder; when the person takes over ("Pause Sara",
+//   the default) nothing acts until they resume; a local log of what she did (no pictures);
 // - only http(s) addresses; never the Sara server's own origin (except its /preview/<token>/ links),
 //   chrome://, edge://, file://, devtools or extension pages, even when a page redirects there;
 // - at most 20 tab opens a minute and one live-view picture per 500 ms;
@@ -18,17 +22,20 @@
 // Run by hand: node src/hands-ref.ts --server http://127.0.0.1:7881 --token-file <file> [--name X] [--visible] [--local-only]
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { hostname, tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import type { Readable, Writable } from 'node:stream';
 import { findBrowser, pageAgentCall, type BrowserInfo } from './browser.ts';
 import { CdpClient, type CdpEvent } from './cdp.ts';
-import { CU1_OPS, HANDS_PROTOCOL, packBinary } from './hands.ts';
+import { HANDS_OPS, HANDS_PROTOCOL, packBinary } from './hands.ts';
 import { connectWebSocket, type WsConnection } from './ws.ts';
 
-export const REF_VERSION = 'hands-ref 1';
-const OPS = new Set<string>(CU1_OPS);
+export const REF_VERSION = 'hands-ref 2';
+const OPS = new Set<string>(HANDS_OPS);
+/** §7.7: the device's own input limits. */
+export const INPUT_LIMITS = { perSecond: 4, perMinute: 120, chars: 2000 };
+const INPUT_OPS = new Set(['b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload']);
 const BACKOFF_S = [1, 2, 5, 10, 30];
 const MAX_LOGS = 500;
 const SECRET_SHAPES = [/\bsk-[A-Za-z0-9_-]{16,}/g, /\b[sr]k_(?:live|test)_[A-Za-z0-9]{10,}/g, /\bgh[pousr]_[A-Za-z0-9]{20,}/g, /\bxox[abprs]-[A-Za-z0-9-]{10,}/g, /\bAKIA[0-9A-Z]{16}\b/g, /\bxai-[A-Za-z0-9]{20,}/g, /\bsara_(?:dev|hands|m)\.[\w-]+\.[\w-]+/g, /\beyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]{8,}/g];
@@ -105,6 +112,8 @@ interface Tab {
   sessionId: string;
   frameId: string;
   logs: Record<string, unknown>[];
+  /** Phase 88: the last page dialog (alert/confirm), closed with Cancel. */
+  dialog?: string;
   consoleErrors: number;
   failedRequests: number;
   status: number;
@@ -126,8 +135,15 @@ export class SaraBrowser {
   #seq = 0;
   readonly #opens: number[] = [];
 
-  constructor(opts: { info?: BrowserInfo; headless?: boolean; profileDir?: string; serverOrigin: string }) {
+  /** Phase 88: where downloads go and uploads come from (Downloads/Sara on a real computer). */
+  readonly folder: string;
+  readonly #tempFolder: boolean;
+
+  constructor(opts: { info?: BrowserInfo; headless?: boolean; profileDir?: string; serverOrigin: string; folder?: string }) {
     this.info = opts.info ?? findBrowser();
+    this.#tempFolder = !opts.folder;
+    this.folder = opts.folder ?? mkdtempSync(join(tmpdir(), 'sara-hands-files-'));
+    mkdirSync(this.folder, { recursive: true });
     this.headless = opts.headless !== false;
     this.serverOrigin = opts.serverOrigin;
     this.#tempProfile = !opts.profileDir;
@@ -183,6 +199,8 @@ export class SaraBrowser {
     }
     for (const p of pages) await this.#attach(p.targetId);
     if (!this.tabs.size) await this.newTab();
+    // Downloads land in the Sara folder (never anywhere else).
+    await this.cdp.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: this.folder }).catch(() => {});
   }
 
   async #attach(targetId: string): Promise<Tab> {
@@ -251,6 +269,12 @@ export class SaraBrowser {
         if (!ok) this.#log(t, { kind: 'network', method: 'GET', url: short(url), error: 'blocked by the Sara browser (Sara\u2019s own server)', type: String((p as { resourceType?: string }).resourceType ?? '') });
         return;
       }
+      case 'Page.javascriptDialogOpening': {
+        // A page dialog would block everything: it is closed with Cancel (the safe answer) and reported.
+        t.dialog = short(p.message);
+        void this.cdp!.send('Page.handleJavaScriptDialog', { accept: false }, t.sessionId).catch(() => {});
+        return;
+      }
       case 'Runtime.consoleAPICalled': {
         const type = String(p.type);
         if (type !== 'error' && type !== 'warning' && type !== 'assert') return;
@@ -302,13 +326,34 @@ export class SaraBrowser {
   }
 
   /** Runs one page-agent function in an isolated world (the page's own scripts can't touch it). */
-  async agent<T>(t: Tab, fn: 'snapshot' | 'text', args: Record<string, unknown>): Promise<T> {
+  async agent<T>(t: Tab, fn: string, args: Record<string, unknown>): Promise<T> {
     const tree = (await this.cdp!.send('Page.getFrameTree', {}, t.sessionId)) as { frameTree: { frame: { id: string } } };
     t.frameId = tree.frameTree.frame.id;
     const w = (await this.cdp!.send('Page.createIsolatedWorld', { frameId: t.frameId, worldName: 'sara-page-agent' }, t.sessionId)) as { executionContextId: number };
     const r = (await this.cdp!.send('Runtime.evaluate', { expression: pageAgentCall(fn, args), contextId: w.executionContextId, returnByValue: true }, t.sessionId)) as { result?: { value?: T }; exceptionDetails?: { text?: string } };
     if (r.exceptionDetails) throw new OpError('error', `The page couldn't be read: ${r.exceptionDetails.text ?? 'script error'}`);
     return r.result?.value as T;
+  }
+
+  /** Phase 88: a page-agent function that returns an element (for DOM.setFileInputFiles): its object id, or ''. */
+  async agentNode(t: Tab, fn: string, args: Record<string, unknown>): Promise<string> {
+    const w = (await this.cdp!.send('Page.createIsolatedWorld', { frameId: t.frameId, worldName: 'sara-page-agent' }, t.sessionId)) as { executionContextId: number };
+    const r = (await this.cdp!.send('Runtime.evaluate', { expression: pageAgentCall(fn, args), contextId: w.executionContextId, returnByValue: false }, t.sessionId)) as { result?: { objectId?: string; subtype?: string } };
+    return r.result?.subtype === 'node' && r.result.objectId ? r.result.objectId : '';
+  }
+
+  /** Phase 88: a real left click at a page point (mouse moved, pressed, released). */
+  async click(t: Tab, x: number, y: number): Promise<void> {
+    await this.cdp!.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'none' }, t.sessionId);
+    await this.cdp!.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 }, t.sessionId);
+    await this.cdp!.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1 }, t.sessionId);
+  }
+
+  /** Phase 88: after an action, waits for a page load it started (if any). */
+  async settle(t: Tab): Promise<void> {
+    const started = await this.cdp!.waitFor((ev) => ev.sessionId === t.sessionId && (ev.method === 'Page.frameStartedLoading' || ev.method === 'Page.frameRequestedNavigation'), 500).then((ev) => Boolean(ev), () => false);
+    if (started) await this.cdp!.waitFor((ev) => ev.sessionId === t.sessionId && ev.method === 'Page.loadEventFired', 15_000).catch(() => {});
+    await new Promise((r) => setTimeout(r, 250));
   }
 
   async info2(t: Tab): Promise<{ url: string; title: string }> {
@@ -355,6 +400,7 @@ export class SaraBrowser {
     }
     this.tabs.clear();
     if (this.#tempProfile) setTimeout(() => rmSync(this.#profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }), 800).unref();
+    if (this.#tempFolder) rmSync(this.folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 }
 
@@ -368,6 +414,16 @@ export interface HandsRefOptions {
   profileDir?: string;
   localOnly?: boolean;
   optIn?: { browser: boolean };
+  /** Phase 88: "When you move the mouse": pause Sara (default) or let her keep control. */
+  takeover?: 'pause' | 'keep';
+  /** Phase 88: Downloads/Sara (a temporary folder when not given). */
+  folder?: string;
+  /** Phase 88: "What Sara did on this computer": one JSON line per action (no pictures), kept 30 days. */
+  logFile?: string;
+  /** Phase 88: a fresh token arrived over the connection (keep it instead of the old one). */
+  onToken?: (token: string, expiresAt: string) => void;
+  /** Phase 88: when the token ends (ISO); with under 30 days left it is renewed on connect. */
+  renewBefore?: string;
   /** Tests: reconnect after a dropped connection (default true). */
   reconnect?: boolean;
   log?: (line: string) => void;
@@ -388,10 +444,27 @@ export class HandsRef {
   /** Every op the server asked for (tests read it). */
   readonly seen: string[] = [];
   connects = 0;
+  /** Phase 88: paused because the person took over (until they resume). */
+  paused = false;
+  /** Phase 88: what the device's "Sara is working" badge shows now ('' = hidden). */
+  badge = '';
+  readonly #inputs: number[] = [];
 
   constructor(opts: HandsRefOptions) {
     this.opts = opts;
-    this.browser = new SaraBrowser({ ...(opts.info ? { info: opts.info } : {}), headless: opts.headless !== false, ...(opts.profileDir ? { profileDir: opts.profileDir } : {}), serverOrigin: new URL(opts.server).origin });
+    this.browser = new SaraBrowser({ ...(opts.info ? { info: opts.info } : {}), headless: opts.headless !== false, ...(opts.profileDir ? { profileDir: opts.profileDir } : {}), ...(opts.folder ? { folder: opts.folder } : {}), serverOrigin: new URL(opts.server).origin });
+    if (opts.logFile && existsSync(opts.logFile)) {
+      // Keep 30 days of the local log.
+      const cut = Date.now() - 30 * 86_400_000;
+      const keep = readFileSync(opts.logFile, 'utf8').split('\n').filter((l) => {
+        try {
+          return Date.parse(String((JSON.parse(l) as { at?: string }).at)) >= cut;
+        } catch {
+          return false;
+        }
+      });
+      writeFileSync(opts.logFile, keep.length ? `${keep.join('\n')}\n` : '');
+    }
   }
 
   get connected(): boolean {
@@ -414,6 +487,8 @@ export class HandsRef {
       ws.onMessage = (d) => {
         if (typeof d === 'string') void this.#message(ws, d);
       };
+      // Phase 88: a token with less than 30 days left is renewed over this connection.
+      if (this.opts.renewBefore && Date.parse(this.opts.renewBefore) - Date.now() < 30 * 86_400_000) ws.send(JSON.stringify({ t: 'renew' }));
       ws.onClose = () => {
         if (this.ws === ws) this.ws = undefined;
         for (const ac of this.#running.values()) ac.abort();
@@ -452,7 +527,56 @@ export class HandsRef {
       busy: false,
       localOnly: this.opts.localOnly === true,
       ops: [...OPS],
+      takeover: this.opts.takeover ?? 'pause',
+      hotkey: '',
+      paused: this.paused,
+      renew: true,
     };
+  }
+
+  /** Phase 88: asks the server for a fresh token now (the apps do this when under 30 days are left). */
+  renew(): void {
+    this.ws?.send(JSON.stringify({ t: 'renew' }));
+  }
+
+  /**
+   * Phase 88: the person moved the mouse or typed in the Sara browser window (the native apps tell
+   * real input from hers with the OS; here tests call it). With "Pause Sara" nothing acts until resume().
+   */
+  userInput(): void {
+    if ((this.opts.takeover ?? 'pause') === 'keep' || this.paused) return;
+    this.paused = true;
+    for (const [id, ac] of this.#running) if (this.#acting.has(id)) ac.abort(new OpError('takeover', 'Paused: the owner took over the Sara browser.'));
+    this.badge = 'Paused: you\u2019re in control';
+    this.ws?.send(JSON.stringify({ t: 'ev', kind: 'takeover' }));
+  }
+
+  /** Phase 88: Resume on the device's badge. */
+  resume(): void {
+    if (!this.paused) return;
+    this.paused = false;
+    this.badge = '';
+    this.ws?.send(JSON.stringify({ t: 'ev', kind: 'resumed' }));
+  }
+
+  readonly #acting = new Set<string>();
+
+  /** §7.7: the device's input rate limit. */
+  #countInput(): void {
+    const now = Date.now();
+    while (this.#inputs.length && now - this.#inputs[0] > 60_000) this.#inputs.shift();
+    const lastSecond = this.#inputs.filter((x) => now - x < 1000).length;
+    if (lastSecond >= INPUT_LIMITS.perSecond || this.#inputs.length >= INPUT_LIMITS.perMinute) throw new OpError('rate_limited', `At most ${INPUT_LIMITS.perSecond} actions a second and ${INPUT_LIMITS.perMinute} a minute in the Sara browser.`);
+    this.#inputs.push(now);
+  }
+
+  #localLog(op: string, what: string, target: string): void {
+    if (!this.opts.logFile) return;
+    try {
+      appendFileSync(this.opts.logFile, `${JSON.stringify({ at: new Date().toISOString(), op, what: maskSecrets(what).slice(0, 160), target: maskSecrets(target).slice(0, 160) })}\n`);
+    } catch {
+      /* the log is best effort */
+    }
   }
 
   /** Stop pressed on the computer: everything running is cancelled and the server is told. */
@@ -480,6 +604,11 @@ export class HandsRef {
     } catch {
       return;
     }
+    if (m.t === 'token' && typeof m.token === 'string' && m.token.startsWith('sara_hands.')) {
+      this.opts.token = m.token;
+      this.opts.onToken?.(m.token, String(m.expiresAt ?? ''));
+      return;
+    }
     if (m.t === 'cancel') {
       if (m.all) for (const ac of this.#running.values()) ac.abort();
       else this.#running.get(String(m.id))?.abort();
@@ -496,15 +625,22 @@ export class HandsRef {
     this.seen.push(op);
     const ac = new AbortController();
     this.#running.set(id, ac);
+    if (INPUT_OPS.has(op)) this.#acting.add(id);
+    const what = typeof m.what === 'string' ? m.what.slice(0, 120) : '';
+    if (what && op !== 'c.ping') this.badge = this.paused ? this.badge : `Sara is working: ${what}`;
     const deadline = Math.min(Math.max(1000, Number(m.deadlineMs) || 30_000), 120_000);
     const timer = setTimeout(() => ac.abort(new OpError('timeout', `Took longer than ${Math.round(deadline / 1000)} s.`)), deadline);
     let reply: Record<string, unknown>;
     try {
       if (!OPS.has(op)) throw new OpError('unsupported', `This computer doesn't do "${op.slice(0, 40)}" (not in its command set).`);
       if (op.startsWith('b.') && this.opts.optIn?.browser === false) throw new OpError('denied_local', '"Let Sara use this computer" is off here.');
+      if (INPUT_OPS.has(op)) {
+        if (this.paused) throw new OpError('takeover', 'Paused: the owner took over the Sara browser. Nothing acts until they press Resume.');
+        this.#countInput();
+      }
       const args = (m.args && typeof m.args === 'object' ? m.args : {}) as Record<string, unknown>;
       const result = await Promise.race([
-        this.#run(ws, id, op, args),
+        this.#run(ws, id, op, args, what),
         new Promise<never>((_, rej) => ac.signal.addEventListener('abort', () => rej(ac.signal.reason instanceof OpError ? ac.signal.reason : new OpError('stopped', 'Stopped.')), { once: true })),
       ]);
       reply = { t: 'res', id, ok: true, result };
@@ -514,6 +650,7 @@ export class HandsRef {
     } finally {
       clearTimeout(timer);
       this.#running.delete(id);
+      this.#acting.delete(id);
     }
     const text = JSON.stringify(reply);
     this.#answers.set(id, text);
@@ -551,10 +688,99 @@ export class HandsRef {
     }
   }
 
-  async #run(ws: WsConnection, id: string, op: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
+  /** Phase 88: one acting op: target, highlight, act, then the after-state (§6.3). */
+  async #act(ws: WsConnection, id: string, op: string, a: Record<string, unknown>, what: string): Promise<Record<string, unknown>> {
+    const b = this.browser;
+    const t = b.tab(a.tab);
+    b.activate(t);
+    const before = { errors: t.consoleErrors, failed: t.failedRequests, url: (await b.info2(t)).url };
+    t.dialog = undefined;
+    const tgtArgs: Record<string, unknown> = {};
+    for (const k of ['ref', 'expect', 'text', 'field', 'x', 'y', 'w', 'h']) if (a[k] !== undefined) tgtArgs[k] = a[k];
+    let target: Record<string, unknown> = {};
+    const need = async () => {
+      const r = await b.agent<Record<string, unknown>>(t, 'target', tgtArgs);
+      if (r.found !== true) throw new OpError(r.stale ? 'stale_view' : 'not_found', String(r.error ?? 'That is not on the page.'));
+      if (r.disabled) throw new OpError('not_found', `${String(r.desc)} is disabled.`);
+      if (r.covered) throw new OpError('not_found', `${String(r.desc)} is covered by ${String(r.covered)}: close that first.`);
+      await b.agent(t, 'mark', { x: r.x, y: r.y, box: r.box, label: 'Sara' }).catch(() => {});
+      return r;
+    };
+    let extra: Record<string, unknown> = {};
+    switch (op) {
+      case 'b.click': {
+        target = await need();
+        await b.click(t, Number(target.x), Number(target.y));
+        break;
+      }
+      case 'b.type': {
+        const value = String(a.value ?? '');
+        if (value.length > INPUT_LIMITS.chars) throw new OpError('denied_local', `At most ${INPUT_LIMITS.chars} characters per action.`);
+        if (maskSecrets(value) !== value) throw new OpError('denied_local', 'That text looks like a key or a sign-in token: Sara never types those.');
+        target = await need();
+        if (target.secret) throw new OpError('denied_local', 'That is a password field: Sara never types into those.');
+        if (!target.editable) throw new OpError('not_found', `${String(target.desc)} is not a text field.`);
+        await b.click(t, Number(target.x), Number(target.y));
+        const f = await b.agent<Record<string, unknown>>(t, 'focusFor', { ...tgtArgs, clear: a.clear !== false });
+        if (f.error || !f.focused) throw new OpError(f.secret ? 'denied_local' : 'not_found', String(f.error ?? 'That field could not be focused.'));
+        if (value) await b.cdp!.send('Input.insertText', { text: value }, t.sessionId);
+        if (a.submit === true) await this.#keys(t, 'Enter');
+        break;
+      }
+      case 'b.select': {
+        const r = await b.agent<Record<string, unknown>>(t, 'choose', { ...tgtArgs, option: String(a.option ?? '') });
+        if (r.error) throw new OpError(r.stale ? 'stale_view' : 'not_found', String(r.error));
+        await b.agent(t, 'mark', { x: r.x, y: r.y, label: 'Sara' }).catch(() => {});
+        target = { desc: r.desc };
+        extra = { selected: r.selected };
+        break;
+      }
+      case 'b.keys': {
+        await this.#keys(t, String(a.combo ?? ''));
+        extra = { combo: String(a.combo ?? '') };
+        break;
+      }
+      case 'b.upload': {
+        const folder = b.folder;
+        let name: string;
+        if (a.file && typeof a.file === 'object') {
+          const f = a.file as { name?: unknown; data?: unknown };
+          name = basename(String(f.name ?? '')).replace(/[<>:"|?*\u0000-\u001f]/g, '_').slice(0, 120);
+          const data = Buffer.from(String(f.data ?? ''), 'base64');
+          if (!name || data.length > 2 * 1024 * 1024) throw new OpError('denied_local', 'Uploads from the server are at most 2 MB.');
+          writeFileSync(join(folder, name), data);
+        } else {
+          name = String(a.name ?? '');
+          if (!name || name !== basename(name) || name.startsWith('.')) throw new OpError('denied_local', 'Only a file name in Downloads/Sara.');
+        }
+        const path = join(folder, name);
+        if (!existsSync(path) || !statSync(path).isFile()) throw new OpError('not_found', `There is no ${name} in Downloads/Sara on this computer.`);
+        target = await need();
+        const objectId = await b.agentNode(t, 'fileInput', tgtArgs);
+        if (!objectId) throw new OpError('not_found', 'That is not a file upload field.');
+        await b.cdp!.send('DOM.setFileInputFiles', { files: [path], objectId }, t.sessionId);
+        extra = { name };
+        break;
+      }
+    }
+    await b.settle(t);
+    const st = await b.agent<Record<string, unknown>>(t, 'state', {}).catch(() => ({}) as Record<string, unknown>);
+    this.#localLog(op, what, String(target.desc ?? extra.combo ?? ''));
+    await this.#thumb(ws, id, t, a);
+    void this.#frame(ws, t);
+    return { tab: t.id, target: { desc: target.desc, role: target.role, name: target.name }, state: st, navigated: String(st.url ?? before.url) !== before.url, newErrors: t.consoleErrors - before.errors, newFailed: t.failedRequests - before.failed, ...(t.dialog ? { dialog: t.dialog } : {}), consoleErrors: t.consoleErrors, failedRequests: t.failedRequests, ...extra };
+  }
+
+  async #keys(t: Tab, combo: string): Promise<void> {
+    const plan = await this.browser.agent<{ events?: Record<string, unknown>[]; error?: string }>(t, 'keys', { combo });
+    if (!plan.events) throw new OpError('denied_local', plan.error ?? 'Not a key Sara presses.');
+    for (const ev of plan.events) await this.browser.cdp!.send('Input.dispatchKeyEvent', ev, t.sessionId);
+  }
+
+  async #run(ws: WsConnection, id: string, op: string, args: Record<string, unknown>, what = ''): Promise<Record<string, unknown>> {
     const b = this.browser;
     if (op === 'c.ping') return { pong: true, at: new Date().toISOString() };
-    if (op !== 'b.tabs' || b.running) await b.start();
+    if ((op !== 'b.tabs' && op !== 'b.downloads') || b.running) await b.start();
     const tabsView = async () => Promise.all([...b.tabs.values()].map(async (t) => ({ tab: t.id, ...(await b.info2(t)), active: t === b.tab() })));
     switch (op) {
       case 'b.start':
@@ -640,6 +866,39 @@ export class HandsRef {
         if (r.base64Encoded) return { status: entry?.status ?? null, mime: 'binary', body: '(not text)', truncated: false };
         const body = maskSecrets(r.body);
         return { status: entry?.status ?? null, mime: 'text', body: body.slice(0, 64 * 1024), truncated: body.length > 64 * 1024 };
+      }
+      case 'b.find': {
+        const t = b.tab(args.tab);
+        const tgt: Record<string, unknown> = {};
+        for (const k of ['ref', 'expect', 'text', 'field', 'x', 'y', 'w', 'h', 'focused']) if (args[k] !== undefined) tgt[k] = args[k];
+        if (tgt.focused) {
+          const st = await b.agent<Record<string, unknown>>(t, 'state', {});
+          const info = await b.info2(t);
+          return { found: true, role: 'page', name: String(st.focus ?? ''), desc: String(st.focus || 'the page'), page: { url: info.url, title: info.title } };
+        }
+        return b.agent<Record<string, unknown>>(t, 'target', tgt);
+      }
+      case 'b.click':
+      case 'b.type':
+      case 'b.select':
+      case 'b.keys':
+      case 'b.upload':
+        return this.#act(ws, id, op, args, what);
+      case 'b.scroll': {
+        const t = b.tab(args.tab);
+        const r = await b.agent<Record<string, unknown>>(t, 'scroll', args);
+        if (r.error) throw new OpError(r.stale ? 'stale_view' : 'not_found', String(r.error));
+        await new Promise((res) => setTimeout(res, 150));
+        await this.#thumb(ws, id, t, args);
+        void this.#frame(ws, t);
+        return { tab: t.id, ...r };
+      }
+      case 'b.downloads': {
+        const files = readdirSync(b.folder, { withFileTypes: true }).filter((f) => f.isFile() && !f.name.endsWith('.crdownload')).map((f) => {
+          const st = statSync(join(b.folder, f.name));
+          return { name: f.name, bytes: st.size, at: st.mtime.toISOString() };
+        });
+        return { files: files.sort((x, y) => y.at.localeCompare(x.at)).slice(0, 100) };
       }
       case 'b.close': {
         const t = b.tab(args.tab);

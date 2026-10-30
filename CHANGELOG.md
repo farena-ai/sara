@@ -5,7 +5,23 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
-## 2.20.0 (2026-10-30): computer use, step 1: her own browser on your computer (Phase 87)
+## 2.21.0 (2026-10-30): computer use, step 2: she acts in her own browser (Phase 88)
+
+- **Click, type, pick, scroll, press keys, upload** in her own browser window, with a visible cursor
+  and outline so you can follow. Uploads only from a file you name (in Downloads/Sara).
+- **How much she asks** (Settings → Her actions): every time, once per task (default) or *always
+  allowed* (one warning first); *Always on <site>* per site and kind of action. Payments and account
+  settings always ask; sending or submitting asks every time; she never types into password fields or
+  types key- or token-shaped text, and never touches her own sign-in.
+- **Sara is working** badge on your computer (and in the chat) with Stop; the stop hotkey
+  Ctrl+Alt+Esc (Windows) / ⌃⌥Esc (Mac) stops her within about half a second.
+- **Takeover:** move the mouse or type in her window and she pauses (Resume to continue), or choose
+  *Let Sara keep control* in the app.
+- The apps renew their computer sign-in by themselves, show *Connected to Sara at …* in the menu, keep
+  a local log of what she did (30 days, no pictures), and the Mac menu updates without a restart.
+- *Re-plan from here* on a run step.
+
+: computer use, step 1: her own browser on your computer (Phase 87)
 
 - **Let Sara use this computer** (the Windows and Mac apps, Settings → Computer use; off by default,
   explained the first time, confirmed with your sign-in): she opens web pages in **her own browser

@@ -1,4 +1,9 @@
 // Phase 87 (computer use CU1): Sara's hands on Windows. See hands.h and docs/design/COMPUTER_USE.md.
+// Phase 88 (CU2): acting in the Sara browser (find, click, type, select, keys, scroll, upload,
+// downloads) through the shared page agent and real DevTools input events; the always-on-top
+// "Sara is working" badge with Stop / Resume, the global stop shortcut Ctrl+Alt+Esc, takeover (real
+// mouse or keyboard input in her window pauses her unless "Let Sara keep control"), the device's
+// input rate limit, the local log "What Sara did on this computer", and token renewal.
 //
 // Threads: one connection thread (connect, hello, receive; reconnects 1, 2, 5, 10, 30 s), one worker
 // thread (runs ops one at a time, as the server sends them), and the Sara browser's pipe reader
@@ -23,6 +28,8 @@
 #include <vector>
 #include <algorithm>
 #include <memory>
+#include <fstream>
+#include <sstream>
 
 namespace sarahands {
 namespace {
@@ -332,7 +339,26 @@ std::vector<BYTE> b64dec(const std::string& b64) {
 }
 
 // ---------------- the command set (CU1) and the device's own rules ----------------
-const std::set<std::string> kOps = {"b.start", "b.tabs", "b.open", "b.navigate", "b.snapshot", "b.read", "b.screenshot", "b.logs", "b.request", "b.close", "c.ping"};
+const std::set<std::string> kOps = {"b.start", "b.tabs", "b.open", "b.navigate", "b.snapshot", "b.read", "b.screenshot", "b.logs", "b.request", "b.close", "c.ping",
+                                    // Phase 88 (CU2)
+                                    "b.find", "b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.downloads"};
+/** Ops that act: they count against the input rate limit and stop when the person takes over. */
+const std::set<std::string> kInputOps = {"b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload"};
+const int kMaxChars = 2000;
+
+/** Now as ISO 8601 (UTC). */
+std::string isoNow(int addDays = 0) {
+  FILETIME ft;
+  GetSystemTimeAsFileTime(&ft);
+  ULARGE_INTEGER u{{ft.dwLowDateTime, ft.dwHighDateTime}};
+  u.QuadPart += (ULONGLONG)addDays * 86400ULL * 10000000ULL;
+  ft = {u.LowPart, u.HighPart};
+  SYSTEMTIME st;
+  FileTimeToSystemTime(&ft, &st);
+  char b[40];
+  snprintf(b, sizeof b, "%04d-%02d-%02dT%02d:%02d:%02dZ", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+  return b;
+}
 
 struct OpError {
   std::string code, message;
@@ -431,6 +457,8 @@ struct Tab {
   std::deque<LogEntry> logs;
   int consoleErrors = 0, failedRequests = 0, status = 0;
   long long loads = 0;
+  long long starts = 0;  // Phase 88: page loads started (an action that navigates waits for its load)
+  std::string dialog;    // Phase 88: the last page dialog, closed with Cancel
   std::map<std::string, std::pair<std::string, std::string>> requests;  // requestId → method, url
 };
 
@@ -439,6 +467,7 @@ class Browser {
   std::string serverOrigin;
   BrowserFound found = findBrowser();
   std::wstring profileDir;
+  std::wstring downloadsDir;  // Phase 88
 
   bool running() {
     std::lock_guard<std::mutex> l(m_);
@@ -507,6 +536,7 @@ class Browser {
     CloseHandle(pi.hThread);
     {
       std::lock_guard<std::mutex> l(m_);
+      pid_ = pi.dwProcessId;
       proc_ = pi.hProcess;
       wr_ = toWr;
       rd_ = fromRd;
@@ -530,6 +560,39 @@ class Browser {
       Sleep(150);
     }
     if (!tabCount()) newTab(err);
+    // Phase 88: downloads land in Downloads\Sara, nowhere else.
+    if (!downloadsDir.empty()) {
+      CreateDirectoryW(downloadsDir.c_str(), nullptr);
+      OpError e3;
+      call("Browser.setDownloadBehavior", "{\"behavior\":\"allow\",\"downloadPath\":" + q(u8(downloadsDir)) + "}", "", 10000, e3);
+    }
+  }
+  /** The browser's process id (its windows belong to it): takeover looks for input there. */
+  DWORD pid() {
+    std::lock_guard<std::mutex> l(m_);
+    return alive_ ? pid_ : 0;
+  }
+  long long starts(const std::string& id) {
+    std::lock_guard<std::mutex> l(m_);
+    return tabs_.count(id) ? tabs_[id].starts : -1;
+  }
+  /** Waits for a page load to start after `before` (false after `ms`). */
+  bool waitStart(const std::string& id, long long before, DWORD ms, const std::atomic<bool>* cancel) {
+    std::unique_lock<std::mutex> l(m_);
+    auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
+    while (alive_ && tabs_.count(id) && tabs_[id].starts == before) {
+      if (cancel && cancel->load()) return false;
+      if (std::chrono::steady_clock::now() >= until) return false;
+      cv_.wait_for(l, std::chrono::milliseconds(50));
+    }
+    return alive_ && tabs_.count(id);
+  }
+  std::string takeDialog(const std::string& id) {
+    std::lock_guard<std::mutex> l(m_);
+    if (!tabs_.count(id)) return {};
+    std::string d = tabs_[id].dialog;
+    tabs_[id].dialog.clear();
+    return d;
   }
 
   void close() {
@@ -707,6 +770,7 @@ class Browser {
   std::condition_variable cv_;
   bool alive_ = false;
   HANDLE proc_ = nullptr, wr_ = nullptr, rd_ = nullptr;
+  DWORD pid_ = 0;
   std::thread reader_;
   int next_ = 1;
   std::map<int, J> results_;
@@ -805,6 +869,13 @@ class Browser {
     if (method == "Page.loadEventFired") {
       t->loads++;
       cv_.notify_all();
+    } else if (method == "Page.frameStartedLoading" || method == "Page.frameRequestedNavigation") {
+      t->starts++;
+      cv_.notify_all();
+    } else if (method == "Page.javascriptDialogOpening") {
+      // A page dialog would block everything: it is closed with Cancel (the safe answer) and reported.
+      t->dialog = shortText(p["message"].str(), 200);
+      send("Page.handleJavaScriptDialog", "{\"accept\":false}", t->sessionId);
     } else if (method == "Page.frameNavigated") {
       if (!p["frame"].has("parentId")) t->frameId = p["frame"]["id"].str();
     } else if (method == "Runtime.consoleAPICalled") {
@@ -874,11 +945,21 @@ class Browser {
 
 // ---------------- the hands connection (WinHTTP WebSocket) ----------------
 struct Request {
-  std::string id, op;
+  std::string id, op, what;
   J args;
   DWORD deadlineMs = 30000;
   std::shared_ptr<std::atomic<bool>> cancel = std::make_shared<std::atomic<bool>>(false);
+  std::shared_ptr<std::atomic<bool>> byTakeover = std::make_shared<std::atomic<bool>>(false);
 };
+
+const UINT WM_BADGE_UPDATE = WM_APP + 1;
+#ifdef SARA_TEST_HOOKS
+// Test builds only: a test script posts these to the badge window (class "SaraHandsBadge") to act as
+// the person moving the mouse in her window, and pressing Resume. Release builds don't have them.
+const UINT WM_BADGE_TEST_INPUT = WM_APP + 77;
+const UINT WM_BADGE_TEST_RESUME = WM_APP + 78;
+#endif
+const int kStopHotkeyId = 1;
 
 class Hands {
  public:
@@ -890,16 +971,29 @@ class Hands {
   std::wstring err;
   Browser browser;
 
+  std::atomic<bool> keep{false};      // Phase 88: let Sara keep control when the person uses her window
+  std::atomic<bool> isPaused{false};  // Phase 88: the person took over; nothing acts until Resume
+  std::atomic<bool> hotkeyOk{false};
+
   explicit Hands(const Host& h) : host(h) {
     localOnly = h.localOnly;
+    keep = h.keepControl;
     browser.profileDir = h.profileDir;
+    browser.downloadsDir = h.downloadsDir;
     browser.serverOrigin = lowerA(u8(h.server));
+    pruneLog();
     wake_ = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    uiReady_ = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    ui_ = std::thread([this] { uiLoop(); });
+    WaitForSingleObject(uiReady_, 5000);
     conn_ = std::thread([this] { connectLoop(); });
     worker_ = std::thread([this] { workLoop(); });
   }
   ~Hands() {
     stopping = true;
+    if (badge_) PostMessageW(badge_, WM_CLOSE, 0, 0);
+    if (ui_.joinable()) ui_.join();
+    CloseHandle(uiReady_);
     SetEvent(wake_);
     closeSocket();
     {
@@ -948,10 +1042,58 @@ class Hands {
       if (current_) current_->cancel->store(true);
     }
     sendText("{\"t\":\"ev\",\"kind\":\"stopped\",\"by\":\"user\"}");
+    say(L"stopped by the person at the computer");
+    // Stop ends the task: the badge goes, and a pause ends with it.
+    if (isPaused.exchange(false)) sendText("{\"t\":\"ev\",\"kind\":\"resumed\"}");
+    lastOpAt_ = 0;
+    updateBadge();
+  }
+  /** Phase 88: the person used her window (real input, not hers). */
+  void userInput() {
+    if (keep) {
+      keptAt_ = GetTickCount64();
+      updateBadge();
+      return;
+    }
+    if (isPaused.exchange(true)) return;
+    {
+      std::lock_guard<std::mutex> l(qm_);
+      if (current_ && kInputOps.count(current_->op)) {
+        current_->byTakeover->store(true);
+        current_->cancel->store(true);
+      }
+    }
+    say(L"paused: the person took over the Sara browser");
+    sendText("{\"t\":\"ev\",\"kind\":\"takeover\"}");
+    updateBadge();
+  }
+  void resume() {
+    if (!isPaused.exchange(false)) return;
+    say(L"resumed");
+    sendText("{\"t\":\"ev\",\"kind\":\"resumed\"}");
+    lastOpAt_ = GetTickCount64();
+    updateBadge();
+  }
+  void tellTakeover(bool keepControl) {
+    keep = keepControl;
+    if (keepControl) resume();
+    sendText(std::string("{\"t\":\"ev\",\"kind\":\"optin\",\"optIn\":{\"browser\":true,\"desktop\":false},\"localOnly\":") + (localOnly ? "true" : "false") + ",\"takeover\":" + (keepControl ? "\"keep\"" : "\"pause\"") + "}");
+  }
+  std::wstring status() {
+    if (isConnected) {
+      URL_COMPONENTS uc{sizeof(uc)};
+      wchar_t hostName[256];
+      uc.lpszHostName = hostName;
+      uc.dwHostNameLength = 256;
+      std::wstring where = WinHttpCrackUrl(host.server.c_str(), 0, 0, &uc) ? std::wstring(hostName, uc.dwHostNameLength) + (uc.nPort != 80 && uc.nPort != 443 ? L":" + std::to_wstring(uc.nPort) : L"") : host.server;
+      return L"Connected to Sara at " + where;
+    }
+    std::lock_guard<std::mutex> l(errM);
+    return err.empty() ? L"Connecting to Sara\u2026" : err;
   }
   void tellLocalOnly(bool on) {
     localOnly = on;
-    sendText(std::string("{\"t\":\"ev\",\"kind\":\"optin\",\"optIn\":{\"browser\":true,\"desktop\":false},\"localOnly\":") + (on ? "true" : "false") + "}");
+    sendText(std::string("{\"t\":\"ev\",\"kind\":\"optin\",\"optIn\":{\"browser\":true,\"desktop\":false},\"localOnly\":") + (on ? "true" : "false") + ",\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + "}");
   }
 
  private:
@@ -969,6 +1111,20 @@ class Hands {
   unsigned frameN_ = 0;
   ULONGLONG lastFrameAt_ = 0;
   size_t lastFrameHash_ = 0;
+  // Phase 88: the badge, the stop shortcut and takeover.
+  std::thread ui_;
+  HANDLE uiReady_ = nullptr;
+  HWND badge_ = nullptr;
+  std::atomic<ULONGLONG> lastOpAt_{0};
+  std::atomic<ULONGLONG> keptAt_{0};
+  std::atomic<bool> opRunning_{false};
+  std::mutex whatM_;
+  std::string what_;
+  DWORD lastInput_ = 0;
+  bool watching_ = false;
+  RECT stopRc_{}, resumeRc_{};
+  std::deque<ULONGLONG> inputs_;
+  std::mutex logM_;
 
   void closeSocket() {
     std::lock_guard<std::mutex> l(sm_);
@@ -1039,7 +1195,7 @@ class Hands {
     return "{\"t\":\"hello\",\"v\":1,\"app\":" + q(u8(host.appVersion)) + ",\"os\":" + q("Windows (build " + std::to_string(build) + ")") + ",\"computer\":" + q(u8(host.computer)) +
            ",\"screens\":[],\"browser\":{\"found\":" + (browser.found.path.empty() ? "false" : "true") + (browser.found.kind.empty() ? "" : ",\"kind\":" + q(browser.found.kind) + ",\"name\":" + q(browser.found.name)) +
            "},\"perms\":{\"capture\":false,\"input\":false,\"ax\":false},\"optIn\":{\"browser\":true,\"desktop\":false},\"approvalsHere\":false,\"logins\":[],\"busy\":false,\"localOnly\":" + (localOnly ? "true" : "false") +
-           ",\"ops\":[" + ops + "]}";
+           ",\"ops\":[" + ops + "],\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"hotkey\":" + (hotkeyOk ? "\"Ctrl+Alt+Esc\"" : "\"\"") + ",\"paused\":" + (isPaused ? "true" : "false") + ",\"renew\":true}";
   }
 
   void connectLoop() {
@@ -1052,6 +1208,11 @@ class Hands {
         isConnected = true;
         say(L"connected to " + host.server);
         sendText(hello());
+        // Phase 88: with under 30 days left on the token, ask for a fresh one over this connection.
+        {
+          std::lock_guard<std::mutex> l(errM);
+          if (!host.expiresAt.empty() && host.expiresAt < isoNow(30)) sendText("{\"t\":\"renew\"}");
+        }
         receiveLoop();
         isConnected = false;
         closeSocket();
@@ -1102,6 +1263,20 @@ class Hands {
     J m = parse(raw, &ok);
     if (!ok) return;
     std::string t = m["t"].str();
+    if (t == "token") {
+      // Phase 88: a fresh token (we asked for it): kept by the app, used from the next connection on.
+      std::string tok = m["token"].str();
+      if (tok.rfind("sara_hands.", 0) == 0 && tok.size() < 300) {
+        {
+          std::lock_guard<std::mutex> l(errM);
+          host.token = tok;
+          host.expiresAt = m["expiresAt"].str();
+        }
+        if (host.onToken) host.onToken(tok, m["expiresAt"].str());
+        say(L"renewed this computer's sign-in");
+      }
+      return;
+    }
     if (t == "cancel") {
       std::lock_guard<std::mutex> l(qm_);
       bool all = m["all"].truthy();
@@ -1116,6 +1291,7 @@ class Hands {
     r->id = m["id"].str();
     r->op = m["op"].str();
     r->args = m["args"];
+    r->what = shortText(m["what"].str(), 120);
     r->deadlineMs = (DWORD)std::min(120000.0, std::max(1000.0, m["deadlineMs"].num(30000)));
     if (r->id.empty() || r->id.size() > 100) return;
     std::lock_guard<std::mutex> l(qm_);
@@ -1142,6 +1318,15 @@ class Hands {
         queue_.pop_front();
         current_ = r;
       }
+      if (r->op != "c.ping" && r->op != "b.tabs") {
+        {
+          std::lock_guard<std::mutex> l(whatM_);
+          if (!r->what.empty()) what_ = r->what;
+        }
+        opRunning_ = true;
+        lastOpAt_ = GetTickCount64();
+        updateBadge();
+      }
       // The deadline: the op stops waiting (and answers `timeout`) when it passes.
       std::atomic<bool> done{false};
       std::thread timer([r, &done] {
@@ -1155,6 +1340,7 @@ class Hands {
         OpError e;
         std::string result = run(*r, e);
         if (e.code.empty() && r->cancel->load()) e = {"stopped", "Stopped."};
+        if (e.code == "stopped" && r->byTakeover->load()) e = {"takeover", "Paused: the owner took over the Sara browser. Nothing acts until they press Resume."};
         if (!e.code.empty() && e.code == "stopped" && GetTickCount64() - started >= r->deadlineMs) e = {"timeout", "Took longer than " + std::to_string(r->deadlineMs / 1000) + " s."};
         answer = e.code.empty() ? "{\"t\":\"res\",\"id\":" + q(r->id) + ",\"ok\":true,\"result\":" + result + "}" : "{\"t\":\"res\",\"id\":" + q(r->id) + ",\"ok\":false,\"error\":{\"code\":" + q(e.code) + ",\"message\":" + q(mask(e.message).substr(0, 500)) + "}}";
       } catch (...) {
@@ -1162,6 +1348,10 @@ class Hands {
       }
       done = true;
       timer.join();
+      if (opRunning_.exchange(false)) {
+        lastOpAt_ = GetTickCount64();
+        updateBadge();
+      }
       {
         std::lock_guard<std::mutex> l(qm_);
         current_.reset();
@@ -1261,6 +1451,457 @@ class Hands {
     return o + "]";
   }
 
+  // ---------------- Phase 88: acting ----------------
+  /** The target arguments of an op (a ref checked against the last look, a label, or a picture point). */
+  static std::string targetArgs(const J& a) {
+    std::string o = "{";
+    for (const char* k : {"ref", "expect", "text", "field", "x", "y", "w", "h", "focused", "clear", "option", "dy"})
+      if (a.has(k)) o += (o.size() > 1 ? "," : "") + q(k) + ":" + dump(a[k]);
+    return o + "}";
+  }
+  /** A real left click at a page point (mouse moved, pressed, released). */
+  void mouseClick(const Tab& t, double x, double y, OpError& e, const std::atomic<bool>* cancel) {
+    std::string at = "\"x\":" + num(x) + ",\"y\":" + num(y);
+    browser.call("Input.dispatchMouseEvent", "{\"type\":\"mouseMoved\"," + at + ",\"button\":\"none\"}", t.sessionId, 10000, e, cancel);
+    if (!e.code.empty()) return;
+    browser.call("Input.dispatchMouseEvent", "{\"type\":\"mousePressed\"," + at + ",\"button\":\"left\",\"buttons\":1,\"clickCount\":1}", t.sessionId, 10000, e, cancel);
+    if (!e.code.empty()) return;
+    browser.call("Input.dispatchMouseEvent", "{\"type\":\"mouseReleased\"," + at + ",\"button\":\"left\",\"buttons\":0,\"clickCount\":1}", t.sessionId, 10000, e, cancel);
+  }
+  /** The keys of a combination, as the page agent's list allows (anything else is refused here). */
+  bool pressKeys(const Tab& t, const std::string& combo, OpError& e, const std::atomic<bool>* cancel) {
+    J plan = agent(t, "keys", "{\"combo\":" + q(combo) + "}", e, cancel);
+    if (!e.code.empty()) return false;
+    if (plan["events"].t != J::Arr) {
+      e = {"denied_local", plan["error"].str("Not a key Sara presses.")};
+      return false;
+    }
+    for (auto& ev : plan["events"].a) {
+      browser.call("Input.dispatchKeyEvent", dump(ev), t.sessionId, 10000, e, cancel);
+      if (!e.code.empty()) return false;
+    }
+    return true;
+  }
+  /** After an action: waits for a page load it started (if any). */
+  void settle(const Tab& t, long long startsBefore, const std::atomic<bool>* cancel) {
+    long long loadsBefore = browser.loads(t.id);
+    if (browser.waitStart(t.id, startsBefore, 500, cancel)) browser.waitLoad(t.id, loadsBefore, 15000, cancel);
+    for (int k = 0; k < 5 && !(cancel && cancel->load()); k++) Sleep(50);
+  }
+  /** §7.7: at most 4 actions a second and 120 a minute. */
+  bool countInput(OpError& e) {
+    ULONGLONG now = GetTickCount64();
+    std::lock_guard<std::mutex> l(logM_);
+    while (!inputs_.empty() && now - inputs_.front() > 60000) inputs_.pop_front();
+    int lastSecond = 0;
+    for (auto x : inputs_) lastSecond += now - x < 1000;
+    if (lastSecond >= 4 || inputs_.size() >= 120) {
+      e = {"rate_limited", "At most 4 actions a second and 120 a minute in the Sara browser."};
+      return false;
+    }
+    inputs_.push_back(now);
+    return true;
+  }
+  /** "What Sara did on this computer": one plain line per action (no pictures), kept 30 days. */
+  void localLog(const std::string& op, const std::string& what, const std::string& target) {
+    if (host.logFile.empty()) return;
+    std::lock_guard<std::mutex> l(logM_);
+    std::ofstream f(host.logFile, std::ios::app | std::ios::binary);
+    std::string at = isoNow();
+    at[10] = ' ';
+    at.resize(19);
+    f << at << "  " << mask(what.empty() ? op : what) << (target.empty() ? "" : "  (" + mask(target) + ")") << "  [" << op << "]\r\n";
+  }
+  void pruneLog() {
+    if (host.logFile.empty()) return;
+    std::ifstream in(host.logFile, std::ios::binary);
+    if (!in) return;
+    std::string cut = isoNow(-30).substr(0, 10), line, kept;
+    while (std::getline(in, line))
+      if (line.size() >= 10 && line.compare(0, 10, cut) >= 0) kept += line + "\n";
+    in.close();
+    std::ofstream(host.logFile, std::ios::trunc | std::ios::binary) << kept;
+  }
+  /** A page-agent function that returns an element: its object id ("" when it isn't one). */
+  std::string agentNode(const Tab& t, const std::string& fn, const std::string& argsJson, OpError& e, const std::atomic<bool>* cancel) {
+    J tree = browser.call("Page.getFrameTree", "{}", t.sessionId, 10000, e, cancel);
+    if (!e.code.empty()) return {};
+    J w = browser.call("Page.createIsolatedWorld", "{\"frameId\":" + q(tree["frameTree"]["frame"]["id"].str()) + ",\"worldName\":\"sara-page-agent\"}", t.sessionId, 10000, e, cancel);
+    if (!e.code.empty()) return {};
+    std::string expr = "(" + host.pageAgent + ").call(" + q(fn) + ", " + argsJson + ")";
+    J r = browser.call("Runtime.evaluate", "{\"expression\":" + q(expr) + ",\"contextId\":" + num(w["executionContextId"].num()) + ",\"returnByValue\":false}", t.sessionId, 20000, e, cancel);
+    if (!e.code.empty()) return {};
+    return r["result"]["subtype"].str() == "node" ? r["result"]["objectId"].str() : std::string();
+  }
+  static std::string safeName(const std::string& raw) {
+    std::string n = raw.substr(raw.find_last_of("/\\") == std::string::npos ? 0 : raw.find_last_of("/\\") + 1);
+    for (auto& c : n)
+      if ((unsigned char)c < 0x20 || strchr("<>:\"|?*", c)) c = '_';
+    if (n.size() > 120) n.resize(120);
+    return n;
+  }
+  std::string downloadsJson() {
+    std::string o = "[";
+    WIN32_FIND_DATAW fd;
+    HANDLE h = FindFirstFileW((host.downloadsDir + L"\\*").c_str(), &fd);
+    int n = 0;
+    if (h != INVALID_HANDLE_VALUE) {
+      do {
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+        std::wstring name = fd.cFileName;
+        if (name.size() > 11 && name.compare(name.size() - 11, 11, L".crdownload") == 0) continue;
+        SYSTEMTIME st;
+        FileTimeToSystemTime(&fd.ftLastWriteTime, &st);
+        char at[40];
+        snprintf(at, sizeof at, "%04d-%02d-%02dT%02d:%02d:%02dZ", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+        ULONGLONG bytes = ((ULONGLONG)fd.nFileSizeHigh << 32) | fd.nFileSizeLow;
+        o += (n++ ? ",{" : "{") + std::string("\"name\":") + q(u8(name)) + ",\"bytes\":" + std::to_string(bytes) + ",\"at\":" + q(at) + "}";
+      } while (n < 100 && FindNextFileW(h, &fd));
+      FindClose(h);
+    }
+    return o + "]";
+  }
+  /** One acting op: the target, her highlight, the real input, then the after-state (§6.3). */
+  std::string act(Request& r, const Tab& t, OpError& e) {
+    const std::atomic<bool>* cancel = r.cancel.get();
+    const J& a = r.args;
+    browser.activate(t.id);
+    std::string beforeUrl;
+    {
+      OpError e0;
+      J info = browser.call("Target.getTargetInfo", "{\"targetId\":" + q(t.targetId) + "}", "", 10000, e0);
+      beforeUrl = info["targetInfo"]["url"].str();
+    }
+    browser.takeDialog(t.id);
+    int errs0 = t.consoleErrors, failed0 = t.failedRequests;
+    long long starts0 = browser.starts(t.id);
+    std::string tArgs = targetArgs(a);
+    J target;
+    std::string extra;
+    auto need = [&]() -> bool {
+      target = agent(t, "target", tArgs, e, cancel);
+      if (!e.code.empty()) return false;
+      if (!target["found"].truthy()) {
+        e = {target["stale"].truthy() ? "stale_view" : "not_found", target["error"].str("That is not on the page.")};
+        return false;
+      }
+      if (target["disabled"].truthy()) {
+        e = {"not_found", target["desc"].str() + " is disabled."};
+        return false;
+      }
+      if (!target["covered"].str().empty()) {
+        e = {"not_found", target["desc"].str() + " is covered by " + target["covered"].str() + ": close that first."};
+        return false;
+      }
+      OpError em;
+      agent(t, "mark", "{\"x\":" + num(target["x"].num()) + ",\"y\":" + num(target["y"].num()) + ",\"box\":" + dump(target["box"]) + ",\"label\":" + q(host.testLabel ? "Sara (TEST)" : "Sara") + "}", em, cancel);
+      return true;
+    };
+    if (r.op == "b.click") {
+      if (!need()) return {};
+      mouseClick(t, target["x"].num(), target["y"].num(), e, cancel);
+    } else if (r.op == "b.type") {
+      std::string value = a["value"].str();
+      if ((int)value.size() > kMaxChars * 4 || MultiByteToWideChar(CP_UTF8, 0, value.data(), (int)value.size(), nullptr, 0) > kMaxChars) {
+        e = {"denied_local", "At most 2000 characters per action."};
+        return {};
+      }
+      if (mask(value) != value) {
+        e = {"denied_local", "That text looks like a key or a sign-in token: Sara never types those."};
+        return {};
+      }
+      if (!need()) return {};
+      if (target["secret"].truthy()) {
+        e = {"denied_local", "That is a password field: Sara never types into those."};
+        return {};
+      }
+      if (!target["editable"].truthy()) {
+        e = {"not_found", target["desc"].str() + " is not a text field."};
+        return {};
+      }
+      mouseClick(t, target["x"].num(), target["y"].num(), e, cancel);
+      if (!e.code.empty()) return {};
+      std::string fArgs = tArgs.substr(0, tArgs.size() - 1) + (tArgs.size() > 2 ? "," : "") + "\"clear\":" + (a.has("clear") && !a["clear"].truthy() ? "false" : "true") + "}";
+      J f = agent(t, "focusFor", fArgs, e, cancel);
+      if (!e.code.empty()) return {};
+      if (f.has("error") || !f["focused"].truthy()) {
+        e = {f["secret"].truthy() ? "denied_local" : "not_found", f["error"].str("That field could not be focused.")};
+        return {};
+      }
+      if (!value.empty()) browser.call("Input.insertText", "{\"text\":" + q(value) + "}", t.sessionId, 20000, e, cancel);
+      if (e.code.empty() && a["submit"].truthy()) pressKeys(t, "Enter", e, cancel);
+    } else if (r.op == "b.select") {
+      std::string cArgs = tArgs.substr(0, tArgs.size() - 1) + (tArgs.size() > 2 ? "," : "") + "\"option\":" + q(a["option"].str()) + "}";
+      J c = agent(t, "choose", cArgs, e, cancel);
+      if (!e.code.empty()) return {};
+      if (c.has("error")) {
+        e = {c["stale"].truthy() ? "stale_view" : "not_found", c["error"].str()};
+        return {};
+      }
+      OpError em;
+      agent(t, "mark", "{\"x\":" + num(c["x"].num()) + ",\"y\":" + num(c["y"].num()) + ",\"label\":\"Sara\"}", em, cancel);
+      target = c;
+      extra = ",\"selected\":" + q(c["selected"].str());
+    } else if (r.op == "b.keys") {
+      pressKeys(t, a["combo"].str(), e, cancel);
+      extra = ",\"combo\":" + q(a["combo"].str());
+    } else if (r.op == "b.upload") {
+      std::string name;
+      if (a["file"].t == J::Obj) {
+        name = safeName(a["file"]["name"].str());
+        std::vector<BYTE> data = b64dec(a["file"]["data"].str());
+        if (name.empty() || name[0] == '.' || data.size() > 2 * 1024 * 1024) {
+          e = {"denied_local", "Uploads from the server are at most 2 MB."};
+          return {};
+        }
+        CreateDirectoryW(host.downloadsDir.c_str(), nullptr);
+        HANDLE fh = CreateFileW((host.downloadsDir + L"\\" + wide(name)).c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        DWORD wrote = 0;
+        bool ok = fh != INVALID_HANDLE_VALUE && WriteFile(fh, data.data(), (DWORD)data.size(), &wrote, nullptr) && wrote == data.size();
+        if (fh != INVALID_HANDLE_VALUE) CloseHandle(fh);
+        if (!ok) {
+          e = {"error", "Couldn't put the file in Downloads\\Sara."};
+          return {};
+        }
+      } else {
+        name = a["name"].str();
+        if (name.empty() || name != safeName(name) || name[0] == '.') {
+          e = {"denied_local", "Only a file name in Downloads\\Sara."};
+          return {};
+        }
+      }
+      std::wstring path = host.downloadsDir + L"\\" + wide(name);
+      DWORD attr = GetFileAttributesW(path.c_str());
+      if (attr == INVALID_FILE_ATTRIBUTES || (attr & FILE_ATTRIBUTE_DIRECTORY)) {
+        e = {"not_found", "There is no " + name + " in Downloads\\Sara on this computer."};
+        return {};
+      }
+      if (!need()) return {};
+      std::string objectId = agentNode(t, "fileInput", tArgs, e, cancel);
+      if (!e.code.empty()) return {};
+      if (objectId.empty()) {
+        e = {"not_found", "That is not a file upload field."};
+        return {};
+      }
+      browser.call("DOM.setFileInputFiles", "{\"files\":[" + q(u8(path)) + "],\"objectId\":" + q(objectId) + "}", t.sessionId, 15000, e, cancel);
+      extra = ",\"name\":" + q(name);
+    }
+    if (!e.code.empty()) return {};
+    settle(t, starts0, cancel);
+    if (cancel->load()) {
+      e = {"stopped", "Stopped."};
+      return {};
+    }
+    OpError es;
+    J st = agent(t, "state", "{}", es, cancel);
+    std::string desc = target["desc"].str();
+    localLog(r.op, r.what, desc.empty() ? a["combo"].str() : desc);
+    thumb(r.id, t, a, cancel);
+    Tab now;
+    OpError e2;
+    browser.tab(t.id, now, e2);
+    frame(now);
+    std::string dialog = browser.takeDialog(t.id);
+    bool navigated = st["url"].str(beforeUrl) != beforeUrl;
+    return "{\"tab\":" + q(t.id) + ",\"target\":{\"desc\":" + q(desc) + ",\"role\":" + q(target["role"].str()) + ",\"name\":" + q(target["name"].str()) + "},\"state\":" + (st.t == J::Obj ? dump(st) : "{}") +
+           ",\"navigated\":" + (navigated ? "true" : "false") + ",\"newErrors\":" + std::to_string(now.consoleErrors - errs0) + ",\"newFailed\":" + std::to_string(now.failedRequests - failed0) +
+           (dialog.empty() ? "" : ",\"dialog\":" + q(dialog)) + ",\"consoleErrors\":" + std::to_string(now.consoleErrors) + ",\"failedRequests\":" + std::to_string(now.failedRequests) + extra + "}";
+  }
+
+  // ---------------- Phase 88: the badge, the stop shortcut, takeover ----------------
+  void updateBadge() {
+    if (badge_) PostMessageW(badge_, WM_BADGE_UPDATE, 0, 0);
+  }
+  /** Shown while an op runs, for 30 s after one, and while paused. */
+  bool badgeActive() { return isPaused || opRunning_ || (lastOpAt_ && GetTickCount64() - lastOpAt_ < 30000); }
+  std::wstring badgeText() {
+    std::wstring pre = host.testLabel ? L"TEST \u00b7 " : L"";
+    if (isPaused) return pre + L"Paused: you're in control of the Sara browser";
+    std::string w;
+    {
+      std::lock_guard<std::mutex> l(whatM_);
+      w = what_;
+    }
+    std::wstring line = pre + L"Sara is working in her browser" + (w.empty() ? L"" : L" \u00b7 " + wide(w));
+    if (keep && keptAt_ && GetTickCount64() - keptAt_ < 8000) line += L" \u00b7 she keeps control";
+    return line;
+  }
+  /** Real input (not hers: DevTools input never reaches Windows' input queue) in her window? */
+  void watchTakeover() {
+    DWORD pid = browser.pid();
+    if (!badgeActive() || !pid || isPaused) {
+      watching_ = false;
+      return;
+    }
+    LASTINPUTINFO li{sizeof(li)};
+    if (!GetLastInputInfo(&li)) return;
+    if (!watching_) {
+      watching_ = true;
+      lastInput_ = li.dwTime;
+      return;
+    }
+    if (li.dwTime == lastInput_) return;
+    lastInput_ = li.dwTime;
+    POINT pt;
+    DWORD under = 0, front = 0;
+    if (GetCursorPos(&pt))
+      if (HWND w = WindowFromPoint(pt)) GetWindowThreadProcessId(GetAncestor(w, GA_ROOT), &under);
+    if (HWND fg = GetForegroundWindow()) GetWindowThreadProcessId(fg, &front);
+    if (under == pid || front == pid) userInput();
+  }
+  void layoutBadge(HWND h) {
+    std::wstring text = badgeText();
+    UINT dpi = GetDpiForWindow(h);
+    auto S = [dpi](int v) { return MulDiv(v, dpi ? dpi : 96, 96); };
+    HDC dc = GetDC(h);
+    HFONT f = CreateFontW(-S(14), 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    HGDIOBJ old = SelectObject(dc, f);
+    SIZE sz{};
+    GetTextExtentPoint32W(dc, text.c_str(), (int)text.size(), &sz);
+    SelectObject(dc, old);
+    DeleteObject(f);
+    ReleaseDC(h, dc);
+    int btn = S(76), gap = S(8), hgt = S(44);
+    int w = S(16) + S(12) + gap + std::min((int)sz.cx, S(560)) + gap + btn + (isPaused ? gap + btn : 0) + S(8);
+    MONITORINFO mi{sizeof(mi)};
+    GetMonitorInfoW(MonitorFromWindow(GetDesktopWindow(), MONITOR_DEFAULTTOPRIMARY), &mi);
+    int x = mi.rcWork.left + (mi.rcWork.right - mi.rcWork.left - w) / 2, y = mi.rcWork.top + S(8);
+    SetWindowPos(h, HWND_TOPMOST, x, y, w, hgt, SWP_NOACTIVATE);
+    HRGN rgn = CreateRoundRectRgn(0, 0, w + 1, hgt + 1, hgt, hgt);
+    SetWindowRgn(h, rgn, TRUE);
+    int right = w - S(6);
+    stopRc_ = {right - btn, S(5), right, hgt - S(5)};
+    resumeRc_ = isPaused ? RECT{stopRc_.left - gap - btn, S(5), stopRc_.left - gap, hgt - S(5)} : RECT{};
+  }
+  void paintBadge(HWND h) {
+    PAINTSTRUCT ps;
+    HDC dc = BeginPaint(h, &ps);
+    RECT rc;
+    GetClientRect(h, &rc);
+    UINT dpi = GetDpiForWindow(h);
+    auto S = [dpi](int v) { return MulDiv(v, dpi ? dpi : 96, 96); };
+    HBRUSH bg = CreateSolidBrush(RGB(32, 24, 38));
+    FillRect(dc, &rc, bg);
+    DeleteObject(bg);
+    COLORREF accent = isPaused ? RGB(240, 170, 60) : RGB(255, 61, 139);
+    HBRUSH dot = CreateSolidBrush(accent);
+    HGDIOBJ ob = SelectObject(dc, dot);
+    HGDIOBJ op = SelectObject(dc, GetStockObject(NULL_PEN));
+    int cy = (rc.bottom - rc.top) / 2;
+    Ellipse(dc, S(16), cy - S(6), S(28), cy + S(6));
+    SelectObject(dc, op);
+    SelectObject(dc, ob);
+    DeleteObject(dot);
+    HFONT f = CreateFontW(-S(14), 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+    HGDIOBJ of = SelectObject(dc, f);
+    SetBkMode(dc, TRANSPARENT);
+    SetTextColor(dc, RGB(245, 240, 248));
+    std::wstring text = badgeText();
+    RECT tr{S(36), 0, (isPaused ? resumeRc_.left : stopRc_.left) - S(8), rc.bottom};
+    DrawTextW(dc, text.c_str(), (int)text.size(), &tr, DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
+    auto button = [&](const RECT& b, COLORREF fill, const wchar_t* label) {
+      HBRUSH br = CreateSolidBrush(fill);
+      HGDIOBJ o1 = SelectObject(dc, br);
+      HGDIOBJ o2 = SelectObject(dc, GetStockObject(NULL_PEN));
+      RoundRect(dc, b.left, b.top, b.right, b.bottom, b.bottom - b.top, b.bottom - b.top);
+      SelectObject(dc, o2);
+      SelectObject(dc, o1);
+      DeleteObject(br);
+      RECT lb = b;
+      SetTextColor(dc, RGB(255, 255, 255));
+      DrawTextW(dc, label, -1, &lb, DT_SINGLELINE | DT_VCENTER | DT_CENTER | DT_NOPREFIX);
+    };
+    button(stopRc_, RGB(210, 50, 70), L"Stop");
+    if (isPaused) button(resumeRc_, RGB(70, 60, 90), L"Resume");
+    SelectObject(dc, of);
+    DeleteObject(f);
+    EndPaint(h, &ps);
+  }
+  static LRESULT CALLBACK BadgeProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
+    Hands* self = reinterpret_cast<Hands*>(GetWindowLongPtrW(h, GWLP_USERDATA));
+    switch (msg) {
+      case WM_MOUSEACTIVATE: return MA_NOACTIVATE;
+      case WM_PAINT:
+        if (self) self->paintBadge(h);
+        else ValidateRect(h, nullptr);
+        return 0;
+      case WM_LBUTTONUP: {
+        if (!self) break;
+        POINT pt{(short)LOWORD(lp), (short)HIWORD(lp)};
+        if (PtInRect(&self->stopRc_, pt)) self->pressStop();
+        else if (self->isPaused && PtInRect(&self->resumeRc_, pt)) self->resume();
+        return 0;
+      }
+      case WM_HOTKEY:
+        // Ctrl+Alt+Esc anywhere: stop her at once.
+        if (self && wp == kStopHotkeyId) self->pressStop();
+        return 0;
+      case WM_TIMER:
+        if (self) {
+          self->watchTakeover();
+          bool on = self->badgeActive();
+          if (on != (IsWindowVisible(h) != FALSE)) {
+            if (on) {
+              self->layoutBadge(h);
+              ShowWindow(h, SW_SHOWNOACTIVATE);
+            } else ShowWindow(h, SW_HIDE);
+          }
+        }
+        return 0;
+      case WM_BADGE_UPDATE:
+        if (self && self->badgeActive()) {
+          self->layoutBadge(h);
+          InvalidateRect(h, nullptr, FALSE);
+          ShowWindow(h, SW_SHOWNOACTIVATE);
+        } else ShowWindow(h, SW_HIDE);
+        return 0;
+#ifdef SARA_TEST_HOOKS
+      case WM_BADGE_TEST_INPUT:
+        if (self && self->host.testLabel) self->userInput();
+        return 0;
+      case WM_BADGE_TEST_RESUME:
+        if (self && self->host.testLabel) self->resume();
+        return 0;
+#endif
+      case WM_CLOSE: DestroyWindow(h); return 0;
+      case WM_DESTROY:
+        UnregisterHotKey(h, kStopHotkeyId);
+        PostQuitMessage(0);
+        return 0;
+    }
+    return DefWindowProcW(h, msg, wp, lp);
+  }
+  void uiLoop() {
+    HINSTANCE inst = GetModuleHandleW(nullptr);
+    WNDCLASSEXW wc{sizeof(wc)};
+    wc.lpfnWndProc = BadgeProc;
+    wc.hInstance = inst;
+    wc.hCursor = LoadCursorW(nullptr, IDC_HAND);
+    wc.lpszClassName = L"SaraHandsBadge";
+    RegisterClassExW(&wc);
+    badge_ = CreateWindowExW(WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, L"SaraHandsBadge", host.testLabel ? L"TEST Sara is working" : L"Sara is working", WS_POPUP, 0, 0, 10, 10, nullptr, nullptr, inst, nullptr);
+    if (badge_) {
+      SetWindowLongPtrW(badge_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+      // Her pictures never show her own badge.
+      bool exclude = true;
+#ifdef SARA_TEST_HOOKS
+      wchar_t v[8];
+      if (GetEnvironmentVariableW(L"SARA_TEST_BADGE_VISIBLE", v, 8) > 0) exclude = false;  // test screenshots of the badge
+#endif
+      if (exclude) SetWindowDisplayAffinity(badge_, 0x11 /* WDA_EXCLUDEFROMCAPTURE */);
+      hotkeyOk = RegisterHotKey(badge_, kStopHotkeyId, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, VK_ESCAPE) != FALSE;
+      say(hotkeyOk ? L"stop shortcut Ctrl+Alt+Esc ready" : L"stop shortcut Ctrl+Alt+Esc is taken by another app");
+      SetTimer(badge_, 1, 150, nullptr);
+    }
+    SetEvent(uiReady_);
+    MSG m;
+    while (badge_ && GetMessageW(&m, nullptr, 0, 0) > 0) {
+      TranslateMessage(&m);
+      DispatchMessageW(&m);
+    }
+    badge_ = nullptr;
+  }
+
   std::string run(Request& r, OpError& e) {
     const std::atomic<bool>* cancel = r.cancel.get();
     const J& a = r.args;
@@ -1269,6 +1910,15 @@ class Hands {
       return {};
     }
     if (r.op == "c.ping") return "{\"pong\":true,\"at\":" + std::to_string(GetTickCount64()) + "}";
+    // Phase 88: nothing acts while the person has taken over; and the device's own rate limit.
+    if (kInputOps.count(r.op)) {
+      if (isPaused) {
+        e = {"takeover", "Paused: the owner took over the Sara browser. Nothing acts until they press Resume."};
+        return {};
+      }
+      if (!countInput(e)) return {};
+    }
+    if (r.op == "b.downloads") return "{\"files\":" + downloadsJson() + "}";
     if (r.op != "b.tabs" || browser.running()) {
       browser.start(e);
       if (!e.code.empty()) return {};
@@ -1392,6 +2042,29 @@ class Hands {
       if (cut) text.resize(64 * 1024);
       return "{\"status\":" + st + ",\"mime\":\"text\",\"body\":" + q(text) + ",\"truncated\":" + (cut ? "true" : "false") + "}";
     }
+    if (r.op == "b.find") {
+      if (a["focused"].truthy()) {
+        J st = agent(t, "state", "{}", e, cancel);
+        if (!e.code.empty()) return {};
+        return "{\"found\":true,\"role\":\"page\",\"name\":" + q(st["focus"].str()) + ",\"desc\":" + q(st["focus"].str("the page")) + ",\"page\":{\"url\":" + q(st["url"].str()) + ",\"title\":" + q(st["title"].str()) + "}}";
+      }
+      J v = agent(t, "target", targetArgs(a), e, cancel);
+      if (!e.code.empty()) return {};
+      return v.t == J::Obj ? dump(v) : "{\"found\":false}";
+    }
+    if (r.op == "b.click" || r.op == "b.type" || r.op == "b.select" || r.op == "b.keys" || r.op == "b.upload") return act(r, t, e);
+    if (r.op == "b.scroll") {
+      J v = agent(t, "scroll", targetArgs(a), e, cancel);
+      if (!e.code.empty()) return {};
+      if (v.has("error")) {
+        e = {v["stale"].truthy() ? "stale_view" : "not_found", v["error"].str()};
+        return {};
+      }
+      Sleep(150);
+      thumb(r.id, t, a, cancel);
+      frame(t);
+      return "{\"tab\":" + q(t.id) + ",\"scrollY\":" + num(v["scrollY"].num()) + ",\"maxY\":" + num(v["maxY"].num()) + "}";
+    }
     if (r.op == "b.close") {
       browser.call("Target.closeTarget", "{\"targetId\":" + q(t.targetId) + "}", "", 10000, e, cancel);
       browser.forget(t.id);
@@ -1431,6 +2104,26 @@ void pressStop() {
 void setLocalOnly(bool on) {
   std::lock_guard<std::mutex> l(g_m);
   if (g_hands) g_hands->tellLocalOnly(on);
+}
+void setTakeover(bool keepControl) {
+  std::lock_guard<std::mutex> l(g_m);
+  if (g_hands) g_hands->tellTakeover(keepControl);
+}
+void resume() {
+  std::lock_guard<std::mutex> l(g_m);
+  if (g_hands) g_hands->resume();
+}
+bool paused() {
+  std::lock_guard<std::mutex> l(g_m);
+  return g_hands && g_hands->isPaused;
+}
+std::wstring statusLine() {
+  std::lock_guard<std::mutex> l(g_m);
+  return g_hands ? g_hands->status() : std::wstring();
+}
+std::wstring hotkeyLabel() {
+  std::lock_guard<std::mutex> l(g_m);
+  return g_hands && g_hands->hotkeyOk ? L"Ctrl+Alt+Esc" : L"";
 }
 bool running() {
   std::lock_guard<std::mutex> l(g_m);

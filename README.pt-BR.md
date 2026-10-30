@@ -14,7 +14,7 @@ em um só app para a web, Windows, Mac e celular.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1143%20passing-brightgreen" alt="1143 tests passing">
+  <img src="https://img.shields.io/badge/tests-1151%20passing-brightgreen" alt="1151 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ em um só app para a web, Windows, Mac e celular.
   <sub>Uma sessão real com um modelo local (qwen3.8 27B no Ollama, uma RTX 5090) em um servidor de teste descartável, no visual Noite: ela anima quem está conversando, escreve um app pequeno e o teste dele enquanto o modelo transmite, pede permissão antes de rodar um comando, pega um bug de verdade com um teste que falha e corrige até os 7 testes passarem. Quadros escolhidos da gravação; nada neles foi editado.</sub>
 </p>
 
-> **Status:** 2.20, licença MIT, com trinta e uma versões com novos recursos desde a 1.0 (todas abaixo). Da
+> **Status:** 2.21, licença MIT, com trinta e duas versões com novos recursos desde a 1.0 (todas abaixo). Da
 > 2.5 à 2.8 o app inteiro ganhou um visual novo. O
 > [app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) está no Google
 > Play; o app de iPhone e a versão da Mac App Store chegam assim que a Apple aprovar. Leia
@@ -69,6 +69,7 @@ para quem mora com você · [chamadas de vídeo](docs/VIDEO_CALLS.md) com o retr
 
 | Versão | O que você ganha |
 |---|---|
+| **2.21** · Uso do computador, passo 2 | **Ela age no próprio navegador:** clica, digita, escolhe em listas, rola, aperta teclas e envia um arquivo que você indicar, com um cursor visível. Você escolhe quanto ela pergunta: sempre, uma vez por tarefa (padrão) ou *sempre permitido* por site; pagamentos e configurações da conta sempre perguntam, enviar pergunta toda vez e ela nunca digita senhas. Um selo **Sara está trabalhando** com Parar e um atalho para pará-la (Ctrl+Alt+Esc / ⌃⌥Esc); se você mexer na janela dela, ela pausa (ou *Deixar a Sara no controle*). |
 | **2.20** · Uso do computador, passo 1 | Com o app para Windows ou Mac, **ela abre páginas da web na própria janela de navegador no seu computador** (perfil próprio, nunca o seu navegador ou suas senhas), lê, tira capturas e lê erros de console e de rede: diga "meu app no localhost quebrou" e ela olha. Desligado até você ligar *Deixar a Sara usar este computador*; visão ao vivo no chat com Parar; cada passo em Execuções com uma imagem. Clicar e digitar vêm a seguir. [O plano](docs/design/COMPUTER_USE.md) |
 | **2.19** · Modo red team | **Antes de publicar, ela tenta quebrar o próprio trabalho:** numa cópia isolada ela roda seus testes, inicia seu app e manda entradas malformadas e de limite para cada ponto de entrada, confere configurações padrão inseguras e deixa o modelo de código escrever pequenos scripts de ataque que só alcançam esse app isolado. Um modelo revisor mais forte só mantém as falhas que se repetem, com a entrada, a saída e a linha de código citadas. Depois, **Corrigir o que quebrou** num branch local. Também na 2.19: **organizar o Gmail** (arquivar, marcar como lido, marcadores, lixeira… por busca ou data, conta primeiro, Desfazer). [Como funciona](docs/design/HARNESS_TRACK.md) |
 | **2.18** · Lembra sozinha | **Ela lembra sem você pedir quando a situação combina:** o mesmo erro volta neste projeto ("da última vez a correção foi…"), um comando que já falhou aqui, um arquivo sobre o qual você decidiu algo, uma tarefa parecida com outra da qual ela tirou uma lição. As lições só vêm do que aconteceu de verdade (a linha do erro e a mudança que corrigiu, citadas). Cada nota diz de onde veio e com que certeza, no máximo 2 por passo, e *Não ajudou* ensina a ela. [Como funciona](docs/design/HARNESS_TRACK.md) |
@@ -288,8 +289,8 @@ verificava. O que ela acrescenta hoje é o jeito de trabalhar (roda os testes, p
 de passos arriscados, mostra o que foi executado), não uma nota maior nesses conjuntos. Detalhes,
 resultados por tarefa e como rodar de novo: [docs/RESULTS.md](docs/RESULTS.md).
 
-E também `npm run check`: uma checagem de tipos e 1154 testes automáticos com um modelo falso
-roteirizado (sem rede, sem GPU): 1143 passam no Windows e os outros 8 são testes de isolamento só
+E também `npm run check`: uma checagem de tipos e 1162 testes automáticos com um modelo falso
+roteirizado (sem rede, sem GPU): 1151 passam no Windows e os outros 8 são testes de isolamento só
 para Linux, executados em um servidor Linux.
 
 ## Como a Sara se compara

@@ -1,7 +1,8 @@
 // Phase 87 (computer use CU1, docs/design/COMPUTER_USE.md §4.3): her tools for the Sara browser on
 // the owner's own computer, through the hands channel (src/hands.ts). CU1 looks, reads and
-// navigates: pc_devices, pc_browser_open / navigate / look / read / tabs / logs / request. Clicking
-// and typing come in CU2. Kept apart from browser_* (her testing browser on the server) so she and
+// navigates: pc_devices, pc_browser_open / navigate / look / read / tabs / logs / request. Phase 88
+// (CU2) acts: pc_browser_click / type / select / keys / scroll / upload / downloads, each approved by
+// the rows in src/computer-policy.ts (actionVerdict) before it runs, then checked by looking again. Kept apart from browser_* (her testing browser on the server) so she and
 // the receipts know which machine was used.
 //
 // Rules here (the device enforces its own as well):
@@ -13,10 +14,12 @@
 // - one task per computer at a time, a budget of actions and minutes per task, and everything she
 //   reads is data, never instructions.
 import type { AppContext } from '../chat.ts';
-import { injectionHints, navigationVerdict, siteOf } from '../computer-policy.ts';
+import { readFileSync, statSync } from 'node:fs';
+import { basename, isAbsolute, relative, resolve as resolvePath } from 'node:path';
+import { actionVerdict, actLevel, injectionHints, navigationVerdict, siteOf, type ActKind } from '../computer-policy.ts';
 import { HandsError, type HandsDeviceView, type HandsReply } from '../hands.ts';
 import { privateLocalOn } from '../net-guard.ts';
-import { str, ToolError, type Tool, type ToolContext } from './types.ts';
+import { str, ToolError, type ComputerApproval, type Prepared, type Tool, type ToolContext } from './types.ts';
 
 const obj = (properties: Record<string, unknown>, required: string[] = []) => ({ type: 'object', properties, required, additionalProperties: false });
 const COMPUTER_ARG = { computer: { type: 'string', description: 'Which computer (its name), when more than one is connected' } };
@@ -26,13 +29,25 @@ export const UNTRUSTED = '[What follows comes from a web page on the owner\u2019
 export const NO_COMPUTER = 'No computer is connected for computer use.';
 
 /** Tool names (the claim check and the chat's filters use them). */
-export const COMPUTER_TOOLS = new Set(['pc_devices', 'pc_browser_open', 'pc_browser_navigate', 'pc_browser_look', 'pc_browser_read', 'pc_browser_tabs', 'pc_browser_logs', 'pc_browser_request']);
+export const COMPUTER_TOOLS = new Set(['pc_devices', 'pc_browser_open', 'pc_browser_navigate', 'pc_browser_look', 'pc_browser_read', 'pc_browser_tabs', 'pc_browser_logs', 'pc_browser_request', 'pc_browser_click', 'pc_browser_type', 'pc_browser_select', 'pc_browser_keys', 'pc_browser_scroll', 'pc_browser_upload', 'pc_browser_downloads']);
+/** Phase 88: files she may hand to an upload field from her workspace (bigger ones: put them in the computer's Downloads/Sara folder). */
+export const UPLOAD_MAX_BYTES = 2 * 1024 * 1024;
 export const isComputerTool = (name: string): boolean => name.startsWith('pc_');
 
 const nameOf = (d: HandsDeviceView) => d.computer || d.label.replace(/^Sara's hands on /, '') || 'this computer';
 
 /** Sites the owner allowed on a card, per task (conversation + the owner message it answers). In memory only. */
 const grants = new Map<string, { task: string; sites: Set<string> }>();
+/** Phase 88: sites where acting was allowed "for this task" (same task key). In memory only, gone with the task. */
+const actGrants = new Map<string, { task: string; sites: Set<string> }>();
+/** Phase 88: the last element list per computer (ref → what it was), so an action on e12 checks it's still the same thing. */
+const views = new Map<string, Map<string, string>>();
+/** Phase 88: the size of the last screenshot per computer (a point on it maps to the page). */
+const shots = new Map<string, { w: number; h: number }>();
+/** Phase 88: what prepare() found for a call (the same arguments object reaches run()). */
+const preparedActs = new WeakMap<object, { expect?: string; site: string; target: string }>();
+/** Same shape as the page agent's fingerprint (role|name, lower case, 40 characters). */
+const fpOf = (role: unknown, name: unknown) => `${String(role ?? '')}|${String(name ?? '').toLowerCase().slice(0, 40)}`;
 
 export function createComputerTools(app: AppContext): Tool[] {
   const hub = () => app.hands;
@@ -59,6 +74,16 @@ export function createComputerTools(app: AppContext): Tool[] {
     return g.sites;
   };
   const localOnly = (conversationId: string) => privateLocalOn() || Boolean(app.store.getConversation(conversationId)?.private);
+  const actSitesOf = (conversationId: string): Set<string> => {
+    const t = taskOf(conversationId).key;
+    const g = actGrants.get(conversationId);
+    if (!g || g.task !== t) {
+      const fresh = { task: t, sites: new Set<string>() };
+      actGrants.set(conversationId, fresh);
+      return fresh.sites;
+    }
+    return g.sites;
+  };
 
   const pick = (args: Record<string, unknown>): HandsDeviceView => {
     const h = hub();
@@ -77,13 +102,13 @@ export function createComputerTools(app: AppContext): Tool[] {
   };
 
   /** One op on the chosen computer, with the task's lease and budget; device refusals become plain errors. */
-  const op = async (ctx: ToolContext, d: HandsDeviceView, name: string, args: Record<string, unknown>): Promise<HandsReply> => {
+  const op = async (ctx: ToolContext, d: HandsDeviceView, name: string, args: Record<string, unknown>, what?: string): Promise<HandsReply> => {
     const conv = convOf(ctx);
     const h = hub()!;
     if (!h.claim(d.id, conv.id)) throw new ToolError(`Sara is using ${nameOf(d)} for another conversation right now. Wait for that task to finish (or ask the owner to stop it).`);
     try {
       h.spend(taskOf(conv.id).key);
-      return await h.request(d.id, name, args, { signal: ctx.signal, ...(ctx.runId ? { runId: ctx.runId } : {}) });
+      return await h.request(d.id, name, args, { signal: ctx.signal, ...(ctx.runId ? { runId: ctx.runId } : {}), ...(what ? { what } : {}) });
     } catch (err) {
       if (err instanceof HandsError) {
         const what: Record<string, string> = {
@@ -95,8 +120,11 @@ export function createComputerTools(app: AppContext): Tool[] {
           stopped: 'Stopped',
           not_found: 'Not found',
           budget: 'Budget reached',
+          takeover: 'Paused on the computer',
+          stale_view: 'The page changed',
         };
-        throw new ToolError(`${what[err.code] ?? 'The computer refused that'}: ${err.message}${err.code === 'denied_local' ? ' Accept this: the computer decides.' : ''}`);
+        const after = err.code === 'denied_local' ? ' Accept this: the computer decides.' : err.code === 'takeover' ? ' The owner is using the Sara browser now. Stop acting: tell them what you were about to do and that you will go on when they press Resume on the computer (or ask you to).' : err.code === 'stale_view' ? ' Look again (pc_browser_look) and use the new refs.' : '';
+        throw new ToolError(`${what[err.code] ?? 'The computer refused that'}: ${err.message}${after}`);
       }
       throw new ToolError((err as Error).message);
     }
@@ -131,7 +159,7 @@ export function createComputerTools(app: AppContext): Tool[] {
       }
       const lines = online.map((d) => `- "${nameOf(d)}" (${d.app ?? 'Sara app'}${d.os ? `, ${d.os}` : ''}): ${d.optIn?.browser ? `the Sara browser${d.browser?.name ? ` (${d.browser.name})` : ''} is yours to look, read and navigate` : '"Let Sara use this computer" is off there'}; pictures ${d.localOnly ? 'only to models on the owner\u2019s own computers' : 'to the model in use'}${d.busy ? '; busy with a task now' : ''}.`);
       const off = list.filter((d) => !d.connected);
-      return `Computers you can use:\n${lines.join('\n')}${off.length ? `\nNot connected now: ${off.map((d) => `"${nameOf(d)}"`).join(', ')}.` : ''}\nIn this version you can open pages, go back/forward/reload, look (element list, screenshot), read text, list tabs and read console and network logs. You can't click or type there yet.`;
+      return `Computers you can use:\n${lines.join('\n')}${off.length ? `\nNot connected now: ${off.map((d) => `"${nameOf(d)}"`).join(', ')}.` : ''}\nYou can open pages, go back/forward/reload, look (element list, screenshot), read text, list tabs, read console and network logs, and act: click, type, choose in lists, press keys, scroll and upload a file the owner named. Look first; act on refs from your latest look; look again after each action. Actions may ask the owner first (an approval card); payments and account settings always do. If the owner takes over (moves the mouse in the Sara browser) you are paused: stop and wait.`;
     },
   };
 
@@ -215,6 +243,10 @@ export function createComputerTools(app: AppContext): Tool[] {
       thumbs(ctx, r);
       const x = r.result;
       const items = (Array.isArray(x.items) ? x.items : []) as Record<string, unknown>[];
+      // Phase 88: what each ref was, so acting on it checks it's still the same thing.
+      const seen = Number(args.from ?? 0) > 0 ? (views.get(d.id) ?? new Map<string, string>()) : new Map<string, string>();
+      for (const i of items) seen.set(String(i.ref), fpOf(i.role, i.name));
+      views.set(d.id, seen);
       const line = (i: Record<string, unknown>) => {
         const bits = [`${String(i.ref)} ${String(i.role)}`, i.name ? `"${String(i.name)}"` : ''];
         if (i.secret) bits.push('(password field: value hidden)');
@@ -237,6 +269,7 @@ export function createComputerTools(app: AppContext): Tool[] {
     const r = await op(ctx, d, 'b.screenshot', { ...tab, maxWidth: 1280, quality: 70 });
     const img = r.images.find((i) => i.kind === 'shot') ?? r.images[0];
     if (!img) return 'The screenshot came back empty.';
+    if (img.w && img.h) shots.set(d.id, { w: img.w, h: img.h });
     const local = localOnly(conversationId) || d.localOnly === true;
     const may = !local || ctx.modelLocal === true;
     let id: string | undefined;
@@ -325,5 +358,250 @@ export function createComputerTools(app: AppContext): Tool[] {
     },
   };
 
-  return [devices, open, navigate, look, read, tabs, logs, request];
+  // ---------------- Phase 88 (CU2): acting ----------------
+  const REF_ARG = { ref: { type: 'string', description: 'The element from your latest pc_browser_look (e.g. "e12"): preferred' } };
+  const POINT_ARGS = { x: { type: 'number', description: 'Only when no ref fits: a point on your latest screenshot (picture pixels)' }, y: { type: 'number' } };
+  /** The target arguments the device understands: a ref (checked against the last look), a label, or a point on the last screenshot. */
+  const targetOf = (d: HandsDeviceView, args: Record<string, unknown>, labelKey: string): Record<string, unknown> => {
+    const ref = typeof args.ref === 'string' ? args.ref.trim() : '';
+    if (ref) {
+      if (!/^e\d{1,5}$/.test(ref)) throw new ToolError('ref: like "e12" from pc_browser_look.');
+      const expect = views.get(d.id)?.get(ref);
+      return { ref, ...(expect ? { expect } : {}) };
+    }
+    const label = typeof args[labelKey] === 'string' ? String(args[labelKey]).trim() : '';
+    if (label) return { text: label.slice(0, 200), ...(labelKey === 'field' ? { field: true } : {}) };
+    if (typeof args.x === 'number' && typeof args.y === 'number') {
+      const shot = shots.get(d.id);
+      if (!shot) throw new ToolError('Take a screenshot first (pc_browser_look with screenshot:true): a point means a place on that picture.');
+      return { x: args.x, y: args.y, w: shot.w, h: shot.h };
+    }
+    if (labelKey === 'focused') return { focused: true };
+    throw new ToolError(`Say what to act on: ref (from pc_browser_look)${labelKey === 'text' ? ', text (what it says)' : labelKey === 'field' ? ', field (its label)' : ''} or x/y on your latest screenshot.`);
+  };
+  const tabOf = (args: Record<string, unknown>) => (args.tab ? { tab: String(args.tab) } : {});
+  const quote = (s: unknown) => `\u201c${String(s ?? '').slice(0, 80)}\u201d`;
+  const describe = (t: Record<string, unknown>) => {
+    const role = String(t.role ?? '');
+    const what = role === 'textbox' ? 'the field' : role === 'combobox' ? 'the list' : role === 'link' ? 'the link' : role === 'button' ? 'the button' : role === 'checkbox' ? 'the checkbox' : role === 'radio' ? 'the option' : 'the element';
+    return t.name ? `${what} ${quote(t.name)}` : String(t.desc ?? what);
+  };
+  const VERB: Record<ActKind, string> = { click: 'click', type: 'type into', select: 'choose in', keys: 'press keys in', upload: 'upload a file to' };
+
+  /** Before the card: what the target is (the device looks it up, nothing acts) and what the rows say. */
+  const prepareAct = async (kind: ActKind, args: Record<string, unknown>, ctx: { signal: AbortSignal; conversationId?: string; replay?: boolean }, labelKey: string, extra: { text?: string; file?: string } = {}): Promise<Prepared> => {
+    if (!ctx.conversationId) return {};
+    const d = pick(args);
+    const h = hub()!;
+    if (!h.claim(d.id, ctx.conversationId)) return { refuse: `Error: Sara is using ${nameOf(d)} for another conversation right now.` };
+    const tgt = targetOf(d, args, labelKey);
+    let found: Record<string, unknown>;
+    try {
+      found = (await h.request(d.id, 'b.find', { ...tgt, ...tabOf(args) }, { signal: ctx.signal, deadlineMs: 15_000 })).result;
+    } catch (err) {
+      if (err instanceof HandsError && err.code === 'unsupported') return { refuse: `Error: ${nameOf(d)} can't act in the Sara browser yet: the Sara app there needs updating.` };
+      return { refuse: `Error: ${(err as Error).message}` };
+    }
+    if (found.found !== true) return { refuse: `Error: ${String(found.error ?? 'That is not on the page.')}${found.stale ? ' Look again (pc_browser_look) and use the new refs.' : ''}` };
+    const page = (found.page ?? {}) as Record<string, unknown>;
+    let site = '';
+    try {
+      site = siteOf(new URL(String(page.url ?? '')));
+    } catch {
+      return { refuse: 'Error: The Sara browser has no web page open: pc_browser_open first.' };
+    }
+    const cu = app.settings.get().computerUse ?? {};
+    const base = actionVerdict({ kind, site, target: found as never, page: page as never, ...(extra.text ? { text: extra.text } : {}), level: actLevel(cu.level), taskSites: actSitesOf(ctx.conversationId), always: cu.always ?? [] });
+    // M8 "Re-plan from here": a branch never repeats her actions on its own; each new one asks (once).
+    const verdict = ctx.replay && base.act !== 'block' ? { act: 'ask' as const, risk: base.risk, why: 're-planned from an earlier step: every action asks', choices: ['once' as const] } : base;
+    const target = describe(found);
+    preparedActs.set(args, { ...(typeof found.fp === 'string' && !tgt.expect && tgt.ref ? { expect: found.fp } : {}), site, target });
+    if (verdict.act === 'block') return { refuse: `Error: ${verdict.why}` };
+    if (verdict.act === 'allow') return {};
+    const conversationId = ctx.conversationId;
+    const detail: ComputerApproval = { kind: 'computer', action: kind, site, computer: nameOf(d), target, ...(found.role ? { role: String(found.role) } : {}), ...(found.name ? { name: String(found.name) } : {}), ...(extra.text ? { text: extra.text.slice(0, 200) } : extra.file ? { text: extra.file } : {}), risk: verdict.risk, why: verdict.why, choices: verdict.choices };
+    return {
+      ask: true,
+      summary: `${VERB[kind]} ${target} on ${site} in the Sara browser on ${nameOf(d)}${extra.text ? ` (${quote(extra.text)})` : extra.file ? ` (${extra.file})` : ''}`,
+      computer: detail,
+      answered: (ok, how) => {
+        if (!ok) return;
+        if (how === 'task' && verdict.choices.includes('task')) actSitesOf(conversationId).add(site);
+        if (how === 'always' && verdict.choices.includes('always')) {
+          const now = app.settings.get().computerUse ?? {};
+          const list = (now.always ?? []).filter((a) => !(a.site === site && a.kind === kind));
+          app.settings.update({ computerUse: { ...now, always: [...list, { site, kind, at: new Date().toISOString() }].slice(-200) } });
+        }
+      },
+    };
+  };
+
+  /** The after-state of an action, for her to check (§6.3). */
+  const afterText = (done: string, x: Record<string, unknown>) => {
+    const st = (x.state ?? {}) as Record<string, unknown>;
+    const bits = [done];
+    if (x.navigated) bits.push(`The page changed: now on ${String(st.url ?? x.url ?? '?')} (${String(st.title ?? x.title ?? '') || 'no title'}).`);
+    else bits.push(`Still on ${String(st.url ?? x.url ?? '?')}.`);
+    if (st.heading) bits.push(`Heading: ${quote(st.heading)}.`);
+    const alerts = Array.isArray(st.alerts) ? (st.alerts as unknown[]).map(String).filter(Boolean) : [];
+    if (alerts.length) bits.push(`Messages on the page: ${alerts.map((a) => quote(a)).join('; ')}.`);
+    if (x.dialog) bits.push(`A page dialog said ${quote(x.dialog)} (closed with Cancel).`);
+    const ne = Number(x.newErrors ?? 0);
+    const nf = Number(x.newFailed ?? 0);
+    if (ne || nf) bits.push(`New since the action: ${ne} console error${ne === 1 ? '' : 's'}, ${nf} failed request${nf === 1 ? '' : 's'} (pc_browser_logs shows them).`);
+    bits.push('Look again (pc_browser_look) before your next action; after two failed tries at the same thing, stop and tell the owner.');
+    const out = `${UNTRUSTED}\n${bits.join(' ')}`;
+    return out + flagged(alerts.join(' '));
+  };
+
+  const actRun = async (ctx: ToolContext, kind: ActKind, opName: string, args: Record<string, unknown>, labelKey: string, extra: Record<string, unknown>, what: string): Promise<{ d: HandsDeviceView; x: Record<string, unknown> }> => {
+    const d = pick(args);
+    const prep = preparedActs.get(args);
+    const tgt = labelKey === 'none' ? {} : targetOf(d, args, labelKey);
+    if (prep?.expect && tgt.ref && !tgt.expect) tgt.expect = prep.expect;
+    const r = await op(ctx, d, opName, { ...tgt, ...tabOf(args), ...extra, thumb: 320 }, what);
+    thumbs(ctx, r);
+    void kind;
+    return { d, x: r.result };
+  };
+
+  const click: Tool = {
+    defaultPermission: 'auto',
+    spec: {
+      name: 'pc_browser_click',
+      description: "Click something in the Sara browser on the owner's computer (a real click they can watch). Prefer a ref from your latest pc_browser_look; or text (what the button or link says); or x/y on your latest screenshot when nothing else fits. The first action on a site in a task asks the owner (an approval card); payments, purchases and account settings ask every time. Then look again.",
+      parameters: obj({ ...REF_ARG, text: { type: 'string', description: 'What the button or link says, when you have no ref' }, ...POINT_ARGS, ...TAB_ARG, ...COMPUTER_ARG }),
+    },
+    isAvailable: anyOnline,
+    summarize: (a) => `click ${a.ref ? String(a.ref) : a.text ? `\u201c${String(a.text).slice(0, 60)}\u201d` : 'a point'} in the Sara browser`,
+    prepare: (args, ctx) => prepareAct('click', args, ctx, 'text'),
+    async run(args, ctx) {
+      const { x } = await actRun(ctx, 'click', 'b.click', args, 'text', {}, `clicking ${preparedActs.get(args)?.target ?? 'on the page'}`);
+      return afterText(`Clicked ${describe((x.target ?? {}) as Record<string, unknown>)}.`, x);
+    },
+  };
+
+  const type: Tool = {
+    defaultPermission: 'auto',
+    spec: {
+      name: 'pc_browser_type',
+      description: "Type text into a field in the Sara browser on the owner's computer (it clicks the field first; clear:false adds to what's there; submit:true presses Enter after). Use only text from the owner's request or your plan. Never passwords, keys or codes: password fields are refused; ask the owner to type those themselves.",
+      parameters: obj({ ...REF_ARG, field: { type: 'string', description: 'The field\u2019s label or placeholder, when you have no ref' }, ...POINT_ARGS, text: { type: 'string', description: 'What to type (up to 2000 characters)' }, clear: { type: 'boolean', description: 'Replace what is in the field (default true)' }, submit: { type: 'boolean', description: 'Press Enter after typing' }, ...TAB_ARG, ...COMPUTER_ARG }, ['text']),
+    },
+    isAvailable: anyOnline,
+    summarize: (a) => `type into ${a.ref ? String(a.ref) : a.field ? `\u201c${String(a.field).slice(0, 60)}\u201d` : 'a field'} in the Sara browser`,
+    prepare: (args, ctx) => prepareAct('type', args, ctx, 'field', { text: typeof args.text === 'string' ? args.text : '' }),
+    async run(args, ctx) {
+      const text = str(args, 'text');
+      if (text.length > 2000) throw new ToolError('At most 2000 characters per action.');
+      const { x } = await actRun(ctx, 'type', 'b.type', args, 'field', { value: text, clear: args.clear !== false, submit: args.submit === true }, `typing into ${preparedActs.get(args)?.target ?? 'a field'}`);
+      return afterText(`Typed ${text.length} character${text.length === 1 ? '' : 's'} into ${describe((x.target ?? {}) as Record<string, unknown>)}${args.submit === true ? ' and pressed Enter' : ''}.`, x);
+    },
+  };
+
+  const select: Tool = {
+    defaultPermission: 'auto',
+    spec: {
+      name: 'pc_browser_select',
+      description: "Choose an option in a list (a drop-down) in the Sara browser on the owner's computer.",
+      parameters: obj({ ...REF_ARG, field: { type: 'string', description: 'The list\u2019s label, when you have no ref' }, option: { type: 'string', description: 'The option\u2019s text' }, ...TAB_ARG, ...COMPUTER_ARG }, ['option']),
+    },
+    isAvailable: anyOnline,
+    summarize: (a) => `choose \u201c${String(a.option ?? '').slice(0, 60)}\u201d in the Sara browser`,
+    prepare: (args, ctx) => prepareAct('select', args, ctx, 'field', { text: typeof args.option === 'string' ? args.option : '' }),
+    async run(args, ctx) {
+      const option = str(args, 'option');
+      const { x } = await actRun(ctx, 'select', 'b.select', args, 'field', { option }, `choosing ${quote(option)}`);
+      return afterText(`Chose ${quote(x.selected ?? option)} in ${describe((x.target ?? {}) as Record<string, unknown>)}.`, x);
+    },
+  };
+
+  const keys: Tool = {
+    defaultPermission: 'auto',
+    spec: {
+      name: 'pc_browser_keys',
+      description: "Press keys in the Sara browser on the owner's computer (in the page, at the focused element): Enter, Tab, Escape, Backspace, Delete, Space, arrows, Home, End, PageUp, PageDown, or Ctrl/Shift/Alt/Meta with one letter or digit, e.g. \"Shift+Tab\" or \"Ctrl+A\".",
+      parameters: obj({ keys: { type: 'string', description: 'e.g. "Enter" or "Ctrl+A"' }, ...TAB_ARG, ...COMPUTER_ARG }, ['keys']),
+    },
+    isAvailable: anyOnline,
+    summarize: (a) => `press ${String(a.keys ?? '').slice(0, 30)} in the Sara browser`,
+    prepare: (args, ctx) => prepareAct('keys', args, ctx, 'focused', { text: typeof args.keys === 'string' ? args.keys : '' }),
+    async run(args, ctx) {
+      const combo = str(args, 'keys');
+      const { x } = await actRun(ctx, 'keys', 'b.keys', args, 'none', { combo }, `pressing ${combo}`);
+      return afterText(`Pressed ${combo}.`, x);
+    },
+  };
+
+  const scrollTool: Tool = {
+    defaultPermission: 'auto',
+    spec: {
+      name: 'pc_browser_scroll',
+      description: "Scroll the page in the Sara browser on the owner's computer: down or up by about a screen, or to an element (ref).",
+      parameters: obj({ direction: { type: 'string', enum: ['down', 'up'] }, ...REF_ARG, ...TAB_ARG, ...COMPUTER_ARG }),
+    },
+    isAvailable: anyOnline,
+    summarize: (a) => `scroll ${a.ref ? `to ${String(a.ref)}` : String(a.direction ?? 'down')} in the Sara browser`,
+    async run(args, ctx) {
+      const d = pick(args);
+      const tgt = args.ref ? targetOf(d, args, 'none') : {};
+      const r = await op(ctx, d, 'b.scroll', { ...tgt, ...(args.ref ? {} : { dy: args.direction === 'up' ? -700 : 700 }), ...tabOf(args), thumb: 320 }, 'scrolling the page');
+      thumbs(ctx, r);
+      const x = r.result;
+      return `Scrolled: now ${String(x.scrollY ?? '?')} of ${String(x.maxY ?? '?')} pixels down. Look again to see what's there.`;
+    },
+  };
+
+  /** A file from her workspace (the owner named it): read here, sent to the computer's Downloads/Sara folder for the upload. */
+  const workspaceFile = (ctx: ToolContext, rel: string): { name: string; data: string } => {
+    const root = resolvePath(ctx.workspaceDir);
+    const full = resolvePath(root, rel);
+    const inside = relative(root, full);
+    if (!inside || inside.startsWith('..') || isAbsolute(inside)) throw new ToolError('Only files in your workspace can be uploaded from the server.');
+    let st;
+    try {
+      st = statSync(full);
+    } catch {
+      throw new ToolError(`No file ${rel} in your workspace.`);
+    }
+    if (!st.isFile()) throw new ToolError(`${rel} is not a file.`);
+    if (st.size > UPLOAD_MAX_BYTES) throw new ToolError(`${rel} is bigger than 2 MB: ask the owner to put it in Downloads/Sara on that computer and use from_computer.`);
+    return { name: basename(full), data: readFileSync(full).toString('base64') };
+  };
+
+  const upload: Tool = {
+    defaultPermission: 'auto',
+    spec: {
+      name: 'pc_browser_upload',
+      description: "Upload a file the owner named into a file field in the Sara browser on the owner's computer: a file from your workspace (file, up to 2 MB), or one in that computer's Downloads/Sara folder (from_computer, its name). Never any other file on their computer.",
+      parameters: obj({ ...REF_ARG, field: { type: 'string', description: 'The upload field\u2019s label, when you have no ref' }, file: { type: 'string', description: 'Path in your workspace' }, from_computer: { type: 'string', description: 'A file name in Downloads/Sara on that computer' }, ...TAB_ARG, ...COMPUTER_ARG }),
+    },
+    isAvailable: anyOnline,
+    summarize: (a) => `upload ${String(a.file ?? a.from_computer ?? 'a file').slice(0, 80)} in the Sara browser`,
+    prepare: (args, ctx) => prepareAct('upload', args, ctx, 'field', { file: String(args.file ?? args.from_computer ?? '').slice(0, 120) }),
+    async run(args, ctx) {
+      const local = typeof args.from_computer === 'string' && args.from_computer.trim() ? args.from_computer.trim() : '';
+      const rel = typeof args.file === 'string' ? args.file.trim() : '';
+      if (!local === !rel) throw new ToolError('Give either file (in your workspace) or from_computer (a name in Downloads/Sara on that computer).');
+      if (local && /[\\/:]|^\.\.?$/.test(local)) throw new ToolError('from_computer is just a file name in Downloads/Sara, no folders.');
+      const extra = local ? { name: local } : { file: workspaceFile(ctx, rel) };
+      const { x } = await actRun(ctx, 'upload', 'b.upload', args, 'field', extra, `uploading ${local || basename(rel)}`);
+      return afterText(`Put ${quote(x.name ?? (local || basename(rel)))} into ${describe((x.target ?? {}) as Record<string, unknown>)}.`, x);
+    },
+  };
+
+  const downloads: Tool = {
+    defaultPermission: 'auto',
+    spec: { name: 'pc_browser_downloads', description: "The files in the Downloads/Sara folder on the owner's computer (where the Sara browser saves downloads, and where they can put a file for you to upload).", parameters: obj({ ...COMPUTER_ARG }) },
+    isAvailable: anyOnline,
+    summarize: () => 'list the Sara browser downloads',
+    async run(args, ctx) {
+      const d = pick(args);
+      const r = await op(ctx, d, 'b.downloads', {});
+      const files = (Array.isArray(r.result.files) ? r.result.files : []) as Record<string, unknown>[];
+      return files.length ? `Downloads/Sara on ${nameOf(d)}:\n${files.map((f) => `- ${String(f.name)} (${Math.max(1, Math.round(Number(f.bytes ?? 0) / 1024))} KB, ${String(f.at ?? '')})`).join('\n')}` : `Downloads/Sara on ${nameOf(d)} is empty.`;
+    },
+  };
+
+  return [devices, open, navigate, look, read, tabs, logs, request, click, type, select, keys, scrollTool, upload, downloads];
 }

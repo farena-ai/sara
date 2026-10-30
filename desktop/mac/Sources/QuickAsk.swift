@@ -94,8 +94,12 @@ final class QuickAsk: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
     if !handlerInstalled {
       handlerInstalled = true
       var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-      InstallEventHandler(GetApplicationEventTarget(), { _, _, ctx in
+      InstallEventHandler(GetApplicationEventTarget(), { _, ev, ctx in
         guard let ctx else { return noErr }
+        // Phase 88: only its own hot key (Sara's hands have the stop shortcut ⌃⌥Esc, id 2).
+        var hk = EventHotKeyID()
+        if let ev { GetEventParameter(ev, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &hk) }
+        guard hk.signature == OSType(0x5341_5241), hk.id == 1 else { return OSStatus(eventNotHandledErr) }
         let me = Unmanaged<QuickAsk>.fromOpaque(ctx).takeUnretainedValue()
         DispatchQueue.main.async { me.toggle() }
         return noErr

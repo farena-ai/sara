@@ -2206,6 +2206,12 @@ function approvalCard(ev, block) {
     if (block) block.open = false;
     return card;
   }
+  // Phase 88: computer use: what she would do where, and only the answers this card allows.
+  if (ev.computer) {
+    computerApproval(card, title, ev.computer, decide);
+    if (block) block.open = false;
+    return card;
+  }
   // Phase 81: "Known vulnerability": installing a known-vulnerable version needs an explicit override.
   const adv = ev.advisory;
   if (adv && !c) {
@@ -2263,6 +2269,58 @@ function approvalCard(ev, block) {
   }
   if (block) block.open = false;
   return card;
+}
+
+// ---------- Phase 88: computer-use cards (docs/design/COMPUTER_USE.md §9.2) ----------
+const CU_ROLE = {
+  button: (n) => t('the button “{name}”', { name: n }),
+  link: (n) => t('the link “{name}”', { name: n }),
+  textbox: (n) => t('the field “{name}”', { name: n }),
+  combobox: (n) => t('the list “{name}”', { name: n }),
+  checkbox: (n) => t('the checkbox “{name}”', { name: n }),
+  radio: (n) => t('the option “{name}”', { name: n }),
+};
+const cuTarget = (k) => (k.name ? (CU_ROLE[k.role] ?? ((n) => `“${n}”`))(k.name) : t('the page'));
+const CU_ASK = {
+  click: (a) => t('{name} wants to click {target} on {site}', a),
+  type: (a) => t('{name} wants to type into {target} on {site}', a),
+  select: (a) => t('{name} wants to choose in {target} on {site}', a),
+  keys: (a) => t('{name} wants to press keys on {site}', a),
+  upload: (a) => t('{name} wants to upload a file to {target} on {site}', a),
+};
+const CU_TEXT = { type: (a) => t('Text: {text}', a), select: (a) => t('Option: {text}', a), keys: (a) => t('Keys: {text}', a), upload: (a) => t('File: {text}', a) };
+const CU_KIND = { click: () => t('clicking'), type: () => t('typing'), select: () => t('choosing in lists'), keys: () => t('pressing keys'), upload: () => t('uploading files') };
+function computerApproval(card, title, k, decide) {
+  card.classList.add('approval-computer');
+  card.classList.add('approval-tidy');
+  if (k.risk === 'payment' || k.risk === 'account') card.classList.add('approval-advisory');
+  title.className = 'approval-title';
+  const ask = (CU_ASK[k.action] ?? CU_ASK.click)({ name: currentIdentity().name || t('Sara'), target: cuTarget(k), site: k.site });
+  title.replaceChildren(iconSpan('approval-icon', k.action === 'type' ? 'keyboard' : 'pointer'), el('span', 'approval-what', ask));
+  title.dataset.raw = '';
+  const where = el('p', 'approval-about muted small', t('In the Sara browser on {computer}.', { computer: k.computer }));
+  where.dataset.raw = '';
+  const lines = [where];
+  if (k.text && CU_TEXT[k.action]) {
+    const tx = el('p', 'cu-card-text small', CU_TEXT[k.action]({ text: k.text }));
+    tx.dataset.raw = '';
+    lines.push(tx);
+  }
+  const why = k.risk === 'payment' ? t('A payment or purchase: this asks every time.') : k.risk === 'account' ? t('Account or security settings: this asks every time.') : k.risk === 'send' ? t('Sending something as you: this asks every time.') : k.choices.includes('task') ? t('Her first action on this site in this task.') : k.choices.includes('always') ? t('Every action asks (your setting).') : t('This asks every time.');
+  lines.push(el('p', 'muted small', why));
+  const row = el('div', 'row');
+  const btn = (label, cls, fn) => {
+    const b = el('button', cls, label);
+    b.type = 'button';
+    b.addEventListener('click', fn);
+    row.append(b);
+    return b;
+  };
+  btn(t('Allow once'), '', () => decide(true));
+  if (k.choices.includes('task')) btn(t('Allow for this task'), 'ghost', () => decide(true, 'task'));
+  if (k.choices.includes('always')) btn(t('Always on {site}', { site: k.site }), 'ghost', () => decide(true, 'always'));
+  btn(t("Don't"), 'ghost', () => decide(false));
+  card.append(title, ...lines, row);
 }
 
 // ---------- Phase 77: her plans checked against what you decided ----------
@@ -10233,6 +10291,13 @@ async function loadComputer() {
   }
   $('#cu-owner').hidden = h.role !== 'owner';
   $('#cu-members').checked = h.members === true;
+  // Phase 88: her actions (the owner's choices) and this computer's takeover choice and stop keys.
+  $('#cu-acts').hidden = h.role !== 'owner';
+  $('#cu-level').value = h.level || 'task';
+  $('#cu-level').dataset.was = h.level || 'task';
+  cuSettings.alwaysWarned = h.alwaysWarned === true;
+  renderAlways(h.always ?? []);
+  for (const d of h.devices ?? []) cuSettings.names[d.id] = d.computer || d.label;
   const p = await handsPrefs();
   $('#cu-this').hidden = !p;
   $('#cu-get').hidden = Boolean(p);
@@ -10241,6 +10306,9 @@ async function loadComputer() {
     $('#cu-optin').checked = p.handsOptIn === true;
     $('#cu-localonly').checked = p.handsLocalOnly === true;
     $('#cu-localonly').disabled = p.handsOptIn !== true;
+    $('#cu-takeover').value = p.handsTakeover === 'keep' ? 'keep' : 'pause';
+    $('#cu-takeover').disabled = p.handsOptIn !== true;
+    if (p.handsHotkey) $('#cu-hotkey').textContent = p.handsHotkey;
     $('#cu-this-status').textContent = p.handsOptIn ? (p.handsConnected ? t('On: connected to Sara.') : t('On: connecting…')) : t('Off.');
   }
   const list = h.devices ?? [];
@@ -10339,6 +10407,99 @@ $('#cu-localonly').addEventListener('change', async () => {
   $('#cu-this-status').textContent = r?.error ? r.error : t('Saved');
 });
 
+// Phase 88: her actions (approval level, sites always allowed) and this computer's takeover choice.
+const cuSettings = { alwaysWarned: false, names: {} };
+function renderAlways(list) {
+  $('#cu-always-none').hidden = list.length > 0;
+  $('#cu-always').replaceChildren(
+    ...list.map((a) => {
+      const li = el('li', 'cu-row cu-always-row');
+      const main = el('div', 'cu-row-main');
+      const nm = el('span', 'cu-row-name', a.site);
+      nm.dataset.raw = '';
+      main.append(nm, el('span', 'cu-row-meta', (CU_KIND[a.kind] ?? CU_KIND.click)()));
+      const rm = el('button', 'ghost', t('Remove'));
+      rm.type = 'button';
+      rm.addEventListener('click', async () => {
+        try {
+          const r = await api('/computer', { method: 'PUT', body: { removeAlways: { site: a.site, kind: a.kind } } });
+          renderAlways(r.always ?? []);
+        } catch (err) {
+          $('#cu-status').textContent = err.message;
+        }
+      });
+      li.append(main, rm);
+      return li;
+    }),
+  );
+}
+function alwaysWarning() {
+  const dlg = $('#cu-always-warn');
+  return new Promise((resolve) => {
+    dlg.addEventListener('close', () => resolve(dlg.returnValue === 'yes'), { once: true });
+    dlg.returnValue = '';
+    dlg.showModal();
+  });
+}
+$('#cu-level').addEventListener('change', async () => {
+  const sel = $('#cu-level');
+  const level = sel.value;
+  try {
+    if (level === 'always' && !cuSettings.alwaysWarned && !(await alwaysWarning())) {
+      sel.value = sel.dataset.was || 'task';
+      return;
+    }
+    const r = await api('/computer', { method: 'PUT', body: { level, ...(level === 'always' ? { warned: true } : {}) } });
+    cuSettings.alwaysWarned = r.alwaysWarned === true;
+    sel.dataset.was = r.level;
+    $('#cu-status').textContent = t('Saved');
+  } catch (err) {
+    sel.value = sel.dataset.was || 'task';
+    $('#cu-status').textContent = err.message;
+  }
+});
+$('#cu-takeover').addEventListener('change', async () => {
+  const d = handsBridge();
+  if (!d) return;
+  const r = await d.call('setPref', { key: 'handsTakeover', value: $('#cu-takeover').value }).catch((err) => ({ error: String(err) }));
+  $('#cu-this-status').textContent = r?.error ? r.error : t('Saved');
+});
+
+// Phase 88: the "Sara is working" badge above the composer (with Stop), and "Paused: you took over".
+const cuBadge = { deviceId: '', timer: 0, paused: false };
+const CU_LOOK = () => t('Looking at the page');
+const CU_DOING = { 'b.open': () => t('Opening a page'), 'b.navigate': () => t('Going to a page'), 'b.snapshot': CU_LOOK, 'b.screenshot': CU_LOOK, 'b.find': CU_LOOK, 'b.read': () => t('Reading the page'), 'b.logs': () => t('Reading the logs'), 'b.request': () => t('Reading the logs'), 'b.tabs': () => t('Looking at the tabs'), 'b.click': () => t('Clicking'), 'b.type': () => t('Typing'), 'b.select': () => t('Choosing in a list'), 'b.keys': () => t('Pressing keys'), 'b.scroll': () => t('Scrolling'), 'b.upload': () => t('Uploading a file'), 'b.downloads': () => t('Looking at the downloads') };
+function hideBadge() {
+  $('#cu-badge').hidden = true;
+  cuBadge.deviceId = '';
+  cuBadge.paused = false;
+  clearTimeout(cuBadge.timer);
+}
+function showBadge(ev) {
+  const b = $('#cu-badge');
+  cuBadge.deviceId = ev.deviceId;
+  const who = currentIdentity().name || t('Sara');
+  const where = cuSettings.names[ev.deviceId] || t('your computer');
+  if (ev.paused !== undefined) cuBadge.paused = ev.paused === true;
+  b.classList.toggle('paused', cuBadge.paused);
+  const tx = $('#cu-badge-text');
+  tx.dataset.raw = '';
+  tx.textContent = cuBadge.paused
+    ? t('Paused: you took over in her browser on {computer}. Press Resume there to let her go on.', { computer: where })
+    : t('{name} is working in her browser on {computer}: {doing}', { name: who, computer: where, doing: (CU_DOING[ev.op] ?? (() => t('Working')))() });
+  b.hidden = false;
+  clearTimeout(cuBadge.timer);
+  // No news for 30 seconds (and not paused): she's done there for now.
+  if (!cuBadge.paused) cuBadge.timer = setTimeout(hideBadge, 30_000);
+}
+$('#cu-badge-stop').addEventListener('click', async () => {
+  const id = cuBadge.deviceId;
+  hideBadge();
+  hideLiveView();
+  if (state.streaming) $('#stop')?.click();
+  if (id) await api(`/hands/${encodeURIComponent(id)}/stop`, { method: 'POST', body: {} }).catch(() => {});
+});
+
 // The live view: the newest frame of the computer she is using for this conversation (memory only on the server).
 const liveView = { deviceId: '', n: 0, timer: 0, busy: false };
 function hideLiveView() {
@@ -10349,12 +10510,15 @@ function hideLiveView() {
 }
 async function onComputerEvent(ev) {
   if (!ev || typeof ev !== 'object') return;
+  const mine = !ev.conversationId || ev.conversationId === state.currentId;
   if (ev.stopped || ev.state === 'offline') {
+    if (ev.deviceId === cuBadge.deviceId) hideBadge();
     if (ev.deviceId === liveView.deviceId) hideLiveView();
     if (!document.querySelector('[data-page="co-computer"]').hidden) void loadComputer();
     return;
   }
   if (ev.state === 'online' && !document.querySelector('[data-page="co-computer"]').hidden) void loadComputer();
+  if ((ev.working && mine) || (ev.paused !== undefined && (mine || ev.deviceId === cuBadge.deviceId))) showBadge(ev);
   if (!ev.frame || ev.conversationId !== state.currentId || liveView.busy) return;
   liveView.busy = true;
   try {

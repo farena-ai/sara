@@ -1,4 +1,9 @@
 // Phase 87 (computer use CU1, docs/design/COMPUTER_USE.md §2–§4): Sara's hands on this Mac.
+// Phase 88 (CU2): acting in the Sara browser (find, click, type, select, keys, scroll, upload,
+// downloads) through the shared page agent and real DevTools input; the floating "Sara is working"
+// badge with Stop / Resume, the global stop shortcut ⌃⌥Esc (Carbon hot key: no permission needed),
+// takeover (real input in her window pauses her unless "Let Sara keep control"), the input rate
+// limit, the local log "What Sara did on this Mac", and token renewal over the connection.
 // When the owner switches on "Let Sara use this computer" (Settings → Computer use in the app), the
 // page gets a `hands` token from the server and hands it to this app; the app keeps it in the
 // Keychain, opens its own WebSocket to <server>/api/hands (Authorization header, no cookies) and runs
@@ -9,6 +14,8 @@
 // (src/hands-ref.ts): the op allowlist, http(s) only, never the Sara server's own pages (except preview
 // links), 20 page loads a minute, password fields never read, key-shaped text masked.
 import Foundation
+import AppKit
+import Carbon.HIToolbox
 import Security
 
 // MARK: small helpers
@@ -73,8 +80,11 @@ final class HandsBrowser {
     var id = "", targetId = "", sessionId = "", frameId = ""
     var logs: [[String: Any]] = []
     var consoleErrors = 0, failedRequests = 0, status = 0, loads = 0
+    var starts = 0      // Phase 88: page loads started (an action that navigates waits for its load)
+    var dialog = ""     // Phase 88: the last page dialog, closed with Cancel
     var requests: [String: (String, String)] = [:]
   }
+  var downloadsDir: URL?
   let serverOrigin: String
   let profileDir: URL
   let found: (path: String, kind: String, name: String)?
@@ -155,6 +165,31 @@ final class HandsBrowser {
       Thread.sleep(forTimeInterval: 0.15)
     }
     if tabCount == 0 { _ = try newTab() }
+    // Phase 88: downloads land in Downloads/Sara, nowhere else.
+    if let d = downloadsDir {
+      try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+      _ = try? call("Browser.setDownloadBehavior", ["behavior": "allow", "downloadPath": d.path])
+    }
+  }
+  /// The browser's process id (its windows belong to it): takeover looks for input there.
+  var browserPid: pid_t { cond.lock(); defer { cond.unlock() }; return alive ? pid : 0 }
+  func starts(_ id: String) -> Int { cond.lock(); defer { cond.unlock() }; return tabs[id]?.starts ?? -1 }
+  func waitStart(_ id: String, after: Int, timeout: TimeInterval, cancel: HandsCancel) -> Bool {
+    let until = Date().addingTimeInterval(timeout)
+    cond.lock()
+    defer { cond.unlock() }
+    while alive, let t = tabs[id], t.starts == after {
+      if cancel.isSet || Date() >= until { return false }
+      _ = cond.wait(until: min(until, Date().addingTimeInterval(0.05)))
+    }
+    return alive && tabs[id] != nil
+  }
+  func takeDialog(_ id: String) -> String {
+    cond.lock()
+    defer { cond.unlock() }
+    let d = tabs[id]?.dialog ?? ""
+    tabs[id]?.dialog = ""
+    return d
   }
 
   func close() {
@@ -360,6 +395,11 @@ final class HandsBrowser {
     guard let k = tabKey(session: session) else { return }
     switch method {
     case "Page.loadEventFired": tabs[k]?.loads += 1
+    case "Page.frameStartedLoading", "Page.frameRequestedNavigation": tabs[k]?.starts += 1
+    case "Page.javascriptDialogOpening":
+      // A page dialog would block everything: it is closed with Cancel (the safe answer) and reported.
+      tabs[k]?.dialog = shortText(p["message"] as? String ?? "", 200)
+      send("Page.handleJavaScriptDialog", ["accept": false], session: session)
     case "Page.frameNavigated":
       if let f = p["frame"] as? [String: Any], f["parentId"] == nil { tabs[k]?.frameId = f["id"] as? String ?? "" }
     case "Runtime.consoleAPICalled":
@@ -413,11 +453,15 @@ final class HandsBrowser {
 // MARK: the hands connection
 
 final class Hands: NSObject, URLSessionWebSocketDelegate {
-  static let ops: Set<String> = ["b.start", "b.tabs", "b.open", "b.navigate", "b.snapshot", "b.read", "b.screenshot", "b.logs", "b.request", "b.close", "c.ping"]
+  static let ops: Set<String> = ["b.start", "b.tabs", "b.open", "b.navigate", "b.snapshot", "b.read", "b.screenshot", "b.logs", "b.request", "b.close", "c.ping",
+                                  // Phase 88 (CU2)
+                                  "b.find", "b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.downloads"]
+  /// Ops that act: they count against the input rate limit and stop when the person takes over.
+  static let inputOps: Set<String> = ["b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload"]
   static var shared: Hands?
 
   let server: String
-  let token: String
+  private(set) var token: String
   let computer: String
   let pageAgent: String
   let version: String
@@ -438,16 +482,48 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
   private var lastFrameHash = 0
   private(set) var connected = false
   private(set) var lastError = ""
+  // Phase 88: acting, the badge, the stop shortcut, takeover, the local log, renewal.
+  var keep: Bool
+  private(set) var paused = false
+  let downloadsDir: URL
+  let logFile: URL
+  private var expiresAt: String
+  let testLabel: Bool
+  var onToken: ((String, String) -> Void)?
+  private var inputs: [Date] = []
+  private var lastOpAt = Date.distantPast
+  private var opRunning = false
+  private var what = ""
+  private var keptAt = Date.distantPast
+  private var badge: NSPanel?
+  private var badgeLabel: NSTextField?
+  private var badgeDot: NSView?
+  private var resumeButton: NSButton?
+  private var timer: Timer?
+  private var lastIdle: Double = -1
+  private var hotKeyRef: EventHotKeyRef?
+  private var hotKeyHandler: EventHandlerRef?
+  private(set) var hotkeyOk = false
 
-  init(server: String, token: String, computer: String, profileDir: URL, pageAgent: String, version: String, localOnly: Bool) {
+  init(server: String, token: String, computer: String, profileDir: URL, pageAgent: String, version: String, localOnly: Bool,
+       keep: Bool = false, downloadsDir: URL, logFile: URL, expiresAt: String = "", testLabel: Bool = false) {
     self.server = server
     self.token = token
     self.computer = computer
     self.pageAgent = pageAgent
     self.version = version
     self.localOnly = localOnly
+    self.keep = keep
+    self.downloadsDir = downloadsDir
+    self.logFile = logFile
+    self.expiresAt = expiresAt
+    self.testLabel = testLabel
     browser = HandsBrowser(serverOrigin: server.lowercased(), profileDir: profileDir)
+    browser.downloadsDir = downloadsDir
     super.init()
+    pruneLog()
+    // The badge and the stop shortcut before the first hello (so it says whether ⌃⌥Esc is free).
+    if Thread.isMainThread { setUpUI() } else { DispatchQueue.main.sync { self.setUpUI() } }
     let cfg = URLSessionConfiguration.ephemeral
     // Never cookies: the token is the only sign-in this connection has.
     cfg.httpShouldSetCookies = false
@@ -463,6 +539,8 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     stopping = true
     for c in cancels.values { c.set() }
     lock.unlock()
+    let tearDown = { [weak self] in self?.tearDownUI() }
+    if Thread.isMainThread { tearDown() } else { DispatchQueue.main.sync(execute: tearDown) }
     task?.cancel(with: .goingAway, reason: nil)
     session.invalidateAndCancel()
     queue.async { [browser] in browser.close() }
@@ -501,6 +579,10 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     lastError = ""
     NSLog("Sara hands: connected to \(server)")
     sendText(hello())
+    // Phase 88: with under 30 days left on the token, ask for a fresh one over this connection.
+    if !expiresAt.isEmpty, let end = ISO8601DateFormatter.withFraction.date(from: expiresAt) ?? ISO8601DateFormatter().date(from: expiresAt), end.timeIntervalSinceNow < 30 * 86400 {
+      sendText(jsonText(["t": "renew"]))
+    }
   }
 
   func urlSession(_ session: URLSession, task t: URLSessionTask, didCompleteWithError error: Error?) {
@@ -553,23 +635,86 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     if let f = browser.found { browserInfo["kind"] = f.kind; browserInfo["name"] = f.name }
     return jsonText(["t": "hello", "v": 1, "app": version, "os": "macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion)", "computer": computer, "screens": [] as [Any],
                      "browser": browserInfo, "perms": ["capture": false, "input": false, "ax": false], "optIn": ["browser": true, "desktop": false], "approvalsHere": false,
-                     "logins": [] as [Any], "busy": false, "localOnly": localOnly, "ops": Array(Hands.ops).sorted()] as [String: Any])
+                     "logins": [] as [Any], "busy": false, "localOnly": localOnly, "ops": Array(Hands.ops).sorted(),
+                     "takeover": keep ? "keep" : "pause", "hotkey": hotkeyOk ? "⌃⌥Esc" : "", "paused": paused, "renew": true] as [String: Any])
   }
 
   func pressStop() {
     lock.lock()
     for c in cancels.values { c.set() }
+    // Stop ends the task: the badge goes, and a pause ends with it.
+    let wasPaused = paused
+    paused = false
+    lastOpAt = .distantPast
     lock.unlock()
     sendText(jsonText(["t": "ev", "kind": "stopped", "by": "user"]))
+    if wasPaused { sendText(jsonText(["t": "ev", "kind": "resumed"])) }
+    NSLog("Sara hands: stopped by the person at the Mac")
+    #if DEBUG
+    testLog("hands: stopped by the person")
+    #endif
+    updateBadge()
   }
   func tellLocalOnly(_ on: Bool) {
     localOnly = on
-    sendText(jsonText(["t": "ev", "kind": "optin", "optIn": ["browser": true, "desktop": false], "localOnly": on] as [String: Any]))
+    sendText(jsonText(["t": "ev", "kind": "optin", "optIn": ["browser": true, "desktop": false], "localOnly": on, "takeover": keep ? "keep" : "pause"] as [String: Any]))
   }
+  /// Phase 88: "When you move the mouse" changed.
+  func tellTakeover(_ keepControl: Bool) {
+    keep = keepControl
+    if keepControl { resume() }
+    sendText(jsonText(["t": "ev", "kind": "optin", "optIn": ["browser": true, "desktop": false], "localOnly": localOnly, "takeover": keepControl ? "keep" : "pause"] as [String: Any]))
+  }
+  /// Phase 88: the person used her window (real input: DevTools input never reaches the Mac's event stream).
+  func userInput() {
+    if keep { keptAt = Date(); updateBadge(); return }
+    lock.lock()
+    if paused { lock.unlock(); return }
+    paused = true
+    for (id, c) in cancels where acting.contains(id) { takenOver.insert(id); c.set() }
+    lock.unlock()
+    NSLog("Sara hands: paused, the person took over the Sara browser")
+    #if DEBUG
+    testLog("hands: paused (takeover)")
+    #endif
+    sendText(jsonText(["t": "ev", "kind": "takeover"]))
+    updateBadge()
+  }
+  func resume() {
+    lock.lock()
+    let was = paused
+    paused = false
+    lastOpAt = Date()
+    lock.unlock()
+    guard was else { return }
+    #if DEBUG
+    testLog("hands: resumed")
+    #endif
+    sendText(jsonText(["t": "ev", "kind": "resumed"]))
+    updateBadge()
+  }
+  var statusLine: String {
+    if connected { return "Connected to Sara at \(URL(string: server)?.host ?? server)\(URL(string: server)?.port.map { ":\($0)" } ?? "")" }
+    return lastError.isEmpty ? "Connecting to Sara…" : lastError
+  }
+  private var acting: Set<String> = []
+  private var takenOver: Set<String> = []
 
   private func onText(_ raw: String) {
     guard let m = parseJSON(raw) else { return }
     let t = m["t"] as? String
+    if t == "token", let tok = m["token"] as? String, tok.hasPrefix("sara_hands."), tok.count < 300 {
+      // Phase 88: a fresh token (we asked for it): kept by the app, used from the next connection on.
+      token = tok
+      expiresAt = m["expiresAt"] as? String ?? ""
+      let exp = expiresAt
+      DispatchQueue.main.async { [weak self] in self?.onToken?(tok, exp) }
+      NSLog("Sara hands: renewed this Mac's sign-in")
+      #if DEBUG
+      testLog("hands: renewed this Mac's sign-in")
+      #endif
+      return
+    }
     if t == "cancel" {
       lock.lock()
       if m["all"] as? Bool == true { for c in cancels.values { c.set() } } else if let id = m["id"] as? String { cancels[id]?.set() }
@@ -583,8 +728,22 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     if cancels[id] != nil { lock.unlock(); return }
     let cancel = HandsCancel()
     cancels[id] = cancel
-    lock.unlock()
     let op = m["op"] as? String ?? ""
+    // Phase 88 (§7.7): at most 4 actions a second and 120 a minute, counted as they arrive (ops run
+    // one at a time, so a flood would otherwise just queue up behind each other).
+    if Hands.inputOps.contains(op) {
+      inputs = inputs.filter { Date().timeIntervalSince($0) < 60 }
+      let lastSecond = inputs.filter { Date().timeIntervalSince($0) < 1 }.count
+      if lastSecond >= 4 || inputs.count >= 120 {
+        cancels[id] = nil
+        lock.unlock()
+        return sendText(jsonText(["t": "res", "id": id, "ok": false, "error": ["code": "rate_limited", "message": "At most 4 actions a second and 120 a minute in the Sara browser."]] as [String: Any]))
+      }
+      inputs.append(Date())
+      acting.insert(id)
+    }
+    lock.unlock()
+    let opWhat = shortText(m["what"] as? String ?? "", 120)
     let args = m["args"] as? [String: Any] ?? [:]
     let deadline = min(120, max(1, (m["deadlineMs"] as? Double ?? Double(m["deadlineMs"] as? Int ?? 30000)) / 1000))
     DispatchQueue.global().asyncAfter(deadline: .now() + deadline) { cancel.set() }
@@ -592,20 +751,38 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
       guard let self else { return }
       let started = Date()
       var reply: [String: Any]
+      let shows = op != "c.ping" && op != "b.tabs"
+      if shows {
+        self.lock.lock()
+        if !opWhat.isEmpty { self.what = opWhat }
+        self.opRunning = true
+        self.lastOpAt = Date()
+        self.lock.unlock()
+        self.updateBadge()
+      }
       do {
         if cancel.isSet { throw HandsOpError(code: "stopped", message: "Stopped.") }
-        let r = try self.run(id: id, op: op, args: args, cancel: cancel, deadline: deadline)
+        var a2 = args
+        if Hands.inputOps.contains(op) { a2["__what"] = opWhat }
+        let r = try self.run(id: id, op: op, args: a2, cancel: cancel, deadline: deadline)
         reply = ["t": "res", "id": id, "ok": true, "result": r]
       } catch let e as HandsOpError {
         var code = e.code
         var msg = e.message
         if code == "stopped" && Date().timeIntervalSince(started) >= deadline - 0.05 { code = "timeout"; msg = "Took longer than \(Int(deadline)) s." }
+        self.lock.lock()
+        let byTakeover = self.takenOver.contains(id)
+        self.lock.unlock()
+        if code == "stopped" && byTakeover { code = "takeover"; msg = "Paused: the owner took over the Sara browser. Nothing acts until they press Resume." }
         reply = ["t": "res", "id": id, "ok": false, "error": ["code": code, "message": String(handsMask(msg).prefix(500))]]
       } catch {
         reply = ["t": "res", "id": id, "ok": false, "error": ["code": "error", "message": "Something went wrong on the Mac."]]
       }
       let text = jsonText(reply)
       self.lock.lock()
+      if shows { self.opRunning = false; self.lastOpAt = Date() }
+      self.acting.remove(id)
+      self.takenOver.remove(id)
       self.cancels[id] = nil
       self.answers[id] = text
       self.answerOrder.append(id)
@@ -665,6 +842,14 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
   private func run(id: String, op: String, args a: [String: Any], cancel: HandsCancel, deadline: Double) throws -> [String: Any] {
     guard Hands.ops.contains(op) else { throw HandsOpError(code: "unsupported", message: "This computer doesn't do \"\(op.prefix(40))\" (not in its command set).") }
     if op == "c.ping" { return ["pong": true, "at": Date().timeIntervalSince1970] }
+    // Phase 88: nothing acts while the person has taken over; and the device's own rate limit.
+    if Hands.inputOps.contains(op) {
+      lock.lock()
+      let p = paused
+      lock.unlock()
+      if p { throw HandsOpError(code: "takeover", message: "Paused: the owner took over the Sara browser. Nothing acts until they press Resume.") }
+    }
+    if op == "b.downloads" { return ["files": downloadsList()] }
     if op != "b.tabs" || browser.running { try browser.start() }
     switch op {
     case "b.start": return ["browser": ["kind": browser.found?.kind ?? "", "name": browser.found?.name ?? ""], "tabs": tabsList()]
@@ -746,6 +931,23 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
       if body["base64Encoded"] as? Bool == true { return ["status": status, "mime": "binary", "body": "(not text)", "truncated": false] }
       let text = handsMask(body["body"] as? String ?? "")
       return ["status": status, "mime": "text", "body": String(text.prefix(64 * 1024)), "truncated": text.count > 64 * 1024]
+    case "b.find":
+      if a["focused"] as? Bool == true {
+        let st = try agent(t, "state", [:], cancel)
+        let focus = st["focus"] as? String ?? ""
+        return ["found": true, "role": "page", "name": focus, "desc": focus.isEmpty ? "the page" : focus, "page": ["url": st["url"] ?? "", "title": st["title"] ?? ""]]
+      }
+      return try agent(t, "target", targetArgs(a), cancel)
+    case "b.click", "b.type", "b.select", "b.keys", "b.upload":
+      return try act(id: id, op: op, t: t, a: a, cancel: cancel)
+    case "b.scroll":
+      var r = try agent(t, "scroll", targetArgs(a), cancel)
+      if let e = r["error"] as? String { throw HandsOpError(code: r["stale"] as? Bool == true ? "stale_view" : "not_found", message: e) }
+      Thread.sleep(forTimeInterval: 0.15)
+      thumb(id, t, a, cancel)
+      frame(t)
+      r["tab"] = t.id
+      return r
     case "b.close":
       _ = try browser.call("Target.closeTarget", ["targetId": t.targetId], cancel: cancel)
       browser.forget(t.id)
@@ -753,6 +955,313 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     default:
       throw HandsOpError(code: "unsupported", message: "This computer doesn't do \"\(op)\".")
     }
+  }
+}
+
+extension ISO8601DateFormatter {
+  static let withFraction: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return f
+  }()
+}
+
+// MARK: Phase 88: acting, the badge, the stop shortcut, takeover, the local log
+
+extension Hands {
+  /// The target arguments of an op (a ref checked against the last look, a label, or a picture point).
+  func targetArgs(_ a: [String: Any]) -> [String: Any] {
+    var o: [String: Any] = [:]
+    for k in ["ref", "expect", "text", "field", "x", "y", "w", "h", "focused", "clear", "option", "dy"] { if let v = a[k] { o[k] = v } }
+    return o
+  }
+  private func num(_ v: Any?) -> Double { (v as? Double) ?? Double(v as? Int ?? 0) }
+  /// A real left click at a page point (mouse moved, pressed, released).
+  private func mouseClick(_ t: HandsBrowser.Tab, _ x: Double, _ y: Double, _ cancel: HandsCancel) throws {
+    _ = try browser.call("Input.dispatchMouseEvent", ["type": "mouseMoved", "x": x, "y": y, "button": "none"], session: t.sessionId, cancel: cancel)
+    _ = try browser.call("Input.dispatchMouseEvent", ["type": "mousePressed", "x": x, "y": y, "button": "left", "buttons": 1, "clickCount": 1], session: t.sessionId, cancel: cancel)
+    _ = try browser.call("Input.dispatchMouseEvent", ["type": "mouseReleased", "x": x, "y": y, "button": "left", "buttons": 0, "clickCount": 1], session: t.sessionId, cancel: cancel)
+  }
+  /// The keys of a combination, as the page agent's list allows (anything else is refused here).
+  private func pressKeys(_ t: HandsBrowser.Tab, _ combo: String, _ cancel: HandsCancel) throws {
+    let plan = try agent(t, "keys", ["combo": combo], cancel)
+    guard let events = plan["events"] as? [[String: Any]] else { throw HandsOpError(code: "denied_local", message: plan["error"] as? String ?? "Not a key Sara presses.") }
+    for ev in events { _ = try browser.call("Input.dispatchKeyEvent", ev, session: t.sessionId, cancel: cancel) }
+  }
+  /// One page-agent function that returns an element: its object id ("" when it isn't one).
+  private func agentNode(_ t: HandsBrowser.Tab, _ fn: String, _ args: [String: Any], _ cancel: HandsCancel) throws -> String {
+    let tree = try browser.call("Page.getFrameTree", [:], session: t.sessionId, cancel: cancel)
+    let frameId = ((tree["frameTree"] as? [String: Any])?["frame"] as? [String: Any])?["id"] as? String ?? ""
+    let w = try browser.call("Page.createIsolatedWorld", ["frameId": frameId, "worldName": "sara-page-agent"], session: t.sessionId, cancel: cancel)
+    let expr = "(\(pageAgent)).call(\(jsonQuote(fn)), \(jsonText(args)))"
+    let r = try browser.call("Runtime.evaluate", ["expression": expr, "contextId": w["executionContextId"] ?? 0, "returnByValue": false], session: t.sessionId, timeout: 20, cancel: cancel)
+    let res = r["result"] as? [String: Any] ?? [:]
+    return res["subtype"] as? String == "node" ? res["objectId"] as? String ?? "" : ""
+  }
+  static func safeName(_ raw: String) -> String {
+    var n = String(raw.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last ?? "")
+    n = String(n.map { c -> Character in (c.asciiValue.map { $0 < 0x20 } ?? false) || "<>:\"|?*".contains(c) ? "_" : c })
+    return String(n.prefix(120))
+  }
+  func downloadsList() -> [[String: Any]] {
+    let fm = FileManager.default
+    let items = (try? fm.contentsOfDirectory(at: downloadsDir, includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey, .isRegularFileKey])) ?? []
+    let iso = ISO8601DateFormatter()
+    return items.compactMap { u -> [String: Any]? in
+      let v = try? u.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey, .isRegularFileKey])
+      guard v?.isRegularFile == true, !u.lastPathComponent.hasSuffix(".crdownload") else { return nil }
+      return ["name": u.lastPathComponent, "bytes": v?.fileSize ?? 0, "at": iso.string(from: v?.contentModificationDate ?? Date())]
+    }.sorted { ($0["at"] as? String ?? "") > ($1["at"] as? String ?? "") }.prefix(100).map { $0 }
+  }
+  /// "What Sara did on this Mac": one plain line per action (no pictures), kept 30 days.
+  func localLog(_ op: String, _ what: String, _ target: String) {
+    let f = DateFormatter()
+    f.dateFormat = "yyyy-MM-dd HH:mm:ss"
+    f.timeZone = TimeZone(identifier: "UTC")
+    let line = "\(f.string(from: Date()))  \(handsMask(what.isEmpty ? op : what))\(target.isEmpty ? "" : "  (\(handsMask(target)))")  [\(op)]\n"
+    if let h = try? FileHandle(forWritingTo: logFile) { h.seekToEndOfFile(); h.write(Data(line.utf8)); try? h.close() } else { try? line.write(to: logFile, atomically: true, encoding: .utf8) }
+  }
+  func pruneLog() {
+    guard let text = try? String(contentsOf: logFile, encoding: .utf8) else { return }
+    let f = DateFormatter()
+    f.dateFormat = "yyyy-MM-dd"
+    f.timeZone = TimeZone(identifier: "UTC")
+    let cut = f.string(from: Date().addingTimeInterval(-30 * 86400))
+    let kept = text.split(separator: "\n").filter { $0.count >= 10 && String($0.prefix(10)) >= cut }
+    try? (kept.joined(separator: "\n") + (kept.isEmpty ? "" : "\n")).write(to: logFile, atomically: true, encoding: .utf8)
+  }
+  /// One acting op: the target, her highlight, the real input, then the after-state (§6.3).
+  func act(id: String, op: String, t: HandsBrowser.Tab, a: [String: Any], cancel: HandsCancel) throws -> [String: Any] {
+    browser.activate(t.id)
+    let beforeUrl = (try? browser.call("Target.getTargetInfo", ["targetId": t.targetId]))?["targetInfo"].flatMap { ($0 as? [String: Any])?["url"] as? String } ?? ""
+    _ = browser.takeDialog(t.id)
+    let errs0 = t.consoleErrors, failed0 = t.failedRequests
+    let starts0 = browser.starts(t.id)
+    let tArgs = targetArgs(a)
+    var target: [String: Any] = [:]
+    var extra: [String: Any] = [:]
+    func need() throws {
+      target = try agent(t, "target", tArgs, cancel)
+      guard target["found"] as? Bool == true else { throw HandsOpError(code: target["stale"] as? Bool == true ? "stale_view" : "not_found", message: target["error"] as? String ?? "That is not on the page.") }
+      let desc = target["desc"] as? String ?? "That"
+      if target["disabled"] as? Bool == true { throw HandsOpError(code: "not_found", message: "\(desc) is disabled.") }
+      if let c = target["covered"] as? String, !c.isEmpty { throw HandsOpError(code: "not_found", message: "\(desc) is covered by \(c): close that first.") }
+      _ = try? agent(t, "mark", ["x": target["x"] ?? 0, "y": target["y"] ?? 0, "box": target["box"] ?? NSNull(), "label": testLabel ? "Sara (TEST)" : "Sara"], cancel)
+    }
+    switch op {
+    case "b.click":
+      try need()
+      try mouseClick(t, num(target["x"]), num(target["y"]), cancel)
+    case "b.type":
+      let value = a["value"] as? String ?? ""
+      if value.count > 2000 { throw HandsOpError(code: "denied_local", message: "At most 2000 characters per action.") }
+      if handsMask(value) != value { throw HandsOpError(code: "denied_local", message: "That text looks like a key or a sign-in token: Sara never types those.") }
+      try need()
+      if target["secret"] as? Bool == true { throw HandsOpError(code: "denied_local", message: "That is a password field: Sara never types into those.") }
+      if target["editable"] as? Bool != true { throw HandsOpError(code: "not_found", message: "\(target["desc"] as? String ?? "That") is not a text field.") }
+      try mouseClick(t, num(target["x"]), num(target["y"]), cancel)
+      var fArgs = tArgs
+      fArgs["clear"] = (a["clear"] as? Bool) ?? true
+      let f = try agent(t, "focusFor", fArgs, cancel)
+      if f["error"] != nil || f["focused"] as? Bool != true { throw HandsOpError(code: f["secret"] as? Bool == true ? "denied_local" : "not_found", message: f["error"] as? String ?? "That field could not be focused.") }
+      if !value.isEmpty { _ = try browser.call("Input.insertText", ["text": value], session: t.sessionId, timeout: 20, cancel: cancel) }
+      if a["submit"] as? Bool == true { try pressKeys(t, "Enter", cancel) }
+    case "b.select":
+      var cArgs = tArgs
+      cArgs["option"] = a["option"] as? String ?? ""
+      let c = try agent(t, "choose", cArgs, cancel)
+      if let e = c["error"] as? String { throw HandsOpError(code: c["stale"] as? Bool == true ? "stale_view" : "not_found", message: e) }
+      _ = try? agent(t, "mark", ["x": c["x"] ?? 0, "y": c["y"] ?? 0, "label": "Sara"], cancel)
+      target = c
+      extra["selected"] = c["selected"] ?? ""
+    case "b.keys":
+      try pressKeys(t, a["combo"] as? String ?? "", cancel)
+      extra["combo"] = a["combo"] ?? ""
+    case "b.upload":
+      var name: String
+      if let file = a["file"] as? [String: Any] {
+        name = Hands.safeName(file["name"] as? String ?? "")
+        let data = Data(base64Encoded: file["data"] as? String ?? "") ?? Data()
+        if name.isEmpty || name.hasPrefix(".") || data.count > 2 * 1024 * 1024 { throw HandsOpError(code: "denied_local", message: "Uploads from the server are at most 2 MB.") }
+        try? FileManager.default.createDirectory(at: downloadsDir, withIntermediateDirectories: true)
+        do { try data.write(to: downloadsDir.appendingPathComponent(name)) } catch { throw HandsOpError(code: "error", message: "Couldn't put the file in Downloads/Sara.") }
+      } else {
+        name = a["name"] as? String ?? ""
+        if name.isEmpty || name != Hands.safeName(name) || name.hasPrefix(".") { throw HandsOpError(code: "denied_local", message: "Only a file name in Downloads/Sara.") }
+      }
+      let path = downloadsDir.appendingPathComponent(name).path
+      var isDir: ObjCBool = false
+      guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue else { throw HandsOpError(code: "not_found", message: "There is no \(name) in Downloads/Sara on this Mac.") }
+      try need()
+      let objectId = try agentNode(t, "fileInput", tArgs, cancel)
+      if objectId.isEmpty { throw HandsOpError(code: "not_found", message: "That is not a file upload field.") }
+      _ = try browser.call("DOM.setFileInputFiles", ["files": [path], "objectId": objectId], session: t.sessionId, cancel: cancel)
+      extra["name"] = name
+    default: break
+    }
+    // After an action: wait for a page load it started (if any).
+    let loads0 = browser.loads(t.id)
+    if browser.waitStart(t.id, after: starts0, timeout: 0.5, cancel: cancel) { _ = browser.waitLoad(t.id, after: loads0, timeout: 15, cancel: cancel) }
+    Thread.sleep(forTimeInterval: 0.25)
+    if cancel.isSet { throw HandsOpError(code: "stopped", message: "Stopped.") }
+    let st = (try? agent(t, "state", [:], cancel)) ?? [:]
+    let desc = target["desc"] as? String ?? ""
+    localLog(op, (a["__what"] as? String) ?? "", desc.isEmpty ? (a["combo"] as? String ?? "") : desc)
+    thumb(id, t, a, cancel)
+    let now = (try? browser.tab(t.id)) ?? t
+    frame(now)
+    let dialog = browser.takeDialog(t.id)
+    var out: [String: Any] = ["tab": t.id, "target": ["desc": desc, "role": target["role"] ?? "", "name": target["name"] ?? ""], "state": st,
+                              "navigated": (st["url"] as? String ?? beforeUrl) != beforeUrl, "newErrors": now.consoleErrors - errs0, "newFailed": now.failedRequests - failed0,
+                              "consoleErrors": now.consoleErrors, "failedRequests": now.failedRequests]
+    if !dialog.isEmpty { out["dialog"] = dialog }
+    for (k, v) in extra { out[k] = v }
+    return out
+  }
+
+  // ---- the badge (floating, never in her pictures), the stop shortcut ⌃⌥Esc, takeover ----
+  func setUpUI() {
+    let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 420, height: 40), styleMask: [.nonactivatingPanel, .borderless], backing: .buffered, defer: false)
+    panel.level = .statusBar
+    panel.isFloatingPanel = true
+    panel.hidesOnDeactivate = false
+    panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+    panel.backgroundColor = .clear
+    panel.isOpaque = false
+    panel.hasShadow = true
+    panel.appearance = NSAppearance(named: .darkAqua)  // light text on its dark pill, in Day theme too
+    panel.sharingType = .none  // her pictures never show her own badge
+    panel.title = testLabel ? "TEST Sara is working" : "Sara is working"
+    let v = NSView()
+    v.wantsLayer = true
+    v.layer?.backgroundColor = NSColor(calibratedRed: 0.125, green: 0.094, blue: 0.149, alpha: 0.96).cgColor
+    v.layer?.cornerRadius = 20
+    let dot = NSView(frame: NSRect(x: 14, y: 14, width: 12, height: 12))
+    dot.wantsLayer = true
+    dot.layer?.cornerRadius = 6
+    dot.layer?.backgroundColor = NSColor(calibratedRed: 1, green: 0.24, blue: 0.545, alpha: 1).cgColor
+    let label = NSTextField(labelWithString: "")
+    label.font = .systemFont(ofSize: 13, weight: .semibold)
+    label.textColor = .white
+    label.lineBreakMode = .byTruncatingTail
+    let stopB = NSButton(title: "Stop", target: self, action: #selector(badgeStop))
+    stopB.bezelStyle = .rounded
+    stopB.contentTintColor = .systemRed
+    let resumeB = NSButton(title: "Resume", target: self, action: #selector(badgeResume))
+    resumeB.bezelStyle = .rounded
+    for x in [dot, label, stopB, resumeB] as [NSView] { v.addSubview(x) }
+    panel.contentView = v
+    badge = panel
+    badgeLabel = label
+    badgeDot = dot
+    resumeButton = resumeB
+    // ⌃⌥Esc anywhere: stop her at once (a Carbon hot key needs no Accessibility permission).
+    var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+    InstallEventHandler(GetApplicationEventTarget(), { _, ev, ctx in
+      guard let ev, let ctx else { return OSStatus(eventNotHandledErr) }
+      var hk = EventHotKeyID()
+      GetEventParameter(ev, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &hk)
+      guard hk.signature == OSType(0x5341_5248), hk.id == 2 else { return OSStatus(eventNotHandledErr) }
+      let me = Unmanaged<Hands>.fromOpaque(ctx).takeUnretainedValue()
+      DispatchQueue.main.async { me.pressStop() }
+      return noErr
+    }, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &hotKeyHandler)
+    var ref: EventHotKeyRef?
+    let status = RegisterEventHotKey(UInt32(kVK_Escape), UInt32(controlKey | optionKey), EventHotKeyID(signature: OSType(0x5341_5248), id: 2), GetApplicationEventTarget(), 0, &ref)
+    hotKeyRef = ref
+    hotkeyOk = status == noErr
+    NSLog("Sara hands: stop shortcut ⌃⌥Esc \(hotkeyOk ? "ready" : "is taken by another app (\(status))")")
+    #if DEBUG
+    testLog("hands: stop shortcut ready=\(hotkeyOk)")
+    DistributedNotificationCenter.default().addObserver(self, selector: #selector(testHook(_:)), name: Notification.Name((Bundle.main.bundleIdentifier ?? "sara") + ".handsTest"), object: nil)
+    #endif
+    timer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in self?.tick() }
+  }
+  func tearDownUI() {
+    timer?.invalidate()
+    timer = nil
+    if let r = hotKeyRef { UnregisterEventHotKey(r) }
+    hotKeyRef = nil
+    if let h = hotKeyHandler { RemoveEventHandler(h) }
+    hotKeyHandler = nil
+    badge?.orderOut(nil)
+    badge = nil
+    #if DEBUG
+    DistributedNotificationCenter.default().removeObserver(self)
+    #endif
+  }
+  @objc func badgeStop() { pressStop() }
+  @objc func badgeResume() { resume() }
+  #if DEBUG
+  /// Test builds only: "input" acts as the person moving the mouse in her window, "resume" presses
+  /// Resume, "hotkey" acts as ⌃⌥Esc, "shot:<path>" saves the badge as a PNG.
+  @objc func testHook(_ n: Notification) {
+    guard testLabel, let cmd = n.object as? String else { return }
+    if cmd == "input" { userInput() } else if cmd == "resume" { resume() } else if cmd == "hotkey" { pressStop() }
+    else if cmd == "off" { DispatchQueue.main.async { (NSApp.delegate as? AppDelegate)?.handsOff(); testLog("hands: off (test item removed)") } }
+    else if cmd.hasPrefix("shot:"), let v = badge?.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) {
+      v.cacheDisplay(in: v.bounds, to: rep)
+      try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: String(cmd.dropFirst(5))))
+    }
+  }
+  #endif
+  func updateBadge() { DispatchQueue.main.async { [weak self] in self?.tick(force: true) } }
+  private var badgeActive: Bool { lock.lock(); defer { lock.unlock() }; return paused || opRunning || Date().timeIntervalSince(lastOpAt) < 30 }
+  private func badgeText() -> String {
+    lock.lock()
+    let p = paused, w = what, kept = keep && Date().timeIntervalSince(keptAt) < 8
+    lock.unlock()
+    let pre = testLabel ? "TEST · " : ""
+    if p { return pre + "Paused: you're in control of the Sara browser" }
+    return pre + "Sara is working in her browser" + (w.isEmpty ? "" : " · \(w)") + (kept ? " · she keeps control" : "")
+  }
+  private func tick(force: Bool = false) {
+    watchTakeover()
+    guard let panel = badge, let label = badgeLabel else { return }
+    let on = badgeActive
+    if !on { if panel.isVisible { panel.orderOut(nil) }; return }
+    if !force && panel.isVisible { return }
+    lock.lock()
+    let p = paused
+    lock.unlock()
+    label.stringValue = badgeText()
+    badgeDot?.layer?.backgroundColor = (p ? NSColor.systemOrange : NSColor(calibratedRed: 1, green: 0.24, blue: 0.545, alpha: 1)).cgColor
+    label.sizeToFit()
+    let textW = min(label.frame.width, 520)
+    let w = 36 + textW + 12 + 72 + (p ? 84 : 0) + 10
+    label.frame = NSRect(x: 34, y: 11, width: textW, height: 18)
+    resumeButton?.isHidden = !p
+    resumeButton?.frame = NSRect(x: w - 10 - 72 - 84, y: 4, width: 80, height: 32)
+    panel.contentView?.subviews.first { ($0 as? NSButton)?.title == "Stop" }?.frame = NSRect(x: w - 10 - 72, y: 4, width: 72, height: 32)
+    let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+    panel.setFrame(NSRect(x: screen.midX - w / 2, y: screen.maxY - 40 - 8, width: w, height: 40), display: true)
+    panel.orderFrontRegardless()
+  }
+  /// Real input (not hers: DevTools input never reaches the Mac's event stream) in her window?
+  private func watchTakeover() {
+    let pid = browser.browserPid
+    lock.lock()
+    let p = paused
+    lock.unlock()
+    guard badgeActive, pid > 0, !p else { lastIdle = -1; return }
+    let kinds: [CGEventType] = [.mouseMoved, .leftMouseDown, .rightMouseDown, .keyDown, .scrollWheel, .leftMouseDragged]
+    let idle = kinds.map { CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: $0) }.min() ?? 1e9
+    defer { lastIdle = idle }
+    guard lastIdle >= 0, idle + 0.05 < lastIdle else { return }
+    var under: pid_t = 0
+    let m = NSEvent.mouseLocation
+    let h = NSScreen.screens.first?.frame.height ?? 0
+    let pt = CGPoint(x: m.x, y: h - m.y)
+    if let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] {
+      for w in list where (w[kCGWindowLayer as String] as? Int ?? 1) == 0 {
+        if let b = w[kCGWindowBounds as String] as? [String: Any], let r = CGRect(dictionaryRepresentation: b as CFDictionary), r.contains(pt) {
+          under = pid_t(w[kCGWindowOwnerPID as String] as? Int ?? 0)
+          break
+        }
+      }
+    }
+    let front = NSWorkspace.shared.frontmostApplication?.processIdentifier ?? 0
+    if under == pid || front == pid { userInput() }
   }
 }
 

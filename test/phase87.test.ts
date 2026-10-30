@@ -308,7 +308,8 @@ test('the reference hands: look, read, navigate, screenshot and logs against a f
     assert.match(String((await r('b.read')).result.text), /3 items/);
     assert.equal((await r('b.screenshot', { maxWidth: 640 })).images[0].mime, 'image/jpeg');
     assert.equal((await r('b.navigate', { action: 'reload' })).result.title, 'Shop');
-    for (const op of ['b.click', 'b.type', 'd.shot', 'b.evaluate']) await assert.rejects(r(op), (err: Error & { code?: string }) => err.code === 'unsupported', op);
+    // Phase 88 (CU2) added b.click / b.type to the command set; logins, scripts and the desktop stay out.
+    for (const op of ['b.login', 'd.click', 'd.shot', 'b.evaluate']) await assert.rejects(r(op), (err: Error & { code?: string }) => err.code === 'unsupported', op);
     await assert.rejects(r('b.open', { url: `${e.base}/` }), (err: Error & { code?: string }) => err.code === 'denied_local');
     await assert.rejects(r('b.open', { url: 'file:///etc/passwd' }), (err: Error & { code?: string }) => err.code === 'denied_local');
     // Reconnect: a dropped connection comes back by itself.
@@ -595,7 +596,9 @@ test('the page: Computer use settings with tips, the explainer, the live view, c
   assert.match(html, /data-page="co-computer"/);
   for (const id of ['cu-optin', 'cu-localonly', 'cu-members', 'cu-explain', 'cu-live', 'cu-live-stop', 'cu-get-link']) assert.match(html, new RegExp(`id="${id}"`), id);
   const page = html.slice(html.indexOf('data-page="co-computer"'), html.indexOf('</section>', html.indexOf('data-page="co-computer"')));
-  assert.equal((page.match(/<input [^>]*type="checkbox"/g) ?? []).length, (page.match(/class="tip"/g) ?? []).length, 'every switch has a ? tip');
+  // Every switch has a ? tip (Phase 88 added tips to lists too).
+  const switches = page.match(/<label[^>]*>\s*<input [^>]*type="checkbox"[\s\S]*?<\/label>/g) ?? [];
+  assert.ok(switches.length >= 3 && switches.every((l) => /class="tip"/.test(l)), 'every switch has a ? tip');
   assert.ok(!/style=/.test(page));
   const app = web('app.js');
   assert.match(app, /'handsPair'/);

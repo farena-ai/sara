@@ -1,7 +1,7 @@
 // Phase 87 (computer use CU1, docs/design/COMPUTER_USE.md §6.4 and §7.3): the risk rows for
 // looking and navigating in the Sara browser on the owner's computer. Pure (no I/O): the tool
 // gathers the facts (the owner's message, her jobs' ports, the sites already allowed in this task)
-// and this decides allow / ask / block. CU2 adds the acting rows (click, type, payments…).
+// and this decides allow / ask / block. Phase 88 (CU2) adds the acting rows (actionVerdict below).
 //
 // Rows in CU1:
 //   look (pc_browser_look/read/logs/tabs/request, pc_devices)             → allow
@@ -92,4 +92,83 @@ export function injectionHints(text: string): string[] {
     if (re.test(t)) out.push(what);
   }
   return out;
+}
+
+// ---- Phase 88 (CU2): acting in the Sara browser (§7.3 with the owner's decisions in §0) ----
+//
+// Levels (Settings → Computer use → Her browser actions):
+//   ask     every action asks (Allow once · Always on this site · Don't)
+//   task    (default) the first action of a kind on a site asks; "Allow for this task" covers that
+//           site for the rest of this task (this conversation's current request), never later ones
+//   always  no cards (one-time warning when chosen), except the approve-once rows below
+// Rows, whatever the level:
+//   typing into a password / one-time-code field, or text shaped like a key or a Sara sign-in → block
+//   payments and purchases (Pay, Buy, Place order, card fields)          → ask every time (approve-once)
+//   account and security settings (delete account, password, 2FA…)      → ask every time (approve-once)
+//   sending as the owner (Send, Post, Publish, Reply…)                   → ask every time, except Always
+//   a site + action kind the owner chose "Always" for on a card          → allow
+// The device refuses on its own as well (password fields, Sara's own server, keys outside its list).
+
+export const ACT_LEVELS = ['ask', 'task', 'always'] as const;
+export type ActLevel = (typeof ACT_LEVELS)[number];
+export const actLevel = (v: unknown): ActLevel => (v === 'ask' || v === 'always' ? v : 'task');
+export type ActKind = 'click' | 'type' | 'select' | 'keys' | 'upload';
+export type ActRisk = 'normal' | 'send' | 'payment' | 'account';
+
+export interface ActTarget {
+  role?: string;
+  name?: string;
+  tag?: string;
+  type?: string;
+  secret?: boolean;
+  card?: boolean;
+  formText?: string;
+}
+export interface ActFacts {
+  kind: ActKind;
+  site: string;
+  target: ActTarget;
+  page: { url?: string; title?: string; hasCard?: boolean };
+  /** The text she would type, or the keys she would press. */
+  text?: string;
+  level: ActLevel;
+  /** Sites allowed for acting in this task ("Allow for this task"). */
+  taskSites: ReadonlySet<string>;
+  /** "Always on this site" choices: site + kind. */
+  always: readonly { site: string; kind: string }[];
+}
+export type ActVerdict = { act: 'allow'; risk: ActRisk; why: string } | { act: 'ask'; risk: ActRisk; why: string; choices: ('once' | 'task' | 'always')[] } | { act: 'block'; risk: ActRisk; why: string };
+
+const PAY = /\b(pay|pay now|place (?:your )?order|buy|buy now|purchase|check ?out|complete (?:the )?(?:order|purchase)|confirm (?:the )?(?:order|purchase|payment)|subscribe|donate|add (?:a )?card|submit payment|proceed to payment)\b/i;
+const ACCOUNT = /\b(delete (?:my |your |the )?account|close (?:my |your )?account|deactivate|remove (?:my |your )?account|change (?:my |your )?(?:password|email|e-mail)|reset (?:my |your )?password|new password|two[- ]factor|2fa|recovery (?:code|email|phone)|security (?:settings|questions?)|privacy settings|sign out (?:of )?all|revoke|api keys?|access tokens?)\b/i;
+const SEND = /\b(send|post|publish|tweet|reply|comment|share|submit (?:message|comment|post|review))\b/i;
+/** Text shaped like a key, token or Sara sign-in: never typed by her. */
+const SECRET_TEXT = [/\bsk-[A-Za-z0-9_-]{16,}/, /\b[sr]k_(?:live|test)_[A-Za-z0-9]{10,}/, /\bgh[pousr]_[A-Za-z0-9]{20,}/, /\bgithub_pat_[A-Za-z0-9_]{20,}/, /\bxox[abprs]-[A-Za-z0-9-]{10,}/, /\bAKIA[0-9A-Z]{16}\b/, /\bxai-[A-Za-z0-9]{20,}/, /\bsara_(?:dev|hands|m)\.[\w-]+\.[\w-]+/, /\beyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]{8,}/];
+export const looksSecret = (t: string): boolean => SECRET_TEXT.some((re) => re.test(t));
+
+/** What kind of action this is, from the target's role and words and the page (§7.3). */
+export function actRisk(f: Pick<ActFacts, 'kind' | 'target' | 'page'>): ActRisk {
+  const words = `${f.target.name ?? ''}`;
+  const pageWords = `${f.page.title ?? ''} ${f.page.url ?? ''}`;
+  const pressing = f.kind === 'click' || f.kind === 'keys';
+  if (f.target.card) return 'payment';
+  if (pressing && PAY.test(words)) return 'payment';
+  if (pressing && f.page.hasCard && /\b(submit|continue|confirm|next|done|finish|complete)\b/i.test(words)) return 'payment';
+  if (ACCOUNT.test(words)) return 'account';
+  if (pressing && /\b(save|update|confirm|delete|remove|disable|turn off|apply)\b/i.test(words) && /\b(account|security|password|2fa|two-factor|privacy)\b/i.test(pageWords)) return 'account';
+  if (pressing && SEND.test(words)) return 'send';
+  return 'normal';
+}
+
+export function actionVerdict(f: ActFacts): ActVerdict {
+  const risk = actRisk(f);
+  if (f.kind === 'type' && f.target.secret) return { act: 'block', risk, why: 'That is a password field: Sara never types passwords. Ask the owner to type it themselves in the Sara browser, then go on.' };
+  if (f.text && looksSecret(f.text)) return { act: 'block', risk, why: 'That text looks like a key or a sign-in token: Sara never types those (and never Sara\u2019s own sign-in).' };
+  if (risk === 'payment') return { act: 'ask', risk, why: 'a payment or purchase (asks every time)', choices: ['once'] };
+  if (risk === 'account') return { act: 'ask', risk, why: 'account or security settings (asks every time)', choices: ['once'] };
+  if (f.always.some((a) => a.site === f.site && a.kind === f.kind)) return { act: 'allow', risk, why: 'always allowed on this site' };
+  if (f.level === 'always') return { act: 'allow', risk, why: 'her browser actions are always allowed' };
+  if (risk === 'send') return { act: 'ask', risk, why: 'sending something as you (asks every time)', choices: ['once'] };
+  if (f.level === 'task' && f.taskSites.has(f.site)) return { act: 'allow', risk, why: 'allowed for this task' };
+  return { act: 'ask', risk, why: f.level === 'ask' ? 'every action asks' : 'the first action on this site in this task', choices: f.level === 'task' ? ['once', 'task', 'always'] : ['once', 'always'] };
 }

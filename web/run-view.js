@@ -118,7 +118,7 @@ function section(title, ...children) {
   return box;
 }
 
-function stepCard(run, step, api, named, branchable, ctx) {
+function stepCard(run, step, api, named, branchable, ctx, replan = false) {
   const d = el('details', `run-step${step.stopped ? ' stopped' : ''}`);
   const s = el('summary', 'run-step-head');
   const n = el('span', 'run-step-n', String(step.idx + 1));
@@ -148,9 +148,9 @@ function stepCard(run, step, api, named, branchable, ctx) {
       const row = el('div', 'run-branch-row');
       const b = el('button', 'ghost small run-branch');
       b.type = 'button';
-      b.append(runGlyph('branch'), el('span', '', t('Branch from here')));
+      b.append(runGlyph('branch'), el('span', '', replan ? t('Re-plan from here') : t('Branch from here')));
       b.addEventListener('click', () => void openBranchSheet(run, step, ctx));
-      row.append(b, el('span', 'muted small', t('Change your message, a result, a note or the model, and see what she does then.')));
+      row.append(b, el('span', 'muted small', replan ? t('She plans again from this step with what she saw then. Nothing she did on your computer is repeated: each new action asks you first.') : t('Change your message, a result, a note or the model, and see what she does then.')));
       body.append(row);
     }
     if (step.calls.length) {
@@ -293,10 +293,12 @@ export async function openRunView(runId, { api, named = () => '' }) {
   }
   const list = el('ol', 'run-steps');
   const branchable = run.kind === 'turn' && run.status !== 'running' && !data.running;
+  // Phase 88: a run that used her hands on a computer "re-plans": nothing she did there is repeated.
+  const replan = steps.some((s) => s.tools.some((x) => String(x.name).startsWith('pc_')));
   // A branch's own steps start at the step it was made from; the ones before are its original's.
   for (const s of steps) {
     const li = el('li', '');
-    li.append(stepCard(run, s, api, named, branchable, ctx));
+    li.append(stepCard(run, s, api, named, branchable, ctx, replan));
     list.append(li);
   }
   // Phase 83: the branches made from this run.

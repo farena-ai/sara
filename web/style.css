@@ -1425,6 +1425,20 @@ body:not(.member) [data-member-only] { display: none !important; }
 .ssh-announce { margin: 8px 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--accent); background: var(--panel-2); overflow-wrap: anywhere; }
 
 /* Phase 87: computer use: the live view above the composer, the computers list, the explainer and cards. */
+.cu-badge { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 8px; padding: 6px 6px 6px 12px; border: 1px solid var(--accent); border-radius: 999px; background: var(--surface-2); }
+.cu-badge-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--accent); animation: cu-pulse 1.6s ease-in-out infinite; }
+.cu-badge.paused { border-color: var(--warn); }
+.cu-badge.paused .cu-badge-dot { background: var(--warn); animation: none; }
+.cu-badge-text { flex: 1 1 160px; min-width: 0; font-size: .9em; overflow-wrap: anywhere; }
+.cu-badge button { min-height: 44px; min-width: 44px; border-radius: 999px; }
+@keyframes cu-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .cu-badge-dot { animation: none; } }
+#cu-acts label.row, .cu-this p.row { min-height: 44px; align-items: center; }
+#cu-acts select, .cu-this select { min-height: 44px; }
+.cu-always-row .cu-row-main { flex-basis: 160px; }
+.approval-computer .cu-card-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.approval-computer .row { flex-wrap: wrap; }
+.approval-computer .row button { min-height: 44px; }
 .cu-live { display: grid; gap: 6px; margin: 0 0 8px; padding: 8px; border: 1px solid var(--hairline-strong); border-radius: 12px; background: var(--surface-2); }
 .cu-live-img { display: block; width: 100%; max-height: 180px; object-fit: contain; border-radius: 8px; background: var(--surface-0); }
 .cu-live.big .cu-live-img { max-height: 60vh; }

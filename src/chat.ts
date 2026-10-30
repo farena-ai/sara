@@ -263,7 +263,7 @@ export type ChatEvent =
   /** Phase 63: a tool call the model is still writing (throttled; see src/tool-stream.ts). Shown only, never run. */
   | ToolBuilding
   /** Phase 77: `contradiction` = the card's \"This goes against something you decided\" section (a stop). */
-  | { type: 'approval'; approvalId: string; id: string; name: string; summary: string; args: Record<string, unknown>; detail?: ApprovalDetail; contradiction?: ContradictionCard; budget?: BudgetState; sandbox?: SandboxCard; sandboxFirst?: { label: string; isolated: boolean }; advisory?: AdvisoryCard; redteam?: import('./redteam.ts').RedTeamGateCard }
+  | { type: 'approval'; approvalId: string; id: string; name: string; summary: string; args: Record<string, unknown>; detail?: ApprovalDetail; computer?: import('./tools/types.ts').ComputerApproval; contradiction?: ContradictionCard; budget?: BudgetState; sandbox?: SandboxCard; sandboxFirst?: { label: string; isolated: boolean }; advisory?: AdvisoryCard; redteam?: import('./redteam.ts').RedTeamGateCard }
   /** Phase 81: the install check's outcome for a call (not checked offline, installed anyway, not installed). */
   | { type: 'advisory'; id: string; state: 'offline' | 'override' | 'declined'; packages: string[] }
   | { type: 'redteam'; id: string; runId: number; workspace: string }
@@ -633,9 +633,9 @@ export async function judgeFuzzy(app: AppContext, found: Contradiction[], priv: 
 
 /** Tools that send data off the server; hidden in private conversations. */
 /** Runs a count-first tool's preparation; a failure ends the call with its message (nothing changes). */
-async function prepareCall(tool: Tool, args: Record<string, unknown>, signal: AbortSignal, conversationId: string): Promise<Prepared> {
+async function prepareCall(tool: Tool, args: Record<string, unknown>, signal: AbortSignal, conversationId: string, replay = false): Promise<Prepared> {
   try {
-    return await tool.prepare!(args, { signal, conversationId });
+    return await tool.prepare!(args, { signal, conversationId, ...(replay ? { replay: true } : {}) });
   } catch (err) {
     return { refuse: `Error: ${(err as Error).message}` };
   }
@@ -1857,9 +1857,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // Count-first tools (gmail_organize): what the call would touch is worked out before any card,
       // only when the call may run at all (offered this turn, not off, not blocked by privacy).
       const mayPrepare = Boolean(tool?.prepare) && set !== 'never' && !conv.partner && tools.some((t) => t.spec.name === call.name) && !(tool?.isAvailable && !tool.isAvailable()) && !((conv.private || privateLocalOn()) && OFFSERVER_TOOL(call.name));
-      const prep = mayPrepare && tool ? await prepareCall(tool, call.arguments, signal, conv.id) : undefined;
+      const prep = mayPrepare && tool ? await prepareCall(tool, call.arguments, signal, conv.id, Boolean(opts.replay)) : undefined;
       if (prep?.summary) summary = app.redactor.redact(prep.summary);
       const prepDetail = prep?.detail ? (app.redactor.redactValue(prep.detail) as ApprovalDetail) : undefined;
+      const prepComputer = prep?.computer ? (app.redactor.redactValue(prep.computer) as import('./tools/types.ts').ComputerApproval) : undefined;
       // Phase 73: a few commands always ask first, even when the owner lets the tool run on its own.
       const permission = set === 'auto' && (tool?.asksFirst?.(call.arguments) || prep?.ask) ? 'ask' : set;
       let allowed = permission === 'auto';
@@ -1902,10 +1903,12 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         if (firstCard) {
           const { id, decision } = app.approvals.request(conv.id, signal);
           const stops = (turnContradictions.get(call.id) ?? []).filter((c) => c.act === 'stop');
-          yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(prepDetail ? { detail: prepDetail } : {}), ...(stopFor ? { contradiction: cardOf(stopFor, stops.filter((c) => c !== stopFor)) } : {}), ...(gate ? { sandboxFirst: { label: gate.isolation.label, isolated: gate.isolation.isolated } } : {}), ...(advisoryStop ? { advisory: advisoryStop } : {}), ...(redteamCard ? { redteam: redteamCard } : {}) };
+          yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(prepDetail ? { detail: prepDetail } : {}), ...(prepComputer ? { computer: prepComputer } : {}), ...(stopFor ? { contradiction: cardOf(stopFor, stops.filter((c) => c !== stopFor)) } : {}), ...(gate ? { sandboxFirst: { label: gate.isolation.label, isolated: gate.isolation.isolated } } : {}), ...(advisoryStop ? { advisory: advisoryStop } : {}), ...(redteamCard ? { redteam: redteamCard } : {}) };
           allowed = await decision;
           approval = allowed ? 'allowed' : 'denied';
           const how = app.approvals.takeHow(id);
+          // Phase 88: "Allow for this task" / "Always on this site" on a computer-use card.
+          if (!signal.aborted) prep?.answered?.(allowed, how);
           if (redteamCard && how === 'redteam' && !signal.aborted) {
             // "Red-team first": the action does not run; a red-team run of this project starts.
             allowed = false;

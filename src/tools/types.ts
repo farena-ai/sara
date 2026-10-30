@@ -60,7 +60,7 @@ export interface Tool {
    * structured section to the card, `ask` makes this call ask even when the tool is allowed, and
    * `refuse` ends the call with that text (nothing asked, nothing changed).
    */
-  prepare?: (args: Record<string, unknown>, ctx: { signal: AbortSignal; conversationId?: string }) => Promise<Prepared>;
+  prepare?: (args: Record<string, unknown>, ctx: { signal: AbortSignal; conversationId?: string; replay?: boolean }) => Promise<Prepared>;
   /** Source label for the settings UI, e.g. "built-in" or "MCP: github". */
   source?: string;
   /** Short human-readable description of a call, for the activity log and approval cards. */
@@ -74,10 +74,37 @@ export interface Prepared {
   detail?: ApprovalDetail;
   ask?: boolean;
   refuse?: string;
+  /** Phase 88: a computer-use card (what she would do where; the answers it offers). */
+  computer?: ComputerApproval;
+  /** Phase 88: told how the owner answered the card ("Allow for this task", "Always on this site"). */
+  answered?: (allowed: boolean, how?: string) => void;
 }
 
 /** Extra structured content for an approval card (drawn by the web app; every value is plain text). */
-export type ApprovalDetail = {
+export type ApprovalDetail = GmailApproval;
+
+/** Phase 88: a computer-use card: what she wants to do where, and the answers it offers. */
+export interface ComputerApproval {
+  kind: 'computer';
+  /** click / type / select / keys / upload */
+  action: string;
+  site: string;
+  computer: string;
+  /** What she acts on ("button “Place order”"), plain text. */
+  target: string;
+  /** The target's role and name (the page words it in the app's language). */
+  role?: string;
+  name?: string;
+  /** The text she would type (secrets never; cut to 200 characters). */
+  text?: string;
+  /** Payments and account settings ask every time (no "for this task", no "always"). */
+  risk: 'normal' | 'send' | 'payment' | 'account';
+  why: string;
+  /** The answers on this card besides Don't: once, task, always. */
+  choices: ('once' | 'task' | 'always')[];
+}
+
+export type GmailApproval = {
   kind: 'gmail';
   action: string;
   count: number;
