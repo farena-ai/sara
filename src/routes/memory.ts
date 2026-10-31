@@ -10,7 +10,7 @@ import { type Memory, MEMORY_KINDS, type MemoryKind, parseOnDate } from '../memo
 import { captionModel, deletePhotoEverywhere, handEligible, type Moment, MOMENTS_MODES, type MomentsMode, momentsSettings } from '../moments.ts';
 import { DEFAULT_IMAGE_MODEL, PHOTO_KEY_VAULT, photoSettings } from '../photos.ts';
 import { adultModeOn } from '../settings.ts';
-import { importedName } from '../store.ts';
+import { importedOther, movedFrom } from '../store.ts';
 import { RECALL_MODES, type RecallMode, recallMode, TRIGGER_KINDS, type TriggerKind } from '../triggers.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
@@ -69,7 +69,7 @@ export function createMemoryRoutes(ctx: RouteCtx): RouteHandler {
         const view = (m: Memory) => {
           const conv = m.conversationId ? app.store.getConversation(m.conversationId) : undefined;
           // Phase 51: notes learned from imported history say so ("from your ChatGPT history").
-          return { ...m, source: conv ? { conversationId: conv.id, title: conv.title, messageId: m.sourceMessageId, fromId: m.sourceFromId } : null, importedFrom: importedName(conv?.channel) ?? null };
+          return { ...m, source: conv ? { conversationId: conv.id, title: conv.title, messageId: m.sourceMessageId, fromId: m.sourceFromId } : null, importedFrom: importedOther(conv) ?? null, movedFrom: movedFrom(conv) ?? null };
         };
         if (!b && method === 'GET') {
           const url = new URL(req.url ?? '/', 'http://x');

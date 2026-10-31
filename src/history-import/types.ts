@@ -1,12 +1,13 @@
 // Phase 51: the shape both export readers (ChatGPT, Claude) turn their files into.
 
 // Phase 65: the companion apps ("Bring her from another app", src/companion-import/) as well.
-export type HistorySource = 'chatgpt' | 'claude' | 'characterai' | 'sillytavern' | 'replika' | 'nomi' | 'kindroid' | 'text';
+// Phase 104 (move-in, docs/design/MOVE_IN.md): Hermes Agent and OpenClaw agents moving in.
+export type HistorySource = 'chatgpt' | 'claude' | 'characterai' | 'sillytavern' | 'replika' | 'nomi' | 'kindroid' | 'text' | 'hermes' | 'openclaw';
 
 /** How the other assistant is named in her prompt, recall and notes. */
-export const SOURCE_NAME: Record<HistorySource, string> = { chatgpt: 'ChatGPT', claude: 'Claude', characterai: 'Character.AI', sillytavern: 'SillyTavern', replika: 'Replika', nomi: 'Nomi', kindroid: 'Kindroid', text: 'another app' };
+export const SOURCE_NAME: Record<HistorySource, string> = { chatgpt: 'ChatGPT', claude: 'Claude', characterai: 'Character.AI', sillytavern: 'SillyTavern', replika: 'Replika', nomi: 'Nomi', kindroid: 'Kindroid', text: 'another app', hermes: 'Hermes Agent', openclaw: 'OpenClaw' };
 /** The conversation channel imported chats live on. */
-export const SOURCE_CHANNEL: Record<HistorySource, string> = { chatgpt: 'import-chatgpt', claude: 'import-claude', characterai: 'import-characterai', sillytavern: 'import-sillytavern', replika: 'import-replika', nomi: 'import-nomi', kindroid: 'import-kindroid', text: 'import-text' };
+export const SOURCE_CHANNEL: Record<HistorySource, string> = { chatgpt: 'import-chatgpt', claude: 'import-claude', characterai: 'import-characterai', sillytavern: 'import-sillytavern', replika: 'import-replika', nomi: 'import-nomi', kindroid: 'import-kindroid', text: 'import-text', hermes: 'import-hermes', openclaw: 'import-openclaw' };
 export const isHistorySource = (v: unknown): v is HistorySource => typeof v === 'string' && Object.prototype.hasOwnProperty.call(SOURCE_CHANNEL, v);
 
 export interface ImportedMessage {

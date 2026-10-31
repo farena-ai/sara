@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="/board.css">
   <link rel="stylesheet" href="/people.css">
   <link rel="stylesheet" href="/hooks.css">
+  <link rel="stylesheet" href="/movein.css">
   <link rel="stylesheet" href="/agenda.css">
   <script type="module" src="/app.js"></script>
 </head>
@@ -1816,6 +1817,7 @@
         </section>
         <section class="settings-page" data-page="her-import" data-group="Her" data-title="Bring her from another app" data-owner-only hidden>
       <p class="muted small">Bring your chats from Character.AI, SillyTavern, Replika, Nomi, Kindroid, ChatGPT, Claude or a saved transcript. She reads them and suggests what she learned about you, your history together and her character. Nothing is saved until you check it and press Save. <a href="/help#import" target="_blank" rel="noopener">How to export from each app</a></p>
+      <p class="muted small mi-link">Moving a whole Hermes Agent or OpenClaw companion? <button type="button" class="ghost small" data-goto-tab="dh-movein">Move in from another agent</button></p>
       <h3>Choose the file</h3>
       <p class="muted small">A .zip export (up to 200 MB) or one chat file: .json, .jsonl, .csv, .txt or .md (up to 50 MB). Character cards are imported in Name and personality instead.</p>
       <p class="actions-left"><button type="button" class="ghost file-button" data-pick="ci-file">Choose a file</button><input id="ci-file" type="file" accept=".zip,.json,.jsonl,.csv,.txt,.md,application/zip,application/json,text/plain,text/csv,text/markdown" hidden data-noauto></p>
@@ -2888,6 +2890,55 @@
         <button type="button" class="ghost file-button" data-pick="import-file">Import a file</button><input id="import-file" type="file" accept="application/json,.json" hidden>
       </div>
       <p id="import-status" class="muted small"></p>
+        </section>
+        <section class="settings-page" data-page="dh-movein" data-group="Data & health" data-title="Move in from another agent" data-owner-only hidden>
+      <h3>How it works <button type="button" class="tip" data-tip="Bring a Hermes Agent or OpenClaw companion over: personality, notes, past chats, skills, schedules and board. The old computer is not changed. Undo removes it all for 30 days.">?</button></h3>
+      <p class="muted small">Three steps. Nothing is changed on the old computer, keys and passwords are never collected, and you see everything before it is imported.</p>
+      <ol class="mi-steps" data-noauto>
+        <li class="mi-step">
+          <span class="mi-num" aria-hidden="true">1</span>
+          <div class="mi-body">
+            <h4>Get the collector <button type="button" class="tip" data-tip="A small read-only program (one Python file, no installs). It finds your old agent, shows what it will pack and writes one .saramove file. It is plain text: read it first if you like.">?</button></h4>
+            <p class="muted small">Copy this command. It downloads the collector from this server and checks its fingerprint before it runs.</p>
+            <pre class="mi-cmd" id="mi-cmd" translate="no"></pre>
+            <p class="actions-left"><button id="mi-copy" type="button">Copy the command</button> <a id="mi-download" class="button ghost" href="/api/movein/collector" download="sara-movein.py">Download the collector</a></p>
+            <p id="mi-sha" class="muted small mi-sha"></p>
+          </div>
+        </li>
+        <li class="mi-step">
+          <span class="mi-num" aria-hidden="true">2</span>
+          <div class="mi-body">
+            <h4>Run it on your old agent's computer <button type="button" class="tip" data-tip="Open a terminal on the computer where Hermes Agent or OpenClaw lives (or type ssh you@that-computer and press Enter), paste the command and press Enter. It shows a plan first and only reads.">?</button></h4>
+            <p class="muted small">It shows what it found and what it will pack or skip, then asks before writing the file. Health and intimate items stay out unless you say yes.</p>
+            <details class="mi-whatif">
+              <summary>What if…</summary>
+              <ul class="small">
+                <li><strong>There is no Python:</strong> install it from python.org, or run the collector on a computer that can read the agent's folder.</li>
+                <li><strong>Permission denied:</strong> the agent runs as another user. The collector prints the exact sudo line to use.</li>
+                <li><strong>It finds nothing:</strong> point at the folder: --hermes-home PATH or --openclaw-state PATH.</li>
+                <li><strong>Only a look:</strong> add --plan-only and nothing is written.</li>
+              </ul>
+            </details>
+          </div>
+        </li>
+        <li class="mi-step">
+          <span class="mi-num" aria-hidden="true">3</span>
+          <div class="mi-body">
+            <h4>Upload the file <button type="button" class="tip" data-tip="Choose the .saramove file the collector made. Big files go up in pieces and carry on after a dropped connection. It is as private as a diary: delete your copy afterwards.">?</button></h4>
+            <p class="actions-left"><button type="button" class="file-button" data-pick="mi-file">Choose the .saramove file</button><input id="mi-file" type="file" accept=".saramove" hidden data-noauto></p>
+            <div id="mi-upload" class="mi-card" hidden>
+              <progress id="mi-upbar" max="1" value="0"></progress>
+              <p id="mi-upline" class="small" role="status"></p>
+              <p class="actions-left"><button id="mi-pause" type="button" class="ghost small">Pause</button> <button id="mi-resume" type="button" class="ghost small" hidden>Resume</button></p>
+            </div>
+            <p class="muted small">Or send it straight from the old computer: <button id="mi-code" type="button" class="ghost small">Make a move-in code</button> <button type="button" class="tip" data-tip="A six-word code that lets the collector send one bundle here for 30 minutes (python3 sara-movein.py send FILE --to ADDRESS --code WORDS). It opens nothing else.">?</button></p>
+            <pre id="mi-codeline" class="mi-cmd" translate="no" hidden></pre>
+          </div>
+        </li>
+      </ol>
+      <div id="mi-work" class="mi-work" aria-live="polite" data-noauto></div>
+      <h3>Past move-ins <button type="button" class="tip" data-tip="Every move-in is one batch. Undo removes exactly what it brought (notes, conversations, skills, tasks, cards) and puts her old personality back. Available for 30 days.">?</button></h3>
+      <div id="mi-batches" class="mi-batches" data-noauto><p class="muted small">None yet.</p></div>
         </section>
         <section class="settings-page" data-page="dh-updates" data-group="Data & health" data-title="Updates" data-owner-only hidden>
       <p class="muted small">New versions bring fixes and new things to do. Updating makes a backup first, then installs and restarts Sara (about a minute; conversations in progress stop). If the new version doesn't start properly, Sara goes back to the version she had by herself.</p>

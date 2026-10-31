@@ -5,6 +5,26 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.37.0 (2026-10-31): move in from Hermes Agent and OpenClaw (Phase 104, move-in MI1)
+
+- **Settings → Data & health → Move in from another agent:** three steps. Copy one command, run the
+  collector on the old machine (`sara-movein.py`, standard-library Python, no installs; checks its own
+  hash), and upload the `.saramove` file (resumable) or send it with a move-in code. Guide:
+  [docs/MOVE_IN_GUIDE.md](docs/MOVE_IN_GUIDE.md).
+- **The collector shows its plan first** and packs read-only (SQLite opened without side files).
+  Secrets are never packed (and scrubbed again on the server); backups, media and code environments
+  are skipped; medical and intimate categories stay behind unless you include them.
+- **Readers for Hermes Agent and OpenClaw:** persona files become a character-sheet draft you decide
+  on (lines that would switch off her safety rules are left out, with the reason), memories and
+  "about you" notes, past conversations (active branches; *Was this her?* decides whose replies those
+  were), skills (scripted ones off), schedules as tasks or reminders, and Kanban boards.
+- **Preview** with counts, duplicates and samples; **Import** is one batch with Stop and a report
+  (imported, translated, needs you, left behind); **Undo** removes exactly that batch for 30 days and
+  puts her personality back. Moved-in chats stay out of other apps, /v1 and A2A. Owner only; not in
+  the demo. Custom stores and settings/hooks come in 2.38 and 2.39.
+- Tested with plan-only runs against two real, heavily customised agents (counts only, nothing
+  copied) and full imports of made-up Hermes and OpenClaw homes.
+
 ## 2.36.0 (2026-10-31): her own plans (Phase 103, staples ST8; the staples track is complete)
 
 - **Opt-in, per companion, off by default:** Planner → *Her plans*. She keeps follow-ups on what you

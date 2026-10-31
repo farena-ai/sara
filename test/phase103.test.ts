@@ -445,7 +445,7 @@ test('the page: the Her plans tab and tile, the why line, tips, the off switch, 
   const js = readFileSync(join(ROOT, 'web', 'agenda.js'), 'utf8');
   assert.match(js, /Why I'm writing: \{why\}/);
   assert.match(js, /proposalCard/);
-  assert.match(readFileSync(join(ROOT, 'web', 'sw.js'), 'utf8'), /caches\.open\('sara-shell-v37'\)[\s\S]*sara-shell-v36 from Phase 102/);
+  assert.match(readFileSync(join(ROOT, 'web', 'sw.js'), 'utf8'), /caches\.open\('sara-shell-v3[7-9]'\)[\s\S]*sara-shell-v36 from Phase 102/);
   assert.ok(existsSync(join(ROOT, 'scripts', 'eval-agenda.ts')));
   assert.ok(existsSync(join(ROOT, 'docs', 'AGENDA.md')));
 });

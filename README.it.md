@@ -14,7 +14,7 @@ per il web, Windows, Mac e telefono.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1352%20passing-brightgreen" alt="1352 tests passing">
+  <img src="https://img.shields.io/badge/tests-1365%20passing-brightgreen" alt="1365 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ per il web, Windows, Mac e telefono.
   <sub>Una sessione reale con un modello locale (qwen3.8 27B su Ollama, una RTX 5090) su un server di prova usa e getta, nel tema Notte: tira su il morale di chi le scrive, scrive una piccola app e il suo test mentre il modello li trasmette, chiede prima di eseguire un comando, scopre un vero bug con un test che fallisce e lo corregge finché tutti e 7 i test passano. Fotogrammi scelti dalla registrazione; nulla al loro interno è stato modificato.</sub>
 </p>
 
-> **Stato:** 2.36, licenza MIT, con quarantasette versioni ricche di novità dalla 1.0 (tutte qui sotto).
+> **Stato:** 2.37, licenza MIT, con quarantotto versioni ricche di novità dalla 1.0 (tutte qui sotto).
 > Dalla 2.5 alla 2.8 tutta l'app ha cambiato aspetto. L'[app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > è su Google Play; l'app per iPhone e la versione del Mac App Store arriveranno appena Apple le
 > approverà. Leggi [docs/DISCLOSURES.md](docs/DISCLOSURES.md) prima di usare o condividere Sara.
@@ -82,6 +82,7 @@ Guide di un minuto, registrate su un server di prova con un modello locale (in i
 
 | Versione | Cosa ottieni |
 |---|---|
+| **2.37** · Trasloco | **Porta con te il tuo agente.** Arrivi da Hermes Agent o OpenClaw? Un piccolo file (Python, niente da installare) gira sulla vecchia macchina e ti mostra prima il suo piano; i segreti non vengono mai impacchettati e i dati medici o intimi restano lì se non decidi altrimenti. Sara poi mostra tutto con numeri ed esempi: la personalità (decidi tu), le note e cosa sapeva di te, le chat passate, abilità, pianificazioni e bacheche. Un clic importa tutto in un solo lotto, e Annulla toglie esattamente quel lotto per 30 giorni. |
 | **2.36** · I suoi piani | **A scelta: tiene i suoi piani.** Domande di seguito su ciò che le hai detto («com'è andato il colloquio?») e obiettivi da portare avanti insieme, presi solo dalle tue parole e sempre con il punto in cui l'hai detto. Spento di default; acceso, Agenda → *I suoi piani* mostra tutto, condivide con i suoi primi messaggi il limite giornaliero, le ore di silenzio e la regola della pausa, ha un piccolo budget giornaliero, si ferma dopo un momento difficile, e un solo interruttore ferma tutto subito, anche a metà frase. Gli obiettivi aspettano il tuo *Usalo*. |
 | **2.35** · Webhook | **Altri servizi possono svegliarla.** Dai a GitHub, Stripe, Home Assistant o a qualsiasi cosa parli Standard Webhooks il suo indirizzo firmato; scegli quando conta (condizioni senza codice, con modelli) e cosa fa lei: avvisarti, aggiungere un'attività, eseguire un'abilità o passarlo a un plugin. Le firme si controllano sui byte originali, consegne vecchie o ripetute vengono rifiutate e il contenuto non è affidabile: ciò che cambia qualcosa chiede ancora a te. Registro delle consegne e pulsante di prova su ogni scheda; copie in uscita firmate se vuoi. |
 | **2.34** · Persone | **Tiene traccia delle persone della tua vita.** Una scheda per ogni persona di cui parli (rapporto, compleanno, cosa sa con le tue parole), costruita dai suoi ricordi. Le nuove aspettano il tuo *Va bene*; correggi, unisci, dividi o dimentica chi vuoi (dimenticare cancella davvero). Due Jeff? Chiede quale. Il privato resta nelle chat private e il sensibile viene ripiegato. Le schede non arrivano mai ad altre app, altri agenti, plugin, chat di gruppo o di coppia; ogni membro della casa ha le sue. |
@@ -146,8 +147,8 @@ In ordine di costruzione, una versione ciascuna ([l'elenco completo](docs/ROADMA
 
 - **Le basi di un agente** (2.29–2.36): skill nel formato aperto Agent Skills e skill che impara da ciò che ripeti, plugin e hook, una bacheca Kanban che lei porta avanti, A2A con altri agenti, schede delle persone, webhook, la sua agenda (facoltativa).
 - **Trasloco da un altro agente** (2.37–2.39): porta un intero compagno Hermes Agent o OpenClaw: personalità, ricordi, persone, skill, cronologia e impostazioni, con un resoconto di cosa è arrivato.
-- **Chat e sessioni** (2.40–2.42): /new, /reset e altri comandi in Telegram e Discord, un progetto per canale, titoli che crescono con la sessione.
-- **Oggi, ripensato** (2.43–2.44): un layout che puoi sistemare, su schermi grandi e telefoni.
+- **Chat e sessioni** (2.40–2.43): /new, /reset e altri comandi in Telegram e Discord, un progetto per canale, titoli che crescono con la sessione, e segue tutta la conversazione nei canali di gruppo.
+- **Oggi, ripensato** (2.44–2.45): un layout che puoi sistemare, su schermi grandi e telefoni.
 - L'app per iPhone (in attesa di Apple) e le tue idee nelle [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Il piano completo: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -323,8 +324,8 @@ uno SPEC che nessun test controllava. Quello che aggiunge oggi è il modo di lav
 chiede prima dei passi rischiosi, mostra cosa è stato eseguito), non un punteggio più alto su questi
 insiemi. Dettagli, risultati per compito e come rieseguirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-In più, `npm run check`: un controllo dei tipi e 1367 test automatici con un finto modello guidato
-da script (senza rete, senza GPU): 1352 passano su Windows e gli altri 8 sono test dell'isolamento
+In più, `npm run check`: un controllo dei tipi e 1380 test automatici con un finto modello guidato
+da script (senza rete, senza GPU): 1365 passano su Windows e gli altri 8 sono test dell'isolamento
 solo per Linux, eseguiti su un server Linux.
 
 ## Il confronto

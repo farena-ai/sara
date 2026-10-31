@@ -12,6 +12,20 @@ export function importedName(channel: string | undefined | null): string | undef
   if (!channel || !isImportChannel(channel)) return undefined;
   return SOURCE_NAME[channel.slice(7) as HistorySource] ?? 'another assistant';
 }
+/**
+ * Phase 104 (move-in, docs/design/MOVE_IN.md §6.5): an imported conversation the owner said was HER
+ * past ("she moved here") has a channel key starting "her:". Her lines in it are her own words, and
+ * notes from it say "from before the move" instead of "that was another assistant".
+ */
+export const isHerPast = (conv: { channel: string; channelKey: string | null } | null | undefined): boolean => Boolean(conv && isImportChannel(conv.channel) && conv.channelKey?.startsWith('her:'));
+/** Phase 104: the other assistant of an imported conversation (undefined when it was her own past). */
+export function importedOther(conv: { channel: string; channelKey: string | null } | null | undefined): string | undefined {
+  return conv && !isHerPast(conv) ? importedName(conv.channel) : undefined;
+}
+/** Phase 104: where she lived before ("Hermes Agent") for a conversation from her own past. */
+export function movedFrom(conv: { channel: string; channelKey: string | null } | null | undefined): string | undefined {
+  return conv && isHerPast(conv) ? importedName(conv.channel) : undefined;
+}
 /** Phase 51: SQL: message `m` wasn't brought in from an export (imported messages carry meta.importedFrom). */
 export const NOT_IMPORTED = `(m.meta IS NULL OR m.meta NOT LIKE '%"importedFrom"%')`;
 
@@ -217,7 +231,7 @@ export class Store {
    * Phase 51: one conversation from another assistant's export, with its original times, in one
    * transaction. Archived unless asked otherwise; every message carries meta.importedFrom.
    */
-  insertImported(c: { title: string; channel: string; channelKey: string; createdAt: string; updatedAt: string; archived: boolean; from: string; messages: { role: 'user' | 'assistant'; content: string; createdAt: string; attachments?: string[] }[] }): { id: string; firstId: number; lastId: number } {
+  insertImported(c: { title: string; channel: string; channelKey: string; createdAt: string; updatedAt: string; archived: boolean; from: string; herPast?: boolean; messages: { role: 'user' | 'assistant'; content: string; createdAt: string; attachments?: string[] }[] }): { id: string; firstId: number; lastId: number } {
     const id = randomUUID();
     const ins = this.db.prepare('INSERT INTO messages (conversation_id, role, content, created_at, meta) VALUES (?, ?, ?, ?, ?)');
     let firstId = 0;
@@ -228,7 +242,7 @@ export class Store {
         .prepare('INSERT INTO conversations (id, title, provider_id, model, workspace, mode, private, channel, channel_key, partner, project_id, archived_at, created_at, updated_at) VALUES (?, ?, NULL, NULL, ?, ?, 0, ?, ?, NULL, NULL, ?, ?, ?)')
         .run(id, c.title, 'main', 'chat', c.channel, c.channelKey, c.archived ? this.#now().toISOString() : null, c.createdAt, c.updatedAt);
       for (const m of c.messages) {
-        const meta = { importedFrom: c.from, ...(m.attachments?.length ? { attachments: m.attachments } : {}) };
+        const meta = { importedFrom: c.from, ...(c.herPast ? { herPast: true } : {}), ...(m.attachments?.length ? { attachments: m.attachments } : {}) };
         lastId = Number(ins.run(id, m.role, m.content, m.createdAt, JSON.stringify(meta)).lastInsertRowid);
         firstId ||= lastId;
       }

@@ -47,6 +47,8 @@ export interface Memory {
   lastUsedOn: string | null;
   /** Phase 76: days it was used that way (at most +1 per day). */
   useCount: number;
+  /** Phase 104 (move-in): searchable by recall, never put into a prompt by itself. */
+  archived?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -107,6 +109,7 @@ function toMemory(r: Row): Memory {
     pinned: Boolean(r.pinned),
     lastUsedOn: (r.last_used_on as string | null | undefined) ?? null,
     useCount: Number(r.use_count ?? 0),
+    archived: Boolean(r.archived),
     createdAt: String(r.created_at),
     updatedAt: String(r.updated_at),
   };
@@ -130,7 +133,7 @@ export class MemoryStore {
     db.exec(SCHEMA);
     // Phase 12 columns (added in place on older databases).
     const cols = new Set((db.prepare('PRAGMA table_info(memories)').all() as { name: string }[]).map((c) => c.name));
-    for (const [c, type] of [['on_date', 'TEXT'], ['superseded_by', 'INTEGER'], ['mentioned_on', 'TEXT'], ['resolved_at', 'TEXT'], ['source_doc_id', 'INTEGER'], ['pinned', 'INTEGER NOT NULL DEFAULT 0'], ['last_used_on', 'TEXT'], ['use_count', 'INTEGER NOT NULL DEFAULT 0']]) if (!cols.has(c)) db.exec(`ALTER TABLE memories ADD COLUMN ${c} ${type}`);
+    for (const [c, type] of [['on_date', 'TEXT'], ['superseded_by', 'INTEGER'], ['mentioned_on', 'TEXT'], ['resolved_at', 'TEXT'], ['source_doc_id', 'INTEGER'], ['pinned', 'INTEGER NOT NULL DEFAULT 0'], ['last_used_on', 'TEXT'], ['use_count', 'INTEGER NOT NULL DEFAULT 0'], ['archived', 'INTEGER NOT NULL DEFAULT 0']]) if (!cols.has(c)) db.exec(`ALTER TABLE memories ADD COLUMN ${c} ${type}`);
   }
 
   add(m: { kind: MemoryKind; content: string; conversationId: string | null; sourceMessageId: number | null; sourceFromId?: number | null; happenedOn: string; evidence?: string | null; onDate?: string | null; sourceDocId?: number | null }): Memory {
@@ -179,6 +182,11 @@ export class MemoryStore {
   setPinned(id: number, on: boolean): Memory | undefined {
     this.db.prepare('UPDATE memories SET pinned = ? WHERE id = ?').run(on ? 1 : 0, id);
     return this.get(id);
+  }
+
+  /** Phase 104 (move-in): an archived note is searchable but never auto-injected (§6.4). */
+  setArchived(id: number, on: boolean): void {
+    this.db.prepare('UPDATE memories SET archived = ? WHERE id = ?').run(on ? 1 : 0, id);
   }
 
   /** Phase 76: pinned notes still in use (newest first). */
@@ -476,6 +484,8 @@ export function selectMemories(
     /** Phase 74: the page a document note's words are on (for page citations). */
     docPage?: (id: number, evidence: string | null) => number | undefined;
     importedFrom?: (conversationId: string) => string | undefined;
+    /** Phase 104: where she lived before a move-in, for notes from her own past ("Hermes Agent"). */
+    movedFrom?: (conversationId: string) => string | undefined;
     /** Hardening M3: only notes this allows (another app's turn: none from private, imported or adult-channel conversations). */
     allow?: (m: Memory) => boolean;
     /** Phase 76: the bracket note after each line (default on; off for anything spoken aloud). */
@@ -521,9 +531,10 @@ export function selectMemories(
     const doc = m.sourceDocId !== null ? opts.docName?.(m.sourceDocId) : undefined;
     // Phase 51: a note learned from imported history says so (another assistant was there, not her).
     const other = m.conversationId ? opts.importedFrom?.(m.conversationId) : undefined;
+    const moved = !other && m.conversationId ? opts.movedFrom?.(m.conversationId) : undefined;
     const page = doc && m.sourceDocId !== null ? opts.docPage?.(m.sourceDocId, m.evidence ?? null) : undefined;
     // Phase 76: the note goes AFTER the content, so small models see the same thing first.
-    const line = `- (${m.happenedOn}${tag}${doc ? `, from the document "${doc}"${page ? `, page ${page}, cite: [p. ${page}](/#view=library:${m.sourceDocId}:${page})` : ''} in your library` : ''}${other ? `, learned from their imported ${other} history: that was ${other} talking with them, not you` : ''}) ${m.content.replace(/\s+/g, ' ').trim()}${opts.notes === false ? '' : ` ${bracketNote(p)}`}`;
+    const line = `- (${m.happenedOn}${tag}${doc ? `, from the document "${doc}"${page ? `, page ${page}, cite: [p. ${page}](/#view=library:${m.sourceDocId}:${page})` : ''} in your library` : ''}${other ? `, learned from their imported ${other} history: that was ${other} talking with them, not you` : ''}${moved ? `, from before the move (on ${moved}): your own past` : ''}) ${m.content.replace(/\s+/g, ' ').trim()}${opts.notes === false ? '' : ` ${bracketNote(p)}`}`;
     if (chars + line.length + 1 > opts.budgetChars) continue;
     lines.push(line);
     ids.push(m.id);

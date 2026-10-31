@@ -534,6 +534,14 @@
   <li>The sender must be able to reach your server: Home Assistant on your network or tailnet; GitHub and Stripe only through your own web address or Tailscale Funnel. Details: <code>docs/WEBHOOKS.md</code>.</li>
 </ul>
 
+<h2 id="move-in">Move in from another agent</h2>
+<ul>
+  <li>Bring a whole Hermes Agent or OpenClaw companion over in <em>Settings → Data &amp; health → Move in from another agent</em>: copy the command, run it on the old agent's computer, then upload the <code>.saramove</code> file it makes.</li>
+  <li>The collector only reads. It shows a plan first, never opens keys or passwords, and keeps health and intimate items out unless you say yes. Add <code>--plan-only</code> to just look.</li>
+  <li>Sara shows what will come in before anything changes: her personality as a draft you decide on, notes, what she knew about you, past conversations, skills, schedules and board cards. Old schedules become tasks that never act by themselves.</li>
+  <li>The whole move-in is one batch: <strong>Undo this move-in</strong> removes exactly what it brought and puts her old personality back. Details: <code>docs/MOVE_IN_GUIDE.md</code>.</li>
+</ul>
+
 <h2 id="her-plans">Her own plans (off by default)</h2>
 <ul>
   <li>Turn it on in <em>Planner → Her plans</em> with <strong>Let her keep her own plans</strong>. When you mention something coming up (&quot;the interview is on Friday&quot;) she may plan to ask how it went, and when you say you need to do something twice in two weeks (or ask her to help you keep at it) she suggests a goal on a card: nothing starts until you say <strong>Use it</strong>.</li>

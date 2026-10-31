@@ -265,6 +265,8 @@ const OWNER_ONLY = ['backups', 'update', 'doctor', 'logs', 'status', 'health', '
   'plugins',
   // Phase 102 (ST7): webhooks: list, make, change, rotate, test, log, enable, remove (owner only).
   'hooks',
+  // Phase 104 (MI1): move in from another agent: the collector, codes, uploads, preview, import, Undo (owner only).
+  'movein',
   // Phase 87: computer use. Member routes in src/household.ts, but answered 403 ownerOnly while the
   // owner's "Let household members use computer use" is off (the default, as here).
   'hands', 'computer'];

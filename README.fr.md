@@ -14,7 +14,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1352%20passing-brightgreen" alt="1352 tests passing">
+  <img src="https://img.shields.io/badge/tests-1365%20passing-brightgreen" alt="1365 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <sub>Une vraie session avec un modèle local (qwen3.8 27B sur Ollama, une RTX 5090) sur un serveur de test jetable, dans le thème Nuit : elle remonte le moral de son interlocuteur, écrit une petite app et son test pendant que le modèle les transmet, demande avant d'exécuter une commande, repère un vrai bug grâce à un test qui échoue et le corrige jusqu'à ce que les 7 tests passent. Images choisies dans l'enregistrement ; rien n'y a été retouché.</sub>
 </p>
 
-> **État :** 2.36, licence MIT, avec quarante-sept versions riches en nouveautés depuis la 1.0 (toutes
+> **État :** 2.37, licence MIT, avec quarante-huit versions riches en nouveautés depuis la 1.0 (toutes
 > ci-dessous). De la 2.5 à la 2.8, toute l'app a changé de look. L'[app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > est sur Google Play ; l'app iPhone et la version Mac App Store arrivent dès qu'Apple les aura
 > approuvées. Lisez [docs/DISCLOSURES.md](docs/DISCLOSURES.md) avant d'utiliser ou de partager Sara.
@@ -83,6 +83,7 @@ Des tutoriels d'une minute, enregistrés sur un serveur de test avec un modèle 
 
 | Version | Ce que vous y gagnez |
 |---|---|
+| **2.37** · Déménagement | **Emmenez votre agent.** Vous venez de Hermes Agent ou d'OpenClaw ? Un petit fichier (Python, rien à installer) tourne sur l'ancienne machine et vous montre d'abord son plan ; les secrets ne sont jamais emballés et les données médicales ou intimes restent sauf si vous le voulez. Sara affiche ensuite tout avec des chiffres et des exemples : la personnalité (vous décidez), les notes et ce qu'elle savait de vous, les anciennes discussions, compétences, horaires et tableaux. Un clic importe tout en un seul lot, et Annuler retire exactement ce lot pendant 30 jours. |
 | **2.36** · Ses propres projets | **Au choix : elle garde ses propres projets.** Des suivis de ce que vous lui avez dit (« alors, cet entretien ? ») et des objectifs que vous tenez ensemble, tirés seulement de vos propres mots et toujours avec l'endroit où vous l'avez dit. Éteint par défaut ; activé, Planning → *Ses projets* liste tout, elle partage avec ses premiers messages la limite du jour, les heures calmes et la règle d'écart, a un petit budget quotidien, fait une pause après un moment difficile, et un seul interrupteur arrête tout aussitôt, même en pleine phrase. Les objectifs attendent votre *Garder*. |
 | **2.35** · Webhooks | **D'autres services peuvent la réveiller.** Donnez à GitHub, Stripe, Home Assistant ou tout ce qui parle Standard Webhooks sa propre adresse signée ; choisissez quand ça compte (conditions sans code, avec modèles) et ce qu'elle fait : vous prévenir, ajouter une tâche, lancer une compétence ou le passer à un plugin. Les signatures sont vérifiées sur les octets bruts, les envois anciens ou rejoués sont refusés, et le contenu n'est pas fiable : ce qui change quelque chose vous demande toujours. Un journal des envois et un bouton Tester sur chaque carte ; des copies sortantes signées si vous voulez. |
 | **2.34** · Personnes | **Elle garde trace des personnes de votre vie.** Une carte par personne dont vous parlez (lien, anniversaire, ce qu'elle sait avec vos mots), construite à partir de ses souvenirs. Les nouvelles attendent votre *C'est bon* ; corrigez, fusionnez, séparez ou oubliez qui vous voulez (oublier efface vraiment). Deux Jeff ? Elle demande lequel. Le privé reste dans les discussions privées et le sensible est replié. Les cartes ne vont jamais vers d'autres apps, d'autres agents, des plugins, des discussions de groupe ou de couple ; chaque membre du foyer a les siennes. |
@@ -147,8 +148,8 @@ Dans l'ordre de construction, une version chacune ([la liste complète](docs/ROA
 
 - **Les bases d'un agent** (2.29–2.36) : des compétences au format ouvert Agent Skills et des compétences qu'elle apprend de ce que vous répétez, plugins et hooks, un tableau Kanban qu'elle traite, A2A avec d'autres agents, des fiches de personnes, des webhooks, son propre agenda (optionnel).
 - **Emménager depuis un autre agent** (2.37–2.39) : amener un compagnon Hermes Agent ou OpenClaw entier : personnalité, souvenirs, personnes, compétences, historique et réglages, avec un rapport de ce qui est arrivé.
-- **Discussions et sessions** (2.40–2.42) : /new, /reset et d'autres commandes dans Telegram et Discord, un projet par canal, des titres qui grandissent avec la session.
-- **Aujourd'hui, repensé** (2.43–2.44) : une mise en page que vous pouvez arranger, sur grand écran et sur téléphone.
+- **Discussions et sessions** (2.40–2.43) : /new, /reset et d'autres commandes dans Telegram et Discord, un projet par canal, des titres qui grandissent avec la session, et elle suit toute la conversation dans les salons de groupe.
+- **Aujourd'hui, repensé** (2.44–2.45) : une mise en page que vous pouvez arranger, sur grand écran et sur téléphone.
 - L'app iPhone (en attente d'Apple), et vos idées dans les [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Le plan complet : [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -331,8 +332,8 @@ qu'aucun test ne vérifiait. Ce qu'elle apporte aujourd'hui, c'est la manière d
 lance les tests, demande avant les étapes risquées, montre ce qui a tourné), pas un meilleur score
 sur ces jeux. Détails, résultats par tâche et comment relancer : [docs/RESULTS.md](docs/RESULTS.md).
 
-En plus, `npm run check` : une vérification des types et 1367 tests automatiques avec un faux modèle
-scripté (sans réseau, sans GPU) : 1352 passent sous Windows, et les 8 autres sont des tests
+En plus, `npm run check` : une vérification des types et 1380 tests automatiques avec un faux modèle
+scripté (sans réseau, sans GPU) : 1365 passent sous Windows, et les 8 autres sont des tests
 d'isolation propres à Linux, exécutés sur un serveur Linux.
 
 ## Comparaison

@@ -231,7 +231,7 @@ export function recallMessages(
       ...(from ? { from } : {}),
       // Phase 51: another assistant's replies in imported history are never "you".
       // Phase 66: another companion's line in a group chat is hers, with her name.
-      lines: pick.map((p) => ({ role: p.role === 'user' ? 'owner' : p.meta?.includes('"importedFrom"') || p.meta?.includes('"groupFrom"') ? 'other' : 'you', text: clip(p.content, p.id === r.id ? 600 : 240), id: p.id, ...(p.meta?.includes('"groupFrom"') ? { name: groupFromName(p.meta) } : {}) })),
+      lines: pick.map((p) => ({ role: p.role === 'user' ? 'owner' : (p.meta?.includes('"importedFrom"') && !p.meta.includes('"herPast"')) || p.meta?.includes('"groupFrom"') ? 'other' : 'you', text: clip(p.content, p.id === r.id ? 600 : 240), id: p.id, ...(p.meta?.includes('"groupFrom"') ? { name: groupFromName(p.meta) } : {}) })),
     });
   }
   return hits;

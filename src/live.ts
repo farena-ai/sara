@@ -20,7 +20,7 @@ import { bondContext, classify, daysKnown, innerEnabled } from './chat.ts';
 import { identityOf, buildSystemPrompt } from './persona.ts';
 import { elsewhereNote } from './elsewhere.ts';
 import { followUps, followUpsNote, datesNote, selectMemories } from './memory.ts';
-import { importedName } from './store.ts';
+import { importedOther, movedFrom } from './store.ts';
 import { threadsNote } from './life.ts';
 import { decayPolicy, isForgotten, localDate, memorySettings } from './memory-worker.ts';
 import { describeInner } from './inner.ts';
@@ -541,7 +541,7 @@ export class LiveCall {
     if (app.memory && memCfg.enabled && conv) {
       const visible = app.store.messages(conv.id).filter((m) => !isForgotten(m) && (m.role === 'user' || m.role === 'assistant'));
       const oldest = visible.at(-HISTORY_ITEMS)?.id ?? 0;
-      memories = selectMemories(app.memory, { userText: userText || visible.filter((m) => m.role === 'user').at(-1)?.content || '', conversationId: conv.id, oldestHistoryId: oldest, budgetChars: memCfg.injectBudgetChars, importedFrom: (id) => importedName(app.store.getConversation(id)?.channel), policy: decayPolicy(memCfg), today: localDate(now.toISOString(), s.timeZone), notes: false }).text;
+      memories = selectMemories(app.memory, { userText: userText || visible.filter((m) => m.role === 'user').at(-1)?.content || '', conversationId: conv.id, oldestHistoryId: oldest, budgetChars: memCfg.injectBudgetChars, importedFrom: (id) => importedOther(app.store.getConversation(id)), movedFrom: (id) => movedFrom(app.store.getConversation(id)), policy: decayPolicy(memCfg), today: localDate(now.toISOString(), s.timeZone), notes: false }).text;
     }
     const inner = app.inner && innerEnabled(app) ? app.inner.get() : undefined;
     const system = buildSystemPrompt(app.persona, {

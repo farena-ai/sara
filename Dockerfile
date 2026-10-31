@@ -47,6 +47,8 @@ COPY templates ./templates
 COPY skills ./skills
 # Phase 87: the shared page agent her testing browser reads pages with (also in the desktop apps).
 COPY desktop/shared/page-agent.js ./desktop/shared/page-agent.js
+# Phase 104: the move-in collector Sara serves (Settings → Data & health → Move in from another agent).
+COPY scripts/sara-movein.py ./scripts/sara-movein.py
 
 # Root on purpose, but not a full root: the server starts as the container's root only so it can
 # run her commands (shell, MCP servers) as the separate "sara-tools" user, which can't read Sara's

@@ -455,6 +455,31 @@ export class HistoryImporter {
     return this.status();
   }
 
+  /** Phase 104 (move-in): learn from these imported conversations in the background (the same queue, pause and resume). */
+  queueLearning(ids: string[], source: HistorySource): HistoryStatus {
+    const app = this.#app();
+    if (!ids.length || !app.memory || !memorySettings(app).enabled) return this.status();
+    const q = this.#queue();
+    const queued = new Set(q?.ids ?? []);
+    const add = ids.filter((id) => !queued.has(id));
+    this.#saveQueue(q?.ids.length ? { ...q, ids: [...q.ids, ...add], total: q.total + add.length } : { ids: add, total: add.length, learned: 0, notes: 0, failed: 0, paused: false, source });
+    this.#status = { ...this.#status, state: 'learning', source, name: SOURCE_NAME[source], message: `Learning from ${add.length} moved-in conversations in the background, a few a minute.` };
+    this.start();
+    this.#publish();
+    return this.status();
+  }
+
+  /** Phase 104 (move-in Undo): these conversations leave the learning queue (one in progress is stopped). */
+  forget(ids: string[]): void {
+    const q = this.#queue();
+    if (!q) return;
+    const gone = new Set(ids);
+    if (gone.has(q.ids[0] ?? '')) this.#abort?.abort();
+    const rest = q.ids.filter((x) => !gone.has(x));
+    this.#saveQueue(rest.length ? { ...q, ids: rest, total: Math.max(rest.length, q.total - (q.ids.length - rest.length)) } : undefined);
+    this.#wake?.();
+  }
+
   /** "Remove imported history": the imported conversations and every note learned from them. */
   remove(source?: HistorySource): { conversations: number; notes: number } {
     const app = this.#app();

@@ -1032,6 +1032,36 @@ the README "What's new" row in the same release.
   question; a minor-sexual persona is refused; a re-run imports only the new items; a 2 GB synthetic
   `state.db` streams with the collector under 200 MB RSS.
 
+**As built (2.37.0).** Built as listed above, with these differences:
+- **Persona draft without a model.** The character sheet card comes from headings and paragraphs
+  (Personality, Voice, Boundaries, Background…). Lines that don't fit become her notes. No model
+  call is made, so it also works with no model set up. The card has *Try her voice* (studio
+  samples) and the owner must choose *Use this personality* or *Keep my current Sara* before
+  Import is enabled.
+- **Safety lines.** `SAFETY_CONFLICT` (src/movein/text.ts) also catches crisis-line and minors
+  lines and "no content restrictions". Those lines are never put on the sheet or in her notes: they
+  are listed under *Left out* with the reason "Sara's safety layer stays on". The system prompt's
+  `SAFETY_BOUNDARIES` don't depend on the sheet.
+- **Collector reads without writing.** A WAL database with no `-wal`/`-shm` files is opened
+  `immutable=1` even without `--stopped`, because `mode=ro` alone created sidecar files. Python
+  3.6.8 on a CentOS-7-era host ships SQLite 3.26, which can't parse STRICT tables (OpenClaw
+  2026.x). The collector then reads through Node's `node:sqlite` (OpenClaw always has Node): one
+  read-only process per query, immutable when idle.
+- **The live OpenClaw layout differs from §2.3.** Transcripts are
+  `transcript_events(session_id, seq, event_json)` holding the same entries as the JSONL files.
+  The active branch is in `session_transcript_active_events`, the keys in `session_windows`, and
+  old transcripts are zstd blobs in `session_transcript_archives` (left behind and counted). The
+  reader handles this layout as well as the column-name layout and legacy JSONL.
+- **Learning.** Only conversations from the last 90 days are learned from, unless *Learn from all
+  of them* is ticked (§15 Q4). 2,000 notes are active and the rest are archived (§15 Q5).
+- **Not yet:** no 2 GB RSS benchmark was run (the reader streams; the bundle reader keeps only the
+  central directory in memory). The report's *Needs you* detail lines are server English with the
+  old agent's names. The page labels around them are translated.
+- **Seams for MI2/MI3:** `READERS` in src/movein/index.ts (add `custom`). `later` findings carry
+  `code` (`custom-store`, `config`, `hook`, `plugin`, `tools`, `agenda`) and their bundle path. The
+  staging `already` state makes a re-import of the same bundle bring only new parts. The report's
+  `needsYou`/`leftBehind` lists are where MI3 adds config, channel and hook translations.
+
 ### Phase 105 · 2.38.0 · MI2: custom SQLite and Postgres stores
 - Table profiles, families, telemetry score (§8.2), mapping call per family with fixed-menu JSON,
   code validation, cards with real mapped samples, hand-edit menu, mapper with streaming joins,

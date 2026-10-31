@@ -59,6 +59,7 @@ import { createHerRoutes } from './routes/her.ts';
 import { createVoiceRoutes } from './routes/voice.ts';
 import { createLiveUpgrade } from './routes/live.ts';
 import { createHandsRoutes, createHandsUpgrade } from './routes/hands.ts';
+import { createMoveInPublic, createMoveInRoutes, serveCollector } from './routes/movein.ts';
 
 // Kept exported from here for main.ts and the tests.
 export { clientIp, fromPhoneApp, fromSaraApp, proxyTrust } from './http.ts';
@@ -817,6 +818,9 @@ export function createSaraServer(opts: ServerOptions): Server {
   const homeAssistantApi = createHomeAssistantApi(ctx);
   // Phase 87: computer use (src/routes/hands.ts); a Stop pressed on the computer stops the turn here.
   const handsRoutes = createHandsRoutes(ctx);
+  // Phase 104: move in from another agent (src/routes/movein.ts); the collector's `send` uses a move-in code.
+  const moveInRoutes = createMoveInRoutes(ctx);
+  const moveInPublic = createMoveInPublic(ctx);
   app.hands?.onStop((conversationId) => active.get(conversationId)?.controller.abort());
 
   async function api(req: IncomingMessage, res: ServerResponse, method: string, parts: string[]): Promise<void> {
@@ -1074,6 +1078,8 @@ export function createSaraServer(opts: ServerOptions): Server {
       return send(res, 200, { ok: true });
     }
 
+    // Phase 104: the collector's `send` (a move-in code, the upload routes only) comes before sign-in.
+    if (a === 'movein' && !isAuthed(req) && (await moveInPublic(req, res, method, parts)) !== NEXT) return;
     if (!isAuthed(req)) throw new HttpError(401, 'Sign in first.');
     // Phase 71: a household member's space answers only the member routes (src/household.ts).
     if (opts.member) {
@@ -1163,6 +1169,8 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await boardRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await plannerRoutes(req, res, method, parts)) !== NEXT) return;
 
+    // Phase 104: move in from another agent (owner only; never in the demo): src/routes/movein.ts.
+    if ((await moveInRoutes(req, res, method, parts)) !== NEXT) return;
     // Document library, chat-history imports and data export/import: src/routes/library.ts.
     if ((await libraryRoutes(req, res, method, parts)) !== NEXT) return;
 
@@ -1861,6 +1869,8 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (url.pathname === '/mcp' || url.pathname === '/mcp/') {
         return await handleMcp(req, res, { app, auth, demo: Boolean(opts.demo), version: info.version, limiter: appLimiter, requestApproval });
       }
+      // Phase 104: the move-in collector, plain source (the Move in page shows its SHA-256). Not on the demo.
+      if (url.pathname === '/movein/sara-movein.py' && (method === 'GET' || method === 'HEAD') && !opts.demo) return serveCollector(res);
       if (url.pathname.startsWith('/api/')) {
         const parts = url.pathname.slice(5).split('/').filter(Boolean).map(safeDecode);
         await api(req, res, method, parts);

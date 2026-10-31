@@ -1,0 +1,79 @@
+/* Phase 104 (MI1, docs/design/MOVE_IN.md §12): Settings → Data & health → Move in from another agent.
+   Theme tokens only; 44 px targets; phone first, two columns on wide screens. */
+.mi-steps { list-style: none; margin: var(--s-3) 0; padding: 0; display: grid; gap: var(--s-3); }
+.mi-step { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: var(--s-3); padding: var(--s-3); border: 1px solid var(--hairline-strong); border-radius: var(--r-card); background: var(--surface-1); min-width: 0; }
+.mi-num { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: var(--accent-grad); color: var(--on-accent); }
+.mi-body { display: grid; gap: var(--s-2); min-width: 0; }
+.mi-body h4, .mi-card h4 { margin: 0; display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.mi-cmd { margin: 0; padding: var(--s-2) var(--s-3); border-radius: var(--r-card); background: var(--surface-2); border: 1px solid var(--hairline); font-family: var(--font-mono, ui-monospace, monospace); font-size: .82rem; white-space: pre-wrap; word-break: break-all; user-select: all; }
+.mi-cmd[hidden] { display: none; }
+.mi-sha { word-break: break-all; }
+.mi-whatif summary, .mi-samples summary, .mi-plan summary, .mi-later summary, .mi-left summary { min-height: 44px; display: flex; align-items: center; gap: var(--s-2); cursor: pointer; }
+.mi-whatif ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
+.mi-work { display: grid; gap: var(--s-3); margin: var(--s-3) 0; min-width: 0; }
+.mi-work:empty { display: none; }
+.mi-preview { display: grid; gap: var(--s-3); min-width: 0; }
+.mi-card { display: grid; gap: var(--s-2); padding: var(--s-3); border: 1px solid var(--hairline-strong); border-radius: var(--r-card); background: var(--surface-1); min-width: 0; }
+.mi-card[hidden] { display: none; }
+.mi-card progress, .mi-step progress { width: 100%; height: 8px; accent-color: var(--accent-solid); }
+.mi-error { color: var(--danger); }
+.mi-card.mi-error { background: var(--danger-soft); border-color: var(--danger); }
+.mi-head { background: var(--accent-soft); }
+.mi-her { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-3); align-items: center; }
+.mi-her legend { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-1); font-weight: 600; flex-wrap: wrap; }
+.settings-page .mi-radio, .settings-page .mi-switch { display: inline-flex; flex-direction: row; align-items: center; gap: var(--s-2); min-height: 44px; cursor: pointer; }
+.settings-page .mi-radio input, .settings-page .mi-switch input { flex: 0 0 22px; width: 22px; height: 22px; min-height: 0; margin: 0; accent-color: var(--accent-solid); }
+.mi-section-top { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.mi-section-name { font-weight: 600; }
+.mi-count { margin-left: auto; color: var(--text-2); font-size: .88rem; }
+.mi-pill { display: inline-block; margin-left: var(--s-1); padding: 1px 8px; border-radius: 999px; font-size: .75rem; background: var(--accent-soft); color: var(--accent-text); }
+.mi-pill-off { background: var(--surface-2); color: var(--text-2); }
+.mi-sample { margin: var(--s-2) 0 0; padding: var(--s-2); border-left: 3px solid var(--accent-solid); background: var(--surface-2); border-radius: 0 var(--r-card) var(--r-card) 0; }
+.mi-sample p { margin: 4px 0 0; white-space: pre-wrap; }
+.mi-plan-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.mi-plan-row { display: grid; grid-template-columns: minmax(8em, 12em) minmax(0, 1fr) auto; gap: var(--s-2); align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--hairline); font-size: .88rem; }
+.mi-plan-key { font-weight: 600; }
+.mi-plan-text { color: var(--text-2); min-width: 0; overflow-wrap: anywhere; }
+.mi-plan-skip .mi-plan-key { color: var(--text-2); font-weight: 500; }
+.mi-persona { border-color: var(--accent-solid); }
+.mi-sheet { display: grid; gap: var(--s-2); }
+.mi-field { display: grid; grid-template-columns: 6em minmax(0, 1fr) auto; align-items: center; gap: var(--s-2); }
+.mi-field input, .mi-field select { min-height: 44px; min-width: 0; }
+.mi-summary { margin: 0; font-style: italic; }
+.mi-cols { display: grid; gap: var(--s-2); grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mi-col { padding: var(--s-2); border-radius: var(--r-card); background: var(--surface-2); min-width: 0; }
+.mi-col h5 { margin: 0 0 var(--s-1); }
+.mi-col ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; overflow-wrap: anywhere; }
+.mi-col-sheet { border-top: 3px solid var(--success); }
+.mi-col-notes { border-top: 3px solid var(--info); }
+.mi-col-left { border-top: 3px solid var(--warn); }
+.mi-why { color: var(--text-2); }
+.mi-try { white-space: pre-wrap; margin: 0; }
+.mi-try:empty { display: none; }
+.mi-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+.mi-actions button, .mi-step .actions-left button, .mi-step .actions-left .button { min-height: 44px; }
+.mi-held { border-color: var(--warn); background: var(--warn-soft); }
+.mi-report { display: grid; gap: var(--s-2); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mi-report-list { padding: var(--s-2); border-radius: var(--r-card); background: var(--surface-2); min-width: 0; }
+.mi-report-list h5 { margin: 0 0 var(--s-1); }
+.mi-report-list ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; overflow-wrap: anywhere; }
+.mi-r-in { border-top: 3px solid var(--success); }
+.mi-r-tr { border-top: 3px solid var(--info); }
+.mi-r-need { border-top: 3px solid var(--warn); }
+.mi-r-left { border-top: 3px solid var(--hairline-strong); }
+.mi-done { border-color: var(--success); }
+.mi-undo { border-color: var(--danger); }
+.mi-batch-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-1); }
+.mi-batch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); min-height: 44px; padding: var(--s-1) var(--s-2); border-radius: var(--r-card); background: var(--surface-1); }
+.mi-batch-name { font-weight: 600; }
+.mi-batch button { margin-left: auto; min-height: 44px; }
+.mi-link { margin-bottom: var(--s-2); }
+@media (max-width: 720px) {
+  .mi-cols, .mi-report { grid-template-columns: minmax(0, 1fr); }
+  .mi-plan-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .mi-plan-text { grid-column: 1 / -1; grid-row: 2; }
+  .mi-count { margin-left: 0; flex-basis: 100%; }
+  .mi-field { grid-template-columns: minmax(0, 1fr) auto; }
+  .mi-field > span:first-child { grid-column: 1 / -1; }
+  .mi-work { padding-bottom: var(--safe-b); }
+}

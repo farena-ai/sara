@@ -271,7 +271,7 @@ export function scoreCandidates(cands: Candidate[], policyIn: PolicyWithId | Dec
 export function rankMemories(mem: RankSource, ctx: RankContext): RankedPick[] {
   const policy = ctx.policy ?? DEFAULT_DECAY;
   const exclude = new Set(ctx.override?.exclude ?? []);
-  const inHistory = (m: Memory) => (m.conversationId === ctx.conversationId && (m.sourceMessageId ?? 0) >= ctx.oldestHistoryId) || m.supersededBy !== null || m.kind === 'date' || (m.kind === 'promise' && m.resolvedAt !== null);
+  const inHistory = (m: Memory) => (m.conversationId === ctx.conversationId && (m.sourceMessageId ?? 0) >= ctx.oldestHistoryId) || m.supersededBy !== null || m.archived || m.kind === 'date' || (m.kind === 'promise' && m.resolvedAt !== null);
   // Phase 85: lessons come back through the recall triggers (src/triggers.ts), only when asked for by kind.
   const ok = (m: Memory) => !exclude.has(m.id) && !inHistory(m) && (!ctx.allow || ctx.allow(m)) && (ctx.kinds ? ctx.kinds.includes(m.kind) : m.kind !== 'lesson');
   const byId = new Map<number, Candidate>();

@@ -49,7 +49,7 @@ import { RECALL_MARK, recallHooks, recallMode } from './triggers.ts';
 import { CHANGES_FILES } from './codemap/tools.ts';
 import { ToolStreamTracker, type ToolBuilding } from './tool-stream.ts';
 import { docsNote, type SharedDoc } from './library/intake.ts';
-import { importedName, type Conversation, type StoredMessage, type Store } from './store.ts';
+import { importedName, importedOther, movedFrom, type Conversation, type StoredMessage, type Store } from './store.ts';
 import { PluginTurn, pluginTurnAllowed, type PluginCard, type PluginEvent } from './hooks.ts';
 import type { ApprovalBroker, ToolRegistry } from './tools/registry.ts';
 import { checkClaims, confirmClaims, correctionNote, JUDGE_KINDS, judgedClaim, unsureClaims, type Claim, type Receipt } from './receipts.ts';
@@ -156,6 +156,8 @@ export interface AppContext {
   historyImport?: import('./history-import/index.ts').HistoryImporter;
   /** Phase 65: "Bring her from another app" (per companion; nothing saved until the owner confirms). */
   companionImport?: import('./companion-import/session.ts').CompanionImporter;
+  /** Phase 104: move in from another agent (Hermes Agent, OpenClaw; src/movein/). Made on first use. */
+  moveIn?: import('./movein/index.ts').MoveIn;
   /** Phase 50: how she did tricky jobs before (per companion). */
   recipes?: import('./recipes.ts').RecipeStore;
   /** Phase 96 (ST1): her skills in the Agent Skills format (per companion; src/skill-store.ts). */
@@ -744,7 +746,7 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
       const from = String((m.meta.groupFrom as { name?: unknown }).name ?? 'Another companion');
       if (m.content.trim()) out.push({ role: 'user', content: otherLine(from, m.content) });
     }
-    else if (m.role === 'assistant' && typeof m.meta?.importedFrom === 'string') {
+    else if (m.role === 'assistant' && typeof m.meta?.importedFrom === 'string' && m.meta.herPast !== true) {
       // Phase 51: a reply from another assistant in imported history: she sees it, but not as hers.
       const other = importedName(`import-${m.meta.importedFrom}`) ?? 'Another assistant';
       out.push({ role: 'user', content: `[Note from the app: in this imported conversation, ${other} replied (not you):]\n${m.content}` });
@@ -1557,7 +1559,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       extra: sharedOwnerFacts(app, text, opts.externalApp).filter((l) => !peopleGate || peopleGate.text(l)),
       docName: (id) => app.library?.get(id)?.name,
       docPage: (id, evidence) => app.library?.pageOf(id, evidence),
-      importedFrom: (id) => importedName(store.getConversation(id)?.channel),
+      importedFrom: (id) => importedOther(store.getConversation(id)),
+      // Phase 104: notes from her own past before a move-in say so.
+      movedFrom: (id) => movedFrom(store.getConversation(id)),
       ...(appSafe ? { allow: appSafe } : {}),
     });
     // Phase 32: pick up from last time at the start of a conversation, and look up what the

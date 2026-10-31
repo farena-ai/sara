@@ -15,6 +15,7 @@ import { initLearning, learnCard, loadLearning } from './learned-skills.js';
 import { initPlugins, loadPlugins, pluginAskLine, pluginNotice, pluginResultCard, pluginStepWords } from './plugins.js';
 import { initAgents, loadAgents } from './agents.js';
 import { hookNotice, initHooks, loadHooks } from './hooks.js';
+import { initMoveIn, loadMoveIn, moveInEvent } from './movein.js';
 import { boardEvent, initBoard, openCardOnBoard, plannerView, rememberView } from './board.js';
 import { agendaEvent, agendaNotice, agendaWhy, initAgenda, loadAgenda, renderPlansTile } from './agenda.js';
 import { initPeople, peopleEvent, peopleOnOpen, showPerson } from './people.js';
@@ -2947,6 +2948,12 @@ $('#cs-remember').addEventListener('click', async () => {
 });
 
 // ---------- Sara: status, her day, inner life, character ----------
+// Phase 104: a move-in (or its Undo) changed her personality: refresh her name everywhere.
+document.addEventListener('sara:persona-changed', () => {
+  void loadYours().catch(() => undefined);
+  void refreshSaraStatus();
+  void loadCompanions().catch(() => undefined);
+});
 async function refreshSaraStatus() {
   try {
     const st = await api('/sara/state');
@@ -5260,6 +5267,8 @@ function startEvents() {
   });
   // Phase 51: an import or its learning moved on.
   es.addEventListener('history-import', (e) => renderHistStatus(JSON.parse(e.data).status));
+  // Phase 104: a move-in's upload, check, read or import moved on.
+  es.addEventListener('movein', (e) => moveInEvent(JSON.parse(e.data)));
   es.addEventListener('planner', () => {
     if ($('#planner').open) loadPlanner();
     window.dispatchEvent(new Event('sara:planner'));
@@ -6605,7 +6614,7 @@ const SETTINGS_ORDER = [
   'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
   'ab-projects', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-recipes',
   'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-apps', 'co-agents', 'co-hooks',
-  'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-updates', 'dh-usage', 'dh-reports',
+  'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-reports',
   'household', 'account',
 ];
 // A small heading inside a group, before the first of these pages.
@@ -6746,6 +6755,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'co-hooks') void loadHooks();
   if (pick === 'co-computer') void loadComputer();
   if (pick === 'her-import') void loadImport();
+  if (pick === 'dh-movein') void loadMoveIn();
   if (pick === 'models-local') void loadLocalModels();
   if (pick === 'household') void loadHousehold();
   if (pick === 'account') void loadAccount();
@@ -9192,6 +9202,14 @@ initHooks({
   openCard: (ref) => {
     if ($('#settings').open) $('#settings').close();
     void openCardOnBoard(0, ref);
+  },
+});
+// Phase 104: Settings → Data & health → Move in from another agent.
+initMoveIn({
+  copyText,
+  openConversation: (id) => {
+    if ($('#settings').open) $('#settings').close();
+    void openConversation(id);
   },
 });
 initAlexa({ copyText });

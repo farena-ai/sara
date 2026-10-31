@@ -11,7 +11,7 @@ Windows, Mac and phones.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1352%20passing-brightgreen" alt="1352 tests passing">
+  <img src="https://img.shields.io/badge/tests-1365%20passing-brightgreen" alt="1365 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -25,7 +25,7 @@ Windows, Mac and phones.
   <sub>A real session on a local model (qwen3.8 27B on Ollama, one RTX 5090) on a throwaway test server, in the Night look: she cheers the user up, writes a small app and its test as the model streams them, asks before running a command, catches a real bug with a failing test and fixes it until all 7 tests pass. Frames picked from the recording; nothing in them was edited.</sub>
 </p>
 
-> **Status:** 2.36, MIT licensed, with forty-seven feature releases since 1.0 (all below). 2.5 to 2.8
+> **Status:** 2.37, MIT licensed, with forty-eight feature releases since 1.0 (all below). 2.5 to 2.8
 > gave the whole app a new look. The [Android app](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > is on Google Play; the iPhone app and the Mac App Store version are coming as soon as Apple approves them.
 > Read [docs/DISCLOSURES.md](docs/DISCLOSURES.md) before using or sharing Sara.
@@ -76,6 +76,7 @@ One-minute walkthroughs, recorded on a throwaway test server with a local model.
 
 | Release | What you get |
 |---|---|
+| **2.37** · Move in | **Bring your agent with you.** Moving from Hermes Agent or OpenClaw? One small file (Python, no installs) runs on the old machine and shows you its plan first; secrets are never packed and medical or intimate data stay behind unless you say so. Sara then previews everything with counts and samples: her personality (you decide), notes and what she knew about you, past chats, skills, schedules and boards. One click imports it as a single batch, and Undo removes exactly that batch for 30 days. |
 | **2.36** · Her own plans | **Opt-in: she keeps her own plans.** Follow-ups on what you told her ("how did the interview go?") and goals you keep at together, taken only from your own words and always showing where you said it. Off by default; when on, Planner → *Her plans* lists everything, she shares the daily message limit, quiet hours and the gap rule with her first messages, has her own small daily budget, pauses after a hard moment, and one switch stops everything at once, even mid-sentence. Goals wait for your *Use it*. |
 | **2.35** · Webhooks | **Other services can wake her up.** Give GitHub, Stripe, Home Assistant or anything that speaks Standard Webhooks its own signed address; pick when it counts (no-code conditions with presets) and what she does: tell you, add a task, run a skill, or hand it to a plugin. Signatures are checked on the raw bytes, old and replayed deliveries are refused, and the payload is untrusted text: anything that changes something still asks you. A delivery log and a Test button on every card; signed outgoing copies if you want them. |
 | **2.34** · People | **She keeps track of the people in your life.** A card per person you talk about (relation, birthday, what she knows with the words you said it in), built from her memories. New people wait for your *Looks right*; correct, merge, split or forget anyone (forgetting really deletes). Two Jeffs? She asks which one. Private facts stay in private chats and sensitive ones fold away. People cards never reach other apps, other agents, plugins, group or partner chats; each household member has their own. |
@@ -140,8 +141,8 @@ In build order, one release each ([the full list](docs/ROADMAP.md)):
 
 - **Agent staples** (2.29–2.36): skills in the open Agent Skills format and skills she learns from what you repeat, plugins and hooks, a Kanban board she works, A2A with other agents, people cards, webhooks, her own agenda (opt-in).
 - **Move in from another agent** (2.37–2.39): bring a whole Hermes Agent or OpenClaw companion over: personality, memories, people, skills, history and settings, with a report of what came over.
-- **Chats and sessions** (2.40–2.42): /new, /reset and other commands in Telegram and Discord, a project per channel, titles that grow with the session.
-- **Today, rethought** (2.43–2.44): a designed layout you can arrange, on big screens and phones.
+- **Chats and sessions** (2.40–2.43): /new, /reset and other commands in Telegram and Discord, a project per channel, titles that grow with the session, and she keeps up with the whole room in group channels.
+- **Today, rethought** (2.44–2.45): a designed layout you can arrange, on big screens and phones.
 - The iPhone app (waiting on Apple), and your ideas in [Discussions](https://github.com/farena-ai/sara/discussions).
 
 The full plan: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -309,8 +310,8 @@ README or SPEC that no test checked. What she adds today is the way of working (
 asks before risky steps, shows what ran), not a higher score on these sets. Details, per-task
 results and how to re-run: [docs/RESULTS.md](docs/RESULTS.md).
 
-Plus `npm run check`: a typecheck and 1367 automated tests with a scripted fake model (no network,
-no GPU): 1352 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
+Plus `npm run check`: a typecheck and 1380 automated tests with a scripted fake model (no network,
+no GPU): 1365 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
 
 ## How Sara compares
 

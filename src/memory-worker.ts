@@ -6,7 +6,7 @@ import type { MemoryKind } from './memory.ts';
 import { resolveFor, type AppContext } from './chat.ts';
 import { parseOnDate, type MemoryStore } from './memory.ts';
 import { type DecayPolicy, type FadePreset, PRESET_HALF_LIFE } from './memory-rank.ts';
-import { importedName, type StoredMessage } from './store.ts';
+import { importedName, importedOther, type StoredMessage } from './store.ts';
 import { DEFAULT_IDENTITY, type Identity, personalize } from './identity.ts';
 import { identityOf } from './persona.ts';
 import { usageScope } from './usage.ts';
@@ -86,7 +86,7 @@ function transcriptLine(m: StoredMessage, owner: string, tz?: string, name = 'Sa
   const when = new Intl.DateTimeFormat('en-US', { timeZone: tz, dateStyle: 'short', timeStyle: 'short' }).format(new Date(m.createdAt));
   if (m.role === 'user') return `[#${m.id} ${owner} ${when}] ${m.content}`;
   // Phase 51: another assistant's reply in imported history is labelled as theirs.
-  if (m.role === 'assistant' && typeof m.meta?.importedFrom === 'string') return m.content.trim() ? `[#${m.id} ${importedName(`import-${m.meta.importedFrom}`) ?? 'Other assistant'} (another AI assistant, not ${name}) ${when}] ${m.content}` : null;
+  if (m.role === 'assistant' && typeof m.meta?.importedFrom === 'string' && m.meta.herPast !== true) return m.content.trim() ? `[#${m.id} ${importedName(`import-${m.meta.importedFrom}`) ?? 'Other assistant'} (another AI assistant, not ${name}) ${when}] ${m.content}` : null;
   // Phase 66: another companion's line in a group chat is labelled as hers, never this companion's.
   if (m.role === 'assistant' && m.meta?.groupFrom && typeof m.meta.groupFrom === 'object') return m.content.trim() ? `[#${m.id} ${String((m.meta.groupFrom as { name?: unknown }).name ?? 'Another companion')} (another AI companion in this group chat, not ${name}) ${when}] ${m.content}` : null;
   if (m.role === 'assistant') return m.content.trim() ? `[#${m.id} ${name} ${when}] ${m.content}` : null;
@@ -233,9 +233,10 @@ export async function summarizeConversation(app: AppContext, mem: MemoryStore, c
   const state = mem.state(conversationId);
   // Phase 51: learning from imported history reads it from the start (fromId 0).
   const all = app.store.messages(conversationId).filter((m) => m.id > (opts.fromId ?? state.summarizedThrough));
-  const other = importedName(conv.channel);
+  // Phase 104: a move-in the owner called her own past isn't "another assistant".
+  const other = importedOther(conv);
   /** Another assistant's line in imported history: never evidence for anything. */
-  const theirs = (m: StoredMessage) => m.role === 'assistant' && (typeof m.meta?.importedFrom === 'string' || Boolean(m.meta?.groupFrom));
+  const theirs = (m: StoredMessage) => m.role === 'assistant' && ((typeof m.meta?.importedFrom === 'string' && m.meta.herPast !== true) || Boolean(m.meta?.groupFrom));
   const usable = all.filter((m) => !isForgotten(m));
   if (!usable.some((m) => m.role === 'user')) {
     if (all.length) mem.setState(conversationId, { summarizedThrough: all.at(-1)!.id, lastError: null });

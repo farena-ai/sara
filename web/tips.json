@@ -1531,6 +1531,10 @@
       "Bring in your ChatGPT or Claude history, download everything as one file, or bring in an export from another Sara.",
       "care"
     ],
+    "dh-movein": [
+      "Bring a Hermes Agent or OpenClaw companion over in three steps: run the collector on the old computer, upload its file, check the preview. Undo removes it all.",
+      "move-in"
+    ],
     "dh-updates": [
       "Get the newest version. A backup is made first, and Sara goes back by herself if the update doesn’t start.",
       "care"
