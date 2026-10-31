@@ -12,6 +12,7 @@ import { isDocFile, loadLibrarySettings, openLibrary, saveLibrarySettings, uploa
 import { initProjectMap, resetProjectMap } from './codemap.js';
 import { initSkills, loadSkills, skillApproval } from './skills.js';
 import { initLearning, learnCard, loadLearning } from './learned-skills.js';
+import { initPlugins, loadPlugins, pluginAskLine, pluginNotice, pluginResultCard, pluginStepWords } from './plugins.js';
 import { initOtherApps, keyUse, loadOtherApps } from './other-apps.js';
 import { initAlexa, loadAlexa } from './alexa.js';
 import { initSsh, loadSsh } from './ssh.js';
@@ -29,7 +30,7 @@ import { DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNot
 import { initHousehold, joinFromLink, loadAccount, loadHousehold, showPaused } from './household.js';
 import { initNav, relabelNav, revealNav, setMore } from './nav.js';
 import { emptyState, initTidy, overflowMenu } from './tidy.js';
-import { addStep, finishStep, hasSteps, memoryStep, recallStep, runLink, runStep, setBudget, skillStep, stepLine, waitStep } from './steps.js';
+import { addStep, finishStep, hasSteps, memoryStep, pluginStep, recallStep, runLink, runStep, setBudget, skillStep, stepLine, waitStep } from './steps.js';
 import { budgetCard, budgetMeter, fillBudgetSelect, overrideNote } from './budget-view.js';
 import { sandboxButtons, sandboxFirstNote, sandboxFlag, sandboxSection, teamSandboxRow } from './sandbox-view.js';
 import { advisoryFlag, advisorySection, initFindings, openFindings, openRedTeam, redteamFlag, redteamGateSection, refreshFindings, securityCard, threatCard } from './findings-view.js';
@@ -1311,6 +1312,8 @@ function renderMessages(messages, opts = {}) {
     if (m.role === 'assistant' && m.meta?.runId) turn.runId = m.meta.runId;
     // Phase 96: a skill loaded up front for this reply.
     if (m.role === 'assistant' && typeof m.meta?.autoSkill === 'string') skillStep((turn.steps ??= newSteps()), m.meta.autoSkill);
+    // Phase 98: what plugins did in this turn ("Weather alerts added a note").
+    if (m.role === 'assistant' && Array.isArray(m.meta?.plugins)) for (const pe of m.meta.plugins) pluginStep((turn.steps ??= newSteps()), pluginStepWords(pe), pe.what);
     if (m.role === 'assistant' && m.meta?.budget) {
       turn.budget = m.meta.budget;
       turn.budgetMsg = m;
@@ -1337,6 +1340,8 @@ function renderMessages(messages, opts = {}) {
         const c = renderCard(card);
         if (c) els.push(c);
       }
+      // Phase 98: cards plugins added under this step.
+      for (const pc of Array.isArray(m.meta?.pluginCards) ? m.meta.pluginCards : []) els.push(pluginResultCard(pc));
       // Phase 49: a preview link she opened gets a card that opens it beside the chat.
       if (m.meta?.name === 'preview_start' && (m.meta?.status ?? 'ok') === 'ok') {
         const pc = previewCard(m.content);
@@ -1349,6 +1354,9 @@ function renderMessages(messages, opts = {}) {
         const rc = renderCard(m.meta.card);
         if (rc) els.push(rc);
       }
+    } else if (m.role === 'notice' && m.kind === 'plugin') {
+      // Phase 98: a plugin's note or card (after her reply, or from its schedule), labelled as the plugin's.
+      els.push(pluginNotice(m));
     } else if (m.role === 'notice' && (m.kind === 'skill' || m.kind === 'skillfix')) {
       // Phase 97: "make this a skill?" and "a fix for …?" (web/learned-skills.js), after her reply.
       els.push(learnCard(m));
@@ -1846,6 +1854,11 @@ async function runStream(path, body, userBubble) {
         } else if (ev.type === 'skill') {
           // Phase 96: a skill that fits was loaded up front ("Used skill: …").
           skillStep(ensureSteps(), ev.name);
+        } else if (ev.type === 'plugin') {
+          // Phase 98: a plugin's note, card, stop, ask or skip (labelled with the plugin's name).
+          if (ev.card) place(pluginResultCard(ev.card));
+          else if (ev.what === 'followup') place(pluginNotice({ content: '', meta: { plugin: { name: ev.name, note: ev.text } } }));
+          else pluginStep(ensureSteps(), pluginStepWords(ev), ev.what);
         } else if (ev.type === 'recall') {
           // Phase 85: a note she remembered on her own went into her next step.
           recallStep(ensureSteps(), recallKindWords(ev.item.kind));
@@ -2259,6 +2272,8 @@ function approvalCard(ev, block) {
     if (block) block.open = false;
     return card;
   }
+  // Phase 98: a plugin asked to check this (normally automatic) step with the owner.
+  if (ev.plugin) title.after(pluginAskLine(ev.plugin));
   // Phase 81: "Known vulnerability": installing a known-vulnerable version needs an explicit override.
   const adv = ev.advisory;
   if (adv && !c) {
@@ -5181,6 +5196,10 @@ function startEvents() {
     else state.jobs.delete(job.id);
     renderJobs();
   });
+  // Phase 98: a plugin was added, switched, crashed or asks to use a tool: the Plugins page refreshes.
+  es.addEventListener('plugins', () => {
+    if (document.querySelector('[data-page="ab-plugins"]:not([hidden])')) void loadPlugins();
+  });
   es.addEventListener('library', () => window.dispatchEvent(new Event('sara:library')));
   // Phase 53: a look back is ready (or failed).
   // Phase 70: photos added to the album or captions written.
@@ -6509,7 +6528,7 @@ const SETTINGS_ORDER = [
   'her-character', 'her-relationship', 'her-look', 'her-pictures', 'her-voice', 'her-calls', 'her-companions', 'her-import',
   'you-about', 'you-briefing', 'you-leave-by', 'you-adult',
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
-  'ab-tools', 'ab-skills', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
+  'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
   'ab-projects', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-recipes',
   'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-apps',
   'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-updates', 'dh-usage', 'dh-reports',
@@ -6643,6 +6662,7 @@ function showSettingsTab(page, opts = {}) {
     void loadSkills();
     void loadLearning();
   }
+  if (pick === 'ab-plugins') void loadPlugins();
   if (pick === 'ab-budgets') void loadBudgets();
   if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam()]);
   if (pick === 'ab-ssh') void loadSsh();
@@ -7639,6 +7659,7 @@ function taskRow(tk) {
 }
 initProjectMap(() => pageProject?.workspace ?? null);
 initSkills();
+initPlugins();
 initLearning();
 // Phase 96: the old Recipes page points to Skills.
 $('#rc-open-skills')?.addEventListener('click', () => showSettingsTab('ab-skills', { focus: true }));

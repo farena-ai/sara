@@ -43,6 +43,8 @@ export interface ToolContext {
    * the owner's own hardware (pictures marked local-only never go to one that doesn't).
    */
   screenModel?: { local: boolean; describe: (img: { mime: string; data: string }) => Promise<string | undefined> };
+  /** Phase 98: a plugin tool's own card (data in Sara's card schema) shown under the step. */
+  attachCard?: (card: import('../hooks.ts').PluginCard) => void;
 }
 
 export interface Tool {

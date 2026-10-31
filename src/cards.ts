@@ -25,7 +25,9 @@ export type Card =
   /** Phase 94: a computer check-up's report card (numbers, statuses, short names, the suggestions by number). */
   | { kind: 'checkup'; computer: string; os: string; at: string; windows: boolean; flagged: number; items: CheckupCardItem[]; suggestions: CheckupCardSuggestion[] }
   /** Phase 94: one check-up change, done or declined on the computer. */
-  | { kind: 'checkup-change'; id: string; change: string; outcome: 'done' | 'declined'; windows?: boolean; name?: string; bytes?: number; page?: string; computer?: string };
+  | { kind: 'checkup-change'; id: string; change: string; outcome: 'done' | 'declined'; windows?: boolean; name?: string; bytes?: number; page?: string; computer?: string }
+  /** Phase 98: a card a plugin made (data only: title, up to 8 lines, a picture from its own folder, a link, up to 3 buttons). */
+  | import('./hooks.ts').PluginCard;
 export type CheckupCardItem = { check: string; status: string; facts: Record<string, string | number | boolean | string[]> };
 export type CheckupCardSuggestion = { id: string; kind: string; check: string; how: 'apply' | 'guide'; name?: string; bytes?: number; page?: string };
 

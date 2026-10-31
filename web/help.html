@@ -482,6 +482,15 @@
   <li>Each task stops at its time or spending limit (30 minutes and about 400k tokens by default) and tells you how far it got. An undo point is made before it starts.</li>
 </ul>
 
+<h2 id="plugins">Plugins: new abilities from a folder</h2>
+<ul>
+  <li>A <strong>plugin</strong> is a small program written for Sara: a folder with a <code>sara-plugin.json</code> and its code. It can give her a tool, add a note before her reply, stop or hold a step for your OK, add a card, run on a schedule, or carry a chat app. Add one in <em>Settings → Abilities → Plugins</em> from a .zip, a git address or a folder on the server.</li>
+  <li>Before anything is installed you read its card: what it can do in plain words (riskiest first), its files and its fingerprint. Installing switches nothing on; you switch it on for each companion. An update that asks for more shows the full card again, with the new parts marked.</li>
+  <li>Each plugin runs in its own process with only what you approved. On Linux with bubblewrap and on macOS it has no network and sees only its own folders; it reaches the internet only through Sara, to the hosts it listed. On Windows the card says <em>Not fenced in</em>: add only plugins whose author you trust.</li>
+  <li><strong>She still follows her rules.</strong> A plugin can add a labelled note or a card, or make a step ask you; it can never change her rules, her replies or what you decided, and it never sees private, partner, group or other apps' chats. A plugin that is too slow or crashes is skipped; one that keeps crashing is switched off.</li>
+  <li>Writing your own: the guide is <code>docs/PLUGINS.md</code>, with two examples in <code>examples/plugins/</code>.</li>
+</ul>
+
 <h2 id="workflows">Coding workflows</h2>
 <ul>
   <li><strong>She learns each project:</strong> how to build, test and lint it, its layout, its own rules (AGENTS.md, CONTRIBUTING) and the notes she keeps (decisions, conventions, commands). See and edit them in <em>Settings → Abilities → Coding projects</em>.</li>

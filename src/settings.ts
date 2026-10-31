@@ -117,6 +117,8 @@ export interface Settings {
   evalSchedule?: Partial<import('./evals.ts').EvalSchedule>;
   /** Phase 97 (ST2): skills she learns (per companion; Settings → Abilities → Skills). */
   skillLearning?: Partial<import('./skill-learning.ts').LearnSettings>;
+  /** Phase 98 (ST3): plugins switched on for this companion, their settings (secrets live in the vault). */
+  plugins?: import('./plugins/manager.ts').CompanionPluginSettings;
   runs?: Partial<import('./runs.ts').RunSettings>;
   /**
    * Phase 79: per-reply budgets (Settings → Abilities → Budgets): coding chats and everyday chats

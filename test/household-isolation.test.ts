@@ -261,6 +261,8 @@ function routeFamilies(): Map<string, Set<string>> {
 }
 /** Owner-only route families (a member gets 403 ownerOnly). Every family must be in one of the two lists. */
 const OWNER_ONLY = ['backups', 'update', 'doctor', 'logs', 'status', 'health', 'access', 'private-local', 'local-models', 'subscriptions', 'mcp', 'bridges', 'github', 'github-watch', 'google', 'home', 'ssh', 'workspaces', 'jobs', 'previews', 'team', 'codemap', 'code-projects', 'starters', 'recipes', 'history-import', 'import', 'model-jobs', 'tools', 'search', 'desktop-apps', 'claim', 'demo', 'public', 'login', 'telegram', 'discord', 'budgets', 'sandbox', 'security-pass', 'findings', 'threat-model', 'evals', 'redteam',
+  // Phase 98 (ST3): plugins: install, enable, settings, update, rollback, remove, log, calls (owner only).
+  'plugins',
   // Phase 87: computer use. Member routes in src/household.ts, but answered 403 ownerOnly while the
   // owner's "Let household members use computer use" is off (the default, as here).
   'hands', 'computer'];
@@ -303,6 +305,22 @@ test('owner-only paths inside member families (time-travel): members get 403 own
   }
   // The owner gets past the gate (no such run here: 404, never 403).
   for (const [method, path] of OWNER_ONLY_SUBPATHS) assert.notEqual((await call(owner, method, path.replace('/1/', '/999999/'), method === 'GET' ? undefined : { fromStep: 0 })).status, 403, path);
+});
+
+test('plugins (Phase 98): every plugin route answers a member 403 ownerOnly', async () => {
+  const routes: [string, string][] = [
+    ['GET', '/api/plugins'], ['POST', '/api/plugins/install'], ['GET', '/api/plugins/install/x'], ['DELETE', '/api/plugins/install/x'],
+    ['POST', '/api/plugins/hello-hooks/approve'], ['POST', '/api/plugins/hello-hooks/enable'], ['GET', '/api/plugins/hello-hooks/settings'], ['PUT', '/api/plugins/hello-hooks/settings'],
+    ['POST', '/api/plugins/hello-hooks/update-check'], ['POST', '/api/plugins/hello-hooks/rollback'], ['DELETE', '/api/plugins/hello-hooks'], ['GET', '/api/plugins/hello-hooks/log'],
+    ['POST', '/api/plugins/hello-hooks/calls/x'], ['POST', '/api/plugins/hello-hooks/action'], ['GET', '/api/plugins/hello-hooks/file?path=a.png'],
+  ];
+  for (const who of [ana, ben]) {
+    for (const [method, path] of routes) {
+      const r = await call(who, method, path, method === 'GET' || method === 'DELETE' ? undefined : { path: process.cwd(), companion: 'main', on: true });
+      assert.equal(r.status, 403, `${who.name} ${method} ${path}`);
+      assert.equal(r.json.ownerOnly, true, `${who.name} ${method} ${path}`);
+    }
+  }
 });
 
 test('skills (Phase 96): each member has their own; a folder on the server is the owner\'s only', async () => {

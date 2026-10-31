@@ -103,6 +103,7 @@ import { createCodeTools } from './codemap/tools.ts';
 import { RecipeStore } from './recipes.ts';
 import { SkillStore } from './skill-store.ts';
 import { SkillLearner } from './skill-learning.ts';
+import { PluginManager } from './plugins/manager.ts';
 import { createSkillTools } from './skill-tools.ts';
 import { workspaceDir } from './tools/workspace.ts';
 import { createTuneTool } from './studio.ts';
@@ -324,6 +325,16 @@ const google = new GoogleAccount(vault, googleBase ? { apiBase: googleBase } : {
 // Local voice tools are Linux only for now (deploy/install-voice.sh).
 const voice = new LocalVoiceEngine(resolve(process.env.SARA_VOICE_DIR ?? (localVoiceSupported() ? '/opt/sara-voice' : join(dataDir, 'voice'))), dataDir);
 const companions = new CompanionManager(dataDir);
+// Phase 98 (ST3, docs/PLUGINS.md): the owner's plugins (one manager for the server; enabled per
+// companion; never in household members' spaces, never on the demo). Its tables live in the owner's
+// database; each enabled plugin runs in its own fenced process.
+const pluginManager = isDemo
+  ? undefined
+  : (() => {
+      const pdb = new DatabaseSync(join(dataDir, 'sara.db'));
+      pdb.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;');
+      return new PluginManager({ db: pdb, dataDir, vault, sandbox, events, scrub: (s) => redactor.redact(s) });
+    })();
 
 /**
  * Phase 71: a person's space (docs/HOUSEHOLD.md). The owner's is the data folder itself, exactly as
@@ -762,6 +773,11 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   // Telegram and Discord: one bot each, for the first companion (shared with the others' settings).
   if (main && !isMember) bridges = { telegram: new TelegramBridge(app), discord: new DiscordBridge(app) };
   if (!isMember) app.bridges = bridges;
+  // Phase 98: the owner's companions get the plugins switched on for them (members and the demo never).
+  if (!isMember && pluginManager) {
+    app.pluginManager = pluginManager;
+    pluginManager.attach(id, app);
+  }
   const server = createSaraServer({ ...serverOpts, app, auth: space.auth, companions: space.companions, spaceId: space.id, ...(isMember ? { member: memberHooksFor(space) } : isDemo ? {} : { household: householdHooks }) });
   return {
     id,
@@ -810,6 +826,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       wardrobe.stop();
       app.historyImport?.stop();
       app.companionImport?.stop();
+      if (!isMember) await pluginManager?.detach(id).catch(() => undefined);
     },
   };
 }
@@ -1073,6 +1090,7 @@ async function shutdown(): Promise<void> {
   bridges?.telegram?.stop();
   bridges?.discord?.stop();
   mcp.stopAll();
+  await pluginManager?.stopAll().catch(() => {});
   server.close(() => {
     for (const c of companions.all()) c.app.store.close();
     for (const sp of memberSpaces.values()) for (const c of sp.companions.all()) c.app.store.close();

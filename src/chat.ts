@@ -49,6 +49,7 @@ import { CHANGES_FILES } from './codemap/tools.ts';
 import { ToolStreamTracker, type ToolBuilding } from './tool-stream.ts';
 import { docsNote, type SharedDoc } from './library/intake.ts';
 import { importedName, type Conversation, type StoredMessage, type Store } from './store.ts';
+import { PluginTurn, pluginTurnAllowed, type PluginCard, type PluginEvent } from './hooks.ts';
 import type { ApprovalBroker, ToolRegistry } from './tools/registry.ts';
 import { checkClaims, confirmClaims, correctionNote, JUDGE_KINDS, judgedClaim, unsureClaims, type Claim, type Receipt } from './receipts.ts';
 import type { Redactor } from './redact.ts';
@@ -155,6 +156,10 @@ export interface AppContext {
   recipes?: import('./recipes.ts').RecipeStore;
   /** Phase 96 (ST1): her skills in the Agent Skills format (per companion; src/skill-store.ts). */
   skills?: import('./skill-store.ts').SkillStore;
+  /** Phase 98 (ST3): the owner's plugins switched on for this companion (src/plugins/manager.ts; never members, never the demo). */
+  plugins?: import('./hooks.ts').PluginHost;
+  /** Phase 98: the owner's plugin manager (the Plugins page's routes). */
+  pluginManager?: import('./plugins/manager.ts').PluginManager;
   /** Phase 97 (ST2): skills she learns (offers, fixes, checks; src/skill-learning.ts). None in the demo. */
   learning?: import('./skill-learning.ts').SkillLearner;
   /** Phase 44: ask the library worker to read what was just added. */
@@ -268,7 +273,7 @@ export type ChatEvent =
   /** Phase 63: a tool call the model is still writing (throttled; see src/tool-stream.ts). Shown only, never run. */
   | ToolBuilding
   /** Phase 77: `contradiction` = the card's \"This goes against something you decided\" section (a stop). */
-  | { type: 'approval'; approvalId: string; id: string; name: string; summary: string; args: Record<string, unknown>; detail?: ApprovalDetail; computer?: import('./tools/types.ts').ComputerApproval; skill?: import('./tools/types.ts').SkillCard; contradiction?: ContradictionCard; budget?: BudgetState; sandbox?: SandboxCard; sandboxFirst?: { label: string; isolated: boolean }; advisory?: AdvisoryCard; redteam?: import('./redteam.ts').RedTeamGateCard }
+  | { type: 'approval'; approvalId: string; id: string; name: string; summary: string; args: Record<string, unknown>; detail?: ApprovalDetail; computer?: import('./tools/types.ts').ComputerApproval; skill?: import('./tools/types.ts').SkillCard; contradiction?: ContradictionCard; budget?: BudgetState; sandbox?: SandboxCard; sandboxFirst?: { label: string; isolated: boolean }; advisory?: AdvisoryCard; redteam?: import('./redteam.ts').RedTeamGateCard; plugin?: { name: string; reason: string } }
   /** Phase 81: the install check's outcome for a call (not checked offline, installed anyway, not installed). */
   | { type: 'advisory'; id: string; state: 'offline' | 'override' | 'declined'; packages: string[] }
   | { type: 'redteam'; id: string; runId: number; workspace: string }
@@ -296,6 +301,8 @@ export type ChatEvent =
   | { type: 'image'; id: string }
   /** Phase 49: a screenshot she took (upload id): the proof strip on her reply. */
   | { type: 'proof'; id: string }
+  /** Phase 98: what a plugin did at a hook point (a note, a card, a stop, an ask, no answer in time). */
+  | (import('./hooks.ts').PluginEvent & { messageId?: number })
   | { type: 'done'; messageId: number }
   | { type: 'error'; message: string };
 
@@ -1140,6 +1147,26 @@ export async function* runTurn(app: AppContext, conversationId: string, userText
       } else if (ev.type === 'error') status = signal.aborted ? 'stopped' : 'error';
       yield ev;
     }
+    // Phase 98 (ST3, STAPLES §6.4): reply.after, once, with the final reply as it was sent (past the
+    // safety checks; never a blocked reply or a turn the budget stopped). Cards and notes from plugins
+    // are posted as their own notices, labelled with the plugin's name, never as her.
+    if (status === 'ok' && !signal.aborted && app.plugins && replyId && rec.outcome !== 'budget') {
+      const conv = app.store.getConversation(conversationId);
+      const final = app.store.messageById(replyId);
+      if (conv && final?.role === 'assistant' && final.content.trim() && !final.meta?.blocked && pluginTurnAllowed(conv, { group: Boolean(opts.group), external: Boolean(opts.externalApp) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel), replay: Boolean(opts.replay), eval: Boolean(opts.recorder) })) {
+        try {
+          for (const ev of await new PluginTurn(app.plugins, conv, app.now).afterReply(final.content)) {
+            if (ev.what === 'card' || ev.what === 'followup') {
+              const meta = { plugin: { id: ev.plugin, name: ev.name, ...(ev.text ? { note: ev.text } : {}), ...(ev.card ? { card: ev.card } : {}) } };
+              const n = app.store.addMessage(conversationId, 'notice', `plugin:${ev.text ?? ev.card?.title ?? ''}`, meta);
+              yield { ...ev, messageId: n.id };
+            } else yield ev;
+          }
+        } catch (err) {
+          console.warn(`plugins: ${(err as Error).message}`);
+        }
+      }
+    }
     // Phase 97 (ST2, STAPLES §5.4–§5.5): after the reply of one of the owner's own turns (never a
     // replay, an eval, a group round or another app's turn), the learner looks for a repeated ask,
     // a skill fix, and at most one "make this a skill?" offer card (a notice after the reply).
@@ -1329,6 +1356,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   if (opts.externalApp || opts.group || conv.partner || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => !t.spec.name.startsWith('pc_'));
   // Phase 96: skills are the owner's own conversations' (never other apps, voice assistants or groups; partner chats have no tools).
   if (opts.externalApp || external || opts.group) tools = tools.filter((t) => !t.spec.name.startsWith('skill_') && t.spec.name !== 'recipe_save');
+  // Phase 98 (ST3, STAPLES §6.4): plugins see only the owner's own turns (never private, partner,
+  // group, imported, adult-channel, other apps', replayed or eval turns), and their tools are only
+  // offered there.
+  const pluginTurn = app.plugins && pluginTurnAllowed(conv, { group: Boolean(opts.group), external: external || Boolean(opts.externalApp), replay: Boolean(opts.replay), eval: Boolean(opts.recorder) }) ? new PluginTurn(app.plugins, conv, app.now) : undefined;
+  if (!pluginTurn) tools = tools.filter((t) => !t.source?.startsWith('Plugin: '));
   // Phase 66: group chats get read-only tools only, and only those that run without asking (no approvals mid-round).
   if (opts.group) tools = tools.filter((t) => GROUP_TOOLS.has(t.spec.name) && app.tools.permission(t.spec.name, s.toolPermissions) === 'auto');
   // Private conversations: commands get no network either (nothing leaves the server).
@@ -1640,6 +1672,18 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // Phase 83: a branch keeps the recorded system prompt (byte for byte); a safety note this turn
   // needs that the recorded prompt lacks (the rewritten message is a crisis, Adult mode is off now)
   // is added after it: the safety layer is never replayed from the record.
+  // Phase 98: turn.before (after the safety checks above, before the first model call): plugin notes
+  // go to the model as labelled untrusted text after the history; they can't change anything above.
+  const pluginNotes: string[] = [];
+  const pluginSteps: PluginEvent[] = [];
+  if (pluginTurn && !opts.resume) {
+    const r = await pluginTurn.beforeTurn(text);
+    pluginNotes.push(...r.notes);
+    for (const ev of r.events) {
+      pluginSteps.push(ev);
+      yield ev;
+    }
+  }
   const replaySystem = opts.replay ? opts.replay.system + (safetyNotes.some((n) => !opts.replay!.system.includes(n)) ? `\n\n## Important for this reply\n${safetyNotes.filter((n) => !opts.replay!.system.includes(n)).map((n) => `- ${n}`).join('\n')}` : '') : '';
   for (let step = 0; step < maxSteps; step++) {
     const system = opts.replay ? replaySystem : buildSystemPrompt(app.persona, {
@@ -1720,6 +1764,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     }
     // Phase 77: what the plan check found (flags she should mention).
     for (const n of contradictNotes.splice(0)) messages.push({ role: 'system', content: n });
+    // Phase 98: the plugins' notes for this turn (labelled, untrusted).
+    for (const n of pluginNotes) messages.push({ role: 'system', content: n });
     // Phase 83: the notes the recorded step had after its history (a correction, plan-check flags,
     // \"continue\"), unless the loop made the same one itself (the long-conversation note).
     if (opts.replay && step === 0) {
@@ -1949,6 +1995,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       let advisoryAnswer: 'override' | 'deny' | undefined;
       // Phase 86: "Red-team first" on the ship card (the tool result says a run started instead).
       let redteamNote = '';
+      // Phase 98: a plugin tool's own card.
+      let pluginCard: PluginCard | undefined;
 
       const set = tool ? app.tools.permission(call.name, s.toolPermissions) : 'never';
       // Count-first tools (gmail_organize): what the call would touch is worked out before any card,
@@ -1991,6 +2039,19 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         approval = 'auto';
         const pre = await hooks.beforeTool({ step, call, summary, args: shownArgs, permission: permission === 'ask' ? 'ask' : 'auto', messageId: saved.id });
         for (const ev of pre.events ?? []) yield ev;
+        // Phase 98: then the plugins (after Sara's own hooks): they may stop the step or make an
+        // automatic one ask, never let through what Sara would stop. A turn the budget stopped never gets here.
+        const pp = pluginTurn ? await pluginTurn.beforeTool({ id: call.id, name: call.name, args: shownArgs, permission: permission === 'ask' ? 'ask' : 'auto' }) : undefined;
+        for (const ev of pp?.events ?? []) {
+          pluginSteps.push(ev);
+          yield ev;
+        }
+        const pluginDeny = pp?.deny;
+        const pluginAsk = pp?.ask;
+        if (pluginDeny) {
+          allowed = false;
+          approval = 'refused';
+        }
         const stopFor = pre.stopFor;
         const gate = pre.sandbox;
         // Phase 81: a known-vulnerable install stops first (an explicit override goes on).
@@ -1999,11 +2060,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         const redteamCard = pre.redteam?.ask ? pre.redteam : undefined;
         // Phase 80: with an isolated sandbox try, the try's card is the approval; without isolation
         // (Windows copy mode) a tool that asks first still asks before the try.
-        const firstCard = Boolean(stopFor) || Boolean(advisoryStop) || Boolean(redteamCard) || (permission === 'ask' && (!gate || gate.askFirst));
+        const firstCard = !pluginDeny && (Boolean(stopFor) || Boolean(advisoryStop) || Boolean(redteamCard) || Boolean(pluginAsk) || (permission === 'ask' && (!gate || gate.askFirst)));
         if (firstCard) {
           const { id, decision } = app.approvals.request(conv.id, signal);
           const stops = (turnContradictions.get(call.id) ?? []).filter((c) => c.act === 'stop');
-          yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(prepDetail ? { detail: prepDetail } : {}), ...(prepComputer ? { computer: prepComputer } : {}), ...(prepSkill ? { skill: prepSkill } : {}), ...(stopFor ? { contradiction: cardOf(stopFor, stops.filter((c) => c !== stopFor)) } : {}), ...(gate ? { sandboxFirst: { label: gate.isolation.label, isolated: gate.isolation.isolated } } : {}), ...(advisoryStop ? { advisory: advisoryStop } : {}), ...(redteamCard ? { redteam: redteamCard } : {}) };
+          yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(prepDetail ? { detail: prepDetail } : {}), ...(prepComputer ? { computer: prepComputer } : {}), ...(prepSkill ? { skill: prepSkill } : {}), ...(stopFor ? { contradiction: cardOf(stopFor, stops.filter((c) => c !== stopFor)) } : {}), ...(gate ? { sandboxFirst: { label: gate.isolation.label, isolated: gate.isolation.isolated } } : {}), ...(advisoryStop ? { advisory: advisoryStop } : {}), ...(redteamCard ? { redteam: redteamCard } : {}), ...(pluginAsk ? { plugin: { name: pluginAsk.name, reason: pluginAsk.reason } } : {}) };
           allowed = await decision;
           approval = allowed ? 'allowed' : 'denied';
           const how = app.approvals.takeHow(id);
@@ -2042,7 +2103,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
             for (const c of stops) yield { type: 'contradiction', id: call.id, item: c };
           }
           if (allowed && !gate) yield { type: 'tool_running', id: call.id, name: call.name, summary };
-        } else if (gate) allowed = true;
+        } else if (gate && !pluginDeny) allowed = true;
         if (allowed && gate) {
           // Phase 80: the try in a throwaway copy, then Apply / Discard / Run for real.
           yield { type: 'sandbox_running', id: call.id, label: gate.isolation.label, isolated: gate.isolation.isolated };
@@ -2107,7 +2168,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           output = sandboxOutput(tried, sbDecision, applied);
         } else if (!allowed) {
           status = 'denied';
-          output = signal.aborted ? 'Cancelled.' : redteamNote ? redteamNote : stopFor ? declinedOutput(stopFor, ownerWord) : advisoryStop ? declinedInstallOutput(advisoryStop) : 'The owner declined this action.';
+          output = signal.aborted ? 'Cancelled.' : pluginDeny ? `Stopped by the plugin ${pluginDeny.name}: ${pluginDeny.reason}` : redteamNote ? redteamNote : stopFor ? declinedOutput(stopFor, ownerWord) : advisoryStop ? declinedInstallOutput(advisoryStop) : 'The owner declined this action.';
         } else {
           if (SNAPSHOT_TOOLS.has(call.name) && conv.mode !== 'coding' && !opts.replay) {
             try {
@@ -2141,6 +2202,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
                 if (sha) thumbs.push(sha);
               },
               ...(rec.on ? { runId: rec.id } : {}),
+              attachCard: (c) => {
+                if (tool.source?.startsWith('Plugin: ')) pluginCard = c;
+              },
             });
             if (tried && sbDecision === 'ran') output = `[tried in a sandbox copy first: ${changesLine(tried.changes)}; the owner chose to run it for real]\n${output}`;
           } catch (err) {
@@ -2156,7 +2220,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       output = app.redactor.redact(output + snapshotNote);
       const stored = clip(output, TOOL_RESULT_LIMIT);
       // Phase 75: a result card from the (scrubbed) result and arguments, kept with the message.
-      const card = cardFor({ name: call.name, args: shownArgs, status, output, ...(thumbs.length ? { thumb: thumbs.at(-1)! } : {}) });
+      const card = cardFor({ name: call.name, args: shownArgs, status, output, ...(thumbs.length ? { thumb: thumbs.at(-1)! } : {}) }) ?? (status === 'ok' ? pluginCard : undefined);
       const flagged = turnContradictions.get(call.id);
       const sbRecord = tried && sbDecision && sbRisk ? sandboxRecord(tried, sbRisk, sbDecision, applied) : undefined;
       // Phase 96: a skill body she loaded is marked, so the history keeps it while the task runs.
@@ -2166,6 +2230,16 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       receipts.push({ name: call.name, status, args: call.arguments, output });
       // Phase 78 seam 3: the call is done (the recorder keeps the scrubbed result).
       await hooks.afterTool({ step, call, summary, args: shownArgs, status, output, ms, approval, messageId: toolMsg.id, ...(snapshotId ? { snapshotId } : {}), ...(flagged?.length ? { contradictions: flagged } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(thumbs.length ? { thumbs } : {}) });
+      // Phase 98: tool.after (the scrubbed result; plugins may add a card under the step).
+      if (pluginTurn) {
+        const evs = await pluginTurn.afterTool({ id: call.id, name: call.name, status, output });
+        const cards = evs.filter((e) => e.card).map((e) => e.card!);
+        if (cards.length) store.updateMessageMeta(toolMsg.id, { pluginCards: cards });
+        for (const ev of evs) {
+          if (!ev.card) pluginSteps.push(ev);
+          yield ev;
+        }
+      }
       if (sbRecord) yield { type: 'sandbox', id: call.id, record: sbRecord };
       yield { type: 'tool_result', id: call.id, name: call.name, status, output: clip(output, UI_OUTPUT_LIMIT), ms, ...(snapshotId ? { snapshotId } : {}), ...(card ? { card } : {}) };
       for (const img of pendingImages) yield { type: 'image', id: img };
@@ -2215,5 +2289,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   }
   // Phase 96: the step line under the reply says "Used skill: …" after a reload too.
   if (autoSkill && lastAssistantId) store.updateMessageMeta(lastAssistantId, { autoSkill });
+  // Phase 98: "Weather alerts added a note" on the step line after a reload too.
+  if (pluginSteps.length && lastAssistantId) store.updateMessageMeta(lastAssistantId, { plugins: pluginSteps.map((e) => ({ plugin: e.plugin, name: e.name, what: e.what, hook: e.hook, ...(e.text ? { text: e.text } : {}) })) });
   yield { type: 'done', messageId: lastAssistantId };
 }

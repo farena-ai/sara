@@ -1427,6 +1427,10 @@
       "How-tos she follows for kinds of tasks, in the open Agent Skills format: switch them on or off for this companion, make your own, add skills from other apps, export them.",
       "skills"
     ],
+    "ab-plugins": [
+      "Small programs that give her new tools, notes, cards, schedules or chat apps. Each runs fenced in with only what you approve, and is off until you switch it on for a companion.",
+      "plugins"
+    ],
     "ab-google": [
       "Connect Gmail and Calendar so she can find mail, draft replies and handle your calendar. Sending and adding events ask you first.",
       "accounts"

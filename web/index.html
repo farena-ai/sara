@@ -1394,6 +1394,32 @@
     <div id="ski-review-row" class="add-row" hidden><label>Add it to <select id="ski-scope" data-nodirty></select></label><button id="ski-accept" type="button">Add it</button></div>
     <div class="add-row"><button id="ski-cancel" type="button" class="ghost">Cancel</button></div>
   </dialog>
+  <dialog id="plugin-add" class="skill-editor" aria-labelledby="pla-heading">
+    <h2 id="pla-heading">Add a plugin</h2>
+    <p class="muted small">Nothing is installed until you have read its card: what it can do in plain words, its files and its fingerprint. Installing switches nothing on.</p>
+    <div id="pla-sources" class="skl-sources" role="radiogroup" aria-label="Where it comes from">
+      <button type="button" class="pick-card" role="radio" data-kind="zip" aria-checked="true"><strong>A .zip file</strong><span class="muted small">A plugin folder packed as a zip, up to 10 MB.</span></button>
+      <button type="button" class="pick-card" role="radio" data-kind="git" aria-checked="false"><strong>A git address</strong><span class="muted small">An https address of the plugin's repository.</span></button>
+      <button type="button" class="pick-card" role="radio" data-kind="folder" aria-checked="false"><strong>A folder on this server</strong><span class="muted small">The full path of a plugin folder on the server.</span></button>
+    </div>
+    <div id="pla-zip-row" class="add-row"><input id="pla-file" type="file" accept=".zip,application/zip"></div>
+    <div id="pla-url-row" class="skl-form" hidden><label>Git address <button type="button" class="tip" data-tip="An https address of a git repository with sara-plugin.json at its top. Only the latest commit is fetched, without hooks or submodules. Updates come only when you press Check for updates.">?</button> <input id="pla-url" maxlength="500" placeholder="https://github.com/owner/my-plugin" autocomplete="off" data-nodirty></label></div>
+    <div id="pla-folder-row" class="skl-form" hidden><label>Folder on the server <button type="button" class="tip" data-tip="The full path of a folder on this server that holds sara-plugin.json, for example one of the examples in examples/plugins. It is copied; later changes there need Check for updates.">?</button> <input id="pla-path" maxlength="1000" placeholder="/home/alex/plugins/weather-alerts" autocomplete="off" data-nodirty></label></div>
+    <div class="add-row"><button id="pla-look" type="button">Look at it</button></div>
+    <p id="pla-status" class="muted small" role="status"></p>
+    <div id="pla-review" class="skl-review-list"></div>
+    <div class="add-row"><button id="pla-cancel" type="button" class="ghost">Cancel</button></div>
+  </dialog>
+  <dialog id="plugin-settings" class="skill-editor" aria-labelledby="pls-heading">
+    <h2 id="pls-heading">Plugin</h2>
+    <label class="plg-field">For which companion <button type="button" class="tip" data-tip="A plugin is switched on and set up for each companion on her own. Pick the companion whose settings you want to see or change.">?</button> <select id="pls-companion" data-nodirty></select></label>
+    <div id="pls-fields" class="skl-form"></div>
+    <div class="add-row"><button id="pls-save" type="button">Save</button></div>
+    <p id="pls-status" class="muted small" role="status"></p>
+    <h3>What it did <button type="button" class="tip" data-tip="Every hook, tool, call and refusal of this plugin, scrubbed of secrets and kept for 30 days. Refused means Sara stopped something it tried.">?</button></h3>
+    <ul id="pls-log" class="plg-log"></ul>
+    <div class="add-row"><button id="pls-refresh" type="button" class="ghost">Refresh</button></div>
+  </dialog>
   <dialog id="settings" class="settings-dialog">
     <form method="dialog" class="settings-layout">
       <aside class="settings-nav">
@@ -2208,6 +2234,16 @@
       <div id="skl-projects" class="skl-projects" hidden></div>
       <div id="skl-list" class="skl-list"></div>
       <p id="skl-status" class="muted small" role="status"></p>
+        </section>
+        <section class="settings-page" data-page="ab-plugins" data-group="Abilities" data-title="Plugins" data-owner-only hidden>
+      <p class="muted small">A plugin is a small program someone wrote for Sara: it can give her a tool, look at a turn and add a note, show a card, run on a schedule or carry a chat app. Each one runs in its own fenced process with only the permissions you approve, and is off until you switch it on. <strong>She still follows her rules: a plugin can add, never remove.</strong> <a href="/help#plugins" target="_blank" rel="noopener">How plugins work</a></p>
+      <p id="plg-off" class="skl-note" hidden></p>
+      <p id="plg-fence-note" class="skl-warn small" hidden>This computer can't fence plugins in (Windows, or Linux without bubblewrap): they run with Node's permission limits only. Add only plugins whose author you trust.</p>
+      <div class="add-row skl-top"><button id="plg-add" type="button">Add a plugin</button></div>
+      <h3 id="plg-waiting-head" hidden>Waiting for you <button type="button" class="tip" data-tip="A plugin asked her to use one of her tools on its own (for example from its schedule). Nothing runs until you allow it here; the request goes away after 10 minutes.">?</button></h3>
+      <div id="plg-waiting" class="skl-list"></div>
+      <div id="plg-list" class="skl-list"></div>
+      <p id="plg-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="ab-home" data-group="Abilities" data-title="Home Assistant" data-owner-only hidden>
       <p class="muted small">Let her see and control your home through <strong>Home Assistant</strong>: lights, switches, thermostats, locks, blinds, scenes. She can look on her own; every change asks you first. Your Home Assistant must be reachable from this server (for example your Nabu Casa address, or over Tailscale).</p>

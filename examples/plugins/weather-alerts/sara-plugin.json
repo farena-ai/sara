@@ -1,0 +1,109 @@
+{
+  "manifest": 1,
+  "id": "weather-alerts",
+  "name": "Weather alerts",
+  "version": "1.0.0",
+  "description": "Warns you about storms on days you have plans outside. An example plugin: it uses a placeholder weather host, so it answers with demo forecasts.",
+  "author": "Sara examples",
+  "license": "MIT",
+  "homepage": "https://github.com/farena-ai/sara/blob/main/docs/PLUGINS.md",
+  "sara": ">=2.30.0",
+  "main": "main.mjs",
+  "permissions": {
+    "hooks": [
+      "turn.before",
+      "schedule",
+      "event:planner"
+    ],
+    "tools": [
+      "check"
+    ],
+    "callTools": [
+      "todo"
+    ],
+    "network": [
+      "api.weather.example"
+    ],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    },
+    "settings": true,
+    "cards": true
+  },
+  "schedules": [
+    {
+      "id": "morning",
+      "every": "1d",
+      "at": "07:00"
+    }
+  ],
+  "settings": [
+    {
+      "key": "city",
+      "type": "text",
+      "label": "Your city",
+      "tip": "Used to look up the forecast, for example Austin or Lyon.",
+      "default": ""
+    },
+    {
+      "key": "apiKey",
+      "type": "secret",
+      "label": "Weather API key",
+      "tip": "Stored encrypted in Sara's vault; the plugin gets it when it starts. The example works without one (demo forecasts)."
+    },
+    {
+      "key": "todo",
+      "type": "switch",
+      "label": "Offer an umbrella to-do",
+      "tip": "On: on a rainy morning it asks her to add a to-do (you are asked first, every time).",
+      "default": false
+    }
+  ],
+  "i18n": {
+    "es": {
+      "Your city": "Tu ciudad",
+      "Weather API key": "Clave de la API del tiempo",
+      "Offer an umbrella to-do": "Proponer una tarea de paraguas",
+      "Used to look up the forecast, for example Austin or Lyon.": "Sirve para buscar el pronóstico, por ejemplo Austin o Lyon.",
+      "Stored encrypted in Sara's vault; the plugin gets it when it starts. The example works without one (demo forecasts).": "Se guarda cifrada en la bóveda de Sara; el plugin la recibe al arrancar. El ejemplo funciona sin ella (pronósticos de demostración).",
+      "On: on a rainy morning it asks her to add a to-do (you are asked first, every time).": "Activado: en una mañana lluviosa le pide añadir una tarea (siempre se te pregunta antes)."
+    },
+    "fr": {
+      "Your city": "Votre ville",
+      "Weather API key": "Clé de l'API météo",
+      "Offer an umbrella to-do": "Proposer une tâche parapluie",
+      "Used to look up the forecast, for example Austin or Lyon.": "Sert à chercher la prévision, par exemple Austin ou Lyon.",
+      "Stored encrypted in Sara's vault; the plugin gets it when it starts. The example works without one (demo forecasts).": "Stockée chiffrée dans le coffre de Sara ; le plugin la reçoit au démarrage. L'exemple marche sans (prévisions de démonstration).",
+      "On: on a rainy morning it asks her to add a to-do (you are asked first, every time).": "Activé : un matin de pluie, il lui demande d'ajouter une tâche (on vous demande d'abord, à chaque fois)."
+    },
+    "de": {
+      "Your city": "Deine Stadt",
+      "Weather API key": "Wetter-API-Schlüssel",
+      "Offer an umbrella to-do": "Regenschirm-Aufgabe vorschlagen",
+      "Used to look up the forecast, for example Austin or Lyon.": "Damit wird die Vorhersage gesucht, zum Beispiel Austin oder Lyon.",
+      "Stored encrypted in Sara's vault; the plugin gets it when it starts. The example works without one (demo forecasts).": "Verschlüsselt in Saras Tresor gespeichert; das Plugin bekommt ihn beim Start. Das Beispiel geht auch ohne (Demo-Vorhersagen).",
+      "On: on a rainy morning it asks her to add a to-do (you are asked first, every time).": "An: An einem Regenmorgen bittet es sie, eine Aufgabe hinzuzufügen (du wirst jedes Mal vorher gefragt)."
+    },
+    "pt-BR": {
+      "Your city": "Sua cidade",
+      "Weather API key": "Chave da API do tempo",
+      "Offer an umbrella to-do": "Sugerir uma tarefa de guarda-chuva",
+      "Used to look up the forecast, for example Austin or Lyon.": "Usada para buscar a previsão, por exemplo Austin ou Lyon.",
+      "Stored encrypted in Sara's vault; the plugin gets it when it starts. The example works without one (demo forecasts).": "Guardada criptografada no cofre da Sara; o plugin a recebe ao iniciar. O exemplo funciona sem ela (previsões de demonstração).",
+      "On: on a rainy morning it asks her to add a to-do (you are asked first, every time).": "Ligado: numa manhã de chuva ele pede a ela para adicionar uma tarefa (você é perguntado antes, sempre)."
+    },
+    "it": {
+      "Your city": "La tua città",
+      "Weather API key": "Chiave API meteo",
+      "Offer an umbrella to-do": "Proponi un promemoria ombrello",
+      "Used to look up the forecast, for example Austin or Lyon.": "Serve a cercare le previsioni, per esempio Austin o Lione.",
+      "Stored encrypted in Sara's vault; the plugin gets it when it starts. The example works without one (demo forecasts).": "Salvata cifrata nella cassaforte di Sara; il plugin la riceve all'avvio. L'esempio funziona anche senza (previsioni dimostrative).",
+      "On: on a rainy morning it asks her to add a to-do (you are asked first, every time).": "Attivo: in una mattina di pioggia le chiede di aggiungere un'attività (ti viene chiesto prima, ogni volta)."
+    }
+  }
+}

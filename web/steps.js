@@ -324,6 +324,24 @@ export function skillStep(box, name) {
   render(box);
 }
 
+/** Phase 98: what a plugin did in this turn, as one line in the step list (never her own step). */
+export function pluginStep(box, words, what) {
+  if (!words || box._steps.some((s) => s.kind === 'plugin' && s.done === words)) return;
+  const bad = what === 'skipped' || what === 'dropped';
+  const step = { kind: 'plugin', name: 'plugin', now: words, done: words, icon: 'tool', status: bad ? 'error' : 'ok' };
+  const li = el('li', `step ${bad ? 'error' : 'ok'} plugin`);
+  const row = el('div', 'step-head');
+  row.append(stepIcon('tool'), el('span', 'step-verb', words));
+  const link = el('a', 'step-link small', t('Plugins'));
+  link.href = '/#view=settings:ab-plugins';
+  row.append(link);
+  li.append(row);
+  step.li = li;
+  box.querySelector('.steps-list').append(li);
+  box._steps.push(step);
+  render(box);
+}
+
 /**
  * Phase 78: "Show the run" at the end of the step list: opens the Run view (web/run-view.js) for
  * this reply's run (every step's model, tokens, cost, tools, files and memory picks).

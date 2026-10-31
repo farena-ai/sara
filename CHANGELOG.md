@@ -5,6 +5,28 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.31.0 (2026-10-31): plugins and hooks (Phase 98, staples ST3)
+
+- **Plugins:** a folder with `sara-plugin.json` (manifest 1: permissions for hooks, tools, calling her
+  tools, network hosts, files, settings, cards, bridges, model budget, memory; schedules; settings
+  with required ? tips). Settings → Abilities → Plugins. Guide: [docs/PLUGINS.md](docs/PLUGINS.md).
+- **Owner only, reviewed first:** add from a zip, git address or server folder; a review card lists
+  every permission in plain words plus a scan of the code (hosts it contacts, text that tries to
+  instruct her). The folder is hash-pinned; it stays off until switched on per companion; updates
+  that add permissions need a new OK; rollback keeps the last version.
+- **Hooks** (`turn.before`, `tool.before`, `tool.after`, `reply.after`, schedules, planner and job
+  events) run after Sara's own hooks with hard time limits. They can only add a note, deny or ask,
+  add a card or a labelled note; never loosen a rule, speak as her, or touch the crisis, minors and
+  AI-disclosure checks. They never run in private, partner, group, imported or replayed chats.
+- **The fence:** each plugin is its own Node process with the permission model (its own folder only,
+  no child processes or addons, 128 MB), plus bubblewrap without network on Linux and a Seatbelt
+  profile on the Mac. Network only through Sara (`sara.fetch`: listed https hosts, public addresses,
+  1 MB, 30 a minute). Windows has no OS fence yet: the card says *Not fenced in* and asks you to
+  confirm you trust it. Hangs are skipped, crashes restart with back-off, 3 crashes in 10 minutes
+  switch it off; a chat never breaks.
+- Two examples in `examples/plugins/` (hello-hooks, weather-alerts) and a dependency-free helper.
+- The shared proposal card used by later staples.
+
 ## 2.30.0 (2026-10-31): learned skills (Phase 97, staples ST2)
 
 - **She offers to make a skill** when you ask for the same kind of thing 3 times on 2 different days

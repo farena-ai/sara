@@ -14,7 +14,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1254%20passing-brightgreen" alt="1254 tests passing">
+  <img src="https://img.shields.io/badge/tests-1274%20passing-brightgreen" alt="1274 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <sub>Eine echte Sitzung mit einem lokalen Modell (qwen3.8 27B auf Ollama, eine RTX 5090) auf einem Wegwerf-Testserver, im Nacht-Look: Sie muntert ihr Gegenüber auf, schreibt eine kleine App samt Test, während das Modell sie streamt, fragt, bevor sie einen Befehl ausführt, findet über einen fehlschlagenden Test einen echten Fehler und behebt ihn, bis alle 7 Tests grün sind. Ausgewählte Bilder aus der Aufnahme; nichts darin wurde bearbeitet.</sub>
 </p>
 
-> **Status:** 2.30, MIT-Lizenz, mit einundvierzig Funktions-Releases seit 1.0 (alle unten). Mit 2.5 bis 2.8
+> **Status:** 2.31, MIT-Lizenz, mit zweiundvierzig Funktions-Releases seit 1.0 (alle unten). Mit 2.5 bis 2.8
 > hat die ganze App einen neuen Look bekommen. Die
 > [Android-App](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) ist bei Google
 > Play; die iPhone-App und die Version für den Mac App Store folgen, sobald Apple sie freigibt.
@@ -70,6 +70,7 @@ für die Menschen, mit denen du lebst · [Videoanrufe](docs/VIDEO_CALLS.md) mit 
 
 | Version | Was du bekommst |
 |---|---|
+| **2.31** · Plugins | **Plugins und Hooks.** Ein Plugin ist ein Ordner mit einer `sara-plugin.json`: Hooks vor ihrer Antwort, vor und nach Werkzeugen und nach Antworten, dazu eigene Werkzeuge, Karten, Einstellungen, Zeitpläne und Chat-Brücken. Du fügst es aus Zip, Git oder Ordner hinzu, nachdem du eine Prüfkarte gelesen hast, die genau sagt, was es darf; es bleibt aus, bis du es einschaltest. Jedes läuft in einem eigenen abgeschirmten Prozess (bubblewrap unter Linux, Seatbelt auf dem Mac) und kann nur ergänzen oder verschärfen, nie ihre Regeln lockern oder die Sicherheitsebene berühren. Ein Plugin, das hängt oder abstürzt, stört nie einen Chat. Zwei Beispiele dabei; Anleitung in docs/PLUGINS.md. |
 | **2.30** · Gelernte Skills | **Sie merkt, worum du immer wieder bittest.** Bitte dreimal an verschiedenen Tagen um dieselbe Art Sache (oder wiederhole dieselbe Kette von Coding-Schritten), und sie bietet einmal an, daraus einen Skill zu machen: du siehst den Entwurf und speicherst, bearbeitest oder lehnst ab. Ein neuer Skill wird erst getestet (deine früheren Bitten, mit und ohne ihn bewertet) und nur genutzt, wenn er hilft. Korrigierst du sie nach einem Skill, schlägt sie die Änderung als Vorher/Nachher-Karte vor. Nichts Privates, aus Gruppen oder mit Geheimnissen wird je gelernt. |
 | **2.29** · Skills | **Skills im offenen Agent-Skills-Format.** Ein Skill ist ein Ordner mit einer `SKILL.md`: wie eine Art Aufgabe auf deine Weise erledigt wird. Sie sieht die Liste in jedem Chat und öffnet den passenden; in Runs siehst du, welchen. Sechs sind eingebaut (Pull-Request prüfen, Changelog-Eintrag, Wochenrückblick, fehlschlagenden Test debuggen, Reise planen, Skill schreiben); schreib eigene oder lass sie schreiben; Import aus Zip, Git oder Ordner mit einer Prüfkarte, die jede Datei und jedes Skript zeigt; Export jedes Skills. Skripte fragen immer vorher, und kein Skill kann ihre Sicherheitsregeln ändern. Deine Rezepte wurden zu Skills. |
 | **2.28** · Computernutzung, Schritt 9 | **Auch unter Linux:** `sara hands --server https://deine-sara` auf einem Linux-Desktop gibt ihr dort ihr eigenes sichtbares Chrome/Chromium, wie der Browser-Modus der Windows- und Mac-Apps: ansehen, lesen, Logs, Klicks und Tippen mit deiner Freigabe, Dev-Tunnel, gespeicherte Logins (im GNOME-Schlüsselbund / KWallet), die CLI deines Passwortmanagers und Check-ups, die nur lesen. Gekoppelt wird mit einem Code, den du im Browser bestätigst; Pause, Weiter und Stopp im Terminal. Bilder und Eingaben für den ganzen Linux-Desktop kommen später. Gebaut mit OpenAI Codex. |
@@ -307,8 +308,8 @@ wurden. Was sie heute beiträgt, ist die Arbeitsweise (sie lässt die Tests lauf
 riskanten Schritten, zeigt, was gelaufen ist), nicht ein höheres Ergebnis bei diesen Sätzen.
 Details, Ergebnisse pro Aufgabe und wie man es wiederholt: [docs/RESULTS.md](docs/RESULTS.md).
 
-Dazu `npm run check`: eine Typprüfung und 1268 automatische Tests mit einem geskripteten
-Schein-Modell (ohne Netz, ohne GPU): 1254 laufen unter Windows durch, die anderen 8 sind
+Dazu `npm run check`: eine Typprüfung und 1289 automatische Tests mit einem geskripteten
+Schein-Modell (ohne Netz, ohne GPU): 1274 laufen unter Windows durch, die anderen 8 sind
 Linux-spezifische Sandbox-Tests, die auf einem Linux-Server laufen.
 
 ## Sara im Vergleich

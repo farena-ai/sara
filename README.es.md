@@ -14,7 +14,7 @@ para la web, Windows, Mac y el móvil.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1254%20passing-brightgreen" alt="1254 tests passing">
+  <img src="https://img.shields.io/badge/tests-1274%20passing-brightgreen" alt="1274 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ para la web, Windows, Mac y el móvil.
   <sub>Una sesión real con un modelo local (qwen3.8 27B en Ollama, una RTX 5090) en un servidor de pruebas desechable, con el aspecto Noche: anima a quien le habla, escribe una pequeña app y su prueba mientras el modelo las transmite, pide permiso antes de ejecutar un comando, detecta un error real con una prueba que falla y lo corrige hasta que pasan las 7 pruebas. Fotogramas elegidos de la grabación; nada en ellos se ha editado.</sub>
 </p>
 
-> **Estado:** 2.30, licencia MIT, con cuarenta y uno y dos versiones con novedades desde la 1.0 (todas abajo). De
+> **Estado:** 2.31, licencia MIT, con cuarenta y dos y dos versiones con novedades desde la 1.0 (todas abajo). De
 > la 2.5 a la 2.8 toda la app estrenó aspecto. La
 > [app de Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) está en Google
 > Play; la app de iPhone y la versión del Mac App Store llegarán en cuanto Apple las apruebe. Lee
@@ -70,6 +70,7 @@ para las personas con las que vives · [videollamadas](docs/VIDEO_CALLS.md) con 
 
 | Versión | Qué te trae |
 |---|---|
+| **2.31** · Plugins | **Plugins y hooks.** Un plugin es una carpeta con un `sara-plugin.json`: hooks antes de su respuesta, antes y después de herramientas y tras las respuestas, más sus propias herramientas, tarjetas, ajustes, horarios y puentes de chat. Lo añades desde zip, git o una carpeta tras leer una tarjeta que explica qué puede hacer; está apagado hasta que lo enciendes. Cada uno corre en su propio proceso aislado (bubblewrap en Linux, Seatbelt en el Mac) y solo puede añadir o endurecer, nunca relajar sus reglas ni tocar la capa de seguridad. Un plugin que se cuelga o falla nunca rompe un chat. Incluye dos ejemplos; guía en docs/PLUGINS.md. |
 | **2.30** · Habilidades aprendidas | **Se da cuenta de lo que pides a menudo.** Pide lo mismo tres veces en días distintos (o repite la misma cadena de pasos de código) y te ofrece, una vez, convertirlo en habilidad: ves el borrador y lo guardas, lo editas o dices que no. Una habilidad nueva se prueba antes (tus peticiones anteriores, juzgadas con y sin ella) y solo se usa por defecto si ayuda. Corrígela tras usar una habilidad y te propone el cambio con una tarjeta de antes/después. Nunca aprende nada privado, de grupos ni con secretos. |
 | **2.29** · Habilidades | **Habilidades en el formato abierto Agent Skills.** Una habilidad es una carpeta con un `SKILL.md`: cómo hacer un tipo de tarea a tu manera. Ve la lista en cada chat y abre la que encaja; en Ejecuciones ves cuál usó. Seis vienen incluidas (revisar un pull request, una entrada de changelog, un repaso semanal, depurar un test que falla, planear un viaje, escribir una habilidad); escribe las tuyas o pídeselo; importa desde zip, git o una carpeta con una tarjeta que muestra cada archivo y script; exporta cualquiera. Los scripts siempre preguntan antes, y ninguna habilidad puede cambiar sus reglas de seguridad. Tus recetas pasaron a ser habilidades. |
 | **2.28** · Uso del ordenador, paso 9 | **También en Linux:** `sara hands --server https://tu-sara` en un escritorio Linux le da su propio Chrome/Chromium visible ahí, igual que el modo navegador de las apps de Windows y Mac: mirar, leer, registros, clics y escritura con tu aprobación, túneles de desarrollo, inicios de sesión guardados (en el llavero de GNOME / KWallet), la CLI de tu gestor de contraseñas y revisiones que solo leen. Se empareja con un código que apruebas en tu navegador; Pausa, Seguir y Parar desde su terminal. Las imágenes y la entrada de todo el escritorio Linux llegarán más adelante. Hecho con OpenAI Codex. |
@@ -307,8 +308,8 @@ prueba comprobaba. Lo que aporta hoy es la forma de trabajar (ejecuta las prueba
 antes de pasos arriesgados, muestra lo que se ejecutó), no una puntuación más alta en estos
 conjuntos. Detalles, resultados por tarea y cómo repetirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-Además, `npm run check`: una comprobación de tipos y 1268 pruebas automáticas con un modelo falso
-programado (sin red, sin GPU): 1254 pasan en Windows y las otras 8 son pruebas del aislamiento solo
+Además, `npm run check`: una comprobación de tipos y 1289 pruebas automáticas con un modelo falso
+programado (sin red, sin GPU): 1274 pasan en Windows y las otras 8 son pruebas del aislamiento solo
 para Linux, que se ejecutan en un servidor Linux.
 
 ## Cómo se compara Sara

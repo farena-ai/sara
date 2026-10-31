@@ -1,0 +1,50 @@
+{
+  "manifest": 1,
+  "id": "hostile",
+  "name": "Hostile test plugin",
+  "version": "1.0.0",
+  "description": "A test fixture that tries everything a plugin must not be able to do (test/phase98.test.ts).",
+  "sara": ">=2.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "hooks": [
+      "turn.before",
+      "tool.before",
+      "tool.after",
+      "reply.after"
+    ],
+    "tools": [
+      "probe"
+    ],
+    "callTools": [
+      "todo"
+    ],
+    "network": [
+      "api.allowed.example"
+    ],
+    "settings": true,
+    "cards": true
+  },
+  "settings": [
+    {
+      "key": "mode",
+      "type": "choice",
+      "label": "Mode",
+      "tip": "normal: answers every hook outside its shape; hang: never answers; crash: exits at start; flood: floods the channel.",
+      "choices": [
+        "normal",
+        "hang",
+        "crash",
+        "flood"
+      ],
+      "default": "normal"
+    },
+    {
+      "key": "probe",
+      "type": "text",
+      "label": "Files to try",
+      "tip": "Paths (separated by |) the plugin tries to read at start; it logs what happened.",
+      "default": ""
+    }
+  ]
+}

@@ -152,7 +152,7 @@ test('sidebar: every place keeps its button id, More holds the rest, her and Set
 
 test('settings: groups and order cover every page; page ids unchanged', () => {
   const pages = [...html.matchAll(/class="settings-page[^"]*" data-page="([\w-]+)" data-group="([^"]+)"/g)].map((m) => ({ page: m[1], group: m[2] }));
-  assert.equal(pages.length, 44); // Phase 79: + Abilities → Budgets; Phase 87: + Connections → Computer use; Phase 96: + Abilities → Skills
+  assert.equal(pages.length, 45); // Phase 79: + Abilities → Budgets; Phase 87: + Connections → Computer use; Phase 96: + Abilities → Skills; Phase 98: + Abilities → Plugins
   const order = /const SETTINGS_ORDER = \[([\s\S]*?)\];/.exec(app)![1].match(/'([\w-]+)'/g)!.map((s) => s.slice(1, -1));
   assert.deepEqual([...order].sort(), pages.map((p) => p.page).sort(), 'SETTINGS_ORDER lists every page once');
   const groups = [...(/const SETTINGS_GROUPS = \[([\s\S]*?)\];/.exec(app)![1].matchAll(/name: '([^']+)'/g))].map((m) => m[1]);

@@ -225,3 +225,58 @@ dialog .saved-tag { color: var(--success); }
   .lsk-card { max-width: none; }
   .lsk-actions button { flex: 1 1 calc(50% - 8px); }
 }
+
+/* Phase 98 (ST3): plugins. The shared proposal card (STAPLES §2.1.1: the review card, a tool a
+   plugin asks to use), the Plugins page, a plugin's settings and log, and plugin notes and cards in
+   the chat. Theme tokens only; 44 px targets; one column on phones. */
+.prop-card { display: grid; gap: 8px; min-width: 0; padding: 14px; border-radius: var(--r-card, 12px); background: var(--glass-fill, var(--panel-2)); border: 1px solid var(--accent); box-shadow: var(--elev-1, none); }
+.prop-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+.prop-title { margin: 0; overflow-wrap: anywhere; }
+.prop-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.prop-chip { display: inline-flex; align-items: center; font-size: var(--fs-meta, 12px); padding: 2px 10px; border-radius: var(--r-pill, 999px); background: var(--accent-soft); color: var(--text); }
+.prop-chip.warn { background: var(--warn-soft); color: var(--warn); }
+.prop-chip.new { background: var(--warn-soft); color: var(--warn); margin-left: 6px; }
+.prop-why { margin: 0; overflow-wrap: anywhere; }
+.prop-can-head { margin: 4px 0 0; font-weight: 600; }
+.prop-can { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.prop-line { display: flex; align-items: flex-start; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.prop-dot { flex: 0 0 auto; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: var(--muted); }
+.prop-line.risk-high .prop-dot { background: var(--danger); }
+.prop-line.risk-medium .prop-dot { background: var(--warn); }
+.prop-line.risk-low .prop-dot { background: var(--muted); }
+.prop-line.added { padding: 4px 8px; border-radius: 8px; background: var(--warn-soft); }
+.prop-warn { margin: 0; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--warn); background: var(--warn-soft); overflow-wrap: anywhere; }
+.prop-args { margin: 0; max-height: 200px; overflow: auto; padding: 8px; border-radius: 8px; background: var(--hairline); white-space: pre-wrap; overflow-wrap: anywhere; }
+.prop-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.prop-buttons button { min-height: 44px; min-width: 44px; }
+#plg-add, #pla-look, #pla-cancel, #pls-save, #pls-refresh { min-height: 44px; }
+.plg-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; min-width: 0; }
+.plg-title { display: grid; gap: 2px; min-width: 0; }
+.plg-title strong { overflow-wrap: anywhere; }
+.plg-companions { display: grid; gap: 2px; }
+.plg-on, .settings-body label.plg-on { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 44px; color: var(--text); font-size: var(--fs-small, 13px); }
+.plg-last { margin: 0; overflow-wrap: anywhere; }
+.plg-sha { overflow-wrap: anywhere; word-break: break-all; }
+.plg-trust { min-height: 44px; align-items: center; gap: 10px; }
+.plg-trust input, .plg-field input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent); }
+.plg-field { display: grid; gap: 4px; min-width: 0; }
+.plg-field-name { display: flex; align-items: center; gap: 6px; }
+.plg-field.row { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.plg-field input:not([type="checkbox"]), .plg-field select { min-height: 44px; }
+.plg-log { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; max-height: 360px; overflow: auto; }
+.plg-log-row { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: baseline; gap: 8px; padding: 4px 8px; border-radius: 8px; background: var(--hairline); }
+.plg-log-text { overflow-wrap: anywhere; font-size: var(--fs-small, 13px); }
+.plg-result { display: grid; gap: 4px; min-width: 0; padding: 10px 12px; border-radius: var(--r-card, 12px); border: 1px solid var(--hairline); background: var(--glass-fill, var(--panel-2)); }
+.plg-result-head { display: grid; gap: 2px; }
+.plg-result-title { overflow-wrap: anywhere; }
+.plg-result-line { margin: 0; overflow-wrap: anywhere; }
+.plg-result-img { max-width: 100%; max-height: 240px; border-radius: 8px; object-fit: contain; }
+.plg-result-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.plg-result-buttons button { min-height: 44px; }
+.plg-from { color: var(--muted); }
+.plg-note { display: grid; gap: 2px; border-left: 3px solid var(--accent); }
+.plg-note-text { margin: 0; overflow-wrap: anywhere; }
+.plg-ask { margin: 0; padding: 6px 10px; border-radius: 8px; background: var(--warn-soft); color: var(--text); overflow-wrap: anywhere; }
+@media (max-width: 720px) {
+  .plg-log-row { grid-template-columns: minmax(0, 1fr); }
+}

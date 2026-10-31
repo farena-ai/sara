@@ -813,6 +813,45 @@ Install the example `weather-alerts` plugin on the home server (Linux, fenced) a
 (Windows, not fenced) and read both review cards; decide whether git-URL installs stay allowed or
 only folders/zips (default: allowed, owner-only).
 
+### 6.14 As built (2.31.0)
+
+- Modules: `src/plugins/manifest.ts` (`parseManifest`, `ManifestError`, `addedPermissions`,
+  `permissionLines`, `checkHost`/`hostAllowed`, `satisfies` for the `sara` range),
+  `src/plugins/runtime.ts` (`LineSplitter`, `spawnSpec`, `PerMinute`, the process with its
+  restarts), `src/plugins/plugin-host.mjs` (plain JS, imports nothing from Sara: console → log
+  messages, the global `fetch` replaced by a refusal, then `import(main)`), `src/plugins/store.ts`,
+  `src/plugins/manager.ts` (`PluginManager`: intake, review, approve, enable per companion, settings,
+  updates, rollback, remove, the channel's calls, schedules, events, bridges), `src/hooks.ts` (the
+  adapter: `pluginTurnAllowed`, `PluginTurn`, `cleanCard`, `untrustedNote`), `src/routes/plugins.ts`,
+  `web/plugins.js`, `web/proposal-card.js` (§2.1.1, first used here; text only).
+- One `PluginManager` per server (owner only), with its own `node:sqlite` connection on the owner's
+  `sara.db` (additive tables `plugins`, `plugin_log`, `plugin_kv`, `budget_ledger`); none on the
+  demo and none in a member's space. A plugin is switched on per companion (the companion setting
+  `plugins`); each enabled pair is one process (`<data>/plugin-data/<id>/<companion>/`).
+- Hooks are wired into `chat.ts` after Sara's own TurnHooks: `turn.before` notes go after the
+  history as `<untrusted source="plugin <id>">` blocks (dropped if the minors check trips);
+  `tool.before` takes the strictest of all plugins (deny beats ask; ask only matters for an
+  automatic step; an ask shows *Plugin X wants to check this step with you: why* on the card);
+  `tool.after` cards ride on the step's result; `reply.after` cards/notes are posted as their own
+  `plugin` notices after `done` (*From <plugin>*), never inside her message. Crisis, minors,
+  disclosure, in-character and claim checks are all outside the adapter.
+- Fence as designed: Node `--permission` everywhere; bubblewrap (`--unshare-all`, no
+  `--share-net`) on Linux when present; a generated Seatbelt profile on macOS; Windows and Linux
+  without bwrap say *Not fenced in* and need the trust tick. The memory (256 MB RSS) and CPU
+  (30 s/min) kills run on Linux only, read from `/proc`.
+- Deviations: `event:webhook` and `event:board` are accepted in manifests and listed on the card but
+  nothing sends them yet (webhooks have no per-plugin route; boards arrive in ST4); `sara.fetch` is
+  GET only in channel v1; plugin tools that a plugin calls on its own (`callTools`) are approved on
+  the Plugins page (*Waiting for your OK*, 10 minutes), not in a chat; the approve route installs a
+  reviewed plugin that has no row yet (found in the live run; the first cut 404'd).
+- Live run (Windows, qwen3.5:9b on Ollama): weather-alerts and hello-hooks installed from folders
+  through the review card; a real turn showed both `turn.before` notes, the plugin tool behind an
+  approval card, its result card, and a hello-hooks *From* note after the reply. The hostile
+  fixture's forbidden answers were dropped, its hang was skipped (1.5 s / 5 s) with the turn
+  finishing normally, and crash mode switched it off after 3 crashes; all three were removed.
+- For ST4: `HubEvent` gets `{ type: 'board' }` → wire `event:board` in `PluginManager.#onEvent`;
+  `proposalCard()` is the shared card for peers, people and goals.
+
 ---
 
 ## 7. ST4 · Phase 99 · 2.32.0: Kanban

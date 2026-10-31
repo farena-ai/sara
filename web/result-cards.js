@@ -6,6 +6,7 @@ import { t } from './naming.js';
 import { icon } from './icons.js';
 import { kindFromSky, sparkline, weatherArt } from './viz.js';
 import { gmailResult } from './gmail-view.js';
+import { pluginResultCard } from './plugins.js';
 import { checkupCard, checkupChangeCard } from './checkup-view.js';
 
 const el = (tag, cls, text) => {
@@ -226,7 +227,7 @@ function handsInstall(c) {
   return card;
 }
 
-const DRAW = { weather, task, reminder, note, calendar, test, job, home, photo, search, gmail: gmailResult, computer, 'hands-install': handsInstall, checkup: checkupCard, 'checkup-change': checkupChangeCard };
+const DRAW = { weather, task, reminder, note, calendar, test, job, home, photo, search, gmail: gmailResult, computer, 'hands-install': handsInstall, checkup: checkupCard, 'checkup-change': checkupChangeCard, plugin: (c) => pluginResultCard(c) };
 
 /** One element per card; the file cards of a reply become one "Files changed" card. */
 export function renderCards(cards) {

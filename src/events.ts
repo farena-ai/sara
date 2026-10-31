@@ -20,6 +20,8 @@ export type HubEvent = (
   | { type: 'recipes' }
   /** Phase 96: a skill was added, changed, switched or removed. */
   | { type: 'skills' }
+  /** Phase 98: a plugin was added, switched, changed, crashed or asks to use a tool. */
+  | { type: 'plugins' }
   /** Phase 52: device-code sign-in requests waiting for the owner. */
   | { type: 'device'; pending: number }
   /** Phase 39: a team task changed (plan, a helper's progress, the end). */

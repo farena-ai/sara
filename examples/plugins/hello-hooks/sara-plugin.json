@@ -1,0 +1,76 @@
+{
+  "manifest": 1,
+  "id": "hello-hooks",
+  "name": "Hello hooks",
+  "version": "1.0.0",
+  "description": "An example plugin: a short note for her before each turn, a footer line after her replies, and a word filter that stops steps mentioning a blocked word.",
+  "author": "Sara examples",
+  "license": "MIT",
+  "sara": ">=2.30.0",
+  "main": "main.mjs",
+  "permissions": {
+    "hooks": [
+      "turn.before",
+      "tool.before",
+      "reply.after"
+    ],
+    "settings": true,
+    "cards": true,
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    }
+  },
+  "settings": [
+    {
+      "key": "footer",
+      "type": "switch",
+      "label": "Add a footer after her replies",
+      "tip": "On: after each reply this plugin posts one short line of its own (how many words she wrote). It is labelled with the plugin's name, never as her.",
+      "default": true
+    },
+    {
+      "key": "blocked",
+      "type": "text",
+      "label": "Blocked words",
+      "tip": "Steps whose details mention one of these words (comma separated, e.g. prod, payroll) are stopped before they run. Leave it empty to stop nothing.",
+      "default": "prod"
+    }
+  ],
+  "i18n": {
+    "es": {
+      "Add a footer after her replies": "Añadir un pie después de sus respuestas",
+      "Blocked words": "Palabras bloqueadas",
+      "On: after each reply this plugin posts one short line of its own (how many words she wrote). It is labelled with the plugin's name, never as her.": "Activado: después de cada respuesta este plugin publica una línea corta propia (cuántas palabras escribió). Lleva el nombre del plugin, nunca el de ella.",
+      "Steps whose details mention one of these words (comma separated, e.g. prod, payroll) are stopped before they run. Leave it empty to stop nothing.": "Los pasos que mencionen una de estas palabras (separadas por comas, p. ej. prod, nómina) se detienen antes de ejecutarse. Déjalo vacío para no detener nada."
+    },
+    "fr": {
+      "Add a footer after her replies": "Ajouter un pied après ses réponses",
+      "Blocked words": "Mots bloqués",
+      "On: after each reply this plugin posts one short line of its own (how many words she wrote). It is labelled with the plugin's name, never as her.": "Activé : après chaque réponse, ce plugin publie une courte ligne à lui (combien de mots elle a écrits). Elle porte le nom du plugin, jamais le sien.",
+      "Steps whose details mention one of these words (comma separated, e.g. prod, payroll) are stopped before they run. Leave it empty to stop nothing.": "Les étapes qui mentionnent l'un de ces mots (séparés par des virgules, ex. prod, paie) sont arrêtées avant de s'exécuter. Laissez vide pour ne rien arrêter."
+    },
+    "de": {
+      "Add a footer after her replies": "Nach ihren Antworten eine Fußzeile hinzufügen",
+      "Blocked words": "Gesperrte Wörter",
+      "On: after each reply this plugin posts one short line of its own (how many words she wrote). It is labelled with the plugin's name, never as her.": "An: Nach jeder Antwort schreibt dieses Plugin eine kurze eigene Zeile (wie viele Wörter sie schrieb). Sie trägt den Namen des Plugins, nie ihren.",
+      "Steps whose details mention one of these words (comma separated, e.g. prod, payroll) are stopped before they run. Leave it empty to stop nothing.": "Schritte, die eines dieser Wörter nennen (durch Kommas getrennt, z. B. prod, gehalt), werden vor dem Start gestoppt. Leer lassen, um nichts zu stoppen."
+    },
+    "pt-BR": {
+      "Add a footer after her replies": "Adicionar um rodapé depois das respostas dela",
+      "Blocked words": "Palavras bloqueadas",
+      "On: after each reply this plugin posts one short line of its own (how many words she wrote). It is labelled with the plugin's name, never as her.": "Ligado: depois de cada resposta este plugin publica uma linha curta própria (quantas palavras ela escreveu). Ela leva o nome do plugin, nunca o dela.",
+      "Steps whose details mention one of these words (comma separated, e.g. prod, payroll) are stopped before they run. Leave it empty to stop nothing.": "Passos que mencionam uma destas palavras (separadas por vírgulas, ex. prod, folha) são parados antes de rodar. Deixe vazio para não parar nada."
+    },
+    "it": {
+      "Add a footer after her replies": "Aggiungi un piè di pagina dopo le sue risposte",
+      "Blocked words": "Parole bloccate",
+      "On: after each reply this plugin posts one short line of its own (how many words she wrote). It is labelled with the plugin's name, never as her.": "Attivo: dopo ogni risposta questo plugin pubblica una breve riga sua (quante parole ha scritto). Porta il nome del plugin, mai il suo.",
+      "Steps whose details mention one of these words (comma separated, e.g. prod, payroll) are stopped before they run. Leave it empty to stop nothing.": "I passaggi che citano una di queste parole (separate da virgole, es. prod, stipendi) vengono fermati prima di partire. Lascia vuoto per non fermare nulla."
+    }
+  }
+}

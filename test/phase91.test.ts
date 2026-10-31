@@ -278,7 +278,10 @@ test('detection: only --version runs; each manager is off until turned on; unloc
     await until(() => !pm.unlocked('bitwarden'), 5000);
     assert.ok(pm.ran.includes('bw lock'));
     await until(() => /bw lock/.test(readFileSync(join(f.env.BITWARDENCLI_APPDATA_DIR, 'calls.log'), 'utf8')), 8000);
-    assert.deepEqual(JSON.parse(readFileSync(join(f.env.BITWARDENCLI_APPDATA_DIR, 'state.json'), 'utf8')).sessions, [], 'the double holds no session any more');
+    // The double logs the call before it rewrites state.json; on a loaded machine wait for the rewrite.
+    const bwState = () => { try { return JSON.parse(readFileSync(join(f.env.BITWARDENCLI_APPDATA_DIR, 'state.json'), 'utf8')) as { sessions: unknown[] }; } catch { return null; } };
+    await until(() => bwState()?.sessions.length === 0, 8000);
+    assert.deepEqual(bwState()?.sessions, [], 'the double holds no session any more');
     await assert.rejects(pm.unlock('bitwarden', 'http://x'), /3 times in 10 minutes/);
     // 1Password and KeePassXC: unlock, use, lockAll (Stop), turn off. The idle relock was checked
     // above; a long idle time here keeps a loaded machine from relocking between unlock and lookup.
