@@ -43,6 +43,7 @@ import { NEXT, type ActiveTurn, type RouteCtx } from './routes/context.ts';
 import { createLibraryRoutes } from './routes/library.ts';
 import { createCodingRoutes } from './routes/coding.ts';
 import { createEvalRoutes } from './routes/evals.ts';
+import { createSkillRoutes } from './routes/skills.ts';
 import { createPlannerRoutes } from './routes/planner.ts';
 import { createMemoryRoutes } from './routes/memory.ts';
 import { createConnectionsRoutes, createHomeAssistantApi } from './routes/connections.ts';
@@ -779,6 +780,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const libraryRoutes = createLibraryRoutes(ctx);
   const codingRoutes = createCodingRoutes(ctx);
   const evalRoutes = createEvalRoutes(ctx);
+  const skillRoutes = createSkillRoutes(ctx);
   const plannerRoutes = createPlannerRoutes(ctx);
   const memoryRoutes = createMemoryRoutes(ctx);
   const connectionsRoutes = createConnectionsRoutes(ctx);
@@ -1110,6 +1112,8 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await codingRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 84: the eval loop (owner-only; src/routes/evals.ts).
     if ((await evalRoutes(req, res, method, parts)) !== NEXT) return;
+    // Phase 96: skills (Settings → Abilities → Skills; each person's own; src/routes/skills.ts).
+    if ((await skillRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 87: computer use: the computers, the live view, step thumbnails (src/routes/hands.ts).
     if ((await handsRoutes(req, res, method, parts)) !== NEXT) return;
 

@@ -13,6 +13,9 @@ export interface ZipEntry {
   compressedSize: number;
   size: number;
   localOffset: number;
+  /** Phase 96: the central directory's "version made by" and external attributes (Unix mode in the high 16 bits). */
+  madeBy?: number;
+  attrs?: number;
 }
 
 export interface ZipLimits {
@@ -27,6 +30,8 @@ const DAMAGED = 'This file looks damaged or incomplete, so she can\'t open it.';
 
 export class Zip {
   readonly entries = new Map<string, ZipEntry>();
+  /** Phase 96: every central-directory record in order, folders and duplicate names included. */
+  readonly all: ZipEntry[] = [];
   readonly #lower = new Map<string, ZipEntry>();
   readonly #buf: Buffer;
   readonly #maxEntryBytes: number;
@@ -67,6 +72,7 @@ export class Zip {
     let p = dirOffset;
     for (let k = 0; k < count; k++) {
       if (p + 46 > buf.length || buf.readUInt32LE(p) !== 0x02014b50) throw new ReadError(DAMAGED);
+      const madeBy = buf.readUInt16LE(p + 4);
       const flags = buf.readUInt16LE(p + 8);
       const method = buf.readUInt16LE(p + 10);
       let compressedSize = buf.readUInt32LE(p + 20);
@@ -74,6 +80,7 @@ export class Zip {
       const nameLen = buf.readUInt16LE(p + 28);
       const extraLen = buf.readUInt16LE(p + 30);
       const commentLen = buf.readUInt16LE(p + 32);
+      const attrs = buf.readUInt32LE(p + 38);
       let localOffset = buf.readUInt32LE(p + 42);
       const nameBytes = buf.subarray(p + 46, p + 46 + nameLen);
       const name = (flags & 0x800 ? nameBytes.toString('utf8') : decodeCp437(nameBytes)).replace(/\\/g, '/').replace(/^\/+/, '');
@@ -96,7 +103,8 @@ export class Zip {
         }
         e += 4 + len;
       }
-      const entry: ZipEntry = { name, method, flags, compressedSize, size, localOffset };
+      const entry: ZipEntry = { name, method, flags, compressedSize, size, localOffset, madeBy, attrs };
+      this.all.push(entry);
       if (!name.endsWith('/')) {
         this.entries.set(name, entry);
         this.#lower.set(name.toLowerCase(), entry);

@@ -287,6 +287,8 @@ const OWNER_ONLY_SUBPATHS: [string, string][] = [
   ['POST', '/api/hands/1/op'],
   ['POST', '/api/hands/1/stop'],
   ['PUT', '/api/computer'],
+  // Phase 96: trusting a workspace's project skills is the owner's (members have no workspaces).
+  ['POST', '/api/skills/trust-project'],
 ];
 /** Families not exercised by the generic loop (sign-out or streams) and checked on their own. */
 const SKIP = new Set(['logout', 'events', 'health', 'login', 'claim', 'demo', 'public']);
@@ -301,6 +303,26 @@ test('owner-only paths inside member families (time-travel): members get 403 own
   }
   // The owner gets past the gate (no such run here: 404, never 403).
   for (const [method, path] of OWNER_ONLY_SUBPATHS) assert.notEqual((await call(owner, method, path.replace('/1/', '/999999/'), method === 'GET' ? undefined : { fromStep: 0 })).status, 403, path);
+});
+
+test('skills (Phase 96): each member has their own; a folder on the server is the owner\'s only', async () => {
+  const made = await call(ana, 'POST', '/api/skills', { name: 'ana-only-skill', description: `Ana's own how-to ${M.a}. Use when Ana asks.`, body: `# Ana\n${M.a}` });
+  assert.equal(made.status, 201);
+  for (const p of [owner, ben]) {
+    const list = await call(p, 'GET', '/api/skills');
+    assert.equal(list.status, 200);
+    assert.ok(!list.text.includes('ana-only-skill') && !list.text.includes(M.a), `${p.name} doesn't see Ana's skill`);
+    assert.equal((await call(p, 'GET', '/api/skills/companion/ana-only-skill')).status, 404);
+  }
+  const own = await call(ana, 'GET', '/api/skills');
+  assert.ok(own.text.includes('ana-only-skill'));
+  assert.deepEqual(own.json.projects, []);
+  // The built-ins are there for members too.
+  assert.ok((own.json.skills as { scope: string }[]).some((s) => s.scope === 'builtin'));
+  const folder = await call(ana, 'POST', '/api/skills/import', { path: process.cwd() });
+  assert.equal(folder.status, 403);
+  assert.equal(folder.json.ownerOnly, true);
+  assert.equal((await call(ana, 'DELETE', '/api/skills/companion/ana-only-skill')).status, 200);
 });
 
 test('every route family: no person ever gets another person\'s data', async () => {

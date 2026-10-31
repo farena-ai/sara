@@ -226,7 +226,7 @@ fi
 
 log "Installing application to $APP_DIR..."
 mkdir -p "$APP_DIR"
-for item in src web persona templates package.json package-lock.json; do
+for item in src web persona templates skills package.json package-lock.json; do
   rm -rf "${APP_DIR:?}/$item"
   cp -r "$SRC_DIR/$item" "$APP_DIR/"
 done

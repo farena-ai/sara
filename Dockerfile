@@ -44,6 +44,7 @@ COPY src ./src
 COPY web ./web
 COPY persona ./persona
 COPY templates ./templates
+COPY skills ./skills
 # Phase 87: the shared page agent her testing browser reads pages with (also in the desktop apps).
 COPY desktop/shared/page-agent.js ./desktop/shared/page-agent.js
 

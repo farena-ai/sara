@@ -508,6 +508,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'projects', 'tasks', 'notes', 'reminders', 'planner', 'places', 'today', 'briefing', 'review', 'leave-by', 'checklist', 'setup',
   // library
   'library',
+  // Phase 96: their own skills (trusting a workspace's project skills and server folders stay the owner's)
+  'skills',
   // their settings and data
   'settings', 'providers', 'usage', 'export', 'push', 'phone', 'safety', 'other-apps',
   // Phase 72: their own Alexa links (codes and unlinking in their space; the skill id stays the owner's)
@@ -539,6 +541,8 @@ export function memberRouteCheck(rec: MemberRecord | undefined, method: string, 
   if (a === 'household' && b !== 'me') return { status: 403, message: en('Only the owner of this server can use this.'), ownerOnly: true };
   // Phase 83: time-travel (branch, compare, use, apply, discard, stop) is the owner's; a member's run view stays read-only.
   if (a === 'runs' && ((parts[2] && BRANCH_ACTIONS.has(parts[2])) || parts[4] === 'branch')) return { status: 403, message: en('Only the owner of this server can use this.'), ownerOnly: true };
+  // Phase 96: trusting project skills is the owner's (members have no workspaces of their own).
+  if (a === 'skills' && b === 'trust-project') return { status: 403, message: en('Only the owner of this server can use this.'), ownerOnly: true };
   const l = rec.limits;
   if (!l.voice && (a === 'live' || a === 'calls' || (a === 'voice' && method !== 'GET') || a === 'video')) return { status: 403, message: en('Voice is switched off for you on this server. Ask the owner.') };
   if (!l.pictures && ((a === 'look' && method !== 'GET') || a === 'photos')) return { status: 403, message: en('Pictures from her are switched off for you on this server. Ask the owner.') };

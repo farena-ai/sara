@@ -69,7 +69,7 @@ lipo -info "$N/bin/node"
 # The server: what `node src/main.ts` needs, nothing else (no tests, docs or dev tools).
 S="$APP/Resources/server"
 mkdir -p "$S"
-cp -R "$ROOT/src" "$ROOT/web" "$ROOT/persona" "$ROOT/templates" "$S/"
+cp -R "$ROOT/src" "$ROOT/web" "$ROOT/persona" "$ROOT/templates" "$ROOT/skills" "$S/"
 # Phase 87: the shared page agent (her testing browser reads pages with it too).
 mkdir -p "$S/desktop/shared" && cp "$ROOT/desktop/shared/page-agent.js" "$S/desktop/shared/"
 cp "$ROOT/package.json" "$ROOT/LICENSE" "$S/"

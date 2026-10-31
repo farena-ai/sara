@@ -10,7 +10,7 @@ import { autoSave, initDialogs, markDirty, onSave, runSave, saved } from './dial
 import { endTour, startTour, tourRunning } from './tour.js';
 import { isDocFile, loadLibrarySettings, openLibrary, saveLibrarySettings, uploadDoc, waitRead } from './library.js';
 import { initProjectMap, resetProjectMap } from './codemap.js';
-import { initRecipes, loadRecipes } from './recipes.js';
+import { initSkills, loadSkills, skillApproval } from './skills.js';
 import { initOtherApps, keyUse, loadOtherApps } from './other-apps.js';
 import { initAlexa, loadAlexa } from './alexa.js';
 import { initSsh, loadSsh } from './ssh.js';
@@ -28,7 +28,7 @@ import { DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNot
 import { initHousehold, joinFromLink, loadAccount, loadHousehold, showPaused } from './household.js';
 import { initNav, relabelNav, revealNav, setMore } from './nav.js';
 import { emptyState, initTidy, overflowMenu } from './tidy.js';
-import { addStep, finishStep, hasSteps, memoryStep, recallStep, runLink, runStep, setBudget, stepLine, waitStep } from './steps.js';
+import { addStep, finishStep, hasSteps, memoryStep, recallStep, runLink, runStep, setBudget, skillStep, stepLine, waitStep } from './steps.js';
 import { budgetCard, budgetMeter, fillBudgetSelect, overrideNote } from './budget-view.js';
 import { sandboxButtons, sandboxFirstNote, sandboxFlag, sandboxSection, teamSandboxRow } from './sandbox-view.js';
 import { advisoryFlag, advisorySection, initFindings, openFindings, openRedTeam, redteamFlag, redteamGateSection, refreshFindings, securityCard, threatCard } from './findings-view.js';
@@ -1308,6 +1308,8 @@ function renderMessages(messages, opts = {}) {
     turn ??= newTurn();
     if (m.role === 'assistant' && Array.isArray(m.meta?.memoryIds)) for (const id of m.meta.memoryIds) turn.mem.add(id);
     if (m.role === 'assistant' && m.meta?.runId) turn.runId = m.meta.runId;
+    // Phase 96: a skill loaded up front for this reply.
+    if (m.role === 'assistant' && typeof m.meta?.autoSkill === 'string') skillStep((turn.steps ??= newSteps()), m.meta.autoSkill);
     if (m.role === 'assistant' && m.meta?.budget) {
       turn.budget = m.meta.budget;
       turn.budgetMsg = m;
@@ -1837,6 +1839,9 @@ async function runStream(path, body, userBubble) {
           const node = contradictionFlag(ev.item);
           if (old) old.replaceWith(node);
           else place(node);
+        } else if (ev.type === 'skill') {
+          // Phase 96: a skill that fits was loaded up front ("Used skill: …").
+          skillStep(ensureSteps(), ev.name);
         } else if (ev.type === 'recall') {
           // Phase 85: a note she remembered on her own went into her next step.
           recallStep(ensureSteps(), recallKindWords(ev.item.kind));
@@ -2238,6 +2243,12 @@ function approvalCard(ev, block) {
     if (block) block.open = false;
     return card;
   }
+  // Phase 96: a skill's script, a skill to save, or a change to one (web/skills.js).
+  if (ev.skill) {
+    skillApproval(card, title, ev, decide);
+    if (block) block.open = false;
+    return card;
+  }
   // Phase 88: computer use: what she would do where, and only the answers this card allows.
   if (ev.computer) {
     computerApproval(card, title, ev.computer, decide);
@@ -2454,6 +2465,12 @@ const TOOL_WORDS = {
   code_refs: 'Find where something in the code is used.',
   code_deps: 'Which files use which other files.',
   recipe_save: 'Save how she did a tricky job, to do it again later.',
+  skill_use: 'Open one of her skills (a how-to) to follow it.',
+  skill_read: 'Read a file that comes with one of her skills.',
+  skill_find: 'Look through her skills.',
+  skill_run: 'Run a script that comes with one of her skills (asks you first).',
+  skill_save: 'Save a new skill or change one (asks you first).',
+  skill_update: 'Change one of her skills when a step was wrong (asks you first).',
   recipe_find: 'Look through the recipes she saved.',
   recipe_use: 'Follow a saved recipe.',
   share_photo: 'Send you one of her own pictures.',
@@ -2527,6 +2544,7 @@ const TOOL_NAME = {
   preview_start: 'Show you an app she runs', preview_stop: 'Close a preview', browser_open: 'Open a page in her test browser', browser_screenshot: 'Screenshot her test browser', browser_click: 'Click in her test browser', browser_type: 'Type in her test browser', browser_read: 'Read her test browser', browser_check: 'Check a page works',
   todo: 'To-dos', note: 'Notes', remind: 'Reminders', shared_list: 'Shared lists',
   recall: 'Look back at past chats', library: 'Read your documents', recipe_save: 'Save a recipe', recipe_find: 'Find a recipe', recipe_use: 'Follow a recipe',
+  skill_use: 'Use a skill', skill_read: 'Read a skill\'s file', skill_find: 'Find a skill', skill_run: 'Run a skill\'s script', skill_save: 'Save a skill', skill_update: 'Change a skill',
   scrapbook: 'Scrapbook', moments: 'Our moments', share_photo: 'Send her pictures', take_photo: 'Make a new picture', change_outfit: 'Change her outfit',
   gmail_search: 'Search Gmail', gmail_read: 'Read an email', gmail_thread: 'Read an email conversation', gmail_needs_answer: 'Find emails to answer', gmail_draft: 'Draft an email', gmail_send: 'Send an email',
   gmail_organize: 'Organize your Gmail', gmail_undo: 'Undo a Gmail change', gmail_labels: 'See Gmail labels', gmail_senders: 'Gmail clean-up summary', gmail_unsubscribe_info: 'Find unsubscribe links',
@@ -2538,6 +2556,7 @@ const TOOL_NAME = {
 const TOOL_GROUP_OF = {
   todo: 'plan', note: 'plan', remind: 'plan', shared_list: 'plan',
   recall: 'memory', library: 'memory', recipe_save: 'memory', recipe_find: 'memory', recipe_use: 'memory',
+  skill_use: 'memory', skill_read: 'memory', skill_find: 'memory', skill_run: 'run', skill_save: 'memory', skill_update: 'memory',
   scrapbook: 'pictures', moments: 'pictures', share_photo: 'pictures', take_photo: 'pictures', change_outfit: 'pictures',
   web_search: 'web', web_fetch: 'web',
   gmail_search: 'mail', gmail_read: 'mail', gmail_thread: 'mail', gmail_needs_answer: 'mail', gmail_draft: 'mail', gmail_send: 'mail', calendar_events: 'mail', calendar_add: 'mail', calendar_remove: 'mail',
@@ -6486,7 +6505,7 @@ const SETTINGS_ORDER = [
   'her-character', 'her-relationship', 'her-look', 'her-pictures', 'her-voice', 'her-calls', 'her-companions', 'her-import',
   'you-about', 'you-briefing', 'you-leave-by', 'you-adult',
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
-  'ab-tools', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
+  'ab-tools', 'ab-skills', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
   'ab-projects', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-recipes',
   'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-apps',
   'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-updates', 'dh-usage', 'dh-reports',
@@ -6616,7 +6635,7 @@ function showSettingsTab(page, opts = {}) {
   showSettingsHelp(pick);
   openGroupOf(pick);
   if (pick === 'dh-updates') void loadUpdates();
-  if (pick === 'ab-recipes') void loadRecipes();
+  if (pick === 'ab-skills') void loadSkills();
   if (pick === 'ab-budgets') void loadBudgets();
   if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam()]);
   if (pick === 'ab-ssh') void loadSsh();
@@ -7612,7 +7631,9 @@ function taskRow(tk) {
   return row;
 }
 initProjectMap(() => pageProject?.workspace ?? null);
-initRecipes();
+initSkills();
+// Phase 96: the old Recipes page points to Skills.
+$('#rc-open-skills')?.addEventListener('click', () => showSettingsTab('ab-skills', { focus: true }));
 $('#pp-edit').addEventListener('click', () => {
   $('#project-page').close();
   openProjectDialog(pageProject);

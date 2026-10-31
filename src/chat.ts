@@ -38,11 +38,12 @@ import {
 } from './safety.ts';
 import { elsewhereNote } from './elsewhere.ts';
 import { adultModeOn, type RoutePurpose, type SettingsStore } from './settings.ts';
-import type { MemoryVectors } from './embeddings.ts';
+import { embedTarget, type MemoryVectors } from './embeddings.ts';
 import { isCloudModelName } from './model-names.ts';
 import { projectSection } from './projectknow.ts';
 import { librarySection } from './library/use.ts';
 import { recipesSection } from './recipes.ts';
+import { loadedSkills, SKILL_KEEP_MESSAGES, skillsSection } from './skill-tools.ts';
 import { RECALL_MARK, recallHooks, recallMode } from './triggers.ts';
 import { CHANGES_FILES } from './codemap/tools.ts';
 import { ToolStreamTracker, type ToolBuilding } from './tool-stream.ts';
@@ -152,6 +153,8 @@ export interface AppContext {
   companionImport?: import('./companion-import/session.ts').CompanionImporter;
   /** Phase 50: how she did tricky jobs before (per companion). */
   recipes?: import('./recipes.ts').RecipeStore;
+  /** Phase 96 (ST1): her skills in the Agent Skills format (per companion; src/skill-store.ts). */
+  skills?: import('./skill-store.ts').SkillStore;
   /** Phase 44: ask the library worker to read what was just added. */
   libraryNudge?: () => void;
   /** Phase 39: team tasks she leads. */
@@ -263,7 +266,7 @@ export type ChatEvent =
   /** Phase 63: a tool call the model is still writing (throttled; see src/tool-stream.ts). Shown only, never run. */
   | ToolBuilding
   /** Phase 77: `contradiction` = the card's \"This goes against something you decided\" section (a stop). */
-  | { type: 'approval'; approvalId: string; id: string; name: string; summary: string; args: Record<string, unknown>; detail?: ApprovalDetail; computer?: import('./tools/types.ts').ComputerApproval; contradiction?: ContradictionCard; budget?: BudgetState; sandbox?: SandboxCard; sandboxFirst?: { label: string; isolated: boolean }; advisory?: AdvisoryCard; redteam?: import('./redteam.ts').RedTeamGateCard }
+  | { type: 'approval'; approvalId: string; id: string; name: string; summary: string; args: Record<string, unknown>; detail?: ApprovalDetail; computer?: import('./tools/types.ts').ComputerApproval; skill?: import('./tools/types.ts').SkillCard; contradiction?: ContradictionCard; budget?: BudgetState; sandbox?: SandboxCard; sandboxFirst?: { label: string; isolated: boolean }; advisory?: AdvisoryCard; redteam?: import('./redteam.ts').RedTeamGateCard }
   /** Phase 81: the install check's outcome for a call (not checked offline, installed anyway, not installed). */
   | { type: 'advisory'; id: string; state: 'offline' | 'override' | 'declined'; packages: string[] }
   | { type: 'redteam'; id: string; runId: number; workspace: string }
@@ -277,6 +280,8 @@ export type ChatEvent =
   | { type: 'contradiction'; id: string; item: Contradiction }
   /** Phase 85 (harness M10): a recall note that went into the next model call ("Remembered on her own"). */
   | { type: 'recall'; item: import('./triggers.ts').RecallItem }
+  /** Phase 96: a skill that fits the message was loaded up front (the step line's "Used skill"). */
+  | { type: 'skill'; name: string; scope: string; how: 'auto' }
   /** An approved tool has started running. */
   | { type: 'tool_running'; id: string; name: string; summary: string }
   /** Phase 75: `card` is a small structured result (src/cards.ts) the app draws as a result card. */
@@ -679,6 +684,19 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
   const withPhotos = messages.filter((m) => m.role === 'user' && Array.isArray(m.meta?.images) && (m.meta.images as unknown[]).length).slice(-2).map((m) => m.id);
   // Phase 49: screenshots her tools took are sent for the two most recent tool results that have them.
   const withShots = messages.filter((m) => m.role === 'tool' && Array.isArray(m.meta?.images) && (m.meta.images as unknown[]).length).slice(-2).map((m) => m.id);
+  // Phase 96 (STAPLES §4.5, "protect skill content from compaction"): a skill body she loaded is
+  // kept whole while the task runs, i.e. while the skill was loaded or used in the last 20 messages;
+  // once the conversation moves on it is trimmed like any other message.
+  const skillInUse = new Set<string>();
+  for (const m of messages.filter((x) => x.role !== 'notice' && !isForgotten(x)).slice(-SKILL_KEEP_MESSAGES)) {
+    if (m.role === 'tool' && typeof m.meta?.skill === 'string') skillInUse.add(m.meta.skill);
+    const used = m.role === 'tool' && /^skill_(read|run|use)$/.test(String(m.meta?.name ?? '')) ? String((m.meta?.args as { name?: unknown } | undefined)?.name ?? '').replace(/^[a-z]+(?::[\w.-]+)?:/, '') : '';
+    if (used) skillInUse.add(used);
+    const auto = (m.meta?.autoSkill as { name?: string } | undefined)?.name;
+    if (m.role === 'user' && auto) skillInUse.add(auto);
+  }
+  /** Out index → the skill body it carries (kept whole and brought back if the start is cut). */
+  const skillBody = new Map<number, string>();
   for (const m of messages) {
     if (isForgotten(m)) continue;
     const before = out.length;
@@ -687,7 +705,11 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
       const images = loadImage && withPhotos.includes(m.id) ? photoIds.map(loadImage).filter((x): x is ImageData => Boolean(x)) : [];
       const note = photoIds.length && !images.length ? ` [${photoIds.length} photo(s) shared earlier]` : '';
       const docs = Array.isArray(m.meta?.docs) ? docsNote(m.meta.docs as SharedDoc[]) : '';
-      out.push({ role: 'user', content: (group ? ownerLine(group.ownerName, m.content) : m.content) + note + docs, ...(images.length ? { images } : {}) });
+      // Phase 96: a skill loaded up front for this message rides on it.
+      const auto = m.meta?.autoSkill as { name?: string; text?: string } | undefined;
+      const skillNote = auto?.text ? `\n\n[Note from the app: a skill that fits this message was loaded for you; follow it where it fits:]\n${auto.text}` : '';
+      if (auto?.text && auto.name && skillInUse.has(auto.name)) skillBody.set(out.length, auto.text);
+      out.push({ role: 'user', content: (group ? ownerLine(group.ownerName, m.content) : m.content) + note + docs + skillNote, ...(images.length ? { images } : {}) });
     }
     else if (m.role === 'assistant' && m.meta?.groupFrom && typeof m.meta.groupFrom === 'object') {
       // Phase 66: another companion's line in a group chat: hers to read, labelled, never as her own.
@@ -707,6 +729,7 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
       const shotIds = Array.isArray(m.meta?.images) ? (m.meta.images as string[]) : [];
       const shots = loadImage && withShots.includes(m.id) ? shotIds.map(loadImage).filter((x): x is ImageData => Boolean(x)) : [];
       const note = shotIds.length && !shots.length ? ' [screenshot taken earlier; not shown again]' : '';
+      if (typeof m.meta?.skill === 'string' && skillInUse.has(m.meta.skill)) skillBody.set(out.length, m.content);
       out.push({ role: 'tool', toolCallId: String(m.meta?.toolCallId ?? ''), name: String(m.meta?.name ?? ''), content: m.content + note, ...(shots.length ? { images: shots } : {}) });
     } else if (m.role === 'notice' && m.content.startsWith('restore:')) {
       out.push({ role: 'user', content: `[Note from the app: ${m.content.slice(8)}]` });
@@ -723,7 +746,7 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
   if (total > budgetChars) {
     for (let i = start; i < out.length - RECENT_KEEP && total > budgetChars; i++) {
       const m = out[i];
-      if (m.role === 'tool' && m.content.length > OLD_TOOL_OUTPUT) {
+      if (m.role === 'tool' && m.content.length > OLD_TOOL_OUTPUT && !skillBody.has(i)) {
         total -= m.content.length - OLD_TOOL_OUTPUT;
         out[i] = { ...m, content: `${m.content.slice(0, OLD_TOOL_OUTPUT)}\n[… older output shortened]` };
       }
@@ -734,7 +757,7 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
       const cap = Math.max(2000, Math.floor(budgetChars / 2));
       for (let i = start; i < out.length; i++) {
         const m = out[i];
-        if (m.content.length <= cap) continue;
+        if (m.content.length <= cap || skillBody.has(i)) continue;
         const head = m.content.slice(0, Math.floor(cap * 0.7));
         const tail = m.content.slice(-Math.floor(cap * 0.25));
         out[i] = { ...m, content: `${head}\n[… ${m.content.length - head.length - tail.length} characters left out: too long to send whole …]\n${tail}` } as ChatMessage;
@@ -742,7 +765,9 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
     }
   }
   while (start < out.length && out[start].role === 'tool') start++;
-  const sliced = out.slice(start);
+  // Phase 96: skill bodies still in use that fell before the start come back as a note.
+  const kept: ChatMessage[] = [...skillBody.entries()].filter(([i]) => i < start).map(([, body]) => ({ role: 'user', content: `[Note from the app: a skill you loaded earlier for this task, kept here while you work on it:]\n${body}` }));
+  const sliced = [...kept, ...out.slice(start)];
   // Every tool result goes right after the request that asked for it (providers refuse anything
   // else). Something saved in between while she was working (a job's report, a briefing, a call
   // note) moves after those results; a result whose request is gone is left out; a request with
@@ -900,6 +925,8 @@ export interface BeforeModelCall {
   tools: string[];
   memoryPicks?: unknown[];
   policyId?: string;
+  /** Phase 96: the skills loaded in this conversation at this call (up front or with skill_use). */
+  skills?: string[];
 }
 export interface BeforeTool {
   step: number;
@@ -1028,7 +1055,7 @@ export function recorderHooks(app: AppContext, rec: RunRecorder): TurnHooks {
       // Phase 83: one hash of the history + notes sent, so a replay can prove it rebuilt them.
       const inputsSha = inputsHash(c.messages.slice(1));
       rec.overheadMs += performance.now() - t0;
-      rec.startStep({ model: c.model, provider: c.provider.config.label, system: lastClean, historyFromId: c.historyFromId, historyToId: c.historyToId, extra, inputsSha, ...(c.memoryPicks?.length ? { memoryPicks: c.memoryPicks } : {}), ...(c.policyId ? { policyId: c.policyId } : {}) });
+      rec.startStep({ model: c.model, provider: c.provider.config.label, system: lastClean, historyFromId: c.historyFromId, historyToId: c.historyToId, extra, inputsSha, ...(c.memoryPicks?.length ? { memoryPicks: c.memoryPicks } : {}), ...(c.policyId ? { policyId: c.policyId } : {}), ...(c.skills?.length ? { skills: c.skills } : {}) });
     },
     afterReply(c) {
       rec.reply(c.messageId);
@@ -1283,6 +1310,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // apps, MCP, the OpenAI-compatible API, voice assistants, group chats or shared work channels).
   // Private conversations keep them, limited to localhost with pictures only to local models.
   if (opts.externalApp || opts.group || conv.partner || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => !t.spec.name.startsWith('pc_'));
+  // Phase 96: skills are the owner's own conversations' (never other apps, voice assistants or groups; partner chats have no tools).
+  if (opts.externalApp || external || opts.group) tools = tools.filter((t) => !t.spec.name.startsWith('skill_') && t.spec.name !== 'recipe_save');
   // Phase 66: group chats get read-only tools only, and only those that run without asking (no approvals mid-round).
   if (opts.group) tools = tools.filter((t) => GROUP_TOOLS.has(t.spec.name) && app.tools.permission(t.spec.name, s.toolPermissions) === 'auto');
   // Private conversations: commands get no network either (nothing leaves the server).
@@ -1565,6 +1594,30 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   }
   // Phase 50: recipes she saved that fit this request (coding conversations, up to two).
   const recipesText = conv.mode === 'coding' && !conv.partner && app.recipes && !opts.replay && tools.some((t) => t.spec.name === 'recipe_use') ? await recipesSection(app, conv.workspace, text).catch(() => undefined) : undefined;
+  // Phase 96 (ST1, STAPLES §4.5): her skills. The catalog (names and what each is for) goes into
+  // every turn of the owner's own conversations; one body is loaded up front when it clearly fits
+  // (meaning score, margin over the next, size caps), once per conversation. Never in partner
+  // chats, groups or turns from other apps; a branch keeps its recorded prompt.
+  const skillsOffered = Boolean(app.skills) && tools.some((t) => t.spec.name === 'skill_use') && !conv.partner && !opts.group && !external && !opts.externalApp;
+  const skillsCatalog = skillsOffered && !opts.replay ? await skillsSection(app, text).catch(() => undefined) : undefined;
+  const turnSkills = skillsOffered ? loadedSkills(app, conv.id) : new Set<string>();
+  let autoSkill: string | undefined;
+  if (skillsOffered && !opts.replay && !opts.resume) {
+    try {
+      const target = embedTarget(app);
+      const pick = await app.skills!.autoPick(text, { ...(target ? { target } : {}), loaded: turnSkills, historyBudgetChars: budget });
+      if (pick) {
+        const block = app.skills!.activation(pick);
+        store.updateMessageMeta(userMsg.id, { autoSkill: { name: pick.name, scope: pick.scope, text: block } });
+        app.skills!.markUsed(pick.scope, pick.name, 'auto', { conversationId: conv.id, runId: rec.on ? rec.id : null });
+        turnSkills.add(pick.name);
+        autoSkill = pick.name;
+        yield { type: 'skill', name: pick.name, scope: pick.scope, how: 'auto' };
+      }
+    } catch (err) {
+      console.warn(`skills: ${(err as Error).message}`);
+    }
+  }
   // Phase 34: a reply that drifted out of character leaves a one-time nudge for this one.
   const nudge = !conv.partner && driftMode(app) !== 'off' && !opts.replay ? app.drift?.pending(conv.id) : undefined;
   // Phase 83: a branch keeps the recorded system prompt (byte for byte); a safety note this turn
@@ -1586,6 +1639,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // Phase 40: what she knows about the projects in this workspace (coding conversations).
       project: conv.mode === 'coding' && app.projects ? projectText : undefined,
       recipes: recipesText,
+      skills: skillsCatalog?.text,
       memories: injection?.text,
       memory: !conv.partner && memCfg.enabled && Boolean(app.memory),
       lastTime,
@@ -1676,6 +1730,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         extra: messages.slice(1).filter((m) => !sent.has(m)).map((m) => (typeof m.content === 'string' ? m.content : '')),
         tools: tools.map((t) => t.spec.name),
         ...(injection?.picks.length ? { memoryPicks: injection.picks, policyId: injection.picks[0]?.policy ?? memPolicy } : { policyId: memPolicy }),
+        ...(turnSkills.size ? { skills: [...turnSkills] } : {}),
       };
       let plan = await hooks.beforeModelCall(mc);
       if (plan.ask && meter) {
@@ -1886,8 +1941,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       if (prep?.summary) summary = app.redactor.redact(prep.summary);
       const prepDetail = prep?.detail ? (app.redactor.redactValue(prep.detail) as ApprovalDetail) : undefined;
       const prepComputer = prep?.computer ? (app.redactor.redactValue(prep.computer) as import('./tools/types.ts').ComputerApproval) : undefined;
+      const prepSkill = prep?.skill ? (app.redactor.redactValue(prep.skill) as import('./tools/types.ts').SkillCard) : undefined;
       // Phase 73: a few commands always ask first, even when the owner lets the tool run on its own.
-      const permission = set === 'auto' && (tool?.asksFirst?.(call.arguments) || prep?.ask) ? 'ask' : set;
+      // Phase 96: the owner's standing OK for exactly this call (a skill's scripts he lets run on, or
+      // "Allow for this task") skips the card; never for other apps, and never past 'never'.
+      const permission = set === 'auto' && (tool?.asksFirst?.(call.arguments) || prep?.ask) ? 'ask' : set === 'ask' && prep?.auto && !opts.externalApp && !external ? 'auto' : set;
       let allowed = permission === 'auto';
       /** Phase 78: how the call got (or didn't get) to run, for the run record. */
       let approval: AfterTool['approval'] = 'refused';
@@ -1928,7 +1986,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         if (firstCard) {
           const { id, decision } = app.approvals.request(conv.id, signal);
           const stops = (turnContradictions.get(call.id) ?? []).filter((c) => c.act === 'stop');
-          yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(prepDetail ? { detail: prepDetail } : {}), ...(prepComputer ? { computer: prepComputer } : {}), ...(stopFor ? { contradiction: cardOf(stopFor, stops.filter((c) => c !== stopFor)) } : {}), ...(gate ? { sandboxFirst: { label: gate.isolation.label, isolated: gate.isolation.isolated } } : {}), ...(advisoryStop ? { advisory: advisoryStop } : {}), ...(redteamCard ? { redteam: redteamCard } : {}) };
+          yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(prepDetail ? { detail: prepDetail } : {}), ...(prepComputer ? { computer: prepComputer } : {}), ...(prepSkill ? { skill: prepSkill } : {}), ...(stopFor ? { contradiction: cardOf(stopFor, stops.filter((c) => c !== stopFor)) } : {}), ...(gate ? { sandboxFirst: { label: gate.isolation.label, isolated: gate.isolation.isolated } } : {}), ...(advisoryStop ? { advisory: advisoryStop } : {}), ...(redteamCard ? { redteam: redteamCard } : {}) };
           allowed = await decision;
           approval = allowed ? 'allowed' : 'denied';
           const how = app.approvals.takeHow(id);
@@ -2017,7 +2075,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           } else if (permission === 'ask' && !firstCard) {
             // No try was possible: fall back to the plain approval.
             const { id, decision } = app.approvals.request(conv.id, signal);
-            yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(prepDetail ? { detail: prepDetail } : {}) };
+            yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(prepDetail ? { detail: prepDetail } : {}), ...(prepSkill ? { skill: prepSkill } : {}) };
             allowed = await decision;
             approval = allowed ? 'allowed' : 'denied';
             app.approvals.takeHow(id);
@@ -2084,7 +2142,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const card = cardFor({ name: call.name, args: shownArgs, status, output, ...(thumbs.length ? { thumb: thumbs.at(-1)! } : {}) });
       const flagged = turnContradictions.get(call.id);
       const sbRecord = tried && sbDecision && sbRisk ? sandboxRecord(tried, sbRisk, sbDecision, applied) : undefined;
-      const toolMsg = store.addMessage(conv.id, 'tool', stored, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status, ms, ...(snapshotId ? { snapshotId } : {}), ...(shown.length ? { images: shown } : {}), ...(card ? { card } : {}), ...(flagged?.length ? { contradiction: flagged[0] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(advisoryStop ? { advisory: { ...advisoryStop, ...(advisoryAnswer ? { answer: advisoryAnswer } : {}) } } : {}) });
+      // Phase 96: a skill body she loaded is marked, so the history keeps it while the task runs.
+      const loadedSkill = call.name === 'skill_use' && status === 'ok' ? /^<skill name="([^"]+)"/.exec(output)?.[1] : undefined;
+      if (loadedSkill) turnSkills.add(loadedSkill);
+      const toolMsg = store.addMessage(conv.id, 'tool', stored, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status, ms, ...(loadedSkill ? { skill: loadedSkill } : {}), ...(snapshotId ? { snapshotId } : {}), ...(shown.length ? { images: shown } : {}), ...(card ? { card } : {}), ...(flagged?.length ? { contradiction: flagged[0] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(advisoryStop ? { advisory: { ...advisoryStop, ...(advisoryAnswer ? { answer: advisoryAnswer } : {}) } } : {}) });
       receipts.push({ name: call.name, status, args: call.arguments, output });
       // Phase 78 seam 3: the call is done (the recorder keeps the scrubbed result).
       await hooks.afterTool({ step, call, summary, args: shownArgs, status, output, ms, approval, messageId: toolMsg.id, ...(snapshotId ? { snapshotId } : {}), ...(flagged?.length ? { contradictions: flagged } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(thumbs.length ? { thumbs } : {}) });
@@ -2135,5 +2196,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     const count = store.messages(conv.id).filter((m) => m.role === 'assistant' && m.content.trim()).length;
     if (!opts.replay && shouldCheck(app, conv, count)) app.driftWork = checkReply(app, conv, text, finalReply.id, finalReply.content);
   }
+  // Phase 96: the step line under the reply says "Used skill: …" after a reload too.
+  if (autoSkill && lastAssistantId) store.updateMessageMeta(lastAssistantId, { autoSkill });
   yield { type: 'done', messageId: lastAssistantId };
 }

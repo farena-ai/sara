@@ -84,10 +84,51 @@ export interface Prepared {
   computer?: ComputerApproval;
   /** Phase 88: told how the owner answered the card ("Allow for this task", "Always on this site"). */
   answered?: (allowed: boolean, how?: string) => void;
+  /**
+   * Phase 96: the owner's own standing OK for exactly this call (a skill whose scripts he lets run
+   * without asking, or "Allow for this task" on its card): a tool set to ask runs without a card.
+   * Never turns "never" on, and chat.ts ignores it in turns from other apps.
+   */
+  auto?: boolean;
+  /** Phase 96: the skill card's section (a script and its first lines, a SKILL.md draft, a change). */
+  skill?: SkillCard;
 }
 
 /** Extra structured content for an approval card (drawn by the web app; every value is plain text). */
 export type ApprovalDetail = GmailApproval;
+
+/** Phase 96: a skill card (a script to run, a skill to save, a change to one). */
+export type SkillCard = SkillApproval | SkillDraftApproval | SkillChangeApproval;
+
+/** Phase 96: a skill's script wants to run (the skill, where it lives, its first 40 lines, the arguments). */
+export interface SkillApproval {
+  kind: 'skill';
+  skill: string;
+  scope: string;
+  source: string;
+  script: string;
+  head: string;
+  args: string[];
+  /** The skill's allowed-tools field: shown, never trusted. */
+  allowedTools?: string;
+  choices: ('once' | 'task')[];
+}
+/** Phase 96: skill_save's card shows the SKILL.md she wants to write. */
+export interface SkillDraftApproval {
+  kind: 'skill-draft';
+  skill: string;
+  skillMd: string;
+  exists: boolean;
+}
+/** Phase 96: skill_update's card shows what changes, and why. */
+export interface SkillChangeApproval {
+  kind: 'skill-change';
+  skill: string;
+  scope: string;
+  why: string;
+  before: { description: string; body: string };
+  after: { description: string; body: string };
+}
 
 /** Phase 88: a computer-use card: what she wants to do where, and the answers it offers. */
 export interface ComputerApproval {

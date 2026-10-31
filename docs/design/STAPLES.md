@@ -405,6 +405,24 @@ switched on (default on).
 
 ---
 
+
+### 4.15 As built (2.29.0)
+
+- Folders are the truth; the `skills` table (+ `skills_fts`, `skill_vectors`, a use log) is an index
+  in the companion's database. `run_steps.skills` records which skills a step used.
+- Catalog: the whole list up to 24 skills / 1,600 tokens, otherwise pinned + the best 12 + "+N more".
+  Auto-load when the meaning score is ≥ 0.55 with a margin, once per conversation; bodies stay in
+  context for 20 messages while in use.
+- `skill_run` always asks (first 40 lines + args on the card; *Allow once* / *Allow for this task*); an
+  imported skill needs one approved run before *run without asking* can be turned on.
+- Starter skills: write-a-skill, review-a-pull-request, write-a-changelog-entry, weekly-review,
+  debug-a-failing-test, plan-a-trip.
+- Recipes migrate once per companion (idempotent); the recipes table stays; `recipe_save` is an alias.
+- Deviations: project skills are read from `<workspace>/.agents/skills` (also `.claude/skills`, not
+  verified end to end); CSS/id prefix `skl-` (the public-export key scan flags `sk-`); skill cards use
+  their own `skill` approval field; the plugin scope is reserved for ST3; live auto-load with
+  nomic-embed-text didn't fire in the one live try (she loaded the skill herself with `skill_use`).
+
 ## 5. ST2 · Phase 97 · 2.30.0: skills she learns
 
 ### 5.1 Scope

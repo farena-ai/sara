@@ -37,6 +37,7 @@
   <a href="#household">More than one person</a>
   <a href="#home">Home and places</a>
   <a href="#ssh">Your other servers over SSH</a>
+  <a href="#skills">Skills</a>
   <a href="#team">Sara leads a team</a>
   <a href="#workflows">Coding workflows</a>
   <a href="#starters">Starter projects</a>
@@ -269,11 +270,9 @@
   <li>See it yourself on the project page, tab <strong>Map</strong>: the folder tree with sizes and how many names each file has; click a file for its functions and classes and its imports both ways; search by name, by words, or by what the code does. Searching by meaning uses the <em>Meaning search</em> job in <em>Settings → Models → Which model does what</em> (for example <code>nomic-embed-text</code> on Ollama); without it, word search still works.</li>
   <li>The map is a cache in Sara's data folder (<code>cache/codemap</code>): backups leave it out because it is rebuilt from the files.</li>
 </ul>
-<h3 id="recipes">Recipes: how she did it last time</h3>
+<h3 id="recipes">Recipes are skills now</h3>
 <ul>
-  <li>After a tricky job goes well (a deploy, a flaky test, a fiddly setup), she can offer to save <strong>how she did it</strong> as a recipe: a title, when to use it, and the steps that worked. Saving asks you first (the approval card shows what she wrote); you can let her save without asking by setting <code>recipe_save</code> to Allowed in <em>Settings → Abilities → Tools and approvals</em>.</li>
-  <li>When you ask for something in a coding conversation, up to two recipes that fit (for that workspace, or for any) are named in her instructions, and she opens and follows them. She can also look through them herself.</li>
-  <li>Read, edit and delete them in <em>Settings → Abilities → Recipes</em>. Each companion keeps her own; they are in backups and in the data export.</li>
+  <li>Recipes (how she did a tricky job) became <strong>skills</strong> in 2.29: each one is a skill now, with the same steps and use count, and new ones are saved as skills. See <a href="#skills">Skills</a>.</li>
 </ul>
 <h3 id="see-it-run">See it run: previews and her testing browser</h3>
 <ul>
@@ -464,6 +463,15 @@
   <li><strong>Siri</strong>: on iPhone and Mac, say "Ask Sara" (or use the Ask Sara action in Shortcuts) and type or say your message; she answers in Siri.</li>
 </ul>
 
+<h2 id="skills">Skills: how-tos she follows</h2>
+<ul>
+  <li>A <strong>skill</strong> is a how-to for a kind of task: a folder with a <code>SKILL.md</code> (a name, what it does and when to use it, then the steps) and sometimes notes or scripts beside it. Sara uses the open Agent Skills format, so skills from other apps work in Sara and yours work elsewhere.</li>
+  <li>In every chat with you she sees the name and description of each skill that is on, and opens the one that fits; the line under her reply says <em>Used skill</em>. When one fits clearly, its steps are loaded right away. Partner chats, group chats and other apps get no skills.</li>
+  <li>Six come built in: write a skill, review a pull request, write a changelog entry, a weekly review, debug a failing test and plan a trip. Switch any skill on or off for each companion in <em>Settings → Abilities → Skills</em>, make your own with <em>New skill</em>, or keep one for <em>All my companions</em>.</li>
+  <li><em>Add a skill</em> takes a .zip, a git address or a folder on the server. Nothing is added until you have read the review card: every file, every script, and warnings such as words that try to change her instructions, data sent elsewhere, or something that looks like a key. A skill added from outside that changes on disk waits for a new review.</li>
+  <li>Scripts in a skill never run by themselves: each run shows the script and asks you (<em>Allow once</em> or <em>Allow for this task</em>), in her workspace sandbox. A skill can't change her approvals, budgets or safety rules, whatever it says.</li>
+  <li>A workspace's own skills (in <code>.agents/skills</code>) are used only after you trust that workspace on the Skills page. <em>Export</em> gives a zip of one skill; <em>Export all</em> a zip of all of yours.</li>
+</ul>
 <h2 id="team">Sara leads a team</h2>
 <ul>
   <li>For bigger jobs, ask her to get the team on it ("get the team to add a dark mode with tests"), or open <strong>Team</strong> in the sidebar and describe the task. She makes a plan and hands each part to a helper.</li>

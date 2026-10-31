@@ -18,6 +18,8 @@ export type HubEvent = (
   | { type: 'history-import'; status: import('./history-import/index.ts').HistoryStatus }
   /** Phase 50: a recipe was saved, changed or deleted. */
   | { type: 'recipes' }
+  /** Phase 96: a skill was added, changed, switched or removed. */
+  | { type: 'skills' }
   /** Phase 52: device-code sign-in requests waiting for the owner. */
   | { type: 'device'; pending: number }
   /** Phase 39: a team task changed (plan, a helper's progress, the end). */

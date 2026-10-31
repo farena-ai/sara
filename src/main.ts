@@ -100,7 +100,9 @@ import { LibraryWorker } from './library/worker.ts';
 import { createLibraryTool } from './library/use.ts';
 import { CodeMaps } from './codemap/index.ts';
 import { createCodeTools } from './codemap/tools.ts';
-import { createRecipeTools, RecipeStore } from './recipes.ts';
+import { RecipeStore } from './recipes.ts';
+import { SkillStore } from './skill-store.ts';
+import { createSkillTools } from './skill-tools.ts';
 import { workspaceDir } from './tools/workspace.ts';
 import { createTuneTool } from './studio.ts';
 import { DriftStore } from './drift.ts';
@@ -486,7 +488,10 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   tools.add(createTuneTool(() => app));
   // Phase 50: the code map tools and her recipes.
   if (!isMember) for (const t of createCodeTools(() => app.codemap)) tools.add(t);
-  if (!isMember) for (const t of createRecipeTools(() => app)) tools.add(t);
+  // Phase 96 (ST1): her skills replace the recipe tools (recipe_save stays as an alias of skill_save;
+  // the recipes migrate to skills once, below). Members get text-only skills (no scripts); the demo
+  // only the built-ins, to read.
+  for (const t of createSkillTools(() => app, { member: isMember, demo: isDemo })) tools.add(t);
   for (const t0 of createPhotoTools({
     webDir,
     uploads,
@@ -543,6 +548,15 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     memory,
     ...(isMember ? {} : { codemap: codemaps }),
     recipes: new RecipeStore(store.db),
+    // Phase 96: skills (folders are the truth; the tables in this database are their index).
+    skills: new SkillStore(store.db, {
+      companionDir: join(dir, 'skills'),
+      sharedDir: join(space.dir, 'skills-shared'),
+      builtinDir: join(root, 'skills'),
+      ...(isMember ? {} : { workspacesRoot: join(space.dir, 'workspaces'), trustFile: join(space.dir, 'skills-trust.json') }),
+      scratchDir: join(dir, 'cache', 'skill-imports'),
+      builtinOnly: isDemo,
+    }),
     // Phase 44: her own library, or the first companion's when the owner shares one.
     library: !main && space.settings.get().companionLibrary === 'shared' ? space.companions.main.app.library : new LibraryStore(store.db, dir),
     drift: new DriftStore(store.db),
@@ -638,6 +652,16 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   // Phase 13: background jobs, git and delegating to Claude Code / Grok Build.
   app.jobs = new JobManager(app, store.db);
   app.reports = new ReportStore(store.db, app.now);
+  // Phase 96 (STAPLES §4.7): her recipes become skills, once (a mark in memory_kv; the recipes table
+  // stays as it was). Each of the owner's companions keeps its own recipes as its own skills.
+  if (!isMember && !isDemo) {
+    try {
+      const m = app.skills!.migrateRecipes(app.recipes);
+      if (m.migrated) console.log(`Skills: ${m.migrated} recipe(s) are now skills${main ? '' : ` (companion ${id})`}.`);
+    } catch (err) {
+      console.warn(`recipes → skills: ${(err as Error).message}`);
+    }
+  }
   if (!isMember) for (const t of createCodingTools(app)) tools.add(t);
   // Phase 49: previews of the web apps her jobs run, and her testing browser.
   if (!isMember) app.previews = previews;

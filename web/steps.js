@@ -117,6 +117,20 @@ export function stepWords(name, args = {}, named = '') {
       return pair(t('Sending work to GitHub…'), t('Sent work to GitHub'), 'branch');
     case 'library':
       return pair(t('Reading your documents…'), t('Read your documents'), 'book');
+    // Phase 96: her skills (how-tos she follows).
+    case 'skill_use':
+      return pair(t('Opening a skill…'), t('Used skill: {name}', { name: String(a.name ?? '') }), 'book');
+    case 'skill_read':
+      return pair(t('Reading a skill file…'), t('Read a skill file'), 'book');
+    case 'skill_find':
+      return pair(t('Looking for a skill…'), t('Looked for a skill'), 'search');
+    case 'skill_run':
+      return pair(t("Running a skill's script…"), t("Ran a skill's script"), 'terminal');
+    case 'skill_save':
+    case 'recipe_save':
+      return pair(t('Saving a skill…'), t('Saved a skill'), 'book');
+    case 'skill_update':
+      return pair(t('Changing a skill…'), t('Changed a skill'), 'book');
     case 'settings_guide':
       return pair(t('Looking up how the app works…'), t('Looked up how the app works'), 'help');
     case 'preview_start':
@@ -289,6 +303,24 @@ export function recallStep(box, what) {
   step.li = li;
   box.querySelector('.steps-list').append(li);
   box._steps.push(step);
+  render(box);
+}
+
+/** Phase 96: a skill loaded up front for this reply ("Used skill: …"; the link opens Settings → Skills). */
+export function skillStep(box, name) {
+  if (!name || box._steps.some((s) => s.kind === 'skill' && s.skill === name)) return;
+  const done = t('Used skill: {name}', { name });
+  const step = { kind: 'skill', skill: name, name: 'skill', now: done, done, icon: 'book', status: 'ok' };
+  const li = el('li', 'step ok skill');
+  const row = el('div', 'step-head');
+  row.append(stepIcon('book'), el('span', 'step-verb', done));
+  const link = el('a', 'step-link small', t('See her skills'));
+  link.href = '/#view=settings:ab-skills';
+  row.append(link);
+  li.append(row);
+  step.li = li;
+  box.querySelector('.steps-list').prepend(li);
+  box._steps.unshift(step);
   render(box);
 }
 

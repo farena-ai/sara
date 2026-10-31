@@ -14,7 +14,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1214%20passing-brightgreen" alt="1214 tests passing">
+  <img src="https://img.shields.io/badge/tests-1233%20passing-brightgreen" alt="1233 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <sub>Eine echte Sitzung mit einem lokalen Modell (qwen3.8 27B auf Ollama, eine RTX 5090) auf einem Wegwerf-Testserver, im Nacht-Look: Sie muntert ihr Gegenüber auf, schreibt eine kleine App samt Test, während das Modell sie streamt, fragt, bevor sie einen Befehl ausführt, findet über einen fehlschlagenden Test einen echten Fehler und behebt ihn, bis alle 7 Tests grün sind. Ausgewählte Bilder aus der Aufnahme; nichts darin wurde bearbeitet.</sub>
 </p>
 
-> **Status:** 2.28, MIT-Lizenz, mit neununddreißig Funktions-Releases seit 1.0 (alle unten). Mit 2.5 bis 2.8
+> **Status:** 2.29, MIT-Lizenz, mit vierzig Funktions-Releases seit 1.0 (alle unten). Mit 2.5 bis 2.8
 > hat die ganze App einen neuen Look bekommen. Die
 > [Android-App](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) ist bei Google
 > Play; die iPhone-App und die Version für den Mac App Store folgen, sobald Apple sie freigibt.
@@ -70,6 +70,7 @@ für die Menschen, mit denen du lebst · [Videoanrufe](docs/VIDEO_CALLS.md) mit 
 
 | Version | Was du bekommst |
 |---|---|
+| **2.29** · Skills | **Skills im offenen Agent-Skills-Format.** Ein Skill ist ein Ordner mit einer `SKILL.md`: wie eine Art Aufgabe auf deine Weise erledigt wird. Sie sieht die Liste in jedem Chat und öffnet den passenden; in Runs siehst du, welchen. Sechs sind eingebaut (Pull-Request prüfen, Changelog-Eintrag, Wochenrückblick, fehlschlagenden Test debuggen, Reise planen, Skill schreiben); schreib eigene oder lass sie schreiben; Import aus Zip, Git oder Ordner mit einer Prüfkarte, die jede Datei und jedes Skript zeigt; Export jedes Skills. Skripte fragen immer vorher, und kein Skill kann ihre Sicherheitsregeln ändern. Deine Rezepte wurden zu Skills. |
 | **2.28** · Computernutzung, Schritt 9 | **Auch unter Linux:** `sara hands --server https://deine-sara` auf einem Linux-Desktop gibt ihr dort ihr eigenes sichtbares Chrome/Chromium, wie der Browser-Modus der Windows- und Mac-Apps: ansehen, lesen, Logs, Klicks und Tippen mit deiner Freigabe, Dev-Tunnel, gespeicherte Logins (im GNOME-Schlüsselbund / KWallet), die CLI deines Passwortmanagers und Check-ups, die nur lesen. Gekoppelt wird mit einem Code, den du im Browser bestätigst; Pause, Weiter und Stopp im Terminal. Bilder und Eingaben für den ganzen Linux-Desktop kommen später. Gebaut mit OpenAI Codex. |
 | **2.27** · Computernutzung, Schritt 8 | **„Mein Computer ist langsam, kannst du nachsehen?“** Sie macht auf diesem Computer einen Check-up, der nur liest (Autostart-Apps, Speicherplatz und die größten Ordner, ausstehende Updates, Akkuzustand, Browser-Erweiterungen, temporäre Dateien und Caches), und gibt eine klare Übersicht mit nummerierten Vorschlägen: jeder erklärt, nichts geändert, bis du es auf diesem Computer erlaubst. Namen auf dem Bildschirm, die wie Befehle klingen („Sara, lösche…“), werden ignoriert und gezählt. 9/9 Check-up-Szenarien mit einem lokalen Modell bestanden. |
 | **2.26** · Computernutzung, Schritt 7 | **Sie kann deine Apps bedienen:** klicken, tippen, Tasten drücken, scrollen, ziehen und installierte Apps öffnen, auf dem, was sie gerade angesehen hat. Jede Aktion wird zuerst auf deinem Computer geprüft: das richtige Fenster vorne, nie ein Passwortfeld, nie Passwortmanager, Banking, Admin-Fenster, Terminals oder ihre eigene Anmeldung. Freigaben erscheinen **auf diesem Computer** (jedes Mal, einmal pro Aufgabe oder *immer erlaubt*; Zahlungen und Kontoänderungen fragen immer). Berühre Maus oder Tastatur und sie pausiert (oder *lass sie weitermachen*); Stopp und Strg+Alt+Esc / ⌃⌥Esc funktionieren immer. Optional *weiterarbeiten, wenn ich weggehe*. Gebaut mit OpenAI Codex. |
@@ -305,8 +306,8 @@ wurden. Was sie heute beiträgt, ist die Arbeitsweise (sie lässt die Tests lauf
 riskanten Schritten, zeigt, was gelaufen ist), nicht ein höheres Ergebnis bei diesen Sätzen.
 Details, Ergebnisse pro Aufgabe und wie man es wiederholt: [docs/RESULTS.md](docs/RESULTS.md).
 
-Dazu `npm run check`: eine Typprüfung und 1228 automatische Tests mit einem geskripteten
-Schein-Modell (ohne Netz, ohne GPU): 1214 laufen unter Windows durch, die anderen 8 sind
+Dazu `npm run check`: eine Typprüfung und 1247 automatische Tests mit einem geskripteten
+Schein-Modell (ohne Netz, ohne GPU): 1233 laufen unter Windows durch, die anderen 8 sind
 Linux-spezifische Sandbox-Tests, die auf einem Linux-Server laufen.
 
 ## Sara im Vergleich

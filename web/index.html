@@ -1349,6 +1349,51 @@
   </dialog>
 
   <!-- Settings: a list of pages on the left (phone: the list, then a page), search on top -->
+  <dialog id="skill-editor" class="skill-editor" aria-labelledby="ske-heading">
+    <h2 id="ske-heading">New skill</h2>
+    <p class="muted small">A skill is a SKILL.md: a name, what it does and when to use it, then the steps. It follows the open Agent Skills format, so it works in other apps too.</p>
+    <p class="small"><a href="https://agentskills.io/specification" target="_blank" rel="noopener noreferrer">How the format works</a></p>
+    <div id="ske-info" class="skl-info small"></div>
+    <div id="ske-new-only" class="skl-form">
+      <label>Title <input id="ske-title-in" maxlength="120" placeholder="e.g. Deploy the weather app" data-nodirty></label>
+      <label>Name <input id="ske-name" maxlength="64" placeholder="deploy-the-weather-app" autocomplete="off" data-nodirty></label>
+      <label>Where it lives <select id="ske-scope" data-nodirty></select></label>
+    </div>
+    <div class="skl-form">
+      <label>What does it do and when should she use it? <textarea id="ske-desc" rows="3" maxlength="1024" data-nodirty></textarea></label>
+      <label>The steps <textarea id="ske-body" rows="12" data-nodirty></textarea></label>
+    </div>
+    <div id="ske-old-only" class="skl-form">
+      <label id="ske-pin-row" class="row"><input id="ske-pin" type="checkbox" data-nodirty> Always list it first</label>
+      <label id="ske-scripts-row" class="row"><input id="ske-scripts" type="checkbox" data-nodirty> Run its scripts without asking</label>
+      <div id="ske-version-row" class="add-row"><label>Earlier versions <select id="ske-version" data-nodirty></select></label><button id="ske-restore" type="button" class="ghost">Go back to it</button></div>
+      <h3>Files</h3>
+      <ul id="ske-files" class="skl-files"></ul>
+    </div>
+    <div id="ske-file-row" class="skl-form">
+      <label>Add a file <input id="ske-file-name" maxlength="120" placeholder="references/notes.md" autocomplete="off" data-nodirty></label>
+      <label>Its text <textarea id="ske-file-text" rows="4" data-nodirty></textarea></label>
+    </div>
+    <div class="add-row skl-editor-buttons"><button id="ske-save" type="button">Save</button><button id="ske-copy" type="button" hidden>Copy to this companion</button><button id="ske-delete" type="button" class="ghost danger-text">Delete</button></div>
+    <p id="ske-status" class="muted small" role="status"></p>
+  </dialog>
+  <dialog id="skill-import" class="skill-editor" aria-labelledby="ski-heading">
+    <h2 id="ski-heading">Add a skill</h2>
+    <p class="muted small">Bring a skill from another app or from the web. Nothing is added until you have looked at it: you see every file and every script first.</p>
+    <div id="ski-sources" class="skl-sources" role="radiogroup" aria-label="Where it comes from">
+      <button type="button" class="pick-card" role="radio" data-kind="zip" aria-checked="true"><strong>A .zip file</strong><span class="muted small">A skill folder packed as a zip, up to 5 MB.</span></button>
+      <button type="button" class="pick-card" role="radio" data-kind="git" aria-checked="false"><strong>A git address</strong><span class="muted small">An https address of a repository with one or more skills.</span></button>
+      <button id="ski-path-row" type="button" class="pick-card" role="radio" data-kind="folder" aria-checked="false"><strong>A folder on this server</strong><span class="muted small">The full path of a skill folder on the server.</span></button>
+    </div>
+    <div id="ski-zip-row" class="add-row"><input id="ski-file" type="file" accept=".zip,application/zip"></div>
+    <div id="ski-url-row" class="skl-form" hidden><label>Git address <input id="ski-url" maxlength="500" placeholder="https://github.com/owner/skills" autocomplete="off" data-nodirty></label></div>
+    <div id="ski-folder-row" class="skl-form" hidden><label>Folder on the server <input id="ski-path" maxlength="1000" placeholder="/home/alex/skills/my-skill" autocomplete="off" data-nodirty></label></div>
+    <div class="add-row"><button id="ski-look" type="button">Look at it</button></div>
+    <p id="ski-status" class="muted small" role="status"></p>
+    <div id="ski-review" class="skl-review-list"></div>
+    <div id="ski-review-row" class="add-row" hidden><label>Add it to <select id="ski-scope" data-nodirty></select></label><button id="ski-accept" type="button">Add it</button></div>
+    <div class="add-row"><button id="ski-cancel" type="button" class="ghost">Cancel</button></div>
+  </dialog>
   <dialog id="settings" class="settings-dialog">
     <form method="dialog" class="settings-layout">
       <aside class="settings-nav">
@@ -2126,17 +2171,25 @@
       </div>
         </section>
         <section class="settings-page" data-page="ab-recipes" data-group="Abilities" data-title="Recipes" data-owner-only hidden>
-      <p class="muted small">After a tricky job goes well she can write down how she did it (a <strong>recipe</strong>: when to use it and the steps that worked). In coding conversations she sees the recipes that fit what you ask and follows them. Saving one asks you first; you can change that for <code>recipe_save</code> in Tools and approvals.</p>
-      <div id="rc-list" class="rc-list"></div>
-      <div id="rc-edit" class="rc-edit" data-nodirty hidden>
-        <label>Title <input id="rc-title" maxlength="120"></label>
-        <label>When to use it <input id="rc-when" maxlength="400" placeholder="e.g. When the weather app needs to go live"></label>
-        <label>Workspace <input id="rc-ws" maxlength="64" placeholder="any workspace"></label>
-        <label>Steps <textarea id="rc-steps" rows="10" maxlength="12000"></textarea></label>
-        <p id="rc-meta" class="muted small"></p>
-        <div class="add-row"><button id="rc-delete" type="button" class="ghost danger-text">Delete recipe</button><button id="rc-close" type="button" class="ghost">Done</button></div>
-        <p id="rc-status" class="muted small" role="status"></p>
-      </div>
+      <p class="muted small">Recipes are skills now: every recipe she saved became a skill, and new ones are saved as skills. Read, change and switch them in Skills.</p>
+      <div class="add-row"><button id="rc-open-skills" type="button">Open Skills</button></div>
+        </section>
+        <section class="settings-page" data-page="ab-skills" data-group="Abilities" data-title="Skills" hidden>
+      <p class="muted small">Skills are how-tos she follows for kinds of tasks: a code review, a changelog entry, a weekly review, a trip. She sees the list in every chat with you and opens the one that fits. They are folders in the open Agent Skills format, so you can bring them from other apps and take them along.</p>
+      <p id="skl-migrated" class="skl-note" hidden></p>
+      <div class="add-row skl-top"><button id="skl-new" type="button">New skill</button><button id="skl-add" type="button" class="ghost">Add a skill</button><button id="skl-export-all" type="button" class="ghost">Export all</button></div>
+      <div id="skl-recipe-row" class="add-row" hidden><label>From a recipe <select id="skl-recipe"></select></label><button id="skl-recipe-go" type="button" class="ghost">Make it a skill</button></div>
+      <h3>How she uses them <button type="button" class="tip" data-tip="She sees the name and description of every skill that is on: all of them up to 24, or the 12 that fit best (plus the ones you pin) from a longer list. She opens a skill's steps only when a request fits.">?</button></h3>
+      <ul class="skl-how muted small">
+        <li>When one clearly fits what you ask, its steps are loaded right away <button type="button" class="tip" data-tip="Only when one skill fits much better than the others, its steps are small enough, and it isn't loaded in this chat yet. Otherwise she opens it herself. The line under her reply says Used skill: and its name.">?</button></li>
+        <li>Scripts in a skill ask you before they run <button type="button" class="tip" data-tip="A skill can bring scripts. Each run shows the script's first 40 lines and asks you. You can allow it for this task, or let one skill's scripts run without asking; added skills need one approved run first.">?</button></li>
+        <li>Where a skill lives decides who has it <button type="button" class="tip" data-tip="This companion: only her. All my companions: every companion of yours. Built in: comes with Sara, switch it off if you like. Project: a workspace's own skills, only after you trust that workspace. On a name clash the first one in that order wins.">?</button></li>
+      </ul>
+      <label class="skl-filter">Show <select id="skl-show"><option value="all">All skills</option><option value="on">Switched on</option><option value="mine">Mine</option><option value="builtin">Built in</option></select></label>
+      <h3 id="skl-projects-head" hidden>Project skills <button type="button" class="tip" data-tip="A workspace can carry its own skills in .agents/skills. A cloned project could use them to steer her, so they are left out until you trust that workspace here. Stop trusting removes them again.">?</button></h3>
+      <div id="skl-projects" class="skl-projects" hidden></div>
+      <div id="skl-list" class="skl-list"></div>
+      <p id="skl-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="ab-home" data-group="Abilities" data-title="Home Assistant" data-owner-only hidden>
       <p class="muted small">Let her see and control your home through <strong>Home Assistant</strong>: lights, switches, thermostats, locks, blinds, scenes. She can look on her own; every change asks you first. Your Home Assistant must be reachable from this server (for example your Nabu Casa address, or over Tailscale).</p>

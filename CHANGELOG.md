@@ -5,6 +5,25 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.29.0 (2026-10-31): skills (Phase 96, the first agent staple)
+
+- **Skills in the open [Agent Skills](https://agentskills.io/specification) format**: a folder with a
+  `SKILL.md` (and optional scripts and files). Scopes: a project's own skills (after you trust the
+  project), this companion's, *All my companions*, and built-in. Settings → Abilities → Skills: on/off,
+  view and edit, copy, export, *From a recipe*. Guide: [docs/SKILLS.md](docs/SKILLS.md).
+- She sees a short catalog in every chat and loads a skill when it fits (or when you ask); tools
+  `skill_use`, `skill_read`, `skill_find`, `skill_run`, `skill_save`, `skill_update`. Runs record which
+  skills each step used.
+- **Six starter skills:** write a skill, review a pull request, write a changelog entry, a weekly
+  review, debug a failing test, plan a trip.
+- **Import** from a zip (5 MB, zip-bomb caps), a git address or (owner) a folder on the server, always
+  through a review card that lists every file and flags scripts. **Export** gives a deterministic zip.
+- **Scripts always ask** (the card shows the start of the script and its arguments); an imported skill
+  needs one approved run before *run without asking* can be turned on. `allowed-tools` is shown, never
+  trusted. No skill can change the safety layer.
+- **Recipes became skills** (once per companion; nothing is lost; `recipe_save` still works).
+- Household members get their own text-only skills; the demo has the built-in ones.
+
 ## 2.28.0 (2026-10-31): computer use, step 9: Linux (Phase 95; the computer use track is complete)
 
 - **`sara hands --server https://your-sara`** on a Linux desktop (as yourself, not root): pair with a

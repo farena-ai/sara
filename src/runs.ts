@@ -103,6 +103,8 @@ export interface StepInfo {
   label?: string;
   /** Phase 83: sha256 of the history + notes sent (scrubbed), so a replay can say whether it rebuilt them exactly. */
   inputsSha?: string;
+  /** Phase 96: the skills loaded in the conversation at this step (up front or with skill_use). */
+  skills?: string[];
 }
 
 export interface RunSettings {
@@ -184,6 +186,8 @@ export interface StepView {
   extra: string[];
   /** Phase 83: hash of the history + notes sent (null for steps recorded before 2.16). */
   inputsSha: string | null;
+  /** Phase 96: the skills loaded at this step (empty before 2.29). */
+  skills: string[];
 }
 
 /** Phase 83: one message of a branch, kept in the run record (never in the conversation). */
@@ -290,6 +294,8 @@ export class RunStore {
     const cols = (t: string) => new Set((db.prepare(`PRAGMA table_info(${t})`).all() as Row[]).map((r) => String(r.name)));
     if (!cols('runs').has('branch')) db.exec('ALTER TABLE runs ADD COLUMN branch TEXT');
     if (!cols('run_steps').has('inputs_sha')) db.exec('ALTER TABLE run_steps ADD COLUMN inputs_sha TEXT');
+    // Phase 96 (additive): which skills were loaded at each step.
+    if (!cols('run_steps').has('skills')) db.exec('ALTER TABLE run_steps ADD COLUMN skills TEXT');
     // Phase 87 (additive): step thumbnails of computer use (320 px JPEGs, redacted on the device),
     // kept by hash with their run; a shorter retention than the run itself (30 days).
     db.exec(`CREATE TABLE IF NOT EXISTS run_thumbs (
@@ -379,8 +385,8 @@ export class RunStore {
     const msgIds = s.tools.map((t) => t.messageId).filter((x): x is number => Boolean(x));
     const bytes = (calls?.length ?? 0) + (tools?.length ?? 0) + (files?.length ?? 0) + (contra?.length ?? 0) + (extra?.length ?? 0) + (picks?.length ?? 0) + 300;
     this.#db
-      .prepare('INSERT INTO run_steps (run_id, idx, at, label, model, provider, system_sha, history_from_id, history_to_id, extra, memory_picks, policy_id, calls, tool_calls, tool_message_ids, files_touched, contradictions, tokens_in, tokens_out, usd, unpriced, unreported, ms, stopped, reply_message_id, bytes, inputs_sha) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(runId, idx, at, info.label?.slice(0, 200) ?? null, s.model ?? info.model ?? null, s.provider ?? info.provider ?? null, sha, info.historyFromId ?? null, info.historyToId ?? null, extra, picks, info.policyId ?? null, calls, tools, msgIds.length ? JSON.stringify(msgIds) : null, files, contra, sum.in, sum.out, sum.usd, sum.unpriced, sum.unreported, sum.ms, s.stopped ?? null, s.replyMessageId ?? null, bytes, info.inputsSha ?? null);
+      .prepare('INSERT INTO run_steps (run_id, idx, at, label, model, provider, system_sha, history_from_id, history_to_id, extra, memory_picks, policy_id, calls, tool_calls, tool_message_ids, files_touched, contradictions, tokens_in, tokens_out, usd, unpriced, unreported, ms, stopped, reply_message_id, bytes, inputs_sha, skills) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(runId, idx, at, info.label?.slice(0, 200) ?? null, s.model ?? info.model ?? null, s.provider ?? info.provider ?? null, sha, info.historyFromId ?? null, info.historyToId ?? null, extra, picks, info.policyId ?? null, calls, tools, msgIds.length ? JSON.stringify(msgIds) : null, files, contra, sum.in, sum.out, sum.usd, sum.unpriced, sum.unreported, sum.ms, s.stopped ?? null, s.replyMessageId ?? null, bytes, info.inputsSha ?? null, info.skills?.length ? JSON.stringify(info.skills.slice(0, 50)) : null);
     return bytes;
   }
 
@@ -469,6 +475,7 @@ export class RunStore {
       replyMessageId: r.reply_message_id === null ? null : Number(r.reply_message_id),
       extra: parse<string[]>(r.extra, []),
       inputsSha: (r.inputs_sha as string | null | undefined) ?? null,
+      skills: parse<string[]>(r.skills, []),
     };
   }
 
