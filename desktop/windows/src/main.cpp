@@ -1064,6 +1064,8 @@ static std::wstring handsBrowserProfile() {
   CreateDirectoryW(dir.c_str(), nullptr);
   return dir + L"\\" + (g_profile.empty() ? L"s1" : g_profile);
 }
+/** Phase 90 (CU4): the saved logins of the Sara browser: %LOCALAPPDATA%\\Sara\\logins.dat (test runs: their own folder). */
+static std::wstring loginsFile() { return dataDir() + L"\\logins.dat"; }
 /** Starts or stops the hands for the server in use, as its settings say. */
 static void handsSync() {
   if (!handsOn() || g_server.empty()) return sarahands::stop();
@@ -1083,6 +1085,9 @@ static void handsSync() {
   h.logFile = dataDir() + L"\\hands-log.txt";
   h.expiresAt = toUtf8(getIni(handsSection(), L"handsExpires"));
   h.testLabel = testRun();
+  // Phase 90: saved logins (DPAPI, this Windows user only) and Windows Hello before each use.
+  h.loginsFile = loginsFile();
+  h.loginsVerify = getIni(handsSection(), L"loginsVerify") == L"1";
   std::wstring section = handsSection();
   h.onToken = [section](const std::string& tok, const std::string& exp) {
     std::wstring sealed = sarahands::protect(tok);
@@ -1105,7 +1110,8 @@ static std::wstring handsPrefsJson() {
   return std::wstring(L",\"handsSupported\":true,\"handsOptIn\":") + (handsOn() ? L"true" : L"false") + L",\"handsLocalOnly\":" + (getIni(handsSection(), L"handsLocalOnly") == L"1" ? L"true" : L"false") +
          L",\"handsConnected\":" + (sarahands::connected() ? L"true" : L"false") + L",\"handsDeviceId\":\"" + jsonEscape(getIni(handsSection(), L"handsId")) + L"\",\"handsError\":\"" +
          jsonEscape(sarahands::lastError()) + L"\",\"handsBrowser\":" + (sarahands::browserPath().empty() ? L"false" : L"true") + L",\"computerName\":\"" + jsonEscape(computerName()) + L"\"" +
-         L",\"handsTakeover\":\"" + (getIni(handsSection(), L"handsTakeover") == L"keep" ? L"keep" : L"pause") + L"\",\"handsHotkey\":\"" + jsonEscape(sarahands::hotkeyLabel()) + L"\"";
+         L",\"handsTakeover\":\"" + (getIni(handsSection(), L"handsTakeover") == L"keep" ? L"keep" : L"pause") + L"\",\"handsHotkey\":\"" + jsonEscape(sarahands::hotkeyLabel()) + L"\"" +
+         L",\"loginsSupported\":true,\"loginsVerify\":" + (getIni(handsSection(), L"loginsVerify") == L"1" ? L"true" : L"false");
 }
 
 // Her face for the tray menu: the page's PNG, decoded and scaled with WIC (premultiplied alpha).
@@ -2420,6 +2426,11 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
       setIni(handsSection(), L"handsLocalOnly", on ? L"1" : L"0");
       sarahands::setLocalOnly(on);
     }
+    else if (key == L"loginsVerify") {
+      // Phase 90: Windows Hello before Sara uses a saved login (off by default).
+      setIni(handsSection(), L"loginsVerify", on ? L"1" : L"0");
+      sarahands::setLoginsVerify(on);
+    }
     else if (key == L"handsTakeover") {
       // Phase 88: "When you move the mouse": pause Sara (default) or let her keep control.
       bool keepIt = m[L"value"] == L"keep";
@@ -2447,6 +2458,18 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
   if (kind == L"handsOff") {
     handsOff();
     return reply(id, prefsJson());
+  }
+  // Phase 90: this server's saved logins on this computer (names, sites, dates; never a password).
+  if (kind == L"loginsList") {
+    if (g_server.empty()) return reply(id, L"{\"logins\":[]}");
+    return reply(id, sarahands::loginsJson(g_server, loginsFile()));
+  }
+  if (kind == L"loginsRemove") {
+    if (g_server.empty()) return reply(id, L"null", L"Not connected to a Sara server.");
+    std::wstring err;
+    int n = sarahands::forgetLogin(g_server, loginsFile(), toUtf8(m[L"name"]), m[L"all"] == L"true", err);
+    if (!err.empty()) return reply(id, L"null", err);
+    return reply(id, L"{\"removed\":" + std::to_wstring(n) + L"}");
   }
   if (kind == L"handsStop") {
     sarahands::pressStop();

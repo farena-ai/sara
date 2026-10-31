@@ -1500,6 +1500,10 @@
         <label class="row"><input id="cu-localonly" type="checkbox" data-noauto> Screenshots only to models on this computer <button type="button" class="tip" data-tip="Pictures of this screen then go only to a model on your own hardware (like Ollama). With a cloud model she works from the page's text instead. Private local mode always does this.">?</button></label>
         <label class="row">When you move the mouse <select id="cu-takeover" data-noauto><option value="pause">Pause Sara</option><option value="keep">Let Sara keep control</option></select> <button type="button" class="tip" data-tip="Pause Sara (default): if you use her browser window, she stops until you press Resume on her badge. Let Sara keep control: she goes on and the badge says so. Stop always works.">?</button></label>
         <p class="row small">Stop shortcut: <kbd id="cu-hotkey">Ctrl+Alt+Esc</kbd> <button type="button" class="tip" data-tip="Press these keys anywhere on this computer to stop Sara at once. The badge at the top of the screen and the app's menu have Stop too.">?</button></p>
+        <label class="row"><input id="cu-verify" type="checkbox" data-noauto> Ask for Windows Hello / Touch ID before Sara uses a saved login <button type="button" class="tip" data-tip="Off by default. On: each time Sara signs in with a login saved on this computer, the computer first asks you to confirm it's you (face, fingerprint or PIN).">?</button></label>
+        <h4>Saved logins on this computer</h4>
+        <ul id="cu-this-logins" class="cu-list"></ul>
+        <p id="cu-this-logins-none" class="muted small">No saved logins.</p>
         <p class="small"><span id="cu-this-status" class="muted small" role="status"></span></p>
       </div>
       <div id="cu-get" class="cu-get" hidden>
@@ -1516,6 +1520,10 @@
         <p id="cu-tunnels-none" class="muted small">No dev tunnel is open.</p>
         <label class="row">Which computer <select id="cu-tunnel-device" data-noauto></select></label>
         <p class="row"><button id="cu-tunnel-try" type="button" class="ghost">Try the dev tunnel</button> <button type="button" class="tip" data-tip="Opens a small test page from this server in Sara's browser on that computer, through a tunnel, for 5 minutes. It checks storage, a live connection, sending data and a large file.">?</button></p>
+      </div>
+      <div id="cu-logins" hidden>
+        <h3>Saved logins <button type="button" class="tip" data-tip="Logins Sara may use on a computer. They are kept encrypted only on that computer, never on this server, and she never sees the passwords. Each use asks you first. Remove one here and that computer deletes it.">?</button></h3>
+        <div id="cu-logins-list" class="cu-logins-list"></div>
       </div>
       <div id="cu-acts" hidden>
         <h3>Her actions</h3>

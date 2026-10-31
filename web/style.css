@@ -1457,6 +1457,11 @@ body:not(.member) [data-member-only] { display: none !important; }
 .cu-row button { min-height: 44px; }
 .cu-explain-list { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 6px; color: var(--text-2); }
 .cu-this label.row, #cu-owner label.row { min-height: 44px; }
+/* Phase 90: saved logins, per computer */
+.cu-logins-list { display: grid; gap: 12px; }
+.cu-logins-device { display: grid; gap: 8px; min-width: 0; }
+.cu-logins-device h4, .cu-this h4 { margin: 8px 0 0; overflow-wrap: anywhere; }
+.cu-logins-device > button { justify-self: start; min-height: 44px; }
 .rcard-computer .rc-thumb, .rcard-hands-install .rc-thumb { display: block; max-width: 100%; width: 320px; border-radius: 8px; border: 1px solid var(--hairline); margin-top: 6px; }
 .rcard-computer .rc-url { color: var(--text-3); font-size: .85em; overflow-wrap: anywhere; }
 .rcard-hands-install .button-link, .cu-get .button-link { margin-top: 6px; min-height: 44px; line-height: 30px; }

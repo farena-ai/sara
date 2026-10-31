@@ -172,3 +172,26 @@ export function actionVerdict(f: ActFacts): ActVerdict {
   if (f.level === 'task' && f.taskSites.has(f.site)) return { act: 'allow', risk, why: 'allowed for this task' };
   return { act: 'ask', risk, why: f.level === 'ask' ? 'every action asks' : 'the first action on this site in this task', choices: f.level === 'task' ? ['once', 'task', 'always'] : ['once', 'always'] };
 }
+
+// ---- Phase 90 (CU4, §8.2): saved logins ----
+//   using a saved login (pc_browser_login)                          → ask every time, at every level (approve-once)
+//   offering to save one (pc_browser_save_login)                    → only when the owner said so in so many words
+//                                                                     (the device's own consent window is the real yes)
+
+/** A saved login is used only after a card, every time (no \"for this task\", no \"always\"). */
+export function loginVerdict(): { act: 'ask'; risk: 'login'; why: string; choices: 'once'[] } {
+  return { act: 'ask', risk: 'login', why: 'using a saved login (asks every time)', choices: ['once'] };
+}
+
+const SAVE_WORD = /\b(save|remember|keep|store)\b/i;
+const LOGIN_WORD = /\b(log-?ins?|logon|sign-?ins?|passwords?|pass ?codes?|credentials?)\b/i;
+const NOT_SAVE = /\b(don'?t|do not|never|no need to|stop)\s+(?:\w+\s+){0,2}(save|remember|keep|store)\b/i;
+/**
+ * The owner asked in so many words to save a login: a save word and a login word in the same sentence
+ * of their message (\"save my GitHub login\", \"remember the password for this site\"), not a \"don't\".
+ */
+export function askedToSaveLogin(text: string): boolean {
+  return String(text ?? '')
+    .split(/[.!?\n]+/)
+    .some((s) => SAVE_WORD.test(s) && LOGIN_WORD.test(s) && !NOT_SAVE.test(s));
+}

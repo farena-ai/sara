@@ -741,6 +741,50 @@ ROADMAP/ROADMAP.public, THREAT_MODEL and SECURITY updates in the same release.
   (test: fixture login on `hands-ref` + network capture of the hands channel on the real apps); a
   look-alike origin gets nothing; saving without the ticked warning is impossible; removing a login
   from web Settings removes it on the device.
+- **As built (Phase 90, 2.23.0).** Protocol (`src/hands.ts`): `CU4_OPS` = `b.login`, `b.saveLogin`,
+  `b.logins`, `b.forgetLogin`, `b.yourTurn`; `hello.logins` and `ev logins` are cut to `{name, sites}`
+  by the server whatever a device sends (`loginViews`), `hello.vault {kind: dpapi | keychain | test,
+  verify}`; `b.saveLogin` and `b.yourTurn` get up to 10 minutes (`WAITING_DEADLINE_MS`), every other op
+  keeps 120 s. Rules shared by every device in `src/hands-logins.ts` (exact origin = scheme + host +
+  port after URL normalisation, addresses with a user name refused; names ≤ 60 characters; 100 logins
+  per server per device; the warning text; a login belongs to the Sara server it was saved through,
+  so another server paired on the same computer can't list or use it).
+  Server: `pc_browser_login {login}` checks the name is in that computer's hello and the open page's
+  origin is one of its sites before raising a card (no pointless card for a look-alike), then asks
+  every time (`loginVerdict`: risk `login`, only "Allow once", even at Always allowed); the answer
+  is only filled / not found (no such login, or no password field) / site doesn't match.
+  `pc_browser_save_login {name?}` is refused unless the owner's message of this turn says a save word
+  and a login word in one sentence without a "don't" (`askedToSaveLogin`); the device's window is the
+  real yes. `pc_browser_your_turn {what}` is §8.1's pause (it did not exist before). Routes:
+  `GET /api/hands/<id>/logins` (asks the device now), `DELETE …/logins/<name>` and `DELETE …/logins`
+  (the device removes and answers how many, then sends `ev logins`); the `hands` family, owner-only
+  unless the member switch is on.
+  Devices: the page agent gains `loginFields` / `focusLogin` (positions and focus only, never values)
+  and `catchLogins`, installed by the device in an isolated world of its own with a DevTools binding
+  (`saraLoginCaught`) that only that world can call; what the person typed into a sign-in form is kept
+  in the app's memory for 10 minutes for "Use what I just typed" and never sent. `keys()` now refuses
+  text keys while a password field is focused (Enter still submits). Fill = mark, real click,
+  `focusLogin` (same origin, and the password field must be a password field), `Input.insertText` on
+  the pipe, Enter. Windows (`hands.cpp`): DPAPI CurrentUser file with its own entropy, written through
+  a temp file + `MoveFileEx`, plaintext buffers wiped with `SecureZeroMemory`; the two windows are
+  plain Win32 controls on their own thread (topmost, `TEST ·` in test builds); Windows Hello through
+  `IUserConsentVerifierInterop`. Mac (`Hands.swift`): Keychain items as in `docs/desktop.md`, AppKit
+  `NSPanel`s, Touch ID through `LAContext(.deviceOwnerAuthentication)`. Reference hands: `TestVault`,
+  a `consent` stand-in for the window, `recordWire` (every frame both ways, for the leak test).
+  Proof: `test/phase90.test.ts` scans the reference's whole hands traffic, every model request, every
+  run step, the conversation and every file of the server's data folder for the fixture password
+  (none; the fixture site received it, as the positive control); on the real apps
+  `scripts/hands-capture.ts` (a relay that unmasks and records every frame) was put between each test
+  build and a throwaway server during conformance and a live run, then searched (see the handoff).
+  Conformance: section 10, 17 checks, the windows answered by `--consent-driver`.
+- **Deviations (Phase 90).** The app's own Settings shows "Saved logins on this computer" inside its
+  Computer use page (with Remove each; "Remove all" is in the web list per computer) rather than a
+  separate "Saved logins for Sara" page. Touch ID uses `.deviceOwnerAuthentication`, so the Mac's
+  password is the fallback when Touch ID isn't available. Native windows are English only, as the
+  rest of both apps' native text. The owner's raw-op test route (`POST /api/hands/<id>/op`, used by
+  conformance) can send `b.login` without a card, like every other op on it: it is the owner's own
+  test tool, owner-only, and the password still never leaves the device. A look-alike that serves
+  the real origin through a compromised DNS/TLS setup is out of scope (the browser's own checks).
 
 ### Phase 91 · 2.24.0 · CU4b: password managers (owner decision 3)
 - Detect installed managers on the device: Bitwarden (its CLI `bw`, or its extension inside the Sara

@@ -161,7 +161,7 @@ test('coding benchmark helpers: problem parsing, the hidden test program, code f
 test('coding benchmark helpers: sanitized MBPP uses the held-out split and answer-free prompts', () => {
   const raw = JSON.stringify([
     { task_id: 10, prompt: 'training', code: 'def ignored(x):\n    return x', test_imports: [], test_list: ['assert ignored(1) == 1'], source_file: 'train' },
-    { task_id: 11, prompt: 'Return the value.', code: 'def helper(x):\n    return x\ndef check (x):\n    return helper(x)', test_imports: ['from math import prod'], test_list: ['assert check(2) == 2'], source_file: 'test' },
+    { task_id: 11, prompt: 'Return the value.', code: 'def helper(x):\n    return x\ndef check (x):\n    return helper(x)', test_imports: ['from math import sqrt'], test_list: ['assert check(2) == 2'], source_file: 'test' },
     { task_id: 510, prompt: 'Return two.', code: 'def two():\n    return 2', test_imports: [], test_list: ['assert two() == 2'], source_file: 'test' },
     { task_id: 511, prompt: 'validation', code: 'def ignored():\n    return 0', test_imports: [], test_list: ['assert ignored() == 0'], source_file: 'validation' },
   ]);
@@ -169,8 +169,8 @@ test('coding benchmark helpers: sanitized MBPP uses the held-out split and answe
   assert.deepEqual(problems.map((p) => p.task_id), ['MBPP/11', 'MBPP/510']);
   assert.equal(problems[0].entry_point, 'check');
   assert.match(problems[0].prompt, /^def check \(x\):/);
-  assert.ok(!problems[0].prompt.includes('helper') && !problems[0].prompt.includes('prod'));
-  assert.equal(testProgram('def check(x):\n    return x', problems[0]), 'def check(x):\n    return x\n\nfrom math import prod\n\nassert check(2) == 2\n');
+  assert.ok(!problems[0].prompt.includes('helper') && !problems[0].prompt.includes('sqrt'));
+  assert.equal(testProgram('def check(x):\n    return x', problems[0]), 'def check(x):\n    return x\n\nfrom math import sqrt\n\nassert check(2) == 2\n');
   const python = process.platform === 'win32' ? 'python' : 'python3';
   assert.equal(runHidden(python, 'def check(x):\n    return x', problems[0]).pass, true);
   assert.equal(runHidden(python, 'def check(x):\n    return x + 1', problems[0]).pass, false);

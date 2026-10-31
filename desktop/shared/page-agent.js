@@ -378,6 +378,8 @@
     }
     if (!main) return { error: 'Say which key.' };
     var chord = (mods & (2 | 1 | 4)) !== 0;
+    // Phase 90: no typing into a password field key by key either (Enter still submits it).
+    if (main.text && main.key !== 'Enter' && !chord && isSecretField(document.activeElement)) return { error: 'That is a password field: Sara never types into those.' };
     var down = { type: main.text && !chord ? 'keyDown' : 'rawKeyDown', key: main.key, code: main.code, windowsVirtualKeyCode: main.vk, modifiers: mods };
     if (main.text && !chord) down.text = main.text;
     if (chord && (mods & (2 | 4)) && COMMANDS[main.key.toLowerCase()]) down.commands = [COMMANDS[main.key.toLowerCase()]];
@@ -423,7 +425,70 @@
     return { url: location.href, title: mask(document.title), count: elements().length, heading: h ? mask(String(h.innerText || '').trim().slice(0, 120)) : '', alerts: alerts, focus: document.activeElement && document.activeElement !== document.body ? mask(desc(document.activeElement)) : '' };
   }
 
-  var API = { find: find, read: read, check: check, snapshot: snapshot, text: text, target: target, focusFor: focusFor, choose: choose, scroll: scroll, keys: keys, fileInput: fileInput, mark: mark, state: state };
+  // ---- Phase 90 (CU4, §8.2): saved logins. The device fills a saved login itself: these functions only
+  // find the sign-in fields and focus them (the caller types through DevTools input, on this computer).
+  // They never return a field's value. The one exception is catchLogins: it hands what the person just
+  // typed into a sign-in form to the device's own binding (saraLoginCaught, in an isolated world of its
+  // own), so the device can offer "Use what I just typed" in its save window. That never leaves the
+  // computer: the binding is DevTools on the pipe, not the hands channel. ----
+  function loginPassField(root) {
+    var list = Array.prototype.slice.call((root || document).querySelectorAll('input[type=password]')).filter(function (e) { return vis(e) && !e.disabled && !e.readOnly; });
+    return list.find(function (e) { return String(e.getAttribute('autocomplete') || '').toLowerCase().indexOf('current-password') >= 0; }) || list.find(function (e) { return String(e.getAttribute('autocomplete') || '').toLowerCase().indexOf('new-password') < 0; }) || list[0] || null;
+  }
+  function loginUserField(pass) {
+    var scope = (pass && (pass.form || (pass.closest && pass.closest('form')))) || document;
+    var cands = Array.prototype.slice.call(scope.querySelectorAll('input')).filter(function (e) {
+      var ty = String(e.type || 'text').toLowerCase();
+      return vis(e) && !e.disabled && !e.readOnly && (ty === 'text' || ty === 'email' || ty === 'tel' || ty === '');
+    });
+    var by = function (re) { return cands.find(function (e) { return re.test(String(e.getAttribute('autocomplete') || '').toLowerCase()); }); };
+    var named = cands.find(function (e) { return /user|email|login|account|identifier/.test((String(e.name || '') + ' ' + String(e.id || '')).toLowerCase()); });
+    var before = null;
+    if (pass) for (var i = 0; i < cands.length; i++) if (cands[i].compareDocumentPosition(pass) & 4) before = cands[i];
+    return by(/username/) || by(/email/) || cands.find(function (e) { return String(e.type).toLowerCase() === 'email'; }) || named || before || null;
+  }
+  function spot(e) {
+    if (!e) return null;
+    e.scrollIntoView({ block: 'center', inline: 'center' });
+    var b = e.getBoundingClientRect();
+    return { x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2), box: { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height) }, desc: mask(desc(e)) };
+  }
+  /** Where the sign-in fields of this page are (never their values), and the page's own origin. */
+  function loginFields() {
+    var pass = loginPassField();
+    var user = loginUserField(pass);
+    return { origin: location.origin, pass: spot(pass), user: spot(user) };
+  }
+  /** Focuses one of the sign-in fields (after the caller's real click) and selects what is there. */
+  function focusLogin(a) {
+    var pass = loginPassField();
+    var e = a.which === 'pass' ? pass : loginUserField(pass);
+    if (!e) return { focused: false, origin: location.origin };
+    if (document.activeElement !== e) e.focus();
+    if (e.select) e.select();
+    return { focused: document.activeElement === e, origin: location.origin, secret: isSecretField(e) };
+  }
+  /** Installed by the device in its own isolated world on every page: remembers a sign-in the person typed. */
+  function catchLogins() {
+    if (window.__saraCatching) return { installed: true };
+    window.__saraCatching = true;
+    var send = function (form) {
+      if (typeof window.saraLoginCaught !== 'function') return;
+      var pass = loginPassField(form || document);
+      if (!pass || !pass.value) return;
+      var user = loginUserField(pass);
+      try { window.saraLoginCaught(JSON.stringify({ origin: location.origin, username: user ? String(user.value || '') : '', password: String(pass.value) })); } catch (err) { /* the device isn't listening */ }
+    };
+    document.addEventListener('submit', function (ev) { send(ev.target); }, true);
+    document.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && isSecretField(ev.target)) send(ev.target.form); }, true);
+    document.addEventListener('click', function (ev) {
+      var b = ev.target && ev.target.closest ? ev.target.closest('button, input[type=submit], [role=button]') : null;
+      if (b && loginPassField(b.form || document)) send(b.form);
+    }, true);
+    return { installed: true };
+  }
+
+  var API = { find: find, read: read, check: check, snapshot: snapshot, text: text, target: target, focusFor: focusFor, choose: choose, scroll: scroll, keys: keys, fileInput: fileInput, mark: mark, state: state, loginFields: loginFields, focusLogin: focusLogin, catchLogins: catchLogins };
   return {
     version: 1,
     call: function (fn, args) {

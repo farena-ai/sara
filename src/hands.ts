@@ -21,6 +21,14 @@
 //   device → server  {t:'renew'}  →  server → device {t:'token', token, expiresAt}  (a fresh hands token)
 // Phase 89 (CU3) adds the dev tunnel (src/tunnel.ts): req c.tunnel / c.untunnel, {t:'s', ev, sid}
 // stream control both ways, and binary stream frames both ways (header {s: sid}, then bytes).
+// Phase 90 (CU4, §8): saved logins that live only on the computer (src/hands-logins.ts):
+//   device → server  hello.logins [{name, sites}] (names and sites only, never a username or password),
+//                    hello.vault {kind: 'dpapi' | 'keychain' | 'test', verify} (Windows Hello / Touch ID first)
+//   server → device  req b.login {name, submit?} → {outcome: 'filled' | 'not_found' | 'site_mismatch'}
+//                    req b.saveLogin {name?} → the device's own consent window → {outcome: 'saved' | 'cancelled', name, sites}
+//                    req b.logins → {logins: [{name, sites, created, lastUsed}]}; req b.forgetLogin {name | all} → {removed}
+//                    req b.yourTurn {what} → "Your turn" on the device until the person presses Continue → {continued}
+//   device → server  {t:'ev', kind:'logins', logins} (saved or removed there, e.g. in the app's Settings)
 import { randomUUID } from 'node:crypto';
 import type { EventHub } from './events.ts';
 import { Tunnels } from './tunnel.ts';
@@ -33,13 +41,18 @@ export const CU1_OPS = ['b.start', 'b.tabs', 'b.open', 'b.navigate', 'b.snapshot
 export const CU2_OPS = ['b.find', 'b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload', 'b.downloads'] as const;
 /** Phase 89 (CU3): the dev tunnel (a loopback listener on the computer, streams over this connection). */
 export const CU3_OPS = ['c.tunnel', 'c.untunnel'] as const;
-/** The whole command set of a CU3 device. Still nothing on the desktop (d.*), no logins (b.login), no scripts. */
-export const HANDS_OPS = [...CU1_OPS, ...CU2_OPS, ...CU3_OPS] as const;
+/** Phase 90 (CU4): saved logins filled on the device, its consent window, and the sign-in pause (§8.1). */
+export const CU4_OPS = ['b.login', 'b.saveLogin', 'b.logins', 'b.forgetLogin', 'b.yourTurn'] as const;
+/** The whole command set of a CU4 device. Still nothing on the desktop (d.*), no scripts, no op that reads a password. */
+export const HANDS_OPS = [...CU1_OPS, ...CU2_OPS, ...CU3_OPS, ...CU4_OPS] as const;
+/** Ops that wait for the person at the computer (the consent window, "Your turn"): up to 10 minutes. */
+export const WAITING_OPS: ReadonlySet<string> = new Set(['b.saveLogin', 'b.yourTurn']);
+export const WAITING_DEADLINE_MS = 10 * 60_000;
 /** Ops only the server itself sends (never from the owner's "try one op" route): the tunnel checks port ownership first. */
 export const SERVER_ONLY_OPS: ReadonlySet<string> = new Set(CU3_OPS);
 export type HandsOp = (typeof HANDS_OPS)[number];
 /** Ops that act (they count against the device's input rate limit and stop on takeover). */
-export const ACTING_OPS: ReadonlySet<string> = new Set(['b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload']);
+export const ACTING_OPS: ReadonlySet<string> = new Set(['b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload', 'b.login']);
 export const HANDS_ERROR_CODES = ['denied_local', 'blocked_window', 'takeover', 'stopped', 'stale_view', 'not_found', 'timeout', 'perm_missing', 'rate_limited', 'unsupported'] as const;
 /** Default deadline of an op (b.open waits for a whole page). */
 export const DEFAULT_DEADLINE_MS = 30_000;
@@ -69,7 +82,10 @@ export interface HandsHello {
   perms?: { capture?: boolean; input?: boolean; ax?: boolean };
   optIn: { browser: boolean; desktop: boolean };
   approvalsHere?: boolean;
-  logins?: string[];
+  /** Phase 90: the saved logins there, names and sites only. */
+  logins?: HandsLoginView[];
+  /** Phase 90: where they are kept, and whether Windows Hello / Touch ID is asked before each use. */
+  vault?: { kind: string; verify: boolean };
   busy?: boolean;
   /** "Screenshots only to models on this computer" (§7.6): pictures never go to a cloud model. */
   localOnly?: boolean;
@@ -83,6 +99,31 @@ export interface HandsHello {
   paused?: boolean;
   /** Phase 88: the device can take a fresh token over this connection. */
   renew?: boolean;
+}
+
+/** Phase 90: what the server knows of a saved login on a computer. */
+export interface HandsLoginView {
+  name: string;
+  sites: string[];
+}
+
+/** Names and sites only, whatever a device sends (a string is a name with no site: older devices). */
+export function loginViews(raw: unknown): HandsLoginView[] {
+  if (!Array.isArray(raw)) return [];
+  const out: HandsLoginView[] = [];
+  for (const x of raw.slice(0, 100)) {
+    if (typeof x === 'string') {
+      if (plain(x, 60)) out.push({ name: plain(x, 60), sites: [] });
+      continue;
+    }
+    if (!x || typeof x !== 'object') continue;
+    const o = x as Record<string, unknown>;
+    const name = plain(o.name, 60).trim();
+    if (!name) continue;
+    const sites = Array.isArray(o.sites) ? (o.sites as unknown[]).slice(0, 10).map((s) => plain(s, 200)).filter((s) => /^https?:\/\/[^\s/]+$/i.test(s)) : [];
+    out.push({ name, sites });
+  }
+  return out;
 }
 
 export interface HandsImage {
@@ -127,6 +168,9 @@ export interface HandsDeviceView {
   takeover?: 'pause' | 'keep';
   hotkey?: string;
   paused?: boolean;
+  /** Phase 90: saved logins there (names and sites only) and whether it asks Windows Hello / Touch ID first. */
+  logins?: HandsLoginView[];
+  vault?: { kind: string; verify: boolean };
 }
 
 interface Pending {
@@ -302,7 +346,8 @@ export class HandsHub {
         ...(m.perms && typeof m.perms === 'object' ? { perms: m.perms as HandsHello['perms'] } : {}),
         optIn: { browser: optIn.browser === true, desktop: optIn.desktop === true },
         approvalsHere: m.approvalsHere === true,
-        logins: Array.isArray(m.logins) ? (m.logins as unknown[]).slice(0, 50).map((x) => plain(x, 60)) : [],
+        logins: loginViews(m.logins),
+        ...(m.vault && typeof m.vault === 'object' ? { vault: { kind: plain((m.vault as Record<string, unknown>).kind, 20), verify: (m.vault as Record<string, unknown>).verify === true } } : {}),
         busy: m.busy === true,
         localOnly: m.localOnly === true,
         ...(Array.isArray(m.ops) ? { ops: (m.ops as unknown[]).slice(0, 80).map((x) => plain(x, 40)) } : {}),
@@ -356,6 +401,13 @@ export class HandsHub {
         this.tunnels.closeDevice(d.id, 'stopped on the computer');
         this.#publish({ deviceId: d.id, stopped: true, by: m.by === 'user' ? 'user' : 'device', ...(conv ? { conversationId: conv } : {}) });
         if (conv && m.by === 'user') for (const fn of this.#stopListeners) fn(conv, d.id);
+        return;
+      }
+      if (kind === 'logins' && d.hello) {
+        // Phase 90: a login was saved or removed there (names and sites only).
+        d.hello.logins = loginViews(m.logins);
+        if (m.vault && typeof m.vault === 'object') d.hello.vault = { kind: plain((m.vault as Record<string, unknown>).kind, 20) || d.hello.vault?.kind || '', verify: (m.vault as Record<string, unknown>).verify === true };
+        this.#publish({ deviceId: d.id, logins: d.hello.logins.length });
         return;
       }
       if (kind === 'optin' && d.hello) {
@@ -440,7 +492,7 @@ export class HandsHub {
     // A retried request with the same id gets the first answer (the device answers it once).
     if (opts.id && this.#pending.has(opts.id)) return this.#pending.get(opts.id)!.promise;
     const id = opts.id ?? randomUUID();
-    const deadlineMs = Math.max(1000, Math.min(opts.deadlineMs ?? (op === 'b.open' ? OPEN_DEADLINE_MS : DEFAULT_DEADLINE_MS), 120_000));
+    const deadlineMs = Math.max(1000, Math.min(opts.deadlineMs ?? (op === 'b.open' ? OPEN_DEADLINE_MS : WAITING_OPS.has(op) ? WAITING_DEADLINE_MS : DEFAULT_DEADLINE_MS), WAITING_OPS.has(op) ? WAITING_DEADLINE_MS : 120_000));
     let resolve!: (r: HandsReply) => void;
     let reject!: (e: Error) => void;
     const promise = new Promise<HandsReply>((a, b) => {
@@ -542,6 +594,8 @@ export class HandsHub {
         ...(h?.takeover ? { takeover: h.takeover } : {}),
         ...(h?.hotkey ? { hotkey: h.hotkey } : {}),
         ...(h?.paused ? { paused: true } : {}),
+        ...(h ? { logins: h.logins ?? [] } : {}),
+        ...(h?.vault ? { vault: h.vault } : {}),
       });
     }
     return [...out.values()];

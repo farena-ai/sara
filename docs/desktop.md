@@ -232,6 +232,34 @@ on fds 3 and 4). Both bundle `desktop/shared/page-agent.js` (Windows: RCDATA `ID
 - Conformance: 75 checks (section 9: the test page's storage, WebSocket, upload and large file, the
   tunnel list, refusals, closing).
 
+### Saved logins (Phase 90, computer use CU4)
+
+- Only on this computer. Windows: a DPAPI (current user) file `%LOCALAPPDATA%\Sara\logins.dat`
+  (sealed JSON: name, exact sites, username, password, the Sara server it belongs to, dates); test
+  builds keep it in their own data folder. Mac: one Keychain generic-password item per login (service
+  "Sara logins", `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, never synced; DEBUG test copies use
+  "Sara logins (TEST)"). Each login belongs to the Sara server it was saved through.
+- `b.login` fills one only when the tab's current origin is exactly a saved one (scheme, host, port),
+  through `Input.insertText` on the DevTools pipe after a real click and a focus check by the page
+  agent (`loginFields` / `focusLogin`, which never return values); it answers filled / not found /
+  site doesn't match. `b.saveLogin` opens the app's own window (**Save a login for Sara?**: the
+  warning, Name / Username / Password, an unticked **I understand**, Save stays off until it's
+  ticked, **Use what I just typed** when the person signed in on that site in the Sara browser in the
+  last 10 minutes: caught by a DevTools binding in an isolated world, memory only). `b.yourTurn`
+  shows **Your turn** with **Continue**. Both wait up to 10 minutes. `b.logins` / `b.forgetLogin`
+  list and remove (names, sites, dates only). The hello and an `ev logins` after each change carry
+  names and sites.
+- The app's Settings page (Computer use, This computer) lists this computer's logins with **Remove**
+  and has **Ask for Windows Hello / Touch ID before Sara uses a saved login** (off by default;
+  Windows `UserConsentVerifier`, Mac `LAContext` with the device password as fallback). The web
+  Settings shows each connected computer's list; Remove there is an op the computer carries out.
+- Windows: the vault, the two windows and the Hello check are in `hands.cpp` (Phase 90 section);
+  Mac: `HandsLogins`, `HandsLoginPanel` and `handsTouchID` in `Hands.swift`.
+- Conformance (section 10): 17 CU4 checks; the windows are answered by `--consent-driver` (a UI
+  automation script on Windows, the DEBUG test hook `login:<step>` on the Mac).
+  `scripts/hands-capture.ts` is a recording relay in front of the server that decodes every hands
+  frame both ways, so a test password can be searched for in all of it.
+
 ### Sara-Setup.exe: her server and the app together (Phase 46c)
 
 What the Windows installer puts on the computer (details for owners: docs/INSTALL.md → Windows):

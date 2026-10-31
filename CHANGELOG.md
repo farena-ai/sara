@@ -5,6 +5,23 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.23.0 (2026-10-30): computer use, step 4: saved logins, only when you say so (Phase 90)
+
+- **Save a login** (`pc_browser_save_login`): she may only offer when you asked in so many words. A
+  window on *that computer* (not the web page) shows the warning; you type the username and password
+  there (or *Use what I just typed* when you just signed in in her browser) and tick *I understand*:
+  Save stays off until you do.
+- **Stored on your computer only:** Windows DPAPI (`%LOCALAPPDATA%\Sara\logins.dat`) or the macOS
+  Keychain (this device only, not synced). Never sent to Sara's server, never in run steps, logs,
+  pictures or anything the model sees: checked by recording every message between the server and the
+  Windows and Mac apps during real sign-ins (0 matches for the test password).
+- **Use a login** (`pc_browser_login`): a card every time; the computer fills it only when the page's
+  address matches the saved site exactly (look-alike, http-instead-of-https or another port: refused
+  before any card) and answers only *filled / not found / wrong site*.
+- **Your turn** (`pc_browser_your_turn`): she pauses while you sign in or type a one-time code yourself.
+- Manage in Settings → Computer use → *Saved logins* (per computer, Remove / Remove all) or in the app;
+  optional *Ask for Windows Hello / Touch ID first* (off). What it doesn't protect against: SECURITY.md.
+
 ## 2.22.0 (2026-10-30): computer use, step 3: debug your web project in her browser (Phase 89)
 
 - **Dev tunnel:** a dev server her coding tools started on the Sara server opens at

@@ -109,3 +109,30 @@ your own projects: no scanning of other systems, no exploit or payload generatio
   *Fix what broke* uses the same local fix branches; nothing is pushed.
 - Everything is owner-only (`/api/findings`, `/api/security-pass`, `/api/threat-model`, `/api/redteam`); household
   members and the demo get 403. Details: [docs/design/HARNESS_TRACK.md § M6, M7, M11](docs/design/HARNESS_TRACK.md).
+
+## Saved logins for the Sara browser (Phase 90, computer use CU4)
+
+Logins the owner chooses to save for Sara's own browser live **only on that computer**: Windows keeps
+them in one DPAPI file for the Windows user (`%LOCALAPPDATA%\Sara\logins.dat`); macOS in Keychain
+items (service "Sara logins", this device only, never synced). Sara's server and the model only learn
+a login's **name and site**; the password goes from that file straight into the page through the
+browser's DevTools pipe on the same computer, never over the hands channel. Each use asks the owner
+first (a card every time, at every approval level), and the computer fills a login only when the
+page's current address has exactly the saved site's scheme, host and port (look-alike sites, plain
+http instead of https and other ports get nothing). Saving happens only in the app's own window on
+that computer, with an unticked "I understand" box under the warning; the server can't save one. Sara
+never types into password fields key by key. Optional: Windows Hello / Touch ID before each use.
+
+What it does **not** protect against:
+- A **fully compromised Sara server** (or anyone holding the owner's sign-in) that can drive the
+  Sara browser can act as the signed-in user on those sites, as it could with the browser's own
+  cookies. It still can't read the saved passwords, and each new fill still needs a card the owner
+  approves (unless the attacker controls the owner's sign-in too).
+- **Anyone or anything running as the same user on that computer** (malware, another person using
+  the account) can open a DPAPI file or a Keychain item of that user, like the browser's own saved
+  passwords. Windows Hello / Touch ID only gates Sara's use of it, not other programs.
+- A **compromised site** (the real origin serving hostile script) receives the password like any
+  sign-in typed there.
+- One-time codes (two-step sign-in) are always typed by the owner; seeds for them are never stored.
+- Password managers (Bitwarden, 1Password, KeePassXC) are a separate, later step (CU4b) and not part
+  of this vault.

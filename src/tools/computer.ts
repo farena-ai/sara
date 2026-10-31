@@ -3,7 +3,10 @@
 // navigates: pc_devices, pc_browser_open / navigate / look / read / tabs / logs / request. Phase 88
 // (CU2) acts: pc_browser_click / type / select / keys / scroll / upload / downloads, each approved by
 // the rows in src/computer-policy.ts (actionVerdict) before it runs, then checked by looking again. Kept apart from browser_* (her testing browser on the server) so she and
-// the receipts know which machine was used.
+// the receipts know which machine was used. Phase 90 (CU4, §8): pc_browser_login (a card every time;
+// the computer fills a login saved there, only on its exact site; she never sees it),
+// pc_browser_save_login (only when the owner said so in so many words; the computer's own consent
+// window with the warning is the real yes) and pc_browser_your_turn (the sign-in pause of §8.1).
 //
 // Rules here (the device enforces its own as well):
 // - opening a site the owner didn't name asks once per site per task; localhost runs without a card
@@ -16,7 +19,8 @@
 import type { AppContext } from '../chat.ts';
 import { readFileSync, statSync } from 'node:fs';
 import { basename, isAbsolute, relative, resolve as resolvePath } from 'node:path';
-import { actionVerdict, actLevel, injectionHints, navigationVerdict, siteOf, type ActKind } from '../computer-policy.ts';
+import { actionVerdict, actLevel, askedToSaveLogin, injectionHints, loginVerdict, looksSecret, navigationVerdict, siteOf, type ActKind } from '../computer-policy.ts';
+import { cleanLoginName, loginOrigin } from '../hands-logins.ts';
 import { HandsError, type HandsDeviceView, type HandsReply } from '../hands.ts';
 import { TunnelError } from '../tunnel.ts';
 import { privateLocalOn } from '../net-guard.ts';
@@ -30,7 +34,7 @@ export const UNTRUSTED = '[What follows comes from a web page on the owner\u2019
 export const NO_COMPUTER = 'No computer is connected for computer use.';
 
 /** Tool names (the claim check and the chat's filters use them). */
-export const COMPUTER_TOOLS = new Set(['pc_devices', 'pc_browser_open', 'pc_browser_navigate', 'pc_browser_look', 'pc_browser_read', 'pc_browser_tabs', 'pc_browser_logs', 'pc_browser_request', 'pc_browser_click', 'pc_browser_type', 'pc_browser_select', 'pc_browser_keys', 'pc_browser_scroll', 'pc_browser_upload', 'pc_browser_downloads']);
+export const COMPUTER_TOOLS = new Set(['pc_devices', 'pc_browser_open', 'pc_browser_navigate', 'pc_browser_look', 'pc_browser_read', 'pc_browser_tabs', 'pc_browser_logs', 'pc_browser_request', 'pc_browser_click', 'pc_browser_type', 'pc_browser_select', 'pc_browser_keys', 'pc_browser_scroll', 'pc_browser_upload', 'pc_browser_downloads', 'pc_browser_login', 'pc_browser_save_login', 'pc_browser_your_turn']);
 /** Phase 88: files she may hand to an upload field from her workspace (bigger ones: put them in the computer's Downloads/Sara folder). */
 export const UPLOAD_MAX_BYTES = 2 * 1024 * 1024;
 export const isComputerTool = (name: string): boolean => name.startsWith('pc_');
@@ -158,9 +162,9 @@ export function createComputerTools(app: AppContext): Tool[] {
       if (!online.length) {
         return `${NO_COMPUTER} To let you use their computer, the owner installs the Sara app for Windows or Mac and switches on "Let Sara use this computer" in it (the chat shows them a card with the download link). Phones can watch and stop you but can't be driven. Meanwhile you can test web apps in your own testing browser on the server (browser_open), or they can send you a screenshot.${list.length ? ` Signed in but not connected now: ${list.map((d) => `"${nameOf(d)}"`).join(', ')} (the app there is closed, asleep or offline).` : ''}`;
       }
-      const lines = online.map((d) => `- "${nameOf(d)}" (${d.app ?? 'Sara app'}${d.os ? `, ${d.os}` : ''}): ${d.optIn?.browser ? `the Sara browser${d.browser?.name ? ` (${d.browser.name})` : ''} is yours to look, read and navigate` : '"Let Sara use this computer" is off there'}; pictures ${d.localOnly ? 'only to models on the owner\u2019s own computers' : 'to the model in use'}${d.ops?.includes('c.tunnel') ? '; the dev tunnel works there (pc_browser_open with app_port)' : ''}${d.busy ? '; busy with a task now' : ''}.`);
+      const lines = online.map((d) => `- "${nameOf(d)}" (${d.app ?? 'Sara app'}${d.os ? `, ${d.os}` : ''}): ${d.optIn?.browser ? `the Sara browser${d.browser?.name ? ` (${d.browser.name})` : ''} is yours to look, read and navigate` : '"Let Sara use this computer" is off there'}; pictures ${d.localOnly ? 'only to models on the owner\u2019s own computers' : 'to the model in use'}${d.ops?.includes('c.tunnel') ? '; the dev tunnel works there (pc_browser_open with app_port)' : ''}${d.ops?.includes('b.login') ? `; saved logins there: ${d.logins?.length ? d.logins.map((l) => `\u201c${l.name}\u201d${l.sites.length ? ` (${l.sites.join(', ')})` : ''}`).join(', ') : 'none'}` : ''}${d.busy ? '; busy with a task now' : ''}.`);
       const off = list.filter((d) => !d.connected);
-      return `Computers you can use:\n${lines.join('\n')}${off.length ? `\nNot connected now: ${off.map((d) => `"${nameOf(d)}"`).join(', ')}.` : ''}\nYou can open pages, go back/forward/reload, look (element list, screenshot), read text, list tabs, read console and network logs, and act: click, type, choose in lists, press keys, scroll and upload a file the owner named. Look first; act on refs from your latest look; look again after each action. Actions may ask the owner first (an approval card); payments and account settings always do. If the owner takes over (moves the mouse in the Sara browser) you are paused: stop and wait.`;
+      return `Computers you can use:\n${lines.join('\n')}${off.length ? `\nNot connected now: ${off.map((d) => `"${nameOf(d)}"`).join(', ')}.` : ''}\nYou can open pages, go back/forward/reload, look (element list, screenshot), read text, list tabs, read console and network logs, and act: click, type, choose in lists, press keys, scroll and upload a file the owner named. Look first; act on refs from your latest look; look again after each action. Actions may ask the owner first (an approval card); payments and account settings always do. If the owner takes over (moves the mouse in the Sara browser) you are paused: stop and wait. Sign-ins: never ask for a password in chat. Use a saved login with pc_browser_login (the computer fills it; you never see it; the owner approves each use), or hand the browser to the owner with pc_browser_your_turn so they sign in themselves (the Sara browser then stays signed in).`;
     },
   };
 
@@ -657,5 +661,106 @@ export function createComputerTools(app: AppContext): Tool[] {
     },
   };
 
-  return [devices, open, navigate, look, read, tabs, logs, request, click, type, select, keys, scrollTool, upload, downloads];
+  // ---------------- Phase 90 (CU4): saved logins and the sign-in pause ----------------
+  const able = (op: string) => () => anyOnline() && hub()!.devices().some((d) => d.connected && d.ops?.includes(op));
+  const login: Tool = {
+    defaultPermission: 'auto',
+    spec: {
+      name: 'pc_browser_login',
+      description:
+        "Sign in on the page open in the Sara browser with a login the owner saved on that computer (pc_devices lists the names). The computer fills the username and password itself, only on the exact site the login was saved for: you never see them, and never ask for them. The owner approves every use (a card each time). Open the site's sign-in page first. If the site then asks for a one-time code, use pc_browser_your_turn. Without a saved login, use pc_browser_your_turn so the owner signs in themselves.",
+      parameters: obj({ login: { type: 'string', description: 'The saved login\u2019s name, e.g. "GitHub"' }, submit: { type: 'boolean', description: 'Press Enter after filling (default true)' }, ...TAB_ARG, ...COMPUTER_ARG }, ['login']),
+    },
+    isAvailable: able('b.login'),
+    summarize: (a) => `sign in with the saved login \u201c${cleanLoginName(a.login)}\u201d in the Sara browser`,
+    async prepare(args, ctx) {
+      if (!ctx.conversationId) return {};
+      const d = pick(args);
+      if (!d.ops?.includes('b.login')) return { refuse: `Error: The Sara app on ${nameOf(d)} can't use saved logins yet (it needs Sara 2.23 or later there).` };
+      const want = cleanLoginName(args.login).toLowerCase();
+      const saved = (d.logins ?? []).find((l) => l.name.toLowerCase() === want);
+      if (!saved) return { refuse: `Error: No saved login called \u201c${cleanLoginName(args.login)}\u201d on ${nameOf(d)}. Saved there: ${(d.logins ?? []).map((l) => `\u201c${l.name}\u201d`).join(', ') || 'none'}. Without one, ask the owner to sign in themselves (pc_browser_your_turn).` };
+      const h = hub()!;
+      if (!h.claim(d.id, ctx.conversationId)) return { refuse: `Error: Sara is using ${nameOf(d)} for another conversation right now.` };
+      let url = '';
+      try {
+        const f = (await h.request(d.id, 'b.find', { focused: true, ...tabOf(args) }, { signal: ctx.signal, deadlineMs: 15_000 })).result;
+        url = String(((f.page ?? {}) as Record<string, unknown>).url ?? '');
+      } catch (err) {
+        return { refuse: `Error: ${(err as Error).message}` };
+      }
+      const origin = loginOrigin(url);
+      if (!origin) return { refuse: 'Error: The Sara browser has no web page open: open the site\u2019s sign-in page first (pc_browser_open).' };
+      // The computer checks again itself; this only saves a pointless card.
+      if (saved.sites.length && !saved.sites.some((x) => loginOrigin(x) === origin)) return { refuse: `Error: The page open now is ${origin}, but the saved login \u201c${saved.name}\u201d is only for ${saved.sites.join(', ')}. Open that exact site\u2019s sign-in page first: the computer fills a login only on the site it was saved for.` };
+      const v = loginVerdict();
+      const site = siteOf(new URL(url));
+      const detail: ComputerApproval = { kind: 'computer', action: 'login', site, computer: nameOf(d), target: `your saved \u201c${saved.name}\u201d login`, name: saved.name, risk: v.risk, why: v.why, choices: v.choices };
+      return { ask: true, summary: `sign in to ${site} with your saved \u201c${saved.name}\u201d login in the Sara browser on ${nameOf(d)}`, computer: detail };
+    },
+    async run(args, ctx) {
+      const d = pick(args);
+      const name = cleanLoginName(args.login);
+      if (!name) throw new ToolError('login: the saved login\u2019s name (pc_devices lists them).');
+      const r = await op(ctx, d, 'b.login', { name, submit: args.submit !== false, ...tabOf(args), thumb: 320 }, `signing in with your saved \u201c${name}\u201d login`);
+      thumbs(ctx, r);
+      const x = r.result;
+      if (x.outcome === 'filled') return `Filled the saved \u201c${name}\u201d login on ${nameOf(d)}${x.submitted ? ' and pressed Enter' : ''}. The username and password stayed on that computer: you never see them, so never ask for them. Look again (pc_browser_look) to check the owner is signed in; if the site asks for a one-time code, use pc_browser_your_turn.`;
+      if (x.outcome === 'site_mismatch') return `Nothing was filled: the page open now is not the exact site the \u201c${name}\u201d login was saved for (the computer compares scheme, address and port, so look-alike sites get nothing). Open the real site\u2019s sign-in page, or tell the owner.`;
+      if (x.missing === 'fields') return 'Nothing was filled: there is no password field on this page. If the site asks for the username first, type it (pc_browser_type), go on, then call pc_browser_login again on the password page.';
+      return `Nothing was filled: there is no saved login called \u201c${name}\u201d on ${nameOf(d)} any more.`;
+    },
+  };
+
+  const saveLogin: Tool = {
+    defaultPermission: 'auto',
+    spec: {
+      name: 'pc_browser_save_login',
+      description:
+        "Offer to save a login for the site open in the Sara browser on the owner's computer, ONLY when the owner said in so many words to save or remember a login or password. It opens a window on THEIR computer with a warning and an unticked 'I understand' box; they type the username and password there themselves (or press 'Use what I just typed' after signing in once in the Sara browser). It is kept encrypted on that computer only. You never see the password: never ask for it in chat. Simpler and safer: they sign in once (pc_browser_your_turn) and the Sara browser stays signed in.",
+      parameters: obj({ name: { type: 'string', description: 'A short name for it, e.g. "GitHub" (default: the site)' }, ...COMPUTER_ARG }),
+    },
+    isAvailable: able('b.saveLogin'),
+    summarize: (a) => `offer to save a login${a.name ? ` (\u201c${cleanLoginName(a.name)}\u201d)` : ''} on the owner\u2019s computer`,
+    async prepare(args, ctx) {
+      if (!ctx.conversationId) return {};
+      if (!askedToSaveLogin(taskOf(ctx.conversationId).ownerText)) return { refuse: 'Error: Only when the owner asks in so many words to save a login or password (e.g. "save my GitHub login"). Otherwise let them sign in themselves in the Sara browser (pc_browser_your_turn): it stays signed in.' };
+      if (looksSecret(String(args.name ?? ''))) return { refuse: 'Error: The name is only a label like "GitHub": never a password, key or code.' };
+      return {};
+    },
+    async run(args, ctx) {
+      const d = pick(args);
+      if (!d.ops?.includes('b.saveLogin')) throw new ToolError(`The Sara app on ${nameOf(d)} can't save logins yet (it needs Sara 2.23 or later there).`);
+      const name = cleanLoginName(args.name);
+      const r = await op(ctx, d, 'b.saveLogin', { ...(name ? { name } : {}) }, 'waiting for you to save a login');
+      const x = r.result;
+      if (x.outcome === 'saved') {
+        const sites = Array.isArray(x.sites) ? (x.sites as unknown[]).map(String).join(', ') : '';
+        return `The owner saved the login \u201c${String(x.name ?? name)}\u201d for ${sites || 'this site'} on ${nameOf(d)}. It is kept encrypted on that computer only (never on the server; you never see it). From now on you can sign in there with pc_browser_login and login \u201c${String(x.name ?? name)}\u201d (they approve each use).`;
+      }
+      return `Nothing was saved (${String(x.why ?? 'the owner cancelled')}). Don't ask again unless they bring it up.`;
+    },
+  };
+
+  const yourTurn: Tool = {
+    defaultPermission: 'auto',
+    spec: {
+      name: 'pc_browser_your_turn',
+      description:
+        "Hand the Sara browser on the owner's computer to them for something only they should do: signing in (they type their own password), a one-time code (2FA), a captcha. Their computer shows 'Your turn' with Continue, and you wait until they press it (up to 10 minutes). First say in one line what you need, e.g. 'Please sign in to GitHub in the Sara browser; I'll wait.' The Sara browser then usually stays signed in for next time.",
+      parameters: obj({ what: { type: 'string', description: 'What they should do, short, e.g. "sign in to GitHub"' }, ...COMPUTER_ARG }, ['what']),
+    },
+    isAvailable: able('b.yourTurn'),
+    summarize: (a) => `wait while you ${String(a.what ?? 'sign in').slice(0, 80)} in the Sara browser`,
+    async run(args, ctx) {
+      const d = pick(args);
+      if (!d.ops?.includes('b.yourTurn')) throw new ToolError(`The Sara app on ${nameOf(d)} can't do that yet (it needs Sara 2.23 or later there): ask the owner to tell you in chat when they are done.`);
+      const what = String(args.what ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 100) || 'sign in';
+      const r = await op(ctx, d, 'b.yourTurn', { what }, `your turn: ${what}`);
+      const x = r.result;
+      return `${UNTRUSTED}\nThe owner pressed Continue on ${nameOf(d)}. The Sara browser is now on ${String(x.url ?? '?')} (${String(x.title ?? '') || 'no title'}). Look (pc_browser_look) before going on.`;
+    },
+  };
+
+  return [devices, open, navigate, look, read, tabs, logs, request, click, type, select, keys, scrollTool, upload, downloads, login, saveLogin, yourTurn];
 }

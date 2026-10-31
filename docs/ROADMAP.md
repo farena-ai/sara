@@ -95,7 +95,7 @@ version's details are in the [changelog](../CHANGELOG.md).
 | 87 | Computer use 1: her own browser on your computer (through the desktop app): look, read, console logs, live view | ✅ 2.20 |
 | 88 | Computer use 2: she clicks and types in it, with approvals (or *Always allowed*), a Stop button and takeover | ✅ 2.21 |
 | 89 | Computer use 3: debug your web project in it (your dev server, hot reload) | ✅ 2.22 |
-| 90 | Computer use 4: saved logins, only when you say so, encrypted on your computer | 2.23 |
+| 90 | Computer use 4: saved logins, only when you say so, encrypted on your computer | ✅ 2.23 |
 | 91 | Computer use 5: use your password manager (Bitwarden, 1Password, KeePassXC…) to fill logins | 2.24 |
 | 92 | Computer use 6: she sees your desktop (screenshots and the accessibility tree) | 2.25 |
 | 93 | Computer use 7: she uses your mouse and keyboard | 2.26 |

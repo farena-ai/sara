@@ -276,6 +276,11 @@ const OWNER_ONLY_SUBPATHS: [string, string][] = [
   ['POST', '/api/runs/1/discard'],
   ['POST', '/api/runs/1/stop'],
   ['GET', '/api/runs/1/steps/0/branch'],
+  // Phase 90: the saved logins on a computer (the `hands` family: owner-only while the owner's member
+  // switch is off, as here; with it on, a member reaches only their own computers' logins).
+  ['GET', '/api/hands/1/logins'],
+  ['DELETE', '/api/hands/1/logins/GitHub'],
+  ['DELETE', '/api/hands/1/logins'],
 ];
 /** Families not exercised by the generic loop (sign-out or streams) and checked on their own. */
 const SKIP = new Set(['logout', 'events', 'health', 'login', 'claim', 'demo', 'public']);

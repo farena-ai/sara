@@ -11,6 +11,9 @@
 //   GET    /api/hands/<id>/tunnels          Phase 89: the dev tunnels open to it
 //   POST   /api/hands/<id>/tunnel-test      Phase 89: "Try the dev tunnel" (a built-in test page, 5 minutes)
 //   DELETE /api/hands/<id>/tunnels/<tid>    Phase 89: close one dev tunnel
+//   GET    /api/hands/<id>/logins           Phase 90: the logins saved on that computer (names and sites, asked of it now)
+//   DELETE /api/hands/<id>/logins/<name>    Phase 90: remove one there (the computer removes it and says so)
+//   DELETE /api/hands/<id>/logins           Phase 90: remove all of this Sara's logins there
 //   GET    /api/computer                    the server-wide choices; PUT changes them (owner only)
 //   GET    /api/computer/frame/<id>?after=n the live view: the newest frame after n (long-poll, memory only)
 //   GET    /api/computer/thumb/<sha>        a step thumbnail from the run record
@@ -18,13 +21,25 @@ import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { APPS_PAGE } from '../cards.ts';
 import { ACT_LEVELS, actLevel, type ActLevel } from '../computer-policy.ts';
-import { HandsError, SERVER_ONLY_OPS } from '../hands.ts';
+import { HandsError, loginViews, SERVER_ONLY_OPS } from '../hands.ts';
 import { TunnelError } from '../tunnel.ts';
 import { HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
 import { acceptWebSocket, refuseUpgrade } from '../ws.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 const OWNER_ONLY = { ownerOnly: true };
+/** Phase 90: a computer's answer about its logins, cut to names, sites and dates. */
+function loginList(raw: unknown): { name: string; sites: string[]; created?: string; lastUsed?: string }[] {
+  const views = loginViews(raw);
+  const dated = Array.isArray(raw) ? (raw as Record<string, unknown>[]) : [];
+  return views.map((v) => {
+    const x = dated.find((r) => r && typeof r === 'object' && String(r.name ?? '').trim() === v.name) ?? {};
+    const iso = (s: unknown) => (typeof s === 'string' && /^\d{4}-\d\d-\d\dT[\d:.]+Z$/.test(s) ? s : undefined);
+    const created = iso(x.created);
+    const lastUsed = iso(x.lastUsed);
+    return { ...v, ...(created ? { created } : {}), ...(lastUsed ? { lastUsed } : {}) };
+  });
+}
 
 /** The upgrade to /api/hands (true when this handled it). */
 export function createHandsUpgrade(ctx: RouteCtx): (req: IncomingMessage, socket: Duplex, head: Buffer) => void {
@@ -125,6 +140,35 @@ export function createHandsRoutes(ctx: RouteCtx): RouteHandler {
       if (!t || t.deviceId !== b) throw new HttpError(404, 'No such tunnel.');
       hub.tunnels.close(d, 'closed by the owner');
       return send(res, 200, { ok: true, tunnels: hub.tunnels.list({ deviceId: b }) });
+    }
+    // Phase 90: the logins saved on that computer. They live only there: the computer lists and
+    // removes them itself and answers with names and sites (never a username or password).
+    if (c === 'logins' && parts.length <= 4 && (method === 'GET' || method === 'DELETE')) {
+      if (method === 'DELETE') await readJson(req).catch(() => ({}));
+      const h = hub.hello(b);
+      if (!hub.connected(b) || !h) return send(res, 200, { connected: false, supported: false, logins: [] });
+      if (!(h.ops ?? []).includes('b.logins')) return send(res, 200, { connected: true, supported: false, logins: [] });
+      const ac = new AbortController();
+      req.on('close', () => {
+        if (!res.writableEnded) ac.abort();
+      });
+      try {
+        if (method === 'GET') {
+          const r = await hub.request(b, 'b.logins', {}, { signal: ac.signal, deadlineMs: 15_000 });
+          return send(res, 200, { connected: true, supported: true, logins: loginList(r.result.logins), verify: r.result.verify === true, vault: h.vault?.kind ?? '' });
+        }
+        let name = '';
+        try {
+          name = d ? decodeURIComponent(d) : '';
+        } catch {
+          throw new HttpError(400, 'Not a login name.');
+        }
+        const r = await hub.request(b, 'b.forgetLogin', d ? { name } : { all: true }, { signal: ac.signal, deadlineMs: 15_000 });
+        return send(res, 200, { ok: true, connected: true, supported: true, removed: Number(r.result.removed) || 0, logins: loginList(r.result.logins) });
+      } catch (err) {
+        if (err instanceof HandsError) return send(res, 200, { ok: false, connected: hub.connected(b), supported: true, logins: [], error: { code: err.code, message: err.message } });
+        throw err;
+      }
     }
     if (c === 'tunnel-test' && !d && method === 'POST') {
       await readJson(req).catch(() => ({}));

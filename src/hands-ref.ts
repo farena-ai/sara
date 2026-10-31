@@ -17,7 +17,13 @@
 //   chrome://, edge://, file://, devtools or extension pages, even when a page redirects there;
 // - at most 20 tab opens a minute and one live-view picture per 500 ms;
 // - password fields never give their value (the page agent), and text that looks like a secret is
-//   masked in what goes back.
+//   masked in what goes back;
+// - Phase 90 (CU4): saved logins stay here (a test vault: src/hands-logins.ts). b.login fills one only on
+//   a page whose current origin is exactly a saved site, through DevTools input, and answers only
+//   filled / not found / site doesn't match; b.saveLogin saves only what the consent window gave with
+//   "I understand" ticked (the `consent` option stands in for the apps' native window); a sign-in the
+//   person typed is caught in memory for "Use what I just typed" and never sent anywhere; b.yourTurn
+//   hands the browser to the person until they press Continue.
 //
 // Run by hand: node src/hands-ref.ts --server http://127.0.0.1:7881 --token-file <file> [--name X] [--visible] [--local-only]
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -30,15 +36,18 @@ import type { Readable, Writable } from 'node:stream';
 import { findBrowser, pageAgentCall, type BrowserInfo } from './browser.ts';
 import { CdpClient, type CdpEvent } from './cdp.ts';
 import { HANDS_OPS, HANDS_PROTOCOL, packBinary, parseBinary } from './hands.ts';
+import { CAUGHT_KEEP_MS, cleanLoginName, defaultLoginName, LoginError, loginOrigin, SAVE_LOGIN_WARNING, siteMatches, TestVault, type ConsentAnswer, type ConsentRequest } from './hands-logins.ts';
 import { connectWebSocket, type WsConnection } from './ws.ts';
 
-export const REF_VERSION = 'hands-ref 3';
+export const REF_VERSION = 'hands-ref 4';
 /** Phase 89 (CU3): the device's own dev-tunnel limits (loopback only, whatever the server says). */
 export const TUNNEL_DEVICE_LIMITS = { tunnels: 4, streams: 64, chunk: 64 * 1024, highWater: 4 * 1024 * 1024 };
 const OPS = new Set<string>(HANDS_OPS);
 /** §7.7: the device's own input limits. */
 export const INPUT_LIMITS = { perSecond: 4, perMinute: 120, chars: 2000 };
-const INPUT_OPS = new Set(['b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload']);
+const INPUT_OPS = new Set(['b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload', 'b.login']);
+/** Phase 90: ops that wait for the person (the consent window, "Your turn"): up to 10 minutes. */
+const WAITING = new Set(['b.saveLogin', 'b.yourTurn']);
 const BACKOFF_S = [1, 2, 5, 10, 30];
 const MAX_LOGS = 500;
 const SECRET_SHAPES = [/\bsk-[A-Za-z0-9_-]{16,}/g, /\b[sr]k_(?:live|test)_[A-Za-z0-9]{10,}/g, /\bgh[pousr]_[A-Za-z0-9]{20,}/g, /\bxox[abprs]-[A-Za-z0-9-]{10,}/g, /\bAKIA[0-9A-Z]{16}\b/g, /\bxai-[A-Za-z0-9]{20,}/g, /\bsara_(?:dev|hands|m)\.[\w-]+\.[\w-]+/g, /\beyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]{8,}/g];
@@ -142,7 +151,12 @@ export class SaraBrowser {
   readonly folder: string;
   readonly #tempFolder: boolean;
 
-  constructor(opts: { info?: BrowserInfo; headless?: boolean; profileDir?: string; serverOrigin: string; folder?: string }) {
+  /** Phase 90: a sign-in the person just typed (memory only, for "Use what I just typed"). */
+  caught?: { origin: string; username: string; password: string; at: number };
+  readonly #extraArgs: string[];
+
+  constructor(opts: { info?: BrowserInfo; headless?: boolean; profileDir?: string; serverOrigin: string; folder?: string; extraArgs?: string[] }) {
+    this.#extraArgs = opts.extraArgs ?? [];
     this.info = opts.info ?? findBrowser();
     this.#tempFolder = !opts.folder;
     this.folder = opts.folder ?? mkdtempSync(join(tmpdir(), 'sara-hands-files-'));
@@ -176,6 +190,7 @@ export class SaraBrowser {
       // Never the browser account: no implicit sign-in to the computer's Microsoft/Google account, no sync.
       '--disable-features=Translate,MediaRouter,OptimizationHints,msEdgeSync,msImplicitSignin,msSignInFRE,EdgeCollections,msShopping,msEdgeShoppingUI',
       '--window-size=1280,800',
+      ...this.#extraArgs,
       ...(this.headless && this.info.kind === 'edge' ? ['--inprivate'] : []),
       // Edge's launcher may start a second copy of itself and exit (its "compat layer" relaunch),
       // which would drop the DevTools pipe: ask it not to.
@@ -214,6 +229,10 @@ export class SaraBrowser {
     for (const d of ['Page.enable', 'Runtime.enable', 'Network.enable', 'Log.enable']) await cdp.send(d, {}, sessionId);
     // §4.1: the server's own origin is refused even when a page sends the browser there.
     if (this.serverOrigin) await cdp.send('Fetch.enable', { patterns: [{ urlPattern: `${this.serverOrigin}/*` }] }, sessionId);
+    // Phase 90: "Use what I just typed": the page agent's catcher in its own world, reporting to a
+    // binding only that world has (DevTools on the pipe: it never reaches the hands channel).
+    await cdp.send('Runtime.addBinding', { name: 'saraLoginCaught', executionContextName: 'sara-login-catch' }, sessionId).catch(() => {});
+    await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: pageAgentCall('catchLogins', {}), worldName: 'sara-login-catch', runImmediately: true }, sessionId).catch(() => {});
     const tree = (await cdp.send('Page.getFrameTree', {}, sessionId)) as { frameTree: { frame: { id: string } } };
     tab.frameId = tree.frameTree.frame.id;
     this.#active = tab.id;
@@ -265,6 +284,18 @@ export class SaraBrowser {
     const p = ev.params;
     const short = (s: unknown) => maskSecrets(String(s ?? '')).replace(/\s+/g, ' ').slice(0, 500);
     switch (ev.method) {
+      case 'Runtime.bindingCalled': {
+        // Phase 90: a sign-in the person typed in the Sara browser (kept here, in memory, 10 minutes).
+        if (p.name !== 'saraLoginCaught') return;
+        try {
+          const c = JSON.parse(String(p.payload ?? '')) as { origin?: unknown; username?: unknown; password?: unknown };
+          const origin = loginOrigin(String(c.origin ?? ''));
+          if (origin && typeof c.password === 'string' && c.password) this.caught = { origin, username: String(c.username ?? '').slice(0, 200), password: c.password.slice(0, 500), at: Date.now() };
+        } catch {
+          /* not ours */
+        }
+        return;
+      }
       case 'Fetch.requestPaused': {
         const url = String((p.request as { url?: string })?.url ?? '');
         const ok = addressAllowed(url, this.serverOrigin).ok;
@@ -429,6 +460,16 @@ export interface HandsRefOptions {
   renewBefore?: string;
   /** Tests: reconnect after a dropped connection (default true). */
   reconnect?: boolean;
+  /** Phase 90: the saved logins on this "computer" (a fresh empty test vault when not given). */
+  vault?: TestVault;
+  /** Phase 90: the consent window (the person's answer). Without it nothing can be saved. */
+  consent?: (req: ConsentRequest) => Promise<ConsentAnswer>;
+  /** Phase 90: "Ask for Windows Hello / Touch ID before Sara uses a saved login" (off by default) and its answer. */
+  verify?: { on: boolean; ask: () => Promise<boolean> };
+  /** Tests: extra browser switches (e.g. host-resolver rules for look-alike sites). */
+  browserArgs?: string[];
+  /** Tests: keep every frame of the hands channel in `wire`. */
+  recordWire?: boolean;
   log?: (line: string) => void;
 }
 
@@ -452,6 +493,13 @@ export class HandsRef {
   /** Phase 88: what the device's "Sara is working" badge shows now ('' = hidden). */
   badge = '';
   readonly #inputs: number[] = [];
+  /** Phase 90: the saved logins here. */
+  readonly vault: TestVault;
+  /** Phase 90: "Your turn" is showing (the person is signing in); continueTurn() ends it. */
+  yourTurn = '';
+  #turnDone?: () => void;
+  /** With recordWire: every frame this device sent and got (tests grep it for the test password). */
+  readonly wire: string[] = [];
   /** Phase 89: the dev tunnels open here (a loopback listener each) and their streams. */
   readonly #tunnels = new Map<string, { server: NetServer; port: number; localPort: number; sids: Set<number> }>();
   readonly #streams = new Map<number, { socket: Socket; tunnel: string; closed: boolean }>();
@@ -459,7 +507,8 @@ export class HandsRef {
 
   constructor(opts: HandsRefOptions) {
     this.opts = opts;
-    this.browser = new SaraBrowser({ ...(opts.info ? { info: opts.info } : {}), headless: opts.headless !== false, ...(opts.profileDir ? { profileDir: opts.profileDir } : {}), ...(opts.folder ? { folder: opts.folder } : {}), serverOrigin: new URL(opts.server).origin });
+    this.browser = new SaraBrowser({ ...(opts.info ? { info: opts.info } : {}), headless: opts.headless !== false, ...(opts.profileDir ? { profileDir: opts.profileDir } : {}), ...(opts.folder ? { folder: opts.folder } : {}), ...(opts.browserArgs ? { extraArgs: opts.browserArgs } : {}), serverOrigin: new URL(opts.server).origin });
+    this.vault = opts.vault ?? new TestVault();
     if (opts.logFile && existsSync(opts.logFile)) {
       // Keep 30 days of the local log.
       const cut = Date.now() - 30 * 86_400_000;
@@ -491,7 +540,14 @@ export class HandsRef {
       this.ws = ws;
       this.connects++;
       this.#attempt = 0;
+      // Tests: everything that crosses the hands channel, both ways (the password must never be in it).
+      const rawSend = ws.send.bind(ws);
+      ws.send = (data: string | Buffer) => {
+        this.#record('>', data);
+        rawSend(data);
+      };
       ws.onMessage = (d) => {
+        this.#record('<', d);
         if (typeof d === 'string') void this.#message(ws, d);
         else this.#streamData(ws, d);
       };
@@ -504,7 +560,7 @@ export class HandsRef {
         this.closeTunnels();
         this.#later();
       };
-      ws.send(JSON.stringify(this.hello()));
+      this.#send(JSON.stringify(this.hello()));
       this.opts.log?.(`connected to ${this.opts.server}`);
     } catch (err) {
       this.opts.log?.(`couldn't connect: ${(err as Error).message}`);
@@ -533,7 +589,8 @@ export class HandsRef {
       perms: { capture: false, input: false, ax: false },
       optIn: { browser: this.opts.optIn?.browser !== false, desktop: false },
       approvalsHere: false,
-      logins: [],
+      logins: this.vault.list(this.serverOrigin),
+      vault: { kind: 'test', verify: this.opts.verify?.on === true },
       busy: false,
       localOnly: this.opts.localOnly === true,
       ops: [...OPS],
@@ -542,6 +599,31 @@ export class HandsRef {
       paused: this.paused,
       renew: true,
     };
+  }
+
+  get serverOrigin(): string {
+    return new URL(this.opts.server).origin;
+  }
+
+  /** Phase 90: Continue on "Your turn" (the person signed in, typed the code…). */
+  continueTurn(): void {
+    this.#turnDone?.();
+  }
+
+  /** Phase 90: a login was saved or removed here: the server hears the names and sites. */
+  tellLogins(): void {
+    this.#send(JSON.stringify({ t: 'ev', kind: 'logins', logins: this.vault.list(this.serverOrigin), vault: { kind: 'test', verify: this.opts.verify?.on === true } }));
+  }
+
+  #send(text: string): void {
+    if (this.ws?.open) this.ws.send(text);
+  }
+
+  /** recordWire: every frame both ways is kept in `wire` (text as is, binary as latin1, 256 KB each). */
+  #record(dir: '<' | '>', d: string | Buffer): void {
+    if (!this.opts.recordWire) return;
+    this.wire.push(typeof d === 'string' ? `${dir}${d}` : `${dir}[binary ${d.length}] ${d.subarray(0, 256 * 1024).toString('latin1')}`);
+    if (this.wire.length > 20_000) this.wire.splice(0, this.wire.length - 20_000);
   }
 
   /** Phase 88: asks the server for a fresh token now (the apps do this when under 30 days are left). */
@@ -641,7 +723,7 @@ export class HandsRef {
     if (INPUT_OPS.has(op)) this.#acting.add(id);
     const what = typeof m.what === 'string' ? m.what.slice(0, 120) : '';
     if (what && op !== 'c.ping') this.badge = this.paused ? this.badge : `Sara is working: ${what}`;
-    const deadline = Math.min(Math.max(1000, Number(m.deadlineMs) || 30_000), 120_000);
+    const deadline = Math.min(Math.max(1000, Number(m.deadlineMs) || 30_000), WAITING.has(op) ? 600_000 : 120_000);
     const timer = setTimeout(() => ac.abort(new OpError('timeout', `Took longer than ${Math.round(deadline / 1000)} s.`)), deadline);
     let reply: Record<string, unknown>;
     try {
@@ -784,6 +866,84 @@ export class HandsRef {
     return { tab: t.id, target: { desc: target.desc, role: target.role, name: target.name }, state: st, navigated: String(st.url ?? before.url) !== before.url, newErrors: t.consoleErrors - before.errors, newFailed: t.failedRequests - before.failed, ...(t.dialog ? { dialog: t.dialog } : {}), consoleErrors: t.consoleErrors, failedRequests: t.failedRequests, ...extra };
   }
 
+  /**
+   * Phase 90: b.login. Only on a page whose CURRENT origin exactly equals a saved site; the username and
+   * password go into the page through DevTools input on this computer. Answers filled / not found /
+   * site doesn't match, nothing else about the login.
+   */
+  async #login(ws: WsConnection, id: string, a: Record<string, unknown>, server: string): Promise<Record<string, unknown>> {
+    const b = this.browser;
+    const t = b.tab(a.tab);
+    b.activate(t);
+    const login = this.vault.find(server, String(a.name ?? ''));
+    if (!login) return { outcome: 'not_found', missing: 'login', tab: t.id };
+    const url = (await b.info2(t)).url;
+    const origin = loginOrigin(url);
+    if (!siteMatches(login, url)) return { outcome: 'site_mismatch', tab: t.id };
+    if (this.opts.verify?.on && !(await this.opts.verify.ask())) throw new OpError('denied_local', 'Nothing was filled: the person at the computer didn\u2019t confirm it was them (Windows Hello / Touch ID).');
+    const f = await b.agent<{ origin?: string; pass?: { x: number; y: number; box: unknown } | null; user?: { x: number; y: number; box: unknown } | null }>(t, 'loginFields', {});
+    // The page itself must say the same origin (its main frame, right now).
+    if (loginOrigin(String(f.origin ?? '')) !== origin) return { outcome: 'site_mismatch', tab: t.id };
+    if (!f.pass) return { outcome: 'not_found', missing: 'fields', tab: t.id };
+    const label = 'Sara';
+    try {
+      if (f.user && login.username) {
+        await b.agent(t, 'mark', { x: f.user.x, y: f.user.y, box: f.user.box, label }).catch(() => {});
+        await b.click(t, f.user.x, f.user.y);
+        const fu = await b.agent<{ focused?: boolean; origin?: string }>(t, 'focusLogin', { which: 'user' });
+        if (!fu.focused || loginOrigin(String(fu.origin ?? '')) !== origin) return { outcome: 'site_mismatch', tab: t.id };
+        await b.cdp!.send('Input.insertText', { text: login.username }, t.sessionId);
+      }
+      await b.agent(t, 'mark', { x: f.pass.x, y: f.pass.y, box: f.pass.box, label }).catch(() => {});
+      await b.click(t, f.pass.x, f.pass.y);
+      const fp = await b.agent<{ focused?: boolean; origin?: string; secret?: boolean }>(t, 'focusLogin', { which: 'pass' });
+      if (!fp.focused || !fp.secret) return { outcome: 'not_found', missing: 'fields', tab: t.id };
+      if (loginOrigin(String(fp.origin ?? '')) !== origin) return { outcome: 'site_mismatch', tab: t.id };
+      await b.cdp!.send('Input.insertText', { text: login.password }, t.sessionId);
+      if (a.submit !== false) await this.#keys(t, 'Enter');
+      await b.settle(t);
+    } finally {
+      // The catcher saw her own fill: that is not something the person typed.
+      b.caught = undefined;
+    }
+    this.vault.touch(server, login.name);
+    this.#localLog('b.login', `signed in with the saved login \u201c${login.name}\u201d`, origin);
+    await this.#thumb(ws, id, t, a);
+    void this.#frame(ws, t);
+    return { outcome: 'filled', tab: t.id, submitted: a.submit !== false };
+  }
+
+  /** Phase 90: b.saveLogin. The consent window decides; the device saves only with the box ticked. */
+  async #saveLogin(a: Record<string, unknown>, server: string): Promise<Record<string, unknown>> {
+    const b = this.browser;
+    const t = b.tab(a.tab);
+    const site = loginOrigin((await b.info2(t)).url);
+    if (!site) throw new OpError('not_found', 'Open the site\u2019s sign-in page in the Sara browser first: a login is saved for the site that is open.');
+    if (!this.opts.consent) throw new OpError('perm_missing', 'This computer has no window to save a login with.');
+    const c = b.caught && b.caught.origin === site && Date.now() - b.caught.at < CAUGHT_KEEP_MS ? b.caught : undefined;
+    const name = cleanLoginName(a.name) || defaultLoginName(site);
+    this.badge = 'Save a login for Sara?';
+    let answer: ConsentAnswer;
+    try {
+      answer = await this.opts.consent({ site, name, warning: SAVE_LOGIN_WARNING.replace('{site}', site), canUseTyped: Boolean(c) });
+    } finally {
+      this.badge = '';
+    }
+    const given = answer.useTyped && c ? { ...answer, username: c.username, password: c.password } : answer;
+    let view;
+    try {
+      view = this.vault.save(server, site, { ...given, name: cleanLoginName(given.name) || name });
+    } catch (err) {
+      if (err instanceof LoginError && err.code === 'cancelled') return { outcome: 'cancelled', why: err.message };
+      if (err instanceof LoginError) throw new OpError(err.code, err.message);
+      throw err;
+    }
+    if (answer.useTyped) b.caught = undefined;
+    this.#localLog('b.saveLogin', `saved the login \u201c${view.name}\u201d`, site);
+    this.tellLogins();
+    return { outcome: 'saved', name: view.name, sites: view.sites };
+  }
+
   async #keys(t: Tab, combo: string): Promise<void> {
     const plan = await this.browser.agent<{ events?: Record<string, unknown>[]; error?: string }>(t, 'keys', { combo });
     if (!plan.events) throw new OpError('denied_local', plan.error ?? 'Not a key Sara presses.');
@@ -921,6 +1081,20 @@ export class HandsRef {
     if (op === 'c.ping') return { pong: true, at: new Date().toISOString() };
     if (op === 'c.tunnel') return this.#openTunnel(ws, args);
     if (op === 'c.untunnel') return { closed: this.closeTunnel(String(args.tunnel ?? '')) };
+    // Phase 90: the saved logins here (names and sites only go back).
+    const server = this.serverOrigin;
+    if (op === 'b.logins') return { logins: this.vault.list(server), verify: this.opts.verify?.on === true };
+    if (op === 'b.forgetLogin') {
+      const all = args.all === true;
+      const name = cleanLoginName(args.name);
+      if (!all && !name) throw new OpError('not_found', 'Say which saved login to remove.');
+      const n = all ? this.vault.remove(server, { all: true }) : this.vault.remove(server, name);
+      if (n) {
+        this.#localLog(op, all ? 'removed every saved login' : `removed the saved login \u201c${name}\u201d`, '');
+        this.tellLogins();
+      }
+      return { removed: n, logins: this.vault.list(server) };
+    }
     if ((op !== 'b.tabs' && op !== 'b.downloads') || b.running) await b.start();
     const tabsView = async () => Promise.all([...b.tabs.values()].map(async (t) => ({ tab: t.id, ...(await b.info2(t)), active: t === b.tab() })));
     switch (op) {
@@ -1046,6 +1220,27 @@ export class HandsRef {
         await b.cdp!.send('Target.closeTarget', { targetId: t.targetId });
         b.tabs.delete(t.id);
         return { closed: t.id };
+      }
+      case 'b.login':
+        return this.#login(ws, id, args, server);
+      case 'b.saveLogin':
+        return this.#saveLogin(args, server);
+      case 'b.yourTurn': {
+        // §8.1: the person signs in (or types a code) themselves; she waits until they press Continue.
+        const ac = this.#running.get(id);
+        this.yourTurn = String(args.what ?? '').replace(/[\u0000-\u001f]/g, ' ').slice(0, 120) || 'sign in';
+        this.badge = `Your turn: ${this.yourTurn}, then press Continue`;
+        await new Promise<void>((resolve) => {
+          this.#turnDone = resolve;
+          ac?.signal.addEventListener('abort', () => resolve(), { once: true });
+        });
+        const aborted = ac?.signal.aborted === true;
+        this.#turnDone = undefined;
+        this.yourTurn = '';
+        this.badge = '';
+        if (aborted) throw new OpError('stopped', 'Stopped.');
+        const t = b.tabs.size ? b.tab() : undefined;
+        return { continued: true, ...(t ? { tab: t.id, ...(await b.info2(t)) } : {}) };
       }
     }
     throw new OpError('unsupported', `This computer doesn't do "${op}".`);

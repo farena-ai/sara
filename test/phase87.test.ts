@@ -309,7 +309,7 @@ test('the reference hands: look, read, navigate, screenshot and logs against a f
     assert.equal((await r('b.screenshot', { maxWidth: 640 })).images[0].mime, 'image/jpeg');
     assert.equal((await r('b.navigate', { action: 'reload' })).result.title, 'Shop');
     // Phase 88 (CU2) added b.click / b.type to the command set; logins, scripts and the desktop stay out.
-    for (const op of ['b.login', 'd.click', 'd.shot', 'b.evaluate']) await assert.rejects(r(op), (err: Error & { code?: string }) => err.code === 'unsupported', op);
+    for (const op of ['p.unlock', 'd.click', 'd.shot', 'b.evaluate']) await assert.rejects(r(op), (err: Error & { code?: string }) => err.code === 'unsupported', op);
     await assert.rejects(r('b.open', { url: `${e.base}/` }), (err: Error & { code?: string }) => err.code === 'denied_local');
     await assert.rejects(r('b.open', { url: 'file:///etc/passwd' }), (err: Error & { code?: string }) => err.code === 'denied_local');
     // Reconnect: a dropped connection comes back by itself.

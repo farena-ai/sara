@@ -30,6 +30,9 @@ struct Host {
   bool testLabel = false;     // test runs: the badge says TEST
   /** A fresh token came over the connection (keep it instead of the old one). Called on the hands thread. */
   std::function<void(const std::string& token, const std::string& expiresAt)> onToken;
+  // Phase 90 (CU4): saved logins (a DPAPI CurrentUser file; %LOCALAPPDATA%\Sara\logins.dat).
+  std::wstring loginsFile;
+  bool loginsVerify = false;  // Windows Hello before a saved login is used (off by default)
 };
 
 /** Connects (and keeps reconnecting) with these settings; a running connection is replaced. */
@@ -55,6 +58,13 @@ bool connected();
 std::wstring lastError();
 /** Where the Sara browser is (empty when there is none on this computer). */
 std::wstring browserPath();
+
+/** Phase 90: this server's saved logins here as JSON {logins:[{name, sites, created, lastUsed}]} (never a password). */
+std::wstring loginsJson(const std::wstring& server, const std::wstring& file);
+/** Phase 90: removes one of this server's saved logins here (or all); how many went. */
+int forgetLogin(const std::wstring& server, const std::wstring& file, const std::string& name, bool all, std::wstring& err);
+/** Phase 90: "Ask for Windows Hello before Sara uses a saved login" changed. */
+void setLoginsVerify(bool on);
 
 /** DPAPI (this Windows user only): protect / unprotect a small secret as base64 text. */
 std::wstring protect(const std::string& secret);

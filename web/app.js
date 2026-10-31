@@ -2287,6 +2287,7 @@ const CU_ASK = {
   select: (a) => t('{name} wants to choose in {target} on {site}', a),
   keys: (a) => t('{name} wants to press keys on {site}', a),
   upload: (a) => t('{name} wants to upload a file to {target} on {site}', a),
+  login: (a) => t('{name} wants to sign in to {site} with your saved “{login}” login', a),
 };
 const CU_TEXT = { type: (a) => t('Text: {text}', a), select: (a) => t('Option: {text}', a), keys: (a) => t('Keys: {text}', a), upload: (a) => t('File: {text}', a) };
 const CU_KIND = { click: () => t('clicking'), type: () => t('typing'), select: () => t('choosing in lists'), keys: () => t('pressing keys'), upload: () => t('uploading files') };
@@ -2295,8 +2296,8 @@ function computerApproval(card, title, k, decide) {
   card.classList.add('approval-tidy');
   if (k.risk === 'payment' || k.risk === 'account') card.classList.add('approval-advisory');
   title.className = 'approval-title';
-  const ask = (CU_ASK[k.action] ?? CU_ASK.click)({ name: currentIdentity().name || t('Sara'), target: cuTarget(k), site: k.site });
-  title.replaceChildren(iconSpan('approval-icon', k.action === 'type' ? 'keyboard' : 'pointer'), el('span', 'approval-what', ask));
+  const ask = (CU_ASK[k.action] ?? CU_ASK.click)({ name: currentIdentity().name || t('Sara'), target: cuTarget(k), site: k.site, login: k.name || '' });
+  title.replaceChildren(iconSpan('approval-icon', k.action === 'type' ? 'keyboard' : k.action === 'login' ? 'lock' : 'pointer'), el('span', 'approval-what', ask));
   title.dataset.raw = '';
   const where = el('p', 'approval-about muted small', t('In the Sara browser on {computer}.', { computer: k.computer }));
   where.dataset.raw = '';
@@ -2306,7 +2307,13 @@ function computerApproval(card, title, k, decide) {
     tx.dataset.raw = '';
     lines.push(tx);
   }
-  const why = k.risk === 'payment' ? t('A payment or purchase: this asks every time.') : k.risk === 'account' ? t('Account or security settings: this asks every time.') : k.risk === 'send' ? t('Sending something as you: this asks every time.') : k.choices.includes('task') ? t('Her first action on this site in this task.') : k.choices.includes('always') ? t('Every action asks (your setting).') : t('This asks every time.');
+  // Phase 90: a saved login fills on that computer only; she never sees the password.
+  if (k.action === 'login') {
+    const kept = el('p', 'muted small', t('The password stays on {computer}: Sara never sees it.', { computer: k.computer }));
+    kept.dataset.raw = '';
+    lines.push(kept);
+  }
+  const why = k.risk === 'login' ? t('Using a saved login: this asks every time.') : k.risk === 'payment' ? t('A payment or purchase: this asks every time.') : k.risk === 'account' ? t('Account or security settings: this asks every time.') : k.risk === 'send' ? t('Sending something as you: this asks every time.') : k.choices.includes('task') ? t('Her first action on this site in this task.') : k.choices.includes('always') ? t('Every action asks (your setting).') : t('This asks every time.');
   lines.push(el('p', 'muted small', why));
   const row = el('div', 'row');
   const btn = (label, cls, fn) => {
@@ -10310,6 +10317,10 @@ async function loadComputer() {
     $('#cu-takeover').value = p.handsTakeover === 'keep' ? 'keep' : 'pause';
     $('#cu-takeover').disabled = p.handsOptIn !== true;
     if (p.handsHotkey) $('#cu-hotkey').textContent = p.handsHotkey;
+    // Phase 90: Windows Hello / Touch ID before a saved login is used (this computer's own choice).
+    $('#cu-verify').checked = p.loginsVerify === true;
+    $('#cu-verify').disabled = p.handsOptIn !== true || p.loginsSupported !== true;
+    void renderThisLogins();
     $('#cu-this-status').textContent = p.handsOptIn ? (p.handsConnected ? t('On: connected to Sara.') : t('On: connecting…')) : t('Off.');
   }
   const list = h.devices ?? [];
@@ -10344,7 +10355,103 @@ async function loadComputer() {
     }),
   );
   renderTunnels(h.tunnels ?? [], list);
+  void renderLogins(list, p);
 }
+// Phase 90: logins saved on the computers (names and sites; each computer answers for itself).
+const loginDate = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+function loginRow(l, remove) {
+  const li = el('li', 'cu-row');
+  const main = el('div', 'cu-row-main');
+  const nm = el('span', 'cu-row-name', l.name);
+  nm.dataset.raw = '';
+  const bits = [(l.sites ?? []).join(', ')];
+  if (l.lastUsed) bits.push(t('Last used {date}', { date: loginDate(l.lastUsed) }));
+  else if (l.created) bits.push(t('Saved {date}', { date: loginDate(l.created) }));
+  const meta = el('span', 'cu-row-meta', bits.filter(Boolean).join(' · '));
+  meta.dataset.raw = '';
+  main.append(nm, meta);
+  const rm = el('button', 'ghost', t('Remove'));
+  rm.type = 'button';
+  rm.addEventListener('click', () => void remove(l));
+  li.append(main, rm);
+  return li;
+}
+async function renderLogins(devices, p) {
+  const box = $('#cu-logins-list');
+  // In the Sara app, this computer's own logins are listed under This computer.
+  const mine = p?.handsDeviceId || '';
+  const able = devices.filter((d) => d.connected && (d.ops ?? []).includes('b.logins') && d.id !== mine);
+  $('#cu-logins').hidden = !able.length;
+  const blocks = await Promise.all(
+    able.map(async (d) => {
+      const name = d.computer || d.label;
+      const wrap = el('div', 'cu-logins-device');
+      const head = el('h4', '', name);
+      head.dataset.raw = '';
+      const ul = el('ul', 'cu-list');
+      const note = el('p', 'muted small', '');
+      wrap.append(head, ul, note);
+      let r;
+      try {
+        r = await api(`/hands/${encodeURIComponent(d.id)}/logins`);
+      } catch (err) {
+        note.textContent = err.message;
+        return wrap;
+      }
+      if (!r.supported) {
+        ul.hidden = true;
+        note.textContent = r.connected ? t('This computer can’t save logins yet: update the Sara app there.') : t('Not connected: its saved logins show when it is.');
+        return wrap;
+      }
+      const logins = r.logins ?? [];
+      const removeOne = async (l) => {
+        if (!confirm(t('Remove the saved login “{name}” from {computer}?', { name: l.name, computer: name }))) return;
+        const x = await api(`/hands/${encodeURIComponent(d.id)}/logins/${encodeURIComponent(l.name)}`, { method: 'DELETE' }).catch((err) => ({ ok: false, error: { message: err.message } }));
+        $('#cu-status').textContent = x.ok ? t('Removed on {computer}.', { computer: name }) : x.error?.message || '';
+        void loadComputer();
+      };
+      ul.replaceChildren(...logins.map((l) => loginRow(l, removeOne)));
+      note.textContent = logins.length ? '' : t('No saved logins.');
+      note.hidden = logins.length > 0;
+      ul.hidden = !logins.length;
+      if (logins.length > 1) {
+        const all = el('button', 'ghost', t('Remove all'));
+        all.type = 'button';
+        all.addEventListener('click', async () => {
+          if (!confirm(t('Remove every saved login from {computer}?', { computer: name }))) return;
+          const x = await api(`/hands/${encodeURIComponent(d.id)}/logins`, { method: 'DELETE' }).catch((err) => ({ ok: false, error: { message: err.message } }));
+          $('#cu-status').textContent = x.ok ? t('Removed on {computer}.', { computer: name }) : x.error?.message || '';
+          void loadComputer();
+        });
+        wrap.append(all);
+      }
+      return wrap;
+    }),
+  );
+  box.replaceChildren(...blocks);
+}
+/** In the Sara app: this computer's saved logins, straight from the app (works while disconnected too). */
+async function renderThisLogins() {
+  const d = handsBridge();
+  const ul = $('#cu-this-logins');
+  if (!d) return;
+  const r = await d.call('loginsList').catch(() => null);
+  const logins = Array.isArray(r?.logins) ? r.logins : [];
+  const remove = async (l) => {
+    if (!confirm(t('Remove the saved login “{name}” from {computer}?', { name: l.name, computer: t('this computer') }))) return;
+    const x = await d.call('loginsRemove', { name: l.name }).catch((err) => ({ error: String(err) }));
+    $('#cu-this-status').textContent = x?.error ? x.error : t('Removed on {computer}.', { computer: t('this computer') });
+    void renderThisLogins();
+  };
+  ul.replaceChildren(...logins.map((l) => loginRow(l, remove)));
+  $('#cu-this-logins-none').hidden = logins.length > 0;
+}
+$('#cu-verify').addEventListener('change', async () => {
+  const d = handsBridge();
+  if (!d) return;
+  const r = await d.call('setPref', { key: 'loginsVerify', value: $('#cu-verify').checked }).catch((err) => ({ error: String(err) }));
+  $('#cu-this-status').textContent = r?.error ? r.error : t('Saved');
+});
 // Phase 89: her dev tunnels (an app her job runs here, opened in her browser on your computer).
 function renderTunnels(tunnels, devices) {
   const able = devices.filter((d) => d.connected && (d.ops ?? []).includes('c.tunnel'));
@@ -10528,7 +10635,7 @@ $('#cu-takeover').addEventListener('change', async () => {
 // Phase 88: the "Sara is working" badge above the composer (with Stop), and "Paused: you took over".
 const cuBadge = { deviceId: '', timer: 0, paused: false };
 const CU_LOOK = () => t('Looking at the page');
-const CU_DOING = { 'b.open': () => t('Opening a page'), 'b.navigate': () => t('Going to a page'), 'b.snapshot': CU_LOOK, 'b.screenshot': CU_LOOK, 'b.find': CU_LOOK, 'b.read': () => t('Reading the page'), 'b.logs': () => t('Reading the logs'), 'b.request': () => t('Reading the logs'), 'b.tabs': () => t('Looking at the tabs'), 'b.click': () => t('Clicking'), 'b.type': () => t('Typing'), 'b.select': () => t('Choosing in a list'), 'b.keys': () => t('Pressing keys'), 'b.scroll': () => t('Scrolling'), 'b.upload': () => t('Uploading a file'), 'b.downloads': () => t('Looking at the downloads') };
+const CU_DOING = { 'b.open': () => t('Opening a page'), 'b.navigate': () => t('Going to a page'), 'b.snapshot': CU_LOOK, 'b.screenshot': CU_LOOK, 'b.find': CU_LOOK, 'b.read': () => t('Reading the page'), 'b.logs': () => t('Reading the logs'), 'b.request': () => t('Reading the logs'), 'b.tabs': () => t('Looking at the tabs'), 'b.click': () => t('Clicking'), 'b.type': () => t('Typing'), 'b.select': () => t('Choosing in a list'), 'b.keys': () => t('Pressing keys'), 'b.scroll': () => t('Scrolling'), 'b.upload': () => t('Uploading a file'), 'b.downloads': () => t('Looking at the downloads'), 'b.login': () => t('Signing in with a saved login'), 'b.saveLogin': () => t('Waiting for you to save a login'), 'b.yourTurn': () => t('Your turn: waiting for you in her browser'), 'b.logins': () => t('Looking at the saved logins'), 'b.forgetLogin': () => t('Removing a saved login') };
 function hideBadge() {
   $('#cu-badge').hidden = true;
   cuBadge.deviceId = '';

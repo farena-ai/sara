@@ -337,7 +337,7 @@ test('the reference hands act: click, type, select, keys, scroll, upload, downlo
     await until(() => e.hub.devices().find((d) => d.id === id)?.paused !== true);
     assert.ok(!(await op('b.click', { text: 'Add one' })).error);
     // Still nothing beyond the command set.
-    for (const o of ['b.login', 'b.evaluate', 'd.click', 'd.type']) assert.equal((await op(o, {})).error, 'unsupported', o);
+    for (const o of ['p.unlock', 'b.evaluate', 'd.click', 'd.type']) assert.equal((await op(o, {})).error, 'unsupported', o);
     // The local log: what she did, no pictures.
     const lines = readFileSync(logFile, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as Record<string, string>);
     assert.ok(lines.some((l) => l.op === 'b.type' && l.what === 'typing your name'));

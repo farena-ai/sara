@@ -8,6 +8,10 @@
 // (BSD sockets); each connection the Sara browser makes to it is a stream over this connection to the
 // dev server her job runs on the server. At most 4 tunnels and 64 connections each; all close on
 // c.untunnel, Stop and when the connection drops.
+// Phase 90 (CU4): saved logins in the Keychain (service "Sara logins", this device only; see HandsLogins):
+// b.login fills one through DevTools input only on its exact site, b.saveLogin opens this app's own
+// consent panel ("I understand" unticked), b.logins / b.forgetLogin list and remove (names and sites
+// only), b.yourTurn shows "Your turn" until the person presses Continue; optional Touch ID first.
 // When the owner switches on "Let Sara use this computer" (Settings → Computer use in the app), the
 // page gets a `hands` token from the server and hands it to this app; the app keeps it in the
 // Keychain, opens its own WebSocket to <server>/api/hands (Authorization header, no cookies) and runs
@@ -21,6 +25,7 @@ import Foundation
 import AppKit
 import Carbon.HIToolbox
 import Security
+import LocalAuthentication
 
 // MARK: small helpers
 
@@ -89,6 +94,16 @@ final class HandsBrowser {
     var requests: [String: (String, String)] = [:]
   }
   var downloadsDir: URL?
+  /// Phase 90: the page agent's catchLogins, in a world of its own on every page.
+  var catchScript = ""
+  private var caught: (origin: String, user: String, pass: String, at: Date)?
+  /// Phase 90: a sign-in the person typed in the Sara browser ("Use what I just typed"), memory only.
+  func takeCaught(_ origin: String) -> (String, String)? {
+    cond.lock(); defer { cond.unlock() }
+    guard let c = caught, c.origin == origin, Date().timeIntervalSince(c.at) < 600 else { return nil }
+    return (c.user, c.pass)
+  }
+  func clearCaught() { cond.lock(); caught = nil; cond.unlock() }
   let serverOrigin: String
   let profileDir: URL
   let found: (path: String, kind: String, name: String)?
@@ -276,6 +291,12 @@ final class HandsBrowser {
     tabs[t.id] = t; order.append(t.id); active = t.id
     cond.unlock()
     for d in ["Page.enable", "Runtime.enable", "Network.enable", "Log.enable"] { _ = try? call(d, [:], session: session) }
+    // Phase 90: "Use what I just typed". A binding only the catcher's own isolated world can call (the
+    // page's scripts can't), installed on every page; what it hands over stays in this app's memory.
+    if !catchScript.isEmpty {
+      _ = try? call("Runtime.addBinding", ["name": "saraLoginCaught", "executionContextName": "sara-login-catch"], session: session)
+      _ = try? call("Page.addScriptToEvaluateOnNewDocument", ["source": catchScript, "worldName": "sara-login-catch", "runImmediately": true], session: session)
+    }
     // §4.1: the server's own pages are refused even when a page sends the browser there.
     _ = try? call("Fetch.enable", ["patterns": [["urlPattern": serverOrigin + "/*"]]], session: session)
     let tree = try? call("Page.getFrameTree", [:], session: session)
@@ -375,6 +396,14 @@ final class HandsBrowser {
     let method = m["method"] as? String ?? ""
     let p = m["params"] as? [String: Any] ?? [:]
     let session = m["sessionId"] as? String
+    if method == "Runtime.bindingCalled" {
+      guard p["name"] as? String == "saraLoginCaught", let c = parseJSON(p["payload"] as? String ?? "") else { return }
+      let origin = handsLoginOrigin(c["origin"] as? String ?? "")
+      if !origin.isEmpty, let pw = c["password"] as? String, !pw.isEmpty {
+        cond.lock(); caught = (origin, String((c["username"] as? String ?? "").prefix(200)), String(pw.prefix(500)), Date()); cond.unlock()
+      }
+      return
+    }
     if method == "Fetch.requestPaused" {
       let url = (p["request"] as? [String: Any])?["url"] as? String ?? ""
       let ok = handsAddressAllowed(url, serverOrigin: serverOrigin) == nil
@@ -665,9 +694,15 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
                                   // Phase 88 (CU2)
                                   "b.find", "b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.downloads",
                                   // Phase 89 (CU3): the dev tunnel
-                                  "c.tunnel", "c.untunnel"]
+                                  "c.tunnel", "c.untunnel",
+                                  // Phase 90 (CU4): saved logins and the sign-in pause
+                                  "b.login", "b.saveLogin", "b.logins", "b.forgetLogin", "b.yourTurn"]
   /// Ops that act: they count against the input rate limit and stop when the person takes over.
-  static let inputOps: Set<String> = ["b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload"]
+  static let inputOps: Set<String> = ["b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login"]
+  /// Phase 90: ops that wait for the person (the consent panel, "Your turn"): up to 10 minutes.
+  static let waitingOps: Set<String> = ["b.saveLogin", "b.yourTurn"]
+  /// Phase 90: Touch ID before a saved login is used (off by default).
+  var verify = false
   static var shared: Hands?
 
   let server: String
@@ -732,6 +767,7 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     self.testLabel = testLabel
     browser = HandsBrowser(serverOrigin: server.lowercased(), profileDir: profileDir)
     browser.downloadsDir = downloadsDir
+    if !pageAgent.isEmpty { browser.catchScript = "(\(pageAgent)).call(\"catchLogins\", {})" }
     super.init()
     tunnels.sendText = { [weak self] in self?.sendText($0) }
     tunnels.sendData = { [weak self] h, d in self?.sendBinary(h, d) }
@@ -861,10 +897,23 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     if let f = browser.found { browserInfo["kind"] = f.kind; browserInfo["name"] = f.name }
     return jsonText(["t": "hello", "v": 1, "app": version, "os": "macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion)", "computer": computer, "screens": [] as [Any],
                      "browser": browserInfo, "perms": ["capture": false, "input": false, "ax": false], "optIn": ["browser": true, "desktop": false], "approvalsHere": false,
-                     "logins": [] as [Any], "busy": false, "localOnly": localOnly, "ops": Array(Hands.ops).sorted(),
+                     "logins": HandsLogins.views(server: browser.serverOrigin), "vault": ["kind": "keychain", "verify": verify], "busy": false, "localOnly": localOnly, "ops": Array(Hands.ops).sorted(),
                      "takeover": keep ? "keep" : "pause", "hotkey": hotkeyOk ? "⌃⌥Esc" : "", "paused": paused, "renew": true] as [String: Any])
   }
 
+  /// Phase 90: the server hears at once when the logins here changed (names and sites only).
+  func tellLogins() {
+    sendText(jsonText(["t": "ev", "kind": "logins", "logins": HandsLogins.views(server: browser.serverOrigin), "vault": ["kind": "keychain", "verify": verify]] as [String: Any]))
+  }
+  /// Phase 90: removes one of this server's logins here (or all): the web Settings, the app's Settings.
+  func forgetHere(_ name: String?) -> Int {
+    let n = HandsLogins.remove(server: browser.serverOrigin, name: name)
+    if n > 0 {
+      localLog("b.forgetLogin", name == nil ? "removed every saved login" : "removed the saved login \u{201c}\(name ?? "")\u{201d}", "")
+      tellLogins()
+    }
+    return n
+  }
   func pressStop() {
     lock.lock()
     for c in cancels.values { c.set() }
@@ -994,7 +1043,7 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     lock.unlock()
     let opWhat = shortText(m["what"] as? String ?? "", 120)
     let args = m["args"] as? [String: Any] ?? [:]
-    let deadline = min(120, max(1, (m["deadlineMs"] as? Double ?? Double(m["deadlineMs"] as? Int ?? 30000)) / 1000))
+    let deadline = min(Hands.waitingOps.contains(op) ? 600 : 120, max(1, (m["deadlineMs"] as? Double ?? Double(m["deadlineMs"] as? Int ?? 30000)) / 1000))
     DispatchQueue.global().asyncAfter(deadline: .now() + deadline) { cancel.set() }
     queue.async { [weak self] in
       guard let self else { return }
@@ -1099,6 +1148,16 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
       if p { throw HandsOpError(code: "takeover", message: "Paused: the owner took over the Sara browser. Nothing acts until they press Resume.") }
     }
     if op == "b.downloads" { return ["files": downloadsList()] }
+    // Phase 90: the saved logins here (names and sites only go back) and the sign-in pause.
+    if op == "b.logins" { return ["logins": HandsLogins.views(server: browser.serverOrigin), "verify": verify] }
+    if op == "b.forgetLogin" {
+      let all = a["all"] as? Bool == true
+      let name = handsCleanName(a["name"] as? String ?? "")
+      if !all && name.isEmpty { throw HandsOpError(code: "not_found", message: "Say which saved login to remove.") }
+      let n = forgetHere(all ? nil : name)
+      return ["removed": n, "logins": HandsLogins.views(server: browser.serverOrigin)]
+    }
+    if op == "b.yourTurn" { return try yourTurn(a, cancel) }
     if op != "b.tabs" || browser.running { try browser.start() }
     switch op {
     case "b.start": return ["browser": ["kind": browser.found?.kind ?? "", "name": browser.found?.name ?? ""], "tabs": tabsList()]
@@ -1189,6 +1248,8 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
       return try agent(t, "target", targetArgs(a), cancel)
     case "b.click", "b.type", "b.select", "b.keys", "b.upload":
       return try act(id: id, op: op, t: t, a: a, cancel: cancel)
+    case "b.login": return try login(id: id, t: t, a: a, cancel: cancel)
+    case "b.saveLogin": return try saveLogin(t: t, a: a, cancel: cancel)
     case "b.scroll":
       var r = try agent(t, "scroll", targetArgs(a), cancel)
       if let e = r["error"] as? String { throw HandsOpError(code: r["stale"] as? Bool == true ? "stale_view" : "not_found", message: e) }
@@ -1368,6 +1429,92 @@ extension Hands {
     return out
   }
 
+  // MARK: Phase 90 (CU4): saved logins and the sign-in pause
+  func yourTurn(_ a: [String: Any], _ cancel: HandsCancel) throws -> [String: Any] {
+    var what = handsCleanName(shortText(a["what"] as? String ?? "", 120))
+    if what.isEmpty { what = "sign in" }
+    lock.lock(); self.what = "your turn: \(what)"; lock.unlock()
+    updateBadge()
+    let panel = HandsLoginPanel(kind: .turn, turnWhat: what.prefix(1).uppercased() + what.dropFirst(), test: testLabel)
+    panel.run(cancel: cancel)
+    if cancel.isSet || !panel.continued { throw HandsOpError(code: "stopped", message: "Stopped.") }
+    var out: [String: Any] = ["continued": true]
+    if browser.running, let t = try? browser.tab("") { out["tab"] = t.id; for (k, v) in info(t) { out[k] = v } }
+    return out
+  }
+  /// b.login: fills a saved login, only on a page whose current origin is exactly one of its sites.
+  func login(id: String, t: HandsBrowser.Tab, a: [String: Any], cancel: HandsCancel) throws -> [String: Any] {
+    browser.activate(t.id)
+    let server = browser.serverOrigin
+    guard let meta = HandsLogins.find(server: server, name: a["name"] as? String ?? "") else { return ["outcome": "not_found", "missing": "login", "tab": t.id] }
+    let url = ((try? browser.call("Target.getTargetInfo", ["targetId": t.targetId]))?["targetInfo"] as? [String: Any])?["url"] as? String ?? ""
+    let origin = handsLoginOrigin(url)
+    guard !origin.isEmpty, meta.sites.contains(origin) else { return ["outcome": "site_mismatch", "tab": t.id] }
+    if verify {
+      let (ok, why) = handsTouchID("sign in to \(origin) with your saved \u{201c}\(meta.name)\u{201d} login", cancel: cancel)
+      if !ok { throw HandsOpError(code: cancel.isSet ? "stopped" : "denied_local", message: why) }
+    }
+    guard let secret = HandsLogins.secret(server: server, name: meta.name) else { return ["outcome": "not_found", "missing": "login", "tab": t.id] }
+    // The page itself must say the same origin (its main frame, now), and have a password field.
+    let f = try agent(t, "loginFields", [:], cancel)
+    if handsLoginOrigin(f["origin"] as? String ?? "") != origin { return ["outcome": "site_mismatch", "tab": t.id] }
+    guard let passAt = f["pass"] as? [String: Any] else { return ["outcome": "not_found", "missing": "fields", "tab": t.id] }
+    let label = testLabel ? "Sara (TEST)" : "Sara"
+    /// 0 typed, 1 not a field, 2 another origin.
+    func put(_ which: String, _ at: [String: Any], _ text: String) throws -> Int {
+      _ = try? agent(t, "mark", ["x": at["x"] ?? 0, "y": at["y"] ?? 0, "box": at["box"] ?? NSNull(), "label": label], cancel)
+      try mouseClick(t, num(at["x"]), num(at["y"]), cancel)
+      let fo = try agent(t, "focusLogin", ["which": which], cancel)
+      if fo["focused"] as? Bool != true { return 1 }
+      if handsLoginOrigin(fo["origin"] as? String ?? "") != origin { return 2 }
+      if which == "pass" && fo["secret"] as? Bool != true { return 1 }
+      // DevTools input on this Mac's pipe: the text goes into the page and nowhere else.
+      _ = try browser.call("Input.insertText", ["text": text], session: t.sessionId, timeout: 20, cancel: cancel)
+      return 0
+    }
+    var k = 0
+    defer { browser.clearCaught() }  // her own fill is not something the person typed
+    if let userAt = f["user"] as? [String: Any], !secret.username.isEmpty { k = try put("user", userAt, secret.username) }
+    if k == 0 { k = try put("pass", passAt, secret.password) }
+    if k == 2 { return ["outcome": "site_mismatch", "tab": t.id] }
+    if k == 1 { return ["outcome": "not_found", "missing": "fields", "tab": t.id] }
+    let starts0 = browser.starts(t.id), loads0 = browser.loads(t.id)
+    let submit = a["submit"] as? Bool != false
+    if submit { try pressKeys(t, "Enter", cancel) }
+    if browser.waitStart(t.id, after: starts0, timeout: 0.5, cancel: cancel) { _ = browser.waitLoad(t.id, after: loads0, timeout: 15, cancel: cancel) }
+    Thread.sleep(forTimeInterval: 0.25)
+    browser.clearCaught()
+    HandsLogins.touch(server: server, name: meta.name)
+    localLog("b.login", "signed in with the saved login \u{201c}\(meta.name)\u{201d}", origin)
+    thumb(id, t, a, cancel)
+    frame((try? browser.tab(t.id)) ?? t)
+    return ["outcome": "filled", "tab": t.id, "submitted": submit]
+  }
+  /// b.saveLogin: this Mac's own consent panel decides; saved only with "I understand" ticked.
+  func saveLogin(t: HandsBrowser.Tab, a: [String: Any], cancel: HandsCancel) throws -> [String: Any] {
+    let url = ((try? browser.call("Target.getTargetInfo", ["targetId": t.targetId]))?["targetInfo"] as? [String: Any])?["url"] as? String ?? ""
+    let site = handsLoginOrigin(url)
+    if site.isEmpty { throw HandsOpError(code: "not_found", message: "Open the site\u{2019}s sign-in page in the Sara browser first: a login is saved for the site that is open.") }
+    var name = handsCleanName(a["name"] as? String ?? "")
+    if name.isEmpty { name = handsDefaultName(site) }
+    lock.lock(); what = "waiting for you to save a login"; lock.unlock()
+    updateBadge()
+    let panel = HandsLoginPanel(kind: .consent, site: site, name: name, warning: handsLoginWarning.replacingOccurrences(of: "{site}", with: site), typed: browser.takeCaught(site), test: testLabel)
+    panel.run(cancel: cancel)
+    if cancel.isSet { throw HandsOpError(code: "stopped", message: "Stopped.") }
+    if !panel.save { return ["outcome": "cancelled", "why": "the owner pressed Cancel on the Mac"] }
+    if !panel.understood { return ["outcome": "cancelled", "why": "the box \"I understand\" under the warning was not ticked"] }
+    let saved = handsCleanName(panel.outName).isEmpty ? name : handsCleanName(panel.outName)
+    let server = browser.serverOrigin
+    if HandsLogins.list(server: server).filter({ $0.name.lowercased() != saved.lowercased() }).count >= HandsLogins.maxLogins { throw HandsOpError(code: "denied_local", message: "At most 100 saved logins per Sara on one Mac.") }
+    let status = HandsLogins.save(HandsLogins.Meta(name: saved, sites: [site], server: server, created: ISO8601DateFormatter().string(from: Date()), lastUsed: ""), username: panel.outUser, password: panel.outPass)
+    if status != errSecSuccess { throw HandsOpError(code: "error", message: "The Keychain couldn't keep the login (\(status)).") }
+    browser.clearCaught()
+    localLog("b.saveLogin", "saved the login \u{201c}\(saved)\u{201d}", site)
+    tellLogins()
+    return ["outcome": "saved", "name": saved, "sites": [site]]
+  }
+
   // ---- the badge (floating, never in her pictures), the stop shortcut ⌃⌥Esc, takeover ----
   func setUpUI() {
     let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 420, height: 40), styleMask: [.nonactivatingPanel, .borderless], backing: .buffered, defer: false)
@@ -1447,6 +1594,7 @@ extension Hands {
   @objc func testHook(_ n: Notification) {
     guard testLabel, let cmd = n.object as? String else { return }
     if cmd == "input" { userInput() } else if cmd == "resume" { resume() } else if cmd == "hotkey" { pressStop() }
+    else if cmd.hasPrefix("login:") { let c = String(cmd.dropFirst(6)); DispatchQueue.main.async { HandsLoginPanel.current?.testDrive(c) } }
     else if cmd == "off" { DispatchQueue.main.async { (NSApp.delegate as? AppDelegate)?.handsOff(); testLog("hands: off (test item removed)") } }
     else if cmd.hasPrefix("shot:"), let v = badge?.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) {
       v.cacheDisplay(in: v.bounds, to: rep)
@@ -1512,6 +1660,279 @@ extension Hands {
     let front = NSWorkspace.shared.frontmostApplication?.processIdentifier ?? 0
     if under == pid || front == pid { userInput() }
   }
+}
+
+// MARK: Phase 90 (CU4, docs/design/COMPUTER_USE.md §8.2): saved logins in the Keychain
+// One generic-password item per login: service "Sara logins" (test builds: "Sara logins (TEST)", so the
+// owner's real items are never touched), account "<server>\n<name>", accessible only when this Mac is
+// unlocked and never synced or moved (kSecAttrAccessibleWhenUnlockedThisDeviceOnly). The secret
+// (username and password) is the item's data; the name, sites, server and dates are its generic
+// attribute, so listing never reads a secret. What goes to the server is names, sites and dates; the
+// password goes only into the page, through DevTools input on the browser's pipe, and only when the
+// page's current origin is exactly one of the login's sites. Saved only through the consent panel
+// below, with "I understand" ticked.
+
+let handsLoginWarning = "Saving this password lets Sara sign in to {site} for you on this computer. It's stored encrypted here, never on Sara's server, and she never sees it. Anyone who can use your account on this computer could use it too. Save it only if you're comfortable; signing in yourself once and letting the Sara browser remember you is safer."
+
+/// The exact origin of a page address for logins ("" for anything but http(s), or with a user name).
+func handsLoginOrigin(_ raw: String) -> String {
+  guard let o = httpOrigin(raw), !o.userinfo else { return "" }
+  return o.origin
+}
+/// A login name as people write it: no control characters, single spaces, at most 60 characters.
+func handsCleanName(_ raw: String) -> String {
+  let s = String(String.UnicodeScalarView(raw.unicodeScalars.map { $0.value < 0x20 || $0.value == 0x7f ? " " : $0 }))
+  return String(s.split(separator: " ").joined(separator: " ").prefix(60))
+}
+func handsDefaultName(_ site: String) -> String {
+  var h = URLComponents(string: site)?.host ?? ""
+  if h.hasPrefix("www.") { h.removeFirst(4) }
+  return handsCleanName(h.isEmpty ? "Login" : h)
+}
+
+enum HandsLogins {
+  static var service: String = {
+    #if DEBUG
+    // Test copies (another bundle id) keep theirs apart, so the owner's real items are never touched.
+    if Bundle.main.bundleIdentifier != "com.backstagecoding.sara.desktop" { return "Sara logins (TEST)" }
+    #endif
+    return "Sara logins"
+  }()
+  static let maxLogins = 100
+  struct Meta {
+    var name: String, sites: [String], server: String, created: String, lastUsed: String
+    var json: [String: Any] { var o: [String: Any] = ["name": name, "sites": sites, "server": server, "created": created]; if !lastUsed.isEmpty { o["lastUsed"] = lastUsed }; return o }
+    /// What may leave the Mac: names, sites, dates (never a username or password).
+    var view: [String: Any] { var o: [String: Any] = ["name": name, "sites": sites, "created": created]; if !lastUsed.isEmpty { o["lastUsed"] = lastUsed }; return o }
+  }
+  static func account(_ server: String, _ name: String) -> String { server + "\n" + handsCleanName(name).lowercased() }
+  static func all() -> [Meta] {
+    let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecReturnAttributes as String: true, kSecMatchLimit as String: kSecMatchLimitAll]
+    var out: CFTypeRef?
+    guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let items = out as? [[String: Any]] else { return [] }
+    return items.compactMap { a -> Meta? in
+      guard let g = a[kSecAttrGeneric as String] as? Data, let m = (try? JSONSerialization.jsonObject(with: g)) as? [String: Any] else { return nil }
+      let meta = Meta(name: handsCleanName(m["name"] as? String ?? ""), sites: (m["sites"] as? [String] ?? []).map(handsLoginOrigin).filter { !$0.isEmpty },
+                      server: m["server"] as? String ?? "", created: m["created"] as? String ?? "", lastUsed: m["lastUsed"] as? String ?? "")
+      return meta.name.isEmpty || meta.server.isEmpty ? nil : meta
+    }.sorted { $0.name.lowercased() < $1.name.lowercased() }
+  }
+  static func list(server: String) -> [Meta] { all().filter { $0.server == server } }
+  static func views(server: String) -> [[String: Any]] { list(server: server).map { $0.view } }
+  static func find(server: String, name: String) -> Meta? {
+    let want = handsCleanName(name).lowercased()
+    return list(server: server).first { $0.name.lowercased() == want }
+  }
+  /// The secret of one login (read only to fill it into the page on this Mac).
+  static func secret(server: String, name: String) -> (username: String, password: String)? {
+    let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account(server, name), kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne]
+    var out: CFTypeRef?
+    guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let d = out as? Data, let m = (try? JSONSerialization.jsonObject(with: d)) as? [String: String] else { return nil }
+    return (m["username"] ?? "", m["password"] ?? "")
+  }
+  @discardableResult static func save(_ meta: Meta, username: String, password: String) -> OSStatus {
+    let acct = account(meta.server, meta.name)
+    SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: acct] as CFDictionary)
+    guard let secret = try? JSONSerialization.data(withJSONObject: ["username": username, "password": password]), let generic = try? JSONSerialization.data(withJSONObject: meta.json) else { return errSecParam }
+    let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: acct,
+                            kSecAttrLabel as String: "\(service): \(meta.name)", kSecAttrDescription as String: "Sara login (\(meta.sites.joined(separator: ", ")))",
+                            kSecAttrGeneric as String: generic, kSecValueData as String: secret,
+                            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly, kSecAttrSynchronizable as String: false]
+    return SecItemAdd(q as CFDictionary, nil)
+  }
+  static func touch(server: String, name: String) {
+    guard var m = find(server: server, name: name) else { return }
+    m.lastUsed = ISO8601DateFormatter().string(from: Date())
+    guard let generic = try? JSONSerialization.data(withJSONObject: m.json) else { return }
+    SecItemUpdate([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account(server, name)] as CFDictionary,
+                  [kSecAttrGeneric as String: generic] as CFDictionary)
+  }
+  /// Removes one login of this server (or all of them); how many went.
+  static func remove(server: String, name: String?) -> Int {
+    var n = 0
+    for m in list(server: server) where name == nil || m.name.lowercased() == handsCleanName(name ?? "").lowercased() {
+      if SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account(server, m.name)] as CFDictionary) == errSecSuccess { n += 1 }
+    }
+    return n
+  }
+}
+
+/// The Mac's own windows: "Save a login for Sara?" and "Your turn" (AppKit controls, on the main thread).
+final class HandsLoginPanel: NSObject, NSWindowDelegate {
+  enum Kind { case consent, turn }
+  let kind: Kind
+  let site: String, name: String, warning: String, turnWhat: String
+  let typed: (String, String)?
+  let test: Bool
+  private(set) var save = false, understood = false, continued = false
+  private(set) var outName = "", outUser = "", outPass = ""
+  private var window: NSPanel?
+  private var nameField: NSTextField?, userField: NSTextField?, passField: NSSecureTextField?
+  private var tick: NSButton?, saveButton: NSButton?, status: NSTextField?
+  private let done = DispatchSemaphore(value: 0)
+  static weak var current: HandsLoginPanel?
+
+  init(kind: Kind, site: String = "", name: String = "", warning: String = "", turnWhat: String = "", typed: (String, String)? = nil, test: Bool) {
+    self.kind = kind; self.site = site; self.name = name; self.warning = warning; self.turnWhat = turnWhat; self.typed = typed; self.test = test
+  }
+  /// Shows the panel and waits (off the main thread) until it closes, Stop is pressed or the deadline passes.
+  func run(cancel: HandsCancel) {
+    DispatchQueue.main.async { self.build() }
+    while done.wait(timeout: .now() + 0.1) == .timedOut {
+      if cancel.isSet { DispatchQueue.main.async { self.finish() }; _ = done.wait(timeout: .now() + 5); break }
+    }
+  }
+  private func label(_ s: String, _ font: NSFont, _ y: inout CGFloat, in v: NSView, width: CGFloat) -> NSTextField {
+    let l = NSTextField(wrappingLabelWithString: s)
+    l.font = font
+    l.isSelectable = false
+    let h = ceil(l.sizeThatFits(NSSize(width: width, height: 1000)).height)
+    y -= h
+    l.frame = NSRect(x: 20, y: y, width: width, height: h)
+    v.addSubview(l)
+    y -= 10
+    return l
+  }
+  private func build() {
+    let W: CGFloat = 500, cw = W - 40
+    let v = NSView(frame: NSRect(x: 0, y: 0, width: W, height: 1000))
+    v.wantsLayer = true
+    v.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+    var y: CGFloat = 1000 - 20
+    let body = NSFont.systemFont(ofSize: 13), bold = NSFont.systemFont(ofSize: 17, weight: .semibold)
+    func field(_ title: String, _ f: NSTextField) {
+      let l = NSTextField(labelWithString: title)
+      l.font = body
+      y -= 28
+      l.frame = NSRect(x: 20, y: y + 4, width: 100, height: 18)
+      f.frame = NSRect(x: 126, y: y, width: cw - 106, height: 28)
+      f.font = body
+      v.addSubview(l); v.addSubview(f)
+      y -= 10
+    }
+    func button(_ title: String, _ action: Selector, x: CGFloat, w: CGFloat) -> NSButton {
+      let b = NSButton(title: title, target: self, action: action)
+      b.bezelStyle = .rounded
+      b.controlSize = .large
+      b.frame = NSRect(x: x, y: y - 44, width: w, height: 44)
+      v.addSubview(b)
+      return b
+    }
+    if kind == .consent {
+      _ = label("Save a login for Sara?", bold, &y, in: v, width: cw)
+      _ = label("Site: \(site)", body, &y, in: v, width: cw)
+      _ = label(warning, body, &y, in: v, width: cw)
+      let n = NSTextField(string: name); n.setAccessibilityLabel("Name"); field("Name", n); nameField = n
+      let u = NSTextField(string: ""); u.setAccessibilityLabel("Username"); field("Username", u); userField = u
+      let p = NSSecureTextField(string: ""); p.setAccessibilityLabel("Password"); field("Password", p); passField = p
+      if typed != nil {
+        _ = button("Use what I just typed", #selector(useTyped), x: 126, w: 220)
+        y -= 54
+      }
+      let t = NSButton(checkboxWithTitle: "I understand", target: self, action: #selector(ticked))
+      t.state = .off  // never ticked for them
+      t.font = body
+      y -= 28
+      t.frame = NSRect(x: 20, y: y, width: cw, height: 24)
+      v.addSubview(t)
+      tick = t
+      y -= 10
+      status = label(" ", body, &y, in: v, width: cw)
+      let s = button("Save", #selector(pressSave), x: W - 20 - 230, w: 110)
+      s.isEnabled = false
+      saveButton = s
+      let c = button("Cancel", #selector(pressCancel), x: W - 20 - 110, w: 110)
+      c.keyEquivalent = "\u{1b}"
+    } else {
+      _ = label("Your turn", bold, &y, in: v, width: cw)
+      _ = label("\(turnWhat) in the Sara browser, then press Continue. Sara waits until you do; she can't see what you type into password fields.", body, &y, in: v, width: cw)
+      let c = button("Continue", #selector(pressContinue), x: W - 20 - 130, w: 130)
+      c.keyEquivalent = "\r"
+    }
+    y -= 44 + 20
+    let h = 1000 - y
+    for s in v.subviews { s.frame.origin.y -= y }
+    v.frame = NSRect(x: 0, y: 0, width: W, height: h)
+    let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: W, height: h), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+    panel.title = (test ? "TEST · " : "") + (kind == .consent ? "Sara: save a login?" : "Sara: your turn")
+    panel.contentView = v
+    panel.level = .floating
+    panel.isFloatingPanel = true
+    panel.hidesOnDeactivate = false
+    panel.delegate = self
+    panel.center()
+    window = panel
+    HandsLoginPanel.current = self
+    NSApp.activate(ignoringOtherApps: true)
+    panel.makeKeyAndOrderFront(nil)
+    panel.makeFirstResponder(kind == .consent ? userField : nil)
+  }
+  @objc func ticked() { saveButton?.isEnabled = tick?.state == .on }
+  @objc func useTyped() {
+    // What the person typed in the Sara browser a moment ago (it never left this Mac).
+    guard let t = typed else { return }
+    userField?.stringValue = t.0
+    passField?.stringValue = t.1
+    status?.stringValue = "Filled in with what you just typed in the Sara browser."
+  }
+  @objc func pressSave() {
+    // The Mac's own rule: nothing is saved without the ticked box, whatever the server says.
+    guard tick?.state == .on else { status?.stringValue = "Tick \"I understand\" first, or press Cancel."; return }
+    let p = passField?.stringValue ?? ""
+    guard !p.isEmpty else { status?.stringValue = "Type the password first (or press Use what I just typed)."; return }
+    save = true; understood = true
+    outName = nameField?.stringValue ?? ""; outUser = userField?.stringValue ?? ""; outPass = p
+    finish()
+  }
+  @objc func pressCancel() { finish() }
+  @objc func pressContinue() { continued = true; finish() }
+  func windowWillClose(_ notification: Notification) {
+    if kind == .turn { continued = true }
+    closeDone()
+  }
+  private var closed = false
+  func finish() {
+    passField?.stringValue = ""
+    if let w = window { window = nil; w.delegate = nil; w.orderOut(nil); w.close() }
+    closeDone()
+  }
+  private func closeDone() {
+    if closed { return }
+    closed = true
+    passField?.stringValue = ""
+    if HandsLoginPanel.current === self { HandsLoginPanel.current = nil }
+    done.signal()
+  }
+  #if DEBUG
+  /// Test builds only: drives this panel like a person would (fill, tick, save, cancel, continue, a picture).
+  func testDrive(_ cmd: String) {
+    if cmd == "tick" { tick?.state = .on; ticked() }
+    else if cmd == "typed" { useTyped() }
+    else if cmd == "save" { pressSave() }
+    else if cmd == "cancel" { pressCancel() }
+    else if cmd == "continue" { pressContinue() }
+    else if cmd.hasPrefix("fill:") {
+      let parts = cmd.dropFirst(5).split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
+      if parts.count == 2 { userField?.stringValue = parts[0]; passField?.stringValue = parts[1] }
+    } else if cmd.hasPrefix("shot:"), let v = window?.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) {
+      v.cacheDisplay(in: v.bounds, to: rep)
+      try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: String(cmd.dropFirst(5))))
+    }
+  }
+  #endif
+}
+
+/// "Ask for Touch ID before Sara uses a saved login" (off by default): Touch ID or the Mac's password,
+/// through the Mac's own window. True only when macOS says it was the owner.
+func handsTouchID(_ reason: String, cancel: HandsCancel) -> (Bool, String) {
+  let ctx = LAContext()
+  var err: NSError?
+  guard ctx.canEvaluatePolicy(.deviceOwnerAuthentication, error: &err) else { return (false, "Touch ID isn't set up on this Mac: switch off \"Ask for Touch ID\" in the Sara app.") }
+  let sem = DispatchSemaphore(value: 0)
+  var ok = false
+  ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { success, _ in ok = success; sem.signal() }
+  while sem.wait(timeout: .now() + 0.1) == .timedOut { if cancel.isSet { ctx.invalidate(); return (false, "Stopped.") } }
+  return (ok, ok ? "" : "Nothing was filled: the person at the Mac didn't confirm it was them (Touch ID).")
 }
 
 // MARK: the token in the Keychain (this app's own item: a test copy with another bundle id has its own)

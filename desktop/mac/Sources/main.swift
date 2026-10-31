@@ -533,6 +533,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         // Phase 87: "Screenshots only to models on this computer" (the server hears it at once).
         prefs.set(on, forKey: "hands.\(Servers.activeId ?? "").localOnly")
         Hands.shared?.tellLocalOnly(on)
+      case "loginsVerify":
+        // Phase 90: Touch ID before Sara uses a saved login (off by default).
+        prefs.set(on, forKey: "hands.\(Servers.activeId ?? "").loginsVerify")
+        Hands.shared?.verify = on
+        Hands.shared?.tellLogins()
       case "handsTakeover":
         // Phase 88: "When you move the mouse": pause Sara (default) or let her keep control.
         let keepIt = body["value"] as? String == "keep"
@@ -557,6 +562,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     case "handsStop":
       Hands.shared?.pressStop()
       replyHandler(true, nil)
+    // Phase 90: this server's saved logins on this Mac (names, sites, dates; never a password).
+    case "loginsList":
+      guard let s = server else { return replyHandler(["logins": [] as [Any]], nil) }
+      replyHandler(["logins": HandsLogins.views(server: s.lowercased())], nil)
+    case "loginsRemove":
+      guard let s = server else { return replyHandler(nil, "Not connected to a Sara server.") }
+      let name = body["name"] as? String
+      let all = body["all"] as? Bool == true
+      if !all && (name ?? "").isEmpty { return replyHandler(nil, "Say which saved login to remove.") }
+      let n = Hands.shared.map { $0.forgetHere(all ? nil : name) } ?? HandsLogins.remove(server: s.lowercased(), name: all ? nil : name)
+      replyHandler(["removed": n], nil)
     case "testNotification":
       postNotification(title: body["title"] as? String ?? "Sara", body: body["body"] as? String ?? "", conv: "")
       replyHandler(true, nil)
@@ -611,6 +627,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     d["handsHotkey"] = (Hands.shared?.hotkeyOk ?? false) ? "⌃⌥Esc" : ""
     d["handsBrowser"] = HandsBrowser.find() != nil
     d["computerName"] = Host.current().localizedName ?? "this Mac"
+    d["loginsSupported"] = true
+    d["loginsVerify"] = prefs.bool(forKey: "hands.\(sid).loginsVerify")
     return d
   }
 
@@ -653,6 +671,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     h.onToken = { tok, exp in
       if HandsKeychain.save(tok, account: sid) { prefs.set(exp, forKey: "hands.\(sid).expires") }
     }
+    h.verify = prefs.bool(forKey: "hands.\(sid).loginsVerify")
     Hands.shared = h
     h.start()
   }

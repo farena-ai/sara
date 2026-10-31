@@ -3,6 +3,10 @@
 // connection the Sara browser makes to it is a stream over the hands connection to the dev server her
 // job runs on the server (DevTunnels below). Loopback only, at most 4 tunnels and 64 connections
 // each, all closed on c.untunnel, Stop and when the connection drops.
+// Phase 90 (CU4): saved logins (a DPAPI file, %LOCALAPPDATA%\Sara\logins.dat; see the Phase 90 section):
+// b.login fills one through DevTools input only on its exact site, b.saveLogin opens this app's own
+// consent window ("I understand" unticked), b.logins / b.forgetLogin list and remove (names and sites
+// only), b.yourTurn shows "Your turn" until the person presses Continue; optional Windows Hello first.
 // Phase 88 (CU2): acting in the Sara browser (find, click, type, select, keys, scroll, upload,
 // downloads) through the shared page agent and real DevTools input events; the always-on-top
 // "Sara is working" badge with Stop / Resume, the global stop shortcut Ctrl+Alt+Esc, takeover (real
@@ -21,6 +25,11 @@
 #include <windows.h>
 #include <winhttp.h>
 #include <wincrypt.h>
+#include <roapi.h>
+#include <wrl/client.h>
+#include <wrl/wrappers/corewrappers.h>
+#include <windows.security.credentials.ui.h>
+#include <UserConsentVerifierInterop.h>
 
 #include <atomic>
 #include <chrono>
@@ -349,9 +358,13 @@ const std::set<std::string> kOps = {"b.start", "b.tabs", "b.open", "b.navigate",
                                     // Phase 88 (CU2)
                                     "b.find", "b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.downloads",
                                     // Phase 89 (CU3): the dev tunnel
-                                    "c.tunnel", "c.untunnel"};
+                                    "c.tunnel", "c.untunnel",
+                                    // Phase 90 (CU4): saved logins and the sign-in pause
+                                    "b.login", "b.saveLogin", "b.logins", "b.forgetLogin", "b.yourTurn"};
 /** Ops that act: they count against the input rate limit and stop when the person takes over. */
-const std::set<std::string> kInputOps = {"b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload"};
+const std::set<std::string> kInputOps = {"b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login"};
+/** Phase 90: ops that wait for the person (the consent window, "Your turn"): up to 10 minutes. */
+const std::set<std::string> kWaitingOps = {"b.saveLogin", "b.yourTurn"};
 const int kMaxChars = 2000;
 
 /** Now as ISO 8601 (UTC). */
@@ -422,6 +435,448 @@ bool addressAllowed(const std::string& url, const std::string& serverOrigin, std
   return true;
 }
 
+// ---------------- Phase 90 (CU4, docs/design/COMPUTER_USE.md §8.2): saved logins on this computer ----------------
+// The vault is one DPAPI (CurrentUser) file, %LOCALAPPDATA%\Sara\logins.dat: JSON {v, logins:[{name, sites,
+// username, password, server, created, lastUsed}]} sealed with CryptProtectData (description "Sara logins",
+// its own entropy). Only this Windows user on this computer can open it; it never leaves the computer. What
+// goes to the server is names, sites and dates (loginViewsJson); the password goes only into the page,
+// through DevTools input on the browser's pipe, and only when the page's current origin is exactly one of
+// the login's sites. A login is saved only through the consent window below, with "I understand" ticked.
+const char kLoginWarning[] =
+    "Saving this password lets Sara sign in to {site} for you on this computer. It's stored encrypted here, never on Sara's server, and she never sees it. Anyone who can use your account on this computer could use it too. Save it only if you're comfortable; signing in yourself once and letting the Sara browser remember you is safer.";
+const size_t kMaxLogins = 100;
+const ULONGLONG kCaughtKeepMs = 10 * 60 * 1000;
+const UINT WM_PANEL_CLOSE = WM_APP + 21;
+
+struct Login {
+  std::string name, username, password, server, created, lastUsed;
+  std::vector<std::string> sites;
+};
+std::mutex g_vaultM;
+
+void wipe(std::string& s) {
+  if (!s.empty()) SecureZeroMemory(s.data(), s.size());
+  s.clear();
+}
+void wipe(std::wstring& s) {
+  if (!s.empty()) SecureZeroMemory(s.data(), s.size() * sizeof(wchar_t));
+  s.clear();
+}
+void wipe(std::vector<Login>& v) {
+  for (auto& l : v) {
+    wipe(l.password);
+    wipe(l.username);
+  }
+  v.clear();
+}
+/** A login name as people write it: no control characters, single spaces, at most 60 characters. */
+std::string cleanName(const std::string& raw) {
+  std::string o;
+  bool sp = false;
+  for (unsigned char c : raw) {
+    bool w = c < 0x20 || c == 0x7f || c == ' ';
+    if (w) {
+      if (!o.empty()) sp = true;
+      continue;
+    }
+    if (sp) o += ' ';
+    sp = false;
+    o += (char)c;
+  }
+  // At most 60 characters (UTF-8: never cut inside one).
+  size_t chars = 0, k = 0;
+  for (; k < o.size(); k++)
+    if (((unsigned char)o[k] & 0xC0) != 0x80 && ++chars > 60) break;
+  o.resize(k);
+  return o;
+}
+std::string defaultName(const std::string& site) {
+  size_t p = site.find("://");
+  std::string h = p == std::string::npos ? site : site.substr(p + 3);
+  if (h.rfind("www.", 0) == 0) h = h.substr(4);
+  h = h.substr(0, h.find(':'));
+  return cleanName(h.empty() ? "Login" : h);
+}
+/** The exact origin of a page address for logins ("" for anything but http(s), or with a user name). */
+std::string loginOrigin(const std::string& url) {
+  bool userinfo = false;
+  std::string o = originOfUrl(url, nullptr, &userinfo);
+  return userinfo ? std::string() : o;
+}
+
+static const char kVaultEntropy[] = "Sara logins v1";
+/** Reads this computer's saved logins (all servers). A missing file is an empty vault. */
+bool vaultLoad(const std::wstring& file, std::vector<Login>& out, std::string& why) {
+  out.clear();
+  HANDLE h = CreateFileW(file.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (h == INVALID_HANDLE_VALUE) {
+    DWORD err = GetLastError();
+    if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND) return true;
+    why = "Couldn't open the saved logins on this computer.";
+    return false;
+  }
+  LARGE_INTEGER size{};
+  GetFileSizeEx(h, &size);
+  if (size.QuadPart > 16 * 1024 * 1024) {
+    CloseHandle(h);
+    why = "The saved logins file is too big.";
+    return false;
+  }
+  std::vector<BYTE> raw((size_t)size.QuadPart);
+  DWORD got = 0;
+  BOOL ok = raw.empty() || ReadFile(h, raw.data(), (DWORD)raw.size(), &got, nullptr);
+  CloseHandle(h);
+  if (!ok || got != raw.size()) {
+    why = "Couldn't read the saved logins on this computer.";
+    return false;
+  }
+  if (raw.empty()) return true;
+  DATA_BLOB in{(DWORD)raw.size(), raw.data()}, plain{};
+  DATA_BLOB ent{sizeof(kVaultEntropy) - 1, (BYTE*)kVaultEntropy};
+  if (!CryptUnprotectData(&in, nullptr, &ent, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &plain)) {
+    why = "The saved logins on this computer can't be opened (they belong to another Windows user or computer).";
+    return false;
+  }
+  std::string text((char*)plain.pbData, plain.cbData);
+  SecureZeroMemory(plain.pbData, plain.cbData);
+  LocalFree(plain.pbData);
+  bool parsed = false;
+  J j = parse(text, &parsed);
+  wipe(text);
+  if (!parsed) {
+    why = "The saved logins file is damaged.";
+    return false;
+  }
+  for (auto& x : j["logins"].a) {
+    Login l;
+    l.name = cleanName(x["name"].str());
+    l.username = x["username"].str();
+    l.password = x["password"].str();
+    l.server = x["server"].str();
+    l.created = x["created"].str();
+    l.lastUsed = x["lastUsed"].str();
+    for (auto& s : x["sites"].a)
+      if (!loginOrigin(s.str()).empty()) l.sites.push_back(loginOrigin(s.str()));
+    if (!l.name.empty() && !l.password.empty() && !l.server.empty()) out.push_back(std::move(l));
+  }
+  return true;
+}
+/** Writes the vault (sealed with DPAPI first; through a temporary file, so a crash never leaves half). */
+bool vaultStore(const std::wstring& file, const std::vector<Login>& v, std::string& why) {
+  std::string text = "{\"v\":1,\"logins\":[";
+  for (size_t k = 0; k < v.size(); k++) {
+    const Login& l = v[k];
+    std::string sites;
+    for (auto& s : l.sites) sites += (sites.empty() ? "" : ",") + q(s);
+    text += (k ? ",{" : "{") + std::string("\"name\":") + q(l.name) + ",\"sites\":[" + sites + "],\"username\":" + q(l.username) + ",\"password\":" + q(l.password) + ",\"server\":" + q(l.server) +
+            ",\"created\":" + q(l.created) + (l.lastUsed.empty() ? "" : ",\"lastUsed\":" + q(l.lastUsed)) + "}";
+  }
+  text += "]}";
+  DATA_BLOB in{(DWORD)text.size(), (BYTE*)text.data()}, sealed{};
+  DATA_BLOB ent{sizeof(kVaultEntropy) - 1, (BYTE*)kVaultEntropy};
+  BOOL ok = CryptProtectData(&in, L"Sara logins", &ent, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &sealed);
+  wipe(text);
+  if (!ok) {
+    why = "Windows couldn't keep the login safe.";
+    return false;
+  }
+  size_t slash = file.find_last_of(L"\\/");
+  if (slash != std::wstring::npos) CreateDirectoryW(file.substr(0, slash).c_str(), nullptr);
+  std::wstring tmp = file + L".tmp";
+  HANDLE h = CreateFileW(tmp.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  DWORD wrote = 0;
+  bool good = h != INVALID_HANDLE_VALUE && WriteFile(h, sealed.pbData, sealed.cbData, &wrote, nullptr) && wrote == sealed.cbData && FlushFileBuffers(h);
+  if (h != INVALID_HANDLE_VALUE) CloseHandle(h);
+  LocalFree(sealed.pbData);
+  if (!good || !MoveFileExW(tmp.c_str(), file.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+    DeleteFileW(tmp.c_str());
+    why = "Couldn't write the saved logins on this computer.";
+    return false;
+  }
+  return true;
+}
+/** What may leave the computer about one server's logins: names, sites and dates. Never a username or password. */
+std::string loginViewsJson(const std::vector<Login>& v, const std::string& server) {
+  std::string o = "[";
+  bool first = true;
+  for (auto& l : v) {
+    if (l.server != server) continue;
+    std::string sites;
+    for (auto& s : l.sites) sites += (sites.empty() ? "" : ",") + q(s);
+    o += (first ? "{" : ",{") + std::string("\"name\":") + q(l.name) + ",\"sites\":[" + sites + "],\"created\":" + q(l.created) + (l.lastUsed.empty() ? "" : ",\"lastUsed\":" + q(l.lastUsed)) + "}";
+    first = false;
+  }
+  return o + "]";
+}
+bool sameName(const std::string& a, const std::string& b) { return lowerA(cleanName(a)) == lowerA(cleanName(b)); }
+
+// ---- the device's own windows: "Save a login for Sara?" and "Your turn" ----
+// Plain Win32 controls on a thread of their own (UI Automation sees them like any window). They are
+// topmost and stay until the person answers, Stop is pressed or the op's deadline passes.
+struct ConsentIn {
+  std::wstring site, name, warning;
+  std::string typedUser, typedPass;  // "Use what I just typed" (in memory only)
+  bool canUseTyped = false;
+  bool test = false;
+};
+struct ConsentOut {
+  bool save = false, understood = false;
+  std::string name, username, password;
+};
+struct Panel {
+  enum Kind { Consent, Turn } kind = Consent;
+  ConsentIn in;
+  ConsentOut out;
+  std::wstring turnWhat;
+  HWND wnd = nullptr, name = nullptr, user = nullptr, pass = nullptr, tick = nullptr, save = nullptr, typed = nullptr, status = nullptr;
+  HFONT font = nullptr, bold = nullptr;
+  std::atomic<bool> done{false};
+  bool continued = false;
+};
+enum { kIdName = 101, kIdUser, kIdPass, kIdTick, kIdTyped, kIdStatus };
+
+std::wstring winText(HWND h) {
+  int n = GetWindowTextLengthW(h);
+  std::wstring s(n + 1, L'\0');
+  GetWindowTextW(h, s.data(), n + 1);
+  s.resize(n);
+  return s;
+}
+LRESULT CALLBACK PanelProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
+  Panel* p = reinterpret_cast<Panel*>(GetWindowLongPtrW(h, GWLP_USERDATA));
+  switch (msg) {
+    case WM_COMMAND: {
+      if (!p) break;
+      int id = LOWORD(wp);
+      if (id == kIdTick) {
+        // Save stays off until the box under the warning is ticked.
+        EnableWindow(p->save, SendMessageW(p->tick, BM_GETCHECK, 0, 0) == BST_CHECKED);
+        return 0;
+      }
+      if (id == kIdTyped && p->in.canUseTyped) {
+        // What the person typed in the Sara browser a moment ago (it never left this computer).
+        std::wstring u = wide(p->in.typedUser), pw = wide(p->in.typedPass);
+        SetWindowTextW(p->user, u.c_str());
+        SetWindowTextW(p->pass, pw.c_str());
+        wipe(pw);
+        SetWindowTextW(p->status, L"Filled in with what you just typed in the Sara browser.");
+        return 0;
+      }
+      if (id == IDOK) {
+        if (p->kind == Panel::Turn) {
+          p->continued = true;
+          DestroyWindow(h);
+          return 0;
+        }
+        // The device's own rule: nothing is saved without the ticked box, whatever the server says.
+        if (SendMessageW(p->tick, BM_GETCHECK, 0, 0) != BST_CHECKED) {
+          SetWindowTextW(p->status, L"Tick \"I understand\" first, or press Cancel.");
+          return 0;
+        }
+        std::wstring pw = winText(p->pass);
+        if (pw.empty()) {
+          SetWindowTextW(p->status, L"Type the password first (or press Use what I just typed).");
+          return 0;
+        }
+        p->out.save = true;
+        p->out.understood = true;
+        p->out.name = u8(winText(p->name));
+        p->out.username = u8(winText(p->user));
+        p->out.password = u8(pw);
+        wipe(pw);
+        DestroyWindow(h);
+        return 0;
+      }
+      if (id == IDCANCEL) {
+        DestroyWindow(h);
+        return 0;
+      }
+      break;
+    }
+    case WM_CTLCOLORSTATIC: {
+      HDC dc = (HDC)wp;
+      SetBkColor(dc, GetSysColor(COLOR_WINDOW));
+      return (LRESULT)GetSysColorBrush(COLOR_WINDOW);
+    }
+    case WM_PANEL_CLOSE: DestroyWindow(h); return 0;
+    case WM_CLOSE:
+      // Closing "Your turn" means the person is done; closing the save window is Cancel.
+      if (p && p->kind == Panel::Turn) p->continued = true;
+      DestroyWindow(h);
+      return 0;
+    case WM_DESTROY:
+      if (p && p->pass) SetWindowTextW(p->pass, L"");
+      PostQuitMessage(0);
+      return 0;
+  }
+  return DefWindowProcW(h, msg, wp, lp);
+}
+/** Builds and runs one panel on the calling thread until it closes. */
+void runPanel(Panel& p) {
+  HINSTANCE inst = GetModuleHandleW(nullptr);
+  static std::once_flag once;
+  std::call_once(once, [inst] {
+    WNDCLASSEXW wc{sizeof(wc)};
+    wc.lpfnWndProc = PanelProc;
+    wc.hInstance = inst;
+    wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+    wc.hbrBackground = GetSysColorBrush(COLOR_WINDOW);
+    wc.hIcon = LoadIconW(inst, MAKEINTRESOURCEW(1));
+    wc.lpszClassName = L"SaraLoginPanel";
+    RegisterClassExW(&wc);
+  });
+  std::wstring pre = p.in.test ? L"TEST \u00b7 " : L"";
+  std::wstring title = pre + (p.kind == Panel::Consent ? L"Sara: save a login?" : L"Sara: your turn");
+  HWND w = CreateWindowExW(WS_EX_TOPMOST | WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, L"SaraLoginPanel", title.c_str(), WS_POPUP | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, 100, 100, nullptr, nullptr, inst, nullptr);
+  if (!w) {
+    p.done = true;
+    return;
+  }
+  p.wnd = w;
+  SetWindowLongPtrW(w, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&p));
+  UINT dpi = GetDpiForWindow(w);
+  auto S = [dpi](int v) { return MulDiv(v, dpi ? dpi : 96, 96); };
+  p.font = CreateFontW(-S(14), 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+  p.bold = CreateFontW(-S(18), 0, 0, 0, FW_SEMIBOLD, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+  const int W = S(500), pad = S(20), cw = W - 2 * pad, rowH = S(32), gap = S(10);
+  int y = pad;
+  auto measure = [&](const std::wstring& text, HFONT f) {
+    HDC dc = GetDC(w);
+    HGDIOBJ o = SelectObject(dc, f);
+    RECT rc{0, 0, cw, 0};
+    DrawTextW(dc, text.c_str(), -1, &rc, DT_CALCRECT | DT_WORDBREAK | DT_NOPREFIX);
+    SelectObject(dc, o);
+    ReleaseDC(w, dc);
+    return (int)(rc.bottom - rc.top);
+  };
+  auto label = [&](const std::wstring& text, HFONT f, int id = 0) {
+    int hh = measure(text, f);
+    HWND c = CreateWindowExW(0, L"STATIC", text.c_str(), WS_CHILD | WS_VISIBLE | SS_NOPREFIX, pad, y, cw, hh, w, (HMENU)(INT_PTR)id, inst, nullptr);
+    SendMessageW(c, WM_SETFONT, (WPARAM)f, TRUE);
+    y += hh + gap;
+    return c;
+  };
+  auto field = [&](const wchar_t* text, int id, const std::wstring& value, DWORD extra) {
+    HWND l = CreateWindowExW(0, L"STATIC", text, WS_CHILD | WS_VISIBLE | SS_NOPREFIX, pad, y + S(7), S(110), S(20), w, nullptr, inst, nullptr);
+    SendMessageW(l, WM_SETFONT, (WPARAM)p.font, TRUE);
+    HWND e = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", value.c_str(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL | extra, pad + S(116), y, cw - S(116), rowH, w, (HMENU)(INT_PTR)id, inst, nullptr);
+    SendMessageW(e, WM_SETFONT, (WPARAM)p.font, TRUE);
+    SetWindowTextW(l, text);
+    y += rowH + gap;
+    return e;
+  };
+  auto button = [&](const wchar_t* text, int id, int x, int bw, DWORD style) {
+    HWND b = CreateWindowExW(0, L"BUTTON", text, WS_CHILD | WS_VISIBLE | WS_TABSTOP | style, x, y, bw, S(44), w, (HMENU)(INT_PTR)id, inst, nullptr);
+    SendMessageW(b, WM_SETFONT, (WPARAM)p.font, TRUE);
+    return b;
+  };
+  if (p.kind == Panel::Consent) {
+    label(L"Save a login for Sara?", p.bold);
+    label(L"Site: " + p.in.site, p.font);
+    label(p.in.warning, p.font);
+    p.name = field(L"Name", kIdName, p.in.name, 0);
+    p.user = field(L"Username", kIdUser, L"", 0);
+    p.pass = field(L"Password", kIdPass, L"", ES_PASSWORD);
+    SendMessageW(p.name, EM_LIMITTEXT, 60, 0);
+    SendMessageW(p.user, EM_LIMITTEXT, 200, 0);
+    SendMessageW(p.pass, EM_LIMITTEXT, 500, 0);
+    if (p.in.canUseTyped) {
+      p.typed = button(L"Use what I just typed", kIdTyped, pad + S(116), S(220), BS_PUSHBUTTON);
+      y += S(44) + gap;
+    }
+    p.tick = CreateWindowExW(0, L"BUTTON", L"I understand", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, pad, y, cw, S(32), w, (HMENU)(INT_PTR)kIdTick, inst, nullptr);
+    SendMessageW(p.tick, WM_SETFONT, (WPARAM)p.font, TRUE);
+    SendMessageW(p.tick, BM_SETCHECK, BST_UNCHECKED, 0);  // never ticked for them
+    y += S(32) + gap;
+    p.status = label(L" ", p.font, kIdStatus);
+    p.save = button(L"Save", IDOK, W - pad - S(220) - gap, S(110), BS_PUSHBUTTON);
+    button(L"Cancel", IDCANCEL, W - pad - S(110), S(110), BS_DEFPUSHBUTTON);
+    EnableWindow(p.save, FALSE);
+  } else {
+    label(L"Your turn", p.bold);
+    label(p.turnWhat + L" in the Sara browser, then press Continue. Sara waits until you do; she can't see what you type into password fields.", p.font);
+    button(L"Continue", IDOK, W - pad - S(130), S(130), BS_DEFPUSHBUTTON);
+  }
+  y += S(44) + pad;
+  RECT rc{0, 0, W, y};
+  AdjustWindowRectExForDpi(&rc, WS_POPUP | WS_CAPTION | WS_SYSMENU, FALSE, WS_EX_TOPMOST | WS_EX_DLGMODALFRAME, dpi);
+  MONITORINFO mi{sizeof(mi)};
+  GetMonitorInfoW(MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY), &mi);
+  int ww = rc.right - rc.left, wh = rc.bottom - rc.top;
+  SetWindowPos(w, HWND_TOPMOST, mi.rcWork.left + (mi.rcWork.right - mi.rcWork.left - ww) / 2, mi.rcWork.top + (mi.rcWork.bottom - mi.rcWork.top - wh) / 3, ww, wh, SWP_SHOWWINDOW);
+  SetForegroundWindow(w);
+  FLASHWINFO fi{sizeof(fi), w, FLASHW_ALL | FLASHW_TIMERNOFG, 3, 0};
+  FlashWindowEx(&fi);
+  SetFocus(p.kind == Panel::Consent ? p.user : GetDlgItem(w, IDOK));
+  MSG m;
+  while (GetMessageW(&m, nullptr, 0, 0) > 0) {
+    if (IsDialogMessageW(w, &m)) continue;
+    TranslateMessage(&m);
+    DispatchMessageW(&m);
+  }
+  DeleteObject(p.font);
+  DeleteObject(p.bold);
+  p.done = true;
+}
+/** Shows a panel and waits for it (or for Stop / the deadline, which close it). */
+void showPanel(Panel& p, const std::atomic<bool>* cancel) {
+  std::thread th([&p] { runPanel(p); });
+  while (!p.done) {
+    if (cancel && cancel->load() && p.wnd) PostMessageW(p.wnd, WM_PANEL_CLOSE, 0, 0);
+    Sleep(50);
+  }
+  th.join();
+}
+
+/**
+ * "Ask for Windows Hello before Sara uses a saved login" (off by default): face, fingerprint or PIN
+ * through Windows' own window (UserConsentVerifier). True only when Windows says it was verified.
+ */
+bool helloVerify(const std::wstring& message, std::string& why, const std::atomic<bool>* cancel) {
+  using namespace Microsoft::WRL;
+  using namespace Microsoft::WRL::Wrappers;
+  namespace UI = ABI::Windows::Security::Credentials::UI;
+  RoInitializeWrapper ro(RO_INIT_MULTITHREADED);
+  ComPtr<IUserConsentVerifierInterop> interop;
+  if (FAILED(RoGetActivationFactory(HStringReference(RuntimeClass_Windows_Security_Credentials_UI_UserConsentVerifier).Get(), IID_PPV_ARGS(&interop)))) {
+    why = "Windows Hello isn't available on this computer.";
+    return false;
+  }
+  // Windows Hello's window needs one of ours to belong to.
+  HWND owner = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST, L"STATIC", L"Sara wants to use a saved login", WS_POPUP | WS_VISIBLE, 0, 0, 1, 1, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
+  ComPtr<ABI::Windows::Foundation::IAsyncOperation<UI::UserConsentVerificationResult>> op;
+  HRESULT hr = interop->RequestVerificationForWindowAsync(owner, HStringReference(message.c_str()).Get(), __uuidof(ABI::Windows::Foundation::IAsyncOperation<UI::UserConsentVerificationResult>), reinterpret_cast<void**>(op.GetAddressOf()));
+  bool verified = false;
+  if (SUCCEEDED(hr) && op) {
+    ComPtr<ABI::Windows::Foundation::IAsyncInfo> info;
+    op.As(&info);
+    AsyncStatus st = AsyncStatus::Started;
+    for (;;) {
+      info->get_Status(&st);
+      if (st != AsyncStatus::Started) break;
+      if (cancel && cancel->load()) {
+        info->Cancel();
+        break;
+      }
+      MSG m;
+      while (PeekMessageW(&m, nullptr, 0, 0, PM_REMOVE)) {
+        TranslateMessage(&m);
+        DispatchMessageW(&m);
+      }
+      Sleep(50);
+    }
+    UI::UserConsentVerificationResult res = UI::UserConsentVerificationResult_Canceled;
+    if (st == AsyncStatus::Completed && SUCCEEDED(op->GetResults(&res))) verified = res == UI::UserConsentVerificationResult_Verified;
+    if (!verified)
+      why = res == UI::UserConsentVerificationResult_DeviceNotPresent || res == UI::UserConsentVerificationResult_NotConfiguredForUser || res == UI::UserConsentVerificationResult_DisabledByPolicy
+                ? "Windows Hello isn't set up on this computer: switch off \"Ask for Windows Hello\" in the Sara app, or set it up in Windows Settings."
+                : "Nothing was filled: the person at the computer didn't confirm it was them (Windows Hello).";
+  } else
+    why = "Windows Hello couldn't ask.";
+  if (owner) DestroyWindow(owner);
+  return verified;
+}
+
 // ---------------- the Sara browser: Edge or Chrome over a DevTools pipe ----------------
 std::wstring regAppPath(const wchar_t* exe) {
   for (HKEY root : {HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE}) {
@@ -476,6 +931,19 @@ class Browser {
   BrowserFound found = findBrowser();
   std::wstring profileDir;
   std::wstring downloadsDir;  // Phase 88
+  std::string catchScript;    // Phase 90: the page agent's catchLogins, in a world of its own on every page
+  /** Phase 90: a sign-in the person typed in the Sara browser ("Use what I just typed"), memory only. */
+  bool takeCaught(const std::string& origin, std::string& user, std::string& pass) {
+    std::lock_guard<std::mutex> l(m_);
+    if (caughtOrigin_.empty() || caughtOrigin_ != origin || GetTickCount64() - caughtAt_ > kCaughtKeepMs) return false;
+    user = caughtUser_;
+    pass = caughtPass_;
+    return true;
+  }
+  void clearCaught() {
+    std::lock_guard<std::mutex> l(m_);
+    clearCaughtLocked();
+  }
 
   bool running() {
     std::lock_guard<std::mutex> l(m_);
@@ -694,6 +1162,13 @@ class Browser {
       id = t.id;
     }
     for (const char* d : {"Page.enable", "Runtime.enable", "Network.enable", "Log.enable"}) call(d, "{}", session, 10000, err);
+    // Phase 90: "Use what I just typed". A binding only the catcher's own isolated world can call (the
+    // page's scripts can't), installed on every page; what it hands over stays in this app's memory.
+    if (!catchScript.empty()) {
+      OpError eb;
+      call("Runtime.addBinding", "{\"name\":\"saraLoginCaught\",\"executionContextName\":\"sara-login-catch\"}", session, 10000, eb);
+      call("Page.addScriptToEvaluateOnNewDocument", "{\"source\":" + q(catchScript) + ",\"worldName\":\"sara-login-catch\",\"runImmediately\":true}", session, 10000, eb);
+    }
     // §4.1: the server's own pages are refused even when a page sends the browser there.
     call("Fetch.enable", "{\"patterns\":[{\"urlPattern\":" + q(serverOrigin + "/*") + "}]}", session, 10000, err);
     J tree = call("Page.getFrameTree", "{}", session, 10000, err);
@@ -786,6 +1261,14 @@ class Browser {
   std::string active_;
   int tabN_ = 0;
   long long seq_ = 0;
+  std::string caughtOrigin_, caughtUser_, caughtPass_;
+  ULONGLONG caughtAt_ = 0;
+  void clearCaughtLocked() {
+    if (!caughtPass_.empty()) SecureZeroMemory(caughtPass_.data(), caughtPass_.size());
+    caughtPass_.clear();
+    caughtUser_.clear();
+    caughtOrigin_.clear();
+  }
 
   bool write(const std::string& msg) {
     HANDLE h;
@@ -861,6 +1344,20 @@ class Browser {
       return;
     }
     std::lock_guard<std::mutex> l(m_);
+    if (method == "Runtime.bindingCalled") {
+      if (p["name"].str() != "saraLoginCaught") return;
+      bool ok = false;
+      J c = parse(p["payload"].str(), &ok);
+      std::string origin = ok ? loginOrigin(c["origin"].str()) : std::string();
+      if (!origin.empty() && !c["password"].str().empty()) {
+        clearCaughtLocked();
+        caughtOrigin_ = origin;
+        caughtUser_ = c["username"].str().substr(0, 200);
+        caughtPass_ = c["password"].str().substr(0, 500);
+        caughtAt_ = GetTickCount64();
+      }
+      return;
+    }
     if (method == "Target.detachedFromTarget") {
       for (auto it = tabs_.begin(); it != tabs_.end(); ++it)
         if (it->second.sessionId == p["sessionId"].str()) {
@@ -1226,6 +1723,7 @@ class Hands {
   std::atomic<bool> keep{false};      // Phase 88: let Sara keep control when the person uses her window
   std::atomic<bool> isPaused{false};  // Phase 88: the person took over; nothing acts until Resume
   std::atomic<bool> hotkeyOk{false};
+  std::atomic<bool> verify{false};  // Phase 90: Windows Hello before a saved login is used
 
   explicit Hands(const Host& h) : host(h) {
     // Phase 89: the dev tunnel's streams go over this connection.
@@ -1235,6 +1733,9 @@ class Hands {
     browser.profileDir = h.profileDir;
     browser.downloadsDir = h.downloadsDir;
     browser.serverOrigin = lowerA(u8(h.server));
+    // Phase 90: the catcher for "Use what I just typed" and the Windows Hello choice.
+    if (!h.pageAgent.empty()) browser.catchScript = "(" + h.pageAgent + ").call(\"catchLogins\", {})";
+    verify = h.loginsVerify;
     pruneLog();
     wake_ = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     uiReady_ = CreateEventW(nullptr, TRUE, FALSE, nullptr);
@@ -1348,6 +1849,19 @@ class Hands {
     std::lock_guard<std::mutex> l(errM);
     return err.empty() ? L"Connecting to Sara\u2026" : err;
   }
+  /** Phase 90: this server's logins on this computer, as they may leave it (names, sites, dates). */
+  std::string loginViews() {
+    std::lock_guard<std::mutex> l(g_vaultM);
+    std::vector<Login> v;
+    std::string why;
+    vaultLoad(host.loginsFile, v, why);
+    std::string o = loginViewsJson(v, browser.serverOrigin);
+    wipe(v);
+    return o;
+  }
+  std::string vaultJson() { return std::string("{\"kind\":\"dpapi\",\"verify\":") + (verify ? "true" : "false") + "}"; }
+  /** Phase 90: the server hears at once when the logins here changed (names and sites only). */
+  void tellLogins() { sendText("{\"t\":\"ev\",\"kind\":\"logins\",\"logins\":" + loginViews() + ",\"vault\":" + vaultJson() + "}"); }
   void tellLocalOnly(bool on) {
     localOnly = on;
     sendText(std::string("{\"t\":\"ev\",\"kind\":\"optin\",\"optIn\":{\"browser\":true,\"desktop\":false},\"localOnly\":") + (on ? "true" : "false") + ",\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + "}");
@@ -1453,7 +1967,7 @@ class Hands {
     }
     return "{\"t\":\"hello\",\"v\":1,\"app\":" + q(u8(host.appVersion)) + ",\"os\":" + q("Windows (build " + std::to_string(build) + ")") + ",\"computer\":" + q(u8(host.computer)) +
            ",\"screens\":[],\"browser\":{\"found\":" + (browser.found.path.empty() ? "false" : "true") + (browser.found.kind.empty() ? "" : ",\"kind\":" + q(browser.found.kind) + ",\"name\":" + q(browser.found.name)) +
-           "},\"perms\":{\"capture\":false,\"input\":false,\"ax\":false},\"optIn\":{\"browser\":true,\"desktop\":false},\"approvalsHere\":false,\"logins\":[],\"busy\":false,\"localOnly\":" + (localOnly ? "true" : "false") +
+           "},\"perms\":{\"capture\":false,\"input\":false,\"ax\":false},\"optIn\":{\"browser\":true,\"desktop\":false},\"approvalsHere\":false,\"logins\":" + loginViews() + ",\"vault\":" + vaultJson() + ",\"busy\":false,\"localOnly\":" + (localOnly ? "true" : "false") +
            ",\"ops\":[" + ops + "],\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"hotkey\":" + (hotkeyOk ? "\"Ctrl+Alt+Esc\"" : "\"\"") + ",\"paused\":" + (isPaused ? "true" : "false") + ",\"renew\":true}";
   }
 
@@ -1570,7 +2084,7 @@ class Hands {
     r->op = m["op"].str();
     r->args = m["args"];
     r->what = shortText(m["what"].str(), 120);
-    r->deadlineMs = (DWORD)std::min(120000.0, std::max(1000.0, m["deadlineMs"].num(30000)));
+    r->deadlineMs = (DWORD)std::min(kWaitingOps.count(r->op) ? 600000.0 : 120000.0, std::max(1000.0, m["deadlineMs"].num(30000)));
     if (r->id.empty() || r->id.size() > 100) return;
     // Phase 89: tunnels open and close at once (never queued behind a slow page).
     if (r->op == "c.tunnel" || r->op == "c.untunnel") {
@@ -1999,6 +2513,257 @@ class Hands {
            (dialog.empty() ? "" : ",\"dialog\":" + q(dialog)) + ",\"consoleErrors\":" + std::to_string(now.consoleErrors) + ",\"failedRequests\":" + std::to_string(now.failedRequests) + extra + "}";
   }
 
+  // ---------------- Phase 90 (CU4): saved logins and the sign-in pause ----------------
+  std::string forgetLogin(Request& r, OpError& e) {
+    bool all = r.args["all"].truthy();
+    std::string name = cleanName(r.args["name"].str());
+    if (!all && name.empty()) {
+      e = {"not_found", "Say which saved login to remove."};
+      return {};
+    }
+    int removed = forgetHere(name, all, e);
+    if (!e.code.empty()) return {};
+    return "{\"removed\":" + std::to_string(removed) + ",\"logins\":" + loginViews() + "}";
+  }
+ public:
+  /** Removes one of this server's logins here (or all of them): the web Settings, the app's Settings. */
+  int forgetHere(const std::string& name, bool all, OpError& e) {
+    int removed = 0;
+    {
+      std::lock_guard<std::mutex> l(g_vaultM);
+      std::vector<Login> v, kept;
+      std::string why;
+      if (!vaultLoad(host.loginsFile, v, why)) {
+        e = {"error", why};
+        return 0;
+      }
+      for (auto& x : v) {
+        if (x.server == browser.serverOrigin && (all || sameName(x.name, name))) {
+          removed++;
+          wipe(x.password);
+          wipe(x.username);
+        } else
+          kept.push_back(std::move(x));
+      }
+      if (removed && !vaultStore(host.loginsFile, kept, why)) e = {"error", why};
+      wipe(kept);
+      wipe(v);
+    }
+    if (removed && e.code.empty()) {
+      localLog("b.forgetLogin", all ? "removed every saved login" : "removed the saved login \xe2\x80\x9c" + name + "\xe2\x80\x9d", "");
+      tellLogins();
+    }
+    return removed;
+  }
+
+ private:
+  std::string yourTurn(Request& r, OpError& e) {
+    Panel p;
+    p.kind = Panel::Turn;
+    p.in.test = host.testLabel;
+    std::string what = cleanName(shortText(r.args["what"].str(), 120));
+    if (what.empty()) what = "sign in";
+    std::wstring w = wide(what);
+    if (!w.empty()) w[0] = (wchar_t)towupper(w[0]);
+    p.turnWhat = w;
+    {
+      std::lock_guard<std::mutex> l(whatM_);
+      what_ = "your turn: " + what;
+    }
+    updateBadge();
+    say(L"your turn: " + wide(what));
+    showPanel(p, r.cancel.get());
+    if (!p.continued || r.cancel->load()) {
+      e = {"stopped", "Stopped."};
+      return {};
+    }
+    std::string info;
+    Tab t;
+    OpError e2;
+    if (browser.running() && browser.tab("", t, e2)) info = ",\"tab\":" + q(t.id) + "," + pageInfo(t, e2);
+    return "{\"continued\":true" + info + "}";
+  }
+
+  /** b.login: fills a saved login, only on a page whose current origin is exactly one of its sites. */
+  std::string login(Request& r, const Tab& t, OpError& e) {
+    const std::atomic<bool>* cancel = r.cancel.get();
+    const J& a = r.args;
+    browser.activate(t.id);
+    std::string name = cleanName(a["name"].str());
+    Login l;
+    bool found = false;
+    {
+      std::lock_guard<std::mutex> lk(g_vaultM);
+      std::vector<Login> v;
+      std::string why;
+      if (!vaultLoad(host.loginsFile, v, why)) {
+        e = {"error", why};
+        return {};
+      }
+      for (auto& x : v)
+        if (!found && x.server == browser.serverOrigin && sameName(x.name, name)) {
+          l = x;
+          found = true;
+        }
+      wipe(v);
+    }
+    auto done = [&](const std::string& json) {
+      wipe(l.password);
+      wipe(l.username);
+      return json;
+    };
+    if (!found) return done("{\"outcome\":\"not_found\",\"missing\":\"login\",\"tab\":" + q(t.id) + "}");
+    OpError ei;
+    J info = browser.call("Target.getTargetInfo", "{\"targetId\":" + q(t.targetId) + "}", "", 10000, ei);
+    std::string origin = loginOrigin(info["targetInfo"]["url"].str());
+    bool match = false;
+    for (auto& s2 : l.sites) match = match || (!origin.empty() && s2 == origin);
+    if (!match) return done("{\"outcome\":\"site_mismatch\",\"tab\":" + q(t.id) + "}");
+    if (verify) {
+      std::string why;
+      if (!helloVerify(L"Let Sara sign in to " + wide(origin) + L" with your saved \u201c" + wide(l.name) + L"\u201d login?", why, cancel)) {
+        e = {cancel->load() ? "stopped" : "denied_local", cancel->load() ? "Stopped." : why};
+        return done({});
+      }
+    }
+    // The page itself must say the same origin (its main frame, now), and have a password field.
+    J f = agent(t, "loginFields", "{}", e, cancel);
+    if (!e.code.empty()) return done({});
+    if (loginOrigin(f["origin"].str()) != origin) return done("{\"outcome\":\"site_mismatch\",\"tab\":" + q(t.id) + "}");
+    if (f["pass"].t != J::Obj) return done("{\"outcome\":\"not_found\",\"missing\":\"fields\",\"tab\":" + q(t.id) + "}");
+    std::string label = host.testLabel ? "Sara (TEST)" : "Sara";
+    auto put = [&](const char* which, const J& at, const std::string& text) -> int {
+      OpError em;
+      agent(t, "mark", "{\"x\":" + num(at["x"].num()) + ",\"y\":" + num(at["y"].num()) + ",\"box\":" + dump(at["box"]) + ",\"label\":" + q(label) + "}", em, cancel);
+      mouseClick(t, at["x"].num(), at["y"].num(), e, cancel);
+      if (!e.code.empty()) return -1;
+      J fo = agent(t, "focusLogin", std::string("{\"which\":\"") + which + "\"}", e, cancel);
+      if (!e.code.empty()) return -1;
+      if (!fo["focused"].truthy()) return 1;
+      if (loginOrigin(fo["origin"].str()) != origin) return 2;
+      if (std::string(which) == "pass" && !fo["secret"].truthy()) return 1;
+      // DevTools input on this computer's pipe: the text goes into the page and nowhere else.
+      std::string params = "{\"text\":" + q(text) + "}";
+      browser.call("Input.insertText", params, t.sessionId, 20000, e, cancel);
+      wipe(params);
+      return e.code.empty() ? 0 : -1;
+    };
+    int k = 0;
+    if (f["user"].t == J::Obj && !l.username.empty()) k = put("user", f["user"], l.username);
+    if (k == 0) k = put("pass", f["pass"], l.password);
+    browser.clearCaught();  // her own fill is not something the person typed
+    if (k < 0) return done({});
+    if (k == 2) return done("{\"outcome\":\"site_mismatch\",\"tab\":" + q(t.id) + "}");
+    if (k == 1) return done("{\"outcome\":\"not_found\",\"missing\":\"fields\",\"tab\":" + q(t.id) + "}");
+    long long starts0 = browser.starts(t.id);
+    bool submit = !(a.has("submit") && !a["submit"].truthy());
+    if (submit && !pressKeys(t, "Enter", e, cancel)) return done({});
+    settle(t, starts0, cancel);
+    browser.clearCaught();
+    {
+      std::lock_guard<std::mutex> lk(g_vaultM);
+      std::vector<Login> v;
+      std::string why;
+      if (vaultLoad(host.loginsFile, v, why)) {
+        for (auto& x : v)
+          if (x.server == browser.serverOrigin && sameName(x.name, l.name)) x.lastUsed = isoNow();
+        vaultStore(host.loginsFile, v, why);
+      }
+      wipe(v);
+    }
+    localLog("b.login", "signed in with the saved login \xe2\x80\x9c" + l.name + "\xe2\x80\x9d", origin);
+    thumb(r.id, t, a, cancel);
+    Tab now;
+    OpError e2;
+    if (browser.tab(t.id, now, e2)) frame(now);
+    return done("{\"outcome\":\"filled\",\"tab\":" + q(t.id) + ",\"submitted\":" + (submit ? "true" : "false") + "}");
+  }
+
+  /** b.saveLogin: this computer's own consent window decides; saved only with "I understand" ticked. */
+  std::string saveLogin(Request& r, const Tab& t, OpError& e) {
+    OpError ei;
+    J info = browser.call("Target.getTargetInfo", "{\"targetId\":" + q(t.targetId) + "}", "", 10000, ei);
+    std::string site = loginOrigin(info["targetInfo"]["url"].str());
+    if (site.empty()) {
+      e = {"not_found", "Open the site\xe2\x80\x99s sign-in page in the Sara browser first: a login is saved for the site that is open."};
+      return {};
+    }
+    Panel p;
+    p.kind = Panel::Consent;
+    p.in.test = host.testLabel;
+    p.in.site = wide(site);
+    std::string name = cleanName(r.args["name"].str());
+    if (name.empty()) name = defaultName(site);
+    p.in.name = wide(name);
+    std::string warn = kLoginWarning;
+    warn.replace(warn.find("{site}"), 6, site);
+    p.in.warning = wide(warn);
+    p.in.canUseTyped = browser.takeCaught(site, p.in.typedUser, p.in.typedPass);
+    {
+      std::lock_guard<std::mutex> l(whatM_);
+      what_ = "waiting for you to save a login";
+    }
+    updateBadge();
+    showPanel(p, r.cancel.get());
+    wipe(p.in.typedPass);
+    wipe(p.in.typedUser);
+    if (r.cancel->load()) {
+      wipe(p.out.password);
+      e = {"stopped", "Stopped."};
+      return {};
+    }
+    if (!p.out.save) return "{\"outcome\":\"cancelled\",\"why\":\"the owner pressed Cancel on the computer\"}";
+    if (!p.out.understood) return "{\"outcome\":\"cancelled\",\"why\":\"the box \\\"I understand\\\" under the warning was not ticked\"}";
+    std::string saved = cleanName(p.out.name);
+    if (saved.empty()) saved = name;
+    {
+      std::lock_guard<std::mutex> l(g_vaultM);
+      std::vector<Login> v, kept;
+      std::string why;
+      if (!vaultLoad(host.loginsFile, v, why)) {
+        wipe(p.out.password);
+        e = {"error", why};
+        return {};
+      }
+      size_t mine = 0;
+      for (auto& x : v) {
+        if (x.server == browser.serverOrigin && sameName(x.name, saved)) {
+          wipe(x.password);
+          continue;
+        }
+        mine += x.server == browser.serverOrigin;
+        kept.push_back(std::move(x));
+      }
+      if (mine >= kMaxLogins) {
+        wipe(kept);
+        wipe(p.out.password);
+        e = {"denied_local", "At most 100 saved logins per Sara on one computer."};
+        return {};
+      }
+      Login nl;
+      nl.name = saved;
+      nl.sites = {site};
+      nl.username = p.out.username;
+      nl.password = p.out.password;
+      nl.server = browser.serverOrigin;
+      nl.created = isoNow();
+      kept.push_back(std::move(nl));
+      bool ok = vaultStore(host.loginsFile, kept, why);
+      wipe(kept);
+      wipe(v);
+      wipe(p.out.password);
+      wipe(p.out.username);
+      if (!ok) {
+        e = {"error", why};
+        return {};
+      }
+    }
+    browser.clearCaught();
+    localLog("b.saveLogin", "saved the login \xe2\x80\x9c" + saved + "\xe2\x80\x9d", site);
+    tellLogins();
+    return "{\"outcome\":\"saved\",\"name\":" + q(saved) + ",\"sites\":[" + q(site) + "]}";
+  }
+
   // ---------------- Phase 88: the badge, the stop shortcut, takeover ----------------
   void updateBadge() {
     if (badge_) PostMessageW(badge_, WM_BADGE_UPDATE, 0, 0);
@@ -2210,6 +2975,10 @@ class Hands {
       if (!countInput(e)) return {};
     }
     if (r.op == "b.downloads") return "{\"files\":" + downloadsJson() + "}";
+    // Phase 90: the saved logins here (names and sites only go back) and the sign-in pause.
+    if (r.op == "b.logins") return "{\"logins\":" + loginViews() + ",\"verify\":" + (verify ? "true" : "false") + "}";
+    if (r.op == "b.forgetLogin") return forgetLogin(r, e);
+    if (r.op == "b.yourTurn") return yourTurn(r, e);
     if (r.op != "b.tabs" || browser.running()) {
       browser.start(e);
       if (!e.code.empty()) return {};
@@ -2344,6 +3113,8 @@ class Hands {
       return v.t == J::Obj ? dump(v) : "{\"found\":false}";
     }
     if (r.op == "b.click" || r.op == "b.type" || r.op == "b.select" || r.op == "b.keys" || r.op == "b.upload") return act(r, t, e);
+    if (r.op == "b.login") return login(r, t, e);
+    if (r.op == "b.saveLogin") return saveLogin(r, t, e);
     if (r.op == "b.scroll") {
       J v = agent(t, "scroll", targetArgs(a), e, cancel);
       if (!e.code.empty()) return {};
@@ -2431,6 +3202,53 @@ std::wstring lastError() {
   return g_hands->err;
 }
 std::wstring browserPath() { return findBrowser().path; }
+
+// Phase 90: the app's own Settings list and remove this server's logins here, connected or not.
+std::wstring loginsJson(const std::wstring& server, const std::wstring& file) {
+  std::lock_guard<std::mutex> l(g_vaultM);
+  std::vector<Login> v;
+  std::string why;
+  if (!vaultLoad(file, v, why)) return L"{\"logins\":[],\"error\":" + wide(q(why)) + L"}";
+  std::string o = loginViewsJson(v, lowerA(u8(server)));
+  wipe(v);
+  return L"{\"logins\":" + wide(o) + L"}";
+}
+int forgetLogin(const std::wstring& server, const std::wstring& file, const std::string& name, bool all, std::wstring& err) {
+  {
+    std::lock_guard<std::mutex> l(g_m);
+    if (g_hands && g_hands->host.loginsFile == file && g_hands->browser.serverOrigin == lowerA(u8(server))) {
+      OpError e;
+      int n = g_hands->forgetHere(cleanName(name), all, e);
+      if (!e.code.empty()) err = wide(e.message);
+      return n;
+    }
+  }
+  std::lock_guard<std::mutex> l(g_vaultM);
+  std::vector<Login> v, kept;
+  std::string why;
+  if (!vaultLoad(file, v, why)) {
+    err = wide(why);
+    return 0;
+  }
+  int removed = 0;
+  std::string srv = lowerA(u8(server));
+  for (auto& x : v)
+    if (x.server == srv && (all || sameName(x.name, name))) {
+      removed++;
+      wipe(x.password);
+    } else
+      kept.push_back(std::move(x));
+  if (removed && !vaultStore(file, kept, why)) err = wide(why);
+  wipe(kept);
+  wipe(v);
+  return removed;
+}
+void setLoginsVerify(bool on) {
+  std::lock_guard<std::mutex> l(g_m);
+  if (!g_hands) return;
+  g_hands->verify = on;
+  g_hands->tellLogins();
+}
 
 std::wstring protect(const std::string& secret) {
   DATA_BLOB in{(DWORD)secret.size(), (BYTE*)secret.data()}, out{};

@@ -7,19 +7,29 @@
 // http://127.0.0.1:<port> on the device through the tunnel (storage that persists across loads, a
 // live WebSocket like hot reload, a 20 KB POST, a 300 KB file intact, no page errors), the tunnel
 // listed, refused as a raw op, closed by the owner (the page no longer loads), and ended by Stop.
+// Phase 90 (CU4) adds saved logins (section 10): names and sites only in hello and b.logins, nothing
+// saved on Cancel or without the ticked "I understand", saved with it, filled through b.login on the
+// exact site only (the fixture's sign-in really works), look-alike origins (another host, another port)
+// get nothing, no password typed key by key, "Use what I just typed", "Your turn" (Continue and Stop),
+// removal through the owner's Settings route. The device's own window is answered by the reference's
+// stand-in (--ref) or by --consent-driver "<command>": run as `<command> <step>` while each window is
+// open (steps: cancel, untick, save, typed, continue), with SARA_CU4_PIECES = the test password in
+// comma-separated pieces (it drives the test build's window on that computer only).
 // Runs the command set against one hands device connected to a Sara server, through the owner's
 // test route (POST /api/hands/<id>/op), with a local fixture site (a console error, an HTTP 500, a
 // password field, a key-shaped text, a redirect to Sara's own server, a slow page). The same script
 // checks the reference hands (--ref), the Windows app and the Mac app.
 //
-//   node scripts/hands-conformance.ts --server http://127.0.0.1:7881 --token-file <owner token file> [--device <name or id>] [--ref] [--json out.json] [--fixture-port N]
+//   node scripts/hands-conformance.ts --server http://127.0.0.1:7881 --token-file <owner token file> [--device <name or id>] [--ref] [--json out.json] [--fixture-port N] [--fixture-port2 N] [--consent-driver "<command>"]
 //
 // The owner token is read from a file and never printed. Exit code 0 when every check passed.
+import { spawn } from 'node:child_process';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { CU1_OPS, CU3_OPS, HANDS_OPS } from '../src/hands.ts';
+import { CU1_OPS, CU3_OPS, CU4_OPS, HANDS_OPS } from '../src/hands.ts';
 import { HandsRef } from '../src/hands-ref.ts';
+import type { ConsentAnswer } from '../src/hands-logins.ts';
 
 const arg = (k: string) => {
   const i = process.argv.indexOf(k);
@@ -35,6 +45,12 @@ const owner = readFileSync(tokenFile, 'utf8').trim();
 // A fake key built in pieces (never a real one): the device must mask it in what it sends back.
 const FAKE_KEY = 'sk-' + 'conformance' + 'Fixture0123456789';
 const PASSWORD = 'correct-' + 'horse-battery';
+// Phase 90: the saved login's test password and user name, obviously fake, built in pieces.
+const LOGIN_PIECES = ['conf-', 'login-', 'Pw7x'];
+const LOGIN_PASSWORD = LOGIN_PIECES.join('');
+const LOGIN_USER = 'conformance-' + 'user';
+/** What the fixture's sign-in got (the host it was sent to and whether the password was right). */
+const signIns: { host: string; right: boolean }[] = [];
 
 // ---- the fixture site ----
 function fixture(req: IncomingMessage, res: ServerResponse): void {
@@ -53,6 +69,28 @@ function fixture(req: IncomingMessage, res: ServerResponse): void {
   }
   if (url.pathname === '/slow') return void setTimeout(() => html('Slow', '<p>late</p>'), 15_000);
   if (url.pathname === '/page2') return html('Second page', '<h1>Second page</h1><p>Page two text.</p>');
+  // Phase 90: a sign-in form, and a button that signs in like a person (for "Use what I just typed").
+  if (req.method === 'POST' && url.pathname === '/session') {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      const f = new URLSearchParams(body);
+      const right = f.get('password') === LOGIN_PASSWORD && f.get('username') === LOGIN_USER;
+      signIns.push({ host: String(req.headers.host ?? ''), right });
+      html(right ? 'Signed in' : 'Wrong', right ? '<h1>Signed in (the right user)</h1>' : '<h1 role="alert">Wrong username or password</h1>');
+    });
+    return;
+  }
+  if (url.pathname === '/login')
+    return html(
+      'Sara hands sign-in',
+      `<h1>Sign in</h1><form method="post" action="/session">
+<label>Username <input name="username" autocomplete="username"></label>
+<label>Password <input type="password" name="password" autocomplete="current-password"></label>
+<button type="submit">Sign in</button></form>
+<button type="button" id="person">Type it like a person</button>
+<script>document.getElementById('person').onclick=function(){var f=document.forms[0];f.username.value=${JSON.stringify(LOGIN_USER)};f.password.value=${JSON.stringify(LOGIN_PASSWORD)};f.requestSubmit();};</script>`,
+    );
   if (req.method === 'POST' && url.pathname === '/submit') {
     req.resume();
     res.writeHead(500, { 'content-type': 'text/html' });
@@ -106,13 +144,26 @@ async function main(): Promise<number> {
   // --fixture-port: a fixed port (e.g. forwarded to another computer with ssh -R).
   await new Promise<void>((r) => fx.listen(Number(arg('--fixture-port') ?? 0), host === '127.0.0.1' ? '127.0.0.1' : '0.0.0.0', r));
   const base = `http://${host}:${(fx.address() as AddressInfo).port}`;
+  // Phase 90: the same site on another port (a look-alike origin for saved logins).
+  const fx2 = createServer(fixture);
+  await new Promise<void>((r) => fx2.listen(Number(arg('--fixture-port2') ?? 0), host === '127.0.0.1' ? '127.0.0.1' : '0.0.0.0', r));
+  const base2 = `http://${host}:${(fx2.address() as AddressInfo).port}`;
+  // The reference hands' stand-in for the consent window: answers as the step says.
+  let refStep = '';
+  const refConsent = async (): Promise<ConsentAnswer> => {
+    const step = refStep;
+    if (step === 'save') return { save: true, understood: true, name: 'Conformance', username: LOGIN_USER, password: LOGIN_PASSWORD };
+    if (step === 'untick') return { save: true, understood: false, name: 'Conformance', username: LOGIN_USER, password: LOGIN_PASSWORD };
+    if (step === 'typed') return { save: true, understood: true, useTyped: true, name: 'Conformance typed' };
+    return { save: false, understood: false };
+  };
   let ref: HandsRef | undefined;
   let deviceId = '';
   try {
     if (process.argv.includes('--ref')) {
       const pair = await api('POST', '/api/hands/pair', { name: 'Conformance (hands-ref)', token: owner });
       if (pair.status !== 200) throw new Error(`pairing the reference hands failed: HTTP ${pair.status} ${pair.json.error ?? ''}`);
-      ref = new HandsRef({ server, token: String(pair.json.token), name: 'Conformance (hands-ref)' });
+      ref = new HandsRef({ server, token: String(pair.json.token), name: 'Conformance (hands-ref)', consent: refConsent });
       await ref.start();
       deviceId = String(pair.json.id);
       await new Promise((r) => setTimeout(r, 300));
@@ -128,8 +179,8 @@ async function main(): Promise<number> {
     const op = async (name: string, args: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => (await api('POST', `/api/hands/${deviceId}/op`, { op: name, args, ...extra })).json;
 
     // 1. hello
-    check('hello: connected, protocol 1, the CU1 + CU2 + CU3 command set, browser opt-in on', dev.connected === true && Array.isArray(dev.ops) && HANDS_OPS.every((o) => dev.ops.includes(o)) && CU1_OPS.every((o) => dev.ops.includes(o)) && dev.optIn?.browser === true, `ops: ${(dev.ops ?? []).join(' ')}`);
-    check('hello: nothing beyond CU3 advertised (no logins, scripts or desktop ops)', Array.isArray(dev.ops) && !dev.ops.some((o: string) => /^b\.(login|evaluate|eval|script)|^d\./.test(o)), '');
+    check('hello: connected, protocol 1, the CU1 + CU2 + CU3 + CU4 command set, browser opt-in on', dev.connected === true && Array.isArray(dev.ops) && HANDS_OPS.every((o) => dev.ops.includes(o)) && CU1_OPS.every((o) => dev.ops.includes(o)) && dev.optIn?.browser === true, `ops: ${(dev.ops ?? []).join(' ')}`);
+    check('hello: nothing beyond CU4 advertised (no scripts, password-manager or desktop ops)', Array.isArray(dev.ops) && dev.ops.every((o: string) => (HANDS_OPS as readonly string[]).includes(o)) && !dev.ops.some((o: string) => /^b\.(evaluate|eval|script)|^d\.|^p\./.test(o)), '');
     check('hello: the takeover choice and the stop shortcut', dev.takeover === 'pause' || dev.takeover === 'keep', `takeover ${dev.takeover ?? '?'}, shortcut ${dev.hotkey || '(none)'}`);
     const ping = await op('c.ping');
     check('c.ping', ping.ok === true && ping.result?.pong === true);
@@ -196,7 +247,7 @@ async function main(): Promise<number> {
     check('b.open newTab + b.close', nt.ok === true && closed.ok === true);
 
     // 6. refused on the device
-    for (const [o, a] of [['b.login', { name: 'x' }], ['d.click', { x: 1, y: 1 }], ['d.shot', {}], ['b.evaluate', { expression: '1+1' }]] as [string, Record<string, unknown>][]) {
+    for (const [o, a] of [['p.unlock', { manager: 'x' }], ['d.click', { x: 1, y: 1 }], ['d.shot', {}], ['b.evaluate', { expression: '1+1' }]] as [string, Record<string, unknown>][]) {
       const x = await op(o, a);
       check(`refused on the device: ${o} (not in the command set)`, x.ok === false && x.error?.code === 'unsupported', x.ok ? 'it ran' : x.error?.code);
     }
@@ -327,12 +378,106 @@ async function main(): Promise<number> {
       const gone = await api('GET', `/api/hands/${deviceId}/tunnels`);
       check('tunnel: Stop ends the tunnels on that computer', again.json.ok === true && (gone.json.tunnels ?? []).length === 0, `${(gone.json.tunnels ?? []).length} left`);
     }
+
+    // 10. Phase 90 (CU4): saved logins (names and sites only; the password stays on the computer)
+    {
+      check('CU4: the device has the saved-login ops', CU4_OPS.every((o) => (dev.ops ?? []).includes(o)));
+      const onlyViews = (list: unknown) => Array.isArray(list) && (list as Record<string, unknown>[]).every((l) => typeof l.name === 'string' && Array.isArray(l.sites) && !('password' in l) && !('username' in l));
+      check('CU4: hello carries the logins as names and sites only, and the vault kind', onlyViews(dev.logins) && ['dpapi', 'keychain', 'test'].includes(String(dev.vault?.kind)), `${(dev.logins ?? []).length} saved, vault ${dev.vault?.kind ?? '?'}${dev.vault?.verify ? ' (asks first)' : ''}`);
+      const driver = arg('--consent-driver');
+      // Runs an op that opens the device's own window while it is answered (the reference's stand-in or the driver).
+      const withWindow = async (step: string, name: string, args: Record<string, unknown>) => {
+        refStep = step;
+        let drove: Promise<number> = Promise.resolve(0);
+        if (!ref && driver) {
+          drove = new Promise((resolve) => {
+            const child = spawn(`${driver} ${step}`, { shell: true, stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, SARA_CU4_PIECES: LOGIN_PIECES.join(','), SARA_CU4_USER: LOGIN_USER } });
+            child.on('exit', (code) => resolve(code ?? 1));
+          });
+        }
+        if (ref && step === 'continue') setTimeout(() => ref?.continueTurn(), 800);
+        const [r] = await Promise.all([op(name, args, { deadlineMs: driver || ref ? 120_000 : 4000 }), drove]);
+        return r;
+      };
+      await op('b.forgetLogin', { name: 'Conformance' });
+      await op('b.forgetLogin', { name: 'Conformance typed' });
+      const l0 = await op('b.logins');
+      check('CU4: b.logins lists names, sites and dates only', l0.ok === true && onlyViews(l0.result?.logins), l0.ok ? `${(l0.result?.logins ?? []).length} saved` : l0.error?.message);
+      const lo = await op('b.open', { url: `${base}/login` });
+      const nf = await op('b.login', { name: 'Conformance' });
+      check('CU4: b.login of a login that isn\u2019t saved: not found (nothing filled)', lo.ok === true && nf.ok === true && nf.result?.outcome === 'not_found', nf.ok ? nf.result?.outcome : nf.error?.message);
+      if (!ref && !driver) {
+        // Without a driver the window can't be answered: it must close at the deadline with nothing saved.
+        const sv = await withWindow('none', 'b.saveLogin', { name: 'Conformance' });
+        const after = await op('b.logins');
+        check('CU4: the save window unanswered: nothing saved', sv.ok === false && !(after.result?.logins ?? []).some((l: any) => l.name === 'Conformance'), sv.ok ? JSON.stringify(sv.result) : sv.error?.code);
+        console.log('      (the rest of section 10 needs --consent-driver for this device)');
+      } else {
+        const c1 = await withWindow('cancel', 'b.saveLogin', { name: 'Conformance' });
+        const c2 = await withWindow('untick', 'b.saveLogin', { name: 'Conformance' });
+        const l1 = await op('b.logins');
+        check('CU4: Cancel saves nothing', c1.ok === true && c1.result?.outcome === 'cancelled', c1.ok ? c1.result?.outcome : c1.error?.message);
+        check('CU4: without the ticked "I understand" nothing is saved (the device refuses)', c2.ok === true && c2.result?.outcome === 'cancelled' && !(l1.result?.logins ?? []).some((l: any) => l.name === 'Conformance'), c2.ok ? `${c2.result?.outcome}: ${c2.result?.why ?? ''}` : c2.error?.message);
+        const s1 = await withWindow('save', 'b.saveLogin', { name: 'Conformance' });
+        const origin = new URL(base).origin;
+        check('CU4: saved with the box ticked: the name and the exact site come back, nothing else', s1.ok === true && s1.result?.outcome === 'saved' && s1.result?.name === 'Conformance' && JSON.stringify(s1.result?.sites) === JSON.stringify([origin]) && !JSON.stringify(s1).includes(LOGIN_PASSWORD) && !JSON.stringify(s1).includes(LOGIN_USER), s1.ok ? JSON.stringify(s1.result) : s1.error?.message);
+        await pause(300);
+        const listed = await api('GET', '/api/hands');
+        const d2 = (listed.json.devices ?? []).find((d: any) => d.id === deviceId);
+        check('CU4: the server learns the new login\u2019s name and site at once', (d2?.logins ?? []).some((l: any) => l.name === 'Conformance' && l.sites?.[0] === origin) && !JSON.stringify(listed.json).includes(LOGIN_PASSWORD), JSON.stringify(d2?.logins ?? []).slice(0, 120));
+        const before = signIns.length;
+        await op('b.open', { url: `${base}/login` });
+        const f1 = await act('b.login', { name: 'Conformance', thumb: 320 });
+        const read1 = await op('b.read', {});
+        check('CU4: b.login fills it on its site and signs in (the site got the right password)', f1.ok === true && f1.result?.outcome === 'filled' && signIns.length === before + 1 && signIns.at(-1)?.right === true && /Signed in \(the right user\)/.test(String(read1.result?.text)), f1.ok ? `${f1.result?.outcome}, ${signIns.length - before} sign-in(s)` : f1.error?.message);
+        check('CU4: the answer and its thumbnail data carry no password', !JSON.stringify(f1).includes(LOGIN_PASSWORD));
+        const looks: [string, string][] = [
+          ['another port', `${base2}/login`],
+          ['another host name (localhost)', `${base.replace('127.0.0.1', 'localhost')}/login`],
+        ];
+        for (const [what, url] of looks) {
+          if (url.startsWith(base)) continue;
+          const o2 = await op('b.open', { url });
+          const m = await act('b.login', { name: 'Conformance' });
+          check(`CU4: a look-alike origin (${what}) gets nothing: site doesn\u2019t match`, o2.ok === true && m.ok === true && m.result?.outcome === 'site_mismatch' && signIns.length === before + 1, m.ok ? m.result?.outcome : m.error?.message);
+        }
+        await op('b.open', { url: `${base}/login` });
+        await act('b.type', { text: 'Username', field: true, value: 'someone' });
+        await act('b.keys', { combo: 'Tab' });
+        const kx = await act('b.keys', { combo: 'x' });
+        check('CU4: no typing into a password field key by key', kx.ok === false && kx.error?.code === 'denied_local', kx.ok ? 'it typed' : kx.error?.code);
+        // "Use what I just typed": the person signs in once in the Sara browser.
+        await op('b.open', { url: `${base}/login` });
+        await act('b.click', { text: 'Type it like a person' });
+        await pause(800);
+        const t1 = await withWindow('typed', 'b.saveLogin', { name: 'Conformance typed' });
+        await op('b.open', { url: `${base}/login` });
+        const before2 = signIns.length;
+        const f2 = await act('b.login', { name: 'Conformance typed' });
+        check('CU4: "Use what I just typed" saves the sign-in the person typed (and it works)', t1.ok === true && t1.result?.outcome === 'saved' && f2.ok === true && f2.result?.outcome === 'filled' && signIns.length === before2 + 1 && signIns.at(-1)?.right === true, t1.ok ? `${t1.result?.outcome} / ${f2.result?.outcome ?? f2.error?.message}` : t1.error?.message);
+        const yt = await withWindow('continue', 'b.yourTurn', { what: 'sign in to the fixture' });
+        check('CU4: Your turn waits for Continue, then says where the browser is', yt.ok === true && yt.result?.continued === true && typeof yt.result?.url === 'string', yt.ok ? String(yt.result?.url) : yt.error?.message);
+        const t0 = Date.now();
+        const [ys] = await Promise.all([op('b.yourTurn', { what: 'sign in' }, { deadlineMs: 60_000 }), pause(1500).then(() => api('POST', `/api/hands/${deviceId}/stop`, {}))]);
+        check('CU4: Stop ends Your turn', ys.ok === false && /stopped/.test(String(ys.error?.code)) && Date.now() - t0 < 6000, `${ys.ok ? 'it went on' : ys.error?.code} after ${Date.now() - t0} ms`);
+        await pause(500);
+        const g = await api('GET', `/api/hands/${deviceId}/logins`);
+        check('CU4: Settings lists this computer\u2019s logins (names and sites)', g.status === 200 && onlyViews(g.json.logins) && (g.json.logins ?? []).some((l: any) => l.name === 'Conformance'), JSON.stringify(g.json.logins ?? []).slice(0, 120));
+        const rm = await api('DELETE', `/api/hands/${deviceId}/logins/${encodeURIComponent('Conformance')}`);
+        const rm2 = await api('DELETE', `/api/hands/${deviceId}/logins/${encodeURIComponent('Conformance typed')}`);
+        const l2 = await op('b.logins');
+        await op('b.open', { url: `${base}/login` });
+        const gone = await op('b.login', { name: 'Conformance' });
+        check('CU4: removed from Settings, removed on the device (it can\u2019t be used any more)', rm.json.removed === 1 && rm2.json.removed === 1 && !(l2.result?.logins ?? []).some((l: any) => /^Conformance/.test(l.name)) && gone.result?.outcome === 'not_found', `${rm.json.removed}/${rm2.json.removed} removed, then ${gone.result?.outcome ?? gone.error?.code}`);
+      }
+    }
   } catch (err) {
     check('setup', false, (err as Error).message);
   } finally {
     await ref?.stop().catch(() => {});
     if (ref && deviceId) await api('DELETE', `/api/hands/${deviceId}`).catch(() => {});
     fx.close();
+    fx2.close();
   }
   const failed = checks.filter((c) => !c.ok);
   const summary = { device: deviceId, passed: checks.length - failed.length, failed: failed.length, checks };

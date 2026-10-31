@@ -86,7 +86,7 @@ export type ApprovalDetail = GmailApproval;
 /** Phase 88: a computer-use card: what she wants to do where, and the answers it offers. */
 export interface ComputerApproval {
   kind: 'computer';
-  /** click / type / select / keys / upload */
+  /** click / type / select / keys / upload; Phase 90: login (sign in with a saved login, `name` = its name) */
   action: string;
   site: string;
   computer: string;
@@ -97,8 +97,8 @@ export interface ComputerApproval {
   name?: string;
   /** The text she would type (secrets never; cut to 200 characters). */
   text?: string;
-  /** Payments and account settings ask every time (no "for this task", no "always"). */
-  risk: 'normal' | 'send' | 'payment' | 'account';
+  /** Payments and account settings ask every time (no "for this task", no "always"); so does a saved login (Phase 90). */
+  risk: 'normal' | 'send' | 'payment' | 'account' | 'login';
   why: string;
   /** The answers on this card besides Don't: once, task, always. */
   choices: ('once' | 'task' | 'always')[];
