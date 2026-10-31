@@ -119,6 +119,7 @@ const ALLOWED: Record<string, string> = {
   'src/ws.ts': 'the DevTools WebSocket client: calls checkOutbound() before connecting',
   'src/tools/builtin.ts': 'web_fetch: calls checkOutbound() before every hop',
   'src/apns.ts': "iPhone notifications over HTTP/2: calls checkOutbound() before connecting",
+  'src/tunnel.ts': "Phase 89 dev tunnel: connects only to 127.0.0.1, to a port her own job listens on, after checkOutbound()",
 };
 
 /** Lines of code that open a connection without the guard. */
@@ -169,6 +170,9 @@ test('features: web search, web pages, reports, updates, weather, voices, off-se
   await blocked(createWebSearchTool(() => ({ provider: 'brave', apiKey: 'k' })).run({ query: 'news' }, ctx as never));
   await blocked(createWebSearchTool(() => ({ provider: 'ollama', apiKey: 'k' })).run({ query: 'news' }, ctx as never));
   await assert.rejects(webFetchTool.run({ url: 'https://example.com/' }, ctx as never), /private local mode|private or local address/i);
+  // Refused before any DNS lookup (the lookup would tell the resolver the name): a name that
+  // can't resolve still gets the private-mode answer, not "Could not resolve".
+  await assert.rejects(webFetchTool.run({ url: 'https://private-local-check.invalid/' }, ctx as never), /private local mode/i);
   // A report stays here; sending it to the developer is refused (and recorded as not sent).
   const { dir, cleanup } = tempDir();
   try {

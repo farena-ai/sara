@@ -182,8 +182,8 @@ on fds 3 and 4). Both bundle `desktop/shared/page-agent.js` (Windows: RCDATA `ID
 - The tray / menu bar menu has **Stop Sara on this computer** and **Don't let Sara use this
   computer** while it's on. Quitting the app closes the connection and the Sara browser.
 - Check an app's hands: `node scripts/hands-conformance.ts --server <url> --token-file <owner token
-  file> --device <computer name>` (63 checks since Phase 88: the command set, refusals on the device, logs, pictures,
-  deadlines, acting). For a Mac reached over SSH, forward the server and a fixture port with `ssh -R` and pass
+  file> --device <computer name>` (75 checks since Phase 89: the command set, refusals on the device, logs, pictures,
+  deadlines, acting, the dev tunnel). For a Mac reached over SSH, forward the server and a fixture port with `ssh -R` and pass
   `--fixture-port`.
 - Testing the Windows app next to an installed one: build with `-DSARA_TEST_HOOKS=ON` and start it
   with `SARA_DESKTOP_TEST_DIR` (its own data folder, profile, lock and Sara browser profile). On the
@@ -216,6 +216,21 @@ on fds 3 and 4). Both bundle `desktop/shared/page-agent.js` (Windows: RCDATA `ID
   test item (`security delete-generic-password -s <bundle id>.hands`) before starting a rebuilt copy.
 - Conformance: 63 checks (CU2 adds find/click/type/select/keys/scroll/upload/downloads, refusals,
   stale refs, rate limit, Stop within a second).
+
+### Dev tunnel (Phase 89, computer use CU3)
+
+- When she opens her job's app (`pc_browser_open` with `app_port`), the app opens a listener on
+  **127.0.0.1 only** on this computer (the same port number when it's free here) and carries each
+  connection of the Sara browser as a stream over the hands connection to the dev server on her
+  server. The page runs at a real `http://127.0.0.1:<port>`: storage, cookies and hot reload work.
+- The server decides what is reachable: only a port a process of her running job listens on, never
+  Sara's own. The app keeps at most 4 tunnels and 64 connections each, and closes all of them on
+  `c.untunnel`, **Stop** and when the connection drops. Windows: `DevTunnels` (Winsock) in
+  `hands.cpp`; Mac: `HandsTunnels` (BSD sockets) in `Hands.swift`.
+- Settings → Computer use → **Dev tunnels** lists open tunnels (**Close**) and has **Try the dev
+  tunnel**: a test page from the server that should say "All checks passed".
+- Conformance: 75 checks (section 9: the test page's storage, WebSocket, upload and large file, the
+  tunnel list, refusals, closing).
 
 ### Sara-Setup.exe: her server and the app together (Phase 46c)
 

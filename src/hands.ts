@@ -19,8 +19,11 @@
 //   device → server  hello.takeover 'pause' | 'keep', hello.hotkey, hello.paused, hello.renew
 //   device → server  {t:'ev', kind:'takeover' | 'resumed'}  (the person took over / pressed Resume there)
 //   device → server  {t:'renew'}  →  server → device {t:'token', token, expiresAt}  (a fresh hands token)
+// Phase 89 (CU3) adds the dev tunnel (src/tunnel.ts): req c.tunnel / c.untunnel, {t:'s', ev, sid}
+// stream control both ways, and binary stream frames both ways (header {s: sid}, then bytes).
 import { randomUUID } from 'node:crypto';
 import type { EventHub } from './events.ts';
+import { Tunnels } from './tunnel.ts';
 import type { WsConnection } from './ws.ts';
 
 export const HANDS_PROTOCOL = 1;
@@ -28,8 +31,12 @@ export const HANDS_PROTOCOL = 1;
 export const CU1_OPS = ['b.start', 'b.tabs', 'b.open', 'b.navigate', 'b.snapshot', 'b.read', 'b.screenshot', 'b.logs', 'b.request', 'b.close', 'c.ping'] as const;
 /** Phase 88 (CU2): acting in the Sara browser (b.find only says what a target is, for the approval card). */
 export const CU2_OPS = ['b.find', 'b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload', 'b.downloads'] as const;
-/** The whole command set of a CU2 device. Still nothing on the desktop (d.*), no logins (b.login), no scripts. */
-export const HANDS_OPS = [...CU1_OPS, ...CU2_OPS] as const;
+/** Phase 89 (CU3): the dev tunnel (a loopback listener on the computer, streams over this connection). */
+export const CU3_OPS = ['c.tunnel', 'c.untunnel'] as const;
+/** The whole command set of a CU3 device. Still nothing on the desktop (d.*), no logins (b.login), no scripts. */
+export const HANDS_OPS = [...CU1_OPS, ...CU2_OPS, ...CU3_OPS] as const;
+/** Ops only the server itself sends (never from the owner's "try one op" route): the tunnel checks port ownership first. */
+export const SERVER_ONLY_OPS: ReadonlySet<string> = new Set(CU3_OPS);
 export type HandsOp = (typeof HANDS_OPS)[number];
 /** Ops that act (they count against the device's input rate limit and stop on takeover). */
 export const ACTING_OPS: ReadonlySet<string> = new Set(['b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload']);
@@ -190,11 +197,29 @@ export class HandsHub {
   leaseMs = 2 * 60_000;
   budget = { ...COMPUTER_BUDGET };
   readonly #tasks = new Map<string, { steps: number; startedAt: number }>();
+  /** Phase 89: the dev tunnels to this person's computers (src/tunnel.ts). */
+  readonly tunnels: Tunnels;
 
-  constructor(opts: { events?: EventHub; allowed?: () => boolean; known?: () => { id: string; label: string; lastSeen?: string }[] } = {}) {
+  constructor(opts: { events?: EventHub; allowed?: () => boolean; known?: () => { id: string; label: string; lastSeen?: string }[]; tunnels?: ConstructorParameters<typeof Tunnels>[1] } = {}) {
     if (opts.events) this.events = opts.events;
     this.allowed = opts.allowed ?? (() => true);
     this.known = opts.known ?? (() => []);
+    this.tunnels = new Tunnels(
+      {
+        connected: (id) => this.connected(id),
+        ops: (id) => this.hello(id)?.ops,
+        request: (id, op, args, o) => this.request(id, op, args, o),
+        send: (id, data) => {
+          const ws = this.#devices.get(id)?.ws;
+          if (!ws?.open) return false;
+          ws.send(data);
+          return true;
+        },
+        buffered: (id) => this.#devices.get(id)?.ws?.buffered ?? 0,
+        publish: (ev) => this.#publish(ev),
+      },
+      opts.tunnels,
+    );
   }
 
   #device(id: string, label = ''): Device {
@@ -252,6 +277,8 @@ export class HandsHub {
 
   #dropConnection(d: Device, why: string): void {
     clearInterval(d.heartbeat);
+    // Phase 89: the dev tunnels there end with the connection (the device closes its listeners too).
+    this.tunnels.closeDevice(d.id, 'the computer disconnected', false);
     for (const p of [...this.#pending.values()]) if (p.deviceId === d.id) this.#settle(p, new HandsError('offline', why));
   }
 
@@ -298,6 +325,11 @@ export class HandsHub {
       }
       return;
     }
+    if (m.t === 's') {
+      // Phase 89: a dev tunnel stream's control message.
+      this.tunnels.text(d.id, m);
+      return;
+    }
     if (m.t === 'renew') {
       // Phase 88: the app renews its own token before the 90 days end (at most once per 10 minutes).
       const now = Date.now();
@@ -320,6 +352,8 @@ export class HandsHub {
         for (const p of [...this.#pending.values()]) if (p.deviceId === d.id) this.#settle(p, new HandsError('stopped', 'Stopped on the computer.'));
         const conv = d.lease?.conversationId;
         d.lease = undefined;
+        // Stop ends her dev tunnels on that computer too.
+        this.tunnels.closeDevice(d.id, 'stopped on the computer');
         this.#publish({ deviceId: d.id, stopped: true, by: m.by === 'user' ? 'user' : 'device', ...(conv ? { conversationId: conv } : {}) });
         if (conv && m.by === 'user') for (const fn of this.#stopListeners) fn(conv, d.id);
         return;
@@ -350,6 +384,8 @@ export class HandsHub {
   #binary(d: Device, buf: Buffer): void {
     const b = parseBinary(buf);
     if (!b) return;
+    // Phase 89: bytes of a dev tunnel stream (from the Sara browser on that computer).
+    if (b.header.s !== undefined) return this.tunnels.data(d.id, Number(b.header.s), b.data);
     const mime = String(b.header.mime ?? '');
     if (!IMAGE_MIMES.has(mime) || b.data.length > 8 * 1024 * 1024) return;
     const w = Number(b.header.w) || undefined;
@@ -458,6 +494,8 @@ export class HandsHub {
       n++;
     }
     d.lease = undefined;
+    // Stop ends her dev tunnels on that computer too.
+    this.tunnels.closeDevice(deviceId, 'stopped');
     return n;
   }
 
@@ -581,6 +619,7 @@ export class HandsHub {
 
   /** Closes every connection (server shutdown). */
   closeAll(): void {
+    this.tunnels.closeAll();
     for (const d of this.#devices.values()) {
       clearInterval(d.heartbeat);
       try {

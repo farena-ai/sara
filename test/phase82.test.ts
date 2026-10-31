@@ -315,7 +315,7 @@ test('fix regions: the functions on the path (or the route call); edits outside 
 // ------------------------------------------------------------------------------------------------
 
 function git(cwd: string, ...a: string[]) {
-  const r = spawnSync('git', ['-c', 'user.name=Alex', '-c', 'user.email=alex@example.com', '-c', 'core.hooksPath=/dev/null', '-c', 'core.autocrlf=false', ...a], { cwd, encoding: 'utf8' });
+  const r = spawnSync('git', ['-c', 'user.name=Alex', '-c', 'user.email=alex@example.com', '-c', 'core.hooksPath=/dev/null', '-c', 'core.autocrlf=false', '-c', 'commit.gpgsign=false', ...a], { cwd, encoding: 'utf8' });
   return r.stdout.trim();
 }
 

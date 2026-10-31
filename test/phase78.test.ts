@@ -211,7 +211,7 @@ test('coding mode: each step records git HEAD and the hashes of the dirty files 
   const conv = app.store.createConversation({ mode: 'coding' });
   const ws = workspaceDir(dir, conv.workspace);
   mkdirSync(ws, { recursive: true });
-  const git = (...a: string[]) => execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=t@example.com', '-c', 'core.hooksPath=/dev/null', ...a], { cwd: ws, encoding: 'utf8' }).trim();
+  const git = (...a: string[]) => execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=t@example.com', '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...a], { cwd: ws, encoding: 'utf8' }).trim();
   git('init', '-q', '-b', 'main');
   writeFileSync(join(ws, 'a.txt'), 'one\n');
   git('add', '.');

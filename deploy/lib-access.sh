@@ -224,7 +224,11 @@ sa_dns_check() {
 }
 sa_caddy_remove_block() {
   [[ -f $SA_CADDYFILE ]] || return 0
-  sed -i "/^# BEGIN $SI_NAME /,/^# END $SI_NAME\$/d" "$SA_CADDYFILE"
+  # Not `sed -i` (GNU and BSD/macOS disagree on its argument); writing in place keeps the file's
+  # owner and mode. The trailing "." keeps the file's final newlines through $(…).
+  local out
+  out="$(sed "/^# BEGIN $SI_NAME /,/^# END $SI_NAME\$/d" "$SA_CADDYFILE" && echo .)" || return 1
+  printf '%s' "${out%.}" > "$SA_CADDYFILE"
 }
 # Is the Caddyfile just the placeholder page the distribution ships (":80 { root … file_server }")?
 sa_caddy_is_stock() {

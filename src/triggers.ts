@@ -315,6 +315,11 @@ export class RecallIndex {
   readonly #db: DatabaseSync;
   readonly #now: () => Date;
 
+  /** The index's clock (the app's), so a lesson's date matches the rest of the run. */
+  nowIso(): string {
+    return this.#now().toISOString();
+  }
+
   constructor(db: DatabaseSync, now: () => Date = () => new Date()) {
     this.#db = db;
     this.#now = now;
@@ -691,7 +696,7 @@ export class RunWatcher {
           evidence: `error: “${failQuote.slice(0, 300)}” · fix: ${fixes.slice(0, 3).join('; ').slice(0, 600)}`,
         });
         lessonId = note.id;
-        this.index.addLesson({ memoryId: note.id, workspace: this.ctx.workspace, sig: failSig, conversationId: this.ctx.conversationId, failRun, failStep, fixRun: this.ctx.runId, fixStep: step, command: command.slice(0, 300), errorQuote: failQuote.slice(0, 300), fixQuote: fixes.slice(0, 3).join('; ').slice(0, 600), packages: pkgs, files, createdAt: at ?? new Date().toISOString() });
+        this.index.addLesson({ memoryId: note.id, workspace: this.ctx.workspace, sig: failSig, conversationId: this.ctx.conversationId, failRun, failStep, fixRun: this.ctx.runId, fixStep: step, command: command.slice(0, 300), errorQuote: failQuote.slice(0, 300), fixQuote: fixes.slice(0, 3).join('; ').slice(0, 600), packages: pkgs, files, createdAt: at ?? this.index.nowIso() });
         this.written.push(note.id);
       }
     }

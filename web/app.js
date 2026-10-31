@@ -10286,6 +10286,7 @@ async function loadComputer() {
     $('#cu-list').replaceChildren();
     $('#cu-none').hidden = true;
     $('#cu-this').hidden = $('#cu-get').hidden = $('#cu-owner').hidden = true;
+    $('#cu-dev').hidden = true;
     status.textContent = err.status === 403 ? t('Ask the owner of this server to switch on computer use for household members.') : err.message;
     return;
   }
@@ -10342,7 +10343,66 @@ async function loadComputer() {
       return li;
     }),
   );
+  renderTunnels(h.tunnels ?? [], list);
 }
+// Phase 89: her dev tunnels (an app her job runs here, opened in her browser on your computer).
+function renderTunnels(tunnels, devices) {
+  const able = devices.filter((d) => d.connected && (d.ops ?? []).includes('c.tunnel'));
+  $('#cu-dev').hidden = !able.length && !tunnels.length;
+  $('#cu-tunnels-none').hidden = tunnels.length > 0;
+  const name = (id) => cuSettings.names[id] || t('this computer');
+  $('#cu-tunnels').replaceChildren(
+    ...tunnels.map((x) => {
+      const li = el('li', 'cu-row');
+      const main = el('div', 'cu-row-main');
+      const nm = el('span', 'cu-row-name', x.url);
+      nm.dataset.raw = '';
+      main.append(nm, el('span', 'cu-row-meta', x.kind === 'test' ? t('Test page on {name}', { name: name(x.deviceId) }) : t('Port {port} of job #{job} on {name}', { port: x.port, job: x.jobId, name: name(x.deviceId) })));
+      const close = el('button', 'ghost', t('Close'));
+      close.type = 'button';
+      close.addEventListener('click', async () => {
+        try {
+          await api(`/hands/${encodeURIComponent(x.deviceId)}/tunnels/${encodeURIComponent(x.id)}`, { method: 'DELETE' });
+          await loadComputer();
+        } catch (err) {
+          $('#cu-status').textContent = err.message;
+        }
+      });
+      li.append(main, close);
+      return li;
+    }),
+  );
+  const sel = $('#cu-tunnel-device');
+  const was = sel.value;
+  sel.replaceChildren(
+    ...able.map((d) => {
+      const o = el('option', '', d.computer || d.label);
+      o.value = d.id;
+      return o;
+    }),
+  );
+  if (able.some((d) => d.id === was)) sel.value = was;
+  $('#cu-tunnel-try').disabled = !able.length;
+}
+$('#cu-tunnel-try').addEventListener('click', async () => {
+  const id = $('#cu-tunnel-device').value;
+  const st = $('#cu-status');
+  if (!id) return;
+  const btn = $('#cu-tunnel-try');
+  btn.disabled = true;
+  st.textContent = t('Opening the test page…');
+  try {
+    const r = await api(`/hands/${encodeURIComponent(id)}/tunnel-test`, { method: 'POST', body: {} });
+    if (!r.ok) throw new Error(r.error?.message || t('That didn’t work.'));
+    const o = await api(`/hands/${encodeURIComponent(id)}/op`, { method: 'POST', body: { op: 'b.open', args: { url: `${r.tunnel.url}/`, newTab: true } } });
+    st.textContent = o.ok ? t('The test page is open in Sara’s browser on {name}. It should say All checks passed.', { name: cuSettings.names[id] || t('this computer') }) : o.error?.message || '';
+  } catch (err) {
+    st.textContent = err.message;
+  } finally {
+    btn.disabled = false;
+    void loadComputer();
+  }
+});
 $('#cu-members').addEventListener('change', async () => {
   try {
     await api('/computer', { method: 'PUT', body: { members: $('#cu-members').checked } });

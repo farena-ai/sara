@@ -19,7 +19,7 @@ list(GET SARA_VERSION_PARTS 2 SARA_V3)
 set(SARA_VERSION_DEFS SARA_APP_VERSION="${SARA_APP_VERSION}" SARA_VERSION_COMMAS=${SARA_V1},${SARA_V2},${SARA_V3},0)
 add_executable(Sara WIN32 src/main.cpp src/hands.cpp src/sara.rc)
 target_include_directories(Sara PRIVATE "${WV2}/include" src)
-target_link_libraries(Sara PRIVATE "${WV2}/x64/WebView2LoaderStatic.lib" shlwapi shell32 ole32 version advapi32 user32 dwmapi uxtheme gdi32 windowscodecs crypt32 runtimeobject propsys winhttp)
+target_link_libraries(Sara PRIVATE "${WV2}/x64/WebView2LoaderStatic.lib" shlwapi shell32 ole32 version advapi32 user32 dwmapi uxtheme gdi32 windowscodecs crypt32 runtimeobject propsys winhttp ws2_32)
 # Phase 87: Sara's hands (src/hands.cpp): the WebSocket to /api/hands through WinHTTP.
 # Phase 75 stage 3: toasts through the Windows SDK's WinRT headers (runtimeobject) and shortcut properties (propsys).
 # Phase 75 stage 2: the quick-ask page (desktop/shared, also in the Mac app) is in sara.rc.

@@ -212,7 +212,7 @@ test('quotes: a finding whose quote is not in the file is dropped; a wrong line 
 // ------------------------------------------------------------------------------------------------
 
 function git(cwd: string, ...a: string[]) {
-  const r = spawnSync('git', ['-c', 'user.name=Alex', '-c', 'user.email=alex@example.com', '-c', 'core.hooksPath=/dev/null', '-c', 'core.autocrlf=false', ...a], { cwd, encoding: 'utf8' });
+  const r = spawnSync('git', ['-c', 'user.name=Alex', '-c', 'user.email=alex@example.com', '-c', 'core.hooksPath=/dev/null', '-c', 'core.autocrlf=false', '-c', 'commit.gpgsign=false', ...a], { cwd, encoding: 'utf8' });
   return r.stdout.trim();
 }
 

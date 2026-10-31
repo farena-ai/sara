@@ -327,11 +327,12 @@ blockquote{margin:1em 0;padding:.2em 1em;border-left:4px solid var(--accent);col
 .table{overflow-x:auto}table{border-collapse:collapse;margin:1em 0;font-size:15px}th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top;text-align:left}
 th{background:var(--side)}.al-center{text-align:center}.al-right{text-align:right}
 img{max-width:100%;height:auto}hr{border:0;border-top:1px solid var(--line);margin:2em 0}
+.page-nav{display:flex;justify-content:space-between;gap:1em;margin-top:3em;padding-top:1em;border-top:1px solid var(--line);flex-wrap:wrap}.page-nav a{max-width:48%;text-decoration:none}.page-nav a[rel=next]{margin-left:auto;text-align:right}
 .foot{margin-top:4em;color:var(--muted);font-size:14px;border-top:1px solid var(--line);padding-top:1em}
 .menu{display:none}
 @media (max-width:860px){.wrap{display:block}nav.side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
 nav.side .collapsible{display:none}nav.side.open .collapsible{display:block}.menu{display:inline-block;margin-left:auto;background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:4px 10px;font:inherit}
-main{padding:20px 18px 60px}}`;
+main{padding:20px 18px 60px}.page-nav a{max-width:100%}}`;
 
 const JS = `(()=>{
 const root=document.documentElement,base=document.body.dataset.base||'';
@@ -356,10 +357,16 @@ if(q&&!list.children.length){const li=document.createElement('li');li.textConten
 
 function pageHtml(page: Page, pages: Page[], body: string, repo: string): string {
   const up = rel(page.out, 'x').replace(/x$/, '');
+  const at = pages.indexOf(page);
+  const previous = at > 0 ? pages[at - 1] : undefined;
+  const next = at >= 0 && at + 1 < pages.length ? pages[at + 1] : undefined;
   const groups = [...new Set(pages.map((p) => p.group))];
   const nav = groups
     .map((g) => `<h4>${esc(g)}</h4><ul class="pages">${pages.filter((p) => p.group === g).map((p) => `<li><a href="${rel(page.out, p.out)}"${p === page ? ' aria-current="page"' : ''}>${esc(p.title)}</a></li>`).join('')}</ul>`)
     .join('');
+  const pageNav = previous || next
+    ? `<nav class="page-nav" aria-label="Page navigation">${previous ? `<a rel="prev" href="${rel(page.out, previous.out)}">← Previous: ${esc(previous.title)}</a>` : ''}${next ? `<a rel="next" href="${rel(page.out, next.out)}">Next: ${esc(next.title)} →</a>` : ''}</nav>`
+    : '';
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -380,6 +387,7 @@ function pageHtml(page: Page, pages: Page[], body: string, repo: string): string
 </nav>
 <main>
 ${body}
+${pageNav}
 <p class="foot">Built from <a href="${repo}/blob/main/${page.src}" rel="noopener">${esc(page.src)}</a> by <code>node scripts/build-docs.ts</code>. Sara is MIT-licensed.</p>
 </main>
 </div>

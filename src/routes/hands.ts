@@ -7,7 +7,10 @@
 //   GET    /api/hands                       the computers (connected or not), the member switch, the app link
 //   DELETE /api/hands/<id>                  sign that computer out (its connection closes now)
 //   POST   /api/hands/<id>/op               the owner tries one op on it (Settings → Try it, the conformance script)
-//   POST   /api/hands/<id>/stop             stop everything running on it
+//   POST   /api/hands/<id>/stop             stop everything running on it (and its dev tunnels)
+//   GET    /api/hands/<id>/tunnels          Phase 89: the dev tunnels open to it
+//   POST   /api/hands/<id>/tunnel-test      Phase 89: "Try the dev tunnel" (a built-in test page, 5 minutes)
+//   DELETE /api/hands/<id>/tunnels/<tid>    Phase 89: close one dev tunnel
 //   GET    /api/computer                    the server-wide choices; PUT changes them (owner only)
 //   GET    /api/computer/frame/<id>?after=n the live view: the newest frame after n (long-poll, memory only)
 //   GET    /api/computer/thumb/<sha>        a step thumbnail from the run record
@@ -15,7 +18,8 @@ import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { APPS_PAGE } from '../cards.ts';
 import { ACT_LEVELS, actLevel, type ActLevel } from '../computer-policy.ts';
-import { HandsError } from '../hands.ts';
+import { HandsError, SERVER_ONLY_OPS } from '../hands.ts';
+import { TunnelError } from '../tunnel.ts';
 import { HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
 import { acceptWebSocket, refuseUpgrade } from '../ws.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
@@ -100,7 +104,7 @@ export function createHandsRoutes(ctx: RouteCtx): RouteHandler {
     }
 
     // ---- /api/hands ----
-    if (!b && method === 'GET') return send(res, 200, { devices: hub.devices(), ...settingsView(), allowed: hub.allowed(), role: opts.member ? 'member' : 'owner', downloadUrl: APPS_PAGE });
+    if (!b && method === 'GET') return send(res, 200, { devices: hub.devices(), tunnels: hub.tunnels.list(), ...settingsView(), allowed: hub.allowed(), role: opts.member ? 'member' : 'owner', downloadUrl: APPS_PAGE });
     if (b === 'pair' || b === 'renew') return NEXT; // src/server.ts (needs the confirmation helpers)
     if (!b) throw new HttpError(404, 'Not found');
     const known = hub.devices().find((x) => x.id === b);
@@ -114,12 +118,32 @@ export function createHandsRoutes(ctx: RouteCtx): RouteHandler {
       await readJson(req).catch(() => ({}));
       return send(res, 200, { ok: true, cancelled: hub.cancelAll(b) });
     }
+    // Phase 89: the dev tunnels to this computer.
+    if (c === 'tunnels' && !d && method === 'GET') return send(res, 200, { tunnels: hub.tunnels.list({ deviceId: b }) });
+    if (c === 'tunnels' && d && parts.length === 4 && method === 'DELETE') {
+      const t = hub.tunnels.get(d);
+      if (!t || t.deviceId !== b) throw new HttpError(404, 'No such tunnel.');
+      hub.tunnels.close(d, 'closed by the owner');
+      return send(res, 200, { ok: true, tunnels: hub.tunnels.list({ deviceId: b }) });
+    }
+    if (c === 'tunnel-test' && !d && method === 'POST') {
+      await readJson(req).catch(() => ({}));
+      try {
+        const t = await hub.tunnels.openTest(b);
+        return send(res, 200, { ok: true, tunnel: t });
+      } catch (err) {
+        if (err instanceof TunnelError || err instanceof HandsError) return send(res, 200, { ok: false, error: { code: err.code, message: err.message } });
+        throw err;
+      }
+    }
     if (c === 'op' && !d && method === 'POST') {
       // The owner's own test of a computer (\"Try it\" in Settings, scripts/hands-conformance.ts). The
       // device still runs only its own command set; anything else comes back refused.
       const body = await readJson(req, 32 * 1024);
       const op = String(body.op ?? '');
       if (!/^[a-z]\.[A-Za-z]{1,30}$/.test(op)) throw new HttpError(400, 'op: like "b.open".');
+      // Phase 89: a tunnel is only ever opened by the server, after its own port-ownership check.
+      if (SERVER_ONLY_OPS.has(op)) return send(res, 200, { ok: false, error: { code: 'server_only', message: `${op} is sent only by the server itself (the dev tunnel checks the port first): use "Try the dev tunnel".` } });
       const args = body.args && typeof body.args === 'object' && !Array.isArray(body.args) ? (body.args as Record<string, unknown>) : {};
       const ac = new AbortController();
       req.on('close', () => {

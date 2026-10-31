@@ -3,6 +3,10 @@
 // keys, scroll, upload, downloads, the after-state, stale refs, the device's refusals (password
 // fields, secret-shaped text, keys off its list, long text, file names outside Downloads/Sara), the
 // input rate limit and Stop within a second.
+// Phase 89 (CU3) adds the dev tunnel (section 9): the server's built-in test page opened at
+// http://127.0.0.1:<port> on the device through the tunnel (storage that persists across loads, a
+// live WebSocket like hot reload, a 20 KB POST, a 300 KB file intact, no page errors), the tunnel
+// listed, refused as a raw op, closed by the owner (the page no longer loads), and ended by Stop.
 // Runs the command set against one hands device connected to a Sara server, through the owner's
 // test route (POST /api/hands/<id>/op), with a local fixture site (a console error, an HTTP 500, a
 // password field, a key-shaped text, a redirect to Sara's own server, a slow page). The same script
@@ -14,7 +18,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { CU1_OPS, HANDS_OPS } from '../src/hands.ts';
+import { CU1_OPS, CU3_OPS, HANDS_OPS } from '../src/hands.ts';
 import { HandsRef } from '../src/hands-ref.ts';
 
 const arg = (k: string) => {
@@ -124,8 +128,8 @@ async function main(): Promise<number> {
     const op = async (name: string, args: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => (await api('POST', `/api/hands/${deviceId}/op`, { op: name, args, ...extra })).json;
 
     // 1. hello
-    check('hello: connected, protocol 1, the CU1 + CU2 command set, browser opt-in on', dev.connected === true && Array.isArray(dev.ops) && HANDS_OPS.every((o) => dev.ops.includes(o)) && CU1_OPS.every((o) => dev.ops.includes(o)) && dev.optIn?.browser === true, `ops: ${(dev.ops ?? []).join(' ')}`);
-    check('hello: nothing beyond CU2 advertised (no logins, scripts or desktop ops)', Array.isArray(dev.ops) && !dev.ops.some((o: string) => /^b\.(login|evaluate|eval|script)|^d\./.test(o)), '');
+    check('hello: connected, protocol 1, the CU1 + CU2 + CU3 command set, browser opt-in on', dev.connected === true && Array.isArray(dev.ops) && HANDS_OPS.every((o) => dev.ops.includes(o)) && CU1_OPS.every((o) => dev.ops.includes(o)) && dev.optIn?.browser === true, `ops: ${(dev.ops ?? []).join(' ')}`);
+    check('hello: nothing beyond CU3 advertised (no logins, scripts or desktop ops)', Array.isArray(dev.ops) && !dev.ops.some((o: string) => /^b\.(login|evaluate|eval|script)|^d\./.test(o)), '');
     check('hello: the takeover choice and the stop shortcut', dev.takeover === 'pause' || dev.takeover === 'keep', `takeover ${dev.takeover ?? '?'}, shortcut ${dev.hotkey || '(none)'}`);
     const ping = await op('c.ping');
     check('c.ping', ping.ok === true && ping.result?.pong === true);
@@ -281,6 +285,48 @@ async function main(): Promise<number> {
     const tp = Date.now();
     const live = await op('c.ping');
     check('the device is free again at once after Stop (the action really ended there)', live.ok === true && Date.now() - tp < 1500, `${Date.now() - tp} ms`);
+
+    // 9. Phase 89 (CU3): the dev tunnel, with the server's built-in test page.
+    check('CU3: the device has c.tunnel and c.untunnel', CU3_OPS.every((o) => (dev.ops ?? []).includes(o)));
+    const raw = await op('c.tunnel', { tunnel: 'abcdef0123456789', port: 5173 });
+    check('c.tunnel is never a raw op (only the server opens tunnels, after its port check)', raw.ok === false && raw.error?.code === 'server_only', raw.ok ? 'it opened' : raw.error?.code);
+    const tt = await api('POST', `/api/hands/${deviceId}/tunnel-test`, {});
+    const tv = (tt.json.tunnel ?? {}) as Record<string, any>;
+    check('tunnel: the device opens a loopback port for it', tt.json.ok === true && /^http:\/\/127\.0\.0\.1:\d+$/.test(String(tv.url)) && Number(tv.localPort) >= 1024, tt.json.ok ? String(tv.url) : `${tt.json.error?.code}: ${tt.json.error?.message}`);
+    if (tt.json.ok) {
+      const listed = await api('GET', `/api/hands/${deviceId}/tunnels`);
+      check('tunnel: listed for the owner', (listed.json.tunnels ?? []).some((x: any) => x.id === tv.id && x.kind === 'test'));
+      const t1 = await op('b.open', { url: `${tv.url}/` });
+      check('tunnel: the page loads at its real 127.0.0.1 address', t1.ok === true && t1.result?.title === 'Sara dev tunnel test' && t1.result?.status === 200 && String(t1.result?.url).startsWith(`${tv.url}/`), t1.ok ? `${t1.result?.status} ${t1.result?.url}` : t1.error?.message);
+      let text1 = '';
+      for (let i = 0; i < 40 && !/All checks passed/.test(text1); i++) {
+        await pause(250);
+        text1 = String((await op('b.read', {})).result?.text ?? '');
+      }
+      check('tunnel: storage works (localStorage at a real origin)', /Storage: works \(visit \d+\)/.test(text1), text1.match(/Storage: [^\n]*/)?.[0] ?? text1.slice(0, 80));
+      check('tunnel: a WebSocket through it works (what hot reload needs)', /Live connection: works/.test(text1), text1.match(/Live connection: [^\n]*/)?.[0] ?? '');
+      check('tunnel: a 20 KB POST and a 300 KB file cross it intact', /Sending data: works/.test(text1) && /Large file: arrived intact \(307200 bytes\)/.test(text1), `${text1.match(/Sending data: [^\n]*/)?.[0] ?? ''} / ${text1.match(/Large file: [^\n]*/)?.[0] ?? ''}`);
+      const visits1 = Number(text1.match(/visit (\d+)/)?.[1] ?? 0);
+      const t2 = await op('b.navigate', { action: 'reload' });
+      let text2 = '';
+      for (let i = 0; i < 40 && !/All checks passed/.test(text2); i++) {
+        await pause(250);
+        text2 = String((await op('b.read', {})).result?.text ?? '');
+      }
+      const visits2 = Number(text2.match(/visit (\d+)/)?.[1] ?? 0);
+      check('tunnel: storage is kept across a reload (the same origin each time)', t2.ok === true && visits2 === visits1 + 1, `visit ${visits1} → ${visits2}`);
+      const tl = await op('b.logs', {});
+      check('tunnel: no console errors or failed requests on the test page', tl.ok === true && !(tl.result?.entries ?? []).some((e: any) => e.kind === 'exception' || (e.kind === 'console' && e.level === 'error') || e.kind === 'network'), JSON.stringify(tl.result?.entries ?? []).slice(0, 160));
+      const del = await api('DELETE', `/api/hands/${deviceId}/tunnels/${tv.id}`);
+      await pause(400);
+      const after = await op('b.open', { url: `${tv.url}/` }, { deadlineMs: 15_000 });
+      check('tunnel: closed by the owner, the address no longer answers', del.status === 200 && (after.ok === false || after.result?.title !== 'Sara dev tunnel test'), after.ok ? `title ${after.result?.title}` : String(after.error?.message).slice(0, 80));
+      const again = await api('POST', `/api/hands/${deviceId}/tunnel-test`, {});
+      await api('POST', `/api/hands/${deviceId}/stop`, {});
+      await pause(400);
+      const gone = await api('GET', `/api/hands/${deviceId}/tunnels`);
+      check('tunnel: Stop ends the tunnels on that computer', again.json.ok === true && (gone.json.tunnels ?? []).length === 0, `${(gone.json.tunnels ?? []).length} left`);
+    }
   } catch (err) {
     check('setup', false, (err as Error).message);
   } finally {

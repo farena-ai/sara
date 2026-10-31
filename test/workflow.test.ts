@@ -45,7 +45,7 @@ function makeRepo(ws: string): void {
   const g = (...a: string[]) => execFileSync('git', ['-C', join(ws, 'shop'), ...a], { stdio: 'pipe' });
   g('init', '-q', '-b', 'main');
   g('-c', 'user.name=t', '-c', 'user.email=t@t', 'add', '.');
-  g('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'First commit');
+  g('-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'First commit');
   g('remote', 'add', 'origin', 'https://github.com/alex/shop.git');
 }
 

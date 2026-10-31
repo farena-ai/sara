@@ -153,12 +153,13 @@ export function createBackup(dataDir: string, outFile: string, opts: { saraVersi
       if (existsSync(mc)) for (const n of readdirSync(mc)) if (existsSync(join(mc, n, 'sara.db'))) dbs.push(`members/${m}/companions/${n}/sara.db`);
     }
   }
-  for (const rel of dbs) {
+  for (const [i, rel] of dbs.entries()) {
     const dbFile = join(dataDir, ...rel.split('/'));
     if (!existsSync(dbFile)) continue;
     const tmpDir = join(dataDir, 'tmp');
     mkdirSync(tmpDir, { recursive: true });
-    const snap = join(tmpDir, `backup-${process.pid}-${Date.now()}.db`);
+    // The index keeps two snapshots made in the same millisecond apart (VACUUM INTO refuses an existing file).
+    const snap = join(tmpDir, `backup-${process.pid}-${Date.now()}-${i}.db`);
     const db = new DatabaseSync(dbFile);
     try {
       db.exec('PRAGMA busy_timeout = 5000');

@@ -1,0 +1,6 @@
+{
+  "name": "hot-app",
+  "private": true,
+  "description": "Phase 89 fixture: a tiny dependency-free dev server with hot reload and a seeded bug.",
+  "scripts": { "dev": "node server.mjs --port 5173" }
+}

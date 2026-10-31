@@ -1,4 +1,8 @@
 // Phase 87 (computer use CU1): Sara's hands on Windows. See hands.h and docs/design/COMPUTER_USE.md.
+// Phase 89 (CU3): the dev tunnel. c.tunnel opens a listener on 127.0.0.1 only (Winsock); each
+// connection the Sara browser makes to it is a stream over the hands connection to the dev server her
+// job runs on the server (DevTunnels below). Loopback only, at most 4 tunnels and 64 connections
+// each, all closed on c.untunnel, Stop and when the connection drops.
 // Phase 88 (CU2): acting in the Sara browser (find, click, type, select, keys, scroll, upload,
 // downloads) through the shared page agent and real DevTools input events; the always-on-top
 // "Sara is working" badge with Stop / Resume, the global stop shortcut Ctrl+Alt+Esc, takeover (real
@@ -12,6 +16,8 @@
 #include "hands.h"
 
 #define NOMINMAX
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <windows.h>
 #include <winhttp.h>
 #include <wincrypt.h>
@@ -341,7 +347,9 @@ std::vector<BYTE> b64dec(const std::string& b64) {
 // ---------------- the command set (CU1) and the device's own rules ----------------
 const std::set<std::string> kOps = {"b.start", "b.tabs", "b.open", "b.navigate", "b.snapshot", "b.read", "b.screenshot", "b.logs", "b.request", "b.close", "c.ping",
                                     // Phase 88 (CU2)
-                                    "b.find", "b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.downloads"};
+                                    "b.find", "b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.downloads",
+                                    // Phase 89 (CU3): the dev tunnel
+                                    "c.tunnel", "c.untunnel"};
 /** Ops that act: they count against the input rate limit and stop when the person takes over. */
 const std::set<std::string> kInputOps = {"b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload"};
 const int kMaxChars = 2000;
@@ -952,6 +960,250 @@ struct Request {
   std::shared_ptr<std::atomic<bool>> byTakeover = std::make_shared<std::atomic<bool>>(false);
 };
 
+// ---------------- Phase 89 (CU3): the dev tunnel (Winsock, loopback only) ----------------
+// c.tunnel {tunnel, port}: a listener on 127.0.0.1 (that port when free here, else any free one).
+// Each connection to it becomes a stream: {t:'s', ev:'open', tunnel, sid} to the server, then bytes
+// both ways as binary frames with the header {"s":sid}; {ev:'end'} when a side has no more to send,
+// {ev:'close'} when it's gone, {ev:'pause'|'resume'} for flow control.
+class DevTunnels : public std::enable_shared_from_this<DevTunnels> {
+ public:
+  static constexpr size_t kMaxTunnels = 4, kMaxStreams = 64;
+  DevTunnels() {
+    WSADATA w;
+    ok_ = WSAStartup(MAKEWORD(2, 2), &w) == 0;
+  }
+  ~DevTunnels() {
+    if (ok_) WSACleanup();
+  }
+  /** How streams reach the server (set by the hands; cleared by shutdown()). */
+  void wire(std::function<bool(const std::string&)> text, std::function<bool(const std::string&, const std::vector<BYTE>&)> bin, std::function<void(const std::wstring&)> log) {
+    std::lock_guard<std::mutex> l(fm_);
+    text_ = std::move(text);
+    bin_ = std::move(bin);
+    log_ = std::move(log);
+    dead_ = false;
+  }
+  void shutdown() {
+    {
+      std::lock_guard<std::mutex> l(fm_);
+      dead_ = true;
+      text_ = nullptr;
+      bin_ = nullptr;
+      log_ = nullptr;
+    }
+    closeAll();
+  }
+
+  /** c.tunnel: the local port, or 0 with `e` set. */
+  int open(const std::string& id, int port, OpError& e) {
+    static const std::regex idRe("^[0-9a-f]{8,64}$");
+    if (!ok_) return e = {"unsupported", "Networking isn't available here."}, 0;
+    if (!std::regex_match(id, idRe)) return e = {"denied_local", "Not a tunnel id."}, 0;
+    if (port < 1024 || port > 65535) return e = {"denied_local", "Dev tunnels use ports 1024 to 65535 only."}, 0;
+    std::lock_guard<std::mutex> l(m_);
+    if (auto it = tunnels_.find(id); it != tunnels_.end()) return it->second.localPort;
+    if (tunnels_.size() >= kMaxTunnels) return e = {"denied_local", "At most 4 dev tunnels at once on this computer."}, 0;
+    SOCKET s = listenOn(port);
+    if (s == INVALID_SOCKET) s = listenOn(0);
+    if (s == INVALID_SOCKET) return e = {"error", "Couldn't open a local port for the dev tunnel."}, 0;
+    sockaddr_in a{};
+    int al = sizeof(a);
+    getsockname(s, (sockaddr*)&a, &al);
+    int local = ntohs(a.sin_port);
+    tunnels_[id] = Listener{s, port, local, {}};
+    auto self = shared_from_this();
+    std::thread([self, id, s] { self->acceptLoop(id, s); }).detach();
+    say(L"dev tunnel: 127.0.0.1:" + std::to_wstring(local) + L" \u2192 the server's port " + std::to_wstring(port));
+    return local;
+  }
+  /** c.untunnel (or Stop, or the connection dropped): the listener and its connections close. */
+  bool close(const std::string& id) {
+    std::lock_guard<std::mutex> l(m_);
+    auto it = tunnels_.find(id);
+    if (it == tunnels_.end()) return false;
+    closesocket(it->second.s);
+    for (uint32_t sid : it->second.sids) {
+      auto st = streams_.find(sid);
+      if (st == streams_.end()) continue;
+      if (!st->second->closed.exchange(true)) closesocket(st->second->s);
+      streams_.erase(st);
+    }
+    tunnels_.erase(it);
+    return true;
+  }
+  void closeAll() {
+    std::vector<std::string> ids;
+    {
+      std::lock_guard<std::mutex> l(m_);
+      for (auto& kv : tunnels_) ids.push_back(kv.first);
+    }
+    for (auto& id : ids) close(id);
+  }
+  size_t count() {
+    std::lock_guard<std::mutex> l(m_);
+    return tunnels_.size();
+  }
+
+  /** {t:'s'} from the server. */
+  void control(const J& m) {
+    uint32_t sid = (uint32_t)m["sid"].num(0);
+    std::string ev = m["ev"].str();
+    std::shared_ptr<Stream> st = find(sid);
+    if (!st) return;
+    if (ev == "end") {
+      st->serverEnded = true;
+      shutdownSend(st);
+      if (st->gotEof) drop(sid, false);
+    } else if (ev == "close") {
+      drop(sid, false);
+    } else if (ev == "pause") {
+      st->paused = true;
+    } else if (ev == "resume") {
+      st->paused = false;
+    }
+  }
+  /** Bytes from the server for a stream (written to the Sara browser's connection). */
+  void data(uint32_t sid, const BYTE* p, size_t n) {
+    std::shared_ptr<Stream> st = find(sid);
+    if (!st || st->closed) return;
+    std::lock_guard<std::mutex> l(st->wm);
+    size_t off = 0;
+    while (off < n) {
+      int k = send(st->s, (const char*)p + off, (int)std::min<size_t>(n - off, 1 << 20), 0);
+      if (k <= 0) {
+        drop(sid, true);
+        return;
+      }
+      off += (size_t)k;
+    }
+  }
+
+ private:
+  struct Stream {
+    SOCKET s = INVALID_SOCKET;
+    std::string tunnel;
+    std::atomic<bool> closed{false}, paused{false}, gotEof{false}, serverEnded{false};
+    std::mutex wm;
+  };
+  struct Listener {
+    SOCKET s = INVALID_SOCKET;
+    int port = 0, localPort = 0;
+    std::set<uint32_t> sids;
+  };
+  bool ok_ = false;
+  std::mutex m_;
+  std::map<std::string, Listener> tunnels_;
+  std::map<uint32_t, std::shared_ptr<Stream>> streams_;
+  uint32_t nextSid_ = 0;
+  std::mutex fm_;
+  bool dead_ = true;
+  std::function<bool(const std::string&)> text_;
+  std::function<bool(const std::string&, const std::vector<BYTE>&)> bin_;
+  std::function<void(const std::wstring&)> log_;
+
+  void say(const std::wstring& line) {
+    std::lock_guard<std::mutex> l(fm_);
+    if (log_) log_(line);
+  }
+  bool sendText(const std::string& t) {
+    std::lock_guard<std::mutex> l(fm_);
+    return !dead_ && text_ && text_(t);
+  }
+  bool sendBin(const std::string& h, const std::vector<BYTE>& d) {
+    std::lock_guard<std::mutex> l(fm_);
+    return !dead_ && bin_ && bin_(h, d);
+  }
+  /** Loopback only: nothing on the network can reach it. Not inherited by programs Sara starts. */
+  static SOCKET listenOn(int port) {
+    SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (s == INVALID_SOCKET) return s;
+    BOOL ex = TRUE;
+    setsockopt(s, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, (const char*)&ex, sizeof(ex));
+    SetHandleInformation((HANDLE)s, HANDLE_FLAG_INHERIT, 0);
+    sockaddr_in a{};
+    a.sin_family = AF_INET;
+    a.sin_port = htons((u_short)port);
+    a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    if (bind(s, (sockaddr*)&a, sizeof(a)) != 0 || listen(s, SOMAXCONN) != 0) {
+      closesocket(s);
+      return INVALID_SOCKET;
+    }
+    return s;
+  }
+  std::shared_ptr<Stream> find(uint32_t sid) {
+    std::lock_guard<std::mutex> l(m_);
+    auto it = streams_.find(sid);
+    return it == streams_.end() ? nullptr : it->second;
+  }
+  void shutdownSend(const std::shared_ptr<Stream>& st) {
+    if (!st->closed) ::shutdown(st->s, SD_SEND);
+  }
+  void drop(uint32_t sid, bool tell) {
+    std::shared_ptr<Stream> st;
+    {
+      std::lock_guard<std::mutex> l(m_);
+      auto it = streams_.find(sid);
+      if (it == streams_.end()) return;
+      st = it->second;
+      streams_.erase(it);
+      if (auto t = tunnels_.find(st->tunnel); t != tunnels_.end()) t->second.sids.erase(sid);
+    }
+    if (!st->closed.exchange(true)) closesocket(st->s);
+    if (tell) sendText("{\"t\":\"s\",\"ev\":\"close\",\"sid\":" + std::to_string(sid) + "}");
+  }
+  void acceptLoop(const std::string& id, SOCKET ls) {
+    for (;;) {
+      SOCKET c = accept(ls, nullptr, nullptr);
+      if (c == INVALID_SOCKET) return;  // the listener was closed
+      auto st = std::make_shared<Stream>();
+      uint32_t sid = 0;
+      {
+        std::lock_guard<std::mutex> l(m_);
+        auto it = tunnels_.find(id);
+        if (it == tunnels_.end() || it->second.s != ls || it->second.sids.size() >= kMaxStreams) {
+          closesocket(c);
+          if (it == tunnels_.end() || it->second.s != ls) return;
+          continue;
+        }
+        sid = ++nextSid_;
+        st->s = c;
+        st->tunnel = id;
+        streams_[sid] = st;
+        it->second.sids.insert(sid);
+      }
+      BOOL nd = TRUE;
+      setsockopt(c, IPPROTO_TCP, TCP_NODELAY, (const char*)&nd, sizeof(nd));
+      if (!sendText("{\"t\":\"s\",\"ev\":\"open\",\"tunnel\":" + q(id) + ",\"sid\":" + std::to_string(sid) + "}")) {
+        drop(sid, false);
+        continue;
+      }
+      auto self = shared_from_this();
+      std::thread([self, sid, st] { self->readLoop(sid, st); }).detach();
+    }
+  }
+  void readLoop(uint32_t sid, std::shared_ptr<Stream> st) {
+    std::vector<BYTE> buf(64 * 1024);
+    const std::string head = "{\"s\":" + std::to_string(sid) + "}";
+    for (;;) {
+      while (st->paused && !st->closed) Sleep(10);
+      if (st->closed) return;
+      int n = recv(st->s, (char*)buf.data(), (int)buf.size(), 0);
+      if (n > 0) {
+        if (!sendBin(head, std::vector<BYTE>(buf.begin(), buf.begin() + n))) return drop(sid, false);
+        continue;
+      }
+      if (n == 0) {
+        // The browser sent all it will: tell the server; the stream stays for the answer.
+        st->gotEof = true;
+        sendText("{\"t\":\"s\",\"ev\":\"end\",\"sid\":" + std::to_string(sid) + "}");
+        if (st->serverEnded) drop(sid, false);
+        return;
+      }
+      return drop(sid, !st->closed);
+    }
+  }
+};
+
 const UINT WM_BADGE_UPDATE = WM_APP + 1;
 #ifdef SARA_TEST_HOOKS
 // Test builds only: a test script posts these to the badge window (class "SaraHandsBadge") to act as
@@ -976,6 +1228,8 @@ class Hands {
   std::atomic<bool> hotkeyOk{false};
 
   explicit Hands(const Host& h) : host(h) {
+    // Phase 89: the dev tunnel's streams go over this connection.
+    tunnels_->wire([this](const std::string& t) { return sendText(t); }, [this](const std::string& hd, const std::vector<BYTE>& d) { return sendBinary(hd, d); }, [this](const std::wstring& l) { say(l); });
     localOnly = h.localOnly;
     keep = h.keepControl;
     browser.profileDir = h.profileDir;
@@ -1004,6 +1258,7 @@ class Hands {
     }
     if (conn_.joinable()) conn_.join();
     if (worker_.joinable()) worker_.join();
+    tunnels_->shutdown();
     browser.close();
     CloseHandle(wake_);
   }
@@ -1043,6 +1298,8 @@ class Hands {
     }
     sendText("{\"t\":\"ev\",\"kind\":\"stopped\",\"by\":\"user\"}");
     say(L"stopped by the person at the computer");
+    // Stop ends the dev tunnels here too.
+    tunnels_->closeAll();
     // Stop ends the task: the badge goes, and a pause ends with it.
     if (isPaused.exchange(false)) sendText("{\"t\":\"ev\",\"kind\":\"resumed\"}");
     lastOpAt_ = 0;
@@ -1125,6 +1382,8 @@ class Hands {
   RECT stopRc_{}, resumeRc_{};
   std::deque<ULONGLONG> inputs_;
   std::mutex logM_;
+  // Phase 89: the dev tunnels open on this computer.
+  std::shared_ptr<DevTunnels> tunnels_ = std::make_shared<DevTunnels>();
 
   void closeSocket() {
     std::lock_guard<std::mutex> l(sm_);
@@ -1216,6 +1475,8 @@ class Hands {
         receiveLoop();
         isConnected = false;
         closeSocket();
+        // Phase 89: every dev tunnel closes with the connection.
+        tunnels_->closeAll();
         // Whatever was running stops with the connection.
         std::lock_guard<std::mutex> l(qm_);
         for (auto& r : queue_) r->cancel->store(true);
@@ -1238,6 +1499,7 @@ class Hands {
   void receiveLoop() {
     std::vector<BYTE> buf(64 * 1024);
     std::string msg;
+    std::vector<BYTE> bin;  // Phase 89: dev tunnel bytes (binary frames from the server)
     for (;;) {
       HINTERNET ws;
       {
@@ -1249,7 +1511,22 @@ class Hands {
       WINHTTP_WEB_SOCKET_BUFFER_TYPE type;
       if (WinHttpWebSocketReceive(ws, buf.data(), (DWORD)buf.size(), &n, &type) != NO_ERROR) return;
       if (type == WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE) return;
-      if (type == WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE || type == WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE) continue;  // the server sends no pictures
+      if (type == WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE || type == WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE) {
+        // Phase 89: the only binary the server sends is dev tunnel bytes: header {"s":sid}, then data.
+        bin.insert(bin.end(), buf.begin(), buf.begin() + n);
+        if (bin.size() > 8 * 1024 * 1024) return;
+        if (type == WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE) continue;
+        if (bin.size() >= 4) {
+          size_t hl = ((size_t)bin[0] << 24) | ((size_t)bin[1] << 16) | ((size_t)bin[2] << 8) | bin[3];
+          if (hl > 0 && hl <= 4096 && bin.size() >= 4 + hl) {
+            bool ok = false;
+            J h = parse(std::string((const char*)bin.data() + 4, hl), &ok);
+            if (ok && h.has("s")) tunnels_->data((uint32_t)h["s"].num(0), bin.data() + 4 + hl, bin.size() - 4 - hl);
+          }
+        }
+        bin.clear();
+        continue;
+      }
       msg.append(reinterpret_cast<char*>(buf.data()), n);
       if (msg.size() > 4 * 1024 * 1024) return;
       if (type == WINHTTP_WEB_SOCKET_UTF8_FRAGMENT_BUFFER_TYPE) continue;
@@ -1286,6 +1563,7 @@ class Hands {
       if (current_ && (all || current_->id == id)) current_->cancel->store(true);
       return;
     }
+    if (t == "s") return tunnels_->control(m);  // Phase 89: a dev tunnel stream's control message
     if (t != "req") return;
     auto r = std::make_shared<Request>();
     r->id = m["id"].str();
@@ -1294,6 +1572,19 @@ class Hands {
     r->what = shortText(m["what"].str(), 120);
     r->deadlineMs = (DWORD)std::min(120000.0, std::max(1000.0, m["deadlineMs"].num(30000)));
     if (r->id.empty() || r->id.size() > 100) return;
+    // Phase 89: tunnels open and close at once (never queued behind a slow page).
+    if (r->op == "c.tunnel" || r->op == "c.untunnel") {
+      OpError e;
+      std::string result;
+      if (r->op == "c.tunnel") {
+        int local = tunnels_->open(r->args["tunnel"].str(), (int)r->args["port"].num(0), e);
+        if (e.code.empty()) result = "{\"localPort\":" + std::to_string(local) + ",\"url\":\"http://127.0.0.1:" + std::to_string(local) + "\"}";
+      } else {
+        result = std::string("{\"closed\":") + (tunnels_->close(r->args["tunnel"].str()) ? "true" : "false") + "}";
+      }
+      sendText(e.code.empty() ? "{\"t\":\"res\",\"id\":" + q(r->id) + ",\"ok\":true,\"result\":" + result + "}" : "{\"t\":\"res\",\"id\":" + q(r->id) + ",\"ok\":false,\"error\":{\"code\":" + q(e.code) + ",\"message\":" + q(e.message) + "}}");
+      return;
+    }
     std::lock_guard<std::mutex> l(qm_);
     // A retried request gets the first answer (once it has one; a running one isn't run twice).
     if (answers_.count(r->id)) {

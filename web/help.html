@@ -588,6 +588,8 @@
 <li>If you click, type or move the mouse in her window, she pauses (<b>Pause Sara</b>, the default) until you press <b>Resume</b> on the badge; or choose <b>Let Sara keep control</b>.</li>
 <li>Sites you didn't name ask you first. Pictures go to the model you chose, unless you switch on <b>Screenshots only to models on this computer</b>; private local mode always keeps them local.</li>
 <li>Every step is in Runs with a small picture; <b>Re-plan from here</b> lets her plan again from a step without repeating anything she did on your computer. The app keeps its own list of what she did (<b>What Sara did on this computer</b> in its menu).</li>
+<li><b>Your web app, live:</b> when Sara runs a web app in a background job on her server (say <code>npm run dev</code>), she opens it in her browser on your computer at a real <code>http://127.0.0.1:&lt;port&gt;</code> address through a <b>dev tunnel</b> over the app's connection. Storage, logins in the app and hot reload work there, unlike a preview link. Only a port her own job listens on can be tunnelled; it closes when the job stops, when you press Stop, or from Settings → Computer use → <b>Dev tunnels</b>, where <b>Try the dev tunnel</b> opens a test page. While it's open, other programs on your computer could reach that local port too, as with any dev server.</li>
+<li>Debugging with her: she opens the app, reads the console and network errors first, looks, fixes the code, waits for the hot reload (or reloads) and checks the errors and the page again before she tells you it's fixed.</li>
 <li>Household members can use it on their own computers only if the owner allows it. No app? The chat shows a card with the download link; phones can watch and stop her, but can't be driven.</li>
 </ul>
 

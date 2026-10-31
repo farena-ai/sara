@@ -78,18 +78,50 @@ test('docs site: builds pages, a search index and the GitHub Pages files', (t) =
   const { dir, cleanup } = tempDir();
   t.after(cleanup);
   mkdirSync(join(dir, 'docs'));
-  writeFileSync(join(dir, 'README.md'), '# Hello\n\nSee [install](docs/INSTALL.md).\n');
-  writeFileSync(join(dir, 'docs', 'INSTALL.md'), '# Install\n\n## Docker\n\nRun it.\n');
+  writeFileSync(join(dir, 'README.md'), '# Hello & <Docs>\n\nSee [install](docs/INSTALL.md).\n');
+  writeFileSync(join(dir, 'docs', 'INSTALL.md'), '# Install\n\nSee [readme](../README.md).\n\n## Docker\n\nRun it.\n');
+  writeFileSync(join(dir, 'docs', 'ARCHITECTURE.md'), '# Architecture\n');
+  writeFileSync(join(dir, 'CONTRIBUTING.md'), '# Contributing\n');
+  writeFileSync(join(dir, 'docs', 'ALPHA.md'), '# Alpha & <More>\n');
+  writeFileSync(join(dir, 'docs', 'ZULU.md'), '# Zulu\n');
   const out = join(dir, 'site');
-  const r = buildSite({ root: dir, out, repo: 'https://github.com/o/r', files: ['README.md', 'docs/INSTALL.md'] });
-  assert.equal(r.pages, 2);
+  const r = buildSite({
+    root: dir,
+    out,
+    repo: 'https://github.com/o/r',
+    files: ['docs/ZULU.md', 'CONTRIBUTING.md', 'README.md', 'docs/ALPHA.md', 'docs/ARCHITECTURE.md', 'docs/INSTALL.md'],
+  });
+  assert.equal(r.pages, 6);
   const index = readFileSync(join(out, 'index.html'), 'utf8');
   assert.match(index, /href="docs\/INSTALL\.html">install<\/a>/);
+  assert.match(index, /<title>Hello &amp; &lt;Docs&gt; · Sara docs<\/title>/);
+  assert.doesNotMatch(index, /rel="prev"/);
+  assert.match(index, /<nav class="page-nav" aria-label="Page navigation"><a rel="next" href="docs\/INSTALL\.html">Next: Install →<\/a><\/nav>/);
   assert.match(index, /<script src="assets\/site\.js"><\/script>/);
   assert.doesNotMatch(index, /<script>|style="/, 'no inline scripts or styles (CSP)');
-  assert.match(readFileSync(join(out, 'docs', 'INSTALL.html'), 'utf8'), /href="\.\.\/assets\/site\.css"/);
+  const install = readFileSync(join(out, 'docs', 'INSTALL.html'), 'utf8');
+  assert.match(install, /href="\.\.\/index\.html">readme<\/a>/);
+  assert.match(install, /<a rel="prev" href="\.\.\/index\.html">← Previous: Hello &amp; &lt;Docs&gt;<\/a>/);
+  assert.match(install, /<a rel="next" href="ARCHITECTURE\.html">Next: Architecture →<\/a>/);
+  assert.match(install, /href="\.\.\/assets\/site\.css"/);
+  const architecture = readFileSync(join(out, 'docs', 'ARCHITECTURE.html'), 'utf8');
+  assert.match(architecture, /<a rel="prev" href="INSTALL\.html">← Previous: Install<\/a>/);
+  assert.match(architecture, /<a rel="next" href="\.\.\/CONTRIBUTING\.html">Next: Contributing →<\/a>/);
+  const contributing = readFileSync(join(out, 'CONTRIBUTING.html'), 'utf8');
+  assert.match(contributing, /<a rel="prev" href="docs\/ARCHITECTURE\.html">← Previous: Architecture<\/a>/);
+  assert.match(contributing, /<a rel="next" href="docs\/ALPHA\.html">Next: Alpha &amp; &lt;More&gt; →<\/a>/);
+  const alpha = readFileSync(join(out, 'docs', 'ALPHA.html'), 'utf8');
+  assert.match(alpha, /<a rel="prev" href="\.\.\/CONTRIBUTING\.html">← Previous: Contributing<\/a>/);
+  assert.match(alpha, /<a rel="next" href="ZULU\.html">Next: Zulu →<\/a>/);
+  const zulu = readFileSync(join(out, 'docs', 'ZULU.html'), 'utf8');
+  assert.doesNotMatch(zulu, /rel="next"/);
+  assert.match(zulu, /<a rel="prev" href="ALPHA\.html">← Previous: Alpha &amp; &lt;More&gt;<\/a>/);
   assert.match(readFileSync(join(out, 'assets', 'search-index.js'), 'utf8'), /"u":"docs\/INSTALL\.html#docker"/);
   assert.equal(readFileSync(join(out, '.nojekyll'), 'utf8'), '');
+
+  const singleOut = join(dir, 'single-site');
+  buildSite({ root: dir, out: singleOut, repo: 'https://github.com/o/r', files: ['README.md'] });
+  assert.doesNotMatch(readFileSync(join(singleOut, 'index.html'), 'utf8'), /class="page-nav"/);
 });
 
 test('link checker: finds missing files and headings, ignores code and web addresses', (t) => {

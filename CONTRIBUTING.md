@@ -27,6 +27,12 @@ for real you need a model: [Ollama](https://ollama.com) on your computer is the 
 (the setup guide finds Ollama on the same computer by itself; or use Settings → Models → Model
 providers → Add or update a provider → Template **Ollama on the server**, `http://127.0.0.1:11434/v1`).
 
+**macOS:** the whole suite passes on a normal Mac. `git` and `python3` come with the Xcode Command
+Line Tools (`xcode-select --install`); without them `/usr/bin/git` and `/usr/bin/python3` are only
+stubs (the git and Python tests then skip). Run the tests in a normal terminal: inside a
+coding-agent sandbox (no network or DNS, limited folders, no child processes or ports) the git,
+Python, preview and browser tests can fail for reasons outside Sara.
+
 ## The rules
 
 These are what keep Sara small, safe and easy to install. Pull requests that break them can't be

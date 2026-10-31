@@ -14,7 +14,7 @@ para la web, Windows, Mac y el móvil.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1151%20passing-brightgreen" alt="1151 tests passing">
+  <img src="https://img.shields.io/badge/tests-1160%20passing-brightgreen" alt="1160 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ para la web, Windows, Mac y el móvil.
   <sub>Una sesión real con un modelo local (qwen3.8 27B en Ollama, una RTX 5090) en un servidor de pruebas desechable, con el aspecto Noche: anima a quien le habla, escribe una pequeña app y su prueba mientras el modelo las transmite, pide permiso antes de ejecutar un comando, detecta un error real con una prueba que falla y lo corrige hasta que pasan las 7 pruebas. Fotogramas elegidos de la grabación; nada en ellos se ha editado.</sub>
 </p>
 
-> **Estado:** 2.21, licencia MIT, con treinta y dos versiones con novedades desde la 1.0 (todas abajo). De
+> **Estado:** 2.22, licencia MIT, con treinta y tres y dos versiones con novedades desde la 1.0 (todas abajo). De
 > la 2.5 a la 2.8 toda la app estrenó aspecto. La
 > [app de Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) está en Google
 > Play; la app de iPhone y la versión del Mac App Store llegarán en cuanto Apple las apruebe. Lee
@@ -70,6 +70,7 @@ para las personas con las que vives · [videollamadas](docs/VIDEO_CALLS.md) con 
 
 | Versión | Qué te trae |
 |---|---|
+| **2.22** · Uso del ordenador, paso 3 | **Depura tu proyecto web en su navegador:** el servidor de desarrollo que sus herramientas de código iniciaron en tu servidor Sara se abre en `127.0.0.1` en su navegador de tu ordenador, a través de la app (solo un puerto de su propio trabajo; termina con el trabajo), con recarga en caliente y almacenamiento local. Tras un cambio abre la app, lee la consola, mira, corrige y vuelve a comprobar. Evals de navegador: 5/5 tareas con un modelo local. Además: las pruebas ya pasan en macOS y dos correcciones de privacidad de red. |
 | **2.21** · Uso del ordenador, paso 2 | **Actúa en su propio navegador:** hace clic, escribe, elige en listas, se desplaza, pulsa teclas y sube un archivo que tú nombras, con un cursor visible. Tú eliges cuánto pregunta: siempre, una vez por tarea (predeterminado) o *siempre permitido* por sitio; pagos y ajustes de cuenta siempre preguntan, enviar pregunta cada vez y nunca escribe contraseñas. Una insignia **Sara está trabajando** con Detener y un atajo para detenerla (Ctrl+Alt+Esc / ⌃⌥Esc); si tocas su ventana, se pausa (o *Dejar que Sara siga al mando*). |
 | **2.20** · Uso del ordenador, paso 1 | Con la app de Windows o Mac, **abre páginas web en su propia ventana del navegador en tu ordenador** (su propio perfil, nunca tu navegador ni tus contraseñas), las lee, hace capturas y lee errores de consola y de red: di «mi app en localhost falla» y ella mira. Apagado hasta que actives *Dejar que Sara use este ordenador*; vista en directo en el chat con Detener; cada paso en Ejecuciones con una imagen. Hacer clic y escribir llegan después. [El plan](docs/design/COMPUTER_USE.md) |
 | **2.19** · Modo red team | **Antes de publicar, intenta romper su propio trabajo:** en una copia aislada pasa tus pruebas, arranca tu app y lanza entradas mal formadas y límite a cada punto de entrada, revisa ajustes inseguros por defecto y deja que el modelo de código escriba pequeños scripts de ataque que solo alcanzan esa app aislada. Un modelo revisor más fuerte solo conserva los fallos que se reproducen, citando la entrada, la salida y la línea de código. Luego **Arreglar lo que falló** en una rama local. También en 2.19: **organizar Gmail** (archivar, marcar como leído, etiquetas, papelera… por búsqueda o fecha, primero cuenta, Deshacer). [Cómo funciona](docs/design/HARNESS_TRACK.md) |
@@ -292,8 +293,8 @@ prueba comprobaba. Lo que aporta hoy es la forma de trabajar (ejecuta las prueba
 antes de pasos arriesgados, muestra lo que se ejecutó), no una puntuación más alta en estos
 conjuntos. Detalles, resultados por tarea y cómo repetirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-Además, `npm run check`: una comprobación de tipos y 1162 pruebas automáticas con un modelo falso
-programado (sin red, sin GPU): 1151 pasan en Windows y las otras 8 son pruebas del aislamiento solo
+Además, `npm run check`: una comprobación de tipos y 1171 pruebas automáticas con un modelo falso
+programado (sin red, sin GPU): 1160 pasan en Windows y las otras 8 son pruebas del aislamiento solo
 para Linux, que se ejecutan en un servidor Linux.
 
 ## Cómo se compara Sara

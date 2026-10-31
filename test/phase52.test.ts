@@ -26,6 +26,10 @@ import { folderContext, parseArgs, SECRET_FILE } from '../clients/cli/sara.ts';
 import { buildVsix, unzip } from '../scripts/pack-vscode.ts';
 import { call, collectText, makeApp, readBody, ROOT, tempDir, text } from './helpers.ts';
 
+// A real Python (on a Mac without the Xcode Command Line Tools, /usr/bin/python3 is only a stub).
+const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
+const HAS_PYTHON = spawnSync(PYTHON, ['--version'], { stdio: 'ignore' }).status === 0;
+
 const usage = (input: number, output: number, cached?: number) => ({ type: 'usage' as const, input, output, ...(cached ? { cached } : {}) });
 
 const { dir, cleanup } = tempDir();
@@ -383,7 +387,7 @@ test('VS Code: the .vsix has a manifest and the extension; the panel CSP is stri
   assert.doesNotMatch(files.get('extension/media/panel.js')!.toString(), /fetch\(|XMLHttpRequest|WebSocket/, 'the page has no network of its own');
 });
 
-test('starters: five tested templates; copying fills the name and never overwrites; each template passes its own tests', async () => {
+test('starters: five tested templates; copying fills the name and never overwrites; each template passes its own tests', async (t) => {
   const names = listStarters().map((s) => s.name);
   assert.deepEqual(names, ['cli-tool', 'landing-page', 'python-cli', 'rest-api', 'telegram-bot']);
   const ws = join(dir, 'starter-ws');
@@ -402,12 +406,13 @@ test('starters: five tested templates; copying fills the name and never overwrit
     assert.equal(r.status, 0, `${n}: ${r.stdout}\n${r.stderr}`);
     assert.match(r.stdout, /ℹ fail 0/);
   }
-  const python = spawnSync(process.platform === 'win32' ? 'python' : 'python3', ['-B', '-m', 'unittest'], { cwd: join(STARTERS_DIR, 'python-cli'), encoding: 'utf8', timeout: 120_000, env });
+  if (!HAS_PYTHON) return t.diagnostic(`python-cli's own tests not run: ${PYTHON} not installed`);
+  const python = spawnSync(PYTHON, ['-B', '-m', 'unittest'], { cwd: join(STARTERS_DIR, 'python-cli'), encoding: 'utf8', timeout: 120_000, env });
   assert.equal(python.status, 0, `python-cli: ${python.stdout}\n${python.stderr}`);
   assert.match(`${python.stdout}\n${python.stderr}`, /OK/);
 });
 
-test('starters: "New project from a starter" copies into the workspace and its tests pass as a job; the tool is in her coding prompt', async () => {
+test('starters: "New project from a starter" copies into the workspace and its tests pass as a job; the tool is in her coding prompt', async (t) => {
   const res = await api('/api/starters', 'POST', { name: 'telegram-bot', projectName: 'weather-bot', workspace: 'main' });
   assert.equal(res.status, 201, await res.clone().text());
   const r = (await res.json()) as { conversationId: string; jobId: number; message: string };
@@ -425,8 +430,10 @@ test('starters: "New project from a starter" copies into the workspace and its t
   assert.match(pythonStarter.message, /Python command-line tool/);
   await until(() => app.jobs!.get(pythonStarter.jobId)?.status !== 'running', 120_000);
   const pythonJob = app.jobs!.get(pythonStarter.jobId)!;
-  assert.equal(pythonJob.status, 'ok', pythonJob.tail);
-  assert.match(pythonJob.tail, /OK/);
+  if (HAS_PYTHON) {
+    assert.equal(pythonJob.status, 'ok', pythonJob.tail);
+    assert.match(pythonJob.tail, /OK/);
+  } else t.diagnostic(`the python-cli job's result not checked: ${PYTHON} not installed`);
   assert.equal((await api('/api/starters', 'POST', { name: 'telegram-bot', projectName: 'weather-bot', workspace: 'main' })).status, 400, 'never overwrites');
 });
 

@@ -44,7 +44,7 @@ const PY = ['python3', 'python'].find((p) => spawnSync(p, ['--version'], { stdio
 const PORTS: [number, number] = [7891, 7899];
 
 const g = (cwd: string, ...args: string[]) => {
-  const r = spawnSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', ...args], { cwd, encoding: 'utf8' });
+  const r = spawnSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd, encoding: 'utf8' });
   return (r.stdout ?? '').trim();
 };
 

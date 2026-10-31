@@ -5,6 +5,34 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.22.0 (2026-10-30): computer use, step 3: debug your web project in her browser (Phase 89)
+
+- **Dev tunnel:** a dev server her coding tools started on the Sara server opens at
+  `http://127.0.0.1:<port>` in her browser on your computer, through the Windows or Mac app. Only a port
+  a process of her own running job listens on (checked again every 30 s); never Sara's own port; local
+  only on your computer; it ends with the job, Stop, disconnect, 30 idle minutes, or *Close* in
+  Settings → Computer use. Hot reload (WebSockets) and local storage work.
+- **The debug loop:** after a change she opens the app (`pc_browser_open` with the app's port), reads
+  the console and network logs, looks, fixes and checks again; her tool descriptions teach it.
+- **Browser evals** on fixtures (forms, single-page routing, a bug to find from the logs, a refusal, a
+  prompt injection): 5/5 with a local 27B model, 4.8 actions per task ([RESULTS](docs/RESULTS.md)).
+- **macOS:** the whole test suite passes on a Mac. Fixed: `deploy/lib-access.sh` used GNU-only
+  `sed -i`; tests broke when your git signs commits; Python tests now skip with a reason when
+  `python3` is missing.
+- **Fixed:** `web_fetch` kept its DNS-rebinding pin even with Node's environment proxy on; in private
+  local mode the address is refused before any DNS lookup (no hostname leaves the computer); a recall
+  lesson's date used the wall clock instead of the app clock; two backups in the same millisecond
+  could collide.
+- Known limit on a **Windows** Sara server: a dev server started through `npm run dev`/`npx` can't be
+  tied to her job (the runner exits first), so the tunnel is refused with a hint to start the program
+  directly (`node node_modules/vite/bin/vite.js`). Linux servers are not affected.
+
+- **Docs site: previous and next links** under every page, in sidebar order (thanks
+  [@Ehsan-hash](https://github.com/Ehsan-hash), [#24](https://github.com/farena-ai/sara/pull/24); fixes #14).
+- **Optional sanitized MBPP benchmark:** `scripts/bench-coding.ts --set mbpp` runs the official
+  held-out test split (257 tasks), kept separate from HumanEval (thanks
+  [@Ehsan-hash](https://github.com/Ehsan-hash), [#25](https://github.com/farena-ai/sara/pull/25); fixes #5).
+
 ## 2.21.0 (2026-10-30): computer use, step 2: she acts in her own browser (Phase 88)
 
 - **Click, type, pick, scroll, press keys, upload** in her own browser window, with a visible cursor

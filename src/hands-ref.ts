@@ -23,15 +23,18 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createServer as createNetServer, type AddressInfo, type Server as NetServer, type Socket } from 'node:net';
 import { hostname, tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import type { Readable, Writable } from 'node:stream';
 import { findBrowser, pageAgentCall, type BrowserInfo } from './browser.ts';
 import { CdpClient, type CdpEvent } from './cdp.ts';
-import { HANDS_OPS, HANDS_PROTOCOL, packBinary } from './hands.ts';
+import { HANDS_OPS, HANDS_PROTOCOL, packBinary, parseBinary } from './hands.ts';
 import { connectWebSocket, type WsConnection } from './ws.ts';
 
-export const REF_VERSION = 'hands-ref 2';
+export const REF_VERSION = 'hands-ref 3';
+/** Phase 89 (CU3): the device's own dev-tunnel limits (loopback only, whatever the server says). */
+export const TUNNEL_DEVICE_LIMITS = { tunnels: 4, streams: 64, chunk: 64 * 1024, highWater: 4 * 1024 * 1024 };
 const OPS = new Set<string>(HANDS_OPS);
 /** §7.7: the device's own input limits. */
 export const INPUT_LIMITS = { perSecond: 4, perMinute: 120, chars: 2000 };
@@ -449,6 +452,10 @@ export class HandsRef {
   /** Phase 88: what the device's "Sara is working" badge shows now ('' = hidden). */
   badge = '';
   readonly #inputs: number[] = [];
+  /** Phase 89: the dev tunnels open here (a loopback listener each) and their streams. */
+  readonly #tunnels = new Map<string, { server: NetServer; port: number; localPort: number; sids: Set<number> }>();
+  readonly #streams = new Map<number, { socket: Socket; tunnel: string; closed: boolean }>();
+  #sid = 0;
 
   constructor(opts: HandsRefOptions) {
     this.opts = opts;
@@ -486,12 +493,15 @@ export class HandsRef {
       this.#attempt = 0;
       ws.onMessage = (d) => {
         if (typeof d === 'string') void this.#message(ws, d);
+        else this.#streamData(ws, d);
       };
       // Phase 88: a token with less than 30 days left is renewed over this connection.
       if (this.opts.renewBefore && Date.parse(this.opts.renewBefore) - Date.now() < 30 * 86_400_000) ws.send(JSON.stringify({ t: 'renew' }));
       ws.onClose = () => {
         if (this.ws === ws) this.ws = undefined;
         for (const ac of this.#running.values()) ac.abort();
+        // Phase 89: every dev tunnel closes with the connection.
+        this.closeTunnels();
         this.#later();
       };
       ws.send(JSON.stringify(this.hello()));
@@ -582,6 +592,7 @@ export class HandsRef {
   /** Stop pressed on the computer: everything running is cancelled and the server is told. */
   pressStop(): void {
     for (const ac of this.#running.values()) ac.abort();
+    this.closeTunnels();
     this.ws?.send(JSON.stringify({ t: 'ev', kind: 'stopped', by: 'user' }));
   }
 
@@ -593,6 +604,7 @@ export class HandsRef {
   async stop(): Promise<void> {
     this.#stopped = true;
     clearTimeout(this.#timer);
+    this.closeTunnels();
     this.ws?.close(1000, 'bye');
     await this.browser.close();
   }
@@ -609,6 +621,7 @@ export class HandsRef {
       this.opts.onToken?.(m.token, String(m.expiresAt ?? ''));
       return;
     }
+    if (m.t === 's') return this.#streamControl(m);
     if (m.t === 'cancel') {
       if (m.all) for (const ac of this.#running.values()) ac.abort();
       else this.#running.get(String(m.id))?.abort();
@@ -633,7 +646,7 @@ export class HandsRef {
     let reply: Record<string, unknown>;
     try {
       if (!OPS.has(op)) throw new OpError('unsupported', `This computer doesn't do "${op.slice(0, 40)}" (not in its command set).`);
-      if (op.startsWith('b.') && this.opts.optIn?.browser === false) throw new OpError('denied_local', '"Let Sara use this computer" is off here.');
+      if ((op.startsWith('b.') || op === 'c.tunnel') && this.opts.optIn?.browser === false) throw new OpError('denied_local', '"Let Sara use this computer" is off here.');
       if (INPUT_OPS.has(op)) {
         if (this.paused) throw new OpError('takeover', 'Paused: the owner took over the Sara browser. Nothing acts until they press Resume.');
         this.#countInput();
@@ -777,9 +790,137 @@ export class HandsRef {
     for (const ev of plan.events) await this.browser.cdp!.send('Input.dispatchKeyEvent', ev, t.sessionId);
   }
 
+  // ---------------- Phase 89 (CU3): the dev tunnel ----------------
+  /** The local ports of the dev tunnels open here (tests read it). */
+  get tunnelPorts(): number[] {
+    return [...this.#tunnels.values()].map((t) => t.localPort);
+  }
+
+  /** c.tunnel: a listener on 127.0.0.1 only (the same port when free here, else any free one). */
+  async #openTunnel(ws: WsConnection, a: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const id = String(a.tunnel ?? '');
+    const port = Number(a.port);
+    if (!/^[0-9a-f]{8,64}$/.test(id)) throw new OpError('denied_local', 'Not a tunnel id.');
+    if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new OpError('denied_local', 'Dev tunnels use ports 1024 to 65535 only.');
+    const have = this.#tunnels.get(id);
+    if (have) return { localPort: have.localPort, url: `http://127.0.0.1:${have.localPort}` };
+    if (this.#tunnels.size >= TUNNEL_DEVICE_LIMITS.tunnels) throw new OpError('denied_local', `At most ${TUNNEL_DEVICE_LIMITS.tunnels} dev tunnels at once on this computer.`);
+    const listen = (p: number) =>
+      new Promise<NetServer>((resolve, reject) => {
+        const server = createNetServer((sock) => this.#accept(ws, id, sock));
+        server.once('error', reject);
+        // Loopback only: nothing on the network can reach it.
+        server.listen({ port: p, host: '127.0.0.1', exclusive: true }, () => resolve(server));
+      });
+    let server: NetServer;
+    try {
+      server = await listen(port);
+    } catch {
+      server = await listen(0);
+    }
+    const localPort = (server.address() as AddressInfo).port;
+    this.#tunnels.set(id, { server, port, localPort, sids: new Set() });
+    this.opts.log?.(`dev tunnel ${id.slice(0, 6)}: 127.0.0.1:${localPort} → the server's port ${port}`);
+    return { localPort, url: `http://127.0.0.1:${localPort}` };
+  }
+
+  /** c.untunnel (or Stop, or the connection closed): the listener and its connections close. */
+  closeTunnel(id: string): boolean {
+    const t = this.#tunnels.get(id);
+    if (!t) return false;
+    this.#tunnels.delete(id);
+    t.server.close();
+    for (const sid of t.sids) {
+      const s = this.#streams.get(sid);
+      if (s) {
+        s.closed = true;
+        s.socket.destroy();
+      }
+      this.#streams.delete(sid);
+    }
+    return true;
+  }
+
+  closeTunnels(): void {
+    for (const id of [...this.#tunnels.keys()]) this.closeTunnel(id);
+  }
+
+  /** A connection from the Sara browser (or anything on this computer) to a tunnel's local port. */
+  #accept(ws: WsConnection, tunnel: string, sock: Socket): void {
+    const t = this.#tunnels.get(tunnel);
+    if (!t || !ws.open || this.ws !== ws || t.sids.size >= TUNNEL_DEVICE_LIMITS.streams) return void sock.destroy();
+    const sid = ++this.#sid;
+    const s = { socket: sock, tunnel, closed: false };
+    this.#streams.set(sid, s);
+    t.sids.add(sid);
+    sock.setNoDelay(true);
+    const send = (m: Record<string, unknown>) => {
+      if (ws.open) ws.send(JSON.stringify({ t: 's', ...m }));
+    };
+    send({ ev: 'open', tunnel, sid });
+    sock.on('data', (chunk: Buffer) => {
+      for (let i = 0; i < chunk.length; i += TUNNEL_DEVICE_LIMITS.chunk) if (ws.open) ws.send(packBinary({ s: sid }, chunk.subarray(i, i + TUNNEL_DEVICE_LIMITS.chunk)));
+      // The connection to the server is backed up: stop reading for a moment.
+      if ((ws.buffered ?? 0) > TUNNEL_DEVICE_LIMITS.highWater) {
+        sock.pause();
+        const wait = setInterval(() => {
+          if (s.closed || (ws.buffered ?? 0) < TUNNEL_DEVICE_LIMITS.highWater / 4) {
+            clearInterval(wait);
+            if (!s.closed) sock.resume();
+          }
+        }, 25);
+        wait.unref?.();
+      }
+    });
+    sock.on('end', () => {
+      if (!s.closed) send({ ev: 'end', sid });
+    });
+    const gone = () => {
+      if (!this.#streams.has(sid)) return;
+      this.#streams.delete(sid);
+      t.sids.delete(sid);
+      if (!s.closed) {
+        s.closed = true;
+        send({ ev: 'close', sid });
+      }
+    };
+    sock.on('error', gone);
+    sock.on('close', gone);
+  }
+
+  /** {t:'s'} from the server: ok, end, close, pause, resume for one stream. */
+  #streamControl(m: Record<string, unknown>): void {
+    const sid = Number(m.sid);
+    const s = this.#streams.get(sid);
+    if (!s) return;
+    const ev = String(m.ev ?? '');
+    if (ev === 'end') s.socket.end();
+    else if (ev === 'close') {
+      s.closed = true;
+      s.socket.destroy();
+    } else if (ev === 'pause') s.socket.pause();
+    else if (ev === 'resume') s.socket.resume();
+  }
+
+  /** Binary from the server: bytes for one stream (header {s: sid}). Anything else is ignored. */
+  #streamData(ws: WsConnection, buf: Buffer): void {
+    const b = parseBinary(buf);
+    if (!b || b.header.s === undefined) return;
+    const sid = Number(b.header.s);
+    const s = this.#streams.get(sid);
+    if (!s || s.closed) return;
+    if (!s.socket.write(b.data)) {
+      // The browser is slow to read: the server waits until it drains.
+      ws.send(JSON.stringify({ t: 's', ev: 'pause', sid }));
+      s.socket.once('drain', () => ws.open && ws.send(JSON.stringify({ t: 's', ev: 'resume', sid })));
+    }
+  }
+
   async #run(ws: WsConnection, id: string, op: string, args: Record<string, unknown>, what = ''): Promise<Record<string, unknown>> {
     const b = this.browser;
     if (op === 'c.ping') return { pong: true, at: new Date().toISOString() };
+    if (op === 'c.tunnel') return this.#openTunnel(ws, args);
+    if (op === 'c.untunnel') return { closed: this.closeTunnel(String(args.tunnel ?? '')) };
     if ((op !== 'b.tabs' && op !== 'b.downloads') || b.running) await b.start();
     const tabsView = async () => Promise.all([...b.tabs.values()].map(async (t) => ({ tab: t.id, ...(await b.info2(t)), active: t === b.tab() })));
     switch (op) {

@@ -113,6 +113,7 @@ test('git: look, branch, commit under her name; push uses the token only for tha
   const g = (...a: string[]) => execFileSync('git', a, { cwd: ws, encoding: 'utf8' });
   g('init', '-q', '-b', 'main');
   g('config', 'user.email', 'sara@example.com');
+  g('config', 'commit.gpgsign', 'false'); // the tester's own signing setup is not part of this test
   writeFileSync(join(ws, 'a.txt'), 'one\n');
   g('add', '.');
   g('-c', 'user.name=Owner', 'commit', '-qm', 'first');

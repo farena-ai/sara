@@ -22,6 +22,8 @@ export interface WsConnection {
   ping?(): void;
   /** Phase 87: when the last frame of any kind (a pong too) arrived, in ms since the epoch. */
   readonly lastSeen?: number;
+  /** Phase 89: bytes written but not yet sent (the dev tunnel's flow control). */
+  readonly buffered?: number;
 }
 
 /** Rejects an upgrade with a plain HTTP status. */
@@ -118,6 +120,10 @@ class Connection implements WsConnection {
 
   ping(): void {
     if (this.#open) this.#frame(0x9, Buffer.alloc(0));
+  }
+
+  get buffered(): number {
+    return (this.#socket as Duplex & { writableLength?: number }).writableLength ?? 0;
   }
 
   send(data: string | Buffer): void {

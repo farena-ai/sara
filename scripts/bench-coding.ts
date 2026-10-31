@@ -1,9 +1,9 @@
-// Phase 54: a public coding benchmark, run through Sara's own agent loop.
+// Phase 54: public coding benchmarks, run through Sara's own agent loop.
 //
-// The problems are OpenAI's HumanEval (164 Python functions with hidden unit tests; MIT license,
-// https://github.com/openai/human-eval). They are NOT copied into this repository: the script
-// downloads HumanEval.jsonl.gz from the official repository on the first run and caches it under
-// outputs/bench-cache/ (gitignored).
+// The default problems are OpenAI's HumanEval (164 Python functions with hidden unit tests; MIT
+// license, https://github.com/openai/human-eval). They are NOT copied into this repository: the
+// script downloads the selected set from its official source on the first run and caches it under
+// outputs/bench-cache/ (gitignored). `--set mbpp` selects the sanitized MBPP held-out test split.
 //
 // For each problem she gets a coding conversation with a workspace that holds solution.py (the
 // function's signature and docstring only). She works the way she always does: read the file,
@@ -14,13 +14,13 @@
 // `--mode raw` asks the same model for the function in a single reply with no tools, as a
 // baseline for what the agent loop adds.
 //
-//   node scripts/bench-coding.ts [--model qwen3.8:27b-mtp-q4_K_M] [--mode agent|raw]
+//   node scripts/bench-coding.ts [--set humaneval|mbpp] [--model qwen3.8:27b-mtp-q4_K_M] [--mode agent|raw]
 //        [--limit 164] [--start 0] [--minutes 0] [--timeout 300] [--python python3]
 //
 // Needs Python 3 on the PATH (the hidden tests are Python) and an OpenAI-compatible model server
 // (default: Ollama on this computer). No sandbox is used: commands run on this computer in a
-// throwaway workspace, so run it on a machine where that is fine. The result is merged into
-// evals/results/<date>-coding-<mode>.json.
+// throwaway workspace, so run it on a machine where that is fine. HumanEval results are merged into
+// evals/results/<date>-coding-<mode>.json; MBPP results use a separate mbpp filename.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -30,7 +30,10 @@ import { parseArgs } from 'node:util';
 import { gunzipSync } from 'node:zlib';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const SOURCE = 'https://raw.githubusercontent.com/openai/human-eval/master/data/HumanEval.jsonl.gz';
+const HUMAN_EVAL_SOURCE = 'https://raw.githubusercontent.com/openai/human-eval/master/data/HumanEval.jsonl.gz';
+const MBPP_SOURCE = 'https://raw.githubusercontent.com/google-research/google-research/master/mbpp/sanitized-mbpp.json';
+const MBPP_TEST_START = 11;
+const MBPP_TEST_END = 510;
 
 export interface Problem {
   task_id: string;
@@ -38,6 +41,9 @@ export interface Problem {
   entry_point: string;
   test: string;
   canonical_solution?: string;
+  benchmark?: 'humaneval' | 'mbpp';
+  test_imports?: string[];
+  test_list?: string[];
 }
 
 /** Parses the HumanEval JSON-lines file. */
@@ -48,8 +54,70 @@ export function parseProblems(text: string): Problem[] {
     .map((l) => JSON.parse(l) as Problem);
 }
 
-/** The Python program the hidden tests run: her file, then the tests, then the check call. */
+type MbppRow = {
+  task_id: number;
+  prompt: string;
+  code: string;
+  test_imports: string[];
+  test_list: string[];
+  source_file: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function assertMbppRow(value: unknown, index: number): MbppRow {
+  if (!isRecord(value) || !Number.isInteger(value.task_id) || typeof value.prompt !== 'string' || typeof value.code !== 'string' || typeof value.source_file !== 'string' || !Array.isArray(value.test_imports) || !value.test_imports.every((item) => typeof item === 'string') || !Array.isArray(value.test_list) || !value.test_list.every((item) => typeof item === 'string')) {
+    throw new Error(`Invalid sanitized MBPP row at index ${index}: expected task_id, prompt, code, test_imports, test_list and source_file.`);
+  }
+  return value as unknown as MbppRow;
+}
+
+function pythonIdentifierPattern(name: string): RegExp {
+  return new RegExp(`\\b${name}\\s*\\(`);
+}
+
+function mbppFunctionSignature(row: MbppRow): { name: string; signature: string } {
+  const definitions = [...row.code.matchAll(/^def\s+([A-Za-z_]\w*)\s*(\([^\n]*\))\s*:/gm)].map((match) => ({
+    name: match[1],
+    signature: match[0].trim(),
+  }));
+  const called = definitions.filter(({ name }) => row.test_list.some((test) => pythonIdentifierPattern(name).test(test)));
+  if (called.length !== 1) {
+    throw new Error(`Unsupported sanitized MBPP task ${row.task_id}: expected one tested top-level function, found ${called.length}.`);
+  }
+  return called[0];
+}
+
+function pythonDocstring(text: string): string {
+  return text.replaceAll('\\', '\\\\').replaceAll('"""', '\\"""').replaceAll('\r', '\\r').replaceAll('\n', '\\n');
+}
+
+/** Parses the official sanitized MBPP JSON and returns only its held-out test split. */
+export function parseMbppProblems(text: string): Problem[] {
+  const raw = JSON.parse(text) as unknown;
+  if (!Array.isArray(raw)) throw new Error('Invalid sanitized MBPP data: expected a JSON array.');
+  return raw.map(assertMbppRow).filter((row) => row.task_id >= MBPP_TEST_START && row.task_id <= MBPP_TEST_END).map((row) => {
+    const main = mbppFunctionSignature(row);
+    const prompt = `${main.signature}\n    """${pythonDocstring(row.prompt)}"""\n    pass\n`;
+    return {
+      task_id: `MBPP/${row.task_id}`,
+      prompt,
+      entry_point: main.name,
+      test: '',
+      benchmark: 'mbpp',
+      test_imports: row.test_imports,
+      test_list: row.test_list,
+    };
+  });
+}
+
+/** The Python program the hidden tests run: her file, then imports and assertions for the set. */
 export function testProgram(solution: string, p: Problem): string {
+  if (p.benchmark === 'mbpp') {
+    return [solution, '', ...(p.test_imports ?? []), '', ...(p.test_list ?? []), ''].join('\n');
+  }
   return `${solution}\n\n${p.test}\n\ncheck(${p.entry_point})\n`;
 }
 
@@ -81,39 +149,45 @@ export function runHidden(python: string, solution: string, p: Problem, timeoutM
   }
 }
 
-async function loadProblems(): Promise<Problem[]> {
-  const cache = join(ROOT, 'outputs', 'bench-cache', 'HumanEval.jsonl.gz');
+async function loadProblems(set: 'humaneval' | 'mbpp'): Promise<Problem[]> {
+  const cache = join(ROOT, 'outputs', 'bench-cache', set === 'mbpp' ? 'sanitized-mbpp.json' : 'HumanEval.jsonl.gz');
   if (!existsSync(cache)) {
-    console.log(`Downloading HumanEval from ${SOURCE} …`);
-    const res = await fetch(SOURCE);
+    const source = set === 'mbpp' ? MBPP_SOURCE : HUMAN_EVAL_SOURCE;
+    console.log(`Downloading ${set === 'mbpp' ? 'sanitized MBPP' : 'HumanEval'} from ${source} …`);
+    const res = await fetch(source);
     if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`);
     mkdirSync(dirname(cache), { recursive: true });
     writeFileSync(cache, Buffer.from(await res.arrayBuffer()));
   }
-  return parseProblems(gunzipSync(readFileSync(cache)).toString('utf8'));
+  const text = readFileSync(cache);
+  return set === 'mbpp' ? parseMbppProblems(text.toString('utf8')) : parseProblems(gunzipSync(text).toString('utf8'));
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { values: opt } = parseArgs({
     options: {
+      set: { type: 'string' },
       model: { type: 'string', default: 'qwen3.8:27b-mtp-q4_K_M' },
       ollama: { type: 'string', default: 'http://127.0.0.1:11434/v1' },
       mode: { type: 'string', default: 'agent' },
-      limit: { type: 'string', default: '164' },
+      limit: { type: 'string' },
       start: { type: 'string', default: '0' },
       minutes: { type: 'string', default: '0' },
       timeout: { type: 'string', default: '300' },
       python: { type: 'string', default: process.platform === 'win32' ? 'python' : 'python3' },
     },
   });
+  const set = opt.set ?? 'humaneval';
+  if (set !== 'humaneval' && set !== 'mbpp') throw new Error(`Unknown benchmark set "${set}" (use humaneval or mbpp).`);
   const mode = opt.mode === 'raw' ? 'raw' : 'agent';
-  const all = await loadProblems();
-  const picked = all.slice(Number(opt.start), Number(opt.start) + Number(opt.limit));
+  const all = await loadProblems(set);
+  const limit = Number(opt.limit ?? all.length);
+  const picked = all.slice(Number(opt.start), Number(opt.start) + limit);
   const deadline = Number(opt.minutes) > 0 ? Date.now() + Number(opt.minutes) * 60_000 : Infinity;
   const py = spawnSync(opt.python!, ['--version'], { encoding: 'utf8' });
   if (py.status !== 0) throw new Error(`Python not found as "${opt.python}" (use --python).`);
   const pythonVersion = `${py.stdout}${py.stderr}`.trim();
-  console.log(`HumanEval: ${all.length} problems; running ${picked.length} from #${opt.start} in ${mode} mode on ${opt.model} (${pythonVersion}).`);
+  console.log(`${set}: ${all.length} problems; running ${picked.length} from #${opt.start} in ${mode} mode on ${opt.model} (${pythonVersion}).`);
 
   type Run = { task: string; pass: boolean; seconds: number; toolCalls: number; detail?: string; error?: string };
   const runs: Run[] = [];
@@ -207,7 +281,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 
   const pass = runs.filter((r) => r.pass).length;
   const result = {
-    benchmark: 'HumanEval (openai/human-eval, MIT)',
+    benchmark: set === 'mbpp' ? 'MBPP sanitized (google-research, CC BY 4.0)' : 'HumanEval (openai/human-eval, MIT)',
     mode,
     model: opt.model,
     at: started.toISOString(),
@@ -222,7 +296,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     runs,
   };
   console.log(`\n${mode}: ${pass}/${runs.length} hidden-test passes (pass@1 ${result.pass1}%) on ${opt.model}, ${Math.round(result.seconds / 60)} min.`);
-  const out = join(ROOT, 'evals', 'results', `${started.toISOString().slice(0, 10)}-coding-${mode}.json`);
+  const out = join(ROOT, 'evals', 'results', `${started.toISOString().slice(0, 10)}-coding-${set === 'mbpp' ? 'mbpp-' : ''}${mode}.json`);
   mkdirSync(dirname(out), { recursive: true });
   let prev: unknown[] = [];
   if (existsSync(out)) {

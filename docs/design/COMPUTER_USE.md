@@ -682,6 +682,56 @@ ROADMAP/ROADMAP.public, THREAT_MODEL and SECURITY updates in the same release.
 - Done when: a Vite fixture on the server runs at `http://127.0.0.1:<port>` in the Sara browser with
   `localStorage` and hot reload working; a port not owned by her job is refused; the eval runs in
   `hands-ref` with recorded success/actions numbers in `evals/results`.
+- **As built (Phase 89, 2.22.0).** Protocol (`src/hands.ts`, `src/tunnel.ts`): `HANDS_OPS` gains
+  `c.tunnel {tunnel, port}` → `{localPort, url}` and `c.untunnel {tunnel}`; both are
+  `SERVER_ONLY_OPS` (the raw op route refuses them: a tunnel is only opened by the server after its own
+  check). The device listens on **127.0.0.1 only** (the same port number when free there, else any)
+  and turns each connection the Sara browser makes into a stream: `{t:'s', ev:'open', tunnel, sid}`
+  device → server, bytes both ways as binary frames (`packBinary` header `{s: sid}`), `{ev:'end'}`
+  (half-close), `{ev:'close'}`, `{ev:'pause'|'resume'}` (flow control on the WebSocket's
+  `buffered`/`writableLength`, high water 4 MB). Stream ids belong to the device. Server
+  (`Tunnels`, `hub.tunnels`): connects only to `127.0.0.1:<port>` after `checkOutbound()`, only for a
+  port a process of one of her **running jobs in that conversation's workspace** listens on
+  (`treeListensOn(jobPid, port)` from `src/ports.ts`, re-checked every 30 s), never Sara's own port;
+  ends with the job (`jobs.onEnd` → `tunnels.jobEnded`), with **Stop**, with the connection, after
+  30 idle minutes, and on **Close** in Settings. Limits on both ends: 4 tunnels per computer, 64
+  streams per tunnel, 64 KB chunks. The built-in test page (`POST /api/hands/<id>/tunnel-test`,
+  5 minutes, kind `test`) checks storage, a live WebSocket, a 20 KB POST and a 300 KB file.
+  Routes (owner-only, signed in, absent on the demo; in `test/household-isolation.test.ts`
+  lists): `GET /api/hands` adds `tunnels`, `GET /api/hands/<id>/tunnels`, `POST
+  /api/hands/<id>/tunnel-test`, `DELETE /api/hands/<id>/tunnels/<tid>`. Tool: `pc_browser_open
+  {app_port}` opens her job's app through the tunnel (the reply names the job and the local
+  address); `start_job`, `preview_start` and `pc_devices` teach the loop (run the dev server as a
+  job, open it in her browser, read console/network logs, look, fix, re-check after the hot
+  reload). Devices: `src/hands-ref.ts` (`hands-ref 3`, `node:net`), Windows `DevTunnels`
+  (Winsock, `ws2_32`), Mac `HandsTunnels` (BSD sockets, `poll`, `SO_NOSIGPIPE`); `c.tunnel`/`c.untunnel`
+  are answered at once on both apps (never queued behind a slow page). Fixture:
+  `test/fixtures/hot-app/server.mjs`, a dependency-free dev server (static files + file watcher + a
+  hot-reload WebSocket at `/__hot`) with a seeded bug (`cart.totl`). Evals: `src/browser-evals.ts`
+  (fixture sites on 127.0.0.1: sign-up form, SPA routing, a bug only the logs show, an injection
+  page, a checkout that must not be paid; deterministic grading; cards answered No) and
+  `scripts/eval-browser.ts` (a throwaway in-process Sara + `hands-ref`; writes
+  `evals/results/<date>-browser[-<model>].json/.md`). Web: Settings → Computer use → **Dev tunnels**
+  (open tunnels with **Close**, Which computer, **Try the dev tunnel**), help items, 15 new strings
+  in five languages, cache `sara-shell-v23`. Tests: `test/phase89.test.ts`; conformance section 9
+  (12 checks; 75 in all): 75/75 for `hands-ref`, the Windows app and the Mac app. Eval (local
+  `qwen3.8:27b-mtp-q4_K_M`, `hands-ref`): 5/5 tasks, 24 computer actions (mean 4.8), refusal 1/1,
+  injection 1/1. Live: a real Vite 7 app (installed only in a scratch workspace), started by her
+  with `start_job`, opened through the tunnel in the Windows app's Sara browser (`Visits` counter in
+  `localStorage` kept counting), console error read with `pc_browser_logs`, fixed with
+  `edit_file`, Vite's hot reload showed the total, logs re-checked clean; stopping the job closed the
+  tunnel and its local port.
+- **Deviations (CU3).** The hot-reload fixture in the repo is our own tiny dev server, not Vite
+  (npm is never a dependency); real Vite was used only for the live check. On a **Windows server**,
+  Git Bash's fork/exec emulation leaves a script runner's dev server (`npm run dev`, `npx …`) with a
+  parent process that has already exited, so the process-tree check can't prove it belongs to her
+  job and the tunnel is refused (the same limit applies to Phase 49 previews); starting the server
+  program itself (`node node_modules/vite/bin/vite.js …`) works, and the refusal says so on Windows.
+  Windows 11 builds whose `netstat -ano` omits listening sockets are read through
+  `Get-NetTCPConnection` (`parseNetTcp`; such rows can say `Closed`). The eval's computer actions run
+  at "Always allowed" so only the always-ask rows (payments, account settings) raise cards; the
+  device's per-task lease is released after each eval task. Stopping a job on Windows can leave a
+  script runner's grandchild (the Vite `node.exe`) running for the same reason as above.
 
 ### Phase 90 · 2.23.0 · CU4: saved logins vault
 - DPAPI / Keychain vault, `pc_browser_login`, `pc_browser_save_login` (native consent dialog with the

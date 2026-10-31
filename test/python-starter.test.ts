@@ -7,6 +7,8 @@ import test from 'node:test';
 import { copyStarter, listStarters, STARTERS_DIR } from '../src/starters.ts';
 
 const python = process.platform === 'win32' ? 'python' : 'python3';
+// A real Python (on a Mac without the Xcode Command Line Tools, /usr/bin/python3 is only a stub).
+const HAS_PYTHON = spawnSync(python, ['--version'], { stdio: 'ignore' }).status === 0;
 
 function runPython(folder: string, args: string[], input?: string) {
   return spawnSync(python, args, {
@@ -32,7 +34,7 @@ test('starter metadata uses the native Python command on Windows and keeps Node 
   assert.equal(windows.find((starter) => starter.name === 'cli-tool')!.run, 'node cli.js --help');
 });
 
-test('Python CLI starter: copies a tested dependency-free project and handles files, stdin, help and errors', (t) => {
+test('Python CLI starter: copies a tested dependency-free project and handles files, stdin, help and errors', { skip: !HAS_PYTHON && `${python} not installed` }, (t) => {
   assert.ok(listStarters().some((starter) => starter.name === 'python-cli'), 'python-cli is registered with the starter path');
 
   const root = mkdtempSync(join(tmpdir(), 'sara-python-starter-'));

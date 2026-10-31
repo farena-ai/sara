@@ -4,6 +4,10 @@
 // badge with Stop / Resume, the global stop shortcut ⌃⌥Esc (Carbon hot key: no permission needed),
 // takeover (real input in her window pauses her unless "Let Sara keep control"), the input rate
 // limit, the local log "What Sara did on this Mac", and token renewal over the connection.
+// Phase 89 (CU3): the dev tunnel (HandsTunnels below): c.tunnel opens a listener on 127.0.0.1 only
+// (BSD sockets); each connection the Sara browser makes to it is a stream over this connection to the
+// dev server her job runs on the server. At most 4 tunnels and 64 connections each; all close on
+// c.untunnel, Stop and when the connection drops.
 // When the owner switches on "Let Sara use this computer" (Settings → Computer use in the app), the
 // page gets a `hands` token from the server and hands it to this app; the app keeps it in the
 // Keychain, opens its own WebSocket to <server>/api/hands (Authorization header, no cookies) and runs
@@ -452,10 +456,216 @@ final class HandsBrowser {
 
 // MARK: the hands connection
 
+// MARK: Phase 89 (CU3): the dev tunnel (BSD sockets, loopback only)
+
+/// c.tunnel {tunnel, port}: a listener on 127.0.0.1 (that port when free here, else any free one).
+/// Each connection to it becomes a stream: {t:'s', ev:'open', tunnel, sid} to the server, then bytes
+/// both ways as binary frames with the header {"s": sid}; {ev:'end'} when a side has no more to send,
+/// {ev:'close'} when it's gone, {ev:'pause'|'resume'} for flow control.
+final class HandsTunnels {
+  static let maxTunnels = 4, maxStreams = 64
+  final class Stream {
+    let fd: Int32
+    let tunnel: String
+    var closed = false, paused = false, gotEof = false, serverEnded = false
+    let wlock = NSLock()
+    init(fd: Int32, tunnel: String) { self.fd = fd; self.tunnel = tunnel }
+  }
+  private struct Listener { let fd: Int32; let port: Int; let localPort: Int; var sids: Set<UInt32> }
+  private let lock = NSLock()
+  private var tunnels: [String: Listener] = [:]
+  private var streams: [UInt32: Stream] = [:]
+  private var nextSid: UInt32 = 0
+  var sendText: ((String) -> Void)?
+  var sendData: (([String: Any], Data) -> Void)?
+
+  var count: Int { lock.lock(); defer { lock.unlock() }; return tunnels.count }
+
+  /// The local port (throws denied_local / error).
+  func open(id: String, port: Int) throws -> Int {
+    guard id.range(of: "^[0-9a-f]{8,64}$", options: .regularExpression) != nil else { throw HandsOpError(code: "denied_local", message: "Not a tunnel id.") }
+    guard port >= 1024 && port <= 65535 else { throw HandsOpError(code: "denied_local", message: "Dev tunnels use ports 1024 to 65535 only.") }
+    lock.lock()
+    defer { lock.unlock() }
+    if let t = tunnels[id] { return t.localPort }
+    guard tunnels.count < HandsTunnels.maxTunnels else { throw HandsOpError(code: "denied_local", message: "At most 4 dev tunnels at once on this Mac.") }
+    var fd = HandsTunnels.listenOn(port)
+    if fd < 0 { fd = HandsTunnels.listenOn(0) }
+    guard fd >= 0 else { throw HandsOpError(code: "error", message: "Couldn't open a local port for the dev tunnel.") }
+    var a = sockaddr_in()
+    var al = socklen_t(MemoryLayout<sockaddr_in>.size)
+    _ = withUnsafeMutablePointer(to: &a) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(fd, $0, &al) } }
+    let local = Int(UInt16(bigEndian: a.sin_port))
+    tunnels[id] = Listener(fd: fd, port: port, localPort: local, sids: [])
+    let t = Thread { [weak self] in self?.acceptLoop(id: id, fd: fd) }
+    t.name = "sara.hands.tunnel"
+    t.start()
+    NSLog("Sara hands: dev tunnel 127.0.0.1:\(local) → the server's port \(port)")
+    return local
+  }
+
+  /// c.untunnel (or Stop, or the connection dropped): the listener and its connections close.
+  @discardableResult func close(_ id: String) -> Bool {
+    lock.lock()
+    guard let t = tunnels.removeValue(forKey: id) else { lock.unlock(); return false }
+    var gone: [Stream] = []
+    for sid in t.sids { if let st = streams.removeValue(forKey: sid) { gone.append(st) } }
+    lock.unlock()
+    Darwin.close(t.fd)
+    for st in gone { shut(st) }
+    return true
+  }
+  func closeAll() {
+    lock.lock()
+    let ids = Array(tunnels.keys)
+    lock.unlock()
+    for id in ids { close(id) }
+  }
+
+  /// {t:'s'} from the server.
+  func control(_ m: [String: Any]) {
+    guard let sid = (m["sid"] as? NSNumber)?.uint32Value else { return }
+    lock.lock()
+    guard let st = streams[sid] else { lock.unlock(); return }
+    let ev = m["ev"] as? String ?? ""
+    switch ev {
+    case "end":
+      st.serverEnded = true
+      let both = st.gotEof
+      lock.unlock()
+      if !st.closed { Darwin.shutdown(st.fd, SHUT_WR) }
+      if both { drop(sid, tell: false) }
+      return
+    case "close":
+      lock.unlock()
+      drop(sid, tell: false)
+      return
+    case "pause": st.paused = true
+    case "resume": st.paused = false
+    default: break
+    }
+    lock.unlock()
+  }
+
+  /// Bytes from the server for a stream (written to the Sara browser's connection).
+  func data(sid: UInt32, _ d: Data) {
+    lock.lock()
+    let st = streams[sid]
+    lock.unlock()
+    guard let st, !st.closed else { return }
+    st.wlock.lock()
+    let ok = d.withUnsafeBytes { (raw: UnsafeRawBufferPointer) -> Bool in
+      guard let base = raw.baseAddress else { return true }
+      var off = 0
+      while off < raw.count {
+        let k = Darwin.send(st.fd, base + off, raw.count - off, 0)
+        if k <= 0 { return false }
+        off += k
+      }
+      return true
+    }
+    st.wlock.unlock()
+    if !ok { drop(sid, tell: true) }
+  }
+
+  /// Loopback only (127.0.0.1): nothing on the network can reach it. No SIGPIPE, not inherited.
+  private static func listenOn(_ port: Int) -> Int32 {
+    let fd = socket(AF_INET, SOCK_STREAM, 0)
+    if fd < 0 { return -1 }
+    var one: Int32 = 1
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
+    _ = fcntl(fd, F_SETFD, FD_CLOEXEC)
+    var a = sockaddr_in()
+    a.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+    a.sin_family = sa_family_t(AF_INET)
+    a.sin_port = in_port_t(UInt16(port).bigEndian)
+    a.sin_addr.s_addr = UInt32(0x7f00_0001).bigEndian  // 127.0.0.1
+    let ok = withUnsafePointer(to: &a) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) } }
+    if ok != 0 || listen(fd, 64) != 0 { Darwin.close(fd); return -1 }
+    return fd
+  }
+
+  private func shut(_ st: Stream) {
+    lock.lock()
+    let was = st.closed
+    st.closed = true
+    lock.unlock()
+    if !was { Darwin.shutdown(st.fd, SHUT_RDWR); Darwin.close(st.fd) }
+  }
+  private func drop(_ sid: UInt32, tell: Bool) {
+    lock.lock()
+    guard let st = streams.removeValue(forKey: sid) else { lock.unlock(); return }
+    if var t = tunnels[st.tunnel] { t.sids.remove(sid); tunnels[st.tunnel] = t }
+    lock.unlock()
+    shut(st)
+    if tell { sendText?("{\"t\":\"s\",\"ev\":\"close\",\"sid\":\(sid)}") }
+  }
+  private func alive(_ id: String, _ fd: Int32) -> Bool {
+    lock.lock(); defer { lock.unlock() }
+    return tunnels[id]?.fd == fd
+  }
+  /// poll() with a short timeout, so closing the tunnel ends this loop (close() alone doesn't wake accept on macOS).
+  private func acceptLoop(id: String, fd: Int32) {
+    while alive(id, fd) {
+      var p = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+      if poll(&p, 1, 250) <= 0 { continue }
+      guard alive(id, fd) else { return }
+      let c = accept(fd, nil, nil)
+      if c < 0 { continue }
+      var one: Int32 = 1
+      setsockopt(c, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
+      setsockopt(c, IPPROTO_TCP, TCP_NODELAY, &one, socklen_t(MemoryLayout<Int32>.size))
+      _ = fcntl(c, F_SETFD, FD_CLOEXEC)
+      lock.lock()
+      guard var t = tunnels[id], t.fd == fd, t.sids.count < HandsTunnels.maxStreams else { lock.unlock(); Darwin.close(c); continue }
+      nextSid += 1
+      let sid = nextSid
+      let st = Stream(fd: c, tunnel: id)
+      streams[sid] = st
+      t.sids.insert(sid)
+      tunnels[id] = t
+      lock.unlock()
+      sendText?("{\"t\":\"s\",\"ev\":\"open\",\"tunnel\":\"\(id)\",\"sid\":\(sid)}")
+      let r = Thread { [weak self] in self?.readLoop(sid: sid, st: st) }
+      r.name = "sara.hands.stream"
+      r.start()
+    }
+  }
+  private func readLoop(sid: UInt32, st: Stream) {
+    var buf = [UInt8](repeating: 0, count: 64 * 1024)
+    while true {
+      lock.lock()
+      let closed = st.closed, paused = st.paused
+      lock.unlock()
+      if closed { return }
+      if paused { usleep(10_000); continue }
+      var p = pollfd(fd: st.fd, events: Int16(POLLIN), revents: 0)
+      if poll(&p, 1, 250) <= 0 { continue }
+      let n = buf.withUnsafeMutableBytes { recv(st.fd, $0.baseAddress, $0.count, 0) }
+      if n > 0 { sendData?(["s": sid], Data(buf[0..<n])); continue }
+      if n == 0 {
+        // The browser sent all it will: tell the server; the stream stays for the answer.
+        lock.lock()
+        st.gotEof = true
+        let both = st.serverEnded
+        lock.unlock()
+        sendText?("{\"t\":\"s\",\"ev\":\"end\",\"sid\":\(sid)}")
+        if both { drop(sid, tell: false) }
+        return
+      }
+      if errno == EINTR || errno == EAGAIN { continue }
+      drop(sid, tell: true)
+      return
+    }
+  }
+}
+
 final class Hands: NSObject, URLSessionWebSocketDelegate {
   static let ops: Set<String> = ["b.start", "b.tabs", "b.open", "b.navigate", "b.snapshot", "b.read", "b.screenshot", "b.logs", "b.request", "b.close", "c.ping",
                                   // Phase 88 (CU2)
-                                  "b.find", "b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.downloads"]
+                                  "b.find", "b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.downloads",
+                                  // Phase 89 (CU3): the dev tunnel
+                                  "c.tunnel", "c.untunnel"]
   /// Ops that act: they count against the input rate limit and stop when the person takes over.
   static let inputOps: Set<String> = ["b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload"]
   static var shared: Hands?
@@ -504,6 +714,8 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
   private var hotKeyRef: EventHotKeyRef?
   private var hotKeyHandler: EventHandlerRef?
   private(set) var hotkeyOk = false
+  /// Phase 89: the dev tunnels open on this Mac.
+  let tunnels = HandsTunnels()
 
   init(server: String, token: String, computer: String, profileDir: URL, pageAgent: String, version: String, localOnly: Bool,
        keep: Bool = false, downloadsDir: URL, logFile: URL, expiresAt: String = "", testLabel: Bool = false) {
@@ -521,6 +733,8 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     browser = HandsBrowser(serverOrigin: server.lowercased(), profileDir: profileDir)
     browser.downloadsDir = downloadsDir
     super.init()
+    tunnels.sendText = { [weak self] in self?.sendText($0) }
+    tunnels.sendData = { [weak self] h, d in self?.sendBinary(h, d) }
     pruneLog()
     // The badge and the stop shortcut before the first hello (so it says whether ⌃⌥Esc is free).
     if Thread.isMainThread { setUpUI() } else { DispatchQueue.main.sync { self.setUpUI() } }
@@ -539,6 +753,9 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     stopping = true
     for c in cancels.values { c.set() }
     lock.unlock()
+    tunnels.closeAll()
+    tunnels.sendText = nil
+    tunnels.sendData = nil
     let tearDown = { [weak self] in self?.tearDownUI() }
     if Thread.isMainThread { tearDown() } else { DispatchQueue.main.sync(execute: tearDown) }
     task?.cancel(with: .goingAway, reason: nil)
@@ -604,6 +821,8 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     lock.lock()
     for c in cancels.values { c.set() }
     lock.unlock()
+    // Phase 89: every dev tunnel closes with the connection.
+    tunnels.closeAll()
     if was { NSLog("Sara hands: disconnected") }
     later()
   }
@@ -615,6 +834,13 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
       case .failure: return  // didCompleteWithError reconnects
       case .success(let m):
         if case .string(let s) = m { self.onText(s) }
+        // Phase 89: the only binary the server sends is dev tunnel bytes: header {"s": sid}, then data.
+        if case .data(let d) = m, d.count >= 4 {
+          let hl = Int(d[d.startIndex]) << 24 | Int(d[d.startIndex + 1]) << 16 | Int(d[d.startIndex + 2]) << 8 | Int(d[d.startIndex + 3])
+          if hl > 0, hl <= 4096, d.count >= 4 + hl, let h = (try? JSONSerialization.jsonObject(with: d.subdata(in: d.startIndex + 4 ..< d.startIndex + 4 + hl))) as? [String: Any], let sid = (h["s"] as? NSNumber)?.uint32Value {
+            self.tunnels.data(sid: sid, d.subdata(in: d.startIndex + 4 + hl ..< d.endIndex))
+          }
+        }
         self.receive(t)
       }
     }
@@ -648,6 +874,8 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     lastOpAt = .distantPast
     lock.unlock()
     sendText(jsonText(["t": "ev", "kind": "stopped", "by": "user"]))
+    // Stop ends the dev tunnels here too.
+    tunnels.closeAll()
     if wasPaused { sendText(jsonText(["t": "ev", "kind": "resumed"])) }
     NSLog("Sara hands: stopped by the person at the Mac")
     #if DEBUG
@@ -721,7 +949,28 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
       lock.unlock()
       return
     }
+    if t == "s" { return tunnels.control(m) }  // Phase 89: a dev tunnel stream's control message
     guard t == "req", let id = m["id"] as? String, !id.isEmpty, id.count <= 100 else { return }
+    // Phase 89: tunnels open and close at once (never queued behind a slow page).
+    if let op = m["op"] as? String, op == "c.tunnel" || op == "c.untunnel" {
+      let a = m["args"] as? [String: Any] ?? [:]
+      let tid = a["tunnel"] as? String ?? ""
+      do {
+        let r: [String: Any]
+        if op == "c.tunnel" {
+          let local = try tunnels.open(id: tid, port: (a["port"] as? NSNumber)?.intValue ?? 0)
+          r = ["localPort": local, "url": "http://127.0.0.1:\(local)"]
+        } else {
+          r = ["closed": tunnels.close(tid)]
+        }
+        sendText(jsonText(["t": "res", "id": id, "ok": true, "result": r] as [String: Any]))
+      } catch let e as HandsOpError {
+        sendText(jsonText(["t": "res", "id": id, "ok": false, "error": ["code": e.code, "message": e.message]] as [String: Any]))
+      } catch {
+        sendText(jsonText(["t": "res", "id": id, "ok": false, "error": ["code": "error", "message": "Something went wrong on the Mac."]] as [String: Any]))
+      }
+      return
+    }
     lock.lock()
     // A retried request gets the first answer (a running one isn't run twice).
     if let a = answers[id] { lock.unlock(); return sendText(a) }

@@ -133,6 +133,24 @@ export function parseNetstat(text: string, port: number): Listener[] {
   return out;
 }
 
+/**
+ * Phase 89: parses lines "<local address> <local port> <remote address> <remote port> [<state>] <pid>"
+ * from Get-NetTCPConnection (Windows). Some Windows 11 builds leave listening sockets out of
+ * `netstat -ano` and show them here with an empty or wrong state ("Closed"); a listener is the row
+ * with no remote end (0.0.0.0 / :: and port 0) that isn't merely bound.
+ */
+export function parseNetTcp(text: string, port: number): Listener[] {
+  const out: Listener[] = [];
+  for (const line of text.split(/\r?\n/)) {
+    const m = /^(\S+) (\d+) (\S+) (\d+) \[(\w*)\] (\d+)$/.exec(line.trim());
+    if (!m || Number(m[2]) !== port || m[4] !== '0' || !/^(0\.0\.0\.0|::)$/.test(m[3]) || /^bound$/i.test(m[5])) continue;
+    const host = m[1];
+    if (/^(127\.|0\.0\.0\.0$)/.test(host)) out.push({ pid: Number(m[6]), reaches: true });
+    else if (host === '::' || host === '::1') out.push({ pid: Number(m[6]), reaches: false });
+  }
+  return out;
+}
+
 /** Parses `lsof -nP -iTCP:<port> -sTCP:LISTEN -Fptn` (macOS). */
 export function parseLsof(text: string): Listener[] {
   const out: Listener[] = [];
@@ -187,7 +205,11 @@ export async function portListeners(port: number, platform: NodeJS.Platform = pr
   if (platform === 'win32') {
     const text = await run('netstat.exe', ['-ano', '-p', 'TCP']);
     const text6 = await run('netstat.exe', ['-ano', '-p', 'TCPv6']);
-    return parseNetstat(`${text}\n${text6}`, port);
+    const found = parseNetstat(`${text}\n${text6}`, port);
+    if (found.length) return found;
+    // Phase 89: some Windows 11 builds leave listeners out of netstat: ask the TCP table another way.
+    const ps = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Get-NetTCPConnection -LocalPort ${Math.trunc(port)} -ErrorAction SilentlyContinue | ForEach-Object { "$($_.LocalAddress) $($_.LocalPort) $($_.RemoteAddress) $($_.RemotePort) [$($_.State)] $($_.OwningProcess)" }`], 15_000);
+    return parseNetTcp(ps, port);
   }
   return parseLsof(await run('/usr/sbin/lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-Fptn']));
 }

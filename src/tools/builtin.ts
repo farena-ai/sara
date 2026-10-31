@@ -252,6 +252,8 @@ export function isPrivateAddress(ip: string): boolean {
 /** Checks the URL and returns the address to connect to (resolved once, so it can't be rebound). */
 async function assertPublic(url: URL, allowPrivate: boolean): Promise<string> {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new ToolError('Only http and https URLs are allowed.');
+  // Private local mode refuses before the DNS lookup: the lookup itself would tell the resolver the name.
+  checkOutbound(url);
   const host = url.hostname.replace(/^\[|\]$/g, '');
   const addrs = isIP(host) ? [host] : (await lookup(host, { all: true }).catch(() => [])).map((a) => a.address);
   if (!addrs.length) throw new ToolError(`Could not resolve ${host}.`);
@@ -281,7 +283,10 @@ export function pinnedGet(url: URL, address: string, signal: AbortSignal): Promi
   return new Promise((resolve, reject) => {
     const req = doRequest(
       url,
-      { method: 'GET', lookup: lookupPinned as never, signal, headers: { 'user-agent': 'Sara (self-hosted companion)', accept: 'text/html,application/json,text/plain,*/*' } },
+      // `agent: false`: a fresh agent of its own, never the global one, which Node points at
+      // HTTP(S)_PROXY when NODE_USE_ENV_PROXY / --use-env-proxy is on; a proxy would resolve the
+      // name again and undo the pin (DNS rebinding).
+      { method: 'GET', agent: false, lookup: lookupPinned as never, signal, headers: { 'user-agent': 'Sara (self-hosted companion)', accept: 'text/html,application/json,text/plain,*/*' } },
       (res) => {
         const chunks: Buffer[] = [];
         let size = 0;

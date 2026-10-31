@@ -347,6 +347,8 @@ function handsFor(sp: Space, member: boolean): HandsHub | undefined {
     events: sp.events,
     allowed: member ? () => settings.get().computerUse?.members === true : () => true,
     known: () => sp.auth.devices().filter((d) => d.kind === 'hands').map((d) => ({ id: d.id, label: d.label, lastSeen: d.lastSeen })),
+    // Phase 89: the dev tunnel never reaches Sara's own port.
+    tunnels: { ownPorts: () => [port] },
   });
 }
 const ownerSpace: Space = { id: 'owner', dir: dataDir, auth, settings, vault, events, companions };
@@ -647,6 +649,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   }
   if (!isMember) app.jobs.onEnd = (job) => {
     previews.jobEnded(job.id, app.jobs);
+    // Phase 89: her dev tunnels to that job's port end with it.
+    space.hands?.tunnels.jobEnded(job.id, app.jobs);
     // Phase 50: a finished job may have changed files: the code map looks again.
     try {
       codemaps.touch(workspaceDir(dataDir, job.workspace));

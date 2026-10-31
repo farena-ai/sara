@@ -74,7 +74,7 @@ export function createBrowserTools(app: AppContext): Tool[] {
     spec: {
       name: 'preview_start',
       description:
-        "Show a web app you're running to the owner: gives a private preview link through Sara that opens in a pane beside the chat. First start the app as a background job (start_job) listening on 127.0.0.1 and a port (e.g. `npx vite --host 127.0.0.1 --port 5173 --base ./` or `python3 -m http.server 8000 --bind 127.0.0.1`). The app is served under a sub-path, so use relative asset paths. Hot reload is off: reload the preview after changes.",
+        "Show a web app you're running to the owner: gives a private preview link through Sara that opens in a pane beside the chat. First start the app as a background job (start_job) listening on 127.0.0.1 and a port (e.g. `npx vite --host 127.0.0.1 --port 5173 --base ./` or `python3 -m http.server 8000 --bind 127.0.0.1`). The app is served under a sub-path, so use relative asset paths. Hot reload is off: reload the preview after changes. When the owner's computer is connected for computer use, pc_browser_open with app_port is better for debugging: a real address with storage, hot reload and their view.",
       parameters: obj({ port: { type: 'integer', description: 'The port the app listens on (left out: found in your jobs\u2019 output)' }, path: { type: 'string', description: 'Page to open first, e.g. "/" or "/about.html"' } }),
     },
     isAvailable: previewsOn,

@@ -252,6 +252,24 @@ test('web_fetch connects only to the address that passed the check (no DNS rebin
   assert.equal(r.body.toString(), `host=rebind-test.invalid:${port}`);
 });
 
+test('web_fetch keeps the pin when Node uses the environment proxy (NODE_USE_ENV_PROXY + HTTP_PROXY)', async (t) => {
+  const { createServer } = await import('node:http');
+  const { execFile } = await import('node:child_process');
+  const { pathToFileURL } = await import('node:url');
+  const srv = createServer((req, res) => res.end(`host=${req.headers.host}`));
+  await new Promise<void>((r) => srv.listen(0, '127.0.0.1', r));
+  t.after(() => srv.close());
+  const port = (srv.address() as { port: number }).port;
+  // The proxy is a closed port: a request that goes to it fails instead of reaching the pinned address.
+  const mod = pathToFileURL(join(import.meta.dirname, '..', 'src', 'tools', 'builtin.ts')).href;
+  const script = `const { pinnedGet } = await import(${JSON.stringify(mod)}); const r = await pinnedGet(new URL('http://rebind-test.invalid:${port}/x'), '127.0.0.1', AbortSignal.timeout(5000)); console.log(r.status, r.body.toString());`;
+  const { NODE_TEST_CONTEXT: _ctx, ...env } = process.env;
+  const out = await new Promise<string>((resolve, reject) =>
+    execFile(process.execPath, ['--disable-warning=ExperimentalWarning', '--input-type=module', '-e', script], { env: { ...env, NODE_USE_ENV_PROXY: '1', HTTP_PROXY: 'http://127.0.0.1:9', http_proxy: 'http://127.0.0.1:9', NO_PROXY: '', no_proxy: '' }, timeout: 30_000, windowsHide: true }, (e, stdout, stderr) => (e ? reject(new Error(`${e.message}\n${stderr}`)) : resolve(stdout))),
+  );
+  assert.equal(out.trim(), `200 host=rebind-test.invalid:${port}`);
+});
+
 test('history: one message bigger than the budget is shortened (start and end kept), not sent whole', () => {
   const m = (role: StoredMessage['role'], content: string): StoredMessage => ({ id: 0, conversationId: 'c', role, content, createdAt: '' });
   const huge = `START ${'log line\n'.repeat(20_000)} END`;

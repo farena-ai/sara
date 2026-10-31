@@ -255,7 +255,7 @@ test('git worktree path: a detached worktree with the uncommitted and new files;
   t.after(cleanup);
   const ws = project(dir, 10);
   writeFileSync(join(ws, '.gitignore'), 'node_modules/\n*.log\n');
-  const g = (...a: string[]) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', '-c', 'core.hooksPath=/dev/null', ...a], { cwd: ws, encoding: 'utf8' });
+  const g = (...a: string[]) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...a], { cwd: ws, encoding: 'utf8' });
   assert.equal(g('init', '-q').status, 0);
   g('add', '.');
   assert.equal(g('commit', '-qm', 'init').status, 0);
@@ -408,7 +408,7 @@ test('Apply records the M3 workspace manifest before and after', { skip: HAS_GIT
   const { dir, cleanup } = tempDir();
   t.after(cleanup);
   const ws = project(dir, 3);
-  const g = (...a: string[]) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', '-c', 'core.hooksPath=/dev/null', ...a], { cwd: ws, encoding: 'utf8' });
+  const g = (...a: string[]) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...a], { cwd: ws, encoding: 'utf8' });
   g('init', '-q');
   g('add', '.');
   g('commit', '-qm', 'init');
@@ -795,7 +795,7 @@ test('performance: a 2,000-file repository is copied, run and compared in second
   };
   const plain = await timeOne('filtered copy', false);
   if (HAS_GIT) {
-    const g = (...a: string[]) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', '-c', 'core.hooksPath=/dev/null', ...a], { cwd: ws });
+    const g = (...a: string[]) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...a], { cwd: ws });
     g('init', '-q');
     g('add', '.');
     g('commit', '-qm', 'init');

@@ -66,7 +66,7 @@ export function createCodingTools(app: AppContext): Tool[] {
     spec: {
       name: 'start_job',
       description:
-        'Start a long command in the background (a build, a full test run, a long script) and keep talking meanwhile. Returns a job number at once; the result is reported back in this conversation when it ends (and the owner is notified). Use shell for quick commands.',
+        'Start a long command in the background (a build, a full test run, a long script) and keep talking meanwhile. Returns a job number at once; the result is reported back in this conversation when it ends (and the owner is notified). Use shell for quick commands. A web app\'s dev server runs as a job too (listening on 127.0.0.1 and a port); then look at it: pc_browser_open with app_port (the owner\'s Sara browser, through the dev tunnel) or preview_start.',
       parameters: obj({ command: { type: 'string' }, label: { type: 'string', description: 'Short name, e.g. "full test suite"' }, timeout_minutes: { type: 'integer', description: 'Default 30, max 60' } }, ['command']),
     },
     isAvailable: () => Boolean(app.jobs),

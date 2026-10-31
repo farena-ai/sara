@@ -1446,6 +1446,8 @@ body:not(.member) [data-member-only] { display: none !important; }
 .cu-live-text { flex: 1 1 140px; min-width: 0; color: var(--text-2); font-size: .9em; overflow-wrap: anywhere; }
 .cu-live-bar button { min-height: 44px; min-width: 44px; }
 .cu-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+/* Phase 89 (CU3): the dev tunnel test button is a 44 px target like the rest of the page. */
+#cu-tunnel-try, #cu-tunnel-device { min-height: 44px; }
 .cu-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface-1); }
 .cu-row-main { flex: 1 1 200px; min-width: 0; display: grid; gap: 2px; }
 .cu-row-name { font-weight: 600; overflow-wrap: anywhere; }

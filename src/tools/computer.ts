@@ -18,6 +18,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { basename, isAbsolute, relative, resolve as resolvePath } from 'node:path';
 import { actionVerdict, actLevel, injectionHints, navigationVerdict, siteOf, type ActKind } from '../computer-policy.ts';
 import { HandsError, type HandsDeviceView, type HandsReply } from '../hands.ts';
+import { TunnelError } from '../tunnel.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { str, ToolError, type ComputerApproval, type Prepared, type Tool, type ToolContext } from './types.ts';
 
@@ -157,24 +158,56 @@ export function createComputerTools(app: AppContext): Tool[] {
       if (!online.length) {
         return `${NO_COMPUTER} To let you use their computer, the owner installs the Sara app for Windows or Mac and switches on "Let Sara use this computer" in it (the chat shows them a card with the download link). Phones can watch and stop you but can't be driven. Meanwhile you can test web apps in your own testing browser on the server (browser_open), or they can send you a screenshot.${list.length ? ` Signed in but not connected now: ${list.map((d) => `"${nameOf(d)}"`).join(', ')} (the app there is closed, asleep or offline).` : ''}`;
       }
-      const lines = online.map((d) => `- "${nameOf(d)}" (${d.app ?? 'Sara app'}${d.os ? `, ${d.os}` : ''}): ${d.optIn?.browser ? `the Sara browser${d.browser?.name ? ` (${d.browser.name})` : ''} is yours to look, read and navigate` : '"Let Sara use this computer" is off there'}; pictures ${d.localOnly ? 'only to models on the owner\u2019s own computers' : 'to the model in use'}${d.busy ? '; busy with a task now' : ''}.`);
+      const lines = online.map((d) => `- "${nameOf(d)}" (${d.app ?? 'Sara app'}${d.os ? `, ${d.os}` : ''}): ${d.optIn?.browser ? `the Sara browser${d.browser?.name ? ` (${d.browser.name})` : ''} is yours to look, read and navigate` : '"Let Sara use this computer" is off there'}; pictures ${d.localOnly ? 'only to models on the owner\u2019s own computers' : 'to the model in use'}${d.ops?.includes('c.tunnel') ? '; the dev tunnel works there (pc_browser_open with app_port)' : ''}${d.busy ? '; busy with a task now' : ''}.`);
       const off = list.filter((d) => !d.connected);
       return `Computers you can use:\n${lines.join('\n')}${off.length ? `\nNot connected now: ${off.map((d) => `"${nameOf(d)}"`).join(', ')}.` : ''}\nYou can open pages, go back/forward/reload, look (element list, screenshot), read text, list tabs, read console and network logs, and act: click, type, choose in lists, press keys, scroll and upload a file the owner named. Look first; act on refs from your latest look; look again after each action. Actions may ask the owner first (an approval card); payments and account settings always do. If the owner takes over (moves the mouse in the Sara browser) you are paused: stop and wait.`;
     },
+  };
+
+  /** Phase 89: a loopback address (localhost, 127.x, [::1]) and its port, or undefined. */
+  const loopPort = (raw: string): { port: number; path: string } | undefined => {
+    try {
+      const u = new URL(raw);
+      if (u.protocol !== 'http:' || !/^(localhost|127(\.\d{1,3}){3}|\[::1\])$/i.test(u.hostname)) return undefined;
+      return { port: Number(u.port || 80), path: `${u.pathname}${u.search}${u.hash}` };
+    } catch {
+      return undefined;
+    }
+  };
+  /** Phase 89: does a dev tunnel fit this call (an app_port, or a localhost address her job listens on here)? */
+  const tunnelPlan = async (args: Record<string, unknown>, conversationId: string): Promise<{ port: number; path: string } | undefined> => {
+    const conv = app.store.getConversation(conversationId);
+    if (!conv || !app.jobs) return undefined;
+    const given = args.app_port;
+    if (given !== undefined && given !== null && given !== '') {
+      const path = typeof args.url === 'string' && args.url ? (loopPort(args.url)?.path ?? '/') : typeof args.path === 'string' && args.path.startsWith('/') ? args.path : '/';
+      return { port: Number(given), path };
+    }
+    const lp = typeof args.url === 'string' ? loopPort(args.url) : undefined;
+    if (!lp) return undefined;
+    // Already the local end of one of her tunnels: opened as it is.
+    const h = hub();
+    if (h && h.devices().some((d) => d.connected && h.tunnels.byLocalPort(d.id, lp.port))) return undefined;
+    if (app.previews && (await app.previews.jobOwnsPort(lp.port, conv.workspace, app.jobs))) return lp;
+    return undefined;
   };
 
   const open: Tool = {
     defaultPermission: 'auto',
     spec: {
       name: 'pc_browser_open',
-      description: "Open a web page in the Sara browser on the owner's computer (a real, visible browser with its own profile; they can watch). The browser runs ON the owner's computer, so localhost and 127.0.0.1 mean that computer: use the address exactly as the owner wrote it (never swap it for another IP). Use it to look at their web app (http://localhost:5173 when the app runs on that computer, or a preview link) or a site they named. Opening a site they didn't name asks them first. Then pc_browser_logs (errors first), pc_browser_look and pc_browser_read.",
-      parameters: obj({ url: { type: 'string', description: 'http(s) address' }, new_tab: { type: 'boolean' }, ...COMPUTER_ARG }, ['url']),
+      description:
+        "Open a web page in the Sara browser on the owner's computer (a real, visible browser with its own profile; they can watch). The browser runs ON the owner's computer, so localhost and 127.0.0.1 mean that computer: use the address exactly as the owner wrote it (never swap it for another IP). For a web app YOUR background job runs here on the server (start_job, e.g. `npm run dev`), give app_port: the dev tunnel opens it at http://127.0.0.1:<port> on their computer, with storage and hot reload working, and it closes when the job stops. Opening a site they didn't name asks them first. The debug loop: open → pc_browser_logs (errors first) → pc_browser_look → fix the code in your workspace → hot reload or pc_browser_navigate reload → logs and look again until it's clean; report what you saw, not what you hoped.",
+      parameters: obj({ url: { type: 'string', description: 'http(s) address (with app_port: just the path part is used, default /)' }, app_port: { type: 'integer', description: 'The port your background job\u2019s dev server listens on here on the server (opens it through the dev tunnel)' }, new_tab: { type: 'boolean' }, ...COMPUTER_ARG }),
     },
     isAvailable: anyOnline,
-    summarize: (a) => `open ${String(a.url ?? '').replace(/\/preview\/([0-9a-f]{6})[0-9a-f]{26}/, '/preview/$1…').slice(0, 120)} in the Sara browser`,
+    summarize: (a) => (a.app_port !== undefined && a.app_port !== null && a.app_port !== '' ? `open the app on port ${String(a.app_port)} in the Sara browser (dev tunnel)` : `open ${String(a.url ?? '').replace(/\/preview\/([0-9a-f]{6})[0-9a-f]{26}/, '/preview/$1…').slice(0, 120)} in the Sara browser`),
     async prepare(args, ctx) {
       const url = typeof args.url === 'string' ? args.url : '';
       if (!ctx.conversationId) return {};
+      // Phase 89: the dev tunnel checks the port itself (her job's, or refused): no card for it.
+      if (args.app_port !== undefined && args.app_port !== null && args.app_port !== '') return {};
+      if (!url) return { refuse: 'Error: Give url (or app_port for an app your background job runs on the server).' };
       const t = taskOf(ctx.conversationId);
       const conv = app.store.getConversation(ctx.conversationId);
       let jobPorts: number[] = [];
@@ -182,6 +215,9 @@ export function createComputerTools(app: AppContext): Tool[] {
         const u = new URL(url);
         const port = Number(u.port || (u.protocol === 'https:' ? 443 : 80));
         if (conv && app.previews && (await app.previews.jobOwnsPort(port, conv.workspace, app.jobs))) jobPorts = [port];
+        // The local end of one of her dev tunnels on a connected computer opens without a card too.
+        const h = hub();
+        if (h && loopPort(url) && h.devices().some((d) => d.connected && h.tunnels.byLocalPort(d.id, port)?.conversationId === ctx.conversationId)) jobPorts.push(port);
       } catch {
         /* the verdict says it's not an address */
       }
@@ -192,8 +228,26 @@ export function createComputerTools(app: AppContext): Tool[] {
     },
     async run(args, ctx) {
       const conv = convOf(ctx);
-      const url = str(args, 'url');
       const d = pick(args);
+      let url = str(args, 'url', false);
+      // Phase 89: her own dev server on the server → the dev tunnel to that computer.
+      let via = '';
+      const plan = await tunnelPlan(args, conv.id);
+      if (plan) {
+        if (!d.ops?.includes('c.tunnel')) {
+          if (args.app_port !== undefined && args.app_port !== null && args.app_port !== '') throw new ToolError(`The Sara app on ${nameOf(d)} can't open a dev tunnel yet (it needs Sara 2.22 or later there). Meanwhile use preview_start and open its link.`);
+        } else {
+          try {
+            const tv = await hub()!.tunnels.open({ deviceId: d.id, conversationId: conv.id, workspace: conv.workspace, port: plan.port, jobs: app.jobs, signal: ctx.signal });
+            url = `${tv.url}${plan.path.startsWith('/') ? plan.path : '/'}`;
+            via = ` through the dev tunnel (your background job #${tv.jobId} on port ${tv.port} here; on ${nameOf(d)} it is ${tv.url}: storage and hot reload work, and it closes when the job stops)`;
+          } catch (err) {
+            if (err instanceof TunnelError) throw new ToolError(`No dev tunnel: ${err.message}`);
+            throw err;
+          }
+        }
+      }
+      if (!url) throw new ToolError('Give url (or app_port for an app your background job runs on the server).');
       // prepare() decided allow/ask/block; reaching here means allowed: the site counts for this task.
       try {
         grantsOf(conv.id).add(siteOf(new URL(url)));
@@ -203,7 +257,7 @@ export function createComputerTools(app: AppContext): Tool[] {
       const r = await op(ctx, d, 'b.open', { url, newTab: args.new_tab === true, thumb: 320 });
       thumbs(ctx, r);
       const x = r.result;
-      return `Opened ${String(x.url ?? url)} in the Sara browser on ${nameOf(d)}${x.status ? ` (HTTP ${x.status})` : ''}. Title: ${String(x.title ?? '') || '(none)'}. Tab ${String(x.tab ?? '?')}.${problems(x)}`;
+      return `Opened ${String(x.url ?? url)} in the Sara browser on ${nameOf(d)}${via}${x.status ? ` (HTTP ${x.status})` : ''}. Title: ${String(x.title ?? '') || '(none)'}. Tab ${String(x.tab ?? '?')}.${problems(x)}${via ? ' Next: pc_browser_logs, then pc_browser_look.' : ''}`;
     },
   };
 
@@ -211,7 +265,7 @@ export function createComputerTools(app: AppContext): Tool[] {
     defaultPermission: 'auto',
     spec: {
       name: 'pc_browser_navigate',
-      description: 'Go back, forward or reload the page in the Sara browser on the owner\u2019s computer (reload after you changed their app, then check pc_browser_logs again).',
+      description: 'Go back, forward or reload the page in the Sara browser on the owner\u2019s computer. After you change the app\u2019s code: if hot reload already showed the change, just check again; otherwise reload, then pc_browser_logs (since the last number) and pc_browser_look to confirm the fix.',
       parameters: obj({ action: { type: 'string', enum: ['back', 'forward', 'reload'] }, ...TAB_ARG, ...COMPUTER_ARG }, ['action']),
     },
     isAvailable: anyOnline,
@@ -323,7 +377,7 @@ export function createComputerTools(app: AppContext): Tool[] {
     defaultPermission: 'auto',
     spec: {
       name: 'pc_browser_logs',
-      description: "Console errors and warnings, uncaught exceptions and failed network requests (method, address, status) of the page in the Sara browser on the owner's computer. Check it first when debugging their web app; pc_browser_request reads one response.",
+      description: "Console errors and warnings, uncaught exceptions and failed network requests (method, address, status) of the page in the Sara browser on the owner's computer. Check it first when debugging a web app: the file and line of an error point at the code to read and fix in your workspace; pc_browser_request reads one failed response. After a fix, call it again with since=<the last number> to see only what is new: no new errors is your proof, together with a look.",
       parameters: obj({ since: { type: 'integer', description: 'Only entries after this number (from an earlier call)' }, ...TAB_ARG, ...COMPUTER_ARG }),
     },
     isAvailable: anyOnline,

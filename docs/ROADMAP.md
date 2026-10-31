@@ -93,14 +93,25 @@ version's details are in the [changelog](../CHANGELOG.md).
 | 85 | Active recall: she brings up what worked last time when a task looks like an earlier one | ✅ 2.18 |
 | 86 | Red-team mode: before shipping, she tries to break her own app inside the sandbox and fixes what broke | ✅ 2.19 |
 | 87 | Computer use 1: her own browser on your computer (through the desktop app): look, read, console logs, live view | ✅ 2.20 |
-| 88 | Computer use 2: she clicks and types in it, with approvals (or *Always allowed*), a Stop button and takeover | | ✅ 2.21 |
-| 89 | Computer use 3: debug your web project in it (your dev server, hot reload) | 2.22 |
+| 88 | Computer use 2: she clicks and types in it, with approvals (or *Always allowed*), a Stop button and takeover | ✅ 2.21 |
+| 89 | Computer use 3: debug your web project in it (your dev server, hot reload) | ✅ 2.22 |
 | 90 | Computer use 4: saved logins, only when you say so, encrypted on your computer | 2.23 |
 | 91 | Computer use 5: use your password manager (Bitwarden, 1Password, KeePassXC…) to fill logins | 2.24 |
 | 92 | Computer use 6: she sees your desktop (screenshots and the accessibility tree) | 2.25 |
 | 93 | Computer use 7: she uses your mouse and keyboard | 2.26 |
 | 94 | Computer use 8: guided "tune up my computer" tasks | 2.27 |
 | 95 | Computer use 9: the same on Linux desktops | 2.28 |
+| 96 | Skills in the open Agent Skills format (recipes become skills; import and export) | 2.29 |
+| 97 | Skills she learns: notices what you ask again and again and offers to make it a skill | 2.30 |
+| 98 | Plugins and hooks: installable, each with only the permissions it asks for | 2.31 |
+| 99 | Kanban board: hand her a card and she works it in the background | 2.32 |
+| 100 | A2A: talk to other agents (and let listed agents talk to her) | 2.33 |
+| 101 | People: a card for each person in your life, used by her memory | 2.34 |
+| 102 | Webhooks: any service can start a task or tell her something | 2.35 |
+| 103 | Her own agenda (opt-in): goals and follow-ups she keeps with you | 2.36 |
+| 104 | Move in from another agent 1: Hermes Agent and OpenClaw (personality, memories, profile, history, skills, schedules), preview and Undo | 2.37 |
+| 105 | Move in 2: custom memory stores (SQLite, Postgres): she proposes how tables map, you confirm | 2.38 |
+| 106 | Move in 3: settings, channels and custom hooks translated (never run), with a full report of what came over | 2.39 |
 
 Ideas and requests are welcome in [Discussions](https://github.com/farena-ai/sara/discussions)
 and [issues](https://github.com/farena-ai/sara/issues). See [CONTRIBUTING.md](../CONTRIBUTING.md).

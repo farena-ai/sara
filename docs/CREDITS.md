@@ -23,6 +23,7 @@ terms; check the upstream page for the exact text before redistributing anything
 | Piece | Used for | Downloaded by | License / terms |
 |---|---|---|---|
 | [HumanEval](https://github.com/openai/human-eval) (OpenAI) | The public coding benchmark in [docs/RESULTS.md](RESULTS.md) | `scripts/bench-coding.ts`, cached in `outputs/bench-cache/` | MIT |
+| [MBPP sanitized](https://github.com/google-research/google-research/tree/master/mbpp) (Google Research), described in the [MBPP paper](https://arxiv.org/abs/2108.07732) | Optional sanitized coding benchmark in [docs/RESULTS.md](RESULTS.md) | `scripts/bench-coding.ts`, cached in `outputs/bench-cache/` | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), [dataset licensing](https://github.com/google-research/google-research#readme) |
 
 ## Online services Sara calls (only when you use the feature)
 
@@ -47,7 +48,9 @@ People who sent changes to Sara, newest first:
 - [@Ehsan-hash](https://github.com/Ehsan-hash): the Python command-line starter, the testing browser in
   `sara doctor`, and every weather code in the example tool (2.8.2; [#20](https://github.com/farena-ai/sara/pull/20),
   [#21](https://github.com/farena-ai/sara/pull/21), [#22](https://github.com/farena-ai/sara/pull/22)), and ordered
-  `.gitignore` negations in the code map (2.20; [#23](https://github.com/farena-ai/sara/pull/23)).
+  `.gitignore` negations in the code map (2.20; [#23](https://github.com/farena-ai/sara/pull/23)), previous and next links on
+  the docs site and the sanitized MBPP benchmark option (2.22; [#24](https://github.com/farena-ai/sara/pull/24),
+  [#25](https://github.com/farena-ai/sara/pull/25)).
 
 ## Thanks
 

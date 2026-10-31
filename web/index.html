@@ -1510,6 +1510,13 @@
       <h3>Your computers</h3>
       <ul id="cu-list" class="cu-list"></ul>
       <p id="cu-none" class="muted small" hidden>No computer lets Sara use it yet.</p>
+      <div id="cu-dev" hidden>
+        <h3>Dev tunnels <button type="button" class="tip" data-tip="When Sara runs a web app in a background job, she opens it in her browser on your computer at a real 127.0.0.1 address. Storage and hot reload work. It closes when the job stops.">?</button></h3>
+        <ul id="cu-tunnels" class="cu-list"></ul>
+        <p id="cu-tunnels-none" class="muted small">No dev tunnel is open.</p>
+        <label class="row">Which computer <select id="cu-tunnel-device" data-noauto></select></label>
+        <p class="row"><button id="cu-tunnel-try" type="button" class="ghost">Try the dev tunnel</button> <button type="button" class="tip" data-tip="Opens a small test page from this server in Sara's browser on that computer, through a tunnel, for 5 minutes. It checks storage, a live connection, sending data and a large file.">?</button></p>
+      </div>
       <div id="cu-acts" hidden>
         <h3>Her actions</h3>
         <label class="row">Approvals for clicking and typing <select id="cu-level" data-noauto><option value="task">Ask once per task</option><option value="ask">Ask every time</option><option value="always">Always allowed</option></select> <button type="button" class="tip" data-tip="Once per task (default): her first action on a site asks. Every time: each action asks. Always allowed: no cards. Payments and account settings always ask.">?</button></label>
