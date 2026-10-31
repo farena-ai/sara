@@ -25,6 +25,8 @@ async function api(path, opts = {}) {
 
 const MAX_PNG = 20 * 1024 * 1024;
 const MAX_JSON = 2 * 1024 * 1024;
+/** A Sara character file (her own export, pictures included): the server's MAX_CHARACTER. */
+const MAX_SARA_FILE = 60 * 1024 * 1024;
 let hooks = { onImported: async () => {}, picture: () => '/sara-portrait.jpg', name: () => 'character' };
 let draft = null;
 
@@ -33,9 +35,11 @@ const status = (text) => ($('#card-status').textContent = text);
 async function preview(file) {
   status('');
   const png = /\.png$/i.test(file.name) || file.type === 'image/png';
-  if (file.size > (png ? MAX_PNG : MAX_JSON)) return status(png ? t('The picture is too big (up to 20 MB).') : t('The character card is too big (up to 2 MB).'));
   // One Import for both kinds: a Sara character file goes to its own preview (look and voice too).
-  if (!png && (await isSaraFile(file))) return void openSaraFile(file);
+  // It's checked before the card size limit: Sara's own export carries her pictures, so it's often
+  // well over a card's 2 MB (its own limit is 60 MB, as on the server).
+  if (!png && file.size <= MAX_SARA_FILE && (await isSaraFile(file))) return void openSaraFile(file);
+  if (file.size > (png ? MAX_PNG : MAX_JSON)) return status(png ? t('The picture is too big (up to 20 MB).') : t('The character card is too big (up to 2 MB).'));
   status(t('Reading the card…'));
   try {
     const r = await api('/character/card/preview', { method: 'POST', raw: await file.arrayBuffer(), type: png ? 'image/png' : 'application/json' });

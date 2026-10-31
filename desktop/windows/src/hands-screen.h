@@ -11,6 +11,7 @@
 #include <windows.h>
 #include <string>
 #include <vector>
+#include <functional>
 
 namespace sarascreen {
 
@@ -27,6 +28,7 @@ struct Result {
 };
 
 /** The person's own extra list ("Also hide these windows"), one name per line (UTF-8). */
+void setServerOrigin(const std::string& origin);
 void setExtraBlocklist(const std::string& lines);
 /** {screens:[{id, w, h, scale, primary}]} */
 std::string screensJson();
@@ -36,5 +38,23 @@ Result windows();
 Result shot(const std::string& window, const std::string& screen, const std::vector<int>& area, int maxEdge, bool marks, int thumb);
 /** d.elements {window?, viewId?, limit} */
 Result elements(const std::string& window, const std::string& viewId, int limit);
+
+// All coordinates are in the named view, including drag endpoints. The callback is checked
+// before each synthesized event as well as before accessibility actions.
+constexpr ULONG_PTR kInputTag = 0x53415241;
+inline bool ownMouseInput(DWORD flags, ULONG_PTR tag) { return (flags & LLMHF_INJECTED) && tag == kInputTag; }
+inline bool ownKeyInput(DWORD flags, ULONG_PTR tag) { return (flags & LLKHF_INJECTED) && tag == kInputTag; }
+#ifdef SARA_TEST_HOOKS
+std::string policyConformance();
+#endif
+struct Action {
+  std::string op, window, viewId, ref, text, combo, app;
+  double x = -1, y = -1, toX = -1, toY = -1, dx = 0, dy = 0;
+  bool right = false, twice = false;
+};
+struct ActionInfo { std::string target; bool once = false; };
+Result inspect(const Action& a, ActionInfo& info);
+Result refreshApproved(Action& a);
+Result input(const Action& a, const std::function<bool()>& cancelled);
 
 }  // namespace sarascreen

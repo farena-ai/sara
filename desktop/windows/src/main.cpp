@@ -1121,6 +1121,8 @@ static void handsSync() {
   h.localOnly = getIni(handsSection(), L"handsLocalOnly") == L"1";
   // Phase 88: her actions: takeover choice, Downloads\Sara, the local log, token renewal, TEST label.
   h.keepControl = getIni(handsSection(), L"handsTakeover") == L"keep";
+  h.desktopLevel = getIni(handsSection(), L"handsDesktopLevel") == L"ask" ? 0 : getIni(handsSection(), L"handsDesktopLevel") == L"always" ? 2 : 1;
+  h.walkAway = getIni(handsSection(), L"handsWalkAway") == L"1";
   // Phase 92: "The whole screen" (look only) and the person's own hidden windows.
   h.desktopOn = getIni(handsSection(), L"handsDesktop") == L"1";
   h.blockExtra = toUtf8(unescapeLines(getIni(handsSection(), L"handsBlockExtra")));
@@ -1166,7 +1168,7 @@ static std::wstring handsPrefsJson() {
   return std::wstring(L",\"handsSupported\":true,\"handsOptIn\":") + (handsOn() ? L"true" : L"false") + L",\"handsLocalOnly\":" + (getIni(handsSection(), L"handsLocalOnly") == L"1" ? L"true" : L"false") +
          L",\"handsConnected\":" + (sarahands::connected() ? L"true" : L"false") + L",\"handsDeviceId\":\"" + jsonEscape(getIni(handsSection(), L"handsId")) + L"\",\"handsError\":\"" +
          jsonEscape(sarahands::lastError()) + L"\",\"handsBrowser\":" + (sarahands::browserPath().empty() ? L"false" : L"true") + L",\"computerName\":\"" + jsonEscape(computerName()) + L"\"" +
-         L",\"handsTakeover\":\"" + (getIni(handsSection(), L"handsTakeover") == L"keep" ? L"keep" : L"pause") + L"\",\"handsHotkey\":\"" + jsonEscape(sarahands::hotkeyLabel()) + L"\"" +
+         L",\"handsDesktopLevel\":\"" + (getIni(handsSection(), L"handsDesktopLevel").empty() ? L"task" : getIni(handsSection(), L"handsDesktopLevel")) + L"\",\"handsTakeover\":\"" + (getIni(handsSection(), L"handsTakeover") == L"keep" ? L"keep" : L"pause") + L"\",\"handsWalkAway\":" + (getIni(handsSection(), L"handsWalkAway") == L"1" ? L"true" : L"false") + L",\"handsHotkey\":\"" + jsonEscape(sarahands::hotkeyLabel()) + L"\"" +
          L",\"loginsSupported\":true,\"loginsVerify\":" + (getIni(handsSection(), L"loginsVerify") == L"1" ? L"true" : L"false") +
          L",\"pmSupported\":true" +
          // Phase 92: the whole screen (Windows needs no extra permission to look, so no handsPerms here).
@@ -2513,6 +2515,17 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
       bool keepIt = m[L"value"] == L"keep";
       setIni(handsSection(), L"handsTakeover", keepIt ? L"keep" : L"pause");
       sarahands::setTakeover(keepIt);
+    }
+    else if (key == L"handsDesktopLevel") {
+      std::wstring value = m[L"value"];
+      if (value != L"ask" && value != L"task" && value != L"always") return reply(id, L"null", L"Invalid desktop approval level");
+      if (value == L"always" && MessageBoxW(g_wnd, L"Sara may act on desktop apps without approval cards. Payments and account changes still ask. Protected windows and password fields stay refused. Stop always works. Allow this on this computer?", L"Desktop actions: Always allowed", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES) return reply(id, L"null", L"Not allowed on this computer");
+      setIni(handsSection(), L"handsDesktopLevel", value);
+      sarahands::setDesktopLevel(value == L"ask" ? 0 : value == L"always" ? 2 : 1);
+    }
+    else if (key == L"handsWalkAway") {
+      setIni(handsSection(), L"handsWalkAway", on ? L"1" : L"0");
+      sarahands::setWalkAway(on);
     }
     else return reply(id, L"null", L"Unknown setting");
     return reply(id, prefsJson());

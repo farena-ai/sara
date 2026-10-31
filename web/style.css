@@ -1478,3 +1478,8 @@ body:not(.member) [data-member-only] { display: none !important; }
 .rcard-computer .rc-url { color: var(--text-3); font-size: .85em; overflow-wrap: anywhere; }
 .rcard-hands-install .button-link, .cu-get .button-link { margin-top: 6px; min-height: 44px; line-height: 30px; }
 @media (max-width: 600px) { .cu-live-img { max-height: 120px; } .cu-live { padding: 6px; gap: 4px; } }
+
+/* Desktop control settings retain comfortable targets on touch screens. */
+#cu-this .row { min-height: 44px; }
+#cu-desktop-level, #cu-takeover { min-height: 44px; }
+#cu-this .tip { min-width: 44px; min-height: 44px; }

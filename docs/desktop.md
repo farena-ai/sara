@@ -296,7 +296,7 @@ on fds 3 and 4). Both bundle `desktop/shared/page-agent.js` (Windows: RCDATA `ID
 
 - **The whole screen** (a second switch under Let Sara use this computer, off by default, with its own
   explainer; `handsDesktop` in `desktop.ini` / `hands.<server>.desktop`): Sara may **look** at the screen
-  and windows (`d.screens`, `d.windows`, `d.shot`, `d.elements`). No input on the desktop yet (CU6).
+  and windows (`d.screens`, `d.windows`, `d.shot`, `d.elements`). Phase 93 adds locally approved desktop input (draft; see below).
 - Windows (`desktop/windows/src/hands-screen.cpp`): pictures with GDI (`BitBlt` + `CAPTUREBLT` for a
   screen or an area, `PrintWindow(PW_RENDERFULLCONTENT)` for one window), element lists with UI Automation
   (control view, depth 8, 300 items, `IsPassword` fields never read), JPEG through WIC. The app's own
@@ -316,6 +316,58 @@ on fds 3 and 4). Both bundle `desktop/shared/page-agent.js` (Windows: RCDATA `ID
   `SARA_TEST_HANDS_DESKTOP=1` next to `SARA_TEST_HANDS_TOKEN`. Conformance section 12:
   `--desktop --desktop-window "<fixture title>" --desktop-text "<text>" --desktop-blocked-area x,y,w,h` with
   `SARA_CU5_SECRET` (the fixture password field's value); `--ref --desktop` uses the fixture desktop.
+
+### Desktop actions (Phase 93 implementation draft; not released)
+
+With **The whole screen** on, Sara can request clicks, non-secret typing, safe keys, scrolling,
+dragging and installed-app launch. She looks first and checks the result after each action. Text-only
+models use accessibility refs without taking a picture. Views bind to an exact window/control and
+expire after 20 seconds; a slow local approval revalidates that same target before proceeding.
+
+On that computer, Settings → Computer use has **Approvals for her desktop**: **Ask once per task**
+(default), **Ask every time**, or **Always allowed** (a native warning first). Desktop cards are
+answered there: **Allow once / Allow for this task / Don't**. A phone cannot answer them. Payments,
+card fields and account changes still ask once. Task grants end with the task, Stop or disconnect.
+
+**When you move the mouse** also covers keyboard input anywhere during a desktop task. **Pause Sara**
+is the default; Resume is on her badge. **Let Sara keep control** continues while you use the computer.
+Stop and **Ctrl+Alt+Esc** / **Control-Option-Esc** work in both modes; if the global shortcut or input
+monitoring is unavailable, desktop input stays off. Sara ignores only her own tagged synthesized
+input. **Keep working when I walk away** is off by default and holds system/display wake requests
+for the task. It does not unlock the computer, defeat a security lock policy or force a re-lock.
+
+The computer refuses secure/password fields, elevated windows, locked/secure desktops, protected or
+Sara windows, Sara's own browser origin, uncheckable browser addresses, unsafe system keys and
+unencrypted non-loopback connections. Terminal/system-settings and Explorer/Finder input are also
+conservatively refused. Installed apps are named by Start-menu shortcut on Windows or bundle ID on
+Mac; arbitrary paths and commands are not accepted. After an approval, the actual target must again
+be in front. Drag endpoints and paths stay inside that target window.
+
+Native implementation: Windows UIA Invoke/Value/Scroll then tagged SendInput; low-level global hooks,
+Win32 local card, SetThreadExecutionState. Mac AX actions/values then tagged CGEvents; listen-only
+CGEvent tap, NSAlert local card and IOPMAssertions. Input monitoring is registered while the hands
+channel runs and observes takeover only during opted-in desktop tasks. This feature is for the
+Developer ID Mac app, not an App Store sandbox build.
+
+**Remaining owner acceptance:** use an isolated fixture, never a real password or account. On Mac,
+allow the exact test/release app in System Settings → Privacy & Security → Screen Recording and
+Accessibility; if macOS requests Input Monitoring, allow that exact app there too, then quit/reopen.
+Check the native card's three choices, type into the fixture's Name field, Save, and confirm the
+password field is refused. While she works, move your real mouse and press a key in another app:
+she must pause within one action; Resume must work. Confirm Stop/the shortcut in a full-screen
+fixture, both takeover modes, both display scales, and drag. Verify wake release on Stop and task
+end. These are pending; automated tests and successful native compilation do not replace them.
+
+For native checks without any input, build Windows with `SARA_TEST_HOOKS=ON`, target
+`CU6NativeChecks`; on Mac compile a separate bundle ID with `swiftc -Onone -D DEBUG -swift-version 5
+-target arm64-apple-macos13.0 -o <test-app>/Contents/MacOS/Sara desktop/mac/Sources/*.swift`.
+`node scripts/hands-conformance.ts --server <throwaway-server> --token-file <test-owner-token>
+--native-desktop-permissions <test-executable> --json <receipt>` runs native policy/precondition
+checks. The Mac CLI reports its actual permission state and uses invalid views, so it never posts
+an event even if Accessibility happens to be trusted. `--desktop-permissions-only` is the channel
+variant for a connected test copy without Accessibility. Do not count either as positive native
+input, card interaction or a full-screen Stop test. `--ref --desktop` runs the complete reference
+suite. The test-only `CU6Fixture` target is a small native form; no installed app/data is replaced.
 
 ### Sara-Setup.exe: her server and the app together (Phase 46c)
 

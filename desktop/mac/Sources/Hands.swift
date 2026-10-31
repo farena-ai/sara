@@ -30,6 +30,7 @@ import AppKit
 import Carbon.HIToolbox
 import Security
 import LocalAuthentication
+import IOKit.pwr_mgt
 
 // MARK: small helpers
 
@@ -1175,11 +1176,13 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
                                   // Phase 91 (CU4b): the owner's password managers (the person unlocks; Sara relocks)
                                   "b.unlock", "b.relock",
                                   // Phase 92 (CU5): desktop look (HandsScreen.swift); only with "The whole screen" on.
-                                  "d.screens", "d.windows", "d.shot", "d.elements"]
+                                   "d.screens", "d.windows", "d.shot", "d.elements",
+                                   // Phase 93 (CU6): supervised desktop input.
+                                   "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch", "c.endTask"]
   /// Ops that act: they count against the input rate limit and stop when the person takes over.
-  static let inputOps: Set<String> = ["b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login"]
+  static let inputOps: Set<String> = ["b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch"]
   /// Phase 90: ops that wait for the person (the consent panel, "Your turn"): up to 10 minutes.
-  static let waitingOps: Set<String> = ["b.saveLogin", "b.yourTurn", "b.unlock"]
+  static let waitingOps: Set<String> = ["b.saveLogin", "b.yourTurn", "b.unlock", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch"]
   /// Phase 91: the owner's password managers on this Mac.
   let pm = HandsManagers()
   /// Phase 90: Touch ID before a saved login is used (off by default).
@@ -1194,6 +1197,16 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
   var localOnly: Bool
   /// Phase 92: "The whole screen" (desktop look, off by default).
   var desktop = false
+  /// Phase 93: keep-awake is an explicit owner preference; it never unlocks or bypasses approvals.
+  var walkAway = false
+  var desktopLevel = "task"
+  private var desktopGrants: [String: Date] = [:]
+  private var desktopUntil = Date.distantPast
+  private var desktopApproving = false
+  private var desktopTap: CFMachPort?
+  private var desktopTapSource: CFRunLoopSource?
+  private var awakeAssertion: IOPMAssertionID = 0
+  private var displayAssertion: IOPMAssertionID = 0
   private var looking = false
   let browser: HandsBrowser
   private var session: URLSession!
@@ -1237,7 +1250,7 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
   let tunnels = HandsTunnels()
 
   init(server: String, token: String, computer: String, profileDir: URL, pageAgent: String, version: String, localOnly: Bool,
-       keep: Bool = false, downloadsDir: URL, logFile: URL, expiresAt: String = "", testLabel: Bool = false) {
+       keep: Bool = false, walkAway: Bool = false, downloadsDir: URL, logFile: URL, expiresAt: String = "", testLabel: Bool = false) {
     self.server = server
     self.token = token
     self.computer = computer
@@ -1245,10 +1258,12 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     self.version = version
     self.localOnly = localOnly
     self.keep = keep
+    self.walkAway = walkAway
     self.downloadsDir = downloadsDir
     self.logFile = logFile
     self.expiresAt = expiresAt
     self.testLabel = testLabel
+    HandsScreen.setServerOrigin(server)
     browser = HandsBrowser(serverOrigin: server.lowercased(), profileDir: profileDir)
     browser.downloadsDir = downloadsDir
     if !pageAgent.isEmpty { browser.catchScript = "(\(pageAgent)).call(\"catchLogins\", {})" }
@@ -1281,11 +1296,12 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     sendText(jsonText(["t": "ev", "kind": "managers", "managers": pm.views(), "relockMinutes": pm.relockMinutes] as [String: Any]))
   }
   /// Phase 91: lock the managers again (Stop, a dropped connection), off the caller's thread.
-  func requestLock() { DispatchQueue.global().async { [pm] in pm.lockAll("stopped") } }
+  func requestLock() { endDesktopTask(); DispatchQueue.global().async { [pm] in pm.lockAll("stopped") } }
 
   func stop() {
     lock.lock()
     stopping = true
+    desktopUntil = .distantPast; desktopGrants.removeAll()
     for c in cancels.values { c.set() }
     lock.unlock()
     tunnels.closeAll()
@@ -1399,7 +1415,7 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     var browserInfo: [String: Any] = ["found": browser.found != nil]
     if let f = browser.found { browserInfo["kind"] = f.kind; browserInfo["name"] = f.name }
     return jsonText(["t": "hello", "v": 1, "app": version, "os": "macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion)", "computer": computer, "screens": HandsScreen.screensList(),
-                     "browser": browserInfo, "perms": ["capture": HandsScreen.perms.capture, "input": false, "ax": HandsScreen.perms.ax], "optIn": ["browser": true, "desktop": desktop], "approvalsHere": false,
+                     "browser": browserInfo, "perms": ["capture": HandsScreen.perms.capture, "input": HandsScreen.perms.ax, "ax": HandsScreen.perms.ax], "optIn": ["browser": true, "desktop": desktop], "approvalsHere": true, "walkAway": walkAway,
                      "logins": HandsLogins.views(server: browser.serverOrigin), "vault": ["kind": "keychain", "verify": verify], "busy": false, "localOnly": localOnly, "ops": Array(Hands.ops).sorted(),
                      "takeover": keep ? "keep" : "pause", "hotkey": hotkeyOk ? "⌃⌥Esc" : "", "paused": paused, "renew": true,
                      "managers": pm.views(), "relockMinutes": pm.relockMinutes] as [String: Any])
@@ -1422,6 +1438,7 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     lock.lock()
     for c in cancels.values { c.set() }
     // Stop ends the task: the badge goes, and a pause ends with it.
+    desktopUntil = .distantPast; desktopGrants.removeAll()
     let wasPaused = paused
     paused = false
     lastOpAt = .distantPast
@@ -1445,9 +1462,12 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
   /// The switches and permissions as the server should know them (Phase 92: the whole screen, the Mac's two permissions).
   func tellOptIn() {
     let p = HandsScreen.perms
-    sendText(jsonText(["t": "ev", "kind": "optin", "optIn": ["browser": true, "desktop": desktop], "localOnly": localOnly, "takeover": keep ? "keep" : "pause", "perms": ["capture": p.capture, "input": false, "ax": p.ax]] as [String: Any]))
+    sendText(jsonText(["t": "ev", "kind": "optin", "optIn": ["browser": true, "desktop": desktop], "localOnly": localOnly, "takeover": keep ? "keep" : "pause", "walkAway": walkAway, "perms": ["capture": p.capture, "input": p.ax, "ax": p.ax]] as [String: Any]))
   }
+  func tellWalkAway(_ on: Bool) { walkAway = on; tellOptIn() }
+  func tellDesktopLevel(_ level: String) { lock.lock(); desktopLevel = level; desktopGrants.removeAll(); lock.unlock() }
   func tellDesktop(_ on: Bool) {
+    if !on { endDesktopTask() }
     desktop = on
     tellOptIn()
   }
@@ -1567,7 +1587,7 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
       guard let self else { return }
       let started = Date()
       var reply: [String: Any]
-      let shows = op != "c.ping" && op != "b.tabs"
+      let shows = op != "c.ping" && op != "b.tabs" && op != "c.endTask"
       if shows {
         self.lock.lock()
         if !opWhat.isEmpty { self.what = opWhat }
@@ -1597,7 +1617,7 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
       }
       let text = jsonText(reply)
       self.lock.lock()
-      if shows { self.opRunning = false; self.lastOpAt = Date() }
+      if shows { self.opRunning = false; self.lastOpAt = cancel.isSet && !self.paused ? .distantPast : Date() }
       self.acting.remove(id)
       self.takenOver.remove(id)
       self.cancels[id] = nil
@@ -1610,8 +1630,36 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
   }
 
   /// Phase 92: d.screens / d.windows / d.shot / d.elements, with HandsScreen's rules.
-  private func desktopOp(id: String, op: String, _ a: [String: Any]) throws -> [String: Any] {
+  private func desktopOp(id: String, op: String, _ a: [String: Any], cancel: HandsCancel) throws -> [String: Any] {
     guard desktop else { throw HandsOpError(code: "denied_local", message: "\"The whole screen\" is off on this Mac: only the person here can switch it on, in the Sara app.") }
+    if Hands.inputOps.contains(op) {
+      guard let url = URLComponents(string: server), url.scheme == "https" || ["localhost", "127.0.0.1", "::1", "[::1]"].contains(url.host ?? "") else { throw HandsScreen.denied("Desktop input is refused over an unencrypted connection unless it is loopback.") }
+      guard hotkeyOk else { throw HandsScreen.denied("The global Stop shortcut is unavailable. Desktop input stays off until it is available.") }
+      guard let tap = desktopTap, CGEvent.tapIsEnabled(tap: tap) else { throw HandsOpError(code: "perm_missing", message: "Desktop input monitoring is unavailable. Allow Sara in System Settings → Privacy & Security → Accessibility (and Input Monitoring if macOS asks), then reopen Sara.") }
+      var action = a
+      let info = try HandsScreen.inspectInput(op, action)
+      lock.lock()
+      desktopGrants = desktopGrants.filter { Date().timeIntervalSince($0.value) < 15 * 60 }
+      let taskName = String((a["task"] as? String ?? "").prefix(160))
+      let level = a["approvalLevel"] as? String == "ask" ? "ask" : desktopLevel
+      let once = info.once || a["forceOnce"] as? Bool == true
+      let granted = level == "always" || (level == "task" && !taskName.isEmpty && desktopGrants[taskName] != nil)
+      desktopUntil = Date().addingTimeInterval(15 * 60)
+      lock.unlock()
+      updateBadge()
+      if once || !granted {
+        lock.lock(); desktopApproving = true; lock.unlock()
+        let answer = HandsDesktopApproval.ask(info.summary, taskChoice: !once && level == "task" && !taskName.isEmpty, test: testLabel, cancel: cancel)
+        lock.lock(); desktopApproving = false; lock.unlock()
+        sendText(jsonText(["t": "ev", "kind": "local_approval", "allowed": answer > 0]))
+        guard answer > 0, !cancel.isSet else { throw HandsScreen.denied("The person at this computer did not approve that action.") }
+        if op != "d.launch" { try HandsScreen.refreshApproved(&action, operation: op) }
+        if answer == 2 { lock.lock(); desktopGrants[taskName] = Date(); lock.unlock() }
+      }
+      let result = try HandsScreen.input(op, action, cancelled: { self.lock.lock(); defer { self.lock.unlock() }; return cancel.isSet || self.paused || self.stopping || !self.desktop })
+      localLog(op, info.summary, taskName)
+      return result
+    }
     switch op {
     case "d.screens": return ["screens": HandsScreen.screensList()]
     case "d.windows": return HandsScreen.windows()
@@ -1674,6 +1722,7 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
 
   private func run(id: String, op: String, args a: [String: Any], cancel: HandsCancel, deadline: Double) throws -> [String: Any] {
     guard Hands.ops.contains(op) else { throw HandsOpError(code: "unsupported", message: "This computer doesn't do \"\(op.prefix(40))\" (not in its command set).") }
+    if op == "c.endTask" { endDesktopTask(); return ["ended": true] }
     if op == "c.ping" { return ["pong": true, "at": Date().timeIntervalSince1970] }
     // Phase 88: nothing acts while the person has taken over; and the device's own rate limit.
     if Hands.inputOps.contains(op) {
@@ -1697,7 +1746,7 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     if op == "b.relock" { return ["locked": pm.lockAll("the task ended").map { handsPms[$0].id }] }
     if op == "b.unlock" { return try unlockOp(a, cancel) }
     // Phase 92 (CU5): desktop look, never the Sara browser.
-    if op.hasPrefix("d.") { return try desktopOp(id: id, op: op, a) }
+    if op.hasPrefix("d.") { return try desktopOp(id: id, op: op, a, cancel: cancel) }
     if op != "b.tabs" || browser.running { try browser.start() }
     switch op {
     case "b.start": return ["browser": ["kind": browser.found?.kind ?? "", "name": browser.found?.name ?? ""], "tabs": tabsList()]
@@ -2168,6 +2217,11 @@ extension Hands {
     timer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in self?.tick() }
   }
   func tearDownUI() {
+    if let tap = desktopTap { CGEvent.tapEnable(tap: tap, enable: false); CFMachPortInvalidate(tap) }
+    if let source = desktopTapSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
+    desktopTap = nil; desktopTapSource = nil
+    if awakeAssertion != 0 { IOPMAssertionRelease(awakeAssertion); awakeAssertion = 0 }
+    if displayAssertion != 0 { IOPMAssertionRelease(displayAssertion); displayAssertion = 0 }
     timer?.invalidate()
     timer = nil
     if let r = hotKeyRef { UnregisterEventHotKey(r) }
@@ -2201,17 +2255,19 @@ extension Hands {
   }
   #endif
   func updateBadge() { DispatchQueue.main.async { [weak self] in self?.tick(force: true) } }
-  private var badgeActive: Bool { lock.lock(); defer { lock.unlock() }; return paused || opRunning || Date().timeIntervalSince(lastOpAt) < 30 }
+  private var badgeActive: Bool { lock.lock(); defer { lock.unlock() }; return Date() < desktopUntil || paused || opRunning || Date().timeIntervalSince(lastOpAt) < 30 }
   private func badgeText() -> String {
     lock.lock()
     let p = paused, w = what, kept = keep && Date().timeIntervalSince(keptAt) < 8, look = looking
     lock.unlock()
     let pre = testLabel ? "TEST · " : ""
-    if p { return pre + "Paused: you're in control of the Sara browser" }
+    if p { return pre + "Paused: you're in control of this computer" }
     // Phase 92: the read-only form while she looks at the desktop (§7.2).
-    return pre + (look ? "Sara is looking at your screen" : "Sara is working in her browser") + (w.isEmpty ? "" : " · \(w)") + (kept ? " · she keeps control" : "")
+    return pre + (look ? "Sara is working on your computer" : "Sara is working in her browser") + (w.isEmpty ? "" : " · \(w)") + (kept ? " · she keeps control" : "")
   }
   private func tick(force: Bool = false) {
+    if desktopTap == nil && AXIsProcessTrusted() { installDesktopTap() }
+    updateDesktopPower()
     watchTakeover()
     guard let panel = badge, let label = badgeLabel else { return }
     let on = badgeActive
@@ -2235,6 +2291,8 @@ extension Hands {
   }
   /// Real input (not hers: DevTools input never reaches the Mac's event stream) in her window?
   private func watchTakeover() {
+    lock.lock(); let desktopTask = Date() < desktopUntil; lock.unlock()
+    if desktopTask { return }
     let pid = browser.browserPid
     lock.lock()
     let p = paused
@@ -2259,6 +2317,46 @@ extension Hands {
     let front = NSWorkspace.shared.frontmostApplication?.processIdentifier ?? 0
     if under == pid || front == pid { userInput() }
   }
+  func endDesktopTask() {
+    lock.lock(); desktopUntil = .distantPast; desktopGrants.removeAll(); lastOpAt = .distantPast; lock.unlock()
+    updateBadge()
+  }
+  private func updateDesktopPower() {
+    lock.lock(); let awake = walkAway && desktop && Date() < desktopUntil && !paused; lock.unlock()
+    if awake {
+      if awakeAssertion == 0 { _ = IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleSystemSleep as CFString, IOPMAssertionLevel(kIOPMAssertionLevelOn), "Sara computer task" as CFString, &awakeAssertion) }
+      if displayAssertion == 0 { _ = IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleDisplaySleep as CFString, IOPMAssertionLevel(kIOPMAssertionLevelOn), "Sara computer task" as CFString, &displayAssertion) }
+    } else {
+      if awakeAssertion != 0 { IOPMAssertionRelease(awakeAssertion); awakeAssertion = 0 }
+      if displayAssertion != 0 { IOPMAssertionRelease(displayAssertion); displayAssertion = 0 }
+    }
+  }
+  static func badgeMouseEvent(_ type: CGEventType) -> Bool { type == .leftMouseDown || type == .leftMouseUp }
+  private func installDesktopTap() {
+    let types: [CGEventType] = [.mouseMoved, .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp, .otherMouseDown, .otherMouseUp, .keyDown, .keyUp, .flagsChanged, .scrollWheel, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged]
+    let mask = types.reduce(CGEventMask(0)) { $0 | (CGEventMask(1) << $1.rawValue) }
+    desktopTap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .listenOnly, eventsOfInterest: mask, callback: { _, type, event, info in
+      guard let info else { return Unmanaged.passUnretained(event) }
+      let h = Unmanaged<Hands>.fromOpaque(info).takeUnretainedValue()
+      if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+        h.userInput(); if let tap = h.desktopTap { CGEvent.tapEnable(tap: tap, enable: true) }
+        return Unmanaged.passUnretained(event)
+      }
+      h.lock.lock(); let active = h.desktop && Date() < h.desktopUntil && !h.desktopApproving; h.lock.unlock()
+      let point = event.location
+      let screenH = NSScreen.screens.first?.frame.height ?? 0
+      let badgePoint = NSPoint(x: point.x, y: screenH - point.y)
+      let onBadge = Hands.badgeMouseEvent(type) && h.badge?.isVisible == true && h.badge?.frame.contains(badgePoint) == true
+      if active && !onBadge && event.getIntegerValueField(.eventSourceUserData) != HandsScreen.inputTag { h.userInput() }
+      return Unmanaged.passUnretained(event)
+    }, userInfo: Unmanaged.passUnretained(self).toOpaque())
+    if let tap = desktopTap {
+      desktopTapSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+      if let source = desktopTapSource { CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes) }
+      CGEvent.tapEnable(tap: tap, enable: true)
+    }
+  }
+
 }
 
 // MARK: Phase 90 (CU4, docs/design/COMPUTER_USE.md §8.2): saved logins in the Keychain

@@ -32,6 +32,10 @@
 // for an app give --desktop-window "<fixture title>" --desktop-text "<text in it>" --desktop-blocked-area
 // x,y,w,h (the fixture KeePass window, screen pixels) and SARA_CU5_SECRET = the fixture password field's value.
 // Only fixture windows and that area are pictured: never anyone's whole screen.
+// CU6: native no-input policy/precondition checks:
+// --native-desktop-permissions <test-executable> (Windows CU6NativeChecks; Mac DEBUG test bundle).
+// --desktop-permissions-only checks a connected permission-less test copy without opening a browser.
+// These modes are not positive native-input, local-card or full-screen Stop qualification.
 // Before starting an app for this, make its doubles with --make-pm <dir> (prints the folders to put in
 // SARA_PM_PATH and the config folders), with the same --fixture-port / --fixture-port3 as the run.
 // Runs the command set against one hands device connected to a Sara server, through the owner's
@@ -212,6 +216,14 @@ async function api(method: string, path: string, body?: unknown): Promise<{ stat
 }
 
 async function main(): Promise<number> {
+  if (arg('--native-desktop-permissions')) {
+    const native = spawnSync(arg('--native-desktop-permissions')!, ['--cu6-permission-check'], { encoding: 'utf8', timeout: 15_000, windowsHide: true });
+    const summary = JSON.parse(native.stdout) as { passed: number; failed: number; checks: Check[] };
+    for (const c of summary.checks) check(c.name, c.ok, c.detail ?? '');
+    console.log(`${summary.passed}/${summary.passed + summary.failed} native precondition/policy checks passed`);
+    if (arg('--json')) writeFileSync(arg('--json')!, JSON.stringify(summary, null, 2));
+    return native.status === 0 && summary.failed === 0 ? 0 : 1;
+  }
   const fx = createServer(fixture);
   const host = arg('--fixture-host') ?? '127.0.0.1';
   // --fixture-port: a fixed port (e.g. forwarded to another computer with ssh -R).
@@ -259,7 +271,7 @@ async function main(): Promise<number> {
       refPmDir = mkdtempSync(join(tmpdir(), 'sara-conf-pm-'));
       const made = makePm(refPmDir, port1, port3);
       const managers = new ManagerSessions({ search: made.search as string[], env: made.env as Record<string, string>, keepassDb: String(made.keepassDb), prompt: refPrompt, relockMs: Number(arg('--idle-seconds') ?? 20) * 1000 });
-      ref = new HandsRef({ server, token: String(pair.json.token), name: 'Conformance (hands-ref)', consent: refConsent, managers, ...(process.argv.includes('--desktop') ? { desktop: new TestDesktop(), optIn: { browser: true, desktop: true } } : {}) });
+      ref = new HandsRef({ server, token: String(pair.json.token), name: 'Conformance (hands-ref)', consent: refConsent, managers, desktopConsent: async () => 'once', ...(process.argv.includes('--desktop') ? { desktop: new TestDesktop(), optIn: { browser: true, desktop: true } } : {}) });
       await ref.start();
       for (const m of ['bitwarden', '1password', 'keepassxc'] as ManagerId[]) await ref.setManager(m, true);
       deviceId = String(pair.json.id);
@@ -275,10 +287,29 @@ async function main(): Promise<number> {
     console.log(`Device: ${dev.label} · ${dev.app} · ${dev.os ?? ''} · browser ${dev.browser?.name ?? '?'}\nFixture: ${base}\n`);
     const op = async (name: string, args: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => (await api('POST', `/api/hands/${deviceId}/op`, { op: name, args, ...extra })).json;
 
+    // Permission-only native check: no browser, screenshot, window listing or desktop input is performed.
+    if (process.argv.includes('--desktop-permissions-only')) {
+      console.log('13. CU6 permission-negative conformance (no desktop actions)');
+      check('CU6: native local approval surface exists', dev.approvalsHere === true);
+      check('CU6: whole-screen opt-in is enabled in the isolated test copy', dev.optIn?.desktop === true);
+      check('CU6: Accessibility has not been granted to this test copy', dev.perms?.ax === false);
+      const ping = await op('c.ping');
+      check('CU6: control channel responds without Accessibility', ping.ok === true && ping.result?.pong === true);
+      for (const name of ['d.elements', 'd.type', 'd.keys']) {
+        const result = await op(name, { viewId: 'v-not-a-real-view', ref: 'e1', text: 'never entered', combo: 'Enter' });
+        check(`CU6: ${name} refuses missing permission before any action`, result.ok === false && result.error?.code === 'perm_missing' && /System Settings/.test(String(result.error?.message)), String(result.error?.message ?? ''));
+      }
+      const failed = checks.filter(c => !c.ok);
+      const summary = { device: deviceId, passed: checks.length - failed.length, failed: failed.length, checks };
+      console.log(`\n${summary.passed}/${checks.length} permission checks passed`);
+      if (arg('--json')) writeFileSync(arg('--json')!, JSON.stringify(summary, null, 2));
+      return failed.length ? 1 : 0;
+    }
+
     // 1. hello
-    const browserOps = HANDS_OPS.filter((o) => !(CU5_OPS as readonly string[]).includes(o));
+    const browserOps = HANDS_OPS.filter((o) => !o.startsWith('d.'));
     check('hello: connected, protocol 1, the CU1 + CU2 + CU3 + CU4 + CU4b command set, browser opt-in on', dev.connected === true && Array.isArray(dev.ops) && browserOps.every((o) => dev.ops.includes(o)) && CU1_OPS.every((o) => dev.ops.includes(o)) && dev.optIn?.browser === true, `ops: ${(dev.ops ?? []).join(' ')}`);
-    check('hello: nothing beyond CU5 advertised (no scripts, no op that reads a password, no desktop input)', Array.isArray(dev.ops) && dev.ops.every((o: string) => (HANDS_OPS as readonly string[]).includes(o)) && !dev.ops.some((o: string) => /^b\.(evaluate|eval|script)|^d\.(click|type|keys|scroll|drag|launch|focus)|^p\./.test(o)), '');
+    check('hello: only the documented browser, control, look and supervised desktop ops are advertised', Array.isArray(dev.ops) && dev.ops.every((o: string) => (HANDS_OPS as readonly string[]).includes(o)) && (!dev.optIn?.desktop || [...CU5_OPS, 'd.click', 'd.type', 'd.keys', 'd.scroll', 'd.drag', 'd.launch'].every((o) => dev.ops.includes(o))) && !dev.ops.some((o: string) => /^b\.(evaluate|eval|script)|^p\./.test(o)), '');
     check('hello: the takeover choice and the stop shortcut', dev.takeover === 'pause' || dev.takeover === 'keep', `takeover ${dev.takeover ?? '?'}, shortcut ${dev.hotkey || '(none)'}`);
     const ping = await op('c.ping');
     check('c.ping', ping.ok === true && ping.result?.pong === true);
@@ -345,7 +376,7 @@ async function main(): Promise<number> {
     check('b.open newTab + b.close', nt.ok === true && closed.ok === true);
 
     // 6. refused on the device
-    for (const [o, a] of [['p.unlock', { manager: 'x' }], ['d.click', { x: 1, y: 1 }], ['d.type', { text: 'x' }], ['b.evaluate', { expression: '1+1' }]] as [string, Record<string, unknown>][]) {
+    for (const [o, a] of [['p.unlock', { manager: 'x' }], ['b.evaluate', { expression: '1+1' }]] as [string, Record<string, unknown>][]) {
       const x = await op(o, a);
       check(`refused on the device: ${o} (not in the command set)`, x.ok === false && x.error?.code === 'unsupported', x.ok ? 'it ran' : x.error?.code);
     }
@@ -737,6 +768,28 @@ async function main(): Promise<number> {
           }
         }
       }
+      // 13. Phase 93 (CU6): supervised desktop actions. Approvals are intentionally local to the computer;
+      // this conformance runner verifies the device-side refusal and fresh-view rules after the look checks.
+      console.log('\n13. supervised desktop actions');
+      if (ref) {
+        await pause(600);
+        const look6 = await op('d.shot', { window: 'w101', maxEdge: 800, marks: true });
+        const view6 = String(look6.result?.viewId ?? '');
+        check('CU6: a fresh desktop view supplies a viewId before input', look6.ok === true && view6.length > 0, JSON.stringify(look6.result ?? look6.error));
+        const safe6 = await op('d.type', { window: 'w101', viewId: view6, ref: 'e2', task: 'conformance-cu6', text: 'updated fixture name' });
+        check('CU6: safe visible text can be typed through the opted-in fixture', safe6.ok === true && safe6.result?.changed === true, safe6.ok ? JSON.stringify(safe6.result) : safe6.error?.message);
+        const secret6 = await op('d.type', { window: 'w101', viewId: view6, ref: 'e3', text: 'must-not-enter' });
+        check('CU6: password field typing is refused on the device', secret6.ok === false && secret6.error?.code === 'denied_local' && /password/i.test(String(secret6.error?.message)), secret6.ok ? JSON.stringify(secret6.result) : JSON.stringify(secret6.error));
+        const unsafe6 = await op('d.keys', { window: 'w101', viewId: view6, ref: 'e5', combo: 'ctrl+alt+delete' });
+        check('CU6: unsafe system key combinations are refused', unsafe6.ok === false && unsafe6.error?.code === 'denied_local', unsafe6.ok ? JSON.stringify(unsafe6.result) : JSON.stringify(unsafe6.error));
+        ref.userInput();
+        const paused6 = await op('d.click', { window: 'w101', viewId: view6, ref: 'e5' });
+        check('CU6: owner input pauses desktop actions', paused6.ok === false && paused6.error?.code === 'takeover', paused6.ok ? JSON.stringify(paused6.result) : JSON.stringify(paused6.error));
+        ref.resume();
+        ref.pressStop();
+        const stopped6 = await op('d.click', { window: 'w101', viewId: view6, ref: 'e5' });
+        check('CU6: the computer Stop control ends desktop actions', stopped6.ok === false && stopped6.error?.code === 'stopped', stopped6.ok ? JSON.stringify(stopped6.result) : JSON.stringify(stopped6.error));
+      } else console.log('      (CU6 live-device actions are not run without --ref; use the isolated fixture for the refusal checks)');
     }
   } catch (err) {
     check('setup', false, (err as Error).message);

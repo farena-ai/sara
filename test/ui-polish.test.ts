@@ -220,3 +220,13 @@ test('viz.js: weather art from the codes, sparklines and rings from real numbers
 test('the offline cache was bumped for the new files (sw.js v8)', () => {
   assert.ok(Number(/sara-shell-v(\d+)/.exec(web('sw.js'))?.[1]) >= 8);
 });
+
+test('Import: a Sara character file (her own export, with pictures) is recognised before the 2 MB card limit', () => {
+  const src = readFileSync(join(ROOT, 'web', 'cards.js'), 'utf8');
+  const fn = src.slice(src.indexOf('async function preview('), src.indexOf('async function isSaraFile('));
+  const sara = fn.indexOf('isSaraFile(file)');
+  const cap = fn.indexOf('file.size > (png ? MAX_PNG : MAX_JSON)');
+  assert.ok(sara > 0 && cap > 0 && sara < cap, 'the Sara-file check comes before the card size limit');
+  assert.match(src, /const MAX_SARA_FILE = 60 \* 1024 \* 1024;/);
+  assert.match(readFileSync(join(ROOT, 'src', 'http.ts'), 'utf8'), /export const MAX_CHARACTER = 60 \* 1024 \* 1024;/);
+});

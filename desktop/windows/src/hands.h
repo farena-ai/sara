@@ -24,6 +24,8 @@ struct Host {
   std::function<void(const std::wstring&)> log;
   // Phase 88 (CU2): acting in the Sara browser.
   bool keepControl = false;   // "When you move the mouse": false = pause Sara (default), true = let her keep control
+  int desktopLevel = 1;
+  bool walkAway = false;      // Phase 93: keep the computer awake only while the owner opted in
   std::wstring downloadsDir;  // Downloads\Sara: where downloads go and uploads come from
   std::wstring logFile;       // "What Sara did on this computer" (plain lines, 30 days, no pictures)
   std::string expiresAt;      // when the token ends (ISO); with under 30 days left it is renewed on connect
@@ -58,6 +60,9 @@ void setDesktop(bool on);
 void setBlockExtra(const std::string& lines);
 /** Phase 88: "When you move the mouse" changed (true = let Sara keep control). */
 void setTakeover(bool keepControl);
+/** Phase 93: "Keep working when I walk away" changed (never unlocks or bypasses approvals). */
+void setWalkAway(bool on);
+void setDesktopLevel(int level);
 /** Phase 88: Resume after the person took over (the badge's button, the tray menu). */
 void resume();
 bool paused();

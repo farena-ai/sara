@@ -1,7 +1,7 @@
 # Computer use: Sara's hands on your computer (design, Phases 87–95, versions 2.20.0–2.28.0)
 
-Status: design study, 2026-10-30. Nothing here is built yet. Read-only study of the code at 2.19.0
-(Phase 86 open). Ground-up design: no code or protocol is taken from Hermes Agent, OpenClaw, cua,
+Status: implementation record through Phase 92; Phase 93 implementation draft, 2026-10-31.
+Phase 93 is not released or owner-accepted. The original study used the code at 2.19.0. Ground-up design: no code or protocol is taken from Hermes Agent, OpenClaw, cua,
 Playwright, Puppeteer or any other project.
 
 **The owner's words (2026-10-30):** "The next feature I would like is the ability to be able to do
@@ -910,6 +910,99 @@ ROADMAP/ROADMAP.public, THREAT_MODEL and SECURITY updates in the same release.
   app in front; typing into a password field is refused on the device even when the server sends it
   (conformance negative test); an elevated window yields a plain "I can't control windows running as
   administrator" answer; desktop-input approval can't be answered from the phone (default).
+
+- **As built (Phase 93 implementation draft, 2026-10-31; not a release).** Six tools:
+  `pc_click`, `pc_type`, `pc_keys`, `pc_scroll`, `pc_drag`, `pc_open_app`; six device ops:
+  `d.click/type/keys/scroll/drag/launch`. `CU6_OPS` joins the acting/desktop sets and existing budgets,
+  leases, tool exclusions and owner/household boundaries. Each tool acts on its latest view and then
+  obtains fresh `d.elements` (or `d.windows` for launch). Element-only looks now issue view IDs too;
+  coordinates require a picture. Devices bind views to their window and native control identities,
+  bounds, enabled/secure state and labels, not a freshly enumerated index alone. Local consent may
+  take longer than 20 seconds: the device revalidates the exact approved target before issuing an
+  internal fresh view; it never blindly extends an old coordinate's life.
+- **Local approvals.** The desktop level lives on that computer, per server: every action / once per
+  task (default) / Always allowed. Only the trusted native bridge changes it; Always has a native
+  warning. Win32 panel (`hands-approval.cpp`) and Mac `NSAlert` (`HandsDesktop.swift`): Allow once /
+  Allow for this task / Don't. Payments, card fields, account changes and other sensitive labels
+  offer once/Don't only. The action request waits for this card and emits `ev local_approval`;
+  there is no web/phone broker card to answer. Task grants are memory-only, expire after 15 minutes,
+  and clear on Stop, disconnect, opt-out, level changes and server-only `c.endTask` at turn end.
+  The reference `DesktopConsent` also invalidates pending answers when a task is cleared.
+- **Windows.** UIA Invoke / Value / Scroll patterns first; otherwise tagged `SendInput` (Unicode
+  text, an explicit key allowlist, mouse buttons/wheel, bounded drag). The exact target must be in
+  front, including point hit-testing; UIA's actual hit and secure ancestors are inspected. No input
+  on secure/locked desktops (`OpenInputDesktop`), elevated/unknown-integrity windows (process token),
+  protected/Sara windows or password fields. App launch resolves installed Start-menu shortcuts,
+  refuses arguments/protected executables/run-as flags/elevation manifests, and rechecks cancellation
+  and the input desktop immediately before `ShellExecuteExW`. `WH_MOUSE_LL` / `WH_KEYBOARD_LL`
+  watch the whole desktop during a task. Only injected events carrying Sara's `dwExtraInfo` tag are
+  her own; other input pauses the next event/action. Badge clicks work; keyboard input is never
+  exempt because the pointer happens to be over the badge. Global Ctrl+Alt+Esc must register before
+  input is allowed. The topmost badge remains up for the task; Resume and Stop stay local.
+- **Mac.** AX Press / writable Value / available Scroll actions first; otherwise real `CGEvent`
+  input with Sara's `eventSourceUserData` marker. A listen-only session event tap distinguishes other
+  input; disabled monitoring pauses, and missing monitoring/hotkey refuses input. The exact AX
+  focused window must match the CG window/view, not merely the process. Secure ancestors, blocked
+  windows, lock state and privileged processes are refused. Bundle-id app launch uses
+  `NSWorkspace.openApplication`; the queued main-thread closure checks cancellation/expiry and lock
+  state before opening. Control-Option-Esc uses the existing global Carbon hotkey. The source was
+  compiled with Swift on a Mac in an isolated DEBUG bundle; no Accessibility grant or desktop action
+  was automated there.
+- **Own server in ordinary browsers.** Native checks identify registered browser executables (Windows),
+  URL-handler bundle metadata (Mac), known browsers, and browser/web accessibility surfaces. Only
+  native address chrome is consulted (page documents cannot impersonate it). Sara's origin,
+  an edited address bar, or a browser/web surface without a checkable address is refused. This is
+  deliberately conservative for embedded web views and browsers with poor accessibility.
+- **Reference and UI.** `TestDesktop` has observable typing, key/selection/focus events, clicks,
+  scrolling/drag state, app windows, simulated owner input, Stop/Resume and a simulated awake lease.
+  Queued cancelled commands retain their AbortSignal and cannot wake up later and act. Settings →
+  Computer use contains local desktop approvals, takeover and keep-awake choices, tips, five
+  translations, 44 px targets, action icons and cache v27. Section 13 of conformance covers CU6;
+  native precondition/policy mode performs no desktop input. `test/phase93.test.ts` covers the
+  protocol/tool loop, local approval levels, protected cases, cancellation and the reference effects;
+  household route lists include op/stop/computer writes. The demo has no desktop tools.
+- **Keep awake.** Off by default. Windows `SetThreadExecutionState` and Mac system/display
+  `IOPMAssertion`s last for the desktop task (with a 15-minute backstop), release on task end,
+  Stop, disconnect, pause or opt-out, and never unlock a screen. Hooks/taps are installed while the
+  hands channel is running; takeover callbacks are active only for an opted-in desktop task.
+- **Automated qualification (2026-10-31).** Full `npm run check`: 1,206 tests, 1,194 pass,
+  12 conditional skips, zero failures. A password-manager idle-timing test failed once under load,
+  then passed alone; the subsequent full gate passed. Reference conformance: 124/124. Windows Release
+  builds and 13/13 no-input native policy/tag checks; Mac arm64 Swift build and 12/12 no-input native
+  policy/precondition checks. Final focused desktop/i18n checks: 32/32; household/desktop/i18n batch:
+  36/36. Tips 393/393; five locales have zero missing/unused strings. Layout screenshots at
+  1440×900 and 390×844 are local artifacts under `outputs/ui-review/cu6/` (fixture bridge, no owner
+  apps). A reference fixture image is included; native fixture rendering was blocked by automatic
+  approval review, so there is no native fixture image or positive native action receipt.
+- **Deviations and qualification still required.** Local cards execute inside the acting request
+  instead of a separate `c.ask` exchange; this keeps approval tied to the exact action and offers no
+  remote approval route. Terminal/system-settings and Explorer/Finder input are conservatively
+  refused: this slice has no proof of a workspace-bound deletion or approved shell command.
+  App launch is Start-menu name (Windows) / bundle ID (Mac), with unsupported targets returning an
+  error. Power assertions do not defeat OS security idle-lock policies and do not force a later
+  re-lock; existing OS policy continues. Desktop verification uses accessibility after-state; no
+  continuous desktop live-frame stream is added. Physical takeover, full-screen Stop, native card
+  usability, positive native actions and DPI/drag behavior still need an owner-observed fixture pass.
+  The Windows live burst was skipped after about 30 minutes of idle checks never reached two idle
+  minutes. UI screenshots use the real page with a fixture native bridge; they are layout evidence,
+  not native action evidence. The Mac GUI test copy did not attach to its throwaway server; its cause
+  was not established. Its standalone native conformance observed trusted Accessibility in the SSH
+  context and verified invalid-view refusals, not a missing-permission case. See the task report for
+  exact check counts, screenshots, automatic-review blocks and cleanup evidence. No phase-close,
+  installer replacement, commit, push or publishing was performed.
+
+**Windows live follow-up (2026-10-31, isolated draft, not a release).** The later fixture check
+proved local-model chat typing and Save, device-side password refusal, an untagged 3-pixel move
+blocking the next action (4 ms), test-hook Resume to another local approval, and Ctrl+Alt+Esc
+cancelling a pending action (141 ms). Native checks passed 13/13; full check: 1,195 pass, 12 skips,
+zero failures. The fixture-only PNG and logs are `outputs/ui-review/cu6/live-*`. The approval
+window's capture exclusion caused one capture to expose underlying apps; it was not saved and
+further approval captures were stopped. The takeover/Resume sequence took 23.770 seconds against
+the requested approximately 20 seconds. No product code changed. Manual Resume, physical-owner
+takeover, full-screen Stop, DPI/drag and Mac live actions remain open; see the latest handoff and
+the external `cu6-live-report.md`. Automatic approval review refused scratch deletion, so its
+exact remaining path is recorded in that report. This follow-up supersedes the earlier absence
+of positive Windows action evidence, but does not close Phase 93.
 
 ### Phase 94 · 2.27.0 · CU7: guided tasks ("optimize my system") + evals + red-team probes
 - Task recipes: check (read-only: startup apps, disk space, big folders, updates pending, battery,

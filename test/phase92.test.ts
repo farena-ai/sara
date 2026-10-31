@@ -124,7 +124,7 @@ test('the rules: the blocklist (fixture KeePass by title and by process), the pe
   assert.equal(items[1].value, '[hidden]');
   assert.deepEqual([...CU5_OPS], ['d.screens', 'd.windows', 'd.shot', 'd.elements']);
   for (const o of CU5_OPS) assert.ok((HANDS_OPS as readonly string[]).includes(o));
-  assert.ok(!(HANDS_OPS as readonly string[]).includes('d.click'), 'no desktop input in CU5');
+  assert.ok(!(CU5_OPS as readonly string[]).includes('d.click'), 'CU5 stays look-only; CU6 adds the separate input operations');
 });
 
 test('desktop look on the device: KeePass black and absent, Sara\'s own window never there, password fields boxed and valueless', async () => {

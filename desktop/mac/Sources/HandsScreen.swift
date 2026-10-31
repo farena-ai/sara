@@ -15,12 +15,12 @@ import ScreenCaptureKit
 enum HandsScreen {
   static let maxEdge = 1280, maxElements = 300, maxDepth = 8, maxNodes = 2500
   static let viewTtl: TimeInterval = 20, shotEvery: TimeInterval = 0.5
-  private static let lock = NSLock()
-  private static var extra: [String] = []
-  private struct View { let at: Date; let ox: Double; let oy: Double; let scale: Double }
-  private static var views: [String: View] = [:]
-  private static var viewN = 0
-  private static var lastShot = Date.distantPast
+  static let lock = NSLock()
+  static var extra: [String] = []
+  struct View { let at: Date; let ox: Double; let oy: Double; let scale: Double; var window: Win? = nil; var items: [Item] = []; var width = 0; var height = 0 }
+  static var views: [String: View] = [:]
+  static var viewN = 0
+  static var lastShot = Date.distantPast
 
   // §7.4: the default sensitive-windows list (the same as src/hands-desktop.ts DESKTOP_BLOCKLIST).
   static let blocks: [(kind: String, titles: [String], apps: [String])] = [
@@ -103,12 +103,12 @@ enum HandsScreen {
   }
 
   // MARK: Accessibility
-  struct Item { var role: String; var name: String; var value: String?; var secret: Bool; var disabled: Bool; var focused: Bool; var frame: CGRect }
-  private static func attr(_ e: AXUIElement, _ a: String) -> AnyObject? {
+  struct Item { var element: AXUIElement; var role: String; var name: String; var value: String?; var secret: Bool; var disabled: Bool; var focused: Bool; var frame: CGRect }
+  static func attr(_ e: AXUIElement, _ a: String) -> AnyObject? {
     var v: AnyObject?
     return AXUIElementCopyAttributeValue(e, a as CFString, &v) == .success ? v : nil
   }
-  private static func frameOf(_ e: AXUIElement) -> CGRect? {
+  static func frameOf(_ e: AXUIElement) -> CGRect? {
     guard let p = attr(e, kAXPositionAttribute), let s = attr(e, kAXSizeAttribute) else { return nil }
     var pt = CGPoint.zero, sz = CGSize.zero
     guard CFGetTypeID(p) == AXValueGetTypeID(), CFGetTypeID(s) == AXValueGetTypeID() else { return nil }
@@ -117,13 +117,13 @@ enum HandsScreen {
     return CGRect(origin: pt, size: sz)
   }
   /// The AX window that matches a CG window (same app, same frame; else its focused / first window).
-  private static func axWindow(_ w: Win) -> AXUIElement? {
+  static func axWindow(_ w: Win) -> AXUIElement? {
     let app = AXUIElementCreateApplication(w.pid)
     AXUIElementSetMessagingTimeout(app, 2)
     let wins = attr(app, kAXWindowsAttribute) as? [AXUIElement] ?? []
     if let hit = wins.first(where: { frameOf($0).map { abs($0.minX - w.bounds.minX) < 3 && abs($0.minY - w.bounds.minY) < 3 && abs($0.width - w.bounds.width) < 3 } ?? false }) { return hit }
     if let t = wins.first(where: { (attr($0, kAXTitleAttribute) as? String ?? "") == w.title && !w.title.isEmpty }) { return t }
-    return wins.first
+    return nil
   }
   static let actionRoles: Set<String> = ["AXButton", "AXCheckBox", "AXComboBox", "AXTextField", "AXTextArea", "AXLink", "AXMenuItem", "AXRadioButton", "AXSlider", "AXPopUpButton", "AXTab", "AXCell", "AXRow", "AXSearchField", "AXSecureTextField"]
   static func collect(_ w: Win, limit: Int) -> (items: [Item], total: Int) {
@@ -145,7 +145,7 @@ enum HandsScreen {
         if let f = frameOf(c), f.width > 0, f.height > 0, !name.isEmpty || actionRoles.contains(role) || secret {
           total += 1
           if items.count < limit {
-            var it = Item(role: shortRole(role, secret), name: mask(clip(name, 200)), value: nil, secret: secret, disabled: (attr(c, kAXEnabledAttribute) as? Bool) == false, focused: (attr(c, kAXFocusedAttribute) as? Bool) == true, frame: f)
+            var it = Item(element: c, role: shortRole(role, secret), name: mask(clip(name, 200)), value: nil, secret: secret, disabled: (attr(c, kAXEnabledAttribute) as? Bool) == false, focused: (attr(c, kAXFocusedAttribute) as? Bool) == true, frame: f)
             if !secret, ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField", "AXSlider"].contains(role), let v = attr(c, kAXValueAttribute) { it.value = mask(clip("\(v)", 200)) }
             items.append(it)
           }
@@ -171,7 +171,7 @@ enum HandsScreen {
     default: return r.hasPrefix("AX") ? String(r.dropFirst(2)).lowercased() : (r.isEmpty ? "element" : r)
     }
   }
-  private static func itemsJson(_ items: [Item], _ v: View?) -> [[String: Any]] {
+  static func itemsJson(_ items: [Item], _ v: View?) -> [[String: Any]] {
     items.enumerated().map { i, it in
       var f = it.frame
       if let v { f = CGRect(x: (f.minX - v.ox) * v.scale, y: (f.minY - v.oy) * v.scale, width: f.width * v.scale, height: f.height * v.scale) }
@@ -183,13 +183,13 @@ enum HandsScreen {
       return o
     }
   }
-  private static func find(_ all: [Win], _ id: String) throws -> Win {
+  static func find(_ all: [Win], _ id: String) throws -> Win {
     guard let w = all.first(where: { "w\($0.id)" == id }) else { throw HandsOpError(code: "not_found", message: "No such window (pc_windows lists them).") }
     if w.sara { throw HandsOpError(code: "not_found", message: "That is one of Sara's own windows: she never looks at those.") }
     if let k = w.hidden { throw HandsOpError(code: "blocked_window", message: "That window is hidden from Sara on this Mac (\(k)).") }
     return w
   }
-  private static func front(_ all: [Win], in area: CGRect) -> Win? {
+  static func front(_ all: [Win], in area: CGRect) -> Win? {
     all.first { $0.layer == 0 && !$0.sara && $0.hidden == nil && $0.bounds.width > 40 && $0.bounds.intersects(area) }
   }
 
@@ -209,7 +209,13 @@ enum HandsScreen {
     let w: Win
     if let id = a["window"] as? String, !id.isEmpty { w = try find(all, id) } else if let f = front(all, in: CGRect(x: -1e5, y: -1e5, width: 2e5, height: 2e5)) { w = f } else { return ["items": [], "total": 0] }
     let (items, total) = collect(w, limit: limit)
-    var out: [String: Any] = ["window": winView(w), "items": itemsJson(items, v), "total": total, "coords": v == nil ? "screen" : "picture"]
+    let pictureCoordinates = v != nil
+    var vid = a["viewId"] as? String ?? ""
+    if v == nil {
+      v = View(at: Date(), ox: 0, oy: 0, scale: 1, window: w, items: items)
+      lock.lock(); viewN += 1; vid = "v\(viewN)"; views = views.filter { Date().timeIntervalSince($0.value.at) < viewTtl * 3 }; views[vid] = v; lock.unlock()
+    } else if v?.window?.id != w.id { throw HandsOpError(code: "stale_view", message: "That window is not the window in this look.") }
+    var out: [String: Any] = ["viewId": vid, "window": winView(w), "items": itemsJson(items, v), "total": total, "coords": pictureCoordinates ? "picture" : "screen"]
     if total > items.count { out["more"] = true }
     return out
   }
@@ -295,7 +301,9 @@ enum HandsScreen {
         }
       }
     }
-    let v = View(at: Date(), ox: area.minX, oy: area.minY, scale: k)
+    let bound = win ?? front(all, in: area)
+    let boundItems = bound.map { collect($0, limit: maxElements).items } ?? []
+    let v = View(at: Date(), ox: area.minX, oy: area.minY, scale: k, window: bound, items: boundItems, width: W, height: H)
     var result: [String: Any] = ["w": W, "h": H, "scale": k, "blackedOut": blacked, "masked": masked]
     if !ax { result["axMissing"] = true }
     if let w = win { result["window"] = winView(w) } else { result["screen"] = "s\(screenIdx + 1)" }

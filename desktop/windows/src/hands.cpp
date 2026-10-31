@@ -52,7 +52,8 @@
 #include <fstream>
 #include <sstream>
 
-#include "hands-screen.h"  // Phase 92: desktop look
+#include "hands-screen.h"
+#include "hands-approval.h"  // Phase 92: desktop look
 
 namespace sarahands {
 namespace {
@@ -372,11 +373,11 @@ const std::set<std::string> kOps = {"b.start", "b.tabs", "b.open", "b.navigate",
                                     // Phase 91 (CU4b): the owner's password managers (the person unlocks; Sara relocks)
                                     "b.unlock", "b.relock",
                                     // Phase 92 (CU5): desktop look (hands-screen.cpp); only with "The whole screen" on.
-                                    "d.screens", "d.windows", "d.shot", "d.elements"};
+                                    "d.screens", "d.windows", "d.shot", "d.elements", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch", "c.endTask"};
 /** Ops that act: they count against the input rate limit and stop when the person takes over. */
-const std::set<std::string> kInputOps = {"b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login"};
+const std::set<std::string> kInputOps = {"b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch"};
 /** Phase 90: ops that wait for the person (the consent window, "Your turn"): up to 10 minutes. */
-const std::set<std::string> kWaitingOps = {"b.saveLogin", "b.yourTurn", "b.unlock"};
+const std::set<std::string> kWaitingOps = {"b.saveLogin", "b.yourTurn", "b.unlock", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch"};
 const int kMaxChars = 2000;
 
 /** Now as ISO 8601 (UTC). */
@@ -2521,6 +2522,13 @@ class Hands {
   std::wstring err;
   Browser browser;
 
+  std::atomic<bool> walkAway{false};
+  std::atomic<int> desktopLevel{1}; // 0 every action, 1 task, 2 always; only the local bridge changes this
+  std::atomic<bool> approving_{false}, takeoverPending_{false}, clearDeskGrants_{false};
+  std::atomic<ULONGLONG> deskUntil_{0};
+  std::map<std::string, ULONGLONG> deskGrants_;
+  inline static Hands* hookOwner_ = nullptr;
+  HHOOK mouseHook_ = nullptr, keyHook_ = nullptr;
   std::atomic<bool> keep{false};      // Phase 88: let Sara keep control when the person uses her window
   std::atomic<bool> isPaused{false};  // Phase 88: the person took over; nothing acts until Resume
   std::atomic<bool> hotkeyOk{false};
@@ -2537,7 +2545,10 @@ class Hands {
     localOnly = h.localOnly;
     desktop = h.desktopOn;
     sarascreen::setExtraBlocklist(h.blockExtra);
+    sarascreen::setServerOrigin(u8(h.server));
     keep = h.keepControl;
+    walkAway = h.walkAway;
+    desktopLevel = h.desktopLevel;
     browser.profileDir = h.profileDir;
     browser.downloadsDir = h.downloadsDir;
     browser.serverOrigin = lowerA(u8(h.server));
@@ -2619,6 +2630,7 @@ class Hands {
   }
 
   void pressStop() {
+    deskUntil_ = 0; clearDeskGrants_ = true; takeoverPending_ = false;
     {
       std::lock_guard<std::mutex> l(qm_);
       for (auto& r : queue_) r->cancel->store(true);
@@ -2627,6 +2639,7 @@ class Hands {
     sendText("{\"t\":\"ev\",\"kind\":\"stopped\",\"by\":\"user\"}");
     say(L"stopped by the person at the computer");
     // Stop ends the dev tunnels here too.
+    deskUntil_ = 0; clearDeskGrants_ = true;
     tunnels_->closeAll();
     // Phase 91: and locks the password managers again.
     requestLock();
@@ -2655,6 +2668,7 @@ class Hands {
     updateBadge();
   }
   void resume() {
+    takeoverPending_ = false;
     if (!isPaused.exchange(false)) return;
     say(L"resumed");
     sendText("{\"t\":\"ev\",\"kind\":\"resumed\"}");
@@ -2668,9 +2682,12 @@ class Hands {
   }
   /** The switches as the server should know them (Phase 92: with the whole screen). */
   void tellOptIn() {
-    sendText(std::string("{\"t\":\"ev\",\"kind\":\"optin\",\"optIn\":{\"browser\":true,\"desktop\":") + (desktop ? "true" : "false") + "},\"localOnly\":" + (localOnly ? "true" : "false") + ",\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"perms\":{\"capture\":true,\"input\":false,\"ax\":true}}");
+    sendText(std::string("{\"t\":\"ev\",\"kind\":\"optin\",\"optIn\":{\"browser\":true,\"desktop\":") + (desktop ? "true" : "false") + "},\"localOnly\":" + (localOnly ? "true" : "false") + ",\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"perms\":{\"capture\":true,\"input\":true,\"ax\":true}}");
   }
+  void tellWalkAway(bool on) { walkAway = on; tellOptIn(); updateBadge(); }
+  void tellDesktopLevel(int level) { desktopLevel = level; clearDeskGrants_ = true; }
   void tellDesktop(bool on) {
+    if (!on) { deskUntil_ = 0; clearDeskGrants_ = true; }
     desktop = on;
     tellOptIn();
   }
@@ -2823,7 +2840,7 @@ class Hands {
     }
     return "{\"t\":\"hello\",\"v\":1,\"app\":" + q(u8(host.appVersion)) + ",\"os\":" + q("Windows (build " + std::to_string(build) + ")") + ",\"computer\":" + q(u8(host.computer)) +
            ",\"screens\":" + sarascreen::screensJson() + ",\"browser\":{\"found\":" + (browser.found.path.empty() ? "false" : "true") + (browser.found.kind.empty() ? "" : ",\"kind\":" + q(browser.found.kind) + ",\"name\":" + q(browser.found.name)) +
-           "},\"perms\":{\"capture\":true,\"input\":false,\"ax\":true},\"optIn\":{\"browser\":true,\"desktop\":" + (desktop ? "true" : "false") + "},\"approvalsHere\":false,\"logins\":" + loginViews() + ",\"vault\":" + vaultJson() + ",\"busy\":false,\"localOnly\":" + (localOnly ? "true" : "false") +
+           "},\"perms\":{\"capture\":true,\"input\":true,\"ax\":true},\"optIn\":{\"browser\":true,\"desktop\":" + (desktop ? "true" : "false") + "},\"approvalsHere\":true,\"logins\":" + loginViews() + ",\"vault\":" + vaultJson() + ",\"busy\":false,\"localOnly\":" + (localOnly ? "true" : "false") +
            ",\"ops\":[" + ops + "],\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"hotkey\":" + (hotkeyOk ? "\"Ctrl+Alt+Esc\"" : "\"\"") + ",\"paused\":" + (isPaused ? "true" : "false") + ",\"renew\":true" +
            (pm.detected() ? ",\"managers\":" + pm.viewsJson() + ",\"relockMinutes\":" + std::to_string(pm.relockMinutes()) : std::string()) + "}";
   }
@@ -2849,7 +2866,8 @@ class Hands {
         isConnected = false;
         closeSocket();
         // Phase 89: every dev tunnel closes with the connection.
-        tunnels_->closeAll();
+        deskUntil_ = 0; clearDeskGrants_ = true;
+    tunnels_->closeAll();
         // Phase 91: the password managers lock again with it.
         requestLock();
         // Whatever was running stops with the connection.
@@ -2937,7 +2955,7 @@ class Hands {
         if (all || r->id == id) r->cancel->store(true);
       if (current_ && (all || current_->id == id)) current_->cancel->store(true);
       // Phase 91: Stop (from the chat or Settings) locks the password managers again too.
-      if (all) requestLock();
+      if (all) { deskUntil_ = 0; clearDeskGrants_ = true; requestLock(); }
       return;
     }
     if (t == "s") return tunnels_->control(m);  // Phase 89: a dev tunnel stream's control message
@@ -2986,7 +3004,7 @@ class Hands {
         queue_.pop_front();
         current_ = r;
       }
-      if (r->op != "c.ping" && r->op != "b.tabs") {
+      if (r->op != "c.ping" && r->op != "b.tabs" && r->op != "c.endTask") {
         lookingDesk_ = r->op.rfind("d.", 0) == 0;
         {
           std::lock_guard<std::mutex> l(whatM_);
@@ -3018,7 +3036,7 @@ class Hands {
       done = true;
       timer.join();
       if (opRunning_.exchange(false)) {
-        lastOpAt_ = GetTickCount64();
+        lastOpAt_ = r->cancel->load() ? 0 : GetTickCount64();
         updateBadge();
       }
       {
@@ -3713,22 +3731,23 @@ class Hands {
     if (badge_) PostMessageW(badge_, WM_BADGE_UPDATE, 0, 0);
   }
   /** Shown while an op runs, for 30 s after one, and while paused. */
-  bool badgeActive() { return isPaused || opRunning_ || (lastOpAt_ && GetTickCount64() - lastOpAt_ < 30000); }
+  bool badgeActive() { return deskUntil_.load() > GetTickCount64() || isPaused || opRunning_ || (lastOpAt_ && GetTickCount64() - lastOpAt_ < 30000); }
   std::wstring badgeText() {
     std::wstring pre = host.testLabel ? L"TEST \u00b7 " : L"";
-    if (isPaused) return pre + L"Paused: you're in control of the Sara browser";
+    if (isPaused) return pre + L"Paused: you're in control of this computer";
     std::string w;
     {
       std::lock_guard<std::mutex> l(whatM_);
       w = what_;
     }
     // Phase 92: the read-only form while she looks at the desktop (§7.2).
-    std::wstring line = pre + (lookingDesk_ ? L"Sara is looking at your screen" : L"Sara is working in her browser") + (w.empty() ? L"" : L" \u00b7 " + wide(w));
+    std::wstring line = pre + (lookingDesk_ ? L"Sara is working on your computer" : L"Sara is working in her browser") + (w.empty() ? L"" : L" \u00b7 " + wide(w));
     if (keep && keptAt_ && GetTickCount64() - keptAt_ < 8000) line += L" \u00b7 she keeps control";
     return line;
   }
   /** Real input (not hers: DevTools input never reaches Windows' input queue) in her window? */
   void watchTakeover() {
+    if (deskUntil_.load() > GetTickCount64()) return; // global hooks handle the entire desktop
     DWORD pid = browser.pid();
     if (!badgeActive() || !pid || isPaused) {
       watching_ = false;
@@ -3818,6 +3837,29 @@ class Hands {
     DeleteObject(f);
     EndPaint(h, &ps);
   }
+  static LRESULT CALLBACK MouseHook(int code, WPARAM wp, LPARAM lp) {
+    auto self = hookOwner_;
+    if (code == HC_ACTION && self && self->desktop && self->deskUntil_.load() > GetTickCount64() && !self->approving_) {
+      auto e = reinterpret_cast<MSLLHOOKSTRUCT*>(lp);
+      bool own = sarascreen::ownMouseInput(e->flags, e->dwExtraInfo);
+      HWND under = GetAncestor(WindowFromPoint(e->pt), GA_ROOT);
+      bool badgeClick = under == self->badge_ && (wp == WM_LBUTTONDOWN || wp == WM_LBUTTONUP);
+      if (!own && !badgeClick) {
+        if (!self->keep) self->takeoverPending_ = true;
+        PostMessageW(self->badge_, WM_APP + 80, 0, 0);
+      }
+    }
+    return CallNextHookEx(nullptr, code, wp, lp);
+  }
+  static LRESULT CALLBACK KeyHook(int code, WPARAM wp, LPARAM lp) {
+    auto self = hookOwner_;
+    if (code == HC_ACTION && self && self->desktop && self->deskUntil_.load() > GetTickCount64() && !self->approving_) {
+      auto e = reinterpret_cast<KBDLLHOOKSTRUCT*>(lp);
+      bool own = sarascreen::ownKeyInput(e->flags, e->dwExtraInfo);
+      if (!own) { if (!self->keep) self->takeoverPending_ = true; PostMessageW(self->badge_, WM_APP + 80, 0, 0); }
+    }
+    return CallNextHookEx(nullptr, code, wp, lp);
+  }
   static LRESULT CALLBACK BadgeProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     Hands* self = reinterpret_cast<Hands*>(GetWindowLongPtrW(h, GWLP_USERDATA));
     switch (msg) {
@@ -3837,8 +3879,13 @@ class Hands {
         // Ctrl+Alt+Esc anywhere: stop her at once.
         if (self && wp == kStopHotkeyId) self->pressStop();
         return 0;
+      case WM_APP + 80:
+        if (self) self->userInput();
+        return 0;
       case WM_TIMER:
         if (self) {
+          bool awake = self->walkAway && self->desktop && self->deskUntil_.load() > GetTickCount64() && !self->isPaused;
+          SetThreadExecutionState(awake ? ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED : ES_CONTINUOUS);
           self->watchTakeover();
           bool on = self->badgeActive();
           if (on != (IsWindowVisible(h) != FALSE)) {
@@ -3866,6 +3913,12 @@ class Hands {
 #endif
       case WM_CLOSE: DestroyWindow(h); return 0;
       case WM_DESTROY:
+        if (self) {
+          if (self->mouseHook_) UnhookWindowsHookEx(self->mouseHook_);
+          if (self->keyHook_) UnhookWindowsHookEx(self->keyHook_);
+          hookOwner_ = nullptr;
+        }
+        SetThreadExecutionState(ES_CONTINUOUS);
         UnregisterHotKey(h, kStopHotkeyId);
         PostQuitMessage(0);
         return 0;
@@ -3892,6 +3945,9 @@ class Hands {
       if (exclude) SetWindowDisplayAffinity(badge_, 0x11 /* WDA_EXCLUDEFROMCAPTURE */);
       hotkeyOk = RegisterHotKey(badge_, kStopHotkeyId, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, VK_ESCAPE) != FALSE;
       say(hotkeyOk ? L"stop shortcut Ctrl+Alt+Esc ready" : L"stop shortcut Ctrl+Alt+Esc is taken by another app");
+      hookOwner_ = this;
+      mouseHook_ = SetWindowsHookExW(WH_MOUSE_LL, MouseHook, inst, 0);
+      keyHook_ = SetWindowsHookExW(WH_KEYBOARD_LL, KeyHook, inst, 0);
       SetTimer(badge_, 1, 150, nullptr);
     }
     SetEvent(uiReady_);
@@ -3910,6 +3966,42 @@ class Hands {
       return {};
     }
     const J& a = r.args;
+    if (kInputOps.count(r.op)) {
+      if (!hotkeyOk) { e = {"denied_local", "The global Stop shortcut is unavailable. Desktop input stays off until it is available."}; return {}; }
+      if (!mouseHook_ || !keyHook_) { e = {"denied_local", "Global input monitoring is unavailable: desktop input stays off."}; return {}; }
+      URL_COMPONENTS uc{sizeof(uc)}; wchar_t hostName[256]{}; uc.lpszHostName = hostName; uc.dwHostNameLength = 256;
+      if (!WinHttpCrackUrl(host.server.c_str(), 0, 0, &uc)) { e = {"denied_local", "The server address could not be checked."}; return {}; }
+      std::wstring name(hostName, uc.dwHostNameLength);
+      if (uc.nScheme != INTERNET_SCHEME_HTTPS && name != L"localhost" && name != L"127.0.0.1" && name != L"::1" && name != L"[::1]") { e = {"denied_local", "Desktop input is refused over an unencrypted connection unless it is loopback."}; return {}; }
+      sarascreen::Action action;
+      action.op = r.op; action.window = a["window"].str(); action.viewId = a["viewId"].str(); action.ref = a["ref"].str();
+      action.text = a["text"].str(); action.combo = a["combo"].str(); action.app = a["app"].str();
+      action.x = a["x"].num(-1); action.y = a["y"].num(-1); action.toX = a["toX"].num(-1); action.toY = a["toY"].num(-1);
+      action.dx = a["dx"].num(0); action.dy = a["dy"].num(0); action.right = a["button"].str() == "right"; action.twice = a["double"].truthy();
+      sarascreen::ActionInfo info; auto checked = sarascreen::inspect(action, info);
+      if (!checked.code.empty()) { e = {checked.code, checked.message}; return {}; }
+      if (clearDeskGrants_.exchange(false)) deskGrants_.clear();
+      auto now = GetTickCount64(); std::string task = a["task"].str().substr(0, 160);
+      for (auto it = deskGrants_.begin(); it != deskGrants_.end();) it = now - it->second > 15 * 60000 ? deskGrants_.erase(it) : std::next(it);
+      int level = desktopLevel.load();
+      if (a["approvalLevel"].str() == "ask") level = 0; // the server can strengthen, never relax, the local choice
+      bool once = info.once || a["forceOnce"].truthy();
+      bool granted = level == 2 || (level == 1 && !task.empty() && deskGrants_.count(task));
+      deskUntil_ = now + 15 * 60000;
+      if (once || !granted) {
+        approving_ = true;
+        int answer = desktopApproval(wide(info.target), !once && level == 1 && !task.empty(), host.testLabel, r.cancel.get());
+        approving_ = false;
+        sendText(std::string("{\"t\":\"ev\",\"kind\":\"local_approval\",\"allowed\":") + (answer ? "true" : "false") + "}");
+        if (!answer || r.cancel->load()) { e = {"denied_local", "The person at this computer did not approve that action."}; return {}; }
+        if (r.op != "d.launch") { auto fresh = sarascreen::refreshApproved(action); if (!fresh.code.empty()) { e = {fresh.code, fresh.message}; return {}; } }
+        if (answer == 2) deskGrants_[task] = GetTickCount64();
+      }
+      auto result = sarascreen::input(action, [&] { return r.cancel->load() || isPaused || takeoverPending_ || stopping || !desktop; });
+      if (!result.code.empty()) { e = {result.code, result.message}; return {}; }
+      localLog(r.op, info.target, task);
+      return result.json;
+    }
     if (r.op == "d.screens") return "{\"screens\":" + sarascreen::screensJson() + "}";
     sarascreen::Result x;
     if (r.op == "d.windows") x = sarascreen::windows();
@@ -3939,6 +4031,7 @@ class Hands {
       e = {"unsupported", "This computer doesn't do \"" + r.op.substr(0, 40) + "\" (not in its command set)."};
       return {};
     }
+    if (r.op == "c.endTask") { deskUntil_ = 0; deskGrants_.clear(); lastOpAt_ = 0; updateBadge(); return "{\"ended\":true}"; }
     if (r.op == "c.ping") return "{\"pong\":true,\"at\":" + std::to_string(GetTickCount64()) + "}";
     // Phase 88: nothing acts while the person has taken over; and the device's own rate limit.
     if (kInputOps.count(r.op)) {
@@ -4158,6 +4251,12 @@ void setBlockExtra(const std::string& lines) { sarascreen::setExtraBlocklist(lin
 void setTakeover(bool keepControl) {
   std::lock_guard<std::mutex> l(g_m);
   if (g_hands) g_hands->tellTakeover(keepControl);
+}
+void setWalkAway(bool on) {
+  std::lock_guard<std::mutex> l(g_m); if (g_hands) g_hands->tellWalkAway(on);
+}
+void setDesktopLevel(int level) {
+  std::lock_guard<std::mutex> l(g_m); if (g_hands) g_hands->tellDesktopLevel(level);
 }
 void resume() {
   std::lock_guard<std::mutex> l(g_m);

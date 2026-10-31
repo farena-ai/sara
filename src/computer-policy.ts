@@ -173,6 +173,41 @@ export function actionVerdict(f: ActFacts): ActVerdict {
   return { act: 'ask', risk, why: f.level === 'ask' ? 'every action asks' : 'the first action on this site in this task', choices: f.level === 'task' ? ['once', 'task', 'always'] : ['once', 'always'] };
 }
 
+// ---- Phase 93 (CU6): desktop input -------------------------------------------------------------
+// The server decides when to ask; the paired device still enforces the hard limits. Desktop
+// approvals are local by default, so an answer from a phone cannot silently authorize a mouse or
+// keyboard event on another computer.
+export interface DesktopTarget {
+  role?: string;
+  name?: string;
+  secret?: boolean;
+  blocked?: boolean;
+  elevated?: boolean;
+}
+export interface DesktopFacts {
+  site: string;
+  target: DesktopTarget;
+  level: ActLevel;
+  taskGranted?: boolean;
+  kind?: 'click' | 'type' | 'keys' | 'scroll' | 'drag' | 'launch' | 'open_app';
+  text?: string;
+}
+export type DesktopVerdict = { act: 'allow'; risk: ActRisk; why: string } | { act: 'ask'; risk: ActRisk; why: string; choices: ('once' | 'task' | 'always')[] } | { act: 'block'; risk: ActRisk; why: string };
+
+const DESKTOP_NEVER = /admin(?:istrator)?|elevat(?:ed|ion)|uac|secure desktop|password manager|bank(?:ing)?|security settings|sara(?:'s)? (?:own )?(?:sign[- ]?in|server token)|(?:delete|remove|erase) (?:a )?(?:file|folder)|empty (?:the )?(?:trash|recycle)|move to trash|run as administrator|credential manager/i;
+const DESKTOP_ACCOUNT = /account|password|2fa|two[- ]factor|recovery|security|privacy|sign out|revoke/i;
+const DESKTOP_PAYMENT = /pay|purchase|buy|checkout|order|donate|card/i;
+
+export function desktopActionVerdict(f: DesktopFacts): DesktopVerdict {
+  const words = `${f.target.name ?? ''} ${f.text ?? ''}`;
+  const risk: ActRisk = DESKTOP_PAYMENT.test(words) ? 'payment' : DESKTOP_ACCOUNT.test(words) ? 'account' : 'normal';
+  if (f.target.secret || f.target.blocked || f.target.elevated) return { act: 'block', risk, why: f.target.secret ? 'That is a password field: Sara never types into those.' : f.target.elevated ? "I can't control windows running as administrator" : 'That window is blocked on the computer.' };
+  if (DESKTOP_NEVER.test(words) || /\b(?:delete|remove|erase|trash|recycle|unlink)\b(?!\s+(?:my |your |this |the )?account\b)/i.test(f.target.name ?? '')) return { act: 'block', risk, why: 'The computer refuses that protected desktop action.' };
+  if (risk === 'payment' || risk === 'account') return { act: 'ask', risk, why: `${risk === 'payment' ? 'payment or purchase' : 'account or security setting'} (asks once)`, choices: ['once'] };
+  if (f.level === 'always' || (f.level === 'task' && f.taskGranted)) return { act: 'allow', risk, why: f.level === 'always' ? 'desktop actions are always allowed' : 'allowed for this task' };
+  return { act: 'ask', risk, why: f.level === 'ask' ? 'every desktop action asks' : 'the first desktop action in this task asks', choices: f.level === 'task' ? ['once', 'task', 'always'] : ['once', 'always'] };
+}
+
 // ---- Phase 90 (CU4, §8.2): saved logins ----
 //   using a saved login (pc_browser_login)                          → ask every time, at every level (approve-once)
 //   offering to save one (pc_browser_save_login)                    → only when the owner said so in so many words

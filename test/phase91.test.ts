@@ -280,7 +280,9 @@ test('detection: only --version runs; each manager is off until turned on; unloc
     await until(() => /bw lock/.test(readFileSync(join(f.env.BITWARDENCLI_APPDATA_DIR, 'calls.log'), 'utf8')), 8000);
     assert.deepEqual(JSON.parse(readFileSync(join(f.env.BITWARDENCLI_APPDATA_DIR, 'state.json'), 'utf8')).sessions, [], 'the double holds no session any more');
     await assert.rejects(pm.unlock('bitwarden', 'http://x'), /3 times in 10 minutes/);
-    // 1Password and KeePassXC: unlock, use, lockAll (Stop), turn off.
+    // 1Password and KeePassXC: unlock, use, lockAll (Stop), turn off. The idle relock was checked
+    // above; a long idle time here keeps a loaded machine from relocking between unlock and lookup.
+    pm.opts.relockMs = 15 * 60_000;
     await pm.setOn('1password', true);
     await pm.setOn('keepassxc', true);
     assert.equal(await pm.unlock('1password', `http://${OPHOST}:7000`), true);

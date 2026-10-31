@@ -18,6 +18,11 @@
 #include <mutex>
 #include <regex>
 #include <set>
+#include <filesystem>
+#include <shlobj.h>
+#include <shobjidl.h>
+#include <shellapi.h>
+#include <winhttp.h>
 
 using Microsoft::WRL::ComPtr;
 
@@ -29,11 +34,16 @@ constexpr ULONGLONG kViewTtl = 20000, kShotEvery = 500;
 
 std::mutex g_m;
 std::vector<std::string> g_extra;
+std::string g_serverAuthority;
 struct View {
   ULONGLONG at = 0;
   int ox = 0, oy = 0;
   double scale = 1;
   HWND hwnd = nullptr;
+  std::string title, app;
+  RECT frame{};
+  int width = 0, height = 0;
+  std::vector<std::string> identity;
 };
 std::map<std::string, View> g_views;
 unsigned g_viewN = 0;
@@ -386,6 +396,8 @@ struct Item {
   std::string role, name, value;
   bool secret = false, disabled = false, focused = false;
   RECT r{};
+  ComPtr<IUIAutomationElement> element;
+  std::string identity;
 };
 ComPtr<IUIAutomationCacheRequest> cacheReq(IUIAutomation* a) {
   ComPtr<IUIAutomationCacheRequest> cr;
@@ -424,6 +436,14 @@ void collect(HWND h, int limit, std::vector<Item>& out, int& total) {
           total++;
           if ((int)out.size() < limit) {
             Item it;
+            it.element = c;
+            SAFEARRAY* rid = nullptr;
+            if (SUCCEEDED(c->GetRuntimeId(&rid)) && rid) {
+              LONG lo = 0, hi = -1; SafeArrayGetLBound(rid, 1, &lo); SafeArrayGetUBound(rid, 1, &hi);
+              for (LONG j = lo; j <= hi; ++j) { int n = 0; SafeArrayGetElement(rid, &j, &n); it.identity += std::to_string(n) + ":"; }
+              SafeArrayDestroy(rid);
+            }
+
             it.role = roleOf(t);
             it.name = maskText(clip(name, 200));
             it.r = r;
@@ -438,6 +458,7 @@ void collect(HWND h, int limit, std::vector<Item>& out, int& total) {
               c->GetCachedPropertyValue(UIA_ValueValuePropertyId, &v);
               it.value = maskText(clip(bstr(v), 200));
             }
+            it.identity += "|" + it.role + "|" + it.name + "|" + std::to_string(r.left) + "," + std::to_string(r.top) + "," + std::to_string(r.right) + "," + std::to_string(r.bottom) + (it.secret ? "|secret" : "") + (it.disabled ? "|disabled" : "");
             out.push_back(it);
           }
         }
@@ -553,6 +574,9 @@ void drawMarks(Dib& d, const std::vector<Item>& items, const View& v) {
 
 }  // namespace
 
+void setServerOrigin(const std::string& origin) {
+  std::lock_guard<std::mutex> l(g_m); g_serverAuthority = lower(origin);
+}
 void setExtraBlocklist(const std::string& lines) {
   std::lock_guard<std::mutex> l(g_m);
   g_extra.clear();
@@ -735,7 +759,12 @@ Result shot(const std::string& window, const std::string& screen, const std::vec
   v.ox = cap.left;
   v.oy = cap.top;
   v.scale = (double)pic.w / cw;
-  v.hwnd = win ? win->h : nullptr;
+  Win* boundWindow = win ? win : frontIn(all, cap);
+  v.hwnd = boundWindow ? boundWindow->h : nullptr;
+  v.title = boundWindow ? boundWindow->title : ""; v.app = boundWindow ? boundWindow->app : "";
+  v.frame = boundWindow ? boundWindow->r : RECT{};
+  v.width = pic.w; v.height = pic.h;
+  if (boundWindow) { std::vector<Item> items; int total = 0; collect(boundWindow->h, kMaxElements, items, total); for (auto& it : items) v.identity.push_back(it.identity); }
   std::string extra;
   if (marks) {
     Win* target = win ? win : frontIn(all, cap);
@@ -807,9 +836,384 @@ Result elements(const std::string& window, const std::string& viewId, int limit)
   std::vector<Item> items;
   int total = 0;
   collect(w->h, limit, items, total);
-  res.json = "{\"window\":" + winJson(*w) + ",\"items\":" + itemsJson(items, hasView ? &v : nullptr) + ",\"total\":" + std::to_string(total) + (total > (int)items.size() ? ",\"more\":true" : "") + ",\"coords\":\"" +
+  std::string vid = viewId;
+  if (!hasView) {
+    v.at = GetTickCount64(); v.hwnd = w->h; v.title = w->title; v.app = w->app; v.frame = w->r; v.scale = 1; v.width = GetSystemMetrics(SM_CXVIRTUALSCREEN); v.height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+    // List-only views have no picture coordinates; refs remain usable without taking a screenshot.
+    v.width = 0; v.height = 0;
+    for (auto& it : items) v.identity.push_back(it.identity);
+    std::lock_guard<std::mutex> l(g_m); vid = "v" + std::to_string(++g_viewN);
+    for (auto i = g_views.begin(); i != g_views.end();) i = v.at - i->second.at > kViewTtl * 3 ? g_views.erase(i) : std::next(i);
+    g_views[vid] = v;
+  } else if (v.hwnd != w->h) { res.code = "stale_view"; res.message = "The window is not the window in this look."; return res; }
+  res.json = "{\"viewId\":" + jq(vid) + ",\"window\":" + winJson(*w) + ",\"items\":" + itemsJson(items, hasView ? &v : nullptr) + ",\"total\":" + std::to_string(total) + (total > (int)items.size() ? ",\"more\":true" : "") + ",\"coords\":\"" +
              (hasView ? "picture" : "screen") + "\"}";
   return res;
 }
 
+namespace {
+Result refusal(const std::string& code, const std::string& why) { Result r; r.code = code; r.message = why; return r; }
+bool inputDesktop() {
+  HDESK d = OpenInputDesktop(0, FALSE, DESKTOP_READOBJECTS | DESKTOP_SWITCHDESKTOP);
+  if (!d) return false;
+  wchar_t name[128]{}; DWORD n = 0;
+  bool ok = GetUserObjectInformationW(d, UOI_NAME, name, sizeof(name), &n) && _wcsicmp(name, L"Default") == 0;
+  CloseDesktop(d); return ok;
+}
+bool elevated(HWND h) {
+  DWORD pid = 0, n = 0; GetWindowThreadProcessId(h, &pid);
+  HANDLE p = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid), t = nullptr;
+  TOKEN_ELEVATION value{}; bool unknown = true;
+  if (p && OpenProcessToken(p, TOKEN_QUERY, &t)) unknown = !GetTokenInformation(t, TokenElevation, &value, sizeof(value), &n);
+  if (t) CloseHandle(t); if (p) CloseHandle(p);
+  return unknown || value.TokenIsElevated != 0;
+}
+bool dangerousApp(const std::string& app) {
+  static const std::regex re(R"((^|[ ._-])(explorer|cmd|powershell|pwsh|terminal|windowsterminal|conhost|bash|wsl|regedit|mmc|control|systemsettings|sara)([ ._-]|$))", std::regex::icase);
+  return std::regex_search(app, re) || !blockedKind(app, app).empty();
+}
+bool neverAction(const std::string& label) {
+  static const std::regex re(R"(\b(delete|remove|erase|trash|recycle|unlink)\b(?!\s+(my |your |this |the )?account\b)|run as administrator|elevat(ed|ion)|\buac\b|delete (a )?(file|folder)|remove (a )?(file|folder)|empty (the )?(trash|recycle)|move to trash|format (disk|drive)|security settings)", std::regex::icase);
+  return std::regex_search(label, re);
+}
+bool onceAction(const std::string& label) {
+  static const std::regex re(R"(\b(pay|payment|purchase|buy|checkout|order|donate|card|credit|billing|cvv|cvc|account|password|recovery|privacy|security|send|post|install|uninstall)\b|cc-number|cc-csc|2fa|two.factor)", std::regex::icase);
+  return std::regex_search(label, re);
+}
+std::string authority(std::string raw) {
+  raw = lower(raw);
+  size_t scheme = raw.find("://"); if (scheme != std::string::npos) raw.erase(0, scheme + 3);
+  raw = raw.substr(0, raw.find_first_of("/?#"));
+  size_t user = raw.rfind('@'); if (user != std::string::npos) raw.erase(0, user + 1);
+  while (!raw.empty() && isspace((unsigned char)raw.back())) raw.pop_back();
+  while (!raw.empty() && isspace((unsigned char)raw.front())) raw.erase(0, 1);
+  if (raw.size() > 4 && raw.substr(raw.size() - 4) == ":443") raw.resize(raw.size() - 4);
+  else if (raw.size() > 3 && raw.substr(raw.size() - 3) == ":80") raw.resize(raw.size() - 3);
+  return raw;
+}
+bool browserAllowed(HWND hwnd, const std::string& app) {
+  bool webSurface = std::regex_search(app, std::regex("msedge|chrome|chromium|firefox|brave|opera|vivaldi|arc|zen|duckduckgo", std::regex::icase));
+  // Registered browsers are identified by their executable, rather than relying on names.
+  for (HKEY hive : {HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE}) {
+    HKEY clients = nullptr;
+    if (RegOpenKeyExW(hive, L"Software\\Clients\\StartMenuInternet", 0, KEY_READ, &clients) != ERROR_SUCCESS) continue;
+    for (DWORD index = 0; index < 100; ++index) {
+      wchar_t name[256]{}; DWORD len = 256;
+      if (RegEnumKeyExW(clients, index, name, &len, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS) break;
+      std::wstring key = std::wstring(name) + L"\\shell\\open\\command";
+      wchar_t command[4096]{}; DWORD bytes = sizeof(command);
+      if (RegGetValueW(clients, key.c_str(), nullptr, RRF_RT_REG_SZ, nullptr, command, &bytes) == ERROR_SUCCESS) {
+        int count = 0; LPWSTR* argv = CommandLineToArgvW(command, &count);
+        if (argv && count > 0 && lower(u8(std::filesystem::path(argv[0]).stem().wstring())) == lower(app)) webSurface = true;
+        if (argv) LocalFree(argv);
+      }
+    }
+    RegCloseKey(clients);
+  }
+  auto u = uia(); ComPtr<IUIAutomationElement> root; ComPtr<IUIAutomationTreeWalker> walk;
+  if (!u || FAILED(u->ElementFromHandle(hwnd, &root)) || FAILED(u->get_ControlViewWalker(&walk))) return false;
+  std::string own; { std::lock_guard<std::mutex> l(g_m); own = authority(g_serverAuthority); }
+  if (own.empty()) return false;
+  int nodes = 0; bool found = false, ownPage = false, editingAddress = false;
+  std::function<void(IUIAutomationElement*, int)> scan = [&](IUIAutomationElement* e, int depth) {
+    if (depth > 8 || ++nodes > 1000 || ownPage) return;
+    CONTROLTYPEID type = 0; e->get_CurrentControlType(&type);
+    BSTR framework = nullptr; e->get_CurrentFrameworkId(&framework);
+    if (framework) { if (std::regex_search(u8(framework), std::regex("chrome|mozilla|webkit|internetexplorer", std::regex::icase))) webSurface = true; SysFreeString(framework); }
+    // Page contents cannot impersonate the browser's native address bar.
+    if (type == UIA_DocumentControlTypeId) return;
+    if (type == UIA_EditControlTypeId || type == UIA_ComboBoxControlTypeId) {
+      BSTR id = nullptr, name = nullptr; e->get_CurrentAutomationId(&id); e->get_CurrentName(&name);
+      std::string label = lower((id ? u8(id) : "") + " " + (name ? u8(name) : "")); SysFreeString(id); SysFreeString(name);
+      if (std::regex_search(label, std::regex("address|omnibox|url|adresse|direcci|endere|indirizzo|location"))) {
+        BOOL focused = FALSE; e->get_CurrentHasKeyboardFocus(&focused); editingAddress = editingAddress || focused;
+        BOOL secret = TRUE; e->get_CurrentIsPassword(&secret);
+        ComPtr<IUIAutomationValuePattern> value;
+        if (!secret && SUCCEEDED(e->GetCurrentPatternAs(UIA_ValuePatternId, IID_PPV_ARGS(&value))) && value) {
+          BSTR text = nullptr;
+          if (SUCCEEDED(value->get_CurrentValue(&text)) && text) {
+            std::string site = authority(u8(text)); found = !site.empty(); ownPage = site == own; SysFreeString(text);
+          }
+        }
+      }
+    }
+    ComPtr<IUIAutomationElement> child; walk->GetFirstChildElement(e, &child);
+    while (child) { scan(child.Get(), depth + 1); ComPtr<IUIAutomationElement> next; walk->GetNextSiblingElement(child.Get(), &next); child = next; }
+  };
+  scan(root.Get(), 0);
+  return !webSurface && !found ? true : found && !ownPage && !editingAddress;
+}
+bool secureAncestors(IUIAutomation* u, IUIAutomationElement* element, std::string* labels = nullptr) {
+  ComPtr<IUIAutomationTreeWalker> walker; if (FAILED(u->get_ControlViewWalker(&walker))) return true;
+  ComPtr<IUIAutomationElement> current = element;
+  for (int depth = 0; current && depth < 12; ++depth) {
+    BOOL password = TRUE;
+    if (FAILED(current->get_CurrentIsPassword(&password)) || password) return true;
+    if (labels) { BSTR name = nullptr; current->get_CurrentName(&name); if (name) { *labels += " " + maskText(u8(name)); SysFreeString(name); } }
+    ComPtr<IUIAutomationElement> parent; walker->GetParentElement(current.Get(), &parent); current = parent;
+  }
+  return false;
+}
+struct Bound { View view; Win win; Item item; POINT point{}; };
+Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = false) {
+  if (!inputDesktop()) return refusal("denied_local", "The screen is locked or the secure desktop is active; Sara cannot control it.");
+  {
+    std::lock_guard<std::mutex> l(g_m); auto i = g_views.find(a.viewId);
+    if (i == g_views.end() || GetTickCount64() - i->second.at > (approvedRefresh ? 600000 : kViewTtl)) return refusal("stale_view", "That look is older than 20 seconds: look again.");
+    b.view = i->second;
+  }
+  auto all = listAll(); Result r;
+  Win* w = findWin(all, a.window.empty() ? idOf(b.view.hwnd) : a.window, r);
+  if (!w) return r;
+  if (!w->h || w->h != b.view.hwnd || w->title != b.view.title || w->app != b.view.app || !EqualRect(&w->r, &b.view.frame)) return refusal("stale_view", "The target window changed or is not the window in this look.");
+  b.win = *w;
+  if (elevated(w->h)) return refusal("denied_local", "I can't control windows running as administrator");
+  if (dangerousApp(w->app)) return refusal("denied_local", "Terminal, system settings and protected applications are not desktop input targets.");
+  if (!browserAllowed(w->h, w->app)) return refusal("denied_local", "Sara cannot control her own server/sign-in in a browser, or a browser whose address cannot be checked safely.");
+  if (activate && GetForegroundWindow() != w->h) SetForegroundWindow(w->h);
+  if (GetForegroundWindow() != w->h) return refusal("denied_local", "The target window is not in front. Look again when it is.");
+  std::vector<Item> items; int total = 0; collect(w->h, kMaxElements, items, total);
+  if (items.size() != b.view.identity.size()) return refusal("stale_view", "The controls changed: look again.");
+  for (size_t i = 0; i < items.size(); ++i) if (items[i].identity != b.view.identity[i]) return refusal("stale_view", "A control changed: look again.");
+  int index = -1;
+  if (!a.ref.empty()) {
+    if (!std::regex_match(a.ref, std::regex("e[1-9][0-9]{0,3}"))) return refusal("stale_view", "That ref is not in this look.");
+    index = atoi(a.ref.c_str() + 1) - 1;
+    if (index < 0 || index >= (int)items.size()) return refusal("stale_view", "That ref is not in this look.");
+    RECT f = items[index].r; b.point = {(f.left + f.right) / 2, (f.top + f.bottom) / 2};
+  } else {
+    if (!std::isfinite(a.x) || !std::isfinite(a.y) || a.x < 0 || a.y < 0 || a.x >= b.view.width || a.y >= b.view.height) return refusal("denied_local", "The point is outside this picture; list-only looks require a ref.");
+    b.point = {(LONG)std::lround(b.view.ox + a.x / b.view.scale), (LONG)std::lround(b.view.oy + a.y / b.view.scale)};
+    auto u = uia(); ComPtr<IUIAutomationElement> at;
+    if (!u || FAILED(u->ElementFromPoint(b.point, &at)) || !at) return refusal("denied_local", "The target cannot be inspected safely.");
+    BOOL secure = TRUE; if (FAILED(at->get_CurrentIsPassword(&secure)) || secure) return refusal("denied_local", "That is a password or secure field.");
+    for (size_t i = 0; i < items.size(); ++i) { BOOL same = FALSE; if (SUCCEEDED(u->CompareElements(items[i].element.Get(), at.Get(), &same)) && same) { index = (int)i; break; } }
+    // Canvas controls may lack a named ref; inspect the actual hit element before using coordinates.
+    if (index < 0) {
+      b.item.element = at; b.item.r = {b.point.x, b.point.y, b.point.x + 1, b.point.y + 1};
+      BSTR title = nullptr; at->get_CurrentName(&title); b.item.name = title ? u8(title) : ""; SysFreeString(title);
+      BOOL enabled = FALSE; if (FAILED(at->get_CurrentIsEnabled(&enabled)) || !enabled) b.item.disabled = true;
+      CONTROLTYPEID type = 0; at->get_CurrentControlType(&type); b.item.role = roleOf(type);
+    }
+  }
+  if (index >= 0) b.item = items[index];
+  auto automation = uia();
+  std::string context;
+  if (!automation || secureAncestors(automation.Get(), b.item.element.Get(), &context)) return refusal("denied_local", "That is a password or secure field.");
+  ComPtr<IUIAutomationElement> actualHit;
+  if (FAILED(automation->ElementFromPoint(b.point, &actualHit)) || !actualHit || secureAncestors(automation.Get(), actualHit.Get(), &context)) return refusal("denied_local", "The point is a secure or uninspectable control.");
+  BOOL exact = FALSE; automation->CompareElements(b.item.element.Get(), actualHit.Get(), &exact);
+  bool pointAction = a.op == "d.drag" || (a.op == "d.click" && (a.right || a.twice));
+  if (a.op == "d.click" && !a.right && !a.twice) {
+    ComPtr<IUIAutomationInvokePattern> invoke;
+    pointAction = FAILED(b.item.element->GetCurrentPatternAs(UIA_InvokePatternId, IID_PPV_ARGS(&invoke))) || !invoke;
+  }
+  if (pointAction && !exact) return refusal("stale_view", "That container's point hits a different control. Look again and use that control's ref.");
+  b.item.name += context;
+  if (b.item.secret) return refusal("denied_local", "That is a password field: Sara never types or presses keys into those.");
+  if (b.item.disabled) return refusal("denied_local", "That control is disabled.");
+  if (GetAncestor(WindowFromPoint(b.point), GA_ROOT) != w->h) return refusal("denied_local", "Another window covers that point. Sara will not act on it.");
+  if (neverAction(b.item.name)) return refusal("denied_local", "That protected desktop action is always refused.");
+  // Even keys aimed at an innocent ref must not spill into a secure focused control.
+  auto u = uia(); ComPtr<IUIAutomationElement> focus;
+  if (!u || FAILED(u->GetFocusedElement(&focus)) || !focus) return refusal("denied_local", "The focused control cannot be inspected safely.");
+  BOOL secure = TRUE;
+  if (FAILED(focus->get_CurrentIsPassword(&secure)) || secure || secureAncestors(u.Get(), focus.Get())) return refusal("denied_local", "A password or secure field is focused. Sara cannot send input.");
+  return {};
+}
+Result launch(const Action& a, bool execute, const std::function<bool()>& cancelled = [] { return false; }) {
+  if (!inputDesktop()) return refusal("denied_local", "The screen is locked or the secure desktop is active.");
+  if (a.app.empty() || a.app.size() > 100 || a.app.find_first_of("\\/:\"|<>\r\n") != std::string::npos || dangerousApp(a.app)) return refusal("denied_local", "Choose an installed Start-menu app by its name; commands, paths and protected apps are refused.");
+  std::wstring path;
+  for (const KNOWNFOLDERID* folder : {&FOLDERID_StartMenu, &FOLDERID_CommonStartMenu}) {
+    PWSTR root = nullptr; if (FAILED(SHGetKnownFolderPath(*folder, 0, nullptr, &root))) continue;
+    std::error_code ec;
+    for (auto i = std::filesystem::recursive_directory_iterator(root, std::filesystem::directory_options::skip_permission_denied, ec); !ec && i != std::filesystem::recursive_directory_iterator(); i.increment(ec)) {
+      if (i->is_symlink(ec)) { i.disable_recursion_pending(); continue; }
+      if (lower(u8(i->path().extension().wstring())) == ".lnk" && lower(u8(i->path().stem().wstring())) == lower(a.app)) { path = i->path().wstring(); break; }
+    }
+    CoTaskMemFree(root); if (!path.empty()) break;
+  }
+  if (path.empty()) return refusal("not_found", "No installed Start-menu shortcut has that name.");
+  ComPtr<IShellLinkW> link; ComPtr<IPersistFile> persist;
+  if (FAILED(CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&link))) || FAILED(link.As(&persist)) || FAILED(persist->Load(path.c_str(), STGM_READ))) return refusal("denied_local", "That shortcut could not be inspected.");
+  wchar_t exe[32768]{}, args[32768]{}; WIN32_FIND_DATAW fd{};
+  if (FAILED(link->GetPath(exe, 32768, &fd, SLGP_RAWPATH)) || !*exe || FAILED(link->GetArguments(args, 32768)) || *args || dangerousApp(u8(std::filesystem::path(exe).stem().wstring()))) return refusal("denied_local", "Shortcuts with command arguments or protected targets are refused.");
+  ComPtr<IShellLinkDataList> data; DWORD flags = 0;
+  if (FAILED(link.As(&data)) || FAILED(data->GetFlags(&flags)) || (flags & SLDF_RUNAS_USER)) return refusal("denied_local", "Administrator shortcuts are refused.");
+  HMODULE binary = LoadLibraryExW(exe, nullptr, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE);
+  if (!binary) return refusal("denied_local", "The installed app could not be inspected.");
+  bool admin = false;
+  HRSRC manifest = FindResourceW(binary, MAKEINTRESOURCEW(1), RT_MANIFEST);
+  if (manifest) { HGLOBAL m = LoadResource(binary, manifest); auto bytes = static_cast<const char*>(LockResource(m)); if (bytes) { std::string xml(bytes, SizeofResource(binary, manifest)); admin = xml.find("requireAdministrator") != std::string::npos || xml.find("highestAvailable") != std::string::npos; } }
+  FreeLibrary(binary);
+  if (admin) return refusal("denied_local", "Administrator applications are refused.");
+  if (execute) {
+    if (cancelled()) return refusal("stopped", "Stopped before opening the app.");
+    if (!inputDesktop()) return refusal("denied_local", "The screen is locked or the secure desktop is active.");
+    SHELLEXECUTEINFOW si{sizeof(si)}; si.fMask = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOASYNC; si.lpFile = exe; si.nShow = SW_SHOWNORMAL;
+    if (cancelled()) return refusal("stopped", "Stopped before opening the app.");
+    if (!ShellExecuteExW(&si)) return refusal("not_found", "That app could not be opened.");
+  }
+  Result r; r.json = "{\"launched\":" + jq(a.app) + "}"; return r;
+}
+}
+
+Result inspect(const Action& a, ActionInfo& info) {
+  Com com;
+  if (a.op == "d.launch") { info.target = "Open installed app: " + a.app; info.once = onceAction(a.app); return launch(a, false); }
+  Bound b; auto r = bind(a, b, false); if (!r.code.empty()) return r;
+  if (a.op == "d.keys" && !std::regex_match(lower(a.combo), std::regex("enter|tab|shift\\+tab|escape|arrowleft|arrowright|arrowup|arrowdown|home|end|pageup|pagedown|backspace|ctrl\\+a"))) return refusal("denied_local", "That key combination is not on the safe desktop key list.");
+  if (a.text.size() > 8000 || maskText(a.text) != a.text) return refusal("denied_local", "That text is too long or looks like a secret.");
+  info.target = a.op + " in " + b.win.title + " / " + b.item.role + " " + b.item.name;
+  if (a.op == "d.type") info.target += "\nText: " + a.text;
+  if (a.op == "d.keys") info.target += "\nKeys: " + a.combo;
+  info.once = onceAction(b.win.title + " " + b.item.name + " " + a.text);
+  if (a.op == "d.drag") {
+    Action destination = a; destination.ref.clear(); destination.x = a.toX; destination.y = a.toY;
+    Bound end; auto checked = bind(destination, end, false); if (!checked.code.empty()) return checked;
+    info.target += "\nDrop on: " + end.item.role + " " + end.item.name;
+    info.once = info.once || onceAction(end.item.name);
+  }
+  return {};
+}
+
+Result refreshApproved(Action& a) {
+  Com com; Bound b; auto r = bind(a, b, true, true); if (!r.code.empty()) return r;
+  b.view.at = GetTickCount64();
+  std::lock_guard<std::mutex> l(g_m); a.viewId = "v" + std::to_string(++g_viewN); g_views[a.viewId] = b.view;
+  return {};
+}
+
+Result input(const Action& a, const std::function<bool()>& cancelled) {
+  Com com;
+  if (cancelled()) return refusal("stopped", "Stopped before desktop input.");
+  if (a.op == "d.launch") return launch(a, true, cancelled);
+  Bound b; auto r = bind(a, b, true); if (!r.code.empty()) return r;
+  bool dragging = false;
+  auto guard = [&]() {
+    if (cancelled()) return false;
+    if (!dragging) {
+      Bound check; if (!bind(a, check, false).code.empty()) return false;
+      auto u = uia(); BOOL same = FALSE;
+      return u && SUCCEEDED(u->CompareElements(b.item.element.Get(), check.item.element.Get(), &same)) && same && b.item.name == check.item.name && b.item.role == check.item.role;
+    }
+    // A dragged widget may move its bounds. Keep the native source identity and recheck
+    // the window and sensitive state instead of treating our own movement as a stale look.
+    auto all = listAll(); Result check; auto w = findWin(all, idOf(b.win.h), check);
+    auto u = uia(); BOOL enabled = FALSE;
+    return w && w->h == GetForegroundWindow() && inputDesktop() && !elevated(w->h) && browserAllowed(w->h, w->app) && u &&
+      SUCCEEDED(b.item.element->get_CurrentIsEnabled(&enabled)) && enabled && !secureAncestors(u.Get(), b.item.element.Get());
+  };
+  auto send = [&](std::vector<INPUT> events) {
+    if (!guard()) return false;
+    for (auto& e : events) { if (e.type == INPUT_MOUSE) e.mi.dwExtraInfo = kInputTag; else e.ki.dwExtraInfo = kInputTag; }
+    return SendInput((UINT)events.size(), events.data(), sizeof(INPUT)) == events.size();
+  };
+  auto move = [&](POINT p) {
+    if (GetAncestor(WindowFromPoint(p), GA_ROOT) != b.win.h) return false;
+    if (dragging) {
+      auto u = uia(); ComPtr<IUIAutomationElement> hit; std::string labels;
+      if (!u || FAILED(u->ElementFromPoint(p, &hit)) || !hit || secureAncestors(u.Get(), hit.Get(), &labels) || neverAction(labels)) return false;
+    }
+    INPUT e{}; e.type = INPUT_MOUSE; e.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
+    e.mi.dx = MulDiv(p.x - GetSystemMetrics(SM_XVIRTUALSCREEN), 65535, std::max(1, GetSystemMetrics(SM_CXVIRTUALSCREEN) - 1));
+    e.mi.dy = MulDiv(p.y - GetSystemMetrics(SM_YVIRTUALSCREEN), 65535, std::max(1, GetSystemMetrics(SM_CYVIRTUALSCREEN) - 1));
+    return send({e});
+  };
+  auto mouse = [&](DWORD flag) { INPUT e{}; e.type = INPUT_MOUSE; e.mi.dwFlags = flag; return e; };
+  bool done = false;
+  if (a.op == "d.click" && !a.right && !a.twice) {
+    ComPtr<IUIAutomationInvokePattern> pattern;
+    if (SUCCEEDED(b.item.element->GetCurrentPatternAs(UIA_InvokePatternId, IID_PPV_ARGS(&pattern))) && pattern) {
+      if (!guard()) return refusal("stopped", "Stopped before Invoke.");
+      if (FAILED(pattern->Invoke())) return refusal("denied_local", "The control refused its accessibility action.");
+      done = true;
+    }
+  }
+  if (a.op == "d.type") {
+    int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, a.text.data(), (int)a.text.size(), nullptr, 0);
+    if ((!a.text.empty() && n == 0) || n > 2000 || maskText(a.text) != a.text) return refusal("denied_local", "Text must be valid, non-secret and at most 2,000 characters.");
+    std::wstring text(n, 0); MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, a.text.data(), (int)a.text.size(), text.data(), n);
+    ComPtr<IUIAutomationValuePattern> pattern;
+    if (SUCCEEDED(b.item.element->GetCurrentPatternAs(UIA_ValuePatternId, IID_PPV_ARGS(&pattern))) && pattern) {
+      if (!guard()) return refusal("stopped", "Stopped before SetValue.");
+      BSTR value = SysAllocStringLen(text.data(), (UINT)text.size()); HRESULT set = pattern->SetValue(value); SysFreeString(value);
+      if (FAILED(set)) return refusal("denied_local", "The field refused its accessibility value action.");
+      done = true;
+    } else {
+      if (FAILED(b.item.element->SetFocus())) return refusal("denied_local", "The target could not receive keyboard focus.");
+      auto u = uia(); ComPtr<IUIAutomationElement> focus; BOOL same = FALSE;
+      if (!u || FAILED(u->GetFocusedElement(&focus)) || FAILED(u->CompareElements(focus.Get(), b.item.element.Get(), &same)) || !same) return refusal("denied_local", "Focus is not on the target field.");
+      for (wchar_t ch : text) { INPUT down{}; down.type = INPUT_KEYBOARD; down.ki.wScan = ch; down.ki.dwFlags = KEYEVENTF_UNICODE; INPUT up = down; up.ki.dwFlags |= KEYEVENTF_KEYUP; if (!send({down, up})) return refusal("stopped", "Text input was interrupted; some characters may have been entered."); }
+      done = true;
+    }
+  }
+  if (a.op == "d.keys") {
+    static const std::map<std::string, int> keys = {{"enter", VK_RETURN}, {"tab", VK_TAB}, {"shift+tab", VK_TAB}, {"escape", VK_ESCAPE}, {"arrowleft", VK_LEFT}, {"arrowright", VK_RIGHT}, {"arrowup", VK_UP}, {"arrowdown", VK_DOWN}, {"home", VK_HOME}, {"end", VK_END}, {"pageup", VK_PRIOR}, {"pagedown", VK_NEXT}, {"backspace", VK_BACK}, {"ctrl+a", static_cast<WORD>('A')}};
+    auto key = keys.find(lower(a.combo)); if (key == keys.end()) return refusal("denied_local", "That key combination is not on the safe desktop key list.");
+    if (FAILED(b.item.element->SetFocus())) return refusal("denied_local", "The target could not receive keyboard focus.");
+    auto u = uia(); ComPtr<IUIAutomationElement> focus; BOOL same = FALSE;
+    if (!u || FAILED(u->GetFocusedElement(&focus)) || FAILED(u->CompareElements(focus.Get(), b.item.element.Get(), &same)) || !same) return refusal("denied_local", "Focus is not on the target control.");
+    std::vector<INPUT> events;
+    auto k = [&](WORD vk, bool up) { INPUT e{}; e.type = INPUT_KEYBOARD; e.ki.wVk = vk; e.ki.dwFlags = up ? KEYEVENTF_KEYUP : 0; events.push_back(e); };
+    WORD modifier = lower(a.combo) == "ctrl+a" ? VK_CONTROL : lower(a.combo) == "shift+tab" ? VK_SHIFT : 0;
+    if (modifier) k(modifier, false); k(static_cast<WORD>(key->second), false); k(static_cast<WORD>(key->second), true); if (modifier) k(modifier, true);
+    done = send(events);
+  }
+  if (a.op == "d.scroll") {
+    if (!std::isfinite(a.dx) || !std::isfinite(a.dy) || std::abs(a.dx) > 2400 || std::abs(a.dy) > 2400) return refusal("denied_local", "Scroll amount is outside the limit.");
+    ComPtr<IUIAutomationScrollPattern> pattern;
+    if (SUCCEEDED(b.item.element->GetCurrentPatternAs(UIA_ScrollPatternId, IID_PPV_ARGS(&pattern))) && pattern) {
+      if (!guard()) return refusal("stopped", "Stopped before Scroll.");
+      auto amount = [](double n) { return n == 0 ? ScrollAmount_NoAmount : n > 0 ? ScrollAmount_SmallIncrement : ScrollAmount_SmallDecrement; };
+      if (FAILED(pattern->Scroll(amount(a.dx), amount(a.dy)))) return refusal("denied_local", "The control refused its accessibility scroll action."); done = true;
+    } else if (move(b.point)) {
+      INPUT v = mouse(MOUSEEVENTF_WHEEL); v.mi.mouseData = (DWORD)-(LONG)a.dy;
+      INPUT h = mouse(MOUSEEVENTF_HWHEEL); h.mi.mouseData = (DWORD)(LONG)a.dx;
+      done = send({v, h});
+    }
+  }
+  if (!done && a.op == "d.click") {
+    if (!move(b.point)) return refusal("stopped", "The click target is no longer available.");
+    done = true;
+    for (int i = 0; i < (a.twice ? 2 : 1); ++i) if (!send({mouse(a.right ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_LEFTDOWN), mouse(a.right ? MOUSEEVENTF_RIGHTUP : MOUSEEVENTF_LEFTUP)})) { done = false; break; }
+  }
+  if (a.op == "d.drag") {
+    if (!std::isfinite(a.toX) || !std::isfinite(a.toY) || a.toX < 0 || a.toY < 0 || a.toX >= b.view.width || a.toY >= b.view.height) return refusal("denied_local", "The drag endpoint is outside this picture.");
+    POINT end{(LONG)std::lround(b.view.ox + a.toX / b.view.scale), (LONG)std::lround(b.view.oy + a.toY / b.view.scale)};
+    // Reject secure fields at the destination as well as the source.
+    auto u = uia(); ComPtr<IUIAutomationElement> hit; BOOL secure = TRUE;
+    std::string labels;
+    if (!u || FAILED(u->ElementFromPoint(end, &hit)) || !hit || FAILED(hit->get_CurrentIsPassword(&secure)) || secure || secureAncestors(u.Get(), hit.Get(), &labels) || neverAction(labels)) return refusal("denied_local", "The drag endpoint is protected, secure or uninspectable.");
+    if (!move(b.point) || !send({mouse(MOUSEEVENTF_LEFTDOWN)})) return refusal("stopped", "The drag could not start.");
+    dragging = true;
+    done = true;
+    for (int i = 1; i <= 8; ++i) { POINT p{b.point.x + MulDiv(end.x - b.point.x, i, 8), b.point.y + MulDiv(end.y - b.point.y, i, 8)}; if (!move(p)) { done = false; break; } }
+    // Always release Sara's held button, even after takeover, to avoid leaving the user dragging.
+    INPUT up = mouse(MOUSEEVENTF_LEFTUP); up.mi.dwExtraInfo = kInputTag; if (SendInput(1, &up, sizeof(INPUT)) != 1) done = false;
+  }
+  if (!done) return refusal("stopped", "Desktop input was interrupted or refused; look again before trying.");
+  Result after = elements(idOf(b.win.h), "", kMaxElements);
+  if (!after.code.empty()) return refusal(after.code, "The action ran, but verification failed: " + after.message);
+  after.json = "{\"changed\":true,\"method\":\"accessibility-or-tagged-input\",\"after\":" + after.json + "}"; return after;
+}
+#ifdef SARA_TEST_HOOKS
+std::string policyConformance() {
+  std::vector<std::pair<std::string, bool>> checks;
+  for (const char* label : {"Pay", "Card number", "Credit card", "Account settings"}) checks.push_back({std::string(label) + " requires approve-once", onceAction(label)});
+  checks.push_back({"File deletion is refused", neverAction("Delete file")});
+  checks.push_back({"Account removal remains approve-once", !neverAction("Delete account") && onceAction("Delete account")});
+  checks.push_back({"Real mouse input is not Sara", !ownMouseInput(0, kInputTag)});
+  checks.push_back({"Other injected mouse input is not Sara", !ownMouseInput(LLMHF_INJECTED, 123)});
+  checks.push_back({"Tagged injected mouse input is Sara", ownMouseInput(LLMHF_INJECTED, kInputTag)});
+  checks.push_back({"Real keyboard input is not Sara", !ownKeyInput(0, kInputTag)});
+  checks.push_back({"Other injected keyboard input is not Sara", !ownKeyInput(LLKHF_INJECTED, 123)});
+  checks.push_back({"Tagged injected keyboard input is Sara", ownKeyInput(LLKHF_INJECTED, kInputTag)});
+  checks.push_back({"Own server authority canonicalizes", authority("http://localhost:7885/sign-in") == authority("localhost:7885")});
+  int failed = 0; std::string out = "{\"checks\":[";
+  for (size_t i = 0; i < checks.size(); ++i) { if (!checks[i].second) failed++; out += (i ? "," : "") + std::string("{\"name\":") + jq(checks[i].first) + ",\"ok\":" + (checks[i].second ? "true" : "false") + "}"; }
+  return out + "],\"passed\":" + std::to_string(checks.size() - failed) + ",\"failed\":" + std::to_string(failed) + "}";
+}
+#endif
 }  // namespace sarascreen

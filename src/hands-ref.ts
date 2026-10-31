@@ -40,17 +40,19 @@ import type { Readable, Writable } from 'node:stream';
 import { findBrowser, pageAgentCall, type BrowserInfo } from './browser.ts';
 import { CdpClient, type CdpEvent } from './cdp.ts';
 import { HANDS_OPS, HANDS_PROTOCOL, packBinary, parseBinary } from './hands.ts';
-import { CU5_OPS, TestDesktop } from './hands-desktop.ts';
+import { DesktopConsent, type DesktopPrompt } from './hands-desktop-consent.ts';
+import { CU5_OPS, CU6_OPS, DESKTOP_INPUT_OPS, TestDesktop } from './hands-desktop.ts';
 import { CAUGHT_KEEP_MS, cleanLoginName, defaultLoginName, LoginError, loginOrigin, SAVE_LOGIN_WARNING, siteMatches, TestVault, type ConsentAnswer, type ConsentRequest } from './hands-logins.ts';
 import { managerName, ManagerError, MANAGER_IDS, type ManagerId, type ManagerSessions } from './hands-managers.ts';
 import { connectWebSocket, type WsConnection } from './ws.ts';
 
-export const REF_VERSION = 'hands-ref 6';
+export const REF_VERSION = 'hands-ref 7';
 /** Phase 89 (CU3): the device's own dev-tunnel limits (loopback only, whatever the server says). */
 export const TUNNEL_DEVICE_LIMITS = { tunnels: 4, streams: 64, chunk: 64 * 1024, highWater: 4 * 1024 * 1024 };
 /** Phase 92: the desktop ops are in the command set only with a (fixture) desktop to look at. */
-const OPS = new Set<string>(HANDS_OPS.filter((o) => !(CU5_OPS as readonly string[]).includes(o)));
-const DESKTOP_OP = new Set<string>(CU5_OPS);
+const OPS = new Set<string>(HANDS_OPS.filter((o) => !(CU5_OPS as readonly string[]).includes(o) && !(CU6_OPS as readonly string[]).includes(o)));
+const DESKTOP_OP = new Set<string>([...CU5_OPS, ...CU6_OPS]);
+const DESKTOP_INPUT = new Set<string>(DESKTOP_INPUT_OPS);
 /** §7.7: the device's own input limits. */
 export const INPUT_LIMITS = { perSecond: 4, perMinute: 120, chars: 2000 };
 const INPUT_OPS = new Set(['b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload', 'b.login']);
@@ -458,7 +460,7 @@ export interface HandsRefOptions {
   optIn?: { browser: boolean; desktop?: boolean };
   /** Phase 92: a desktop to look at (the fixture desktop: known windows, a fixture KeePass, Sara's own window). */
   desktop?: TestDesktop;
-  /** Phase 88: "When you move the mouse": pause Sara (default) or let her keep control. */
+  /** Phase 88/93: "When you move the mouse": pause Sara (default) or let her keep control. */
   takeover?: 'pause' | 'keep';
   /** Phase 88: Downloads/Sara (a temporary folder when not given). */
   folder?: string;
@@ -480,6 +482,12 @@ export interface HandsRefOptions {
   managers?: ManagerSessions;
   /** Tests: extra browser switches (e.g. host-resolver rules for look-alike sites). */
   browserArgs?: string[];
+  /** Phase 93: whether desktop input is answered by the local computer approval surface. */
+  approvalsHere?: boolean;
+  desktopLevel?: 'ask' | 'task' | 'always';
+  desktopConsent?: (p: DesktopPrompt) => Promise<'once' | 'task' | 'deny'>;
+  /** Phase 93: keep the computer awake while a task is active. */
+  walkAway?: boolean;
   /** Tests: keep every frame of the hands channel in `wire`. */
   recordWire?: boolean;
   log?: (line: string) => void;
@@ -493,6 +501,8 @@ export class HandsRef {
   #stopped = false;
   #attempt = 0;
   #timer?: NodeJS.Timeout;
+  readonly desktopConsent = new DesktopConsent();
+  #desktopQueue: Promise<unknown> = Promise.resolve();
   readonly #answers = new Map<string, string>();
   readonly #running = new Map<string, AbortController>();
   readonly #lastFrameAt = { at: 0, hash: '' };
@@ -519,6 +529,9 @@ export class HandsRef {
 
   constructor(opts: HandsRefOptions) {
     this.opts = opts;
+    if (opts.desktop) opts.desktop.ownOrigin = new URL(opts.server).origin;
+    this.desktopConsent.level = opts.desktopLevel ?? 'task';
+    if (opts.desktop) { const url = new URL(opts.server); opts.desktop.transportSecure = url.protocol === 'https:' || ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname); }
     this.browser = new SaraBrowser({ ...(opts.info ? { info: opts.info } : {}), headless: opts.headless !== false, ...(opts.profileDir ? { profileDir: opts.profileDir } : {}), ...(opts.folder ? { folder: opts.folder } : {}), ...(opts.browserArgs ? { extraArgs: opts.browserArgs } : {}), serverOrigin: new URL(opts.server).origin });
     this.vault = opts.vault ?? new TestVault();
     if (opts.logFile && existsSync(opts.logFile)) {
@@ -587,6 +600,8 @@ export class HandsRef {
       // Phase 88: a token with less than 30 days left is renewed over this connection.
       if (this.opts.renewBefore && Date.parse(this.opts.renewBefore) - Date.now() < 30 * 86_400_000) ws.send(JSON.stringify({ t: 'renew' }));
       ws.onClose = () => {
+        this.desktopConsent.clear();
+        this.opts.desktop?.endTask();
         if (this.ws === ws) this.ws = undefined;
         for (const ac of this.#running.values()) ac.abort();
         // Phase 91: the managers lock again with the connection.
@@ -621,18 +636,19 @@ export class HandsRef {
       computer: this.opts.name ?? hostname(),
       screens: this.opts.desktop ? [this.opts.desktop.screen] : [],
       browser: { found: this.browser.info.found, ...(this.browser.info.kind ? { kind: this.browser.info.kind } : {}), ...(this.browser.info.name ? { name: this.browser.info.name } : {}) },
-      perms: { capture: Boolean(this.opts.desktop), input: false, ax: Boolean(this.opts.desktop) },
+      perms: { capture: Boolean(this.opts.desktop), input: Boolean(this.opts.desktop), ax: Boolean(this.opts.desktop) },
       optIn: { browser: this.opts.optIn?.browser !== false, desktop: this.#desktopOn },
-      approvalsHere: false,
+      approvalsHere: Boolean(this.opts.desktopConsent) && this.opts.approvalsHere !== false,
       logins: this.vault.list(this.serverOrigin),
       vault: { kind: 'test', verify: this.opts.verify?.on === true },
       busy: false,
       localOnly: this.opts.localOnly === true,
-      ops: [...OPS, ...(this.opts.desktop ? CU5_OPS : [])],
+      ops: [...OPS, ...(this.opts.desktop ? [...CU5_OPS, ...CU6_OPS] : [])],
       takeover: this.opts.takeover ?? 'pause',
       hotkey: '',
       paused: this.paused,
       renew: true,
+      walkAway: this.opts.walkAway === true,
       ...(this.opts.managers ? { managers: this.opts.managers.views(), relockMinutes: Math.max(1, Math.round(this.opts.managers.relockMs / 60_000)) } : {}),
     };
   }
@@ -677,6 +693,7 @@ export class HandsRef {
    * real input from hers with the OS; here tests call it). With "Pause Sara" nothing acts until resume().
    */
   userInput(): void {
+    if ((this.opts.takeover ?? 'pause') !== 'keep') this.opts.desktop?.ownerInput();
     if ((this.opts.takeover ?? 'pause') === 'keep' || this.paused) return;
     this.paused = true;
     for (const [id, ac] of this.#running) if (this.#acting.has(id)) ac.abort(new OpError('takeover', 'Paused: the owner took over the Sara browser.'));
@@ -686,7 +703,9 @@ export class HandsRef {
 
   /** Phase 88: Resume on the device's badge. */
   resume(): void {
+    this.opts.desktop?.resume();
     if (!this.paused) return;
+    this.opts.desktop?.resume();
     this.paused = false;
     this.badge = '';
     this.ws?.send(JSON.stringify({ t: 'ev', kind: 'resumed' }));
@@ -714,6 +733,9 @@ export class HandsRef {
 
   /** Stop pressed on the computer: everything running is cancelled and the server is told. */
   pressStop(): void {
+    this.opts.desktop?.stop();
+    this.desktopConsent.clear();
+    this.opts.desktop?.endTask();
     for (const ac of this.#running.values()) ac.abort();
     this.closeTunnels();
     // Phase 91: Stop locks the password managers again.
@@ -730,6 +752,8 @@ export class HandsRef {
     this.#stopped = true;
     clearTimeout(this.#timer);
     this.closeTunnels();
+    this.desktopConsent.clear();
+    this.opts.desktop?.endTask();
     await this.opts.managers?.lockAll('the app closed');
     this.ws?.close(1000, 'bye');
     await this.browser.close();
@@ -750,6 +774,8 @@ export class HandsRef {
     if (m.t === 's') return this.#streamControl(m);
     if (m.t === 'cancel') {
       if (m.all) {
+        this.desktopConsent.clear();
+        this.opts.desktop?.endTask();
         for (const ac of this.#running.values()) ac.abort();
         // Phase 91: Stop (from the chat or Settings) locks the password managers again too.
         void this.opts.managers?.lockAll('stopped');
@@ -767,7 +793,7 @@ export class HandsRef {
     this.seen.push(op);
     const ac = new AbortController();
     this.#running.set(id, ac);
-    if (INPUT_OPS.has(op)) this.#acting.add(id);
+    if (INPUT_OPS.has(op) || DESKTOP_INPUT.has(op)) this.#acting.add(id);
     const what = typeof m.what === 'string' ? m.what.slice(0, 120) : '';
     if (what && op !== 'c.ping') this.badge = this.paused ? this.badge : `Sara is working: ${what}`;
     const deadline = Math.min(Math.max(1000, Number(m.deadlineMs) || 30_000), WAITING.has(op) ? 600_000 : 120_000);
@@ -778,12 +804,12 @@ export class HandsRef {
       if ((op.startsWith('b.') || op === 'c.tunnel') && this.opts.optIn?.browser === false) throw new OpError('denied_local', '"Let Sara use this computer" is off here.');
       // Phase 92: the whole screen only with its own switch on here.
       if (op.startsWith('d.') && !this.#desktopOn) throw new OpError('denied_local', '"The whole screen" is off on this computer.');
-      if (INPUT_OPS.has(op)) {
+      if (INPUT_OPS.has(op) || DESKTOP_INPUT.has(op)) {
         if (this.paused) throw new OpError('takeover', 'Paused: the owner took over the Sara browser. Nothing acts until they press Resume.');
         this.#countInput();
       }
       const args = (m.args && typeof m.args === 'object' ? m.args : {}) as Record<string, unknown>;
-      const result = await Promise.race([
+        const result = await Promise.race([
         this.#run(ws, id, op, args, what),
         new Promise<never>((_, rej) => ac.signal.addEventListener('abort', () => rej(ac.signal.reason instanceof OpError ? ac.signal.reason : new OpError('stopped', 'Stopped.')), { once: true })),
       ]);
@@ -1171,12 +1197,33 @@ export class HandsRef {
     else if (ev === 'resume') s.socket.resume();
   }
 
-  #desktop(ws: WsConnection, id: string, op: string, a: Record<string, unknown>): Record<string, unknown> {
+  async #desktop(ws: WsConnection, id: string, op: string, a: Record<string, unknown>): Promise<Record<string, unknown>> {
     const dt = this.opts.desktop!;
     try {
       if (op === 'd.screens') return dt.screens();
       if (op === 'd.windows') return dt.list();
       if (op === 'd.elements') return dt.elements(a);
+      if (DESKTOP_INPUT.has(op)) {
+        const signal = this.#running.get(id)?.signal;
+        if (!signal) throw new OpError('stopped', 'The desktop request was cancelled.');
+        const act = async () => {
+          if (signal.aborted) throw new OpError('stopped', 'The queued desktop request was cancelled.');
+          const target = dt.inspect(op, a);
+          dt.beginTask(this.opts.walkAway === true);
+          const prompt = { op, forceOnce: a.forceOnce === true || a.approvalLevel === 'ask', task: String(a.task ?? ''), target: { role: target.element?.role, name: target.element?.name ?? String(a.app ?? ''), secret: target.element?.secure }, ...(typeof a.text === 'string' ? { text: a.text } : {}) };
+          const ok = await this.desktopConsent.allow(prompt, this.opts.desktopConsent, signal);
+          if (signal?.aborted) throw new OpError('stopped', 'Stopped.');
+          this.ws?.send(JSON.stringify({ t: 'ev', kind: 'local_approval', op, allowed: ok }));
+          if (!ok) throw new OpError('denied_local', 'The person at this computer did not approve that action.');
+          if (op !== 'd.launch') dt.refreshApproved(a);
+          const result = dt.act(op, a); // Re-check after the person answers; never trust the earlier inspection.
+          this.#localLog(op, String(a.task ?? ''), String(target.element?.name ?? a.app ?? ''));
+          return result;
+        };
+        const next = this.#desktopQueue.then(act);
+        this.#desktopQueue = next.catch(() => {});
+        return await next;
+      }
       const s = dt.shot(a);
       this.#image(ws, { id, kind: 'shot', mime: 'image/png', w: s.w, h: s.h, viewId: s.viewId }, s.png);
       this.#localLog(op, 'looked at the screen', String(a.window ?? 'screen'));
@@ -1209,6 +1256,7 @@ export class HandsRef {
     if (op === 'c.untunnel') return { closed: this.closeTunnel(String(args.tunnel ?? '')) };
     // Phase 90: the saved logins here (names and sites only go back).
     const server = this.serverOrigin;
+    if (op === 'c.endTask') { this.opts.desktop?.endTask(); this.desktopConsent.clear(); this.badge = ''; return { ended: true }; }
     // Phase 91: after the task (and "Lock now"): every manager unlocked for Sara locks again.
     if (op === 'b.relock') return { locked: (await this.opts.managers?.lockAll('the task ended')) ?? [] };
     if (op === 'b.unlock') return this.#unlock(id, args);

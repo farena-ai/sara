@@ -10343,6 +10343,7 @@ async function loadComputer() {
   $('#cu-acts').hidden = h.role !== 'owner';
   $('#cu-level').value = h.level || 'task';
   $('#cu-level').dataset.was = h.level || 'task';
+  $('#cu-desktop-level').closest('label').hidden = true;
   cuSettings.alwaysWarned = h.alwaysWarned === true;
   renderAlways(h.always ?? []);
   for (const d of h.devices ?? []) cuSettings.names[d.id] = d.computer || d.label;
@@ -10362,8 +10363,14 @@ async function loadComputer() {
     if (document.activeElement !== $('#cu-block-extra')) $('#cu-block-extra').value = p.handsBlockExtra || '';
     $('#cu-block-extra').disabled = p.handsOptIn !== true;
     renderCuPerms(p);
+    $('#cu-desktop-level').closest('label').hidden = false;
+    $('#cu-desktop-level').value = p.handsDesktopLevel || 'task';
+    $('#cu-desktop-level').dataset.was = p.handsDesktopLevel || 'task';
+    $('#cu-desktop-level').disabled = p.handsOptIn !== true;
     $('#cu-takeover').value = p.handsTakeover === 'keep' ? 'keep' : 'pause';
     $('#cu-takeover').disabled = p.handsOptIn !== true;
+    $('#cu-walkaway').checked = p.handsWalkAway === true;
+    $('#cu-walkaway').disabled = p.handsOptIn !== true;
     if (p.handsHotkey) $('#cu-hotkey').textContent = p.handsHotkey;
     // Phase 90: Windows Hello / Touch ID before a saved login is used (this computer's own choice).
     $('#cu-verify').checked = p.loginsVerify === true;
@@ -10812,17 +10819,37 @@ $('#cu-level').addEventListener('change', async () => {
     $('#cu-status').textContent = err.message;
   }
 });
+$('#cu-desktop-level').addEventListener('change', async () => {
+  const sel = $('#cu-desktop-level');
+  const bridge = handsBridge();
+  if (!bridge) return;
+  try {
+    const r = await bridge.call('setPref', { key: 'handsDesktopLevel', value: sel.value });
+    if (r?.error) throw new Error(r.error);
+    sel.dataset.was = sel.value;
+    $('#cu-this-status').textContent = t('Saved');
+  } catch (err) {
+    sel.value = sel.dataset.was || 'task';
+    $('#cu-this-status').textContent = err.message;
+  }
+});
 $('#cu-takeover').addEventListener('change', async () => {
   const d = handsBridge();
   if (!d) return;
   const r = await d.call('setPref', { key: 'handsTakeover', value: $('#cu-takeover').value }).catch((err) => ({ error: String(err) }));
   $('#cu-this-status').textContent = r?.error ? r.error : t('Saved');
 });
+$('#cu-walkaway').addEventListener('change', async () => {
+  const d = handsBridge();
+  if (!d) return;
+  const r = await d.call('setPref', { key: 'handsWalkAway', value: $('#cu-walkaway').checked }).catch((err) => ({ error: String(err) }));
+  $('#cu-this-status').textContent = r?.error ? r.error : t('Saved');
+});
 
 // Phase 88: the "Sara is working" badge above the composer (with Stop), and "Paused: you took over".
 const cuBadge = { deviceId: '', timer: 0, paused: false };
 const CU_LOOK = () => t('Looking at the page');
-const CU_DOING = { 'b.open': () => t('Opening a page'), 'b.navigate': () => t('Going to a page'), 'b.snapshot': CU_LOOK, 'b.screenshot': CU_LOOK, 'b.find': CU_LOOK, 'b.read': () => t('Reading the page'), 'b.logs': () => t('Reading the logs'), 'b.request': () => t('Reading the logs'), 'b.tabs': () => t('Looking at the tabs'), 'b.click': () => t('Clicking'), 'b.type': () => t('Typing'), 'b.select': () => t('Choosing in a list'), 'b.keys': () => t('Pressing keys'), 'b.scroll': () => t('Scrolling'), 'b.upload': () => t('Uploading a file'), 'b.downloads': () => t('Looking at the downloads'), 'b.login': () => t('Signing in with a saved login'), 'b.saveLogin': () => t('Waiting for you to save a login'), 'b.yourTurn': () => t('Your turn: waiting for you in her browser'), 'b.unlock': () => t('Your turn: unlock your password manager in its own window'), 'b.relock': () => t('Locking your password manager again'), 'b.logins': () => t('Looking at the saved logins'), 'b.forgetLogin': () => t('Removing a saved login') };
+const CU_DOING = { 'b.open': () => t('Opening a page'), 'b.navigate': () => t('Going to a page'), 'b.snapshot': CU_LOOK, 'b.screenshot': CU_LOOK, 'b.find': CU_LOOK, 'b.read': () => t('Reading the page'), 'b.logs': () => t('Reading the logs'), 'b.request': () => t('Reading the logs'), 'b.tabs': () => t('Looking at the tabs'), 'b.click': () => t('Clicking'), 'b.type': () => t('Typing'), 'b.select': () => t('Choosing in a list'), 'b.keys': () => t('Pressing keys'), 'b.scroll': () => t('Scrolling'), 'b.upload': () => t('Uploading a file'), 'b.downloads': () => t('Looking at the downloads'), 'b.login': () => t('Signing in with a saved login'), 'b.saveLogin': () => t('Waiting for you to save a login'), 'b.yourTurn': () => t('Your turn: waiting for you in her browser'), 'b.unlock': () => t('Your turn: unlock your password manager in its own window'), 'b.relock': () => t('Locking your password manager again'), 'b.logins': () => t('Looking at the saved logins'), 'b.forgetLogin': () => t('Removing a saved login'), 'd.click': () => t('Clicking on the desktop'), 'd.type': () => t('Typing on the desktop'), 'd.keys': () => t('Pressing desktop keys'), 'd.scroll': () => t('Scrolling the desktop'), 'd.drag': () => t('Dragging on the desktop'), 'd.launch': () => t('Opening a desktop app') };
 function hideBadge() {
   $('#cu-badge').hidden = true;
   cuBadge.deviceId = '';

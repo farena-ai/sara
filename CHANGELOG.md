@@ -5,6 +5,27 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.26.0 (2026-10-31): computer use, step 7: she can use your apps (Phase 93)
+
+- **Desktop actions** (Windows and Mac apps, with *The whole screen* on): `pc_click`, `pc_type`,
+  `pc_keys`, `pc_scroll`, `pc_drag` and `pc_open_app`, on the window she just looked at. Accessibility
+  actions first (UI Automation on Windows, AX on the Mac); real mouse and keyboard events only as the
+  fallback, after checking the exact window and control are in front and under the point.
+- **Checked on your computer, whatever the server says:** never password fields, password managers,
+  banking or security windows, Sara's own windows or sign-in, administrator windows ("I can't control
+  windows running as administrator"), a locked screen, terminals, system settings or file managers;
+  only safe keys (Enter, Tab, arrows, Escape, Backspace, select all…); no command lines or paths when
+  opening apps; refused over an unencrypted connection to a remote server.
+- **Approvals pop up on that computer** (not the phone): *Ask every time*, *Ask once per task*
+  (default) or *Always allowed* (with a warning first); payments and account changes always ask.
+- **You stay in charge:** touch your mouse or keyboard anywhere and she pauses within one action
+  (*Pause Sara*, default) or carries on (*Let Sara keep control*); Stop and Ctrl+Alt+Esc / ⌃⌥Esc always
+  work. *Keep working when I walk away* (off) keeps the computer awake during a task; it never unlocks it.
+- Built with OpenAI Codex (GPT-6.1 Sol) from Sara's design, reviewed and tested here.
+- **Fixed:** importing Sara's own character file was refused by the 2 MB limit for other apps' cards;
+  her export (with all her pictures) is recognised first and allowed up to 60 MB.
+- Not yet tested live with real input (the test PC was in use the whole time): see OWNER_CHECKS.
+
 ## 2.25.0 (2026-10-31): computer use, step 6: she can see your desktop (Phase 92)
 
 - **The whole screen** (Windows and Mac apps, Settings → Computer use; off by default, its own

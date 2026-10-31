@@ -49,7 +49,7 @@
 //   secure fields are boxed out and never give a value: all on the device, before anything is sent.
 import { randomUUID } from 'node:crypto';
 import type { EventHub } from './events.ts';
-import { CU5_OPS } from './hands-desktop.ts';
+import { CU5_OPS, CU6_OPS, DESKTOP_INPUT_OPS } from './hands-desktop.ts';
 import { managerViews, relockMinutes, type ManagerView } from './hands-managers.ts';
 import { Tunnels } from './tunnel.ts';
 import type { WsConnection } from './ws.ts';
@@ -66,18 +66,18 @@ export const CU4_OPS = ['b.login', 'b.saveLogin', 'b.logins', 'b.forgetLogin', '
 /** Phase 91 (CU4b): the owner's password managers: the person unlocks one in its own prompt; Sara locks them again. */
 export const CU4B_OPS = ['b.unlock', 'b.relock'] as const;
 export { CU5_OPS };
-/** The whole command set of a CU5 device: desktop look (d.screens/windows/shot/elements) but no desktop input, no scripts, no op that reads a password. */
-export const HANDS_OPS = [...CU1_OPS, ...CU2_OPS, ...CU3_OPS, ...CU4_OPS, ...CU4B_OPS, ...CU5_OPS] as const;
+/** CU6: typed browser and desktop operations; no scripts or password-reading operation. */
+export const HANDS_OPS = [...CU1_OPS, ...CU2_OPS, ...CU3_OPS, ...CU4_OPS, ...CU4B_OPS, ...CU5_OPS, ...CU6_OPS, 'c.endTask'] as const;
 /** Phase 92: the desktop ops (need "The whole screen" on that computer). */
-export const DESKTOP_OPS: ReadonlySet<string> = new Set(CU5_OPS);
+export const DESKTOP_OPS: ReadonlySet<string> = new Set([...CU5_OPS, ...CU6_OPS]);
 /** Ops that wait for the person at the computer (the consent window, "Your turn", a manager's unlock prompt): up to 10 minutes. */
-export const WAITING_OPS: ReadonlySet<string> = new Set(['b.saveLogin', 'b.yourTurn', 'b.unlock']);
+export const WAITING_OPS: ReadonlySet<string> = new Set(['b.saveLogin', 'b.yourTurn', 'b.unlock', ...CU6_OPS]);
 export const WAITING_DEADLINE_MS = 10 * 60_000;
 /** Ops only the server itself sends (never from the owner's "try one op" route): the tunnel checks port ownership first. */
-export const SERVER_ONLY_OPS: ReadonlySet<string> = new Set(CU3_OPS);
+export const SERVER_ONLY_OPS: ReadonlySet<string> = new Set([...CU3_OPS, 'c.endTask']);
 export type HandsOp = (typeof HANDS_OPS)[number];
 /** Ops that act (they count against the device's input rate limit and stop on takeover). */
-export const ACTING_OPS: ReadonlySet<string> = new Set(['b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload', 'b.login']);
+export const ACTING_OPS: ReadonlySet<string> = new Set(['b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload', 'b.login', ...DESKTOP_INPUT_OPS]);
 export const HANDS_ERROR_CODES = ['denied_local', 'blocked_window', 'takeover', 'stopped', 'stale_view', 'not_found', 'timeout', 'perm_missing', 'rate_limited', 'unsupported'] as const;
 /** Default deadline of an op (b.open waits for a whole page). */
 export const DEFAULT_DEADLINE_MS = 30_000;
@@ -106,7 +106,10 @@ export interface HandsHello {
   browser?: { found: boolean; kind?: string; name?: string };
   perms?: { capture?: boolean; input?: boolean; ax?: boolean };
   optIn: { browser: boolean; desktop: boolean };
+  /** Desktop approval cards are answered on the computer, never in the phone/web chat. */
   approvalsHere?: boolean;
+  /** Phase 93: the person's separate walk-away choice on this computer. */
+  walkAway?: boolean;
   /** Phase 90: the saved logins there, names and sites only. */
   logins?: HandsLoginView[];
   /** Phase 90: where they are kept, and whether Windows Hello / Touch ID is asked before each use. */
@@ -205,6 +208,8 @@ export interface HandsDeviceView {
   relockMinutes?: number;
   /** Phase 92: what the computer may do for desktop look (Mac: Screen Recording, Accessibility). */
   perms?: HandsHello['perms'];
+  approvalsHere?: boolean;
+  walkAway?: boolean;
   screens?: number;
 }
 
@@ -275,6 +280,12 @@ export class HandsHub {
   heartbeatMs = 20_000;
   leaseMs = 2 * 60_000;
   budget = { ...COMPUTER_BUDGET };
+  readonly #desktopUse = new Map<string, Set<string>>();
+  desktopUsed(conversationId: string, deviceId: string): void {
+    let set = this.#desktopUse.get(conversationId);
+    if (!set) this.#desktopUse.set(conversationId, (set = new Set()));
+    set.add(deviceId);
+  }
   readonly #tasks = new Map<string, { steps: number; startedAt: number }>();
   /** Phase 89: the dev tunnels to this person's computers (src/tunnel.ts). */
   readonly tunnels: Tunnels;
@@ -381,6 +392,7 @@ export class HandsHub {
         ...(m.perms && typeof m.perms === 'object' ? { perms: { capture: (m.perms as Record<string, unknown>).capture === true, input: (m.perms as Record<string, unknown>).input === true, ax: (m.perms as Record<string, unknown>).ax === true } } : {}),
         optIn: { browser: optIn.browser === true, desktop: optIn.desktop === true },
         approvalsHere: m.approvalsHere === true,
+        walkAway: m.walkAway === true,
         logins: loginViews(m.logins),
         ...(m.vault && typeof m.vault === 'object' ? { vault: { kind: plain((m.vault as Record<string, unknown>).kind, 20), verify: (m.vault as Record<string, unknown>).verify === true } } : {}),
         busy: m.busy === true,
@@ -458,6 +470,7 @@ export class HandsHub {
         const o = (m.optIn ?? {}) as Record<string, unknown>;
         d.hello.optIn = { browser: o.browser === true, desktop: o.desktop === true };
         if (typeof m.localOnly === 'boolean') d.hello.localOnly = m.localOnly;
+        if (typeof m.walkAway === 'boolean') d.hello.walkAway = m.walkAway;
         if (m.takeover === 'keep' || m.takeover === 'pause') d.hello.takeover = m.takeover;
         // Phase 92: the Mac's Screen Recording / Accessibility permission was granted or lost there.
         if (m.perms && typeof m.perms === 'object') {
@@ -650,6 +663,7 @@ export class HandsHub {
         ...(h ? { managers: h.managers ?? [] } : {}),
         ...(h?.relockMinutes ? { relockMinutes: h.relockMinutes } : {}),
         ...(h?.perms ? { perms: h.perms } : {}),
+        ...(h ? { approvalsHere: h.approvalsHere === true, walkAway: h.walkAway === true } : {}),
         ...(h?.screens ? { screens: h.screens.length } : {}),
       });
     }
@@ -738,6 +752,9 @@ export class HandsHub {
    * now (the computer also does after its idle minutes, on Stop and when the manager is turned off).
    */
   turnEnded(conversationId: string): void {
+    const desktops = this.#desktopUse.get(conversationId);
+    this.#desktopUse.delete(conversationId);
+    for (const id of desktops ?? []) if (this.connected(id) && this.hello(id)?.ops?.includes('c.endTask')) void this.request(id, 'c.endTask', {}, { deadlineMs: 30_000 }).catch(() => {});
     const set = this.#managerUse.get(conversationId);
     if (!set) return;
     this.#managerUse.delete(conversationId);

@@ -13,10 +13,14 @@
 // Also here: a tiny PNG encoder (no dependencies) and the fixture desktop the reference hands use in
 // tests and conformance (recorded-screen style windows with known text, a fixture "KeePass" window,
 // Sara's own window), so desktop look is tested without anyone's real screen.
+import { desktopActionVerdict, looksSecret } from './computer-policy.ts';
 import { deflateSync, inflateSync, crc32 } from 'node:zlib';
 
-/** CU5's command set: look at the desktop (no input: that is CU6). */
+/** CU5's command set: look at the desktop. */
 export const CU5_OPS = ['d.screens', 'd.windows', 'd.shot', 'd.elements'] as const;
+/** CU6's command set: typed, supervised desktop input. */
+export const CU6_OPS = ['d.click', 'd.type', 'd.keys', 'd.scroll', 'd.drag', 'd.launch'] as const;
+export const DESKTOP_INPUT_OPS: ReadonlySet<string> = new Set(CU6_OPS);
 export const DESKTOP_LIMITS = { maxEdge: 1280, elements: 300, depth: 8, viewTtlMs: 20_000, pictureEveryMs: 500, windows: 60 } as const;
 
 /**
@@ -187,6 +191,8 @@ export interface FixtureWindow {
   bounds: [number, number, number, number];
   color: [number, number, number];
   minimized?: boolean;
+  elevated?: boolean;
+  origin?: string;
   /** One of Sara's own windows (never in a picture or a list). */
   own?: boolean;
   elements: FixtureElement[];
@@ -224,6 +230,9 @@ interface View {
   oy: number;
   scale: number;
   window?: string;
+  width?: number;
+  height?: number;
+  signature?: string;
 }
 
 /** The fixture desktop: the same rules as the apps, on known windows. */
@@ -232,14 +241,35 @@ export class TestDesktop {
   readonly windows: FixtureWindow[];
   readonly extra: string[];
   readonly #views = new Map<string, View>();
+  #taskActive = false;
+  #walkAway = false;
+  get awake(): boolean { return this.#taskActive && this.#walkAway && !this.locked && !this.paused && !this.stopped; }
+  beginTask(walkAway: boolean): void { this.#taskActive = true; this.#walkAway = walkAway; }
+  endTask(): void { this.#taskActive = false; }
   #viewN = 0;
   #lastShot = 0;
+  readonly takeover: 'pause' | 'keep';
+  transportSecure: boolean;
+  locked = false;
+  stopped = false;
+  foreground = 'w101';
+  ownOrigin = '';
+  focused = '';
+  clicked = '';
+  selection: [number, number] = [0, 0];
+  readonly keyEvents: string[] = [];
+  scroll = { x: 0, y: 0 };
+  drag?: { from: string; x: number; y: number };
+  launched: string[] = [];
+  paused = false;
   /** Tests: the clock. */
   now = () => Date.now();
 
-  constructor(opts: { windows?: FixtureWindow[]; extra?: string[] } = {}) {
+  constructor(opts: { windows?: FixtureWindow[]; extra?: string[]; takeover?: 'pause' | 'keep'; transportSecure?: boolean } = {}) {
     this.windows = opts.windows ?? fixtureWindows();
     this.extra = opts.extra ?? [];
+    this.takeover = opts.takeover ?? 'pause';
+    this.transportSecure = opts.transportSecure !== false;
   }
 
   #hidden(w: FixtureWindow): string | undefined {
@@ -251,6 +281,22 @@ export class TestDesktop {
   /** The window in front (the last visible, not hidden, not Sara's). */
   front(): FixtureWindow | undefined {
     return [...this.#visible()].reverse().find((w) => !this.#hidden(w));
+  }
+
+  /** Tests and the Linux reference device use this to simulate the owner's real input. */
+  ownerInput(): void {
+    if (this.takeover === 'keep' || this.paused || this.stopped) return;
+    this.paused = true;
+  }
+
+  resume(): void {
+    if (!this.stopped) this.paused = false;
+  }
+
+  stop(): void {
+    this.endTask();
+    this.stopped = true;
+    this.paused = false;
   }
 
   screens(): Record<string, unknown> {
@@ -303,8 +349,116 @@ export class TestDesktop {
       if (!v || this.now() - v.at > DESKTOP_LIMITS.viewTtlMs) throw Object.assign(new Error('That picture is older than 20 seconds: look again.'), { code: 'stale_view' });
     }
     const limit = Math.max(1, Math.min(DESKTOP_LIMITS.elements, Number(a.limit) || DESKTOP_LIMITS.elements));
+    const coords = v ? 'picture' : 'screen';
+    if (!v) { v = { id: `v${++this.#viewN}`, at: this.now(), ox: 0, oy: 0, scale: 1, window: w.id, width: this.screen.w, height: this.screen.h, signature: this.#signature(w) }; this.#views.set(v.id, v); }
     const { items, total } = this.#items(w, v, limit);
-    return { window: { id: w.id, title: maskDesktopText(w.title), app: w.app }, items, total, ...(total > items.length ? { more: true } : {}), coords: v ? 'picture' : 'screen' };
+    return { viewId: v.id, window: { id: w.id, title: maskDesktopText(w.title), app: w.app }, items, total, ...(total > items.length ? { more: true } : {}), coords };
+  }
+
+  #signature(w: FixtureWindow): string { return JSON.stringify([w.bounds, w.elements.map(e => [e.role, e.name, e.box, !!e.secure, !!e.disabled])]); }
+
+  #view(a: Record<string, unknown>): View {
+    const id = String(a.viewId ?? '');
+    const v = this.#views.get(id);
+    if (!v || this.now() - v.at > DESKTOP_LIMITS.viewTtlMs) throw Object.assign(new Error('That look is older than 20 seconds: look again before acting.'), { code: 'stale_view' });
+    return v;
+  }
+
+  inspect(op: string, a: Record<string, unknown>): { window?: FixtureWindow; element?: FixtureElement } {
+    const fail = (code: string, message: string): never => { throw Object.assign(new Error(message), { code }); };
+    if (!DESKTOP_INPUT_OPS.has(op)) fail('unsupported', 'Unsupported desktop action.');
+    if (this.stopped) fail('stopped', 'Stopped on the computer.');
+    if (!this.transportSecure) fail('denied_local', 'Desktop input is refused over an unencrypted connection unless it is loopback.');
+    if (this.locked) fail('denied_local', 'The screen is locked or the secure desktop is active; Sara cannot control it.');
+    if (this.paused) fail('takeover', 'Paused: the owner took over the computer. Press Resume.');
+    if (op === 'd.launch') {
+      if (!['fixture-notes', 'fixture-calculator'].includes(String(a.app))) fail('denied_local', 'Only an installed, allowed app may be opened; no paths or commands.');
+      return {};
+    }
+    const v = this.#view(a);
+    if (a.window && a.window !== v.window) {
+      this.#find(a.window); // Preserve the specific blocked-window refusal.
+      fail('stale_view', 'That window is not the one in this look.');
+    }
+    const w = this.#find(v.window);
+    if (w.elevated) fail('denied_local', "I can't control windows running as administrator");
+    if (/msedge|chrome|chromium|safari|firefox|brave|opera/i.test(w.app) && (!w.origin || w.origin === this.ownOrigin)) fail('denied_local', 'Sara cannot control her own server/sign-in in a browser, or a browser whose address cannot be checked.');
+    if (this.foreground !== w.id) fail('denied_local', 'The target window is not in front: look again.');
+    if (v.signature !== this.#signature(w)) fail('stale_view', 'The window or controls changed: look again.');
+    let element: FixtureElement | undefined;
+    if (typeof a.ref === 'string' && /^e[1-9]\d{0,3}$/.test(a.ref)) element = w.elements[Number(a.ref.slice(1)) - 1];
+    else {
+      const x = Number(a.x), y = Number(a.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x >= (v.width ?? 0) || y >= (v.height ?? 0)) fail('denied_local', 'The point is outside this picture.');
+      const sx = v.ox + x / v.scale, sy = v.oy + y / v.scale;
+      element = w.elements.find(e => sx >= w.bounds[0] + e.box[0] && sx < w.bounds[0] + e.box[0] + e.box[2] && sy >= w.bounds[1] + e.box[1] && sy < w.bounds[1] + e.box[1] + e.box[3]);
+    }
+    if (!element) fail('stale_view', 'That element is not in the latest look.');
+    if (a.ref && (op === 'd.drag' || (op === 'd.click' && element!.role !== 'button'))) {
+      const [x, y, width, height] = element!.box;
+      const point = [x + width / 2, y + height / 2];
+      const hit = w.elements.filter(e => point[0] >= e.box[0] && point[0] < e.box[0] + e.box[2] && point[1] >= e.box[1] && point[1] < e.box[1] + e.box[3]).sort((a, b) => a.box[2] * a.box[3] - b.box[2] * b.box[3])[0];
+      if (hit !== element) fail('stale_view', "That container's point hits a different control: look again.");
+    }
+    if (element!.secure) fail('denied_local', 'That is a password field: Sara never types or presses keys into those.');
+    if (element!.disabled) fail('denied_local', 'That control is disabled.');
+    const verdict = desktopActionVerdict({ site: w.app, target: { role: element!.role, name: element!.name }, level: 'always', text: typeof a.text === 'string' ? a.text : undefined });
+    if (verdict.act === 'block') fail('denied_local', verdict.why);
+    if (op === 'd.type' && (String(a.text ?? '').length > 2000 || looksSecret(String(a.text ?? '')))) fail('denied_local', 'Text is too long or looks like a secret.');
+    if (op === 'd.keys' && !/^(?:Enter|Tab|Shift\+Tab|Escape|ArrowLeft|ArrowRight|ArrowUp|ArrowDown|Home|End|PageUp|PageDown|Backspace|Ctrl\+A)$/i.test(String(a.combo))) fail('denied_local', 'That key combination is not an allowed desktop key.');
+    if (op === 'd.drag' && (![a.toX, a.toY].every(n => typeof n === 'number' && Number.isFinite(n)) || Number(a.toX) < 0 || Number(a.toY) < 0 || Number(a.toX) >= (v.width ?? 0) || Number(a.toY) >= (v.height ?? 0))) fail('denied_local', 'The drag endpoint is outside this picture.');
+    return { window: w, element };
+  }
+
+  /** A local decision may take time; revalidate the exact approved identity before refreshing its age. */
+  refreshApproved(a: Record<string, unknown>): void {
+    const v = this.#views.get(String(a.viewId));
+    if (!v) throw Object.assign(new Error('That approved look is no longer available.'), { code: 'stale_view' });
+    const at = v.at;
+    v.at = this.now();
+    try { this.inspect('d.click', a); } catch (e) { v.at = at; throw e; }
+  }
+
+  /** Observable fixture effects; unsupported operations never report success. */
+  act(op: string, a: Record<string, unknown>): Record<string, unknown> {
+    const { window: w, element: e } = this.inspect(op, a);
+    if (op === 'd.launch') {
+      const app = String(a.app);
+      this.launched.push(app);
+      if (app === 'fixture-calculator' && !this.windows.some(w => w.app === app)) this.windows.push({ id: 'w105', title: 'Fixture Calculator', app, bounds: [80, 80, 360, 300], color: [230, 235, 245], elements: [{ role: 'text', name: '0', box: [20, 20, 280, 40] }, { role: 'button', name: 'Clear', box: [20, 80, 100, 44] }] });
+      const window = this.windows.find(w => w.app === app)!;
+      this.foreground = window.id;
+      return { changed: true, launched: app, after: this.list() };
+    }
+    const ref = `e${w!.elements.indexOf(e!) + 1}`;
+    this.focused = ref;
+    if (op === 'd.type') {
+      if (e!.role !== 'edit') throw Object.assign(new Error('That control is not editable.'), { code: 'denied_local' });
+      e!.value = String(a.text ?? '');
+      this.selection = [e!.value.length, e!.value.length];
+    } else if (op === 'd.keys') {
+      const key = String(a.combo).toLowerCase();
+      this.keyEvents.push(key);
+      if (e!.role === 'edit') {
+        const value = e!.value ?? '';
+        let [start, end] = this.selection.map(n => Math.min(value.length, n)) as [number, number];
+        if (key === 'ctrl+a') [start, end] = [0, value.length];
+        else if (key === 'backspace') {
+          const from = start === end ? Math.max(0, start - 1) : start;
+          e!.value = value.slice(0, from) + value.slice(end);
+          [start, end] = [from, from];
+        } else if (key === 'home') [start, end] = [0, 0];
+        else if (key === 'end') [start, end] = [value.length, value.length];
+        else if (key === 'arrowleft') [start, end] = [Math.max(0, start - 1), Math.max(0, start - 1)];
+        else if (key === 'arrowright') [start, end] = [Math.min(value.length, end + 1), Math.min(value.length, end + 1)];
+        this.selection = [start, end];
+      }
+      if (key === 'enter' && e!.role === 'button') this.clicked = e!.name ?? ref;
+      if (key.includes('tab')) this.focused = `e${Math.min(w!.elements.length, w!.elements.indexOf(e!) + 2)}`;
+    } else if (op === 'd.click') this.clicked = e!.name ?? ref;
+    else if (op === 'd.scroll') { this.scroll.x += Number(a.dx ?? 0); this.scroll.y += Number(a.dy ?? 0); }
+    else if (op === 'd.drag') this.drag = { from: ref, x: Number(a.toX), y: Number(a.toY) };
+    return { changed: true, op, window: w!.id, ref, focused: this.focused, selection: this.selection, keys: this.keyEvents.slice(-4), clicked: this.clicked, scroll: this.scroll, ...(this.drag ? { drag: this.drag } : {}) };
   }
 
   /** d.shot: the picture with hidden windows black, secure fields boxed out, Sara's own windows left out. */
@@ -359,7 +513,8 @@ export class TestDesktop {
       out.set(rgb.subarray((sy * S.w + sx) * 3, (sy * S.w + sx) * 3 + 3), (y * w + x) * 3);
     }
     const viewId = `v${++this.#viewN}`;
-    const v: View = { id: viewId, at: t, ox, oy, scale, ...(win ? { window: win.id } : {}) };
+    const targetWindow = win ?? this.front();
+    const v: View = { id: viewId, at: t, ox, oy, scale, width: w, height: h, ...(targetWindow ? { window: targetWindow.id, signature: this.#signature(targetWindow) } : {}) };
     this.#views.set(viewId, v);
     for (const [k, old] of this.#views) if (t - old.at > DESKTOP_LIMITS.viewTtlMs * 3) this.#views.delete(k);
     const result: Record<string, unknown> = { viewId, w, h, scale, blackedOut: blacked, masked, ...(win ? { window: { id: win.id, title: maskDesktopText(win.title), app: win.app } } : { screen: S.id }) };

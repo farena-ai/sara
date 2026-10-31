@@ -559,6 +559,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         let keepIt = body["value"] as? String == "keep"
         prefs.set(keepIt ? "keep" : "pause", forKey: "hands.\(Servers.activeId ?? "").takeover")
         Hands.shared?.tellTakeover(keepIt)
+      case "handsDesktopLevel":
+        let value = body["value"] as? String ?? "task"
+        guard ["ask", "task", "always"].contains(value) else { return replyHandler(nil, "Invalid desktop approval level") }
+        if value == "always" {
+          let warning = NSAlert(); warning.messageText = "Desktop actions: Always allowed"
+          warning.informativeText = "Sara may act on desktop apps without approval cards. Payments and account changes still ask. Protected windows and password fields stay refused. Stop always works. Allow this on this computer?"
+          warning.addButton(withTitle: "Don't"); warning.addButton(withTitle: "Allow")
+          guard warning.runModal() == .alertSecondButtonReturn else { return replyHandler(nil, "Not allowed on this computer") }
+        }
+        prefs.set(value, forKey: "hands.\(Servers.activeId ?? "").desktopLevel")
+        Hands.shared?.tellDesktopLevel(value)
+      case "handsWalkAway":
+        // Phase 93: explicit keep-awake choice; it never unlocks the Mac or bypasses local approval.
+        prefs.set(on, forKey: "hands.\(Servers.activeId ?? "").walkAway")
+        Hands.shared?.tellWalkAway(on)
       default: return replyHandler(nil, "Unknown setting")
       }
       replyHandler(prefsDict(), nil)
@@ -677,6 +692,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     d["handsDeviceId"] = prefs.string(forKey: "hands.\(sid).deviceId") ?? ""
     d["handsError"] = Hands.shared?.lastError ?? ""
     d["handsTakeover"] = prefs.string(forKey: "hands.\(sid).takeover") == "keep" ? "keep" : "pause"
+    d["handsDesktopLevel"] = prefs.string(forKey: "hands.\(sid).desktopLevel") ?? "task"
+    d["handsWalkAway"] = prefs.bool(forKey: "hands.\(sid).walkAway")
     d["handsHotkey"] = (Hands.shared?.hotkeyOk ?? false) ? "⌃⌥Esc" : ""
     d["handsBrowser"] = HandsBrowser.find() != nil
     d["computerName"] = Host.current().localizedName ?? "this Mac"
@@ -754,11 +771,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
     let h = Hands(server: s, token: token, computer: Host.current().localizedName ?? "this Mac", profileDir: support.appendingPathComponent("hands-browser/\(sid)"),
                   pageAgent: agent, version: "Sara for Mac \(appVersion)", localOnly: prefs.bool(forKey: "hands.\(sid).localOnly"),
-                  keep: prefs.string(forKey: "hands.\(sid).takeover") == "keep", downloadsDir: downloads,
+                  keep: prefs.string(forKey: "hands.\(sid).takeover") == "keep", walkAway: prefs.bool(forKey: "hands.\(sid).walkAway"), downloadsDir: downloads,
                   logFile: support.appendingPathComponent("hands-log.txt"), expiresAt: prefs.string(forKey: "hands.\(sid).expires") ?? "", testLabel: testLabel)
     h.onToken = { tok, exp in
       if HandsKeychain.save(tok, account: sid) { prefs.set(exp, forKey: "hands.\(sid).expires") }
     }
+    h.desktopLevel = prefs.string(forKey: "hands.\(sid).desktopLevel") ?? "task"
     h.verify = prefs.bool(forKey: "hands.\(sid).loginsVerify")
     // Phase 92: "The whole screen" and "Also hide these windows".
     h.desktop = prefs.bool(forKey: "hands.\(sid).desktop")
@@ -984,6 +1002,30 @@ func testLog(_ s: String) {
 let argv = CommandLine.arguments
 if argv.count > 1 && argv[1] == "--run-server" { Supervisor.run() }
 if argv.count > 1 && argv[1] == "--cli" { exit(CLI.run(Array(argv.dropFirst(2)))) }
+
+#if DEBUG
+// Permission-negative conformance does not open a window, grant a permission or post an event.
+if argv.contains("--cu6-permission-check"), Bundle.main.bundleIdentifier != "com.backstagecoding.sara.desktop" {
+  var checks: [[String: Any]] = []
+  let missing = !HandsScreen.perms.ax
+  checks.append(["name": "Native permission state observed without requesting access", "ok": true, "accessibility": !missing])
+  for op in ["d.click", "d.type", "d.keys", "d.scroll", "d.drag"] {
+    do {
+      _ = try HandsScreen.input(op, ["viewId": "not-a-real-view", "ref": "e1", "text": "never entered", "combo": "Enter"], cancelled: { false })
+      checks.append(["name": op + " refuses before input", "ok": false])
+    } catch let e as HandsOpError {
+      checks.append(["name": op + " refuses before input", "ok": (missing && e.code == "perm_missing") || (!missing && e.code == "stale_view") || (!HandsScreen.unlocked() && e.code == "denied_local"), "code": e.code, "message": e.message])
+    } catch { checks.append(["name": op + " refuses before input", "ok": false, "message": String(describing: error)]) }
+  }
+  for label in ["Pay", "Card number", "Credit card", "Account settings"] { checks.append(["name": label + " requires approve-once", "ok": HandsScreen.onceAction(label)]) }
+  checks.append(["name": "Keyboard input over badge is never exempt", "ok": !Hands.badgeMouseEvent(.keyDown) && !Hands.badgeMouseEvent(.keyUp) && !Hands.badgeMouseEvent(.flagsChanged)])
+  checks.append(["name": "Badge clicks remain usable", "ok": Hands.badgeMouseEvent(.leftMouseDown) && Hands.badgeMouseEvent(.leftMouseUp)])
+  let failed = checks.filter { ($0["ok"] as? Bool) != true }.count
+  let result: [String: Any] = ["passed": checks.count - failed, "failed": failed, "checks": checks]
+  if let data = try? JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]), let text = String(data: data, encoding: .utf8) { print(text) }
+  exit(failed == 0 ? 0 : 1)
+}
+#endif
 
 let app = NSApplication.shared
 let delegate = AppDelegate()
