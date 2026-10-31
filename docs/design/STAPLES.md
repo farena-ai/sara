@@ -992,6 +992,38 @@ icon, a person's initial), a progress line while she works, a receipt count when
 Move a real project's tasks onto a board on the phone and the desktop; assign one small coding card
 to her and one research card to a helper and check the receipts.
 
+### 7.12 As built (2.32.0)
+Built as designed (`src/board.ts`, `src/board-work.ts`, `src/shared-boards.ts`,
+`src/routes/board.ts`, `web/board.js`, `web/board.css`, user guide `docs/BOARD.md`). Deviations
+and details the design left open:
+- **Boards.** Besides one board per project there is a *To-dos without a project* board (tasks with
+  no project) and **Everything** as a virtual board (id `0`, no rows): its four columns are the
+  roles, so a move there moves the card to that role's column on its own board. Repeat lives on the
+  planner (`tasks.repeat`, once/daily/weekdays/weekly/monthly), so a repeating to-do repeats in the
+  list too; done keeps the wall-clock time across DST.
+- **Shared boards** use ids `s<n>` in every route (`/api/boards/s3`, `/api/tasks/s12/move`);
+  `board_members` has a `status` (invited/member) so an invitation is a row, and only `member` rows
+  grant access. A non-member gets 404 on every route (including a PUT that changes nothing).
+  `<data>/shared/boards.db` holds `boards`, `board_columns`, `board_labels`, `shared_tasks`,
+  `card_activity`, `board_members`. Helpers/teams on shared cards are refused for members
+  (helpers are the owner's, Phase 71); Sara works for whoever assigns.
+- **Card work.** The `work` JSON also carries the live `line`, `receipts` (title, tool, status),
+  `ask` ({kind: approval|question|budget|unproven|failed|team|interrupted, text, approvalId?}),
+  `by` (the assigner on shared boards) and `queue`. A card running when the server stops comes back
+  as *Waiting on you: The server restarted… Continue?*. Concurrency is `settings.board.concurrent`
+  (1–4, default 2), set in Board settings.
+- **"She moves cards she's not assigned"** is `card_comment(task, text, done: true)`: the card gets
+  the comment and a *Move to Done?* chip; nothing moves by itself. No automatic title matching of
+  chat claims (too easy to get wrong).
+- **Phone edge drag.** Scrolling the column strip under a held finger makes mobile Chrome cancel the
+  touch, so holding a card at the screen edge shows a target chip (*← To do* / *Done →*) and the drop
+  lands at the bottom of that column, which then slides into view. *Move to…* is a pick-list in the
+  card detail rather than a ⋯ menu (the same on desktop and phone).
+- **Tests.** No DOM library (zero dependencies), so `test/phase99.test.ts` checks the pointer/touch/
+  keyboard wiring and the pure helpers (`neighbours`, `dropIndex`, `movedLine`) rather than a
+  fixture page; real mouse, touch and keyboard drags were verified in a browser over CDP. Peer
+  (`peer:<id>`, `a2a`) assignees are reserved for ST5 and not offered.
+
 ---
 
 ## 8. ST5 · Phase 100 · 2.33.0: A2A (the open Agent2Agent protocol)

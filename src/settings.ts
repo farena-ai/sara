@@ -77,6 +77,8 @@ export interface Settings {
   helpers?: import('./team.ts').CustomHelper[];
   /** Phase 39: default limits for a team task. */
   teamLimits?: Partial<import('./team.ts').TeamLimits>;
+  /** Phase 99 (ST4): the board (how many cards she works at once; 2 by default). */
+  board?: { concurrent?: number };
   /** Phase 52: the owner's own model prices (USD per 1M tokens; they win over the shipped defaults). */
   prices?: import('./usage.ts').PriceRow[];
   /** Phase 52: default budget for a background job that uses a model (Claude Code / Grok Build). */

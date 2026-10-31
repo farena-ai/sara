@@ -13,6 +13,7 @@ import { initProjectMap, resetProjectMap } from './codemap.js';
 import { initSkills, loadSkills, skillApproval } from './skills.js';
 import { initLearning, learnCard, loadLearning } from './learned-skills.js';
 import { initPlugins, loadPlugins, pluginAskLine, pluginNotice, pluginResultCard, pluginStepWords } from './plugins.js';
+import { boardEvent, initBoard, openCardOnBoard, plannerView, rememberView } from './board.js';
 import { initOtherApps, keyUse, loadOtherApps } from './other-apps.js';
 import { initAlexa, loadAlexa } from './alexa.js';
 import { initSsh, loadSsh } from './ssh.js';
@@ -1010,6 +1011,7 @@ initToday({
   openConversation: (id) => openConversation(id),
   openSettings: (page) => openSettings(page),
   ask: askInChat,
+  openCard: (boardId, ref) => openCardOnBoard(boardId, ref),
   renderPhotos: renderTodayPhotos,
 });
 initBottomBar({
@@ -2224,7 +2226,8 @@ function approvalCard(ev, block) {
       el('span', 'approval-what', t('{app} wants to: {what}', { app: currentIdentity().name || t('Sara'), what: t(TOOL_NAME[ev.name]) })),
     );
     title.dataset.raw = '';
-    what.textContent = ev.name === 'shell' ? String(ev.args.command ?? '') : JSON.stringify(ev.args, null, 2);
+    // Phase 99: a board step reads as one plain line ("Move “Fix login” (Website) from To do to Doing").
+    what.textContent = ev.name === 'shell' ? String(ev.args.command ?? '') : /^card_/.test(ev.name) && ev.summary ? ev.summary : JSON.stringify(ev.args, null, 2);
   } else {
     title.textContent = t('{name} wants to use {tool}:', { name: currentIdentity().name || t('Sara'), tool: ev.name });
     title.dataset.raw = '';
@@ -2571,9 +2574,11 @@ const TOOL_NAME = {
   home_status: 'See your smart home', home_control: 'Switch things at home',
   ssh_servers: 'List your servers', ssh_connect: 'Add a server', ssh_run: 'Run commands on a server', ssh_forget_password: 'Forget a server password', ssh_revoke_key: 'Remove her key from a server', ssh_remove_server: 'Remove a server',
   tune_personality: 'Adjust her personality', settings_guide: 'Look up how the app works',
+  board_list: 'Look at your board', card_add: 'Put a card on your board', card_move: 'Move a card on your board', card_comment: 'Comment on a card', card_ask: 'Ask you about a card', card_assign: 'Assign a card',
 };
 const TOOL_GROUP_OF = {
   todo: 'plan', note: 'plan', remind: 'plan', shared_list: 'plan',
+  board_list: 'plan', card_add: 'plan', card_move: 'plan', card_comment: 'plan', card_ask: 'plan', card_assign: 'plan',
   recall: 'memory', library: 'memory', recipe_save: 'memory', recipe_find: 'memory', recipe_use: 'memory',
   skill_use: 'memory', skill_read: 'memory', skill_find: 'memory', skill_run: 'run', skill_save: 'memory', skill_update: 'memory',
   scrapbook: 'pictures', moments: 'pictures', share_photo: 'pictures', take_photo: 'pictures', change_outfit: 'pictures',
@@ -5214,6 +5219,14 @@ function startEvents() {
   es.addEventListener('planner', () => {
     if ($('#planner').open) loadPlanner();
     window.dispatchEvent(new Event('sara:planner'));
+    boardEvent();
+  });
+  // Phase 99: a board changed (another tab, her work on a card, a shared board): the open board follows.
+  let todayBoardTimer = 0;
+  es.addEventListener('board', () => {
+    boardEvent();
+    // Today's "On the board" tile (waiting cards, her work) follows too, at most every 2 s.
+    if (todayOpen() && !todayBoardTimer) todayBoardTimer = setTimeout(() => ((todayBoardTimer = 0), void loadToday()), 2000);
   });
   es.addEventListener('ring', (e) => onRing(JSON.parse(e.data).ring));
   // Phase 87: her hands on a computer: live-view frames, Stop pressed there, computers coming and going.
@@ -5491,6 +5504,8 @@ async function openPlanner() {
   $('#rem-notify').checked = localStorage.getItem('sara.notify') === '1';
   await loadPlanner();
   $('#planner').showModal();
+  // Phase 99: the list stays the default until the owner picks the Board; then his last choice opens.
+  if (plannerView() === 'board') document.querySelector('#planner .tab[data-tab="board"]')?.click();
 }
 $('#open-planner').addEventListener('click', openPlanner);
 
@@ -5498,6 +5513,9 @@ for (const t of document.querySelectorAll('#planner .tab')) {
   t.addEventListener('click', () => {
     for (const x of document.querySelectorAll('#planner .tab')) x.classList.toggle('active', x === t);
     for (const p of document.querySelectorAll('#planner .tab-panel')) p.hidden = p.dataset.panel !== t.dataset.tab;
+    // Phase 99: the Board tab widens the window; To-do or Board is remembered as the planner's view.
+    rememberView(t.dataset.tab);
+    if (t.dataset.tab !== 'board') $('#planner').classList.remove('bd-wide');
   });
 }
 
@@ -7661,6 +7679,10 @@ initProjectMap(() => pageProject?.workspace ?? null);
 initSkills();
 initPlugins();
 initLearning();
+initBoard({ fmtDue: (iso) => fmtDue(iso, false), openConversation: (id) => openConversation(id), openPlanner: async (tab) => {
+  if (!$('#planner').open) await openPlanner();
+  document.querySelector(`#planner .tab[data-tab="${tab}"]`)?.click();
+} });
 // Phase 96: the old Recipes page points to Skills.
 $('#rc-open-skills')?.addEventListener('click', () => showSettingsTab('ab-skills', { focus: true }));
 $('#pp-edit').addEventListener('click', () => {

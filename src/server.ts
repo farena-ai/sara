@@ -46,6 +46,7 @@ import { createEvalRoutes } from './routes/evals.ts';
 import { createSkillRoutes } from './routes/skills.ts';
 import { createPluginRoutes } from './routes/plugins.ts';
 import { createPlannerRoutes } from './routes/planner.ts';
+import { createBoardRoutes, DEMO_CARD_ACTIONS } from './routes/board.ts';
 import { createMemoryRoutes } from './routes/memory.ts';
 import { createConnectionsRoutes, createHomeAssistantApi } from './routes/connections.ts';
 import { createAdminRoutes } from './routes/admin.ts';
@@ -311,7 +312,8 @@ export function createSaraServer(opts: ServerOptions): Server {
     demoTotal++;
   }
   /** What a demo visitor may change: their own conversations, signing out. Everything else is read-only. */
-  const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports']);
+  // Phase 99: 'boards' (the demo's sample board, per visitor, in memory) and its card actions below.
+  const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports', 'boards']);
   /** Security review: routes an app signed in with a device code may not use (sign-in settings, devices, approving apps). */
   const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands']);
   /**
@@ -319,7 +321,7 @@ export function createSaraServer(opts: ServerOptions): Server {
    * so owner-only pages (backups, files, health details, accounts, devices…) must be listed out,
    * not left open.
    */
-  const DEMO_READS = new Set(['live', 'session', 'conversations', 'events', 'persona', 'look', 'sara', 'memories', 'memory', 'projects', 'tasks', 'notes', 'reminders', 'planner', 'scrapbook', 'today', 'tags', 'find', 'approvals', 'jobs', 'setup', 'checklist', 'review', 'briefing', 'providers', 'tools', 'settings', 'uploads', 'reports']);
+  const DEMO_READS = new Set(['live', 'session', 'conversations', 'events', 'persona', 'look', 'sara', 'memories', 'memory', 'projects', 'tasks', 'notes', 'reminders', 'planner', 'scrapbook', 'today', 'tags', 'find', 'approvals', 'jobs', 'setup', 'checklist', 'review', 'briefing', 'providers', 'tools', 'settings', 'uploads', 'reports', 'boards']);
   if (opts.demo) {
     setInterval(() => {
       const cutoff = Date.now() - DEMO_IDLE_MS;
@@ -467,6 +469,13 @@ export function createSaraServer(opts: ServerOptions): Server {
     }
   }
   app.runTracked = runTracked;
+  // Phase 99: a card's Stop ends the turn working it (the same as Stop in the chat).
+  app.stopTurn = (conversationId) => {
+    const t = active.get(conversationId);
+    if (!t) return false;
+    t.controller.abort(new Error('stopped'));
+    return true;
+  };
   // Planned shutdown (restart, update): stop running turns so they save what they have.
   app.stopAllTurns = async () => {
     for (const t of active.values()) t.controller.abort(new Error('restart'));
@@ -784,6 +793,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const skillRoutes = createSkillRoutes(ctx);
   const pluginRoutes = createPluginRoutes(ctx);
   const plannerRoutes = createPlannerRoutes(ctx);
+  const boardRoutes = createBoardRoutes(ctx);
   const memoryRoutes = createMemoryRoutes(ctx);
   const connectionsRoutes = createConnectionsRoutes(ctx);
   const adminRoutes = createAdminRoutes(ctx);
@@ -1075,7 +1085,7 @@ export function createSaraServer(opts: ServerOptions): Server {
       }
       return send(res, 200, { camera: cameraState({ demo: true, privateLocal: privateLocalOn(), now: Date.now(), target: { kind: 'none' } }), settings: videoSettings(), session: null });
     }
-    if (opts.demo && method !== 'GET' && !DEMO_WRITES.has(a)) throw new HttpError(403, 'Not available in the demo.');
+    if (opts.demo && method !== 'GET' && !DEMO_WRITES.has(a) && !(a === 'tasks' && parts[2] && DEMO_CARD_ACTIONS.has(parts[2]))) throw new HttpError(403, 'Not available in the demo.');
     if (opts.demo && method === 'GET' && !DEMO_READS.has(a)) throw new HttpError(403, 'Not available in the demo.');
 
     // Cross-site request guard (in addition to SameSite=Strict cookies).
@@ -1131,6 +1141,8 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await voiceRoutes(req, res, method, parts)) !== NEXT) return;
 
     // Planner: tasks, projects, places, reminders, notes, Today, briefing, review, leave-by, story: src/routes/planner.ts.
+    // Phase 99 (ST4): boards, columns and card actions (before the planner's task routes): src/routes/board.ts.
+    if ((await boardRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await plannerRoutes(req, res, method, parts)) !== NEXT) return;
 
     // Document library, chat-history imports and data export/import: src/routes/library.ts.

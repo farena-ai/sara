@@ -5,6 +5,23 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.32.0 (2026-10-31): the board (Phase 99, staples ST4)
+
+- **Kanban over your planner to-dos** (no second task list): Planner → Board. Every project has a
+  board (To do, Doing, Waiting on you, Done), plus *To-dos without a project* and *Everything*. Labels,
+  checklists from `- [ ]` lines, due dates, repeats (a done repeating card comes back with the next
+  date), WIP limits, activity. Guide: [docs/BOARD.md](docs/BOARD.md).
+- **Drag** with a mouse, pen or finger (long press; on phones one column per screen with a tab strip
+  and an edge target) or the keyboard (Space, arrows, Space; announced for screen readers).
+- **Assign a card** to Sara or a helper team: she works it in the card's own conversation (2 at once by
+  default, the rest queue). It reaches Done only when receipts back every claim; otherwise, or on an
+  approval, a question, a budget limit or a failure, it moves to *Waiting on you*, and answering on
+  the card resumes the same run.
+- **In chat:** `board_list` (what's blocked and why), `card_add`, `card_move` (asks unless it's her own
+  card), `card_comment`, `card_ask`, `card_assign` (asks).
+- Shared household boards by invitation; non-members see nothing. A *Needs you / Doing* tile on
+  Today. Plugins get `event:board`. The demo has a sample board.
+
 ## 2.31.0 (2026-10-31): plugins and hooks (Phase 98, staples ST3)
 
 - **Plugins:** a folder with `sara-plugin.json` (manifest 1: permissions for hooks, tools, calling her

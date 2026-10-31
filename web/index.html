@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="/today.css">
   <link rel="stylesheet" href="/screens.css">
   <link rel="stylesheet" href="/polish.css">
+  <link rel="stylesheet" href="/board.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -327,6 +328,7 @@
             <section class="today-card td-tile" id="td-weather" hidden tabindex="0" aria-labelledby="td-weather-h"><div class="td-tile-head"><h3 id="td-weather-h">Weather</h3></div><div class="td-body"></div></section>
             <section class="today-card td-tile" id="td-calendar" tabindex="0" aria-labelledby="td-calendar-h"><div class="td-tile-head"><h3 id="td-calendar-h">Your day</h3></div><div class="today-list"></div></section>
             <section class="today-card td-tile" id="td-agenda" tabindex="0" aria-labelledby="td-agenda-h"><div class="td-tile-head"><h3 id="td-agenda-h">Planner</h3></div><div class="today-list"></div></section>
+            <section class="today-card td-tile" id="td-board" hidden tabindex="0" aria-labelledby="td-board-h"><div class="td-tile-head"><h3 id="td-board-h">On the board</h3></div><div class="td-body"></div></section>
             <section class="today-card td-tile td-warm" id="td-memories" hidden tabindex="0" aria-labelledby="td-memories-h"><div class="td-tile-head"><h3 id="td-memories-h">She remembered</h3></div><div class="td-body"></div></section>
             <section class="today-card td-tile td-wide" id="td-otd" hidden tabindex="0" aria-labelledby="td-otd-title"><div class="td-tile-head"><h3 id="td-otd-title">On this day</h3></div><div class="today-otd"></div><button id="td-otd-open" type="button" class="td-link">Open our moments</button></section>
             <section class="today-card td-tile td-code" id="td-jobs" hidden tabindex="0" aria-labelledby="td-jobs-h"><div class="td-tile-head"><h3 id="td-jobs-h">Running now</h3></div><div class="today-list"></div></section>
@@ -837,6 +839,7 @@
       <p class="actions-left"><button id="review-now" type="button" class="ghost small"><i class="ic" data-icon="calendar"></i>Review my week</button> <span id="review-status" class="muted small" role="status"></span></p>
       <div class="tabs" role="tablist">
         <button type="button" class="tab active" data-tab="tasks">To-do</button>
+        <button type="button" class="tab" data-tab="board">Board</button>
         <button type="button" class="tab" data-tab="reminders">Reminders</button>
         <button type="button" class="tab" data-tab="notes">Notes</button>
       </div>
@@ -854,6 +857,70 @@
         <div id="task-list"></div>
       </div>
 
+
+      <div class="tab-panel bd-panel" data-panel="board" hidden>
+        <div class="bd-head">
+          <label class="bd-pick"><span>Board <button type="button" class="tip" data-tip="Your to-dos as cards in columns. Each project has a board; Everything shows them all. Drag a card, or focus it, press Space and use the arrow keys. Done checks it off.">?</button></span> <select id="bd-board"></select></label>
+          <span id="bd-shared" class="bd-shared muted small"></span>
+          <span class="bd-head-gap"></span>
+          <button id="bd-new" type="button" class="ghost small"><i class="ic" data-icon="plus"></i>New board</button>
+          <button id="bd-gear" type="button" class="ghost small" aria-expanded="false" aria-controls="bd-settings"><i class="ic" data-icon="sliders"></i>Board settings</button>
+        </div>
+        <div id="bd-invites" class="bd-invites"></div>
+        <section id="bd-settings" class="bd-settings" hidden aria-label="Board settings">
+          <h3>Work at once <button type="button" class="tip" data-tip="How many cards she works on at the same time. The others wait in board order and show Queued (2nd). More at once finishes sooner but spends more of your budget at the same moment.">?</button></h3>
+          <label class="row">Cards she works on at once <select id="bd-concurrent"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label>
+          <h3>Columns <button type="button" class="tip" data-tip="Add a column before Done. A limit (work in progress) warns when a column holds more cards than that, so the work keeps flowing: for example Doing with a limit of 3. Cards still move; it only warns.">?</button></h3>
+          <div id="bd-col-list" class="bd-col-list"></div>
+          <div class="add-row">
+            <input id="bd-col-name" placeholder="New column, e.g. Review" maxlength="40" aria-label="New column name">
+            <select id="bd-col-wip" aria-label="Limit"><option value="">No limit</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="8">8</option><option value="10">10</option></select>
+            <button id="bd-col-add" type="button">Add column</button>
+          </div>
+          <h3>Labels <button type="button" class="tip" data-tip="Up to 12 labels per board, each with a colour. Pick them on a card to group work (Bug, Errand, Urgent). She can use them too when she adds a card.">?</button></h3>
+          <div id="bd-label-list" class="bd-label-list"></div>
+          <div class="add-row">
+            <input id="bd-label-name" placeholder="New label" maxlength="24" aria-label="New label name">
+            <select id="bd-label-color" aria-label="Colour"></select>
+            <button id="bd-label-add" type="button">Add label</button>
+          </div>
+          <h3 id="bd-share-h">Shared with <button type="button" class="tip" data-tip="Shared boards are seen by the household people you pick, after they accept. They see its cards and activity. Whoever asks Sara to work a card gets her in their own space, with their limits; the others see the outcome.">?</button></h3>
+          <div id="bd-share-list" class="bd-share-list"></div>
+          <p class="actions-left"><button id="bd-share-save" type="button" class="ghost small">Invite</button> <button id="bd-leave" type="button" class="ghost small">Leave this board</button> <button id="bd-delete" type="button" class="ghost small danger">Delete this board</button></p>
+          <p id="bd-settings-status" class="muted small" role="status"></p>
+        </section>
+        <nav id="bd-tabs" class="bd-tabs" aria-label="Columns"></nav>
+        <div class="bd-main">
+          <div id="bd-cols" class="bd-cols" aria-describedby="bd-help"></div>
+          <aside id="bd-detail" class="bd-detail" hidden aria-labelledby="cd-head">
+            <div class="cd-top"><h3 id="cd-head">Card</h3><button id="cd-close" type="button" class="ghost small icon-only" aria-label="Close the card"><i class="ic" data-icon="close"></i></button></div>
+            <div id="cd-work" class="cd-work"></div>
+            <h3>Details <button type="button" class="tip" data-tip="A card is a to-do: the same title, notes and due date as in the list. Lines starting with - [ ] in the notes become a checklist to tick. Repeat brings it back to To do after Done.">?</button></h3>
+            <label>Title <input id="cd-title" maxlength="300"></label>
+            <label>Notes <textarea id="cd-notes" rows="5" placeholder="Details, links, and a checklist: - [ ] first step"></textarea></label>
+            <div id="cd-checklist" class="cd-checklist"></div>
+            <label class="cd-move"><span>Move to <button type="button" class="tip" data-tip="The column this card is in. Pick another to move it there, at the bottom: the same as dragging it.">?</button></span><select id="cd-column"></select></label>
+            <div class="cd-row">
+              <label>Due <input id="cd-due" type="date"></label>
+              <label>Repeat <select id="cd-repeat"><option value="none">Once</option><option value="daily">Daily</option><option value="weekdays">Weekdays</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>
+            </div>
+            <div id="cd-labels" class="cd-labels" role="group" aria-label="Labels"></div>
+            <label>Who works on it <select id="cd-assignee"></select></label>
+            <h3>Limits <button type="button" class="tip" data-tip="How far she may go on this card on her own: minutes, tokens (about 4 characters each), steps. At a limit she sums up and waits on you with Continue. Default: the team limits.">?</button></h3>
+            <div class="cd-row">
+              <label>Minutes <select id="cd-lim-minutes"><option value="">Default</option><option value="10">10</option><option value="30">30</option><option value="60">60</option><option value="120">120</option></select></label>
+              <label>Tokens <select id="cd-lim-tokens"><option value="">Default</option><option value="50000">50k</option><option value="100000">100k</option><option value="400000">400k</option><option value="1000000">1M</option></select></label>
+              <label>Steps <select id="cd-lim-steps"><option value="">Default</option><option value="5">5</option><option value="14">14</option><option value="25">25</option><option value="40">40</option></select></label>
+            </div>
+            <p class="actions-left"><button id="cd-save" type="button">Save</button> <button id="cd-delete" type="button" class="ghost small danger">Delete card</button> <span id="cd-status" class="muted small" role="status"></span></p>
+            <h3>Activity</h3>
+            <ol id="cd-activity" class="cd-activity"></ol>
+            <div class="add-row"><input id="cd-comment" placeholder="Add a comment" maxlength="2000" aria-label="Add a comment"><button id="cd-comment-add" type="button" class="ghost">Comment</button></div>
+          </aside>
+        </div>
+        <p id="bd-help" class="bd-help muted small">Drag a card to move it. With the keyboard: Space picks it up, the arrow keys move it, Space drops it, Escape cancels.</p>
+        <p id="bd-live" class="bd-sr" aria-live="polite" aria-atomic="true"></p>
+      </div>
       <div class="tab-panel" data-panel="reminders" hidden>
         <div class="add-row">
           <input id="rem-text" placeholder="Remind me to…">

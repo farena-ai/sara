@@ -65,6 +65,9 @@ html.ios-short-view { --safe-b: 0px; }
   --shadow-up: 0 -18px 48px rgb(0 0 0 / .45);
   --danger-fill: #b3383d;
   --on-danger: #ffffff;
+  /* Phase 99: board label colours (readable on dark cards); text on them is --text-1. */
+  --lbl-red: #e2546a; --lbl-orange: #e98a3c; --lbl-yellow: #d9b23a; --lbl-green: #46b882; --lbl-teal: #33aeb0;
+  --lbl-blue: #5b8def; --lbl-purple: #9b7bf0; --lbl-pink: #e070b8; --lbl-gray: #8a8596;
   --info: #8fb4ff;
   /* 2.18: "Update available" in the sidebar footer and the update window: amber at Night. */
   --update-accent: #f5b452;
@@ -129,6 +132,9 @@ html.ios-short-view { --safe-b: 0px; }
   --scrim-soft: rgb(40 20 50 / .14);
   --shadow-up: 0 -12px 40px rgb(60 30 70 / .16);
   --danger-fill: #b42a3a;
+  /* Phase 99: board label colours (darker for light cards). */
+  --lbl-red: #c0303a; --lbl-orange: #b85c12; --lbl-yellow: #8f6a00; --lbl-green: #1f7d55; --lbl-teal: #137577;
+  --lbl-blue: #2f5fc4; --lbl-purple: #6b4bc4; --lbl-pink: #a8357f; --lbl-gray: #6b6676;
   --info: #2f5fc4;
   /* 2.18: "Update available": blue by Day (5.9:1 on the light surfaces). */
   --update-accent: #2456c0;

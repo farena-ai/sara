@@ -34,6 +34,8 @@ export interface Today {
   her?: { name: string; mood: string; energy: string; expression: string; day: string | null };
   dates: { what: string; inDays: number; years: number | null }[];
   jobs: { id: number; label: string; startedAt: string }[];
+  /** Phase 99 (ST4): cards waiting on you (with the question) and cards she is working on. */
+  board?: { waiting: { id: number; title: string; question: string; boardId: number }[]; doing: { id: number; title: string; line: string; boardId: number }[] };
   /** Phase 56: models that were retired and what now uses their replacement (last 3 days). */
   models?: string[];
   /** UX 19: the same as `models`, as data (ModelNotice / RetiredUse from model-catalog.ts), for translating. */
@@ -154,6 +156,10 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean } = {}
     ...(her ? { her } : {}),
     dates,
     jobs: (app.jobs?.running() ?? []).map((j) => ({ id: j.id, label: j.label, startedAt: j.startedAt })),
+    ...(app.board ? (() => {
+      const b = app.board.today();
+      return b.waiting.length || b.doing.length ? { board: b } : {};
+    })() : {}),
     ...(app.modelCatalog ? (() => {
       const items = [...app.modelCatalog.notices(3), ...app.modelCatalog.retiredInUse()].slice(0, 5);
       return items.length ? { models: items.map((x) => x.text), modelItems: items } : {};

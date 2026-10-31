@@ -166,6 +166,14 @@ export interface AppContext {
   libraryNudge?: () => void;
   /** Phase 39: team tasks she leads. */
   team?: import('./team.ts').TeamManager;
+  /** Phase 99 (ST4): the board over the planner's tasks (src/board.ts; one per planner). */
+  board?: import('./board.ts').BoardStore;
+  /** Phase 99: cards she (or a helper) works in the background (src/board-work.ts). */
+  cardWork?: import('./board-work.ts').CardWorker;
+  /** Phase 99: shared household boards (src/shared-boards.ts) and who this space is. Never on the demo. */
+  sharedBoards?: import('./shared-boards.ts').SharedBoardsAccess;
+  /** Set by the server: stops the turn running in a conversation (a card's Stop). */
+  stopTurn?: (conversationId: string) => boolean;
   /** Phase 38: meaning search over memory notes (when the embeddings job is set). */
   vectors?: MemoryVectors;
   /** Set by the server: true while a turn runs in that conversation. */

@@ -35,6 +35,8 @@ import { localDate, memorySettings, MemoryWorker } from './memory-worker.ts';
 import { HistoryImporter } from './history-import/index.ts';
 import { embedTarget, MemoryVectors } from './embeddings.ts';
 import { createTeamTools, TeamManager } from './team.ts';
+import { createBoardTools, setUpBoard } from './board-work.ts';
+import { SharedBoardStore, type SharedBoardsAccess } from './shared-boards.ts';
 import { priceTable, UsageStore } from './usage.ts';
 import { RunStore, runSettings } from './runs.ts';
 import { createStarterTool } from './starters.ts';
@@ -369,6 +371,28 @@ const ownerSpace: Space = { id: 'owner', dir: dataDir, auth, settings, vault, ev
 ownerSpace.hands = handsFor(ownerSpace, false);
 const memberSpaces = new Map<string, Space>();
 const household = new HouseholdStore(dataDir);
+// Phase 99 (ST4, docs/BOARD.md): household boards shared by choice, in one shared store (never on the
+// demo). A change is pushed to the event hub of each of the board's people only.
+const sharedBoards = isDemo ? undefined : new SharedBoardStore(join(dataDir, 'shared', 'boards.db'));
+const spaceOf = (person: string): Space | undefined => (person === 'owner' ? ownerSpace : memberSpaces.get(person));
+sharedBoards?.listeners.add((ev) => {
+  for (const p of ev.people) spaceOf(p)?.events.publish({ type: 'board', boardId: ev.boardId, what: ev.what });
+});
+function sharedAccess(space: Space): SharedBoardsAccess | undefined {
+  if (!sharedBoards) return undefined;
+  return {
+    store: sharedBoards,
+    person: space.id,
+    people: () => [{ id: 'owner', name: settings.get().ownerName?.trim() || 'Owner' }, ...household.members().filter((m) => m.status === 'active').map((m) => ({ id: m.id, name: m.name }))],
+    copyToPlanner: (person, card) => {
+      try {
+        spaceOf(person)?.companions.main.app.planner?.addTask({ title: card.title, notes: card.notes, dueAt: card.dueAt });
+      } catch (err) {
+        console.warn(`shared board copy: ${(err as Error).message}`);
+      }
+    },
+  };
+}
 // Sign-in registries shared by every space (codes are made or approved by a signed-in person).
 const deviceFlow = new DeviceFlow();
 const pairs = new PairRegistry();
@@ -752,6 +776,14 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   // Phase 39: team tasks she leads (helpers with their own models, tools and approvals).
   if (!isMember) app.team = new TeamManager(app, store.db);
   if (!isMember) for (const t of createTeamTools(() => app)) tools.add(t);
+  // Phase 99 (ST4): the board over the planner, her card tools and the card worker (in the space that
+  // owns the planner; companions sharing it use the main companion's worker).
+  {
+    const shared = sharedAccess(space);
+    setUpBoard(app, { person: space.id, worker: !sharedPlanner, ...(shared ? { shared } : {}) });
+    if (sharedPlanner) app.cardWork = space.companions.main.app.cardWork;
+    for (const t of createBoardTools(() => app)) tools.add(t);
+  }
   // Phase 52: new projects from tested starter templates.
   if (!isMember) tools.add(createStarterTool(() => app));
   // Phase 40: project knowledge, review mode, GitHub issues as tasks (watching is off by default).
@@ -792,6 +824,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       if (app.team) setTimeout(() => app.team?.resumeInterrupted(), 15_000).unref();
       setTimeout(indexVectors, 5_000).unref();
       reminders.start();
+      if (!sharedPlanner) app.cardWork?.start();
       lifeWorker.start();
       weeklyWorker.start();
       app.learning?.start();

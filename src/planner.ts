@@ -34,7 +34,16 @@ export interface Task {
   updatedAt: string;
   doneAt: string | null;
   conversationId: string | null;
+  /** Phase 99 (ST4): a repeating to-do; done moves it to its next time and back to To do. */
+  repeat: Repeat;
 }
+
+/** Phase 99 (ST4): what changed in the tasks (the board logs and pushes it; src/board.ts). */
+export type TaskChange =
+  | { what: 'added'; task: Task }
+  | { what: 'updated'; task: Task; before: Task }
+  | { what: 'repeated'; task: Task; before: Task }
+  | { what: 'deleted'; id: number };
 export interface Note {
   id: number;
   projectId: number | null;
@@ -286,6 +295,23 @@ export class PlannerStore {
     if (!rcols.has('place_id')) db.exec('ALTER TABLE reminders ADD COLUMN place_id INTEGER');
     if (!rcols.has('place_event')) db.exec('ALTER TABLE reminders ADD COLUMN place_event TEXT');
     if (!rcols.has('anchor_day')) db.exec('ALTER TABLE reminders ADD COLUMN anchor_day INTEGER');
+    // Phase 99 (ST4): repeating to-dos (the board's other columns are added by src/board.ts).
+    const tcols = new Set((db.prepare('PRAGMA table_info(tasks)').all() as Row[]).map((r) => String(r.name)));
+    if (!tcols.has('repeat')) db.exec("ALTER TABLE tasks ADD COLUMN repeat TEXT NOT NULL DEFAULT 'none'");
+  }
+
+  /** Phase 99: told after every task change (the board's activity and live pushes). */
+  readonly listeners = new Set<(c: TaskChange) => void>();
+  /** The time zone repeating to-dos keep their wall-clock time in (set by the app). */
+  timeZone: () => string | undefined = () => undefined;
+  #emit(c: TaskChange): void {
+    for (const fn of this.listeners) {
+      try {
+        fn(c);
+      } catch (err) {
+        console.warn(`planner listener: ${(err as Error).message}`);
+      }
+    }
   }
 
   #ts(): string {
@@ -346,6 +372,7 @@ export class PlannerStore {
       updatedAt: String(r.updated_at),
       doneAt: s(r.done_at),
       conversationId: s(r.conversation_id),
+      repeat: (REPEATS.includes(r.repeat as Repeat) ? r.repeat : 'none') as Repeat,
     };
   }
 
@@ -370,37 +397,56 @@ export class PlannerStore {
     return r ? this.#task(r) : undefined;
   }
 
-  addTask(t: { title: string; project?: string | null; notes?: string; priority?: Priority; dueAt?: string | null; conversationId?: string | null }): Task {
+  addTask(t: { title: string; project?: string | null; notes?: string; priority?: Priority; dueAt?: string | null; conversationId?: string | null; repeat?: Repeat }): Task {
     const ts = this.#ts();
     const id = this.db
-      .prepare('INSERT INTO tasks (project_id, title, notes, priority, due_at, created_at, updated_at, conversation_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(this.projectId(t.project), t.title.trim(), t.notes ?? '', t.priority ?? 'normal', t.dueAt ?? null, ts, ts, t.conversationId ?? null).lastInsertRowid;
-    return this.task(Number(id))!;
+      .prepare('INSERT INTO tasks (project_id, title, notes, priority, due_at, created_at, updated_at, conversation_id, repeat) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(this.projectId(t.project), t.title.trim(), t.notes ?? '', t.priority ?? 'normal', t.dueAt ?? null, ts, ts, t.conversationId ?? null, REPEATS.includes(t.repeat as Repeat) ? t.repeat! : 'none').lastInsertRowid;
+    const task = this.task(Number(id))!;
+    this.#emit({ what: 'added', task });
+    return task;
   }
 
-  updateTask(id: number, patch: { title?: string; project?: string | null; notes?: string; priority?: Priority; dueAt?: string | null; status?: TaskStatus }): Task | undefined {
+  updateTask(id: number, patch: { title?: string; project?: string | null; notes?: string; priority?: Priority; dueAt?: string | null; status?: TaskStatus; repeat?: Repeat }): Task | undefined {
     const cur = this.task(id);
     if (!cur) return undefined;
-    const status = patch.status ?? cur.status;
+    let status = patch.status ?? cur.status;
     const ts = this.#ts();
+    const repeat = patch.repeat !== undefined && REPEATS.includes(patch.repeat) ? patch.repeat : cur.repeat;
+    let dueAt = patch.dueAt !== undefined ? patch.dueAt : cur.dueAt;
+    // Phase 99: a repeating to-do that is done comes back open at its next time (the board puts it in To do).
+    let repeated = false;
+    if (status === 'done' && cur.status !== 'done' && repeat !== 'none') {
+      const next = nextOccurrence(dueAt ?? ts, repeat, this.#now(), this.timeZone());
+      if (next) {
+        status = 'open';
+        dueAt = next.toISOString();
+        repeated = true;
+      }
+    }
     this.db
-      .prepare('UPDATE tasks SET project_id = ?, title = ?, notes = ?, priority = ?, due_at = ?, status = ?, done_at = ?, updated_at = ? WHERE id = ?')
+      .prepare('UPDATE tasks SET project_id = ?, title = ?, notes = ?, priority = ?, due_at = ?, status = ?, done_at = ?, updated_at = ?, repeat = ? WHERE id = ?')
       .run(
         patch.project !== undefined ? this.projectId(patch.project) : cur.projectId,
         patch.title?.trim() || cur.title,
         patch.notes ?? cur.notes,
         patch.priority ?? cur.priority,
-        patch.dueAt !== undefined ? patch.dueAt : cur.dueAt,
+        dueAt,
         status,
         status === 'done' ? (cur.doneAt ?? ts) : null,
         ts,
+        repeat,
         id,
       );
-    return this.task(id);
+    const task = this.task(id)!;
+    this.#emit(repeated ? { what: 'repeated', task, before: cur } : { what: 'updated', task, before: cur });
+    return task;
   }
 
   deleteTask(id: number): boolean {
-    return Number(this.db.prepare('DELETE FROM tasks WHERE id = ?').run(id).changes) > 0;
+    const gone = Number(this.db.prepare('DELETE FROM tasks WHERE id = ?').run(id).changes) > 0;
+    if (gone) this.#emit({ what: 'deleted', id });
+    return gone;
   }
 
   // notes
@@ -616,6 +662,7 @@ export function createPlannerTools(deps: PlannerToolDeps): Tool[] {
           priority: { type: 'string', enum: ['low', 'normal', 'high'] },
           notes: { type: 'string' },
           status: { type: 'string', enum: ['open', 'done', 'all'] },
+          repeat: { type: 'string', enum: [...REPEATS], description: 'A to-do that comes back (daily, weekdays, weekly, monthly); done moves it to its next time' },
         },
         required: ['action'],
       },
@@ -631,7 +678,9 @@ export function createPlannerTools(deps: PlannerToolDeps): Tool[] {
         case 'add': {
           const title = str(args, 'title').trim();
           if (title.length > 300) throw new ToolError('Title is too long (max 300).');
-          const t = planner.addTask({ title, project: args.project ? String(args.project) : null, notes: args.notes ? String(args.notes) : '', priority: prio as Priority | undefined, dueAt: dueArg(deps, args.due, 17), conversationId: ctx.conversationId ?? null });
+          const rep = args.repeat ? String(args.repeat) : 'none';
+          if (!REPEATS.includes(rep as Repeat)) throw new ToolError(`repeat must be one of ${REPEATS.join(', ')}.`);
+          const t = planner.addTask({ title, project: args.project ? String(args.project) : null, notes: args.notes ? String(args.notes) : '', priority: prio as Priority | undefined, dueAt: dueArg(deps, args.due, 17), conversationId: ctx.conversationId ?? null, repeat: rep as Repeat });
           return `Added task ${taskLine(t, tz)}${t.project ? ` in project "${t.project}"` : ''}.`;
         }
         case 'list': {
@@ -655,14 +704,17 @@ export function createPlannerTools(deps: PlannerToolDeps): Tool[] {
             ...(args.notes !== undefined ? { notes: String(args.notes) } : {}),
             ...(prio ? { priority: prio as Priority } : {}),
             ...(args.due !== undefined ? { dueAt: dueArg(deps, args.due, 17) } : {}),
+            ...(args.repeat && REPEATS.includes(String(args.repeat) as Repeat) ? { repeat: String(args.repeat) as Repeat } : {}),
           });
           if (!t) throw new ToolError(`No task #${String(args.id)}.`);
           return `Updated ${taskLine(t, tz)}.`;
         }
         case 'done':
         case 'reopen': {
+          const before = planner.task(idArg(args));
           const t = planner.updateTask(idArg(args), { status: action === 'done' ? 'done' : 'open' });
           if (!t) throw new ToolError(`No task #${String(args.id)}.`);
+          if (action === 'done' && before?.status === 'open' && t.status === 'open' && t.repeat !== 'none') return `Completed ${taskLine(before, tz)}; it repeats ${t.repeat}, so it's back for ${t.dueAt ? formatLocal(t.dueAt, tz) : 'next time'}.`;
           return `${action === 'done' ? 'Completed' : 'Reopened'} ${taskLine(t, tz)}.`;
         }
         case 'delete': {

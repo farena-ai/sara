@@ -38,7 +38,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
     const me = app.companionId ?? 'main';
     const off = app.events?.subscribeAll((ev) => {
       // Phase 31: another companion's message or call shows as a notice (switch to her to see it).
-      if (ev.companion && ev.companion !== me && ev.type !== 'planner') {
+      if (ev.companion && ev.companion !== me && ev.type !== 'planner' && ev.type !== 'board') {
         if (ev.type !== 'message' && ev.type !== 'ring') return;
         const other = opts.companions?.get(ev.companion);
         if (!other) return;

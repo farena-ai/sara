@@ -22,6 +22,8 @@ export type HubEvent = (
   | { type: 'skills' }
   /** Phase 98: a plugin was added, switched, changed, crashed or asks to use a tool. */
   | { type: 'plugins' }
+  /** Phase 99 (ST4): a board changed (a card added, moved, assigned, its work moved on): open boards refresh. Ids only, never what cards say. */
+  | { type: 'board'; boardId: number | string; taskId?: number | string; what?: string }
   /** Phase 52: device-code sign-in requests waiting for the owner. */
   | { type: 'device'; pending: number }
   /** Phase 39: a team task changed (plan, a helper's progress, the end). */

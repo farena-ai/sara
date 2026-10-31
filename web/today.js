@@ -158,7 +158,7 @@ const time = (ms) => new Date(ms).toLocaleTimeString(locale(), { hour: 'numeric'
 const hourOf = (iso) => new Date(iso).toLocaleTimeString(locale(), { hour: 'numeric' });
 
 /** 2.8: each tile's small line icon (web/icons.js), beside its title. */
-const TILE_ICON = { 'td-weather': 'weather', 'td-calendar': 'calendar', 'td-agenda': 'planner', 'td-memories': 'memory', 'td-otd': 'moments', 'td-jobs': 'job', 'td-home': 'home', 'td-mail': 'mail', 'td-dates': 'heart', 'td-models': 'sparkle', 'td-setup': 'plus' };
+const TILE_ICON = { 'td-board': 'todo', 'td-weather': 'weather', 'td-calendar': 'calendar', 'td-agenda': 'planner', 'td-memories': 'memory', 'td-otd': 'moments', 'td-jobs': 'job', 'td-home': 'home', 'td-mail': 'mail', 'td-dates': 'heart', 'td-models': 'sparkle', 'td-setup': 'plus' };
 function tileIcon(id) {
   const svg = icon(TILE_ICON[id] ?? '');
   if (!svg) return [];
@@ -581,6 +581,7 @@ export async function renderTodayTiles(d, { fmtDue }) {
   renderDay(d);
   await loadDoneToday();
   renderPlanner(d, fmtDue);
+  renderBoardTile(d.board);
   const [weather, home] = await Promise.all([
     ctx.demo() ? Promise.resolve({ setUp: false }) : ctx.api('/today/weather').catch(() => null),
     renderHome(),
@@ -590,6 +591,31 @@ export async function renderTodayTiles(d, { fmtDue }) {
   ]);
   renderWeather(weather);
   renderSetup(setupItems({ weather, calendar: d.calendar, home, member: ctx.member(), demo: ctx.demo() }));
+}
+
+/** Phase 99 (ST4): the board on Today: Needs you (cards waiting on you, with the question) and Doing (her work). */
+export function renderBoardTile(b) {
+  const tile = $('#td-board');
+  if (!tile) return;
+  const waiting = b?.waiting ?? [];
+  const doing = b?.doing ?? [];
+  tile.hidden = !waiting.length && !doing.length;
+  if (tile.hidden) return;
+  tileHead(tile, t('On the board'), waiting.length ? el('span', 'td-count td-needs', t('{n} need you', { n: waiting.length })) : null);
+  const body = tile.querySelector('.td-body');
+  const row = (c, sub, cls) => {
+    const b2 = btn(`today-item td-bd-item ${cls}`, '', () => ctx.openCard?.(c.boardId, c.id));
+    const title = el('span', 'td-bd-title', c.title);
+    title.dataset.raw = '';
+    const line = el('span', 'muted small td-bd-sub', sub);
+    line.dataset.raw = '';
+    b2.append(title, line);
+    return b2;
+  };
+  const out = [];
+  if (waiting.length) out.push(el('h4', 'td-bd-h', t('Needs you')), ...waiting.map((c) => row(c, c.question || t('Waiting on you'), 'needs')));
+  if (doing.length) out.push(el('h4', 'td-bd-h', t('Doing')), ...doing.map((c) => row(c, c.line === 'Queued' ? t('Queued') : c.line || t('Working on it'), 'doing')));
+  body.replaceChildren(...out);
 }
 
 export function initToday(c) {

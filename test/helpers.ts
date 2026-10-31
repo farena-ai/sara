@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -30,7 +30,15 @@ export function tempDir(): { dir: string; cleanup: () => void } {
     dir,
     cleanup: () => {
       try {
-        rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+        try {
+          rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+        } catch (err) {
+          // Read-only folders inside (installed plugins are 0555): a non-root user must make them
+          // writable before they can be removed.
+          if ((err as NodeJS.ErrnoException).code !== 'EACCES') throw err;
+          makeTreeWritable(dir);
+          rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+        }
       } catch (err) {
         // Windows: a child process that is still exiting can hold the folder for a moment longer.
         // It's a temp folder; leaving it is harmless and isn't what the test checks.
@@ -154,4 +162,17 @@ export async function fakeEmbedder(t: { after: (fn: () => void) => void }): Prom
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   t.after(() => server.close());
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`;
+}
+
+function makeTreeWritable(dir: string): void {
+  try {
+    chmodSync(dir, 0o700);
+    for (const d of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, d.name);
+      if (d.isDirectory()) makeTreeWritable(p);
+      else chmodSync(p, 0o600);
+    }
+  } catch {
+    /* best effort */
+  }
 }

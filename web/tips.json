@@ -1,6 +1,26 @@
 {
   "_about": "Phase 41: the ? tips for settings that have none written into index.html. Each entry: id of the control → [tip text, guide section in /help]. Plain words, how to tune it, an example. app.js adds a ? next to each control; the server's settings_guide tool reads this file and every data-tip in index.html.",
   "tips": {
+    "cd-due": [
+      "When it's due, in your time zone. Past the date the card shows it in red. She can set it too when she adds a card (\"friday 5pm\").",
+      "board"
+    ],
+    "cd-repeat": [
+      "Repeat brings the card back to To do with its next due date each time it's marked done.",
+      "board"
+    ],
+    "cd-assignee": [
+      "Pick Sara or a helper and the card is worked in the background, in its own conversation: Doing, then Done with receipts, or Waiting on you with a question. It spends budget within the card's limits.",
+      "board"
+    ],
+    "cd-lim-steps": [
+      "Steps: how many rounds of tools she may take on this card before she stops, sums up and waits on you. Default uses the team limit (Settings → Team).",
+      "board"
+    ],
+    "cd-comment": [
+      "A comment goes into the card's activity with your name and the time. On a shared board everyone on it sees it.",
+      "board"
+    ],
     "dk-quick": [
       "The keys that open the small quick-ask window over any app, so you can ask her something without opening Sara. If another app already uses them it says so: pick other keys, or Off. Try it opens the window now.",
       "desktop"

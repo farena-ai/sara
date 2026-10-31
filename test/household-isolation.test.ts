@@ -323,6 +323,41 @@ test('plugins (Phase 98): every plugin route answers a member 403 ownerOnly', as
   }
 });
 
+test('boards (Phase 99): own boards per person; a shared board only by membership, invitation first', async () => {
+  // Each person's own board lists only their own to-dos.
+  for (const p of [owner, ana, ben]) {
+    const r = await call(p, 'GET', '/api/boards');
+    assert.equal(r.status, 200, `${p.name} ${r.text}`);
+    for (const v of [owner, ana, ben].filter((x) => x !== p)) assert.ok(!r.text.includes(v.marker), `${p.name} saw ${v.name}'s board`);
+  }
+  // Ana shares a board with Ben (the household's ids only), Ben accepts.
+  const made = await call(ana, 'POST', '/api/boards', { name: `Trip ${M.a}`, shared: true, people: [ben.memberId, 'not-a-person'] });
+  assert.equal(made.status, 201, made.text);
+  const sid = String(made.json.id);
+  assert.match(sid, /^s\d+$/);
+  const card = await call(ana, 'POST', `/api/boards/${sid}/cards`, { title: `Passports ${M.a}` });
+  assert.equal(card.status, 201, card.text);
+  const ref = String(card.json.ref);
+  assert.equal((await call(ben, 'GET', `/api/boards/${sid}`)).status, 404, 'not before accepting');
+  const inv = await call(ben, 'GET', '/api/boards');
+  assert.ok((inv.json.invites as { boardId: string }[]).some((i) => i.boardId === sid));
+  assert.equal((await call(ben, 'POST', `/api/boards/invites/${sid}/accept`, {})).status, 200);
+  const seen = await call(ben, 'GET', `/api/boards/${sid}`);
+  assert.equal(seen.status, 200);
+  assert.ok(seen.text.includes(`Passports ${M.a}`), 'a member of the board sees its cards');
+  // The owner isn't on it: every way in by id is a 404, and nothing shows in his lists.
+  for (const [method, path] of [['GET', `/api/boards/${sid}`], ['PUT', `/api/boards/${sid}`], ['DELETE', `/api/boards/${sid}`], ['POST', `/api/boards/${sid}/cards`], ['POST', `/api/boards/${sid}/share`], ['GET', `/api/tasks/${ref}/activity`], ['POST', `/api/tasks/${ref}/move`], ['POST', `/api/tasks/${ref}/assign`], ['POST', `/api/tasks/${ref}/comment`], ['POST', `/api/boards/invites/${sid}/accept`]] as const) {
+    const r = await call(owner, method, path, method === 'GET' || method === 'DELETE' ? undefined : { columnId: 1, text: 'x', title: 'x', people: ['owner'], assignee: 'sara' });
+    assert.equal(r.status, 404, `owner ${method} ${path} → ${r.status}`);
+    assert.ok(!r.text.includes(M.a));
+  }
+  assert.ok(!(await call(owner, 'GET', '/api/boards')).text.includes(M.a));
+  // Ben leaves: access ends.
+  assert.equal((await call(ben, 'POST', `/api/boards/${sid}/leave`, {})).status, 200);
+  assert.equal((await call(ben, 'GET', `/api/boards/${sid}`)).status, 404);
+  assert.equal((await call(ana, 'DELETE', `/api/boards/${sid}`)).status, 200);
+});
+
 test('skills (Phase 96): each member has their own; a folder on the server is the owner\'s only', async () => {
   const made = await call(ana, 'POST', '/api/skills', { name: 'ana-only-skill', description: `Ana's own how-to ${M.a}. Use when Ana asks.`, body: `# Ana\n${M.a}` });
   assert.equal(made.status, 201);

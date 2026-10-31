@@ -164,4 +164,5 @@ export const TOOL_ICONS = {
   pc_devices: 'monitor', pc_browser_open: 'monitor', pc_browser_navigate: 'monitor', pc_browser_look: 'eye', pc_look: 'eye', pc_windows: 'monitor', pc_click: 'monitor', pc_type: 'monitor', pc_keys: 'monitor', pc_scroll: 'monitor', pc_drag: 'monitor', pc_open_app: 'monitor', pc_browser_read: 'monitor', pc_browser_tabs: 'monitor', pc_browser_logs: 'monitor', pc_browser_request: 'monitor',
   read_file: 'file', write_file: 'file-edit', edit_file: 'file-edit', list_dir: 'folder', search: 'search', shell: 'terminal',
   docs: 'book', library_search: 'book',
+  board_list: 'todo', card_add: 'todo', card_move: 'todo', card_comment: 'note', card_ask: 'todo', card_assign: 'team',
 };

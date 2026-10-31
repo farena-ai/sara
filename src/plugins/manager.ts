@@ -936,6 +936,10 @@ export class PluginManager {
     } else if (ev.type === 'job') {
       type = 'job';
       data = { id: ev.job.id, status: ev.job.status };
+    } else if (ev.type === 'board') {
+      // Phase 99 (ST4): which board and card changed and how (never what the card says).
+      type = 'board';
+      data = { boardId: ev.boardId, ...(ev.taskId !== undefined ? { taskId: ev.taskId } : {}), ...(ev.what ? { what: ev.what } : {}) };
     }
     if (!type) return;
     for (const run of a.procs.values()) {

@@ -14,7 +14,7 @@ per il web, Windows, Mac e telefono.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1274%20passing-brightgreen" alt="1274 tests passing">
+  <img src="https://img.shields.io/badge/tests-1289%20passing-brightgreen" alt="1289 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ per il web, Windows, Mac e telefono.
   <sub>Una sessione reale con un modello locale (qwen3.8 27B su Ollama, una RTX 5090) su un server di prova usa e getta, nel tema Notte: tira su il morale di chi le scrive, scrive una piccola app e il suo test mentre il modello li trasmette, chiede prima di eseguire un comando, scopre un vero bug con un test che fallisce e lo corregge finché tutti e 7 i test passano. Fotogrammi scelti dalla registrazione; nulla al loro interno è stato modificato.</sub>
 </p>
 
-> **Stato:** 2.31, licenza MIT, con quarantadue versioni ricche di novità dalla 1.0 (tutte qui sotto).
+> **Stato:** 2.32, licenza MIT, con quarantatré versioni ricche di novità dalla 1.0 (tutte qui sotto).
 > Dalla 2.5 alla 2.8 tutta l'app ha cambiato aspetto. L'[app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > è su Google Play; l'app per iPhone e la versione del Mac App Store arriveranno appena Apple le
 > approverà. Leggi [docs/DISCLOSURES.md](docs/DISCLOSURES.md) prima di usare o condividere Sara.
@@ -69,6 +69,7 @@ citano la pagina · la [modalità locale privata](docs/PRIVATE_LOCAL.md) · le [
 
 | Versione | Cosa ottieni |
 |---|---|
+| **2.32** · Bacheca | **Una bacheca Kanban sulle tue attività.** Ogni progetto ha una bacheca (Da fare, In corso, Aspetta te, Fatto) con etichette, checklist, scadenze e ripetizioni; trascina con mouse, dito o tastiera. Assegna una scheda a Sara o a un team di aiutanti e lei ci lavora in background: va in Fatto solo se le prove sostengono il lavoro, altrimenti ti aspetta con ciò che non ha potuto dimostrare. Chiedile «cosa è bloccato?» o di aggiungere e spostare schede (chiede prima). Bacheche condivise della casa; un riquadro Serve a te in Oggi. |
 | **2.31** · Plugin | **Plugin e hook.** Un plugin è una cartella con un `sara-plugin.json`: hook prima della sua risposta, prima e dopo gli strumenti e dopo le risposte, più strumenti, schede, impostazioni, pianificazioni e ponti chat propri. Lo aggiungi da zip, git o cartella dopo aver letto una scheda che spiega cosa può fare; resta spento finché non lo accendi. Ognuno gira in un proprio processo isolato (bubblewrap su Linux, Seatbelt sul Mac) e può solo aggiungere o restringere, mai allentare le sue regole o toccare il livello di sicurezza. Un plugin che si blocca o va in crash non rompe mai una chat. Due esempi inclusi; guida in docs/PLUGINS.md. |
 | **2.30** · Abilità imparate | **Si accorge di cosa chiedi spesso.** Chiedi la stessa cosa tre volte in giorni diversi (o ripeti la stessa catena di passi di codice) e lei propone, una volta, di farne un'abilità: vedi la bozza e la salvi, la modifichi o dici di no. Una nuova abilità viene prima provata (le tue richieste passate, giudicate con e senza) e usata di default solo se aiuta. Correggila dopo un'abilità e propone la modifica con una scheda prima/dopo. Non impara mai nulla di privato, dai gruppi o con segreti. |
 | **2.29** · Abilità | **Abilità nel formato aperto Agent Skills.** Un'abilità è una cartella con un `SKILL.md`: come fare un tipo di lavoro a modo tuo. Vede l'elenco in ogni chat e apre quella giusta; in Esecuzioni vedi quale ha usato. Sei incluse (rivedere una pull request, una voce di changelog, un riepilogo settimanale, il debug di un test che fallisce, pianificare un viaggio, scrivere un'abilità); scrivi le tue o chiediglielo; importa da zip, git o una cartella con una scheda che mostra ogni file e script; esporta qualsiasi abilità. Gli script chiedono sempre prima, e nessuna abilità può cambiare le sue regole di sicurezza. Le tue ricette sono diventate abilità. |
@@ -305,8 +306,8 @@ uno SPEC che nessun test controllava. Quello che aggiunge oggi è il modo di lav
 chiede prima dei passi rischiosi, mostra cosa è stato eseguito), non un punteggio più alto su questi
 insiemi. Dettagli, risultati per compito e come rieseguirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-In più, `npm run check`: un controllo dei tipi e 1289 test automatici con un finto modello guidato
-da script (senza rete, senza GPU): 1274 passano su Windows e gli altri 8 sono test dell'isolamento
+In più, `npm run check`: un controllo dei tipi e 1304 test automatici con un finto modello guidato
+da script (senza rete, senza GPU): 1289 passano su Windows e gli altri 8 sono test dell'isolamento
 solo per Linux, eseguiti su un server Linux.
 
 ## Il confronto

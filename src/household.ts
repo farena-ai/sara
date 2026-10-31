@@ -506,6 +506,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'memories', 'memory', 'scrapbook', 'moments', 'story', 'together',
   // planner and days
   'projects', 'tasks', 'notes', 'reminders', 'planner', 'places', 'today', 'briefing', 'review', 'leave-by', 'checklist', 'setup',
+  // Phase 99 (ST4): their own boards, and shared boards they are a member of (src/routes/board.ts)
+  'boards', 'columns',
   // library
   'library',
   // Phase 96: their own skills (trusting a workspace's project skills and server folders stay the owner's)
