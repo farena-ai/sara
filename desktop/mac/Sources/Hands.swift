@@ -1173,7 +1173,9 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
                                   // Phase 90 (CU4): saved logins and the sign-in pause
                                   "b.login", "b.saveLogin", "b.logins", "b.forgetLogin", "b.yourTurn",
                                   // Phase 91 (CU4b): the owner's password managers (the person unlocks; Sara relocks)
-                                  "b.unlock", "b.relock"]
+                                  "b.unlock", "b.relock",
+                                  // Phase 92 (CU5): desktop look (HandsScreen.swift); only with "The whole screen" on.
+                                  "d.screens", "d.windows", "d.shot", "d.elements"]
   /// Ops that act: they count against the input rate limit and stop when the person takes over.
   static let inputOps: Set<String> = ["b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login"]
   /// Phase 90: ops that wait for the person (the consent panel, "Your turn"): up to 10 minutes.
@@ -1190,6 +1192,9 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
   let pageAgent: String
   let version: String
   var localOnly: Bool
+  /// Phase 92: "The whole screen" (desktop look, off by default).
+  var desktop = false
+  private var looking = false
   let browser: HandsBrowser
   private var session: URLSession!
   private var task: URLSessionWebSocketTask?
@@ -1393,8 +1398,8 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     let os = ProcessInfo.processInfo.operatingSystemVersion
     var browserInfo: [String: Any] = ["found": browser.found != nil]
     if let f = browser.found { browserInfo["kind"] = f.kind; browserInfo["name"] = f.name }
-    return jsonText(["t": "hello", "v": 1, "app": version, "os": "macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion)", "computer": computer, "screens": [] as [Any],
-                     "browser": browserInfo, "perms": ["capture": false, "input": false, "ax": false], "optIn": ["browser": true, "desktop": false], "approvalsHere": false,
+    return jsonText(["t": "hello", "v": 1, "app": version, "os": "macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion)", "computer": computer, "screens": HandsScreen.screensList(),
+                     "browser": browserInfo, "perms": ["capture": HandsScreen.perms.capture, "input": false, "ax": HandsScreen.perms.ax], "optIn": ["browser": true, "desktop": desktop], "approvalsHere": false,
                      "logins": HandsLogins.views(server: browser.serverOrigin), "vault": ["kind": "keychain", "verify": verify], "busy": false, "localOnly": localOnly, "ops": Array(Hands.ops).sorted(),
                      "takeover": keep ? "keep" : "pause", "hotkey": hotkeyOk ? "⌃⌥Esc" : "", "paused": paused, "renew": true,
                      "managers": pm.views(), "relockMinutes": pm.relockMinutes] as [String: Any])
@@ -1435,13 +1440,22 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
   }
   func tellLocalOnly(_ on: Bool) {
     localOnly = on
-    sendText(jsonText(["t": "ev", "kind": "optin", "optIn": ["browser": true, "desktop": false], "localOnly": on, "takeover": keep ? "keep" : "pause"] as [String: Any]))
+    tellOptIn()
+  }
+  /// The switches and permissions as the server should know them (Phase 92: the whole screen, the Mac's two permissions).
+  func tellOptIn() {
+    let p = HandsScreen.perms
+    sendText(jsonText(["t": "ev", "kind": "optin", "optIn": ["browser": true, "desktop": desktop], "localOnly": localOnly, "takeover": keep ? "keep" : "pause", "perms": ["capture": p.capture, "input": false, "ax": p.ax]] as [String: Any]))
+  }
+  func tellDesktop(_ on: Bool) {
+    desktop = on
+    tellOptIn()
   }
   /// Phase 88: "When you move the mouse" changed.
   func tellTakeover(_ keepControl: Bool) {
     keep = keepControl
     if keepControl { resume() }
-    sendText(jsonText(["t": "ev", "kind": "optin", "optIn": ["browser": true, "desktop": false], "localOnly": localOnly, "takeover": keepControl ? "keep" : "pause"] as [String: Any]))
+    tellOptIn()
   }
   /// Phase 88: the person used her window (real input: DevTools input never reaches the Mac's event stream).
   func userInput() {
@@ -1557,6 +1571,7 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
       if shows {
         self.lock.lock()
         if !opWhat.isEmpty { self.what = opWhat }
+        self.looking = op.hasPrefix("d.")
         self.opRunning = true
         self.lastOpAt = Date()
         self.lock.unlock()
@@ -1591,6 +1606,22 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
       if self.answerOrder.count > 100 { self.answers[self.answerOrder.removeFirst()] = nil }
       self.lock.unlock()
       self.sendText(text)
+    }
+  }
+
+  /// Phase 92: d.screens / d.windows / d.shot / d.elements, with HandsScreen's rules.
+  private func desktopOp(id: String, op: String, _ a: [String: Any]) throws -> [String: Any] {
+    guard desktop else { throw HandsOpError(code: "denied_local", message: "\"The whole screen\" is off on this Mac: only the person here can switch it on, in the Sara app.") }
+    switch op {
+    case "d.screens": return ["screens": HandsScreen.screensList()]
+    case "d.windows": return HandsScreen.windows()
+    case "d.elements": return try HandsScreen.elements(a)
+    default:
+      let s = try HandsScreen.shot(a)
+      sendBinary(["id": id, "kind": "shot", "mime": "image/jpeg", "w": s.w, "h": s.h, "viewId": s.viewId], s.jpeg)
+      if let t = s.thumb { sendBinary(["id": id, "kind": "thumb", "mime": "image/jpeg", "w": t.1, "h": t.2], t.0) }
+      localLog("d.shot", a["window"] == nil ? "looked at the screen" : "looked at a window", "")
+      return s.result
     }
   }
 
@@ -1665,6 +1696,8 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     // Phase 91: after the task (and Lock now) every manager locks again; b.unlock is the person's.
     if op == "b.relock" { return ["locked": pm.lockAll("the task ended").map { handsPms[$0].id }] }
     if op == "b.unlock" { return try unlockOp(a, cancel) }
+    // Phase 92 (CU5): desktop look, never the Sara browser.
+    if op.hasPrefix("d.") { return try desktopOp(id: id, op: op, a) }
     if op != "b.tabs" || browser.running { try browser.start() }
     switch op {
     case "b.start": return ["browser": ["kind": browser.found?.kind ?? "", "name": browser.found?.name ?? ""], "tabs": tabsList()]
@@ -2171,11 +2204,12 @@ extension Hands {
   private var badgeActive: Bool { lock.lock(); defer { lock.unlock() }; return paused || opRunning || Date().timeIntervalSince(lastOpAt) < 30 }
   private func badgeText() -> String {
     lock.lock()
-    let p = paused, w = what, kept = keep && Date().timeIntervalSince(keptAt) < 8
+    let p = paused, w = what, kept = keep && Date().timeIntervalSince(keptAt) < 8, look = looking
     lock.unlock()
     let pre = testLabel ? "TEST · " : ""
     if p { return pre + "Paused: you're in control of the Sara browser" }
-    return pre + "Sara is working in her browser" + (w.isEmpty ? "" : " · \(w)") + (kept ? " · she keeps control" : "")
+    // Phase 92: the read-only form while she looks at the desktop (§7.2).
+    return pre + (look ? "Sara is looking at your screen" : "Sara is working in her browser") + (w.isEmpty ? "" : " · \(w)") + (kept ? " · she keeps control" : "")
   }
   private func tick(force: Bool = false) {
     watchTakeover()

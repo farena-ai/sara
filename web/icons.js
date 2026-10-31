@@ -161,7 +161,7 @@ export const TOOL_ICONS = {
   settings_guide: 'help', tune_personality: 'sliders', team_task: 'team', work_on_issue: 'team', start_job: 'job',
   project_note: 'note', preview_start: 'monitor', preview_stop: 'monitor', browser_open: 'compass', browser_screenshot: 'camera',
   browser_click: 'pointer', browser_type: 'keyboard', browser_read: 'compass', browser_check: 'check', moments: 'moments',
-  pc_devices: 'monitor', pc_browser_open: 'monitor', pc_browser_navigate: 'monitor', pc_browser_look: 'eye', pc_browser_read: 'monitor', pc_browser_tabs: 'monitor', pc_browser_logs: 'monitor', pc_browser_request: 'monitor',
+  pc_devices: 'monitor', pc_browser_open: 'monitor', pc_browser_navigate: 'monitor', pc_browser_look: 'eye', pc_look: 'eye', pc_windows: 'monitor', pc_browser_read: 'monitor', pc_browser_tabs: 'monitor', pc_browser_logs: 'monitor', pc_browser_request: 'monitor',
   read_file: 'file', write_file: 'file-edit', edit_file: 'file-edit', list_dir: 'folder', search: 'search', shell: 'terminal',
   docs: 'book', library_search: 'book',
 };

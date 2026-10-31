@@ -37,6 +37,12 @@ export interface ToolContext {
   recordThumb?: (img: { mime: string; data: Buffer }) => void;
   /** Phase 87: the run this call belongs to (sent to the hands with each op). */
   runId?: number;
+  /**
+   * Phase 92: the "Seeing your screen" model (route `screen`, else Looking at pictures) describes a
+   * desktop picture for a talking model that can't see it; `local` says whether that model runs on
+   * the owner's own hardware (pictures marked local-only never go to one that doesn't).
+   */
+  screenModel?: { local: boolean; describe: (img: { mime: string; data: string }) => Promise<string | undefined> };
 }
 
 export interface Tool {

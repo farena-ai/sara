@@ -39,6 +39,9 @@ struct Host {
   std::wstring keepassDb;
   int pmRelockMinutes = 15;  // lock again after this many idle minutes (5, 15, 30, 60)
   int pmIdleSeconds = 0;     // test builds only (SARA_PM_IDLE_SECONDS): the idle time in seconds instead
+  // Phase 92 (CU5): "The whole screen" (desktop look, off by default) and "Also hide these windows" (one per line).
+  bool desktopOn = false;
+  std::string blockExtra;
 };
 
 /** Connects (and keeps reconnecting) with these settings; a running connection is replaced. */
@@ -49,6 +52,10 @@ void stop();
 void pressStop();
 /** "Screenshots only to models on this computer" changed (the server hears it at once). */
 void setLocalOnly(bool on);
+/** Phase 92: "The whole screen" changed (the server hears it at once). */
+void setDesktop(bool on);
+/** Phase 92: "Also hide these windows" changed (one app or title per line, UTF-8). */
+void setBlockExtra(const std::string& lines);
 /** Phase 88: "When you move the mouse" changed (true = let Sara keep control). */
 void setTakeover(bool keepControl);
 /** Phase 88: Resume after the person took over (the badge's button, the tray menu). */

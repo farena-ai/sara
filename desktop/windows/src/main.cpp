@@ -1086,6 +1086,26 @@ static std::wstring pickKeepassDb() {
 }
 /** Phase 90 (CU4): the saved logins of the Sara browser: %LOCALAPPDATA%\\Sara\\logins.dat (test runs: their own folder). */
 static std::wstring loginsFile() { return dataDir() + L"\\logins.dat"; }
+/** Phase 92: a multi-line value on one ini line (\n and \\ escaped). */
+static std::wstring escapeLines(const std::wstring& v) {
+  std::wstring o;
+  for (wchar_t c : v) {
+    if (c == L'\\') o += L"\\\\";
+    else if (c == L'\n') o += L"\\n";
+    else if (c != L'\r') o += c;
+  }
+  return o;
+}
+static std::wstring unescapeLines(const std::wstring& v) {
+  std::wstring o;
+  for (size_t i = 0; i < v.size(); i++) {
+    if (v[i] == L'\\' && i + 1 < v.size()) {
+      o += v[i + 1] == L'n' ? L'\n' : v[i + 1];
+      i++;
+    } else o += v[i];
+  }
+  return o;
+}
 /** Starts or stops the hands for the server in use, as its settings say. */
 static void handsSync() {
   if (!handsOn() || g_server.empty()) return sarahands::stop();
@@ -1101,6 +1121,9 @@ static void handsSync() {
   h.localOnly = getIni(handsSection(), L"handsLocalOnly") == L"1";
   // Phase 88: her actions: takeover choice, Downloads\Sara, the local log, token renewal, TEST label.
   h.keepControl = getIni(handsSection(), L"handsTakeover") == L"keep";
+  // Phase 92: "The whole screen" (look only) and the person's own hidden windows.
+  h.desktopOn = getIni(handsSection(), L"handsDesktop") == L"1";
+  h.blockExtra = toUtf8(unescapeLines(getIni(handsSection(), L"handsBlockExtra")));
   h.downloadsDir = handsDownloads();
   h.logFile = dataDir() + L"\\hands-log.txt";
   h.expiresAt = toUtf8(getIni(handsSection(), L"handsExpires"));
@@ -1145,7 +1168,9 @@ static std::wstring handsPrefsJson() {
          jsonEscape(sarahands::lastError()) + L"\",\"handsBrowser\":" + (sarahands::browserPath().empty() ? L"false" : L"true") + L",\"computerName\":\"" + jsonEscape(computerName()) + L"\"" +
          L",\"handsTakeover\":\"" + (getIni(handsSection(), L"handsTakeover") == L"keep" ? L"keep" : L"pause") + L"\",\"handsHotkey\":\"" + jsonEscape(sarahands::hotkeyLabel()) + L"\"" +
          L",\"loginsSupported\":true,\"loginsVerify\":" + (getIni(handsSection(), L"loginsVerify") == L"1" ? L"true" : L"false") +
-         L",\"pmSupported\":true";
+         L",\"pmSupported\":true" +
+         // Phase 92: the whole screen (Windows needs no extra permission to look, so no handsPerms here).
+         L",\"handsDesktopSupported\":true,\"handsDesktop\":" + (getIni(handsSection(), L"handsDesktop") == L"1" ? L"true" : L"false") + L",\"handsBlockExtra\":\"" + jsonEscape(unescapeLines(getIni(handsSection(), L"handsBlockExtra"))) + L"\"";
 }
 
 // Her face for the tray menu: the page's PNG, decoded and scaled with WIC (premultiplied alpha).
@@ -2459,6 +2484,17 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
       // Phase 87: "Screenshots only to models on this computer" (the server hears it at once).
       setIni(handsSection(), L"handsLocalOnly", on ? L"1" : L"0");
       sarahands::setLocalOnly(on);
+    }
+    else if (key == L"handsDesktop") {
+      // Phase 92: "The whole screen" (desktop look; the page showed its explainer first).
+      setIni(handsSection(), L"handsDesktop", on ? L"1" : L"0");
+      sarahands::setDesktop(on);
+    }
+    else if (key == L"handsBlockExtra") {
+      // Phase 92: "Also hide these windows" (one per line; kept on one ini line with \n escapes).
+      std::wstring v = m[L"value"].substr(0, 2000);
+      setIni(handsSection(), L"handsBlockExtra", escapeLines(v));
+      sarahands::setBlockExtra(toUtf8(v));
     }
     else if (key == L"loginsVerify") {
       // Phase 90: Windows Hello before Sara uses a saved login (off by default).

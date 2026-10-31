@@ -287,6 +287,7 @@
           <div id="composer-menu" class="composer-menu head-pop" role="menu" hidden>
             <button id="attach" class="pop-item" type="button" role="menuitem" title="Send a photo or a document (or paste / drop one)"><i class="ic" data-icon="attach"></i> Attach a file</button>
             <button id="attach-photo" class="pop-item" type="button" role="menuitem" title="Send a photo from this device"><i class="ic" data-icon="image"></i> Photo</button>
+            <button id="show-screen" class="pop-item" type="button" role="menuitem" title="Pick a window or your screen in your browser's own prompt: one picture of it is added to your message" hidden><i class="ic" data-icon="monitor"></i> Show Sara my screen</button>
             <button id="together" class="pop-item" type="button" role="menuitem" title="Do something together: games, journaling, watching along, your shared lists"><i class="ic" data-icon="dice"></i> Something together</button>
           </div>
         </div>
@@ -1498,6 +1499,16 @@
         <h3>This computer</h3>
         <label class="row"><input id="cu-optin" type="checkbox" data-noauto> Let Sara use this computer <button type="button" class="tip" data-tip="Off by default. On: Sara may use her own browser window here (its own profile, never yours) to look at pages, read their errors, click and type. You see what she does and can stop her any time.">?</button></label>
         <label class="row"><input id="cu-localonly" type="checkbox" data-noauto> Screenshots only to models on this computer <button type="button" class="tip" data-tip="Pictures of this screen then go only to a model on your own hardware (like Ollama). With a cloud model she works from the page's text instead. Private local mode always does this.">?</button></label>
+        <label class="row"><input id="cu-desktop" type="checkbox" data-noauto> The whole screen: let her look at your apps and windows <button type="button" class="tip" data-tip="Off by default. On: Sara may take pictures of this screen and read what's in a window. Password managers, banking and security windows are blacked out first.">?</button></label>
+        <div id="cu-perms" class="cu-perms" hidden>
+          <p class="small">macOS asks you to allow this once, for the Sara app:</p>
+          <ol class="cu-steps">
+            <li class="cu-step"><span id="cu-perm-capture-state" class="cu-perm-state"></span> <span class="cu-step-text">Step 1: Screen Recording (her pictures)</span> <button id="cu-perm-capture" type="button" class="ghost small">Open System Settings</button></li>
+            <li class="cu-step"><span id="cu-perm-ax-state" class="cu-perm-state"></span> <span class="cu-step-text">Step 2: Accessibility (the list of what's in a window)</span> <button id="cu-perm-ax" type="button" class="ghost small">Open System Settings</button> <button type="button" class="tip" data-tip="In System Settings, Privacy &amp; Security, turn on Sara under Screen Recording and Accessibility. A tick shows here once macOS allows it.">?</button></li>
+          </ol>
+          <p id="cu-perms-restart" class="muted small" hidden>Allowed? If the tick doesn't show, quit and reopen Sara so macOS applies it.</p>
+        </div>
+        <label class="row cu-block-row">Also hide these windows <textarea id="cu-block-extra" rows="2" data-noauto placeholder="One app or window title per line"></textarea> <button type="button" class="tip" data-tip="Windows whose title or app has one of these words are blacked out on this computer, like password managers and banking.">?</button></label>
         <label class="row">When you move the mouse <select id="cu-takeover" data-noauto><option value="pause">Pause Sara</option><option value="keep">Let Sara keep control</option></select> <button type="button" class="tip" data-tip="Pause Sara (default): if you use her browser window, she stops until you press Resume on her badge. Let Sara keep control: she goes on and the badge says so. Stop always works.">?</button></label>
         <p class="row small">Stop shortcut: <kbd id="cu-hotkey">Ctrl+Alt+Esc</kbd> <button type="button" class="tip" data-tip="Press these keys anywhere on this computer to stop Sara at once. The badge at the top of the screen and the app's menu have Stop too.">?</button></p>
         <label class="row"><input id="cu-verify" type="checkbox" data-noauto> Ask for Windows Hello / Touch ID before Sara uses a saved login <button type="button" class="tip" data-tip="Off by default. On: each time Sara signs in with a login saved on this computer, the computer first asks you to confirm it's you (face, fingerprint or PIN).">?</button></label>
@@ -2687,6 +2698,18 @@
         <li>Every step is in Runs with a small picture.</li>
       </ul>
       <div class="proof-actions"><button id="cu-explain-no" type="submit" value="no" class="ghost">Not now</button><button id="cu-explain-yes" type="submit" value="yes">Turn it on</button></div>
+    </form>
+  </dialog>
+  <dialog id="cu-desk-explain" class="proof-dlg" aria-labelledby="cu-desk-explain-title">
+    <form method="dialog" class="proof-form">
+      <h3 id="cu-desk-explain-title">Let Sara see your whole screen?</h3>
+      <ul class="cu-explain-list">
+        <li>She can take a picture of this screen or one window and read the list of what's in it (buttons, fields, text), when you ask her to look.</li>
+        <li>Before anything leaves this computer, password managers, banking and security windows are blacked out and left out of the list, and password fields are hidden. Sara's own windows never show.</li>
+        <li>Pictures go to the model you chose for her. To keep them on your own hardware, turn on Screenshots only to models on this computer.</li>
+        <li>For now she only looks: clicking and typing outside her browser comes later, with its own approvals.</li>
+      </ul>
+      <div class="proof-actions"><button id="cu-desk-explain-no" type="submit" value="no" class="ghost">Not now</button><button id="cu-desk-explain-yes" type="submit" value="yes">Let her look</button></div>
     </form>
   </dialog>
   <!-- Confirm it's you (owner proof for API keys, approving apps, passkeys and two-step) -->

@@ -212,7 +212,7 @@ test('settings: backups, switch time and her own model are saved and checked', a
   assert.equal((await call('/api/settings', 'PUT', { fallbackAfterSec: 5 })).status, 400);
   await call('/api/settings', 'PUT', { routes: {}, companionModel: null, fallbackAfterSec: 60 });
   const jobs = await (await call('/api/model-jobs')).json();
-  assert.deepEqual(jobs.jobs.map((j: { id: string }) => j.id), ['chat', 'coding', 'vision', 'planning', 'writing', 'research', 'review', 'quick', 'background', 'embeddings', 'private', 'adult']); // Phase 81: + Reviewing
+  assert.deepEqual(jobs.jobs.map((j: { id: string }) => j.id), ['chat', 'coding', 'vision', 'planning', 'writing', 'research', 'review', 'quick', 'background', 'embeddings', 'private', 'adult', 'screen']); // Phase 81: + Reviewing; Phase 92: + Seeing your screen (advanced)
   const t = await (await call('/api/model-jobs/test', 'POST', { job: 'quick', providerId: 'a', model: 'tiny-flash' })).json();
   assert.equal(t.ok, true);
   assert.equal(t.sample, 'a/tiny-flash here.');

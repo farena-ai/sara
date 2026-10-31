@@ -220,6 +220,8 @@
   "Everyday conversation with her. This is the most important one: pick the model whose replies you like best.",
   "Coding-mode conversations: reading and writing files, running commands. A model that is good with code and tools.",
   "Looking at pictures",
+  "Seeing your screen",
+  "Reads the pictures when Sara looks at your computer screen. Empty: the Looking at pictures model does. A local model keeps screenshots on your own hardware.",
   "When you send a photo or a screenshot, this model looks at it. The next message goes back to the talking model. It must be a model that can see (gemma4, a \"vl\" or \"vision\" model, GPT, Claude, Grok).",
   "Morning briefing, weekly review, and the plans for her team of helpers. A careful, strong model.",
   "Her diary days, filling in her life story and character writing. A model with a nice way with words.",

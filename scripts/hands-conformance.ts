@@ -24,6 +24,14 @@
 // and the idle time lock them again. The person at the prompt is the reference's stand-in (--ref) or
 // --unlock-driver "<command>", run as `<command> <manager> <step>` while the prompt is open (steps: type,
 // wrong, close) with SARA_CU4B_PIECES = that manager's test master password in comma-separated pieces.
+// Phase 92 (CU5) adds desktop look (section 12, with --desktop): d.screens, d.windows (a fixture window
+// listed with its title; the fixture "KeePass" window only as hidden; no Sara window at all), d.elements of the
+// fixture window (its known text; its password field marked secret, the value nowhere in the answer), d.shot of
+// that window (a picture, numbered marks with their list) and of the screen area where the fixture KeePass sits
+// (black there), a stale viewId refused, one picture per 500 ms. The reference hands use their fixture desktop;
+// for an app give --desktop-window "<fixture title>" --desktop-text "<text in it>" --desktop-blocked-area
+// x,y,w,h (the fixture KeePass window, screen pixels) and SARA_CU5_SECRET = the fixture password field's value.
+// Only fixture windows and that area are pictured: never anyone's whole screen.
 // Before starting an app for this, make its doubles with --make-pm <dir> (prints the folders to put in
 // SARA_PM_PATH and the config folders), with the same --fixture-port / --fixture-port3 as the run.
 // Runs the command set against one hands device connected to a Sara server, through the owner's
@@ -41,7 +49,9 @@ import type { AddressInfo } from 'node:net';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CU1_OPS, CU3_OPS, CU4_OPS, CU4B_OPS, HANDS_OPS } from '../src/hands.ts';
+import { CU1_OPS, CU3_OPS, CU4_OPS, CU4B_OPS, CU5_OPS, HANDS_OPS } from '../src/hands.ts';
+import { readPng, TestDesktop } from '../src/hands-desktop.ts';
+import { decodeJpeg } from '../src/jpeg.ts';
 import { HandsRef } from '../src/hands-ref.ts';
 import type { ConsentAnswer } from '../src/hands-logins.ts';
 import { commandLine, ManagerSessions, type ManagerId, type PromptRequest } from '../src/hands-managers.ts';
@@ -249,7 +259,7 @@ async function main(): Promise<number> {
       refPmDir = mkdtempSync(join(tmpdir(), 'sara-conf-pm-'));
       const made = makePm(refPmDir, port1, port3);
       const managers = new ManagerSessions({ search: made.search as string[], env: made.env as Record<string, string>, keepassDb: String(made.keepassDb), prompt: refPrompt, relockMs: Number(arg('--idle-seconds') ?? 20) * 1000 });
-      ref = new HandsRef({ server, token: String(pair.json.token), name: 'Conformance (hands-ref)', consent: refConsent, managers });
+      ref = new HandsRef({ server, token: String(pair.json.token), name: 'Conformance (hands-ref)', consent: refConsent, managers, ...(process.argv.includes('--desktop') ? { desktop: new TestDesktop(), optIn: { browser: true, desktop: true } } : {}) });
       await ref.start();
       for (const m of ['bitwarden', '1password', 'keepassxc'] as ManagerId[]) await ref.setManager(m, true);
       deviceId = String(pair.json.id);
@@ -266,8 +276,9 @@ async function main(): Promise<number> {
     const op = async (name: string, args: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => (await api('POST', `/api/hands/${deviceId}/op`, { op: name, args, ...extra })).json;
 
     // 1. hello
-    check('hello: connected, protocol 1, the CU1 + CU2 + CU3 + CU4 + CU4b command set, browser opt-in on', dev.connected === true && Array.isArray(dev.ops) && HANDS_OPS.every((o) => dev.ops.includes(o)) && CU1_OPS.every((o) => dev.ops.includes(o)) && dev.optIn?.browser === true, `ops: ${(dev.ops ?? []).join(' ')}`);
-    check('hello: nothing beyond CU4b advertised (no scripts, no op that reads a password, no desktop ops)', Array.isArray(dev.ops) && dev.ops.every((o: string) => (HANDS_OPS as readonly string[]).includes(o)) && !dev.ops.some((o: string) => /^b\.(evaluate|eval|script)|^d\.|^p\./.test(o)), '');
+    const browserOps = HANDS_OPS.filter((o) => !(CU5_OPS as readonly string[]).includes(o));
+    check('hello: connected, protocol 1, the CU1 + CU2 + CU3 + CU4 + CU4b command set, browser opt-in on', dev.connected === true && Array.isArray(dev.ops) && browserOps.every((o) => dev.ops.includes(o)) && CU1_OPS.every((o) => dev.ops.includes(o)) && dev.optIn?.browser === true, `ops: ${(dev.ops ?? []).join(' ')}`);
+    check('hello: nothing beyond CU5 advertised (no scripts, no op that reads a password, no desktop input)', Array.isArray(dev.ops) && dev.ops.every((o: string) => (HANDS_OPS as readonly string[]).includes(o)) && !dev.ops.some((o: string) => /^b\.(evaluate|eval|script)|^d\.(click|type|keys|scroll|drag|launch|focus)|^p\./.test(o)), '');
     check('hello: the takeover choice and the stop shortcut', dev.takeover === 'pause' || dev.takeover === 'keep', `takeover ${dev.takeover ?? '?'}, shortcut ${dev.hotkey || '(none)'}`);
     const ping = await op('c.ping');
     check('c.ping', ping.ok === true && ping.result?.pong === true);
@@ -334,7 +345,7 @@ async function main(): Promise<number> {
     check('b.open newTab + b.close', nt.ok === true && closed.ok === true);
 
     // 6. refused on the device
-    for (const [o, a] of [['p.unlock', { manager: 'x' }], ['d.click', { x: 1, y: 1 }], ['d.shot', {}], ['b.evaluate', { expression: '1+1' }]] as [string, Record<string, unknown>][]) {
+    for (const [o, a] of [['p.unlock', { manager: 'x' }], ['d.click', { x: 1, y: 1 }], ['d.type', { text: 'x' }], ['b.evaluate', { expression: '1+1' }]] as [string, Record<string, unknown>][]) {
       const x = await op(o, a);
       check(`refused on the device: ${o} (not in the command set)`, x.ok === false && x.error?.code === 'unsupported', x.ok ? 'it ran' : x.error?.code);
     }
@@ -651,6 +662,79 @@ async function main(): Promise<number> {
             }
             check(`CU4b: after ${idle} idle seconds it locks again by itself`, u5.result?.unlocked === true && s5.keepassxc === 'locked' && Date.now() - t0 >= (idle - 2) * 1000, `${JSON.stringify(u5.result ?? u5.error)}, locked after ${Math.round((Date.now() - t0) / 1000)} s`);
           } else console.log('      (idle relock: pass --idle-seconds with the device\u2019s test idle time)');
+        }
+      }
+    }
+    // 12. Phase 92 (CU5): desktop look (fixture windows and one fixture area only).
+    if (process.argv.includes('--desktop')) {
+      console.log('\n12. desktop look');
+      const winTitle = ref ? 'Sara fixture: Notes' : (arg('--desktop-window') ?? '');
+      const winText = ref ? 'Shopping list' : (arg('--desktop-text') ?? '');
+      const secret = ref ? 'hunter2-fixture-secret' : (process.env.SARA_CU5_SECRET ?? '');
+      const areaArg = ref ? '600,60,400,300' : (arg('--desktop-blocked-area') ?? '');
+      const fresh = (await api('GET', '/api/hands')).json.devices.find((d: Record<string, any>) => d.id === deviceId) ?? dev;
+      check('CU5: hello: the desktop ops and "The whole screen" on', CU5_OPS.every((o) => fresh.ops?.includes(o)) && fresh.optIn?.desktop === true, `desktop ${fresh.optIn?.desktop}, perms ${JSON.stringify(fresh.perms ?? {})}`);
+      const sc = await op('d.screens');
+      check('CU5: d.screens lists the screens', sc.ok === true && Array.isArray(sc.result?.screens) && sc.result.screens.length >= 1, JSON.stringify(sc.result?.screens?.map((s: Record<string, unknown>) => `${s.id} ${s.w}x${s.h}`) ?? sc.error));
+      const wl = await op('d.windows');
+      const wins = (wl.result?.windows ?? []) as Record<string, any>[];
+      const fixtureWin = wins.find((w) => w.title === winTitle);
+      check('CU5: d.windows lists the fixture window by title', wl.ok === true && Boolean(fixtureWin), wl.ok ? `${wins.length} windows` : wl.error?.code);
+      check('CU5: the fixture KeePass window is only "(hidden: password manager)"', wins.some((w) => w.hidden === 'password manager' && !w.title && !w.id) && !JSON.stringify(wins).toLowerCase().includes('keepass'), '');
+      check("CU5: Sara's own windows are not in the list", !wins.some((w) => /^sara$/i.test(String(w.app ?? '')) || /^TEST\b|Sara is working/i.test(String(w.title ?? ''))), wins.filter((w) => /sara/i.test(String(w.app ?? ''))).map((w) => w.title).join(', '));
+      if (fixtureWin) {
+        const el = await op('d.elements', { window: fixtureWin.id });
+        const items = (el.result?.items ?? []) as Record<string, any>[];
+        if (el.ok === false && el.error?.code === 'perm_missing') check('CU5: d.elements says the permission is missing, with the steps', /System Settings/.test(String(el.error?.message)), String(el.error?.message).slice(0, 120));
+        else {
+          check('CU5: d.elements reads the fixture window\u2019s text', el.ok === true && items.some((i) => String(i.name ?? i.value ?? '').includes(winText)), items.slice(0, 6).map((i) => `${i.role}:${i.name ?? ''}`).join(' | '));
+          check('CU5: its password field is marked secret, with no value', items.some((i) => i.secret === true && i.value === undefined), '');
+          check('CU5: the password never leaves the device (element list)', Boolean(secret) && !JSON.stringify(el).includes(secret), secret ? '' : 'set SARA_CU5_SECRET');
+        }
+        await pause(600);
+        const ws = await op('d.shot', { window: fixtureWin.id, maxEdge: 800, marks: true });
+        if (ws.ok === false && ws.error?.code === 'perm_missing') check('CU5: d.shot says the permission is missing, with the steps', /System Settings/.test(String(ws.error?.message)), String(ws.error?.message).slice(0, 120));
+        else {
+          check('CU5: d.shot of the fixture window: a picture and a viewId', ws.ok === true && typeof ws.result?.viewId === 'string' && Number(ws.result?.w) > 0 && Number(ws.result?.w) <= 800, JSON.stringify({ w: ws.result?.w, h: ws.result?.h, img: ws.images?.length }));
+          check('CU5: marks come with their numbered list', Array.isArray(ws.result?.items) && ws.result.items.length > 0, `${ws.result?.items?.length ?? 0} items`);
+          const fast = await op('d.shot', { window: fixtureWin.id });
+          check('CU5: one picture per 500 ms (on the device)', fast.ok === false && fast.error?.code === 'rate_limited', fast.ok ? 'it took a second picture' : fast.error?.code);
+          const stale = await op('d.elements', { window: fixtureWin.id, viewId: 'v999999' });
+          check('CU5: an unknown / old viewId is stale_view', stale.ok === false && stale.error?.code === 'stale_view', stale.error?.code);
+          if (areaArg) {
+            await pause(600);
+            const [x, y, w, h] = areaArg.split(',').map(Number);
+            const as = await op('d.shot', { area: [x, y, w, h], maxEdge: 600 });
+            let dark = -1;
+            const data = String(((as.images ?? []) as Record<string, any>[]).find((i) => i.kind === 'shot')?.data ?? '');
+            const m = /^data:image\/(jpeg|png);base64,(.+)$/.exec(data);
+            if (m && m[1] === 'jpeg') {
+              const img = decodeJpeg(Buffer.from(m[2], 'base64'));
+              if (img) {
+                let sum = 0;
+                let n = 0;
+                for (let yy = Math.floor(img.height * 0.2); yy < img.height * 0.8; yy += 3) for (let xx = Math.floor(img.width * 0.2); xx < img.width * 0.8; xx += 3) {
+                  const i = (yy * img.width + xx) * 3;
+                  sum += img.data[i] + img.data[i + 1] + img.data[i + 2];
+                  n++;
+                }
+                dark = n ? sum / n / 3 : -1;
+              }
+            } else if (m && m[1] === 'png') {
+              const img = readPng(Buffer.from(m[2], 'base64'));
+              if (img) {
+                let sum = 0;
+                let n = 0;
+                for (let yy = Math.floor(img.h * 0.2); yy < img.h * 0.8; yy += 3) for (let xx = Math.floor(img.w * 0.2); xx < img.w * 0.8; xx += 3) {
+                  const i = (yy * img.w + xx) * 3;
+                  sum += img.rgb[i] + img.rgb[i + 1] + img.rgb[i + 2];
+                  n++;
+                }
+                dark = n ? sum / n / 3 : -1;
+              }
+            }
+            check('CU5: the fixture KeePass area is black in the picture', as.ok === true && Number(as.result?.blackedOut) >= 1 && dark >= 0 && dark < 16, `blackedOut ${as.result?.blackedOut}, mean ${dark.toFixed?.(1) ?? dark}`);
+          }
         }
       }
     }

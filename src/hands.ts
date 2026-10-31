@@ -39,8 +39,17 @@
 //                    req b.relock → every manager there locks again → {locked: [ids]}  (after the task)
 //   device → server  {t:'ev', kind:'managers', managers, relockMinutes} (locked, unlocked, turned on or off there)
 // A {t:'cancel', all:true} (Stop) and Stop on the computer lock them again too.
+// Phase 92 (CU5, src/hands-desktop.ts): desktop LOOK, only on a computer whose "The whole screen"
+// switch is on (hello.optIn.desktop); never input (CU6):
+//   device → server  hello.perms {capture, ax} (Mac: Screen Recording / Accessibility granted), hello.screens
+//   server → device  req d.screens → {screens}; req d.windows → {windows: [{id, title, app, bounds, …} | {hidden: kind}]}
+//                    req d.shot {window | screen | area, maxEdge, marks} → binary picture (kind 'shot') + {viewId, w, h, scale, items?}
+//                    req d.elements {window?, viewId?, limit} → {window, items: [{ref, role, name, value | secret, box}], total}
+//   Blocked windows are black in pictures and absent from lists; Sara's own windows never appear;
+//   secure fields are boxed out and never give a value: all on the device, before anything is sent.
 import { randomUUID } from 'node:crypto';
 import type { EventHub } from './events.ts';
+import { CU5_OPS } from './hands-desktop.ts';
 import { managerViews, relockMinutes, type ManagerView } from './hands-managers.ts';
 import { Tunnels } from './tunnel.ts';
 import type { WsConnection } from './ws.ts';
@@ -56,8 +65,11 @@ export const CU3_OPS = ['c.tunnel', 'c.untunnel'] as const;
 export const CU4_OPS = ['b.login', 'b.saveLogin', 'b.logins', 'b.forgetLogin', 'b.yourTurn'] as const;
 /** Phase 91 (CU4b): the owner's password managers: the person unlocks one in its own prompt; Sara locks them again. */
 export const CU4B_OPS = ['b.unlock', 'b.relock'] as const;
-/** The whole command set of a CU4b device. Still nothing on the desktop (d.*), no scripts, no op that reads a password. */
-export const HANDS_OPS = [...CU1_OPS, ...CU2_OPS, ...CU3_OPS, ...CU4_OPS, ...CU4B_OPS] as const;
+export { CU5_OPS };
+/** The whole command set of a CU5 device: desktop look (d.screens/windows/shot/elements) but no desktop input, no scripts, no op that reads a password. */
+export const HANDS_OPS = [...CU1_OPS, ...CU2_OPS, ...CU3_OPS, ...CU4_OPS, ...CU4B_OPS, ...CU5_OPS] as const;
+/** Phase 92: the desktop ops (need "The whole screen" on that computer). */
+export const DESKTOP_OPS: ReadonlySet<string> = new Set(CU5_OPS);
 /** Ops that wait for the person at the computer (the consent window, "Your turn", a manager's unlock prompt): up to 10 minutes. */
 export const WAITING_OPS: ReadonlySet<string> = new Set(['b.saveLogin', 'b.yourTurn', 'b.unlock']);
 export const WAITING_DEADLINE_MS = 10 * 60_000;
@@ -191,6 +203,9 @@ export interface HandsDeviceView {
   /** Phase 91: the password managers there and when they lock again. */
   managers?: ManagerView[];
   relockMinutes?: number;
+  /** Phase 92: what the computer may do for desktop look (Mac: Screen Recording, Accessibility). */
+  perms?: HandsHello['perms'];
+  screens?: number;
 }
 
 interface Pending {
@@ -363,7 +378,7 @@ export class HandsHub {
         ...(m.computer ? { computer: plain(m.computer, 80) } : {}),
         ...(Array.isArray(m.screens) ? { screens: (m.screens as HandsHello['screens'])!.slice(0, 8) } : {}),
         ...(m.browser && typeof m.browser === 'object' ? { browser: { found: Boolean((m.browser as Record<string, unknown>).found), ...((m.browser as Record<string, unknown>).kind ? { kind: plain((m.browser as Record<string, unknown>).kind, 20) } : {}), ...((m.browser as Record<string, unknown>).name ? { name: plain((m.browser as Record<string, unknown>).name, 60) } : {}) } } : {}),
-        ...(m.perms && typeof m.perms === 'object' ? { perms: m.perms as HandsHello['perms'] } : {}),
+        ...(m.perms && typeof m.perms === 'object' ? { perms: { capture: (m.perms as Record<string, unknown>).capture === true, input: (m.perms as Record<string, unknown>).input === true, ax: (m.perms as Record<string, unknown>).ax === true } } : {}),
         optIn: { browser: optIn.browser === true, desktop: optIn.desktop === true },
         approvalsHere: m.approvalsHere === true,
         logins: loginViews(m.logins),
@@ -444,6 +459,11 @@ export class HandsHub {
         d.hello.optIn = { browser: o.browser === true, desktop: o.desktop === true };
         if (typeof m.localOnly === 'boolean') d.hello.localOnly = m.localOnly;
         if (m.takeover === 'keep' || m.takeover === 'pause') d.hello.takeover = m.takeover;
+        // Phase 92: the Mac's Screen Recording / Accessibility permission was granted or lost there.
+        if (m.perms && typeof m.perms === 'object') {
+          const p = m.perms as Record<string, unknown>;
+          d.hello.perms = { capture: p.capture === true, input: p.input === true, ax: p.ax === true };
+        }
       }
       this.#publish({ deviceId: d.id, ev: kind, ...(d.lease ? { conversationId: d.lease.conversationId } : {}) });
     }
@@ -515,6 +535,8 @@ export class HandsHub {
     await this.#ready(d);
     if (!d.hello) throw new HandsError('offline', "That computer didn't say hello: update the Sara app there.");
     if (op.startsWith('b.') && !d.hello.optIn.browser) throw new HandsError('denied_local', '"Let Sara use this computer" is off on that computer.');
+    // Phase 92: the whole screen is a second switch on the computer (off by default); the device refuses too.
+    if (DESKTOP_OPS.has(op) && d.hello.ops?.includes(op) && !d.hello.optIn.desktop) throw new HandsError('denied_local', '"The whole screen" is off on that computer: only the owner can switch it on, in the Sara app there.');
     // Phase 88: paused there because the person took over: nothing acts until they press Resume there.
     if (d.hello.paused && ACTING_OPS.has(op)) throw new HandsError('takeover', 'Paused: the owner took over the Sara browser on that computer. Wait until they press Resume there.');
     if (opts.signal?.aborted) throw new HandsError('stopped', 'Stopped.');
@@ -627,6 +649,8 @@ export class HandsHub {
         ...(h?.vault ? { vault: h.vault } : {}),
         ...(h ? { managers: h.managers ?? [] } : {}),
         ...(h?.relockMinutes ? { relockMinutes: h.relockMinutes } : {}),
+        ...(h?.perms ? { perms: h.perms } : {}),
+        ...(h?.screens ? { screens: h.screens.length } : {}),
       });
     }
     return [...out.values()];

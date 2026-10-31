@@ -1637,6 +1637,38 @@ function renderAttachments() {
   );
 }
 $('#attach').addEventListener('click', () => $('#attach-file').click());
+// Phase 92 (§1, §9.4): "Show Sara my screen" for web-only users: the browser's own prompt picks a
+// window or the screen, one picture is taken and added to the message (nothing is sent until Send),
+// and the capture stops at once.
+$('#show-screen').hidden = !(navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') || Boolean(window.SaraDesktop);
+$('#show-screen').addEventListener('click', async () => {
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.srcObject = stream;
+    await video.play();
+    await new Promise((r) => setTimeout(r, 300));
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    if (!w || !h) throw new Error(t('No picture came from the screen.'));
+    const scale = Math.min(1, 1600 / Math.max(w, h));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(w * scale);
+    canvas.height = Math.round(h * scale);
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.85));
+    if (!blob) throw new Error(t('No picture came from the screen.'));
+    addFiles([new File([blob], 'screen.jpg', { type: 'image/jpeg' })]);
+    $('#input').focus();
+  } catch (err) {
+    if (err?.name !== 'NotAllowedError' && err?.name !== 'AbortError') alert(err.message || t('No picture came from the screen.'));
+  } finally {
+    for (const tr of stream?.getTracks() ?? []) tr.stop();
+  }
+});
 // Phase 75: the + menu's Photo (a picker for pictures only; on phones it offers the camera too).
 $('#attach-photo').addEventListener('click', () => $('#attach-photo-file').click());
 $('#attach-photo-file').addEventListener('change', () => {
@@ -10322,6 +10354,14 @@ async function loadComputer() {
     $('#cu-optin').checked = p.handsOptIn === true;
     $('#cu-localonly').checked = p.handsLocalOnly === true;
     $('#cu-localonly').disabled = p.handsOptIn !== true;
+    // Phase 92: the whole screen (look only), the person's own hidden windows, and the Mac's two permissions.
+    $('#cu-desktop').checked = p.handsDesktop === true;
+    $('#cu-desktop').disabled = p.handsOptIn !== true || p.handsDesktopSupported !== true;
+    $('#cu-desktop').closest('label').hidden = p.handsDesktopSupported !== true;
+    $('#cu-block-extra').closest('label').hidden = p.handsDesktopSupported !== true;
+    if (document.activeElement !== $('#cu-block-extra')) $('#cu-block-extra').value = p.handsBlockExtra || '';
+    $('#cu-block-extra').disabled = p.handsOptIn !== true;
+    renderCuPerms(p);
     $('#cu-takeover').value = p.handsTakeover === 'keep' ? 'keep' : 'pause';
     $('#cu-takeover').disabled = p.handsOptIn !== true;
     if (p.handsHotkey) $('#cu-hotkey').textContent = p.handsHotkey;
@@ -10346,6 +10386,8 @@ async function loadComputer() {
       if (d.browser?.name) bits.push(d.browser.name);
       if (d.connected && d.optIn && !d.optIn.browser) bits.push(t('switched off there'));
       if (d.localOnly) bits.push(t('screenshots stay on local models'));
+      // Phase 92: the whole screen there (look only), and a Mac still missing a permission.
+      if (d.connected && d.optIn?.desktop) bits.push(d.perms && (d.perms.capture === false || d.perms.ax === false) ? t('whole screen: waiting for macOS permission') : t('whole screen: look only'));
       if (d.busy) bits.push(t('in use now'));
       // Phase 91: the password managers the owner turned on there (locked or unlocked for Sara).
       const pms = (d.managers ?? []).filter((m) => m.on);
@@ -10647,6 +10689,71 @@ $('#cu-optin').addEventListener('change', async () => {
     setTimeout(() => void loadComputer(), 1500);
   }
 });
+// Phase 92 (CU5): "The whole screen" (its own explainer), the person's own hidden windows, the Mac's permissions.
+function deskExplainer() {
+  const dlg = $('#cu-desk-explain');
+  return new Promise((resolve) => {
+    dlg.addEventListener('close', () => resolve(dlg.returnValue === 'yes'), { once: true });
+    dlg.returnValue = '';
+    dlg.showModal();
+    $('#cu-desk-explain-yes').focus();
+  });
+}
+$('#cu-desktop').addEventListener('change', async () => {
+  const box = $('#cu-desktop');
+  const d = handsBridge();
+  if (!d) return;
+  const on = box.checked;
+  if (on && !(await deskExplainer())) {
+    box.checked = false;
+    return;
+  }
+  const r = await d.call('setPref', { key: 'handsDesktop', value: on }).catch((err) => ({ error: String(err) }));
+  if (r?.error) box.checked = !on;
+  $('#cu-this-status').textContent = r?.error ? r.error : on ? t('Sara may look at this screen now. Blocked windows stay black.') : t('Sara only uses her own browser here now.');
+  if (r && !r.error) renderCuPerms(r);
+});
+$('#cu-block-extra').addEventListener('change', async () => {
+  const d = handsBridge();
+  if (!d) return;
+  const v = $('#cu-block-extra').value.split('\n').map((x) => x.trim()).filter(Boolean).slice(0, 40).join('\n');
+  const r = await d.call('setPref', { key: 'handsBlockExtra', value: v }).catch((err) => ({ error: String(err) }));
+  $('#cu-this-status').textContent = r?.error ? r.error : t('Saved');
+});
+let cuPermTimer = 0;
+/** The Mac's guided steps (§9.1): a tick per permission, polled while the page shows them. */
+function renderCuPerms(p) {
+  const perms = p?.handsPerms;
+  const show = Boolean(perms) && p.handsDesktop === true && p.handsOptIn === true;
+  $('#cu-perms').hidden = !show;
+  clearTimeout(cuPermTimer);
+  if (!show) return;
+  for (const [k, id] of [['capture', 'cu-perm-capture'], ['ax', 'cu-perm-ax']]) {
+    const ok = perms[k] === true;
+    const st = $(`#${id}-state`);
+    st.textContent = ok ? '✓' : '•';
+    st.classList.toggle('ok', ok);
+    st.setAttribute('aria-label', ok ? t('Allowed') : t('Not allowed yet'));
+    $(`#${id}`).hidden = ok;
+  }
+  $('#cu-perms-restart').hidden = perms.capture === true && perms.ax === true;
+  if (perms.capture !== true || perms.ax !== true) {
+    cuPermTimer = setTimeout(async () => {
+      if ($('#cu-perms').hidden || !$('#cu-perms').isConnected) return;
+      const q = await handsPrefs();
+      if (q) renderCuPerms(q);
+    }, 2000);
+  }
+}
+for (const [id, which] of [['cu-perm-capture', 'capture'], ['cu-perm-ax', 'ax']]) {
+  $(`#${id}`).addEventListener('click', async () => {
+    const d = handsBridge();
+    if (!d) return;
+    const r = await d.call('handsOpenPerm', { which }).catch((err) => ({ error: String(err) }));
+    $('#cu-this-status').textContent = r?.error ? r.error : t('Turn on Sara there, then come back here.');
+  });
+}
+
 $('#cu-localonly').addEventListener('change', async () => {
   const d = handsBridge();
   if (!d) return;

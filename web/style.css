@@ -1462,6 +1462,16 @@ body:not(.member) [data-member-only] { display: none !important; }
 .cu-logins-device { display: grid; gap: 8px; min-width: 0; }
 .cu-logins-device h4, .cu-this h4 { margin: 8px 0 0; overflow-wrap: anywhere; }
 .cu-logins-device > button { justify-self: start; min-height: 44px; }
+/* Phase 92 (CU5): the whole-screen switch, the Mac's guided permission steps, the person's own hidden windows */
+.cu-perms { display: grid; gap: 6px; margin: 4px 0 8px; padding: 10px 12px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface-1); }
+.cu-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.cu-step { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 44px; }
+.cu-step-text { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
+.cu-step button { min-height: 44px; }
+.cu-perm-state { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; flex: none; background: var(--surface-2); color: var(--text-3); font-weight: 700; }
+.cu-perm-state.ok { background: var(--success); color: var(--surface-0); }
+.cu-block-row { flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+.cu-block-row textarea { flex: 1 1 220px; min-width: 0; min-height: 44px; }
 /* Phase 91: room between the password managers and "Lock again after" */
 #cu-pm .cu-list { margin: 8px 0 12px; }
 .rcard-computer .rc-thumb, .rcard-hands-install .rc-thumb { display: block; max-width: 100%; width: 320px; border-radius: 8px; border: 1px solid var(--hairline); margin-top: 6px; }

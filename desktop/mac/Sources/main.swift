@@ -529,6 +529,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
       case "startAtLogin": setStartAtLogin(on)
       case "keepRunning": prefs.set(on, forKey: "keepRunning")
       case "notifications": prefs.set(on, forKey: "notifications")
+      case "handsDesktop":
+        // Phase 92: "The whole screen" (desktop look; the page showed its explainer first).
+        prefs.set(on, forKey: "hands.\(Servers.activeId ?? "").desktop")
+        Hands.shared?.tellDesktop(on)
+      case "handsBlockExtra":
+        // Phase 92: "Also hide these windows" (one app or title per line).
+        let v = String((body["value"] as? String ?? "").prefix(2000))
+        prefs.set(v, forKey: "hands.\(Servers.activeId ?? "").blockExtra")
+        HandsScreen.setExtra(v)
       case "handsLocalOnly":
         // Phase 87: "Screenshots only to models on this computer" (the server hears it at once).
         prefs.set(on, forKey: "hands.\(Servers.activeId ?? "").localOnly")
@@ -555,6 +564,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
       replyHandler(prefsDict(), nil)
     // Phase 87: "Let Sara use this computer". The page made the hands token after the owner confirmed
     // it's them; it goes to the Keychain and is never given back to any page.
+    case "handsOpenPerm":
+      // Phase 92: the guided step (§9.1): the exact System Settings pane; the person turns Sara on there.
+      HandsScreen.openSettings(body["which"] as? String == "ax" ? "ax" : "capture")
+      replyHandler(true, nil)
     case "handsPair":
       let token = body["token"] as? String ?? ""
       guard token.hasPrefix("sara_hands."), token.count < 300, let sid = Servers.activeId else { return replyHandler(nil, "That isn't a hands token.") }
@@ -648,6 +661,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     }
   }
 
+  /// Phase 92: the Mac's permissions as last told to the server.
+  private var lastPerms = (false, false)
   func prefsDict() -> [String: Any] {
     var d: [String: Any] = ["platform": "mac", "version": appVersion, "startAtLogin": startAtLogin, "keepRunning": keepRunning, "notifications": notificationsOn, "server": server ?? "",
                             "theme": Shell.themePref, "titlebar": Int(macTitlebar)]
@@ -668,6 +683,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     d["loginsSupported"] = true
     d["loginsVerify"] = prefs.bool(forKey: "hands.\(sid).loginsVerify")
     d["pmSupported"] = true
+    // Phase 92: the whole screen, the person's own hidden windows, and the Mac's two permissions (ticks in the page).
+    d["handsDesktopSupported"] = true
+    d["handsDesktop"] = prefs.bool(forKey: "hands.\(sid).desktop")
+    d["handsBlockExtra"] = prefs.string(forKey: "hands.\(sid).blockExtra") ?? ""
+    let perms = HandsScreen.perms
+    d["handsPerms"] = ["capture": perms.capture, "ax": perms.ax]
+    // The server hears when a permission was just granted.
+    if let h = Hands.shared, h.desktop, (perms.capture, perms.ax) != lastPerms { lastPerms = (perms.capture, perms.ax); h.tellOptIn() }
     return d
   }
   /// Phase 91: the password managers here for the app's own Settings page (names and states only).
@@ -709,6 +732,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
       if t.hasPrefix("sara_hands."), HandsKeychain.load(account: sid) == nil || ProcessInfo.processInfo.environment["SARA_TEST_HANDS_REPLACE"] == "1", HandsKeychain.save(t, account: sid) {
         prefs.set(true, forKey: "hands.\(sid).on")
         if let exp = ProcessInfo.processInfo.environment["SARA_TEST_HANDS_EXPIRES"] { prefs.set(exp, forKey: "hands.\(sid).expires") }
+        // Phase 92: test copies can start with "The whole screen" on (the person's switch in the real app).
+        if ProcessInfo.processInfo.environment["SARA_TEST_HANDS_DESKTOP"] == "1" { prefs.set(true, forKey: "hands.\(sid).desktop") }
         testLog("hands: test token stored")
       }
     }
@@ -735,6 +760,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
       if HandsKeychain.save(tok, account: sid) { prefs.set(exp, forKey: "hands.\(sid).expires") }
     }
     h.verify = prefs.bool(forKey: "hands.\(sid).loginsVerify")
+    // Phase 92: "The whole screen" and "Also hide these windows".
+    h.desktop = prefs.bool(forKey: "hands.\(sid).desktop")
+    HandsScreen.setExtra(prefs.string(forKey: "hands.\(sid).blockExtra") ?? "")
     // Phase 91: the password managers the owner turned on here, KeePassXC's database and the idle minutes.
     var idle = 0
     #if DEBUG

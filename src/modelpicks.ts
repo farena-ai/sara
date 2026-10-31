@@ -30,6 +30,7 @@ export const JOBS: JobInfo[] = [
   { id: 'embeddings', label: 'Meaning search', tip: 'Lets her memory find things said in other words ("the cabin" finds "our Pine Lake trip"). Needs an embedding model, e.g. on Ollama: ollama pull nomic-embed-text. Off: she searches by words.', advanced: true },
   { id: 'private', label: 'Private conversations', tip: 'Private conversations only use models on your own hardware. Pick a local model (not an Ollama cloud model).', advanced: true },
   { id: 'adult', label: 'Adult', tip: 'Used when a conversation turns explicit (only with Adult mode on). Cloud models often refuse; pick one that allows it.', advanced: true },
+  { id: 'screen', label: 'Seeing your screen', tip: 'Reads the pictures when Sara looks at your computer screen. Empty: the Looking at pictures model does. A local model keeps screenshots on your own hardware.', advanced: true },
 ];
 
 
@@ -91,6 +92,8 @@ export function recommend(cands: Candidate[], current: { providerId?: string; mo
   const pick = (c: Candidate | undefined, why: string): Pick | undefined => (c ? { providerId: c.providerId, model: c.model, why } : undefined);
   const out: Partial<Record<RoutePurpose, Pick | undefined>> = {};
   // Looking at pictures: the talking model if it can see (one model), else one that can.
+  // Phase 92: Seeing your screen: a local model that can see, when there is one (screenshots stay home).
+  out.screen = pick(chat.filter((c) => SEES.test(c.model) && c.local)[0], 'Can see pictures, on your own hardware.');
   out.vision = cur && SEES.test(cur.model) ? pick(cur, 'Your talking model can see pictures too.') : pick(first(chat.filter((c) => SEES.test(c.model)), (c) => c.local), 'Can see pictures.');
   const coder = first(chat.filter((c) => CODE.test(c.model)), (c) => /coder|code/i.test(c.model));
   out.coding = pick(coder, 'Good with code and tools.');
@@ -118,6 +121,7 @@ export function costHint(config: ProviderConfig, model: string): string {
 const PROMPTS: Record<RoutePurpose, { quick: string; compare: string }> = {
   chat: { quick: 'Say hi to Alex in one short, warm sentence.', compare: "I had a rough day at work, my boss took credit for my idea in front of everyone. Reply as a close friend would, in 2 to 4 sentences." },
   coding: { quick: 'Write a JavaScript function isLeapYear(y). Code only.', compare: 'Write a small TypeScript function that groups an array of {date: string, amount: number} by month (YYYY-MM) and returns the totals, with a one-line explanation.' },
+  screen: { quick: 'In one sentence: what is in this picture?', compare: 'Describe this picture in 2 to 3 sentences: what is in it, any text you can read, and anything that looks wrong.' },
   vision: { quick: 'In one sentence: what is in this picture?', compare: 'Describe this picture in 2 to 3 sentences: who or what is in it, the setting, and the mood.' },
   planning: { quick: 'Plan a Saturday with 3 errands and dinner at 7, in 4 short bullet points.', compare: "Alex has: dentist Tue 9am, a report due Thu, his sister visiting Fri to Sun, and wants 3 runs this week. Make a short, realistic plan for the week, Monday to Sunday." },
   writing: { quick: 'Write two sentences that open a cozy autumn short story.', compare: 'Write a short diary entry (5 to 7 sentences) for a florist in Chicago on a rainy Tuesday: one small thing went wrong and one small thing went right.' },
@@ -166,7 +170,7 @@ export async function testModel(app: AppContext, job: RoutePurpose, providerId: 
     }
     const { provider } = resolveProvider(app, providerId, model);
     const p = PROMPTS[job];
-    const messages: ChatMessage[] = [{ role: 'user', content: mode === 'quick' ? p.quick : p.compare, ...(job === 'vision' ? { images: [picture()] } : {}) }];
+    const messages: ChatMessage[] = [{ role: 'user', content: mode === 'quick' ? p.quick : p.compare, ...(job === 'vision' || job === 'screen' ? { images: [picture()] } : {}) }];
     let out = '';
     let firstMs: number | undefined;
     for await (const ev of provider.stream({ model, messages, temperature: 0.7, maxTokens: mode === 'quick' ? 800 : 2500, reasoning: 'none', signal: AbortSignal.timeout(120_000) })) {

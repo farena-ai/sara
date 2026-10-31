@@ -859,6 +859,49 @@ ROADMAP/ROADMAP.public, THREAT_MODEL and SECURITY updates in the same release.
   from the list; Sara's own windows never appear; a text-only model gets the element list; private
   local mode sends no pixels to a cloud provider (net-guard test).
 
+- **As built (Phase 92, 2.25.0).** Protocol (`src/hands.ts`, rules in `src/hands-desktop.ts`): `CU5_OPS` =
+  `d.screens`, `d.windows` (`{id, title, app, bounds, minimized, focused, screen}` or `{hidden: kind}` only),
+  `d.shot {window | screen | area, maxEdge ≤ 1280, marks, thumb}` (a binary picture `kind:'shot'` with its
+  `viewId`, `{w, h, scale, blackedOut, masked}` and, with marks, the numbered `items` of the window in
+  front or the window asked for), `d.elements {window?, viewId?, limit ≤ 300}` (`{ref, role, name, value |
+  secret, disabled, focused, box}`; picture pixels with a `viewId`, screen points without). They run only
+  when the device's **The whole screen** switch is on (`hello.optIn.desktop`, its own explainer in the
+  page); the server refuses them otherwise too. `hello.perms {capture, ax}` and `hello.screens` are real
+  now; `ev optin` carries `perms` (the Mac app re-sends when a permission is granted). Device rules,
+  identical in the reference hands, the Windows and the Mac app: the §7.4 list (password managers incl.
+  KeePass/KeePassXC by title **or process**, security settings, banking, a Sara token in a title) plus
+  the person's own **Also hide these windows**; blocked windows black in pictures, absent from element
+  lists, listed only as `(hidden: kind)`, refused by id (`blocked_window`); Sara's own windows never in a
+  picture or a list (Windows: `WDA_EXCLUDEFROMCAPTURE` on the app's windows while the picture is taken,
+  any other `Sara.exe` window blacked out; Mac: `SCContentFilter` excluding the Sara app(s)); password /
+  secure fields never read (UIA `IsPassword`, `AXSecureTextField`) and boxed out of pictures; the fixed
+  key shapes masked; one picture per 500 ms; a `viewId` lives 20 s (`stale_view`). The server re-checks
+  every window and element list (`desktopWindows`, `desktopItems`). Tools: `pc_windows`, `pc_look
+  {window?, picture?}` (no card: owner decision 4; untrusted-screen wrapper; injection hints flagged).
+  A model that can see gets the picture with numbered marks plus the list; a text-only model gets the
+  list and **no picture is taken**; with `picture:true` the `screen` route model describes it. For a
+  "local models only" computer, a private conversation or private local mode, pixels go only to a model
+  on the owner's hardware (otherwise the list, no picture taken), and in private local mode the cloud is
+  refused by `net-guard` anyway. Route `screen` ("Seeing your screen", advanced) falls back to `vision`,
+  then the talking model. Windows: `desktop/windows/src/hands-screen.cpp` (GDI + UIA + WIC, `shcore` for
+  per-monitor DPI); Mac: `desktop/mac/Sources/HandsScreen.swift` (ScreenCaptureKit, CGWindowList, AX),
+  `handsOpenPerm` opens the exact System Settings pane, the page shows Step 1 Screen Recording / Step 2
+  Accessibility with a tick each (polled). Web: Settings → Computer use → **The whole screen**, the Mac
+  steps, **Also hide these windows**; the composer's **Show Sara my screen** (getDisplayMedia, one JPEG
+  ≤ 1600 px added to the message, the capture stopped at once; browsers only, not inside the apps);
+  help, 31 strings in five languages, cache `sara-shell-v26`. Tests: `test/phase92.test.ts`; conformance
+  section 12 (`--desktop`, 13 checks): 120/120 for `hands-ref --desktop`.
+- **Deviations (Phase 92).** Windows pictures use **GDI** (`BitBlt` with `CAPTUREBLT`, `PrintWindow`
+  `PW_RENDERFULLCONTENT` for one window) instead of Windows.Graphics.Capture: no Direct3D device, no
+  capture border, the same `WDA_EXCLUDEFROMCAPTURE` behaviour, and a still picture is all CU5 needs; a
+  locked screen / screen saver answers "can't see it now" instead of a black picture. Mac pictures need
+  macOS 14 (`SCScreenshotManager`); on 13 `d.shot` is `unsupported` (lists still work). The device's
+  window list (`d.windows`) carries real window titles of the person's other apps (that is what the tool
+  is for); only blocked windows are reduced to their kind. The `screen` route is used to *describe* a
+  picture for a text-only model on request (`picture:true`); the talking model itself still answers.
+  Element marks are drawn boxes with numbers; refs are kept per computer for CU6 but nothing acts on them.
+  Live view frames are not sent for desktop looks (only the step thumbnail).
+
 ### Phase 93 · 2.26.0 · CU6: desktop input with takeover and Stop
 - `pc_click/type/keys/scroll/drag/open_app`; injected-input detection → pause; local approval cards
   for desktop input (per task / per action setting); device-side refusals (§5.3); Mac Accessibility

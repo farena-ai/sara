@@ -14,7 +14,7 @@ em um só app para a web, Windows, Mac e celular.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1169%20passing-brightgreen" alt="1169 tests passing">
+  <img src="https://img.shields.io/badge/tests-1178%20passing-brightgreen" alt="1178 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ em um só app para a web, Windows, Mac e celular.
   <sub>Uma sessão real com um modelo local (qwen3.8 27B no Ollama, uma RTX 5090) em um servidor de teste descartável, no visual Noite: ela anima quem está conversando, escreve um app pequeno e o teste dele enquanto o modelo transmite, pede permissão antes de rodar um comando, pega um bug de verdade com um teste que falha e corrige até os 7 testes passarem. Quadros escolhidos da gravação; nada neles foi editado.</sub>
 </p>
 
-> **Status:** 2.24, licença MIT, com trinta e cinco e duas versões com novos recursos desde a 1.0 (todas abaixo). Da
+> **Status:** 2.25, licença MIT, com trinta e seis e duas versões com novos recursos desde a 1.0 (todas abaixo). Da
 > 2.5 à 2.8 o app inteiro ganhou um visual novo. O
 > [app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) está no Google
 > Play; o app de iPhone e a versão da Mac App Store chegam assim que a Apple aprovar. Leia
@@ -69,6 +69,7 @@ para quem mora com você · [chamadas de vídeo](docs/VIDEO_CALLS.md) com o retr
 
 | Versão | O que você ganha |
 |---|---|
+| **2.25** · Uso do computador, passo 6 | **Ela pode ver sua área de trabalho** (apps de Windows e Mac, desligado até você ligar *A tela inteira*): uma imagem de uma janela ou da tela e uma lista do que há nela (botões, campos, texto), para que modelos só de texto também usem. Janelas de gerenciadores de senhas, bancos e segurança ficam pretas e saem da lista *no seu computador* antes de qualquer envio; campos de senha são cobertos; as janelas dela nunca aparecem. As imagens vão para o modelo escolhido sem perguntar (ou *só modelos locais*). No navegador: **Mostrar minha tela para a Sara** envia uma imagem. O Mac precisa de Gravação de Tela e Acessibilidade, com passos guiados. |
 | **2.24** · Uso do computador, passo 5 | **Seu gerenciador de senhas preenche logins no navegador dela:** Bitwarden, 1Password ou KeePassXC, cada um desligado até você ligar. Você o desbloqueia na janela do próprio gerenciador (ela nunca vê sua senha mestra); cada uso pergunta antes; só preenche no site exato do login; ela bloqueia de novo depois da tarefa, após 15 minutos parado, no Parar ou com *Bloquear agora*. Nada chega ao servidor da Sara nem ao modelo. O navegador dela não oferece mais salvar senhas sozinho. |
 | **2.23** · Uso do computador, passo 4 | **Logins salvos, só quando você diz:** ela oferece e uma janela no *seu computador* pede para você digitar o login e marcar *Eu entendo* (ou *Usar o que acabei de digitar*). Fica criptografado ali (DPAPI do Windows / Chaves do macOS), nunca no servidor da Sara, e ela nunca o vê: só pode pedir a esse computador para preenchê-lo, exatamente naquele site (sites parecidos não recebem nada), e cada uso pergunta antes. Windows Hello / Touch ID opcionais. **Sua vez:** ela espera enquanto você entra ou digita um código. |
 | **2.22** · Uso do computador, passo 3 | **Ela depura seu projeto web no navegador dela:** o servidor de desenvolvimento que as ferramentas de código dela iniciaram no seu servidor Sara abre em `127.0.0.1` no navegador dela no seu computador, pelo app (só uma porta do próprio trabalho dela; termina com o trabalho), com hot reload e armazenamento local. Depois de uma mudança ela abre o app, lê o console, olha, corrige e confere de novo. Evals de navegador: 5/5 tarefas com um modelo local. Também: os testes agora passam no macOS, e duas correções de privacidade de rede. |
@@ -119,7 +120,7 @@ Todas as versões: [CHANGELOG.md](CHANGELOG.md) · [versões](https://github.com
 
 Na ordem de construção, uma versão cada ([a lista completa](docs/ROADMAP.md)):
 
-- **Uso do computador** (2.25–2.28, em andamento): ver e usar sua área de trabalho, tarefas guiadas de "deixe meu computador em forma", Linux.
+- **Uso do computador** (2.26–2.28, em andamento): usar sua área de trabalho, tarefas guiadas de "deixe meu computador em forma", Linux.
 - **O básico de um agente** (2.29–2.36): skills no formato aberto Agent Skills e skills que ela aprende com o que você repete, plugins e hooks, um quadro Kanban que ela toca, A2A com outros agentes, cartões de pessoas, webhooks, a própria agenda dela (opcional).
 - **Mudança de outro agente** (2.37–2.39): traga um companheiro inteiro do Hermes Agent ou OpenClaw: personalidade, memórias, pessoas, skills, histórico e configurações, com um relatório do que veio.
 - **Chats e sessões** (2.40–2.42): /new, /reset e outros comandos no Telegram e Discord, um projeto por canal, títulos que crescem com a sessão.
@@ -299,8 +300,8 @@ verificava. O que ela acrescenta hoje é o jeito de trabalhar (roda os testes, p
 de passos arriscados, mostra o que foi executado), não uma nota maior nesses conjuntos. Detalhes,
 resultados por tarefa e como rodar de novo: [docs/RESULTS.md](docs/RESULTS.md).
 
-E também `npm run check`: uma checagem de tipos e 1181 testes automáticos com um modelo falso
-roteirizado (sem rede, sem GPU): 1169 passam no Windows e os outros 8 são testes de isolamento só
+E também `npm run check`: uma checagem de tipos e 1190 testes automáticos com um modelo falso
+roteirizado (sem rede, sem GPU): 1178 passam no Windows e os outros 8 são testes de isolamento só
 para Linux, executados em um servidor Linux.
 
 ## Como a Sara se compara

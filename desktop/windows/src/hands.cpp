@@ -52,6 +52,8 @@
 #include <fstream>
 #include <sstream>
 
+#include "hands-screen.h"  // Phase 92: desktop look
+
 namespace sarahands {
 namespace {
 
@@ -368,7 +370,9 @@ const std::set<std::string> kOps = {"b.start", "b.tabs", "b.open", "b.navigate",
                                     // Phase 90 (CU4): saved logins and the sign-in pause
                                     "b.login", "b.saveLogin", "b.logins", "b.forgetLogin", "b.yourTurn",
                                     // Phase 91 (CU4b): the owner's password managers (the person unlocks; Sara relocks)
-                                    "b.unlock", "b.relock"};
+                                    "b.unlock", "b.relock",
+                                    // Phase 92 (CU5): desktop look (hands-screen.cpp); only with "The whole screen" on.
+                                    "d.screens", "d.windows", "d.shot", "d.elements"};
 /** Ops that act: they count against the input rate limit and stop when the person takes over. */
 const std::set<std::string> kInputOps = {"b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login"};
 /** Phase 90: ops that wait for the person (the consent window, "Your turn"): up to 10 minutes. */
@@ -2511,6 +2515,8 @@ class Hands {
   std::atomic<bool> stopping{false};
   std::atomic<bool> isConnected{false};
   std::atomic<bool> localOnly{false};
+  std::atomic<bool> desktop{false};  // Phase 92: "The whole screen" (look only), off by default
+  std::atomic<bool> lookingDesk_{false};
   std::mutex errM;
   std::wstring err;
   Browser browser;
@@ -2529,6 +2535,8 @@ class Hands {
     // Phase 89: the dev tunnel's streams go over this connection.
     tunnels_->wire([this](const std::string& t) { return sendText(t); }, [this](const std::string& hd, const std::vector<BYTE>& d) { return sendBinary(hd, d); }, [this](const std::wstring& l) { say(l); });
     localOnly = h.localOnly;
+    desktop = h.desktopOn;
+    sarascreen::setExtraBlocklist(h.blockExtra);
     keep = h.keepControl;
     browser.profileDir = h.profileDir;
     browser.downloadsDir = h.downloadsDir;
@@ -2656,7 +2664,15 @@ class Hands {
   void tellTakeover(bool keepControl) {
     keep = keepControl;
     if (keepControl) resume();
-    sendText(std::string("{\"t\":\"ev\",\"kind\":\"optin\",\"optIn\":{\"browser\":true,\"desktop\":false},\"localOnly\":") + (localOnly ? "true" : "false") + ",\"takeover\":" + (keepControl ? "\"keep\"" : "\"pause\"") + "}");
+    tellOptIn();
+  }
+  /** The switches as the server should know them (Phase 92: with the whole screen). */
+  void tellOptIn() {
+    sendText(std::string("{\"t\":\"ev\",\"kind\":\"optin\",\"optIn\":{\"browser\":true,\"desktop\":") + (desktop ? "true" : "false") + "},\"localOnly\":" + (localOnly ? "true" : "false") + ",\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"perms\":{\"capture\":true,\"input\":false,\"ax\":true}}");
+  }
+  void tellDesktop(bool on) {
+    desktop = on;
+    tellOptIn();
   }
   std::wstring status() {
     if (isConnected) {
@@ -2685,7 +2701,7 @@ class Hands {
   void tellLogins() { sendText("{\"t\":\"ev\",\"kind\":\"logins\",\"logins\":" + loginViews() + ",\"vault\":" + vaultJson() + "}"); }
   void tellLocalOnly(bool on) {
     localOnly = on;
-    sendText(std::string("{\"t\":\"ev\",\"kind\":\"optin\",\"optIn\":{\"browser\":true,\"desktop\":false},\"localOnly\":") + (on ? "true" : "false") + ",\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + "}");
+    tellOptIn();
   }
 
  private:
@@ -2806,8 +2822,8 @@ class Hands {
       if (auto f = reinterpret_cast<Rtl>(GetProcAddress(nt, "RtlGetVersion")); f && f(&v) == 0) build = v.dwBuildNumber;
     }
     return "{\"t\":\"hello\",\"v\":1,\"app\":" + q(u8(host.appVersion)) + ",\"os\":" + q("Windows (build " + std::to_string(build) + ")") + ",\"computer\":" + q(u8(host.computer)) +
-           ",\"screens\":[],\"browser\":{\"found\":" + (browser.found.path.empty() ? "false" : "true") + (browser.found.kind.empty() ? "" : ",\"kind\":" + q(browser.found.kind) + ",\"name\":" + q(browser.found.name)) +
-           "},\"perms\":{\"capture\":false,\"input\":false,\"ax\":false},\"optIn\":{\"browser\":true,\"desktop\":false},\"approvalsHere\":false,\"logins\":" + loginViews() + ",\"vault\":" + vaultJson() + ",\"busy\":false,\"localOnly\":" + (localOnly ? "true" : "false") +
+           ",\"screens\":" + sarascreen::screensJson() + ",\"browser\":{\"found\":" + (browser.found.path.empty() ? "false" : "true") + (browser.found.kind.empty() ? "" : ",\"kind\":" + q(browser.found.kind) + ",\"name\":" + q(browser.found.name)) +
+           "},\"perms\":{\"capture\":true,\"input\":false,\"ax\":true},\"optIn\":{\"browser\":true,\"desktop\":" + (desktop ? "true" : "false") + "},\"approvalsHere\":false,\"logins\":" + loginViews() + ",\"vault\":" + vaultJson() + ",\"busy\":false,\"localOnly\":" + (localOnly ? "true" : "false") +
            ",\"ops\":[" + ops + "],\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"hotkey\":" + (hotkeyOk ? "\"Ctrl+Alt+Esc\"" : "\"\"") + ",\"paused\":" + (isPaused ? "true" : "false") + ",\"renew\":true" +
            (pm.detected() ? ",\"managers\":" + pm.viewsJson() + ",\"relockMinutes\":" + std::to_string(pm.relockMinutes()) : std::string()) + "}";
   }
@@ -2971,6 +2987,7 @@ class Hands {
         current_ = r;
       }
       if (r->op != "c.ping" && r->op != "b.tabs") {
+        lookingDesk_ = r->op.rfind("d.", 0) == 0;
         {
           std::lock_guard<std::mutex> l(whatM_);
           if (!r->what.empty()) what_ = r->what;
@@ -3705,7 +3722,8 @@ class Hands {
       std::lock_guard<std::mutex> l(whatM_);
       w = what_;
     }
-    std::wstring line = pre + L"Sara is working in her browser" + (w.empty() ? L"" : L" \u00b7 " + wide(w));
+    // Phase 92: the read-only form while she looks at the desktop (§7.2).
+    std::wstring line = pre + (lookingDesk_ ? L"Sara is looking at your screen" : L"Sara is working in her browser") + (w.empty() ? L"" : L" \u00b7 " + wide(w));
     if (keep && keptAt_ && GetTickCount64() - keptAt_ < 8000) line += L" \u00b7 she keeps control";
     return line;
   }
@@ -3885,6 +3903,35 @@ class Hands {
     badge_ = nullptr;
   }
 
+  /** Phase 92: d.screens / d.windows / d.shot / d.elements, with the rules of hands-screen.cpp. */
+  std::string desktopOp(Request& r, OpError& e) {
+    if (!desktop) {
+      e = {"denied_local", "\"The whole screen\" is off on this computer: only the person here can switch it on, in the Sara app."};
+      return {};
+    }
+    const J& a = r.args;
+    if (r.op == "d.screens") return "{\"screens\":" + sarascreen::screensJson() + "}";
+    sarascreen::Result x;
+    if (r.op == "d.windows") x = sarascreen::windows();
+    else if (r.op == "d.elements") x = sarascreen::elements(a["window"].str(), a["viewId"].str(), (int)a["limit"].num(300));
+    else {
+      std::vector<int> area;
+      if (a["area"].t == J::Arr && a["area"].a.size() == 4)
+        for (const J& n : a["area"].a) area.push_back((int)n.num(0));
+      x = sarascreen::shot(a["window"].str(), a["screen"].str(), area, (int)a["maxEdge"].num(1280), a["marks"].truthy(), (int)a["thumb"].num(0));
+      if (x.code.empty()) {
+        sendBinary("{\"id\":" + q(r.id) + ",\"kind\":\"shot\",\"mime\":\"image/jpeg\",\"w\":" + std::to_string(x.shot.w) + ",\"h\":" + std::to_string(x.shot.h) + ",\"viewId\":" + q(x.viewId) + "}", x.shot.jpeg);
+        if (!x.thumb.jpeg.empty()) sendBinary("{\"id\":" + q(r.id) + ",\"kind\":\"thumb\",\"mime\":\"image/jpeg\",\"w\":" + std::to_string(x.thumb.w) + ",\"h\":" + std::to_string(x.thumb.h) + "}", x.thumb.jpeg);
+        localLog("d.shot", a["window"].str().empty() ? "looked at the screen" : "looked at a window", "");
+      }
+    }
+    if (!x.code.empty()) {
+      e = {x.code, x.message};
+      return {};
+    }
+    return x.json;
+  }
+
   std::string run(Request& r, OpError& e) {
     const std::atomic<bool>* cancel = r.cancel.get();
     const J& a = r.args;
@@ -3913,6 +3960,8 @@ class Hands {
       return "{\"locked\":[" + ids + "]}";
     }
     if (r.op == "b.unlock") return unlockOp(r, e);
+    // Phase 92 (CU5): desktop look, never the Sara browser.
+    if (r.op.rfind("d.", 0) == 0) return desktopOp(r, e);
     if (r.op != "b.tabs" || browser.running()) {
       browser.start(e);
       if (!e.code.empty()) return {};
@@ -4101,6 +4150,11 @@ void setLocalOnly(bool on) {
   std::lock_guard<std::mutex> l(g_m);
   if (g_hands) g_hands->tellLocalOnly(on);
 }
+void setDesktop(bool on) {
+  std::lock_guard<std::mutex> l(g_m);
+  if (g_hands) g_hands->tellDesktop(on);
+}
+void setBlockExtra(const std::string& lines) { sarascreen::setExtraBlocklist(lines); }
 void setTakeover(bool keepControl) {
   std::lock_guard<std::mutex> l(g_m);
   if (g_hands) g_hands->tellTakeover(keepControl);

@@ -18,9 +18,9 @@ import type { DiscordSettings } from './bridges/discord.ts';
  * Jobs a model can be pointed at (Phase 38 added vision, planning, writing, research, quick and
  * embeddings). Pictures, hearing and her voice have their own pages (Pictures, Voice).
  */
-export type RoutePurpose = 'chat' | 'coding' | 'background' | 'private' | 'adult' | 'vision' | 'planning' | 'writing' | 'research' | 'quick' | 'embeddings' | 'review';
+export type RoutePurpose = 'chat' | 'coding' | 'background' | 'private' | 'adult' | 'vision' | 'planning' | 'writing' | 'research' | 'quick' | 'embeddings' | 'review' | 'screen';
 /** Phase 81 added 'review' (Reviewing: the security pass's second look; falls back to Coding). */
-export const ROUTE_PURPOSES: readonly RoutePurpose[] = ['chat', 'coding', 'background', 'private', 'adult', 'vision', 'planning', 'writing', 'research', 'quick', 'embeddings', 'review'];
+export const ROUTE_PURPOSES: readonly RoutePurpose[] = ['chat', 'coding', 'background', 'private', 'adult', 'vision', 'planning', 'writing', 'research', 'quick', 'embeddings', 'review', 'screen'];
 /** A model for a job, with up to two others to take over if it fails or is slow (Phase 38). */
 export interface ModelRoute {
   providerId: string;

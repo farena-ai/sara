@@ -14,7 +14,7 @@ para la web, Windows, Mac y el móvil.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1169%20passing-brightgreen" alt="1169 tests passing">
+  <img src="https://img.shields.io/badge/tests-1178%20passing-brightgreen" alt="1178 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ para la web, Windows, Mac y el móvil.
   <sub>Una sesión real con un modelo local (qwen3.8 27B en Ollama, una RTX 5090) en un servidor de pruebas desechable, con el aspecto Noche: anima a quien le habla, escribe una pequeña app y su prueba mientras el modelo las transmite, pide permiso antes de ejecutar un comando, detecta un error real con una prueba que falla y lo corrige hasta que pasan las 7 pruebas. Fotogramas elegidos de la grabación; nada en ellos se ha editado.</sub>
 </p>
 
-> **Estado:** 2.24, licencia MIT, con treinta y cinco y dos versiones con novedades desde la 1.0 (todas abajo). De
+> **Estado:** 2.25, licencia MIT, con treinta y seis y dos versiones con novedades desde la 1.0 (todas abajo). De
 > la 2.5 a la 2.8 toda la app estrenó aspecto. La
 > [app de Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) está en Google
 > Play; la app de iPhone y la versión del Mac App Store llegarán en cuanto Apple las apruebe. Lee
@@ -70,6 +70,7 @@ para las personas con las que vives · [videollamadas](docs/VIDEO_CALLS.md) con 
 
 | Versión | Qué te trae |
 |---|---|
+| **2.25** · Uso del ordenador, paso 6 | **Puede ver tu escritorio** (apps de Windows y Mac, apagado hasta que actives *Toda la pantalla*): una imagen de una ventana o de la pantalla y una lista de lo que hay (botones, campos, texto), para que también la usen los modelos solo de texto. Las ventanas de gestores de contraseñas, bancos y seguridad se tapan en negro y salen de la lista *en tu ordenador* antes de enviar nada; los campos de contraseña se tapan; sus propias ventanas nunca aparecen. Las imágenes van al modelo que elegiste sin preguntar (o *solo modelos locales*). En el navegador: **Enseñar mi pantalla a Sara** envía una imagen. El Mac necesita Grabación de pantalla y Accesibilidad, con pasos guiados. |
 | **2.24** · Uso del ordenador, paso 5 | **Tu gestor de contraseñas rellena los inicios de sesión en su navegador:** Bitwarden, 1Password o KeePassXC, cada uno apagado hasta que lo enciendes. Lo desbloqueas tú en la ventana del propio gestor (ella nunca ve tu contraseña maestra); cada uso pregunta antes; solo rellena en el sitio exacto del inicio de sesión; ella lo vuelve a bloquear tras la tarea, tras 15 minutos sin uso, al pulsar Parar o con *Bloquear ahora*. Nada llega al servidor de Sara ni al modelo. Su navegador ya no ofrece guardar contraseñas por su cuenta. |
 | **2.23** · Uso del ordenador, paso 4 | **Inicios de sesión guardados, solo si tú lo dices:** ella lo ofrece y una ventana en *tu ordenador* te pide escribir el inicio de sesión y marcar *Lo entiendo* (o *Usar lo que acabo de escribir*). Se cifra ahí (DPAPI de Windows / Llavero de macOS), nunca en el servidor de Sara, y ella nunca lo ve: solo puede pedir a ese ordenador que lo rellene, exactamente en ese sitio (los sitios parecidos no reciben nada), y cada uso pregunta antes. Windows Hello / Touch ID opcional. **Tu turno:** ella espera mientras inicias sesión o escribes un código tú. |
 | **2.22** · Uso del ordenador, paso 3 | **Depura tu proyecto web en su navegador:** el servidor de desarrollo que sus herramientas de código iniciaron en tu servidor Sara se abre en `127.0.0.1` en su navegador de tu ordenador, a través de la app (solo un puerto de su propio trabajo; termina con el trabajo), con recarga en caliente y almacenamiento local. Tras un cambio abre la app, lee la consola, mira, corrige y vuelve a comprobar. Evals de navegador: 5/5 tareas con un modelo local. Además: las pruebas ya pasan en macOS y dos correcciones de privacidad de red. |
@@ -120,7 +121,7 @@ Todas las versiones: [CHANGELOG.md](CHANGELOG.md) · [versiones](https://github.
 
 En orden de construcción, una versión cada una ([la lista completa](docs/ROADMAP.md)):
 
-- **Uso del ordenador** (2.25–2.28, en marcha): ver y usar tu escritorio, tareas guiadas de «pon a punto mi ordenador», Linux.
+- **Uso del ordenador** (2.26–2.28, en marcha): usar tu escritorio, tareas guiadas de «pon a punto mi ordenador», Linux.
 - **Básicos de agente** (2.29–2.36): habilidades en el formato abierto Agent Skills y habilidades que aprende de lo que repites, plugins y hooks, un tablero Kanban que ella trabaja, A2A con otros agentes, fichas de personas, webhooks, su propia agenda (opcional).
 - **Mudarse desde otro agente** (2.37–2.39): trae un compañero completo de Hermes Agent u OpenClaw: personalidad, recuerdos, personas, habilidades, historial y ajustes, con un informe de lo que llegó.
 - **Chats y sesiones** (2.40–2.42): /new, /reset y otros comandos en Telegram y Discord, un proyecto por canal, títulos que crecen con la sesión.
@@ -302,8 +303,8 @@ prueba comprobaba. Lo que aporta hoy es la forma de trabajar (ejecuta las prueba
 antes de pasos arriesgados, muestra lo que se ejecutó), no una puntuación más alta en estos
 conjuntos. Detalles, resultados por tarea y cómo repetirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-Además, `npm run check`: una comprobación de tipos y 1181 pruebas automáticas con un modelo falso
-programado (sin red, sin GPU): 1169 pasan en Windows y las otras 8 son pruebas del aislamiento solo
+Además, `npm run check`: una comprobación de tipos y 1190 pruebas automáticas con un modelo falso
+programado (sin red, sin GPU): 1178 pasan en Windows y las otras 8 son pruebas del aislamiento solo
 para Linux, que se ejecutan en un servidor Linux.
 
 ## Cómo se compara Sara

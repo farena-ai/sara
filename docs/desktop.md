@@ -292,6 +292,31 @@ on fds 3 and 4). Both bundle `desktop/shared/page-agent.js` (Windows: RCDATA `ID
   by `--unlock-driver` (Windows: a script that types into that console; Mac: the DEBUG hook
   `pm:type:<pieces>` / `pm:wrong` / `pm:close`).
 
+### Desktop look (Phase 92, computer use CU5)
+
+- **The whole screen** (a second switch under Let Sara use this computer, off by default, with its own
+  explainer; `handsDesktop` in `desktop.ini` / `hands.<server>.desktop`): Sara may **look** at the screen
+  and windows (`d.screens`, `d.windows`, `d.shot`, `d.elements`). No input on the desktop yet (CU6).
+- Windows (`desktop/windows/src/hands-screen.cpp`): pictures with GDI (`BitBlt` + `CAPTUREBLT` for a
+  screen or an area, `PrintWindow(PW_RENDERFULLCONTENT)` for one window), element lists with UI Automation
+  (control view, depth 8, 300 items, `IsPassword` fields never read), JPEG through WIC. The app's own
+  windows are set to `WDA_EXCLUDEFROMCAPTURE` while a picture is taken; any other Sara window is blacked
+  out. A locked screen or the screen saver answers "can't see it now" instead of a black picture.
+- Mac (`desktop/mac/Sources/HandsScreen.swift`): ScreenCaptureKit (`SCScreenshotManager`, macOS 14+, the
+  Sara app left out with `SCContentFilter`), `CGWindowListCopyWindowInfo`, Accessibility (`AXUIElement`,
+  `AXSecureTextField` never read). Both need the person's permission in System Settings → Privacy &
+  Security (**Screen Recording**, **Accessibility**); without it the op answers `perm_missing` with the
+  steps. The page shows the two steps with **Open System Settings** (`handsOpenPerm`) and a tick per
+  permission (`handsPerms` in the prefs, polled every 2 s).
+- Blocklist (both apps, the same list as `src/hands-desktop.ts`): password managers (KeePass/KeePassXC,
+  1Password, Bitwarden, …), security settings, banking, any title with a Sara token, plus **Also hide these
+  windows** (`handsBlockExtra` / `hands.<server>.blockExtra`, one per line). Blocked windows are black in
+  pictures, absent from element lists and listed by `d.windows` only as `{hidden: kind}`.
+- Test copies: Windows test builds take `handsDesktop=1` in their own `desktop.ini`; Mac test copies take
+  `SARA_TEST_HANDS_DESKTOP=1` next to `SARA_TEST_HANDS_TOKEN`. Conformance section 12:
+  `--desktop --desktop-window "<fixture title>" --desktop-text "<text>" --desktop-blocked-area x,y,w,h` with
+  `SARA_CU5_SECRET` (the fixture password field's value); `--ref --desktop` uses the fixture desktop.
+
 ### Sara-Setup.exe: her server and the app together (Phase 46c)
 
 What the Windows installer puts on the computer (details for owners: docs/INSTALL.md → Windows):

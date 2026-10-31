@@ -239,10 +239,17 @@ test('the rules: exact origin only, names and states only to the server, the war
   assert.deepEqual(parseKpxCsv('"Group","Title","Username","Password","URL"\r\n"G","A ""x""","u","p,1","https://a.test"\r\n"G","No site","u","p",""\r\n'), [{ title: 'A "x"', urls: ['https://a.test'], username: 'u', password: 'p,1' }]);
 });
 
-test('detection: only --version runs; each manager is off until turned on; unlock is the person\u2019s, in its own prompt; a wrong password or a closed window stays locked; idle, Stop-style lockAll and turning off lock again', async () => {
+test('detection: only --version runs; each manager is off until turned on; unlock is the person\u2019s, in its own prompt; a wrong password or a closed window stays locked; idle, Stop-style lockAll and turning off lock again', async (t) => {
   const { dir, cleanup } = tempDir();
   try {
     const f = doubles(dir, 7000);
+    // The test doubles are small launch scripts in the temp folder; where it is mounted noexec (the
+    // release server's /tmp) they can't run, so the managers would look missing for a reason that
+    // isn't Sara's.
+    if (process.platform !== 'win32' && spawnSync(join(f.bin, 'bw'), ['--version']).error) {
+      t.skip('the temp folder does not allow running programs (noexec), so the test doubles cannot start');
+      return;
+    }
     const who = person();
     const changes: string[] = [];
     const pm = new ManagerSessions({ search: [f.bin], env: f.env, keepassDb: f.keepassDb!, prompt: who.prompt, relockMs: 600, onChange: () => changes.push('x') });

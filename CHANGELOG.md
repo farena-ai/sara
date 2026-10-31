@@ -5,6 +5,24 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.25.0 (2026-10-31): computer use, step 6: she can see your desktop (Phase 92)
+
+- **The whole screen** (Windows and Mac apps, Settings → Computer use; off by default, its own
+  explainer): `pc_windows` lists open windows; `pc_look` takes a picture of a window, an area or the
+  screen with numbered marks, plus a list of what's on it (role, name, value, position). A model that
+  can't see pictures gets the list instead. No approval card for looking (owner decision); with
+  *Screenshots only to local models* or private local mode, pictures never go to a cloud model.
+- **Hidden on your computer, before anything is sent:** password managers, banking, security settings
+  and any windows you add are black in pictures and missing from the list (shown only as "hidden:
+  password manager"); password fields are boxed out and never read; Sara's own windows never appear.
+- **Show Sara my screen** (in the browser, + menu): you pick a screen or window, one picture is attached,
+  sharing stops right away.
+- **Mac:** needs Screen Recording and Accessibility; Settings shows both steps with *Open System
+  Settings* and a tick when allowed. Pictures need macOS 14 or later.
+- New model job *Seeing your screen* (falls back to the vision model, then the talking model).
+- Windows pictures use the classic screen capture (no yellow capture border); a locked screen answers
+  "can't see it right now".
+
 ## 2.24.0 (2026-10-30): computer use, step 5: your password manager fills logins (Phase 91)
 
 - **Password managers** in the Windows and Mac apps (Settings → Computer use → *Password managers*):
