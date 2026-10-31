@@ -31,6 +31,8 @@ import { createSshTools } from './tools/ssh.ts';
 import { Redactor, vaultSecretValues } from './redact.ts';
 import { SnapshotStore } from './snapshots.ts';
 import { MemoryStore } from './memory.ts';
+import { PeopleStore } from './people.ts';
+import { createPeopleTools } from './people-tools.ts';
 import { localDate, memorySettings, MemoryWorker } from './memory-worker.ts';
 import { HistoryImporter } from './history-import/index.ts';
 import { embedTarget, MemoryVectors } from './embeddings.ts';
@@ -629,6 +631,11 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     ...(isMember || !sshManager ? {} : { ssh: sshManager }),
   };
   if (space.member) app.member = space.member;
+  // Phase 101 (ST6): people cards from her memory (this companion's database; each person's own space; never the demo).
+  if (!isDemo) {
+    app.people = new PeopleStore(store.db, { photoDir: join(dir, 'people'), ownWords: () => [settingsC.get().ownerName ?? '', app.persona.name] });
+    for (const t of createPeopleTools(() => app)) tools.add(t);
+  }
   // The health history is the server's (the owner's); notifications are per space (each person's devices).
   if (!isMember) {
     healthHistory ??= new HealthHistory(store.db, { problems: () => log.problems, dataDir });

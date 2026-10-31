@@ -32,7 +32,8 @@ export interface Today {
   calendar?: { events: TodayEvent[]; error?: string };
   mail?: { unread: number; important: TodayMail[]; error?: string };
   her?: { name: string; mood: string; energy: string; expression: string; day: string | null };
-  dates: { what: string; inDays: number; years: number | null }[];
+  /** Phase 101 (ST6): a date about someone on a people card names them (the tile opens the card). */
+  dates: { what: string; inDays: number; years: number | null; personId?: number; person?: string }[];
   jobs: { id: number; label: string; startedAt: string }[];
   /** Phase 99 (ST4): cards waiting on you (with the question) and cards she is working on. */
   board?: { waiting: { id: number; title: string; question: string; boardId: number }[]; doing: { id: number; title: string; line: string; boardId: number }[] };
@@ -141,7 +142,22 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean } = {}
     her = { name: app.persona.name, mood: ml.mood, energy: ml.energy, expression: expressionFor(st, now, tz, leansPlayful(app.persona.traits)), day: app.life?.get(today) ?? null };
   }
   const memCfg = app.memory && app.settings.get().memory?.enabled !== false;
-  const dates = memCfg ? app.memory!.upcoming(today, 14).map((u) => ({ what: u.memory.content, inDays: u.inDays, years: u.years })) : [];
+  // Phase 101: each date about a person names them; birthdays set on cards (not already a date
+  // note) join in, once; sensitive notes never show here.
+  const people = memCfg ? app.people : undefined;
+  const dates: Today['dates'] = memCfg
+    ? app.memory!
+        .upcoming(today, 14)
+        .filter((u) => !people?.sensitiveMemory(u.memory.id))
+        .map((u) => {
+          const p = people?.personOfMemory(u.memory.id);
+          return { what: u.memory.content, inDays: u.inDays, years: u.years, ...(p && p.status === 'active' ? { personId: p.id, person: p.name } : {}) };
+        })
+    : [];
+  if (people) {
+    for (const b of people.birthdays(today, 14)) dates.push({ what: `${b.person.name}'s birthday`, inDays: b.inDays, years: null, personId: b.person.id, person: b.person.name });
+    dates.sort((a, b) => a.inDays - b.inDays);
+  }
 
   return {
     date: new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric' }).format(now),

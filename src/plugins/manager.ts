@@ -731,16 +731,11 @@ export class PluginManager {
       }
       case 'memory.notes': {
         if (m.permissions.memory !== 'shared-notes') return deny('it has no memory permission');
-        const mem = a.app.memory;
-        if (!mem) return { notes: [] };
-        const notes = mem
-          .list({ kind: 'fact', limit: 200 })
-          .filter((x) => !x.conversationId || sharedWithApps(a.app.store.getConversation(x.conversationId)))
-          .slice(0, 30)
-          .map((x) => cut(this.opts.scrub(x.content), 300));
+        const notes = sharedNotesFor(a.app).map((x) => cut(this.opts.scrub(x), 300));
         this.store.log(id, a.id, 'call', `memory.notes (${notes.length})`);
         return { notes };
       }
+
       case 'bridge.inbound':
         return this.#bridgeInbound(a, run, msg, deny);
       default:
@@ -1041,3 +1036,20 @@ export function makeWritable(dir: string): void {
 }
 
 export { PackageError, localize };
+
+/**
+ * A plugin's `memory.notes` (shared-notes permission): facts other apps may see (never private,
+ * partner, imported, adult or group conversations), and since Phase 101 (ST6) never a note about
+ * someone on a people card or naming one.
+ */
+export function sharedNotesFor(app: AppContext, limit = 30): string[] {
+  const mem = app.memory;
+  if (!mem) return [];
+  const gate = app.people?.gate();
+  return mem
+    .list({ kind: 'fact', limit: 200 })
+    .filter((x) => x.supersededBy === null && (!x.conversationId || sharedWithApps(app.store.getConversation(x.conversationId))))
+    .filter((x) => !gate || gate.memory(x))
+    .slice(0, limit)
+    .map((x) => x.content);
+}

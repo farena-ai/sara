@@ -46,6 +46,8 @@ export interface ExportFile {
   teamLimits?: Partial<import('./team.ts').TeamLimits>;
   /** Phase 79: the per-reply budgets (Settings → Budgets; older files don't have them). */
   turnBudgets?: import('./budget.ts').TurnBudgetSettings;
+  /** Phase 101 (ST6): people cards, their facts and links (older files don't have them; import leaves them out). */
+  people?: { people: Row[]; facts: Row[]; links: Row[] };
 }
 
 const has = (app: AppContext, table: string) => Boolean(app.store.db.prepare("SELECT 1 FROM sqlite_master WHERE type IN ('table') AND name = ?").get(table));
@@ -75,6 +77,7 @@ export function exportAll(app: AppContext, opts: { runs?: boolean } = {}): Expor
     sharedItems: all(app, 'SELECT * FROM shared_items ORDER BY id'),
     library: app.library?.exportDocs() ?? [],
     recipes: all(app, 'SELECT * FROM recipes ORDER BY id'),
+    ...(has(app, 'people') ? { people: { people: all(app, "SELECT * FROM people WHERE status IN ('proposed','active') ORDER BY id"), facts: all(app, "SELECT f.* FROM person_facts f JOIN people p ON p.id = f.person_id WHERE p.status IN ('proposed','active') ORDER BY f.id"), links: all(app, 'SELECT * FROM person_links') } } : {}),
     usage: app.usage?.exportRows() ?? [],
     ...(s.prices?.length ? { prices: s.prices } : {}),
     ...(s.jobBudget && (s.jobBudget.tokens || s.jobBudget.usd) ? { jobBudget: s.jobBudget } : {}),

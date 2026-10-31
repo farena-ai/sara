@@ -8,6 +8,8 @@ export type HubEvent = (
   | { type: 'job'; job: import('./jobs.ts').Job }
   | { type: 'planner'; what: 'tasks' | 'reminders' | 'notes' }
   | { type: 'memory'; conversationId: string }
+  /** Phase 101 (ST6): people cards changed (proposed, facts added, edited, forgotten). Never names or facts. */
+  | { type: 'people'; what?: string }
   /** Phase 26: she is calling (or the ring ended: answered, missed, declined, cancelled). */
   | { type: 'ring'; ring: import('./calls.ts').Ring }
   /** Phase 36: her look changed (closet, outfit for the scenario). */

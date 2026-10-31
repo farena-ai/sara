@@ -1376,6 +1376,35 @@ whole card when she needs more.
 Run the backfill on the real server and review the proposed people (the main tuning signal); check
 that the two or three people he has with the same first name are told apart.
 
+### 9.10 As built (2.34.0)
+Built as designed, with these deviations (guide: [PEOPLE.md](../PEOPLE.md)):
+- **Extra columns and status:** `people` also has `photo` (a picture he adds, ≤ 3 MB, stored next to
+  the database under `people/`) and `origin` (`her` / `owner` / `memory`, for *added on her own*).
+  There is one more status, `rejected` (*Not a person*): only the name is kept, so it isn't proposed
+  again. `person_facts` has `private` and `pending`. A `pending` fact is about an unresolved "Jeff"
+  and waits on both cards (§9.4).
+- **Extra routes:** `POST /api/people` (add a person), `POST /api/people/:id/reject` (*Not a
+  person*) and `GET|PUT|DELETE /api/people/:id/photo`. `GET /api/people/:id` folds sensitive facts
+  (count only) unless `?sensitive=1`, which is the page's *open* action.
+- **Card:** facts a newer note replaced are listed under *Replaced by newer notes*, with *Use it
+  again*. A fact's source link shows his own words when the extractor kept them (the evidence),
+  otherwise the conversation's title.
+- **Backfill:** code-only matching ("his brother Jeff", "my manager Priya") always runs. The model is
+  used only when a background model is set and the budget allows. Private notes never go to a model.
+- **Outside paths:** one gate (`PeopleStore.gate()`) is used by outside/group/partner chat turns
+  (OutsidePolicy's memory gate in `chat.ts`), the MCP memory tools, plugins' `memory.notes`
+  (`sharedNotesFor`), and A2A shared notes. ST5's `privateQuote()` now also holds back an outgoing
+  A2A text that quotes a person fact (a whole 3–4-word fact or any shared 5-word run) with the reason
+  "a people card". The people tools are removed from outside, group and partner turns.
+- **Webhooks:** ST7 doesn't exist yet. Its trigger runs must use the same gate (hook noted in
+  PEOPLE.md).
+- **Relation synonyms:** "colleague" = "coworker", "mum" = "mother", "boss" = "manager", etc., for
+  merging and qualifiers. Found in the live run, where a "colleague Jeff" was proposed next to "Jeff
+  (my coworker)".
+- **Not implemented:** person links proposed by the extractor ("Lea is Jeff's wife" is added by hand
+  on the card; the table and routes exist); MI1's per-category opt-in for sensitive facts (MI1 isn't
+  built); birthdays as planner reminders (they feed Today and `datesNote` as designed).
+
 ---
 
 ## 10. ST7 · Phase 102 · 2.35.0: webhooks and event triggers

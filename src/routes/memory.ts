@@ -93,6 +93,11 @@ export function createMemoryRoutes(ctx: RouteCtx): RouteHandler {
           if (kind === 'date' && !parseOnDate(onDate)) throw new HttpError(400, 'Pick a real date.');
           const s2 = app.settings.get();
           const m = mem.add({ kind, content, onDate, conversationId: null, sourceMessageId: null, happenedOn: localDate(app.now().toISOString(), s2.timeZone), evidence: 'You added this.' });
+          // Phase 101 (ST6): "My sister Ana is a nurse" goes on Ana's card (proposed if she's new).
+          if (app.people) {
+            const about = app.people.aboutFromText(content);
+            if (about.length && app.people.linkMemory(m, about).personIds.length) app.events?.publish({ type: 'people', what: 'facts' });
+          }
           return send(res, 201, view(m));
         }
         if (b === 'upcoming' && method === 'GET') {
@@ -131,11 +136,14 @@ export function createMemoryRoutes(ctx: RouteCtx): RouteHandler {
         }
         if (!c && method === 'DELETE') {
           if (!mem.delete(id)) throw new HttpError(404, 'Memory not found');
+          // Phase 101: its meaning vector goes too (forgetting really deletes); people facts follow by trigger.
+          app.vectors?.forget(id);
           return send(res, 200, { ok: true });
         }
         if (c === 'forget' && method === 'POST') {
           const r = forgetMemory(app, mem, id);
           if (!r) throw new HttpError(404, 'Memory not found');
+          for (const x of r.removed) app.vectors?.forget(x);
           return send(res, 200, r);
         }
       }

@@ -142,6 +142,8 @@ export interface AppContext {
   driftWork?: Promise<unknown>;
   /** Long-term memory (Phase 3). Optional so bare test apps work without it. */
   memory?: MemoryStore;
+  /** Phase 101 (ST6): people cards built from memory (src/people.ts; same database, per companion). None in the demo. */
+  people?: import('./people.ts').PeopleStore;
   /** Phase 40: what she knows about each coding project. */
   projects?: import('./projectknow.ts').ProjectKnowledgeStore;
   /** Phase 44: her library (documents she keeps; a shared one belongs to the first companion). */
@@ -925,6 +927,22 @@ export interface OutsidePolicy {
   notes?: string[];
 }
 
+/** Phase 101 (ST6): the people-card tools (owner's own turns only). */
+export const PEOPLE_TOOLS = new Set(['person_lookup', 'person_note', 'people_list']);
+
+/** Two optional prompt notes as one. */
+function joinNotes(a: string | undefined, b: string | undefined): string | undefined {
+  return [a, b].filter((x) => x?.trim()).join('\n') || undefined;
+}
+
+/** Phase 101: birthdays set on people cards (not already a date note), as "coming up" lines. */
+function birthdaysNote(people: AppContext['people'], today: string): string | undefined {
+  if (!people) return undefined;
+  const fmt = (iso: string) => new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' }).format(new Date(`${iso}T12:00:00Z`));
+  const lines = people.birthdays(today, 14).slice(0, 4).map((b) => `- ${b.inDays === 0 ? 'TODAY' : b.inDays === 1 ? 'Tomorrow' : `In ${b.inDays} days`} (${fmt(b.date)}): ${b.person.name}'s birthday${b.person.relation ? ` (${b.person.relation.replace(/^my\s+/i, 'your ')})` : ''}`);
+  return lines.length ? lines.join('\n') : undefined;
+}
+
 /** Phase 100: tools whose result is another agent's words, and the read-only tools that still run on their own after one. */
 const PEER_ANSWER_TOOLS = new Set(['a2a_send', 'a2a_reply', 'a2a_status']);
 const READ_AFTER_PEER = new Set(['a2a_agents', 'a2a_status', 'a2a_cancel', 'web_search', 'recall', 'memory_search', 'search_conversations', 'read_file', 'list_files', 'weather', 'get_time']);
@@ -1418,6 +1436,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   if (opts.externalApp || opts.group || conv.partner || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => !t.spec.name.startsWith('pc_'));
   // Phase 96: skills are the owner's own conversations' (never other apps, voice assistants or groups; partner chats have no tools).
   if (opts.externalApp || external || opts.group) tools = tools.filter((t) => !t.spec.name.startsWith('skill_') && t.spec.name !== 'recipe_save');
+  // Phase 101 (ST6): her people tools are the owner's own turns' only (never other apps, agents or groups).
+  if (opts.externalApp || external || opts.group || opts.outside) tools = tools.filter((t) => !PEOPLE_TOOLS.has(t.spec.name));
   // Phase 98 (ST3, STAPLES §6.4): plugins see only the owner's own turns (never private, partner,
   // group, imported, adult-channel, other apps', replayed or eval turns), and their tools are only
   // offered there.
@@ -1443,12 +1463,19 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   let usedMarked = false;
   let lastTime: string | undefined;
   let recalled: string | undefined;
+  /** Phase 101 (ST6): the People section (who the message names, with dated facts). */
+  let peopleText: string | undefined;
   /** Phase 85: the meaning matches of the message (reused by the recall triggers' task match). */
   let relatedNotes: Awaited<ReturnType<MemoryVectors['related']>> = [];
   const memCfg = memorySettings(app);
   const budget = s.historyBudgetChars ?? HISTORY_BUDGET_CHARS;
   // Hardening M3: what another app's turn may draw on (notes from conversations it may know about).
-  const appSafe = opts.externalApp ? (m: { conversationId: string | null }) => !m.conversationId || sharedWithApps(store.getConversation(m.conversationId)) : undefined;
+  const appSafe0 = opts.externalApp ? (m: { conversationId: string | null }) => !m.conversationId || sharedWithApps(store.getConversation(m.conversationId)) : undefined;
+  // Phase 101 (ST6, STAPLES §9.6): people cards never leave her space. Other apps' turns (/v1, MCP,
+  // Home Assistant), other agents (A2A, even with shared notes) and group chats get no memory linked
+  // to a person and no note, "last time" or recalled line that names one.
+  const peopleGate = app.people && (external || opts.group) ? app.people.gate() : undefined;
+  const appSafe = appSafe0 || peopleGate ? (m: { conversationId: string | null; id?: number; content?: string }) => (!appSafe0 || appSafe0(m)) && (!peopleGate || peopleGate.memory(m)) : undefined;
   if (opts.replay) {
     // Phase 83: the recorded (or edited) picks; nothing is marked as used on a branch.
     injection = opts.replay.injection;
@@ -1467,7 +1494,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       policy: decayPolicy(memCfg),
       today: localDate(now.toISOString(), s.timeZone),
       extra: [],
-      allow: (m) => m.kind === 'fact' && !m.supersededBy && Boolean(appSafe?.(m) ?? sharedWithApps(m.conversationId ? store.getConversation(m.conversationId) : undefined)),
+      allow: (m) => m.kind === 'fact' && !m.supersededBy && Boolean(appSafe0?.(m) ?? sharedWithApps(m.conversationId ? store.getConversation(m.conversationId) : undefined)) && (!peopleGate || peopleGate.memory(m)),
     });
     usedMarked = true;
   } else if (app.memory && memCfg.enabled && !conv.partner) {
@@ -1478,15 +1505,26 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // Phase 76: the meaning scores are kept (they rank the notes and say how sure).
     const related = app.vectors ? await app.vectors.related(text).catch(() => []) : [];
     relatedNotes = related;
+    // Phase 101 (ST6, STAPLES §9.3–§9.5): the owner's message updates who was mentioned (and answers
+    // her "which Jeff?"); the People section for the people it names comes out of the same budget.
+    if (app.people && !peopleGate) {
+      try {
+        if (!opts.resume && userMsg) app.people.noteMessage(conv.id, userMsg.id, text, now.toISOString(), { work: isWorkChannel(conv.channel) });
+        const sec = app.people.section(text, { conversationId: conv.id, work: isWorkChannel(conv.channel), owner: s.ownerName?.trim() || 'the owner', private: Boolean(conv.private), maxChars: Math.floor(memCfg.injectBudgetChars * 0.4), today: localDate(now.toISOString(), s.timeZone) });
+        if (sec.text) peopleText = sec.text;
+      } catch (err) {
+        console.warn(`people: ${(err as Error).message}`);
+      }
+    }
     injection = selectMemories(app.memory, {
       related,
       userText: text,
       conversationId: conv.id,
       oldestHistoryId,
-      budgetChars: memCfg.injectBudgetChars,
+      budgetChars: Math.max(200, memCfg.injectBudgetChars - (peopleText ? peopleText.length + 1 : 0)),
       policy: decayPolicy(memCfg),
       today: localDate(now.toISOString(), s.timeZone),
-      extra: sharedOwnerFacts(app, text, opts.externalApp),
+      extra: sharedOwnerFacts(app, text, opts.externalApp).filter((l) => !peopleGate || peopleGate.text(l)),
       docName: (id) => app.library?.get(id)?.name,
       docPage: (id, evidence) => app.library?.pageOf(id, evidence),
       importedFrom: (id) => importedName(store.getConversation(id)?.channel),
@@ -1501,6 +1539,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       app.memoryNudge?.();
     }
     recalled = autoRecall(app, text, { conversationId: conv.id, fromId: oldestHistoryId }, ownerName, opts.externalApp);
+    // Phase 101: anything naming a person stays out of turns that may leave her space.
+    if (peopleGate && !peopleGate.text(lastTime)) lastTime = undefined;
+    if (peopleGate && !peopleGate.text(recalled)) recalled = undefined;
   }
 
   let lastAssistantId = 0;
@@ -1786,6 +1827,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       recipes: recipesText,
       skills: skillsCatalog?.text,
       memories: injection?.text,
+      people: peopleText,
       memory: !conv.partner && (!opts.outside || opts.outside.memory === 'shared') && memCfg.enabled && Boolean(app.memory),
       lastTime,
       recalled,
@@ -1794,7 +1836,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       inner: innerState ? describeInner(innerState, now, s.timeZone, s.ownerName?.trim() || 'the owner', { gapHours, daysKnown: daysKnown(store, now, s.timeZone), away: awayLine(app.persona.away), conflict: app.persona.conflict ? CONFLICT[app.persona.conflict]?.line : undefined }) : undefined,
       agenda: !opts.outside && app.planner && tools.some((t) => t.spec.name === 'todo' || t.spec.name === 'remind') ? app.planner.agenda(now, s.timeZone) : undefined,
       // Phase 12: dates that matter to the owner (never in chats with other people) and her own threads.
-      dates: !conv.partner && !opts.outside && app.memory && memCfg.enabled ? datesNote(app.memory, localDate(now.toISOString(), s.timeZone), undefined, appSafe) : undefined,
+      dates: !conv.partner && !opts.outside && app.memory && memCfg.enabled ? joinNotes(datesNote(app.memory, localDate(now.toISOString(), s.timeZone), undefined, appSafe), peopleGate ? undefined : birthdaysNote(app.people, localDate(now.toISOString(), s.timeZone))) : undefined,
       threads: innerState ? threadsNote(app.life) : undefined,
       stayYourself: nudge ? nudge.note || 'it sounded generic, not like you' : undefined,
       ...(opts.outside ? {} : bondContext(app, innerState?.closeness)),

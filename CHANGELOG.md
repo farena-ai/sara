@@ -5,6 +5,23 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.34.0 (2026-10-31): people (Phase 101, staples ST6)
+
+- **People cards**, built from her memories (which stay the source of truth): Memory → *People*. Each
+  card has the relation, circle, birthday, when you last mentioned them, and what she knows, each with
+  a link to the words you said it in. Guide: [docs/PEOPLE.md](docs/PEOPLE.md).
+- New people wait in *To check* (*Looks right*, *Merge with…*, *Not a person*, *Forget*) or are added
+  after 3 conversations. Correct, mark private, take a fact off the card, merge, split, add photos and
+  your own notes. *Forget* removes the card, facts, links, photo and search entries, and optionally the
+  memories too.
+- Same first name? She asks ("Jeff from work or your brother Jeff?") and remembers the answer.
+- She uses them in chat (`person_lookup`, `people_list`; `person_note` asks first) and recall has a
+  People section; birthdays show on Today. A once-only backfill proposes people from past memories.
+- **Privacy:** one gate keeps people cards out of other apps (/v1, MCP), other agents (A2A, including
+  quotes in outgoing text), plugins, group and partner chats. Private facts only in private chats;
+  sensitive facts fold away and only come up when that person and topic are the subject. Each
+  household member has their own people.
+
 ## 2.33.0 (2026-10-31): other agents, A2A (Phase 100, staples ST5)
 
 - **The open [Agent2Agent](https://a2a-protocol.org/) protocol (1.0), both ways, written from the

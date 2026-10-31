@@ -10,6 +10,7 @@ import { importedName, type StoredMessage } from './store.ts';
 import { DEFAULT_IDENTITY, type Identity, personalize } from './identity.ts';
 import { identityOf } from './persona.ts';
 import { usageScope } from './usage.ts';
+import { fold } from './people.ts';
 
 export interface MemorySettings {
   enabled: boolean;
@@ -101,12 +102,13 @@ export function memoryPrompt(owner: string, transcript: string, id: Identity = D
 \u0002
 
 Return ONLY a JSON object, no other text:
-{"summary": "...", "facts": [{"fact": "...", "message_id": 123, "quote": "..."}], "sara": [{"fact": "...", "message_id": 124, "quote": "..."}], "dates": [{"what": "...", "date": "MM-DD", "message_id": 125, "quote": "..."}], "decisions": [{"what": "...", "message_id": 126, "quote": "..."}], "promises": [{"who": "owner", "what": "...", "due": null, "message_id": 127, "quote": "..."}], "milestones": [{"what": "...", "message_id": 128, "quote": "..."}], "kept": [{"promise": 5, "message_id": 129, "quote": "..."}], "outdated": [{"note": 7, "message_id": 130, "quote": "..."}]}
+{"summary": "...", "facts": [{"fact": "...", "message_id": 123, "quote": "...", "about": [{"name": "...", "relation": "..."}], "category": null}], "sara": [{"fact": "...", "message_id": 124, "quote": "..."}], "dates": [{"what": "...", "date": "MM-DD", "message_id": 125, "quote": "...", "about": []}], "decisions": [{"what": "...", "message_id": 126, "quote": "..."}], "promises": [{"who": "owner", "what": "...", "due": null, "message_id": 127, "quote": "..."}], "milestones": [{"what": "...", "message_id": 128, "quote": "..."}], "kept": [{"promise": 5, "message_id": 129, "quote": "..."}], "outdated": [{"note": 7, "message_id": 130, "quote": "..."}]}
 
 summary: 2 to 5 sentences, past tense, third person ("${O} and Sara ..."). What actually happened: topics, decisions, plans, open items, and work Sara did. Mention work as done only if a "tool receipt" line shows it with "ok". No guessing, no feelings you weren't told about.
 facts: at most ${MAX_FACTS} lasting facts about ${O} that ${O} stated directly: preferences, people and pets (with names), projects, plans, important dates. Each fact is one short sentence starting with "${O}". message_id is the id of ${O}'s message that states it; quote is ${O}'s exact words from that message (a short phrase copied verbatim). Nothing about Sara, no small talk, no passing moods. Use [] when there are none.
 sara: at most ${MAX_SELF} things Sara said about her own life (not about ${O}) that she should stay consistent with later: things she did or will do, places, people, tastes, opinions, plans (e.g. "Sara said she watched The Thing last night."). Each starts with "Sara". message_id is Sara's message that says it; quote is Sara's exact words from it. Skip anything about tools or ${O}'s work. Use [] when there are none.
 dates: dates that matter to ${O} and come back every year or are coming up: birthdays, anniversaries, a wedding, a trip, an exam, an interview, an appointment, a race, a visit (e.g. what: "${O}'s mom's birthday", date: "03-14"). date is "MM-DD" for every year, or "YYYY-MM-DD" when the year is known or it happens once. Only when ${O} gave the actual day (not "next week"); a weekday like "on Thursday" counts: work out the date from when the message was sent. message_id and quote as for facts (${O}'s exact words). Use [] when there are none.
+about (facts and dates): the people other than ${O} it is about (never ${O}, never Sara, never pets), each {"name": as ${O} says it, "relation": who they are to ${O} in ${O}'s words (\"my brother\", \"my manager\") or to another person (\"Jeff's wife\"), only when said; add \"alias\" when ${O} used another way to say who it is (\"Jeff from work\")}. Use [] when it is only about ${O}. category (facts): \"health\", \"intimate\", \"money\" or \"legal\" when the fact is about someone's health, sex life or relationship trouble, money trouble or legal trouble; otherwise null.
 decisions: at most ${MAX_DECISIONS} things ${O} and Sara decided or agreed on together, or rules ${O} set for how Sara should act (e.g. "${O} and Sara agreed to try the new gym on Mondays", "${O} wants Sara to stop reminding him about water"). One short sentence each. message_id is the message where it was settled (either person's); quote is exact words from it. Use [] when there are none.
 promises: at most ${MAX_PROMISES} commitments someone made: who is "owner" (${O} will do something, e.g. quit coffee for a month) or "sara" (Sara said she will do something, e.g. check in after the interview). what is one short sentence starting with ${O} or Sara. due is "YYYY-MM-DD" only if a day was given or clearly meant, else null. message_id and quote as above (the promiser's own message and words). Use [] when there are none.
 milestones: at most ${MAX_MILESTONES} moments that matter in their story together: firsts, big news, a hard day, making up after a disagreement, an inside joke being born. One short sentence each, past tense. message_id and quote as above. Use [] for ordinary chats (most conversations have none).
@@ -115,10 +117,24 @@ outdated: earlier notes (listed below as "Earlier notes" with their numbers) tha
   return `${head}${transcript}${tail}`;
 }
 
-type RawFact = { fact: string; message_id: number; quote: string };
+type RawAbout = { name: string; relation?: string | null; alias?: string | null };
+type RawFact = { fact: string; message_id: number; quote: string; about?: RawAbout[]; category?: string | null };
 
-type RawDate = { what: string; date: string; message_id: number; quote: string };
+type RawDate = { what: string; date: string; message_id: number; quote: string; about?: RawAbout[] };
 type RawItem = { what: string; message_id: number; quote: string; who?: string; due?: string | null; promise?: number };
+
+/** Phase 101 (ST6): the people a fact or date is about, and its sensitive category (health, intimate, money, legal). */
+function aboutOf(f: Record<string, unknown>): { about?: RawAbout[]; category?: string | null } {
+  const about = Array.isArray(f.about)
+    ? f.about
+        .map((a) => (typeof a === 'string' ? { name: a } : a && typeof a === 'object' ? (a as Record<string, unknown>) : null))
+        .filter((a): a is Record<string, unknown> => Boolean(a && typeof a.name === 'string' && a.name.trim()))
+        .slice(0, 6)
+        .map((a) => ({ name: String(a.name).trim().slice(0, 80), ...(typeof a.relation === 'string' && a.relation.trim() ? { relation: a.relation.trim().slice(0, 80) } : {}), ...(typeof a.alias === 'string' && a.alias.trim() ? { alias: a.alias.trim().slice(0, 80) } : {}) }))
+    : [];
+  const category = typeof f.category === 'string' && ['health', 'intimate', 'money', 'legal'].includes(f.category) ? f.category : null;
+  return { ...(about.length ? { about } : {}), ...(category ? { category } : {}) };
+}
 
 export function parseMemoryJson(text: string): { summary: string; facts: RawFact[]; sara: RawFact[]; dates: RawDate[]; decisions: RawItem[]; promises: RawItem[]; milestones: RawItem[]; kept: RawItem[]; outdated: RawItem[] } | null {
   const cleaned = text.replace(/```(?:json)?/gi, '');
@@ -146,16 +162,36 @@ export function parseMemoryJson(text: string): { summary: string; facts: RawFact
       Array.isArray(v)
         ? v
             .filter((f): f is Record<string, unknown> => Boolean(f) && typeof f === 'object')
-            .map((f) => ({ fact: String(f.fact ?? '').trim(), message_id: Number(f.message_id), quote: String(f.quote ?? '').trim() }))
+            .map((f) => ({ fact: String(f.fact ?? '').trim(), message_id: Number(f.message_id), quote: String(f.quote ?? '').trim(), ...aboutOf(f) }))
         : [];
     const dates: RawDate[] = Array.isArray(j.dates)
       ? j.dates
           .filter((f): f is Record<string, unknown> => Boolean(f) && typeof f === 'object')
-          .map((f) => ({ what: String(f.what ?? '').trim(), date: String(f.date ?? '').trim(), message_id: Number(f.message_id), quote: String(f.quote ?? '').trim() }))
+          .map((f) => ({ what: String(f.what ?? '').trim(), date: String(f.date ?? '').trim(), message_id: Number(f.message_id), quote: String(f.quote ?? '').trim(), ...aboutOf(f) }))
       : [];
     return { summary: j.summary.trim(), facts: list(j.facts), sara: list(j.sara), dates, decisions: items(j.decisions), promises: items(j.promises), milestones: items(j.milestones), kept: items(j.kept), outdated: items(j.outdated) };
   } catch {
     return null;
+  }
+}
+
+/**
+ * Phase 101 (ST6, STAPLES §9.3): a fact's people go on their cards (a new card is proposed, never
+ * active). A name must be in the owner's own message (no invented people); without `about` from the
+ * model, code looks for "my brother Jeff" in the fact. Other assistants' imported history, group
+ * chats and other agents never get here (only the owner's own lines are facts).
+ */
+function linkPeople(app: AppContext, m: import('./memory.ts').Memory, about: RawAbout[] | undefined, said: string, category: string | null, isPrivate: boolean): void {
+  const people = app.people;
+  if (!people) return;
+  try {
+    const saidF = fold(said);
+    const items = (about?.length ? about : people.aboutFromText(m.content)).filter((a) => saidF.includes(fold(a.name.split(/\s+/)[0])));
+    if (!items.length) return;
+    const r = people.linkMemory(m, items, { category: (category as import('./people.ts').FactCategory | null) ?? null, private: isPrivate, text: said });
+    if (r.personIds.length) app.events?.publish({ type: 'people', what: r.created ? 'proposed' : 'facts' });
+  } catch (err) {
+    console.warn(`people: ${(err as Error).message}`);
   }
 }
 
@@ -289,9 +325,9 @@ export async function summarizeConversation(app: AppContext, mem: MemoryStore, c
       dropped++;
       continue;
     }
-    factIds.push(
-      mem.add({ kind: 'fact', content: app.redactor.redact(f.fact), conversationId, sourceMessageId: src.id, happenedOn: localDate(src.createdAt, s.timeZone), evidence: app.redactor.redact(f.quote) }).id,
-    );
+    const added = mem.add({ kind: 'fact', content: app.redactor.redact(f.fact), conversationId, sourceMessageId: src.id, happenedOn: localDate(src.createdAt, s.timeZone), evidence: app.redactor.redact(f.quote) });
+    factIds.push(added.id);
+    linkPeople(app, added, f.about, src.content, f.category ?? null, Boolean(conv.private));
   }
   dropped += Math.max(0, parsed.facts.length - MAX_FACTS);
   // Sara's own statements: same verification against her message.
@@ -322,7 +358,9 @@ export async function summarizeConversation(app: AppContext, mem: MemoryStore, c
       dropped++;
       continue;
     }
-    dateIds.push(mem.add({ kind: 'date', content: app.redactor.redact(f.what), onDate: f.date, conversationId, sourceMessageId: src.id, happenedOn: localDate(src.createdAt, s.timeZone), evidence: app.redactor.redact(f.quote) }).id);
+    const added = mem.add({ kind: 'date', content: app.redactor.redact(f.what), onDate: f.date, conversationId, sourceMessageId: src.id, happenedOn: localDate(src.createdAt, s.timeZone), evidence: app.redactor.redact(f.quote) });
+    dateIds.push(added.id);
+    linkPeople(app, added, f.about, src.content, null, Boolean(conv.private));
   }
   // Phase 32: decisions, promises and milestones, each checked against the exact words quoted.
   const quoted = (it: RawItem, roles: string[]) => {

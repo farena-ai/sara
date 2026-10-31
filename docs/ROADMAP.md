@@ -104,16 +104,16 @@ version's details are in the [changelog](../CHANGELOG.md).
 | 98 | Plugins and hooks: installable, each with only the permissions it asks for | 2.31 |
 | 99 | Kanban board: hand her a card and she works it in the background | 2.32 |
 | 100 | A2A: talk to other agents (and let listed agents talk to her) | 2.33 |
+| 101 | People: a card for each person in your life, used by her memory | 2.34 |
 
 ## Coming next
 
-In build order; one release per phase. The computer use track is complete (2.20–2.28); the agent staples are under way (skills, learned skills, plugins, the board and A2A are out).
+In build order; one release per phase. The computer use track is complete (2.20–2.28); the agent staples are under way (skills, learned skills, plugins, the board, A2A and people are out).
 
 | Phase | Plan | Version |
 |---|---|---|
 | 60 | Phones: locked-screen calls on iPhone (CallKit), one-tap pairing on iPhone, the iPhone app in the App Store (when Apple approves it) | after Apple's approval |
 | 64 | Be found: app stores, NAS catalogs, Home Assistant's store and directories | ongoing |
-| 101 | People: a card for each person in your life, used by her memory | 2.34 |
 | 102 | Webhooks: any service can start a task or tell her something | 2.35 |
 | 103 | Her own agenda (opt-in): goals and follow-ups she keeps with you | 2.36 |
 | 104 | Move in from another agent 1: Hermes Agent and OpenClaw (personality, memories, profile, history, skills, schedules), preview and Undo | 2.37 |

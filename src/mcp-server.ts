@@ -122,9 +122,11 @@ function clean(app: AppContext, text: string): string {
 
 function memoryLines(app: AppContext, opts: { q?: string; kind?: 'fact'; limit: number }): string {
   if (!app.memory || app.settings.get().memory?.enabled === false) return 'Her memory is turned off.';
+  // Phase 101 (ST6): people cards never reach other apps: no note linked to a person or naming one.
+  const gate = app.people?.gate();
   const list = app.memory
     .list({ ...(opts.q ? { q: opts.q } : {}), ...(opts.kind ? { kind: opts.kind } : {}), limit: Math.min(200, opts.limit * 3) })
-    .filter((m) => m.supersededBy === null && shareableConversation(app, m.conversationId))
+    .filter((m) => m.supersededBy === null && shareableConversation(app, m.conversationId) && (!gate || gate.memory(m)))
     .slice(0, opts.limit);
   if (!list.length) return opts.q ? `Nothing in her memory about “${opts.q}”.` : 'No notes yet.';
   return list.map((m) => `- [${m.kind}, ${m.happenedOn}] ${m.content.replace(/\s+/g, ' ')}`).join('\n');
@@ -188,13 +190,15 @@ const TOOLS: ToolDef[] = [
       const tz = app.settings.get().timeZone;
       const convs = app.store.listConversations().filter((c) => shareableConversation(app, c.id) && !c.archivedAt).slice(0, limit);
       if (!convs.length) return 'No conversations yet.';
-      const summaries = app.memory?.list({ kind: 'summary', limit: 400 }) ?? [];
+      // Phase 101: a summary naming someone on a people card stays out.
+      const gate = app.people?.gate();
+      const summaries = (app.memory?.list({ kind: 'summary', limit: 400 }) ?? []).filter((m) => !gate || gate.memory(m));
       return clean(
         app,
         convs
           .map((c) => {
             const sum = summaries.find((m) => m.conversationId === c.id)?.content.replace(/\s+/g, ' ').slice(0, 300);
-            return `- ${c.title} (${c.mode === 'coding' ? 'coding, ' : ''}last ${formatLocal(c.updatedAt, tz)})${sum ? `: ${sum}` : ''}`;
+            return `- ${!gate || gate.text(c.title) ? c.title : 'A conversation'} (${c.mode === 'coding' ? 'coding, ' : ''}last ${formatLocal(c.updatedAt, tz)})${sum ? `: ${sum}` : ''}`;
           })
           .join('\n'),
       );
@@ -213,7 +217,10 @@ const TOOLS: ToolDef[] = [
       lines.push(t.agenda.tasks.length ? `To-dos:\n${t.agenda.tasks.map((x) => `- #${x.id} ${x.title}${x.dueAt ? ` (due ${formatLocal(x.dueAt, tz)}${x.overdue ? ', overdue' : ''})` : ''}${x.project ? ` [${x.project}]` : ''}`).join('\n')}` : 'No to-dos due today.');
       if (t.agenda.reminders.length) lines.push(`Reminders:\n${t.agenda.reminders.map((r) => `- ${formatLocal(r.dueAt, tz)}: ${r.text}`).join('\n')}`);
       if (t.calendar?.events.length) lines.push(`Calendar:\n${t.calendar.events.map((e) => `- ${e.allDay ? 'all day' : formatLocal(e.start, tz)}: ${e.title}${e.location ? ` (${e.location})` : ''}`).join('\n')}`);
-      if (t.dates.length) lines.push(`Coming up:\n${t.dates.map((d) => `- in ${d.inDays} day${d.inDays === 1 ? '' : 's'}: ${d.what}`).join('\n')}`);
+      // Phase 101 (ST6): dates about people on cards stay in her space.
+      const gate = app.people?.gate();
+      const dates = t.dates.filter((d) => d.personId === undefined && (!gate || gate.text(d.what)));
+      if (dates.length) lines.push(`Coming up:\n${dates.map((d) => `- in ${d.inDays} day${d.inDays === 1 ? '' : 's'}: ${d.what}`).join('\n')}`);
       return clean(app, lines.join('\n\n'));
     },
   },

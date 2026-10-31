@@ -211,7 +211,17 @@ export function privateQuote(app: AppContext, text: string): string | undefined 
     if (sharedWithApps({ partner: r.partner, private: r.private === 1, channel: r.channel })) continue;
     for (const s of shingles(r.content)) if (mine.has(s)) return r.title || 'a private conversation';
   }
-  // ST6 people cards: none yet (Phase 101 adds them to this check).
+  // Phase 101 (ST6, STAPLES §9.6): people cards never leave either: a fact on a card (or his notes on
+  // one), by five words in a row, or a fact of three or four words quoted whole.
+  if (app.people) {
+    const five = shingles(text, 5);
+    const flat = ` ${(text.toLowerCase().normalize('NFKC').match(/[\p{L}\p{N}']+/gu) ?? []).join(' ')} `;
+    for (const t of app.people.privateTexts()) {
+      const words = t.toLowerCase().normalize('NFKC').match(/[\p{L}\p{N}']+/gu) ?? [];
+      if (words.length >= 3 && words.length < 5 && flat.includes(` ${words.join(' ')} `)) return 'a people card';
+      for (const sh of shingles(t, 5)) if (five.has(sh)) return 'a people card';
+    }
+  }
   return undefined;
 }
 

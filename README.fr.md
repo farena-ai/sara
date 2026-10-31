@@ -14,7 +14,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1306%20passing-brightgreen" alt="1306 tests passing">
+  <img src="https://img.shields.io/badge/tests-1317%20passing-brightgreen" alt="1317 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <sub>Une vraie session avec un modèle local (qwen3.8 27B sur Ollama, une RTX 5090) sur un serveur de test jetable, dans le thème Nuit : elle remonte le moral de son interlocuteur, écrit une petite app et son test pendant que le modèle les transmet, demande avant d'exécuter une commande, repère un vrai bug grâce à un test qui échoue et le corrige jusqu'à ce que les 7 tests passent. Images choisies dans l'enregistrement ; rien n'y a été retouché.</sub>
 </p>
 
-> **État :** 2.33, licence MIT, avec quarante-quatre versions riches en nouveautés depuis la 1.0 (toutes
+> **État :** 2.34, licence MIT, avec quarante-cinq versions riches en nouveautés depuis la 1.0 (toutes
 > ci-dessous). De la 2.5 à la 2.8, toute l'app a changé de look. L'[app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > est sur Google Play ; l'app iPhone et la version Mac App Store arrivent dès qu'Apple les aura
 > approuvées. Lisez [docs/DISCLOSURES.md](docs/DISCLOSURES.md) avant d'utiliser ou de partager Sara.
@@ -70,6 +70,7 @@ qui citent la page · le [mode local privé](docs/PRIVATE_LOCAL.md) · les [conv
 
 | Version | Ce que vous y gagnez |
 |---|---|
+| **2.34** · Personnes | **Elle garde trace des personnes de votre vie.** Une carte par personne dont vous parlez (lien, anniversaire, ce qu'elle sait avec vos mots), construite à partir de ses souvenirs. Les nouvelles attendent votre *C'est bon* ; corrigez, fusionnez, séparez ou oubliez qui vous voulez (oublier efface vraiment). Deux Jeff ? Elle demande lequel. Le privé reste dans les discussions privées et le sensible est replié. Les cartes ne vont jamais vers d'autres apps, d'autres agents, des plugins, des discussions de groupe ou de couple ; chaque membre du foyer a les siennes. |
 | **2.33** · Autres agents (A2A) | **Elle parle à d'autres agents IA** avec le protocole ouvert Agent2Agent, dans les deux sens, écrit d'après la spécification. Donnez à un agent sa propre clé et choisissez ce qu'il peut demander ; elle peut interroger les agents que vous ajoutez (une autre Sara ou tout agent A2A), suivre leurs réponses en direct, les arrêter ou leur confier une carte du tableau qui revient avec des preuves. Ce qu'un agent demande et qui change quelque chose demande votre accord ; ses mots ne sont pas fiables ; rien de privé, de couple ou de groupe ne sort ; elle dit qu'elle est une IA. 61/61 contrôles du protocole. |
 | **2.32** · Tableau | **Un tableau Kanban sur vos tâches.** Chaque projet a un tableau (À faire, En cours, Vous attend, Fait) avec étiquettes, listes, échéances et répétitions ; glissez à la souris, au doigt ou au clavier. Confiez une carte à Sara ou à une équipe d'assistants et elle la traite en arrière-plan : elle passe en Fait seulement si des preuves appuient le travail, sinon elle vous attend avec ce qu'elle n'a pas pu prouver. Demandez-lui « qu'est-ce qui bloque ? » ou d'ajouter et déplacer des cartes (elle demande d'abord). Tableaux partagés du foyer ; une tuile Vous attend sur Aujourd'hui. |
 | **2.31** · Plugins | **Plugins et hooks.** Un plugin est un dossier avec un `sara-plugin.json` : des hooks avant sa réponse, avant et après les outils et après les réponses, plus ses propres outils, cartes, réglages, horaires et passerelles de chat. Vous l'ajoutez depuis un zip, git ou un dossier après avoir lu une carte qui détaille ce qu'il peut faire ; il reste éteint tant que vous ne l'activez pas. Chacun tourne dans son propre processus isolé (bubblewrap sous Linux, Seatbelt sur Mac) et ne peut qu'ajouter ou resserrer, jamais assouplir ses règles ni toucher la couche de sécurité. Un plugin qui bloque ou plante ne casse jamais une conversation. Deux exemples inclus ; guide dans docs/PLUGINS.md. |
@@ -315,8 +316,8 @@ qu'aucun test ne vérifiait. Ce qu'elle apporte aujourd'hui, c'est la manière d
 lance les tests, demande avant les étapes risquées, montre ce qui a tourné), pas un meilleur score
 sur ces jeux. Détails, résultats par tâche et comment relancer : [docs/RESULTS.md](docs/RESULTS.md).
 
-En plus, `npm run check` : une vérification des types et 1321 tests automatiques avec un faux modèle
-scripté (sans réseau, sans GPU) : 1306 passent sous Windows, et les 8 autres sont des tests
+En plus, `npm run check` : une vérification des types et 1332 tests automatiques avec un faux modèle
+scripté (sans réseau, sans GPU) : 1317 passent sous Windows, et les 8 autres sont des tests
 d'isolation propres à Linux, exécutés sur un serveur Linux.
 
 ## Comparaison

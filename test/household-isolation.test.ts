@@ -358,6 +358,29 @@ test('boards (Phase 99): own boards per person; a shared board only by membershi
   assert.equal((await call(ana, 'DELETE', `/api/boards/${sid}`)).status, 200);
 });
 
+test('people (Phase 101): each person\'s cards are their own; no one reaches another\'s by id', async () => {
+  const ids = new Map<Person, number>();
+  for (const p of [owner, ana, ben]) {
+    const made = await call(p, 'POST', '/api/people', { name: `Robin ${p.marker}`, relation: `my friend ${p.marker}` });
+    assert.equal(made.status, 201, made.text);
+    ids.set(p, Number((made.json.person as { id: number }).id));
+  }
+  for (const p of [owner, ana, ben]) {
+    const list = await call(p, 'GET', '/api/people');
+    assert.equal(list.status, 200);
+    assert.ok(list.text.includes(p.marker), `${p.name} sees their own card`);
+    for (const o of [owner, ana, ben].filter((x) => x !== p)) {
+      assert.ok(!list.text.includes(o.marker), `${p.name} never sees ${o.name}'s people`);
+      // Ids are per space: another person's card id is someone else (or nobody) here.
+      for (const [method, path] of [['GET', `/api/people/${ids.get(o)}`], ['PUT', `/api/people/${ids.get(o)}`], ['GET', `/api/people?q=${encodeURIComponent(o.marker)}`]] as const) {
+        const r = await call(p, method, path, method === 'PUT' ? { notes: 'x' } : undefined);
+        assert.ok(!r.text.includes(o.marker), `${p.name} ${method} ${path}`);
+      }
+    }
+  }
+  for (const p of [owner, ana, ben]) assert.equal((await call(p, 'DELETE', `/api/people/${ids.get(p)}?memories=1`)).status, 200);
+});
+
 test('skills (Phase 96): each member has their own; a folder on the server is the owner\'s only', async () => {
   const made = await call(ana, 'POST', '/api/skills', { name: 'ana-only-skill', description: `Ana's own how-to ${M.a}. Use when Ana asks.`, body: `# Ana\n${M.a}` });
   assert.equal(made.status, 201);

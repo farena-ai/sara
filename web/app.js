@@ -15,6 +15,7 @@ import { initLearning, learnCard, loadLearning } from './learned-skills.js';
 import { initPlugins, loadPlugins, pluginAskLine, pluginNotice, pluginResultCard, pluginStepWords } from './plugins.js';
 import { initAgents, loadAgents } from './agents.js';
 import { boardEvent, initBoard, openCardOnBoard, plannerView, rememberView } from './board.js';
+import { initPeople, peopleEvent, peopleOnOpen, showPerson } from './people.js';
 import { initOtherApps, keyUse, loadOtherApps } from './other-apps.js';
 import { initAlexa, loadAlexa } from './alexa.js';
 import { initSsh, loadSsh } from './ssh.js';
@@ -1004,6 +1005,8 @@ async function askInChat(text) {
   $('#input').dispatchEvent(new Event('input'));
   $('#input').focus();
 }
+// Phase 101 (ST6): Memory → People (web/people.js).
+initPeople({ jumpTo: (convId, msgId) => openAtMessage(convId, msgId), openMemory: () => openMemory({ tab: 'people' }) });
 initToday({
   api,
   status: (msg) => ($('#td-status').textContent = msg),
@@ -5229,6 +5232,8 @@ function startEvents() {
     // Today's "On the board" tile (waiting cards, her work) follows too, at most every 2 s.
     if (todayOpen() && !todayBoardTimer) todayBoardTimer = setTimeout(() => ((todayBoardTimer = 0), void loadToday()), 2000);
   });
+  // Phase 101 (ST6): people cards changed (her memory worker, another tab): the open People page follows.
+  es.addEventListener('people', () => peopleEvent());
   es.addEventListener('ring', (e) => onRing(JSON.parse(e.data).ring));
   // Phase 87: her hands on a computer: live-view frames, Stop pressed there, computers coming and going.
   es.addEventListener('computer', (e) => onComputerEvent(JSON.parse(e.data)));
@@ -5774,7 +5779,9 @@ async function openMemory(opts = {}) {
   $('#mem-sharing-row').hidden = !(state.companions?.companions.length > 1);
   $('#mem-budget').value = String([1000, 2500, 4500].reduce((b, v) => (Math.abs(v - s.injectBudgetChars) < Math.abs(b - s.injectBudgetChars) ? v : b), 2500));
   await loadMemories();
-  $('#memory').showModal();
+  // Phase 101 (ST6): Memory opens on Notes; the People tab loads when picked (or opts.tab).
+  peopleOnOpen(opts.tab === 'people' ? 'people' : 'notes');
+  if (!$('#memory').open) $('#memory').showModal();
   if (opts.focus) {
     const card = document.querySelector(`#mem-list .mem[data-mem="${opts.focus}"]`);
     if (card) {
@@ -7196,7 +7203,26 @@ async function loadToday(fresh = false) {
   }
   renderTodayMoments(d);
   $('#td-dates').hidden = !d.dates.length;
-  list('td-dates').replaceChildren(...d.dates.map((x) => todayRow(x.what, inDaysWords(x.inDays), x.inDays === 0 ? 'overdue' : '')));
+  // Phase 101 (ST6): a date about someone on a people card opens their card.
+  list('td-dates').replaceChildren(
+    ...d.dates.map((x) => {
+      const row = todayRow(x.what, inDaysWords(x.inDays), x.inDays === 0 ? 'overdue' : '');
+      if (x.personId) {
+        row.classList.add('td-person');
+        row.tabIndex = 0;
+        row.setAttribute('role', 'button');
+        row.setAttribute('aria-label', t('Open {name}', { name: x.person }));
+        const open = (e) => {
+          e.stopPropagation();
+          closeToday({ focus: false });
+          void showPerson(x.personId);
+        };
+        row.addEventListener('click', open);
+        row.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open(e)));
+      }
+      return row;
+    }),
+  );
   // Phase 56: retired models and what now uses their replacement.
   $('#td-models').hidden = !d.models?.length;
   // UX 19: the server sends the facts too (modelItems), so the sentence is in the app language.

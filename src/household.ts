@@ -504,6 +504,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'persona', 'look', 'sara', 'character', 'gallery', 'companions', 'groups', 'adult', 'photos',
   // memory and life
   'memories', 'memory', 'scrapbook', 'moments', 'story', 'together',
+  // Phase 101 (ST6): their own people cards (each person's space, per companion; nothing shared)
+  'people', 'person-facts',
   // planner and days
   'projects', 'tasks', 'notes', 'reminders', 'planner', 'places', 'today', 'briefing', 'review', 'leave-by', 'checklist', 'setup',
   // Phase 99 (ST4): their own boards, and shared boards they are a member of (src/routes/board.ts)

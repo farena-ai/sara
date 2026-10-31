@@ -23,6 +23,7 @@
   <link rel="stylesheet" href="/screens.css">
   <link rel="stylesheet" href="/polish.css">
   <link rel="stylesheet" href="/board.css">
+  <link rel="stylesheet" href="/people.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -1211,6 +1212,11 @@
   <dialog id="memory">
     <form method="dialog" class="settings-body">
       <h2>What Sara remembers</h2>
+      <div class="tabs mem-tabs" role="tablist">
+        <button type="button" class="tab active" data-tab="notes" role="tab" aria-selected="true">Notes</button>
+        <button type="button" class="tab" data-tab="people" role="tab" aria-selected="false">People <span id="ppl-tab-count" class="ppl-tab-count" hidden></span></button>
+      </div>
+      <div class="tab-panel" data-panel="notes">
       <p class="muted small">Everything she remembers, in one place: what she knows about you, dates that matter, what you decided together, promises (yours and hers), moments in your story, things she noticed, notes from your conversations, and what she said about her own life. Each keeps a link to the exact words. <strong>Correct</strong> fixes a note. <strong>Delete</strong> removes it. <strong>Forget</strong> also hides the original message from her for good.</p>
       <div class="mem-tools">
         <button id="mem-timeline" type="button" class="ghost small" title="Your story: your time together, in order">🕰 Your story</button>
@@ -1248,6 +1254,33 @@
       <label>Recall on her own <button type="button" class="tip" data-tip="When something matches her past runs (the same error, a command that failed, a file you have a note about), she gets a short note with where it came from, shown as Remembered on her own. Coding only: just coding chats.">?</button> <select id="mem-recall"><option value="off">Off</option><option value="coding">Coding conversations only</option><option value="everywhere">Everywhere</option></select></label>
       <label id="mem-sharing-row" hidden>Between companions <button type="button" class="tip" data-tip="Shared: what one companion learns about you (your job, your sister's name) the others know too. Their conversations, notes and what they say about themselves stay their own either way.">?</button> <select id="mem-sharing"><option value="own">Each knows only what you told her</option><option value="shared">Share what they know about you</option></select></label>
       <p id="mem-error" class="error" role="alert"></p>
+      </div>
+      <!-- Phase 101 (ST6, docs/PEOPLE.md): the people in your life, built from what she remembers (web/people.js). -->
+      <div class="tab-panel ppl-panel" data-panel="people" hidden>
+        <div id="ppl-home">
+          <p class="muted small ppl-intro">The people in your life she knows about: who they are to you, what she knows and where she learned it. These are facts about other people, kept only in your space. You can change or delete anything here.</p>
+          <div id="ppl-review" class="ppl-review"></div>
+          <div class="ppl-tools">
+            <label class="ppl-search"><span class="ppl-sr">Search people</span><input id="ppl-q" type="search" placeholder="Search people" autocomplete="off"> <button type="button" class="tip" data-tip="Finds people by name, nickname, who they are to you, or anything she knows about them (try &quot;bakery&quot;).">?</button></label>
+            <button id="ppl-add" type="button" class="ghost">Add a person</button>
+            <button id="ppl-backfill" type="button" class="ghost">Find people in what she remembers</button>
+            <button id="ppl-tip-backfill" type="button" class="tip" data-tip="She reads the notes she already has once, in the background (a cheap model, or code alone), and suggests a card per person. Nothing is used until you say it looks right.">?</button>
+          </div>
+          <div class="ppl-filters" role="group" aria-label="Show">
+            <div id="ppl-circles" class="ppl-chips"></div>
+            <button id="ppl-tip-circles" type="button" class="tip" data-tip="Circles group people: family, partner, friends, work, neighbours, other. She guesses from what you call them (&quot;my manager&quot; is work); change it on the card. In a work chat she leans to work people.">?</button>
+          </div>
+          <div id="ppl-new" class="ppl-new" hidden>
+            <label>Name <input id="ppl-new-name" required maxlength="80" placeholder="e.g. Jamie"> <button type="button" class="tip" data-tip="How you usually say their name. Add nicknames on the card.">?</button></label>
+            <label>Who they are to you <input id="ppl-new-rel" maxlength="80" placeholder="e.g. my friend from college"> <button type="button" class="tip" data-tip="In your own words. She uses it to tell people with the same name apart.">?</button></label>
+            <div class="ppl-new-actions"><button id="ppl-new-save" type="button">Add</button> <button id="ppl-new-cancel" type="button" class="ghost">Cancel</button></div>
+          </div>
+          <p id="ppl-status" class="muted small" role="status"></p>
+          <div id="ppl-list" class="ppl-grid" aria-live="polite"></div>
+        </div>
+        <div id="ppl-card" class="ppl-card" hidden></div>
+        <p class="ppl-legend muted small"><span class="ppl-lock" aria-hidden="true"></span><span>Private</span> <button id="ppl-tip-private" type="button" class="tip" data-tip="A lock means she learned it in a private conversation (or you marked it). She only uses it in private conversations, never in normal ones.">?</button> <span class="ppl-legend-gap" aria-hidden="true">·</span> <span>Sensitive</span> <button id="ppl-tip-sensitive" type="button" class="tip" data-tip="Health, intimate, money and legal things about someone. Folded until you open them; never on Today or in a notification; she only brings them up when you talk about that person and that topic.">?</button></p>
+      </div>
     </form>
   </dialog>
 

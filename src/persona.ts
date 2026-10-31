@@ -150,6 +150,8 @@ export interface PromptContext {
   skills?: string;
   /** Selected long-term memories (already formatted lines), Phase 3. */
   memories?: string;
+  /** Phase 101 (ST6): the people this message names, from their cards (lines; src/people.ts section()). */
+  people?: string;
   /** Due/overdue tasks and upcoming reminders (planner), Phase 3.7. */
   agenda?: string;
   /** How she feels and where things stand in time (Phase 4, plain sentences). */
@@ -245,6 +247,7 @@ export function buildSystemPrompt(p: Persona, ctx: PromptContext): string {
     // Phase 76: when the notes carry "[why: …; sure: …]" (not in voice calls or her day), one line on how to read them.
     const why = /\[why: [^\]]*; sure: (high|medium|low)/.test(ctx.memories ?? '') ? " Each note ends with why it came to mind and how sure that is. Lean on 'high', treat 'low' as background." : '';
     if (ctx.memories?.trim()) blocks.push(`### Your notes\nYour own notes from earlier conversations with ${owner} (dated). They can be out of date.${why}\n${ctx.memories.trim()}`);
+    if (ctx.people?.trim()) blocks.push(`### People in this message\nWho they are to ${owner} and what you know about them (from your notes, dated). They are other people: what you know about them stays between you and ${owner}.\n${ctx.people.trim()}`);
     parts.push(`## What you remember from before
 Use your memories naturally, like a person remembering, and let them shape what you say and decide (what ${owner} likes, what you agreed, what's going on in their life). ${lookUp} If what ${owner} says now goes against something you decided together or a promise in your notes, mention it gently, like a friend would ("wait, didn't we say…?"). Never make up specific details you don't have, and never claim you did something (set a reminder, changed a file) that you didn't.${blocks.length ? `\n${blocks.join('\n')}` : ''}`);
   }
