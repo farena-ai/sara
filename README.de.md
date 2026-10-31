@@ -14,7 +14,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1336%20passing-brightgreen" alt="1336 tests passing">
+  <img src="https://img.shields.io/badge/tests-1338%20passing-brightgreen" alt="1338 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -65,6 +65,19 @@ für die Menschen, mit denen du lebst · [Videoanrufe](docs/VIDEO_CALLS.md) mit 
 [per SSH](docs/SSH.md) · [Bücher mit 1.000 Seiten](docs/LIBRARY.md) mit Antworten, die die Seite nennen ·
 [privater lokaler Modus](docs/PRIVATE_LOCAL.md) · [Gruppenchats](docs/GROUP_CHATS.md) ·
 [Umzug von ChatGPT, Character.AI, Replika und anderen](docs/IMPORT.md).
+
+## Anleitungsvideos
+
+Einminütige Anleitungen, aufgenommen auf einem Testserver mit einem lokalen Modell (auf Englisch). <a href="https://www.youtube.com/playlist?list=PLGtrs9BqXtM8">Alle in einer Playlist</a>.
+
+<table>
+  <tr>
+    <td align="center" width="25%"><a href="https://www.youtube.com/watch?v=DTAIW75y7i4&list=PLGtrs9BqXtM8&index=1"><img src="https://i.ytimg.com/vi/DTAIW75y7i4/mqdefault.jpg" alt="Sara einrichten" width="200"></a><br><sub>Sara einrichten</sub></td>
+    <td align="center" width="25%"><a href="https://www.youtube.com/watch?v=_X69x9E3W_k&list=PLGtrs9BqXtM8&index=2"><img src="https://i.ytimg.com/vi/_X69x9E3W_k/mqdefault.jpg" alt="Gedächtnis und Personenkarten" width="200"></a><br><sub>Gedächtnis und Personenkarten</sub></td>
+    <td align="center" width="25%"><a href="https://www.youtube.com/watch?v=wrvNcHkc9O4&list=PLGtrs9BqXtM8&index=3"><img src="https://i.ytimg.com/vi/wrvNcHkc9O4/mqdefault.jpg" alt="Das Board" width="200"></a><br><sub>Das Board</sub></td>
+    <td align="center" width="25%"><a href="https://www.youtube.com/watch?v=7i48NiAq-jw&list=PLGtrs9BqXtM8&index=4"><img src="https://i.ytimg.com/vi/7i48NiAq-jw/mqdefault.jpg" alt="Programmieren mit Sara" width="200"></a><br><sub>Programmieren mit Sara</sub></td>
+  </tr>
+</table>
 
 ## Was ist neu
 
@@ -312,8 +325,8 @@ wurden. Was sie heute beiträgt, ist die Arbeitsweise (sie lässt die Tests lauf
 riskanten Schritten, zeigt, was gelaufen ist), nicht ein höheres Ergebnis bei diesen Sätzen.
 Details, Ergebnisse pro Aufgabe und wie man es wiederholt: [docs/RESULTS.md](docs/RESULTS.md).
 
-Dazu `npm run check`: eine Typprüfung und 1351 automatische Tests mit einem geskripteten
-Schein-Modell (ohne Netz, ohne GPU): 1336 laufen unter Windows durch, die anderen 8 sind
+Dazu `npm run check`: eine Typprüfung und 1353 automatische Tests mit einem geskripteten
+Schein-Modell (ohne Netz, ohne GPU): 1338 laufen unter Windows durch, die anderen 8 sind
 Linux-spezifische Sandbox-Tests, die auf einem Linux-Server laufen.
 
 ## Sara im Vergleich

@@ -173,6 +173,18 @@ test('telegram: owners work with tools in a group when allowed; others there sta
   assert.equal(req.tools?.length ?? 0, 0);
 });
 
+test('telegram: a group is one room: the owner sees what the others said, and the room hears him (2.35.1)', async (t) => {
+  const { app, bridge } = await setup(t);
+  app.settings.update({ telegram: { ...app.settings.get().telegram!, ownerChatId: OWNER, ownerWorkInGroups: true, allowOthers: true } });
+  app.script.push(text('Hi Bob.'));
+  await bridge.handle(group(-100790, 3003, '@sara_test_bot the deploy broke again'));
+  app.script.push(text('Looking.'));
+  await bridge.handle(group(-100790, OWNER, '@sara_test_bot what did Bob say?', 'Alex'));
+  assert.match(app.requests.at(-1)!.messages[0].content as string, /## The rest of this channel \(context only\)[\s\S]*the deploy broke again/);
+  const room = app.store.findChannelConversation('telegram', '-100790', 'partner')!;
+  assert.ok(app.store.messages(room.id).some((m) => (m.meta as { fromOwner?: boolean } | undefined)?.fromOwner && /what did Bob say/.test(m.content)));
+});
+
 test('telegram: owner work also answers in a group when others are not allowed', async (t) => {
   const { app, bridge, tg } = await setup(t);
   app.settings.update({ telegram: { ...app.settings.get().telegram!, ownerChatId: OWNER, ownerWorkInGroups: true, allowOthers: false } });

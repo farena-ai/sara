@@ -5,6 +5,17 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.35.1 (2026-10-31): fix: one room in shared Discord channels and Telegram groups
+
+- **Fixed:** with *work with me in server channels* (Discord) or *in groups* (Telegram) on, the owner's
+  messages and everyone else's went to two conversations that couldn't see each other. In the room she
+  heard people talk about the owner but never heard him (so he seemed to ignore her), and with him she
+  didn't know what the room was saying, so she sounded like two different people. Now the owner's
+  lines and her answers to him are copied into the room's conversation, and his turns get the room's
+  latest lines as context (fenced, labelled as other people's words, never stored in his
+  conversation, so her memory never learns them as his). Tools and partner rules are unchanged.
+- README: a how-to videos section (playlist and four one-minute videos).
+
 ## 2.35.0 (2026-10-31): webhooks and event triggers (Phase 102, staples ST7)
 
 - **Signed incoming webhooks:** Settings → Connections → Webhooks. Each gets its own address

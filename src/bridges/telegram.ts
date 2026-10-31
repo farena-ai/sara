@@ -5,6 +5,7 @@
 // disclosure. Groups: Sara answers when mentioned or replied to.
 // Phase 43: more owners by user ID; owners can work with her (tools) in groups when allowed; she
 // can also answer to her name without the @ and to @all / @everyone; adult groups by ID.
+import { copyOwnerTurnToRoom, roomConversation, roomNote } from './room.ts';
 import { netFetch, privateLocalOn } from '../net-guard.ts';
 import { randomInt } from 'node:crypto';
 import { appLanguage, en, tr } from '../i18n.ts';
@@ -384,13 +385,17 @@ export class TelegramBridge {
       }
     };
     try {
-      const opts = docs.length ? { docs } : {};
+      // 2.35.1: in a shared channel the owner's side sees the room, and the room hears him (src/bridges/room.ts).
+      const room = conv.channel.startsWith('telegram-work') ? roomConversation(app, 'telegram', String(chatId)) : undefined;
+      const note = roomNote(app, room);
+      const opts = { ...(docs.length ? { docs } : {}), ...(note ? { roomNote: note } : {}) };
       if (app.runTracked) await app.runTracked(conv.id, content, onEvent, opts);
       else {
         const { runTurn } = await import('../chat.ts');
         for await (const ev of runTurn(app, conv.id, content, undefined, opts)) onEvent(ev);
       }
       flush();
+      copyOwnerTurnToRoom(app, room, content, outgoing.join('\n\n'));
     } finally {
       clearInterval(typing);
     }

@@ -1,5 +1,6 @@
 // One conversational turn: disclosure, safety checks, provider routing, then the agent loop
 // (model → tool calls → results → model …) with streaming and persistence.
+import { roomNoteSection } from './bridges/room.ts';
 import { privateLocalOn } from './net-guard.ts';
 import { onThisComputer } from './private-local.ts';
 import { randomBytes } from 'node:crypto';
@@ -860,6 +861,8 @@ export interface TurnOptions {
   clientHistory?: { role: 'user' | 'assistant'; content: string }[];
   /** Phase 57: the other app's own instructions, added after hers as a low-priority note (never replacing them). */
   clientNote?: { app: string; text: string };
+  /** 2.35.1: in a shared channel, the room's recent lines for the owner's turn (src/bridges/room.ts); context only, never stored here. */
+  roomNote?: string;
   /**
    * Phase 66: one reply in a group chat (src/group-round.ts). The round has already shown the AI
    * notices, run the room-wide minors check, shown crisis help and saved the owner's message in her
@@ -1875,7 +1878,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           return { messages: [...earlier, ...own], firstKeptId: userMsg.id, dropped: 0 };
         })()
       : buildHistory(store.messages(conv.id), budget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined);
-    const messages: ChatMessage[] = [{ role: 'system', content: opts.clientNote?.text.trim() ? system + clientNoteSection(opts.clientNote) : system }];
+    const messages: ChatMessage[] = [{ role: 'system', content: (opts.clientNote?.text.trim() ? system + clientNoteSection(opts.clientNote) : system) + (opts.roomNote?.trim() ? roomNoteSection(opts.roomNote) : '') }];
     if (hist.dropped) {
       // Older parts didn't fit: say so, with this conversation's own summary if there is one.
       const summary = app.memory?.list({ kind: 'summary', limit: 20 }).find((m) => m.conversationId === conv.id && (m.sourceMessageId ?? 0) < hist.firstKeptId);

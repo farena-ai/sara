@@ -9,6 +9,7 @@
 // (no tools, nothing private, the full safety layer), its lines are tagged "(bot)", and a loop guard
 // per channel keeps two bots from talking forever: after botTurnLimit bot-triggered replies she
 // waits for a person to write there, and botHourlyCap caps bot-triggered replies per hour.
+import { copyOwnerTurnToRoom, roomConversation, roomNote } from './room.ts';
 import { netFetch, openWebSocket, privateLocalOn } from '../net-guard.ts';
 import { randomInt } from 'node:crypto';
 import { appLanguage, en, tr } from '../i18n.ts';
@@ -488,13 +489,17 @@ export class DiscordBridge {
       }
     };
     try {
-      const opts = docs.length ? { docs } : {};
+      // 2.35.1: in a shared channel the owner's side sees the room, and the room hears him (src/bridges/room.ts).
+      const room = conv.channel.startsWith('discord-work') ? roomConversation(app, 'discord', channelId) : undefined;
+      const note = roomNote(app, room);
+      const opts = { ...(docs.length ? { docs } : {}), ...(note ? { roomNote: note } : {}) };
       if (app.runTracked) await app.runTracked(conv.id, content, onEvent, opts);
       else {
         const { runTurn } = await import('../chat.ts');
         for await (const ev of runTurn(app, conv.id, content, undefined, opts)) onEvent(ev);
       }
       flush();
+      copyOwnerTurnToRoom(app, room, content, outgoing.join('\n\n'));
     } finally {
       clearInterval(typing);
     }

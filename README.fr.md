@@ -14,7 +14,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1336%20passing-brightgreen" alt="1336 tests passing">
+  <img src="https://img.shields.io/badge/tests-1338%20passing-brightgreen" alt="1338 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -65,6 +65,19 @@ avec son portrait animé · [Alexa, Google Home et l'assistant Android](docs/VOI
 autres serveurs [en SSH](docs/SSH.md) · des [livres de 1 000 pages](docs/LIBRARY.md) avec des réponses
 qui citent la page · le [mode local privé](docs/PRIVATE_LOCAL.md) · les [conversations de groupe](docs/GROUP_CHATS.md) ·
 [venir de ChatGPT, Character.AI, Replika et d'autres](docs/IMPORT.md).
+
+## Vidéos pratiques
+
+Des tutoriels d'une minute, enregistrés sur un serveur de test avec un modèle local (en anglais). <a href="https://www.youtube.com/playlist?list=PLGtrs9BqXtM8">Toutes dans une playlist</a>.
+
+<table>
+  <tr>
+    <td align="center" width="25%"><a href="https://www.youtube.com/watch?v=DTAIW75y7i4&list=PLGtrs9BqXtM8&index=1"><img src="https://i.ytimg.com/vi/DTAIW75y7i4/mqdefault.jpg" alt="Installer Sara" width="200"></a><br><sub>Installer Sara</sub></td>
+    <td align="center" width="25%"><a href="https://www.youtube.com/watch?v=_X69x9E3W_k&list=PLGtrs9BqXtM8&index=2"><img src="https://i.ytimg.com/vi/_X69x9E3W_k/mqdefault.jpg" alt="Mémoire et cartes de personnes" width="200"></a><br><sub>Mémoire et cartes de personnes</sub></td>
+    <td align="center" width="25%"><a href="https://www.youtube.com/watch?v=wrvNcHkc9O4&list=PLGtrs9BqXtM8&index=3"><img src="https://i.ytimg.com/vi/wrvNcHkc9O4/mqdefault.jpg" alt="Le tableau" width="200"></a><br><sub>Le tableau</sub></td>
+    <td align="center" width="25%"><a href="https://www.youtube.com/watch?v=7i48NiAq-jw&list=PLGtrs9BqXtM8&index=4"><img src="https://i.ytimg.com/vi/7i48NiAq-jw/mqdefault.jpg" alt="Coder avec Sara" width="200"></a><br><sub>Coder avec Sara</sub></td>
+  </tr>
+</table>
 
 ## Quoi de neuf
 
@@ -317,8 +330,8 @@ qu'aucun test ne vérifiait. Ce qu'elle apporte aujourd'hui, c'est la manière d
 lance les tests, demande avant les étapes risquées, montre ce qui a tourné), pas un meilleur score
 sur ces jeux. Détails, résultats par tâche et comment relancer : [docs/RESULTS.md](docs/RESULTS.md).
 
-En plus, `npm run check` : une vérification des types et 1351 tests automatiques avec un faux modèle
-scripté (sans réseau, sans GPU) : 1336 passent sous Windows, et les 8 autres sont des tests
+En plus, `npm run check` : une vérification des types et 1353 tests automatiques avec un faux modèle
+scripté (sans réseau, sans GPU) : 1338 passent sous Windows, et les 8 autres sont des tests
 d'isolation propres à Linux, exécutés sur un serveur Linux.
 
 ## Comparaison
