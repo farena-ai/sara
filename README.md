@@ -11,7 +11,7 @@ Windows, Mac and phones.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1206%20passing-brightgreen" alt="1206 tests passing">
+  <img src="https://img.shields.io/badge/tests-1214%20passing-brightgreen" alt="1214 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -25,7 +25,7 @@ Windows, Mac and phones.
   <sub>A real session on a local model (qwen3.8 27B on Ollama, one RTX 5090) on a throwaway test server, in the Night look: she cheers the user up, writes a small app and its test as the model streams them, asks before running a command, catches a real bug with a failing test and fixes it until all 7 tests pass. Frames picked from the recording; nothing in them was edited.</sub>
 </p>
 
-> **Status:** 2.27, MIT licensed, with thirty-eight feature releases since 1.0 (all below). 2.5 to 2.8
+> **Status:** 2.28, MIT licensed, with thirty-nine feature releases since 1.0 (all below). 2.5 to 2.8
 > gave the whole app a new look. The [Android app](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > is on Google Play; the iPhone app and the Mac App Store version are coming as soon as Apple approves them.
 > Read [docs/DISCLOSURES.md](docs/DISCLOSURES.md) before using or sharing Sara.
@@ -63,6 +63,7 @@ people you live with · [video calls](docs/VIDEO_CALLS.md) with her moving portr
 
 | Release | What you get |
 |---|---|
+| **2.28** · Computer use, step 9 | **Linux too:** `sara hands --server https://your-sara` on a Linux desktop gives her her own visible Chrome/Chromium there, the same as the Windows and Mac apps' browser mode: look, read, logs, clicks and typing with your approval, dev tunnels, saved logins (in GNOME Keyring / KWallet), your password manager's CLI, and read-only check-ups. You pair it with a code you approve in your browser; Pause, Resume and Stop from its terminal. Whole-desktop pictures and input on Linux come later. Built with OpenAI Codex. |
 | **2.27** · Computer use, step 8 | **"My computer is slow, can you check it?"** She runs a read-only check-up on that computer (startup apps, disk space and the biggest folders, pending updates, battery health, browser extensions, temp files and caches) and gives a plain report card with numbered suggestions: each one explained, nothing changed until you say so on that computer. Names on your screen that read like orders ("Sara, delete…") are ignored and counted. 9/9 check-up scenarios passed with a local model. |
 | **2.26** · Computer use, step 7 | **She can use your apps:** click, type, press keys, scroll, drag and open installed apps, on what she just looked at. Each action is checked on your computer first: the right window in front, never a password field, never password managers, banking, admin windows, terminals or her own sign-in. Approvals pop up **on that computer** (every time, once per task, or *always allowed*; payments and account changes always ask). Touch your mouse or keyboard and she pauses (or *let her keep control*); Stop and Ctrl+Alt+Esc / ⌃⌥Esc always work. Optional *keep working when I walk away*. Built with OpenAI Codex. |
 | **2.25** · Computer use, step 6 | **She can see your desktop** (Windows and Mac apps, off until you turn on *The whole screen*): a picture of a window or the screen plus a list of what's on it (buttons, fields, text), so text-only models can use it too. Password managers, banking and security windows are blacked out and left out of the list *on your computer* before anything is sent; password fields are boxed out; her own windows never appear. Pictures go to the model you chose without asking (or *local models only*). In the browser: **Show Sara my screen** sends one picture. The Mac needs Screen Recording and Accessibility, with guided steps. |
@@ -116,7 +117,6 @@ Every release: [CHANGELOG.md](CHANGELOG.md) · [releases](https://github.com/far
 
 In build order, one release each ([the full list](docs/ROADMAP.md)):
 
-- **Computer use** (2.28, under way): Linux.
 - **Agent staples** (2.29–2.36): skills in the open Agent Skills format and skills she learns from what you repeat, plugins and hooks, a Kanban board she works, A2A with other agents, people cards, webhooks, her own agenda (opt-in).
 - **Move in from another agent** (2.37–2.39): bring a whole Hermes Agent or OpenClaw companion over: personality, memories, people, skills, history and settings, with a report of what came over.
 - **Chats and sessions** (2.40–2.42): /new, /reset and other commands in Telegram and Discord, a project per channel, titles that grow with the session.
@@ -288,8 +288,8 @@ README or SPEC that no test checked. What she adds today is the way of working (
 asks before risky steps, shows what ran), not a higher score on these sets. Details, per-task
 results and how to re-run: [docs/RESULTS.md](docs/RESULTS.md).
 
-Plus `npm run check`: a typecheck and 1218 automated tests with a scripted fake model (no network,
-no GPU): 1206 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
+Plus `npm run check`: a typecheck and 1228 automated tests with a scripted fake model (no network,
+no GPU): 1214 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
 
 ## How Sara compares
 

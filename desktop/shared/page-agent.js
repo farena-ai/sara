@@ -488,7 +488,63 @@
     return { installed: true };
   }
 
-  var API = { find: find, read: read, check: check, snapshot: snapshot, text: text, target: target, focusFor: focusFor, choose: choose, scroll: scroll, keys: keys, fileInput: fileInput, mark: mark, state: state, loginFields: loginFields, focusLogin: focusLogin, catchLogins: catchLogins };
+  // Linux browser-only takeover: installed in a device-owned isolated world. The device
+  // matches its own CDP events by session/type/coordinates; no page script gets the binding.
+  function watchOwner() {
+    if (window.__saraOwnerWatching) return { installed: true };
+    window.__saraOwnerWatching = true;
+    ['pointerdown', 'pointermove', 'keydown', 'wheel'].forEach(function (type) {
+      document.addEventListener(type, function (ev) {
+        if (!ev.isTrusted || typeof window.saraOwnerInput !== 'function') return;
+        if (type === 'pointermove' && !ev.movementX && !ev.movementY) return;
+        window.saraOwnerInput(JSON.stringify({ type: type, x: ev.clientX || 0, y: ev.clientY || 0, key: ev.key || '' }));
+      }, true);
+    });
+    return { installed: true };
+  }
+  function privacy() {
+    var boxes = [];
+    function add(r) { if (r.width > 0 && r.height > 0) boxes.push({ x: r.left, y: r.top, w: r.width, h: r.height }); }
+    var fields = document.querySelectorAll('input, textarea, [contenteditable=true], iframe');
+    if (fields.length > 20000) return { complete: false };
+    for (var i = 0; i < fields.length; i++) {
+      var value = String(fields[i].value || fields[i].textContent || '');
+      if (fields[i].tagName === 'IFRAME' || isSecretField(fields[i]) || mask(value) !== value) add(fields[i].getBoundingClientRect());
+    }
+    var walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT);
+    var node, count = 0;
+    while ((node = walker.nextNode())) {
+      if (++count > 20000) return { complete: false };
+      if (mask(node.data) !== node.data && node.parentElement && !/^(SCRIPT|STYLE)$/.test(node.parentElement.tagName)) {
+        var range = document.createRange(); range.selectNodeContents(node);
+        Array.from(range.getClientRects()).forEach(add);
+      }
+    }
+    return { complete: true, boxes: boxes, width: innerWidth, height: innerHeight, url: location.href };
+  }
+  // Pixel redaction happens in a detached canvas in the device's isolated world, after capture.
+  // A page cannot remove a DOM overlay to recover pixels that leave the device.
+  function redactPicture(a) {
+    return new Promise(function (resolve, reject) {
+      if (!a.data || a.data.length > 16000000 || a.w * a.h > 16000000) return reject(new Error('Picture too large'));
+      var image = new Image();
+      image.onerror = function () { reject(new Error('Picture could not be decoded locally')); };
+      image.onload = function () {
+        try {
+          var canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+          if (canvas.width !== a.w || canvas.height !== a.h) return reject(new Error('Picture size changed'));
+          var context = canvas.getContext('2d'); context.drawImage(image, 0, 0); context.fillStyle = '#000';
+          a.boxes.forEach(function (r) {
+            context.fillRect(Math.floor(r.x * a.scale) - 3, Math.floor(r.y * a.scale) - 3, Math.ceil(r.w * a.scale) + 6, Math.ceil(r.h * a.scale) + 6);
+          });
+          resolve({ data: canvas.toDataURL('image/jpeg', Math.max(0.1, Math.min(0.9, a.quality / 100))).split(',')[1] });
+        } catch (err) { reject(err); }
+      };
+      image.src = 'data:image/jpeg;base64,' + a.data;
+    });
+  }
+
+  var API = { find: find, read: read, check: check, snapshot: snapshot, text: text, target: target, focusFor: focusFor, choose: choose, scroll: scroll, keys: keys, fileInput: fileInput, mark: mark, state: state, loginFields: loginFields, focusLogin: focusLogin, catchLogins: catchLogins, watchOwner: watchOwner, privacy: privacy, redactPicture: redactPicture };
   return {
     version: 1,
     call: function (fn, args) {

@@ -4,6 +4,7 @@
 #   (every command except help and version needs root: sudo sara …)
 #   sara status              is Sara running, data size, last backup
 #   sara doctor              deeper checks: database, every model provider, backups, off-server copy
+#   sara hands --server URL  Linux browser hands in your desktop session (without sudo)
 #   sara update              back up, pull the latest code, reinstall, restart, check health
 #                            (goes back to the previous version by itself if the check fails)
 #   sara check-updates       is a newer version available? (what changed)
@@ -52,6 +53,14 @@ NODE_BIN="$(sed -n 's#^ExecStart=\([^ ]*\) .*#\1#p' "/etc/systemd/system/$SVC.se
 # A value from sara.env without surrounding quotes (systemd's EnvironmentFile strips them too).
 unquote() { local v="$1"; v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"; printf '%s' "$v"; }
 env_get() { unquote "$(grep -E "^$1=" "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- || true)"; }
+# Hands is a desktop-user command. Dispatch before reading root-only server configuration.
+if [[ "${1:-}" == hands ]]; then
+  shift
+  [[ -x "$NODE_BIN" ]] || NODE_BIN="$(command -v node || true)"
+  [[ -x "$NODE_BIN" ]] || die "Install Node 24 or install Sara first."
+  [[ -f "$APP_DIR/desktop/linux/cli.ts" ]] || die "This Sara install has no Linux hands. Update Sara, or run: node desktop/linux/cli.ts --help from a checkout."
+  exec "$NODE_BIN" "$APP_DIR/desktop/linux/cli.ts" "$@"
+fi
 PORT="$(env_get SARA_PORT)"
 PORT="${PORT:-7860}"
 # Health checks go to the address Sara listens on (loopback when she listens on every address).

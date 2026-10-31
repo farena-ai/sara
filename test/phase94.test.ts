@@ -118,7 +118,9 @@ test('report cards: the server builds them from the tool output; the web card dr
   assert.match(css, /\.ck-do, \.ck-how \{ min-height: 44px; min-width: 44px;/);
   assert.match(css, /@media \(max-width: 720px\) \{\n  \.rcard-checkup \{ width: calc\(100% - 48px\); \}\n  \.ck-grid \{ grid-template-columns: minmax\(0, 1fr\); \}/);
   assert.match(css, /\.ck-grid \{ display: grid; grid-template-columns: repeat\(auto-fill, minmax\(200px, 1fr\)\)/);
-  assert.match(web('sw.js'), /caches\.open\('sara-shell-v28'\)[\s\S]*sara-shell-v27 from Phase 93/);
+  const activeCache = web('sw.js').replace(/^\s*\/\/.*$/gm, '').match(/caches\.open\('sara-shell-v(\d+)'\)/);
+  assert.ok(activeCache && Number(activeCache[1]) >= 28, 'the check-up shell cache remains fresh in later phases');
+  assert.match(web('sw.js'), /sara-shell-v27 from Phase 93/);
   assert.match(web('index.html'), /id="cu-checkup-ext"[^\n]*class="tip"/);
 });
 

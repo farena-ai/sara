@@ -214,6 +214,8 @@ function computer(c) {
 function handsInstall(c) {
   const card = shell('hands-install', 'monitor', t('Let Sara use your computer'));
   card.append(el('p', 'rc-meta', t('Install the Sara app for Windows or Mac and switch on "Let Sara use this computer" in it. Phones can watch and stop her, but can\u2019t be driven.')));
+  card.append(el('p', 'rc-meta', t('On a Linux desktop, run Sara hands in a visible terminal with Chrome or Chromium installed.')));
+  card.append(el('code', 'rc-meta', 'sara hands --server https://sara.example.com'));
   if (/^https:\/\//i.test(c.url ?? '')) {
     const a = el('a', 'button-link', t('Download the Sara app'));
     a.href = c.url;

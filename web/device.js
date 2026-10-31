@@ -40,7 +40,7 @@ function done(ok, data, path) {
 
 async function decide(path, proof) {
   $('#dv-yes').disabled = $('#dv-no').disabled = $('#dv-pk').disabled = true;
-  const { res, data } = await post(`device/${path}`, { code, ...(proof ?? {}) });
+  const { res, data } = await post(`device/${path}`, { code, confirmation: proof ?? {} });
   $('#dv-proof').value = '';
   done(Boolean(res?.ok), data, path);
 }
@@ -75,7 +75,7 @@ async function check(ev) {
   $('#dv-name').textContent = r.name;
   $('#dv-code').textContent = r.code;
   $('#dv-where').textContent = t('Asked from {ip} ({from}), {ago}.', { ip: r.ip || '?', from: r.from || '?', ago: ago(r.ageSeconds ?? 0) });
-  $('#dv-warn').textContent = t('It gets the same access as you. Approve only if you started it yourself just now, the code matches, and the address is yours.');
+  $('#dv-warn').textContent = r.scope === 'hands' ? t('This pairs computer control on that Linux computer. Approve only if you started Sara hands there, the code matches, and the address is yours.') : t('It gets the same access as you. Approve only if you started it yourself just now, the code matches, and the address is yours.');
   $('#dv-proof-label').textContent = security.twoStep ? t('To confirm it’s you, enter the current 6-digit code from your authenticator app:') : t('To confirm it’s you, enter your owner token:');
   $('#dv-pk').hidden = !(security.passkeys?.length && passkeysWork());
   $('#dv-what').hidden = false;

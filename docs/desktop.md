@@ -548,3 +548,70 @@ The apps tell the page they can host its header in the title bar; the page answe
   normal type and size checks; nothing is sent until the owner presses Send.
 - **Quick ask voice:** records up to 2 minutes and uses the server's `/api/voice/transcribe`; the mic shows
   only when her hearing is set up.
+
+## Linux hands (CU8 implementation draft)
+
+On the Linux computer you want Sara to use, install Chrome or Chromium and keep a visible terminal
+open in your own desktop session. Use the installed Node 24; do **not** use sudo:
+
+```sh
+sara hands --server https://sara.example.com
+# From a source checkout with Node 24:
+node desktop/linux/cli.ts --server https://sara.example.com
+```
+
+Confirm browser use locally, then enter the displayed code at `/device` on your Sara server in your
+normal browser. That signed-in page names computer control explicitly and asks for fresh owner-token,
+two-step or passkey confirmation. It issues a separate revocable `hands` token; no owner token is
+stored on the computer. Settings → Devices can revoke it. HTTPS is required except for loopback.
+
+This draft implements **browser mode** and optional **read-only check-ups**, not Linux desktop pictures
+or input. The browser is visible, uses CDP over a pipe and its own per-server profile below
+`$XDG_DATA_HOME/sara-hands/` (default `~/.local/share/sara-hands/`). It never uses your normal browser
+profile. Downloads/uploads stay in that server profile's `Downloads/Sara` folder. The browser's own
+password saving and autofill are disabled; sign in yourself and keep the site's session cookies, or
+explicitly save a login for Sara. `SARA_HANDS_BROWSER` can select another local Chrome/Chromium binary.
+
+Keep the terminal visible: it is the local activity indicator and consent surface. Type `pause`,
+`resume`, `continue` or `stop`; Ctrl+C stops, closes the browser and disconnects. Stop stays stopped
+until you run the command again. Browser-page owner input pauses subsequent actions; browser chrome,
+other applications and global hotkeys are not monitored. Do not rely on this draft for unattended
+work or whole-desktop takeover protection. Matching of Sara's injected browser events is session-
+and event-specific with a one-second expiry; indistinguishable simultaneous input remains a limitation.
+
+The hands token and saved logins prefer the Linux Secret Service (GNOME Keyring/KWallet) over D-Bus.
+Unlock your default keyring before starting. If it is unavailable, Sara warns and uses an
+**unencrypted 0600 file inside a 0700 user-owned folder**. This fallback protects against other users,
+not disk access or someone using your account. Save consent says so, requires you to type
+`I understand`, and hides username/password entry. Secrets are filled locally on exact matching
+origins and are never returned through the hands channel. Terminal consent replaces the native
+checkbox window on Linux. Renewed tokens are persisted; a storage failure stops the connector.
+A `running.lock` prevents two connectors sharing a profile. After an abnormal termination, verify no
+connector/browser is running before removing that profile's stale lock file.
+
+Optional local flags:
+
+```sh
+sara hands --server https://sara.example.com --checks --local-only
+sara hands --server https://sara.example.com --manager bitwarden
+sara hands --server https://sara.example.com --manager 1password
+sara hands --server https://sara.example.com --manager keepassxc --keepass-db /path/to/logins.kdbx
+```
+
+Each manager remains off unless explicitly requested and confirmed locally, and must have its CLI
+installed. You unlock it in its own CLI prompt in this terminal; secrets are captured locally, never
+printed or sent to Sara. No manager is unlocked by detection. Existing idle, Stop, disconnect and
+turn-end relocking rules apply. Manager desktop-app/extension integration and TOTP filling are not
+implemented. Live unlock/fill with real Linux managers still requires owner testing.
+
+`--checks` asks for separate local consent to read autostart `.desktop` files (user entries override
+machine entries), Home filesystem free space, bounded known-folder/cache/Trash sizes, battery sysfs,
+installed Chromium-family extensions, and `apt list --upgradable` from the **existing local cache**.
+No cache refresh, update install, startup change, cleanup or uninstall runs. Other package managers
+report updates unavailable. Extensions are listed as installed; enabled state is not independently
+verified. Localized/custom XDG user-folder paths are not discovered in this draft.
+
+Before considering Linux release acceptance, try a real Ubuntu desktop on **both X11 and Wayland**:
+code pairing, keyring and fallback permissions, visible profile, approvals, masked pictures, manual
+sign-in/save/fill/removal, local pause/continue/Stop and each installed manager's own unlock prompt.
+The headless AlmaLinux conformance run does not establish those desktop results.

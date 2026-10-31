@@ -866,3 +866,20 @@ no code: Umbrel's own login already checked it's you, so it's one click. The set
 every start, works only until someone has signed in, and only from this machine or your home
 network; missed the hour, restart the app for a new one. The owner token from the log works too, as
 before. Why this is safe: [THREAT_MODEL.md](THREAT_MODEL.md), "First sign-in in the browser".
+
+## Linux hands (desktop computer, CU8 draft)
+
+Use your desktop user's visible terminal, Node 24 and an installed Chrome/Chromium:
+
+```sh
+sara hands --server https://sara.example.com
+# A checkout also works without the admin wrapper:
+node desktop/linux/cli.ts --server https://sara.example.com
+```
+
+Do not use sudo. Approve browser use locally and the displayed code in the signed-in `/device`
+page, with fresh identity confirmation. This is browser mode; Linux whole-screen capture/input,
+global hotkeys and keep-awake are unavailable. `--checks` offers a separate read-only system check-up
+opt-in. Keep the terminal visible; `stop` or Ctrl+C stops and disconnects. See [Linux hands in the
+desktop guide](desktop.md#linux-hands-cu8-implementation-draft) for storage warnings, saved logins,
+optional manager CLIs, restrictions, and the remaining Ubuntu X11/Wayland acceptance checks.

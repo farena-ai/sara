@@ -821,6 +821,7 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (deviceLimiter.blocked(ip)) throw new HttpError(429, 'Too many attempts. Try again later.');
       const body = await readJson(req);
       if (b === 'start') {
+        if (body.scope === 'hands' && (opts.member || !app.hands)) throw new HttpError(403, 'Only the owner can pair Linux hands on this server.');
         deviceLimiter.fail(ip, Date.now(), 1);
         let r;
         try {
@@ -836,7 +837,7 @@ export function createSaraServer(opts: ServerOptions): Server {
       }
       const r = deviceFlow.poll(String(body.pollToken ?? ''));
       if (r.status === 'expired') deviceLimiter.fail(ip, Date.now(), 0.2);
-      return send(res, r.status === 'expired' ? 410 : 200, r.status === 'approved' ? { status: 'approved', token: r.token, deviceId: r.deviceId } : { status: r.status });
+      return send(res, r.status === 'expired' ? 410 : 200, r.status === 'approved' ? { status: 'approved', token: r.token, deviceId: r.deviceId, ...(r.expiresAt ? { expiresAt: r.expiresAt } : {}) } : { status: r.status });
     }
 
     if (a === 'login' && method === 'POST') {
@@ -1388,8 +1389,14 @@ export function createSaraServer(opts: ServerOptions): Server {
         // Security review: a session cookie alone isn't enough to let in an app that keeps a token
         // for weeks: confirm with the owner token, the current two-step code, or a passkey.
         if (!deviceFlow.find(code)) throw new HttpError(404, 'That code is wrong, was already used, or has expired. Start the sign-in again in the app.');
-        confirmIdentity(body, { passkey: true });
-        const r = deviceFlow.approve(code, (name, scope) => auth.createDeviceToken(name, scope === 'home-assistant' ? 'home-assistant' : undefined));
+        confirmIdentity(body.confirmation && typeof body.confirmation === 'object' ? body.confirmation as Record<string, unknown> : body, { passkey: true });
+        const r = deviceFlow.approve(code, (name, scope) => {
+          if (scope === 'hands') {
+            if (opts.member || !app.hands) throw new HttpError(403, 'Only the owner can pair Linux hands on this server.');
+            return auth.createHandsToken(`Sara's hands on ${name}`);
+          }
+          return auth.createDeviceToken(name, scope === 'home-assistant' ? 'home-assistant' : undefined);
+        });
         if (!r) throw new HttpError(404, 'That request is no longer waiting (it may have expired).');
         app.events?.publish({ type: 'device', pending: deviceFlow.pending().length });
         return send(res, 200, { ok: true, name: r.name });

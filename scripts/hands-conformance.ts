@@ -313,7 +313,7 @@ async function main(): Promise<number> {
     }
 
     // 1. hello
-    const browserOps = HANDS_OPS.filter((o) => !o.startsWith('d.'));
+    const browserOps = HANDS_OPS.filter((o) => !o.startsWith('d.') && !o.startsWith('s.'));
     check('hello: connected, protocol 1, the CU1 + CU2 + CU3 + CU4 + CU4b command set, browser opt-in on', dev.connected === true && Array.isArray(dev.ops) && browserOps.every((o) => dev.ops.includes(o)) && CU1_OPS.every((o) => dev.ops.includes(o)) && dev.optIn?.browser === true, `ops: ${(dev.ops ?? []).join(' ')}`);
     check('hello: only the documented browser, control, look and supervised desktop ops are advertised', Array.isArray(dev.ops) && dev.ops.every((o: string) => (HANDS_OPS as readonly string[]).includes(o)) && (!dev.optIn?.desktop || [...CU5_OPS, 'd.click', 'd.type', 'd.keys', 'd.scroll', 'd.drag', 'd.launch'].every((o) => dev.ops.includes(o))) && !dev.ops.some((o: string) => /^b\.(evaluate|eval|script)|^p\./.test(o)), '');
     check('hello: the takeover choice and the stop shortcut', dev.takeover === 'pause' || dev.takeover === 'keep', `takeover ${dev.takeover ?? '?'}, shortcut ${dev.hotkey || '(none)'}`);
@@ -518,7 +518,7 @@ async function main(): Promise<number> {
     {
       check('CU4: the device has the saved-login ops', CU4_OPS.every((o) => (dev.ops ?? []).includes(o)));
       const onlyViews = (list: unknown) => Array.isArray(list) && (list as Record<string, unknown>[]).every((l) => typeof l.name === 'string' && Array.isArray(l.sites) && !('password' in l) && !('username' in l));
-      check('CU4: hello carries the logins as names and sites only, and the vault kind', onlyViews(dev.logins) && ['dpapi', 'keychain', 'test'].includes(String(dev.vault?.kind)), `${(dev.logins ?? []).length} saved, vault ${dev.vault?.kind ?? '?'}${dev.vault?.verify ? ' (asks first)' : ''}`);
+      check('CU4: hello carries the logins as names and sites only, and the vault kind', onlyViews(dev.logins) && ['dpapi', 'keychain', 'test', 'secret-service', 'file-0600'].includes(String(dev.vault?.kind)), `${(dev.logins ?? []).length} saved, vault ${dev.vault?.kind ?? '?'}${dev.vault?.verify ? ' (asks first)' : ''}`);
       const driver = arg('--consent-driver');
       // Runs an op that opens the device's own window while it is answered (the reference's stand-in or the driver).
       const withWindow = async (step: string, name: string, args: Record<string, unknown>) => {
@@ -642,7 +642,8 @@ async function main(): Promise<number> {
       const ms = (v0.managers ?? []) as Record<string, unknown>[];
       check('CU4b: hello lists the managers by name and state only', ms.length === 3 && ms.every((m) => Object.keys(m).sort().join(',') === 'id,installed,name,on,state'), JSON.stringify(ms).slice(0, 200));
       const st0 = await states();
-      check('CU4b: all three found (by --version), turned on there, locked', st0.bitwarden === 'locked' && st0['1password'] === 'locked' && st0.keepassxc === 'locked', JSON.stringify(st0));
+      if (ms.every((m) => m.installed === true && m.on === true)) check('CU4b: all three found (by --version), turned on there, locked', st0.bitwarden === 'locked' && st0['1password'] === 'locked' && st0.keepassxc === 'locked', JSON.stringify(st0));
+      else console.log('      SKIP CU4b unlock/fill: all three fixture managers must be installed and opted in locally; no real manager is enabled for this test.');
       if (st0.bitwarden !== 'locked') console.log('      (turn the three test managers on in the app on that computer first)');
       else {
         const before = signIns.length;

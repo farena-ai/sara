@@ -36,7 +36,7 @@
 // Run by hand: node src/hands-ref.ts --server http://127.0.0.1:7881 --token-file <file> [--name X] [--visible] [--local-only]
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer as createNetServer, type AddressInfo, type Server as NetServer, type Socket } from 'node:net';
 import { hostname, tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
@@ -46,7 +46,7 @@ import { CdpClient, type CdpEvent } from './cdp.ts';
 import { HANDS_OPS, HANDS_PROTOCOL, packBinary, parseBinary } from './hands.ts';
 import { DesktopConsent, type DesktopPrompt } from './hands-desktop-consent.ts';
 import { CU5_OPS, CU6_OPS, DESKTOP_INPUT_OPS, TestDesktop } from './hands-desktop.ts';
-import { applyAllowed, applyCardText, CheckupError, CU7_OPS, TestSystem } from './hands-checkup.ts';
+import { applyAllowed, applyCardText, CheckupError, CU7_OPS, TestSystem, type CheckData } from './hands-checkup.ts';
 import { CAUGHT_KEEP_MS, cleanLoginName, defaultLoginName, LoginError, loginOrigin, SAVE_LOGIN_WARNING, siteMatches, TestVault, type ConsentAnswer, type ConsentRequest } from './hands-logins.ts';
 import { managerName, ManagerError, MANAGER_IDS, type ManagerId, type ManagerSessions } from './hands-managers.ts';
 import { connectWebSocket, type WsConnection } from './ws.ts';
@@ -68,7 +68,7 @@ const MAX_LOGS = 500;
 const SECRET_SHAPES = [/\bsk-[A-Za-z0-9_-]{16,}/g, /\b[sr]k_(?:live|test)_[A-Za-z0-9]{10,}/g, /\bgh[pousr]_[A-Za-z0-9]{20,}/g, /\bxox[abprs]-[A-Za-z0-9-]{10,}/g, /\bAKIA[0-9A-Z]{16}\b/g, /\bxai-[A-Za-z0-9]{20,}/g, /\bsara_(?:dev|hands|m)\.[\w-]+\.[\w-]+/g, /\beyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]{8,}/g];
 export const maskSecrets = (s: string): string => SECRET_SHAPES.reduce((t, re) => t.replace(re, '[hidden]'), s);
 
-class OpError extends Error {
+export class OpError extends Error {
   readonly code: string;
   constructor(code: string, message: string) {
     super(message);
@@ -169,8 +169,15 @@ export class SaraBrowser {
   /** Phase 90: a sign-in the person just typed (memory only, for "Use what I just typed"). */
   caught?: { origin: string; username: string; password: string; at: number };
   readonly #extraArgs: string[];
+  beforeCommand?: (method: string) => void;
+  onOwnerInput?: () => void;
+  commandSignal?: AbortSignal;
+  addressCheck?: (url: string) => boolean;
+  #expectedInput: { type: string; x?: number; y?: number; key?: string; at: number; session?: string }[] = [];
+  readonly #realProfile: boolean;
 
-  constructor(opts: { info?: BrowserInfo; headless?: boolean; profileDir?: string; serverOrigin: string; folder?: string; extraArgs?: string[] }) {
+  constructor(opts: { info?: BrowserInfo; headless?: boolean; profileDir?: string; serverOrigin: string; folder?: string; extraArgs?: string[]; realProfile?: boolean }) {
+    this.#realProfile = opts.realProfile === true;
     this.#extraArgs = opts.extraArgs ?? [];
     this.info = opts.info ?? findBrowser();
     this.#tempFolder = !opts.folder;
@@ -200,8 +207,7 @@ export class SaraBrowser {
       '--disable-default-apps',
       '--disable-breakpad',
       '--no-pings',
-      '--password-store=basic',
-      '--use-mock-keychain',
+      ...(this.#realProfile ? [] : ['--password-store=basic', '--use-mock-keychain']),
       // Never the browser account: no implicit sign-in to the computer's Microsoft/Google account, no sync.
       '--disable-features=Translate,MediaRouter,OptimizationHints,msEdgeSync,msImplicitSignin,msSignInFRE,EdgeCollections,msShopping,msEdgeShoppingUI',
       '--window-size=1280,800',
@@ -222,6 +228,17 @@ export class SaraBrowser {
     child.on('error', () => {});
     const conn = new PipeConnection(child.stdio[3] as Writable, child.stdio[4] as Readable);
     this.cdp = new CdpClient(conn);
+    const send = this.cdp.send.bind(this.cdp);
+    this.cdp.send = async (method, params, session, ms) => {
+      const input = /^(Input\.|DOM\.setFileInputFiles|Page\.(navigate|reload)|Target\.(createTarget|closeTarget))/.test(method);
+      if (input) { this.commandSignal?.throwIfAborted(); this.beforeCommand?.(method); }
+      if (this.onOwnerInput && params) {
+        const type = method === 'Input.dispatchMouseEvent' ? ({ mouseMoved: 'pointermove', mousePressed: 'pointerdown', mouseWheel: 'wheel' } as Record<string, string>)[String(params.type)] : method === 'Input.dispatchKeyEvent' && /^(rawKeyDown|keyDown)$/.test(String(params.type)) ? 'keydown' : '';
+        if (type) this.#expectedInput.push({ type, ...(type === 'keydown' ? { key: String(params.key ?? '') } : { x: Number(params.x), y: Number(params.y) }), at: Date.now(), session });
+        this.#expectedInput = this.#expectedInput.filter((e) => Date.now() - e.at < 1000).slice(-30);
+      }
+      return send(method, params, session, ms);
+    };
     this.cdp.on((ev) => this.#event(ev));
     // The first page may take a moment to appear.
     let pages: { targetId: string; type: string; url: string }[] = [];
@@ -243,7 +260,11 @@ export class SaraBrowser {
     this.tabs.set(tab.id, tab);
     for (const d of ['Page.enable', 'Runtime.enable', 'Network.enable', 'Log.enable']) await cdp.send(d, {}, sessionId);
     // §4.1: the server's own origin is refused even when a page sends the browser there.
-    if (this.serverOrigin) await cdp.send('Fetch.enable', { patterns: [{ urlPattern: `${this.serverOrigin}/*` }] }, sessionId);
+    if (this.serverOrigin) await cdp.send('Fetch.enable', { patterns: this.addressCheck ? [{ urlPattern: '*', resourceType: 'Document' }] : [{ urlPattern: `${this.serverOrigin}/*` }] }, sessionId);
+    if (this.onOwnerInput) {
+      await cdp.send('Runtime.addBinding', { name: 'saraOwnerInput', executionContextName: 'sara-owner-input' }, sessionId);
+      await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: pageAgentCall('watchOwner', {}), worldName: 'sara-owner-input', runImmediately: true }, sessionId);
+    }
     // Phase 90: "Use what I just typed": the page agent's catcher in its own world, reporting to a
     // binding only that world has (DevTools on the pipe: it never reaches the hands channel).
     await cdp.send('Runtime.addBinding', { name: 'saraLoginCaught', executionContextName: 'sara-login-catch' }, sessionId).catch(() => {});
@@ -300,6 +321,15 @@ export class SaraBrowser {
     const short = (s: unknown) => maskSecrets(String(s ?? '')).replace(/\s+/g, ' ').slice(0, 500);
     switch (ev.method) {
       case 'Runtime.bindingCalled': {
+        if (p.name === 'saraOwnerInput') {
+          try {
+            const event = JSON.parse(String(p.payload)) as { type: string; x: number; y: number; key: string };
+            this.#expectedInput = this.#expectedInput.filter((e) => Date.now() - e.at < 1000);
+            const i = this.#expectedInput.findIndex((e) => e.session === ev.sessionId && e.type === event.type && (e.type === 'keydown' ? !e.key || e.key === event.key : Math.abs(e.x! - event.x) <= 1 && Math.abs(e.y! - event.y) <= 1));
+            if (i >= 0) this.#expectedInput.splice(i, 1); else this.onOwnerInput?.();
+          } catch { this.onOwnerInput?.(); }
+          return;
+        }
         // Phase 90: a sign-in the person typed in the Sara browser (kept here, in memory, 10 minutes).
         if (p.name !== 'saraLoginCaught') return;
         try {
@@ -313,7 +343,7 @@ export class SaraBrowser {
       }
       case 'Fetch.requestPaused': {
         const url = String((p.request as { url?: string })?.url ?? '');
-        const ok = addressAllowed(url, this.serverOrigin).ok;
+        const ok = addressAllowed(url, this.serverOrigin).ok && (!this.addressCheck || this.addressCheck(url));
         void this.cdp!.send(ok ? 'Fetch.continueRequest' : 'Fetch.failRequest', ok ? { requestId: p.requestId } : { requestId: p.requestId, errorReason: 'BlockedByClient' }, t.sessionId).catch(() => {});
         if (!ok) this.#log(t, { kind: 'network', method: 'GET', url: short(url), error: 'blocked by the Sara browser (Sara\u2019s own server)', type: String((p as { resourceType?: string }).resourceType ?? '') });
         return;
@@ -376,10 +406,12 @@ export class SaraBrowser {
 
   /** Runs one page-agent function in an isolated world (the page's own scripts can't touch it). */
   async agent<T>(t: Tab, fn: string, args: Record<string, unknown>): Promise<T> {
+    if (['focusFor', 'choose', 'scroll', 'focusLogin'].includes(fn)) { this.commandSignal?.throwIfAborted(); this.beforeCommand?.(`agent.${fn}`); }
     const tree = (await this.cdp!.send('Page.getFrameTree', {}, t.sessionId)) as { frameTree: { frame: { id: string } } };
     t.frameId = tree.frameTree.frame.id;
     const w = (await this.cdp!.send('Page.createIsolatedWorld', { frameId: t.frameId, worldName: 'sara-page-agent' }, t.sessionId)) as { executionContextId: number };
-    const r = (await this.cdp!.send('Runtime.evaluate', { expression: pageAgentCall(fn, args), contextId: w.executionContextId, returnByValue: true }, t.sessionId)) as { result?: { value?: T }; exceptionDetails?: { text?: string } };
+    if (['focusFor', 'choose', 'scroll', 'focusLogin'].includes(fn)) { this.commandSignal?.throwIfAborted(); this.beforeCommand?.(`agent.${fn}`); }
+    const r = (await this.cdp!.send('Runtime.evaluate', { expression: pageAgentCall(fn, args), contextId: w.executionContextId, returnByValue: true, awaitPromise: true }, t.sessionId)) as { result?: { value?: T }; exceptionDetails?: { text?: string } };
     if (r.exceptionDetails) throw new OpError('error', `The page couldn't be read: ${r.exceptionDetails.text ?? 'script error'}`);
     return r.result?.value as T;
   }
@@ -495,6 +527,12 @@ export interface HandsRefOptions {
   walkAway?: boolean;
   /** Phase 94: a fixture computer for check-ups (s.check / s.apply; needs the desktop switch too). */
   system?: TestSystem;
+  /** Production device check-up backend: read-only, never advertises s.apply. */
+  checkSystem?: { check: (args: Record<string, unknown>) => CheckData | Promise<CheckData> };
+  /** Production Linux uses the OS password backend, not the reference's mock keychain switches. */
+  realProfile?: boolean;
+  serializeBrowser?: boolean;
+  flushSecrets?: () => Promise<void>;
   /** Phase 94: the computer's card for one check-up change (true = Allow once). Without it nothing changes. */
   checkupConsent?: (p: { kind: string; target: string; what: string; text: string }) => Promise<boolean>;
   /** Tests: keep every frame of the hands channel in `wire`. */
@@ -512,6 +550,7 @@ export class HandsRef {
   #timer?: NodeJS.Timeout;
   readonly desktopConsent = new DesktopConsent();
   #desktopQueue: Promise<unknown> = Promise.resolve();
+  #browserQueue: Promise<unknown> = Promise.resolve();
   readonly #answers = new Map<string, string>();
   readonly #running = new Map<string, AbortController>();
   readonly #lastFrameAt = { at: 0, hash: '' };
@@ -541,7 +580,7 @@ export class HandsRef {
     if (opts.desktop) opts.desktop.ownOrigin = new URL(opts.server).origin;
     this.desktopConsent.level = opts.desktopLevel ?? 'task';
     if (opts.desktop) { const url = new URL(opts.server); opts.desktop.transportSecure = url.protocol === 'https:' || ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname); }
-    this.browser = new SaraBrowser({ ...(opts.info ? { info: opts.info } : {}), headless: opts.headless !== false, ...(opts.profileDir ? { profileDir: opts.profileDir } : {}), ...(opts.folder ? { folder: opts.folder } : {}), ...(opts.browserArgs ? { extraArgs: opts.browserArgs } : {}), serverOrigin: new URL(opts.server).origin });
+    this.browser = new SaraBrowser({ ...(opts.info ? { info: opts.info } : {}), headless: opts.headless !== false, ...(opts.profileDir ? { profileDir: opts.profileDir } : {}), ...(opts.folder ? { folder: opts.folder } : {}), ...(opts.browserArgs ? { extraArgs: opts.browserArgs } : {}), realProfile: opts.realProfile, serverOrigin: new URL(opts.server).origin });
     this.vault = opts.vault ?? new TestVault();
     if (opts.logFile && existsSync(opts.logFile)) {
       // Keep 30 days of the local log.
@@ -592,6 +631,7 @@ export class HandsRef {
     u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
     try {
       const ws = await connectWebSocket(u.toString(), { headers: { Authorization: `Bearer ${this.opts.token}` }, timeoutMs: 10_000 });
+      if (this.#stopped) { ws.close(1000, 'stopped while connecting'); return; }
       this.ws = ws;
       this.connects++;
       this.#attempt = 0;
@@ -652,7 +692,7 @@ export class HandsRef {
       vault: { kind: 'test', verify: this.opts.verify?.on === true },
       busy: false,
       localOnly: this.opts.localOnly === true,
-      ops: [...OPS, ...(this.opts.desktop ? [...CU5_OPS, ...CU6_OPS] : []), ...(this.opts.system ? CU7_OPS : [])],
+      ops: [...OPS, ...(this.opts.desktop ? [...CU5_OPS, ...CU6_OPS] : []), ...(this.opts.system ? CU7_OPS : this.opts.checkSystem ? ['s.check'] : [])],
       takeover: this.opts.takeover ?? 'pause',
       hotkey: '',
       paused: this.paused,
@@ -664,7 +704,7 @@ export class HandsRef {
 
   /** Phase 92: "The whole screen" (a second switch, off unless given). Phase 94: a check-up computer counts too. */
   get #desktopOn(): boolean {
-    return Boolean(this.opts.desktop || this.opts.system) && this.opts.optIn?.desktop === true;
+    return Boolean(this.opts.desktop || this.opts.system || this.opts.checkSystem) && this.opts.optIn?.desktop === true;
   }
 
   get serverOrigin(): string {
@@ -809,7 +849,7 @@ export class HandsRef {
     const timer = setTimeout(() => ac.abort(new OpError('timeout', `Took longer than ${Math.round(deadline / 1000)} s.`)), deadline);
     let reply: Record<string, unknown>;
     try {
-      if (!OPS.has(op) && !(DESKTOP_OP.has(op) && this.opts.desktop) && !((CU7_OPS as readonly string[]).includes(op) && this.opts.system)) throw new OpError('unsupported', `This computer doesn't do "${op.slice(0, 40)}" (not in its command set).`);
+      if (!OPS.has(op) && !(DESKTOP_OP.has(op) && this.opts.desktop) && !((CU7_OPS as readonly string[]).includes(op) && this.opts.system) && !(op === 's.check' && this.opts.checkSystem)) throw new OpError('unsupported', `This computer doesn't do "${op.slice(0, 40)}" (not in its command set).`);
       if ((op.startsWith('b.') || op === 'c.tunnel') && this.opts.optIn?.browser === false) throw new OpError('denied_local', '"Let Sara use this computer" is off here.');
       // Phase 92: the whole screen only with its own switch on here.
       if ((op.startsWith('d.') || op.startsWith('s.')) && !this.#desktopOn) throw new OpError('denied_local', '"The whole screen" is off on this computer.');
@@ -818,8 +858,16 @@ export class HandsRef {
         this.#countInput();
       }
       const args = (m.args && typeof m.args === 'object' ? m.args : {}) as Record<string, unknown>;
-        const result = await Promise.race([
-        this.#run(ws, id, op, args, what),
+      const execute = async () => {
+        ac.signal.throwIfAborted();
+        if (this.opts.serializeBrowser && op.startsWith('b.')) this.browser.commandSignal = ac.signal;
+        try { const result = await this.#run(ws, id, op, args, what); await this.opts.flushSecrets?.(); return result; }
+        finally { if (this.opts.serializeBrowser && op.startsWith('b.')) this.browser.commandSignal = undefined; }
+      };
+      const running = this.opts.serializeBrowser && op.startsWith('b.') ? this.#browserQueue.then(execute) : execute();
+      if (this.opts.serializeBrowser && op.startsWith('b.')) this.#browserQueue = running.catch(() => {});
+      const result = await Promise.race([
+        running,
         new Promise<never>((_, rej) => ac.signal.addEventListener('abort', () => rej(ac.signal.reason instanceof OpError ? ac.signal.reason : new OpError('stopped', 'Stopped.')), { once: true })),
       ]);
       reply = { t: 'res', id, ok: true, result };
@@ -927,13 +975,15 @@ export class HandsRef {
           name = basename(String(f.name ?? '')).replace(/[<>:"|?*\u0000-\u001f]/g, '_').slice(0, 120);
           const data = Buffer.from(String(f.data ?? ''), 'base64');
           if (!name || data.length > 2 * 1024 * 1024) throw new OpError('denied_local', 'Uploads from the server are at most 2 MB.');
-          writeFileSync(join(folder, name), data);
+          const temp = join(folder, `.sara-upload-${createHash('sha256').update(id).digest('hex').slice(0, 24)}`);
+          try { writeFileSync(temp, data, { flag: 'wx', mode: 0o600 }); renameSync(temp, join(folder, name)); }
+          finally { rmSync(temp, { force: true }); }
         } else {
           name = String(a.name ?? '');
           if (!name || name !== basename(name) || name.startsWith('.')) throw new OpError('denied_local', 'Only a file name in Downloads/Sara.');
         }
         const path = join(folder, name);
-        if (!existsSync(path) || !statSync(path).isFile()) throw new OpError('not_found', `There is no ${name} in Downloads/Sara on this computer.`);
+        if (!existsSync(path) || !lstatSync(path).isFile() || lstatSync(path).nlink !== 1 || realpathSync(path) !== join(realpathSync(folder), name)) throw new OpError('not_found', `There is no safe regular file named ${name} in Downloads/Sara on this computer (links are refused).`);
         target = await need();
         const objectId = await b.agentNode(t, 'fileInput', tgtArgs);
         if (!objectId) throw new OpError('not_found', 'That is not a file upload field.');
@@ -1058,7 +1108,8 @@ export class HandsRef {
   }
 
   /** Phase 90: b.saveLogin. The consent window decides; the device saves only with the box ticked. */
-  async #saveLogin(a: Record<string, unknown>, server: string): Promise<Record<string, unknown>> {
+  async #saveLogin(id: string, a: Record<string, unknown>, server: string): Promise<Record<string, unknown>> {
+    const signal = this.#running.get(id)?.signal;
     const b = this.browser;
     const t = b.tab(a.tab);
     const site = loginOrigin((await b.info2(t)).url);
@@ -1073,6 +1124,7 @@ export class HandsRef {
     } finally {
       this.badge = '';
     }
+    signal?.throwIfAborted();
     const given = answer.useTyped && c ? { ...answer, username: c.username, password: c.password } : answer;
     let view;
     try {
@@ -1298,7 +1350,7 @@ export class HandsRef {
     if (op.startsWith('d.')) return this.#desktop(ws, id, op, args);
     // Phase 94 (CU7): check-ups on the fixture computer.
     if (op === 's.check') {
-      const r = this.opts.system!.check(args);
+      const r = await (this.opts.checkSystem ?? this.opts.system!).check(args);
       this.#localLog(op, 'checked the computer (read only)', Object.keys(r.checks).join(', '));
       return r as unknown as Record<string, unknown>;
     }
@@ -1445,7 +1497,7 @@ export class HandsRef {
         return this.#login(ws, id, args, server);
 
       case 'b.saveLogin':
-        return this.#saveLogin(args, server);
+        return this.#saveLogin(id, args, server);
       case 'b.yourTurn': {
         // §8.1: the person signs in (or types a code) themselves; she waits until they press Continue.
         const ac = this.#running.get(id);

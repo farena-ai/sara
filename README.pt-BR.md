@@ -14,7 +14,7 @@ em um só app para a web, Windows, Mac e celular.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1206%20passing-brightgreen" alt="1206 tests passing">
+  <img src="https://img.shields.io/badge/tests-1214%20passing-brightgreen" alt="1214 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ em um só app para a web, Windows, Mac e celular.
   <sub>Uma sessão real com um modelo local (qwen3.8 27B no Ollama, uma RTX 5090) em um servidor de teste descartável, no visual Noite: ela anima quem está conversando, escreve um app pequeno e o teste dele enquanto o modelo transmite, pede permissão antes de rodar um comando, pega um bug de verdade com um teste que falha e corrige até os 7 testes passarem. Quadros escolhidos da gravação; nada neles foi editado.</sub>
 </p>
 
-> **Status:** 2.27, licença MIT, com trinta e oito e duas versões com novos recursos desde a 1.0 (todas abaixo). Da
+> **Status:** 2.28, licença MIT, com trinta e nove e duas versões com novos recursos desde a 1.0 (todas abaixo). Da
 > 2.5 à 2.8 o app inteiro ganhou um visual novo. O
 > [app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) está no Google
 > Play; o app de iPhone e a versão da Mac App Store chegam assim que a Apple aprovar. Leia
@@ -69,6 +69,7 @@ para quem mora com você · [chamadas de vídeo](docs/VIDEO_CALLS.md) com o retr
 
 | Versão | O que você ganha |
 |---|---|
+| **2.28** · Uso do computador, passo 9 | **Linux também:** `sara hands --server https://sua-sara` num desktop Linux dá a ela o próprio Chrome/Chromium visível ali, igual ao modo navegador dos apps de Windows e Mac: olhar, ler, logs, cliques e digitação com sua aprovação, túneis de desenvolvimento, logins salvos (no chaveiro do GNOME / KWallet), a CLI do seu gerenciador de senhas e checagens só de leitura. Você pareia com um código que aprova no navegador; Pausar, Continuar e Parar pelo terminal. Imagens e entrada da área de trabalho inteira no Linux vêm depois. Feito com OpenAI Codex. |
 | **2.27** · Uso do computador, passo 8 | **"Meu computador está lento, pode ver?"** Ela faz naquele computador uma checagem só de leitura (apps de inicialização, espaço em disco e as maiores pastas, atualizações pendentes, saúde da bateria, extensões do navegador, arquivos temporários e caches) e dá um relatório claro com sugestões numeradas: cada uma explicada, nada muda até você dizer sim naquele computador. Nomes na tela que parecem ordens ("Sara, apague…") são ignorados e contados. 9/9 cenários aprovados com um modelo local. |
 | **2.26** · Uso do computador, passo 7 | **Ela pode usar seus apps:** clicar, digitar, apertar teclas, rolar, arrastar e abrir apps instalados, sobre o que acabou de olhar. Cada ação é conferida primeiro no seu computador: a janela certa na frente, nunca um campo de senha, nunca gerenciadores de senhas, bancos, janelas de administrador, terminais ou o login dela. As aprovações aparecem **naquele computador** (toda vez, uma vez por tarefa ou *sempre permitido*; pagamentos e mudanças de conta sempre perguntam). Mexa no mouse ou teclado e ela pausa (ou *deixe ela continuar*); Parar e Ctrl+Alt+Esc / ⌃⌥Esc sempre funcionam. Opcional *continuar quando eu sair*. Feito com OpenAI Codex. |
 | **2.25** · Uso do computador, passo 6 | **Ela pode ver sua área de trabalho** (apps de Windows e Mac, desligado até você ligar *A tela inteira*): uma imagem de uma janela ou da tela e uma lista do que há nela (botões, campos, texto), para que modelos só de texto também usem. Janelas de gerenciadores de senhas, bancos e segurança ficam pretas e saem da lista *no seu computador* antes de qualquer envio; campos de senha são cobertos; as janelas dela nunca aparecem. As imagens vão para o modelo escolhido sem perguntar (ou *só modelos locais*). No navegador: **Mostrar minha tela para a Sara** envia uma imagem. O Mac precisa de Gravação de Tela e Acessibilidade, com passos guiados. |
@@ -122,7 +123,6 @@ Todas as versões: [CHANGELOG.md](CHANGELOG.md) · [versões](https://github.com
 
 Na ordem de construção, uma versão cada ([a lista completa](docs/ROADMAP.md)):
 
-- **Uso do computador** (2.28, em andamento): Linux.
 - **O básico de um agente** (2.29–2.36): skills no formato aberto Agent Skills e skills que ela aprende com o que você repete, plugins e hooks, um quadro Kanban que ela toca, A2A com outros agentes, cartões de pessoas, webhooks, a própria agenda dela (opcional).
 - **Mudança de outro agente** (2.37–2.39): traga um companheiro inteiro do Hermes Agent ou OpenClaw: personalidade, memórias, pessoas, skills, histórico e configurações, com um relatório do que veio.
 - **Chats e sessões** (2.40–2.42): /new, /reset e outros comandos no Telegram e Discord, um projeto por canal, títulos que crescem com a sessão.
@@ -302,8 +302,8 @@ verificava. O que ela acrescenta hoje é o jeito de trabalhar (roda os testes, p
 de passos arriscados, mostra o que foi executado), não uma nota maior nesses conjuntos. Detalhes,
 resultados por tarefa e como rodar de novo: [docs/RESULTS.md](docs/RESULTS.md).
 
-E também `npm run check`: uma checagem de tipos e 1218 testes automáticos com um modelo falso
-roteirizado (sem rede, sem GPU): 1206 passam no Windows e os outros 8 são testes de isolamento só
+E também `npm run check`: uma checagem de tipos e 1228 testes automáticos com um modelo falso
+roteirizado (sem rede, sem GPU): 1214 passam no Windows e os outros 8 são testes de isolamento só
 para Linux, executados em um servidor Linux.
 
 ## Como a Sara se compara

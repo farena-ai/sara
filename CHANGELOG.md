@@ -5,6 +5,24 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.28.0 (2026-10-31): computer use, step 9: Linux (Phase 95; the computer use track is complete)
+
+- **`sara hands --server https://your-sara`** on a Linux desktop (as yourself, not root): pair with a
+  code you approve in your browser (fresh sign-in proof; the token is computer-control only and
+  revocable), then her own visible Chrome/Chromium with its own profile does everything the Windows
+  and Mac apps' browser mode does: look, read, console and network logs, clicks and typing with your
+  approval, dev tunnels, saved logins (GNOME Keyring / KWallet through the Secret Service; a 0600 file
+  with a clear warning if none), your password manager's CLI (you unlock it in the terminal), and
+  read-only check-ups (`--checks`).
+- Pause, Resume, Continue and Stop from its terminal; Ctrl+C stops.
+- **Pictures:** password fields, key-shaped text, typed values and embedded frames are blacked out in
+  the pixels themselves (a page can't remove the masks). Also on Windows and the Mac.
+- Underneath: a D-Bus client written from scratch (no addons) for the Secret Service, the desktop
+  portals and AT-SPI. Whole-desktop pictures and mouse/keyboard on Linux are **not** in this release
+  (the design's browser-only fallback); they're in the backlog.
+- Built with OpenAI Codex (GPT-6.1 Sol) after Anthropic's filter blocked the first helper.
+- The computer use track (Phases 87–95) is complete.
+
 ## 2.27.0 (2026-10-31): computer use, step 8: guided check-ups (Phase 94)
 
 - **Check-ups** (`pc_checkup`, Windows and Mac apps with *The whole screen* on): "my computer is

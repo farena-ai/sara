@@ -294,3 +294,41 @@ was. See [HOUSEHOLD.md](HOUSEHOLD.md) and THREAT_MODEL.md § Household mode.
 database is snapshotted with SQLite's `VACUUM INTO`, then everything goes into one `.tar.gz`.
 Meaning search keeps its vectors in the same SQLite databases and searches them in Sara's own code
 (no `sqlite-vec` or other extension), so a single-user install needs no external database.
+
+## Linux desktop hands (CU8 draft)
+
+Linux device code is isolated under `desktop/linux/`, outside the server's `src/` network boundary:
+`cli.ts` owns local opt-ins, browser-code pairing, terminal consent/Stop and token renewal storage;
+`hands.ts` specializes the shared `HandsRef` protocol/browser/tunnel engine with a production
+profile, persistent Linux vault and read-only `checkup.ts` backend. No fixture desktop, fixture system
+or in-memory test vault is selected by the Linux entry point. `deploy/sara` dispatches `hands` as
+the current desktop user before reading server environment values; the installer copies these modules.
+
+`dbus.ts` is a bounded, from-scratch Unix-socket EXTERNAL-authentication D-Bus codec/client (no addons,
+no TCP/fd passing). It handles message framing, signatures, variants, arrays, dictionaries, calls,
+errors and signals, and can host tiny TypeScript test services. `secrets.ts` uses the Secret Service
+plain local-bus session and default collection, or explicit-warning private-file fallback. Backend
+write failures propagate rather than acknowledging a silently lost save.
+
+`portals.ts` implements Screenshot's Request/Response pattern, subscribing before the call and
+binding replies to the unique portal owner and request path. It rejects cancelled responses and
+non-local screenshot URIs. `atspi.ts` discovers the accessibility bus and performs bounded read-only
+Accessible traversal, refusing secure and blocked subtrees before reading names/children. These
+adapters are transport foundations, **not advertised production desktop ops**: compositor-safe
+window geometry/redaction, RemoteDesktop consent/input, global Stop and native takeover are absent.
+Raw portal pixels never leave the device. The shipped capability set is browser-only plus optional
+`s.check`; `s.apply` is absent and every check-up suggestion is a guide.
+
+Pairing adds a `hands` request type to the existing in-memory device-code flow. `/device` and the
+Settings request row label computer control, require signed-in browser identity proof, and mint only
+`hands` credentials, never general API credentials. Member/demo restrictions remain. Nested
+`confirmation` separates the device code from the authenticator code (the old flat token proof
+remains accepted). Existing device-code app tokens still cannot mint or manage hands credentials.
+
+`HandsRef` now accepts a structural read-only system backend and an optional serial browser queue,
+checks cancellation immediately before input/CDP and mutating page-agent calls, and rechecks consent
+before saving after an abort. The fixed shared agent provides Linux owner-event observation and
+local pixel redaction. Linux uses session/event matching for injected events; it does not provide a native
+OS-wide input hook. Picture masks cover recognized secret fields, key-shaped text and embedded frames after capture
+in a detached device-owned canvas. Authored shadow trees and oversized or changing pages refuse
+pictures rather than sending uncertain pixels. Arbitrary sensitive canvas content remains opaque. See `desktop.md` and the CU8 as-built record for exact limitations and qualification.

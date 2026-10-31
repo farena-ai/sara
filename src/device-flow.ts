@@ -24,6 +24,7 @@ interface Entry {
   /** Set on approval; handed out once by poll. */
   token?: string;
   deviceId?: string;
+  tokenExpiresAt?: string;
   from: string;
   /** The address the request came from (shown to the owner before approving). */
   ip: string;
@@ -34,11 +35,11 @@ interface Entry {
 /**
  * Hardening M4: what an approved app may reach. 'full' = everything a device-code app may (the
  * terminal, VS Code). 'home-assistant' = only talking with her in the conversations it made itself.
- * An app can only ask for LESS than full, so its own word is enough: claiming the limited scope never
- * gives anything more.
+ * 'hands' is a separate device capability, never an app/API credential: the signed-in browser
+ * shows its computer-control warning and requires fresh identity proof before issuing it.
  */
-export type DeviceScope = 'full' | 'home-assistant';
-export const cleanScope = (v: unknown): DeviceScope => (v === 'home-assistant' ? 'home-assistant' : 'full');
+export type DeviceScope = 'full' | 'home-assistant' | 'hands';
+export const cleanScope = (v: unknown): DeviceScope => (v === 'hands' ? 'hands' : v === 'home-assistant' ? 'home-assistant' : 'full');
 
 export interface PendingView {
   code: string;
@@ -97,14 +98,14 @@ export class DeviceFlow {
    * The app checks on its request. 'approved' carries the token (only once: the request is then
    * gone); 'expired' when there's no such request (any more).
    */
-  poll(pollToken: string): { status: DeviceRequestStatus | 'expired'; token?: string; deviceId?: string } {
+  poll(pollToken: string): { status: DeviceRequestStatus | 'expired'; token?: string; deviceId?: string; expiresAt?: string } {
     this.#sweep();
     const h = hash(String(pollToken ?? ''));
     for (const [k, e] of this.#entries) {
       if (!timingSafeEqual(h, e.pollHash)) continue;
       if (e.status === 'approved') {
         this.#entries.delete(k);
-        return { status: 'approved', token: e.token!, deviceId: e.deviceId! };
+        return { status: 'approved', token: e.token!, deviceId: e.deviceId!, ...(e.tokenExpiresAt ? { expiresAt: e.tokenExpiresAt } : {}) };
       }
       if (e.status === 'denied') {
         this.#entries.delete(k);
@@ -129,14 +130,15 @@ export class DeviceFlow {
   }
 
   /** The owner said yes: `issue` makes the device token (listed under Devices). */
-  approve(code: string, issue: (name: string, scope: DeviceScope) => { token: string; id: string }): PendingView | undefined {
+  approve(code: string, issue: (name: string, scope: DeviceScope) => { token: string; id: string; expiresAt?: string }): PendingView | undefined {
     this.#sweep();
     const e = this.#entries.get(normalizeDeviceCode(code));
     if (!e || e.status !== 'pending') return undefined;
-    const { token, id } = issue(e.name, e.scope);
+    const { token, id, expiresAt } = issue(e.name, e.scope);
     e.status = 'approved';
     e.token = token;
     e.deviceId = id;
+    e.tokenExpiresAt = expiresAt;
     return this.#view(e);
   }
 

@@ -1,7 +1,7 @@
 # Computer use: Sara's hands on your computer (design, Phases 87–95, versions 2.20.0–2.28.0)
 
-Status: implementation record through Phase 92; Phase 93 and Phase 94 implementation drafts, 2026-10-31.
-Phases 93 and 94 are not released or owner-accepted. The original study used the code at 2.19.0. Ground-up design: no code or protocol is taken from Hermes Agent, OpenClaw, cua,
+Status: implementation record through Phase 92; Phase 93–95 implementation drafts, 2026-10-31.
+Phases 93–95 drafts are not owner-accepted; the CU8 work here is not a release. The original study used the code at 2.19.0. Ground-up design: no code or protocol is taken from Hermes Agent, OpenClaw, cua,
 Playwright, Puppeteer or any other project.
 
 **The owner's words (2026-10-30):** "The next feature I would like is the ability to be able to do
@@ -1081,7 +1081,7 @@ of positive Windows action evidence, but does not close Phase 93.
   standalone harness, the same source file); the report card's **Do this** fills the message box rather than
   sending. Restore points are suggested, never created (they need an administrator).
 
-### Phase 95 · 2.28.0 · CU8: Linux hands (proposed)
+### Phase 95 · 2.28.0 · CU8: Linux hands (browser-only implementation draft)
 - `sara hands` command: the `hands-ref` TypeScript device run on a Linux desktop with the installed
   Node (server installs have it) or a small package, paired with the same code flow; browser mode with
   the local Chrome/Chromium (visible, own profile); desktop mode through the XDG desktop portals over a small
@@ -1134,3 +1134,77 @@ What makes Sara's different:
   ("re-plan from here") and evals cover computer tasks; red-team probes include screen injection.
 - **Beginner first**: one switch, guided OS permissions, plain cards, a live view in the chat and on
   the phone, and limits the server can't override.
+
+### CU8 as built — 2026-10-31 (unreleased implementation draft)
+
+The Linux slice uses the design's **browser-only fallback**. `sara hands` dispatches the real device
+in `desktop/linux/cli.ts` with the installed Node, in the desktop user's visible terminal, without
+sudo. It reuses the reference device's browser operations, CDP pipe, shared page agent, tunnel,
+exact-origin login fill, password-field/key/URL refusals, limits and channel protocol. Linux owns
+its per-server profile, private token/login persistence, separate check-up consent and local controls.
+No TestDesktop or TestSystem fixture is selected in production. `LinuxVault` inherits the shared
+vault validation rules while persisting all entries through its Linux store.
+
+Pairing uses a new `hands` request type in the existing device-code flow: the normal signed-in
+`/device` page (or Settings request row) explicitly says computer control and requires fresh owner
+identity proof before minting a hands-only token. The normal app-token restriction is preserved.
+Token renewals use the shared authenticated channel. The Secret Service default keyring is preferred;
+if unavailable/locked, a clear warning explains the unencrypted 0600-file fallback in a 0700 folder.
+Secret Service sessions use the local D-Bus plain algorithm; no network or runtime package is added.
+
+`desktop/linux/dbus.ts` implements Unix sockets, SASL EXTERNAL, endian-aware framing and bounded
+signature/body marshalling from scratch. `portals.ts` implements real Screenshot Request/Response,
+reply-owner/path checks and cancellation; `atspi.ts` discovers/traverses the real accessibility bus
+with bounded calls and secure/blocked-subtree refusal. The phase95 tests host fake portal, AT-SPI
+and Secret Service services **using this same client on a real private dbus-daemon**, not mocked
+socket calls. Windows skips that one Unix-specific test with a reason; codec, storage, check-ups,
+capabilities and pairing still run there.
+
+`s.check` reads real Linux autostart entries, statfs Home space, bounded known-folder sizes,
+`/sys/class/power_supply`, cached apt update listings, Chromium-family extension manifests and
+cache/Trash sizes. It never refreshes package data or changes the machine. `s.apply` is absent.
+Extensions' enabled status, non-apt package updates and localized/custom XDG folder paths are not
+implemented. Each limitation is returned/documented instead of invented data.
+
+**Deviations and unqualified areas:**
+- No production `d.*`, RemoteDesktop input/session backend, compositor capture/redaction, global
+  hotkey, OS-wide takeover hook, topmost native pill or keep-awake. The portal/accessibility adapters
+  are real, separately tested foundations; raw screenshot URIs/pixels are not sent through hands.
+- Browser owner input is detected inside page content in an isolated world, matching Sara's own
+  injected events by session/type/key/coordinates with a one-second expiry. Browser chrome and other
+  apps are not monitored; identical simultaneous owner/injected events cannot be distinguished.
+- The terminal supplies activity text, local Stop/Pause/Resume/Continue, explicit login-saving
+  consent (`I understand`, hidden credential input) and manager CLI prompts. There is no native
+  checkbox dialog. Keep that terminal visible. Ctrl+C/Stop closes and disconnects until restarted.
+- Password managers use the shared CLI implementations, detected with `--version`, each locally
+  opted in. Real Linux unlock/fill was not exercised on the headless server. No extension source,
+  desktop-app unlock, OS-keychain login lookup, TOTP or biometric verification is added.
+- Browser pictures redact recognized secret fields, key-shaped text and iframes in the captured
+  pixels on a detached canvas in the device-owned isolated world. A page deleting visual overlays
+  cannot defeat that masking. Authored shadow trees and oversized/changing pages refuse pictures;
+  arbitrary sensitive canvas content cannot be interpreted. Native desktop pixel privacy is deliberately
+  unavailable. Actual visible-desktop privacy and takeover acceptance remain the owner's checks.
+- Headless AlmaLinux browser conformance is not the required real Ubuntu X11/Wayland exit gate.
+  This draft does not close Phase 95 or claim release readiness. No release/version/store action,
+  commit, push, protected roadmap/overview edit or recurring watcher was performed.
+
+Run `node --test --test-reporter=spec test/phase95.test.ts`, `npm run check`,
+`node scripts/i18n-extract.ts` and `node scripts/tip-coverage.ts`. The external `cu8-report.md`
+records the final Windows/Linux results, conformance coverage, owner checks and scratch cleanup.
+Protocol references: [D-Bus specification](https://dbus.freedesktop.org/doc/dbus-specification.html),
+[portal Screenshot](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.Screenshot.html),
+[AT-SPI Accessible](https://gnome.pages.gitlab.gnome.org/at-spi2-core/devel-docs/doc-org.a11y.atspi.Accessible.html),
+and [Secret Service](https://specifications.freedesktop.org/secret-service/latest/).
+
+**CU8 qualification (2026-10-31).** Linux browser conformance: **80/80 applicable checks**, against
+`LinuxHands` on a throwaway scratch server with Chrome headless shell (test-only root sandbox exception).
+Positive native save-dialog and manager unlock/fill checks were not run without their local drivers;
+those are explicit skips/preconditions, not passes. The Linux phase95 suite passed **10/10** including
+real private-bus services, pairing, a delayed-connect Stop race and adversarial pixel masks. As UID
+65534 it passed **9 with 1 browser-precondition skip**; no temporary executable was launched and the
+host's `/tmp` remained `noexec`. A scratch-home read-only check-up exercised statfs and sysfs; AlmaLinux
+reported cached updates unavailable instead of running a package refresh. Windows phase95 with the
+installed headless test browser passed **9 with 1 Unix-only skip**. Independent read-only review
+caught key-shaped values in ordinary text fields missing their pixel masks; input/textarea pixel
+regressions reproduced the gap and passed after the fix. Test-generated keys are fixtures only.
+The final full Windows gate and cleanup receipt are recorded in the requested external report.

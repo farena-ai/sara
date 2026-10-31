@@ -10058,6 +10058,7 @@ async function loadDevices() {
       const where = el('span', 'muted small', ` · ${r.from} · ${t('from {ip}', { ip: r.ip || '?' })} · ${t('asked at')} ${new Date(r.createdAt).toLocaleTimeString()}`);
       where.dataset.raw = '';
       li.append(el('strong', '', r.name), el('span', 'muted small', ` · ${t('code')} `), code, where, ' ');
+      if (r.scope === 'hands') li.append(el('p', 'muted small', t('This pairs computer control on that Linux computer. Approve only if you started Sara hands there, the code matches, and the address is yours.')));
       for (const [label, path, cls] of [[t('Approve'), 'approve', 'small'], [t('Deny'), 'deny', 'ghost small']]) {
         const b = el('button', cls, label);
         b.type = 'button';
@@ -10066,7 +10067,7 @@ async function loadDevices() {
           try {
             // Security review: letting in an app needs proof it's you (token, code or passkey), not only this browser's sign-in.
             const proof = path === 'approve' ? await confirmProof() : {};
-            await api(`/device/${path}`, { method: 'POST', body: { code: r.code, ...proof } });
+            await api(`/device/${path}`, { method: 'POST', body: { code: r.code, confirmation: proof } });
           } catch (err) {
             if (err.name !== t('Cancelled')) alert(err.message);
           }
