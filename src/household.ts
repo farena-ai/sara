@@ -308,7 +308,7 @@ export function memberDirs(dataDir: string, h: HouseholdStore): { member: Member
  * Settings only the owner has (server, accounts, bridges, tools, imports). A member's settings never
  * contain them, and a member's change never writes them.
  */
-export const OWNER_SETTINGS: readonly (keyof Settings)[] = ['providers', 'prices', 'mcpServers', 'search', 'offsite', 'backup', 'discord', 'telegram', 'home', 'githubWatch', 'helpers', 'teamLimits', 'jobBudget', 'turnBudgets', 'sandboxGate', 'securityPass', 'threatModel', 'redteam', 'computerUse', 'evalSchedule', 'shellNetwork', 'modelLists', 'modelAutoSwitch', 'safetyClassifier', 'claimJudge', 'toolPermissions', 'alexa', 'presence', 'libraryLimits', 'plugins'];
+export const OWNER_SETTINGS: readonly (keyof Settings)[] = ['providers', 'prices', 'mcpServers', 'search', 'offsite', 'backup', 'discord', 'telegram', 'home', 'githubWatch', 'helpers', 'teamLimits', 'jobBudget', 'turnBudgets', 'sandboxGate', 'securityPass', 'threatModel', 'redteam', 'computerUse', 'evalSchedule', 'shellNetwork', 'modelLists', 'modelAutoSwitch', 'safetyClassifier', 'claimJudge', 'toolPermissions', 'alexa', 'presence', 'libraryLimits', 'plugins', 'a2a'];
 
 /**
  * A member's settings: their own file, with the owner's providers (for the server code that runs

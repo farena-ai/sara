@@ -67,6 +67,17 @@ export function stepWords(name, args = {}, named = '') {
       return pair(t('Looking back at past chats…'), t('Looked back at past chats'), 'recall');
     case 'web_search':
       return pair(t('Searching the web…'), t('Searched the web'), 'search');
+    // Phase 100: other agents (A2A).
+    case 'a2a_send':
+      return pair(t('Asking {name}…', { name: String(a.peer ?? '') }), t('Asked {name}', { name: String(a.peer ?? '') }), 'globe');
+    case 'a2a_reply':
+      return pair(t('Answering {name}…', { name: String(a.peer ?? t('the agent')) }), t('Answered the agent'), 'globe');
+    case 'a2a_status':
+      return pair(t('Checking on a task…'), t('Checked on a task'), 'globe');
+    case 'a2a_cancel':
+      return pair(t('Canceling a task…'), t('Canceled a task'), 'globe');
+    case 'a2a_agents':
+      return pair(t('Looking at the agents she can ask…'), t('Looked at the agents she can ask'), 'globe');
     case 'web_fetch':
       return pair(t('Reading a web page…'), t('Read a web page'), 'globe');
     case 'calendar_events':

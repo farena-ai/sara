@@ -13,6 +13,7 @@ import { initProjectMap, resetProjectMap } from './codemap.js';
 import { initSkills, loadSkills, skillApproval } from './skills.js';
 import { initLearning, learnCard, loadLearning } from './learned-skills.js';
 import { initPlugins, loadPlugins, pluginAskLine, pluginNotice, pluginResultCard, pluginStepWords } from './plugins.js';
+import { initAgents, loadAgents } from './agents.js';
 import { boardEvent, initBoard, openCardOnBoard, plannerView, rememberView } from './board.js';
 import { initOtherApps, keyUse, loadOtherApps } from './other-apps.js';
 import { initAlexa, loadAlexa } from './alexa.js';
@@ -2801,7 +2802,7 @@ function convFacts() {
     return [
       [t('Who is here'), (c.group?.members ?? []).map((m) => m.name).join(', ')],
       ...(style ? [[t('Who answers'), style]] : []),
-      [t('Privacy'), c.private ? t('Private: local models only, nothing leaves your server') : t('Saved: she remembers what matters'), c.private ? 'hp-private' : ''],
+      [t('Privacy'), c.private ? t('Private: local models only, nothing leaves your server') : c.channel === 'a2a' ? t('Another agent: kept here, nothing is learned from it') : t('Saved: she remembers what matters'), c.private ? 'hp-private' : ''],
     ];
   }
   const s = state.providers;
@@ -2809,7 +2810,7 @@ function convFacts() {
   const model = c.model ?? (c.providerId ? null : s.defaultModel) ?? '';
   const label = s.providers.find((p) => p.id === prov)?.label ?? prov ?? t('no provider');
   const demo = document.body.classList.contains('demo');
-  const privacy = c.offRecord ? [t('Off the record: nothing is saved'), 'hp-offrecord'] : c.private ? [t('Private: local models only, nothing leaves your server'), 'hp-private'] : demo ? [t('Demo: not saved, gone after a few hours'), 'hp-offrecord'] : [t('Saved: she remembers what matters'), ''];
+  const privacy = c.offRecord ? [t('Off the record: nothing is saved'), 'hp-offrecord'] : c.private ? [t('Private: local models only, nothing leaves your server'), 'hp-private'] : demo ? [t('Demo: not saved, gone after a few hours'), 'hp-offrecord'] : c.channel === 'a2a' ? [t('Another agent: kept here, nothing is learned from it'), 'hp-offrecord'] : [t('Saved: she remembers what matters'), ''];
   return [
     [t('Model'), model ? `${model} · ${label}` : label],
     ...(isMember() || demo ? [] : [[t('Workspace'), c.workspace === 'main' ? t('main folder') : String(c.workspace ?? '')]]),
@@ -6548,7 +6549,7 @@ const SETTINGS_ORDER = [
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
   'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
   'ab-projects', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-recipes',
-  'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-apps',
+  'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-apps', 'co-agents',
   'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-updates', 'dh-usage', 'dh-reports',
   'household', 'account',
 ];
@@ -6686,6 +6687,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'ab-ssh') void loadSsh();
   if (pick === 'ab-library') void loadLibrarySettings();
   if (pick === 'co-apps') void Promise.all([loadOtherApps(), loadAlexa()]);
+  if (pick === 'co-agents') void loadAgents();
   if (pick === 'co-computer') void loadComputer();
   if (pick === 'her-import') void loadImport();
   if (pick === 'models-local') void loadLocalModels();
@@ -9097,6 +9099,14 @@ initCards({
   name: () => yours.persona?.name ?? 'character',
 });
 initOtherApps({ copyText, confirmProof });
+// Phase 100: Settings → Connections → Other agents (A2A).
+initAgents({
+  copyText,
+  openConversation: (id) => {
+    if ($('#settings').open) $('#settings').close();
+    void openConversation(id);
+  },
+});
 initAlexa({ copyText });
 initSsh();
 initPresence();

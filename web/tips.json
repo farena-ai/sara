@@ -1499,6 +1499,10 @@
       "Use her from other apps (SillyTavern, Open WebUI, Claude Code, Cursor, Claude Desktop) with an API key.",
       "clients"
     ],
+    "co-agents": [
+      "Let other AI agents ask her things, and let her ask them (the open A2A protocol), with a key per agent and your OK for anything that changes something.",
+      "agents"
+    ],
     "co-discord": [
       "Talk to her on Discord too.",
       "phone"

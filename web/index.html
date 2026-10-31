@@ -2612,6 +2612,42 @@
         <p class="small"><button type="button" class="ghost small" data-copy-snip="js">Copy</button></p>
       </details>
         </section>
+        <section class="settings-page" data-page="co-agents" data-group="Connections" data-title="Other agents" data-owner-only hidden>
+      <p id="a2a-off" class="skl-note" hidden></p>
+      <div class="a2a-switches" data-nodirty data-noauto>
+      <label class="row"><input id="a2a-on" type="checkbox"> <span>Let other agents reach her <button type="button" class="tip" data-tip="Off: her agent card and the A2A address answer &quot;not found&quot;. On: agents with a key you made below can send her tasks. Your server must be reachable for them (Tailscale or your own address).">?</button></span></label>
+      <label class="row"><input id="a2a-name" type="checkbox"> <span>Show her name on the public card <button type="button" class="tip" data-tip="Anyone who can reach her address can read the public card. Off: it says Sara. On: it shows her name. Agents with a key always see what you offered them.">?</button></span></label>
+      <label class="row"><input id="a2a-lan" type="checkbox"> <span>Allow agents on my network in private mode <button type="button" class="tip" data-tip="With &quot;Nothing leaves this computer&quot; on, she reaches only this computer. Tick this to also let her ask agents at home-network or Tailscale addresses (like 192.168.1.20).">?</button></span></label>
+      <label><span>She answers for <button type="button" class="tip" data-tip="The name she gives other agents: &quot;This is Sara, an AI assistant, answering for …&quot;. Leave it empty and she says &quot;its owner&quot;, so your name never leaves.">?</button></span> <input id="a2a-operator" maxlength="60" placeholder="e.g. Alex" autocomplete="off"></label>
+      </div>
+      <h3>Her agent card <button type="button" class="tip" data-tip="Agents find her through this address. The public card only says what she is and that a key is needed; an agent with a key sees the skills you offered it.">?</button></h3>
+      <p class="small a2a-card-row"><code id="a2a-card-url" data-raw></code> <button id="a2a-card-copy" type="button" class="ghost small">Copy</button></p>
+      <p id="a2a-card-sum" class="muted small"></p>
+      <h3>Agents <button type="button" class="tip" data-tip="Agents that may ask her (In) and agents she may ask (Out), with today's tasks and tokens. ⋯ changes what one may do, makes a new key or removes it.">?</button></h3>
+      <div id="a2a-peers" class="skl-list"></div>
+      <h3>Give an agent a key <button type="button" class="tip" data-tip="For an agent that should be able to ask her. Name it, tick what it may do (nothing ticked: it can only ask questions), then copy the key once into that agent.">?</button></h3>
+      <div class="a2a-form" data-nodirty data-noauto>
+        <label><span>Name of the agent <button type="button" class="tip" data-tip="Shown on her approval cards and in the Agents project, like &quot;Research Bot&quot;. The agent can't change it.">?</button></span> <input id="a2a-in-label" maxlength="60" placeholder="e.g. Research Bot" autocomplete="off"></label>
+        <p class="muted small">Nothing ticked: it can only ask questions.</p>
+        <label class="row"><input id="a2a-in-web" type="checkbox"> <span>Use web search <button type="button" class="tip" data-tip="She may search and read the web for this agent's questions. It runs without a card, like in your chats.">?</button></span></label>
+        <label class="row"><input id="a2a-in-todo" type="checkbox"> <span>Add to-dos (asks you) <button type="button" class="tip" data-tip="She may add to-dos for this agent, but each one waits for your OK on a card (even if her to-dos usually run on their own). Until you answer, the agent sees &quot;waiting for approval&quot;.">?</button></span></label>
+        <label class="row"><input id="a2a-in-notes" type="checkbox"> <span>Share notes that aren't private <button type="button" class="tip" data-tip="Off: she knows nothing about you in these chats. On: she may use notes other apps may see too. Never private, partner, imported or adult chats, people or keys.">?</button></span></label>
+        <div id="a2a-in-skills" class="a2a-skills"></div>
+        <div class="a2a-picks">
+        <label><span>Tasks a day <button type="button" class="tip" data-tip="How many tasks this agent may give her a day. One more and it is turned away with the reason.">?</button></span> <select id="a2a-in-tasks"><option value="20">20</option><option value="50">50</option><option value="200" selected>200</option><option value="500">500</option></select></label>
+        <label><span>Tokens a day <button type="button" class="tip" data-tip="How much model use this agent may cost a day (tokens are pieces of words). At the limit it is turned away until tomorrow.">?</button></span> <select id="a2a-in-tokens"><option value="50000">50,000</option><option value="100000" selected>100,000</option><option value="250000">250,000</option><option value="1000000">1,000,000</option></select></label>
+        <label><span>The key works for <button type="button" class="tip" data-tip="After this the key stops working; make a new one under ⋯ on the agent. You can remove it any time.">?</button></span> <select id="a2a-in-days"><option value="30">30 days</option><option value="90">90 days</option><option value="180" selected>180 days</option><option value="365">365 days</option></select></label>
+        </div>
+        <button id="a2a-in-make" type="button">Make a key</button>
+      </div>
+      <div id="a2a-in-show" class="tok-new" hidden><p class="small"><strong>The key</strong> (shown only now; paste it into the agent):</p><code id="a2a-in-token" data-raw></code> <button id="a2a-in-copy" type="button" class="ghost small">Copy</button></div>
+      <h3>Add an agent she can ask <button type="button" class="tip" data-tip="Paste the agent's address or its card address. She reads its card and shows what it is and can do; nothing is added until you press Add. Her messages to it wait for your OK.">?</button></h3>
+      <div class="add-row" data-nodirty><label>Agent's address <input id="a2a-out-url" placeholder="https://agent.example" spellcheck="false" autocomplete="off"></label><button id="a2a-out-look" type="button">Look it up</button></div>
+      <div id="a2a-out-review"></div>
+      <h3>Recent requests <button type="button" class="tip" data-tip="The last 20 tasks between her and other agents. Open one to read the whole conversation (agents' chats are in the Agents project).">?</button></h3>
+      <ul id="a2a-recent" class="dev-list"></ul>
+      <p id="a2a-status" class="muted small" role="status"></p>
+        </section>
         <section class="settings-page" data-page="dh-health" data-group="Data & health" data-title="Health" data-owner-only hidden>
       <div id="access-box" class="access-box">
         <p class="small"><strong>How you reach her:</strong> <span id="access-line">…</span> <button type="button" class="tip" data-tip="The address to open on your phone or another computer, set when Sara was installed: Tailscale (private, works anywhere, with HTTPS), just this computer, your own web address, or your home network. Scan the code with your phone's camera to open it. To change it, run the installer again or the sara access command on this computer.">?</button></p>

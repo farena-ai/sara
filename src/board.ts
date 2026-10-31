@@ -53,9 +53,12 @@ export interface Label {
 }
 /** What the work on a card is doing (`tasks.work`). */
 export interface CardWork {
-  kind: 'turn' | 'team';
+  kind: 'turn' | 'team' | 'a2a';
   /** The team task id (team work). */
   id?: number;
+  /** Phase 100: the peer working it and its task id (A2A work). */
+  peer?: string;
+  taskId?: string;
   conversationId: string;
   startedAt: string;
   state: 'queued' | 'running' | 'waiting' | 'done' | 'stopped' | 'failed' | 'interrupted';

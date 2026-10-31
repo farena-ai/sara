@@ -90,6 +90,23 @@ export function isLoopbackHost(hostname: string): boolean {
   return false;
 }
 
+/**
+ * Phase 100: a literal address on the home network (10/8, 172.16/12, 192.168/16, Tailscale's
+ * 100.64/10, IPv6 fc00::/7). Only for A2A peers with *Allow agents on my network in private mode*
+ * on; names never count (they could resolve anywhere).
+ */
+export function isLanHost(hostname: string): boolean {
+  let h = hostname.trim().toLowerCase();
+  if (h.startsWith('[') && h.endsWith(']')) h = h.slice(1, -1);
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    if (v4.slice(1).some((x) => Number(x) > 255)) return false;
+    return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
+  }
+  return /^f[cd][0-9a-f]{0,2}:/.test(h);
+}
+
 /** Schemes that never touch the network. */
 const OFFLINE = new Set(['data:', 'blob:']);
 
@@ -101,19 +118,19 @@ function toUrl(target: string | URL): URL | undefined {
   }
 }
 
-/** May a request to this address leave right now? (Always yes while the mode is off.) */
-export function outboundAllowed(target: string | URL): boolean {
+/** May a request to this address leave right now? (Always yes while the mode is off.) `lan`: home-network addresses too (Phase 100). */
+export function outboundAllowed(target: string | URL, lan = false): boolean {
   if (!privateOn) return true;
   const u = toUrl(target);
   if (!u) return false;
   if (OFFLINE.has(u.protocol)) return true;
   if (!['http:', 'https:', 'ws:', 'wss:'].includes(u.protocol)) return false;
-  return isLoopbackHost(u.hostname);
+  return isLoopbackHost(u.hostname) || (lan && isLanHost(u.hostname));
 }
 
 /** Throws PrivateLocalError unless the address is allowed. Call it right before connecting. */
-export function checkOutbound(target: string | URL, what?: string): void {
-  if (outboundAllowed(target)) return;
+export function checkOutbound(target: string | URL, what?: string, lan = false): void {
+  if (outboundAllowed(target, lan)) return;
   const u = toUrl(target);
   const host = u ? u.host || u.protocol : String(target).slice(0, 80);
   noteBlocked(what ? `${what} (${host})` : host);
@@ -172,6 +189,18 @@ export async function netFetch(input: string | URL | Request, init?: RequestInit
     }
   }
   return transport(input, init);
+}
+
+/**
+ * Phase 100: netFetch for an A2A peer the owner allowed on the home network: in private local mode a
+ * literal LAN address passes too (`lan`); everything else is exactly netFetch.
+ */
+export async function netFetchPeer(input: string, init: RequestInit | undefined, lan: boolean): Promise<Response> {
+  if (privateOn && lan && isLanHost(new URL(input).hostname)) {
+    checkOutbound(input, 'agent', true);
+    return transport(input, init);
+  }
+  return netFetch(input, init);
 }
 
 const guardedGlobal = (input: string | URL | Request, init?: RequestInit): Promise<Response> => netFetch(input, init);

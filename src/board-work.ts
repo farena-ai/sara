@@ -79,6 +79,16 @@ export function localSource(board: BoardStore): CardSource {
   };
 }
 
+/** Phase 100: a card as the A2A client works it (src/a2a-client.ts). */
+export interface CardHandle {
+  ref: string;
+  title: string;
+  notes: string;
+  work: () => CardWork | null;
+  set: (patch: Partial<CardWork>, role?: ColumnRole) => void;
+  log: (who: Who, what: 'started' | 'asked' | 'answered' | 'receipt' | 'done' | 'failed' | 'comment' | 'moved', detail: Record<string, unknown>) => void;
+}
+
 interface Live {
   key: string;
   /** Stop was pressed: nothing the ending turn reports changes the card any more. */
@@ -126,6 +136,8 @@ export class CardWorker {
     for (const src of this.#sources) {
       for (const c of src.withWork(['running'])) {
         if (!this.#mine(c.work)) continue;
+        // Phase 100: a peer's card keeps going (src/a2a-client.ts follows its task again).
+        if (c.work?.kind === 'a2a') continue;
         const id = Number(c.ref.replace(/^s/, ''));
         src.setWork(id, { ...c.work!, state: 'waiting', ask: { kind: 'interrupted', text: 'The server restarted while I was working on this. Continue?' } });
         src.toRole(id, 'waiting', 'sara');
@@ -160,6 +172,8 @@ export class CardWorker {
       for (const h of teamHelpers(this.app)) out.push({ id: `helper:${h.id}`, name: h.name });
       out.push({ id: 'team', name: 'A team' });
     }
+    // Phase 100 (STAPLES §8.3): the agents she can ask (A2A) are assignees too.
+    for (const p of this.app.a2aClient?.peers() ?? []) out.push({ id: `peer:${p.id}`, name: p.label });
     return out;
   }
 
@@ -177,6 +191,13 @@ export class CardWorker {
       throw new Error('She is working on this card. Stop it first.');
     }
     if (c.assignee !== a) s.src.setAssignee(s.id, a, who);
+    // Phase 100 (STAPLES §8.3): a peer she can ask works the card: the card goes to it as a message
+    // and comes back with the peer's answer as receipts (src/a2a-client.ts).
+    if (a?.startsWith('peer:') && this.app.a2aClient?.peer(a.slice(5))) {
+      const handle = this.handle(ref);
+      if (handle) void this.app.a2aClient.workCard(a.slice(5), handle).catch((err: Error) => handle.set({ state: 'waiting', ask: { kind: 'failed', text: err.message.slice(0, 300) } }, 'waiting'));
+      return s.src.get(s.id)!;
+    }
     if (works) {
       s.src.setWork(s.id, { kind: a === 'sara' ? 'turn' : 'team', conversationId: '', startedAt: this.app.now().toISOString(), state: 'queued', by: this.person });
       void this.#pump();
@@ -432,10 +453,36 @@ export class CardWorker {
   }
 
   /** Stops the work on a card (a queued card just leaves the queue). */
+  /** Phase 100: what src/a2a-client.ts needs to work and update a card for a peer. */
+  handle(ref: string): CardHandle | undefined {
+    const s = this.#src(ref);
+    const c = s?.src.get(s.id);
+    if (!s || !c) return undefined;
+    return {
+      ref,
+      title: c.title,
+      notes: c.notes,
+      work: () => s.src.get(s.id)?.work ?? null,
+      set: (patch, role) => {
+        this.#set(s.src, s.id, patch);
+        if (role) s.src.toRole(s.id, role, c.assignee ?? 'sara');
+      },
+      log: (who, what, detail) => s.src.log(s.id, who, what, detail),
+    };
+  }
+
   stop(ref: string): boolean {
     const s = this.#src(ref);
     const c = s?.src.get(s.id);
     if (!s || !c?.work || !this.#mine(c.work)) return false;
+    // Phase 100: a peer's card: its task is canceled at the peer.
+    if (c.work.kind === 'a2a') {
+      if (c.work.taskId && ['running', 'waiting'].includes(c.work.state)) void this.app.a2aClient?.cancel(c.work.taskId).catch(() => undefined);
+      this.#set(s.src, s.id, { state: 'stopped', ask: undefined, line: undefined });
+      s.src.log(s.id, 'me', 'failed', { stopped: true });
+      s.src.toRole(s.id, 'todo', 'me');
+      return true;
+    }
     if (c.work.state === 'queued') {
       s.src.setWork(s.id, null);
       return true;
@@ -468,6 +515,15 @@ export class CardWorker {
     const c = s?.src.get(s.id);
     if (!s || !c?.work || !this.#mine(c.work) || c.work.state !== 'waiting') return false;
     const ask = c.work.ask;
+    // Phase 100: the peer asked a question (INPUT_REQUIRED): the owner's words go back to it.
+    if (c.work.kind === 'a2a') {
+      const text = a.text?.trim().slice(0, 4000);
+      if (!text || !c.work.taskId || !this.app.a2aClient) return false;
+      s.src.log(s.id, 'me', 'answered', { text: clip(text, 400) });
+      const handle = this.handle(ref)!;
+      void this.app.a2aClient.replyCard(c.work.taskId, text, handle).catch((err: Error) => handle.set({ state: 'waiting', ask: { kind: 'failed', text: err.message.slice(0, 300) } }, 'waiting'));
+      return true;
+    }
     if (a.approval && ask?.approvalId) {
       const ok = this.app.approvals.decide(ask.approvalId, a.approval === 'allow');
       if (ok) s.src.log(s.id, 'me', 'answered', { approval: a.approval });

@@ -208,6 +208,13 @@ export interface Settings {
    */
   otherApps?: { tools?: boolean; changes?: boolean; origins?: string[] };
   /**
+   * Phase 100 (STAPLES §8): other agents (A2A). `enabled`: let other agents reach her (the public card
+   * and /a2a; off by default); `showName`: her name on the public card (off: "Sara"); `operator`: the
+   * label she answers for ("answering for …"); `lanInPrivate`: agents on the home network in private
+   * local mode.
+   */
+  a2a?: { enabled?: boolean; showName?: boolean; operator?: string; lanInPrivate?: boolean };
+  /**
    * Phase 72: her Alexa skill (server-wide, the owner's): the skill id from the Alexa developer
    * console (requests for any other skill are refused) and whether her Alexa replies use the quick
    * model (Settings → Models → Which model does what). Linked Alexa accounts are in <data>/alexa.json.

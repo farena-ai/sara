@@ -45,6 +45,7 @@ import { createCodingRoutes } from './routes/coding.ts';
 import { createEvalRoutes } from './routes/evals.ts';
 import { createSkillRoutes } from './routes/skills.ts';
 import { createPluginRoutes } from './routes/plugins.ts';
+import { createAgentRoutes } from './routes/agents.ts';
 import { createPlannerRoutes } from './routes/planner.ts';
 import { createBoardRoutes, DEMO_CARD_ACTIONS } from './routes/board.ts';
 import { createMemoryRoutes } from './routes/memory.ts';
@@ -242,7 +243,8 @@ export function createSaraServer(opts: ServerOptions): Server {
     if (header?.startsWith(`Bearer ${DEVICE_TOKEN_PREFIX}`)) {
       // Phase 57: an API key for another app only works on /v1 and /mcp, never on the app's own API.
       const id = opts.demo ? undefined : auth.deviceTokenId(header.slice(7));
-      return id !== undefined && auth.deviceKind(id) !== 'api';
+      // Phase 100: an agent's key (A2A) only works on /a2a.
+      return id !== undefined && auth.deviceKind(id) !== 'api' && auth.deviceKind(id) !== 'a2a';
     }
     // Phase 24: with two-step sign-in on, the owner token alone is no longer enough.
     if (header?.startsWith('Bearer ')) {
@@ -315,7 +317,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   // Phase 99: 'boards' (the demo's sample board, per visitor, in memory) and its card actions below.
   const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports', 'boards']);
   /** Security review: routes an app signed in with a device code may not use (sign-in settings, devices, approving apps). */
-  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands']);
+  // Phase 100: 'agents' (A2A keys and peers) too.
+  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents']);
   /**
    * Phase 24 (security review): what a demo visitor may read. Everyone on the demo is "signed in",
    * so owner-only pages (backups, files, health details, accounts, devices…) must be listed out,
@@ -792,6 +795,9 @@ export function createSaraServer(opts: ServerOptions): Server {
   const evalRoutes = createEvalRoutes(ctx);
   const skillRoutes = createSkillRoutes(ctx);
   const pluginRoutes = createPluginRoutes(ctx);
+  const agentRoutes = createAgentRoutes(ctx);
+  // Phase 100: her address on the Agent Card is the one the peer used (https behind a trusted proxy).
+  if (app.a2a) app.a2a.baseOf = (req) => `${isHttps(req) ? 'https' : 'http'}://${String(req.headers.host ?? 'localhost')}`;
   const plannerRoutes = createPlannerRoutes(ctx);
   const boardRoutes = createBoardRoutes(ctx);
   const memoryRoutes = createMemoryRoutes(ctx);
@@ -1128,6 +1134,8 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await skillRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 98: plugins (Settings → Abilities → Plugins; the owner's only; src/routes/plugins.ts).
     if ((await pluginRoutes(req, res, method, parts)) !== NEXT) return;
+    // Phase 100: other agents (A2A; Settings → Connections → Other agents; the owner's only; src/routes/agents.ts).
+    if ((await agentRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 87: computer use: the computers, the live view, step thumbnails (src/routes/hands.ts).
     if ((await handsRoutes(req, res, method, parts)) !== NEXT) return;
 
@@ -1824,6 +1832,13 @@ export function createSaraServer(opts: ServerOptions): Server {
       }
       // Phase 72: Alexa (signed by Amazon; checked in src/alexa.ts before anything is read).
       if (url.pathname === '/alexa' || url.pathname === '/alexa/') return await alexa.handle(req, res, { demo: Boolean(opts.demo) });
+      // Phase 100 (STAPLES §8.2): A2A. The public card and /a2a/v1 exist only when the owner switched
+      // "Let other agents reach her" on, never on the demo or in a household member's space.
+      if (url.pathname === '/.well-known/agent-card.json' || url.pathname === '/a2a/v1' || url.pathname.startsWith('/a2a/')) {
+        if (app.a2a && !opts.member && !opts.demo && (await app.a2a.handle(req, res, url.pathname))) return;
+        await readRaw(req, 64 * 1024).catch(() => undefined);
+        throw new HttpError(404, 'Not found');
+      }
       if (url.pathname === '/mcp' || url.pathname === '/mcp/') {
         return await handleMcp(req, res, { app, auth, demo: Boolean(opts.demo), version: info.version, limiter: appLimiter, requestApproval });
       }

@@ -190,6 +190,8 @@ export function importedHistoryNote(owner: string, other: string, name: string):
 export async function summarizeConversation(app: AppContext, mem: MemoryStore, conversationId: string, opts: { signal?: AbortSignal; fromId?: number } = {}): Promise<SummarizeResult> {
   const conv = app.store.getConversation(conversationId);
   if (!conv) return { factIds: [], droppedFacts: 0, through: 0, error: 'Conversation not found' };
+  // Phase 100 (STAPLES §8.2): another agent's words are untrusted text, never facts about the owner.
+  if (conv.channel === 'a2a') return { factIds: [], droppedFacts: 0, through: app.store.lastMessageId(conversationId) };
   const s = app.settings.get();
   const owner = s.ownerName?.trim() || 'The owner';
   const state = mem.state(conversationId);

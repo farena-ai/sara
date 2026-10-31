@@ -280,3 +280,30 @@ dialog .saved-tag { color: var(--success); }
 @media (max-width: 720px) {
   .plg-log-row { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Phase 100: Settings → Connections → Other agents (web/agents.js). */
+.a2a-switches, .a2a-form { display: grid; gap: 6px; min-width: 0; }
+.a2a-form { padding: 12px; border-radius: var(--r-card, 12px); border: 1px solid var(--hairline); background: var(--glass-fill, var(--panel-2)); }
+.a2a-form > button { justify-self: start; min-height: 44px; }
+.a2a-picks { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
+.a2a-picks select { min-height: 44px; width: 100%; }
+.a2a-skills { display: grid; gap: 2px; min-width: 0; }
+.a2a-skills-head { margin: 4px 0 0; font-weight: 600; }
+.a2a-skill { min-width: 0; overflow-wrap: anywhere; }
+.a2a-card-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.a2a-card-row code { overflow-wrap: anywhere; min-width: 0; }
+.a2a-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; min-width: 0; }
+.a2a-title { display: grid; gap: 2px; min-width: 0; }
+.a2a-title strong { overflow-wrap: anywhere; }
+.a2a-line { margin: 0; overflow-wrap: anywhere; }
+.a2a-edit { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--hairline); min-width: 0; }
+.a2a-edit input[type=password], .a2a-key-row input { width: 100%; min-height: 44px; }
+.a2a-key-row { display: grid; gap: 4px; }
+.a2a-ifaces { margin: 0; padding-left: 18px; overflow-wrap: anywhere; }
+.a2a-recent { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; min-width: 0; }
+.a2a-recent-text { min-width: 0; overflow-wrap: anywhere; }
+.a2a-recent button { min-height: 44px; }
+@media (max-width: 560px) {
+  .a2a-recent { grid-template-columns: minmax(0, 1fr) auto; }
+  .a2a-recent > .muted { grid-column: 1 / -1; order: 3; }
+}

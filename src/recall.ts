@@ -16,7 +16,8 @@ import { ToolError } from './tools/types.ts';
 export function sharedWithApps(c: { partner: string | null; private: boolean; channel: string } | undefined): boolean {
   if (!c) return true;
   // Phase 66: group chats stay in the app (like private ones), never shared with other apps.
-  return !c.partner && !c.private && !isImportChannel(c.channel) && !/-nsfw$/.test(c.channel) && c.channel !== 'group';
+  // Phase 100: conversations with other agents (A2A) never reach other apps either (and vice versa).
+  return !c.partner && !c.private && !isImportChannel(c.channel) && !/-nsfw$/.test(c.channel) && c.channel !== 'group' && c.channel !== 'a2a';
 }
 /** Phase 66: the companion who said a group-chat line (its meta as stored). */
 function groupFromName(meta: string | null): string {
@@ -27,7 +28,7 @@ function groupFromName(meta: string | null): string {
   }
 }
 /** The SQL form of sharedWithApps for a conversation row `c`. */
-const APP_SAFE_SQL = `c.partner IS NULL AND c.private = 0 AND c.channel NOT LIKE 'import-%' AND c.channel NOT LIKE '%-nsfw' AND c.channel <> 'group'`;
+const APP_SAFE_SQL = `c.partner IS NULL AND c.private = 0 AND c.channel NOT LIKE 'import-%' AND c.channel NOT LIKE '%-nsfw' AND c.channel <> 'group' AND c.channel <> 'a2a'`;
 
 /** Everyday words that say nothing about what a memory is about. */
 const COMMON = new Set('went go going goes gone got get gets getting did does done make made making had have having was were been said say says tell told know knew want wanted really just like yeah okay good great nice fun thing things stuff time night day lot little bit'.split(' '));

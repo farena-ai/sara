@@ -40,6 +40,8 @@ export function elsewhereNote(app: AppContext, current: Conversation, now: Date,
     .listConversations()
     .filter((c) => c.id !== current.id && !c.archivedAt && !c.private && now.getTime() - Date.parse(c.updatedAt) < WITHIN_MS)
     .filter((c) => adultOk || !c.channel.endsWith('-nsfw'))
+    // Phase 100: conversations with other agents (A2A) are untrusted text: never quoted into her chats.
+    .filter((c) => c.channel !== 'a2a')
     // Chats with other people only when they're shared rooms the owner is in too (a Discord
     // server channel, a Telegram group: negative chat ids); a one-to-one chat stays theirs.
     .filter((c) => !c.partner || c.channel.startsWith('discord') || (c.channel.startsWith('telegram') && String(c.channelKey ?? '').startsWith('-')))

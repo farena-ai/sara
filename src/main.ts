@@ -106,6 +106,8 @@ import { RecipeStore } from './recipes.ts';
 import { SkillStore } from './skill-store.ts';
 import { SkillLearner } from './skill-learning.ts';
 import { PluginManager } from './plugins/manager.ts';
+import { A2AServer } from './a2a.ts';
+import { A2AClient } from './a2a-client.ts';
 import { createSkillTools } from './skill-tools.ts';
 import { workspaceDir } from './tools/workspace.ts';
 import { createTuneTool } from './studio.ts';
@@ -337,6 +339,19 @@ const pluginManager = isDemo
       pdb.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;');
       return new PluginManager({ db: pdb, dataDir, vault, sandbox, events, scrub: (s) => redactor.redact(s) });
     })();
+
+// Phase 100 (ST5, docs/A2A.md): A2A, the owner's only (never a member's space, never the demo). One
+// server and one client for the owner's companions, on their own connection to the owner's sara.db;
+// made with the main companion (who answers peers) in buildCompanion below.
+const a2aDb = isDemo
+  ? undefined
+  : (() => {
+      const d = new DatabaseSync(join(dataDir, 'sara.db'));
+      d.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;');
+      return d;
+    })();
+let a2aServer: A2AServer | undefined;
+let a2aClient: A2AClient | undefined;
 
 /**
  * Phase 71: a person's space (docs/HOUSEHOLD.md). The owner's is the data folder itself, exactly as
@@ -810,6 +825,19 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.pluginManager = pluginManager;
     pluginManager.attach(id, app);
   }
+  // Phase 100: A2A for the owner's companions (the main one answers peers; her tools on each).
+  if (!isMember && a2aDb) {
+    if (!a2aServer && main) {
+      a2aServer = new A2AServer({ db: a2aDb, auth: space.auth, app, version: info.version });
+      const srv = a2aServer;
+      a2aClient = new A2AClient({ store: srv.store, app, name: () => srv.cardName(), operator: () => srv.settings().operator, lanInPrivate: () => srv.settings().lanInPrivate });
+    }
+    if (a2aServer && a2aClient) {
+      app.a2a = a2aServer;
+      app.a2aClient = a2aClient;
+      for (const t of a2aClient.tools()) tools.add(t);
+    }
+  }
   const server = createSaraServer({ ...serverOpts, app, auth: space.auth, companions: space.companions, spaceId: space.id, ...(isMember ? { member: memberHooksFor(space) } : isDemo ? {} : { household: householdHooks }) });
   return {
     id,
@@ -825,6 +853,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       setTimeout(indexVectors, 5_000).unref();
       reminders.start();
       if (!sharedPlanner) app.cardWork?.start();
+      // Phase 100: open tasks she gave other agents are followed again (their board cards).
+      if (main && !isMember) app.a2aClient?.start();
       lifeWorker.start();
       weeklyWorker.start();
       app.learning?.start();
@@ -860,6 +890,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       app.historyImport?.stop();
       app.companionImport?.stop();
       if (!isMember) await pluginManager?.detach(id).catch(() => undefined);
+      if (main && !isMember) app.a2aClient?.stopAll();
     },
   };
 }

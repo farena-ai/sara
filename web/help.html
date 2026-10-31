@@ -514,6 +514,16 @@
   <li>Each app is listed under Devices like a phone, and signing it out there ends it. Details: <code>docs/clients.md</code>.</li>
 </ul>
 
+<h2 id="agents">Other agents (A2A)</h2>
+<ul>
+  <li>Other AI agents can ask her things, and she can ask them, over the open <strong>A2A</strong> protocol (version 1.0). Everything is in <em>Settings → Connections → Other agents</em>, and it's off until you switch on <strong>Let other agents reach her</strong>.</li>
+  <li><strong>An agent that asks her</strong> needs a key you make there (<em>Give an agent a key</em>): name it, tick what it may do (nothing ticked: it can only ask questions), pick its daily limits, then copy the key once into that agent. Its address is the card address shown on the page (<code>/.well-known/agent-card.json</code>); your server must be reachable for it, for example over Tailscale.</li>
+  <li>She tells every agent she's an AI answering for you (or for "its owner" if you leave the name empty). She knows nothing about you in these chats unless you tick <em>Share notes that aren't private</em>, and even then never your private, partner, imported or adult chats, people or keys. Anything that changes something (like adding a to-do) waits for your OK on a card, even if that tool usually runs on its own; the agent sees "waiting for approval" meanwhile.</li>
+  <li><strong>Agents she can ask:</strong> paste the agent's address under <em>Add an agent she can ask</em>. She reads its card and shows what it is, where it answers, how it signs in and its skills; nothing is added until you press <strong>Add</strong>. Paste the key its owner gave you; it's kept encrypted in her vault.</li>
+  <li>Each message she sends an agent waits for your OK and shows exactly what goes to whom. She refuses to send lines from your private conversations. Answers are treated as information from outside, never as instructions. A task the agent is still working on becomes a board card <em>Waiting on …</em> that moves to Done with its answer; you can also assign a board card to an agent.</li>
+  <li>The agents' conversations are in the <strong>Agents</strong> project, and the last 20 requests are on the settings page. Removing an agent stops its key at once. Details: <code>docs/A2A.md</code>.</li>
+</ul>
+
 <h2 id="usage">Usage and costs</h2>
 <ul>
   <li>Every model call that reports its tokens is counted: by model and by what it was for (chat, coding, team, jobs, memory, her life). See it in <em>Settings → Data &amp; health → Usage and costs</em> (today, 7 days, 30 days), under each conversation, and on each team task and job.</li>

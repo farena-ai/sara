@@ -5,6 +5,26 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.33.0 (2026-10-31): other agents, A2A (Phase 100, staples ST5)
+
+- **The open [Agent2Agent](https://a2a-protocol.org/) protocol (1.0), both ways, written from the
+  spec.** Settings → Connections → Other agents. Guide: [docs/A2A.md](docs/A2A.md).
+- **As a server** (off by default): `/.well-known/agent-card.json` (a thin public card; her name only
+  if you allow it), JSON-RPC at `/a2a/v1/rpc` and HTTP+JSON at `/a2a/v1/*`: SendMessage,
+  SendStreamingMessage (SSE), GetTask, ListTasks, CancelTask, SubscribeToTask, GetExtendedAgentCard;
+  all 8 task states; text, data and file parts (allow-listed, never run, links never fetched). Each
+  agent gets its own key (works only on `/a2a`, expires in 180 days) and a policy of what it may ask;
+  anything that changes something waits for your OK (AUTH_REQUIRED).
+- **As a client:** add an agent from its card (checked through the network guard, signatures verified
+  when present, key kept in the vault). Tools `a2a_agents`, `a2a_send` (asks), `a2a_status`,
+  `a2a_reply` (asks), `a2a_cancel`; streaming answers; Stop cancels at the peer; a daily cap.
+- **On the board:** assign a card to an agent; it comes back to Done with receipts, or waits on you
+  with the agent's question.
+- **Safety:** a peer's words are untrusted; once a peer's answer is in a turn, every tool that changes
+  something asks. Private, partner, group and imported chats and memories never go to a peer; nothing
+  is learned from agent chats; the safety layer and AI disclosure always apply. Not on the demo.
+- Conformance: `scripts/a2a-conformance.ts`, 61/61 against a live server; two Saras talked live.
+
 ## 2.32.0 (2026-10-31): the board (Phase 99, staples ST4)
 
 - **Kanban over your planner to-dos** (no second task list): Planner → Board. Every project has a

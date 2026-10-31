@@ -1216,6 +1216,32 @@ Decide whether her public card may show her name (default no); connect one real 
 direction (another Sara, or an agent from the A2A samples); look through a day of the *Agents*
 project.
 
+### 8.9 As built (2.33.0)
+Built as designed, with these deviations (guide: [A2A.md](../A2A.md)):
+- **Page:** its own page **Settings → Connections → Other agents** (`co-agents`), not a section of
+  Other apps. The settings list grew to 46 pages, and a peer review card ("pairing card") reuses
+  `web/proposal-card.js`.
+- **Conformance:** not run with the official SDKs. The repo rule is that nothing from the A2A SDKs is
+  copied or depended on, so this phase ships `scripts/a2a-conformance.ts` instead: 61 shape checks
+  against the spec's required JSON-RPC/REST forms. The live run had two throwaway Saras talking A2A
+  to each other over a local Ollama model. Running `@a2a-js/sdk` / `a2a-sdk` against Sara from a
+  scratch folder is left as an owner check.
+- **Read-only lock after a peer answer (added):** in her own chat, once an agent's answer
+  (`a2a_send` / `a2a_reply` / `a2a_status`) reached her, every tool that isn't read-only asks for the
+  rest of that turn, even tools set to run on their own. This makes "peer output is untrusted" hold
+  against injected instructions.
+- **Questions back:** `INPUT_REQUIRED` is decided from her reply: a closing question, unless it is
+  a courtesy offer after a real answer ("Want me to…?"). In chat, a question back is answered with
+  `a2a_reply`; it is not turned into a board card. A message to an `INPUT_REQUIRED` task moves it
+  back to `WORKING` before the first stream event.
+- **Not implemented:** push notifications (the card says `pushNotifications: false`; the config
+  methods answer -32003); `raw` parts in outgoing messages (she sends text and data only); a peer
+  answered by a companion other than the main one (`companion` column kept, always `main`). The
+  people-card part of the private-quote check waits for ST6.
+- **Card signatures:** JWS with the key in the protected header (`jwk`, ES256/EdDSA). Signatures
+  that name a key URL are shown as "signed, key not in the card"; no key URL is fetched.
+- **Context titles:** each context's conversation is titled "<agent>: <first words>".
+
 ---
 
 ## 9. ST6 · Phase 101 · 2.34.0: people

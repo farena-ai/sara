@@ -33,7 +33,9 @@ interface DeviceSession {
    * Phase 87: 'hands' = Sara's hands on a computer (the desktop app's computer-use channel): it only
    * opens the /api/hands WebSocket, never the app's own API (docs/design/COMPUTER_USE.md §3.2).
    */
-  kind?: 'api' | 'home-assistant' | 'hands';
+  kind?: 'api' | 'home-assistant' | 'hands' | 'a2a';
+  /** Phase 100: an agent's key (kind 'a2a') stops working at this time (default 180 days). */
+  expiresAt?: string;
 }
 
 interface OwnerFile {
@@ -61,14 +63,16 @@ export interface DeviceView {
   createdAt: string;
   lastSeen: string;
   /** Phase 52: 'app' = signed in with a device code and a token (terminal, VS Code). Phase 57: 'api' = an API key for another app. M4: 'home-assistant'. Phase 87: 'hands'. */
-  kind: 'browser' | 'app' | 'api' | 'home-assistant' | 'hands';
+  kind: 'browser' | 'app' | 'api' | 'home-assistant' | 'hands' | 'a2a';
+  /** Phase 100: when an agent's key stops working. */
+  expiresAt?: string;
 }
 
 /** Hardening L4: browser and app sign-ins kept at most (API keys are capped on their own, at 20). */
 export const MAX_SESSIONS = 50;
 /** Keeps every API key and the newest MAX_SESSIONS other sign-ins (a pile of old sign-ins never drops a key). */
 function capSessions(list: DeviceSession[]): DeviceSession[] {
-  const others = list.filter((d) => d.kind !== 'api');
+  const others = list.filter((d) => d.kind !== 'api' && d.kind !== 'a2a');
   const drop = new Set(others.slice(0, Math.max(0, others.length - MAX_SESSIONS)));
   return list.filter((d) => !drop.has(d));
 }
@@ -299,7 +303,7 @@ export class OwnerAuth {
     const expires = now.getTime() + SESSION_TTL_MS;
     const id = randomBytes(9).toString('base64url');
     const payload = `${expires}.${id}`;
-    const sessions = (this.#owner.sessions ?? []).filter((d) => d.kind === 'api' || Date.parse(d.lastSeen) > now.getTime() - SESSION_TTL_MS);
+    const sessions = (this.#owner.sessions ?? []).filter((d) => d.kind === 'api' || d.kind === 'a2a' || Date.parse(d.lastSeen) > now.getTime() - SESSION_TTL_MS);
     sessions.push({ id, label: label.slice(0, 60), createdAt: now.toISOString(), lastSeen: now.toISOString() });
     this.#owner.sessions = capSessions(sessions);
     this.#save();
@@ -336,7 +340,7 @@ export class OwnerAuth {
   }
 
   devices(): DeviceView[] {
-    return [...(this.#owner.sessions ?? [])].sort((a, b) => b.lastSeen.localeCompare(a.lastSeen)).map(({ tokenHash, kind, ...d }) => ({ ...d, kind: kind === 'api' || kind === 'home-assistant' || kind === 'hands' ? kind : tokenHash ? 'app' : 'browser' }));
+    return [...(this.#owner.sessions ?? [])].sort((a, b) => b.lastSeen.localeCompare(a.lastSeen)).map(({ tokenHash, kind, ...d }) => ({ ...d, kind: kind === 'api' || kind === 'home-assistant' || kind === 'hands' || kind === 'a2a' ? kind : tokenHash ? 'app' : 'browser' }));
   }
 
   /**
@@ -347,12 +351,40 @@ export class OwnerAuth {
     const now = this.#now();
     const id = randomBytes(9).toString('base64url');
     const secret = randomBytes(32).toString('base64url');
-    const sessions = (this.#owner.sessions ?? []).filter((d) => d.kind === 'api' || Date.parse(d.lastSeen) > now.getTime() - SESSION_TTL_MS);
+    const sessions = (this.#owner.sessions ?? []).filter((d) => d.kind === 'api' || d.kind === 'a2a' || Date.parse(d.lastSeen) > now.getTime() - SESSION_TTL_MS);
     if (kind === 'api' && sessions.filter((d) => d.kind === 'api').length >= 20) throw new Error('Up to 20 API keys: remove one you no longer use first (Devices and sign-in).');
     sessions.push({ id, label: label.slice(0, 60) || (kind === 'api' ? 'Another app' : 'App'), createdAt: now.toISOString(), lastSeen: now.toISOString(), tokenHash: sha256(secret), ...(kind ? { kind } : {}) });
     this.#owner.sessions = capSessions(sessions);
     this.#save();
     return { token: `${DEVICE_TOKEN_PREFIX}${id}.${secret}`, id };
+  }
+
+  /**
+   * Phase 100 (STAPLES §8.2): a key for another agent (A2A). It only works on /a2a, never on /api,
+   * /v1 or /mcp; shown once, only its hash kept, revocable, and it ends after `days` (default 180).
+   */
+  createAgentKey(label: string, days = 180): { token: string; id: string; expiresAt: string } {
+    const now = this.#now();
+    const sessions = this.#owner.sessions ?? [];
+    if (sessions.filter((d) => d.kind === 'a2a').length >= 20) throw new Error('Up to 20 agent keys: remove one first.');
+    const id = randomBytes(9).toString('base64url');
+    const secret = randomBytes(32).toString('base64url');
+    const expiresAt = new Date(now.getTime() + Math.max(1, Math.min(365, Math.round(days))) * 24 * 3600_000).toISOString();
+    sessions.push({ id, label: label.slice(0, 60) || 'Another agent', createdAt: now.toISOString(), lastSeen: now.toISOString(), tokenHash: sha256(secret), kind: 'a2a', expiresAt });
+    this.#owner.sessions = capSessions(sessions);
+    this.#save();
+    return { token: `${DEVICE_TOKEN_PREFIX}${id}.${secret}`, id, expiresAt };
+  }
+
+  /** Phase 100: the device id of a valid agent key (any other token, a cookie or an expired key: undefined). */
+  agentKeyId(token: string | undefined): string | undefined {
+    const id = this.deviceTokenId(token);
+    return id && this.deviceKind(id) === 'a2a' ? id : undefined;
+  }
+
+  /** Phase 100: when an agent's key ends. */
+  expiresOf(id: string): string | undefined {
+    return this.#owner.sessions?.find((x) => x.id === id)?.expiresAt;
   }
 
   /** Phase 57: an API key for another app (an OpenAI-compatible app or an MCP app). Shown once. */
@@ -361,9 +393,9 @@ export class OwnerAuth {
   }
 
   /** Phase 57: 'api' for an API key, 'app' for a device-code app, 'home-assistant' (M4), 'hands' (Phase 87), undefined for anything else. */
-  deviceKind(id: string): 'api' | 'app' | 'home-assistant' | 'hands' | undefined {
+  deviceKind(id: string): 'api' | 'app' | 'home-assistant' | 'hands' | 'a2a' | undefined {
     const d = this.#owner.sessions?.find((x) => x.id === id);
-    return !d?.tokenHash ? undefined : d.kind === 'api' || d.kind === 'home-assistant' || d.kind === 'hands' ? d.kind : 'app';
+    return !d?.tokenHash ? undefined : d.kind === 'api' || d.kind === 'home-assistant' || d.kind === 'hands' || d.kind === 'a2a' ? d.kind : 'app';
   }
 
   /**
@@ -375,7 +407,7 @@ export class OwnerAuth {
     const now = this.#now();
     const id = randomBytes(9).toString('base64url');
     const secret = randomBytes(32).toString('base64url');
-    const sessions = (this.#owner.sessions ?? []).filter((d) => d.kind === 'api' || Date.parse(d.lastSeen) > now.getTime() - SESSION_TTL_MS);
+    const sessions = (this.#owner.sessions ?? []).filter((d) => d.kind === 'api' || d.kind === 'a2a' || Date.parse(d.lastSeen) > now.getTime() - SESSION_TTL_MS);
     // One computer, one set of hands: a new pairing with the same name replaces the old one.
     const same = sessions.filter((d) => d.kind === 'hands' && d.label === label.slice(0, 60)).map((d) => d.id);
     const kept = sessions.filter((d) => !same.includes(d.id));
@@ -453,8 +485,10 @@ export class OwnerAuth {
     // Phase 87: a hands token written with the other prefix is still only a hands token.
     if (d.kind === 'hands') return undefined;
     const now = this.#now().getTime();
+    // Phase 100: an agent's key works until its expiry (or until the owner removes it).
+    if (d.kind === 'a2a' && !(Date.parse(d.expiresAt ?? '') > now)) return undefined;
     // Phase 57: an API key works until the owner removes it (it can only reach /v1 and /mcp).
-    if (d.kind !== 'api') {
+    if (d.kind !== 'api' && d.kind !== 'a2a') {
       if (Date.parse(d.lastSeen) < now - SESSION_TTL_MS) return undefined;
       if (!(Date.parse(d.createdAt) > now - DEVICE_TOKEN_MAX_MS)) return undefined;
     }

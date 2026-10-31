@@ -98,6 +98,8 @@ export function callerOf(req: IncomingMessage, auth: OwnerAuth): Caller | undefi
   const kind = auth.deviceKind(id) ?? 'app';
   // Phase 87: a hands token is never another app's key (deviceTokenId refuses it already).
   if (kind === 'hands') return undefined;
+  // Phase 100: an agent's key (A2A) only works on /a2a, never on /v1 or /mcp.
+  if (kind === 'a2a') return undefined;
   return { id, label: auth.deviceLabelOf(id) ?? DEFAULT_APP_NAME, kind };
 }
 
