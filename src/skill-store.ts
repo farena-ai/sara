@@ -39,6 +39,8 @@ export const AUTO_MIN_SCORE = 0.55;
 export const AUTO_MARGIN = 0.05;
 /** A body loaded up front may take at most this share of the turn's history budget. */
 export const AUTO_HISTORY_SHARE = 0.15;
+/** Phase 97 (§5.6): a learned skill on trial is listed only for a match at least this strong, and never loaded up front. */
+export const TRIAL_MIN_SCORE = 0.7;
 /** Bounds of the scan (§4.3). */
 export const SCAN_MAX_ENTRIES = 2000;
 export const TRASH_DAYS = 30;
@@ -129,6 +131,10 @@ export interface SkillRow {
   scriptsAuto: boolean;
   /** Additive: scripts run with the owner's approval (an imported skill needs one before scriptsAuto). */
   approvedRuns: number;
+  /** Phase 97 (ST2, §5.6): never loaded up front (a learned skill whose check came out "same"). */
+  noAuto: boolean;
+  /** Phase 97: the skill check (queued | running | helps | same | hurts | skipped | failed), or null. */
+  checkState: string | null;
 }
 
 export interface SkillView extends SkillRow {
@@ -176,6 +182,8 @@ function toRow(r: Row): SkillRow {
     pinned: bool(r.pinned),
     scriptsAuto: bool(r.scripts_auto),
     approvedRuns: Number(r.approved_runs ?? 0),
+    noAuto: bool(r.no_auto),
+    checkState: (r.check_state as string | null) ?? null,
   };
 }
 
@@ -261,6 +269,9 @@ export class SkillStore {
     if (!cols.has('pinned')) db.exec('ALTER TABLE skills ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0');
     if (!cols.has('scripts_auto')) db.exec('ALTER TABLE skills ADD COLUMN scripts_auto INTEGER NOT NULL DEFAULT 0');
     if (!cols.has('approved_runs')) db.exec('ALTER TABLE skills ADD COLUMN approved_runs INTEGER NOT NULL DEFAULT 0');
+    // Phase 97 (ST2, additive): the skill check's outcome.
+    if (!cols.has('no_auto')) db.exec('ALTER TABLE skills ADD COLUMN no_auto INTEGER NOT NULL DEFAULT 0');
+    if (!cols.has('check_state')) db.exec('ALTER TABLE skills ADD COLUMN check_state TEXT');
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -549,7 +560,8 @@ export class SkillStore {
 
   /** The skill she means by a name ("deploy-the-site", or "shared:deploy-the-site" for another scope's). */
   resolve(ref: string): SkillView | undefined {
-    const r = String(ref ?? '').trim();
+    // Phase 97: a learned skill on trial is listed as "name (new)".
+    const r = String(ref ?? '').trim().replace(/\s*\(new\)$/i, '');
     const m = /^(companion|shared|builtin|project:[A-Za-z0-9._-]+):(.+)$/.exec(r);
     if (m) {
       const v = this.get(m[1], m[2]);
@@ -661,9 +673,22 @@ export class SkillStore {
    * only on a name clash.
    */
   async catalog(text: string, opts: { target?: EmbedTarget; timeoutMs?: number } = {}): Promise<{ text: string; listed: string[]; total: number; ranked: boolean } | undefined> {
-    const eff = this.effective();
+    let eff = this.effective();
+    // Phase 97 (§5.6): a learned skill on trial is listed only when it fits this message strongly
+    // (meaning score ≥ 0.7; without the embeddings job, when it is the clear first by words).
+    const trial = eff.filter((v) => v.status === 'trial');
+    if (trial.length) {
+      const strong = new Set<SkillView>();
+      const meaning = await this.searchMeaning(opts.target, text, opts.timeoutMs ?? 1500);
+      if (meaning.length) for (const m of meaning) if (m.view.status === 'trial' && m.score >= TRIAL_MIN_SCORE) strong.add(m.view);
+      if (!opts.target) {
+        const top = this.searchWords(text, 1)[0];
+        if (top && top.view.status === 'trial') strong.add(top.view);
+      }
+      eff = eff.filter((v) => v.status !== 'trial' || [...strong].some((x) => x.scope === v.scope && x.name === v.name));
+    }
     if (!eff.length) return undefined;
-    const line = (v: SkillView, max = 1024) => `- ${v.name}${v.clash ? ` [${v.scope}]` : ''} — ${v.description.length > max ? `${v.description.slice(0, max - 1)}…` : v.description}`;
+    const line = (v: SkillView, max = 1024) => `- ${v.name}${v.status === 'trial' ? ' (new)' : ''}${v.clash ? ` [${v.scope}]` : ''} — ${v.description.length > max ? `${v.description.slice(0, max - 1)}…` : v.description}`;
     const whole = eff.map((v) => line(v));
     if (eff.length <= CATALOG_WHOLE_MAX && estimateTokens(whole.join('\n')) <= CATALOG_TOKENS) return { text: whole.join('\n'), listed: eff.map((v) => v.name), total: eff.length, ranked: false };
     const picked: SkillView[] = eff.filter((v) => v.pinned);
@@ -701,6 +726,8 @@ export class SkillStore {
     if (!best || best.score < AUTO_MIN_SCORE) return undefined;
     if (next && best.score - next.score < AUTO_MARGIN) return undefined;
     if (opts.loaded.has(best.view.name)) return undefined;
+    // Phase 97 (§5.6): a learned skill on trial, or one whose check came out "same", is never loaded up front.
+    if (best.view.status === 'trial' || best.view.noAuto) return undefined;
     if (best.view.bodyTokens > BODY_TOKENS_ADVISED || best.view.bodyTokens * 4 > opts.historyBudgetChars * AUTO_HISTORY_SHARE) return undefined;
     return best.view;
   }
@@ -833,6 +860,13 @@ export class SkillStore {
   /** A script of this skill ran with the owner's OK. */
   noteApprovedRun(scope: string, name: string): void {
     this.db.prepare('UPDATE skills SET approved_runs = approved_runs + 1 WHERE scope = ? AND name = ?').run(scope, name);
+  }
+
+  /** Phase 97 (§5.6): a learned skill's standing (trial until its check, then ready; "same" never auto-loads). */
+  setLearned(scope: string, name: string, s: { status?: 'trial' | 'ready'; noAuto?: boolean; checkState?: string | null }): void {
+    if (s.status) this.db.prepare("UPDATE skills SET status = ? WHERE scope = ? AND name = ? AND status IN ('trial', 'ready')").run(s.status, scope, name);
+    if (s.noAuto !== undefined) this.db.prepare('UPDATE skills SET no_auto = ? WHERE scope = ? AND name = ?').run(s.noAuto ? 1 : 0, scope, name);
+    if (s.checkState !== undefined) this.db.prepare('UPDATE skills SET check_state = ? WHERE scope = ? AND name = ?').run(s.checkState, scope, name);
   }
 
   /** The owner looked at a changed imported skill again and keeps it as it is now. */

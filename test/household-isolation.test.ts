@@ -325,6 +325,20 @@ test('skills (Phase 96): each member has their own; a folder on the server is th
   assert.equal((await call(ana, 'DELETE', '/api/skills/companion/ana-only-skill')).status, 200);
 });
 
+test('skills she learns (Phase 97): each person learns in their own space; settings are their own', async () => {
+  const put = await call(ana, 'PUT', '/api/skills/learning', { times: 5, perDay: 2 });
+  assert.equal(put.status, 200, put.text);
+  assert.equal((put.json.settings as { times: number }).times, 5);
+  for (const p of [owner, ben]) {
+    const st = await call(p, 'GET', '/api/skills/learning');
+    assert.equal(st.status, 200, `${p.name}: ${st.text}`);
+    assert.equal((st.json.settings as { times: number }).times, 3, `${p.name} keeps their own count`);
+  }
+  // A member's offers and fixes are theirs: another person's ids are not found.
+  assert.equal((await call(ben, 'GET', '/api/skills/learning/offers/1')).status, 404);
+  assert.equal((await call(ana, 'PUT', '/api/skills/learning', { times: 3, perDay: 1 })).status, 200);
+});
+
 test('every route family: no person ever gets another person\'s data', async () => {
   const fam = routeFamilies();
   assert.ok(fam.size > 80, `found ${fam.size} route families`);

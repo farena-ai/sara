@@ -509,6 +509,8 @@ export interface ReplayOptions {
   hooks?: TurnHooks;
   /** Phase 85 (M10): recall on her own forced on/off (M9's triggers variant); unset = the settings. */
   recall?: boolean;
+  /** Phase 97 (ST2): notes added after the recorded ones (the skill check's "with skill X loaded"). */
+  notes?: string[];
 }
 
 export interface ReplayOutcome {
@@ -727,7 +729,7 @@ export async function* branchRun(app: AppContext, runId: number, opts: ReplayOpt
     // The turn itself, on the scratch copy (nothing it writes reaches the real conversation).
     const overrides: Partial<AppContext> = { store: scratch, codemap: undefined, drift: undefined, security: undefined, memoryNudge: undefined, inner: undefined };
     const cx = new Proxy(app, { get: (t, k: string) => (k in overrides ? overrides[k as keyof AppContext] : t[k as keyof AppContext]) }) as AppContext;
-    const replay: ReplayInputs = { system, extra: r.extra, ...(injection ? { injection } : {}), ...(restore ? { workspaceDir: restore.dir } : {}), ...(edits.message !== undefined ? { messageEdited: true } : {}) };
+    const replay: ReplayInputs = { system, extra: opts.notes?.length ? [...r.extra, ...opts.notes] : r.extra, ...(injection ? { injection } : {}), ...(restore ? { workspaceDir: restore.dir } : {}), ...(edits.message !== undefined ? { messageEdited: true } : {}) };
     const userText = edits.message !== undefined ? String(edits.message) : r.userMessage.content;
     status = 'stopped';
     try {

@@ -102,6 +102,7 @@ import { CodeMaps } from './codemap/index.ts';
 import { createCodeTools } from './codemap/tools.ts';
 import { RecipeStore } from './recipes.ts';
 import { SkillStore } from './skill-store.ts';
+import { SkillLearner } from './skill-learning.ts';
 import { createSkillTools } from './skill-tools.ts';
 import { workspaceDir } from './tools/workspace.ts';
 import { createTuneTool } from './studio.ts';
@@ -649,6 +650,9 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   }
   // Phase 84 (harness M9): the eval loop (owner's companions; members have no coding history to replay).
   if (!isMember) app.evals = new Evals(app);
+  // Phase 97 (ST2): skills she learns (offers after repeated asks or step chains, fixes, M9 checks).
+  // Every person's own space learns from their own conversations only; the demo never learns.
+  if (!isDemo) app.learning = new SkillLearner(app);
   // Phase 13: background jobs, git and delegating to Claude Code / Grok Build.
   app.jobs = new JobManager(app, store.db);
   app.reports = new ReportStore(store.db, app.now);
@@ -774,6 +778,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       reminders.start();
       lifeWorker.start();
       weeklyWorker.start();
+      app.learning?.start();
       app.briefing!.start();
       app.leaveBy!.start();
       app.review!.start();
@@ -798,6 +803,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       reminders.stop();
       lifeWorker.stop();
       weeklyWorker.stop();
+      app.learning?.stop();
       app.briefing?.stop?.();
       app.leaveBy?.stop?.();
       app.review?.stop?.();

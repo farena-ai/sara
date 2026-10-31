@@ -104,6 +104,8 @@ export interface VariantSpec {
   budget?: BudgetPreset;
   /** Phase 85 (M10): recall on her own forced on or off for this variant (the triggers on/off measurement). */
   recall?: 'on' | 'off';
+  /** Phase 97 (ST2, §5.6): this skill's body loaded up front for the task (the skill check's "with skill X"). */
+  skill?: { scope: string; name: string };
 }
 
 export type FeedbackKind = 'accepted' | 'corrected' | 'replaced' | 'reported' | 'none';
@@ -440,7 +442,7 @@ export class EvalStore {
 // Task picking
 // ------------------------------------------------------------------------------------------------
 
-const CORRECTION = /^\s*(no\b|nope|nah\b|that'?s (wrong|not (it|right|what))|this is wrong|wrong\b|not what i|doesn'?t work|didn'?t work|it (still )?(fails|failed|breaks|broke|crashes)|still (fails|failing|broken|wrong|not)|you broke|undo|revert|that broke|tests? (still )?fail)/i;
+export const CORRECTION = /^\s*(no\b|nope|nah\b|that'?s (wrong|not (it|right|what))|this is wrong|wrong\b|not what i|doesn'?t work|didn'?t work|it (still )?(fails|failed|breaks|broke|crashes)|still (fails|failing|broken|wrong|not)|you broke|undo|revert|that broke|tests? (still )?fail)/i;
 const ACCEPT = /^\s*(thanks|thank you|thx|perfect|great\b|works\b|it works|that works|that worked|nice\b|awesome|looks good|lgtm|ok,? (great|good|thanks)|ship it|exactly|cool,? thanks|yes,? (that|this) (works|is it))/i;
 
 /** What the owner did after the original reply: the strongest recorded signal. */
@@ -520,65 +522,90 @@ export function pickTasks(app: AppContext, opts: { kind: EvalKind; count: number
       if (!conv) continue;
       const coding = conv.mode === 'coding';
       if ((opts.kind === 'coding' && !coding) || (opts.kind === 'everyday' && coding)) continue;
-      if (conv.partner) {
-        skip('someone else');
-        continue;
-      }
-      if (conv.private) {
-        const ctl = currentModel(app, conv);
-        if (!allLocalVariants || !ctl || !isLocalModel(app, ctl)) {
-          skip('private');
-          continue;
-        }
-      }
-      let rebuilt;
-      try {
-        rebuilt = rebuildStep(app, run.id, 0);
-      } catch {
-        skip('cannot rebuild');
-        continue;
-      }
-      if (!rebuilt.userMessage) {
-        skip('cannot rebuild');
-        continue;
-      }
-      const feedback = feedbackOf(app, run);
-      let tests: string | null = null;
-      if (coding) {
-        try {
-          tests = detectTests(workspaceDir(app.rootDir ?? app.dataDir, conv.workspace)) ?? null;
-        } catch {
-          tests = null;
-        }
-      }
-      if (!tests && feedback.kind === 'none' && !opts.judge) {
-        skip('nothing to grade');
-        continue;
-      }
-      seen.add(run.userMessageId);
-      tasks.push({
-        idx: tasks.length,
-        runId: run.id,
-        conversationId: conv.id,
-        title: clip(run.title || rebuilt.userMessage.content.replace(/\s+/g, ' ').trim(), 120),
-        coding,
-        private: conv.private,
-        workspace: conv.workspace,
-        userMessageId: run.userMessageId,
-        ask: clip(rebuilt.userMessage.content, 2000),
-        answer: clip(finalAnswer(run, app.store, (id) => runs.runMessages(id)), 4000),
-        tokens: run.tokensIn + run.tokensOut,
-        tokensIn: run.tokensIn,
-        tokensOut: run.tokensOut,
-        usd: run.usd,
-        steps: run.steps,
-        ms: run.ms,
-        model: String(run.policy?.model ?? rebuilt.model.model ?? ''),
-        at: run.startedAt,
-        feedback,
-        tests,
-      });
+      const r = taskOfRun(app, run, { allLocalVariants, judge: opts.judge, seen, idx: tasks.length });
+      if (typeof r === 'string') skip(r);
+      else tasks.push(r);
     }
+  }
+  return { tasks, skipped };
+}
+
+/** One recorded run as a frozen task, or why it can't be one. */
+function taskOfRun(app: AppContext, run: RunView, o: { allLocalVariants: boolean; judge: boolean; seen: Set<number>; idx: number }): EvalTask | string {
+  const runs = app.runs!;
+  if (run.status !== 'ok' && run.status !== 'budget') return 'unfinished';
+  if (!run.userMessageId || !run.replyMessageId || o.seen.has(run.userMessageId)) return 'no reply';
+  const conv = run.conversationId ? app.store.getConversation(run.conversationId) : undefined;
+  if (!conv) return 'cannot rebuild';
+  const coding = conv.mode === 'coding';
+  if (conv.partner) return 'someone else';
+  if (conv.private) {
+    const ctl = currentModel(app, conv);
+    if (!o.allLocalVariants || !ctl || !isLocalModel(app, ctl)) return 'private';
+  }
+  let rebuilt;
+  try {
+    rebuilt = rebuildStep(app, run.id, 0);
+  } catch {
+    return 'cannot rebuild';
+  }
+  if (!rebuilt.userMessage) return 'cannot rebuild';
+  const feedback = feedbackOf(app, run);
+  let tests: string | null = null;
+  if (coding) {
+    try {
+      tests = detectTests(workspaceDir(app.rootDir ?? app.dataDir, conv.workspace)) ?? null;
+    } catch {
+      tests = null;
+    }
+  }
+  if (!tests && feedback.kind === 'none' && !o.judge) return 'nothing to grade';
+  o.seen.add(run.userMessageId);
+  return {
+    idx: o.idx,
+    runId: run.id,
+    conversationId: conv.id,
+    title: clip(run.title || rebuilt.userMessage.content.replace(/\s+/g, ' ').trim(), 120),
+    coding,
+    private: conv.private,
+    workspace: conv.workspace,
+    userMessageId: run.userMessageId,
+    ask: clip(rebuilt.userMessage.content, 2000),
+    answer: clip(finalAnswer(run, app.store, (id) => runs.runMessages(id)), 4000),
+    tokens: run.tokensIn + run.tokensOut,
+    tokensIn: run.tokensIn,
+    tokensOut: run.tokensOut,
+    usd: run.usd,
+    steps: run.steps,
+    ms: run.ms,
+    model: String(run.policy?.model ?? rebuilt.model.model ?? ''),
+    at: run.startedAt,
+    feedback,
+    tests,
+  };
+}
+
+/**
+ * Phase 97 (ST2, §5.6): the given runs as frozen tasks (a skill check's own examples and similar
+ * past tasks), in order, at most `max`; the reasons for leaving one out are counted.
+ */
+export function tasksFromRuns(app: AppContext, runIds: number[], opts: { variants: VariantSpec[]; judge: boolean; max?: number }): Picked {
+  const runs = app.runs;
+  if (!runs) throw new ReplayError(404, en('Run history is not available here.'));
+  const allLocalVariants = opts.variants.every((v) => !v.model || isLocalModel(app, v.model));
+  const skipped: Record<string, number> = {};
+  const tasks: EvalTask[] = [];
+  const seen = new Set<number>();
+  for (const id of [...new Set(runIds)]) {
+    if (tasks.length >= (opts.max ?? 5)) break;
+    const run = runs.get(id);
+    if (!run || run.kind !== 'turn' || run.parentRunId) {
+      skipped['cannot rebuild'] = (skipped['cannot rebuild'] ?? 0) + 1;
+      continue;
+    }
+    const r = taskOfRun(app, run, { allLocalVariants, judge: opts.judge, seen, idx: tasks.length });
+    if (typeof r === 'string') skipped[r] = (skipped[r] ?? 0) + 1;
+    else tasks.push(r);
   }
   return { tasks, skipped };
 }
@@ -607,7 +634,7 @@ export function cleanVariant(app: AppContext, raw: unknown, id: string): Variant
   return out;
 }
 
-const changes = (v: VariantSpec) => Boolean(v.memory || v.model || v.sandbox || v.budget || v.recall);
+const changes = (v: VariantSpec) => Boolean(v.memory || v.model || v.sandbox || v.budget || v.recall || v.skill);
 
 /** The variant in words (English; the page words it itself from the fields). */
 export function variantWords(v: VariantSpec): string {
@@ -618,6 +645,7 @@ export function variantWords(v: VariantSpec): string {
   if (v.sandbox) bits.push(`sandbox tries: ${v.sandbox}`);
   if (v.budget) bits.push(`budget: ${v.budget}`);
   if (v.recall) bits.push(`recall on her own: ${v.recall}`);
+  if (v.skill) bits.push(`with the skill ${v.skill.name}`);
   return bits.join(' · ');
 }
 
@@ -938,6 +966,22 @@ export class Evals {
     return this.store.get(id)!;
   }
 
+  /**
+   * Phase 97 (ST2, §5.6): a draft eval on tasks picked by the caller (the skill check), with the
+   * variants as given (the control may carry the budget preset too). The ceiling is the estimate's
+   * default, never more than `maxTokens`.
+   */
+  createWith(input: { title: string; kind: EvalKind; picked: Picked; variants: VariantSpec[]; judge: boolean; maxTokens?: number }): EvalView {
+    if (!input.picked.tasks.length) throw new ReplayError(409, en('No eligible tasks yet: Sara needs finished replies with something to grade them by (tests, your reaction, or the judge).'));
+    if (input.variants[0]?.id !== 'control' || input.variants.length < 2) throw new ReplayError(400, en('Add at least one variant to compare with your settings now.'));
+    const concurrency = 1;
+    const estimate = this.estimate(input.picked.tasks, input.variants, input.judge, concurrency);
+    const tokens = Math.min(ceilingFor(estimate.tokens), input.maxTokens ?? Number.MAX_SAFE_INTEGER);
+    const ceiling: Ceiling = { tokens: Math.max(1000, tokens), ...(estimate.paid ? { usd: Math.max(0.01, Math.round((estimate.usd ?? 1) * 1.5 * 100) / 100) } : {}) };
+    const id = this.store.create({ title: clip(input.title, 120), kind: input.kind, tasks: input.picked.tasks, skipped: input.picked.skipped, variants: input.variants, options: { judge: input.judge, concurrency }, estimate, ceiling, fromEval: null });
+    return this.store.get(id)!;
+  }
+
   /** Tokens, $ and minutes up front: each task's original run, once per variant (+ the judge). */
   estimate(tasks: EvalTask[], variants: VariantSpec[], judge: boolean, concurrency: number): Estimate {
     const app = this.#app;
@@ -1141,6 +1185,17 @@ export class Evals {
         return undefined;
       },
     };
+    // Phase 97: "with skill X loaded": its body rides along as the app's note, as when it is loaded up front.
+    let notes: string[] | undefined;
+    if (v.skill) {
+      const sk = app.skills?.get(v.skill.scope, v.skill.name);
+      if (!sk) return { ...base, status: 'skipped', note: 'The skill is gone.' };
+      try {
+        notes = [`[Note from the app: a skill that fits this message was loaded for you; follow it where it fits:]\n${app.skills!.activation(sk)}`];
+      } catch (err) {
+        return { ...base, status: 'skipped', note: clip((err as Error).message, 300) };
+      }
+    }
     const deny = new DenyAll();
     const appV = this.#appFor(v, deny);
     const onEvent = (e: BranchEvent) => {
@@ -1150,7 +1205,7 @@ export class Evals {
     const t0 = Date.now();
     for (let tries = 0; ; tries++) {
       try {
-        outcome = await replayRun(appV, task.runId, { fromStep: 0, model, budget, ...(edits.memory ? { edits } : {}), ...(v.recall ? { recall: v.recall === 'on' } : {}), sandbox: { keep: true }, signal, hooks, onEvent });
+        outcome = await replayRun(appV, task.runId, { fromStep: 0, model, budget, ...(notes ? { notes } : {}), ...(edits.memory ? { edits } : {}), ...(v.recall ? { recall: v.recall === 'on' } : {}), sandbox: { keep: true }, signal, hooks, onEvent });
         break;
       } catch (err) {
         // Two branches already (the owner's own, by hand): wait for a slot.

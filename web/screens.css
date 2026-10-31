@@ -187,3 +187,41 @@ dialog .saved-tag { color: var(--success); }
   .skl-card-head .skl-switch { grid-column: 3; grid-row: 1; }
   .skl-card-head .skl-more { grid-row: 2; }
 }
+
+/* Phase 97 (ST2): skills she learns. The "make this a skill?" and "a fix for …?" cards in the chat
+   and on the Skills page, the Skills she learns settings, the check line on a skill card. Theme
+   tokens only; 44 px targets; one column on phones. */
+.lsk-section { display: grid; gap: 8px; margin: 12px 0; min-width: 0; }
+.lsk-section h4 { margin: 8px 0 0; }
+.lsk-settings { display: grid; gap: 4px; min-width: 0; }
+.lsk-settings .row { min-height: 44px; align-items: center; }
+.lsk-settings .row input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent); }
+.lsk-picks { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 240px)); gap: 8px 16px; }
+.lsk-picks select { min-height: 44px; }
+.lsk-slider { display: grid; gap: 4px; }
+.lsk-slider input[type="range"] { width: min(320px, 100%); min-height: 44px; accent-color: var(--accent); }
+.lsk-list { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
+.lsk-card { display: grid; gap: 8px; min-width: 0; max-width: 680px; padding: 12px 14px; border-radius: var(--r-card, 12px); border: 1px solid var(--accent); background: var(--glass-fill, var(--panel-2)); box-shadow: var(--elev-1, none); }
+#messages .lsk-card { margin: 6px 0; }
+.lsk-title { margin: 0; font-weight: 600; color: var(--text); }
+.lsk-what, .lsk-done { margin: 0; overflow-wrap: anywhere; }
+.lsk-steps { margin: 0; padding-left: 20px; display: grid; gap: 2px; font-size: var(--fs-small, 13px); overflow-wrap: anywhere; }
+.lsk-draft summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.lsk-name { margin: 0; font-weight: 600; font-family: var(--font-mono, monospace); overflow-wrap: anywhere; }
+.lsk-desc { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+.lsk-pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 300px; overflow: auto; margin: 0; padding: 10px; border-radius: 10px; background: var(--hairline); font-family: var(--font-mono, monospace); font-size: var(--fs-small, 13px); }
+.lsk-diff .lsk-add { color: var(--success); background: var(--success-soft); }
+.lsk-diff .lsk-del { color: var(--danger); background: var(--danger-soft); }
+.lsk-diff .lsk-hunk { color: var(--muted); }
+.lsk-edit { width: 100%; min-width: 0; box-sizing: border-box; font-family: var(--font-mono, monospace); }
+.lsk-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.lsk-actions button { min-height: 44px; }
+.lsk-error { margin: 0; color: var(--danger); }
+#lsk-mine { min-height: 44px; }
+.skl-check { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); }
+.skl-check.bad { color: var(--danger); }
+.skl-check button { min-height: 44px; }
+@media (max-width: 720px) {
+  .lsk-card { max-width: none; }
+  .lsk-actions button { flex: 1 1 calc(50% - 8px); }
+}

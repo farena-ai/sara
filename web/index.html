@@ -2185,6 +2185,24 @@
         <li>Scripts in a skill ask you before they run <button type="button" class="tip" data-tip="A skill can bring scripts. Each run shows the script's first 40 lines and asks you. You can allow it for this task, or let one skill's scripts run without asking; added skills need one approved run first.">?</button></li>
         <li>Where a skill lives decides who has it <button type="button" class="tip" data-tip="This companion: only her. All my companions: every companion of yours. Built in: comes with Sara, switch it off if you like. Project: a workspace's own skills, only after you trust that workspace. On a name clash the first one in that order wins.">?</button></li>
       </ul>
+      <div id="lsk-section" class="lsk-section">
+        <h3>Skills she learns <button type="button" class="tip" data-tip="When you ask for the same thing again and again, or she repeats the same coding steps, she asks after her reply whether to keep it as a skill. Nothing is saved without your OK.">?</button></h3>
+        <div class="lsk-settings">
+          <label class="row"><input id="lsk-offer" type="checkbox"> <span>Offer to make skills <button type="button" class="tip" data-tip="On: after a reply she may show one card: make this a skill? Off: she stops watching for repeats. Private, partner, group and other apps' chats are never looked at.">?</button></span></label>
+          <label class="lsk-slider"><span>How many times before she offers: <span id="lsk-times-n">3</span> <button type="button" class="tip" data-tip="How often the same kind of request (or the same steps) must come up, on at least two different days, before she offers. 3 is the default; higher means fewer offers.">?</button></span><input id="lsk-times" type="range" min="2" max="6" step="1" value="3"></label>
+          <div class="lsk-picks">
+            <label><span>Look back <button type="button" class="tip" data-tip="Only repeats within this many days count. Older ones are forgotten.">?</button></span><select id="lsk-lookback"></select></label>
+            <label><span>Offers per day <button type="button" class="tip" data-tip="At most this many make-this-a-skill cards a day, never in quiet hours and never in the middle of a task.">?</button></span><select id="lsk-perday"></select></label>
+          </div>
+          <label class="row"><input id="lsk-check" type="checkbox"> <span>Check learned skills before using them <button type="button" class="tip" data-tip="On: a saved learned skill is tried on a few past tasks, with and without it, before she uses it on her own. Off: it stays on trial until you check it or choose Use it anyway.">?</button></span></label>
+          <label class="row"><input id="lsk-chains" type="checkbox"> <span>Learn from step chains in coding <button type="button" class="tip" data-tip="Once a night she looks through recent coding runs for the same chain of steps. Found in 3 runs on 2 days, it is offered after your next coding reply.">?</button></span></label>
+          <label class="row"><input id="lsk-fixes" type="checkbox"> <span>Propose fixes after using a skill <button type="button" class="tip" data-tip="When a step of a skill failed and another worked, or you corrected her, she shows the change as a card. Apply keeps the old version; at most one a day per skill.">?</button></span></label>
+        </div>
+        <h4>Waiting for you</h4>
+        <div id="lsk-waiting" class="lsk-list"></div>
+        <div class="add-row"><button id="lsk-mine" type="button" class="ghost">Look through recent coding work now</button></div>
+        <p id="lsk-status" class="muted small" role="status"></p>
+      </div>
       <label class="skl-filter">Show <select id="skl-show"><option value="all">All skills</option><option value="on">Switched on</option><option value="mine">Mine</option><option value="builtin">Built in</option></select></label>
       <h3 id="skl-projects-head" hidden>Project skills <button type="button" class="tip" data-tip="A workspace can carry its own skills in .agents/skills. A cloned project could use them to steer her, so they are left out until you trust that workspace here. Stop trusting removes them again.">?</button></h3>
       <div id="skl-projects" class="skl-projects" hidden></div>

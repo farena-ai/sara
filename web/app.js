@@ -11,6 +11,7 @@ import { endTour, startTour, tourRunning } from './tour.js';
 import { isDocFile, loadLibrarySettings, openLibrary, saveLibrarySettings, uploadDoc, waitRead } from './library.js';
 import { initProjectMap, resetProjectMap } from './codemap.js';
 import { initSkills, loadSkills, skillApproval } from './skills.js';
+import { initLearning, learnCard, loadLearning } from './learned-skills.js';
 import { initOtherApps, keyUse, loadOtherApps } from './other-apps.js';
 import { initAlexa, loadAlexa } from './alexa.js';
 import { initSsh, loadSsh } from './ssh.js';
@@ -1348,6 +1349,9 @@ function renderMessages(messages, opts = {}) {
         const rc = renderCard(m.meta.card);
         if (rc) els.push(rc);
       }
+    } else if (m.role === 'notice' && (m.kind === 'skill' || m.kind === 'skillfix')) {
+      // Phase 97: "make this a skill?" and "a fix for …?" (web/learned-skills.js), after her reply.
+      els.push(learnCard(m));
     } else if (m.role === 'notice' && m.kind === 'call') {
       els.push(bubble('notice', `📞 ${t('Sara called you')}: ${m.content}`, 'call', m.id));
     } else if (m.role === 'assistant' && !m.content.trim() && !m.meta?.proof?.length) {
@@ -6635,7 +6639,10 @@ function showSettingsTab(page, opts = {}) {
   showSettingsHelp(pick);
   openGroupOf(pick);
   if (pick === 'dh-updates') void loadUpdates();
-  if (pick === 'ab-skills') void loadSkills();
+  if (pick === 'ab-skills') {
+    void loadSkills();
+    void loadLearning();
+  }
   if (pick === 'ab-budgets') void loadBudgets();
   if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam()]);
   if (pick === 'ab-ssh') void loadSsh();
@@ -7632,6 +7639,7 @@ function taskRow(tk) {
 }
 initProjectMap(() => pageProject?.workspace ?? null);
 initSkills();
+initLearning();
 // Phase 96: the old Recipes page points to Skills.
 $('#rc-open-skills')?.addEventListener('click', () => showSettingsTab('ab-skills', { focus: true }));
 $('#pp-edit').addEventListener('click', () => {

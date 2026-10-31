@@ -72,6 +72,20 @@ const FINDING = {
   binary: (f) => t('{file} is not a text file.', { file: f.file }),
 };
 
+/** Where a learned skill stands (the skill check, §5.6), in plain words. */
+export function checkWords(s) {
+  const st = s.checkState;
+  if (st === 'queued') return t("On trial: the check waits for room in today's eval budget.");
+  if (st === 'running') return t('On trial: being checked now on your past tasks.');
+  if (st === 'hurts') return t('This skill made things worse in a check. Edit it or delete it.');
+  if (st === 'same') return t('The check found no difference: she uses it when it fits, never on her own.');
+  if (st === 'helps') return t('The check says it helps: she uses it like any other skill.');
+  if (st === 'failed') return t("The check couldn't compare: no past task finished both ways.");
+  if (st === 'unavailable') return t('Checks run on the owner\'s companions only.');
+  if (st === 'skipped') return t('Used without a check (your choice).');
+  return s.status === 'trial' ? t('On trial: she only uses it when it clearly fits, until it is checked.') : '';
+}
+
 function chip(text, cls = '') {
   return el('span', `skl-chip${cls ? ` ${cls}` : ''}`, text);
 }
@@ -222,6 +236,8 @@ function card(s) {
   actions.append(btn(t('Export'), '', () => download(`/api/skills/${enc(s.scope)}/${enc(s.name)}/export`)));
   if (s.scope === 'builtin' || s.scope.startsWith('project:') || s.scope === 'shared') actions.append(btn(t('Copy to this companion'), '', () => copy(s, 'companion')));
   if (s.scope === 'companion' && state.scopes.includes('shared')) actions.append(btn(t('Copy to all my companions'), '', () => copy(s, 'shared')));
+  // Phase 97 (§5.6): the skill check on any skill ("Check this skill").
+  if (!state.member && s.status !== 'broken' && s.status !== 'needs-review') actions.append(btn(t('Check this skill'), '', () => checkSkill(s, false)));
   if (s.scope === 'companion' || s.scope === 'shared') actions.append(btn(t('Delete'), 'danger-text', () => remove(s)));
   overflowMenu(more, actions);
   head.append(ic, title, sw, more, actions);
@@ -229,6 +245,8 @@ function card(s) {
   chips.append(chip(scopeWords(s.scope)));
   if (s.source === 'imported') chips.append(chip(t('Added from outside')));
   if (s.source === 'recipe') chips.append(chip(t('From a recipe')));
+  if (s.source === 'learned') chips.append(chip(t('Learned from you')));
+  if (s.status === 'trial') chips.append(chip(t('On trial'), 'warn'));
   if (s.status === 'needs-review') chips.append(chip(t('Changed: needs a new review'), 'warn'));
   if (s.status === 'broken') chips.append(chip(t("Can't be read"), 'bad'));
   if (s.shadowedBy) chips.append(chip(t('Hidden by the one in {where}', { where: scopeWords(s.shadowedBy) }), 'muted'));
@@ -237,7 +255,23 @@ function card(s) {
   const warns = s.diagnostics.filter((d) => d.level === 'error' || d.code === 'name-folder' || d.code === 'description-long');
   c.append(head, chips, el('p', 'skl-used muted small', usedLine(s)));
   if (warns.length) c.append(el('p', 'skl-diag small', warns.map(diagText).join(' ')));
+  const where = checkWords(s);
+  if (where) {
+    const p = el('p', `skl-check small${s.checkState === 'hurts' ? ' bad' : ''}`, where);
+    if (s.status === 'trial' && s.checkState !== 'running') p.append(btn(t('Use it anyway'), 'ghost', () => checkSkill(s, true)));
+    c.append(p);
+  }
   return c;
+}
+
+async function checkSkill(s, anyway) {
+  try {
+    const r = await api(`/skills/${enc(s.scope)}/${enc(s.name)}/check`, { method: 'POST', body: { anyway } });
+    status(r.state === 'skipped' ? t('{name} is in use without a check.', { name: s.name }) : r.state === 'running' ? t('Checking {name} on your past tasks…', { name: s.name }) : checkWords({ ...s, checkState: r.state }));
+    await loadSkills();
+  } catch (err) {
+    status(err.message);
+  }
 }
 
 function download(url) {
@@ -290,8 +324,22 @@ function editorMode(readOnly, fresh) {
   $('#ske-file-row').hidden = readOnly;
 }
 
+/** Phase 97: "Edit first" on an offer: the editor with her draft; saving goes back to the offer. */
+let draftSave = null;
+export function editDraft(d, onSave) {
+  newSkill();
+  draftSave = onSave;
+  $('#ske-heading').textContent = t('Edit the draft');
+  $('#ske-title-in').value = String(d.name ?? '').replace(/-/g, ' ');
+  $('#ske-name').value = d.name ?? '';
+  $('#ske-name').dataset.typed = d.name ? '1' : '';
+  $('#ske-desc').value = d.description ?? '';
+  $('#ske-body').value = d.body ?? '';
+}
+
 export function newSkill() {
   editing = null;
+  draftSave = null;
   const d = $('#skill-editor');
   $('#ske-heading').textContent = t('New skill');
   for (const id of ['#ske-title-in', '#ske-name', '#ske-desc', '#ske-body', '#ske-file-name', '#ske-file-text']) $(id).value = '';
@@ -368,6 +416,13 @@ async function saveEditor() {
   const st = $('#ske-status');
   const file = $('#ske-file-name').value.trim() ? [{ path: $('#ske-file-name').value.trim(), content: $('#ske-file-text').value }] : undefined;
   try {
+    if (!editing && draftSave) {
+      const save = draftSave;
+      draftSave = null;
+      await save({ name: $('#ske-name').value.trim() || slug($('#ske-title-in').value), description: $('#ske-desc').value, body: $('#ske-body').value });
+      $('#skill-editor').close();
+      return;
+    }
     if (!editing) {
       const name = $('#ske-name').value.trim() || slug($('#ske-title-in').value);
       const body = $('#ske-body').value;

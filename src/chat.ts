@@ -155,6 +155,8 @@ export interface AppContext {
   recipes?: import('./recipes.ts').RecipeStore;
   /** Phase 96 (ST1): her skills in the Agent Skills format (per companion; src/skill-store.ts). */
   skills?: import('./skill-store.ts').SkillStore;
+  /** Phase 97 (ST2): skills she learns (offers, fixes, checks; src/skill-learning.ts). None in the demo. */
+  learning?: import('./skill-learning.ts').SkillLearner;
   /** Phase 44: ask the library worker to read what was just added. */
   libraryNudge?: () => void;
   /** Phase 39: team tasks she leads. */
@@ -1123,8 +1125,13 @@ export async function* runTurn(app: AppContext, conversationId: string, userText
   const rec = opts.recorder ?? openTurnRecorder(app, conversationId, userText);
   let status: 'ok' | 'error' | 'stopped' = 'stopped';
   let replyId = 0;
+  // Phase 97 (ST2): what the skill learner needs to know about the turn (approvals, tools).
+  let sawApproval = false;
+  const toolNames: string[] = [];
   try {
     for await (const ev of runTurnInner(app, conversationId, userText, signal, opts, rec)) {
+      if (ev.type === 'approval') sawApproval = true;
+      else if (ev.type === 'tool_call') toolNames.push(ev.name);
       if (ev.type === 'done') {
         status = 'ok';
         replyId = ev.messageId;
@@ -1132,6 +1139,16 @@ export async function* runTurn(app: AppContext, conversationId: string, userText
         if (rec.on && replyId) app.store.updateMessageMeta(replyId, { runId: rec.id });
       } else if (ev.type === 'error') status = signal.aborted ? 'stopped' : 'error';
       yield ev;
+    }
+    // Phase 97 (ST2, STAPLES §5.4–§5.5): after the reply of one of the owner's own turns (never a
+    // replay, an eval, a group round or another app's turn), the learner looks for a repeated ask,
+    // a skill fix, and at most one "make this a skill?" offer card (a notice after the reply).
+    if (status === 'ok' && !signal.aborted && app.learning && !opts.recorder && !opts.replay && !opts.resume && !opts.group && !opts.externalApp) {
+      try {
+        await app.learning.afterTurn({ conversationId, userText, runId: rec.on ? rec.id : null, replyId, sawApproval, budgetStop: rec.outcome === 'budget', tools: toolNames });
+      } catch (err) {
+        console.warn(`skill learning: ${(err as Error).message}`);
+      }
     }
   } finally {
     chatTurns.running--;

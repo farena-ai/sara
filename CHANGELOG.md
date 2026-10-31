@@ -5,6 +5,23 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.30.0 (2026-10-31): learned skills (Phase 97, staples ST2)
+
+- **She offers to make a skill** when you ask for the same kind of thing 3 times on 2 different days
+  within 30 days, or repeat the same chain of coding steps in 3 runs. One offer a day at most, as a
+  card after her reply: *Save it*, *Edit first*, *Not now* (quiet for 14 days) or *Never for this*.
+- **Checked before it's used by default:** a learned skill starts on trial; the check replays your
+  past asks with and without it and a judge compares them (the M9 eval loop). It's used by default only
+  if it helps; *Check this skill* and *Use it anyway* are in Settings.
+- **Fixes after use:** correct her after she used a skill and she proposes the change as a before/after
+  card (at most one a day per skill; three dismissals and she stops for 30 days). Every version is kept.
+- Settings → Abilities → Skills → *Skills she learns* (per companion, each with a ? tip).
+- Never learned from: private or intimate chats, group/partner/imported chats, anything with secrets.
+  No skill can change the safety layer. Not in the demo.
+- Measured: the offline offer eval found 6/6 and 5/6 held-out repeats with 0 false offers (word
+  vectors and nomic-embed-text); live with a local 27B model: offer → trial → check (3 wins, 0 losses)
+  → used by default → correction → fix card.
+
 ## 2.29.0 (2026-10-31): skills (Phase 96, the first agent staple)
 
 - **Skills in the open [Agent Skills](https://agentskills.io/specification) format**: a folder with a

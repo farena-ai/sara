@@ -6,7 +6,7 @@
 # there; restart the app for a new code.
 services:
   sara:
-    image: ghcr.io/farena-ai/sara:2.28.0
+    image: ghcr.io/farena-ai/sara:2.29.0
     restart: unless-stopped
     ports:
       - "7860:7860"

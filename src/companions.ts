@@ -20,7 +20,7 @@ export const MAIN_ID = 'main';
  * notice is per companion (each is a different AI character), and so is adult mode (with its own
  * 18+ confirmation).
  */
-export const COMPANION_KEYS = ['persona', 'voice', 'adultMode', 'memory', 'proactive', 'calls', 'briefing', 'weeklyReview', 'leaveBy', 'disclosureAcceptedAt', 'photos', 'wardrobe', 'faceLock', 'companionModel', 'story', 'moments', 'presence'] as const satisfies readonly (keyof Settings)[];
+export const COMPANION_KEYS = ['persona', 'voice', 'adultMode', 'memory', 'proactive', 'calls', 'briefing', 'weeklyReview', 'leaveBy', 'disclosureAcceptedAt', 'photos', 'wardrobe', 'faceLock', 'companionModel', 'story', 'moments', 'presence', 'skillLearning'] as const satisfies readonly (keyof Settings)[];
 type CompanionKey = (typeof COMPANION_KEYS)[number];
 const isCompanionKey = (k: string): k is CompanionKey => (COMPANION_KEYS as readonly string[]).includes(k);
 

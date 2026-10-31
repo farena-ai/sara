@@ -20,16 +20,38 @@
 //   POST   /api/skills/:scope/:name/restore    { version }
 //   POST   /api/skills/:scope/:name/approve    keep a changed imported skill as it is now
 //   GET    /api/skills/:scope/:name/export     <name>.zip
+// Phase 97 (ST2, STAPLES §5): skills she learns (each person's own, like the rest of `skills`):
+//   GET    /api/skills/learning                the settings, offers waiting, fixes waiting, recent checks
+//   PUT    /api/skills/learning                { offer?, times?, lookBackDays?, perDay?, check?, chains?, fixes? }
+//   POST   /api/skills/learning/mine           look through recent coding runs for repeated step chains now
+//   GET    /api/skills/learning/offers/:id     one offer (the card in the chat)
+//   POST   /api/skills/learning/offers/:id     { action: save | later | never, draft?: { name, description, body } }
+//   GET    /api/skills/learning/fixes/:id      one proposed fix (the diff card)
+//   POST   /api/skills/learning/fixes/:id      { action: apply | dismiss, body? }
+//   POST   /api/skills/:scope/:name/check      { anyway? } the M9 skill check (or "Use it anyway")
 import { join } from 'node:path';
 import { HttpError, readJson, readRaw, SECURITY_HEADERS, send } from '../http.ts';
 import { isPrivateLocalError } from '../net-guard.ts';
 import { fromFolder, fromGit, fromZip, PackageError, SKILL_LIMITS } from '../packages.ts';
 import { checkServerFolder, isScope, type SkillStore, type SkillView } from '../skill-store.ts';
+import { LOOKBACK_CHOICES, PER_DAY_CHOICES, type SkillLearner, TIMES_CHOICES } from '../skill-learning.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 const OWNER_ONLY = 'Only the owner of this server can use this.';
 /** Extra files from the editor's "Add a file" (scripts/, references/ or assets/; checked by the store). */
 const filesOf = (v: unknown): { path: string; content: string }[] | undefined => (Array.isArray(v) ? v.slice(0, 20).map((f) => ({ path: String((f as { path?: unknown })?.path ?? ''), content: String((f as { content?: unknown })?.content ?? '').slice(0, 256 * 1024) })) : undefined);
+
+/** Phase 97: what the Skills page's "Skills she learns" section shows. */
+function learningState(l: SkillLearner) {
+  return {
+    settings: l.settings(),
+    choices: { times: TIMES_CHOICES, lookBackDays: LOOKBACK_CHOICES, perDay: PER_DAY_CHOICES },
+    offers: l.pendingOffers(),
+    fixes: l.store.fixes({ status: 'proposed' }).slice(0, 20).map((f) => l.fixView(f.id)),
+    watching: l.store.candidates({ status: ['watching', 'snoozed'] }).length,
+    checks: l.store.checks().slice(0, 20),
+  };
+}
 
 export function createSkillRoutes(ctx: RouteCtx): RouteHandler {
   const { app } = ctx;
@@ -61,6 +83,8 @@ export function createSkillRoutes(ctx: RouteCtx): RouteHandler {
     updatedAt: v.updatedAt,
     bodyTokens: v.bodyTokens,
     metadata: v.metadata,
+    noAuto: v.noAuto,
+    checkState: v.checkState,
   });
   const review = (p: NonNullable<ReturnType<SkillStore['pending']>>) => ({ id: p.id, origin: p.origin, kind: p.kind, skills: p.skills, scopes: app.skills!.writableScopes() });
   const zip = (res: Parameters<RouteHandler>[1], name: string, buf: Buffer) => {
@@ -190,6 +214,59 @@ export function createSkillRoutes(ctx: RouteCtx): RouteHandler {
       throw new HttpError(404, 'Not found');
     }
 
+    if (a === 'skills' && b === 'learning') {
+      const learner = app.learning;
+      if (!learner) {
+        if (method !== 'GET') await readJson(req).catch(() => ({}));
+        throw new HttpError(404, 'Not found');
+      }
+      const e = parts[3];
+      if (!c) {
+        if (method === 'GET') return send(res, 200, learningState(learner));
+        if (method === 'PUT') {
+          const body = await readJson(req);
+          learner.setSettings(body);
+          publish();
+          return send(res, 200, learningState(learner));
+        }
+        throw new HttpError(405, 'Method not allowed');
+      }
+      if (c === 'mine' && !e && method === 'POST') {
+        await readJson(req).catch(() => ({}));
+        return send(res, 200, learner.mine());
+      }
+      const id = Math.floor(Number(e));
+      if ((c === 'offers' || c === 'fixes') && e && Number.isFinite(id) && !parts[4]) {
+        if (method === 'GET') {
+          const v = c === 'offers' ? learner.offerView(id) : learner.fixView(id);
+          if (!v) throw new HttpError(404, 'Not found');
+          return send(res, 200, v);
+        }
+        if (method === 'POST') {
+          const body = await readJson(req);
+          try {
+            if (c === 'offers') {
+              const action = body.action === 'save' || body.action === 'later' || body.action === 'never' ? body.action : undefined;
+              if (!action) throw new HttpError(400, 'Not found');
+              const draft = body.draft && typeof body.draft === 'object' ? (body.draft as Record<string, unknown>) : undefined;
+              const out = await learner.decideOffer(id, action, draft);
+              publish();
+              return send(res, 200, out);
+            }
+            const action = body.action === 'apply' || body.action === 'dismiss' ? body.action : undefined;
+            if (!action) throw new HttpError(400, 'Not found');
+            learner.decideFix(id, action, body.body);
+            publish();
+            return send(res, 200, learner.fixView(id));
+          } catch (err) {
+            return asHttp(err);
+          }
+        }
+        throw new HttpError(405, 'Method not allowed');
+      }
+      throw new HttpError(404, 'Not found');
+    }
+
     // One skill: /api/skills/:scope/:name[/action]
     if (b && c) {
       if (!isScope(b)) throw new HttpError(404, 'No such skill.');
@@ -228,6 +305,17 @@ export function createSkillRoutes(ctx: RouteCtx): RouteHandler {
       if (e === 'export' && method === 'GET') {
         try {
           return zip(res, c, skills.exportZip(b, c));
+        } catch (err) {
+          return asHttp(err);
+        }
+      }
+      if (method === 'POST' && e === 'check') {
+        const body = await readJson(req);
+        if (!app.learning) throw new HttpError(404, 'Not found');
+        try {
+          const r = await app.learning.check(b, c, { anyway: body.anyway === true });
+          publish();
+          return send(res, 200, { ...r, skill: skills.get(b, c) ? brief(skills.get(b, c)!) : null });
         } catch (err) {
           return asHttp(err);
         }

@@ -555,6 +555,55 @@ model or doesn't draft (the card says so and offers an empty editor).
 Use Sara normally for a week and say whether the offers came at the right moments and were worth it
 (the threshold and the daily cap are the knobs); accept or reject at least one learned skill check.
 
+### 5.11 As built (2.30.0)
+
+- `src/skill-learning.ts` (`SkillLearner`, one per person's companion space; none in the demo):
+  `afterTurn` is called by `runTurn` after the reply of the owner's own turns (never a replay, an
+  eval, a group round or another app's turn); `mine()` once a night (2–5 am local, the learner's own
+  15-minute tick, bounded: 500 runs, 50 ms each) and from *Look through recent coding work now*.
+  Tables `skill_candidates`, `skill_fixes`, `skill_checks` as in §5.3 plus a few additive columns
+  (`topic`, `model`, `pattern`, `declines`, `draft`, `conversation_id`; fixes keep `proposed`,
+  `base_sha`, `why`, `decided_at`); `skills` gets `no_auto` and `check_state`.
+- Cards are notices after the reply (`skill:<id>`, `skillfix:<id>`), drawn by `web/learned-skills.js`
+  in the chat and under *Skills she learns* on the Skills page, rather than a new shared `proposal`
+  card kind (§2.1.1 stays for ST3+). *Edit first* opens the skill editor with the draft; saving it
+  answers the offer.
+- Thresholds as designed, with these measured changes: an ask is "covered" by an existing skill at
+  a meaning match ≥ 0.7 (not 0.55), or when she opened a skill herself: nomic-embed-text scores
+  unrelated requests 0.54–0.65 against the built-in how-tos ("a LinkedIn post about the release" vs
+  the changelog skill 0.65) and real matches 0.72–0.77, and at 0.55 the offline eval found 4 of 6;
+  with the embeddings job set, an ask whose embedding call
+  fails (8 s cap) is skipped rather than placed by words (a live run made a stray cluster that way);
+  without an embeddings job, hashed word vectors at cosine ≥ 0.6 are used. The coarse kind comes
+  from the tools; a turn without tools counts only when it reads as a request ("write/turn/put/…"),
+  so small talk never does.
+- The skill check is an M9 eval (`Evals.createWith` on `tasksFromRuns`: the candidate's runs plus up
+  to 4 similar ones, ≤ 5; control vs `{ skill }` loaded as a replay note; tight budget; the judge when
+  a Reviewing chain resolves; ceiling ≤ the day's room in the eval schedule budget, else queued). Its
+  verdict uses the quality parts only (tests, done, the owner's reaction, judge, findings): loading
+  a skill always costs input tokens, so cost parts would mark every skill "hurts". With ≤ 5 tasks the
+  sign test can't reach p < 0.05, so "helps" is significant *or* ≥ 2 more wins than losses (mirror
+  for "hurts"). With the check switched off a learned skill stays on trial until *Check this skill*
+  or *Use it anyway* ("never on by default without the check"). Members have no eval loop: their
+  checks say *unavailable* and *Use it anyway* is their way to promote one.
+- Fixes are built in code, no model call: a failed step's command is replaced in the body where it
+  appears, else a *Pitfalls* line names both; a correction adds a *Corrections* line quoting the
+  owner (scrubbed). Built-in and project skills are never changed.
+- Offline eval (`scripts/eval-learning.ts`, by hand; 40 conversations per set, the six built-in
+  skills present): word vectors 6/6 offered, 0 false (tuning) and 5/6, 0 false (held-out); nomic-
+  embed-text through local Ollama the same (4/6 on both before the covered threshold moved to 0.7). The held-out miss ("scale the lasagna recipe…") is the
+  request-verb list, left as is.
+- Live run (Ollama qwen3.5:9b + nomic-embed-text, scratch server): 4 shopping-list asks in 4
+  conversations (one lost to a cold embedding call, which led to the fix above; the time-zone
+  setting was switched between asks so they fell on two local days) → one offer card after the
+  reply; its model draft named itself after the prompt's placeholder, so *Edit first* (renamed to
+  `shopping-list-by-aisle`, dropped an echoed rule line) → saved on trial → the check ran 10 replays
+  (judge: 3 wins, 2 ties, 0 losses) → *helps* → ready → the next ask loaded it up front (*Used
+  skill*) → "no, that's wrong: always list frozen and dairy items last…" → a fix card quoting it →
+  *Apply* → version 1 kept. The draft prompt now spells the fields out and refuses placeholder names.
+- §15 defaults applied: per companion; 3 times on 2 days, one offer a day, the check on with *Use it
+  anyway*; members learn in their own space only.
+
 ---
 
 ## 6. ST3 · Phase 98 · 2.31.0: plugins and hooks
