@@ -260,6 +260,38 @@ on fds 3 and 4). Both bundle `desktop/shared/page-agent.js` (Windows: RCDATA `ID
   `scripts/hands-capture.ts` is a recording relay in front of the server that decodes every hands
   frame both ways, so a test password can be searched for in all of it.
 
+### Password managers (Phase 91, computer use CU4b)
+
+- Bitwarden (`bw`), 1Password (`op`) and KeePassXC (`keepassxc-cli`) are found by checking that the
+  command-line tool exists and answers `--version`; nothing else runs until the person turns a
+  manager on. Windows looks on PATH and in the usual Program Files folders; the Mac on PATH,
+  Homebrew's folders and `KeePassXC.app`. Test builds (Windows `SARA_DESKTOP_TEST_DIR`, Mac DEBUG
+  copies with another bundle id) look only in `SARA_PM_PATH`, so they never find the owner's own tools.
+- The app's Settings page (Computer use, This computer, **Password managers**) lists them as *Not
+  installed here*, *Off*, *On · locked* or *On · unlocked for Sara*, with a switch each, **Lock again
+  after** 5 / 15 / 30 / 60 idle minutes (15 by default) and **Lock now**. Turning one on shows the app's
+  own warning (a native message box / `NSAlert`; the web page can only ask) and, for KeePassXC, the
+  database to use. The choices are in `desktop.ini` (`pmBitwarden`, `pm1password`, `pmKeepassxc`,
+  `pmKeepassDb`, `pmRelockMinutes`) / the Mac's preferences, per server.
+- Unlocking is always the person's: `b.unlock` opens the manager's own prompt in a window of its own
+  (Windows: a console running `bw unlock --raw`, `op signin --raw` or `keepassxc-cli export -f csv
+  <db>`, titled "Unlock … for Sara: sign in to <origin> (close this window to say no)"; Mac: a
+  Terminal window running the same). Only the command's standard output comes back, through a named
+  pipe / FIFO only this user can open: Bitwarden's session key, 1Password's session token, or
+  KeePassXC's entries that have a web address. They are kept in memory only, and wiped when locked.
+  The unlock window can be shown at most 3 times in 10 minutes per manager.
+- `b.login` with `managers: true` fills from Sara's own saved logins first, then Bitwarden, 1Password
+  and KeePassXC, only an entry whose address is the page's exact origin (an address without a scheme
+  means https). It answers filled (with the source), not found, or locked (the managers by id).
+- Locked again by `b.relock` (the server sends it when the chat turn ends), after the idle minutes,
+  on Stop (button, hotkey or the server's), when the connection drops, when a manager is turned off or
+  its database changed, and when the app closes: `bw lock`, `op signout`, KeePassXC's entries forgotten.
+- Windows: `Managers`, `runCli` and `promptCli` in `hands.cpp` (Phase 91 section); Mac:
+  `HandsManagers` in `Hands.swift`. Conformance section 11 (CU4b) uses test doubles of the three CLIs
+  (`test/fixtures/fake-pm/`) or a real KeePassXC with a new test database; the prompts are answered
+  by `--unlock-driver` (Windows: a script that types into that console; Mac: the DEBUG hook
+  `pm:type:<pieces>` / `pm:wrong` / `pm:close`).
+
 ### Sara-Setup.exe: her server and the app together (Phase 46c)
 
 What the Windows installer puts on the computer (details for owners: docs/INSTALL.md → Windows):

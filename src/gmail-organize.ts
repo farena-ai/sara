@@ -15,6 +15,7 @@ import { exactDates, gmailDates } from './gmail-dates.ts';
 import type { JobManager } from './jobs.ts';
 import type { ApprovalDetail } from './tools/types.ts';
 import { cardFor } from './cards.ts';
+import { forgetTodayMail } from './today.ts';
 
 const GMAIL = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
@@ -374,6 +375,7 @@ export class GmailOrganizer {
     this.#db
       .prepare('INSERT INTO gmail_actions (id, created_at, conversation_id, action, query, add_labels, remove_labels, per, ids, done, failed, undo_of) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .run(id, this.#o.now().toISOString(), r.conversation_id, r.action, r.query, r.add_labels, r.remove_labels, r.per, r.ids, r.done, r.failed, r.undo_of);
+    forgetTodayMail();
     return id;
   }
 

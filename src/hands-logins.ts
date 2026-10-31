@@ -135,6 +135,11 @@ export class TestVault {
     return this.#logins.find((l) => l.server === server && l.name.toLowerCase() === want);
   }
 
+  /** Phase 91: the first of this server's logins saved for the page's exact origin (before the password managers). */
+  findBySite(server: string, pageUrl: string): SavedLogin | undefined {
+    return this.#logins.find((l) => l.server === server && siteMatches(l, pageUrl));
+  }
+
   /**
    * Saves what the consent window gave (the device's own rule: only with the box ticked, a name, a
    * site, a password). A login with the same name for the same server is replaced.

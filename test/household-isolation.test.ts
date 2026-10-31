@@ -281,6 +281,8 @@ const OWNER_ONLY_SUBPATHS: [string, string][] = [
   ['GET', '/api/hands/1/logins'],
   ['DELETE', '/api/hands/1/logins/GitHub'],
   ['DELETE', '/api/hands/1/logins'],
+  // Phase 91: "Lock now" for a computer's password managers (the same `hands` family, owner-only here).
+  ['POST', '/api/hands/1/relock'],
 ];
 /** Families not exercised by the generic loop (sign-out or streams) and checked on their own. */
 const SKIP = new Set(['logout', 'events', 'health', 'login', 'claim', 'demo', 'public']);

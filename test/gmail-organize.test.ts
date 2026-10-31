@@ -456,3 +456,10 @@ test('gmail organize: a big set runs as a background job with progress, can be s
   const later = new GmailOrganizer(app.google!, app.store.db, { timeZone: () => TZ, now: () => new Date(NOW.getTime() + 31 * 86_400_000) });
   assert.match(later.undoProblem(again.actionId!) ?? '', /no Gmail change|more than 30 days/);
 });
+
+test('gmail organize: a change she makes clears the Today mail cache (the tile asks Gmail again)', () => {
+  const src = readFileSync(join(ROOT, 'src', 'gmail-organize.ts'), 'utf8');
+  const rec = src.slice(src.indexOf('#record('), src.indexOf('#record(') + 600);
+  assert.match(rec, /forgetTodayMail\(\)/);
+  assert.match(readFileSync(join(ROOT, 'src', 'today.ts'), 'utf8'), /export function forgetTodayMail\(\): void \{\n  cache = undefined;/);
+});

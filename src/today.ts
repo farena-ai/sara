@@ -43,6 +43,11 @@ export interface Today {
 const CACHE_MS = 2 * 60_000;
 let cache: { at: number; key: string; calendar?: Today['calendar']; mail?: Today['mail'] } | undefined;
 
+/** After she changes the mailbox (archive, mark read, labels…): the next Today asks Gmail again. */
+export function forgetTodayMail(): void {
+  cache = undefined;
+}
+
 /** Midnight to midnight in the owner's time zone, as UTC instants. */
 function dayBounds(now: Date, timeZone?: string): { start: Date; end: Date } {
   const day = localDate(now.toISOString(), timeZone);

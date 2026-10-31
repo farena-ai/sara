@@ -33,6 +33,12 @@ struct Host {
   // Phase 90 (CU4): saved logins (a DPAPI CurrentUser file; %LOCALAPPDATA%\Sara\logins.dat).
   std::wstring loginsFile;
   bool loginsVerify = false;  // Windows Hello before a saved login is used (off by default)
+  // Phase 91 (CU4b): the owner's password managers, each off until turned on in the app (after the warning):
+  // [0] Bitwarden, [1] 1Password, [2] KeePassXC (with the database the person chose).
+  bool pmOn[3] = {false, false, false};
+  std::wstring keepassDb;
+  int pmRelockMinutes = 15;  // lock again after this many idle minutes (5, 15, 30, 60)
+  int pmIdleSeconds = 0;     // test builds only (SARA_PM_IDLE_SECONDS): the idle time in seconds instead
 };
 
 /** Connects (and keeps reconnecting) with these settings; a running connection is replaced. */
@@ -65,6 +71,19 @@ std::wstring loginsJson(const std::wstring& server, const std::wstring& file);
 int forgetLogin(const std::wstring& server, const std::wstring& file, const std::string& name, bool all, std::wstring& err);
 /** Phase 90: "Ask for Windows Hello before Sara uses a saved login" changed. */
 void setLoginsVerify(bool on);
+
+/** Phase 91: the password managers here as JSON {managers:[{id, name, installed, on, state}], relockMinutes, keepassDb, detected}. */
+std::wstring managersJson();
+/** Phase 91: is that manager's tool on this computer (found and answering --version)? */
+bool managerInstalled(const std::string& id);
+/** Phase 91: turned on or off in the app (after the warning); off locks it and forgets its session. */
+void setManager(const std::string& id, bool on);
+/** Phase 91: the KeePassXC database the person chose (locks KeePassXC if it was unlocked). */
+void setKeepassDb(const std::wstring& path);
+/** Phase 91: "Lock again after … idle minutes" changed. */
+void setRelockMinutes(int minutes);
+/** Phase 91: the plain warning shown before a manager is turned on. */
+std::wstring managerWarning(const std::string& id, int minutes);
 
 /** DPAPI (this Windows user only): protect / unprotect a small secret as base64 text. */
 std::wstring protect(const std::string& secret);

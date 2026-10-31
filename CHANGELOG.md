@@ -5,6 +5,23 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.24.0 (2026-10-30): computer use, step 5: your password manager fills logins (Phase 91)
+
+- **Password managers** in the Windows and Mac apps (Settings → Computer use → *Password managers*):
+  Bitwarden (`bw`), 1Password (`op`) and KeePassXC (`keepassxc-cli`, pick your database). Each is off
+  until you turn it on, after a warning; only the program's presence is checked before that.
+- **You unlock, she relocks:** when a login is needed and the manager is locked, a card asks you and the
+  manager's own prompt opens on that computer; Sara never sees or keeps your master password. She locks
+  it again when the task ends, after idle minutes (5/15/30/60, default 15), on Stop, on disconnect, when
+  you turn it off, and with **Lock now** in Settings → Your computers.
+- `pc_browser_login` looks in Sara's own saved logins first, then in the managers you turned on, and
+  fills only on the page's exact site (scheme, host and port). It answers only *filled / not found /
+  locked*. The password never reaches the server, the run steps, logs, pictures or the model: checked
+  by recording all traffic between the server and the apps during real fills (0 matches).
+- **Fixed:** her browser itself offered to save passwords and remembered form entries; both are now
+  off in her profile on Windows and the Mac.
+- Not yet: one-time codes (TOTP) aren't filled; the OS keychain and browser extensions aren't sources.
+
 ## 2.23.0 (2026-10-30): computer use, step 4: saved logins, only when you say so (Phase 90)
 
 - **Save a login** (`pc_browser_save_login`): she may only offer when you asked in so many words. A

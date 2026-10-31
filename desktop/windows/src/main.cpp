@@ -34,6 +34,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include <commdlg.h>
 #include <dwmapi.h>
 #include <uxtheme.h>
 #include <shellapi.h>
@@ -1064,6 +1065,25 @@ static std::wstring handsBrowserProfile() {
   CreateDirectoryW(dir.c_str(), nullptr);
   return dir + L"\\" + (g_profile.empty() ? L"s1" : g_profile);
 }
+/** Phase 91: "Lock again after … idle minutes" (5, 15, 30 or 60; 15 by default). */
+static int pmRelockMinutes() {
+  int n = _wtoi(getIni(handsSection(), L"pmRelockMinutes").c_str());
+  return n == 5 || n == 15 || n == 30 || n == 60 ? n : 15;
+}
+/** Phase 91: the ini key of a password manager's on/off choice. */
+static const wchar_t* pmKey(const std::wstring& id) { return id == L"bitwarden" ? L"pmBitwarden" : id == L"1password" ? L"pm1password" : id == L"keepassxc" ? L"pmKeepassxc" : nullptr; }
+/** Phase 91: the person picks the KeePassXC database Sara may unlock (the app's own Open window). */
+static std::wstring pickKeepassDb() {
+  wchar_t file[MAX_PATH] = L"";
+  OPENFILENAMEW ofn{sizeof(ofn)};
+  ofn.hwndOwner = g_wnd;
+  ofn.lpstrFilter = L"KeePass database (*.kdbx)\0*.kdbx\0All files\0*.*\0";
+  ofn.lpstrFile = file;
+  ofn.nMaxFile = MAX_PATH;
+  ofn.lpstrTitle = L"Choose the KeePassXC database Sara may use";
+  ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR | OFN_HIDEREADONLY;
+  return GetOpenFileNameW(&ofn) ? std::wstring(file) : std::wstring();
+}
 /** Phase 90 (CU4): the saved logins of the Sara browser: %LOCALAPPDATA%\\Sara\\logins.dat (test runs: their own folder). */
 static std::wstring loginsFile() { return dataDir() + L"\\logins.dat"; }
 /** Starts or stops the hands for the server in use, as its settings say. */
@@ -1088,6 +1108,19 @@ static void handsSync() {
   // Phase 90: saved logins (DPAPI, this Windows user only) and Windows Hello before each use.
   h.loginsFile = loginsFile();
   h.loginsVerify = getIni(handsSection(), L"loginsVerify") == L"1";
+  // Phase 91: the password managers the owner turned on here (after the warning), KeePassXC's database
+  // and the idle minutes. Test builds may shorten the idle time for the conformance check.
+  h.pmOn[0] = getIni(handsSection(), L"pmBitwarden") == L"1";
+  h.pmOn[1] = getIni(handsSection(), L"pm1password") == L"1";
+  h.pmOn[2] = getIni(handsSection(), L"pmKeepassxc") == L"1";
+  h.keepassDb = getIni(handsSection(), L"pmKeepassDb");
+  h.pmRelockMinutes = pmRelockMinutes();
+#ifdef SARA_TEST_HOOKS
+  {
+    wchar_t idle[16];
+    if (testRun() && GetEnvironmentVariableW(L"SARA_PM_IDLE_SECONDS", idle, 16) > 0) h.pmIdleSeconds = _wtoi(idle);
+  }
+#endif
   std::wstring section = handsSection();
   h.onToken = [section](const std::string& tok, const std::string& exp) {
     std::wstring sealed = sarahands::protect(tok);
@@ -1111,7 +1144,8 @@ static std::wstring handsPrefsJson() {
          L",\"handsConnected\":" + (sarahands::connected() ? L"true" : L"false") + L",\"handsDeviceId\":\"" + jsonEscape(getIni(handsSection(), L"handsId")) + L"\",\"handsError\":\"" +
          jsonEscape(sarahands::lastError()) + L"\",\"handsBrowser\":" + (sarahands::browserPath().empty() ? L"false" : L"true") + L",\"computerName\":\"" + jsonEscape(computerName()) + L"\"" +
          L",\"handsTakeover\":\"" + (getIni(handsSection(), L"handsTakeover") == L"keep" ? L"keep" : L"pause") + L"\",\"handsHotkey\":\"" + jsonEscape(sarahands::hotkeyLabel()) + L"\"" +
-         L",\"loginsSupported\":true,\"loginsVerify\":" + (getIni(handsSection(), L"loginsVerify") == L"1" ? L"true" : L"false");
+         L",\"loginsSupported\":true,\"loginsVerify\":" + (getIni(handsSection(), L"loginsVerify") == L"1" ? L"true" : L"false") +
+         L",\"pmSupported\":true";
 }
 
 // Her face for the tray menu: the page's PNG, decoded and scaled with WIC (premultiplied alpha).
@@ -2431,6 +2465,13 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
       setIni(handsSection(), L"loginsVerify", on ? L"1" : L"0");
       sarahands::setLoginsVerify(on);
     }
+    else if (key == L"pmRelockMinutes") {
+      // Phase 91: lock the password managers again after this many idle minutes.
+      int n = _wtoi(m[L"value"].c_str());
+      if (n != 5 && n != 15 && n != 30 && n != 60) return reply(id, L"null", L"5, 15, 30 or 60 minutes.");
+      setIni(handsSection(), L"pmRelockMinutes", std::to_wstring(n));
+      sarahands::setRelockMinutes(n);
+    }
     else if (key == L"handsTakeover") {
       // Phase 88: "When you move the mouse": pause Sara (default) or let her keep control.
       bool keepIt = m[L"value"] == L"keep";
@@ -2470,6 +2511,37 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
     int n = sarahands::forgetLogin(g_server, loginsFile(), toUtf8(m[L"name"]), m[L"all"] == L"true", err);
     if (!err.empty()) return reply(id, L"null", err);
     return reply(id, L"{\"removed\":" + std::to_wstring(n) + L"}");
+  }
+  // Phase 91: the password managers here (names and states). Turning one on shows this app's own warning
+  // (the page can only ask: a server's page can never turn one on by itself); off locks it at once.
+  if (kind == L"pmList") return reply(id, sarahands::managersJson());
+  if (kind == L"pmSet") {
+    const wchar_t* k = pmKey(m[L"manager"]);
+    if (!k || g_server.empty()) return reply(id, L"null", L"Not a password manager Sara knows.");
+    std::string mid = toUtf8(m[L"manager"]);
+    bool on = m[L"on"] == L"true";
+    if (on) {
+      if (!sarahands::managerInstalled(mid)) return reply(id, L"null", L"That password manager isn't installed on this computer.");
+      std::wstring name = mid == "bitwarden" ? L"Bitwarden" : mid == "1password" ? L"1Password" : L"KeePassXC";
+      std::wstring text = sarahands::managerWarning(mid, pmRelockMinutes());
+      if (MessageBoxW(g_wnd, text.c_str(), (std::wstring(testRun() ? L"TEST · " : L"") + L"Turn on " + name + L" for Sara?").c_str(), MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2 | MB_TOPMOST) != IDYES) return reply(id, L"{\"cancelled\":true}");
+      if (mid == "keepassxc" && getIni(handsSection(), L"pmKeepassDb").empty()) {
+        std::wstring db = pickKeepassDb();
+        if (db.empty()) return reply(id, L"{\"cancelled\":true}");
+        setIni(handsSection(), L"pmKeepassDb", db);
+        sarahands::setKeepassDb(db);
+      }
+    }
+    setIni(handsSection(), k, on ? L"1" : L"0");
+    sarahands::setManager(mid, on);
+    return reply(id, sarahands::managersJson());
+  }
+  if (kind == L"pmKeepassDb") {
+    std::wstring db = pickKeepassDb();
+    if (db.empty()) return reply(id, L"{\"cancelled\":true}");
+    setIni(handsSection(), L"pmKeepassDb", db);
+    sarahands::setKeepassDb(db);
+    return reply(id, sarahands::managersJson());
   }
   if (kind == L"handsStop") {
     sarahands::pressStop();

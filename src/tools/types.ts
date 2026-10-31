@@ -97,6 +97,8 @@ export interface ComputerApproval {
   name?: string;
   /** The text she would type (secrets never; cut to 200 characters). */
   text?: string;
+  /** Phase 91: login from the owner's password manager(s) on that computer (their names: \"Bitwarden\"). */
+  managers?: string[];
   /** Payments and account settings ask every time (no "for this task", no "always"); so does a saved login (Phase 90). */
   risk: 'normal' | 'send' | 'payment' | 'account' | 'login';
   why: string;

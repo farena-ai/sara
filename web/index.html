@@ -1504,6 +1504,12 @@
         <h4>Saved logins on this computer</h4>
         <ul id="cu-this-logins" class="cu-list"></ul>
         <p id="cu-this-logins-none" class="muted small">No saved logins.</p>
+        <div id="cu-pm" hidden>
+          <h4>Password managers <button type="button" class="tip" data-tip="Sara can fill a sign-in from a password manager you already use here. Each is off until you turn it on. You unlock it yourself in its own window; she never sees your master password or your passwords.">?</button></h4>
+          <ul id="cu-pm-list" class="cu-list"></ul>
+          <p id="cu-pm-none" class="muted small" hidden>No supported password manager was found here (Bitwarden CLI, 1Password CLI or KeePassXC).</p>
+          <label class="row">Lock again after <select id="cu-pm-relock" data-noauto><option value="5">5 idle minutes</option><option value="15">15 idle minutes</option><option value="30">30 idle minutes</option><option value="60">60 idle minutes</option></select> <button type="button" class="tip" data-tip="Sara locks a password manager she used again after the task, after this many minutes without use, on Stop, and when you turn it off. Then she asks you to unlock it next time.">?</button></label>
+        </div>
         <p class="small"><span id="cu-this-status" class="muted small" role="status"></span></p>
       </div>
       <div id="cu-get" class="cu-get" hidden>

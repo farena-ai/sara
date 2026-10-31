@@ -11,7 +11,7 @@ Windows, Mac and phones.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1164%20passing-brightgreen" alt="1164 tests passing">
+  <img src="https://img.shields.io/badge/tests-1169%20passing-brightgreen" alt="1169 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -25,7 +25,7 @@ Windows, Mac and phones.
   <sub>A real session on a local model (qwen3.8 27B on Ollama, one RTX 5090) on a throwaway test server, in the Night look: she cheers the user up, writes a small app and its test as the model streams them, asks before running a command, catches a real bug with a failing test and fixes it until all 7 tests pass. Frames picked from the recording; nothing in them was edited.</sub>
 </p>
 
-> **Status:** 2.23, MIT licensed, with thirty-four feature releases since 1.0 (all below). 2.5 to 2.8
+> **Status:** 2.24, MIT licensed, with thirty-five feature releases since 1.0 (all below). 2.5 to 2.8
 > gave the whole app a new look. The [Android app](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > is on Google Play; the iPhone app and the Mac App Store version are coming as soon as Apple approves them.
 > Read [docs/DISCLOSURES.md](docs/DISCLOSURES.md) before using or sharing Sara.
@@ -63,6 +63,7 @@ people you live with · [video calls](docs/VIDEO_CALLS.md) with her moving portr
 
 | Release | What you get |
 |---|---|
+| **2.24** · Computer use, step 5 | **Your password manager fills logins in her browser:** Bitwarden, 1Password or KeePassXC, each off until you turn it on. You unlock it yourself in the manager's own prompt (she never sees your master password); every use asks first; it fills only on the exact site the login is for; she locks it again after the task, after 15 idle minutes, on Stop or with *Lock now*. Nothing reaches Sara's server or the model. Her browser no longer offers to save passwords itself. |
 | **2.23** · Computer use, step 4 | **Saved logins, only when you say so:** she offers, and a window on *your computer* asks you to type the login and tick *I understand* (or *Use what I just typed*). It's encrypted there (Windows DPAPI / macOS Keychain), never on Sara's server, and she never sees it: she can only ask that computer to fill it in, on exactly that site (look-alike sites get nothing), and every use asks first. Optional Windows Hello / Touch ID. **Your turn:** she pauses while you sign in or type a code yourself. |
 | **2.22** · Computer use, step 3 | **She debugs your web project in her browser:** the dev server her coding tools started on your Sara server opens at `127.0.0.1` in her browser on your computer, through the app (only a port her own job opened; it ends when the job stops), with hot reload and local storage working. After a change she opens the app, reads the console, looks, fixes and checks again. Browser evals: 5/5 tasks with a local model. Also: the test suite now passes on macOS, and two network privacy fixes. |
 | **2.21** · Computer use, step 2 | **She can act in her own browser:** click, type, pick from lists, scroll, press keys and upload a file you name, with a visible cursor. You choose how much she asks: every time, once per task (default) or *always allowed* per site; payments and account settings always ask, sending asks every time, and passwords are never typed by her. A **Sara is working** badge with Stop and a stop hotkey (Ctrl+Alt+Esc / ⌃⌥Esc); touching her window pauses her (or *Let Sara keep control*). |
@@ -110,7 +111,14 @@ Every release: [CHANGELOG.md](CHANGELOG.md) · [releases](https://github.com/far
 
 ### Coming next
 
-Every planned phase has shipped. Next: the iPhone app (waiting on Apple's review), what's left in each feature, and your ideas in [Discussions](https://github.com/farena-ai/sara/discussions).
+In build order, one release each ([the full list](docs/ROADMAP.md)):
+
+- **Computer use** (2.25–2.28, under way): seeing and using your desktop, guided "tune up my computer" tasks, Linux.
+- **Agent staples** (2.29–2.36): skills in the open Agent Skills format and skills she learns from what you repeat, plugins and hooks, a Kanban board she works, A2A with other agents, people cards, webhooks, her own agenda (opt-in).
+- **Move in from another agent** (2.37–2.39): bring a whole Hermes Agent or OpenClaw companion over: personality, memories, people, skills, history and settings, with a report of what came over.
+- **Chats and sessions** (2.40–2.42): /new, /reset and other commands in Telegram and Discord, a project per channel, titles that grow with the session.
+- **Today, rethought** (2.43–2.44): a designed layout you can arrange, on big screens and phones.
+- The iPhone app (waiting on Apple), and your ideas in [Discussions](https://github.com/farena-ai/sara/discussions).
 
 The full plan: [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -277,8 +285,8 @@ README or SPEC that no test checked. What she adds today is the way of working (
 asks before risky steps, shows what ran), not a higher score on these sets. Details, per-task
 results and how to re-run: [docs/RESULTS.md](docs/RESULTS.md).
 
-Plus `npm run check`: a typecheck and 1175 automated tests with a scripted fake model (no network,
-no GPU): 1164 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
+Plus `npm run check`: a typecheck and 1181 automated tests with a scripted fake model (no network,
+no GPU): 1169 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
 
 ## How Sara compares
 

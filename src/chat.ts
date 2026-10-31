@@ -1107,6 +1107,12 @@ export async function* runTurn(app: AppContext, conversationId: string, userText
     }
   } finally {
     chatTurns.running--;
+    // Phase 91: the task ended: a password manager she used on a computer locks again there now.
+    try {
+      app.hands?.turnEnded(conversationId);
+    } catch {
+      /* best effort; the computer also locks it after its idle minutes */
+    }
     if (rec.on && !replyId && rec.lastReplyId) {
       try {
         app.store.updateMessageMeta(rec.lastReplyId, { runId: rec.id });

@@ -538,6 +538,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         prefs.set(on, forKey: "hands.\(Servers.activeId ?? "").loginsVerify")
         Hands.shared?.verify = on
         Hands.shared?.tellLogins()
+      case "pmRelockMinutes":
+        // Phase 91: lock the password managers again after this many idle minutes.
+        let n = Int(body["value"] as? String ?? "") ?? (body["value"] as? Int ?? 0)
+        guard [5, 15, 30, 60].contains(n) else { return replyHandler(nil, "5, 15, 30 or 60 minutes.") }
+        prefs.set(n, forKey: "hands.\(Servers.activeId ?? "").pm.relockMinutes")
+        Hands.shared?.pm.setRelockMinutes(n)
+        Hands.shared?.tellManagers()
       case "handsTakeover":
         // Phase 88: "When you move the mouse": pause Sara (default) or let her keep control.
         let keepIt = body["value"] as? String == "keep"
@@ -573,6 +580,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
       if !all && (name ?? "").isEmpty { return replyHandler(nil, "Say which saved login to remove.") }
       let n = Hands.shared.map { $0.forgetHere(all ? nil : name) } ?? HandsLogins.remove(server: s.lowercased(), name: all ? nil : name)
       replyHandler(["removed": n], nil)
+    // Phase 91: the password managers on this Mac (names and states). Turning one on shows this app's own
+    // warning (the page can only ask: a server's page can never turn one on by itself); off locks it at once.
+    case "pmList":
+      replyHandler(pmListDict(), nil)
+    case "pmSet":
+      let mid = body["manager"] as? String ?? ""
+      guard let i = handsPmIndex(mid), let sid = Servers.activeId else { return replyHandler(nil, "Not a password manager Sara knows.") }
+      let on = body["on"] as? Bool == true
+      if on {
+        guard Hands.shared?.pm.installed(i) == true else { return replyHandler(nil, "That password manager isn't installed on this Mac.") }
+        let a = NSAlert()
+        a.alertStyle = .warning
+        a.messageText = "\(handsTestLabel ? "TEST · " : "")Turn on \(handsPms[i].name) for Sara?"
+        a.informativeText = handsManagerWarning.replacingOccurrences(of: "{manager}", with: handsPms[i].name).replacingOccurrences(of: "{minutes}", with: String(pmRelock(sid)))
+        a.addButton(withTitle: "Not now")
+        a.addButton(withTitle: "Turn on")
+        guard a.runModal() == .alertSecondButtonReturn else { return replyHandler(["cancelled": true], nil) }
+        if i == 2 && (prefs.string(forKey: "hands.\(sid).pm.keepassDb") ?? "").isEmpty {
+          guard let db = pickKeepassDb() else { return replyHandler(["cancelled": true], nil) }
+          prefs.set(db, forKey: "hands.\(sid).pm.keepassDb")
+          Hands.shared?.pm.setKeepassDb(db)
+        }
+      }
+      prefs.set(on, forKey: "hands.\(sid).pm.\(mid)")
+      if let h = Hands.shared { DispatchQueue.global().async { h.pm.setOn(i, on) } }
+      replyHandler(pmListDict(), nil)
+    case "pmKeepassDb":
+      guard let sid = Servers.activeId, let db = pickKeepassDb() else { return replyHandler(["cancelled": true], nil) }
+      prefs.set(db, forKey: "hands.\(sid).pm.keepassDb")
+      if let h = Hands.shared { DispatchQueue.global().async { h.pm.setKeepassDb(db) } }
+      replyHandler(pmListDict(), nil)
     case "testNotification":
       postNotification(title: body["title"] as? String ?? "Sara", body: body["body"] as? String ?? "", conv: "")
       replyHandler(true, nil)
@@ -629,7 +667,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     d["computerName"] = Host.current().localizedName ?? "this Mac"
     d["loginsSupported"] = true
     d["loginsVerify"] = prefs.bool(forKey: "hands.\(sid).loginsVerify")
+    d["pmSupported"] = true
     return d
+  }
+  /// Phase 91: the password managers here for the app's own Settings page (names and states only).
+  func pmListDict() -> [String: Any] {
+    guard let h = Hands.shared, h.pm.detected else { return ["managers": [] as [Any], "detected": false] }
+    return ["managers": h.pm.views(), "relockMinutes": h.pm.relockMinutes, "keepassDb": h.pm.keepassDbName, "detected": true]
+  }
+  func pmRelock(_ sid: String) -> Int {
+    let n = prefs.integer(forKey: "hands.\(sid).pm.relockMinutes")
+    return [5, 15, 30, 60].contains(n) ? n : 15
+  }
+  var handsTestLabel: Bool {
+    #if DEBUG
+    return Bundle.main.bundleIdentifier != "com.backstagecoding.sara.desktop"
+    #else
+    return false
+    #endif
+  }
+  /// Phase 91: the person picks the KeePassXC database Sara may unlock.
+  func pickKeepassDb() -> String? {
+    let p = NSOpenPanel()
+    p.title = "Choose the KeePassXC database Sara may use"
+    p.allowsMultipleSelection = false
+    p.canChooseDirectories = false
+    return p.runModal() == .OK ? p.url?.path : nil
   }
 
   // MARK: Phase 87: Sara's hands on this Mac
@@ -672,6 +735,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
       if HandsKeychain.save(tok, account: sid) { prefs.set(exp, forKey: "hands.\(sid).expires") }
     }
     h.verify = prefs.bool(forKey: "hands.\(sid).loginsVerify")
+    // Phase 91: the password managers the owner turned on here, KeePassXC's database and the idle minutes.
+    var idle = 0
+    #if DEBUG
+    if testLabel { idle = Int(ProcessInfo.processInfo.environment["SARA_PM_IDLE_SECONDS"] ?? "") ?? 0 }
+    #endif
+    h.pm.configure(testRun: testLabel, on: handsPms.map { prefs.bool(forKey: "hands.\(sid).pm.\($0.id)") }, keepassDb: prefs.string(forKey: "hands.\(sid).pm.keepassDb") ?? "",
+                   relockMinutes: pmRelock(sid), idleSeconds: idle)
     Hands.shared = h
     h.start()
   }

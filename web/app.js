@@ -2288,6 +2288,8 @@ const CU_ASK = {
   keys: (a) => t('{name} wants to press keys on {site}', a),
   upload: (a) => t('{name} wants to upload a file to {target} on {site}', a),
   login: (a) => t('{name} wants to sign in to {site} with your saved “{login}” login', a),
+  // Phase 91: a login from the owner's own password manager on that computer.
+  pmLogin: (a) => t('{name} wants to sign in to {site} with your password manager ({managers})', a),
 };
 const CU_TEXT = { type: (a) => t('Text: {text}', a), select: (a) => t('Option: {text}', a), keys: (a) => t('Keys: {text}', a), upload: (a) => t('File: {text}', a) };
 const CU_KIND = { click: () => t('clicking'), type: () => t('typing'), select: () => t('choosing in lists'), keys: () => t('pressing keys'), upload: () => t('uploading files') };
@@ -2296,7 +2298,8 @@ function computerApproval(card, title, k, decide) {
   card.classList.add('approval-tidy');
   if (k.risk === 'payment' || k.risk === 'account') card.classList.add('approval-advisory');
   title.className = 'approval-title';
-  const ask = (CU_ASK[k.action] ?? CU_ASK.click)({ name: currentIdentity().name || t('Sara'), target: cuTarget(k), site: k.site, login: k.name || '' });
+  const managers = Array.isArray(k.managers) ? k.managers.join(', ') : '';
+  const ask = (k.action === 'login' && managers ? CU_ASK.pmLogin : (CU_ASK[k.action] ?? CU_ASK.click))({ name: currentIdentity().name || t('Sara'), target: cuTarget(k), site: k.site, login: k.name || '', managers });
   title.replaceChildren(iconSpan('approval-icon', k.action === 'type' ? 'keyboard' : k.action === 'login' ? 'lock' : 'pointer'), el('span', 'approval-what', ask));
   title.dataset.raw = '';
   const where = el('p', 'approval-about muted small', t('In the Sara browser on {computer}.', { computer: k.computer }));
@@ -2313,7 +2316,12 @@ function computerApproval(card, title, k, decide) {
     kept.dataset.raw = '';
     lines.push(kept);
   }
-  const why = k.risk === 'login' ? t('Using a saved login: this asks every time.') : k.risk === 'payment' ? t('A payment or purchase: this asks every time.') : k.risk === 'account' ? t('Account or security settings: this asks every time.') : k.risk === 'send' ? t('Sending something as you: this asks every time.') : k.choices.includes('task') ? t('Her first action on this site in this task.') : k.choices.includes('always') ? t('Every action asks (your setting).') : t('This asks every time.');
+  if (k.action === 'login' && managers) {
+    const unlock = el('p', 'muted small', t('If it is locked, you unlock it yourself in its own window there.'));
+    unlock.dataset.raw = '';
+    lines.push(unlock);
+  }
+  const why = k.risk === 'login' && managers ? t('Signing in with your password manager: this asks every time.') : k.risk === 'login' ? t('Using a saved login: this asks every time.') : k.risk === 'payment' ? t('A payment or purchase: this asks every time.') : k.risk === 'account' ? t('Account or security settings: this asks every time.') : k.risk === 'send' ? t('Sending something as you: this asks every time.') : k.choices.includes('task') ? t('Her first action on this site in this task.') : k.choices.includes('always') ? t('Every action asks (your setting).') : t('This asks every time.');
   lines.push(el('p', 'muted small', why));
   const row = el('div', 'row');
   const btn = (label, cls, fn) => {
@@ -10321,6 +10329,7 @@ async function loadComputer() {
     $('#cu-verify').checked = p.loginsVerify === true;
     $('#cu-verify').disabled = p.handsOptIn !== true || p.loginsSupported !== true;
     void renderThisLogins();
+    void renderThisManagers(p);
     $('#cu-this-status').textContent = p.handsOptIn ? (p.handsConnected ? t('On: connected to Sara.') : t('On: connecting…')) : t('Off.');
   }
   const list = h.devices ?? [];
@@ -10338,7 +10347,21 @@ async function loadComputer() {
       if (d.connected && d.optIn && !d.optIn.browser) bits.push(t('switched off there'));
       if (d.localOnly) bits.push(t('screenshots stay on local models'));
       if (d.busy) bits.push(t('in use now'));
+      // Phase 91: the password managers the owner turned on there (locked or unlocked for Sara).
+      const pms = (d.managers ?? []).filter((m) => m.on);
+      for (const m of pms) bits.push(m.state === 'unlocked' ? t('{manager} unlocked for Sara', { manager: m.name }) : t('{manager} locked', { manager: m.name }));
       main.append(el('span', 'cu-row-meta', bits.join(' · ')));
+      li.append(dot, main);
+      if (d.connected && pms.some((m) => m.state === 'unlocked')) {
+        const lock = el('button', 'ghost', t('Lock now'));
+        lock.type = 'button';
+        lock.addEventListener('click', async () => {
+          const x = await api(`/hands/${encodeURIComponent(d.id)}/relock`, { method: 'POST', body: {} }).catch((err) => ({ ok: false, error: { message: err.message } }));
+          status.textContent = x.ok ? t('Locked on {computer}.', { computer: d.computer || d.label }) : x.error?.message || '';
+          void loadComputer();
+        });
+        li.append(lock);
+      }
       const out = el('button', 'ghost', t('Sign out'));
       out.type = 'button';
       out.addEventListener('click', async () => {
@@ -10350,7 +10373,7 @@ async function loadComputer() {
           status.textContent = err.message;
         }
       });
-      li.append(dot, main, out);
+      li.append(out);
       return li;
     }),
   );
@@ -10446,6 +10469,63 @@ async function renderThisLogins() {
   ul.replaceChildren(...logins.map((l) => loginRow(l, remove)));
   $('#cu-this-logins-none').hidden = logins.length > 0;
 }
+// Phase 91: the password managers on this computer, straight from the app. Turning one on shows the
+// app's own warning (a window of the app, not this page); unlocking is never done from here.
+const PM_STATE = { missing: () => t('Not installed here'), off: () => t('Off'), locked: () => t('On · locked'), unlocked: () => t('On · unlocked for Sara') };
+async function renderThisManagers(p) {
+  const d = handsBridge();
+  const box = $('#cu-pm');
+  if (!d || !p || p.pmSupported !== true) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  const r = await d.call('pmList').catch(() => null);
+  const list = (Array.isArray(r?.managers) ? r.managers : []).filter((m) => m.installed);
+  $('#cu-pm-none').hidden = list.length > 0;
+  $('#cu-pm-relock').value = String(r?.relockMinutes ?? 15);
+  $('#cu-pm-relock').disabled = p.handsOptIn !== true || !list.length;
+  $('#cu-pm-list').replaceChildren(
+    ...list.map((m) => {
+      const li = el('li', 'cu-row');
+      const main = el('div', 'cu-row-main');
+      const nm = el('span', 'cu-row-name', m.name);
+      nm.dataset.raw = '';
+      const bits = [(PM_STATE[m.state] ?? PM_STATE.off)()];
+      if (m.id === 'keepassxc' && r?.keepassDb) bits.push(t('Database: {file}', { file: r.keepassDb }));
+      const meta = el('span', 'cu-row-meta', bits.join(' · '));
+      main.append(nm, meta);
+      li.append(main);
+      if (m.id === 'keepassxc' && m.on) {
+        const pick = el('button', 'ghost', t('Choose database…'));
+        pick.type = 'button';
+        pick.addEventListener('click', async () => {
+          const x = await d.call('pmKeepassDb').catch((err) => ({ error: String(err) }));
+          $('#cu-this-status').textContent = x?.error ? x.error : '';
+          void renderThisManagers(await handsPrefs());
+        });
+        li.append(pick);
+      }
+      const sw = el('button', m.on ? 'ghost' : '', m.on ? t('Turn off') : t('Turn on'));
+      sw.type = 'button';
+      sw.disabled = p.handsOptIn !== true;
+      sw.addEventListener('click', async () => {
+        sw.disabled = true;
+        const x = await d.call('pmSet', { manager: m.id, on: !m.on }).catch((err) => ({ error: String(err) }));
+        $('#cu-this-status').textContent = x?.error ? x.error : x?.cancelled ? t('Not changed.') : m.on ? t('{manager} is off for Sara.', { manager: m.name }) : t('{manager} is on for Sara. You unlock it yourself when she needs it.', { manager: m.name });
+        void renderThisManagers(await handsPrefs());
+      });
+      li.append(sw);
+      return li;
+    }),
+  );
+}
+$('#cu-pm-relock').addEventListener('change', async () => {
+  const d = handsBridge();
+  if (!d) return;
+  const r = await d.call('setPref', { key: 'pmRelockMinutes', value: $('#cu-pm-relock').value }).catch((err) => ({ error: String(err) }));
+  $('#cu-this-status').textContent = r?.error ? r.error : t('Saved');
+});
 $('#cu-verify').addEventListener('change', async () => {
   const d = handsBridge();
   if (!d) return;
@@ -10635,7 +10715,7 @@ $('#cu-takeover').addEventListener('change', async () => {
 // Phase 88: the "Sara is working" badge above the composer (with Stop), and "Paused: you took over".
 const cuBadge = { deviceId: '', timer: 0, paused: false };
 const CU_LOOK = () => t('Looking at the page');
-const CU_DOING = { 'b.open': () => t('Opening a page'), 'b.navigate': () => t('Going to a page'), 'b.snapshot': CU_LOOK, 'b.screenshot': CU_LOOK, 'b.find': CU_LOOK, 'b.read': () => t('Reading the page'), 'b.logs': () => t('Reading the logs'), 'b.request': () => t('Reading the logs'), 'b.tabs': () => t('Looking at the tabs'), 'b.click': () => t('Clicking'), 'b.type': () => t('Typing'), 'b.select': () => t('Choosing in a list'), 'b.keys': () => t('Pressing keys'), 'b.scroll': () => t('Scrolling'), 'b.upload': () => t('Uploading a file'), 'b.downloads': () => t('Looking at the downloads'), 'b.login': () => t('Signing in with a saved login'), 'b.saveLogin': () => t('Waiting for you to save a login'), 'b.yourTurn': () => t('Your turn: waiting for you in her browser'), 'b.logins': () => t('Looking at the saved logins'), 'b.forgetLogin': () => t('Removing a saved login') };
+const CU_DOING = { 'b.open': () => t('Opening a page'), 'b.navigate': () => t('Going to a page'), 'b.snapshot': CU_LOOK, 'b.screenshot': CU_LOOK, 'b.find': CU_LOOK, 'b.read': () => t('Reading the page'), 'b.logs': () => t('Reading the logs'), 'b.request': () => t('Reading the logs'), 'b.tabs': () => t('Looking at the tabs'), 'b.click': () => t('Clicking'), 'b.type': () => t('Typing'), 'b.select': () => t('Choosing in a list'), 'b.keys': () => t('Pressing keys'), 'b.scroll': () => t('Scrolling'), 'b.upload': () => t('Uploading a file'), 'b.downloads': () => t('Looking at the downloads'), 'b.login': () => t('Signing in with a saved login'), 'b.saveLogin': () => t('Waiting for you to save a login'), 'b.yourTurn': () => t('Your turn: waiting for you in her browser'), 'b.unlock': () => t('Your turn: unlock your password manager in its own window'), 'b.relock': () => t('Locking your password manager again'), 'b.logins': () => t('Looking at the saved logins'), 'b.forgetLogin': () => t('Removing a saved login') };
 function hideBadge() {
   $('#cu-badge').hidden = true;
   cuBadge.deviceId = '';

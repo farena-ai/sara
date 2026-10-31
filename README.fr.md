@@ -14,7 +14,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1164%20passing-brightgreen" alt="1164 tests passing">
+  <img src="https://img.shields.io/badge/tests-1169%20passing-brightgreen" alt="1169 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <sub>Une vraie session avec un modèle local (qwen3.8 27B sur Ollama, une RTX 5090) sur un serveur de test jetable, dans le thème Nuit : elle remonte le moral de son interlocuteur, écrit une petite app et son test pendant que le modèle les transmet, demande avant d'exécuter une commande, repère un vrai bug grâce à un test qui échoue et le corrige jusqu'à ce que les 7 tests passent. Images choisies dans l'enregistrement ; rien n'y a été retouché.</sub>
 </p>
 
-> **État :** 2.23, licence MIT, avec trente-quatre versions riches en nouveautés depuis la 1.0 (toutes
+> **État :** 2.24, licence MIT, avec trente-cinq versions riches en nouveautés depuis la 1.0 (toutes
 > ci-dessous). De la 2.5 à la 2.8, toute l'app a changé de look. L'[app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > est sur Google Play ; l'app iPhone et la version Mac App Store arrivent dès qu'Apple les aura
 > approuvées. Lisez [docs/DISCLOSURES.md](docs/DISCLOSURES.md) avant d'utiliser ou de partager Sara.
@@ -70,6 +70,7 @@ qui citent la page · le [mode local privé](docs/PRIVATE_LOCAL.md) · les [conv
 
 | Version | Ce que vous y gagnez |
 |---|---|
+| **2.24** · Utilisation de l'ordinateur, étape 5 | **Votre gestionnaire de mots de passe remplit les identifiants dans son navigateur :** Bitwarden, 1Password ou KeePassXC, chacun désactivé jusqu'à ce que vous l'activiez. Vous le déverrouillez vous-même dans la fenêtre du gestionnaire (elle ne voit jamais votre mot de passe maître) ; chaque utilisation demande d'abord ; il ne remplit que sur le site exact de l'identifiant ; elle le reverrouille après la tâche, après 15 minutes d'inactivité, sur Stop ou avec *Verrouiller maintenant*. Rien n'atteint le serveur de Sara ni le modèle. Son navigateur ne propose plus d'enregistrer lui-même les mots de passe. |
 | **2.23** · Utilisation de l'ordinateur, étape 4 | **Identifiants enregistrés, seulement si vous le dites :** elle le propose, et une fenêtre sur *votre ordinateur* vous fait saisir l'identifiant et cocher *Je comprends* (ou *Utiliser ce que je viens de taper*). Il est chiffré là (DPAPI de Windows / trousseau macOS), jamais sur le serveur de Sara, et elle ne le voit jamais : elle peut seulement demander à cet ordinateur de le remplir, exactement sur ce site (les sites imitateurs n'ont rien), et chaque utilisation demande d'abord. Windows Hello / Touch ID en option. **À vous :** elle attend pendant que vous vous connectez ou tapez un code vous-même. |
 | **2.22** · Utilisation de l'ordinateur, étape 3 | **Elle débogue votre projet web dans son navigateur :** le serveur de dev que ses outils de code ont lancé sur votre serveur Sara s'ouvre sur `127.0.0.1` dans son navigateur sur votre ordinateur, via l'app (seulement un port de sa propre tâche ; il se ferme avec la tâche), avec rechargement à chaud et stockage local. Après un changement, elle ouvre l'app, lit la console, regarde, corrige et revérifie. Évals navigateur : 5/5 tâches avec un modèle local. Aussi : les tests passent maintenant sur macOS, et deux correctifs de confidentialité réseau. |
 | **2.21** · Utilisation de l'ordinateur, étape 2 | **Elle agit dans son propre navigateur :** cliquer, taper, choisir dans des listes, défiler, appuyer sur des touches et envoyer un fichier que vous nommez, avec un curseur visible. Vous choisissez combien elle demande : à chaque fois, une fois par tâche (par défaut) ou *toujours autorisé* par site ; paiements et réglages de compte demandent toujours, l'envoi demande à chaque fois, et elle ne tape jamais de mot de passe. Un badge **Sara travaille** avec Arrêter et un raccourci d'arrêt (Ctrl+Alt+Échap / ⌃⌥Esc) ; toucher sa fenêtre la met en pause (ou *Laisser Sara garder la main*). |
@@ -117,7 +118,14 @@ Toutes les versions : [CHANGELOG.md](CHANGELOG.md) · [versions](https://github.
 
 ### À venir
 
-Toutes les phases prévues sont sorties. Ensuite : l'app iPhone (en attente de la validation d'Apple), ce qui reste dans chaque fonction, et vos idées dans les [Discussions](https://github.com/farena-ai/sara/discussions).
+Dans l'ordre de construction, une version chacune ([la liste complète](docs/ROADMAP.md)) :
+
+- **Utilisation de l'ordinateur** (2.25–2.28, en cours) : voir et utiliser votre bureau, des tâches guidées « remets mon ordinateur en forme », Linux.
+- **Les bases d'un agent** (2.29–2.36) : des compétences au format ouvert Agent Skills et des compétences qu'elle apprend de ce que vous répétez, plugins et hooks, un tableau Kanban qu'elle traite, A2A avec d'autres agents, des fiches de personnes, des webhooks, son propre agenda (optionnel).
+- **Emménager depuis un autre agent** (2.37–2.39) : amener un compagnon Hermes Agent ou OpenClaw entier : personnalité, souvenirs, personnes, compétences, historique et réglages, avec un rapport de ce qui est arrivé.
+- **Discussions et sessions** (2.40–2.42) : /new, /reset et d'autres commandes dans Telegram et Discord, un projet par canal, des titres qui grandissent avec la session.
+- **Aujourd'hui, repensé** (2.43–2.44) : une mise en page que vous pouvez arranger, sur grand écran et sur téléphone.
+- L'app iPhone (en attente d'Apple), et vos idées dans les [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Le plan complet : [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -299,8 +307,8 @@ qu'aucun test ne vérifiait. Ce qu'elle apporte aujourd'hui, c'est la manière d
 lance les tests, demande avant les étapes risquées, montre ce qui a tourné), pas un meilleur score
 sur ces jeux. Détails, résultats par tâche et comment relancer : [docs/RESULTS.md](docs/RESULTS.md).
 
-En plus, `npm run check` : une vérification des types et 1175 tests automatiques avec un faux modèle
-scripté (sans réseau, sans GPU) : 1164 passent sous Windows, et les 8 autres sont des tests
+En plus, `npm run check` : une vérification des types et 1181 tests automatiques avec un faux modèle
+scripté (sans réseau, sans GPU) : 1169 passent sous Windows, et les 8 autres sont des tests
 d'isolation propres à Linux, exécutés sur un serveur Linux.
 
 ## Comparaison

@@ -24,6 +24,10 @@
 //   "I understand" ticked (the `consent` option stands in for the apps' native window); a sign-in the
 //   person typed is caught in memory for "Use what I just typed" and never sent anywhere; b.yourTurn
 //   hands the browser to the person until they press Continue.
+// - Phase 91 (CU4b): the owner's password managers (src/hands-managers.ts): each off until turned on here
+//   (setManager), unlocked only by the person in the manager's own prompt (the `managers.opts.prompt`
+//   stand-in in tests), used only for the page's exact origin after this computer's saved logins, and
+//   locked again on b.relock (after the task), after the idle minutes, on Stop, on disconnect and when turned off.
 //
 // Run by hand: node src/hands-ref.ts --server http://127.0.0.1:7881 --token-file <file> [--name X] [--visible] [--local-only]
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -37,9 +41,10 @@ import { findBrowser, pageAgentCall, type BrowserInfo } from './browser.ts';
 import { CdpClient, type CdpEvent } from './cdp.ts';
 import { HANDS_OPS, HANDS_PROTOCOL, packBinary, parseBinary } from './hands.ts';
 import { CAUGHT_KEEP_MS, cleanLoginName, defaultLoginName, LoginError, loginOrigin, SAVE_LOGIN_WARNING, siteMatches, TestVault, type ConsentAnswer, type ConsentRequest } from './hands-logins.ts';
+import { managerName, ManagerError, MANAGER_IDS, type ManagerId, type ManagerSessions } from './hands-managers.ts';
 import { connectWebSocket, type WsConnection } from './ws.ts';
 
-export const REF_VERSION = 'hands-ref 4';
+export const REF_VERSION = 'hands-ref 5';
 /** Phase 89 (CU3): the device's own dev-tunnel limits (loopback only, whatever the server says). */
 export const TUNNEL_DEVICE_LIMITS = { tunnels: 4, streams: 64, chunk: 64 * 1024, highWater: 4 * 1024 * 1024 };
 const OPS = new Set<string>(HANDS_OPS);
@@ -47,7 +52,7 @@ const OPS = new Set<string>(HANDS_OPS);
 export const INPUT_LIMITS = { perSecond: 4, perMinute: 120, chars: 2000 };
 const INPUT_OPS = new Set(['b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload', 'b.login']);
 /** Phase 90: ops that wait for the person (the consent window, "Your turn"): up to 10 minutes. */
-const WAITING = new Set(['b.saveLogin', 'b.yourTurn']);
+const WAITING = new Set(['b.saveLogin', 'b.yourTurn', 'b.unlock']);
 const BACKOFF_S = [1, 2, 5, 10, 30];
 const MAX_LOGS = 500;
 const SECRET_SHAPES = [/\bsk-[A-Za-z0-9_-]{16,}/g, /\b[sr]k_(?:live|test)_[A-Za-z0-9]{10,}/g, /\bgh[pousr]_[A-Za-z0-9]{20,}/g, /\bxox[abprs]-[A-Za-z0-9-]{10,}/g, /\bAKIA[0-9A-Z]{16}\b/g, /\bxai-[A-Za-z0-9]{20,}/g, /\bsara_(?:dev|hands|m)\.[\w-]+\.[\w-]+/g, /\beyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]{8,}/g];
@@ -466,6 +471,8 @@ export interface HandsRefOptions {
   consent?: (req: ConsentRequest) => Promise<ConsentAnswer>;
   /** Phase 90: "Ask for Windows Hello / Touch ID before Sara uses a saved login" (off by default) and its answer. */
   verify?: { on: boolean; ask: () => Promise<boolean> };
+  /** Phase 91: the owner's password managers on this "computer" (none when not given). */
+  managers?: ManagerSessions;
   /** Tests: extra browser switches (e.g. host-resolver rules for look-alike sites). */
   browserArgs?: string[];
   /** Tests: keep every frame of the hands channel in `wire`. */
@@ -529,7 +536,28 @@ export class HandsRef {
 
   async start(): Promise<void> {
     this.#stopped = false;
+    // Phase 91: which managers are installed (each CLI's --version, nothing else) before the hello.
+    const pm = this.opts.managers;
+    if (pm && !pm.detected) await pm.detect();
+    if (pm) {
+      const before = pm.opts.onChange;
+      pm.opts.onChange = () => {
+        before?.();
+        this.tellManagers();
+      };
+    }
     await this.#connect();
+  }
+
+  /** Phase 91: a manager was locked, unlocked, turned on or off here: the server hears names and states. */
+  tellManagers(): void {
+    const pm = this.opts.managers;
+    if (pm) this.#send(JSON.stringify({ t: 'ev', kind: 'managers', managers: pm.views(), relockMinutes: Math.max(1, Math.round(pm.relockMs / 60_000)) }));
+  }
+
+  /** Phase 91: the person turns a manager on or off in the app (after the warning). Off forgets its session. */
+  async setManager(id: ManagerId, on: boolean): Promise<void> {
+    await this.opts.managers?.setOn(id, on);
   }
 
   async #connect(): Promise<void> {
@@ -556,6 +584,8 @@ export class HandsRef {
       ws.onClose = () => {
         if (this.ws === ws) this.ws = undefined;
         for (const ac of this.#running.values()) ac.abort();
+        // Phase 91: the managers lock again with the connection.
+        void this.opts.managers?.lockAll('disconnected');
         // Phase 89: every dev tunnel closes with the connection.
         this.closeTunnels();
         this.#later();
@@ -598,6 +628,7 @@ export class HandsRef {
       hotkey: '',
       paused: this.paused,
       renew: true,
+      ...(this.opts.managers ? { managers: this.opts.managers.views(), relockMinutes: Math.max(1, Math.round(this.opts.managers.relockMs / 60_000)) } : {}),
     };
   }
 
@@ -675,6 +706,8 @@ export class HandsRef {
   pressStop(): void {
     for (const ac of this.#running.values()) ac.abort();
     this.closeTunnels();
+    // Phase 91: Stop locks the password managers again.
+    void this.opts.managers?.lockAll('stopped');
     this.ws?.send(JSON.stringify({ t: 'ev', kind: 'stopped', by: 'user' }));
   }
 
@@ -687,6 +720,7 @@ export class HandsRef {
     this.#stopped = true;
     clearTimeout(this.#timer);
     this.closeTunnels();
+    await this.opts.managers?.lockAll('the app closed');
     this.ws?.close(1000, 'bye');
     await this.browser.close();
   }
@@ -705,8 +739,11 @@ export class HandsRef {
     }
     if (m.t === 's') return this.#streamControl(m);
     if (m.t === 'cancel') {
-      if (m.all) for (const ac of this.#running.values()) ac.abort();
-      else this.#running.get(String(m.id))?.abort();
+      if (m.all) {
+        for (const ac of this.#running.values()) ac.abort();
+        // Phase 91: Stop (from the chat or Settings) locks the password managers again too.
+        void this.opts.managers?.lockAll('stopped');
+      } else this.#running.get(String(m.id))?.abort();
       return;
     }
     if (m.t !== 'req') return;
@@ -870,47 +907,107 @@ export class HandsRef {
    * Phase 90: b.login. Only on a page whose CURRENT origin exactly equals a saved site; the username and
    * password go into the page through DevTools input on this computer. Answers filled / not found /
    * site doesn't match, nothing else about the login.
+   * Phase 91: with `managers: true` the login for the page's exact origin comes from this computer's saved
+   * logins first, then the password managers that are on (in order); a manager that is on but locked
+   * answers `locked` (with the managers' ids) so the server asks the person to unlock it (b.unlock).
    */
   async #login(ws: WsConnection, id: string, a: Record<string, unknown>, server: string): Promise<Record<string, unknown>> {
     const b = this.browser;
     const t = b.tab(a.tab);
     b.activate(t);
-    const login = this.vault.find(server, String(a.name ?? ''));
-    if (!login) return { outcome: 'not_found', missing: 'login', tab: t.id };
     const url = (await b.info2(t)).url;
     const origin = loginOrigin(url);
-    if (!siteMatches(login, url)) return { outcome: 'site_mismatch', tab: t.id };
-    if (this.opts.verify?.on && !(await this.opts.verify.ask())) throw new OpError('denied_local', 'Nothing was filled: the person at the computer didn\u2019t confirm it was them (Windows Hello / Touch ID).');
-    const f = await b.agent<{ origin?: string; pass?: { x: number; y: number; box: unknown } | null; user?: { x: number; y: number; box: unknown } | null }>(t, 'loginFields', {});
-    // The page itself must say the same origin (its main frame, right now).
-    if (loginOrigin(String(f.origin ?? '')) !== origin) return { outcome: 'site_mismatch', tab: t.id };
-    if (!f.pass) return { outcome: 'not_found', missing: 'fields', tab: t.id };
-    const label = 'Sara';
-    try {
-      if (f.user && login.username) {
-        await b.agent(t, 'mark', { x: f.user.x, y: f.user.y, box: f.user.box, label }).catch(() => {});
-        await b.click(t, f.user.x, f.user.y);
-        const fu = await b.agent<{ focused?: boolean; origin?: string }>(t, 'focusLogin', { which: 'user' });
-        if (!fu.focused || loginOrigin(String(fu.origin ?? '')) !== origin) return { outcome: 'site_mismatch', tab: t.id };
-        await b.cdp!.send('Input.insertText', { text: login.username }, t.sessionId);
+    let fill: { username: string; password: string } | undefined;
+    let source = 'saved';
+    let savedName = '';
+    const pm = a.managers === true ? this.opts.managers : undefined;
+    if (!pm) {
+      const login = this.vault.find(server, String(a.name ?? ''));
+      if (!login) return { outcome: 'not_found', missing: 'login', tab: t.id };
+      if (!siteMatches(login, url)) return { outcome: 'site_mismatch', tab: t.id };
+      fill = { username: login.username, password: login.password };
+      savedName = login.name;
+    } else {
+      let login = this.vault.find(server, String(a.name ?? ''));
+      if (login && !siteMatches(login, url)) login = undefined;
+      login ??= this.vault.findBySite(server, url);
+      if (login) {
+        fill = { username: login.username, password: login.password };
+        savedName = login.name;
+      } else {
+        const r = await pm.lookup(url, cleanLoginName(a.name));
+        if (!r.entry) return r.locked.length ? { outcome: 'locked', managers: r.locked, site: origin, tab: t.id } : { outcome: 'not_found', missing: 'login', tab: t.id };
+        fill = { username: r.entry.username, password: r.entry.password };
+        source = r.source!;
+        r.entry.password = '';
       }
-      await b.agent(t, 'mark', { x: f.pass.x, y: f.pass.y, box: f.pass.box, label }).catch(() => {});
-      await b.click(t, f.pass.x, f.pass.y);
-      const fp = await b.agent<{ focused?: boolean; origin?: string; secret?: boolean }>(t, 'focusLogin', { which: 'pass' });
-      if (!fp.focused || !fp.secret) return { outcome: 'not_found', missing: 'fields', tab: t.id };
-      if (loginOrigin(String(fp.origin ?? '')) !== origin) return { outcome: 'site_mismatch', tab: t.id };
-      await b.cdp!.send('Input.insertText', { text: login.password }, t.sessionId);
-      if (a.submit !== false) await this.#keys(t, 'Enter');
-      await b.settle(t);
-    } finally {
-      // The catcher saw her own fill: that is not something the person typed.
-      b.caught = undefined;
     }
-    this.vault.touch(server, login.name);
-    this.#localLog('b.login', `signed in with the saved login \u201c${login.name}\u201d`, origin);
+    try {
+      if (this.opts.verify?.on && !(await this.opts.verify.ask())) throw new OpError('denied_local', 'Nothing was filled: the person at the computer didn\u2019t confirm it was them (Windows Hello / Touch ID).');
+      const f = await b.agent<{ origin?: string; pass?: { x: number; y: number; box: unknown } | null; user?: { x: number; y: number; box: unknown } | null }>(t, 'loginFields', {});
+      // The page itself must say the same origin (its main frame, right now).
+      if (loginOrigin(String(f.origin ?? '')) !== origin) return { outcome: 'site_mismatch', tab: t.id };
+      if (!f.pass) return { outcome: 'not_found', missing: 'fields', tab: t.id };
+      const label = 'Sara';
+      try {
+        if (f.user && fill.username) {
+          await b.agent(t, 'mark', { x: f.user.x, y: f.user.y, box: f.user.box, label }).catch(() => {});
+          await b.click(t, f.user.x, f.user.y);
+          const fu = await b.agent<{ focused?: boolean; origin?: string }>(t, 'focusLogin', { which: 'user' });
+          if (!fu.focused || loginOrigin(String(fu.origin ?? '')) !== origin) return { outcome: 'site_mismatch', tab: t.id };
+          await b.cdp!.send('Input.insertText', { text: fill.username }, t.sessionId);
+        }
+        await b.agent(t, 'mark', { x: f.pass.x, y: f.pass.y, box: f.pass.box, label }).catch(() => {});
+        await b.click(t, f.pass.x, f.pass.y);
+        const fp = await b.agent<{ focused?: boolean; origin?: string; secret?: boolean }>(t, 'focusLogin', { which: 'pass' });
+        if (!fp.focused || !fp.secret) return { outcome: 'not_found', missing: 'fields', tab: t.id };
+        if (loginOrigin(String(fp.origin ?? '')) !== origin) return { outcome: 'site_mismatch', tab: t.id };
+        await b.cdp!.send('Input.insertText', { text: fill.password }, t.sessionId);
+        if (a.submit !== false) await this.#keys(t, 'Enter');
+        await b.settle(t);
+      } finally {
+        // The catcher saw her own fill: that is not something the person typed.
+        b.caught = undefined;
+      }
+    } finally {
+      fill.password = '';
+      fill.username = '';
+    }
+    if (source === 'saved') {
+      this.vault.touch(server, savedName);
+      this.#localLog('b.login', `signed in with the saved login \u201c${savedName}\u201d`, origin);
+    } else this.#localLog('b.login', `signed in with ${managerName(source)}`, origin);
     await this.#thumb(ws, id, t, a);
     void this.#frame(ws, t);
-    return { outcome: 'filled', tab: t.id, submitted: a.submit !== false };
+    return { outcome: 'filled', tab: t.id, submitted: a.submit !== false, source };
+  }
+
+  /**
+   * Phase 91: b.unlock. The person unlocks the manager in its OWN prompt (a window of its own; here the
+   * `prompt` stand-in). Sara never sees the master password; she keeps only the manager's session, in memory.
+   */
+  async #unlock(id: string, a: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const pm = this.opts.managers;
+    if (!pm) throw new OpError('unsupported', 'No password manager is turned on for Sara on this computer.');
+    const asked = Array.isArray(a.managers) ? (a.managers as unknown[]).map(String) : [];
+    const which = MANAGER_IDS.filter((m) => pm.isOn(m) && !pm.unlocked(m) && (!asked.length || asked.includes(m)));
+    if (!which.length) {
+      const open = MANAGER_IDS.find((m) => pm.isOn(m) && pm.unlocked(m));
+      if (open) return { unlocked: true, manager: open };
+      throw new OpError('denied_local', 'No password manager is turned on for Sara on this computer.');
+    }
+    const m = which[0];
+    this.badge = `Your turn: unlock ${managerName(m)} in its own window`;
+    try {
+      const ok = await pm.unlock(m, String(a.site ?? ''), this.#running.get(id)?.signal);
+      this.#localLog('b.unlock', ok ? `${managerName(m)} unlocked by the person` : `${managerName(m)} not unlocked`, '');
+      return ok ? { unlocked: true, manager: m } : { unlocked: false, manager: m, why: 'not unlocked in its window' };
+    } catch (err) {
+      if (err instanceof ManagerError) throw new OpError(err.code, err.message);
+      throw err;
+    } finally {
+      this.badge = '';
+    }
   }
 
   /** Phase 90: b.saveLogin. The consent window decides; the device saves only with the box ticked. */
@@ -1083,6 +1180,9 @@ export class HandsRef {
     if (op === 'c.untunnel') return { closed: this.closeTunnel(String(args.tunnel ?? '')) };
     // Phase 90: the saved logins here (names and sites only go back).
     const server = this.serverOrigin;
+    // Phase 91: after the task (and "Lock now"): every manager unlocked for Sara locks again.
+    if (op === 'b.relock') return { locked: (await this.opts.managers?.lockAll('the task ended')) ?? [] };
+    if (op === 'b.unlock') return this.#unlock(id, args);
     if (op === 'b.logins') return { logins: this.vault.list(server), verify: this.opts.verify?.on === true };
     if (op === 'b.forgetLogin') {
       const all = args.all === true;
@@ -1223,6 +1323,7 @@ export class HandsRef {
       }
       case 'b.login':
         return this.#login(ws, id, args, server);
+
       case 'b.saveLogin':
         return this.#saveLogin(args, server);
       case 'b.yourTurn': {

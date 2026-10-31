@@ -15,21 +15,84 @@
 // stand-in (--ref) or by --consent-driver "<command>": run as `<command> <step>` while each window is
 // open (steps: cancel, untick, save, typed, continue), with SARA_CU4_PIECES = the test password in
 // comma-separated pieces (it drives the test build's window on that computer only).
+// Phase 91 (CU4b) adds the owner's password managers (section 11), with test doubles of the Bitwarden and
+// 1Password CLIs and a KeePassXC (the double, or the real keepassxc-cli with a new test database) whose
+// entries are for the fixture's own sites: the managers listed by name and state only, locked → b.login
+// answers locked, b.unlock opens the manager's own prompt and stays locked when the person closes it or
+// types a wrong master password, unlocked → filled on the exact site (the fixture's sign-in really works),
+// a look-alike origin gets nothing, the order (Bitwarden, then 1Password, then KeePassXC), b.relock, Stop
+// and the idle time lock them again. The person at the prompt is the reference's stand-in (--ref) or
+// --unlock-driver "<command>", run as `<command> <manager> <step>` while the prompt is open (steps: type,
+// wrong, close) with SARA_CU4B_PIECES = that manager's test master password in comma-separated pieces.
+// Before starting an app for this, make its doubles with --make-pm <dir> (prints the folders to put in
+// SARA_PM_PATH and the config folders), with the same --fixture-port / --fixture-port3 as the run.
 // Runs the command set against one hands device connected to a Sara server, through the owner's
 // test route (POST /api/hands/<id>/op), with a local fixture site (a console error, an HTTP 500, a
 // password field, a key-shaped text, a redirect to Sara's own server, a slow page). The same script
 // checks the reference hands (--ref), the Windows app and the Mac app.
 //
-//   node scripts/hands-conformance.ts --server http://127.0.0.1:7881 --token-file <owner token file> [--device <name or id>] [--ref] [--json out.json] [--fixture-port N] [--fixture-port2 N] [--consent-driver "<command>"]
+//   node scripts/hands-conformance.ts --server http://127.0.0.1:7881 --token-file <owner token file> [--device <name or id>] [--ref] [--json out.json] [--fixture-port N] [--fixture-port2 N] [--fixture-port3 N] [--consent-driver "<command>"] [--unlock-driver "<command>"] [--idle-seconds N]
+//   node scripts/hands-conformance.ts --make-pm <dir> --fixture-port N --fixture-port3 N [--real-keepassxc <folder of keepassxc-cli>]
 //
 // The owner token is read from a file and never printed. Exit code 0 when every check passed.
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { CU1_OPS, CU3_OPS, CU4_OPS, HANDS_OPS } from '../src/hands.ts';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { CU1_OPS, CU3_OPS, CU4_OPS, CU4B_OPS, HANDS_OPS } from '../src/hands.ts';
 import { HandsRef } from '../src/hands-ref.ts';
 import type { ConsentAnswer } from '../src/hands-logins.ts';
+import { commandLine, ManagerSessions, type ManagerId, type PromptRequest } from '../src/hands-managers.ts';
+import { writeFakeManagers, type FakeFixture } from '../test/fixtures/fake-pm/make.ts';
+
+// Phase 91: the password managers' test entries and master passwords, obviously fake, built in pieces.
+const PM_USER = 'conformance-' + 'pm-' + 'user';
+const PM_PASS: Record<ManagerId, string> = { bitwarden: 'conf-' + 'bw-' + 'Pw1', '1password': 'conf-' + 'op-' + 'Pw2', keepassxc: 'conf-' + 'kp-' + 'Pw3' };
+const PM_MASTER_PIECES: Record<ManagerId, string[]> = { bitwarden: ['conf-', 'master-', 'bw9'], '1password': ['conf-', 'master-', 'op8'], keepassxc: ['conf-', 'master-', 'kp7'] };
+const PM_MASTER = (m: ManagerId) => PM_MASTER_PIECES[m].join('');
+/** Each manager's entry is for its own fixture origin (so each one is the only match there). */
+function pmFixture(port: number, port3: number): FakeFixture {
+  return {
+    bitwarden: { master: PM_MASTER('bitwarden'), items: [{ name: 'Conformance PM', uri: `http://127.0.0.1:${port}`, username: PM_USER, password: PM_PASS.bitwarden }] },
+    '1password': { master: PM_MASTER('1password'), items: [{ id: 'conf0001', title: 'Conformance PM', url: `http://localhost:${port}/login`, username: PM_USER, password: PM_PASS['1password'] }] },
+    keepassxc: { master: PM_MASTER('keepassxc'), entries: [{ title: 'Conformance PM', url: `http://127.0.0.1:${port3}`, username: PM_USER, password: PM_PASS.keepassxc }] },
+  };
+}
+/** --make-pm: the doubles (and optionally a real KeePassXC test database) for an app started afterwards. */
+function makePm(dir: string, port: number, port3: number, realKpx?: string): Record<string, unknown> {
+  const fx = pmFixture(port, port3);
+  const made = writeFakeManagers(dir, fx);
+  const out: Record<string, unknown> = { ...made, search: [made.bin] };
+  if (realKpx) {
+    const cli = join(realKpx, process.platform === 'win32' ? 'keepassxc-cli.exe' : 'keepassxc-cli');
+    const db = join(dir, 'conformance.kdbx');
+    const cfg = join(dir, 'kpx-config');
+    mkdirSync(cfg, { recursive: true });
+    const env = { ...process.env, APPDATA: cfg, LOCALAPPDATA: cfg, XDG_CONFIG_HOME: cfg, HOME: cfg };
+    rmSync(db, { force: true });
+    const e = fx.keepassxc!.entries[0];
+    const a = spawnSync(cli, ['db-create', '--set-password', db], { input: `${PM_MASTER('keepassxc')}\n${PM_MASTER('keepassxc')}\n`, env });
+    const b = spawnSync(cli, ['add', '-u', e.username, '--url', e.url, '-p', db, e.title], { input: `${PM_MASTER('keepassxc')}\n${e.password}\n`, env });
+    if (a.status !== 0 || b.status !== 0) throw new Error('could not make the KeePassXC test database');
+    // The real CLI first: its folder goes before the doubles' (whose keepassxc-cli is then unused).
+    rmSync(join(made.bin, process.platform === 'win32' ? 'keepassxc-cli.cmd' : 'keepassxc-cli'), { force: true });
+    out.search = [made.bin, realKpx];
+    out.keepassDb = db;
+    out.kpxConfig = cfg;
+  }
+  return out;
+}
+if (process.argv.includes('--make-pm')) {
+  const a = (k: string) => {
+    const i = process.argv.indexOf(k);
+    return i > 0 ? process.argv[i + 1] : undefined;
+  };
+  const dir = a('--make-pm')!;
+  console.log(JSON.stringify(makePm(dir, Number(a('--fixture-port')), Number(a('--fixture-port3')), a('--real-keepassxc')), null, 2));
+  process.exit(0);
+}
 
 const arg = (k: string) => {
   const i = process.argv.indexOf(k);
@@ -75,7 +138,7 @@ function fixture(req: IncomingMessage, res: ServerResponse): void {
     req.on('data', (c) => (body += c));
     req.on('end', () => {
       const f = new URLSearchParams(body);
-      const right = f.get('password') === LOGIN_PASSWORD && f.get('username') === LOGIN_USER;
+      const right = (f.get('password') === LOGIN_PASSWORD && f.get('username') === LOGIN_USER) || (Object.values(PM_PASS).includes(f.get('password') ?? '') && f.get('username') === PM_USER);
       signIns.push({ host: String(req.headers.host ?? ''), right });
       html(right ? 'Signed in' : 'Wrong', right ? '<h1>Signed in (the right user)</h1>' : '<h1 role="alert">Wrong username or password</h1>');
     });
@@ -148,6 +211,25 @@ async function main(): Promise<number> {
   const fx2 = createServer(fixture);
   await new Promise<void>((r) => fx2.listen(Number(arg('--fixture-port2') ?? 0), host === '127.0.0.1' ? '127.0.0.1' : '0.0.0.0', r));
   const base2 = `http://${host}:${(fx2.address() as AddressInfo).port}`;
+  // Phase 91: a third origin (KeePassXC's entry is for it).
+  const fx3 = createServer(fixture);
+  await new Promise<void>((r) => fx3.listen(Number(arg('--fixture-port3') ?? 0), host === '127.0.0.1' ? '127.0.0.1' : '0.0.0.0', r));
+  const port1 = (fx.address() as AddressInfo).port;
+  const port3 = (fx3.address() as AddressInfo).port;
+  const base3 = `http://${host}:${port3}`;
+  // The reference's stand-in for the person at the manager's own prompt.
+  let pmStep: 'type' | 'wrong' | 'close' = 'type';
+  const refPrompt = (req: PromptRequest) =>
+    new Promise<{ stdout: string; code: number }>((resolve) => {
+      const [cmd, argv, verbatim] = commandLine(req.command, req.args);
+      const child = spawn(cmd, argv, { env: req.env, windowsVerbatimArguments: verbatim, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+      let out = '';
+      child.stdout!.setEncoding('utf8').on('data', (d: string) => (out += d));
+      child.on('close', (code) => resolve({ stdout: out, code: code ?? 1 }));
+      if (pmStep === 'close') child.kill();
+      else child.stdin!.end(`${pmStep === 'wrong' ? 'not-' + 'it' : PM_MASTER(req.manager)}\n`);
+    });
+  let refPmDir = '';
   // The reference hands' stand-in for the consent window: answers as the step says.
   let refStep = '';
   const refConsent = async (): Promise<ConsentAnswer> => {
@@ -163,8 +245,13 @@ async function main(): Promise<number> {
     if (process.argv.includes('--ref')) {
       const pair = await api('POST', '/api/hands/pair', { name: 'Conformance (hands-ref)', token: owner });
       if (pair.status !== 200) throw new Error(`pairing the reference hands failed: HTTP ${pair.status} ${pair.json.error ?? ''}`);
-      ref = new HandsRef({ server, token: String(pair.json.token), name: 'Conformance (hands-ref)', consent: refConsent });
+      // Phase 91: the reference gets the doubles (in a temporary folder) and the person turns them on.
+      refPmDir = mkdtempSync(join(tmpdir(), 'sara-conf-pm-'));
+      const made = makePm(refPmDir, port1, port3);
+      const managers = new ManagerSessions({ search: made.search as string[], env: made.env as Record<string, string>, keepassDb: String(made.keepassDb), prompt: refPrompt, relockMs: Number(arg('--idle-seconds') ?? 20) * 1000 });
+      ref = new HandsRef({ server, token: String(pair.json.token), name: 'Conformance (hands-ref)', consent: refConsent, managers });
       await ref.start();
+      for (const m of ['bitwarden', '1password', 'keepassxc'] as ManagerId[]) await ref.setManager(m, true);
       deviceId = String(pair.json.id);
       await new Promise((r) => setTimeout(r, 300));
     }
@@ -179,8 +266,8 @@ async function main(): Promise<number> {
     const op = async (name: string, args: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => (await api('POST', `/api/hands/${deviceId}/op`, { op: name, args, ...extra })).json;
 
     // 1. hello
-    check('hello: connected, protocol 1, the CU1 + CU2 + CU3 + CU4 command set, browser opt-in on', dev.connected === true && Array.isArray(dev.ops) && HANDS_OPS.every((o) => dev.ops.includes(o)) && CU1_OPS.every((o) => dev.ops.includes(o)) && dev.optIn?.browser === true, `ops: ${(dev.ops ?? []).join(' ')}`);
-    check('hello: nothing beyond CU4 advertised (no scripts, password-manager or desktop ops)', Array.isArray(dev.ops) && dev.ops.every((o: string) => (HANDS_OPS as readonly string[]).includes(o)) && !dev.ops.some((o: string) => /^b\.(evaluate|eval|script)|^d\.|^p\./.test(o)), '');
+    check('hello: connected, protocol 1, the CU1 + CU2 + CU3 + CU4 + CU4b command set, browser opt-in on', dev.connected === true && Array.isArray(dev.ops) && HANDS_OPS.every((o) => dev.ops.includes(o)) && CU1_OPS.every((o) => dev.ops.includes(o)) && dev.optIn?.browser === true, `ops: ${(dev.ops ?? []).join(' ')}`);
+    check('hello: nothing beyond CU4b advertised (no scripts, no op that reads a password, no desktop ops)', Array.isArray(dev.ops) && dev.ops.every((o: string) => (HANDS_OPS as readonly string[]).includes(o)) && !dev.ops.some((o: string) => /^b\.(evaluate|eval|script)|^d\.|^p\./.test(o)), '');
     check('hello: the takeover choice and the stop shortcut', dev.takeover === 'pause' || dev.takeover === 'keep', `takeover ${dev.takeover ?? '?'}, shortcut ${dev.hotkey || '(none)'}`);
     const ping = await op('c.ping');
     check('c.ping', ping.ok === true && ping.result?.pong === true);
@@ -471,6 +558,102 @@ async function main(): Promise<number> {
         check('CU4: removed from Settings, removed on the device (it can\u2019t be used any more)', rm.json.removed === 1 && rm2.json.removed === 1 && !(l2.result?.logins ?? []).some((l: any) => /^Conformance/.test(l.name)) && gone.result?.outcome === 'not_found', `${rm.json.removed}/${rm2.json.removed} removed, then ${gone.result?.outcome ?? gone.error?.code}`);
       }
     }
+
+    // 11. Phase 91 (CU4b): the owner's own password managers (test doubles / a test database only).
+    {
+      const pause = (ms = 300) => new Promise((res) => setTimeout(res, ms));
+      const view = async () => ((await api('GET', '/api/hands')).json.devices ?? []).find((d: any) => d.id === deviceId) ?? {};
+      const states = async () => Object.fromEntries(((await view()).managers ?? []).map((m: any) => [m.id, m.state])) as Record<string, string>;
+      const unlockDriver = arg('--unlock-driver');
+      const unlock = async (m: ManagerId, step: 'type' | 'wrong' | 'close', site: string) => {
+        pmStep = step;
+        let drove: Promise<number> = Promise.resolve(0);
+        if (!ref && unlockDriver) {
+          drove = new Promise((resolve) => {
+            const child = spawn(`${unlockDriver} ${m} ${step}`, { shell: true, stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, SARA_CU4B_PIECES: PM_MASTER_PIECES[m].join(',') } });
+            child.on('exit', (code) => resolve(code ?? 1));
+          });
+        }
+        const [r] = await Promise.all([op('b.unlock', { managers: [m], site }, { deadlineMs: ref || unlockDriver ? 120_000 : 5000 }), drove]);
+        await pause(400);
+        return r;
+      };
+      // The device opens at most 20 pages a minute: wait and try again when it says so.
+      const openPage = async (url: string) => {
+        for (let i = 0; i < 15; i++) {
+          const o = await op('b.open', { url });
+          if (o.ok || o.error?.code !== 'rate_limited') return o;
+          await pause(5000);
+        }
+        return { ok: false, error: { code: 'rate_limited' } };
+      };
+      check('CU4b: the device has b.unlock and b.relock', CU4B_OPS.every((o) => (dev.ops ?? []).includes(o)));
+      await op('b.relock', {});
+      await pause(400);
+      const v0 = await view();
+      const ms = (v0.managers ?? []) as Record<string, unknown>[];
+      check('CU4b: hello lists the managers by name and state only', ms.length === 3 && ms.every((m) => Object.keys(m).sort().join(',') === 'id,installed,name,on,state'), JSON.stringify(ms).slice(0, 200));
+      const st0 = await states();
+      check('CU4b: all three found (by --version), turned on there, locked', st0.bitwarden === 'locked' && st0['1password'] === 'locked' && st0.keepassxc === 'locked', JSON.stringify(st0));
+      if (st0.bitwarden !== 'locked') console.log('      (turn the three test managers on in the app on that computer first)');
+      else {
+        const before = signIns.length;
+        await openPage(`${base}/login`);
+        const l1 = await act('b.login', { name: 'Conformance PM', managers: true });
+        check('CU4b: locked: b.login answers locked (the managers by id), nothing filled', l1.ok === true && l1.result?.outcome === 'locked' && JSON.stringify(l1.result?.managers) === JSON.stringify(['bitwarden', '1password', 'keepassxc']) && signIns.length === before, l1.ok ? JSON.stringify(l1.result) : l1.error?.message);
+        if (!ref && !unlockDriver) console.log('      (the rest of section 11 needs --unlock-driver for this device)');
+        else {
+          const c = await unlock('bitwarden', 'close', base);
+          check('CU4b: the person closes the manager\u2019s own unlock window: still locked', (c.ok === true && c.result?.unlocked === false) || c.ok === false, c.ok ? JSON.stringify(c.result) : c.error?.code);
+          const w = await unlock('bitwarden', 'wrong', base);
+          check('CU4b: a wrong master password in its prompt: still locked', w.ok === true && w.result?.unlocked === false && (await states()).bitwarden === 'locked', w.ok ? JSON.stringify(w.result) : w.error?.message);
+          const u = await unlock('bitwarden', 'type', base);
+          check('CU4b: the person unlocks Bitwarden in its own prompt: unlocked (the server hears the state)', u.ok === true && u.result?.unlocked === true && (await states()).bitwarden === 'unlocked', u.ok ? JSON.stringify(u.result) : u.error?.message);
+          await openPage(`${base}/login`);
+          const f1 = await act('b.login', { name: 'Conformance PM', managers: true, thumb: 320 });
+          const r1 = await op('b.read', {});
+          check('CU4b: filled from Bitwarden on its exact site (the fixture got the right password)', f1.ok === true && f1.result?.outcome === 'filled' && f1.result?.source === 'bitwarden' && signIns.length === before + 1 && signIns.at(-1)?.right === true && /Signed in \(the right user\)/.test(String(r1.result?.text)), f1.ok ? JSON.stringify(f1.result) : f1.error?.message);
+          const all = JSON.stringify([l1, c, w, u, f1, r1, await op('b.snapshot', {})]);
+          check('CU4b: no answer, look or thumbnail carries a test password, username or master password', ![...Object.values(PM_PASS), PM_USER, ...(['bitwarden', '1password', 'keepassxc'] as ManagerId[]).map(PM_MASTER)].some((x) => all.includes(x)));
+          await openPage(`${base2}/login`);
+          const la = await act('b.login', { name: 'Conformance PM', managers: true });
+          check('CU4b: a look-alike origin (another port; the Bitwarden CLI itself offers the entry) gets nothing', la.ok === true && la.result?.outcome !== 'filled' && signIns.length === before + 1, la.ok ? JSON.stringify(la.result) : la.error?.message);
+          // 1Password for http://localhost:<port>, then KeePassXC for the third origin.
+          const lh = `${base.replace('127.0.0.1', 'localhost')}/login`;
+          await openPage(lh);
+          const l2 = await act('b.login', { name: '', managers: true });
+          const u2 = l2.result?.outcome === 'locked' ? await unlock('1password', 'type', lh) : { ok: false, error: { message: JSON.stringify(l2.result ?? l2.error) } };
+          await openPage(lh);
+          const f2 = await act('b.login', { name: '', managers: true });
+          check('CU4b: the order: Bitwarden has nothing here, 1Password is asked (unlocked by the person), filled', JSON.stringify(l2.result?.managers) === JSON.stringify(['1password', 'keepassxc']) && u2.ok === true && f2.result?.outcome === 'filled' && f2.result?.source === '1password' && signIns.at(-1)?.right === true && signIns.length === before + 2, `${JSON.stringify(l2.result)} / ${JSON.stringify(f2.result ?? f2.error)}`);
+          await openPage(`${base3}/login`);
+          const l3 = await act('b.login', { name: '', managers: true });
+          const u3 = l3.result?.outcome === 'locked' ? await unlock('keepassxc', 'type', base3) : { ok: false, error: { message: JSON.stringify(l3.result ?? l3.error) } };
+          await openPage(`${base3}/login`);
+          const f3 = await act('b.login', { name: '', managers: true });
+          check('CU4b: KeePassXC (its own password prompt) fills its entry on its site', u3.ok === true && f3.result?.outcome === 'filled' && f3.result?.source === 'keepassxc' && signIns.at(-1)?.right === true && signIns.length === before + 3, `${JSON.stringify(u3.result ?? u3.error)} / ${JSON.stringify(f3.result ?? f3.error)}`);
+          const rl = await op('b.relock', {});
+          await pause(600);
+          const st1 = await states();
+          check('CU4b: b.relock (after the task) locks every manager still unlocked there (a short idle time may have locked some already)', rl.ok === true && (rl.result?.locked ?? []).includes('keepassxc') && Object.values(st1).every((x) => x === 'locked'), `${JSON.stringify(rl.result)} → ${JSON.stringify(st1)}`);
+          const u4 = await unlock('1password', 'type', lh);
+          await api('POST', `/api/hands/${deviceId}/stop`, {});
+          await pause(1200);
+          check('CU4b: Stop locks it again', u4.result?.unlocked === true && (await states())['1password'] === 'locked', `${JSON.stringify(u4.result ?? u4.error)} → ${JSON.stringify(await states())}`);
+          const idle = Number(arg('--idle-seconds') ?? 0);
+          if (idle > 0) {
+            const u5 = await unlock('keepassxc', 'type', base3);
+            const t0 = Date.now();
+            let s5 = await states();
+            while (s5.keepassxc === 'unlocked' && Date.now() - t0 < (idle + 30) * 1000) {
+              await pause(1000);
+              s5 = await states();
+            }
+            check(`CU4b: after ${idle} idle seconds it locks again by itself`, u5.result?.unlocked === true && s5.keepassxc === 'locked' && Date.now() - t0 >= (idle - 2) * 1000, `${JSON.stringify(u5.result ?? u5.error)}, locked after ${Math.round((Date.now() - t0) / 1000)} s`);
+          } else console.log('      (idle relock: pass --idle-seconds with the device\u2019s test idle time)');
+        }
+      }
+    }
   } catch (err) {
     check('setup', false, (err as Error).message);
   } finally {
@@ -478,6 +661,8 @@ async function main(): Promise<number> {
     if (ref && deviceId) await api('DELETE', `/api/hands/${deviceId}`).catch(() => {});
     fx.close();
     fx2.close();
+    fx3.close();
+    if (refPmDir) rmSync(refPmDir, { recursive: true, force: true });
   }
   const failed = checks.filter((c) => !c.ok);
   const summary = { device: deviceId, passed: checks.length - failed.length, failed: failed.length, checks };

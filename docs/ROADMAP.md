@@ -60,43 +60,50 @@ version's details are in the [changelog](../CHANGELOG.md).
 | 57 | Plug in anywhere: an OpenAI-compatible API, an MCP server, character cards, Home Assistant, install packages | 0.57 |
 | 58 | 1.0: the public release, installers and the Docker image | 1.0 |
 
-## Next
+## Since 1.0
+
+| Phase | What it added | Version |
+|---|---|---|
+| 59 | Install anywhere: Homebrew, winget, HACS, Unraid, CasaOS, Umbrel, TrueNAS, Proxmox; first sign-in in the browser; a Docker image for ARM | 1.1 |
+| 61 | Fully in your language: the help guide and every server message in all six languages | 1.2 |
+| 62 | Smarter checks in every language, and a bigger coding benchmark on real-size projects | 1.3 |
+| 63 | Smoothness: tool calls that stream as they happen, a more expressive talking portrait, server logs | 1.4 |
+| 65 | Bring her from another app: import chats and characters from other companion apps | 1.5 |
+| 66 | Group chats with two or more of your companions | 1.6 |
+| 67 | A private local mode in the desktop apps: the model runs on that computer, nothing leaves it | 1.7 |
+| 68 | Several servers in one app: the desktop, phone and other apps switch between your Saras without signing out | 1.8 |
+| 69 | Video calls with her moving avatar | 1.9 |
+| 70 | Our moments: a shared photo album with her captions | 1.10 |
+| 71 | Household mode: several people on one server, each with their own companions | 2.0 |
+| 72 | Her voice in the home: Alexa, Android's assistant and Google Home, Siri Shortcuts, smart-home presence | 2.1 |
+| 73 | Work on your other servers over SSH: password or key; after a password login she makes and uses her own key and keeps the password only if you insist | 2.2 |
+| 74 | Big documents: 500–1,000-page PDFs and books in her library, every scanned page read, answers with page numbers | 2.3 |
+| 75 | The new look: her work and results on screen, a presence panel, Today as tiles, dark by default; the same on phones; Windows and Mac apps with native glass, a quick-ask window and richer tray menus | 2.5–2.8 |
+| 76 | Ranked memory: each note she uses says why it came to mind and how sure that is; old notes fade unless used or pinned | 2.9 |
+| 77 | Contradiction check: before she acts, a planned step that goes against something you decided stops and asks | 2.10 |
+| 78 | Run snapshots: every step of her work recorded (prompt, tools, files, memory, cost) | 2.11 |
+| 79 | Hard cost budgets per task, with a graceful slow-down instead of a surprise bill | 2.12 |
+| 80 | Sandbox gate: her code runs in a throwaway copy before it touches your workspace | 2.13 |
+| 81 | Security pass: code checks, secret scan and live dependency advisories, with a fix branch for each finding | 2.14 |
+| 82 | Threat-model second pass: a dedicated pass that fixes the risky spots it finds in her new code | 2.15 |
+| 83 | Time-travel: rewind a run to any step, change one thing, branch | 2.16 |
+| 84 | Eval loop: define "done", rerun her, see which prompt, tools or memory setting won, with evidence | 2.17 |
+| 85 | Active recall: she brings up what worked last time when a task looks like an earlier one | 2.18 |
+| 86 | Red-team mode: before shipping, she tries to break her own app inside the sandbox and fixes what broke | 2.19 |
+| 87 | Computer use 1: her own browser on your computer (through the desktop app): look, read, console logs, live view | 2.20 |
+| 88 | Computer use 2: she clicks and types in it, with approvals (or *Always allowed*), a Stop button and takeover | 2.21 |
+| 89 | Computer use 3: debug your web project in it (your dev server, hot reload) | 2.22 |
+| 90 | Computer use 4: saved logins, only when you say so, encrypted on your computer | 2.23 |
+| 91 | Computer use 5: use your password manager (Bitwarden, 1Password, KeePassXC…) to fill logins | 2.24 |
+
+## Coming next
+
+In build order; one release per phase. The computer use track is under way (steps 1–5 are out).
 
 | Phase | Plan | Version |
 |---|---|---|
-| 59 | Install anywhere: Homebrew, winget, HACS, Unraid, CasaOS, Umbrel, TrueNAS, Proxmox; first sign-in in the browser; a Docker image for ARM | ✅ 1.1 |
 | 60 | Phones: locked-screen calls on iPhone (CallKit), one-tap pairing on iPhone, the iPhone app in the App Store (when Apple approves it) | after Apple's approval |
-| 61 | Fully in your language: the help guide and every server message in all six languages | ✅ 1.2 |
-| 62 | Smarter checks in every language, and a bigger coding benchmark on real-size projects | ✅ 1.3 |
-| 63 | Smoothness: tool calls that stream as they happen, a more expressive talking portrait, server logs | ✅ 1.4 |
 | 64 | Be found: app stores, NAS catalogs, Home Assistant's store and directories | ongoing |
-| 65 | Bring her from another app: import chats and characters from other companion apps | ✅ 1.5 |
-| 66 | Group chats with two or more of your companions | ✅ 1.6 |
-| 67 | A private local mode in the desktop apps: the model runs on that computer, nothing leaves it | ✅ 1.7 |
-| 68 | Several servers in one app: the desktop, phone and other apps switch between your Saras without signing out | ✅ 1.8 |
-| 69 | Video calls with her moving avatar | ✅ 1.9 |
-| 70 | Our moments: a shared photo album with her captions | ✅ 1.10 |
-| 71 | Household mode: several people on one server, each with their own companions | ✅ 2.0 |
-| 72 | Her voice in the home: Alexa, Android's assistant and Google Home, Siri Shortcuts, smart-home presence | ✅ 2.1 |
-| 73 | Work on your other servers over SSH: password or key; after a password login she makes and uses her own key and keeps the password only if you insist | ✅ 2.2 |
-| 74 | Big documents: 500–1,000-page PDFs and books in her library, every scanned page read, answers with page numbers | ✅ 2.3 |
-| 75 | The new look: her work and results on screen, a presence panel, Today as tiles, dark by default; the same on phones; Windows and Mac apps with native glass, a quick-ask window and richer tray menus | ✅ 2.5–2.8 |
-| 76 | Ranked memory: each note she uses says why it came to mind and how sure that is; old notes fade unless used or pinned | ✅ 2.9 |
-| 77 | Contradiction check: before she acts, a planned step that goes against something you decided stops and asks | ✅ 2.10 |
-| 78 | Run snapshots: every step of her work recorded (prompt, tools, files, memory, cost) | ✅ 2.11 |
-| 79 | Hard cost budgets per task, with a graceful slow-down instead of a surprise bill | ✅ 2.12 |
-| 80 | Sandbox gate: her code runs in a throwaway copy before it touches your workspace | ✅ 2.13 |
-| 81 | Security pass: code checks, secret scan and live dependency advisories, with a fix branch for each finding | ✅ 2.14 |
-| 82 | Threat-model second pass: a dedicated pass that fixes the risky spots it finds in her new code | ✅ 2.15 |
-| 83 | Time-travel: rewind a run to any step, change one thing, branch | ✅ 2.16 |
-| 84 | Eval loop: define "done", rerun her, see which prompt, tools or memory setting won, with evidence | ✅ 2.17 |
-| 85 | Active recall: she brings up what worked last time when a task looks like an earlier one | ✅ 2.18 |
-| 86 | Red-team mode: before shipping, she tries to break her own app inside the sandbox and fixes what broke | ✅ 2.19 |
-| 87 | Computer use 1: her own browser on your computer (through the desktop app): look, read, console logs, live view | ✅ 2.20 |
-| 88 | Computer use 2: she clicks and types in it, with approvals (or *Always allowed*), a Stop button and takeover | ✅ 2.21 |
-| 89 | Computer use 3: debug your web project in it (your dev server, hot reload) | ✅ 2.22 |
-| 90 | Computer use 4: saved logins, only when you say so, encrypted on your computer | ✅ 2.23 |
-| 91 | Computer use 5: use your password manager (Bitwarden, 1Password, KeePassXC…) to fill logins | 2.24 |
 | 92 | Computer use 6: she sees your desktop (screenshots and the accessibility tree) | 2.25 |
 | 93 | Computer use 7: she uses your mouse and keyboard | 2.26 |
 | 94 | Computer use 8: guided "tune up my computer" tasks | 2.27 |
@@ -112,6 +119,11 @@ version's details are in the [changelog](../CHANGELOG.md).
 | 104 | Move in from another agent 1: Hermes Agent and OpenClaw (personality, memories, profile, history, skills, schedules), preview and Undo | 2.37 |
 | 105 | Move in 2: custom memory stores (SQLite, Postgres): she proposes how tables map, you confirm | 2.38 |
 | 106 | Move in 3: settings, channels and custom hooks translated (never run), with a full report of what came over | 2.39 |
+| 107 | Chat commands everywhere: /new, /reset, /stop, /status, /help in Telegram, Discord and later channels | 2.40 |
+| 108 | A tidy session list: a project per channel (Telegram, Discord…), and *See more* in long projects | 2.41 |
+| 109 | Session titles that improve as the conversation goes on (your own titles stay) | 2.42 |
+| 110 | Today, rethought: a designed layout (your day, needs you, with her, work), tiles you can arrange, a Mail tile that shows what changed | 2.43 |
+| 111 | Today on phones: one column in priority order, swipe rows, pull to refresh | 2.44 |
 
 Ideas and requests are welcome in [Discussions](https://github.com/farena-ai/sara/discussions)
 and [issues](https://github.com/farena-ai/sara/issues). See [CONTRIBUTING.md](../CONTRIBUTING.md).

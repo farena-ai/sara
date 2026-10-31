@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
 # Default locale manifest (Phase 57). scripts/update-packaging.ts fills PackageVersion and ReleaseNotesUrl.
 PackageIdentifier: BackstageCoding.Sara
-PackageVersion: 2.22.0
+PackageVersion: 2.23.0
 PackageLocale: en-US
 Publisher: Backstage Coding
 PublisherUrl: https://sara.backstagecoding.com/
@@ -27,7 +27,7 @@ Tags:
   - coding
   - self-hosted
   - ollama
-ReleaseNotesUrl: https://github.com/farena-ai/sara/releases/tag/v2.22.0
+ReleaseNotesUrl: https://github.com/farena-ai/sara/releases/tag/v2.23.0
 Documentations:
   - DocumentLabel: Install guide
     DocumentUrl: https://github.com/farena-ai/sara/blob/main/docs/INSTALL.md

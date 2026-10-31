@@ -14,6 +14,7 @@
 //   GET    /api/hands/<id>/logins           Phase 90: the logins saved on that computer (names and sites, asked of it now)
 //   DELETE /api/hands/<id>/logins/<name>    Phase 90: remove one there (the computer removes it and says so)
 //   DELETE /api/hands/<id>/logins           Phase 90: remove all of this Sara's logins there
+//   POST   /api/hands/<id>/relock           Phase 91: lock that computer's password managers again now
 //   GET    /api/computer                    the server-wide choices; PUT changes them (owner only)
 //   GET    /api/computer/frame/<id>?after=n the live view: the newest frame after n (long-poll, memory only)
 //   GET    /api/computer/thumb/<sha>        a step thumbnail from the run record
@@ -167,6 +168,22 @@ export function createHandsRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, { ok: true, connected: true, supported: true, removed: Number(r.result.removed) || 0, logins: loginList(r.result.logins) });
       } catch (err) {
         if (err instanceof HandsError) return send(res, 200, { ok: false, connected: hub.connected(b), supported: true, logins: [], error: { code: err.code, message: err.message } });
+        throw err;
+      }
+    }
+    // Phase 91: "Lock now": the computer locks every password manager it unlocked for Sara (it answers
+    // which, by id; it can't be asked to unlock one: only the person there does that, in its own window).
+    if (c === 'relock' && !d && method === 'POST') {
+      await readJson(req).catch(() => ({}));
+      const h = hub.hello(b);
+      if (!hub.connected(b) || !h) return send(res, 200, { ok: false, connected: false, error: { code: 'offline', message: 'That computer is not connected right now.' } });
+      if (!(h.ops ?? []).includes('b.relock')) return send(res, 200, { ok: false, connected: true, error: { code: 'unsupported', message: 'The Sara app there has no password managers yet: update it.' } });
+      try {
+        const r = await hub.request(b, 'b.relock', {}, { deadlineMs: 30_000 });
+        const locked = Array.isArray(r.result.locked) ? (r.result.locked as unknown[]).map(String).filter((x) => /^[a-z0-9]{1,20}$/.test(x)) : [];
+        return send(res, 200, { ok: true, connected: true, locked, managers: hub.hello(b)?.managers ?? [] });
+      } catch (err) {
+        if (err instanceof HandsError) return send(res, 200, { ok: false, connected: hub.connected(b), error: { code: err.code, message: err.message } });
         throw err;
       }
     }

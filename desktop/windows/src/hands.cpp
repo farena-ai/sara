@@ -7,6 +7,10 @@
 // b.login fills one through DevTools input only on its exact site, b.saveLogin opens this app's own
 // consent window ("I understand" unticked), b.logins / b.forgetLogin list and remove (names and sites
 // only), b.yourTurn shows "Your turn" until the person presses Continue; optional Windows Hello first.
+// Phase 91 (CU4b): the owner's own password managers (Bitwarden, 1Password, KeePassXC; see the Phase 91
+// section): off until turned on in the app, unlocked by the person in the manager's own console prompt,
+// used by b.login for the page's exact origin after the saved logins, locked again by b.relock, the idle
+// minutes, Stop, turning it off, a dropped connection and the app closing.
 // Phase 88 (CU2): acting in the Sara browser (find, click, type, select, keys, scroll, upload,
 // downloads) through the shared page agent and real DevTools input events; the always-on-top
 // "Sara is working" badge with Stop / Resume, the global stop shortcut Ctrl+Alt+Esc, takeover (real
@@ -25,6 +29,8 @@
 #include <windows.h>
 #include <winhttp.h>
 #include <wincrypt.h>
+#include <bcrypt.h>
+#include <sddl.h>
 #include <roapi.h>
 #include <wrl/client.h>
 #include <wrl/wrappers/corewrappers.h>
@@ -360,11 +366,13 @@ const std::set<std::string> kOps = {"b.start", "b.tabs", "b.open", "b.navigate",
                                     // Phase 89 (CU3): the dev tunnel
                                     "c.tunnel", "c.untunnel",
                                     // Phase 90 (CU4): saved logins and the sign-in pause
-                                    "b.login", "b.saveLogin", "b.logins", "b.forgetLogin", "b.yourTurn"};
+                                    "b.login", "b.saveLogin", "b.logins", "b.forgetLogin", "b.yourTurn",
+                                    // Phase 91 (CU4b): the owner's password managers (the person unlocks; Sara relocks)
+                                    "b.unlock", "b.relock"};
 /** Ops that act: they count against the input rate limit and stop when the person takes over. */
 const std::set<std::string> kInputOps = {"b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login"};
 /** Phase 90: ops that wait for the person (the consent window, "Your turn"): up to 10 minutes. */
-const std::set<std::string> kWaitingOps = {"b.saveLogin", "b.yourTurn"};
+const std::set<std::string> kWaitingOps = {"b.saveLogin", "b.yourTurn", "b.unlock"};
 const int kMaxChars = 2000;
 
 /** Now as ISO 8601 (UTC). */
@@ -877,6 +885,792 @@ bool helloVerify(const std::wstring& message, std::string& why, const std::atomi
   return verified;
 }
 
+// ---------------- Phase 91 (CU4b, docs/design/COMPUTER_USE.md §0 decision 3): the owner's password managers ----------------
+// Bitwarden (bw), 1Password (op) and KeePassXC (keepassxc-cli), each found by checking its command-line tool
+// exists and answers --version, and OFF until the person turns it on in the app after the warning below (the
+// server can't: there is no op for it). The person unlocks it in the manager's OWN prompt: a console window
+// running its own unlock command (bw unlock --raw / op signin --raw / keepassxc-cli export -f csv <db>), whose
+// output goes only to this app through a named pipe only this Windows user can open. Sara never sees, types or
+// keeps a master password: she keeps the session key / token (or KeePassXC's entries with a web address) in
+// memory until she locks it again: b.relock (after the task), the idle minutes, Stop, turning it off, the
+// connection dropping and the app closing. Entries are used only for the page's exact origin, and nothing about
+// one (title, user name, password, address) is ever sent, logged or shown. Test runs (test builds with
+// SARA_DESKTOP_TEST_DIR) look for the tools only in SARA_PM_PATH (the test doubles' folder), never elsewhere.
+const char kManagerWarning[] =
+    "Turning this on lets Sara ask {manager} for the login of the exact site open in her browser on this computer, and fill it in there. You unlock {manager} yourself, in its own window: Sara never sees or keeps your master password, and your passwords never leave this computer. While it is unlocked, Sara can use any of its logins on their own sites (each sign-in still asks you first). She locks it again after the task, after {minutes} idle minutes, on Stop, and when you turn this off.";
+struct PmInfo {
+  const char* id;
+  const char* name;
+  const wchar_t* cli;
+};
+const PmInfo kPms[3] = {{"bitwarden", "Bitwarden", L"bw"}, {"1password", "1Password", L"op"}, {"keepassxc", "KeePassXC", L"keepassxc-cli"}};
+int pmIndex(const std::string& id) {
+  for (int i = 0; i < 3; i++)
+    if (id == kPms[i].id) return i;
+  return -1;
+}
+
+struct PmEntry {
+  std::string title, user, pass;
+  std::vector<std::string> urls;
+};
+void wipe(std::vector<PmEntry>& v) {
+  for (auto& e : v) {
+    wipe(e.pass);
+    wipe(e.user);
+  }
+  v.clear();
+}
+/** An entry's address as an origin; one without a scheme (\"github.com\") means https, as the managers do. */
+std::string entryOrigin(const std::string& raw) {
+  std::string s = raw;
+  while (!s.empty() && (s.back() == ' ' || s.back() == '\r' || s.back() == '\n')) s.pop_back();
+  size_t b = s.find_first_not_of(' ');
+  if (b == std::string::npos) return {};
+  s = s.substr(b);
+  if (s.find("://") == std::string::npos) s = "https://" + s;
+  return loginOrigin(s);
+}
+/** The entry for this exact origin (by title when several), or -1. */
+int pickEntry(const std::vector<PmEntry>& v, const std::string& origin, const std::string& name) {
+  int first = -1;
+  std::string want = lowerA(name);
+  for (int i = 0; i < (int)v.size(); i++) {
+    if (v[i].pass.empty()) continue;
+    bool hit = false;
+    for (auto& u : v[i].urls) hit = hit || (!origin.empty() && entryOrigin(u) == origin);
+    if (!hit) continue;
+    if (!want.empty() && lowerA(v[i].title) == want) return i;
+    if (first < 0) first = i;
+  }
+  return first;
+}
+/** RFC 4180 CSV (KeePassXC's export). */
+std::vector<std::vector<std::string>> parseCsv(const std::string& t) {
+  std::vector<std::vector<std::string>> rows;
+  std::vector<std::string> row;
+  std::string f;
+  bool qd = false;
+  for (size_t i = 0; i < t.size(); i++) {
+    char c = t[i];
+    if (qd) {
+      if (c == '"' && i + 1 < t.size() && t[i + 1] == '"') {
+        f += '"';
+        i++;
+      } else if (c == '"')
+        qd = false;
+      else
+        f += c;
+    } else if (c == '"')
+      qd = true;
+    else if (c == ',') {
+      row.push_back(std::move(f));
+      f.clear();
+    } else if (c == '\n' || c == '\r') {
+      if (c == '\r' && i + 1 < t.size() && t[i + 1] == '\n') i++;
+      row.push_back(std::move(f));
+      f.clear();
+      rows.push_back(std::move(row));
+      row.clear();
+    } else
+      f += c;
+  }
+  if (!f.empty() || !row.empty()) {
+    row.push_back(std::move(f));
+    rows.push_back(std::move(row));
+  }
+  return rows;
+}
+std::vector<PmEntry> kpxEntries(const std::string& csv) {
+  std::vector<PmEntry> out;
+  auto rows = parseCsv(csv);
+  if (rows.empty()) return out;
+  int ti = -1, ui = -1, pi = -1, wi = -1;
+  for (int i = 0; i < (int)rows[0].size(); i++) {
+    std::string h = lowerA(rows[0][i]);
+    if (h == "title") ti = i;
+    if (h == "username") ui = i;
+    if (h == "password") pi = i;
+    if (h == "url") wi = i;
+  }
+  if (ti < 0 || pi < 0 || wi < 0) return out;
+  for (size_t r = 1; r < rows.size() && out.size() < 5000; r++) {
+    auto& x = rows[r];
+    if ((int)x.size() <= std::max(ti, std::max(pi, wi)) || entryOrigin(x[wi]).empty()) {
+      for (auto& c : x) wipe(c);
+      continue;
+    }
+    PmEntry e{x[ti], ui >= 0 && ui < (int)x.size() ? x[ui] : "", x[pi], {x[wi]}};
+    out.push_back(std::move(e));
+    for (auto& c : x) wipe(c);
+  }
+  return out;
+}
+std::vector<PmEntry> bwEntries(const std::string& json) {
+  std::vector<PmEntry> out;
+  bool ok = false;
+  J a = parse(json, &ok);
+  if (!ok || a.t != J::Arr) return out;
+  for (auto& it : a.a) {
+    if (it["type"].num() != 1 || it["login"].t != J::Obj) continue;
+    PmEntry e{it["name"].str(), it["login"]["username"].str(), it["login"]["password"].str(), {}};
+    for (auto& u : it["login"]["uris"].a) e.urls.push_back(u["uri"].str());
+    out.push_back(std::move(e));
+  }
+  return out;
+}
+
+struct CliOut {
+  DWORD code = (DWORD)-1;
+  std::string out, err;
+};
+/** Windows command-line quoting for one argument. */
+std::wstring quoteArg(const std::wstring& a) {
+  if (!a.empty() && a.find_first_of(L" \t\"") == std::wstring::npos) return a;
+  std::wstring o = L"\"";
+  size_t bs = 0;
+  for (wchar_t c : a) {
+    if (c == L'\\') {
+      bs++;
+      continue;
+    }
+    if (c == L'"') o.append(bs * 2 + 1, L'\\');
+    else o.append(bs, L'\\');
+    bs = 0;
+    o += c;
+  }
+  o.append(bs * 2, L'\\');
+  return o + L"\"";
+}
+bool isCmdFile(const std::wstring& f) {
+  std::wstring l = f;
+  for (auto& c : l) c = (wchar_t)towlower(c);
+  return l.size() > 4 && (l.compare(l.size() - 4, 4, L".cmd") == 0 || l.compare(l.size() - 4, 4, L".bat") == 0);
+}
+/** The command line for a CLI (a .cmd launcher runs through cmd.exe with checked arguments); empty if unsafe. */
+std::wstring cliCommand(const std::wstring& file, const std::vector<std::string>& args, const std::wstring& redirect = L"") {
+  std::wstring line = L"\"" + file + L"\"";
+  bool viaCmd = isCmdFile(file) || !redirect.empty();
+  for (auto& a : args) {
+    std::wstring w = wide(a);
+    if (viaCmd && w.find_first_of(L"\"%&|<>^\r\n") != std::wstring::npos) return {};
+    line += L" " + (viaCmd ? (w.find_first_of(L" \t") == std::wstring::npos && !w.empty() ? w : L"\"" + w + L"\"") : quoteArg(w));
+  }
+  if (!viaCmd) return line;
+  wchar_t sys[MAX_PATH];
+  GetSystemDirectoryW(sys, MAX_PATH);
+  return L"\"" + std::wstring(sys) + L"\\cmd.exe\" /d /s /c \"" + line + redirect + L"\"";
+}
+/** This process's environment plus some names (BW_SESSION…), as a block for CreateProcess. */
+std::vector<wchar_t> envBlock(const std::vector<std::pair<std::wstring, std::wstring>>& add) {
+  std::vector<wchar_t> b;
+  wchar_t* env = GetEnvironmentStringsW();
+  for (wchar_t* p = env; p && *p; p += wcslen(p) + 1) {
+    std::wstring kv = p;
+    bool replaced = false;
+    for (auto& a : add)
+      if (_wcsnicmp(kv.c_str(), (a.first + L"=").c_str(), a.first.size() + 1) == 0) replaced = true;
+    if (!replaced) b.insert(b.end(), kv.c_str(), kv.c_str() + kv.size() + 1);
+  }
+  if (env) FreeEnvironmentStringsW(env);
+  for (auto& a : add) {
+    std::wstring kv = a.first + L"=" + a.second;
+    b.insert(b.end(), kv.c_str(), kv.c_str() + kv.size() + 1);
+    wipe(kv);
+  }
+  b.push_back(0);
+  return b;
+}
+/** Runs a CLI without a window (stdin: nothing) and gives back what it printed; a job ends the whole tree. */
+CliOut runCli(const std::wstring& file, const std::vector<std::string>& args, const std::vector<std::pair<std::wstring, std::wstring>>& envAdd, DWORD ms, const std::atomic<bool>* cancel = nullptr) {
+  CliOut r;
+  std::wstring cmd = cliCommand(file, args);
+  if (cmd.empty()) return r;
+  SECURITY_ATTRIBUTES sa{sizeof(sa), nullptr, TRUE};
+  HANDLE outRd, outWr, errRd, errWr;
+  if (!CreatePipe(&outRd, &outWr, &sa, 0)) return r;
+  if (!CreatePipe(&errRd, &errWr, &sa, 0)) {
+    CloseHandle(outRd);
+    CloseHandle(outWr);
+    return r;
+  }
+  SetHandleInformation(outRd, HANDLE_FLAG_INHERIT, 0);
+  SetHandleInformation(errRd, HANDLE_FLAG_INHERIT, 0);
+  HANDLE nul = CreateFileW(L"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_EXISTING, 0, nullptr);
+  STARTUPINFOW si{sizeof(si)};
+  si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+  si.wShowWindow = SW_HIDE;
+  si.hStdInput = nul;
+  si.hStdOutput = outWr;
+  si.hStdError = errWr;
+  PROCESS_INFORMATION pi{};
+  std::vector<wchar_t> env = envBlock(envAdd);
+  HANDLE job = CreateJobObjectW(nullptr, nullptr);
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION lim{};
+  lim.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+  if (job) SetInformationJobObject(job, JobObjectExtendedLimitInformation, &lim, sizeof(lim));
+  BOOL ok = CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT | CREATE_SUSPENDED, env.data(), nullptr, &si, &pi);
+  SecureZeroMemory(env.data(), env.size() * sizeof(wchar_t));
+  CloseHandle(outWr);
+  CloseHandle(errWr);
+  if (nul != INVALID_HANDLE_VALUE) CloseHandle(nul);
+  if (!ok) {
+    CloseHandle(outRd);
+    CloseHandle(errRd);
+    if (job) CloseHandle(job);
+    return r;
+  }
+  if (job) AssignProcessToJobObject(job, pi.hProcess);
+  ResumeThread(pi.hThread);
+  auto reader = [](HANDLE h, std::string* to) {
+    char buf[8192];
+    DWORD n = 0;
+    while (ReadFile(h, buf, sizeof buf, &n, nullptr) && n > 0)
+      if (to->size() < 16 * 1024 * 1024) to->append(buf, n);
+  };
+  std::thread t1(reader, outRd, &r.out), t2(reader, errRd, &r.err);
+  ULONGLONG end = GetTickCount64() + ms;
+  for (;;) {
+    if (WaitForSingleObject(pi.hProcess, 100) == WAIT_OBJECT_0) break;
+    if (GetTickCount64() > end || (cancel && cancel->load())) {
+      if (job) TerminateJobObject(job, 1);
+      else TerminateProcess(pi.hProcess, 1);
+      WaitForSingleObject(pi.hProcess, 2000);
+      break;
+    }
+  }
+  GetExitCodeProcess(pi.hProcess, &r.code);
+  if (job) CloseHandle(job);  // ends anything it left behind
+  t1.join();
+  t2.join();
+  CloseHandle(outRd);
+  CloseHandle(errRd);
+  CloseHandle(pi.hThread);
+  CloseHandle(pi.hProcess);
+  return r;
+}
+
+/**
+ * The manager's own prompt: a console window of its own (titled what it is for) running its unlock command;
+ * the person types into it. Only its standard output comes back, through a named pipe only this Windows
+ * user can open. Closing the window says no. Test runs show it minimized without taking the focus.
+ */
+CliOut promptCli(const std::wstring& file, const std::vector<std::string>& args, const std::wstring& title, bool quiet, DWORD ms, const std::atomic<bool>* cancel, DWORD* pidOut = nullptr) {
+  CliOut r;
+  BYTE rnd[12];
+  BCryptGenRandom(nullptr, rnd, sizeof rnd, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+  wchar_t name[96];
+  swprintf_s(name, L"\\\\.\\pipe\\sara-pm-%lu-%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x", GetCurrentProcessId(), rnd[0], rnd[1], rnd[2], rnd[3], rnd[4], rnd[5], rnd[6], rnd[7], rnd[8], rnd[9], rnd[10], rnd[11]);
+  // Only this user (the owner of the pipe), nobody else on the computer.
+  PSECURITY_DESCRIPTOR sd = nullptr;
+  ConvertStringSecurityDescriptorToSecurityDescriptorW(L"D:P(A;;GA;;;OW)", SDDL_REVISION_1, &sd, nullptr);
+  SECURITY_ATTRIBUTES psa{sizeof(psa), sd, FALSE};
+  HANDLE pipe = CreateNamedPipeW(name, PIPE_ACCESS_INBOUND | FILE_FLAG_FIRST_PIPE_INSTANCE | FILE_FLAG_OVERLAPPED, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS, 1, 0, 64 * 1024, 0, sd ? &psa : nullptr);
+  if (sd) LocalFree(sd);
+  if (pipe == INVALID_HANDLE_VALUE) return r;
+  std::wstring cmd = cliCommand(file, args, std::wstring(L" > ") + name);
+  if (cmd.empty()) {
+    CloseHandle(pipe);
+    return r;
+  }
+  // Test runs: the classic console host (minimized), never a tab in the person's own terminal app.
+  if (quiet) {
+    wchar_t sys[MAX_PATH];
+    GetSystemDirectoryW(sys, MAX_PATH);
+    cmd = L"\"" + std::wstring(sys) + L"\\conhost.exe\" " + cmd;
+  }
+  STARTUPINFOW si{sizeof(si)};
+  std::wstring t = title;
+  si.lpTitle = t.data();
+  si.dwFlags = STARTF_USESHOWWINDOW;
+  si.wShowWindow = quiet ? SW_SHOWMINNOACTIVE : SW_SHOWNORMAL;
+  PROCESS_INFORMATION pi{};
+  HANDLE job = CreateJobObjectW(nullptr, nullptr);
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION lim{};
+  lim.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+  if (job) SetInformationJobObject(job, JobObjectExtendedLimitInformation, &lim, sizeof(lim));
+  if (!CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, FALSE, (quiet ? 0 : CREATE_NEW_CONSOLE) | CREATE_SUSPENDED, nullptr, nullptr, &si, &pi)) {
+    CloseHandle(pipe);
+    if (job) CloseHandle(job);
+    return r;
+  }
+  if (job) AssignProcessToJobObject(job, pi.hProcess);
+  ResumeThread(pi.hThread);
+  if (pidOut) *pidOut = pi.dwProcessId;
+  OVERLAPPED ov{};
+  ov.hEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+  bool connected = ConnectNamedPipe(pipe, &ov) != 0 || GetLastError() == ERROR_PIPE_CONNECTED;
+  bool pending = !connected && GetLastError() == ERROR_IO_PENDING;
+  char buf[4096];
+  bool reading = false;
+  ULONGLONG end = GetTickCount64() + ms;
+  bool exited = false;
+  for (;;) {
+    if (cancel && cancel->load()) break;
+    if (GetTickCount64() > end) break;
+    if (pending) {
+      DWORD w = WaitForSingleObject(ov.hEvent, 100);
+      if (w == WAIT_OBJECT_0) {
+        DWORD n;
+        connected = GetOverlappedResult(pipe, &ov, &n, FALSE) != 0 || GetLastError() == ERROR_PIPE_CONNECTED;
+        pending = false;
+        ResetEvent(ov.hEvent);
+        if (!connected) break;
+      } else if (WaitForSingleObject(pi.hProcess, 0) == WAIT_OBJECT_0) {
+        exited = true;
+        break;  // closed before the command even started
+      }
+      continue;
+    }
+    if (!connected) break;
+    if (!reading) {
+      ResetEvent(ov.hEvent);
+      DWORD n = 0;
+      if (ReadFile(pipe, buf, sizeof buf, &n, &ov)) {
+        if (r.out.size() < 16 * 1024 * 1024) r.out.append(buf, n);
+        continue;
+      }
+      DWORD e = GetLastError();
+      if (e == ERROR_BROKEN_PIPE) break;
+      if (e != ERROR_IO_PENDING) break;
+      reading = true;
+    }
+    DWORD w = WaitForSingleObject(ov.hEvent, 100);
+    if (w == WAIT_OBJECT_0) {
+      DWORD n = 0;
+      reading = false;
+      if (!GetOverlappedResult(pipe, &ov, &n, FALSE)) break;  // broken: it finished writing
+      if (r.out.size() < 16 * 1024 * 1024) r.out.append(buf, n);
+    }
+  }
+  SecureZeroMemory(buf, sizeof buf);
+  if (reading || pending) CancelIoEx(pipe, &ov);
+  if (!exited && WaitForSingleObject(pi.hProcess, (cancel && cancel->load()) || GetTickCount64() > end ? 0 : 5000) != WAIT_OBJECT_0) {
+    if (job) TerminateJobObject(job, 1);
+    else TerminateProcess(pi.hProcess, 1);
+    WaitForSingleObject(pi.hProcess, 2000);
+  }
+  GetExitCodeProcess(pi.hProcess, &r.code);
+  if (cancel && cancel->load()) r.code = (DWORD)-2;
+  if (job) CloseHandle(job);
+  CloseHandle(ov.hEvent);
+  CloseHandle(pipe);
+  CloseHandle(pi.hThread);
+  CloseHandle(pi.hProcess);
+  return r;
+}
+
+/** Where to look for the tools: test runs only SARA_PM_PATH; otherwise PATH and the usual install folders. */
+std::vector<std::wstring> pmSearchDirs(bool testRun) {
+  std::vector<std::wstring> dirs;
+  auto split = [&](const std::wstring& s) {
+    size_t a = 0;
+    while (a <= s.size()) {
+      size_t b = s.find(L';', a);
+      std::wstring d = s.substr(a, b == std::wstring::npos ? std::wstring::npos : b - a);
+      if (!d.empty()) dirs.push_back(d);
+      if (b == std::wstring::npos) break;
+      a = b + 1;
+    }
+  };
+  wchar_t buf[8192];
+  if (testRun) {
+    if (GetEnvironmentVariableW(L"SARA_PM_PATH", buf, 8192) > 0) split(buf);
+    return dirs;  // never the owner's own tools
+  }
+  if (GetEnvironmentVariableW(L"PATH", buf, 8192) > 0) split(buf);
+  for (const wchar_t* v : {L"ProgramFiles", L"ProgramFiles(x86)"})
+    if (GetEnvironmentVariableW(v, buf, MAX_PATH) > 0) {
+      dirs.push_back(std::wstring(buf) + L"\\KeePassXC");
+      dirs.push_back(std::wstring(buf) + L"\\1Password CLI");
+      dirs.push_back(std::wstring(buf) + L"\\Bitwarden CLI");
+    }
+  return dirs;
+}
+std::wstring findCli(const std::wstring& name, const std::vector<std::wstring>& dirs) {
+  for (auto& d : dirs)
+    for (const wchar_t* ext : {L".exe", L".cmd"}) {
+      std::wstring p = d + L"\\" + name + ext;
+      DWORD a = GetFileAttributesW(p.c_str());
+      if (a != INVALID_FILE_ATTRIBUTES && !(a & FILE_ATTRIBUTE_DIRECTORY)) return p;
+    }
+  return {};
+}
+
+/** This computer's password managers for Sara: found, on, locked or unlocked (sessions in memory only). */
+class Managers {
+ public:
+  std::function<void()> onChange;
+  std::function<void(const std::wstring&)> log;
+  bool quiet = false;  // test runs: the prompt window opens minimized without the focus
+
+  void configure(bool testRun, const bool on[3], const std::wstring& keepassDb, int relockMinutes, int idleSecondsOverride) {
+    std::lock_guard<std::mutex> l(m_);
+    testRun_ = testRun;
+    quiet = testRun;
+    for (int i = 0; i < 3; i++) on_[i] = on[i];
+    keepassDb_ = keepassDb;
+    relockMs_ = (ULONGLONG)(idleSecondsOverride > 0 ? idleSecondsOverride * 1000ULL : (relockMinutes > 0 ? relockMinutes : 15) * 60000ULL);
+    relockMinutes_ = relockMinutes > 0 ? relockMinutes : 15;
+  }
+  /** Each tool's --version (nothing else). */
+  void detect() {
+    auto dirs = pmSearchDirs(testRun_);
+    for (int i = 0; i < 3; i++) {
+      std::wstring f = findCli(kPms[i].cli, dirs);
+      bool ok = false;
+      if (!f.empty()) {
+        CliOut o = runCli(f, {"--version"}, {}, 8000);
+        ok = o.code == 0 && std::regex_search(o.out, std::regex("\\d+\\.\\d+"));
+      }
+      std::lock_guard<std::mutex> l(m_);
+      file_[i] = ok ? f : L"";
+    }
+    detected_ = true;
+  }
+  bool detected() const { return detected_; }
+  std::string viewsJson() {
+    std::lock_guard<std::mutex> l(m_);
+    std::string o = "[";
+    for (int i = 0; i < 3; i++) {
+      bool inst = !file_[i].empty(), on = inst && on_[i];
+      const char* st = !inst ? "missing" : !on ? "off" : open_[i] ? "unlocked" : "locked";
+      o += std::string(i ? "," : "") + "{\"id\":\"" + kPms[i].id + "\",\"name\":\"" + kPms[i].name + "\",\"installed\":" + (inst ? "true" : "false") + ",\"on\":" + (on ? "true" : "false") + ",\"state\":\"" + st + "\"}";
+    }
+    return o + "]";
+  }
+  int relockMinutes() const { return relockMinutes_; }
+  std::wstring keepassDbName() {
+    std::lock_guard<std::mutex> l(m_);
+    size_t p = keepassDb_.find_last_of(L"\\/");
+    return p == std::wstring::npos ? keepassDb_ : keepassDb_.substr(p + 1);
+  }
+  bool anyOn() {
+    std::lock_guard<std::mutex> l(m_);
+    for (int i = 0; i < 3; i++)
+      if (on_[i] && !file_[i].empty()) return true;
+    return false;
+  }
+  bool isOn(int i) {
+    std::lock_guard<std::mutex> l(m_);
+    return on_[i] && !file_[i].empty();
+  }
+  bool isOpen(int i) {
+    std::lock_guard<std::mutex> l(m_);
+    return open_[i];
+  }
+  void setOn(int i, bool on) {
+    {
+      std::lock_guard<std::mutex> l(m_);
+      on_[i] = on;
+    }
+    if (!on) lock(i, "turned off");
+    if (onChange) onChange();
+  }
+  void setKeepassDb(const std::wstring& db) {
+    lock(2, "another database");
+    std::lock_guard<std::mutex> l(m_);
+    keepassDb_ = db;
+  }
+  void setRelockMinutes(int n) {
+    std::lock_guard<std::mutex> l(m_);
+    relockMinutes_ = n;
+    if (relockMs_ % 60000ULL == 0) relockMs_ = n * 60000ULL;
+  }
+
+  /** The person unlocks manager i in its own prompt. "" when unlocked; else the reason (code, message). */
+  bool unlock(int i, const std::string& site, const std::atomic<bool>* cancel, OpError& e, DWORD* promptPid = nullptr) {
+    std::wstring file, db;
+    {
+      std::lock_guard<std::mutex> l(m_);
+      if (!on_[i] || file_[i].empty()) {
+        e = {"denied_local", std::string(kPms[i].name) + " is off for Sara on this computer (the owner turns it on in the Sara app here)."};
+        return false;
+      }
+      if (open_[i]) return true;
+      ULONGLONG now = GetTickCount64();
+      auto& pr = prompts_[i];
+      while (!pr.empty() && now - pr.front() > 600000ULL) pr.pop_front();
+      if (pr.size() >= 3) {
+        e = {"rate_limited", std::string(kPms[i].name) + "\xe2\x80\x99s unlock window was shown 3 times in 10 minutes: wait a little."};
+        return false;
+      }
+      pr.push_back(now);
+      file = file_[i];
+      db = keepassDb_;
+    }
+    if (i == 2 && db.empty()) {
+      e = {"not_found", "No KeePassXC database was chosen for Sara in the Sara app on this computer."};
+      return false;
+    }
+    std::string origin = loginOrigin(site);
+    std::wstring title = L"Unlock " + wide(kPms[i].name) + L" for Sara: sign in to " + wide(origin.empty() ? "a site" : origin) + L" (close this window to say no)";
+    std::vector<std::string> args = i == 0 ? std::vector<std::string>{"unlock", "--raw"} : i == 1 ? std::vector<std::string>{"signin", "--raw"} : std::vector<std::string>{"export", "-f", "csv", u8(db)};
+    if (log) log(L"asking the person to unlock " + wide(kPms[i].name) + L" in its own window");
+    CliOut o = promptCli(file, args, title, quiet, 9 * 60000, cancel, promptPid);
+    if (o.code == (DWORD)-2) {
+      wipe(o.out);
+      e = {"stopped", "Stopped."};
+      return false;
+    }
+    bool ok = false;
+    if (o.code == 0) {
+      std::string tok = o.out;
+      while (!tok.empty() && (tok.back() == '\n' || tok.back() == '\r' || tok.back() == ' ')) tok.pop_back();
+      if (i == 0) {
+        ok = tok.size() >= 16 && tok.size() <= 512 && tok.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=_-") == std::string::npos;
+        if (ok) {
+          std::lock_guard<std::mutex> l(m_);
+          key_[i] = tok;
+        }
+      } else if (i == 1) {
+        ok = tok.empty() || (tok.size() >= 8 && tok.size() <= 512 && tok.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-") == std::string::npos);
+        std::string acct;
+        if (ok) {
+          CliOut a = runCli(file, {"account", "list", "--format", "json"}, {}, 15000);
+          bool pk = false;
+          J list = parse(a.out, &pk);
+          if (pk && list.t == J::Arr && !list.a.empty()) acct = list.a[0]["shorthand"].str(list.a[0]["user_uuid"].str());
+          ok = !acct.empty() && acct.size() <= 64 && acct.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_") == std::string::npos;
+        }
+        if (ok) {
+          std::vector<std::pair<std::wstring, std::wstring>> env;
+          if (!tok.empty()) env.push_back({L"OP_SESSION_" + wide(acct), wide(tok)});
+          CliOut w = runCli(file, {"whoami", "--format", "json"}, env, 15000);
+          for (auto& kv : env) wipe(kv.second);
+          ok = w.code == 0;
+        }
+        if (ok) {
+          std::lock_guard<std::mutex> l(m_);
+          key_[i] = tok;
+          account_ = acct;
+        }
+      } else {
+        std::vector<PmEntry> v = kpxEntries(o.out);
+        ok = true;
+        std::lock_guard<std::mutex> l(m_);
+        wipe(kpx_);
+        kpx_ = std::move(v);
+      }
+      wipe(tok);
+    }
+    wipe(o.out);
+    if (ok) {
+      {
+        std::lock_guard<std::mutex> l(m_);
+        open_[i] = true;
+        lastUse_ = GetTickCount64();
+      }
+      if (log) log(wide(kPms[i].name) + L" unlocked for Sara by the person at the computer");
+      if (onChange) onChange();
+    }
+    return ok;
+  }
+
+  /**
+   * The entry for this page's exact origin from the managers that are on and unlocked (in order). `locked`:
+   * the ones that are on but locked. The entry's fields go only into `user` / `pass` (wiped by the caller).
+   */
+  int lookup(const std::string& pageUrl, const std::string& name, std::string& user, std::string& pass, std::vector<int>& locked) {
+    std::string origin = loginOrigin(pageUrl);
+    if (origin.empty()) return -1;
+    for (int i = 0; i < 3; i++) {
+      std::wstring file;
+      std::string key, acct;
+      {
+        std::lock_guard<std::mutex> l(m_);
+        if (!on_[i] || file_[i].empty()) continue;
+        if (!open_[i]) {
+          locked.push_back(i);
+          continue;
+        }
+        lastUse_ = GetTickCount64();
+        file = file_[i];
+        key = key_[i];
+        acct = account_;
+        if (i == 2) {
+          int k = pickEntry(kpx_, origin, name);
+          if (k >= 0) {
+            user = kpx_[k].user;
+            pass = kpx_[k].pass;
+            return i;
+          }
+          continue;
+        }
+      }
+      std::vector<PmEntry> v;
+      if (i == 0) {
+        CliOut o = runCli(file, {"list", "items", "--url", origin}, {{L"BW_SESSION", wide(key)}}, 30000);
+        wipe(key);
+        if (o.code != 0) {
+          if (std::regex_search(o.err, std::regex("locked|not logged in|session", std::regex::icase))) {
+            forget(i);
+            locked.push_back(i);
+            if (onChange) onChange();
+          }
+          wipe(o.out);
+          continue;
+        }
+        v = bwEntries(o.out);
+        wipe(o.out);
+      } else {
+        std::vector<std::pair<std::wstring, std::wstring>> env;
+        if (!key.empty()) env.push_back({L"OP_SESSION_" + wide(acct), wide(key)});
+        wipe(key);
+        CliOut o = runCli(file, {"item", "list", "--categories", "Login", "--format", "json"}, env, 30000);
+        if (o.code != 0) {
+          if (std::regex_search(o.err, std::regex("sign ?in|session|authoriz|locked", std::regex::icase))) {
+            forget(i);
+            locked.push_back(i);
+            if (onChange) onChange();
+          }
+          for (auto& kv : env) wipe(kv.second);
+          continue;
+        }
+        bool ok = false;
+        J list = parse(o.out, &ok);
+        std::string id, want = lowerA(name);
+        for (auto& it : list.a) {
+          bool hit = false;
+          for (auto& u : it["urls"].a) hit = hit || entryOrigin(u["href"].str()) == origin;
+          if (!hit) continue;
+          std::string iid = it["id"].str();
+          if (iid.empty() || iid.size() > 64 || iid.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") != std::string::npos) continue;
+          if (id.empty() || (!want.empty() && lowerA(it["title"].str()) == want)) id = iid;
+        }
+        if (!id.empty()) {
+          CliOut g = runCli(file, {"item", "get", id, "--format", "json", "--reveal"}, env, 30000);
+          bool gk = false;
+          J item = parse(g.out, &gk);
+          wipe(g.out);
+          if (gk && g.code == 0) {
+            std::string u2, p2;
+            for (auto& f : item["fields"].a) {
+              if (f["purpose"].str() == "USERNAME" && u2.empty()) u2 = f["value"].str();
+              if (f["purpose"].str() == "PASSWORD" && p2.empty()) p2 = f["value"].str();
+            }
+            if (!p2.empty()) v.push_back({"", u2, p2, {origin}});
+            wipe(u2);
+            wipe(p2);
+          }
+        }
+        for (auto& kv : env) wipe(kv.second);
+      }
+      int k = pickEntry(v, origin, name);
+      if (k >= 0) {
+        user = v[k].user;
+        pass = v[k].pass;
+        wipe(v);
+        return i;
+      }
+      wipe(v);
+    }
+    return -1;
+  }
+
+  void forget(int i) {
+    std::lock_guard<std::mutex> l(m_);
+    open_[i] = false;
+    wipe(key_[i]);
+    if (i == 2) wipe(kpx_);
+  }
+  /** Locks manager i again (bw lock / op signout / KeePassXC's entries forgotten). True if it was unlocked. */
+  bool lock(int i, const char* why) {
+    std::wstring file;
+    std::string key, acct;
+    {
+      std::lock_guard<std::mutex> l(m_);
+      if (!open_[i]) return false;
+      file = file_[i];
+      key = key_[i];
+      acct = account_;
+    }
+    forget(i);
+    if (!file.empty() && i == 0) runCli(file, {"lock"}, {{L"BW_SESSION", wide(key)}}, 15000);
+    if (!file.empty() && i == 1) {
+      std::vector<std::pair<std::wstring, std::wstring>> env;
+      if (!key.empty()) env.push_back({L"OP_SESSION_" + wide(acct), wide(key)});
+      runCli(file, {"signout"}, env, 15000);
+      for (auto& kv : env) wipe(kv.second);
+    }
+    wipe(key);
+    if (log) log(wide(kPms[i].name) + L" locked again (" + wide(why) + L")");
+    if (onChange) onChange();
+    return true;
+  }
+  std::vector<int> lockAll(const char* why) {
+    std::vector<int> done;
+    for (int i = 0; i < 3; i++)
+      if (lock(i, why)) done.push_back(i);
+    return done;
+  }
+  /** Called every few seconds: locks everything after the idle time. */
+  void tick() {
+    bool idle = false;
+    {
+      std::lock_guard<std::mutex> l(m_);
+      bool any = open_[0] || open_[1] || open_[2];
+      idle = any && GetTickCount64() - lastUse_ >= relockMs_;
+    }
+    if (idle) lockAll("idle");
+  }
+  ~Managers() { lockAll("the app closed"); }
+
+ private:
+  std::mutex m_;
+  bool testRun_ = false;
+  std::atomic<bool> detected_{false};
+  bool on_[3] = {false, false, false};
+  std::wstring file_[3];
+  bool open_[3] = {false, false, false};
+  std::string key_[3];
+  std::string account_;
+  std::vector<PmEntry> kpx_;
+  std::wstring keepassDb_;
+  std::deque<ULONGLONG> prompts_[3];
+  ULONGLONG lastUse_ = 0;
+  ULONGLONG relockMs_ = 15 * 60000ULL;
+  int relockMinutes_ = 15;
+};
+
+/**
+ * Phase 91 (CU4b): the Sara browser never offers to save a password or remember what was typed into forms
+ * (so a login filled from a password manager or a saved login doesn't end up in the browser's own profile
+ * too). A new profile gets a Preferences file saying so; an existing one is edited as text before the
+ * browser starts (its other settings untouched, nothing re-serialized).
+ */
+void quietBrowserPrefs(const std::wstring& profileDir) {
+  std::wstring dir = profileDir + L"\\Default", file = dir + L"\\Preferences";
+  CreateDirectoryW(dir.c_str(), nullptr);
+  std::string t;
+  {
+    std::ifstream in(file, std::ios::binary);
+    if (in) t.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+  }
+  const std::string want = "\"credentials_enable_service\":false,\"autofill\":{\"profile_enabled\":false,\"credit_card_enabled\":false},";
+  size_t b = t.find_first_not_of(" \t\r\n");
+  if (t.empty() || b == std::string::npos || t[b] != '{') t = "{" + want.substr(0, want.size() - 1) + ",\"profile\":{\"password_manager_enabled\":false}}";
+  else {
+    auto flip = [&](const std::string& key) {
+      for (size_t p; (p = t.find("\"" + key + "\":true")) != std::string::npos;) t.replace(p, key.size() + 7, "\"" + key + "\":false");
+    };
+    for (const char* k : {"credentials_enable_service", "password_manager_enabled", "profile_enabled", "credit_card_enabled"}) flip(k);
+    if (t.find("\"credentials_enable_service\"") == std::string::npos) t.insert(b + 1, "\"credentials_enable_service\":false,");
+    if (t.find("\"autofill\":") == std::string::npos) t.insert(b + 1, "\"autofill\":{\"profile_enabled\":false,\"credit_card_enabled\":false},");
+    else if (t.find("\"profile_enabled\"") == std::string::npos) {
+      size_t a = t.find("\"autofill\":{");
+      if (a != std::string::npos) t.insert(a + 12, "\"profile_enabled\":false,\"credit_card_enabled\":false" + std::string(t[a + 12] == '}' ? "" : ","));
+    }
+  }
+  std::wstring tmp = file + L".sara-tmp";
+  {
+    std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
+    if (!out) return;
+    out << t;
+  }
+  MoveFileExW(tmp.c_str(), file.c_str(), MOVEFILE_REPLACE_EXISTING);
+}
+
 // ---------------- the Sara browser: Edge or Chrome over a DevTools pipe ----------------
 std::wstring regAppPath(const wchar_t* exe) {
   for (HKEY root : {HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE}) {
@@ -957,6 +1751,7 @@ class Browser {
       return;
     }
     CreateDirectoryW(profileDir.c_str(), nullptr);
+    quietBrowserPrefs(profileDir);  // Phase 91: no "Save password?" and no form autofill in the Sara browser
     // Two pipes: the browser reads DevTools commands from its fd 3 and writes answers to fd 4.
     SECURITY_ATTRIBUTES sa{sizeof(sa), nullptr, TRUE};
     HANDLE toRd = nullptr, toWr = nullptr, fromRd = nullptr, fromWr = nullptr;
@@ -1724,8 +2519,13 @@ class Hands {
   std::atomic<bool> isPaused{false};  // Phase 88: the person took over; nothing acts until Resume
   std::atomic<bool> hotkeyOk{false};
   std::atomic<bool> verify{false};  // Phase 90: Windows Hello before a saved login is used
+  Managers pm;                      // Phase 91: the owner's password managers here
 
   explicit Hands(const Host& h) : host(h) {
+    // Phase 91: which managers the person turned on, the KeePassXC database, the idle minutes.
+    pm.configure(h.testLabel, h.pmOn, h.keepassDb, h.pmRelockMinutes, h.pmIdleSeconds);
+    pm.log = [this](const std::wstring& l) { say(l); };
+    pm.onChange = [this] { tellManagers(); };
     // Phase 89: the dev tunnel's streams go over this connection.
     tunnels_->wire([this](const std::string& t) { return sendText(t); }, [this](const std::string& hd, const std::vector<BYTE>& d) { return sendBinary(hd, d); }, [this](const std::wstring& l) { say(l); });
     localOnly = h.localOnly;
@@ -1743,9 +2543,11 @@ class Hands {
     WaitForSingleObject(uiReady_, 5000);
     conn_ = std::thread([this] { connectLoop(); });
     worker_ = std::thread([this] { workLoop(); });
+    pmThread_ = std::thread([this] { pmLoop(); });
   }
   ~Hands() {
     stopping = true;
+    pmCv_.notify_all();
     if (badge_) PostMessageW(badge_, WM_CLOSE, 0, 0);
     if (ui_.joinable()) ui_.join();
     CloseHandle(uiReady_);
@@ -1762,6 +2564,23 @@ class Hands {
     tunnels_->shutdown();
     browser.close();
     CloseHandle(wake_);
+    // Phase 91: closing (quit, switching off, another server) locks every manager again.
+    if (pmThread_.joinable()) pmThread_.join();
+    pm.onChange = nullptr;
+    pm.lockAll("the app closed");
+  }
+  /** Phase 91: lock the managers again soon (Stop, a dropped connection), on their own thread. */
+  void requestLock() {
+    {
+      std::lock_guard<std::mutex> l(pmM_);
+      pmLockReq_ = true;
+    }
+    pmCv_.notify_all();
+  }
+  /** Phase 91: the server hears names and states (never an entry or a session). */
+  void tellManagers() {
+    if (!pm.detected()) return;
+    sendText("{\"t\":\"ev\",\"kind\":\"managers\",\"managers\":" + pm.viewsJson() + ",\"relockMinutes\":" + std::to_string(pm.relockMinutes()) + "}");
   }
 
   void say(const std::wstring& line) {
@@ -1801,6 +2620,8 @@ class Hands {
     say(L"stopped by the person at the computer");
     // Stop ends the dev tunnels here too.
     tunnels_->closeAll();
+    // Phase 91: and locks the password managers again.
+    requestLock();
     // Stop ends the task: the badge goes, and a pause ends with it.
     if (isPaused.exchange(false)) sendText("{\"t\":\"ev\",\"kind\":\"resumed\"}");
     lastOpAt_ = 0;
@@ -1898,6 +2719,25 @@ class Hands {
   std::mutex logM_;
   // Phase 89: the dev tunnels open on this computer.
   std::shared_ptr<DevTunnels> tunnels_ = std::make_shared<DevTunnels>();
+  // Phase 91: the managers' own thread (idle relock, locking after Stop or a dropped connection).
+  std::thread pmThread_;
+  std::mutex pmM_;
+  std::condition_variable pmCv_;
+  bool pmLockReq_ = false;
+  void pmLoop() {
+    while (!stopping) {
+      bool lockNow = false;
+      {
+        std::unique_lock<std::mutex> l(pmM_);
+        pmCv_.wait_for(l, std::chrono::seconds(2), [this] { return stopping.load() || pmLockReq_; });
+        lockNow = pmLockReq_;
+        pmLockReq_ = false;
+      }
+      if (stopping) return;
+      if (lockNow) pm.lockAll("stopped");
+      pm.tick();
+    }
+  }
 
   void closeSocket() {
     std::lock_guard<std::mutex> l(sm_);
@@ -1968,12 +2808,15 @@ class Hands {
     return "{\"t\":\"hello\",\"v\":1,\"app\":" + q(u8(host.appVersion)) + ",\"os\":" + q("Windows (build " + std::to_string(build) + ")") + ",\"computer\":" + q(u8(host.computer)) +
            ",\"screens\":[],\"browser\":{\"found\":" + (browser.found.path.empty() ? "false" : "true") + (browser.found.kind.empty() ? "" : ",\"kind\":" + q(browser.found.kind) + ",\"name\":" + q(browser.found.name)) +
            "},\"perms\":{\"capture\":false,\"input\":false,\"ax\":false},\"optIn\":{\"browser\":true,\"desktop\":false},\"approvalsHere\":false,\"logins\":" + loginViews() + ",\"vault\":" + vaultJson() + ",\"busy\":false,\"localOnly\":" + (localOnly ? "true" : "false") +
-           ",\"ops\":[" + ops + "],\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"hotkey\":" + (hotkeyOk ? "\"Ctrl+Alt+Esc\"" : "\"\"") + ",\"paused\":" + (isPaused ? "true" : "false") + ",\"renew\":true}";
+           ",\"ops\":[" + ops + "],\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"hotkey\":" + (hotkeyOk ? "\"Ctrl+Alt+Esc\"" : "\"\"") + ",\"paused\":" + (isPaused ? "true" : "false") + ",\"renew\":true" +
+           (pm.detected() ? ",\"managers\":" + pm.viewsJson() + ",\"relockMinutes\":" + std::to_string(pm.relockMinutes()) : std::string()) + "}";
   }
 
   void connectLoop() {
     static const DWORD backoff[] = {1, 2, 5, 10, 30};
     size_t attempt = 0;
+    // Phase 91: which password managers are installed (each tool's --version, nothing else), once.
+    if (!pm.detected()) pm.detect();
     while (!stopping) {
       if (connectOnce()) {
         attempt = 0;
@@ -1991,6 +2834,8 @@ class Hands {
         closeSocket();
         // Phase 89: every dev tunnel closes with the connection.
         tunnels_->closeAll();
+        // Phase 91: the password managers lock again with it.
+        requestLock();
         // Whatever was running stops with the connection.
         std::lock_guard<std::mutex> l(qm_);
         for (auto& r : queue_) r->cancel->store(true);
@@ -2075,6 +2920,8 @@ class Hands {
       for (auto& r : queue_)
         if (all || r->id == id) r->cancel->store(true);
       if (current_ && (all || current_->id == id)) current_->cancel->store(true);
+      // Phase 91: Stop (from the chat or Settings) locks the password managers again too.
+      if (all) requestLock();
       return;
     }
     if (t == "s") return tunnels_->control(m);  // Phase 89: a dev tunnel stream's control message
@@ -2584,14 +3431,24 @@ class Hands {
     return "{\"continued\":true" + info + "}";
   }
 
-  /** b.login: fills a saved login, only on a page whose current origin is exactly one of its sites. */
+  /**
+   * b.login: fills a saved login, only on a page whose current origin is exactly one of its sites.
+   * Phase 91: with "managers": true, the login for the page's exact origin comes from this computer's saved
+   * logins first, then the password managers that are on (Bitwarden, 1Password, KeePassXC); one that is on
+   * but locked answers "locked" (by id) so the server asks the person to unlock it (b.unlock).
+   */
   std::string login(Request& r, const Tab& t, OpError& e) {
     const std::atomic<bool>* cancel = r.cancel.get();
     const J& a = r.args;
     browser.activate(t.id);
     std::string name = cleanName(a["name"].str());
+    bool usePm = a["managers"].truthy() && pm.anyOn();
+    OpError ei;
+    J info = browser.call("Target.getTargetInfo", "{\"targetId\":" + q(t.targetId) + "}", "", 10000, ei);
+    std::string pageUrl = info["targetInfo"]["url"].str();
+    std::string origin = loginOrigin(pageUrl);
     Login l;
-    bool found = false;
+    bool found = false, byName = false;
     {
       std::lock_guard<std::mutex> lk(g_vaultM);
       std::vector<Login> v;
@@ -2603,25 +3460,61 @@ class Hands {
       for (auto& x : v)
         if (!found && x.server == browser.serverOrigin && sameName(x.name, name)) {
           l = x;
-          found = true;
+          found = byName = true;
         }
+      auto siteOk = [&](const Login& x) {
+        for (auto& s2 : x.sites)
+          if (!origin.empty() && s2 == origin) return true;
+        return false;
+      };
+      if (usePm) {
+        // Saved logins first: the named one if it is for this site, else any saved for this exact site.
+        if (found && !siteOk(l)) {
+          wipe(l.password);
+          wipe(l.username);
+          found = false;
+        }
+        for (auto& x : v)
+          if (!found && x.server == browser.serverOrigin && siteOk(x)) {
+            l = x;
+            found = true;
+          }
+      }
       wipe(v);
     }
+    std::string fillUser, fillPass, source = "saved";
     auto done = [&](const std::string& json) {
       wipe(l.password);
       wipe(l.username);
+      wipe(fillUser);
+      wipe(fillPass);
       return json;
     };
-    if (!found) return done("{\"outcome\":\"not_found\",\"missing\":\"login\",\"tab\":" + q(t.id) + "}");
-    OpError ei;
-    J info = browser.call("Target.getTargetInfo", "{\"targetId\":" + q(t.targetId) + "}", "", 10000, ei);
-    std::string origin = loginOrigin(info["targetInfo"]["url"].str());
-    bool match = false;
-    for (auto& s2 : l.sites) match = match || (!origin.empty() && s2 == origin);
-    if (!match) return done("{\"outcome\":\"site_mismatch\",\"tab\":" + q(t.id) + "}");
+    if (!usePm) {
+      if (!found) return done("{\"outcome\":\"not_found\",\"missing\":\"login\",\"tab\":" + q(t.id) + "}");
+      bool match = false;
+      for (auto& s2 : l.sites) match = match || (!origin.empty() && s2 == origin);
+      if (!match) return done("{\"outcome\":\"site_mismatch\",\"tab\":" + q(t.id) + "}");
+      (void)byName;
+    }
+    if (found) {
+      fillUser = l.username;
+      fillPass = l.password;
+    } else {
+      std::vector<int> locked;
+      int src = pm.lookup(pageUrl, name, fillUser, fillPass, locked);
+      if (src < 0) {
+        if (locked.empty()) return done("{\"outcome\":\"not_found\",\"missing\":\"login\",\"tab\":" + q(t.id) + "}");
+        std::string ids;
+        for (int i : locked) ids += std::string(ids.empty() ? "" : ",") + "\"" + kPms[i].id + "\"";
+        return done("{\"outcome\":\"locked\",\"managers\":[" + ids + "],\"site\":" + q(origin) + ",\"tab\":" + q(t.id) + "}");
+      }
+      source = kPms[src].id;
+    }
     if (verify) {
       std::string why;
-      if (!helloVerify(L"Let Sara sign in to " + wide(origin) + L" with your saved \u201c" + wide(l.name) + L"\u201d login?", why, cancel)) {
+      std::wstring with = source == "saved" ? L"your saved \u201c" + wide(l.name) + L"\u201d login" : wide(kPms[pmIndex(source)].name);
+      if (!helloVerify(L"Let Sara sign in to " + wide(origin) + L" with " + with + L"?", why, cancel)) {
         e = {cancel->load() ? "stopped" : "denied_local", cancel->load() ? "Stopped." : why};
         return done({});
       }
@@ -2649,8 +3542,8 @@ class Hands {
       return e.code.empty() ? 0 : -1;
     };
     int k = 0;
-    if (f["user"].t == J::Obj && !l.username.empty()) k = put("user", f["user"], l.username);
-    if (k == 0) k = put("pass", f["pass"], l.password);
+    if (f["user"].t == J::Obj && !fillUser.empty()) k = put("user", f["user"], fillUser);
+    if (k == 0) k = put("pass", f["pass"], fillPass);
     browser.clearCaught();  // her own fill is not something the person typed
     if (k < 0) return done({});
     if (k == 2) return done("{\"outcome\":\"site_mismatch\",\"tab\":" + q(t.id) + "}");
@@ -2660,7 +3553,7 @@ class Hands {
     if (submit && !pressKeys(t, "Enter", e, cancel)) return done({});
     settle(t, starts0, cancel);
     browser.clearCaught();
-    {
+    if (source == "saved") {
       std::lock_guard<std::mutex> lk(g_vaultM);
       std::vector<Login> v;
       std::string why;
@@ -2670,13 +3563,47 @@ class Hands {
         vaultStore(host.loginsFile, v, why);
       }
       wipe(v);
-    }
-    localLog("b.login", "signed in with the saved login \xe2\x80\x9c" + l.name + "\xe2\x80\x9d", origin);
+      localLog("b.login", "signed in with the saved login \xe2\x80\x9c" + l.name + "\xe2\x80\x9d", origin);
+    } else
+      localLog("b.login", std::string("signed in with ") + kPms[pmIndex(source)].name, origin);
     thumb(r.id, t, a, cancel);
     Tab now;
     OpError e2;
     if (browser.tab(t.id, now, e2)) frame(now);
-    return done("{\"outcome\":\"filled\",\"tab\":" + q(t.id) + ",\"submitted\":" + (submit ? "true" : "false") + "}");
+    return done("{\"outcome\":\"filled\",\"tab\":" + q(t.id) + ",\"submitted\":" + (submit ? "true" : "false") + ",\"source\":\"" + source + "\"}");
+  }
+
+  /**
+   * Phase 91: b.unlock. The manager's OWN prompt opens on this computer (a console window running its unlock
+   * command) and the person unlocks it there, or closes it. Sara never sees the master password.
+   */
+  std::string unlockOp(Request& r, OpError& e) {
+    std::vector<std::string> asked;
+    for (auto& x : r.args["managers"].a) asked.push_back(x.str());
+    int which = -1, open = -1;
+    for (int i = 0; i < 3; i++) {
+      bool want = asked.empty() || std::find(asked.begin(), asked.end(), kPms[i].id) != asked.end();
+      if (!want || !pm.isOn(i)) continue;
+      if (pm.isOpen(i)) {
+        if (open < 0) open = i;
+        continue;
+      }
+      if (which < 0) which = i;
+    }
+    if (which < 0) {
+      if (open >= 0) return std::string("{\"unlocked\":true,\"manager\":\"") + kPms[open].id + "\"}";
+      e = {"denied_local", "No password manager is turned on for Sara on this computer."};
+      return {};
+    }
+    {
+      std::lock_guard<std::mutex> l(whatM_);
+      what_ = std::string("your turn: unlock ") + kPms[which].name + " in its own window";
+    }
+    updateBadge();
+    bool ok = pm.unlock(which, r.args["site"].str(), r.cancel.get(), e);
+    if (!e.code.empty()) return {};
+    localLog("b.unlock", std::string(kPms[which].name) + (ok ? " unlocked by the person" : " not unlocked"), "");
+    return std::string("{\"unlocked\":") + (ok ? "true" : "false") + ",\"manager\":\"" + kPms[which].id + "\"" + (ok ? "" : ",\"why\":\"not unlocked in its window\"") + "}";
   }
 
   /** b.saveLogin: this computer's own consent window decides; saved only with "I understand" ticked. */
@@ -2979,6 +3906,13 @@ class Hands {
     if (r.op == "b.logins") return "{\"logins\":" + loginViews() + ",\"verify\":" + (verify ? "true" : "false") + "}";
     if (r.op == "b.forgetLogin") return forgetLogin(r, e);
     if (r.op == "b.yourTurn") return yourTurn(r, e);
+    // Phase 91: after the task (and Lock now) every manager locks again; b.unlock is the person's.
+    if (r.op == "b.relock") {
+      std::string ids;
+      for (int i : pm.lockAll("the task ended")) ids += std::string(ids.empty() ? "" : ",") + "\"" + kPms[i].id + "\"";
+      return "{\"locked\":[" + ids + "]}";
+    }
+    if (r.op == "b.unlock") return unlockOp(r, e);
     if (r.op != "b.tabs" || browser.running()) {
       browser.start(e);
       if (!e.code.empty()) return {};
@@ -3248,6 +4182,53 @@ void setLoginsVerify(bool on) {
   if (!g_hands) return;
   g_hands->verify = on;
   g_hands->tellLogins();
+}
+
+// Phase 91: the password managers here, for the app's own Settings page (names and states only).
+std::wstring managersJson() {
+  std::lock_guard<std::mutex> l(g_m);
+  if (!g_hands) return L"{\"managers\":[],\"detected\":false}";
+  if (!g_hands->pm.detected()) return L"{\"managers\":[],\"detected\":false}";
+  return L"{\"managers\":" + wide(g_hands->pm.viewsJson()) + L",\"relockMinutes\":" + std::to_wstring(g_hands->pm.relockMinutes()) + L",\"keepassDb\":" + wide(q(u8(g_hands->pm.keepassDbName()))) + L",\"detected\":true}";
+}
+bool managerInstalled(const std::string& id) {
+  std::lock_guard<std::mutex> l(g_m);
+  if (!g_hands || pmIndex(id) < 0) return false;
+  return g_hands->pm.viewsJson().find("\"id\":\"" + id + "\",\"name\":\"" + kPms[pmIndex(id)].name + "\",\"installed\":true") != std::string::npos;
+}
+void setManager(const std::string& id, bool on) {
+  int i = pmIndex(id);
+  if (i < 0) return;
+  Hands* h = nullptr;
+  {
+    std::lock_guard<std::mutex> l(g_m);
+    h = g_hands.get();
+  }
+  // Locking runs the manager's own command: off the page's thread.
+  if (h) std::thread([i, on] {
+    std::lock_guard<std::mutex> l(g_m);
+    if (g_hands) g_hands->pm.setOn(i, on);
+  }).detach();
+}
+void setKeepassDb(const std::wstring& path) {
+  std::thread([path] {
+    std::lock_guard<std::mutex> l(g_m);
+    if (g_hands) g_hands->pm.setKeepassDb(path);
+  }).detach();
+}
+void setRelockMinutes(int minutes) {
+  std::lock_guard<std::mutex> l(g_m);
+  if (!g_hands) return;
+  g_hands->pm.setRelockMinutes(minutes);
+  g_hands->tellManagers();
+}
+std::wstring managerWarning(const std::string& id, int minutes) {
+  int i = pmIndex(id);
+  std::string w = kManagerWarning;
+  std::string name = i >= 0 ? kPms[i].name : id;
+  for (size_t p; (p = w.find("{manager}")) != std::string::npos;) w.replace(p, 9, name);
+  if (size_t p = w.find("{minutes}"); p != std::string::npos) w.replace(p, 9, std::to_string(minutes));
+  return wide(w);
 }
 
 std::wstring protect(const std::string& secret) {

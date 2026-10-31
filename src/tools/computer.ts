@@ -7,6 +7,9 @@
 // the computer fills a login saved there, only on its exact site; she never sees it),
 // pc_browser_save_login (only when the owner said so in so many words; the computer's own consent
 // window with the warning is the real yes) and pc_browser_your_turn (the sign-in pause of §8.1).
+// Phase 91 (CU4b): pc_browser_login also finds the login in the owner's own password managers on that
+// computer (Bitwarden, 1Password, KeePassXC: each turned on there by the owner); a locked one asks the
+// owner to unlock it in its own prompt there (b.unlock), and they lock again when the task ends.
 //
 // Rules here (the device enforces its own as well):
 // - opening a site the owner didn't name asks once per site per task; localhost runs without a card
@@ -21,6 +24,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { basename, isAbsolute, relative, resolve as resolvePath } from 'node:path';
 import { actionVerdict, actLevel, askedToSaveLogin, injectionHints, loginVerdict, looksSecret, navigationVerdict, siteOf, type ActKind } from '../computer-policy.ts';
 import { cleanLoginName, loginOrigin } from '../hands-logins.ts';
+import { managerName } from '../hands-managers.ts';
 import { HandsError, type HandsDeviceView, type HandsReply } from '../hands.ts';
 import { TunnelError } from '../tunnel.ts';
 import { privateLocalOn } from '../net-guard.ts';
@@ -40,6 +44,8 @@ export const UPLOAD_MAX_BYTES = 2 * 1024 * 1024;
 export const isComputerTool = (name: string): boolean => name.startsWith('pc_');
 
 const nameOf = (d: HandsDeviceView) => d.computer || d.label.replace(/^Sara's hands on /, '') || 'this computer';
+/** Phase 91: the password managers the owner turned on there (names and locked/unlocked only). */
+const managersOn = (d: HandsDeviceView) => (d.ops?.includes('b.unlock') ? (d.managers ?? []).filter((m) => m.on) : []);
 
 /** Sites the owner allowed on a card, per task (conversation + the owner message it answers). In memory only. */
 const grants = new Map<string, { task: string; sites: Set<string> }>();
@@ -162,7 +168,7 @@ export function createComputerTools(app: AppContext): Tool[] {
       if (!online.length) {
         return `${NO_COMPUTER} To let you use their computer, the owner installs the Sara app for Windows or Mac and switches on "Let Sara use this computer" in it (the chat shows them a card with the download link). Phones can watch and stop you but can't be driven. Meanwhile you can test web apps in your own testing browser on the server (browser_open), or they can send you a screenshot.${list.length ? ` Signed in but not connected now: ${list.map((d) => `"${nameOf(d)}"`).join(', ')} (the app there is closed, asleep or offline).` : ''}`;
       }
-      const lines = online.map((d) => `- "${nameOf(d)}" (${d.app ?? 'Sara app'}${d.os ? `, ${d.os}` : ''}): ${d.optIn?.browser ? `the Sara browser${d.browser?.name ? ` (${d.browser.name})` : ''} is yours to look, read and navigate` : '"Let Sara use this computer" is off there'}; pictures ${d.localOnly ? 'only to models on the owner\u2019s own computers' : 'to the model in use'}${d.ops?.includes('c.tunnel') ? '; the dev tunnel works there (pc_browser_open with app_port)' : ''}${d.ops?.includes('b.login') ? `; saved logins there: ${d.logins?.length ? d.logins.map((l) => `\u201c${l.name}\u201d${l.sites.length ? ` (${l.sites.join(', ')})` : ''}`).join(', ') : 'none'}` : ''}${d.busy ? '; busy with a task now' : ''}.`);
+      const lines = online.map((d) => `- "${nameOf(d)}" (${d.app ?? 'Sara app'}${d.os ? `, ${d.os}` : ''}): ${d.optIn?.browser ? `the Sara browser${d.browser?.name ? ` (${d.browser.name})` : ''} is yours to look, read and navigate` : '"Let Sara use this computer" is off there'}; pictures ${d.localOnly ? 'only to models on the owner\u2019s own computers' : 'to the model in use'}${d.ops?.includes('c.tunnel') ? '; the dev tunnel works there (pc_browser_open with app_port)' : ''}${d.ops?.includes('b.login') ? `; saved logins there: ${d.logins?.length ? d.logins.map((l) => `\u201c${l.name}\u201d${l.sites.length ? ` (${l.sites.join(', ')})` : ''}`).join(', ') : 'none'}` : ''}${managersOn(d).length ? `; the owner's password managers there: ${managersOn(d).map((m) => `${m.name} (${m.state})`).join(', ')}` : ''}${d.busy ? '; busy with a task now' : ''}.`);
       const off = list.filter((d) => !d.connected);
       return `Computers you can use:\n${lines.join('\n')}${off.length ? `\nNot connected now: ${off.map((d) => `"${nameOf(d)}"`).join(', ')}.` : ''}\nYou can open pages, go back/forward/reload, look (element list, screenshot), read text, list tabs, read console and network logs, and act: click, type, choose in lists, press keys, scroll and upload a file the owner named. Look first; act on refs from your latest look; look again after each action. Actions may ask the owner first (an approval card); payments and account settings always do. If the owner takes over (moves the mouse in the Sara browser) you are paused: stop and wait. Sign-ins: never ask for a password in chat. Use a saved login with pc_browser_login (the computer fills it; you never see it; the owner approves each use), or hand the browser to the owner with pc_browser_your_turn so they sign in themselves (the Sara browser then stays signed in).`;
     },
@@ -668,8 +674,8 @@ export function createComputerTools(app: AppContext): Tool[] {
     spec: {
       name: 'pc_browser_login',
       description:
-        "Sign in on the page open in the Sara browser with a login the owner saved on that computer (pc_devices lists the names). The computer fills the username and password itself, only on the exact site the login was saved for: you never see them, and never ask for them. The owner approves every use (a card each time). Open the site's sign-in page first. If the site then asks for a one-time code, use pc_browser_your_turn. Without a saved login, use pc_browser_your_turn so the owner signs in themselves.",
-      parameters: obj({ login: { type: 'string', description: 'The saved login\u2019s name, e.g. "GitHub"' }, submit: { type: 'boolean', description: 'Press Enter after filling (default true)' }, ...TAB_ARG, ...COMPUTER_ARG }, ['login']),
+        "Sign in on the page open in the Sara browser with a login the owner saved on that computer (pc_devices lists the names) or one from the owner's own password manager there (Bitwarden, 1Password or KeePassXC, when pc_devices lists one). The computer finds the login for the page's exact site and fills the username and password itself: you never see them, and never ask for them. The owner approves every use (a card each time); a locked password manager asks the owner to unlock it on that computer (they do it in its own window). Open the site's sign-in page first. If the site then asks for a one-time code, use pc_browser_your_turn. Without a saved login or a password manager, use pc_browser_your_turn so the owner signs in themselves.",
+      parameters: obj({ login: { type: 'string', description: 'The saved login\u2019s name, e.g. "GitHub" (with a password manager: the site\u2019s name)' }, submit: { type: 'boolean', description: 'Press Enter after filling (default true)' }, ...TAB_ARG, ...COMPUTER_ARG }, ['login']),
     },
     isAvailable: able('b.login'),
     summarize: (a) => `sign in with the saved login \u201c${cleanLoginName(a.login)}\u201d in the Sara browser`,
@@ -679,7 +685,9 @@ export function createComputerTools(app: AppContext): Tool[] {
       if (!d.ops?.includes('b.login')) return { refuse: `Error: The Sara app on ${nameOf(d)} can't use saved logins yet (it needs Sara 2.23 or later there).` };
       const want = cleanLoginName(args.login).toLowerCase();
       const saved = (d.logins ?? []).find((l) => l.name.toLowerCase() === want);
-      if (!saved) return { refuse: `Error: No saved login called \u201c${cleanLoginName(args.login)}\u201d on ${nameOf(d)}. Saved there: ${(d.logins ?? []).map((l) => `\u201c${l.name}\u201d`).join(', ') || 'none'}. Without one, ask the owner to sign in themselves (pc_browser_your_turn).` };
+      // Phase 91: no saved login by that name, but the owner's password manager is on there.
+      const pms = managersOn(d);
+      if (!saved && !pms.length) return { refuse: `Error: No saved login called \u201c${cleanLoginName(args.login)}\u201d on ${nameOf(d)}. Saved there: ${(d.logins ?? []).map((l) => `\u201c${l.name}\u201d`).join(', ') || 'none'}. Without one, ask the owner to sign in themselves (pc_browser_your_turn).` };
       const h = hub()!;
       if (!h.claim(d.id, ctx.conversationId)) return { refuse: `Error: Sara is using ${nameOf(d)} for another conversation right now.` };
       let url = '';
@@ -692,20 +700,48 @@ export function createComputerTools(app: AppContext): Tool[] {
       const origin = loginOrigin(url);
       if (!origin) return { refuse: 'Error: The Sara browser has no web page open: open the site\u2019s sign-in page first (pc_browser_open).' };
       // The computer checks again itself; this only saves a pointless card.
-      if (saved.sites.length && !saved.sites.some((x) => loginOrigin(x) === origin)) return { refuse: `Error: The page open now is ${origin}, but the saved login \u201c${saved.name}\u201d is only for ${saved.sites.join(', ')}. Open that exact site\u2019s sign-in page first: the computer fills a login only on the site it was saved for.` };
+      const savedHere = saved && (!saved.sites.length || saved.sites.some((x) => loginOrigin(x) === origin)) ? saved : undefined;
+      if (saved && !savedHere && !pms.length) return { refuse: `Error: The page open now is ${origin}, but the saved login \u201c${saved.name}\u201d is only for ${saved.sites.join(', ')}. Open that exact site\u2019s sign-in page first: the computer fills a login only on the site it was saved for.` };
       const v = loginVerdict();
       const site = siteOf(new URL(url));
-      const detail: ComputerApproval = { kind: 'computer', action: 'login', site, computer: nameOf(d), target: `your saved \u201c${saved.name}\u201d login`, name: saved.name, risk: v.risk, why: v.why, choices: v.choices };
-      return { ask: true, summary: `sign in to ${site} with your saved \u201c${saved.name}\u201d login in the Sara browser on ${nameOf(d)}`, computer: detail };
+      if (savedHere) {
+        const detail: ComputerApproval = { kind: 'computer', action: 'login', site, computer: nameOf(d), target: `your saved \u201c${savedHere.name}\u201d login`, name: savedHere.name, risk: v.risk, why: v.why, choices: v.choices };
+        return { ask: true, summary: `sign in to ${site} with your saved \u201c${savedHere.name}\u201d login in the Sara browser on ${nameOf(d)}`, computer: detail };
+      }
+      // Phase 91: the computer looks in the owner's own password manager(s) for this exact site.
+      const names = pms.map((m) => m.name).join(', ');
+      const detail: ComputerApproval = { kind: 'computer', action: 'login', site, computer: nameOf(d), target: `your password manager (${names})`, name: names, managers: pms.map((m) => m.name), risk: v.risk, why: v.why, choices: v.choices };
+      return { ask: true, summary: `sign in to ${site} with your password manager (${names}) in the Sara browser on ${nameOf(d)}`, computer: detail };
     },
     async run(args, ctx) {
       const d = pick(args);
       const name = cleanLoginName(args.login);
       if (!name) throw new ToolError('login: the saved login\u2019s name (pc_devices lists them).');
-      const r = await op(ctx, d, 'b.login', { name, submit: args.submit !== false, ...tabOf(args), thumb: 320 }, `signing in with your saved \u201c${name}\u201d login`);
+      const pms = managersOn(d);
+      const withPm = pms.length > 0;
+      const loginArgs = { name, submit: args.submit !== false, ...tabOf(args), thumb: 320, ...(withPm ? { managers: true } : {}) };
+      let r = await op(ctx, d, 'b.login', loginArgs, `signing in with your saved \u201c${name}\u201d login`);
+      let x = r.result;
+      if (withPm && ctx.conversationId) hub()!.managerUsed(d.id, ctx.conversationId);
+      // Phase 91: a password manager that is on is locked: the owner unlocks it in its own window there.
+      if (x.outcome === 'locked') {
+        const which = (Array.isArray(x.managers) ? (x.managers as unknown[]).map(String) : []).filter((m) => pms.some((p) => p.id === m));
+        const label = which.map(managerName).join(', ') || 'the password manager';
+        let u: HandsReply;
+        try {
+          u = await op(ctx, d, 'b.unlock', { managers: which, site: String(x.site ?? '') }, `your turn: unlock ${label} on this computer`);
+        } catch (err) {
+          return `Nothing was filled: ${label} on ${nameOf(d)} is locked, and it wasn\u2019t unlocked (${(err as Error).message}). Ask the owner to unlock it there when they are ready, then try again. Never ask for a master password.`;
+        }
+        if (u.result.unlocked !== true) return `Nothing was filled: ${label} on ${nameOf(d)} is still locked (the owner didn\u2019t unlock it in its window). Ask them whether they want to; never ask for a master password, and don\u2019t try again unless they say so.`;
+        r = await op(ctx, d, 'b.login', loginArgs, `signing in with ${label}`);
+        x = r.result;
+      }
       thumbs(ctx, r);
-      const x = r.result;
-      if (x.outcome === 'filled') return `Filled the saved \u201c${name}\u201d login on ${nameOf(d)}${x.submitted ? ' and pressed Enter' : ''}. The username and password stayed on that computer: you never see them, so never ask for them. Look again (pc_browser_look) to check the owner is signed in; if the site asks for a one-time code, use pc_browser_your_turn.`;
+      const from = typeof x.source === 'string' && x.source !== 'saved' ? `the owner\u2019s ${managerName(x.source)}` : '';
+      if (x.outcome === 'filled') return `Filled the ${from ? `login from ${from}` : `saved \u201c${name}\u201d login`} on ${nameOf(d)}${x.submitted ? ' and pressed Enter' : ''}. The username and password stayed on that computer: you never see them, so never ask for them. Look again (pc_browser_look) to check the owner is signed in; if the site asks for a one-time code, use pc_browser_your_turn.`;
+      if (x.outcome === 'locked') return `Nothing was filled: ${(Array.isArray(x.managers) ? (x.managers as unknown[]).map((m) => managerName(String(m))).join(', ') : '') || 'the password manager'} on ${nameOf(d)} is locked. Ask the owner to unlock it there; never ask for a master password.`;
+      if (withPm && x.outcome === 'not_found' && x.missing !== 'fields') return `Nothing was filled: neither the saved logins nor ${pms.map((m) => m.name).join(', ')} on ${nameOf(d)} have a login for this exact site (scheme, address and port; look-alike sites get nothing). Ask the owner to sign in themselves (pc_browser_your_turn).`;
       if (x.outcome === 'site_mismatch') return `Nothing was filled: the page open now is not the exact site the \u201c${name}\u201d login was saved for (the computer compares scheme, address and port, so look-alike sites get nothing). Open the real site\u2019s sign-in page, or tell the owner.`;
       if (x.missing === 'fields') return 'Nothing was filled: there is no password field on this page. If the site asks for the username first, type it (pc_browser_type), go on, then call pc_browser_login again on the password page.';
       return `Nothing was filled: there is no saved login called \u201c${name}\u201d on ${nameOf(d)} any more.`;

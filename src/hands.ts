@@ -29,8 +29,19 @@
 //                    req b.logins → {logins: [{name, sites, created, lastUsed}]}; req b.forgetLogin {name | all} → {removed}
 //                    req b.yourTurn {what} → "Your turn" on the device until the person presses Continue → {continued}
 //   device → server  {t:'ev', kind:'logins', logins} (saved or removed there, e.g. in the app's Settings)
+// Phase 91 (CU4b, src/hands-managers.ts): the owner's own password managers, used only on the computer:
+//   device → server  hello.managers [{id, name, installed, on, state: off | missing | locked | unlocked}],
+//                    hello.relockMinutes ("lock again after … idle minutes"); never an entry or a session
+//   server → device  req b.login {name, managers: true} → also {outcome: 'locked', managers: [names]} and
+//                    {outcome: 'filled', source: 'saved' | 'bitwarden' | '1password' | 'keepassxc'}
+//                    req b.unlock {managers, site} → the manager's OWN prompt on the computer, the person
+//                    unlocks it (or closes it) → {unlocked, manager}; up to 10 minutes
+//                    req b.relock → every manager there locks again → {locked: [ids]}  (after the task)
+//   device → server  {t:'ev', kind:'managers', managers, relockMinutes} (locked, unlocked, turned on or off there)
+// A {t:'cancel', all:true} (Stop) and Stop on the computer lock them again too.
 import { randomUUID } from 'node:crypto';
 import type { EventHub } from './events.ts';
+import { managerViews, relockMinutes, type ManagerView } from './hands-managers.ts';
 import { Tunnels } from './tunnel.ts';
 import type { WsConnection } from './ws.ts';
 
@@ -43,10 +54,12 @@ export const CU2_OPS = ['b.find', 'b.click', 'b.type', 'b.select', 'b.keys', 'b.
 export const CU3_OPS = ['c.tunnel', 'c.untunnel'] as const;
 /** Phase 90 (CU4): saved logins filled on the device, its consent window, and the sign-in pause (§8.1). */
 export const CU4_OPS = ['b.login', 'b.saveLogin', 'b.logins', 'b.forgetLogin', 'b.yourTurn'] as const;
-/** The whole command set of a CU4 device. Still nothing on the desktop (d.*), no scripts, no op that reads a password. */
-export const HANDS_OPS = [...CU1_OPS, ...CU2_OPS, ...CU3_OPS, ...CU4_OPS] as const;
-/** Ops that wait for the person at the computer (the consent window, "Your turn"): up to 10 minutes. */
-export const WAITING_OPS: ReadonlySet<string> = new Set(['b.saveLogin', 'b.yourTurn']);
+/** Phase 91 (CU4b): the owner's password managers: the person unlocks one in its own prompt; Sara locks them again. */
+export const CU4B_OPS = ['b.unlock', 'b.relock'] as const;
+/** The whole command set of a CU4b device. Still nothing on the desktop (d.*), no scripts, no op that reads a password. */
+export const HANDS_OPS = [...CU1_OPS, ...CU2_OPS, ...CU3_OPS, ...CU4_OPS, ...CU4B_OPS] as const;
+/** Ops that wait for the person at the computer (the consent window, "Your turn", a manager's unlock prompt): up to 10 minutes. */
+export const WAITING_OPS: ReadonlySet<string> = new Set(['b.saveLogin', 'b.yourTurn', 'b.unlock']);
 export const WAITING_DEADLINE_MS = 10 * 60_000;
 /** Ops only the server itself sends (never from the owner's "try one op" route): the tunnel checks port ownership first. */
 export const SERVER_ONLY_OPS: ReadonlySet<string> = new Set(CU3_OPS);
@@ -99,6 +112,10 @@ export interface HandsHello {
   paused?: boolean;
   /** Phase 88: the device can take a fresh token over this connection. */
   renew?: boolean;
+  /** Phase 91: the password managers there (names, on/off, locked/unlocked; never an entry). */
+  managers?: ManagerView[];
+  /** Phase 91: "lock again after … idle minutes" there. */
+  relockMinutes?: number;
 }
 
 /** Phase 90: what the server knows of a saved login on a computer. */
@@ -171,6 +188,9 @@ export interface HandsDeviceView {
   /** Phase 90: saved logins there (names and sites only) and whether it asks Windows Hello / Touch ID first. */
   logins?: HandsLoginView[];
   vault?: { kind: string; verify: boolean };
+  /** Phase 91: the password managers there and when they lock again. */
+  managers?: ManagerView[];
+  relockMinutes?: number;
 }
 
 interface Pending {
@@ -355,6 +375,8 @@ export class HandsHub {
         ...(m.hotkey ? { hotkey: plain(m.hotkey, 30) } : {}),
         paused: m.paused === true,
         renew: m.renew === true,
+        managers: managerViews(m.managers),
+        ...(m.relockMinutes !== undefined ? { relockMinutes: relockMinutes(m.relockMinutes) } : {}),
       };
       for (const w of d.helloWaiters.splice(0)) w();
       this.#publish({ deviceId: d.id, state: 'online' });
@@ -408,6 +430,13 @@ export class HandsHub {
         d.hello.logins = loginViews(m.logins);
         if (m.vault && typeof m.vault === 'object') d.hello.vault = { kind: plain((m.vault as Record<string, unknown>).kind, 20) || d.hello.vault?.kind || '', verify: (m.vault as Record<string, unknown>).verify === true };
         this.#publish({ deviceId: d.id, logins: d.hello.logins.length });
+        return;
+      }
+      if (kind === 'managers' && d.hello) {
+        // Phase 91: a manager was locked, unlocked, turned on or off there (names and states only).
+        d.hello.managers = managerViews(m.managers);
+        if (m.relockMinutes !== undefined) d.hello.relockMinutes = relockMinutes(m.relockMinutes);
+        this.#publish({ deviceId: d.id, managers: d.hello.managers.map((x) => `${x.id}:${x.state}`).join(' ') });
         return;
       }
       if (kind === 'optin' && d.hello) {
@@ -596,6 +625,8 @@ export class HandsHub {
         ...(h?.paused ? { paused: true } : {}),
         ...(h ? { logins: h.logins ?? [] } : {}),
         ...(h?.vault ? { vault: h.vault } : {}),
+        ...(h ? { managers: h.managers ?? [] } : {}),
+        ...(h?.relockMinutes ? { relockMinutes: h.relockMinutes } : {}),
       });
     }
     return [...out.values()];
@@ -669,6 +700,24 @@ export class HandsHub {
     }
     t.steps++;
     return { steps: t.steps, minutes };
+  }
+
+  readonly #managerUse = new Map<string, Set<string>>();
+  /** Phase 91: a password manager was asked during this conversation's turn on that computer. */
+  managerUsed(deviceId: string, conversationId: string): void {
+    let set = this.#managerUse.get(conversationId);
+    if (!set) this.#managerUse.set(conversationId, (set = new Set()));
+    set.add(deviceId);
+  }
+  /**
+   * Phase 91: the task (the turn) ended: every computer whose password manager it used locks it again
+   * now (the computer also does after its idle minutes, on Stop and when the manager is turned off).
+   */
+  turnEnded(conversationId: string): void {
+    const set = this.#managerUse.get(conversationId);
+    if (!set) return;
+    this.#managerUse.delete(conversationId);
+    for (const id of set) if (this.connected(id) && (this.hello(id)?.ops ?? []).includes('b.relock')) void this.request(id, 'b.relock', {}, { deadlineMs: 30_000 }).catch(() => {});
   }
 
   /** Closes every connection (server shutdown). */

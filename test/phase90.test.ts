@@ -427,7 +427,7 @@ test('the page, the apps and the conformance script know saved logins', () => {
   assert.match(app, /wants to sign in to \{site\} with your saved “\{login\}” login/);
   assert.match(app, /loginsList/);
   assert.match(app, /\/logins\/\$\{encodeURIComponent\(l\.name\)\}/);
-  assert.match(web('sw.js'), /caches\.open\('sara-shell-v24'\)/);
+  assert.match(web('sw.js'), /sara-shell-v24 from Phase 90/);
   assert.match(web('sw.js'), /Phase 89 had caches\.open\('sara-shell-v23'\)/);
   assert.match(web('help.html'), /Use what I just typed/);
   for (const f of ['desktop/windows/src/hands.cpp', 'desktop/mac/Sources/Hands.swift']) {

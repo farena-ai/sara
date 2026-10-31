@@ -803,6 +803,53 @@ ROADMAP/ROADMAP.public, THREAT_MODEL and SECURITY updates in the same release.
   nothing; locked managers ask the user to unlock instead of failing silently; turning a manager off
   forgets its session.
 
+- **As built (Phase 91, 2.24.0).** Protocol (`src/hands.ts`): `CU4B_OPS` = `b.unlock`, `b.relock`;
+  `hello.managers [{id, name, installed, on, state: off | missing | locked | unlocked}]` and
+  `hello.relockMinutes`, refreshed by `ev managers` (the server keeps only those fields, whatever a device
+  sends); `b.login {name, managers: true}` answers filled (with `source`: saved | bitwarden | 1password |
+  keepassxc) / not found / site doesn't match / **locked** (the managers by id); `b.unlock {managers,
+  site}` waits up to 10 minutes like the other windows; `b.relock` answers `{locked: [ids]}`.
+  Rules shared by every device in `src/hands-managers.ts` (ids and names, the exact-origin match of an
+  entry's address, the lookup order, the reference client `ManagerSessions`). Managers are Bitwarden
+  (`bw`), 1Password (`op`) and KeePassXC (`keepassxc-cli`), each detected only by its tool answering
+  `--version`, and each **off until turned on in that computer's app** after its warning (no op turns one
+  on; the web Settings can only ask the app). Unlocking: the manager's own prompt in a window of its own
+  (`bw unlock --raw`, `op signin --raw`, `keepassxc-cli export -f csv <db>`), only its standard output
+  coming back (a named pipe / FIFO only this user can open); Sara keeps the session key / token, or
+  KeePassXC's entries with a web address, in memory only, and never sees the master password.
+  Lookup: Sara's saved logins for the exact origin first (`findBySite`), then the managers in that order;
+  an entry is used only when one of its addresses is the page's exact origin (an address without a scheme
+  means https), so a manager's own looser matching (Bitwarden's base domain) can't fill a look-alike.
+  Relock: `b.relock` when the chat turn ends (`hands.turnEnded` in the turn's `finally`; the device's
+  idle timer is the backstop), after the idle minutes (5 / 15 / 30 / 60, default 15), on Stop, when the
+  connection drops, when a manager is turned off or KeePassXC's database changes, and when the app
+  closes (`bw lock`, `op signout`, the entries wiped). The unlock window shows at most 3 times in 10
+  minutes per manager. Server: `pc_browser_login` passes `managers: true` when the computer has one on;
+  a locked answer raises the owner's unlock card (the "why" line says it asks every time) and then
+  `b.unlock`; `POST /api/hands/<id>/relock` (owner-only, the `hands` family) is the web's **Lock now**.
+  There is no unlock route. Web: Settings, This computer, **Password managers** (state per manager,
+  the switch, **Lock again after**, **Lock now**; inside the desktop app only, through its bridge). Both
+  apps also switch off the Sara browser's own "Save password?" offer and form autofill in its profile
+  before it starts, so a filled login doesn't land in the browser profile too.
+  Proof: `test/phase91.test.ts` (reference hands + test doubles of the three CLIs in
+  `test/fixtures/fake-pm/`, and the real KeePassXC when `SARA_TEST_KEEPASSXC` names its folder) scans the
+  whole hands traffic, every model request, every run step, the conversation, the device's local log,
+  the device's command lines and every file of the server's data
+  folder for the entry passwords, the entry user name and the master passwords; it also covers
+  look-alike origins, locked, idle relock, Stop and turning a manager off. On the real apps the
+  conformance section 11 ran with `scripts/hands-capture.ts` in front of a throwaway server (Windows)
+  and the capture, the server's data and the logs were searched (see the run notes in the report).
+- **Deviations (Phase 91).** The OS keychain and the Sara browser profile's own saved passwords are not
+  sources (the browser's own saving is switched off instead), and a manager's browser extension isn't
+  used (extensions stay off in the Sara browser): only the three command-line tools. KeePassXC is read
+  through `keepassxc-cli export` once at unlock (its entries with a web address are held in memory until
+  relock) rather than through its browser-integration protocol, which needs a paired extension. TOTP
+  codes aren't filled. While a manager is unlocked, any of its logins can be used for its own exact site
+  (each sign-in still has its card); a manager is unlocked for Sara, not per entry. The prompt is the
+  manager's CLI prompt in a console / Terminal window, not its desktop app's dialog (Windows Hello /
+  Touch ID unlock of the managers' desktop apps isn't reachable from their CLIs in a documented way).
+  Test builds look for the tools only in `SARA_PM_PATH` and answer the prompt through a test driver.
+
 ### Phase 92 · 2.25.0 · CU5: desktop look (screenshots + accessibility tree)
 - `pc_look`, `pc_windows`; Windows.Graphics.Capture / ScreenCaptureKit; UIA / AX element lists with
   marks; blocklist + black-out + secure-field masking; "Screenshots only to local models"; Mac

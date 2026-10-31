@@ -12,6 +12,10 @@
 // b.login fills one through DevTools input only on its exact site, b.saveLogin opens this app's own
 // consent panel ("I understand" unticked), b.logins / b.forgetLogin list and remove (names and sites
 // only), b.yourTurn shows "Your turn" until the person presses Continue; optional Touch ID first.
+// Phase 91 (CU4b): the owner's own password managers (HandsManagers): off until turned on in the app,
+// unlocked by the person in the manager's own Terminal prompt, used by b.login for the page's exact origin
+// after the saved logins, locked again by b.relock, the idle minutes, Stop, turning it off, a dropped
+// connection and quitting.
 // When the owner switches on "Let Sara use this computer" (Settings → Computer use in the app), the
 // page gets a `hands` token from the server and hands it to this app; the app keeps it in the
 // Keychain, opens its own WebSocket to <server>/api/hands (Authorization header, no cookies) and runs
@@ -140,6 +144,7 @@ final class HandsBrowser {
     if running { return }
     guard let f = found else { throw HandsOpError(code: "perm_missing", message: "There is no Google Chrome or Microsoft Edge on this Mac for the Sara browser.") }
     try? FileManager.default.createDirectory(at: profileDir, withIntermediateDirectories: true)
+    handsQuietBrowserPrefs(profileDir)  // Phase 91: no "Save password?" and no form autofill in the Sara browser
     var toChild: [Int32] = [0, 0], fromChild: [Int32] = [0, 0]
     guard pipe(&toChild) == 0, pipe(&fromChild) == 0 else { throw HandsOpError(code: "error", message: "Couldn't make the pipe to the Sara browser.") }
     var fa: posix_spawn_file_actions_t?
@@ -689,6 +694,476 @@ final class HandsTunnels {
   }
 }
 
+/// Phase 91 (CU4b): the Sara browser never offers to save a password or remember what was typed into forms
+/// (so a login filled from a password manager or a saved login doesn't end up in the browser's own profile
+/// too). A new profile gets a Preferences file saying so; an existing one is edited as text before the
+/// browser starts (its other settings untouched, nothing re-serialized).
+func handsQuietBrowserPrefs(_ profileDir: URL) {
+  let dir = profileDir.appendingPathComponent("Default"), file = dir.appendingPathComponent("Preferences")
+  try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+  var t = (try? String(contentsOf: file, encoding: .utf8)) ?? ""
+  if !t.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{") {
+    t = "{\"credentials_enable_service\":false,\"autofill\":{\"profile_enabled\":false,\"credit_card_enabled\":false},\"profile\":{\"password_manager_enabled\":false}}"
+  } else {
+    for k in ["credentials_enable_service", "password_manager_enabled", "profile_enabled", "credit_card_enabled"] {
+      t = t.replacingOccurrences(of: "\"\(k)\":true", with: "\"\(k)\":false")
+    }
+    guard let b = t.firstIndex(of: "{") else { return }
+    if !t.contains("\"credentials_enable_service\"") { t.insert(contentsOf: "\"credentials_enable_service\":false,", at: t.index(after: b)) }
+    if !t.contains("\"autofill\":") { t.insert(contentsOf: "\"autofill\":{\"profile_enabled\":false,\"credit_card_enabled\":false},", at: t.index(after: b)) }
+    else if !t.contains("\"profile_enabled\""), let r = t.range(of: "\"autofill\":{") {
+      t.insert(contentsOf: "\"profile_enabled\":false,\"credit_card_enabled\":false" + (t[r.upperBound] == "}" ? "" : ","), at: r.upperBound)
+    }
+  }
+  try? t.write(to: file, atomically: true, encoding: .utf8)
+}
+
+// MARK: Phase 91 (CU4b, docs/design/COMPUTER_USE.md §0 decision 3): the owner's password managers
+// Bitwarden (bw), 1Password (op) and KeePassXC (keepassxc-cli), each found by checking its command-line tool
+// exists and answers --version, and OFF until the person turns it on in the app after the warning below (the
+// server can't: there is no op for it). The person unlocks it in the manager's OWN prompt: a Terminal window
+// running its own unlock command (bw unlock --raw / op signin --raw / keepassxc-cli export -f csv <db>), whose
+// output goes only to this app through a FIFO in a folder only this user can open. Sara never sees, types or
+// keeps a master password: she keeps the session key / token (or KeePassXC's entries with a web address) in
+// memory until she locks it again: b.relock (after the task), the idle minutes, Stop, turning it off, the
+// connection dropping and the app quitting. Entries are used only for the page's exact origin, and nothing
+// about one (title, user name, password, address) is ever sent, logged or shown. DEBUG test copies (another
+// bundle id) look for the tools only in SARA_PM_PATH (the test doubles' folder) and take the person's typing
+// from the test hook (pm:type / pm:wrong / pm:close) instead of a Terminal window.
+
+let handsManagerWarning = "Turning this on lets Sara ask {manager} for the login of the exact site open in her browser on this computer, and fill it in there. You unlock {manager} yourself, in its own window: Sara never sees or keeps your master password, and your passwords never leave this computer. While it is unlocked, Sara can use any of its logins on their own sites (each sign-in still asks you first). She locks it again after the task, after {minutes} idle minutes, on Stop, and when you turn this off."
+struct HandsPmInfo { let id: String; let name: String; let cli: String }
+let handsPms = [HandsPmInfo(id: "bitwarden", name: "Bitwarden", cli: "bw"), HandsPmInfo(id: "1password", name: "1Password", cli: "op"), HandsPmInfo(id: "keepassxc", name: "KeePassXC", cli: "keepassxc-cli")]
+func handsPmIndex(_ id: String) -> Int? { handsPms.firstIndex { $0.id == id } }
+
+struct HandsPmEntry {
+  var title: String
+  var user: String
+  var pass: String
+  var urls: [String]
+}
+/// An entry's address as an origin; one without a scheme ("github.com") means https, as the managers do.
+func handsEntryOrigin(_ raw: String) -> String {
+  let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+  if s.isEmpty { return "" }
+  return handsLoginOrigin(s.contains("://") ? s : "https://" + s)
+}
+/// The entry for this exact origin (by title when several), or nil.
+func handsPickEntry(_ v: [HandsPmEntry], _ origin: String, _ name: String) -> Int? {
+  if origin.isEmpty { return nil }
+  let want = name.lowercased()
+  var first: Int?
+  for (i, e) in v.enumerated() where !e.pass.isEmpty && e.urls.contains(where: { handsEntryOrigin($0) == origin }) {
+    if !want.isEmpty && e.title.lowercased() == want { return i }
+    if first == nil { first = i }
+  }
+  return first
+}
+/// RFC 4180 CSV (KeePassXC's export).
+func handsParseCsv(_ text: String) -> [[String]] {
+  var rows: [[String]] = []
+  var row: [String] = []
+  var f = ""
+  var q = false
+  var it = Array(text).makeIterator()
+  var pending: Character?
+  func next() -> Character? { if let p = pending { pending = nil; return p }; return it.next() }
+  while let c = next() {
+    if q {
+      if c == "\"" {
+        if let n = next() { if n == "\"" { f.append("\"") } else { q = false; pending = n } } else { q = false }
+      } else { f.append(c) }
+    } else if c == "\"" { q = true }
+    else if c == "," { row.append(f); f = "" }
+    else if c == "\n" || c == "\r" || c == "\r\n" {
+      row.append(f); f = ""; rows.append(row); row = []
+    } else { f.append(c) }
+  }
+  if !f.isEmpty || !row.isEmpty { row.append(f); rows.append(row) }
+  return rows.filter { !($0.count == 1 && $0[0].isEmpty) }
+}
+func handsKpxEntries(_ csv: String) -> [HandsPmEntry] {
+  var rows = handsParseCsv(csv)
+  guard !rows.isEmpty else { return [] }
+  let head = rows.removeFirst().map { $0.lowercased() }
+  guard let ti = head.firstIndex(of: "title"), let pi = head.firstIndex(of: "password"), let wi = head.firstIndex(of: "url") else { return [] }
+  let ui = head.firstIndex(of: "username")
+  return rows.prefix(5000).compactMap { r in
+    guard r.count > max(ti, pi, wi), !handsEntryOrigin(r[wi]).isEmpty else { return nil }
+    return HandsPmEntry(title: r[ti], user: ui.flatMap { $0 < r.count ? r[$0] : nil } ?? "", pass: r[pi], urls: [r[wi]])
+  }
+}
+func handsBwEntries(_ d: Data) -> [HandsPmEntry] {
+  guard let a = (try? JSONSerialization.jsonObject(with: d)) as? [[String: Any]] else { return [] }
+  return a.compactMap { it in
+    guard (it["type"] as? NSNumber)?.intValue == 1, let l = it["login"] as? [String: Any] else { return nil }
+    let uris = (l["uris"] as? [[String: Any]] ?? []).compactMap { $0["uri"] as? String }
+    return HandsPmEntry(title: it["name"] as? String ?? "", user: l["username"] as? String ?? "", pass: l["password"] as? String ?? "", urls: uris)
+  }
+}
+
+/// This Mac's password managers for Sara: found, on, locked or unlocked (sessions in memory only).
+final class HandsManagers {
+  var onChange: (() -> Void)?
+  var log: ((String) -> Void)?
+  private let lock = NSLock()
+  private var testRun = false
+  private var on = [false, false, false]
+  private var files = ["", "", ""]
+  private var unlockedFlags = [false, false, false]
+  private var keys = ["", "", ""]
+  private var account = ""
+  private var kpx: [HandsPmEntry] = []
+  private var keepassDb = ""
+  private(set) var relockMinutes = 15
+  private var relockSeconds: Double = 900
+  private var prompts: [[Date]] = [[], [], []]
+  private var lastUse = Date.distantPast
+  private var detectedFlag = false
+  private var timer: DispatchSourceTimer?
+  /// DEBUG test runs: the prompt waiting for the person (the test hook types into it).
+  private var testPrompt: (Process, FileHandle)?
+
+  func configure(testRun t: Bool, on o: [Bool], keepassDb db: String, relockMinutes m: Int, idleSeconds: Int) {
+    lock.lock()
+    testRun = t
+    on = o
+    keepassDb = db
+    relockMinutes = [5, 15, 30, 60].contains(m) ? m : 15
+    relockSeconds = idleSeconds > 0 ? Double(idleSeconds) : Double(relockMinutes * 60)
+    lock.unlock()
+    let tm = DispatchSource.makeTimerSource(queue: DispatchQueue.global())
+    tm.schedule(deadline: .now() + 2, repeating: 2)
+    tm.setEventHandler { [weak self] in self?.tick() }
+    tm.resume()
+    timer = tm
+  }
+  var detected: Bool { lock.lock(); defer { lock.unlock() }; return detectedFlag }
+
+  /// Where to look: DEBUG test copies only SARA_PM_PATH; otherwise PATH and the usual install folders.
+  func searchDirs() -> [String] {
+    let env = ProcessInfo.processInfo.environment
+    if testRun { return (env["SARA_PM_PATH"] ?? "").split(separator: ":").map(String.init) }  // never the owner's own tools
+    var dirs = (env["PATH"] ?? "").split(separator: ":").map(String.init)
+    dirs += ["/opt/homebrew/bin", "/usr/local/bin", "/Applications/KeePassXC.app/Contents/MacOS", NSHomeDirectory() + "/.local/bin"]
+    return dirs
+  }
+  /// Each tool's --version (nothing else).
+  func detect() {
+    let dirs = searchDirs()
+    for (i, m) in handsPms.enumerated() {
+      var found = ""
+      for d in dirs {
+        let p = (d as NSString).appendingPathComponent(m.cli)
+        if FileManager.default.isExecutableFile(atPath: p) { found = p; break }
+      }
+      var ok = false
+      if !found.isEmpty {
+        let r = run(found, ["--version"], timeout: 8)
+        ok = r.code == 0 && String(data: r.out, encoding: .utf8)?.range(of: "\\d+\\.\\d+", options: .regularExpression) != nil
+      }
+      lock.lock()
+      files[i] = ok ? found : ""
+      lock.unlock()
+    }
+    lock.lock()
+    detectedFlag = true
+    lock.unlock()
+  }
+  func views() -> [[String: Any]] {
+    lock.lock()
+    defer { lock.unlock() }
+    return handsPms.enumerated().map { i, m in
+      let inst = !files[i].isEmpty, o = inst && on[i]
+      return ["id": m.id, "name": m.name, "installed": inst, "on": o, "state": !inst ? "missing" : !o ? "off" : unlockedFlags[i] ? "unlocked" : "locked"]
+    }
+  }
+  var keepassDbName: String { lock.lock(); defer { lock.unlock() }; return (keepassDb as NSString).lastPathComponent }
+  func installed(_ i: Int) -> Bool { lock.lock(); defer { lock.unlock() }; return !files[i].isEmpty }
+  func isOn(_ i: Int) -> Bool { lock.lock(); defer { lock.unlock() }; return on[i] && !files[i].isEmpty }
+  func isOpen(_ i: Int) -> Bool { lock.lock(); defer { lock.unlock() }; return unlockedFlags[i] }
+  var anyOn: Bool { (0..<3).contains { isOn($0) } }
+  func setOn(_ i: Int, _ v: Bool) {
+    lock.lock()
+    on[i] = v
+    lock.unlock()
+    if !v { _ = lockOne(i, "turned off") }
+    onChange?()
+  }
+  func setKeepassDb(_ path: String) {
+    _ = lockOne(2, "another database")
+    lock.lock()
+    keepassDb = path
+    lock.unlock()
+  }
+  func setRelockMinutes(_ m: Int) {
+    lock.lock()
+    let wasMinutes = relockSeconds == Double(relockMinutes * 60)
+    relockMinutes = m
+    if wasMinutes { relockSeconds = Double(m * 60) }
+    lock.unlock()
+  }
+
+  /// Runs a CLI without a window or stdin; its output, stderr and exit code.
+  func run(_ file: String, _ args: [String], env add: [String: String] = [:], timeout: Double = 20) -> (code: Int32, out: Data, err: String) {
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: file)
+    p.arguments = args
+    var env = ProcessInfo.processInfo.environment
+    for (k, v) in add { env[k] = v }
+    p.environment = env
+    let out = Pipe(), err = Pipe()
+    p.standardOutput = out
+    p.standardError = err
+    p.standardInput = FileHandle.nullDevice
+    var o = Data(), e = Data()
+    let g = DispatchGroup()
+    // The exit is noticed by terminationHandler (no run loop needed on this thread, unlike waitUntilExit).
+    let done = DispatchSemaphore(value: 0)
+    p.terminationHandler = { _ in done.signal() }
+    do { try p.run() } catch { return (-1, Data(), "could not start") }
+    // Our copies of the pipes' write ends close, so the reads end when the child (and anything it started) exits.
+    try? out.fileHandleForWriting.close()
+    try? err.fileHandleForWriting.close()
+    g.enter(); DispatchQueue.global().async { o = out.fileHandleForReading.readDataToEndOfFile(); g.leave() }
+    g.enter(); DispatchQueue.global().async { e = err.fileHandleForReading.readDataToEndOfFile(); g.leave() }
+    if done.wait(timeout: .now() + timeout) == .timedOut { p.terminate(); _ = done.wait(timeout: .now() + 2) }
+    _ = g.wait(timeout: .now() + 2)
+    return (p.isRunning ? -1 : p.terminationStatus, o, String(data: e.prefix(65536), encoding: .utf8) ?? "")
+  }
+
+  /// DEBUG test hook: the person types into the waiting prompt (or closes it).
+  func testType(_ text: String?) {
+    lock.lock()
+    let tp = testPrompt
+    lock.unlock()
+    guard let (proc, input) = tp else { return }
+    if let t = text { input.write(Data((t + "\n").utf8)); try? input.close() } else { proc.terminate() }
+  }
+
+  /// The manager's own prompt: a Terminal window of its own, running its unlock command; only its standard
+  /// output comes back (through a FIFO in a folder only this user can open). Closing the window says no.
+  private func prompt(_ file: String, _ args: [String], title: String, cancel: HandsCancel) -> (code: Int32, out: Data) {
+    if testRun {
+      let p = Process()
+      p.executableURL = URL(fileURLWithPath: file)
+      p.arguments = args
+      let out = Pipe(), inp = Pipe()
+      p.standardOutput = out
+      p.standardInput = inp
+      p.standardError = FileHandle.nullDevice
+      let ended = DispatchSemaphore(value: 0)
+      p.terminationHandler = { _ in ended.signal() }
+      do { try p.run() } catch { return (-1, Data()) }
+      try? out.fileHandleForWriting.close()
+      lock.lock()
+      testPrompt = (p, inp.fileHandleForWriting)
+      lock.unlock()
+      #if DEBUG
+      testLog("hands: \(title)")
+      #endif
+      var o = Data()
+      let g = DispatchGroup()
+      g.enter(); DispatchQueue.global().async { o = out.fileHandleForReading.readDataToEndOfFile(); g.leave() }
+      while ended.wait(timeout: .now() + 0.1) == .timedOut {
+        if cancel.isSet { p.terminate(); _ = ended.wait(timeout: .now() + 2); break }
+      }
+      _ = g.wait(timeout: .now() + 2)
+      lock.lock()
+      testPrompt = nil
+      lock.unlock()
+      return (cancel.isSet ? -2 : p.terminationStatus, o)
+    }
+    let q = { (s: String) -> String? in s.contains("'") ? nil : "'\(s)'" }
+    guard let qf = q(file), let qt = q(title.replacingOccurrences(of: "'", with: "\u{2019}")) else { return (-1, Data()) }
+    var line = qf
+    for a in args { guard let qa = q(a) else { return (-1, Data()) }; line += " " + qa }
+    let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("sara-pm-\(UUID().uuidString)")
+    do { try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700]) } catch { return (-1, Data()) }
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let fifo = dir.appendingPathComponent("out").path, code = dir.appendingPathComponent("code").path
+    guard mkfifo(fifo, 0o600) == 0 else { return (-1, Data()) }
+    let script = dir.appendingPathComponent("unlock.command")
+    let body = "#!/bin/bash\nprintf '\\033]0;%s\\007' \(qt)\necho \(qt)\necho\n\(line) > '\(fifo)'\necho $? > '\(code)'\nexit\n"
+    guard (try? body.write(to: script, atomically: true, encoding: .utf8)) != nil, chmod(script.path, 0o700) == 0 else { return (-1, Data()) }
+    let opener = Process()
+    opener.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+    opener.arguments = ["-a", "Terminal", script.path]
+    do { try opener.run() } catch { return (-1, Data()) }
+    var o = Data()
+    let read = DispatchSemaphore(value: 0)
+    DispatchQueue.global().async {
+      let fd = Darwin.open(fifo, O_RDONLY)
+      if fd >= 0 {
+        var buf = [UInt8](repeating: 0, count: 4096)
+        while true {
+          let n = Darwin.read(fd, &buf, buf.count)
+          if n <= 0 { break }
+          if o.count < 16 * 1024 * 1024 { o.append(buf, count: n) }
+        }
+        buf.withUnsafeMutableBytes { _ = memset($0.baseAddress!, 0, $0.count) }
+        Darwin.close(fd)
+      }
+      read.signal()
+    }
+    let end = Date().addingTimeInterval(9 * 60)
+    while read.wait(timeout: .now() + 0.2) == .timedOut {
+      if cancel.isSet || Date() > end {
+        // Unblock the reader (its open waits for a writer), and say no.
+        let w = Darwin.open(fifo, O_WRONLY | O_NONBLOCK)
+        if w >= 0 { Darwin.close(w) }
+        _ = read.wait(timeout: .now() + 2)
+        return (cancel.isSet ? -2 : -1, Data())
+      }
+    }
+    for _ in 0..<20 where !FileManager.default.fileExists(atPath: code) { Thread.sleep(forTimeInterval: 0.1) }
+    let rc = Int32((try? String(contentsOfFile: code, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "") ?? -1
+    return (rc, o)
+  }
+
+  /// The person unlocks manager i in its own prompt. True when unlocked for Sara.
+  func unlock(_ i: Int, site: String, cancel: HandsCancel) throws -> Bool {
+    lock.lock()
+    guard on[i], !files[i].isEmpty else { lock.unlock(); throw HandsOpError(code: "denied_local", message: "\(handsPms[i].name) is off for Sara on this Mac (the owner turns it on in the Sara app here).") }
+    if unlockedFlags[i] { lock.unlock(); return true }
+    prompts[i] = prompts[i].filter { Date().timeIntervalSince($0) < 600 }
+    if prompts[i].count >= 3 { lock.unlock(); throw HandsOpError(code: "rate_limited", message: "\(handsPms[i].name)\u{2019}s unlock window was shown 3 times in 10 minutes: wait a little.") }
+    prompts[i].append(Date())
+    let file = files[i], db = keepassDb
+    lock.unlock()
+    if i == 2 && db.isEmpty { throw HandsOpError(code: "not_found", message: "No KeePassXC database was chosen for Sara in the Sara app on this Mac.") }
+    let origin = handsLoginOrigin(site)
+    let title = "Unlock \(handsPms[i].name) for Sara: sign in to \(origin.isEmpty ? "a site" : origin) (close this window to say no)"
+    let args = i == 0 ? ["unlock", "--raw"] : i == 1 ? ["signin", "--raw"] : ["export", "-f", "csv", db]
+    log?("asking the person to unlock \(handsPms[i].name) in its own window")
+    var r = prompt(file, args, title: title, cancel: cancel)
+    defer { r.out.resetBytes(in: 0..<r.out.count) }
+    if r.code == -2 { throw HandsOpError(code: "stopped", message: "Stopped.") }
+    guard r.code == 0 else { return false }
+    let tok = (String(data: r.out, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    var ok = false
+    if i == 0 {
+      ok = tok.count >= 16 && tok.count <= 512 && tok.range(of: "^[A-Za-z0-9+/=_-]+$", options: .regularExpression) != nil
+      if ok { lock.lock(); keys[0] = tok; lock.unlock() }
+    } else if i == 1 {
+      ok = tok.isEmpty || (tok.count >= 8 && tok.count <= 512 && tok.range(of: "^[A-Za-z0-9_-]+$", options: .regularExpression) != nil)
+      var acct = ""
+      if ok, let list = (try? JSONSerialization.jsonObject(with: run(file, ["account", "list", "--format", "json"], timeout: 15).out)) as? [[String: Any]], let a0 = list.first {
+        acct = a0["shorthand"] as? String ?? a0["user_uuid"] as? String ?? ""
+      }
+      ok = ok && !acct.isEmpty && acct.count <= 64 && acct.range(of: "^[A-Za-z0-9_]+$", options: .regularExpression) != nil
+      if ok { ok = run(file, ["whoami", "--format", "json"], env: tok.isEmpty ? [:] : ["OP_SESSION_\(acct)": tok], timeout: 15).code == 0 }
+      if ok { lock.lock(); keys[1] = tok; account = acct; lock.unlock() }
+    } else {
+      let v = handsKpxEntries(String(data: r.out, encoding: .utf8) ?? "")
+      ok = true
+      lock.lock(); kpx = v; lock.unlock()
+    }
+    guard ok else { return false }
+    lock.lock()
+    unlockedFlags[i] = true
+    lastUse = Date()
+    lock.unlock()
+    log?("\(handsPms[i].name) unlocked for Sara by the person at the Mac")
+    onChange?()
+    return true
+  }
+
+  /// The entry for this page's exact origin from the managers that are on and unlocked (in order).
+  func lookup(_ pageUrl: String, _ name: String) -> (source: Int?, user: String, pass: String, locked: [Int]) {
+    let origin = handsLoginOrigin(pageUrl)
+    var locked: [Int] = []
+    if origin.isEmpty { return (nil, "", "", []) }
+    for i in 0..<3 {
+      lock.lock()
+      guard on[i], !files[i].isEmpty else { lock.unlock(); continue }
+      guard unlockedFlags[i] else { lock.unlock(); locked.append(i); continue }
+      lastUse = Date()
+      let file = files[i], key = keys[i], acct = account
+      if i == 2 {
+        let k = handsPickEntry(kpx, origin, name)
+        let hit = k.map { (kpx[$0].user, kpx[$0].pass) }
+        lock.unlock()
+        if let (u, p) = hit { return (2, u, p, []) }
+        continue
+      }
+      lock.unlock()
+      var v: [HandsPmEntry] = []
+      if i == 0 {
+        var r = run(file, ["list", "items", "--url", origin], env: ["BW_SESSION": key], timeout: 30)
+        defer { r.out.resetBytes(in: 0..<r.out.count) }
+        if r.code != 0 {
+          if r.err.range(of: "locked|not logged in|session", options: [.regularExpression, .caseInsensitive]) != nil { forget(i); locked.append(i); onChange?() }
+          continue
+        }
+        v = handsBwEntries(r.out)
+      } else {
+        let env = key.isEmpty ? [:] : ["OP_SESSION_\(acct)": key]
+        let r = run(file, ["item", "list", "--categories", "Login", "--format", "json"], env: env, timeout: 30)
+        if r.code != 0 {
+          if r.err.range(of: "sign ?in|session|authoriz|locked", options: [.regularExpression, .caseInsensitive]) != nil { forget(i); locked.append(i); onChange?() }
+          continue
+        }
+        let list = (try? JSONSerialization.jsonObject(with: r.out)) as? [[String: Any]] ?? []
+        let want = name.lowercased()
+        var id = ""
+        for it in list {
+          let urls = (it["urls"] as? [[String: Any]] ?? []).compactMap { $0["href"] as? String }
+          guard urls.contains(where: { handsEntryOrigin($0) == origin }), let iid = it["id"] as? String, iid.count <= 64, iid.range(of: "^[A-Za-z0-9]+$", options: .regularExpression) != nil else { continue }
+          if id.isEmpty || (!want.isEmpty && (it["title"] as? String ?? "").lowercased() == want) { id = iid }
+        }
+        if !id.isEmpty {
+          var g = run(file, ["item", "get", id, "--format", "json", "--reveal"], env: env, timeout: 30)
+          defer { g.out.resetBytes(in: 0..<g.out.count) }
+          if g.code == 0, let item = (try? JSONSerialization.jsonObject(with: g.out)) as? [String: Any] {
+            let fields = item["fields"] as? [[String: Any]] ?? []
+            let u = fields.first { $0["purpose"] as? String == "USERNAME" }?["value"] as? String ?? ""
+            let p = fields.first { $0["purpose"] as? String == "PASSWORD" }?["value"] as? String ?? ""
+            if !p.isEmpty { v = [HandsPmEntry(title: "", user: u, pass: p, urls: [origin])] }
+          }
+        }
+      }
+      if let k = handsPickEntry(v, origin, name) { return (i, v[k].user, v[k].pass, []) }
+    }
+    return (nil, "", "", locked)
+  }
+
+  private func forget(_ i: Int) {
+    lock.lock()
+    unlockedFlags[i] = false
+    keys[i] = ""
+    if i == 2 { kpx = [] }
+    lock.unlock()
+  }
+  /// Locks manager i again (bw lock / op signout / KeePassXC's entries forgotten). True if it was unlocked.
+  func lockOne(_ i: Int, _ why: String) -> Bool {
+    lock.lock()
+    guard unlockedFlags[i] else { lock.unlock(); return false }
+    let file = files[i], key = keys[i], acct = account
+    lock.unlock()
+    forget(i)
+    if !file.isEmpty && i == 0 { _ = run(file, ["lock"], env: ["BW_SESSION": key], timeout: 15) }
+    if !file.isEmpty && i == 1 { _ = run(file, ["signout"], env: key.isEmpty ? [:] : ["OP_SESSION_\(acct)": key], timeout: 15) }
+    log?("\(handsPms[i].name) locked again (\(why))")
+    onChange?()
+    return true
+  }
+  @discardableResult func lockAll(_ why: String) -> [Int] { (0..<3).filter { lockOne($0, why) } }
+  /// Every 2 seconds: locks everything after the idle time.
+  func tick() {
+    lock.lock()
+    let idle = unlockedFlags.contains(true) && Date().timeIntervalSince(lastUse) >= relockSeconds
+    lock.unlock()
+    if idle { lockAll("idle") }
+  }
+  func shutDown() {
+    timer?.cancel()
+    timer = nil
+    onChange = nil
+    lockAll("the app quit")
+  }
+}
+
 final class Hands: NSObject, URLSessionWebSocketDelegate {
   static let ops: Set<String> = ["b.start", "b.tabs", "b.open", "b.navigate", "b.snapshot", "b.read", "b.screenshot", "b.logs", "b.request", "b.close", "c.ping",
                                   // Phase 88 (CU2)
@@ -696,11 +1171,15 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
                                   // Phase 89 (CU3): the dev tunnel
                                   "c.tunnel", "c.untunnel",
                                   // Phase 90 (CU4): saved logins and the sign-in pause
-                                  "b.login", "b.saveLogin", "b.logins", "b.forgetLogin", "b.yourTurn"]
+                                  "b.login", "b.saveLogin", "b.logins", "b.forgetLogin", "b.yourTurn",
+                                  // Phase 91 (CU4b): the owner's password managers (the person unlocks; Sara relocks)
+                                  "b.unlock", "b.relock"]
   /// Ops that act: they count against the input rate limit and stop when the person takes over.
   static let inputOps: Set<String> = ["b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login"]
   /// Phase 90: ops that wait for the person (the consent panel, "Your turn"): up to 10 minutes.
-  static let waitingOps: Set<String> = ["b.saveLogin", "b.yourTurn"]
+  static let waitingOps: Set<String> = ["b.saveLogin", "b.yourTurn", "b.unlock"]
+  /// Phase 91: the owner's password managers on this Mac.
+  let pm = HandsManagers()
   /// Phase 90: Touch ID before a saved login is used (off by default).
   var verify = false
   static var shared: Hands?
@@ -782,7 +1261,22 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     session = URLSession(configuration: cfg, delegate: self, delegateQueue: nil)
   }
 
-  func start() { connect() }
+  func start() {
+    // Phase 91: which password managers are installed (each tool's --version, nothing else), then connect.
+    pm.onChange = { [weak self] in self?.tellManagers() }
+    pm.log = { NSLog("Sara hands: %@", $0) }
+    DispatchQueue.global().async { [weak self] in
+      self?.pm.detect()
+      self?.connect()
+    }
+  }
+  /// Phase 91: the server hears names and states (never an entry or a session).
+  func tellManagers() {
+    guard pm.detected else { return }
+    sendText(jsonText(["t": "ev", "kind": "managers", "managers": pm.views(), "relockMinutes": pm.relockMinutes] as [String: Any]))
+  }
+  /// Phase 91: lock the managers again (Stop, a dropped connection), off the caller's thread.
+  func requestLock() { DispatchQueue.global().async { [pm] in pm.lockAll("stopped") } }
 
   func stop() {
     lock.lock()
@@ -792,6 +1286,8 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     tunnels.closeAll()
     tunnels.sendText = nil
     tunnels.sendData = nil
+    // Phase 91: quitting, switching off or another server locks every manager again.
+    pm.shutDown()
     let tearDown = { [weak self] in self?.tearDownUI() }
     if Thread.isMainThread { tearDown() } else { DispatchQueue.main.sync(execute: tearDown) }
     task?.cancel(with: .goingAway, reason: nil)
@@ -859,6 +1355,8 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     lock.unlock()
     // Phase 89: every dev tunnel closes with the connection.
     tunnels.closeAll()
+    // Phase 91: the password managers lock again with it.
+    if was { requestLock() }
     if was { NSLog("Sara hands: disconnected") }
     later()
   }
@@ -898,7 +1396,8 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     return jsonText(["t": "hello", "v": 1, "app": version, "os": "macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion)", "computer": computer, "screens": [] as [Any],
                      "browser": browserInfo, "perms": ["capture": false, "input": false, "ax": false], "optIn": ["browser": true, "desktop": false], "approvalsHere": false,
                      "logins": HandsLogins.views(server: browser.serverOrigin), "vault": ["kind": "keychain", "verify": verify], "busy": false, "localOnly": localOnly, "ops": Array(Hands.ops).sorted(),
-                     "takeover": keep ? "keep" : "pause", "hotkey": hotkeyOk ? "⌃⌥Esc" : "", "paused": paused, "renew": true] as [String: Any])
+                     "takeover": keep ? "keep" : "pause", "hotkey": hotkeyOk ? "⌃⌥Esc" : "", "paused": paused, "renew": true,
+                     "managers": pm.views(), "relockMinutes": pm.relockMinutes] as [String: Any])
   }
 
   /// Phase 90: the server hears at once when the logins here changed (names and sites only).
@@ -925,6 +1424,8 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     sendText(jsonText(["t": "ev", "kind": "stopped", "by": "user"]))
     // Stop ends the dev tunnels here too.
     tunnels.closeAll()
+    // Phase 91: and locks the password managers again.
+    requestLock()
     if wasPaused { sendText(jsonText(["t": "ev", "kind": "resumed"])) }
     NSLog("Sara hands: stopped by the person at the Mac")
     #if DEBUG
@@ -994,8 +1495,11 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     }
     if t == "cancel" {
       lock.lock()
-      if m["all"] as? Bool == true { for c in cancels.values { c.set() } } else if let id = m["id"] as? String { cancels[id]?.set() }
+      let all = m["all"] as? Bool == true
+      if all { for c in cancels.values { c.set() } } else if let id = m["id"] as? String { cancels[id]?.set() }
       lock.unlock()
+      // Phase 91: Stop (from the chat or Settings) locks the password managers again too.
+      if all { requestLock() }
       return
     }
     if t == "s" { return tunnels.control(m) }  // Phase 89: a dev tunnel stream's control message
@@ -1158,6 +1662,9 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
       return ["removed": n, "logins": HandsLogins.views(server: browser.serverOrigin)]
     }
     if op == "b.yourTurn" { return try yourTurn(a, cancel) }
+    // Phase 91: after the task (and Lock now) every manager locks again; b.unlock is the person's.
+    if op == "b.relock" { return ["locked": pm.lockAll("the task ended").map { handsPms[$0].id }] }
+    if op == "b.unlock" { return try unlockOp(a, cancel) }
     if op != "b.tabs" || browser.running { try browser.start() }
     switch op {
     case "b.start": return ["browser": ["kind": browser.found?.kind ?? "", "name": browser.found?.name ?? ""], "tabs": tabsList()]
@@ -1443,18 +1950,49 @@ extension Hands {
     return out
   }
   /// b.login: fills a saved login, only on a page whose current origin is exactly one of its sites.
+  /// Phase 91: with "managers": true, the login for the page's exact origin comes from this Mac's saved
+  /// logins first, then the password managers that are on (Bitwarden, 1Password, KeePassXC); one that is
+  /// on but locked answers "locked" (by id) so the server asks the person to unlock it (b.unlock).
   func login(id: String, t: HandsBrowser.Tab, a: [String: Any], cancel: HandsCancel) throws -> [String: Any] {
     browser.activate(t.id)
     let server = browser.serverOrigin
-    guard let meta = HandsLogins.find(server: server, name: a["name"] as? String ?? "") else { return ["outcome": "not_found", "missing": "login", "tab": t.id] }
+    let name = a["name"] as? String ?? ""
+    let usePm = a["managers"] as? Bool == true && pm.anyOn
     let url = ((try? browser.call("Target.getTargetInfo", ["targetId": t.targetId]))?["targetInfo"] as? [String: Any])?["url"] as? String ?? ""
     let origin = handsLoginOrigin(url)
-    guard !origin.isEmpty, meta.sites.contains(origin) else { return ["outcome": "site_mismatch", "tab": t.id] }
-    if verify {
-      let (ok, why) = handsTouchID("sign in to \(origin) with your saved \u{201c}\(meta.name)\u{201d} login", cancel: cancel)
-      if !ok { throw HandsOpError(code: cancel.isSet ? "stopped" : "denied_local", message: why) }
+    var meta = HandsLogins.find(server: server, name: name)
+    if !usePm {
+      guard meta != nil else { return ["outcome": "not_found", "missing": "login", "tab": t.id] }
+      guard !origin.isEmpty, meta!.sites.contains(origin) else { return ["outcome": "site_mismatch", "tab": t.id] }
+    } else {
+      // Saved logins first: the named one if it is for this site, else any saved for this exact site.
+      if let m = meta, origin.isEmpty || !m.sites.contains(origin) { meta = nil }
+      if meta == nil, !origin.isEmpty { meta = HandsLogins.list(server: server).first { $0.sites.contains(origin) } }
     }
-    guard let secret = HandsLogins.secret(server: server, name: meta.name) else { return ["outcome": "not_found", "missing": "login", "tab": t.id] }
+    var fillUser = "", fillPass = "", source = "saved"
+    if let m = meta {
+      if verify {
+        let (ok, why) = handsTouchID("sign in to \(origin) with your saved \u{201c}\(m.name)\u{201d} login", cancel: cancel)
+        if !ok { throw HandsOpError(code: cancel.isSet ? "stopped" : "denied_local", message: why) }
+      }
+      guard let secret = HandsLogins.secret(server: server, name: m.name) else { return ["outcome": "not_found", "missing": "login", "tab": t.id] }
+      fillUser = secret.username
+      fillPass = secret.password
+    } else {
+      let r = pm.lookup(url, handsCleanName(name))
+      guard let src = r.source else {
+        if r.locked.isEmpty { return ["outcome": "not_found", "missing": "login", "tab": t.id] }
+        return ["outcome": "locked", "managers": r.locked.map { handsPms[$0].id }, "site": origin, "tab": t.id]
+      }
+      fillUser = r.user
+      fillPass = r.pass
+      source = handsPms[src].id
+      if verify {
+        let (ok, why) = handsTouchID("sign in to \(origin) with \(handsPms[src].name)", cancel: cancel)
+        if !ok { throw HandsOpError(code: cancel.isSet ? "stopped" : "denied_local", message: why) }
+      }
+    }
+    defer { fillUser = ""; fillPass = "" }
     // The page itself must say the same origin (its main frame, now), and have a password field.
     let f = try agent(t, "loginFields", [:], cancel)
     if handsLoginOrigin(f["origin"] as? String ?? "") != origin { return ["outcome": "site_mismatch", "tab": t.id] }
@@ -1474,8 +2012,8 @@ extension Hands {
     }
     var k = 0
     defer { browser.clearCaught() }  // her own fill is not something the person typed
-    if let userAt = f["user"] as? [String: Any], !secret.username.isEmpty { k = try put("user", userAt, secret.username) }
-    if k == 0 { k = try put("pass", passAt, secret.password) }
+    if let userAt = f["user"] as? [String: Any], !fillUser.isEmpty { k = try put("user", userAt, fillUser) }
+    if k == 0 { k = try put("pass", passAt, fillPass) }
     if k == 2 { return ["outcome": "site_mismatch", "tab": t.id] }
     if k == 1 { return ["outcome": "not_found", "missing": "fields", "tab": t.id] }
     let starts0 = browser.starts(t.id), loads0 = browser.loads(t.id)
@@ -1484,11 +2022,34 @@ extension Hands {
     if browser.waitStart(t.id, after: starts0, timeout: 0.5, cancel: cancel) { _ = browser.waitLoad(t.id, after: loads0, timeout: 15, cancel: cancel) }
     Thread.sleep(forTimeInterval: 0.25)
     browser.clearCaught()
-    HandsLogins.touch(server: server, name: meta.name)
-    localLog("b.login", "signed in with the saved login \u{201c}\(meta.name)\u{201d}", origin)
+    if let m = meta {
+      HandsLogins.touch(server: server, name: m.name)
+      localLog("b.login", "signed in with the saved login \u{201c}\(m.name)\u{201d}", origin)
+    } else {
+      localLog("b.login", "signed in with \(handsPms[handsPmIndex(source) ?? 0].name)", origin)
+    }
     thumb(id, t, a, cancel)
     frame((try? browser.tab(t.id)) ?? t)
-    return ["outcome": "filled", "tab": t.id, "submitted": submit]
+    return ["outcome": "filled", "tab": t.id, "submitted": submit, "source": source]
+  }
+  /// Phase 91: b.unlock. The manager's OWN prompt opens on this Mac (a Terminal window running its unlock
+  /// command) and the person unlocks it there, or closes it. Sara never sees the master password.
+  func unlockOp(_ a: [String: Any], _ cancel: HandsCancel) throws -> [String: Any] {
+    let asked = (a["managers"] as? [Any] ?? []).compactMap { $0 as? String }
+    let wanted = (0..<3).filter { (asked.isEmpty || asked.contains(handsPms[$0].id)) && pm.isOn($0) }
+    guard let which = wanted.first(where: { !pm.isOpen($0) }) else {
+      if let open = wanted.first { return ["unlocked": true, "manager": handsPms[open].id] }
+      throw HandsOpError(code: "denied_local", message: "No password manager is turned on for Sara on this Mac.")
+    }
+    lock.lock()
+    what = "your turn: unlock \(handsPms[which].name) in its own window"
+    lock.unlock()
+    updateBadge()
+    let ok = try pm.unlock(which, site: a["site"] as? String ?? "", cancel: cancel)
+    localLog("b.unlock", "\(handsPms[which].name) \(ok ? "unlocked by the person" : "not unlocked")", "")
+    var r: [String: Any] = ["unlocked": ok, "manager": handsPms[which].id]
+    if !ok { r["why"] = "not unlocked in its window" }
+    return r
   }
   /// b.saveLogin: this Mac's own consent panel decides; saved only with "I understand" ticked.
   func saveLogin(t: HandsBrowser.Tab, a: [String: Any], cancel: HandsCancel) throws -> [String: Any] {
@@ -1594,6 +2155,10 @@ extension Hands {
   @objc func testHook(_ n: Notification) {
     guard testLabel, let cmd = n.object as? String else { return }
     if cmd == "input" { userInput() } else if cmd == "resume" { resume() } else if cmd == "hotkey" { pressStop() }
+    // Phase 91: the person at a test manager's prompt: types its test master password (pieces), a wrong one, or closes it.
+    else if cmd.hasPrefix("pm:type:") { pm.testType(String(cmd.dropFirst(8)).split(separator: ",").joined()) }
+    else if cmd == "pm:wrong" { pm.testType("not-" + "the-master") }
+    else if cmd == "pm:close" { pm.testType(nil) }
     else if cmd.hasPrefix("login:") { let c = String(cmd.dropFirst(6)); DispatchQueue.main.async { HandsLoginPanel.current?.testDrive(c) } }
     else if cmd == "off" { DispatchQueue.main.async { (NSApp.delegate as? AppDelegate)?.handsOff(); testLog("hands: off (test item removed)") } }
     else if cmd.hasPrefix("shot:"), let v = badge?.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) {

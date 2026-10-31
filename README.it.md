@@ -14,7 +14,7 @@ per il web, Windows, Mac e telefono.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1164%20passing-brightgreen" alt="1164 tests passing">
+  <img src="https://img.shields.io/badge/tests-1169%20passing-brightgreen" alt="1169 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ per il web, Windows, Mac e telefono.
   <sub>Una sessione reale con un modello locale (qwen3.8 27B su Ollama, una RTX 5090) su un server di prova usa e getta, nel tema Notte: tira su il morale di chi le scrive, scrive una piccola app e il suo test mentre il modello li trasmette, chiede prima di eseguire un comando, scopre un vero bug con un test che fallisce e lo corregge finché tutti e 7 i test passano. Fotogrammi scelti dalla registrazione; nulla al loro interno è stato modificato.</sub>
 </p>
 
-> **Stato:** 2.23, licenza MIT, con trentaquattro versioni ricche di novità dalla 1.0 (tutte qui sotto).
+> **Stato:** 2.24, licenza MIT, con trentacinque versioni ricche di novità dalla 1.0 (tutte qui sotto).
 > Dalla 2.5 alla 2.8 tutta l'app ha cambiato aspetto. L'[app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > è su Google Play; l'app per iPhone e la versione del Mac App Store arriveranno appena Apple le
 > approverà. Leggi [docs/DISCLOSURES.md](docs/DISCLOSURES.md) prima di usare o condividere Sara.
@@ -69,6 +69,7 @@ citano la pagina · la [modalità locale privata](docs/PRIVATE_LOCAL.md) · le [
 
 | Versione | Cosa ottieni |
 |---|---|
+| **2.24** · Uso del computer, passo 5 | **Il tuo gestore di password compila gli accessi nel suo browser:** Bitwarden, 1Password o KeePassXC, ognuno spento finché non lo accendi. Lo sblocchi tu nella finestra del gestore (lei non vede mai la tua password principale); ogni uso chiede prima; compila solo sul sito esatto dell'accesso; lei lo riblocca dopo il compito, dopo 15 minuti di inattività, con Stop o con *Blocca ora*. Nulla arriva al server di Sara né al modello. Il suo browser non propone più di salvare le password da solo. |
 | **2.23** · Uso del computer, passo 4 | **Accessi salvati, solo se lo dici tu:** lei lo propone e una finestra sul *tuo computer* ti fa scrivere l'accesso e spuntare *Ho capito* (o *Usa quello che ho appena scritto*). Viene cifrato lì (DPAPI di Windows / Portachiavi di macOS), mai sul server di Sara, e lei non lo vede mai: può solo chiedere a quel computer di compilarlo, esattamente su quel sito (i siti simili non ricevono nulla), e ogni uso chiede prima. Windows Hello / Touch ID facoltativi. **Tocca a te:** lei aspetta mentre accedi o scrivi un codice tu. |
 | **2.22** · Uso del computer, passo 3 | **Fa il debug del tuo progetto web nel suo browser:** il server di sviluppo avviato dai suoi strumenti di codice sul tuo server Sara si apre su `127.0.0.1` nel suo browser sul tuo computer, tramite l'app (solo una porta del suo job; si chiude con il job), con hot reload e archiviazione locale. Dopo una modifica apre l'app, legge la console, guarda, corregge e ricontrolla. Eval del browser: 5/5 compiti con un modello locale. Inoltre: i test ora passano su macOS, e due correzioni di privacy di rete. |
 | **2.21** · Uso del computer, passo 2 | **Agisce nel suo browser:** clicca, scrive, sceglie da elenchi, scorre, preme tasti e carica un file che indichi tu, con un cursore visibile. Scegli tu quanto chiede: ogni volta, una volta per attività (predefinito) o *sempre consentito* per sito; pagamenti e impostazioni dell'account chiedono sempre, l'invio chiede ogni volta e non scrive mai password. Un badge **Sara sta lavorando** con Ferma e una scorciatoia per fermarla (Ctrl+Alt+Esc / ⌃⌥Esc); se tocchi la sua finestra si mette in pausa (o *Lascia il controllo a Sara*). |
@@ -116,7 +117,14 @@ Tutte le versioni: [CHANGELOG.md](CHANGELOG.md) · [versioni](https://github.com
 
 ### In arrivo
 
-Tutte le fasi previste sono uscite. Prossimi passi: l'app per iPhone (in attesa della revisione di Apple), ciò che resta in ogni funzione e le tue idee nelle [Discussions](https://github.com/farena-ai/sara/discussions).
+In ordine di costruzione, una versione ciascuna ([l'elenco completo](docs/ROADMAP.md)):
+
+- **Uso del computer** (2.25–2.28, in corso): vedere e usare il tuo desktop, attività guidate «rimetti in forma il mio computer», Linux.
+- **Le basi di un agente** (2.29–2.36): skill nel formato aperto Agent Skills e skill che impara da ciò che ripeti, plugin e hook, una bacheca Kanban che lei porta avanti, A2A con altri agenti, schede delle persone, webhook, la sua agenda (facoltativa).
+- **Trasloco da un altro agente** (2.37–2.39): porta un intero compagno Hermes Agent o OpenClaw: personalità, ricordi, persone, skill, cronologia e impostazioni, con un resoconto di cosa è arrivato.
+- **Chat e sessioni** (2.40–2.42): /new, /reset e altri comandi in Telegram e Discord, un progetto per canale, titoli che crescono con la sessione.
+- **Oggi, ripensato** (2.43–2.44): un layout che puoi sistemare, su schermi grandi e telefoni.
+- L'app per iPhone (in attesa di Apple) e le tue idee nelle [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Il piano completo: [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -291,8 +299,8 @@ uno SPEC che nessun test controllava. Quello che aggiunge oggi è il modo di lav
 chiede prima dei passi rischiosi, mostra cosa è stato eseguito), non un punteggio più alto su questi
 insiemi. Dettagli, risultati per compito e come rieseguirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-In più, `npm run check`: un controllo dei tipi e 1175 test automatici con un finto modello guidato
-da script (senza rete, senza GPU): 1164 passano su Windows e gli altri 8 sono test dell'isolamento
+In più, `npm run check`: un controllo dei tipi e 1181 test automatici con un finto modello guidato
+da script (senza rete, senza GPU): 1169 passano su Windows e gli altri 8 sono test dell'isolamento
 solo per Linux, eseguiti su un server Linux.
 
 ## Il confronto
