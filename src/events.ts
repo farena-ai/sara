@@ -28,6 +28,8 @@ export type HubEvent = (
   | { type: 'board'; boardId: number | string; taskId?: number | string; what?: string }
   /** Phase 102 (ST7): a webhook got a delivery or changed: the Webhooks page refreshes. Ids only, never what was sent. */
   | { type: 'hooks'; hookId?: string }
+  /** Phase 103 (ST8): her plans changed (planned, sent, edited, switched). Nothing of what they say. */
+  | { type: 'agenda' }
   /** Phase 52: device-code sign-in requests waiting for the owner. */
   | { type: 'device'; pending: number }
   /** Phase 39: a team task changed (plan, a helper's progress, the end). */

@@ -397,6 +397,34 @@ test('people (Phase 101): each person\'s cards are their own; no one reaches ano
   for (const p of [owner, ana, ben]) assert.equal((await call(p, 'DELETE', `/api/people/${ids.get(p)}?memories=1`)).status, 200);
 });
 
+test('her plans (Phase 103): each person\'s own agenda, off by default; no one reaches another\'s plans', async () => {
+  const ids = new Map<Person, number>();
+  for (const p of [owner, ana, ben]) {
+    const first = await call(p, 'GET', '/api/agenda');
+    assert.equal(first.status, 200, `${p.name}: ${first.text}`);
+    assert.equal((first.json.settings as { enabled: boolean }).enabled, false, `${p.name}: off by default`);
+    const on = await call(p, 'PUT', '/api/agenda', { enabled: true });
+    assert.equal(on.status, 200);
+    const made = await call(p, 'POST', '/api/agenda/items', { what: `Ask about the trip ${p.marker}`, dueAt: new Date(Date.now() + 86_400_000).toISOString() });
+    assert.equal(made.status, 201, made.text);
+    ids.set(p, Number((made.json.item as { id: number }).id));
+  }
+  for (const p of [owner, ana, ben]) {
+    const list = await call(p, 'GET', '/api/agenda');
+    assert.ok(list.text.includes(p.marker), `${p.name} sees their own plan`);
+    for (const o of [owner, ana, ben].filter((x) => x !== p)) {
+      assert.ok(!list.text.includes(o.marker), `${p.name} never sees ${o.name}'s plans`);
+      // Ids are per space: another person's plan id is someone else's (or nobody's) here.
+      const r = await call(p, 'PUT', `/api/agenda/items/${ids.get(o)}`, { what: 'x' });
+      assert.ok(!r.text.includes(o.marker), `${p.name} PUT another's plan`);
+    }
+  }
+  for (const p of [owner, ana, ben]) {
+    assert.equal((await call(p, 'POST', '/api/agenda/clear', {})).status, 200);
+    assert.equal((await call(p, 'POST', '/api/agenda/off', {})).status, 200);
+  }
+});
+
 test('skills (Phase 96): each member has their own; a folder on the server is the owner\'s only', async () => {
   const made = await call(ana, 'POST', '/api/skills', { name: 'ana-only-skill', description: `Ana's own how-to ${M.a}. Use when Ana asks.`, body: `# Ana\n${M.a}` });
   assert.equal(made.status, 201);

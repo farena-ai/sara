@@ -158,7 +158,7 @@ const time = (ms) => new Date(ms).toLocaleTimeString(locale(), { hour: 'numeric'
 const hourOf = (iso) => new Date(iso).toLocaleTimeString(locale(), { hour: 'numeric' });
 
 /** 2.8: each tile's small line icon (web/icons.js), beside its title. */
-const TILE_ICON = { 'td-board': 'todo', 'td-hooks': 'reminder', 'td-weather': 'weather', 'td-calendar': 'calendar', 'td-agenda': 'planner', 'td-memories': 'memory', 'td-otd': 'moments', 'td-jobs': 'job', 'td-home': 'home', 'td-mail': 'mail', 'td-dates': 'heart', 'td-models': 'sparkle', 'td-setup': 'plus' };
+const TILE_ICON = { 'td-plans': 'calendar', 'td-board': 'todo', 'td-hooks': 'reminder', 'td-weather': 'weather', 'td-calendar': 'calendar', 'td-agenda': 'planner', 'td-memories': 'memory', 'td-otd': 'moments', 'td-jobs': 'job', 'td-home': 'home', 'td-mail': 'mail', 'td-dates': 'heart', 'td-models': 'sparkle', 'td-setup': 'plus' };
 function tileIcon(id) {
   const svg = icon(TILE_ICON[id] ?? '');
   if (!svg) return [];
@@ -582,6 +582,8 @@ export async function renderTodayTiles(d, { fmtDue }) {
   await loadDoneToday();
   renderPlanner(d, fmtDue);
   renderBoardTile(d.board);
+  // Phase 103 (ST8): Her plans (today's reach-outs with times and reasons, goals, the shared count).
+  ctx.renderPlans?.(d.plans, tileHead);
   renderHooksTile(d.hooks);
   const [weather, home] = await Promise.all([
     ctx.demo() ? Promise.resolve({ setUp: false }) : ctx.api('/today/weather').catch(() => null),

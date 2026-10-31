@@ -47,6 +47,7 @@ import { createSkillRoutes } from './routes/skills.ts';
 import { createPluginRoutes } from './routes/plugins.ts';
 import { createAgentRoutes } from './routes/agents.ts';
 import { createHookRoutes } from './routes/hooks.ts';
+import { createAgendaRoutes } from './routes/agenda.ts';
 import { createPlannerRoutes } from './routes/planner.ts';
 import { createBoardRoutes, DEMO_CARD_ACTIONS } from './routes/board.ts';
 import { createMemoryRoutes } from './routes/memory.ts';
@@ -799,6 +800,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const pluginRoutes = createPluginRoutes(ctx);
   const agentRoutes = createAgentRoutes(ctx);
   const hookRoutes = createHookRoutes(ctx);
+  // Phase 103 (ST8): her own agenda (src/routes/agenda.ts).
+  const agendaRoutes = createAgendaRoutes(ctx);
   // Phase 100: her address on the Agent Card is the one the peer used (https behind a trusted proxy).
   if (app.a2a) app.a2a.baseOf = (req) => `${isHttps(req) ? 'https' : 'http'}://${String(req.headers.host ?? 'localhost')}`;
   const plannerRoutes = createPlannerRoutes(ctx);
@@ -1142,6 +1145,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     // Phase 100: other agents (A2A; Settings → Connections → Other agents; the owner's only; src/routes/agents.ts).
     if ((await agentRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await hookRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await agendaRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 87: computer use: the computers, the live view, step thumbnails (src/routes/hands.ts).
     if ((await handsRoutes(req, res, method, parts)) !== NEXT) return;
 

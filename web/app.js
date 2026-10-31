@@ -16,6 +16,7 @@ import { initPlugins, loadPlugins, pluginAskLine, pluginNotice, pluginResultCard
 import { initAgents, loadAgents } from './agents.js';
 import { hookNotice, initHooks, loadHooks } from './hooks.js';
 import { boardEvent, initBoard, openCardOnBoard, plannerView, rememberView } from './board.js';
+import { agendaEvent, agendaNotice, agendaWhy, initAgenda, loadAgenda, renderPlansTile } from './agenda.js';
 import { initPeople, peopleEvent, peopleOnOpen, showPerson } from './people.js';
 import { initOtherApps, keyUse, loadOtherApps } from './other-apps.js';
 import { initAlexa, loadAlexa } from './alexa.js';
@@ -1017,7 +1018,24 @@ initToday({
   openSettings: (page) => openSettings(page),
   ask: askInChat,
   openCard: (boardId, ref) => openCardOnBoard(boardId, ref),
+  // Phase 103: Today's "Her plans" tile (web/agenda.js).
+  renderPlans: (plans, head) => renderPlansTile(plans, head),
   renderPhotos: renderTodayPhotos,
+});
+// Phase 103 (ST8): Planner → Her plans and the chat's "Why I'm writing" line (web/agenda.js).
+initAgenda({
+  api,
+  openConversation: (id) => {
+    $('#planner').close();
+    void openConversation(id);
+  },
+  openPlanner: async (tab) => {
+    if (!$('#planner').open) await openPlanner();
+    document.querySelector(`#planner .tab[data-tab="${tab}"]`)?.click();
+  },
+  refreshToday: () => {
+    if (todayOpen()) void loadToday();
+  },
 });
 initBottomBar({
   openToday: () => openToday(),
@@ -1364,6 +1382,9 @@ function renderMessages(messages, opts = {}) {
     } else if (m.role === 'notice' && m.kind === 'hook') {
       // Phase 102: a webhook delivery (or its result), labelled as the webhook's, never as her.
       els.push(hookNotice(m, { openSettings: (page) => void openSettings(page) }));
+    } else if (m.role === 'notice' && m.kind === 'agenda') {
+      // Phase 103: "Added to her plans" (or a goal she suggests) after her reply (web/agenda.js).
+      els.push(agendaNotice(m));
     } else if (m.role === 'notice' && m.kind === 'plugin') {
       // Phase 98: a plugin's note or card (after her reply, or from its schedule), labelled as the plugin's.
       els.push(pluginNotice(m));
@@ -1411,6 +1432,8 @@ function renderMessages(messages, opts = {}) {
       if (m.meta?.forgotten) b.classList.add('forgotten');
       if (m.meta?.reminder) b.classList.add('reminder');
       if (m.meta?.proactive) b.classList.add('proactive');
+      // Phase 103: a message from her plans says why she wrote (tap → the plan on Her plans).
+      if (m.role === 'assistant' && m.meta?.agenda) b.append(agendaWhy(m.meta.agenda));
       if (m.meta?.call) b.classList.add('missed-call');
       if (m.role === 'assistant') {
         const sameRun = prevBubble?.role === 'assistant' && (prevBubble.meta?.speaker?.id ?? null) === (m.meta?.speaker?.id ?? null);
@@ -2588,10 +2611,12 @@ const TOOL_NAME = {
   ssh_servers: 'List your servers', ssh_connect: 'Add a server', ssh_run: 'Run commands on a server', ssh_forget_password: 'Forget a server password', ssh_revoke_key: 'Remove her key from a server', ssh_remove_server: 'Remove a server',
   tune_personality: 'Adjust her personality', settings_guide: 'Look up how the app works',
   board_list: 'Look at your board', card_add: 'Put a card on your board', card_move: 'Move a card on your board', card_comment: 'Comment on a card', card_ask: 'Ask you about a card', card_assign: 'Assign a card',
+  agenda_add: 'Added to her plans', agenda_goal: 'Suggest a goal', agenda_list: 'Look at her plans',
 };
 const TOOL_GROUP_OF = {
   todo: 'plan', note: 'plan', remind: 'plan', shared_list: 'plan',
   board_list: 'plan', card_add: 'plan', card_move: 'plan', card_comment: 'plan', card_ask: 'plan', card_assign: 'plan',
+  agenda_add: 'plan', agenda_goal: 'plan', agenda_list: 'plan',
   recall: 'memory', library: 'memory', recipe_save: 'memory', recipe_find: 'memory', recipe_use: 'memory',
   skill_use: 'memory', skill_read: 'memory', skill_find: 'memory', skill_run: 'run', skill_save: 'memory', skill_update: 'memory',
   scrapbook: 'pictures', moments: 'pictures', share_photo: 'pictures', take_photo: 'pictures', change_outfit: 'pictures',
@@ -5192,11 +5217,13 @@ function startEvents() {
       const b = bubble('assistant', ev.message.content, undefined, ev.message.id);
       if (ev.reason === 'reminder') b.classList.add('reminder');
       if (ev.reason === 'proactive') b.classList.add('proactive');
+      if (ev.message.role === 'assistant' && ev.message.meta?.agenda) b.append(agendaWhy(ev.message.meta.agenda));
       if (ev.message.role === 'notice') {
         b.className = `msg notice ${ev.message.meta?.kind ?? ''}`;
       }
       if (ev.message.meta?.call) b.classList.add('missed-call');
-      if (ev.message.role === 'notice' && ev.message.content.startsWith('job:')) {
+      if (ev.message.role === 'notice' && ev.message.content.startsWith('agenda:')) append(agendaNotice(ev.message));
+      else if (ev.message.role === 'notice' && ev.message.content.startsWith('job:')) {
         append(jobCard(ev.message.content.slice(4), ev.message.meta?.status, ev.message.meta));
         const rc = ev.message.meta?.card ? renderCard(ev.message.meta.card) : null;
         if (rc) append(rc);
@@ -5244,6 +5271,12 @@ function startEvents() {
     boardEvent();
     // Today's "On the board" tile (waiting cards, her work) follows too, at most every 2 s.
     if (todayOpen() && !todayBoardTimer) todayBoardTimer = setTimeout(() => ((todayBoardTimer = 0), void loadToday()), 2000);
+  });
+  // Phase 103 (ST8): her plans changed (planned, sent, edited, switched): Her plans and Today follow.
+  let todayPlansTimer = 0;
+  es.addEventListener('agenda', () => {
+    agendaEvent();
+    if (todayOpen() && !todayPlansTimer) todayPlansTimer = setTimeout(() => ((todayPlansTimer = 0), void loadToday()), 1500);
   });
   // Phase 101 (ST6): people cards changed (her memory worker, another tab): the open People page follows.
   es.addEventListener('people', () => peopleEvent());
@@ -5535,6 +5568,8 @@ for (const t of document.querySelectorAll('#planner .tab')) {
     // Phase 99: the Board tab widens the window; To-do or Board is remembered as the planner's view.
     rememberView(t.dataset.tab);
     if (t.dataset.tab !== 'board') $('#planner').classList.remove('bd-wide');
+    // Phase 103: Her plans loads when its tab opens.
+    if (t.dataset.tab === 'agenda') void loadAgenda();
   });
 }
 

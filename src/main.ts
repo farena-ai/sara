@@ -51,6 +51,7 @@ import { ReminderScheduler } from './reminders.ts';
 import { CompanionHub, EventHub } from './events.ts';
 import { InnerStore } from './inner.ts';
 import { LifeStore, LifeWorker } from './life.ts';
+import { Agenda, createAgendaTools } from './agenda.ts';
 import { LocalVoiceEngine } from './voice.ts';
 import { TelegramBridge } from './bridges/telegram.ts';
 import { ApnsSender } from './apns.ts';
@@ -646,6 +647,11 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.people = new PeopleStore(store.db, { photoDir: join(dir, 'people'), ownWords: () => [settingsC.get().ownerName ?? '', app.persona.name] });
     for (const t of createPeopleTools(() => app)) tools.add(t);
   }
+  // Phase 103 (ST8): her own agenda (per companion, in each person's own space; off by default; never the demo).
+  if (!isDemo) {
+    app.agenda = new Agenda(app, store.db);
+    for (const t of createAgendaTools(() => app)) tools.add(t);
+  }
   // The health history is the server's (the owner's); notifications are per space (each person's devices).
   if (!isMember) {
     healthHistory ??= new HealthHistory(store.db, { problems: () => log.problems, dataDir });
@@ -903,6 +909,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       app.presence?.stop();
       reminders.stop();
       lifeWorker.stop();
+      app.agenda?.halt();
       weeklyWorker.stop();
       app.learning?.stop();
       app.briefing?.stop?.();

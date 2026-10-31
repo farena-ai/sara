@@ -1722,6 +1722,61 @@ listed as *paused* and come back if he turns it on again, or *Clear her plans* r
 Turn it on for a week; say whether her reach-outs felt welcome or too much (the cap and the kinds
 are the knobs); check that every *why* was true.
 
+### 11.10 As built (2.36.0)
+Built as designed (guide: [AGENDA.md](../AGENDA.md); `src/agenda.ts`, `src/routes/agenda.ts`,
+`web/agenda.js`, `web/agenda.css`, `test/phase103.test.ts`, `scripts/eval-agenda.ts`), with these
+deviations and details:
+- **Tables:** the three of §11.3 in the companion's database (where `sara_days` / `sara_threads`
+  live), plus additive columns: goals `quote`, `notes` (progress notes, JSON), `topic` (the content
+  words, so a goal he declined is not proposed again); items `quote`, `source_conversation`,
+  `source_message`, `moved`, `allowed` (the research OK), `for_item`, `research`, `note` (why it was
+  skipped / expired / cancelled) and `sent_conversation`. One more table, `agenda_state` (the message
+  cursor, the crisis check-in mark). Items get one more status, `paused` (planned items while the
+  agenda is off, so "off pauses, on restores" is explicit; a window that passed while off moves to the
+  same time on the next free day).
+- **Planning is code, not a model call:** `futureMentions` ("my/the X is (on) Friday", "I have a X
+  tomorrow", "the X opens Dec 1") → *Ask how X went* at 19:00 that day or *Remind you: X opens* at
+  10:00; `goalMentions` said twice in 14 days (content-word overlap ≥ 0.5) or a direct ask ("help me
+  keep at this") → a proposed goal. She can also add plans herself with `agenda_add` (and suggest a
+  goal with `agenda_goal`, list with `agenda_list`): `quote` must be found in one of his last 40
+  messages of that chat, else the call is refused. Planning reads every new owner message by id
+  (a cursor), after his turn (`Agenda.afterTurn`, which posts the *Added to her plans* notice) and on
+  each tick (so turns from bridges or a failed reply are not missed).
+- **The tick:** answered → windows (move once by a day, then `expired` with *The day was full*) →
+  allowed look-ups → at most one message, under the shared cap (her proactive counter in `inner`
+  is incremented, so both paths see each other), quiet hours, the gap since his last message and
+  since her last first message, the unanswered rule, *busy*, and the budget (an estimate before
+  `complete()`, the real tokens/$ from the usage meter after). The LifeWorker runs it before her
+  spontaneous message; if it sent one, the spontaneous one waits. With the agenda off the tick is
+  byte-for-byte the old one. Her plans don't need *Sara may message you first* to be on (their own
+  switch), but always share its numbers.
+- **The off switch** (`POST /api/agenda/off`, the big switch) aborts a running model call
+  (`complete()` got an optional `stop` signal) and re-checks after the call, so nothing is posted.
+- **Crisis pause:** any `crisis_referral` safety event in the last 48 h pauses her plans; due items
+  wait (nothing moves or expires); one gentle check-in replaces the first plan that comes due, with
+  the crisis resources notice after it. It is not sent when nothing was due.
+- **Research** asks per item (*Allow once* on the page) even with the setting on, uses only the
+  configured `web_search` tool (in private local mode only SearXNG), one search, a short summary on
+  the *research* route, attached to the follow-up (`for_item`). No web search set up → the setting is
+  disabled with a note. Not exercised in the live run (no search configured on the scratch server).
+- **Members:** `agenda` is a member route family (each person's own space; ids are per space); a
+  member's dollar budget is capped by their `MemberLimits.costPerDay`. The demo has none.
+- **From the live run:** a goal's check-in that she skips ("model chose not to") or that expires
+  schedules the goal's next one, so a goal never goes silent; a plan he added himself on the page is
+  written as his (the prompt doesn't claim he "mentioned it"), and the message's `meta.agenda.by`
+  makes the *Why I'm writing* line say *you put this on my plans*.
+- **Not built:** a goal's `task_id` (board card) is a column only, no UI; `scripts/eval-agenda.ts`'s
+  judge is code (the quoted words must be in his real message) rather than a model judge. Today's
+  tile shows the next three plans when none is due today (the design lists only today's).
+- **Eval** (`node scripts/eval-agenda.ts`, 30 seeded weeks, hourly ticks): 102 future things
+  mentioned, 96 planned (her 5-open / 2-a-day limits), 85 sent on the right day, 8 the next day (the
+  day was full), 3 expired, 0 on a wrong day, never more than 1 a day (cap 2), 0 invented reasons,
+  5 goals proposed.
+
+**Track complete.** ST1–ST8 (Phases 96–103, 2.29.0–2.36.0) are built: skills, skills she learns,
+plugins and hooks, the board, A2A, people, webhooks and her own agenda. The move-in track
+(Phases 104–106) can now import skills, boards, peers, people, webhooks and goals into real features.
+
 ---
 
 ## 12. Safety across the track

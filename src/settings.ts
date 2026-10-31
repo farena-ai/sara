@@ -172,6 +172,8 @@ export interface Settings {
   voice?: Partial<VoiceSettings>;
   /** Messages Sara starts herself (Phase 4). */
   proactive?: Partial<ProactiveSettings>;
+  /** Phase 103 (ST8): her own agenda (per companion, off by default; src/agenda.ts). */
+  agenda?: Partial<import('./agenda.ts').AgendaSettings>;
   /** Phase 26: what may make her call you. */
   calls?: Partial<import('./calls.ts').CallRules>;
   /** Phase 29: the owner's Home Assistant address (the access token is in the vault). */

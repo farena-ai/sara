@@ -70,13 +70,16 @@ const SHELL = [OFFLINE, '/offline.css', '/offline.js', '/theme.css', '/theme-boo
 // v36 (Phase 102): webhooks (hooks.js and hooks.css: Settings → Connections → Webhooks, the three-step
 //   form, the address and secret shown once, the test button, the log; the delivery cards in the chat;
 //   Today's "From your webhooks"). Phase 101 had caches.open('sara-shell-v36'); every older cache is deleted below.
+// v37 (Phase 103): her own plans (agenda.js and agenda.css: Planner → Her plans with the big switch,
+//   Today's "Her plans" tile, the "Why I'm writing" line, "Added to her plans" in the chat).
+//   Phase 102 had caches.open('sara-shell-v36'); every older cache is deleted below.
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open('sara-shell-v36').then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open('sara-shell-v37').then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
-  // Every older cache goes (sara-shell-v35 from Phase 101, sara-shell-v34 from Phase 100, sara-shell-v33 from Phase 99, sara-shell-v32 from Phase 98, sara-shell-v31 from Phase 97, sara-shell-v30 from Phase 96, sara-shell-v29 from Phase 95, sara-shell-v28 from Phase 94, sara-shell-v27 from Phase 93, sara-shell-v26 from Phase 92, sara-shell-v25 from Phase 91, sara-shell-v24 from Phase 90, sara-shell-v23 from Phase 89, sara-shell-v22 from Phase 88, sara-shell-v21 from Phase 87, sara-shell-v20 from Phase 86, sara-shell-v19 from 2.18, sara-shell-v18 from Phase 85, sara-shell-v17 from Phase 84, sara-shell-v16 from Phase 83, sara-shell-v15 from Phase 82, sara-shell-v14 from Phase 81, sara-shell-v13 from Phase 80, sara-shell-v12 from Phase 79, sara-shell-v11 from Phase 78, sara-shell-v10 from Phase 77 and before).
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== 'sara-shell-v36').map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  // Every older cache goes (sara-shell-v36 from Phase 102, sara-shell-v35 from Phase 101, sara-shell-v34 from Phase 100, sara-shell-v33 from Phase 99, sara-shell-v32 from Phase 98, sara-shell-v31 from Phase 97, sara-shell-v30 from Phase 96, sara-shell-v29 from Phase 95, sara-shell-v28 from Phase 94, sara-shell-v27 from Phase 93, sara-shell-v26 from Phase 92, sara-shell-v25 from Phase 91, sara-shell-v24 from Phase 90, sara-shell-v23 from Phase 89, sara-shell-v22 from Phase 88, sara-shell-v21 from Phase 87, sara-shell-v20 from Phase 86, sara-shell-v19 from 2.18, sara-shell-v18 from Phase 85, sara-shell-v17 from Phase 84, sara-shell-v16 from Phase 83, sara-shell-v15 from Phase 82, sara-shell-v14 from Phase 81, sara-shell-v13 from Phase 80, sara-shell-v12 from Phase 79, sara-shell-v11 from Phase 78, sara-shell-v10 from Phase 77 and before).
+  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== 'sara-shell-v37').map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
 self.addEventListener('fetch', (event) => {

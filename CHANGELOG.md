@@ -5,6 +5,24 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.36.0 (2026-10-31): her own plans (Phase 103, staples ST8; the staples track is complete)
+
+- **Opt-in, per companion, off by default:** Planner → *Her plans*. She keeps follow-ups on what you
+  tell her ("ask how the interview went") and goals you keep at together. Every plan comes from your
+  own words, found in code (no model call), and shows where you said it. Guide:
+  [docs/AGENDA.md](docs/AGENDA.md).
+- **Goals wait for you:** *Use it*, *Edit first*, *Not now* or *Never*. Plans can be moved, changed,
+  cancelled or paused; history keeps what she did and why ("Why I'm writing" on her messages).
+- **Limits:** at most 5 open plans, 2 new a day, 30 days ahead; she shares the daily message limit,
+  quiet hours, the gap and the unanswered rule with her first messages; her own daily budget
+  (30k tokens / $0.10 by default); a 48-hour pause with one gentle check-in after a crisis; anything
+  outside Sara still asks. **Off** stops everything at once, even a reply she's writing.
+- Tools `agenda_add` (only with a quote from your recent messages), `agenda_goal`, `agenda_list`; never
+  in other apps, groups, partner, private or outside chats. A Today tile. Members have their own.
+- Measured: a 30-week simulated eval with 0 wrong-day plans, 0 days over the cap, 0 invented reasons.
+- **The staples track (Phases 96–103: skills, learned skills, plugins, the board, A2A, people,
+  webhooks, her own plans) is complete.**
+
 ## 2.35.1 (2026-10-31): fix: one room in shared Discord channels and Telegram groups
 
 - **Fixed:** with *work with me in server channels* (Discord) or *in groups* (Telegram) on, the owner's

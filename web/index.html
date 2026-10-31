@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="/board.css">
   <link rel="stylesheet" href="/people.css">
   <link rel="stylesheet" href="/hooks.css">
+  <link rel="stylesheet" href="/agenda.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -331,6 +332,7 @@
             <section class="today-card td-tile" id="td-calendar" tabindex="0" aria-labelledby="td-calendar-h"><div class="td-tile-head"><h3 id="td-calendar-h">Your day</h3></div><div class="today-list"></div></section>
             <section class="today-card td-tile" id="td-agenda" tabindex="0" aria-labelledby="td-agenda-h"><div class="td-tile-head"><h3 id="td-agenda-h">Planner</h3></div><div class="today-list"></div></section>
             <section class="today-card td-tile" id="td-board" hidden tabindex="0" aria-labelledby="td-board-h"><div class="td-tile-head"><h3 id="td-board-h">On the board</h3></div><div class="td-body"></div></section>
+            <section class="today-card td-tile td-plans" id="td-plans" hidden tabindex="0" aria-labelledby="td-plans-h"><div class="td-tile-head"><h3 id="td-plans-h">Her plans</h3></div><div class="td-body"></div></section>
             <section class="today-card td-tile" id="td-hooks" hidden tabindex="0" aria-labelledby="td-hooks-h"><div class="td-tile-head"><h3 id="td-hooks-h">From your webhooks</h3></div><div class="td-body"></div></section>
             <section class="today-card td-tile td-warm" id="td-memories" hidden tabindex="0" aria-labelledby="td-memories-h"><div class="td-tile-head"><h3 id="td-memories-h">She remembered</h3></div><div class="td-body"></div></section>
             <section class="today-card td-tile td-wide" id="td-otd" hidden tabindex="0" aria-labelledby="td-otd-title"><div class="td-tile-head"><h3 id="td-otd-title">On this day</h3></div><div class="today-otd"></div><button id="td-otd-open" type="button" class="td-link">Open our moments</button></section>
@@ -786,6 +788,7 @@
         <label>Only after you've been quiet (hours) <input id="sd-pro-gap" type="number" min="1" max="168"></label>
       </div>
       <p class="muted small">She never sends a second message while the first is unanswered. AI notices still appear on schedule.</p>
+      <p class="muted small">These limits are shared with her plans (Planner → Her plans): together they never send more than the messages a day you set here.</p>
 
       <h3>Character</h3>
       <div class="add-row">
@@ -845,6 +848,7 @@
         <button type="button" class="tab" data-tab="board">Board</button>
         <button type="button" class="tab" data-tab="reminders">Reminders</button>
         <button type="button" class="tab" data-tab="notes">Notes</button>
+        <button type="button" class="tab" data-tab="agenda">Her plans</button>
       </div>
 
       <div class="tab-panel" data-panel="tasks">
@@ -963,6 +967,64 @@
           <div class="row"><button id="note-save" type="button">Save</button><button id="note-cancel" type="button" class="ghost">Cancel</button></div>
         </div>
         <div id="note-list"></div>
+      </div>
+
+      <!-- Phase 103 (ST8, docs/AGENDA.md): her own plans (web/agenda.js). Off by default; everything she does on her own is listed here. -->
+      <div class="tab-panel ag-panel" id="ag-panel" data-panel="agenda" hidden>
+        <section class="ag-hero" aria-labelledby="ag-title">
+          <div class="ag-hero-text">
+            <h3 id="ag-title">Her own plans <button type="button" class="tip" data-tip="Follow-ups she plans on what you tell her (&quot;ask how the interview went on Friday&quot;) and goals you keep at together. Every plan shows why, with your words. Off by default; nothing outside Sara changes.">?</button></h3>
+            <p id="ag-state" class="muted small"></p>
+          </div>
+          <button id="ag-switch" type="button" class="ag-switch" role="switch" aria-checked="false" aria-labelledby="ag-switch-label"><span class="ag-track" aria-hidden="true"><span class="ag-knob"></span></span><span class="ag-switch-text"><span id="ag-switch-label">Let her keep her own plans</span> <span id="ag-switch-state" class="ag-switch-state">Switched off</span></span></button>
+        </section>
+        <div id="ag-meters" class="ag-meters" aria-live="polite"></div>
+        <p id="ag-pause" class="ag-pause small" hidden></p>
+        <div id="ag-asks" class="ag-asks" hidden></div>
+        <div class="ag-section-head"><h3>What she's planning <button type="button" class="tip" data-tip="Each plan with its time and the reason she will show when she writes. Edit time, Change what or Cancel it; a plan you edit is yours. A plan that can't go in its window moves once, then is skipped.">?</button></h3><button id="ag-run" type="button" class="ghost small">Check now</button></div>
+        <div id="ag-items" class="ag-list"></div>
+        <details class="ag-add" data-noauto>
+          <summary>Add a plan</summary>
+          <div class="add-row">
+            <input id="ag-new-what" maxlength="200" placeholder="e.g. Ask how the dentist went" aria-label="What she will do">
+            <input id="ag-new-when" type="datetime-local" aria-label="When">
+            <button id="ag-add" type="button">Add</button>
+            <button type="button" class="tip" data-tip="Your own plan for her: what she does and when. Yours are kept as you set them and still follow the messages a day and quiet hours.">?</button>
+          </div>
+        </details>
+        <h3>Goals <button type="button" class="tip" data-tip="Things you keep at together. She suggests one only when you say it twice in two weeks or ask her to help; nothing starts until you say Use it. She checks in as often as you pick.">?</button></h3>
+        <div id="ag-goal-list" class="ag-goals"></div>
+        <details class="ag-add" data-noauto>
+          <summary>Add a goal</summary>
+          <div class="add-row">
+            <input id="ag-goal-title" maxlength="160" placeholder="e.g. Run a 10k in April" aria-label="The goal">
+            <select id="ag-goal-every" aria-label="How often she checks in"><option value="1d">Every day</option><option value="3d">Every 3 days</option><option value="7d" selected>Every week</option><option value="14d">Every 2 weeks</option><option value="30d">Every month</option></select>
+            <input id="ag-goal-ends" type="date" aria-label="Until (optional)">
+            <button id="ag-goal-add" type="button">Add</button>
+            <button type="button" class="tip" data-tip="A goal of yours. She checks in on it at the pace you pick (never more than daily) and keeps your answers as progress notes. Pause or mark it Done any time.">?</button>
+          </div>
+        </details>
+        <h3>What she did on her own <button type="button" class="tip" data-tip="Every message she sent from her plans and what happened: answered, skipped (with why), cancelled, or skipped because the day was full.">?</button></h3>
+        <ol id="ag-history" class="ag-history"></ol>
+        <details id="ag-settings" class="ag-settings" data-noauto>
+          <summary><i class="ic" data-icon="sliders"></i>Her plans settings</summary>
+          <div class="ag-settings-body">
+          <label class="row"><input id="ag-goals" type="checkbox"> She may suggest goals <button type="button" class="tip" data-tip="She may suggest a goal when you say something goal-like twice in two weeks, or ask her to help you keep at it. Each one is a card you accept or not. Never about weight, eating, medication or self-harm.">?</button></label>
+          <label class="row"><input id="ag-follow" type="checkbox"> She may schedule follow-ups herself <button type="button" class="tip" data-tip="She may plan to ask how something you mentioned went, at a sensible time. At most 5 open and 2 new a day, never more than 30 days ahead, always quoting your words.">?</button></label>
+          <label class="row"><input id="ag-research" type="checkbox"> She may look things up for her plans <button type="button" class="tip" data-tip="Off by default. On: she may ask to do one web search before a follow-up; each one waits for your Allow once and counts in her budget. Not in private local mode without a local search.">?</button></label>
+          <p id="ag-research-note" class="muted small" hidden>No web search is set up (Settings → Web search), so she can't look things up.</p>
+          <label class="ag-slider"><span>Messages a day, shared with her first messages: <output id="ag-max-n" data-raw>2</output> <button type="button" class="tip" data-tip="The most messages she starts in a day, her plans and her own first messages together. Her plans never add more than this. 0 stops both.">?</button></span><input id="ag-max" type="range" min="0" max="5" step="1" value="2"></label>
+          <label class="ag-slider"><span>Only after you've been quiet, in hours: <output id="ag-gap-n" data-raw>6</output> <button type="button" class="tip" data-tip="She writes first only when you haven't written for this many hours, and not again sooner than that. Shared with her first messages.">?</button></span><input id="ag-gap" type="range" min="1" max="24" step="1" value="6"></label>
+          <div class="ag-row2">
+            <label class="ag-slider"><span>Quiet from: <output id="ag-qs-n" data-raw>22</output> <button type="button" class="tip" data-tip="No messages from her from this hour until the end hour (wraps past midnight). Shared with her first messages.">?</button></span><input id="ag-qs" type="range" min="0" max="23" step="1" value="22"></label>
+            <label class="ag-slider"><span>Quiet until: <output id="ag-qe-n" data-raw>9</output> <button type="button" class="tip" data-tip="The hour her quiet time ends. Plans due in quiet hours wait for their window, then move once to the next day.">?</button></span><input id="ag-qe" type="range" min="0" max="23" step="1" value="9"></label>
+          </div>
+          <label class="ag-slider"><span>Daily budget, tokens: <output id="ag-tokens-n" data-raw>30k</output> <button type="button" class="tip" data-tip="The most tokens her plans may use in a day for writing and looking things up. Checked before every model call: when it is used up she waits for tomorrow.">?</button></span><input id="ag-tokens" type="range" min="0" max="100000" step="5000" value="30000"></label>
+          <label class="ag-slider"><span>Daily budget, dollars: <output id="ag-usd-n" data-raw>$0.10</output> <button type="button" class="tip" data-tip="The most money her plans may spend in a day on paid models (local models cost nothing). A household member's budget also stays inside their own limits.">?</button></span><input id="ag-usd" type="range" min="0" max="0.5" step="0.01" value="0.1"></label>
+          <p class="actions-left"><button id="ag-clear" type="button" class="ghost small danger">Clear her plans</button></p>
+          </div>
+        </details>
+        <p id="ag-status" class="muted small" role="status"></p>
       </div>
 
       <p id="planner-error" class="error" role="alert"></p>

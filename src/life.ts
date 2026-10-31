@@ -48,13 +48,14 @@ const CALL_TIMEOUT_MS = 90_000;
  * model (planning, quick, writing…; each falls back to the background model), and if it fails or
  * is slow before answering, the next model in its chain takes over.
  */
-export async function complete(app: AppContext, conv: Conversation, messages: ChatMessage[], maxTokens: number, job: RoutePurpose = 'background'): Promise<string> {
+export async function complete(app: AppContext, conv: Conversation, messages: ChatMessage[], maxTokens: number, job: RoutePurpose = 'background', stop?: AbortSignal): Promise<string> {
   const chain = resolveChain(app, conv, job);
   let lastErr: unknown;
   for (const [i, { provider, model }] of chain.entries()) {
     let out = '';
     try {
-      const signal = AbortSignal.timeout(CALL_TIMEOUT_MS);
+      // Phase 103: her plans' off switch stops a call that is running (`stop`).
+      const signal = stop ? AbortSignal.any([AbortSignal.timeout(CALL_TIMEOUT_MS), stop]) : AbortSignal.timeout(CALL_TIMEOUT_MS);
       for await (const ev of streamWithin((sig) => provider.stream({ model, messages, temperature: 0.8, maxTokens, reasoning: 'none', signal: sig }), signal, fallbackAfterMs(app, { provider, promptChars: promptChars(messages) }))) {
         if (ev.type === 'text') out += ev.text;
         if (out.length > maxTokens * 8) break;
@@ -212,24 +213,35 @@ export class LifeWorker {
     if (this.#timer) clearInterval(this.#timer);
   }
 
-  tick(): Promise<{ day?: string; proactive?: string; skipped?: string }> {
+  tick(): Promise<{ day?: string; proactive?: string; skipped?: string; agenda?: import('./agenda.ts').TickResult }> {
     return usageScope.run({ purpose: 'her-life' }, () => this.#tick());
   }
 
-  async #tick(): Promise<{ day?: string; proactive?: string; skipped?: string }> {
-    if (this.#running || !innerEnabled(this.#app)) return {};
+  async #tick(): Promise<{ day?: string; proactive?: string; skipped?: string; agenda?: import('./agenda.ts').TickResult }> {
+    // Phase 103 (ST8): with her plans on, one agenda step per tick (before her spontaneous message,
+    // under the same daily cap). With them off nothing here runs and the old behaviour is unchanged.
+    const agendaOn = Boolean(this.#app.agenda?.enabled());
+    if (this.#running || (!innerEnabled(this.#app) && !agendaOn)) return {};
     this.#running = true;
     try {
+      const agenda = agendaOn
+        ? await this.#app.agenda!.tick().catch((err: Error): import('./agenda.ts').TickResult => {
+            console.warn(`life: her plans failed: ${err.message}`);
+            return { skipped: `error: ${err.message}` };
+          })
+        : undefined;
+      if (!innerEnabled(this.#app)) return { ...(agenda ? { agenda } : {}) };
       const day = await this.ensureToday().catch((err: Error) => {
         console.warn(`life: day note failed: ${err.message}`);
         return undefined;
       });
+      if (agenda?.sent) return { ...(day ? { day } : {}), agenda };
       const pro = await this.maybeProactive().catch((err: Error) => {
         console.warn(`life: proactive message failed: ${err.message}`);
         this.#holdUntil = this.#app.now().getTime() + 60 * 60_000;
         return { skipped: `error: ${err.message}` };
       });
-      return { ...(day ? { day } : {}), ...pro };
+      return { ...(day ? { day } : {}), ...pro, ...(agenda ? { agenda } : {}) };
     } finally {
       this.#running = false;
     }

@@ -106,16 +106,16 @@ version's details are in the [changelog](../CHANGELOG.md).
 | 100 | A2A: talk to other agents (and let listed agents talk to her) | 2.33 |
 | 101 | People: a card for each person in your life, used by her memory | 2.34 |
 | 102 | Webhooks: any service can start a task or tell her something | 2.35 |
+| 103 | Her own agenda (opt-in): goals and follow-ups she keeps with you | 2.36 |
 
 ## Coming next
 
-In build order; one release per phase. The computer use track is complete (2.20–2.28); the agent staples are under way (skills, learned skills, plugins, the board, A2A, people and webhooks are out).
+In build order; one release per phase. The computer use track is complete (2.20–2.28); the agent staples are complete (2.29–2.36); next is moving in from other agents.
 
 | Phase | Plan | Version |
 |---|---|---|
 | 60 | Phones: locked-screen calls on iPhone (CallKit), one-tap pairing on iPhone, the iPhone app in the App Store (when Apple approves it) | after Apple's approval |
 | 64 | Be found: app stores, NAS catalogs, Home Assistant's store and directories | ongoing |
-| 103 | Her own agenda (opt-in): goals and follow-ups she keeps with you | 2.36 |
 | 104 | Move in from another agent 1: Hermes Agent and OpenClaw (personality, memories, profile, history, skills, schedules), preview and Undo | 2.37 |
 | 105 | Move in 2: custom memory stores (SQLite, Postgres): she proposes how tables map, you confirm | 2.38 |
 | 106 | Move in 3: settings, channels and custom hooks translated (never run), with a full report of what came over | 2.39 |

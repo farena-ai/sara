@@ -69,6 +69,7 @@ import { dayStartUtc, type PlannerStore } from './planner.ts';
 import type { EventHub } from './events.ts';
 import { describeInner, type InnerStore } from './inner.ts';
 import { complete, threadsNote, type LifeStore } from './life.ts';
+import { AGENDA_TOOLS } from './agenda.ts';
 import type { LocalVoiceEngine } from './voice.ts';
 import type { TelegramBridge } from './bridges/telegram.ts';
 import type { PushService } from './push.ts';
@@ -178,6 +179,8 @@ export interface AppContext {
   a2aClient?: import('./a2a-client.ts').A2AClient;
   /** Phase 102 (ST7): webhooks and event triggers (the owner's; src/webhooks.ts). None on the demo or in a member's space. */
   hooks?: import('./webhooks.ts').HookManager;
+  /** Phase 103 (ST8): her own agenda (goals and follow-ups; off by default). None in the demo. */
+  agenda?: import('./agenda.ts').Agenda;
   /** Phase 99: shared household boards (src/shared-boards.ts) and who this space is. Never on the demo. */
   sharedBoards?: import('./shared-boards.ts').SharedBoardsAccess;
   /** Set by the server: stops the turn running in a conversation (a card's Stop). */
@@ -1250,6 +1253,15 @@ export async function* runTurn(app: AppContext, conversationId: string, userText
     // Phase 97 (ST2, STAPLES §5.4–§5.5): after the reply of one of the owner's own turns (never a
     // replay, an eval, a group round or another app's turn), the learner looks for a repeated ask,
     // a skill fix, and at most one "make this a skill?" offer card (a notice after the reply).
+    // Phase 103 (ST8, STAPLES §11.4–§11.5): with her plans on, his own message may become a plan
+    // (a future event he mentioned, a goal said twice); the chat shows "Added to her plans".
+    if (status === 'ok' && !signal.aborted && app.agenda && !opts.recorder && !opts.replay && !opts.resume && !opts.group && !opts.externalApp && !opts.outside) {
+      try {
+        app.agenda.afterTurn(conversationId);
+      } catch (err) {
+        console.warn(`her plans: ${(err as Error).message}`);
+      }
+    }
     if (status === 'ok' && !signal.aborted && app.learning && !opts.recorder && !opts.replay && !opts.resume && !opts.group && !opts.externalApp) {
       try {
         await app.learning.afterTurn({ conversationId, userText, runId: rec.on ? rec.id : null, replyId, sawApproval, budgetStop: rec.outcome === 'budget', tools: toolNames });
@@ -1453,6 +1465,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   if (opts.externalApp || external || opts.group) tools = tools.filter((t) => !t.spec.name.startsWith('skill_') && t.spec.name !== 'recipe_save');
   // Phase 101 (ST6): her people tools are the owner's own turns' only (never other apps, agents or groups).
   if (opts.externalApp || external || opts.group || opts.outside) tools = tools.filter((t) => !PEOPLE_TOOLS.has(t.spec.name));
+  // Phase 103 (ST8): her plans are made in the owner's own chats only: never other apps, agents,
+  // webhooks, plugins' turns, groups, partner or private chats (nothing outside can add a plan).
+  if (opts.externalApp || external || opts.group || opts.outside || opts.replay || conv.partner || conv.private) tools = tools.filter((t) => !AGENDA_TOOLS.has(t.spec.name));
   // Phase 98 (ST3, STAPLES §6.4): plugins see only the owner's own turns (never private, partner,
   // group, imported, adult-channel, other apps', replayed or eval turns), and their tools are only
   // offered there.
