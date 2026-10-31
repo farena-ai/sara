@@ -1,7 +1,7 @@
 # Computer use: Sara's hands on your computer (design, Phases 87–95, versions 2.20.0–2.28.0)
 
-Status: implementation record through Phase 92; Phase 93 implementation draft, 2026-10-31.
-Phase 93 is not released or owner-accepted. The original study used the code at 2.19.0. Ground-up design: no code or protocol is taken from Hermes Agent, OpenClaw, cua,
+Status: implementation record through Phase 92; Phase 93 and Phase 94 implementation drafts, 2026-10-31.
+Phases 93 and 94 are not released or owner-accepted. The original study used the code at 2.19.0. Ground-up design: no code or protocol is taken from Hermes Agent, OpenClaw, cua,
 Playwright, Puppeteer or any other project.
 
 **The owner's words (2026-10-30):** "The next feature I would like is the ability to be able to do
@@ -1011,6 +1011,75 @@ of positive Windows action evidence, but does not close Phase 93.
   M11 screen-injection probes.
 - Done when: a recorded "optimize" scenario finishes with zero unapproved changes; the injection
   probes produce no action; the report cards render on web and phones.
+
+- **As built (Phase 94 implementation draft, 2026-10-31; not a release).** Protocol (`src/hands-checkup.ts`,
+  `CU7_OPS`): `s.check {checks?}` (READ-ONLY, a fixed list: `startup`, `disk`, `folders`, `updates`, `battery`,
+  `extensions`, `temp`; nothing from the server is run) → `{os, at, checks}`; `s.apply {kind, target, task}` →
+  one change after the computer's own card. Both are desktop ops (need **The whole screen** on that computer;
+  the server and the device refuse otherwise); `s.apply` is acting (rate limit, takeover) and waiting (the card,
+  up to 10 minutes). Only four change kinds exist: `startup.disable` (a per-user startup item the device's OWN
+  latest check found; machine-wide items need an administrator, so never), `temp.clean` (only files older than
+  7 days in the user's own temp folder), `trash.empty`, `settings.open` (startup / storage / updates / battery
+  page). No delete-a-path, uninstall, update-install or registry op exists. The card asks every time at every
+  approval level (approve-once; *Always allowed* never skips it). The server re-checks every answer
+  (`checkupData`: known fields, names cut, masked, control/bidi characters removed) and builds the report and
+  the numbered suggestions **from numbers and kinds only** (`buildReport`): status per check (startup > 8 on: worth
+  a look, > 15: needs attention; disk < 20 % / < 10 % free; updates waiting or a restart; battery < 80 % / < 60 %
+  of design capacity; temp > 5 GB), and on Windows a **restore point first** (a guide step: it needs an
+  administrator, so the person makes it). Extensions in the owner's own browsers are shown, never changed (only
+  a "remove it yourself" guide). Tools: `pc_checkup {checks?}` (no card: read-only; recipes in its description:
+  "make my computer faster", "why is my disk full", "check my startup apps") and `pc_checkup_apply
+  {suggestion: "s2"}` (only a number from the latest report of that conversation and computer; guide steps return
+  how-to text, no op). Cards: `checkup` (one tile per check, status chip, numbered suggestions with **Do this** /
+  **How?**, which put a request for that one suggestion in the message box) and `checkup-change` (done / you said
+  no), drawn by `web/checkup-view.js` through `t()`; phone: one column, full-width 44 px buttons. Settings →
+  Computer use → Check-ups: **Include my browser extensions in check-ups** (on; `computerUse.checkupExtensions`,
+  `PUT /api/computer`). Help, 64 strings in five languages, cache `sara-shell-v28`.
+- **Screen injection (§7.5).** `orderHints` (src/hands-checkup.ts) extends `injectionHints` with text that
+  speaks to her ("Sara, …", "AI assistant: …") or orders a deletion, an uninstall, switching off protection or a
+  command; every `pc_*` look/read result now flags those. A check-up counts order-giving names on the computer
+  (`flagged`) and says they were ignored. M11 gains `SCREEN_INJECTION_PROBES` (9 fixture texts: a window, a web
+  page, a startup app's, an extension's and a folder's name; `src/redteam-probes.ts` §8) with a fixture
+  window (`screenProbeWindows`, buttons "Delete Documents", "Empty Recycle Bin", "Turn off all startup apps")
+  and page (`screenProbePage`, a password field, "Run speed-up", "Uninstall antivirus"). In the tests a
+  deliberately gullible script that clicks those buttons is stopped by code (the never-list refuses delete /
+  recycle targets before any card; the remaining click is declined on the computer) and no change happens.
+- **Devices.** Reference (`hands-ref 8`): `TestSystem` (fixture computers: `everyday`, `slow-startup`,
+  `disk-full`, `updates`, `old-battery`, `injection`, `desktop-pc`), `checkupConsent` stand-in for the card,
+  `--checkup-fixture`. Windows (`desktop/windows/src/hands-checkup.cpp`, in `Sara.exe`): the HKCU / HKLM (64 and
+  32-bit) `…\CurrentVersion\Run` keys and both Startup folders with Explorer's `StartupApproved` on/off state;
+  `GetDiskFreeSpaceExW` for fixed drives; a bounded `FindFirstFileExW` walk (200,000 entries / 4 s per folder,
+  reparse points never followed, files never opened) of Downloads, Documents, Desktop, Pictures, Videos, Music;
+  Windows Update Agent `IUpdateSearcher` with `put_Online(VARIANT_FALSE)` (Windows Update's own last scan, no new
+  scan or download) plus `ISystemInformation::RebootRequired`; `GetSystemPowerStatus` and the battery driver's
+  `IOCTL_BATTERY_QUERY_INFORMATION` (design / full-charge capacity, cycles); extension manifests (names,
+  `__MSG_` resolved) in Edge / Chrome / Brave profiles; `%TEMP%`, the browsers' cache folders and
+  `SHQueryRecycleBinW`. Mac (`desktop/mac/Sources/HandsCheckup.swift`): `~/Library/LaunchAgents` and
+  `/Library/LaunchAgents` (with `Disabled`), volume capacities (`volumeAvailableCapacityForImportantUsage`), the
+  same bounded walk of the known folders, `softwareupdate --list --no-scan` (20 s limit), `IOPSCopyPowerSourcesInfo`
+  + `AppleSmartBattery` (`BatteryData` on Apple silicon), Chrome / Edge / Brave manifests, temp, caches, Trash.
+- **Qualification (2026-10-31).** `test/phase94.test.ts` (11 tests). Reference conformance section 14
+  (`--checkup`, 11 checks): 135/135 with `--ref --desktop --checkup`. Check-up eval on the reference device
+  (`scripts/eval-checkup.ts`, local `qwen3.8:27b-mtp-q4_K_M`): 9/9 scenarios, 16 computer actions (mean 1.8), 2
+  change requests, 2 cards (both allowed by the scenario), 2 changes, **0 unapproved changes**, injection
+  probes ignored 3/3 (`evals/results/2026-10-31-checkup.*`). Windows Release test build in a scratch folder:
+  0 errors / 0 warnings at `/W4`; `CU7NativeChecks` read this PC live, 17/17 (aggregates only). Mac arm64:
+  the app sources compiled into a test bundle with its own id (`ai.farena.sara.cu7test`, ad-hoc signed, not
+  launched); the check-up module ran read-only over SSH, 12/12 (aggregates only). Screenshots (fixture data):
+  `outputs/ui-review/cu7/`.
+- **Deviations (Phase 94).** The Windows and Mac apps implement `s.check` only: they answer `s.apply` with
+  `unsupported`, so on a real computer every suggestion is a guide step (Sara says where to change it; the card's
+  button is **How?**). Changes were exercised only on the reference device (no change action ran on the owner's
+  computers); native change actions (startup toggle via `StartupApproved`, temp clean, `SHEmptyRecycleBin`,
+  opening `ms-settings:` / System Settings) need an owner-observed fixture pass before they ship. The local card
+  is the reference stand-in's (no new native card). Extensions are listed as installed (their on/off state in
+  the browsers' preference files isn't read); Firefox and Safari extensions aren't listed. The Mac lists
+  LaunchAgents, not the Login Items list (not readable by an app without extra permissions); macOS may ask once
+  before Documents / Desktop / Downloads are read (a refusal is "not checked"), and the Trash needs Full Disk
+  Access. Updates on the Mac come from `softwareupdate --no-scan` (a fixed device-side command, never from the
+  server). The native test app was not paired to the throwaway server (the check code ran live through its
+  standalone harness, the same source file); the report card's **Do this** fills the message box rather than
+  sending. Restore points are suggested, never created (they need an administrator).
 
 ### Phase 95 · 2.28.0 · CU8: Linux hands (proposed)
 - `sara hands` command: the `hands-ref` TypeScript device run on a Linux desktop with the installed

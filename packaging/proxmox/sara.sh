@@ -27,7 +27,7 @@ set -Eeuo pipefail
 
 # Filled in at release by scripts/update-packaging.ts (the release's version and the SHA256 of its
 # get-sara.sh from SHA256SUMS).
-SARA_VERSION="2.25.0"
+SARA_VERSION="2.26.0"
 GET_SARA_SHA256="45a0bcbed192b805e820222077e56585a250fc554df030300313dc9f5a18262f"
 
 APP="Sara"

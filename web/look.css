@@ -703,3 +703,35 @@ dialog.branch-sheet { width: min(1040px, 96vw); }
   .steps-sum .budget-meter .budget-words { display: none; }
   .budget-card { padding: 10px 12px; }
 }
+
+/* ---------- Phase 94: the computer check-up report card (checkup-view.js) ---------- */
+.rcard-checkup { width: min(720px, calc(100% - 60px)); }
+.ck-sub { margin: 0; font-size: var(--fs-meta); color: var(--text-3); }
+.ck-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.ck-tile { display: grid; align-content: start; gap: 2px; padding: 10px 12px; border: 1px solid var(--hairline); border-radius: var(--r-control); background: color-mix(in srgb, var(--surface-3) 45%, transparent); }
+.ck-tile.ck-warn { border-color: color-mix(in srgb, var(--warn) 45%, var(--hairline)); }
+.ck-tile.ck-bad { border-color: color-mix(in srgb, var(--danger) 55%, var(--hairline)); }
+.ck-tile-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ck-name { font-size: var(--fs-meta); font-weight: 600; color: var(--text-2); }
+.ck-status { padding: 1px 8px; border-radius: var(--r-pill); font-size: 11.5px; white-space: nowrap; color: var(--text-2); background: color-mix(in srgb, var(--surface-3) 80%, transparent); }
+.ck-status-good { color: var(--success); background: var(--success-soft); }
+.ck-status-warn { color: var(--warn); background: var(--warn-soft); }
+.ck-status-bad { color: var(--danger); background: var(--danger-soft); }
+.ck-main { margin: 0; font-size: 15px; font-weight: 550; color: var(--text-1); overflow-wrap: anywhere; }
+.ck-detail, .ck-note { margin: 0; font-size: 12.5px; color: var(--text-2); overflow-wrap: anywhere; }
+.ck-note { color: var(--text-3); }
+.ck-flag { margin: 0; padding: 8px 10px; border-radius: var(--r-control); font-size: var(--fs-meta); color: var(--warn); background: var(--warn-soft); }
+.ck-h { margin: 6px 0 0; font-size: var(--fs-meta); color: var(--text-2); }
+.ck-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.ck-sugg { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 6px 6px 10px; border-radius: var(--r-control); background: color-mix(in srgb, var(--surface-3) 40%, transparent); }
+.ck-sugg.ck-first { background: var(--accent-soft); }
+.ck-id { min-width: 28px; font-size: 12px; font-weight: 600; color: var(--accent-text); font-variant-numeric: tabular-nums; }
+.ck-text { font-size: 14px; color: var(--text-1); overflow-wrap: anywhere; }
+.ck-do, .ck-how { min-height: 44px; min-width: 44px; padding: 0 14px; border-radius: var(--r-control); white-space: nowrap; }
+.ck-foot { margin: 0; font-size: 12.5px; color: var(--text-3); }
+@media (max-width: 720px) {
+  .rcard-checkup { width: calc(100% - 48px); }
+  .ck-grid { grid-template-columns: minmax(0, 1fr); }
+  .ck-sugg { grid-template-columns: auto minmax(0, 1fr); }
+  .ck-sugg .ck-do, .ck-sugg .ck-how { grid-column: 1 / -1; width: 100%; }
+}

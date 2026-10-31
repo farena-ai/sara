@@ -29,6 +29,10 @@
 //   stand-in in tests), used only for the page's exact origin after this computer's saved logins, and
 //   locked again on b.relock (after the task), after the idle minutes, on Stop, on disconnect and when turned off.
 //
+// - Phase 94 (CU7): check-ups on a fixture computer (src/hands-checkup.ts TestSystem): s.check reads only;
+//   s.apply makes one change of the fixed kinds, for a target its own latest check found, after the
+//   `checkupConsent` stand-in for the computer's card says yes (every time, at every level).
+//
 // Run by hand: node src/hands-ref.ts --server http://127.0.0.1:7881 --token-file <file> [--name X] [--visible] [--local-only]
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -42,15 +46,16 @@ import { CdpClient, type CdpEvent } from './cdp.ts';
 import { HANDS_OPS, HANDS_PROTOCOL, packBinary, parseBinary } from './hands.ts';
 import { DesktopConsent, type DesktopPrompt } from './hands-desktop-consent.ts';
 import { CU5_OPS, CU6_OPS, DESKTOP_INPUT_OPS, TestDesktop } from './hands-desktop.ts';
+import { applyAllowed, applyCardText, CheckupError, CU7_OPS, TestSystem } from './hands-checkup.ts';
 import { CAUGHT_KEEP_MS, cleanLoginName, defaultLoginName, LoginError, loginOrigin, SAVE_LOGIN_WARNING, siteMatches, TestVault, type ConsentAnswer, type ConsentRequest } from './hands-logins.ts';
 import { managerName, ManagerError, MANAGER_IDS, type ManagerId, type ManagerSessions } from './hands-managers.ts';
 import { connectWebSocket, type WsConnection } from './ws.ts';
 
-export const REF_VERSION = 'hands-ref 7';
+export const REF_VERSION = 'hands-ref 8';
 /** Phase 89 (CU3): the device's own dev-tunnel limits (loopback only, whatever the server says). */
 export const TUNNEL_DEVICE_LIMITS = { tunnels: 4, streams: 64, chunk: 64 * 1024, highWater: 4 * 1024 * 1024 };
 /** Phase 92: the desktop ops are in the command set only with a (fixture) desktop to look at. */
-const OPS = new Set<string>(HANDS_OPS.filter((o) => !(CU5_OPS as readonly string[]).includes(o) && !(CU6_OPS as readonly string[]).includes(o)));
+const OPS = new Set<string>(HANDS_OPS.filter((o) => !(CU5_OPS as readonly string[]).includes(o) && !(CU6_OPS as readonly string[]).includes(o) && !(CU7_OPS as readonly string[]).includes(o)));
 const DESKTOP_OP = new Set<string>([...CU5_OPS, ...CU6_OPS]);
 const DESKTOP_INPUT = new Set<string>(DESKTOP_INPUT_OPS);
 /** §7.7: the device's own input limits. */
@@ -488,6 +493,10 @@ export interface HandsRefOptions {
   desktopConsent?: (p: DesktopPrompt) => Promise<'once' | 'task' | 'deny'>;
   /** Phase 93: keep the computer awake while a task is active. */
   walkAway?: boolean;
+  /** Phase 94: a fixture computer for check-ups (s.check / s.apply; needs the desktop switch too). */
+  system?: TestSystem;
+  /** Phase 94: the computer's card for one check-up change (true = Allow once). Without it nothing changes. */
+  checkupConsent?: (p: { kind: string; target: string; what: string; text: string }) => Promise<boolean>;
   /** Tests: keep every frame of the hands channel in `wire`. */
   recordWire?: boolean;
   log?: (line: string) => void;
@@ -643,7 +652,7 @@ export class HandsRef {
       vault: { kind: 'test', verify: this.opts.verify?.on === true },
       busy: false,
       localOnly: this.opts.localOnly === true,
-      ops: [...OPS, ...(this.opts.desktop ? [...CU5_OPS, ...CU6_OPS] : [])],
+      ops: [...OPS, ...(this.opts.desktop ? [...CU5_OPS, ...CU6_OPS] : []), ...(this.opts.system ? CU7_OPS : [])],
       takeover: this.opts.takeover ?? 'pause',
       hotkey: '',
       paused: this.paused,
@@ -653,9 +662,9 @@ export class HandsRef {
     };
   }
 
-  /** Phase 92: "The whole screen" (a second switch, off unless given). */
+  /** Phase 92: "The whole screen" (a second switch, off unless given). Phase 94: a check-up computer counts too. */
   get #desktopOn(): boolean {
-    return Boolean(this.opts.desktop) && this.opts.optIn?.desktop === true;
+    return Boolean(this.opts.desktop || this.opts.system) && this.opts.optIn?.desktop === true;
   }
 
   get serverOrigin(): string {
@@ -800,11 +809,11 @@ export class HandsRef {
     const timer = setTimeout(() => ac.abort(new OpError('timeout', `Took longer than ${Math.round(deadline / 1000)} s.`)), deadline);
     let reply: Record<string, unknown>;
     try {
-      if (!OPS.has(op) && !(DESKTOP_OP.has(op) && this.opts.desktop)) throw new OpError('unsupported', `This computer doesn't do "${op.slice(0, 40)}" (not in its command set).`);
+      if (!OPS.has(op) && !(DESKTOP_OP.has(op) && this.opts.desktop) && !((CU7_OPS as readonly string[]).includes(op) && this.opts.system)) throw new OpError('unsupported', `This computer doesn't do "${op.slice(0, 40)}" (not in its command set).`);
       if ((op.startsWith('b.') || op === 'c.tunnel') && this.opts.optIn?.browser === false) throw new OpError('denied_local', '"Let Sara use this computer" is off here.');
       // Phase 92: the whole screen only with its own switch on here.
-      if (op.startsWith('d.') && !this.#desktopOn) throw new OpError('denied_local', '"The whole screen" is off on this computer.');
-      if (INPUT_OPS.has(op) || DESKTOP_INPUT.has(op)) {
+      if ((op.startsWith('d.') || op.startsWith('s.')) && !this.#desktopOn) throw new OpError('denied_local', '"The whole screen" is off on this computer.');
+      if (INPUT_OPS.has(op) || DESKTOP_INPUT.has(op) || op === 's.apply') {
         if (this.paused) throw new OpError('takeover', 'Paused: the owner took over the Sara browser. Nothing acts until they press Resume.');
         this.#countInput();
       }
@@ -1235,6 +1244,31 @@ export class HandsRef {
     }
   }
 
+  /** Phase 94: one check-up change: the device's own rule, then its own card (every time), then the change. */
+  async #apply(id: string, a: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const sys = this.opts.system!;
+    let ok: { kind: Parameters<TestSystem['apply']>[0]; target: string; what: string };
+    try {
+      ok = applyAllowed(a.kind, a.target, sys.last) as typeof ok;
+    } catch (err) {
+      sys.refused.push({ kind: String(a.kind ?? ''), target: String(a.target ?? ''), why: (err as Error).message });
+      if (err instanceof CheckupError) throw new OpError(err.code, err.message);
+      throw err;
+    }
+    const signal = this.#running.get(id)?.signal;
+    const windows = /win/i.test(sys.data.os);
+    const yes = this.opts.checkupConsent ? await this.opts.checkupConsent({ kind: ok.kind, target: ok.target, what: ok.what, text: applyCardText(ok.what, windows) }) : false;
+    this.ws?.send(JSON.stringify({ t: 'ev', kind: 'local_approval', op: 's.apply', allowed: yes }));
+    if (signal?.aborted) throw new OpError('stopped', 'Stopped.');
+    if (!yes) {
+      sys.refused.push({ kind: ok.kind, target: ok.target, why: 'declined on the computer' });
+      return { done: false, declined: true, kind: ok.kind, target: ok.target };
+    }
+    const r = sys.apply(ok.kind, ok.target);
+    this.#localLog('s.apply', ok.what, ok.target);
+    return { ...r, what: ok.what };
+  }
+
   /** Binary from the server: bytes for one stream (header {s: sid}). Anything else is ignored. */
   #streamData(ws: WsConnection, buf: Buffer): void {
     const b = parseBinary(buf);
@@ -1262,6 +1296,13 @@ export class HandsRef {
     if (op === 'b.unlock') return this.#unlock(id, args);
     // Phase 92 (CU5): desktop look on the fixture desktop, with the apps' rules (src/hands-desktop.ts).
     if (op.startsWith('d.')) return this.#desktop(ws, id, op, args);
+    // Phase 94 (CU7): check-ups on the fixture computer.
+    if (op === 's.check') {
+      const r = this.opts.system!.check(args);
+      this.#localLog(op, 'checked the computer (read only)', Object.keys(r.checks).join(', '));
+      return r as unknown as Record<string, unknown>;
+    }
+    if (op === 's.apply') return this.#apply(id, args);
     if (op === 'b.logins') return { logins: this.vault.list(server), verify: this.opts.verify?.on === true };
     if (op === 'b.forgetLogin') {
       const all = args.all === true;
@@ -1439,7 +1480,7 @@ if (process.argv[1] && /hands-ref\.ts$/.test(process.argv[1])) {
     console.error('Usage: node src/hands-ref.ts --server http://127.0.0.1:7881 --token-file <file with the hands token> [--name NAME] [--visible] [--local-only]');
     process.exit(2);
   }
-  const ref = new HandsRef({ server, token: readFileSync(tokenFile, 'utf8').trim(), ...(arg('--name') ? { name: arg('--name')! } : {}), headless: !process.argv.includes('--visible'), localOnly: process.argv.includes('--local-only'), ...(process.argv.includes('--desktop-fixture') ? { desktop: new TestDesktop(), optIn: { browser: true, desktop: true } } : {}), log: (l) => console.log(`[hands-ref] ${l}`) });
+  const ref = new HandsRef({ server, token: readFileSync(tokenFile, 'utf8').trim(), ...(arg('--name') ? { name: arg('--name')! } : {}), headless: !process.argv.includes('--visible'), localOnly: process.argv.includes('--local-only'), ...(process.argv.includes('--desktop-fixture') ? { desktop: new TestDesktop(), optIn: { browser: true, desktop: true } } : {}), ...(process.argv.includes('--checkup-fixture') ? { system: new TestSystem(), optIn: { browser: true, desktop: true } } : {}), log: (l) => console.log(`[hands-ref] ${l}`) });
   void ref.start().catch((err: Error) => console.error(`[hands-ref] ${err.message}`));
   const bye = () => void ref.stop().then(() => process.exit(0));
   process.on('SIGINT', bye);

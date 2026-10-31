@@ -788,7 +788,7 @@ export const DESCRIBE_TOOLS = [
 const DESCRIBE_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'];
 
 /** Sara's version, for --describe when no package.json is next to this file. Kept equal to package.json by a test. */
-export const SARA_VERSION = '2.26.0';
+export const SARA_VERSION = '2.27.0';
 
 /** Sara's real version: package.json next to the repo when this runs from a checkout, else SARA_VERSION. */
 export function describeVersion(): string {

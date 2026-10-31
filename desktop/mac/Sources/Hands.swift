@@ -1178,7 +1178,10 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
                                   // Phase 92 (CU5): desktop look (HandsScreen.swift); only with "The whole screen" on.
                                    "d.screens", "d.windows", "d.shot", "d.elements",
                                    // Phase 93 (CU6): supervised desktop input.
-                                   "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch", "c.endTask"]
+                                   "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch", "c.endTask",
+                                   // Phase 94 (CU7): the read-only check-up (HandsCheckup.swift). No s.apply in this build:
+                                   // check-up changes are made by the person (Sara says where).
+                                   "s.check"]
   /// Ops that act: they count against the input rate limit and stop when the person takes over.
   static let inputOps: Set<String> = ["b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch"]
   /// Phase 90: ops that wait for the person (the consent panel, "Your turn"): up to 10 minutes.
@@ -1747,6 +1750,16 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     if op == "b.unlock" { return try unlockOp(a, cancel) }
     // Phase 92 (CU5): desktop look, never the Sara browser.
     if op.hasPrefix("d.") { return try desktopOp(id: id, op: op, a, cancel: cancel) }
+    // Phase 94 (CU7): the read-only check-up, only with "The whole screen" on here.
+    if op == "s.check" {
+      lock.lock(); let on = desktop; lock.unlock()
+      guard on else { throw HandsOpError(code: "denied_local", message: "\"The whole screen\" is off on this computer: a check-up reads more than her browser, so only the person here can switch it on, in the Sara app.") }
+      let asked = (a["checks"] as? [Any] ?? []).compactMap { $0 as? String }.prefix(16)
+      let r = HandsCheckup.check(Array(asked), cancelled: { cancel.isSet })
+      if cancel.isSet { throw HandsOpError(code: "stopped", message: "Stopped.") }
+      localLog("s.check", "checked the computer (read only)", "")
+      return r
+    }
     if op != "b.tabs" || browser.running { try browser.start() }
     switch op {
     case "b.start": return ["browser": ["kind": browser.found?.kind ?? "", "name": browser.found?.name ?? ""], "tabs": tabsList()]

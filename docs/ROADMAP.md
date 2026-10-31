@@ -97,16 +97,16 @@ version's details are in the [changelog](../CHANGELOG.md).
 | 91 | Computer use 5: use your password manager (Bitwarden, 1Password, KeePassXC…) to fill logins | 2.24 |
 | 92 | Computer use 6: she sees your desktop (screenshots and the accessibility tree) | 2.25 |
 | 93 | Computer use 7: she uses your mouse and keyboard | 2.26 |
+| 94 | Computer use 8: guided "tune up my computer" tasks | 2.27 |
 
 ## Coming next
 
-In build order; one release per phase. The computer use track is under way (steps 1–7 are out).
+In build order; one release per phase. The computer use track is under way (steps 1–8 are out).
 
 | Phase | Plan | Version |
 |---|---|---|
 | 60 | Phones: locked-screen calls on iPhone (CallKit), one-tap pairing on iPhone, the iPhone app in the App Store (when Apple approves it) | after Apple's approval |
 | 64 | Be found: app stores, NAS catalogs, Home Assistant's store and directories | ongoing |
-| 94 | Computer use 8: guided "tune up my computer" tasks | 2.27 |
 | 95 | Computer use 9: the same on Linux desktops | 2.28 |
 | 96 | Skills in the open Agent Skills format (recipes become skills; import and export) | 2.29 |
 | 97 | Skills she learns: notices what you ask again and again and offers to make it a skill | 2.30 |

@@ -32,6 +32,11 @@
 // for an app give --desktop-window "<fixture title>" --desktop-text "<text in it>" --desktop-blocked-area
 // x,y,w,h (the fixture KeePass window, screen pixels) and SARA_CU5_SECRET = the fixture password field's value.
 // Only fixture windows and that area are pictured: never anyone's whole screen.
+// Phase 94 (CU7) adds check-ups (section 14, with --checkup): s.check answers the seven read-only checks (the
+// output shows counts only, never a name from the computer), only the asked ones, the report builds; s.apply never
+// deletes other files; on the reference: the check changes nothing, temp.clean only for the temp folder, no
+// machine-wide item, a declined card changes nothing, an allowed one exactly that, the desktop switch off refuses;
+// on an app: s.apply is unsupported (the person makes check-up changes).
 // CU6: native no-input policy/precondition checks:
 // --native-desktop-permissions <test-executable> (Windows CU6NativeChecks; Mac DEBUG test bundle).
 // --desktop-permissions-only checks a connected permission-less test copy without opening a browser.
@@ -57,6 +62,7 @@ import { CU1_OPS, CU3_OPS, CU4_OPS, CU4B_OPS, CU5_OPS, HANDS_OPS } from '../src/
 import { readPng, TestDesktop } from '../src/hands-desktop.ts';
 import { decodeJpeg } from '../src/jpeg.ts';
 import { HandsRef } from '../src/hands-ref.ts';
+import { buildReport, checkupData, TestSystem } from '../src/hands-checkup.ts';
 import type { ConsentAnswer } from '../src/hands-logins.ts';
 import { commandLine, ManagerSessions, type ManagerId, type PromptRequest } from '../src/hands-managers.ts';
 import { writeFakeManagers, type FakeFixture } from '../test/fixtures/fake-pm/make.ts';
@@ -271,7 +277,7 @@ async function main(): Promise<number> {
       refPmDir = mkdtempSync(join(tmpdir(), 'sara-conf-pm-'));
       const made = makePm(refPmDir, port1, port3);
       const managers = new ManagerSessions({ search: made.search as string[], env: made.env as Record<string, string>, keepassDb: String(made.keepassDb), prompt: refPrompt, relockMs: Number(arg('--idle-seconds') ?? 20) * 1000 });
-      ref = new HandsRef({ server, token: String(pair.json.token), name: 'Conformance (hands-ref)', consent: refConsent, managers, desktopConsent: async () => 'once', ...(process.argv.includes('--desktop') ? { desktop: new TestDesktop(), optIn: { browser: true, desktop: true } } : {}) });
+      ref = new HandsRef({ server, token: String(pair.json.token), name: 'Conformance (hands-ref)', consent: refConsent, managers, desktopConsent: async () => 'once', ...(process.argv.includes('--desktop') ? { desktop: new TestDesktop(), optIn: { browser: true, desktop: true } } : {}), ...(process.argv.includes('--checkup') ? { system: new TestSystem('disk-full'), checkupConsent: async (p: { target: string }) => p.target === 'run:FixtureChat', optIn: { browser: true, desktop: true } } : {}) });
       await ref.start();
       for (const m of ['bitwarden', '1password', 'keepassxc'] as ManagerId[]) await ref.setManager(m, true);
       deviceId = String(pair.json.id);
@@ -697,6 +703,46 @@ async function main(): Promise<number> {
       }
     }
     // 12. Phase 92 (CU5): desktop look (fixture windows and one fixture area only).
+    // ---- Phase 94 (CU7): check-ups (section 14, with --checkup). Read-only s.check; s.apply only on the reference. ----
+    if (process.argv.includes('--checkup')) {
+      console.log('\n14. Check-ups (CU7)');
+      const dev7 = ((await api('GET', '/api/hands')).json.devices as Record<string, any>[]).find((d) => d.id === deviceId) ?? {};
+      check('CU7: s.check is in the command set', (dev7.ops ?? []).includes('s.check'));
+      const t0 = Date.now();
+      const all7 = await op('s.check', {}, { deadlineMs: 90_000 });
+      const data7 = all7.ok ? checkupData(all7.result) : undefined;
+      const got7 = data7 ? Object.keys(data7.checks) : [];
+      // Counts only in the output (never a name from the computer).
+      check('CU7: s.check answers the seven checks, re-checked by the server', all7.ok === true && got7.length === 7, all7.ok ? `${got7.length} checks, ${Object.values(data7!.checks).filter((c) => c?.ok).length} read, ${Math.round((Date.now() - t0) / 100) / 10} s` : JSON.stringify(all7.error));
+      const one7 = await op('s.check', { checks: ['disk'] });
+      check('CU7: only the asked checks run', one7.ok === true && Object.keys(one7.result?.checks ?? {}).join() === 'disk');
+      const report7 = data7 ? buildReport(data7, 'conformance', { canApply: (dev7.ops ?? []).includes('s.apply') }) : undefined;
+      check('CU7: the report builds from the answer (plain findings, numbered suggestions)', Boolean(report7 && report7.items.length === 7), report7 ? `${report7.items.length} findings, ${report7.suggestions.length} suggestions` : '');
+      const bad7 = await op('s.apply', { kind: 'file.delete', target: 'Documents' });
+      check('CU7: s.apply never deletes other files (unknown kinds refused)', bad7.ok === false && ['unsupported', 'denied_local'].includes(String(bad7.error?.code)), JSON.stringify(bad7.error ?? bad7.result));
+      if (ref) {
+        const before7 = JSON.stringify(ref.opts.system!.data);
+        await op('s.check', {});
+        check('CU7: s.check changes nothing on the computer', JSON.stringify(ref.opts.system!.data) === before7);
+        const path7 = await op('s.apply', { kind: 'temp.clean', target: 'C:\\Users\\someone\\Documents' });
+        check('CU7: temp.clean only for the temporary files folder', path7.ok === false && path7.error?.code === 'denied_local');
+        const mach7 = await op('s.apply', { kind: 'startup.disable', target: 'hklm:FixtureAudio' });
+        check('CU7: machine-wide startup apps are refused (no administrator prompt)', mach7.ok === false && /administrator/.test(String(mach7.error?.message)));
+        await new Promise((r) => setTimeout(r, 1100));
+        const no7 = await op('s.apply', { kind: 'startup.disable', target: 'run:FixtureUpdater' });
+        check('CU7: a change the computer\u2019s card declines changes nothing', no7.ok === true && no7.result?.done === false && ref.opts.system!.changes.length === 0, JSON.stringify(no7.result ?? no7.error));
+        const yes7 = await op('s.apply', { kind: 'startup.disable', target: 'run:FixtureChat' });
+        check('CU7: a change the card allows changes exactly that one', yes7.ok === true && yes7.result?.done === true && ref.opts.system!.changes.map((c) => c.target).join() === 'run:FixtureChat');
+        ref.opts.optIn = { browser: true, desktop: false };
+        const off7 = await op('s.check', {});
+        check('CU7: with "The whole screen" off, the computer refuses s.check', off7.ok === false && off7.error?.code === 'denied_local');
+        ref.opts.optIn = { browser: true, desktop: true };
+      } else {
+        const app7 = await op('s.apply', { kind: 'startup.disable', target: 'x' });
+        check('CU7: this app makes no check-up change itself (s.apply unsupported)', app7.ok === false && app7.error?.code === 'unsupported');
+      }
+    }
+
     if (process.argv.includes('--desktop')) {
       console.log('\n12. desktop look');
       const winTitle = ref ? 'Sara fixture: Notes' : (arg('--desktop-window') ?? '');

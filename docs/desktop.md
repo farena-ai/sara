@@ -369,6 +369,30 @@ variant for a connected test copy without Accessibility. Do not count either as 
 input, card interaction or a full-screen Stop test. `--ref --desktop` runs the complete reference
 suite. The test-only `CU6Fixture` target is a small native form; no installed app/data is replaced.
 
+### Check-ups (Phase 94 implementation draft, computer use CU7; not released)
+
+With **The whole screen** on, the apps answer `s.check`: a READ-ONLY check-up of the computer through a
+fixed list of OS calls (nothing from the server is run, nothing is written, deleted or opened).
+
+- **Windows** (`src/hands-checkup.cpp`): startup apps from the HKCU / HKLM `…\CurrentVersion\Run` keys and
+  both Startup folders, with Explorer's `StartupApproved` on/off state; fixed drives (`GetDiskFreeSpaceExW`);
+  sizes of Downloads, Documents, Desktop, Pictures, Videos and Music (a bounded walk: 200,000 entries or 4 s per
+  folder, reparse points never followed, files never opened); updates waiting from Windows Update's own last
+  scan (Windows Update Agent, offline search) and whether a restart is pending; battery charge, health and cycles
+  (`GetSystemPowerStatus`, the battery driver's `IOCTL_BATTERY_QUERY_INFORMATION`); extension names from the
+  manifests in your own Edge / Chrome / Brave profiles; the temp folder, browser caches and the Recycle Bin.
+- **Mac** (`Sources/HandsCheckup.swift`): your and the computer's LaunchAgents, volume capacities, the same
+  bounded walk of your folders (macOS may ask once before Sara reads Documents, Desktop or Downloads), updates
+  from `softwareupdate --list --no-scan` (macOS's own last scan), battery (IOKit power sources and the
+  `AppleSmartBattery` entry), Chrome / Edge / Brave extension manifests, temp, caches and the Trash (needs Full
+  Disk Access).
+- The apps don't make check-up changes themselves in this draft (`s.apply` is `unsupported`): Sara's report
+  shows each suggestion with **How?** and she explains where you change it. Changes are qualified on the
+  reference device only.
+- Testing: the test-hooks build adds `CU7NativeChecks.exe`, which runs the check on this PC and prints counts
+  and sizes only (never a name). On a Mac, compile `test/fixtures/cu7-mac-checks.swift` as `main.swift` with
+  `Sources/HandsCheckup.swift`. `scripts/hands-conformance.ts --checkup` adds section 14.
+
 ### Sara-Setup.exe: her server and the app together (Phase 46c)
 
 What the Windows installer puts on the computer (details for owners: docs/INSTALL.md → Windows):

@@ -54,6 +54,7 @@
 
 #include "hands-screen.h"
 #include "hands-approval.h"  // Phase 92: desktop look
+#include "hands-checkup.h"   // Phase 94: the read-only check-up (s.check)
 
 namespace sarahands {
 namespace {
@@ -373,7 +374,10 @@ const std::set<std::string> kOps = {"b.start", "b.tabs", "b.open", "b.navigate",
                                     // Phase 91 (CU4b): the owner's password managers (the person unlocks; Sara relocks)
                                     "b.unlock", "b.relock",
                                     // Phase 92 (CU5): desktop look (hands-screen.cpp); only with "The whole screen" on.
-                                    "d.screens", "d.windows", "d.shot", "d.elements", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch", "c.endTask"};
+                                    "d.screens", "d.windows", "d.shot", "d.elements", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch", "c.endTask",
+                                    // Phase 94 (CU7): the read-only check-up (hands-checkup.cpp). No s.apply in this build:
+                                    // check-up changes are made by the person (Sara says where).
+                                    "s.check"};
 /** Ops that act: they count against the input rate limit and stop when the person takes over. */
 const std::set<std::string> kInputOps = {"b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch"};
 /** Phase 90: ops that wait for the person (the consent window, "Your turn"): up to 10 minutes. */
@@ -4055,6 +4059,20 @@ class Hands {
     if (r.op == "b.unlock") return unlockOp(r, e);
     // Phase 92 (CU5): desktop look, never the Sara browser.
     if (r.op.rfind("d.", 0) == 0) return desktopOp(r, e);
+    // Phase 94 (CU7): the read-only check-up, only with "The whole screen" on here.
+    if (r.op == "s.check") {
+      if (!desktop) {
+        e = {"denied_local", "\"The whole screen\" is off on this computer: a check-up reads more than her browser, so only the person here can switch it on, in the Sara app."};
+        return {};
+      }
+      std::vector<std::string> checks;
+      if (a["checks"].t == J::Arr)
+        for (const J& c : a["checks"].a) if (c.t == J::Str && checks.size() < 16) checks.push_back(c.s);
+      auto report = saracheckup::collect(checks, [cancel] { return cancel && cancel->load(); });
+      if (cancel && cancel->load()) { e = {"stopped", "Stopped."}; return {}; }
+      localLog("s.check", "checked the computer (read only)", "");
+      return saracheckup::toJson(report);
+    }
     if (r.op != "b.tabs" || browser.running()) {
       browser.start(e);
       if (!e.code.empty()) return {};

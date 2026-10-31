@@ -21,7 +21,13 @@ export type Card =
   /** Phase 87: a page in the Sara browser on the owner's computer (with the step's thumbnail hash). */
   | { kind: 'computer'; action: 'open' | 'navigate' | 'look'; url: string; title: string; computer?: string; problems?: string; thumb?: string }
   /** Phase 87: no computer connected: "Get the app" (COMPUTER_USE.md §9.4). */
-  | { kind: 'hands-install'; url: string };
+  | { kind: 'hands-install'; url: string }
+  /** Phase 94: a computer check-up's report card (numbers, statuses, short names, the suggestions by number). */
+  | { kind: 'checkup'; computer: string; os: string; at: string; windows: boolean; flagged: number; items: CheckupCardItem[]; suggestions: CheckupCardSuggestion[] }
+  /** Phase 94: one check-up change, done or declined on the computer. */
+  | { kind: 'checkup-change'; id: string; change: string; outcome: 'done' | 'declined'; windows?: boolean; name?: string; bytes?: number; page?: string; computer?: string };
+export type CheckupCardItem = { check: string; status: string; facts: Record<string, string | number | boolean | string[]> };
+export type CheckupCardSuggestion = { id: string; kind: string; check: string; how: 'apply' | 'guide'; name?: string; bytes?: number; page?: string };
 
 /** Phase 87: where the desktop apps are downloaded (the install card for web-only users). */
 export const APPS_PAGE = 'https://github.com/farena-ai/sara/releases/latest';
@@ -109,6 +115,10 @@ function build({ name, args, output, thumb }: CardInput): Card | undefined {
       return gmailCard(output);
     case 'web_search':
       return searchCard(arg(args, 'query'), output);
+    case 'pc_checkup':
+      return checkupCard(output);
+    case 'pc_checkup_apply':
+      return checkupChangeCard(output);
     default:
       return undefined;
   }
@@ -140,6 +150,45 @@ function gmailCard(output: string): Card | undefined {
     ...(j.stopped ? { stopped: true } : {}),
     ...(j.undoOf ? { undoOf: cut(j.undoOf, 20) } : {}),
   };
+}
+
+// ---------- Phase 94: check-ups ----------
+const CHECK_KEYS = new Set(['startup', 'disk', 'folders', 'updates', 'battery', 'extensions', 'temp']);
+const STATUSES = new Set(['good', 'warn', 'bad', 'info', 'unavailable']);
+const SUGG_KINDS = new Set(['startup.disable', 'temp.clean', 'trash.empty', 'settings.open', 'restore-point', 'guide']);
+const PAGES = new Set(['startup', 'storage', 'updates', 'battery']);
+const fact = (v: unknown): string | number | boolean | string[] | undefined => {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'string') return cut(v, 120);
+  if (Array.isArray(v)) return v.slice(0, 20).map((x) => cut(x, 120));
+  return undefined;
+};
+function checkupCard(output: string): Card | undefined {
+  const m = /^\[checkup-result (\{.*\})\]$/m.exec(output);
+  if (!m) return undefined;
+  const j = JSON.parse(m[1]) as Record<string, unknown>;
+  const items = (Array.isArray(j.items) ? j.items : []).slice(0, 10).flatMap((x: Record<string, unknown>) => {
+    if (!CHECK_KEYS.has(String(x?.check)) || !STATUSES.has(String(x?.status))) return [];
+    const facts: Record<string, string | number | boolean | string[]> = {};
+    for (const [k, v] of Object.entries((x.facts ?? {}) as Record<string, unknown>).slice(0, 12)) {
+      const f = fact(v);
+      if (f !== undefined && /^[a-z]{1,20}$/i.test(k)) facts[k] = f;
+    }
+    return [{ check: String(x.check), status: String(x.status), facts }];
+  });
+  const suggestions = (Array.isArray(j.suggestions) ? j.suggestions : []).slice(0, 16).flatMap((x: Record<string, unknown>) => {
+    if (!/^s\d{1,2}$/.test(String(x?.id)) || !SUGG_KINDS.has(String(x?.kind))) return [];
+    return [{ id: String(x.id), kind: String(x.kind), check: cut(x.check, 20), how: x.how === 'apply' ? ('apply' as const) : ('guide' as const), ...(x.name ? { name: cut(x.name, 80) } : {}), ...(typeof x.bytes === 'number' && Number.isFinite(x.bytes) ? { bytes: Math.max(0, Math.round(x.bytes)) } : {}), ...(PAGES.has(String(x.page)) ? { page: String(x.page) } : {}) }];
+  });
+  return { kind: 'checkup', computer: cut(j.computer, 60), os: cut(j.os, 30), at: cut(j.at, 40), windows: j.windows === true, flagged: typeof j.flagged === 'number' ? Math.max(0, Math.round(j.flagged)) : 0, items, suggestions };
+}
+function checkupChangeCard(output: string): Card | undefined {
+  const m = /^\[checkup-change (\{.*\})\]$/m.exec(output);
+  if (!m) return undefined;
+  const j = JSON.parse(m[1]) as Record<string, unknown>;
+  if (!/^s\d{1,2}$/.test(String(j.id)) || !SUGG_KINDS.has(String(j.kind))) return undefined;
+  return { kind: 'checkup-change', id: String(j.id), change: String(j.kind), outcome: j.outcome === 'done' ? 'done' : 'declined', ...(typeof j.windows === 'boolean' ? { windows: j.windows } : {}), ...(j.name ? { name: cut(j.name, 80) } : {}), ...(typeof j.bytes === 'number' ? { bytes: Math.max(0, Math.round(j.bytes)) } : {}), ...(PAGES.has(String(j.page)) ? { page: String(j.page) } : {}), ...(j.computer ? { computer: cut(j.computer, 60) } : {}) };
 }
 
 function shellCard(command: string, output: string): Card | undefined {

@@ -50,6 +50,7 @@
 import { randomUUID } from 'node:crypto';
 import type { EventHub } from './events.ts';
 import { CU5_OPS, CU6_OPS, DESKTOP_INPUT_OPS } from './hands-desktop.ts';
+import { CU7_OPS } from './hands-checkup.ts';
 import { managerViews, relockMinutes, type ManagerView } from './hands-managers.ts';
 import { Tunnels } from './tunnel.ts';
 import type { WsConnection } from './ws.ts';
@@ -65,19 +66,19 @@ export const CU3_OPS = ['c.tunnel', 'c.untunnel'] as const;
 export const CU4_OPS = ['b.login', 'b.saveLogin', 'b.logins', 'b.forgetLogin', 'b.yourTurn'] as const;
 /** Phase 91 (CU4b): the owner's password managers: the person unlocks one in its own prompt; Sara locks them again. */
 export const CU4B_OPS = ['b.unlock', 'b.relock'] as const;
-export { CU5_OPS };
+export { CU5_OPS, CU7_OPS };
 /** CU6: typed browser and desktop operations; no scripts or password-reading operation. */
-export const HANDS_OPS = [...CU1_OPS, ...CU2_OPS, ...CU3_OPS, ...CU4_OPS, ...CU4B_OPS, ...CU5_OPS, ...CU6_OPS, 'c.endTask'] as const;
+export const HANDS_OPS = [...CU1_OPS, ...CU2_OPS, ...CU3_OPS, ...CU4_OPS, ...CU4B_OPS, ...CU5_OPS, ...CU6_OPS, ...CU7_OPS, 'c.endTask'] as const;
 /** Phase 92: the desktop ops (need "The whole screen" on that computer). */
-export const DESKTOP_OPS: ReadonlySet<string> = new Set([...CU5_OPS, ...CU6_OPS]);
+export const DESKTOP_OPS: ReadonlySet<string> = new Set([...CU5_OPS, ...CU6_OPS, ...CU7_OPS]);
 /** Ops that wait for the person at the computer (the consent window, "Your turn", a manager's unlock prompt): up to 10 minutes. */
-export const WAITING_OPS: ReadonlySet<string> = new Set(['b.saveLogin', 'b.yourTurn', 'b.unlock', ...CU6_OPS]);
+export const WAITING_OPS: ReadonlySet<string> = new Set(['b.saveLogin', 'b.yourTurn', 'b.unlock', ...CU6_OPS, 's.apply']);
 export const WAITING_DEADLINE_MS = 10 * 60_000;
 /** Ops only the server itself sends (never from the owner's "try one op" route): the tunnel checks port ownership first. */
 export const SERVER_ONLY_OPS: ReadonlySet<string> = new Set([...CU3_OPS, 'c.endTask']);
 export type HandsOp = (typeof HANDS_OPS)[number];
 /** Ops that act (they count against the device's input rate limit and stop on takeover). */
-export const ACTING_OPS: ReadonlySet<string> = new Set(['b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload', 'b.login', ...DESKTOP_INPUT_OPS]);
+export const ACTING_OPS: ReadonlySet<string> = new Set(['b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload', 'b.login', ...DESKTOP_INPUT_OPS, 's.apply']);
 export const HANDS_ERROR_CODES = ['denied_local', 'blocked_window', 'takeover', 'stopped', 'stale_view', 'not_found', 'timeout', 'perm_missing', 'rate_limited', 'unsupported'] as const;
 /** Default deadline of an op (b.open waits for a whole page). */
 export const DEFAULT_DEADLINE_MS = 30_000;

@@ -10343,6 +10343,8 @@ async function loadComputer() {
   $('#cu-acts').hidden = h.role !== 'owner';
   $('#cu-level').value = h.level || 'task';
   $('#cu-level').dataset.was = h.level || 'task';
+  // Phase 94: browser extensions in check-ups (on unless the owner turned it off).
+  $('#cu-checkup-ext').checked = h.checkupExtensions !== false;
   $('#cu-desktop-level').closest('label').hidden = true;
   cuSettings.alwaysWarned = h.alwaysWarned === true;
   renderAlways(h.always ?? []);
@@ -10637,6 +10639,15 @@ $('#cu-tunnel-try').addEventListener('click', async () => {
   } finally {
     btn.disabled = false;
     void loadComputer();
+  }
+});
+$('#cu-checkup-ext').addEventListener('change', async () => {
+  try {
+    await api('/computer', { method: 'PUT', body: { checkupExtensions: $('#cu-checkup-ext').checked } });
+    $('#cu-status').textContent = t('Saved');
+  } catch (err) {
+    $('#cu-status').textContent = err.message;
+    $('#cu-checkup-ext').checked = !$('#cu-checkup-ext').checked;
   }
 });
 $('#cu-members').addEventListener('change', async () => {

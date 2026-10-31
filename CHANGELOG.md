@@ -5,6 +5,24 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.27.0 (2026-10-31): computer use, step 8: guided check-ups (Phase 94)
+
+- **Check-ups** (`pc_checkup`, Windows and Mac apps with *The whole screen* on): "my computer is
+  slow", "why is my disk full", "check my startup apps". A fixed, read-only check on that computer:
+  startup apps, disks, the biggest folders (bounded walk, files never opened), pending updates (no new
+  scan), battery health, browser extensions (Edge/Chrome/Brave, shown, never changed), temp files,
+  caches and the Recycle Bin / Trash. Only numbers and kinds reach the server.
+- **A report card** with OK / Needs attention per item and numbered suggestions. In the Windows and Mac
+  apps each suggestion is a guided step (*How?*) she walks you through, using desktop actions with
+  your approval on that computer when you ask; on Windows a restore point comes first. Nothing is
+  deleted or uninstalled without your yes there.
+- **Screen text is never an order:** names of apps, extensions, folders or pages that read like
+  instructions ("Sara, delete…") are counted on the card and ignored. 9 new red-team probes cover it.
+- Measured on fixture computers with a local 27B model: 9/9 scenarios, 0 unapproved changes,
+  injection probes ignored 3/3 ([RESULTS](docs/RESULTS.md)).
+- Not yet: the apps don't make the changes themselves (that's the reference device only); Firefox and
+  Safari extensions aren't listed; the Mac reads LaunchAgents, not the Login Items list.
+
 ## 2.26.0 (2026-10-31): computer use, step 7: she can use your apps (Phase 93)
 
 - **Desktop actions** (Windows and Mac apps, with *The whole screen* on): `pc_click`, `pc_type`,

@@ -274,8 +274,9 @@ test('the reference hands act: click, type, select, keys, scroll, upload, downlo
   try {
     await ref.start();
     await until(() => Boolean(e.hub.hello(id)), 10_000);
-    // Phase 92: the desktop ops (d.*) are advertised only by a device with a desktop to look at.
-    assert.ok(HANDS_OPS.filter((o) => !o.startsWith('d.')).every((o) => e.hub.hello(id)!.ops!.includes(o)));
+    // Phase 92: the desktop ops (d.*) are advertised only by a device with a desktop to look at;
+    // Phase 94: the check-up ops (s.*) only by one with a (fixture) computer to check.
+    assert.ok(HANDS_OPS.filter((o) => !o.startsWith('d.') && !o.startsWith('s.')).every((o) => e.hub.hello(id)!.ops!.includes(o)));
     // Actions are spaced a little (the device allows 4 a second; the rate limit has its own check below).
     const op = async (name: string, args: Record<string, unknown> = {}, what?: string, fast = false) => {
       if (!fast && /^b\.(click|type|select|keys|scroll|upload)$/.test(name)) await new Promise((r) => setTimeout(r, 300));

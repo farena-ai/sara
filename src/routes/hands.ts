@@ -74,7 +74,7 @@ export function createHandsRoutes(ctx: RouteCtx): RouteHandler {
     if (opts.member && (!hub.allowed() || (a === 'computer' && !b && method !== 'GET'))) throw new HttpError(403, 'Only the owner of this server can use this.', OWNER_ONLY);
     const settingsView = () => {
       const cu = app.settings.get().computerUse ?? {};
-      return { members: cu.members === true, level: actLevel(cu.level), always: (cu.always ?? []).map((x) => ({ site: x.site, kind: x.kind, at: x.at })), alwaysWarned: cu.alwaysWarned === true };
+      return { members: cu.members === true, level: actLevel(cu.level), always: (cu.always ?? []).map((x) => ({ site: x.site, kind: x.kind, at: x.at })), alwaysWarned: cu.alwaysWarned === true, checkupExtensions: cu.checkupExtensions !== false };
     };
 
     if (a === 'computer') {
@@ -83,8 +83,11 @@ export function createHandsRoutes(ctx: RouteCtx): RouteHandler {
         const body = await readJson(req);
         if (body.members !== undefined && typeof body.members !== 'boolean') throw new HttpError(400, 'members must be true or false.');
         if (body.level !== undefined && !ACT_LEVELS.includes(body.level as never)) throw new HttpError(400, 'level: ask, task or always.');
+        if (body.checkupExtensions !== undefined && typeof body.checkupExtensions !== 'boolean') throw new HttpError(400, 'checkupExtensions must be true or false.');
         const cu = { ...(app.settings.get().computerUse ?? {}) };
         if (typeof body.members === 'boolean') cu.members = body.members;
+        // Phase 94: browser extensions in check-ups (shown only, never changed).
+        if (typeof body.checkupExtensions === 'boolean') cu.checkupExtensions = body.checkupExtensions;
         // Phase 88: "Always allowed" shows its warning once (the page asks before sending this).
         if (body.level !== undefined) {
           if (body.level === 'always' && body.warned !== true && cu.alwaysWarned !== true) throw new HttpError(400, 'Always allowed needs the warning first.');
