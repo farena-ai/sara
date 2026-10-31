@@ -14,6 +14,7 @@ import { initSkills, loadSkills, skillApproval } from './skills.js';
 import { initLearning, learnCard, loadLearning } from './learned-skills.js';
 import { initPlugins, loadPlugins, pluginAskLine, pluginNotice, pluginResultCard, pluginStepWords } from './plugins.js';
 import { initAgents, loadAgents } from './agents.js';
+import { hookNotice, initHooks, loadHooks } from './hooks.js';
 import { boardEvent, initBoard, openCardOnBoard, plannerView, rememberView } from './board.js';
 import { initPeople, peopleEvent, peopleOnOpen, showPerson } from './people.js';
 import { initOtherApps, keyUse, loadOtherApps } from './other-apps.js';
@@ -1360,6 +1361,9 @@ function renderMessages(messages, opts = {}) {
         const rc = renderCard(m.meta.card);
         if (rc) els.push(rc);
       }
+    } else if (m.role === 'notice' && m.kind === 'hook') {
+      // Phase 102: a webhook delivery (or its result), labelled as the webhook's, never as her.
+      els.push(hookNotice(m, { openSettings: (page) => void openSettings(page) }));
     } else if (m.role === 'notice' && m.kind === 'plugin') {
       // Phase 98: a plugin's note or card (after her reply, or from its schedule), labelled as the plugin's.
       els.push(pluginNotice(m));
@@ -1377,6 +1381,11 @@ function renderMessages(messages, opts = {}) {
       if (m.role === 'assistant' && typeof m.meta?.importedFrom === 'string') {
         b.classList.add('imported');
         b.prepend(el('span', 'msg-from muted small', `${IMPORTED_NAMES[m.meta.importedFrom] ?? t('Another assistant')} ${t('said (imported)')}`));
+      }
+      // Phase 102: what a webhook delivered is labelled as the webhook's, never as the owner's words.
+      if (m.role === 'user' && m.meta?.hookFrom) {
+        b.classList.add('from-hook');
+        b.prepend(el('span', 'msg-from small', t('From the webhook {name}', { name: m.meta.hookFrom.name ?? '' })));
       }
       // Phase 83: an answer taken from a branch ("Use this answer") says it is a re-run.
       if (m.role === 'assistant' && m.meta?.rerun) {
@@ -5209,6 +5218,10 @@ function startEvents() {
   es.addEventListener('plugins', () => {
     if (document.querySelector('[data-page="ab-plugins"]:not([hidden])')) void loadPlugins();
   });
+  // Phase 102: a webhook got a delivery or changed: the Webhooks page refreshes.
+  es.addEventListener('hooks', () => {
+    if (document.querySelector('[data-page="co-hooks"]:not([hidden])')) void loadHooks();
+  });
   es.addEventListener('library', () => window.dispatchEvent(new Event('sara:library')));
   // Phase 53: a look back is ready (or failed).
   // Phase 70: photos added to the album or captions written.
@@ -6556,7 +6569,7 @@ const SETTINGS_ORDER = [
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
   'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
   'ab-projects', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-recipes',
-  'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-apps', 'co-agents',
+  'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-apps', 'co-agents', 'co-hooks',
   'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-updates', 'dh-usage', 'dh-reports',
   'household', 'account',
 ];
@@ -6695,6 +6708,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'ab-library') void loadLibrarySettings();
   if (pick === 'co-apps') void Promise.all([loadOtherApps(), loadAlexa()]);
   if (pick === 'co-agents') void loadAgents();
+  if (pick === 'co-hooks') void loadHooks();
   if (pick === 'co-computer') void loadComputer();
   if (pick === 'her-import') void loadImport();
   if (pick === 'models-local') void loadLocalModels();
@@ -9131,6 +9145,18 @@ initAgents({
   openConversation: (id) => {
     if ($('#settings').open) $('#settings').close();
     void openConversation(id);
+  },
+});
+// Phase 102: Settings → Connections → Webhooks.
+initHooks({
+  copyText,
+  openConversation: (id) => {
+    if ($('#settings').open) $('#settings').close();
+    void openConversation(id);
+  },
+  openCard: (ref) => {
+    if ($('#settings').open) $('#settings').close();
+    void openCardOnBoard(0, ref);
   },
 });
 initAlexa({ copyText });

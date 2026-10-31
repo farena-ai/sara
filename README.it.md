@@ -14,7 +14,7 @@ per il web, Windows, Mac e telefono.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1317%20passing-brightgreen" alt="1317 tests passing">
+  <img src="https://img.shields.io/badge/tests-1336%20passing-brightgreen" alt="1336 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ per il web, Windows, Mac e telefono.
   <sub>Una sessione reale con un modello locale (qwen3.8 27B su Ollama, una RTX 5090) su un server di prova usa e getta, nel tema Notte: tira su il morale di chi le scrive, scrive una piccola app e il suo test mentre il modello li trasmette, chiede prima di eseguire un comando, scopre un vero bug con un test che fallisce e lo corregge finché tutti e 7 i test passano. Fotogrammi scelti dalla registrazione; nulla al loro interno è stato modificato.</sub>
 </p>
 
-> **Stato:** 2.34, licenza MIT, con quarantacinque versioni ricche di novità dalla 1.0 (tutte qui sotto).
+> **Stato:** 2.35, licenza MIT, con quarantasei versioni ricche di novità dalla 1.0 (tutte qui sotto).
 > Dalla 2.5 alla 2.8 tutta l'app ha cambiato aspetto. L'[app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > è su Google Play; l'app per iPhone e la versione del Mac App Store arriveranno appena Apple le
 > approverà. Leggi [docs/DISCLOSURES.md](docs/DISCLOSURES.md) prima di usare o condividere Sara.
@@ -69,6 +69,7 @@ citano la pagina · la [modalità locale privata](docs/PRIVATE_LOCAL.md) · le [
 
 | Versione | Cosa ottieni |
 |---|---|
+| **2.35** · Webhook | **Altri servizi possono svegliarla.** Dai a GitHub, Stripe, Home Assistant o a qualsiasi cosa parli Standard Webhooks il suo indirizzo firmato; scegli quando conta (condizioni senza codice, con modelli) e cosa fa lei: avvisarti, aggiungere un'attività, eseguire un'abilità o passarlo a un plugin. Le firme si controllano sui byte originali, consegne vecchie o ripetute vengono rifiutate e il contenuto non è affidabile: ciò che cambia qualcosa chiede ancora a te. Registro delle consegne e pulsante di prova su ogni scheda; copie in uscita firmate se vuoi. |
 | **2.34** · Persone | **Tiene traccia delle persone della tua vita.** Una scheda per ogni persona di cui parli (rapporto, compleanno, cosa sa con le tue parole), costruita dai suoi ricordi. Le nuove aspettano il tuo *Va bene*; correggi, unisci, dividi o dimentica chi vuoi (dimenticare cancella davvero). Due Jeff? Chiede quale. Il privato resta nelle chat private e il sensibile viene ripiegato. Le schede non arrivano mai ad altre app, altri agenti, plugin, chat di gruppo o di coppia; ogni membro della casa ha le sue. |
 | **2.33** · Altri agenti (A2A) | **Parla con altri agenti IA** con il protocollo aperto Agent2Agent, in entrambe le direzioni, scritto dalla specifica. Dai a un agente la sua chiave e scegli cosa può chiedere; lei può interrogare gli agenti che aggiungi (un'altra Sara o qualsiasi agente A2A), seguirne le risposte in diretta, fermarli o assegnar loro una scheda della bacheca che torna con le prove. Ciò che un agente chiede e che cambia qualcosa richiede il tuo OK; le sue parole non sono affidabili; nulla di privato, di coppia o di gruppo esce; dice di essere un'IA. 61/61 controlli del protocollo. |
 | **2.32** · Bacheca | **Una bacheca Kanban sulle tue attività.** Ogni progetto ha una bacheca (Da fare, In corso, Aspetta te, Fatto) con etichette, checklist, scadenze e ripetizioni; trascina con mouse, dito o tastiera. Assegna una scheda a Sara o a un team di aiutanti e lei ci lavora in background: va in Fatto solo se le prove sostengono il lavoro, altrimenti ti aspetta con ciò che non ha potuto dimostrare. Chiedile «cosa è bloccato?» o di aggiungere e spostare schede (chiede prima). Bacheche condivise della casa; un riquadro Serve a te in Oggi. |
@@ -308,8 +309,8 @@ uno SPEC che nessun test controllava. Quello che aggiunge oggi è il modo di lav
 chiede prima dei passi rischiosi, mostra cosa è stato eseguito), non un punteggio più alto su questi
 insiemi. Dettagli, risultati per compito e come rieseguirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-In più, `npm run check`: un controllo dei tipi e 1332 test automatici con un finto modello guidato
-da script (senza rete, senza GPU): 1317 passano su Windows e gli altri 8 sono test dell'isolamento
+In più, `npm run check`: un controllo dei tipi e 1351 test automatici con un finto modello guidato
+da script (senza rete, senza GPU): 1336 passano su Windows e gli altri 8 sono test dell'isolamento
 solo per Linux, eseguiti su un server Linux.
 
 ## Il confronto

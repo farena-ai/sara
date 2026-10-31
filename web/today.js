@@ -158,7 +158,7 @@ const time = (ms) => new Date(ms).toLocaleTimeString(locale(), { hour: 'numeric'
 const hourOf = (iso) => new Date(iso).toLocaleTimeString(locale(), { hour: 'numeric' });
 
 /** 2.8: each tile's small line icon (web/icons.js), beside its title. */
-const TILE_ICON = { 'td-board': 'todo', 'td-weather': 'weather', 'td-calendar': 'calendar', 'td-agenda': 'planner', 'td-memories': 'memory', 'td-otd': 'moments', 'td-jobs': 'job', 'td-home': 'home', 'td-mail': 'mail', 'td-dates': 'heart', 'td-models': 'sparkle', 'td-setup': 'plus' };
+const TILE_ICON = { 'td-board': 'todo', 'td-hooks': 'reminder', 'td-weather': 'weather', 'td-calendar': 'calendar', 'td-agenda': 'planner', 'td-memories': 'memory', 'td-otd': 'moments', 'td-jobs': 'job', 'td-home': 'home', 'td-mail': 'mail', 'td-dates': 'heart', 'td-models': 'sparkle', 'td-setup': 'plus' };
 function tileIcon(id) {
   const svg = icon(TILE_ICON[id] ?? '');
   if (!svg) return [];
@@ -582,6 +582,7 @@ export async function renderTodayTiles(d, { fmtDue }) {
   await loadDoneToday();
   renderPlanner(d, fmtDue);
   renderBoardTile(d.board);
+  renderHooksTile(d.hooks);
   const [weather, home] = await Promise.all([
     ctx.demo() ? Promise.resolve({ setUp: false }) : ctx.api('/today/weather').catch(() => null),
     renderHome(),
@@ -616,6 +617,28 @@ export function renderBoardTile(b) {
   if (waiting.length) out.push(el('h4', 'td-bd-h', t('Needs you')), ...waiting.map((c) => row(c, c.question || t('Waiting on you'), 'needs')));
   if (doing.length) out.push(el('h4', 'td-bd-h', t('Doing')), ...doing.map((c) => row(c, c.line === 'Queued' ? t('Queued') : c.line || t('Working on it'), 'doing')));
   body.replaceChildren(...out);
+}
+
+/** Phase 102 (ST7): from your webhooks: important deliveries and "sending too much" notes (last 24 h). */
+export function renderHooksTile(items) {
+  const tile = $('#td-hooks');
+  if (!tile) return;
+  const list = items ?? [];
+  tile.hidden = !list.length;
+  if (tile.hidden) return;
+  tileHead(tile, t('From your webhooks'), el('span', 'td-count td-needs', t('{n} need you', { n: list.length })));
+  const body = tile.querySelector('.td-body');
+  body.replaceChildren(
+    ...list.map((x) => {
+      const b2 = btn('today-item td-bd-item needs', '', () => (x.conversationId ? ctx.openConversation(x.conversationId) : ctx.openSettings('co-hooks')));
+      const title = el('span', 'td-bd-title', x.kind === 'limit' ? t('{name} is sending too much: paused for 10 minutes', { name: x.name }) : x.text);
+      title.dataset.raw = '';
+      const line = el('span', 'muted small td-bd-sub', x.name);
+      line.dataset.raw = '';
+      b2.append(title, line);
+      return b2;
+    }),
+  );
 }
 
 export function initToday(c) {

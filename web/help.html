@@ -525,6 +525,15 @@
   <li>The agents' conversations are in the <strong>Agents</strong> project, and the last 20 requests are on the settings page. Removing an agent stops its key at once. Details: <code>docs/A2A.md</code>.</li>
 </ul>
 
+<h2 id="webhooks">Webhooks: when something happens elsewhere</h2>
+<ul>
+  <li>A webhook is a secret address GitHub, Stripe, Home Assistant or a script can send to when something happens. Make one in <em>Settings → Connections → Webhooks</em> with <strong>New webhook</strong>: where it comes from, when (ready-made conditions or your own) and what she does: <strong>Tell me</strong>, <strong>Add a task</strong>, <strong>Run a skill</strong> or <strong>Send to a plugin</strong>.</li>
+  <li>The address and the sender's secret are shown once: copy them into the sender (the page lists where). Deliveries are checked with the sender's signature (GitHub, Stripe, Standard Webhooks); a header token or the address alone are <em>weaker</em>, so those webhooks only tell you or add a task unless you allow more. Old, replayed or doubled deliveries are refused.</li>
+  <li>What a sender sends is information, never orders. When she runs a skill for a delivery she has only the tools you ticked on that webhook, knows nothing about you unless you allow notes other apps may see, never sees people cards, and anything that changes something waits for your OK on a card.</li>
+  <li><strong>Test</strong> tries a sample, the last delivery or a pasted body without changing anything (<strong>Run it for real</strong> does it once). <strong>Send a test</strong> shows a ready <code>curl</code> with a fresh signature. <strong>Log</strong> lists every delivery for 14 days with secrets hidden. Each webhook has limits a minute and a day, and pauses for 10 minutes when it sends too much.</li>
+  <li>The sender must be able to reach your server: Home Assistant on your network or tailnet; GitHub and Stripe only through your own web address or Tailscale Funnel. Details: <code>docs/WEBHOOKS.md</code>.</li>
+</ul>
+
 <h2 id="usage">Usage and costs</h2>
 <ul>
   <li>Every model call that reports its tokens is counted: by model and by what it was for (chat, coding, team, jobs, memory, her life). See it in <em>Settings → Data &amp; health → Usage and costs</em> (today, 7 days, 30 days), under each conversation, and on each team task and job.</li>

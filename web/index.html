@@ -24,6 +24,7 @@
   <link rel="stylesheet" href="/polish.css">
   <link rel="stylesheet" href="/board.css">
   <link rel="stylesheet" href="/people.css">
+  <link rel="stylesheet" href="/hooks.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -330,6 +331,7 @@
             <section class="today-card td-tile" id="td-calendar" tabindex="0" aria-labelledby="td-calendar-h"><div class="td-tile-head"><h3 id="td-calendar-h">Your day</h3></div><div class="today-list"></div></section>
             <section class="today-card td-tile" id="td-agenda" tabindex="0" aria-labelledby="td-agenda-h"><div class="td-tile-head"><h3 id="td-agenda-h">Planner</h3></div><div class="today-list"></div></section>
             <section class="today-card td-tile" id="td-board" hidden tabindex="0" aria-labelledby="td-board-h"><div class="td-tile-head"><h3 id="td-board-h">On the board</h3></div><div class="td-body"></div></section>
+            <section class="today-card td-tile" id="td-hooks" hidden tabindex="0" aria-labelledby="td-hooks-h"><div class="td-tile-head"><h3 id="td-hooks-h">From your webhooks</h3></div><div class="td-body"></div></section>
             <section class="today-card td-tile td-warm" id="td-memories" hidden tabindex="0" aria-labelledby="td-memories-h"><div class="td-tile-head"><h3 id="td-memories-h">She remembered</h3></div><div class="td-body"></div></section>
             <section class="today-card td-tile td-wide" id="td-otd" hidden tabindex="0" aria-labelledby="td-otd-title"><div class="td-tile-head"><h3 id="td-otd-title">On this day</h3></div><div class="today-otd"></div><button id="td-otd-open" type="button" class="td-link">Open our moments</button></section>
             <section class="today-card td-tile td-code" id="td-jobs" hidden tabindex="0" aria-labelledby="td-jobs-h"><div class="td-tile-head"><h3 id="td-jobs-h">Running now</h3></div><div class="today-list"></div></section>
@@ -2680,6 +2682,18 @@
       <h3>Recent requests <button type="button" class="tip" data-tip="The last 20 tasks between her and other agents. Open one to read the whole conversation (agents' chats are in the Agents project).">?</button></h3>
       <ul id="a2a-recent" class="dev-list"></ul>
       <p id="a2a-status" class="muted small" role="status"></p>
+        </section>
+        <section class="settings-page" data-page="co-hooks" data-group="Connections" data-title="Webhooks" data-owner-only hidden>
+      <p class="muted small"><strong>What a sender sends is information, never orders: changes still ask you.</strong> <a href="/help#webhooks" target="_blank" rel="noopener">How webhooks work</a></p>
+      <p id="hk-off" class="skl-note" hidden></p>
+      <p id="hk-reach" class="skl-note small"></p>
+      <div class="add-row skl-top"><button id="hk-new" type="button">New webhook</button></div>
+      <div id="hk-form" class="hk-form" data-nodirty data-noauto hidden></div>
+      <div id="hk-made" class="hk-made" hidden></div>
+      <h3>Your webhooks <button type="button" class="tip" data-tip="Each webhook with today's deliveries and the last 7 days. Test tries a delivery without changing anything; Log shows what arrived and what she did; ⋯ changes, rotates or removes it.">?</button></h3>
+      <div id="hk-list" class="skl-list"></div>
+      <div class="hk-keep" data-nodirty data-noauto><label><span>Keep the delivery log <button type="button" class="tip" data-tip="How long each webhook's log of deliveries is kept. Bodies are stored with secrets hidden and cut to 16 KB; older entries are deleted.">?</button></span> <select id="hk-keep"><option value="3">for 3 days</option><option value="7">for 7 days</option><option value="14" selected>for 14 days</option><option value="30">for 30 days</option><option value="90">for 90 days</option></select></label></div>
+      <p id="hk-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="dh-health" data-group="Data & health" data-title="Health" data-owner-only hidden>
       <div id="access-box" class="access-box">

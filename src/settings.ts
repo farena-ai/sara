@@ -214,6 +214,8 @@ export interface Settings {
    * local mode.
    */
   a2a?: { enabled?: boolean; showName?: boolean; operator?: string; lanInPrivate?: boolean };
+  /** Phase 102 (ST7): webhooks (server-wide, the owner's): days the delivery log is kept (3/7/14/30/90; default 14). */
+  hooks?: { keepDays?: number };
   /**
    * Phase 72: her Alexa skill (server-wide, the owner's): the skill id from the Alexa developer
    * console (requests for any other skill are refused) and whether her Alexa replies use the quick

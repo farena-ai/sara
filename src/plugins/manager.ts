@@ -945,6 +945,36 @@ export class PluginManager {
     }
   }
 
+  /**
+   * Phase 102 (ST7, STAPLES §6.14 → §10.5 *Send to a plugin*): the `event:webhook` hook of one
+   * plugin a webhook routes to (never a broadcast). The data is the hook id and name, the event
+   * name and the filtered payload (scrubbed, ≤ 16 KB). Only a plugin that is running for that
+   * companion and declared `event:webhook` gets it.
+   */
+  async sendWebhook(pluginId: string, companionId: string, data: { hook: string; name: string; event: string; payload: unknown }): Promise<{ ok: boolean; why?: string }> {
+    const a = this.#attached.get(companionId);
+    const run = a?.procs.get(pluginId);
+    if (!a || !run || run.proc.state !== 'ready') return { ok: false, why: 'the plugin is not running for this companion' };
+    if (!run.manifest.permissions.hooks.includes('event:webhook' as never)) return { ok: false, why: 'the plugin did not ask for event:webhook' };
+    let payload: unknown;
+    try {
+      const s = this.opts.scrub(JSON.stringify(data.payload ?? null));
+      payload = s.length <= 16 * 1024 ? (JSON.parse(s) as unknown) : { text: s.slice(0, 16 * 1024) };
+    } catch {
+      payload = null;
+    }
+    const r = await run.proc.request('event', { event: 'webhook', data: { hook: data.hook, name: data.name, event: data.event, payload } }, EVENT_MS);
+    this.store.log(run.row.id, a.id, r ? 'hook' : 'timeout', r ? `event webhook from hook ${data.hook}` : 'event webhook: stopped after 30 s');
+    return r ? { ok: true } : { ok: false, why: 'the plugin did not answer in 30 s' };
+  }
+
+  /** Phase 102: the plugins a webhook may send to (switched on for the companion, declaring event:webhook). */
+  webhookPlugins(companionId: string): { id: string; name: string }[] {
+    const a = this.#attached.get(companionId);
+    if (!a) return [];
+    return [...a.procs.values()].filter((r) => r.manifest.permissions.hooks.includes('event:webhook' as never)).map((r) => ({ id: r.row.id, name: r.manifest.name }));
+  }
+
   // ------------------------------------------------------------------------------------------
   // the list
   // ------------------------------------------------------------------------------------------

@@ -46,6 +46,7 @@ import { createEvalRoutes } from './routes/evals.ts';
 import { createSkillRoutes } from './routes/skills.ts';
 import { createPluginRoutes } from './routes/plugins.ts';
 import { createAgentRoutes } from './routes/agents.ts';
+import { createHookRoutes } from './routes/hooks.ts';
 import { createPlannerRoutes } from './routes/planner.ts';
 import { createBoardRoutes, DEMO_CARD_ACTIONS } from './routes/board.ts';
 import { createMemoryRoutes } from './routes/memory.ts';
@@ -319,7 +320,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports', 'boards']);
   /** Security review: routes an app signed in with a device code may not use (sign-in settings, devices, approving apps). */
   // Phase 100: 'agents' (A2A keys and peers) too.
-  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents']);
+  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks']);
   /**
    * Phase 24 (security review): what a demo visitor may read. Everyone on the demo is "signed in",
    * so owner-only pages (backups, files, health details, accounts, devices…) must be listed out,
@@ -797,6 +798,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const skillRoutes = createSkillRoutes(ctx);
   const pluginRoutes = createPluginRoutes(ctx);
   const agentRoutes = createAgentRoutes(ctx);
+  const hookRoutes = createHookRoutes(ctx);
   // Phase 100: her address on the Agent Card is the one the peer used (https behind a trusted proxy).
   if (app.a2a) app.a2a.baseOf = (req) => `${isHttps(req) ? 'https' : 'http'}://${String(req.headers.host ?? 'localhost')}`;
   const plannerRoutes = createPlannerRoutes(ctx);
@@ -1139,6 +1141,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await pluginRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 100: other agents (A2A; Settings → Connections → Other agents; the owner's only; src/routes/agents.ts).
     if ((await agentRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await hookRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 87: computer use: the computers, the live view, step thumbnails (src/routes/hands.ts).
     if ((await handsRoutes(req, res, method, parts)) !== NEXT) return;
 
@@ -1842,6 +1845,14 @@ export function createSaraServer(opts: ServerOptions): Server {
         if (app.a2a && !opts.member && !opts.demo && (await app.a2a.handle(req, res, url.pathname))) return;
         await readRaw(req, 64 * 1024).catch(() => undefined);
         throw new HttpError(404, 'Not found');
+      }
+      // Phase 102 (STAPLES §10.2): webhooks. The URL and the signature are the only keys: no cookie,
+      // no session, no CSRF token ever counts here. Never on the demo or in a household member's space.
+      if (url.pathname === '/hook' || url.pathname.startsWith('/hook/')) {
+        const token = url.pathname.slice(6);
+        if (app.hooks && !opts.member && !opts.demo && token && !token.includes('/')) return await app.hooks.receive(req, res, token, clientIp(req, opts.trustProxy));
+        await readRaw(req, 256 * 1024).catch(() => undefined);
+        return send(res, 404, { error: 'Not found' });
       }
       if (url.pathname === '/mcp' || url.pathname === '/mcp/') {
         return await handleMcp(req, res, { app, auth, demo: Boolean(opts.demo), version: info.version, limiter: appLimiter, requestApproval });

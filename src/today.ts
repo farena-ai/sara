@@ -37,6 +37,8 @@ export interface Today {
   jobs: { id: number; label: string; startedAt: string }[];
   /** Phase 99 (ST4): cards waiting on you (with the question) and cards she is working on. */
   board?: { waiting: { id: number; title: string; question: string; boardId: number }[]; doing: { id: number; title: string; line: string; boardId: number }[] };
+  /** Phase 102 (ST7): from your webhooks (important Tell me items and "sending too much" notes, last 24 h). */
+  hooks?: { id: number; hookId: string; name: string; text: string; at: string; kind: string; conversationId: string | null }[];
   /** Phase 56: models that were retired and what now uses their replacement (last 3 days). */
   models?: string[];
   /** UX 19: the same as `models`, as data (ModelNotice / RetiredUse from model-catalog.ts), for translating. */
@@ -175,6 +177,10 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean } = {}
     ...(app.board ? (() => {
       const b = app.board.today();
       return b.waiting.length || b.doing.length ? { board: b } : {};
+    })() : {}),
+    ...(app.hooks && !app.member ? (() => {
+      const items = app.hooks.today();
+      return items.length ? { hooks: items } : {};
     })() : {}),
     ...(app.modelCatalog ? (() => {
       const items = [...app.modelCatalog.notices(3), ...app.modelCatalog.retiredInUse()].slice(0, 5);

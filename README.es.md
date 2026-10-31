@@ -14,7 +14,7 @@ para la web, Windows, Mac y el móvil.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1317%20passing-brightgreen" alt="1317 tests passing">
+  <img src="https://img.shields.io/badge/tests-1336%20passing-brightgreen" alt="1336 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ para la web, Windows, Mac y el móvil.
   <sub>Una sesión real con un modelo local (qwen3.8 27B en Ollama, una RTX 5090) en un servidor de pruebas desechable, con el aspecto Noche: anima a quien le habla, escribe una pequeña app y su prueba mientras el modelo las transmite, pide permiso antes de ejecutar un comando, detecta un error real con una prueba que falla y lo corrige hasta que pasan las 7 pruebas. Fotogramas elegidos de la grabación; nada en ellos se ha editado.</sub>
 </p>
 
-> **Estado:** 2.34, licencia MIT, con cuarenta y cinco y dos versiones con novedades desde la 1.0 (todas abajo). De
+> **Estado:** 2.35, licencia MIT, con cuarenta y seis y dos versiones con novedades desde la 1.0 (todas abajo). De
 > la 2.5 a la 2.8 toda la app estrenó aspecto. La
 > [app de Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) está en Google
 > Play; la app de iPhone y la versión del Mac App Store llegarán en cuanto Apple las apruebe. Lee
@@ -70,6 +70,7 @@ para las personas con las que vives · [videollamadas](docs/VIDEO_CALLS.md) con 
 
 | Versión | Qué te trae |
 |---|---|
+| **2.35** · Webhooks | **Otros servicios pueden despertarla.** Da a GitHub, Stripe, Home Assistant o a cualquiera que hable Standard Webhooks su propia dirección firmada; elige cuándo cuenta (condiciones sin código, con plantillas) y qué hace ella: avisarte, añadir una tarea, ejecutar una habilidad o pasárselo a un plugin. Las firmas se comprueban sobre los bytes originales, se rechazan entregas viejas o repetidas, y el contenido no es de fiar: lo que cambie algo sigue preguntándote. Registro de entregas y botón de prueba en cada tarjeta; copias salientes firmadas si quieres. |
 | **2.34** · Personas | **Lleva la cuenta de las personas de tu vida.** Una tarjeta por cada persona de la que hablas (relación, cumpleaños, lo que sabe con tus palabras), hecha a partir de sus recuerdos. Las nuevas esperan tu *Está bien*; corrige, une, separa u olvida a quien quieras (olvidar borra de verdad). ¿Dos Jeff? Pregunta cuál. Lo privado se queda en chats privados y lo sensible se pliega. Las tarjetas nunca llegan a otras apps, otros agentes, plugins, chats de grupo o de pareja; cada miembro del hogar tiene las suyas. |
 | **2.33** · Otros agentes (A2A) | **Habla con otros agentes de IA** con el protocolo abierto Agent2Agent, en ambos sentidos, escrito desde la especificación. Da a un agente su propia clave y elige qué puede pedir; ella puede preguntar a agentes que añadas (otra Sara o cualquier agente A2A), recibir sus respuestas en directo, pararlas o asignarles una tarjeta del tablero que vuelve con comprobantes. Lo que un agente pida que cambie algo necesita tu OK; sus palabras no son de fiar; nada privado, de pareja o de grupos sale; dice que es una IA. 61/61 comprobaciones del protocolo. |
 | **2.32** · Tablero | **Un tablero Kanban sobre tus tareas.** Cada proyecto tiene un tablero (Por hacer, En curso, Te espera, Hecho) con etiquetas, listas, fechas y repeticiones; arrastra con ratón, dedo o teclado. Asigna una tarjeta a Sara o a un equipo de ayudantes y la trabaja en segundo plano: pasa a Hecho solo si hay comprobantes del trabajo; si no, te espera con lo que no pudo demostrar. Pregúntale «¿qué está bloqueado?» o pídele añadir y mover tarjetas (pregunta antes). Tableros compartidos del hogar; un mosaico Te necesita en Hoy. |
@@ -311,8 +312,8 @@ prueba comprobaba. Lo que aporta hoy es la forma de trabajar (ejecuta las prueba
 antes de pasos arriesgados, muestra lo que se ejecutó), no una puntuación más alta en estos
 conjuntos. Detalles, resultados por tarea y cómo repetirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-Además, `npm run check`: una comprobación de tipos y 1332 pruebas automáticas con un modelo falso
-programado (sin red, sin GPU): 1317 pasan en Windows y las otras 8 son pruebas del aislamiento solo
+Además, `npm run check`: una comprobación de tipos y 1351 pruebas automáticas con un modelo falso
+programado (sin red, sin GPU): 1336 pasan en Windows y las otras 8 son pruebas del aislamiento solo
 para Linux, que se ejecutan en un servidor Linux.
 
 ## Cómo se compara Sara

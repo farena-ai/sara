@@ -7,7 +7,7 @@ storage:
   dataRoot: data
 category: ai
 name: Sara
-version: "2.33.0"
+version: "2.34.0"
 tagline: A self-hosted AI companion and coding partner
 description: >-
   First start: open Sara and click "Set up Sara". Umbrel has already checked it's you, so one click

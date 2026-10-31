@@ -110,6 +110,7 @@ import { SkillLearner } from './skill-learning.ts';
 import { PluginManager } from './plugins/manager.ts';
 import { A2AServer } from './a2a.ts';
 import { A2AClient } from './a2a-client.ts';
+import { HookManager } from './webhooks.ts';
 import { createSkillTools } from './skill-tools.ts';
 import { workspaceDir } from './tools/workspace.ts';
 import { createTuneTool } from './studio.ts';
@@ -351,6 +352,15 @@ const a2aDb = isDemo
       const d = new DatabaseSync(join(dataDir, 'sara.db'));
       d.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;');
       return d;
+    })();
+// Phase 102 (ST7, docs/WEBHOOKS.md): webhooks, the owner's only (never a member's space, never the
+// demo). One manager on its own connection to the owner's sara.db, attached to his companions.
+const hookManager = isDemo
+  ? undefined
+  : (() => {
+      const d = new DatabaseSync(join(dataDir, 'sara.db'));
+      d.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;');
+      return new HookManager({ db: d, vault, scrub: (s) => redactor.redact(s), allowLocalTargets: process.env.SARA_HOOKS_LOCAL_TARGETS === '1', keepDays: () => settings.get().hooks?.keepDays ?? 14 });
     })();
 let a2aServer: A2AServer | undefined;
 let a2aClient: A2AClient | undefined;
@@ -844,6 +854,11 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       app.a2aClient = a2aClient;
       for (const t of a2aClient.tools()) tools.add(t);
     }
+  }
+  // Phase 102: the owner's companions get his webhooks (members and the demo never).
+  if (!isMember && hookManager) {
+    app.hooks = hookManager;
+    hookManager.attach(id, app);
   }
   const server = createSaraServer({ ...serverOpts, app, auth: space.auth, companions: space.companions, spaceId: space.id, ...(isMember ? { member: memberHooksFor(space) } : isDemo ? {} : { household: householdHooks }) });
   return {

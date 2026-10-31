@@ -5,6 +5,24 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.35.0 (2026-10-31): webhooks and event triggers (Phase 102, staples ST7)
+
+- **Signed incoming webhooks:** Settings → Connections → Webhooks. Each gets its own address
+  (`/hook/<id>.<secret>`, outside `/api`; only a hash of the secret is kept). Guide:
+  [docs/WEBHOOKS.md](docs/WEBHOOKS.md).
+- **Signatures, written from scratch** and checked on the raw bytes in constant time: GitHub
+  (`X-Hub-Signature-256`), Stripe (`t=`/`v1`, 5-minute tolerance) and Standard Webhooks (`webhook-id`,
+  timestamp, `whsec_` secrets). A header token or the address alone are weaker options, limited to
+  *Tell me* and *Add a task* unless you allow more. Replays and duplicates are refused; size and rate
+  caps; a wrong secret looks the same as an unknown hook.
+- **When and what:** no-code conditions with presets per sender; actions *Tell me*, *Add a task*,
+  *Run a skill* (as an outside turn with only the tool groups you tick; changes ask, a declined card
+  ends the run) and *Send to a plugin* (`event:webhook`). The payload is untrusted text; people cards
+  and memory stay out.
+- A delivery log, a *Test* button (dry run, run it for real, or a ready curl line), a Today tile and
+  optional signed outgoing copies (Standard Webhooks, through the network guard). Owner only; not on
+  the demo.
+
 ## 2.34.0 (2026-10-31): people (Phase 101, staples ST6)
 
 - **People cards**, built from her memories (which stay the source of truth): Memory → *People*. Each

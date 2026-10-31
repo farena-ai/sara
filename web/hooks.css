@@ -1,0 +1,95 @@
+/* Phase 102 (ST7, docs/WEBHOOKS.md): Settings → Connections → Webhooks and the delivery cards in the
+   chat. Colours only through theme tokens (web/theme.css); safe areas only through var(--safe-t) /
+   var(--safe-b). Targets are 44 px; phone and desktop share one layout that wraps. */
+
+.hk-form { display: grid; gap: var(--s-3); padding: var(--s-3); border: 1px solid var(--hairline-strong); border-radius: var(--r-card); background: var(--surface-1); min-width: 0; }
+.hk-form[hidden], .hk-made[hidden] { display: none; }
+.hk-step { display: grid; gap: var(--s-2); min-width: 0; }
+.hk-step h4 { margin: 0; display: flex; align-items: center; gap: var(--s-2); }
+.hk-step label, .hk-limits label { display: grid; gap: 4px; min-width: 0; }
+.hk-step label.row, .hk-limits label.row { display: flex; align-items: center; gap: var(--s-2); }
+.hk-step input:not([type="checkbox"]), .hk-step select, .hk-limits input, .hk-limits select { min-height: 44px; min-width: 0; width: 100%; }
+.hk-step label.row input[type="checkbox"] { width: 22px; height: 22px; flex: none; accent-color: var(--accent-solid); }
+.hk-step [hidden], .hk-form label[hidden], .hk-form .hk-tools[hidden] { display: none; }
+.hk-senders { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--s-2); }
+.hk-senders .pick-card { min-height: 64px; display: grid; gap: 2px; text-align: start; }
+.hk-senders .pick-card:disabled { opacity: 0.7; cursor: default; }
+.hk-conds { display: grid; gap: var(--s-2); }
+.hk-cond { display: grid; grid-template-columns: minmax(84px, 0.7fr) minmax(0, 1.4fr) minmax(96px, 0.8fr) minmax(0, 1.2fr) 44px; gap: var(--s-2); align-items: center; }
+.hk-cond select, .hk-cond input { min-height: 44px; min-width: 0; width: 100%; }
+.hk-cond input[hidden] { visibility: hidden; display: block; }
+.hk-cond-rm { min-width: 44px; min-height: 44px; }
+.hk-tools { display: grid; gap: 4px; }
+.hk-tools p { margin: 0; display: flex; align-items: center; gap: var(--s-2); }
+.hk-limits { border-top: 1px solid var(--hairline); padding-top: var(--s-2); }
+.hk-limits summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.hk-limits[open] { display: grid; gap: var(--s-2); }
+.hk-form-actions button { min-height: 44px; }
+
+.hk-made { margin: var(--s-3) 0; }
+.hk-made-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin: var(--s-2) 0; min-width: 0; }
+.hk-made-row p { flex: 1 0 100%; margin: 0; }
+.hk-made-row code { flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; padding: var(--s-2); border-radius: var(--r-control); background: var(--surface-2); border: 1px solid var(--hairline); }
+.hk-made-row button { min-height: 44px; }
+.hk-steps { margin: var(--s-2) 0 0; padding-inline-start: 1.2em; display: grid; gap: 4px; }
+
+.hk-card { display: grid; gap: var(--s-2); min-width: 0; }
+.hk-head { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.hk-title { display: grid; flex: 1; min-width: 0; }
+.hk-title strong { overflow-wrap: anywhere; }
+.hk-switch { width: 44px; height: 26px; flex: none; accent-color: var(--accent-solid); }
+.hk-head .skl-more { min-width: 44px; min-height: 44px; }
+.hk-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hk-chips .skl-chip.warn, .prop-chip.warn { color: var(--warn); background: var(--warn-soft); }
+.hk-stats { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); }
+.hk-nums { margin: 0; }
+.hk-spark-wrap { display: inline-flex; width: 120px; height: 28px; color: var(--accent-solid); }
+.hk-spark-wrap svg { width: 100%; height: 100%; }
+.hk-when { margin: 0; }
+.hk-filters-list { margin: 0; padding-inline-start: 1.2em; display: grid; gap: 2px; overflow-wrap: anywhere; }
+.hk-addr { margin: 0; overflow-wrap: anywhere; }
+.hk-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.hk-actions button { min-height: 44px; }
+.hk-panel { display: grid; gap: var(--s-2); min-width: 0; }
+.hk-panel:empty { display: none; }
+.hk-panel label { display: grid; gap: 4px; }
+.hk-panel label[hidden], .hk-paste[hidden] { display: none; }
+.hk-panel select { min-height: 44px; }
+.hk-paste { display: grid; gap: var(--s-2); }
+.hk-paste textarea { width: 100%; min-width: 0; font-family: var(--font-mono); font-size: 14px; }
+.hk-test-out:empty { display: none; }
+.hk-curl, .hk-body { margin: 0; padding: var(--s-2); max-height: 260px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; border-radius: var(--r-control); background: var(--surface-2); border: 1px solid var(--hairline); }
+.hk-log-wrap { overflow-x: auto; max-width: 100%; }
+.hk-log { width: 100%; border-collapse: collapse; font-size: var(--fs-meta); }
+.hk-log th, .hk-log td { text-align: start; padding: 6px var(--s-2); border-bottom: 1px solid var(--hairline); vertical-align: top; }
+.hk-log tbody tr:not(.hk-log-detail) { cursor: pointer; }
+.hk-log tbody tr:not(.hk-log-detail):hover, .hk-log tbody tr:focus-visible { background: var(--accent-soft); outline: none; }
+.hk-log td:last-child { overflow-wrap: anywhere; }
+.hk-v-bad-signature td:nth-child(2), .hk-v-rate-limited td:nth-child(2), .hk-v-too-big td:nth-child(2), .hk-v-error td:nth-child(2) { color: var(--danger); }
+.hk-v-filtered td:nth-child(2), .hk-v-duplicate td:nth-child(2) { color: var(--text-3); }
+.hk-v-accepted td:nth-child(2) { color: var(--success); }
+.hk-keep { margin-top: var(--s-3); }
+.hk-keep label { display: grid; gap: 4px; max-width: 320px; }
+.hk-keep select { min-height: 44px; }
+
+/* In the chat: the delivery card sits with the notices, labelled as the webhook's; the delivered
+   text is a quiet outside card, not the owner's bubble. */
+.msg.user.from-hook { background: var(--surface-1); color: var(--text-1); border: 1px solid var(--hairline-strong); }
+.msg.user.from-hook .msg-from { display: block; margin-bottom: 4px; color: var(--text-3); }
+.msg.notice.hk-msg { width: min(560px, 100%); max-width: 100%; padding: 0; background: none; border: 0; box-shadow: none; opacity: 1; }
+.hk-msg .prop-card { width: 100%; margin: 0; text-align: start; }
+.hk-msg .prop-title { color: var(--text-1); }
+.hk-notice .prop-buttons button { min-height: 44px; }
+
+@media (max-width: 640px) {
+  /* Phone: "Where" and the remove button on top, then the field, then the check and its value. */
+  .hk-cond { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px; grid-template-areas: 'where where rm' 'path path path' 'op value value'; padding-bottom: var(--s-2); border-bottom: 1px solid var(--hairline); }
+  .hk-cond .hk-c-where { grid-area: where; }
+  .hk-cond .hk-c-path { grid-area: path; }
+  .hk-cond .hk-c-op { grid-area: op; }
+  .hk-cond .hk-c-value { grid-area: value; }
+  .hk-cond .hk-cond-rm { grid-area: rm; }
+  .hk-cond .hk-c-path[hidden], .hk-cond .hk-c-value[hidden] { display: none; }
+  .hk-log th:nth-child(4), .hk-log td:nth-child(4) { display: none; }
+  .hk-form { padding: var(--s-2); }
+}

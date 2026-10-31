@@ -203,6 +203,71 @@ export async function netFetchPeer(input: string, init: RequestInit | undefined,
   return netFetch(input, init);
 }
 
+/**
+ * Phase 102 (ST7): an address no request to an owner-typed URL may reach (SSRF rules): loopback,
+ * the home network and Tailscale (isLanHost), link-local (169.254/16 incl. cloud metadata, fe80::/10),
+ * "this network" 0/8, multicast and reserved (≥ 224), the unspecified and IPv4-mapped forms.
+ */
+export function isPrivateAddress(ip: string): boolean {
+  let h = ip.trim().toLowerCase();
+  if (h.startsWith('[') && h.endsWith(']')) h = h.slice(1, -1);
+  if (isLoopbackHost(h) || isLanHost(h)) return true;
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    return a === 0 || (a === 169 && b === 254) || a >= 224 || (a === 192 && b === 0 && Number(v4[3]) === 0) || (a === 198 && (b === 18 || b === 19));
+  }
+  if (h === '::' || h === '0:0:0:0:0:0:0:0') return true;
+  if (/^fe[89ab][0-9a-f]?:/.test(h) || h.startsWith('ff')) return true;
+  const mapped = /^(?:0:0:0:0:0:|::)ffff:(.+)$/.exec(h);
+  if (mapped) {
+    const rest = mapped[1];
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(rest)) return isPrivateAddress(rest);
+    const hex = /^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(rest);
+    if (hex) {
+      const n = (parseInt(hex[1], 16) << 16) | parseInt(hex[2], 16);
+      return isPrivateAddress([(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join('.'));
+    }
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Phase 102: checks an owner-typed address for an outgoing webhook before anything is sent. It must
+ * be https (http only to this computer when `allowLoopback`), carry no user:password, and every
+ * address its name resolves to must be public; with `allowLoopback` (SARA_HOOKS_LOCAL_TARGETS=1,
+ * for local testing only) a literal loopback address passes too. Private local mode applies as for
+ * every request. Returns the parsed URL or throws with the reason.
+ */
+export async function checkPublicTarget(target: string, opts: { allowLoopback?: boolean; lookup?: (host: string) => Promise<string[]> } = {}): Promise<URL> {
+  const u = toUrl(target);
+  if (!u) throw new Error('That address is not valid.');
+  if (u.username || u.password) throw new Error('The address may not contain a user name or password.');
+  const loop = isLoopbackHost(u.hostname);
+  if (loop && opts.allowLoopback && (u.protocol === 'http:' || u.protocol === 'https:')) {
+    checkOutbound(u, 'outgoing webhook');
+    return u;
+  }
+  if (u.protocol !== 'https:') throw new Error('Use an https:// address.');
+  let host = u.hostname;
+  if (host.startsWith('[') && host.endsWith(']')) host = host.slice(1, -1);
+  if (isPrivateAddress(host) || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) throw new Error('Sara only sends webhooks to public addresses (not this computer, the home network or Tailscale).');
+  const literal = /^[\d.]+$/.test(host) || host.includes(':');
+  if (!literal) {
+    const lookup = opts.lookup ?? (async (h: string) => (await import('node:dns/promises')).lookup(h, { all: true, verbatim: true }).then((r) => r.map((x) => x.address)));
+    let addrs: string[] = [];
+    try {
+      addrs = await lookup(host);
+    } catch {
+      throw new Error(`Couldn't find ${host}.`);
+    }
+    if (!addrs.length || addrs.some(isPrivateAddress)) throw new Error('That name points to a private address; Sara only sends webhooks to public addresses.');
+  }
+  checkOutbound(u, 'outgoing webhook');
+  return u;
+}
+
 const guardedGlobal = (input: string | URL | Request, init?: RequestInit): Promise<Response> => netFetch(input, init);
 
 /** A WebSocket (Node's built-in client) after the same check. */

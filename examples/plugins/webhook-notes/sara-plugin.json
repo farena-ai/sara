@@ -1,0 +1,24 @@
+{
+  "manifest": 1,
+  "id": "webhook-notes",
+  "name": "Webhook notes",
+  "version": "1.0.0",
+  "description": "An example plugin for webhooks: when a webhook is set to Send to a plugin, it posts a short note with the event name and keeps the last one.",
+  "author": "Sara examples",
+  "license": "MIT",
+  "sara": ">=2.35.0",
+  "main": "main.mjs",
+  "permissions": {
+    "hooks": [
+      "event:webhook"
+    ],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    }
+  }
+}

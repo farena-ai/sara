@@ -263,6 +263,8 @@ function routeFamilies(): Map<string, Set<string>> {
 const OWNER_ONLY = ['backups', 'update', 'doctor', 'logs', 'status', 'health', 'access', 'private-local', 'local-models', 'subscriptions', 'mcp', 'bridges', 'github', 'github-watch', 'google', 'home', 'ssh', 'workspaces', 'jobs', 'previews', 'team', 'codemap', 'code-projects', 'starters', 'recipes', 'history-import', 'import', 'model-jobs', 'tools', 'search', 'desktop-apps', 'claim', 'demo', 'public', 'login', 'telegram', 'discord', 'budgets', 'sandbox', 'security-pass', 'findings', 'threat-model', 'evals', 'redteam',
   // Phase 98 (ST3): plugins: install, enable, settings, update, rollback, remove, log, calls (owner only).
   'plugins',
+  // Phase 102 (ST7): webhooks: list, make, change, rotate, test, log, enable, remove (owner only).
+  'hooks',
   // Phase 87: computer use. Member routes in src/household.ts, but answered 403 ownerOnly while the
   // owner's "Let household members use computer use" is off (the default, as here).
   'hands', 'computer'];
@@ -317,6 +319,20 @@ test('plugins (Phase 98): every plugin route answers a member 403 ownerOnly', as
   for (const who of [ana, ben]) {
     for (const [method, path] of routes) {
       const r = await call(who, method, path, method === 'GET' || method === 'DELETE' ? undefined : { path: process.cwd(), companion: 'main', on: true });
+      assert.equal(r.status, 403, `${who.name} ${method} ${path}`);
+      assert.equal(r.json.ownerOnly, true, `${who.name} ${method} ${path}`);
+    }
+  }
+});
+
+test('webhooks (Phase 102): every hook route answers a member 403 ownerOnly; /hook/* never in a member space', async () => {
+  const routes: [string, string][] = [
+    ['GET', '/api/hooks'], ['PUT', '/api/hooks'], ['POST', '/api/hooks'], ['PUT', '/api/hooks/h000000000000'], ['DELETE', '/api/hooks/h000000000000'],
+    ['POST', '/api/hooks/h000000000000/rotate'], ['POST', '/api/hooks/h000000000000/test'], ['GET', '/api/hooks/h000000000000/deliveries'], ['POST', '/api/hooks/h000000000000/enable'],
+  ];
+  for (const who of [ana, ben]) {
+    for (const [method, path] of routes) {
+      const r = await call(who, method, path, method === 'GET' || method === 'DELETE' ? undefined : { name: 'x', verify: 'url', action: { kind: 'tell' }, on: true, keepDays: 7 });
       assert.equal(r.status, 403, `${who.name} ${method} ${path}`);
       assert.equal(r.json.ownerOnly, true, `${who.name} ${method} ${path}`);
     }
