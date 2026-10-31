@@ -6,11 +6,15 @@ import type { Persona } from '../persona.ts';
 import type { Repeat } from '../planner.ts';
 import type { Bundle } from './bundle.ts';
 
-/** The preview's sections, in import order (§7.3). `later` = custom stores, config, hooks (MI2/MI3). */
-export type Section = 'persona' | 'memories' | 'profile' | 'conversations' | 'skills' | 'schedules' | 'board' | 'reflections' | 'later';
-export const SECTIONS: readonly Section[] = ['persona', 'memories', 'profile', 'conversations', 'skills', 'schedules', 'board', 'reflections', 'later'];
+/**
+ * The preview's sections, in import order (§7.3). `later` = config, hooks (MI3). MI2 (§8) adds
+ * `people` (ST6 cards + facts), `tasks` (planner tasks) and `agenda` (ST8 goals, paused), which only
+ * custom-store mappings the owner confirmed on a card fill.
+ */
+export type Section = 'persona' | 'memories' | 'profile' | 'people' | 'conversations' | 'skills' | 'schedules' | 'tasks' | 'board' | 'agenda' | 'reflections' | 'later';
+export const SECTIONS: readonly Section[] = ['persona', 'memories', 'profile', 'people', 'conversations', 'skills', 'schedules', 'tasks', 'board', 'agenda', 'reflections', 'later'];
 /** Sections that import unless the owner switches them off (reflections are opt-in: §6.1 "needs you"). */
-export const DEFAULT_ON: ReadonlySet<Section> = new Set(['persona', 'memories', 'profile', 'conversations', 'skills', 'schedules', 'board']);
+export const DEFAULT_ON: ReadonlySet<Section> = new Set(['persona', 'memories', 'profile', 'people', 'conversations', 'skills', 'schedules', 'tasks', 'board', 'agenda']);
 
 /** Sensitive categories held for the owner's choice (§4.6, §7.2). */
 export type Category = 'medical' | 'intimate';
@@ -57,6 +61,35 @@ export interface MemoryData {
   superseded?: boolean;
   onDate?: string;
   tag?: string;
+  /** MI2 volume rules (§8.4): arrives archived (searchable, never brought up by itself). */
+  archived?: boolean;
+}
+
+/** MI2 (§8.3): a person from a custom store, with the facts joined to them (ST6 people cards). */
+export interface PersonData {
+  name: string;
+  aliases: string[];
+  relation: string;
+  birthday: string | null;
+  notes: string;
+  /** Newest first; at most 200 active (§15 Q5), the rest arrive as archived notes. */
+  facts: { content: string; happenedOn: string; source?: string; confidence?: number }[];
+  archivedFacts: { content: string; happenedOn: string }[];
+}
+
+/** MI2: a task row (planner task, never acts by itself). */
+export interface TaskData {
+  title: string;
+  notes: string;
+  dueAt: string | null;
+  done: boolean;
+}
+
+/** MI2: a goal or intention (ST8 agenda goal; arrives paused, the agenda stays off until switched on). */
+export interface GoalData {
+  title: string;
+  why: string;
+  happenedOn: string;
 }
 
 export interface ConversationData {
@@ -107,7 +140,7 @@ export interface LaterData {
   code: 'custom-store' | 'config' | 'hook' | 'plugin' | 'agenda' | 'boot' | 'tools' | 'channel' | 'unknown';
 }
 
-export type FindingData = PersonaFinding | MemoryData | ConversationData | SkillData | ScheduleData | BoardData | LaterData;
+export type FindingData = PersonaFinding | MemoryData | ConversationData | SkillData | ScheduleData | BoardData | LaterData | PersonData | TaskData | GoalData;
 
 export interface Finding {
   section: Section;
@@ -118,6 +151,8 @@ export interface Finding {
   title: string;
   data: FindingData;
   held?: Category;
+  /** MI2: the mapping card (store + family) that made this finding (re-mapping replaces them). */
+  card?: string;
 }
 
 /** A finding as staged (with its id, hash and state). */

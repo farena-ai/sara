@@ -2892,7 +2892,7 @@
       <p id="import-status" class="muted small"></p>
         </section>
         <section class="settings-page" data-page="dh-movein" data-group="Data & health" data-title="Move in from another agent" data-owner-only hidden>
-      <h3>How it works <button type="button" class="tip" data-tip="Bring a Hermes Agent or OpenClaw companion over: personality, notes, past chats, skills, schedules and board. The old computer is not changed. Undo removes it all for 30 days.">?</button></h3>
+      <h3>How it works <button type="button" class="tip" data-tip="Bring a Hermes Agent, OpenClaw or custom companion over: personality, notes, past chats, people, skills, schedules and her old databases. The old computer is not changed. Undo removes it all for 30 days.">?</button></h3>
       <p class="muted small">Three steps. Nothing is changed on the old computer, keys and passwords are never collected, and you see everything before it is imported.</p>
       <ol class="mi-steps" data-noauto>
         <li class="mi-step">
@@ -2916,6 +2916,7 @@
                 <li><strong>There is no Python:</strong> install it from python.org, or run the collector on a computer that can read the agent's folder.</li>
                 <li><strong>Permission denied:</strong> the agent runs as another user. The collector prints the exact sudo line to use.</li>
                 <li><strong>It finds nothing:</strong> point at the folder: --hermes-home PATH or --openclaw-state PATH.</li>
+                <li><strong>A custom agent or a Postgres database:</strong> add --scan FOLDER, --postgres "postgres://user@host/db" (read-only) or --postgres-dump FILE.</li>
                 <li><strong>Only a look:</strong> add --plan-only and nothing is written.</li>
               </ul>
             </details>
@@ -2939,6 +2940,10 @@
       <div id="mi-work" class="mi-work" aria-live="polite" data-noauto></div>
       <h3>Past move-ins <button type="button" class="tip" data-tip="Every move-in is one batch. Undo removes exactly what it brought (notes, conversations, skills, tasks, cards) and puts her old personality back. Available for 30 days.">?</button></h3>
       <div id="mi-batches" class="mi-batches" data-noauto><p class="muted small">None yet.</p></div>
+      <h3>Saved store mappings <button type="button" class="tip" data-tip="Every store card you confirm is saved by the shape of its tables (names only, no data). A later bundle with the same tables maps itself with no model calls. Export them to share with someone using the same plugin.">?</button></h3>
+      <div id="mi-mappings" class="mi-batches" data-noauto><p class="muted small">None yet.</p></div>
+      <p class="actions-left"><a class="button ghost" href="/api/movein/mappings/export" download="sara-movein-mappings.json">Export the mappings</a> <button type="button" class="file-button ghost" data-pick="mi-map-file">Add a mappings file</button><input id="mi-map-file" type="file" accept=".json,application/json" hidden data-noauto></p>
+      <p id="mi-map-note" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="dh-updates" data-group="Data & health" data-title="Updates" data-owner-only hidden>
       <p class="muted small">New versions bring fixes and new things to do. Updating makes a backup first, then installs and restarts Sara (about a minute; conversations in progress stop). If the new version doesn't start properly, Sara goes back to the version she had by herself.</p>

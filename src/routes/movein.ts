@@ -13,6 +13,15 @@
 //   POST   /api/movein/bundles/:id/import       Import = one batch
 //   POST   /api/movein/bundles/:id/stop         Stop (the batch is marked partial; Undo still works)
 //   DELETE /api/movein/bundles/:id              Delete the bundle now
+//   GET    /api/movein/bundles/:id/cards        MI2: custom-store mapping cards (+ skipped tables, cost)
+//   POST   /api/movein/bundles/:id/cards/propose  {keys?, localOnly?, useModel?} ask her (one call per family)
+//   POST   /api/movein/bundles/:id/cards/stop   stop asking
+//   POST   /api/movein/bundles/:id/cards/edit   {key, mapping} the hand edit (same menu, no SQL)
+//   POST   /api/movein/bundles/:id/cards/confirm {key} Looks right: map the rows into the preview
+//   POST   /api/movein/bundles/:id/cards/skip   {key}   ·  …/reset {key}
+//   POST   /api/movein/bundles/:id/cards/pull   {store, table} pull a telemetry table back in
+//   GET    /api/movein/mappings                 saved mappings · GET …/mappings/export (JSON, names only)
+//   POST   /api/movein/mappings/import          a shared mappings file · DELETE …/mappings/:fingerprint
 //   GET    /api/movein/batches/:id              a move-in and its report
 //   GET    /api/movein/batches/:id/undo         what Undo removes (and imported notes you edited)
 //   POST   /api/movein/batches/:id/undo         Undo this move-in
@@ -158,6 +167,45 @@ export function createMoveInRoutes(ctx: RouteCtx): RouteHandler {
           return send(res, 200, { ok: true });
         }
         if (!d && method === 'DELETE') return send(res, 200, { deleted: mi.deleteBundle(c) });
+        if (d === 'cards') {
+          const q = new URL(req.url ?? '/', 'http://x').searchParams;
+          if (!e && method === 'GET') return send(res, 200, mi.cards(c, { localOnly: q.get('localOnly') !== '0', sensitive: (q.get('sensitive') ?? '').split(',').filter((x) => (CATEGORIES as readonly string[]).includes(x)) }));
+          if (method === 'POST') {
+            const body = await readJson(req, 512 * 1024);
+            const key = String(body.key ?? '');
+            if (e === 'propose') {
+              mi.propose(c, { keys: Array.isArray(body.keys) ? body.keys.map(String).slice(0, 500) : undefined, localOnly: body.localOnly !== false, useModel: body.useModel !== false });
+              return send(res, 202, { ok: true });
+            }
+            if (e === 'stop') {
+              mi.stopCards(c);
+              return send(res, 200, { ok: true });
+            }
+            // A card the owner can't act on (gone, busy, not valid yet) is the owner's 400, not a server error.
+            const owner400 = async <T>(f: () => T | Promise<T>): Promise<T> => {
+              try {
+                return await f();
+              } catch (err) {
+                throw err instanceof HttpError ? err : new HttpError(400, (err as Error).message);
+              }
+            };
+            if (e === 'edit') return send(res, 200, { card: await owner400(() => mi.editCard(c, key, body.mapping)) });
+            if (e === 'confirm') return send(res, 202, { card: await owner400(() => mi.confirmCard(c, key)) });
+            if (e === 'skip') return send(res, 200, { card: await owner400(() => mi.skipCard(c, key)) });
+            if (e === 'reset') return send(res, 200, { card: await owner400(() => mi.resetCard(c, key)) });
+            if (e === 'pull') return send(res, 200, { card: await owner400(() => mi.pullTable(c, String(body.store ?? ''), String(body.table ?? ''))) });
+          }
+        }
+      }
+      if (b === 'mappings') {
+        if (!c && method === 'GET') return send(res, 200, { mappings: mi.mappings() });
+        if (c === 'export' && method === 'GET') {
+          res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'content-disposition': 'attachment; filename="sara-movein-mappings.json"', 'cache-control': 'no-store' });
+          res.end(JSON.stringify(mi.exportMappings(), null, 1));
+          return;
+        }
+        if (c === 'import' && method === 'POST') return send(res, 200, { imported: mi.importMappings(await readJson(req, 4 * 1024 * 1024)) });
+        if (c && !d && method === 'DELETE') return send(res, 200, { deleted: mi.deleteMapping(c) });
       }
       if (b === 'batches' && c) {
         const x = mi.batch(c);

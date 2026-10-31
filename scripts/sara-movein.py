@@ -43,7 +43,7 @@ import sys
 import time
 import zipfile
 
-VERSION = '2.37.0'
+VERSION = '2.38.0'
 FORMAT = 'saramove'
 FORMAT_VERSION = 1
 MiB = 1024 * 1024
@@ -208,7 +208,7 @@ NEVER_DIRS = ['credentials', 'auth', 'mcp-tokens', 'pairing', 'vault', 'codex-ho
 SECRET_KEY = re.compile(r'(api[_-]?key|token|secret|password|passwd|credential|auth|cookie|private[_-]?key|client[_-]?secret|bearer|session[_-]?key|^env$)', re.I)
 # Keys that only look secret ("max_tokens", "author", "authority"): their numbers and booleans stay.
 HARMLESS_KEY = re.compile(r'^(max|min)_?(new_|output_|input_)?tokens?$|_tokens$|^tokens?_(limit|budget|count|used)$|^author$|^auth_?mode$', re.I)
-SECRET_TABLE = re.compile(r'(^|_)(auth|oauth|credential|credentials|secret|secrets|token|tokens|api_?keys?|password|passwords|cookie|cookies|vault|keychain)(_|s|$)', re.I)
+SECRET_TABLE = re.compile(r'(^|_)(auth|oauth|credential|credentials|secret|secrets|tokens?(?!_(usage|counts?|budgets?|stats|spend|costs?|logs?|metrics?|limits?)(_|$))|api_?keys?|password|passwords|cookie|cookies|vault|keychain)(_|s|$)', re.I)
 
 # Secret-shaped values. Built from parts so this file itself never holds a secret-looking string.
 _SHAPES = [
@@ -836,7 +836,8 @@ def find_candidates(opts):
     if opts.get('openclaw_state'):
         given = True
         add_openclaw(expand(opts['openclaw_state']), opts.get('workspace'))
-    if not given:
+    # --scan names the agent folder itself: then the default homes are not looked for.
+    if not given and not opts.get('scan'):
         if os.environ.get('HERMES_HOME'):
             hermes_tree(expand(os.environ['HERMES_HOME']))
         if os.environ.get('OPENCLAW_STATE_DIR'):
@@ -860,6 +861,9 @@ def find_candidates(opts):
         if os.path.isdir(p) and p not in seen:
             seen.add(p)
             out.append({'kind': 'custom', 'agentId': os.path.basename(p.rstrip('/\\')) or 'custom', 'roots': [('ext', 'scan', p)], 'label': 'Custom folder  %s' % tilde(p)})
+    # Only a Postgres database or dump file given (no agent folder): a custom agent of its own.
+    if not out and (opts.get('postgres') or opts.get('postgres_dump')):
+        out.append({'kind': 'custom', 'agentId': 'postgres', 'roots': [], 'label': 'Postgres only'})
     return out
 
 
@@ -877,6 +881,7 @@ class Plan(object):
         self.skips = {}        # reason -> {files, bytes, examples[]}
         self.skip_list = []    # {path, reason, bytes, files}
         self.stores = []       # store specs (see the STORES part)
+        self.dumps = []        # pg_dump files found by --scan (read as Postgres stores)
         self.history = {}      # persona file -> [dated copies]
         self.config_trees = []
         self.notes = []
@@ -1083,7 +1088,7 @@ def classify_file(role, rel, name, size, plan, include_paths):
         if '/skills/' in '/' + rel and e in TEXT_EXT:
             return ('pack', 'skill')
         if e in ('.sql', '.dump'):
-            return ('other', 'SQL dumps are read in a later update (MI2)')
+            return ('pgdump', None) if looks_pg_dump(os.path.join(plan.root_path, rel)) else ('other', 'an SQL file that is not a pg_dump')
     if sqlite_like and is_sqlite(os.path.join(plan.root_path, rel)):
         return ('store', 'custom')
     return ('other', None)
@@ -1174,6 +1179,8 @@ def walk_root(plan, root_id, role, path):
                 plan.add(root_id, rel, kind, full, st.st_size, st.st_mtime)
             elif c[0] == 'store':
                 plan.stores.append({'root': root_id, 'rel': rel, 'src': full, 'reader': c[1], 'bytes': st.st_size, 'mtime': iso_utc(st.st_mtime)})
+            elif c[0] == 'pgdump':
+                plan.dumps.append({'src': full, 'rel': rel})
             else:
                 plan.skip('%s/%s' % (root_id, rel), c[0], st.st_size, 1, c[1])
     # Dated copies of a persona file: the newest three are its history, the rest are backups.
@@ -1425,7 +1432,7 @@ def analyze_sqlite(spec, plan):
                     t['verdict'], t['why'] = 'telemetry', 'a log or telemetry table'
             if cats and t['verdict'] == 'data':
                 t['cats'] = sorted(cats)
-            if t['verdict'] == 'data' and t['rows']:
+            if t['verdict'] == 'data' and t['rows'] and not plan.opts.get('schema_only'):
                 # Five rows give the size estimate (kept in memory only; never printed).
                 try:
                     smp = list(iter_table(conn, name, t['columns'], t['withoutRowid'], SAMPLE_ROWS))
@@ -1485,8 +1492,36 @@ def iter_table(conn, table, cols, without_rowid, limit=None):
 
 
 # ---------------------------------------------------------------------------------------------
-# Postgres, only when the owner points at one (section 4.7): system psql / pg_dump, read-only
+# Postgres, only when the owner points at one (section 4.7, 8.6). Three ways in, all read-only:
+#   * the system psql (when it is on PATH; never downloaded),
+#   * a small built-in client (this file: startup, SCRAM-SHA-256 / md5 / password sign-in, simple
+#     queries, COPY ... TO STDOUT), used when there is no psql or with --pg-client builtin,
+#   * a pg_dump file the owner already has (--postgres-dump; plain SQL is read here, a custom-format
+#     dump is turned into plain SQL by the system pg_restore). A dump is never restored anywhere.
+# Every session is read-only: default_transaction_read_only=on at sign-in, then one
+# BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY snapshot for the rows, ROLLBACK at the end.
 # ---------------------------------------------------------------------------------------------
+PG_CATALOG_SQL = (
+    "SELECT json_agg(t) FROM (SELECT n.nspname AS schema, c.relname AS name, "
+    "CASE c.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' ELSE 'TABLE' END AS kind, "
+    "c.reltuples::bigint AS rows, "
+    "(SELECT json_agg(json_build_object('name', a.attname, 'type', format_type(a.atttypid, a.atttypmod), 'nullable', NOT a.attnotnull) ORDER BY a.attnum) "
+    "FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped) AS columns, "
+    "(SELECT json_agg(a.attname) FROM pg_constraint k JOIN pg_attribute a ON a.attrelid = k.conrelid AND a.attnum = ANY(k.conkey) "
+    "WHERE k.conrelid = c.oid AND k.contype = 'p') AS \"primaryKey\", "
+    "(SELECT json_agg(json_build_object('from', a.attname, 'table', fn.nspname || '.' || fc.relname, 'to', fa.attname)) "
+    "FROM pg_constraint k JOIN pg_class fc ON fc.oid = k.confrelid JOIN pg_namespace fn ON fn.oid = fc.relnamespace "
+    "JOIN pg_attribute a ON a.attrelid = k.conrelid AND a.attnum = k.conkey[1] "
+    "JOIN pg_attribute fa ON fa.attrelid = k.confrelid AND fa.attnum = k.confkey[1] "
+    "WHERE k.conrelid = c.oid AND k.contype = 'f') AS \"foreignKeys\" "
+    "FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+    "WHERE c.relkind IN ('r', 'p', 'v', 'm') AND n.nspname NOT IN ('pg_catalog', 'information_schema') "
+    "AND n.nspname NOT LIKE 'pg\\_toast%' AND n.nspname NOT LIKE 'pg\\_temp%' ORDER BY n.nspname, c.relname) t")
+PG_SNAPSHOT = 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY'
+PG_OPTIONS = '-c default_transaction_read_only=on -c statement_timeout=0'
+VECTOR_TYPE = re.compile(r'^(vector|halfvec|sparsevec|tsvector|tsquery)\b', re.I)
+
+
 def pg_safe(conn_str):
     s = re.sub(r'(://[^:/@]+):[^@]*@', r'\1@', conn_str)
     s = re.sub(r'(password\s*=\s*)\S+', r'\1***', s, flags=re.I)
@@ -1495,7 +1530,8 @@ def pg_safe(conn_str):
 
 def pg_env(conn_str):
     env = dict(os.environ)
-    env['PGOPTIONS'] = '-c default_transaction_read_only=on -c statement_timeout=0'
+    env['PGOPTIONS'] = PG_OPTIONS
+    env['PGAPPNAME'] = 'sara-movein'
     if 'PGPASSWORD' not in env and not re.search(r':[^@/]+@|password\s*=', conn_str, re.I) and sys.stdin.isatty():
         pw = getpass.getpass('Postgres password for %s (Enter for none): ' % pg_safe(conn_str).split(' (')[0])
         if pw:
@@ -1512,93 +1548,619 @@ def pg_tool(name):
     return None
 
 
-def pg_catalog(conn_str, env):
-    psql = pg_tool('psql')
-    if not psql:
-        raise RuntimeError('psql was not found on PATH (the collector never downloads it)')
-    q = ("SELECT json_agg(t) FROM (SELECT c.table_schema AS schema, c.table_name AS name, "
-         "json_agg(json_build_object('name', c.column_name, 'type', c.data_type, 'nullable', c.is_nullable = 'YES') ORDER BY c.ordinal_position) AS columns, "
-         "(SELECT GREATEST(cl.reltuples, 0)::bigint FROM pg_class cl JOIN pg_namespace n ON n.oid = cl.relnamespace WHERE n.nspname = c.table_schema AND cl.relname = c.table_name) AS rows, "
-         "(SELECT tt.table_type FROM information_schema.tables tt WHERE tt.table_schema = c.table_schema AND tt.table_name = c.table_name) AS kind "
-         "FROM information_schema.columns c WHERE c.table_schema NOT IN ('pg_catalog', 'information_schema') GROUP BY c.table_schema, c.table_name) t")
-    p = subprocess.Popen([psql, '-X', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-d', conn_str, '-c', q], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
-    out, err = p.communicate()
-    if p.returncode != 0:
-        raise RuntimeError(err.decode('utf-8', 'replace').strip()[:400])
-    tables = json.loads(out.decode('utf-8') or 'null') or []
+def pg_cell(col, typ, v):
+    """A Postgres text value as a typed JSON value (section 5: $date for timestamps)."""
+    if v is None:
+        return None
+    t = (typ or '').lower()
+    if VECTOR_TYPE.match(t) or EMBED_COL.search(col or '') and t.startswith(('real[]', 'double precision[]', 'vector')):
+        return {'$skipped': 'embedding', 'bytes': len(v)}
+    if t in ('smallint', 'integer', 'bigint', 'int2', 'int4', 'int8', 'oid'):
+        try:
+            return int(v)
+        except ValueError:
+            return cell(col, v)
+    if t in ('real', 'double precision', 'float4', 'float8') or t.startswith('numeric'):
+        try:
+            f = float(v)
+            return int(f) if t.startswith('numeric') and f.is_integer() and abs(f) < 2 ** 53 and '.' not in v else f
+        except ValueError:
+            return cell(col, v)
+    if t == 'boolean':
+        return v in ('t', 'true', '1')
+    if t.startswith('timestamp') or t == 'date':
+        # Postgres writes '2026-01-01 10:00:00+00': ISO 8601 wants T and a +00:00 offset.
+        d = v.replace(' ', 'T', 1) if t.startswith('timestamp') else v
+        return {'$date': re.sub(r'([+-]\d\d)$', r'\1:00', d)}
+    if t == 'bytea':
+        b = v[2:] if v.startswith('\\x') else v
+        return {'$blob': hashlib.sha256(b.encode('ascii', 'replace')).hexdigest(), 'bytes': len(b) // 2}
+    return cell(col, v)
+
+
+def pg_verdicts(tables):
+    """The collector's first look (the server recomputes with the full profile, section 8.2)."""
     for t in tables:
         t['verdict'] = 'data'
+        t['columns'] = t.get('columns') or []
+        t['primaryKey'] = t.get('primaryKey') or []
+        t['foreignKeys'] = t.get('foreignKeys') or []
+        t['rows'] = max(0, int(t.get('rows') or 0))
         nm = t['name']
-        if (t.get('kind') or '').upper() == 'VIEW':
+        kind = (t.get('kind') or '').upper()
+        for c in t['columns']:
+            c['pk'] = c['name'] in t['primaryKey']
+        if kind == 'VIEW':
             t['verdict'], t['why'] = 'other', 'a view (its tables are read instead)'
+        elif kind == 'MATERIALIZED VIEW':
+            t['verdict'], t['why'] = 'derived', 'a materialized view (made from other tables)'
         elif SECRET_TABLE.search(nm):
             t['verdict'], t['why'] = 'secret', 'looks like sign-ins or keys: never collected'
-        elif telemetry_by_name(nm) and (t.get('rows') or 0) > 50000:
+        elif DERIVED_TABLE.search(nm):
+            t['verdict'], t['why'] = 'derived', 'search index or internal table (Sara builds her own)'
+        elif telemetry_by_name(nm) and t['rows'] > 50000:
             t['verdict'], t['why'] = 'telemetry', 'a log or telemetry table'
-        cats = categories_of(nm, *[c['name'] for c in t.get('columns') or []])
+        cats = categories_of(nm, *[c['name'] for c in t['columns']])
         if cats and t['verdict'] == 'data':
             t['cats'] = sorted(cats)
-        for c in t.get('columns') or []:
-            c['pk'] = False
     return tables
 
 
-def pg_schema_sql(conn_str, env):
-    dump = pg_tool('pg_dump')
-    if not dump:
-        return '-- pg_dump was not found on PATH\n'
-    p = subprocess.Popen([dump, '--schema-only', '--no-owner', '--no-privileges', '-d', conn_str], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
-    out, err = p.communicate()
-    return out.decode('utf-8', 'replace') if p.returncode == 0 else '-- pg_dump failed: %s\n' % err.decode('utf-8', 'replace')[:300]
+def pg_key(t):
+    return '%s.%s' % (t['schema'], t['name'])
 
 
-def pg_rows(conn_str, env, tables):
-    """Yields (table, row dict) for every chosen table, all from ONE read-only snapshot."""
+def pg_row_sql(t, limit=None):
+    full = '%s.%s' % (qident(t['schema']), qident(t['name']))
+    return 'COPY (SELECT * FROM %s%s) TO STDOUT WITH (FORMAT csv, HEADER)' % (full, ' LIMIT %d' % limit if limit else '')
+
+
+def csv_rows(lines, table):
+    """CSV lines (with a header) -> typed row dicts."""
     import csv
-    psql = pg_tool('psql')
-    nonce = hashlib.sha256(os.urandom(16)).hexdigest()[:16]
-    script = ['BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;']
-    for t in tables:
-        full = '%s.%s' % (qident(t['schema']), qident(t['name']))
-        script.append("\\echo ==SARA-%s== %s" % (nonce, json.dumps([t['schema'], t['name']])))
-        script.append('COPY (SELECT * FROM %s) TO STDOUT WITH (FORMAT csv, HEADER);' % full)
-    script.append("\\echo ==SARA-%s== []" % nonce)
-    script.append('ROLLBACK;')
-    p = subprocess.Popen([psql, '-X', '-q', '-v', 'ON_ERROR_STOP=1', '-d', conn_str], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
-    p.stdin.write(('\n'.join(script) + '\n').encode('utf-8'))
-    p.stdin.close()
-    marker = ('==SARA-%s== ' % nonce).encode('ascii')
-    stream = io.TextIOWrapper(p.stdout, encoding='utf-8', errors='replace', newline='')
-    current = [None]
-    pending = [None]
+    types = dict((c['name'], c.get('type')) for c in table['columns'])
+    header = None
+    for rec in csv.reader(lines):
+        if header is None:
+            header = rec
+            continue
+        yield dict((header[k], pg_cell(header[k], types.get(header[k]), rec[k] if rec[k] != '' else None)) for k in range(min(len(header), len(rec))))
 
-    def lines():
-        for line in stream:
-            if line.encode('utf-8').startswith(marker):
-                pending[0] = json.loads(line[len(marker):].strip() or '[]')
-                return
-            yield line
-    while True:
-        if pending[0] is None:
+
+class PgPsql(object):
+    """The system psql: one catalog query, then one snapshot script with every COPY."""
+    name = 'psql'
+
+    def __init__(self, conn_str, env):
+        self.conn_str, self.env = conn_str, env
+        self.psql = pg_tool('psql')
+        if not self.psql:
+            raise RuntimeError('psql was not found on PATH (the collector never downloads it)')
+
+    def scalar(self, sql):
+        p = subprocess.Popen([self.psql, '-X', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-d', self.conn_str, '-c', sql], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env)
+        out, err = p.communicate()
+        if p.returncode != 0:
+            raise RuntimeError(err.decode('utf-8', 'replace').strip()[:400])
+        return out.decode('utf-8').strip()
+
+    def catalog(self):
+        tables = json.loads(self.scalar(PG_CATALOG_SQL) or 'null') or []
+        for t in tables:
+            if (t.get('rows') or 0) < 0 and (t.get('kind') or 'TABLE') == 'TABLE':
+                t['rows'] = int(self.scalar('SELECT count(*) FROM %s.%s' % (qident(t['schema']), qident(t['name']))) or 0)
+        return pg_verdicts(tables)
+
+    def schema_sql(self):
+        dump = pg_tool('pg_dump')
+        if not dump:
+            return '-- pg_dump was not found on PATH: the schema is in schema.json\n'
+        p = subprocess.Popen([dump, '--schema-only', '--no-owner', '--no-privileges', '-d', self.conn_str], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env)
+        out, err = p.communicate()
+        return out.decode('utf-8', 'replace') if p.returncode == 0 else '-- pg_dump failed: %s\n' % err.decode('utf-8', 'replace')[:300]
+
+    def rows(self, jobs):
+        """jobs: [(table, limit or None)]. Yields (job index, row) from ONE read-only snapshot."""
+        nonce = hashlib.sha256(os.urandom(16)).hexdigest()[:16]
+        script = [PG_SNAPSHOT + ';']
+        for k, (t, limit) in enumerate(jobs):
+            script.append('\\echo ==SARA-%s== %d' % (nonce, k))
+            script.append(pg_row_sql(t, limit) + ';')
+        script.append('\\echo ==SARA-%s== end' % nonce)
+        script.append('ROLLBACK;')
+        p = subprocess.Popen([self.psql, '-X', '-q', '-v', 'ON_ERROR_STOP=1', '-d', self.conn_str], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env)
+        p.stdin.write(('\n'.join(script) + '\n').encode('utf-8'))
+        p.stdin.close()
+        marker = '==SARA-%s== ' % nonce
+        stream = io.TextIOWrapper(p.stdout, encoding='utf-8', errors='replace', newline='')
+        state = {'next': None}
+
+        def block():
             for line in stream:
-                if line.encode('utf-8').startswith(marker):
-                    pending[0] = json.loads(line[len(marker):].strip() or '[]')
+                if line.startswith(marker):
+                    state['next'] = line[len(marker):].strip()
+                    return
+                yield line
+            state['next'] = 'end'
+        for _ in block():
+            pass
+        while state['next'] not in (None, 'end'):
+            k = int(state['next'])
+            state['next'] = None
+            for row in csv_rows(block(), jobs[k][0]):
+                yield k, row
+        p.wait()
+        if p.returncode not in (0, None):
+            raise RuntimeError('psql: ' + p.stderr.read().decode('utf-8', 'replace')[-300:])
+
+    def close(self):
+        pass
+
+
+def pg_conninfo(conn_str):
+    """postgres://user:pass@host:port/db?sslmode=x, or 'host=… port=… dbname=… user=… password=…'."""
+    info = {}
+    s = conn_str.strip()
+    if re.match(r'^postgres(ql)?://', s, re.I):
+        try:
+            from urllib.parse import urlsplit, unquote, parse_qsl
+        except ImportError:  # pragma: no cover
+            raise RuntimeError('this Python cannot read connection URLs')
+        u = urlsplit(s)
+        if u.username:
+            info['user'] = unquote(u.username)
+        if u.password:
+            info['password'] = unquote(u.password)
+        host = u.hostname
+        if host:
+            info['host'] = unquote(host)
+        if u.port:
+            info['port'] = str(u.port)
+        if u.path and u.path != '/':
+            info['dbname'] = unquote(u.path.lstrip('/'))
+        for k, v in parse_qsl(u.query):
+            info[k] = v
+    else:
+        for m in re.finditer(r"(\w+)\s*=\s*('(?:[^'\\]|\\.)*'|\S+)", s):
+            v = m.group(2)
+            info[m.group(1)] = v[1:-1].replace("\\'", "'") if v.startswith("'") else v
+        if not info and s:
+            raise RuntimeError('a service name needs psql (pg_service.conf); give a URL or host=… dbname=… instead')
+    info.setdefault('port', os.environ.get('PGPORT', '5432'))
+    info.setdefault('user', os.environ.get('PGUSER') or getpass.getuser())
+    info.setdefault('dbname', os.environ.get('PGDATABASE') or info['user'])
+    if 'host' not in info and os.environ.get('PGHOST'):
+        info['host'] = os.environ['PGHOST']
+    return info
+
+
+def pgpass_lookup(info):
+    """~/.pgpass (or PGPASSFILE), the way psql reads it: host:port:db:user:password, * matches all."""
+    path = os.environ.get('PGPASSFILE') or os.path.join(os.path.expanduser('~'), '.pgpass')
+    try:
+        with open(path, 'r') as fh:
+            lines = fh.read().splitlines()
+    except (IOError, OSError):
+        return None
+    want = [info.get('host') or 'localhost', info['port'], info['dbname'], info['user']]
+    for line in lines:
+        if not line or line.startswith('#'):
+            continue
+        parts = re.split(r'(?<!\\):', line)
+        if len(parts) < 5:
+            continue
+        parts = [x.replace('\\:', ':').replace('\\\\', '\\') for x in parts]
+        if all(parts[k] in ('*', want[k]) for k in range(4)):
+            return ':'.join(parts[4:])
+    return None
+
+
+class PgError(RuntimeError):
+    pass
+
+
+class PgWire(object):
+    """A minimal, read-only Postgres client (protocol 3.0), written for this collector."""
+    name = 'built-in'
+
+    def __init__(self, conn_str, env):
+        import socket
+        import struct
+        self.struct = struct
+        info = pg_conninfo(conn_str)
+        self.info = info
+        password = info.get('password') or env.get('PGPASSWORD') or pgpass_lookup(info)
+        host = info.get('host')
+        sock = None
+        if (not host or host.startswith('/')) and hasattr(socket, 'AF_UNIX'):
+            for d in ([host] if host else ['/var/run/postgresql', '/run/postgresql', '/tmp']):
+                path = os.path.join(d, '.s.PGSQL.%s' % info['port'])
+                if os.path.exists(path):
+                    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                    sock.connect(path)
                     break
-        nxt = pending[0]
-        pending[0] = None
-        if not nxt:
-            break
-        current[0] = nxt
-        reader = csv.reader(lines())
-        header = None
-        for rec in reader:
-            if header is None:
-                header = rec
+        if sock is None:
+            sock = socket.create_connection((host or 'localhost', int(info['port'])), timeout=30)
+            mode = info.get('sslmode', 'prefer')
+            if mode != 'disable':
+                sock.sendall(struct.pack('!ii', 8, 80877103))
+                answer = sock.recv(1)
+                if answer == b'S':
+                    import ssl
+                    ctx = ssl.create_default_context()
+                    if mode not in ('verify-ca', 'verify-full'):
+                        ctx.check_hostname = False
+                        ctx.verify_mode = ssl.CERT_NONE
+                    elif mode == 'verify-ca':
+                        ctx.check_hostname = False
+                    sock = ctx.wrap_socket(sock, server_hostname=host or 'localhost')
+                elif mode in ('require', 'verify-ca', 'verify-full'):
+                    raise PgError('the server does not offer SSL, but sslmode=%s asks for it' % mode)
+        sock.settimeout(None)
+        self.sock = sock
+        self.buf = b''
+        params = [('user', info['user']), ('database', info['dbname']), ('application_name', 'sara-movein'), ('options', PG_OPTIONS), ('client_encoding', 'UTF8')]
+        body = struct.pack('!i', 196608) + b''.join(k.encode() + b'\0' + v.encode('utf-8') + b'\0' for k, v in params) + b'\0'
+        sock.sendall(struct.pack('!i', len(body) + 4) + body)
+        self._auth(info['user'], password)
+
+    # -- the wire ------------------------------------------------------------------------------
+    def _read(self, n):
+        while len(self.buf) < n:
+            chunk = self.sock.recv(max(65536, n - len(self.buf)))
+            if not chunk:
+                raise PgError('the server closed the connection')
+            self.buf += chunk
+        out, self.buf = self.buf[:n], self.buf[n:]
+        return out
+
+    def _msg(self):
+        head = self._read(5)
+        kind = head[:1]
+        n = self.struct.unpack('!i', head[1:5])[0]
+        return kind, self._read(n - 4)
+
+    def _send(self, kind, body):
+        self.sock.sendall(kind + self.struct.pack('!i', len(body) + 4) + body)
+
+    @staticmethod
+    def _error(body):
+        fields = {}
+        for part in body.split(b'\0'):
+            if part:
+                fields[part[:1].decode('ascii', 'replace')] = part[1:].decode('utf-8', 'replace')
+        return PgError('%s: %s' % (fields.get('S', 'ERROR'), fields.get('M', 'unknown error')))
+
+    def _auth(self, user, password):
+        struct = self.struct
+        scram = None
+        while True:
+            kind, body = self._msg()
+            if kind == b'E':
+                raise self._error(body)
+            if kind == b'R':
+                code = struct.unpack('!i', body[:4])[0]
+                if code == 0:
+                    continue
+                if code in (3, 5, 10) and password is None:
+                    raise PgError('the server wants a password (set PGPASSWORD, put it in the URL, or run in a terminal to be asked)')
+                if code == 3:
+                    self._send(b'p', password.encode('utf-8') + b'\0')
+                elif code == 5:
+                    inner = hashlib.md5((password + user).encode('utf-8')).hexdigest().encode('ascii')
+                    self._send(b'p', b'md5' + hashlib.md5(inner + body[4:8]).hexdigest().encode('ascii') + b'\0')
+                elif code == 10:
+                    mechs = [m.decode('ascii', 'replace') for m in body[4:].split(b'\0') if m]
+                    if 'SCRAM-SHA-256' not in mechs:
+                        raise PgError('the server only offers %s sign-in' % ', '.join(mechs))
+                    nonce = base64.b64encode(os.urandom(18)).decode('ascii')
+                    first_bare = 'n=,r=' + nonce
+                    data = ('n,,' + first_bare).encode('ascii')
+                    self._send(b'p', b'SCRAM-SHA-256\0' + struct.pack('!i', len(data)) + data)
+                    scram = {'nonce': nonce, 'first_bare': first_bare}
+                elif code == 11:
+                    server_first = body[4:].decode('ascii')
+                    attrs = dict(x.split('=', 1) for x in server_first.split(','))
+                    if not attrs.get('r', '').startswith(scram['nonce']):
+                        raise PgError('the server answered sign-in with a wrong nonce')
+                    import hmac
+                    try:
+                        import unicodedata
+                        pw = unicodedata.normalize('NFKC', password)
+                    except ImportError:  # pragma: no cover
+                        pw = password
+                    salted = hashlib.pbkdf2_hmac('sha256', pw.encode('utf-8'), base64.b64decode(attrs['s']), int(attrs['i']))
+                    client_key = hmac.new(salted, b'Client Key', hashlib.sha256).digest()
+                    stored = hashlib.sha256(client_key).digest()
+                    final_bare = 'c=biws,r=' + attrs['r']
+                    auth_msg = ','.join([scram['first_bare'], server_first, final_bare]).encode('ascii')
+                    sig = hmac.new(stored, auth_msg, hashlib.sha256).digest()
+                    proof = bytes(bytearray(x ^ y for x, y in zip(bytearray(client_key), bytearray(sig))))
+                    scram['server_sig'] = hmac.new(hmac.new(salted, b'Server Key', hashlib.sha256).digest(), auth_msg, hashlib.sha256).digest()
+                    self._send(b'p', (final_bare + ',p=' + base64.b64encode(proof).decode('ascii')).encode('ascii'))
+                elif code == 12:
+                    attrs = dict(x.split('=', 1) for x in body[4:].decode('ascii').split(','))
+                    if base64.b64decode(attrs.get('v', '')) != scram['server_sig']:
+                        raise PgError('the server could not prove it knows the password (SCRAM check failed)')
+                else:
+                    raise PgError('this sign-in method (%d) needs psql' % code)
+            elif kind == b'Z':
+                return
+            # S (parameters), K (key data), N (notices): nothing to do
+
+    def query(self, sql):
+        """Simple query. Yields ('row', [text or None, ...]) / ('copy', bytes) / ('fields', [names])."""
+        self._send(b'Q', sql.encode('utf-8') + b'\0')
+        err = None
+        while True:
+            kind, body = self._msg()
+            if kind == b'T':
+                n = self.struct.unpack('!h', body[:2])[0]
+                names, p = [], 2
+                for _ in range(n):
+                    e = body.index(b'\0', p)
+                    names.append(body[p:e].decode('utf-8'))
+                    p = e + 1 + 18
+                yield ('fields', names)
+            elif kind == b'D':
+                n = self.struct.unpack('!h', body[:2])[0]
+                vals, p = [], 2
+                for _ in range(n):
+                    ln = self.struct.unpack('!i', body[p:p + 4])[0]
+                    p += 4
+                    if ln < 0:
+                        vals.append(None)
+                    else:
+                        vals.append(body[p:p + ln].decode('utf-8', 'replace'))
+                        p += ln
+                yield ('row', vals)
+            elif kind == b'd':
+                yield ('copy', body)
+            elif kind == b'E':
+                err = self._error(body)
+            elif kind == b'Z':
+                if err:
+                    raise err
+                return
+            # C, H, c, I, N, S: carry on
+
+    def catalog(self):
+        rows = [v for kind, v in self.query(PG_CATALOG_SQL) if kind == 'row']
+        tables = json.loads(rows[0][0] or 'null') if rows else []
+        tables = tables or []
+        for t in tables:
+            if (t.get('rows') or 0) < 0 and (t.get('kind') or 'TABLE') == 'TABLE':
+                got = [v for kind, v in self.query('SELECT count(*) FROM %s.%s' % (qident(t['schema']), qident(t['name']))) if kind == 'row']
+                t['rows'] = int(got[0][0]) if got else 0
+        return pg_verdicts(tables)
+
+    def schema_sql(self):
+        return '-- read with the collector\'s built-in client (no pg_dump): the schema is in schema.json\n'
+
+    def rows(self, jobs):
+        for _ in self.query(PG_SNAPSHOT):
+            pass
+        try:
+            for k, (t, limit) in enumerate(jobs):
+                def lines():
+                    rest = ''
+                    for kind, v in self.query(pg_row_sql(t, limit)):
+                        if kind != 'copy':
+                            continue
+                        rest += v.decode('utf-8', 'replace')
+                        parts = rest.split('\n')
+                        rest = parts.pop()
+                        for line in parts:
+                            yield line + '\n'
+                    if rest:
+                        yield rest
+                for row in csv_rows(lines(), t):
+                    yield k, row
+        finally:
+            for _ in self.query('ROLLBACK'):
+                pass
+
+    def close(self):
+        try:
+            self._send(b'X', b'')
+            self.sock.close()
+        except (OSError, IOError):
+            pass
+
+
+QNAME = r'(?:"(?:[^"]|"")+"|[A-Za-z_][\w$]*)'
+
+
+def unq(name):
+    return name[1:-1].replace('""', '"') if name.startswith('"') else name.lower()
+
+
+def split_qname(q):
+    parts = re.findall(QNAME, q)
+    return (unq(parts[0]), unq(parts[1])) if len(parts) >= 2 else ('public', unq(parts[0]))
+
+
+def copy_text_value(v):
+    """COPY text format: \\N is NULL, backslash escapes."""
+    if v == '\\N':
+        return None
+    if '\\' not in v:
+        return v
+    out, k = [], 0
+    esc = {'b': '\b', 'f': '\f', 'n': '\n', 'r': '\r', 't': '\t', 'v': '\v', '\\': '\\'}
+    while k < len(v):
+        ch = v[k]
+        if ch == '\\' and k + 1 < len(v):
+            nx = v[k + 1]
+            if nx in esc:
+                out.append(esc[nx])
+                k += 2
                 continue
-            yield '%s.%s' % (nxt[0], nxt[1]), {header[k]: cell(header[k], rec[k] if rec[k] != '' else None) for k in range(min(len(header), len(rec)))}
-        if pending[0] is None:
-            break
-    p.wait()
+            m = re.match(r'[0-7]{1,3}', v[k + 1:])
+            if m:
+                out.append(chr(int(m.group(0), 8)))
+                k += 1 + len(m.group(0))
+                continue
+            out.append(nx)
+            k += 2
+            continue
+        out.append(ch)
+        k += 1
+    return ''.join(out)
+
+
+class PgDump(object):
+    """A pg_dump file the owner already has: plain SQL read here; custom format via pg_restore -f -."""
+    name = 'dump file'
+
+    def __init__(self, path):
+        self.path = path
+        with open(path, 'rb') as fh:
+            head = fh.read(5)
+        self.custom = head == b'PGDMP'
+        if self.custom and not pg_tool('pg_restore'):
+            raise RuntimeError('%s is a custom-format dump: it needs pg_restore on PATH (or make a plain one with pg_dump -Fp)' % os.path.basename(path))
+        self._tables = None
+
+    def _lines(self):
+        if self.custom:
+            # pg_restore only converts the file to SQL text on stdout; nothing is restored anywhere.
+            p = subprocess.Popen([pg_tool('pg_restore'), '-f', '-', '--no-owner', '--no-privileges', self.path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            for line in io.TextIOWrapper(p.stdout, encoding='utf-8', errors='replace', newline=''):
+                yield line
+            p.wait()
+        else:
+            fd = os.open(self.path, os.O_RDONLY | getattr(os, 'O_BINARY', 0))
+            with io.open(fd, 'r', encoding='utf-8', errors='replace', newline='') as fh:
+                for line in fh:
+                    yield line
+
+    def _scan(self, want=None):
+        """One pass. Without `want`: the catalog (tables, columns, keys, row counts). With it: rows."""
+        tables = {}
+        order = []
+        cur = None
+        copy = None
+        counts = {}
+        cur_alter = None
+        for line in self._lines():
+            if copy is not None:
+                if line.rstrip('\r\n') == '\\.':
+                    copy = None
+                    continue
+                key, cols, job = copy
+                counts[key] = counts.get(key, 0) + 1
+                if job is not None:
+                    vals = line.rstrip('\r\n').split('\t')
+                    yield job, dict((cols[k], copy_text_value(vals[k]) if k < len(vals) else None) for k in range(len(cols)))
+                continue
+            if cur is not None:
+                st = line.strip()
+                if st.startswith(')'):
+                    cur = None
+                    continue
+                m = re.match(r'^\s*(' + QNAME + r')\s+(.+?)(,)?\s*$', line)
+                if m and not re.match(r'^\s*(CONSTRAINT|PRIMARY|FOREIGN|UNIQUE|CHECK|EXCLUDE)\b', line, re.I):
+                    typ = re.split(r'\s+(NOT NULL|NULL|DEFAULT|COLLATE|GENERATED|CONSTRAINT|REFERENCES|PRIMARY|UNIQUE|CHECK)\b', m.group(2), 1, flags=re.I)[0]
+                    cur['columns'].append({'name': unq(m.group(1)), 'type': typ.strip().lower(), 'nullable': 'NOT NULL' not in m.group(2).upper()})
+                continue
+            m = re.match(r'^CREATE (UNLOGGED )?TABLE (' + QNAME + r'(?:\.' + QNAME + r')?) \($', line.strip())
+            if m:
+                sch, nm = split_qname(m.group(2))
+                cur = {'schema': sch, 'name': nm, 'kind': 'TABLE', 'columns': [], 'primaryKey': [], 'foreignKeys': [], 'rows': 0}
+                tables['%s.%s' % (sch, nm)] = cur
+                order.append('%s.%s' % (sch, nm))
+                continue
+            m = re.match(r'^CREATE (MATERIALIZED )?VIEW (' + QNAME + r'(?:\.' + QNAME + r')?)', line.strip())
+            if m:
+                sch, nm = split_qname(m.group(2))
+                tables['%s.%s' % (sch, nm)] = {'schema': sch, 'name': nm, 'kind': 'MATERIALIZED VIEW' if m.group(1) else 'VIEW', 'columns': [], 'primaryKey': [], 'foreignKeys': [], 'rows': 0}
+                order.append('%s.%s' % (sch, nm))
+                continue
+            m = re.match(r'^ALTER TABLE (?:ONLY )?(' + QNAME + r'(?:\.' + QNAME + r')?)\s*$', line.strip())
+            if m:
+                cur_alter = '%s.%s' % split_qname(m.group(1))
+                continue
+            m = re.match(r'^\s*ADD CONSTRAINT \S+ (PRIMARY KEY|FOREIGN KEY) \(([^)]*)\)(?: REFERENCES (' + QNAME + r'(?:\.' + QNAME + r')?)\(([^)]*)\))?', line)
+            if m and cur_alter in tables:
+                cols_ = [unq(x.strip()) for x in m.group(2).split(',')]
+                if m.group(1) == 'PRIMARY KEY':
+                    tables[cur_alter]['primaryKey'] = cols_
+                elif m.group(3):
+                    ref = '%s.%s' % split_qname(m.group(3))
+                    tables[cur_alter]['foreignKeys'].append({'from': cols_[0], 'table': ref, 'to': unq(m.group(4).split(',')[0].strip())})
+                continue
+            m = re.match(r'^COPY (' + QNAME + r'(?:\.' + QNAME + r')?) \(([^)]*)\) FROM stdin;', line.strip())
+            if m:
+                key = '%s.%s' % split_qname(m.group(1))
+                cols_ = [unq(x.strip()) for x in m.group(2).split(',')]
+                copy = (key, cols_, (want or {}).get(key))
+        if want is None:
+            for k, t in tables.items():
+                t['rows'] = counts.get(k, 0)
+            self._tables = [tables[k] for k in order]
+
+    def catalog(self):
+        for _ in self._scan():
+            pass
+        return pg_verdicts(self._tables)
+
+    def schema_sql(self):
+        out = []
+        size = 0
+        copy = False
+        for line in self._lines():
+            if copy:
+                copy = line.rstrip('\r\n') != '\\.'
+                continue
+            if line.startswith('COPY ') and line.rstrip().endswith('FROM stdin;'):
+                copy = True
+                continue
+            out.append(line)
+            size += len(line)
+            if size > 8 * MiB:
+                out.append('-- (cut at 8 MB)\n')
+                break
+        return ''.join(out)
+
+    def rows(self, jobs):
+        """Samples and rows from the dump; each table's first `limit` rows for sample jobs."""
+        by = {}
+        for k, (t, limit) in enumerate(jobs):
+            by.setdefault(pg_key(t), []).append((k, t, limit))
+        seen = {}
+        want = dict((key, key) for key in by)
+        for key, row in self._scan(want):
+            n = seen.get(key, 0)
+            seen[key] = n + 1
+            for k, t, limit in by[key]:
+                if limit and n >= limit:
+                    continue
+                types = dict((c['name'], c.get('type')) for c in t['columns'])
+                yield k, dict((c, pg_cell(c, types.get(c), v)) for c, v in row.items())
+
+    def close(self):
+        pass
+
+
+def pg_open(spec):
+    """The Postgres source of a store spec: a dump file, psql, or the built-in client."""
+    if spec.get('postgres_dump'):
+        return PgDump(spec['postgres_dump'])
+    mode = spec.get('pg_client') or 'auto'
+    if mode == 'psql' or (mode == 'auto' and pg_tool('psql')):
+        return PgPsql(spec['postgres'], spec['env'])
+    return PgWire(spec['postgres'], spec['env'])
+
+
+def looks_pg_dump(path):
+    try:
+        with open(path, 'rb') as fh:
+            head = fh.read(4096)
+    except (IOError, OSError):
+        return False
+    return head.startswith(b'PGDMP') or b'PostgreSQL database dump' in head
+
 
 # ---------------------------------------------------------------------------------------------
 # Building the plan and showing it (section 4.8)
@@ -1622,6 +2184,8 @@ def count_cron(text):
 
 
 def display_name(plan):
+    if plan.opts.get('schema_only'):
+        return plan.cand['agentId']
     for it in plan.items:
         if it['kind'] == 'ws-identity':
             m = re.search(r'(?im)^\s*[-*]?\s*\**name\**\s*[:\uff1a]\s*\**([^\n*]{1,40})', read_text(it['src'], 64 * 1024))
@@ -1663,17 +2227,30 @@ def build_plan(cand, opts):
         if spec['info']['error']:
             plan.skip('%s/%s' % (spec['root'], spec['rel']), 'unreadable', spec['bytes'], 1, spec['info']['error'])
     plan.stores = [s for s in plan.stores if not s['info']['error']]
+    pg_specs = []
     for pg in opts.get('postgres') or []:
-        spec = {'root': 'pg', 'rel': 'app', 'reader': 'custom', 'bytes': 0, 'postgres': pg, 'id': store_id({'root': 'pg', 'rel': 'app'}, taken)}
+        db = (re.search(r'/([^/?]+)(\?|$)', pg) or re.search(r'dbname\s*=\s*(\S+)', pg))
+        rel = re.sub(r'[^A-Za-z0-9_\-]+', '-', db.group(1) if db else 'app')
+        pg_specs.append({'root': 'pg', 'rel': rel, 'reader': 'custom', 'bytes': 0, 'postgres': pg, 'pg_client': opts.get('pg_client'), 'label': pg_safe(pg)})
+    for path in (opts.get('postgres_dump') or []) + [x['src'] for x in plan.dumps]:
+        pg_specs.append({'root': 'dump', 'rel': os.path.splitext(os.path.basename(path))[0], 'reader': 'custom', 'bytes': os.path.getsize(path) if os.path.exists(path) else 0, 'postgres_dump': os.path.abspath(path), 'label': tilde(os.path.abspath(path))})
+    for spec in pg_specs:
+        spec['id'] = store_id(spec, taken)
         try:
-            spec['env'] = pg_env(pg)
-            spec['info'] = {'tables': pg_catalog(pg, spec['env']), 'error': None, 'sql': ''}
+            spec['env'] = pg_env(spec['postgres']) if spec.get('postgres') else dict(os.environ)
+            src = pg_open(spec)
+            try:
+                spec['info'] = {'tables': src.catalog(), 'error': None, 'sql': '', 'client': src.name}
+            finally:
+                src.close()
             plan.stores.append(spec)
         except Exception as e:  # noqa: BLE001
-            plan.skip('postgres:' + pg_safe(pg), 'unreadable', 0, 1, str(e))
+            plan.skip('postgres:' + spec['label'], 'unreadable', 0, 1, str(e)[:300])
+            plan.notes.append('Postgres %s could not be read: %s' % (spec['label'].split(' (')[0], str(e)[:300]))
     # Config files: parsed and redacted now, so the plan can say how many values were removed.
+    # (--schema-only opens no file at all: names, sizes, tables and counts only.)
     for it in plan.items:
-        if it['kind'] != 'config':
+        if it['kind'] != 'config' or opts.get('schema_only'):
             continue
         before = REDACT.config
         text = read_text(it['src'], 8 * MiB)
@@ -1732,6 +2309,14 @@ def apply_categories(plan, chosen):
 
 def sections(plan):
     """The plan screen's rows: (word key, text, action)."""
+    if plan.opts.get('schema_only'):
+        # Only what the file system and the store catalogs say (no file is read).
+        by = {}
+        for it in plan.items:
+            by.setdefault(it['kind'], [0, 0])
+            by[it['kind']][0] += 1
+            by[it['kind']][1] += it['bytes']
+        return [('files', ', '.join('%s: %d (%s)' % (k, v[0], human(v[1])) for k, v in sorted(by.items())), 'pack')]
     rows = []
     items = plan.items
     persona = [it for it in items if it['kind'] in ('persona', 'ws-persona', 'ws-identity')]
@@ -1849,17 +2434,32 @@ def print_plan(plan, out=sys.stdout):
     p(w('diary'))
 
 
+def table_json(t, schema_only=False):
+    out = {'name': t['name'], 'rows': t['rows'], 'verdict': t['verdict'], 'cats': t.get('cats', [])}
+    if t.get('schema'):
+        out['schema'] = t['schema']
+    if schema_only:
+        # --schema-only: names, types, keys and counts. No row is read for this.
+        out['columns'] = [{'name': c['name'], 'type': c.get('type') or '', 'pk': bool(c.get('pk'))} for c in t.get('columns') or []]
+        out['foreignKeys'] = t.get('foreignKeys') or []
+        if t.get('kind'):
+            out['kind'] = t['kind']
+        if t.get('why'):
+            out['why'] = t['why']
+    return out
+
+
 def plan_json(plan):
-    def table(t):
-        return {k: v for k, v in t.items() if not k.startswith('_')}
+    schema_only = bool(plan.opts.get('schema_only'))
     return {
         'collector': VERSION,
         'source': {'kind': plan.cand['kind'], 'agentId': plan.cand['agentId'], 'displayName': plan.display, 'layout': plan.layout, 'schemaVersion': plan.schema_version},
         'roots': [{'id': r[0], 'role': r[1], 'path': tilde(r[2])} for r in plan.cand['roots']],
         'sections': [{'key': k, 'text': t, 'action': a} for k, t, a in sections(plan)],
         'packed': {'files': len(plan.items), 'bytes': sum(it['bytes'] for it in plan.items), 'byKind': {k: len([1 for it in plan.items if it['kind'] == k]) for k in sorted(set(it['kind'] for it in plan.items))}},
-        'stores': [{'id': s['id'], 'source': '%s/%s' % (s['root'], s['rel']) if not s.get('postgres') else pg_safe(s['postgres']), 'reader': s['reader'], 'bytes': s['bytes'],
-                    'tables': [{'name': t['name'], 'rows': t['rows'], 'verdict': t['verdict'], 'cats': t.get('cats', [])} for t in s['info']['tables']]} for s in plan.stores],
+        'stores': [{'id': s['id'], 'source': s['label'] if s.get('label') else '%s/%s' % (s['root'], s['rel']), 'reader': s['reader'], 'bytes': s['bytes'],
+                    'kind': 'postgres' if s.get('postgres') or s.get('postgres_dump') else 'sqlite',
+                    'tables': [table_json(t, schema_only) for t in s['info']['tables']]} for s in plan.stores],
         'skipped': {r: {'files': v['files'], 'bytes': v['bytes']} for r, v in plan.skips.items()},
         'categories': {c: {'files': v['files'], 'tables': v['tables'], 'bytes': v['bytes'], 'chosen': c in getattr(plan, 'chosen', [])} for c, v in plan.cat_counts.items()},
         'redactions': {'config': sum(it.get('redacted', 0) for it in plan.items), 'text': REDACT.text},
@@ -1914,28 +2514,57 @@ def write_store(zf, hashes, spec, opts, manifest_items):
     base = 'stores/%s/' % sid
     tables = spec['info']['tables']
     written = {}
-    if spec.get('postgres'):
-        e = Entry(zf, base + 'schema.sql', hashes)
-        e.write(pg_schema_sql(spec['postgres'], spec['env']))
-        e.close()
-        chosen = [t for t in tables if t['verdict'] == 'data']
-        cur = None
-        part = 0
-        size = 0
-        for tname, row in pg_rows(spec['postgres'], spec['env'], chosen):
-            if cur is None or cur.tname != tname or size > ROWS_PART_BYTES:
-                if cur is not None:
-                    cur.close()
-                part = part + 1 if cur is not None and cur.tname == tname else 1
-                cur = Entry(zf, base + 'rows/%s.%d.jsonl' % (safe_entry_name(tname).replace('/', '_'), part), hashes)
-                cur.tname = tname
-                size = 0
-            line = json.dumps({'t': tname, 'r': row}, ensure_ascii=False) + '\n'
-            cur.write(line)
-            size += len(line)
-            written[tname] = written.get(tname, 0) + 1
-        if cur is not None:
-            cur.close()
+    if spec.get('postgres') or spec.get('postgres_dump'):
+        src = pg_open(spec)
+        try:
+            e = Entry(zf, base + 'schema.sql', hashes)
+            e.write(src.schema_sql())
+            e.close()
+            # Samples (5 rows) of every table that isn't a secret, derived or held, then the rows of the
+            # data tables: all in one read-only snapshot (or one pass over the dump).
+            jobs = []
+            for t in tables:
+                if t['verdict'] in ('derived', 'secret', 'unreadable', 'sensitive-unchosen') or (t.get('kind') or 'TABLE') != 'TABLE':
+                    continue
+                jobs.append((t, SAMPLE_ROWS))
+                if t['verdict'] == 'data':
+                    jobs.append((t, None))
+            # A zip takes one open entry at a time: samples (5 rows each) wait in memory and are written
+            # after the rows; a table's row part closes as soon as another table's rows begin.
+            samples = {}
+            cur = {'k': None, 'e': None, 'size': 0, 'part': 0}
+            for k, row in src.rows(jobs):
+                t, limit = jobs[k]
+                tname = pg_key(t)
+                if limit:
+                    samples.setdefault(k, []).append(row)
+                    continue
+                line = json.dumps({'t': tname, 'r': row}, ensure_ascii=False) + '\n'
+                if cur['k'] != k or cur['size'] + len(line) > ROWS_PART_BYTES:
+                    if cur['e'] is not None:
+                        cur['e'].close()
+                    cur['part'] = cur['part'] + 1 if cur['k'] == k else 1
+                    cur['k'] = k
+                    cur['e'] = Entry(zf, base + 'rows/%s.%d.jsonl' % (re.sub(r'[^A-Za-z0-9_.\-]', '_', tname), cur['part']), hashes)
+                    cur['size'] = 0
+                cur['e'].write(line)
+                cur['size'] += len(line)
+                written[tname] = written.get(tname, 0) + 1
+                if written[tname] % 5000 == 0:
+                    progress('  %s: %s %s / %s' % (sid, tname, num(written[tname]), num(t['rows'])))
+            if cur['e'] is not None:
+                cur['e'].close()
+            for k, (t, limit) in enumerate(jobs):
+                if not limit:
+                    continue
+                e = Entry(zf, base + 'samples/%s.jsonl' % re.sub(r'[^A-Za-z0-9_.\-]', '_', pg_key(t)), hashes)
+                for row in samples.get(k, []):
+                    e.write(json.dumps({'t': pg_key(t), 'r': row}, ensure_ascii=False) + '\n')
+                e.close()
+        finally:
+            src.close()
+        for t in tables:
+            t['written'] = written.get(pg_key(t), 0)
     else:
         conn = open_ro(spec['src'], opts.get('stopped'))
         try:
@@ -1976,12 +2605,14 @@ def write_store(zf, hashes, spec, opts, manifest_items):
             except sqlite3.Error:
                 pass
             conn.close()
-    schema = {'id': sid, 'source': '%s/%s' % (spec['root'], spec['rel']) if not spec.get('postgres') else pg_safe(spec['postgres']), 'kind': 'postgres' if spec.get('postgres') else 'sqlite', 'reader': spec['reader'],
-              'bytes': spec['bytes'], 'tables': [dict({k: v for k, v in t.items() if k not in ('avgRowBytes',)}, written=written.get(t['name'], 0)) for t in tables]}
+    is_pg = bool(spec.get('postgres') or spec.get('postgres_dump'))
+    schema = {'id': sid, 'source': spec['label'] if is_pg else '%s/%s' % (spec['root'], spec['rel']), 'kind': 'postgres' if is_pg else 'sqlite', 'reader': spec['reader'],
+              'bytes': spec['bytes'], 'client': spec['info'].get('client'),
+              'tables': [dict({k: v for k, v in t.items() if k not in ('avgRowBytes',)}, written=written.get(pg_key(t) if is_pg else t['name'], 0)) for t in tables]}
     e = Entry(zf, base + 'schema.json', hashes)
     e.write(json.dumps(schema, ensure_ascii=False, indent=1))
     e.close()
-    manifest_items.append({'path': base, 'kind': 'postgres' if spec.get('postgres') else 'sqlite', 'source': schema['source'], 'reader': spec['reader'], 'tables': len(tables), 'rows': sum(written.values())})
+    manifest_items.append({'path': base, 'kind': 'postgres' if is_pg else 'sqlite', 'source': schema['source'], 'reader': spec['reader'], 'tables': len(tables), 'rows': sum(written.values())})
 
 
 def write_bundle(plan, out_path):
@@ -2046,7 +2677,7 @@ def write_bundle(plan, out_path):
                     'skipped': plan.skip_list,
                     'categories': {c: {'chosen': c in plan.chosen, 'items': plan.cat_counts.get(c, {}).get('items', 0)} for c in ('medical', 'intimate', 'finances')},
                     'redactions': {'config': sum(it.get('redacted', 0) for it in plan.items), 'text': REDACT.text},
-                    'postgres': [{'id': s['id'], 'server': pg_safe(s['postgres'])} for s in plan.stores if s.get('postgres')],
+                    'postgres': [{'id': s['id'], 'server': s['label']} for s in plan.stores if s.get('postgres') or s.get('postgres_dump')],
                 }
                 e = Entry(zf, 'manifest.json', hashes)
                 e.write(json.dumps(manifest, ensure_ascii=False, indent=1))
@@ -2220,6 +2851,9 @@ def main(argv=None):
     ap.add_argument('--agent', help='which profile (Hermes) or agent id (OpenClaw) to pack, when there are several')
     ap.add_argument('--scan', action='append', help='a custom agent folder to look through (SQLite stores, persona files, skills)')
     ap.add_argument('--postgres', action='append', help='a Postgres connection string or service name (read-only; uses the system psql/pg_dump)')
+    ap.add_argument('--postgres-dump', action='append', help='a pg_dump file (plain SQL, or custom format with the system pg_restore); never restored anywhere')
+    ap.add_argument('--pg-client', choices=['auto', 'psql', 'builtin'], default='auto', help='how to read --postgres: the system psql, or the small built-in read-only client (auto: psql when present)')
+    ap.add_argument('--schema-only', action='store_true', help='with --plan-only --json: table and column names, types and row counts only (no row is read)')
     ap.add_argument('--plan-only', action='store_true', help='only show the plan; write nothing')
     ap.add_argument('--json', action='store_true', help='print the plan as JSON (with --plan-only)')
     ap.add_argument('--yes', action='store_true', help='do not ask (sensitive categories stay out unless --include-category)')
@@ -2243,7 +2877,11 @@ def main(argv=None):
     if a.allow_root and not (a.hermes_home or a.openclaw_state or a.scan):
         print('With --allow-root, name the home: --hermes-home PATH or --openclaw-state PATH.')
         return 2
+    if a.schema_only and not a.plan_only:
+        print('--schema-only goes with --plan-only (it writes no bundle).')
+        return 2
     opts = {'hermes_home': a.hermes_home, 'openclaw_state': a.openclaw_state, 'workspace': a.workspace, 'scan': a.scan, 'postgres': a.postgres,
+            'postgres_dump': a.postgres_dump, 'pg_client': a.pg_client, 'schema_only': a.schema_only,
             'stopped': a.stopped, 'include': a.include, 'exclude': a.exclude, 'never': a.never, 'include_table': a.include_table}
     if a.since:
         try:

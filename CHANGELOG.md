@@ -5,6 +5,23 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.38.0 (2026-10-31): move in, her old databases (Phase 105, move-in MI2)
+
+- **Custom SQLite and Postgres stores:** the move-in page gets *Her old databases*. Sara profiles
+  every table (types, keys, timestamps), groups them into families, skips logs and telemetry, and
+  proposes for each family what it is and where it goes: notes, people and facts about them, past
+  conversations, tasks, goals, her diary, or skip. The model only sees masked samples (secrets
+  removed, health and intimate values held); code checks every proposal; one retry; a no-model guess
+  as the fallback.
+- **You confirm every card** (*Looks right*, edit any field, *Skip*); nothing imports from an
+  unconfirmed card. Big tables stream into the same move-in batch, so Undo removes them too. Confirmed
+  mappings are saved by fingerprint and reused without a model call; export and import them.
+- **Postgres, read-only:** the collector has its own standard-library client (read-only session and
+  transaction, SCRAM-SHA-256, `COPY … TO STDOUT`, then rollback) or reads a plain `pg_dump` file.
+  `--schema-only` shows names and counts without opening any rows.
+- Measured on made-up stores (276 tables, 253 telemetry skipped; Postgres via a fake server that
+  refuses writes) with a local model; schema-only runs against two real agents.
+
 ## 2.37.0 (2026-10-31): move in from Hermes Agent and OpenClaw (Phase 104, move-in MI1)
 
 - **Settings → Data & health → Move in from another agent:** three steps. Copy one command, run the

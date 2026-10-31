@@ -67,6 +67,8 @@
 .mi-batch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); min-height: 44px; padding: var(--s-1) var(--s-2); border-radius: var(--r-card); background: var(--surface-1); }
 .mi-batch-name { font-weight: 600; }
 .mi-batch button { margin-left: auto; min-height: 44px; }
+/* A saved mapping: its name and tables take the room, Delete stays on the same line. */
+.mi-saved-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--s-2); flex: 1 1 16rem; min-width: 0; overflow-wrap: anywhere; }
 .mi-link { margin-bottom: var(--s-2); }
 @media (max-width: 720px) {
   .mi-cols, .mi-report { grid-template-columns: minmax(0, 1fr); }
@@ -76,4 +78,38 @@
   .mi-field { grid-template-columns: minmax(0, 1fr) auto; }
   .mi-field > span:first-child { grid-column: 1 / -1; }
   .mi-work { padding-bottom: var(--safe-b); }
+}
+
+/* Phase 105 (MI2, §8.3): custom-store mapping cards. */
+.mi-stores { border-color: var(--accent-solid); }
+.mi-store summary { min-height: 44px; display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; cursor: pointer; }
+.mi-tele { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; max-height: 18em; overflow: auto; overflow-wrap: anywhere; }
+.mi-tele li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1); }
+.mi-ask { display: grid; gap: var(--s-1); padding: var(--s-2); border-radius: var(--r-card); background: var(--accent-soft); }
+.mi-ask p { margin: 0; }
+.mi-card-grid { display: grid; gap: var(--s-2); grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); }
+.mi-map { display: grid; gap: var(--s-2); align-content: start; padding: var(--s-2) var(--s-3); border: 1px solid var(--hairline-strong); border-radius: var(--r-card); background: var(--surface-1); min-width: 0; }
+.mi-map-confirmed { border-color: var(--success); }
+.mi-map-failed { border-color: var(--warn); }
+.mi-map-skipped { opacity: .72; }
+.mi-map-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1); }
+.mi-map-head h5 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.mi-chips { margin: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.mi-chip { padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); overflow-wrap: anywhere; }
+.mi-think { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; overflow-wrap: anywhere; }
+.mi-fields { display: block; }
+.mi-made figcaption { font-weight: 600; }
+.mi-rows { margin-top: var(--s-1); overflow-x: auto; }
+.mi-rows-name { margin: 0; font-weight: 600; }
+.mi-rows-table { border-collapse: collapse; width: 100%; }
+.mi-rows-table th, .mi-rows-table td { border-bottom: 1px solid var(--hairline); padding: 4px 6px; text-align: left; vertical-align: top; max-width: 16em; overflow-wrap: anywhere; }
+.mi-rows-table th { color: var(--text-2); font-weight: 600; }
+.mi-editor { display: grid; gap: var(--s-2); padding: var(--s-2); border-radius: var(--r-card); background: var(--surface-2); }
+.mi-edit-table { border: 1px solid var(--hairline); border-radius: var(--r-card); margin: 0; padding: var(--s-2); display: grid; gap: var(--s-1); min-width: 0; }
+.mi-edit-table legend { font-weight: 600; padding: 0 4px; }
+.mi-staged { margin: 0; color: var(--success); font-weight: 600; }
+.mi-map progress { width: 100%; height: 8px; accent-color: var(--accent-solid); }
+@media (max-width: 720px) {
+  .mi-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .mi-stores { padding-bottom: calc(var(--s-3) + var(--safe-b)); }
 }

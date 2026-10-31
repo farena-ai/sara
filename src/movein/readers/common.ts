@@ -95,7 +95,7 @@ export async function readSkills(b: Bundle, prefixes: string[], emit: (f: Findin
  * One memory finding from an old note (§6.4, §11.2, §11.7): secrets scrubbed again, minors-sexual
  * content dropped (counted, never quoted), instruction-like lines kept only as a quoted fact.
  */
-export function note(emit: (f: Finding) => void, skipped: Record<string, number>, ctx: ReaderContext, f: { section: 'memories' | 'profile' | 'reflections'; ref: string; text: string; kind: import('../../memory.ts').MemoryKind; happenedOn: string; pinned?: boolean; superseded?: boolean; tag?: string; evidence?: string }): void {
+export function note(emit: (f: Finding) => void, skipped: Record<string, number>, ctx: Pick<ReaderContext, 'scrub'>, f: { section: 'memories' | 'profile' | 'reflections'; ref: string; text: string; kind: import('../../memory.ts').MemoryKind; happenedOn: string; pinned?: boolean; superseded?: boolean; tag?: string; evidence?: string; archived?: boolean; held?: import('../types.ts').Category; card?: string }): void {
   let text = ctx.scrub(f.text.replace(/\s+/g, ' ').trim()).slice(0, 2000);
   if (text.length < 3) return;
   if (detectMinorSexualContent(text)) {
@@ -107,11 +107,11 @@ export function note(emit: (f: Finding) => void, skipped: Record<string, number>
     text = `My old notes said (kept as a quote, not a rule): "${text.slice(0, 600)}"`;
     kind = 'self';
   }
-  const held = categoryOf(text);
-  emit({ section: f.section, kind: 'memory', ref: f.ref, title: text.slice(0, 120), data: { kind, content: text, happenedOn: f.happenedOn, ...(f.pinned ? { pinned: true } : {}), ...(f.superseded ? { superseded: true } : {}), ...(f.tag ? { tag: f.tag } : {}), ...(f.evidence ? { evidence: f.evidence } : {}) }, ...(held ? { held } : {}) });
+  const held = f.held ?? categoryOf(text);
+  emit({ section: f.section, kind: 'memory', ref: f.ref, title: text.slice(0, 120), data: { kind, content: text, happenedOn: f.happenedOn, ...(f.pinned ? { pinned: true } : {}), ...(f.superseded ? { superseded: true } : {}), ...(f.tag ? { tag: f.tag } : {}), ...(f.evidence ? { evidence: f.evidence } : {}), ...(f.archived ? { archived: true } : {}) }, ...(held ? { held } : {}), ...(f.card ? { card: f.card } : {}) });
 }
 
-/** Hooks, plugins, custom stores and config: packed, read in a later update (MI2/MI3: §6.10). */
+/** Hooks, plugins and config: packed, read in a later update (MI3: §6.10). */
 export function readLater(b: Bundle, emit: (f: Finding) => void, roots: { hooks: string[]; plugins: string[] }): void {
   const later = (ref: string, title: string, data: LaterData) => emit({ section: 'later', kind: 'later', ref, title, data });
   const seenHooks = new Set<string>();
@@ -133,7 +133,7 @@ export function readLater(b: Bundle, emit: (f: Finding) => void, roots: { hooks:
     }
   }
   for (const it of b.manifest.items) {
-    if ((it.kind === 'sqlite' || it.kind === 'postgres') && it.reader === 'custom') later(it.path, it.source ?? it.path, { code: 'custom-store', what: `store "${(it.source ?? it.path).split('/').at(-1)}" (${it.tables ?? 0} tables)`, why: 'Sara will be able to map custom stores after the 2.38 update; the bundle keeps it.' });
+    // Custom stores (reader "custom") are mapped on cards since MI2 (src/movein/custom.ts), not listed here.
     if (it.kind === 'config') later(it.path, it.path.split('/').at(-1)!.replace(/\.json$/, ''), { code: 'config', what: `settings in ${it.path.split('/').at(-1)!.replace(/\.json$/, '')} (${it.redacted ?? 0} secret values removed)`, why: 'Models, voice and channels are translated in the 2.39 update; keys are never carried over.' });
   }
 }

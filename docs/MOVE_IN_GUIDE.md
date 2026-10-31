@@ -62,6 +62,16 @@ Press **Import**. When it is done you see a report with four lists: *Imported*, 
 opened), lines that would switch off her safety rules (AI disclosure, crisis help, adults only),
 or anything that sexualises minors (dropped and counted, never shown).
 
+## Her old databases (custom stores)
+
+If the old agent kept memories in its own database (SQLite, or Postgres with a read-only login or a
+`pg_dump` file), the move-in page shows a box *Her old databases*. Logs and telemetry tables are
+skipped for you. Press *Ask her* (or *Guess from names*) and she proposes, for each group of tables,
+what it is and where it goes: notes, people and facts about them, past conversations, tasks, goals,
+her diary, or skip. Nothing is imported from a card until you press *Looks right*; you can change any
+field by hand. Confirmed mappings are saved, so the next move-in from the same kind of database needs
+no new questions. Everything lands in the same batch, so Undo removes it too.
+
 ## Undo
 
 **Settings → Data & health → Move in → Past move-ins → Undo** (for 30 days). Sara shows how many

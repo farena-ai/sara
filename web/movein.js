@@ -3,6 +3,9 @@
 // the preview (one card per destination with counts and three folded samples, the personality card
 // to decide by hand, "Was this her?", held categories), Import as one batch with Stop, her report
 // and Undo. Every string goes through t(); colours only through theme tokens (web/movein.css).
+// Phase 105 (MI2, §8): custom stores as mapping cards: what she thinks each family of tables is,
+// masked sample rows, three samples made by the real mapper, a pick-list of destinations and a
+// column map (no SQL), Looks right / Skip, progress while the rows stream, and saved mappings.
 import { serverText, t } from './naming.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -40,7 +43,7 @@ const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { ye
 const size = (n) => (n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(1)} GB` : n >= 1024 ** 2 ? `${(n / 1024 ** 2).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
 let helpers = { copyText: async () => {}, openConversation: () => {} };
-let state = { overview: null, bundle: null, preview: null, choices: null, paused: false, uploading: null, poll: 0 };
+let state = { overview: null, bundle: null, preview: null, choices: null, paused: false, uploading: null, poll: 0, cards: null, cardPoll: 0, localOnly: true, editing: {}, drafts: {}, cardBusy: false };
 
 const SECTION_NAME = {
   persona: () => t('Personality'),
@@ -51,6 +54,9 @@ const SECTION_NAME = {
   schedules: () => t('Schedules'),
   board: () => t('Board'),
   reflections: () => t('Reflections'),
+  people: () => t('People'),
+  tasks: () => t('Tasks'),
+  agenda: () => t('Her goals'),
 };
 const SECTION_TIP = {
   memories: () => t('Her notes from the old agent, sorted into facts, decisions and promises. Duplicates are merged. Over 2,000 notes, the rest arrive archived: searchable, never brought up by themselves.'),
@@ -60,6 +66,9 @@ const SECTION_TIP = {
   schedules: () => t('Repeating jobs become tasks with the same repeat, one-off ones reminders. Tasks never act by themselves, so nothing messages anyone from here until you say so.'),
   board: () => t('Board cards land on a board of their own, in matching columns. Cards that were running are not restarted.'),
   reflections: () => t('Her diary-like looking back (DREAMS.md). Off unless you want her to keep it.'),
+  people: () => t('People cards from her old databases, each with its facts (the newest 200 active, older ones archived). Only from store cards you confirmed.'),
+  tasks: () => t('Tasks from her old databases. They land in your to-do list and never act by themselves.'),
+  agenda: () => t('Goals and intentions she had. They arrive paused in her own plans, which stay off until you switch them on.'),
 };
 const LEFT_NAME = {
   secret: () => t('Secrets: never collected (keys stay with you)'),
@@ -105,6 +114,18 @@ export function initMoveIn(h) {
     $('#mi-resume').hidden = true;
     if (state.uploading) void upload(state.uploading);
   });
+  $('#mi-map-file')?.addEventListener('change', async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    try {
+      const r = await api('/movein/mappings/import', { method: 'POST', body: JSON.parse(await f.text()) });
+      $('#mi-map-note').textContent = t('{n} saved mappings added.', { n: r.imported });
+    } catch (err) {
+      $('#mi-map-note').textContent = err.message;
+    }
+    await renderMappings();
+  });
   $('#mi-code')?.addEventListener('click', async () => {
     try {
       const r = await api('/movein/code', { method: 'POST', body: {} });
@@ -134,6 +155,7 @@ export async function loadMoveIn() {
   $('#mi-cmd').textContent = col ? col.command : t('The collector is not on this server.');
   $('#mi-sha').textContent = col ? t('Collector {v}, SHA-256 {sha}', { v: col.version, sha: col.sha256 }) : '';
   renderBatches();
+  void renderMappings();
   const live = state.overview.bundles.find((b) => b.state !== 'imported') ?? state.overview.bundles[0];
   if (live && !state.bundle) state.bundle = live.id;
   if (state.bundle) await refresh();
@@ -311,7 +333,8 @@ function renderPreview(pv) {
   head.append(her);
   root.append(planCard(pv), head);
   if (pv.persona) root.append(personaCard(pv));
-  for (const key of ['memories', 'profile', 'conversations', 'skills', 'schedules', 'board', 'reflections']) {
+  if (pv.stores?.cards) root.append(storesBox(pv));
+  for (const key of ['memories', 'profile', 'people', 'conversations', 'skills', 'schedules', 'tasks', 'board', 'agenda', 'reflections']) {
     const s = pv.sections[key];
     if (!s || (!s.found && key !== 'memories')) continue;
     root.append(sectionCard(pv, key, s));
@@ -333,7 +356,7 @@ function renderPreview(pv) {
       $('#mi-note').textContent = err.message;
     }
   });
-  imp.disabled = Boolean(personaPending);
+  imp.disabled = Boolean(personaPending) || Boolean(pv.stores?.busy);
   go.append(imp, btn(t('Not now'), 'ghost', async () => {
     state.choices = null;
     state.bundle = null;
@@ -341,7 +364,7 @@ function renderPreview(pv) {
   }), btn(t('Delete the bundle now'), 'ghost', deleteBundle));
   const note = el('p', 'muted small');
   note.id = 'mi-note';
-  note.textContent = personaPending ? t('Decide on her personality first (above).') : t('Nothing is changed until you press Import. Undo removes it all for 30 days.');
+  note.textContent = personaPending ? t('Decide on her personality first (above).') : pv.stores?.busy ? t('Wait for the store cards to finish.') : pv.stores?.undecided ? t('{n} store cards are not decided yet: nothing from them is imported.', { n: pv.stores.undecided }) : t('Nothing is changed until you press Import. Undo removes it all for 30 days.');
   root.append(go, note);
   work(root);
 }
@@ -471,6 +494,7 @@ function sectionCard(pv, key, s) {
   if (s.duplicates) parts.push(t('{n} duplicates merged', { n: s.duplicates }));
   if (s.already) parts.push(t('{n} already here from your last move-in', { n: s.already }));
   if (key === 'memories' && pv.notes.archived) parts.push(t('{a} active, {b} archived', { a: pv.notes.active, b: pv.notes.archived }));
+  if (key === 'people' && s.facts) parts.push(t('{n} facts', { n: s.facts }));
   if (key === 'conversations' && pv.conversations.count) parts.push(`${fmtDate(pv.conversations.from)} – ${fmtDate(pv.conversations.to)}`);
   top.append(el('span', 'mi-count', parts.join(' · ')));
   c.append(top);
@@ -609,6 +633,12 @@ function reportLine(l) {
     conversations: () => t('Past conversations: {n}', { n: l.count }),
     skills: () => t('Skills: {n}', { n: l.count }),
     board: () => t('Board cards: {n}', { n: l.count }),
+    people: () => t('People cards: {n}', { n: l.count }),
+    tasks: () => t('Tasks: {n}', { n: l.count }),
+    goals: () => t('Goals (paused in her own plans): {n}', { n: l.count }),
+    'telemetry-tables': () => t('Log and telemetry tables: {n}', { n: l.count }),
+    'custom-skipped': () => t('Store cards you skipped: {n}', { n: l.count }),
+    'custom-card': () => t('A store card not confirmed: nothing from it came in ({text})', { text: l.text.split('"')[3] ?? '' }),
     schedules: () => t('Old schedules → {n} tasks and reminders (they never act by themselves)', { n: l.count }),
     'skills-held': () => t('{n} skills run scripts: off until you check them (Settings → Abilities → Skills)', { n: l.count }),
   };
@@ -678,6 +708,33 @@ async function loadOverview() {
   renderBatches();
 }
 
+// ---------------------------------------------------------------------------------------------
+// Saved mappings (§8.5): names only, exportable
+// ---------------------------------------------------------------------------------------------
+async function renderMappings() {
+  const box = $('#mi-mappings');
+  if (!box) return;
+  const r = await api('/movein/mappings').catch(() => ({ mappings: [] }));
+  if (!r.mappings.length) {
+    box.replaceChildren(el('p', 'muted small', t('None yet. A store card you confirm is saved here, so the same kind of store maps itself next time.')));
+    return;
+  }
+  const ul = el('ul', 'mi-batch-list');
+  for (const m of r.mappings) {
+    const li = el('li', 'mi-batch');
+    const used = m.mapping.tables.filter((x) => x.target !== 'skip').map((x) => `${x.table} → ${targetName(x.target)}`).join(', ');
+    const text = el('div', 'mi-saved-text');
+    text.append(el('span', 'mi-batch-name', `${m.storeLabel} · ${m.family}`), el('span', 'muted small', `${fmtDate(m.confirmedAt)} · ${used || t('all skipped')}`));
+    li.append(text);
+    li.append(btn(t('Delete'), 'ghost small', async () => {
+      await api(`/movein/mappings/${enc(m.fingerprint)}`, { method: 'DELETE' }).catch(() => null);
+      await renderMappings();
+    }));
+    ul.append(li);
+  }
+  box.replaceChildren(ul);
+}
+
 function renderBatches() {
   const box = $('#mi-batches');
   if (!box || !state.overview) return;
@@ -695,4 +752,385 @@ function renderBatches() {
     ul.append(li);
   }
   box.replaceChildren(ul);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Custom stores: the mapping cards (§8.3). Nothing imports from a card until "Looks right".
+// ---------------------------------------------------------------------------------------------
+const TARGET_NAME = {
+  memory: () => t('her notes'),
+  owner_fact: () => t('what she knows about you'),
+  person: () => t('people cards'),
+  person_fact: () => t('facts on people cards'),
+  person_alias: () => t('other names on people cards'),
+  goal: () => t('her goals (paused)'),
+  opinion: () => t('her opinions'),
+  diary: () => t('her diary (reflection notes)'),
+  task: () => t('tasks'),
+  conversation: () => t('past conversations'),
+  message: () => t('messages of past conversations'),
+  skip: () => t('skip'),
+};
+const TARGET_FIELDS = {
+  memory: ['content', 'kind', 'happenedOn', 'evidence', 'pinned'],
+  owner_fact: ['content', 'happenedOn'],
+  person: ['name', 'aliases', 'relation', 'birthday', 'notes'],
+  person_fact: ['person', 'content', 'source', 'happenedOn', 'confidence'],
+  person_alias: ['person', 'alias'],
+  goal: ['title', 'why', 'happenedOn'],
+  opinion: ['content', 'happenedOn'],
+  diary: ['content', 'happenedOn'],
+  task: ['title', 'notes', 'dueAt', 'done'],
+  conversation: ['title', 'startedAt', 'channel'],
+  message: ['conversation', 'role', 'text', 'at'],
+  skip: [],
+};
+const FIELD_NAME = {
+  content: () => t('Text'), kind: () => t('Kind'), happenedOn: () => t('Date'), evidence: () => t('Where it came from'), pinned: () => t('Pinned'),
+  name: () => t('Name'), aliases: () => t('Other names'), relation: () => t('Relation'), birthday: () => t('Birthday'), notes: () => t('Notes'),
+  person: () => t('Which person'), source: () => t('Source'), confidence: () => t('How sure'), alias: () => t('Other name'),
+  title: () => t('Title'), why: () => t('Why'), dueAt: () => t('Due'), done: () => t('Done'), startedAt: () => t('Started'), channel: () => t('Channel'),
+  conversation: () => t('Which conversation'), role: () => t('Who spoke'), text: () => t('Message'), at: () => t('When'),
+};
+const DATE_FIELDS = new Set(['happenedOn', 'birthday', 'dueAt', 'startedAt', 'at']);
+const targetName = (k) => TARGET_NAME[k]?.() ?? k;
+const STATE_NAME = {
+  new: () => t('not mapped yet'),
+  proposing: () => t('she is reading it…'),
+  proposed: () => t('her proposal'),
+  failed: () => t("couldn't map: pick by hand"),
+  mapping: () => t('mapping the rows…'),
+  confirmed: () => t('✓ confirmed'),
+  skipped: () => t('skipped'),
+};
+
+function exprText(e) {
+  if (!e) return '—';
+  if (e.col) return e.col;
+  if (e.date_from) return `${e.date_from.col} (${e.date_from.as})`;
+  if (e.concat) return e.concat.map(exprText).join(' + ');
+  if (e.first_non_empty) return e.first_non_empty.map(exprText).join(' / ');
+  if (e.lookup) return `${e.lookup.table}.${e.lookup.value} ← ${e.lookup.col}`;
+  if (e.json_path) return `${e.json_path.col}.${e.json_path.path}`;
+  if ('const' in e) return `"${e.const}"`;
+  return '?';
+}
+function filterText(f) {
+  if (f.eq) return t('only rows where {col} is {v}', { col: f.eq.col, v: String(f.eq.value) });
+  if (f.not_null) return t('only rows with {col}', { col: f.not_null });
+  if (f.newest) return t('the newest {n} by {col}', { n: f.newest.n, col: f.newest.col });
+  if (f.active_only) return t('only active rows ({col})', { col: f.active_only });
+  return '';
+}
+
+function storesBox(pv) {
+  const box = el('section', 'mi-card mi-stores');
+  box.id = 'mi-stores';
+  const h = el('h4', '', t('Her old databases'));
+  h.append(tip(t('Tables from custom stores, grouped into cards. She proposes where each one goes; you confirm or skip every card. Log and telemetry tables are skipped. Nothing imports from a card you did not confirm.')));
+  box.append(h, el('p', 'muted small', t('Loading the cards…')));
+  void loadCards();
+  return box;
+}
+
+async function loadCards() {
+  clearTimeout(state.cardPoll);
+  if (!state.bundle) return;
+  const q = `?localOnly=${state.localOnly ? '1' : '0'}&sensitive=${Object.entries(state.choices?.sensitive ?? {}).filter(([, v]) => v).map(([k]) => k).join(',')}`;
+  let r;
+  try {
+    r = await api(`/movein/bundles/${enc(state.bundle)}/cards${q}`);
+  } catch (err) {
+    const b = $('#mi-stores');
+    if (b) b.append(el('p', 'mi-error small', err.message));
+    return;
+  }
+  const was = state.cards;
+  state.cards = r;
+  renderCards(r);
+  const busy = r.cards.some((c) => c.state === 'proposing' || c.state === 'mapping');
+  if (busy) state.cardPoll = setTimeout(() => void loadCards(), 1200);
+  // A card finished mapping: the sections above count its rows now.
+  const finished = was && r.cards.some((c) => c.state === 'confirmed' && was.cards.find((x) => x.key === c.key)?.state === 'mapping');
+  if ((finished || (state.cardBusy && !busy)) && state.preview?.state === 'ready') {
+    state.cardBusy = busy;
+    await refresh();
+    return;
+  }
+  state.cardBusy = busy;
+}
+
+function renderCards(r) {
+  const box = $('#mi-stores');
+  if (!box) return;
+  const h = box.querySelector('h4');
+  const parts = [h];
+  for (const s of r.stores) {
+    const line = el('details', 'mi-store');
+    const sum = el('summary', '');
+    sum.append(el('strong', '', s.label), el('span', 'muted small', t('{kind} · {n} tables · {f} cards · {tele} log and telemetry tables skipped', { kind: s.kind === 'postgres' ? 'Postgres' : 'SQLite', n: s.tables, f: s.families, tele: s.telemetry.length })), tip(t('Tables that look like logs, traces, metrics or caches (by name, shape, volume and the lack of real sentences) are skipped. Bring one back if it holds something she should know.')));
+    line.append(sum);
+    const ul = el('ul', 'mi-tele small');
+    for (const x of s.telemetry.slice(0, 60)) {
+      const li = el('li', '');
+      li.append(el('span', '', `${x.name} · ${x.rows.toLocaleString()} `), el('span', 'muted', x.signals?.length ? x.signals.map(signalName).join(', ') : t('skipped by the collector')));
+      if (x.packed) li.append(btn(t('Bring it back'), 'ghost small', async () => {
+        await api(`/movein/bundles/${enc(state.bundle)}/cards/pull`, { method: 'POST', body: { store: s.id, table: x.key } }).catch((err) => say(err.message));
+        await loadCards();
+      }));
+      ul.append(li);
+    }
+    if (s.telemetry.length > 60) ul.append(el('li', 'muted', t('and {n} more', { n: s.telemetry.length - 60 })));
+    for (const x of s.left) ul.append(el('li', 'muted', `${x.name} · ${x.why}`));
+    line.append(ul);
+    parts.push(line);
+  }
+  // Ask her (one model call per card) or map by hand.
+  const todo = r.cards.filter((c) => c.state === 'new' || c.state === 'failed').length;
+  const ask = el('div', 'mi-ask');
+  const est = r.estimate;
+  const estLine = est?.model ? t('{n} cards to map: {n} model calls, about {tok} tokens on {model}{cost}. The rows themselves need no model.', { n: est.calls, tok: (est.inputTokens + est.outputTokens).toLocaleString(), model: est.model.label, cost: est.model.local ? ` (${t('on this computer')})` : est.model.usd !== null ? ` (~$${est.model.usd})` : '' }) : est?.problem ? `${serverText({ error: est.problem }, est.problem)} ${t('You can still map them by hand.')}` : '';
+  // Once every card is decided there is nothing to ask her: the box shrinks to one line.
+  ask.append(el('p', 'small', todo || r.cards.some((c) => c.state === 'proposing') ? estLine : t('Every card is decided.')));
+  const local = el('label', 'mi-switch small');
+  const lb = el('input');
+  lb.type = 'checkbox';
+  lb.id = 'mi-local-only';
+  lb.checked = state.localOnly;
+  lb.addEventListener('change', () => {
+    state.localOnly = lb.checked;
+    void loadCards();
+  });
+  local.append(lb, el('span', '', t('Only models on this computer')), tip(t('Sample rows from your old databases go to the model that reads them (secrets removed, health and intimate values hidden). Keep this on to use only a model on this computer.')));
+  const acts = el('div', 'mi-actions');
+  const propose = (useModel) => async (b) => {
+    b.disabled = true;
+    try {
+      await api(`/movein/bundles/${enc(state.bundle)}/cards/propose`, { method: 'POST', body: { localOnly: state.localOnly, useModel } });
+    } catch (err) {
+      say(err.message);
+    }
+    state.cardBusy = true;
+    await loadCards();
+  };
+  if (todo) acts.append(btn(t('Ask her to map them'), 'primary', propose(true)), btn(t('Guess from the names (no model)'), 'ghost', propose(false)));
+  if (r.cards.some((c) => c.state === 'proposing')) acts.append(btn(t('Stop'), 'ghost small', async () => api(`/movein/bundles/${enc(state.bundle)}/cards/stop`, { method: 'POST', body: {} })));
+  if (todo || r.cards.some((c) => c.state === 'proposing')) ask.append(local, acts);
+  if (r.saved) ask.append(el('p', 'muted small', t('Cards that match a saved mapping map themselves, with no model calls.')));
+  parts.push(ask);
+  const grid = el('div', 'mi-card-grid');
+  for (const c of r.cards) grid.append(mappingCard(c));
+  parts.push(grid);
+  box.replaceChildren(...parts);
+}
+
+/** A short line under the Import button (errors from the cards). */
+function say(msg) {
+  const n = $('#mi-note');
+  if (n) n.textContent = msg;
+}
+
+function signalName(s) {
+  return { name: t('its name'), shape: t('its shape'), volume: t('its volume'), 'no-owner-words': t('no real sentences') }[s] ?? s;
+}
+
+function mappingCard(c) {
+  const card = el('article', `mi-map mi-map-${c.state}`);
+  card.dataset.key = c.key;
+  const head = el('div', 'mi-map-head');
+  const title = el('h5', '', c.family.title);
+  head.append(title, el('span', `mi-pill${c.state === 'skipped' ? ' mi-pill-off' : ''}`, STATE_NAME[c.state]?.() ?? c.state));
+  if (c.by === 'saved') head.append(el('span', 'mi-pill', t('your saved mapping from {date}', { date: fmtDate(c.savedAt) })));
+  card.append(head);
+  const chips = el('p', 'mi-chips small');
+  for (const tb of c.tables) chips.append(el('span', 'mi-chip', `${tb.schema && tb.schema !== 'public' ? `${tb.schema}.` : ''}${tb.name} · ${tb.rows.toLocaleString()}`));
+  card.append(chips);
+  if (c.state === 'proposing' || c.state === 'mapping') {
+    const pg = el('progress', '');
+    if (c.progress?.total) {
+      pg.max = c.progress.total;
+      pg.value = c.progress.done;
+    } else pg.removeAttribute('value');
+    card.append(pg, el('p', 'muted small', c.progress ? t('{table}: {done} of {total}', { table: c.progress.table, done: c.progress.done.toLocaleString(), total: c.progress.total.toLocaleString() }) : (c.line ? serverText({ error: c.line }, c.line) : '')));
+  }
+  // What she thinks it is: table → destination, the reason, how sure.
+  if (c.mapping) {
+    const ul = el('ul', 'mi-think small');
+    for (const m of c.mapping.tables) {
+      const li = el('li', '');
+      li.append(el('strong', '', m.table), el('span', '', ` → ${targetName(m.target)}`));
+      if (m.target !== 'skip') {
+        const f = Object.entries(m.fields).map(([k, v]) => `${FIELD_NAME[k]?.() ?? k} ← ${exprText(v)}`).join(' · ');
+        if (f) li.append(el('span', 'muted mi-fields', f));
+        for (const x of m.filter ?? []) li.append(el('span', 'muted mi-fields', filterText(x)));
+      }
+      if (m.reason) li.append(el('span', 'mi-why', ` “${m.reason}”${m.confidence ? ` · ${Math.round(m.confidence * 100)}%` : ''}`));
+      ul.append(li);
+    }
+    card.append(ul);
+  }
+  for (const e of c.errors ?? []) card.append(el('p', 'mi-error small', e));
+  for (const w of c.warnings ?? []) card.append(el('p', 'muted small', `⚠ ${w}`));
+  // What it makes (three samples through the real mapper).
+  const made = c.preview?.samples ? Object.values(c.preview.samples).flat() : [];
+  if (made.length) {
+    const det = el('details', 'mi-samples mi-made');
+    det.open = c.state === 'proposed' || c.state === 'failed';
+    det.append(el('summary', '', t('What it makes ({n} samples)', { n: made.length })));
+    for (const x of made.slice(0, 6)) {
+      const fig = el('figure', 'mi-sample');
+      fig.append(el('figcaption', 'small', `${SECTION_NAME[x.section]?.() ?? x.section} · ${heldText(x.title)}`));
+      for (const l of x.lines) fig.append(el('p', 'small', heldText(l)));
+      det.append(fig);
+    }
+    if (c.preview.joinCheck?.checked) det.append(el('p', 'muted small', t('{m} of {n} facts found their person in the first rows.', { m: c.preview.joinCheck.matched, n: c.preview.joinCheck.checked })));
+    card.append(det);
+  }
+  // Sample rows (masked) of each table.
+  const rowsDet = el('details', 'mi-samples');
+  rowsDet.append(el('summary', '', t('Sample rows')));
+  for (const tb of c.tables) {
+    if (!tb.samples?.length) continue;
+    const wrap = el('div', 'mi-rows');
+    wrap.append(el('p', 'small mi-rows-name', tb.name));
+    const table = el('table', 'mi-rows-table small');
+    const cols = tb.columns.slice(0, 6).map((x) => x.name);
+    const tr = el('tr');
+    for (const k of cols) tr.append(el('th', '', k));
+    table.append(tr);
+    for (const row of tb.samples.slice(0, 3)) {
+      const r = el('tr');
+      for (const k of cols) r.append(el('td', '', cellText(row[k])));
+      table.append(r);
+    }
+    wrap.append(table);
+    rowsDet.append(wrap);
+  }
+  card.append(rowsDet);
+  if (state.editing[c.key]) card.append(editor(c));
+  if (c.state === 'confirmed' && c.staged) {
+    const n = Object.entries(c.staged).map(([k, v]) => `${SECTION_NAME[k]?.() ?? k}: ${v}`).join(' · ');
+    card.append(el('p', 'small mi-staged', n || t('Nothing to import from this card.')));
+    const dropped = Object.entries(c.result?.dropped ?? {}).filter(([k]) => k !== 'filtered');
+    if (dropped.length) card.append(el('p', 'muted small', dropped.map(([k, v]) => `${{ 'no-person': t('facts without a person'), empty: t('empty rows'), tool: t('tool messages'), 'minors-check': t('failed the minors check'), duplicates: t('duplicates') }[k] ?? k}: ${v}`).join(' · ')));
+  }
+  const acts = el('div', 'mi-actions');
+  const post = (what, body = {}) => async (b) => {
+    b.disabled = true;
+    try {
+      await api(`/movein/bundles/${enc(state.bundle)}/cards/${what}`, { method: 'POST', body: { key: c.key, ...body } });
+      if (what === 'confirm') state.cardBusy = true;
+    } catch (err) {
+      say(err.message);
+    }
+    await loadCards();
+  };
+  if (c.state === 'proposed' || (c.state === 'failed' && c.mapping && !c.errors?.length)) acts.append(btn(t('Looks right'), 'primary', post('confirm')));
+  if (c.state !== 'mapping' && c.state !== 'proposing') {
+    if (c.state !== 'skipped') acts.append(btn(t('Skip'), 'ghost', post('skip')));
+    if (c.state === 'confirmed' || c.state === 'skipped') acts.append(btn(t('Change my mind'), 'ghost', post('reset')));
+    if (c.state !== 'confirmed') acts.append(btn(state.editing[c.key] ? t('Close the details') : t('Change'), 'ghost', () => {
+      state.editing[c.key] = !state.editing[c.key];
+      if (state.editing[c.key] && !state.drafts[c.key]) state.drafts[c.key] = structuredClone(c.mapping ?? { tables: c.tables.map((x) => ({ table: x.key, target: 'skip', fields: {}, reason: '', confidence: 0 })) });
+      renderCards(state.cards);
+    }));
+    if (c.state === 'failed' || c.state === 'new') acts.append(btn(t('Ask her again'), 'ghost', async (b) => {
+      b.disabled = true;
+      await api(`/movein/bundles/${enc(state.bundle)}/cards/propose`, { method: 'POST', body: { keys: [c.key], localOnly: state.localOnly } }).catch((err) => say(err.message));
+      await loadCards();
+    }));
+  }
+  card.append(acts);
+  return card;
+}
+
+/** The server marks health and intimate values «held: medical»; the card says so in the owner's language. */
+function heldText(s) {
+  return String(s).replace(/«held: (medical|intimate)»/g, (_, cat) => (cat === 'medical' ? t('(held: health)') : t('(held: intimate)')));
+}
+
+function cellText(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'object') return v.$date ?? (v.$blob || v.$skipped ? t('(file)') : v.$redacted ? t('(secret removed)') : JSON.stringify(v));
+  const s = heldText(v);
+  return s.length > 80 ? `${s.slice(0, 80)}…` : s;
+}
+
+/** The hand edit: per table a destination, per field a column (dates read as the column says). No SQL. */
+function editor(c) {
+  const draft = state.drafts[c.key];
+  const box = el('div', 'mi-editor');
+  box.append(el('p', 'muted small', t('Pick where each table goes and which column fills each field. Sara checks it and shows the samples again before you confirm.')));
+  for (const tb of c.tables) {
+    let m = draft.tables.find((x) => x.table === tb.key);
+    if (!m) {
+      m = { table: tb.key, target: 'skip', fields: {}, reason: '', confidence: 0 };
+      draft.tables.push(m);
+    }
+    const fs = el('fieldset', 'mi-edit-table');
+    fs.append(el('legend', '', tb.name));
+    const row = el('label', 'mi-field');
+    const sel = el('select');
+    sel.id = `mi-dest-${c.key}-${tb.key}`.replace(/[^\w-]/g, '_');
+    for (const k of Object.keys(TARGET_NAME)) {
+      const o = el('option', '', targetName(k));
+      o.value = k;
+      o.selected = m.target === k;
+      sel.append(o);
+    }
+    sel.addEventListener('change', () => {
+      m.target = sel.value;
+      m.fields = {};
+      renderCards(state.cards);
+    });
+    row.append(el('span', '', t('Goes to')), sel, tip(t('Where the rows of this table land in Sara. Skip leaves the table out.')));
+    fs.append(row);
+    for (const f of TARGET_FIELDS[m.target] ?? []) {
+      const r = el('label', 'mi-field');
+      const s2 = el('select');
+      s2.id = `mi-f-${c.key}-${tb.key}-${f}`.replace(/[^\w-]/g, '_');
+      const none = el('option', '', t('— none —'));
+      none.value = '';
+      s2.append(none);
+      const cur = m.fields[f];
+      const curCol = cur?.col ?? cur?.date_from?.col;
+      for (const col of tb.columns) {
+        const o = el('option', '', `${col.name}${col.date ? ` (${col.date})` : ''}`);
+        o.value = col.name;
+        o.selected = curCol === col.name;
+        s2.append(o);
+      }
+      if (cur && !curCol) {
+        const o = el('option', '', exprText(cur));
+        o.value = '__keep';
+        o.selected = true;
+        s2.append(o);
+      }
+      s2.addEventListener('change', () => {
+        if (s2.value === '__keep') return;
+        if (!s2.value) delete m.fields[f];
+        else {
+          const col = tb.columns.find((x) => x.name === s2.value);
+          m.fields[f] = DATE_FIELDS.has(f) && col?.date ? { date_from: { col: col.name, as: col.date } } : { col: s2.value };
+        }
+      });
+      r.append(el('span', '', FIELD_NAME[f]?.() ?? f), s2, tip(t('Which column fills this field. Dates are read the way the column stores them (seconds, milliseconds or text).')));
+      fs.append(r);
+    }
+    box.append(fs);
+  }
+  const acts = el('div', 'mi-actions');
+  acts.append(btn(t('Check it'), 'primary', async (b) => {
+    b.disabled = true;
+    try {
+      await api(`/movein/bundles/${enc(state.bundle)}/cards/edit`, { method: 'POST', body: { key: c.key, mapping: draft } });
+      state.editing[c.key] = false;
+      delete state.drafts[c.key];
+    } catch (err) {
+      say(err.message);
+    }
+    await loadCards();
+  }));
+  box.append(acts);
+  return box;
 }

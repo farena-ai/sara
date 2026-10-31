@@ -14,7 +14,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1365%20passing-brightgreen" alt="1365 tests passing">
+  <img src="https://img.shields.io/badge/tests-1376%20passing-brightgreen" alt="1376 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <sub>Eine echte Sitzung mit einem lokalen Modell (qwen3.8 27B auf Ollama, eine RTX 5090) auf einem Wegwerf-Testserver, im Nacht-Look: Sie muntert ihr Gegenüber auf, schreibt eine kleine App samt Test, während das Modell sie streamt, fragt, bevor sie einen Befehl ausführt, findet über einen fehlschlagenden Test einen echten Fehler und behebt ihn, bis alle 7 Tests grün sind. Ausgewählte Bilder aus der Aufnahme; nichts darin wurde bearbeitet.</sub>
 </p>
 
-> **Status:** 2.37, MIT-Lizenz, mit achtundvierzig Funktions-Releases seit 1.0 (alle unten). Mit 2.5 bis 2.8
+> **Status:** 2.38, MIT-Lizenz, mit neunundvierzig Funktions-Releases seit 1.0 (alle unten). Mit 2.5 bis 2.8
 > hat die ganze App einen neuen Look bekommen. Die
 > [Android-App](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) ist bei Google
 > Play; die iPhone-App und die Version für den Mac App Store folgen, sobald Apple sie freigibt.
@@ -83,6 +83,7 @@ Einminütige Anleitungen, aufgenommen auf einem Testserver mit einem lokalen Mod
 
 | Version | Was du bekommst |
 |---|---|
+| **2.38** · Umzug: alte Datenbanken | **Eigene Gedächtnisspeicher ziehen mit um.** Hat der alte Agent sein Gedächtnis in einer eigenen SQLite- oder Postgres-Datenbank, liest Sara sie (Postgres nur lesend, mit eigenem Client, oder eine `pg_dump`-Datei), überspringt Logs und Telemetrie und schlägt für jede Tabellengruppe vor, was sie ist und wohin sie gehört (Notizen, Personen und Fakten, Gespräche, Aufgaben, Ziele, Tagebuch). Du bestätigst jede Karte; vorher wird nichts importiert. Bestätigte Zuordnungen werden gespeichert, und Rückgängig entfernt weiterhin alles. |
 | **2.37** · Umzug | **Nimm deinen Agenten mit.** Du kommst von Hermes Agent oder OpenClaw? Eine kleine Datei (Python, ohne Installation) läuft auf dem alten Rechner und zeigt zuerst ihren Plan; Geheimnisse werden nie eingepackt, medizinische oder intime Daten bleiben, außer du willst es. Sara zeigt dann alles mit Zahlen und Beispielen: die Persönlichkeit (du entscheidest), Notizen und was sie über dich wusste, frühere Chats, Skills, Zeitpläne und Boards. Ein Klick importiert alles als ein Paket, und Rückgängig entfernt genau dieses Paket, 30 Tage lang. |
 | **2.36** · Ihre eigenen Pläne | **Freiwillig: sie macht eigene Pläne.** Nachfragen zu dem, was du ihr erzählt hast („wie lief das Vorstellungsgespräch?“) und Ziele, die ihr gemeinsam verfolgt, nur aus deinen eigenen Worten und immer mit Angabe, wo du es gesagt hast. Standardmäßig aus; eingeschaltet listet Planer → *Ihre Pläne* alles auf, sie teilt Tageslimit, Ruhezeiten und Abstandsregel mit ihren ersten Nachrichten, hat ein kleines eigenes Tagesbudget, pausiert nach einem schweren Moment, und ein Schalter stoppt alles sofort, auch mitten im Satz. Ziele warten auf dein *Übernehmen*. |
 | **2.35** · Webhooks | **Andere Dienste können sie wecken.** Gib GitHub, Stripe, Home Assistant oder allem, was Standard Webhooks spricht, eine eigene signierte Adresse; wähle, wann es zählt (Bedingungen ohne Code, mit Vorlagen) und was sie tut: dir Bescheid sagen, eine Aufgabe anlegen, einen Skill ausführen oder es einem Plugin geben. Signaturen werden auf den rohen Bytes geprüft, alte und wiederholte Zustellungen abgelehnt, und der Inhalt gilt als nicht vertrauenswürdig: was etwas ändert, fragt dich weiterhin. Ein Zustellprotokoll und ein Test-Knopf auf jeder Karte; signierte ausgehende Kopien auf Wunsch. |
@@ -327,8 +328,8 @@ wurden. Was sie heute beiträgt, ist die Arbeitsweise (sie lässt die Tests lauf
 riskanten Schritten, zeigt, was gelaufen ist), nicht ein höheres Ergebnis bei diesen Sätzen.
 Details, Ergebnisse pro Aufgabe und wie man es wiederholt: [docs/RESULTS.md](docs/RESULTS.md).
 
-Dazu `npm run check`: eine Typprüfung und 1380 automatische Tests mit einem geskripteten
-Schein-Modell (ohne Netz, ohne GPU): 1365 laufen unter Windows durch, die anderen 8 sind
+Dazu `npm run check`: eine Typprüfung und 1391 automatische Tests mit einem geskripteten
+Schein-Modell (ohne Netz, ohne GPU): 1376 laufen unter Windows durch, die anderen 8 sind
 Linux-spezifische Sandbox-Tests, die auf einem Linux-Server laufen.
 
 ## Sara im Vergleich

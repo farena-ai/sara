@@ -2,12 +2,12 @@
 
 // Phase 65: the companion apps ("Bring her from another app", src/companion-import/) as well.
 // Phase 104 (move-in, docs/design/MOVE_IN.md): Hermes Agent and OpenClaw agents moving in.
-export type HistorySource = 'chatgpt' | 'claude' | 'characterai' | 'sillytavern' | 'replika' | 'nomi' | 'kindroid' | 'text' | 'hermes' | 'openclaw';
+export type HistorySource = 'chatgpt' | 'claude' | 'characterai' | 'sillytavern' | 'replika' | 'nomi' | 'kindroid' | 'text' | 'hermes' | 'openclaw' | 'movein';
 
 /** How the other assistant is named in her prompt, recall and notes. */
-export const SOURCE_NAME: Record<HistorySource, string> = { chatgpt: 'ChatGPT', claude: 'Claude', characterai: 'Character.AI', sillytavern: 'SillyTavern', replika: 'Replika', nomi: 'Nomi', kindroid: 'Kindroid', text: 'another app', hermes: 'Hermes Agent', openclaw: 'OpenClaw' };
+export const SOURCE_NAME: Record<HistorySource, string> = { chatgpt: 'ChatGPT', claude: 'Claude', characterai: 'Character.AI', sillytavern: 'SillyTavern', replika: 'Replika', nomi: 'Nomi', kindroid: 'Kindroid', text: 'another app', hermes: 'Hermes Agent', openclaw: 'OpenClaw', movein: 'your old agent' };
 /** The conversation channel imported chats live on. */
-export const SOURCE_CHANNEL: Record<HistorySource, string> = { chatgpt: 'import-chatgpt', claude: 'import-claude', characterai: 'import-characterai', sillytavern: 'import-sillytavern', replika: 'import-replika', nomi: 'import-nomi', kindroid: 'import-kindroid', text: 'import-text', hermes: 'import-hermes', openclaw: 'import-openclaw' };
+export const SOURCE_CHANNEL: Record<HistorySource, string> = { chatgpt: 'import-chatgpt', claude: 'import-claude', characterai: 'import-characterai', sillytavern: 'import-sillytavern', replika: 'import-replika', nomi: 'import-nomi', kindroid: 'import-kindroid', text: 'import-text', hermes: 'import-hermes', openclaw: 'import-openclaw', movein: 'import-movein' };
 export const isHistorySource = (v: unknown): v is HistorySource => typeof v === 'string' && Object.prototype.hasOwnProperty.call(SOURCE_CHANNEL, v);
 
 export interface ImportedMessage {

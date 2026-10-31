@@ -14,7 +14,7 @@ para la web, Windows, Mac y el móvil.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1365%20passing-brightgreen" alt="1365 tests passing">
+  <img src="https://img.shields.io/badge/tests-1376%20passing-brightgreen" alt="1376 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ para la web, Windows, Mac y el móvil.
   <sub>Una sesión real con un modelo local (qwen3.8 27B en Ollama, una RTX 5090) en un servidor de pruebas desechable, con el aspecto Noche: anima a quien le habla, escribe una pequeña app y su prueba mientras el modelo las transmite, pide permiso antes de ejecutar un comando, detecta un error real con una prueba que falla y lo corrige hasta que pasan las 7 pruebas. Fotogramas elegidos de la grabación; nada en ellos se ha editado.</sub>
 </p>
 
-> **Estado:** 2.37, licencia MIT, con cuarenta y ocho y dos versiones con novedades desde la 1.0 (todas abajo). De
+> **Estado:** 2.38, licencia MIT, con cuarenta y nueve y dos versiones con novedades desde la 1.0 (todas abajo). De
 > la 2.5 a la 2.8 toda la app estrenó aspecto. La
 > [app de Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) está en Google
 > Play; la app de iPhone y la versión del Mac App Store llegarán en cuanto Apple las apruebe. Lee
@@ -83,6 +83,7 @@ Guías de un minuto, grabadas en un servidor de prueba con un modelo local (en i
 
 | Versión | Qué te trae |
 |---|---|
+| **2.38** · Mudanza: sus bases de datos | **También vienen los almacenes de memoria propios.** Si el agente anterior guardaba su memoria en su propia base SQLite o Postgres, Sara la lee (Postgres solo lectura, con su propio cliente, o un archivo `pg_dump`), salta registros y telemetría y propone para cada grupo de tablas qué es y adónde va (notas, personas y datos, conversaciones, tareas, metas, diario). Tú confirmas cada tarjeta; nada se importa antes. Las asignaciones confirmadas se guardan, y Deshacer lo quita todo igual. |
 | **2.37** · Mudanza | **Trae a tu agente contigo.** ¿Vienes de Hermes Agent u OpenClaw? Un archivo pequeño (Python, sin instalar nada) se ejecuta en la máquina vieja y te enseña antes su plan; los secretos nunca se empaquetan y los datos médicos o íntimos se quedan salvo que digas lo contrario. Sara te lo muestra todo con números y ejemplos: la personalidad (decides tú), notas y lo que sabía de ti, chats anteriores, habilidades, horarios y tableros. Un clic lo importa como un solo lote, y Deshacer quita exactamente ese lote durante 30 días. |
 | **2.36** · Sus propios planes | **Opcional: lleva sus propios planes.** Seguimientos de lo que le contaste («¿qué tal la entrevista?») y metas que trabajáis juntos, sacados solo de tus palabras y mostrando siempre dónde lo dijiste. Apagado por defecto; encendido, Planificador → *Sus planes* lo muestra todo, comparte con sus primeros mensajes el límite diario, las horas de silencio y la regla de espacio, tiene un pequeño presupuesto diario, hace una pausa tras un momento difícil, y un interruptor lo para todo al instante, incluso a media frase. Las metas esperan tu *Usarla*. |
 | **2.35** · Webhooks | **Otros servicios pueden despertarla.** Da a GitHub, Stripe, Home Assistant o a cualquiera que hable Standard Webhooks su propia dirección firmada; elige cuándo cuenta (condiciones sin código, con plantillas) y qué hace ella: avisarte, añadir una tarea, ejecutar una habilidad o pasárselo a un plugin. Las firmas se comprueban sobre los bytes originales, se rechazan entregas viejas o repetidas, y el contenido no es de fiar: lo que cambie algo sigue preguntándote. Registro de entregas y botón de prueba en cada tarjeta; copias salientes firmadas si quieres. |
@@ -327,8 +328,8 @@ prueba comprobaba. Lo que aporta hoy es la forma de trabajar (ejecuta las prueba
 antes de pasos arriesgados, muestra lo que se ejecutó), no una puntuación más alta en estos
 conjuntos. Detalles, resultados por tarea y cómo repetirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-Además, `npm run check`: una comprobación de tipos y 1380 pruebas automáticas con un modelo falso
-programado (sin red, sin GPU): 1365 pasan en Windows y las otras 8 son pruebas del aislamiento solo
+Además, `npm run check`: una comprobación de tipos y 1391 pruebas automáticas con un modelo falso
+programado (sin red, sin GPU): 1376 pasan en Windows y las otras 8 son pruebas del aislamiento solo
 para Linux, que se ejecutan en un servidor Linux.
 
 ## Cómo se compara Sara

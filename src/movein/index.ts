@@ -13,6 +13,9 @@ import { SOURCE_CHANNEL } from '../history-import/types.ts';
 import { adultModeOn } from '../settings.ts';
 import { batch, batches, earlier, ensureTables, type ImportChoices, type ReportLine, runBatch, type BatchRow, undoBatch, undoPreview } from './batch.ts';
 import { Bundle, BundleError } from './bundle.ts';
+import { type Card, deleteMapping, ensureMappingTable, saveMapping, savedMappings, type SavedMapping, StoreCards } from './cards.ts';
+import { normMapping } from './mapping.ts';
+import { customReader } from './readers/custom.ts';
 import { hermesReader } from './readers/hermes.ts';
 import { openclawReader } from './readers/openclaw.ts';
 import { ACTIVE_NOTES, type Choices, LEARN_DAYS, Staging } from './staging.ts';
@@ -29,8 +32,8 @@ export const COLLECTOR_PATH = resolve(dirname(fileURLToPath(import.meta.url)), '
 
 const WORDS = 'amber apple arrow aspen autumn badge bamboo banner basil beacon bison blossom bramble breeze brook cactus candle canyon cedar cherry clover cobalt comet copper coral cotton crane crystal daisy delta dune ember falcon fern fiddle forest fossil garnet ginger glacier granite harbor hazel heron honey indigo island ivory jasmine juniper kettle lagoon lantern lava lemon lilac linen lotus maple marble meadow mint moss nectar nutmeg oak ocean olive orchid otter pebble pepper pine plum poppy prairie quartz quill raven reef ripple river saffron sage sequoia shell sierra silver spruce summit thistle tide timber topaz tulip velvet violet walnut willow winter yarrow zephyr'.split(' ');
 
-/** A reader per agent kind (MI2 adds `custom`). */
-export const READERS: Record<string, MoveInReader> = { hermes: hermesReader, openclaw: openclawReader };
+/** A reader per agent kind (MI2: `custom`; any bundle's custom stores also become mapping cards). */
+export const READERS: Record<string, MoveInReader> = { hermes: hermesReader, openclaw: openclawReader, custom: customReader };
 
 const LEFT_REASON: Record<string, string> = {
   secret: 'never collected (keys stay with you)',
@@ -80,11 +83,13 @@ export class MoveIn {
   readonly #codes: Code[] = [];
   readonly #bundles = new Map<string, Bundle>();
   readonly #staging = new Map<string, Staging>();
+  readonly #cards = new Map<string, StoreCards>();
 
   constructor(app: () => AppContext) {
     this.#app = app;
     mkdirSync(this.dir, { recursive: true, mode: 0o700 });
     ensureTables(app().store.db);
+    ensureMappingTable(app().store.db);
     // Bundles staged before a restart are still there (ready to preview again).
     for (const f of readdirSync(this.dir)) {
       const m = /^([\w-]{8,64})\.saramove$/.exec(f);
@@ -251,7 +256,7 @@ export class MoveIn {
       }, ac.signal);
       s.sha = await Bundle.fileSha(this.#file(s.id));
       const reader = READERS[b.manifest.source.kind];
-      if (!reader) throw new BundleError(b.manifest.source.kind === 'custom' ? 'This bundle is from a custom agent. Sara reads those after the 2.38 update; keep the file.' : 'Sara has no reader for this kind of agent yet.');
+      if (!reader) throw new BundleError('Sara has no reader for this kind of agent yet.');
       s.state = 'reading';
       s.line = 'Reading what she brought';
       this.#save(s);
@@ -296,6 +301,10 @@ export class MoveIn {
         st.setMeta('plan', null);
       }
       this.#bundles.set(s.id, b);
+      // MI2 (§8): custom stores become mapping cards; saved mappings of the same shape map themselves.
+      s.line = 'Looking at the custom stores';
+      this.#save(s);
+      await this.#cardsOf(s.id).discover(b, ac.signal);
       s.state = 'ready';
       s.line = 'Ready';
     } catch (err) {
@@ -326,6 +335,85 @@ export class MoveIn {
       this.#bundles.set(id, b);
     }
     return b;
+  }
+
+  #cardsOf(id: string): StoreCards {
+    let c = this.#cards.get(id);
+    if (!c) {
+      const st = this.#stagingOf(id);
+      c = new StoreCards({ app: this.#app(), staging: st, bundle: () => this.#bundle(id), scratchPath: join(this.dir, `${id}.map.db`), publish: () => this.#app().events?.publish({ type: 'movein', id, state: this.#sessions.get(id)?.state ?? 'ready', line: 'cards' }) });
+      this.#cards.set(id, c);
+    }
+    return c;
+  }
+  #readyCards(id: string): StoreCards {
+    const s = this.#sessions.get(id);
+    if (!s) throw new BundleError('That bundle is gone.');
+    if (s.state !== 'ready') throw new BundleError(s.state === 'imported' ? 'This bundle was already imported.' : 'The bundle is not ready yet.');
+    return this.#cardsOf(id);
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Custom stores: mapping cards (§8)
+  // ---------------------------------------------------------------------------------------------
+  /** The cards, the stores' skipped tables, and what asking her would cost. */
+  cards(id: string, opts: { localOnly?: boolean; sensitive?: string[] } = {}): Record<string, unknown> {
+    const s = this.#sessions.get(id);
+    if (!s) throw new BundleError('That bundle is gone.');
+    if (s.state !== 'ready' && s.state !== 'imported') return { state: s.state, stores: [], cards: [] };
+    const c = this.#cardsOf(id);
+    return { state: s.state, ...c.view(new Set(opts.sensitive ?? [])), estimate: c.estimate(opts.localOnly !== false), busy: c.busy(), saved: savedMappings(this.#app().store.db).length };
+  }
+  propose(id: string, opts: { keys?: string[]; localOnly?: boolean; useModel?: boolean; schemaOnly?: boolean }): void {
+    this.#readyCards(id).propose(opts);
+  }
+  stopCards(id: string): void {
+    this.#cards.get(id)?.stop();
+  }
+  async editCard(id: string, key: string, mapping: unknown): Promise<Card> {
+    return this.#readyCards(id).edit(key, mapping);
+  }
+  async confirmCard(id: string, key: string): Promise<Card> {
+    return this.#readyCards(id).confirm(key);
+  }
+  skipCard(id: string, key: string): Card {
+    return this.#readyCards(id).skip(key);
+  }
+  resetCard(id: string, key: string): Card {
+    return this.#readyCards(id).reset(key);
+  }
+  pullTable(id: string, store: string, table: string): Card {
+    return this.#readyCards(id).pull(store, table);
+  }
+  /** Waits for proposals and mapper runs (tests). */
+  async cardsIdle(id: string): Promise<void> {
+    await this.#cards.get(id)?.idle();
+  }
+
+  /** §8.5: saved mappings (names only, no data: they can be exported and shared). */
+  mappings(): SavedMapping[] {
+    return savedMappings(this.#app().store.db);
+  }
+  exportMappings(): { format: 'sara-movein-mappings'; version: 1; mappings: SavedMapping[] } {
+    return { format: 'sara-movein-mappings', version: 1, mappings: this.mappings() };
+  }
+  importMappings(raw: unknown): number {
+    const o = raw as { format?: string; mappings?: unknown[] };
+    if (!o || o.format !== 'sara-movein-mappings' || !Array.isArray(o.mappings)) throw new BundleError("That isn't a file of saved move-in mappings.");
+    let n = 0;
+    for (const x of o.mappings.slice(0, 500)) {
+      const m = x as Partial<SavedMapping>;
+      if (typeof m.fingerprint !== 'string' || !/^[0-9a-f]{64}$/.test(m.fingerprint)) continue;
+      const tables = (Array.isArray(m.tables) ? m.tables : []).filter((t): t is { name: string; columns: string[] } => typeof t?.name === 'string' && Array.isArray(t.columns)).slice(0, 300);
+      // Only the menu survives (no code, no SQL): re-normalised against the tables it names.
+      const mapping = normMapping(m.mapping, { id: 'x', title: '', tables: tables.map((t) => t.name), fingerprint: m.fingerprint });
+      saveMapping(this.#app().store.db, { fingerprint: m.fingerprint, storeLabel: String(m.storeLabel ?? 'shared').slice(0, 200), family: String(m.family ?? '').slice(0, 200), mapping, confirmedAt: typeof m.confirmedAt === 'string' && !Number.isNaN(Date.parse(m.confirmedAt)) ? m.confirmedAt : new Date().toISOString(), tables });
+      n++;
+    }
+    return n;
+  }
+  deleteMapping(fp: string): boolean {
+    return deleteMapping(this.#app().store.db, fp);
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -379,6 +467,10 @@ export class MoveIn {
       persona: pf ? { ref: persona.ref, refused: pf.refused ?? null, history: pf.history, drafts: pf.drafts.map((d) => ({ label: d.label, files: d.files, sheet: d.sheet, notes: d.notes, leftOut: d.leftOut, ageGuessed: d.ageGuessed ?? false })), current: { name: app.persona.name, summary: app.persona.summary } } : null,
       conversations: { count: convs.length, from: dates[0] ?? null, to: dates.at(-1) ?? null, learnRecent: recent.length, tokensRecent: Math.ceil(chars(recent) / 4), tokensAll: Math.ceil(chars(convs) / 4), model, learnDays: LEARN_DAYS },
       leftBehind: st.meta<ReportLine[]>('leftBehind') ?? [],
+      stores: (() => {
+        const c = this.#cardsOf(id);
+        return { stores: c.stores.length, cards: c.cards.length, confirmed: c.cards.filter((x) => x.state === 'confirmed').length, skipped: c.cards.filter((x) => x.state === 'skipped').length, undecided: c.undecided().length, busy: c.busy() };
+      })(),
       plan: st.meta('plan') ?? null,
       summary: st.meta('summary') ?? null,
     };
@@ -397,6 +489,8 @@ export class MoveIn {
     if (!s) throw new BundleError('That bundle is gone.');
     if (s.state !== 'ready') throw new BundleError(s.state === 'imported' ? 'This bundle was already imported. Undo it first, or upload a newer one.' : 'The bundle is not ready yet.');
     for (const x of this.#sessions.values()) if (x.state === 'importing') throw new BundleError('Another move-in is running. Wait for it to finish.');
+    const cards = this.#cardsOf(id);
+    if (cards.busy()) throw new BundleError('She is still working on the store cards. Wait for them to finish.');
     const app = this.#app();
     const b = await this.#bundle(id);
     const st = this.#stagingOf(id);
@@ -419,6 +513,7 @@ export class MoveIn {
           progress(s.line);
         },
         leftBehind: st.meta<ReportLine[]>('leftBehind') ?? [],
+        cards: { undecided: cards.undecided().map((c) => ({ key: c.key, title: c.family.title, store: cards.stores.find((x) => x.id === c.store)?.label ?? c.store, tables: c.family.tables.length })), telemetry: cards.stores.flatMap((x) => x.tables.filter((t) => t.verdict === 'telemetry').map((t) => t.name)), skipped: cards.cards.filter((c) => c.state === 'skipped').length },
       });
       s.batchId = r.id;
       s.state = 'imported';
@@ -465,10 +560,12 @@ export class MoveIn {
   deleteBundle(id: string): boolean {
     const s = this.#sessions.get(id);
     s?.abort?.abort();
+    this.#cards.get(id)?.stop();
+    this.#cards.delete(id);
     this.#staging.get(id)?.close();
     this.#staging.delete(id);
     this.#bundles.delete(id);
-    for (const f of [this.#file(id), this.#metaPath(id), join(this.dir, `${id}.db`), join(this.dir, `${id}.db-wal`), join(this.dir, `${id}.db-shm`)]) rmSync(f, { force: true });
+    for (const f of [this.#file(id), this.#metaPath(id), join(this.dir, `${id}.db`), join(this.dir, `${id}.db-wal`), join(this.dir, `${id}.db-shm`), join(this.dir, `${id}.map.db`), join(this.dir, `${id}.map.db-journal`)]) rmSync(f, { force: true });
     return this.#sessions.delete(id);
   }
 
@@ -484,6 +581,7 @@ export class MoveIn {
   }
 
   close(): void {
+    for (const c of this.#cards.values()) c.stop();
     for (const s of this.#sessions.values()) s.abort?.abort();
     for (const st of this.#staging.values()) st.close();
     this.#staging.clear();
@@ -518,6 +616,12 @@ function samples(list: Staged[], sec: Section): { title: string; text: string; f
   return out.map((f) => ({ title: f.title, text: sampleText(f, sec), from: f.ref }));
 }
 function sampleText(f: Staged, sec: Section): string {
+  if (f.kind === 'person') {
+    const p = f.data as import('./types.ts').PersonData;
+    return [p.relation, ...p.facts.slice(0, 2).map((x) => x.content.slice(0, 140))].filter(Boolean).join(' · ');
+  }
+  if (f.kind === 'task') return (f.data as import('./types.ts').TaskData).notes.slice(0, 200) || f.title;
+  if (f.kind === 'goal') return (f.data as import('./types.ts').GoalData).why.slice(0, 200) || f.title;
   if (sec === 'conversations') {
     const c = f.data as ConversationData;
     return c.messages.slice(0, 3).map((m) => `${m.role === 'user' ? '›' : '‹'} ${m.text.slice(0, 160)}`).join('\n');

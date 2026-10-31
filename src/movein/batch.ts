@@ -14,7 +14,7 @@ import type { MemoryKind } from '../memory.ts';
 import { loadPersona, type Persona, validatePersona } from '../persona.ts';
 import type { Bundle } from './bundle.ts';
 import { ACTIVE_NOTES, type Choices, LEARN_DAYS, type Staging } from './staging.ts';
-import type { BoardData, ConversationData, MemoryData, PersonaFinding, ScheduleData, SkillData, Staged } from './types.ts';
+import type { BoardData, ConversationData, GoalData, MemoryData, PersonaFinding, PersonData, ScheduleData, SkillData, Staged, TaskData } from './types.ts';
 import { AGENT_NAME } from './types.ts';
 
 export const UNDO_DAYS = 30;
@@ -125,6 +125,8 @@ export interface BatchInput {
   signal: AbortSignal;
   progress: (p: BatchProgress) => void;
   leftBehind: ReportLine[];
+  /** MI2: custom-store cards the owner hasn't decided (needs you), telemetry tables skipped (left behind). */
+  cards?: { undecided: { key: string; title: string; store: string; tables: number }[]; telemetry: string[]; skipped: number };
 }
 
 /** Runs the import. Returns the batch (done, or partial after Stop). */
@@ -134,7 +136,7 @@ export async function runBatch(inp: BatchInput): Promise<BatchRow> {
   ensureTables(db);
   const m = bundle.manifest;
   const kind = m.source.kind;
-  const source: HistorySource = kind === 'openclaw' ? 'openclaw' : 'hermes';
+  const source: HistorySource = kind === 'openclaw' ? 'openclaw' : kind === 'custom' ? 'movein' : 'hermes';
   const agent = AGENT_NAME[kind];
   const channel = SOURCE_CHANNEL[source];
   const herPast = choices.herPast;
@@ -203,10 +205,11 @@ export async function runBatch(inp: BatchInput): Promise<BatchRow> {
         const row = mem.add({ kind: d.kind, content: app.redactor.redact(d.content), conversationId: anchor.id, sourceMessageId: null, happenedOn: d.happenedOn, evidence });
         if (d.pinned) mem.setPinned(row.id, true);
         if (d.superseded) mem.supersede(row.id, row.id);
-        if (archived.has(n)) mem.setArchived(row.id, true);
+        const arch = archived.has(n) || d.archived === true;
+        if (arch) mem.setArchived(row.id, true);
         record('memory', 'memories', row.id, n.section === 'persona' ? null : n.ref, n.sha || null);
         bump(n.section === 'profile' ? 'profile' : n.section === 'reflections' ? 'reflections' : n.section === 'persona' ? 'personaNotes' : 'memories');
-        if (archived.has(n)) bump('archived');
+        if (arch) bump('archived');
         if (n.section !== 'persona') done++;
         if (++inTx >= TX_ROWS) {
           db.exec('COMMIT');
@@ -221,6 +224,58 @@ export async function runBatch(inp: BatchInput): Promise<BatchRow> {
       db.exec('ROLLBACK');
       throw err;
     }
+  }
+
+  // ---------------- people (MI2: ST6 cards with their facts; no ST6 → notes tagged with the name) ----------------
+  const peopleF = list.filter((f) => f.kind === 'person');
+  if (peopleF.length) tick('People');
+  for (const f of peopleF) {
+    if (signal.aborted) {
+      stopped = true;
+      break;
+    }
+    const p = f.data as PersonData;
+    const evidence = `${herPast ? `From before the move (on ${agent})` : `From ${agent}`}`;
+    if (app.people) {
+      const same = app.people.list({ q: p.name, status: 'all', limit: 20 }).find((x) => x.name.toLowerCase() === p.name.toLowerCase() && x.status !== 'rejected' && x.status !== 'forgotten' && x.status !== 'merged');
+      let pid: number;
+      if (same) pid = same.id;
+      else {
+        const made = app.people.create({ name: p.name, relation: p.relation, birthday: p.birthday, notes: app.redactor.redact(p.notes), aliases: p.aliases, status: 'active', origin: 'owner' });
+        pid = made.id;
+        record('person', 'people', pid, f.ref, f.sha);
+        bump('people');
+      }
+      db.exec('BEGIN');
+      try {
+        for (const x of p.facts) {
+          const fact = app.people.addFact(pid, { content: app.redactor.redact(x.content), happenedOn: x.happenedOn, evidence: x.source ? `${evidence}: ${x.source}`.slice(0, 300) : evidence, sure: typeof x.confidence === 'number' ? Math.max(0, Math.min(1, x.confidence)) : 0.7 });
+          if (fact) {
+            // Facts on a card that was already hers are listed one by one (Undo leaves her card).
+            if (same) record('person_fact', 'person_facts', fact.id, null, null);
+            bump('personFacts');
+          }
+        }
+        db.exec('COMMIT');
+      } catch (err) {
+        db.exec('ROLLBACK');
+        throw err;
+      }
+    }
+    // Facts past the 200 active (or every fact without ST6) arrive as archived notes tagged with the name.
+    const extra = app.people ? p.archivedFacts : [...p.facts, ...p.archivedFacts];
+    if (extra.length && app.memory) {
+      const anchor = app.store.insertImported({ title: `${herPast ? 'From before the move' : `Learned from ${agent}`}: about ${p.name}`.slice(0, 200), channel, channelKey: `${herPast ? 'her:' : ''}movein-person-${id}-${f.id}`, createdAt: now, updatedAt: now, archived: true, from: source, herPast, messages: [] });
+      record('conversation', 'conversations', anchor.id, null, null);
+      app.memory.setState(anchor.id, { summarizedThrough: 0, lastError: null });
+      for (const x of extra) {
+        const row = app.memory.add({ kind: 'fact', content: app.redactor.redact(`${p.name}: ${x.content}`).slice(0, 2000), conversationId: anchor.id, sourceMessageId: null, happenedOn: x.happenedOn, evidence });
+        if (app.people || p.facts.length > 200) app.memory.setArchived(row.id, true);
+        record('memory', 'memories', row.id, null, null);
+        bump('archivedFacts');
+      }
+    }
+    done++;
   }
 
   // ---------------- conversations ----------------
@@ -301,6 +356,41 @@ export async function runBatch(inp: BatchInput): Promise<BatchRow> {
     }
   }
 
+  // ---------------- tasks (MI2: planner tasks; they never act by themselves) ----------------
+  if (app.planner) {
+    for (const f of list.filter((x) => x.kind === 'task')) {
+      if (signal.aborted) {
+        stopped = true;
+        break;
+      }
+      const d = f.data as TaskData;
+      const t = app.planner.addTask({ title: app.redactor.redact(d.title).slice(0, 200), notes: app.redactor.redact(`${d.notes}${d.notes ? '\n' : ''}From ${agent}.`).slice(0, 4000), dueAt: d.dueAt });
+      if (d.done) app.planner.updateTask(t.id, { status: 'done' });
+      record('task', 'tasks', t.id, f.ref, f.sha);
+      bump('customTasks');
+      done++;
+    }
+  }
+
+  // ---------------- goals and intentions (MI2: ST8 goals, paused; no ST8 → her self notes) ----------------
+  for (const f of list.filter((x) => x.kind === 'goal')) {
+    if (signal.aborted) {
+      stopped = true;
+      break;
+    }
+    const g = f.data as GoalData;
+    if (app.agenda) {
+      const goal = app.agenda.store.addGoal({ title: app.redactor.redact(g.title), why: app.redactor.redact(g.why || `A goal ${herPast ? 'she had' : 'your old agent had'} on ${agent}.`), status: 'paused', createdBy: 'owner', topic: 'move-in' });
+      record('goal', 'agenda_goals', goal.id, f.ref, f.sha);
+      bump('goals');
+    } else if (app.memory) {
+      const row = app.memory.add({ kind: 'self', content: app.redactor.redact(`A goal from before the move: ${g.title}${g.why ? ` (${g.why})` : ''}`).slice(0, 2000), conversationId: null, sourceMessageId: null, happenedOn: g.happenedOn });
+      record('memory', 'memories', row.id, f.ref, f.sha);
+      bump('goalNotes');
+    }
+    done++;
+  }
+
   // ---------------- the board ----------------
   if (app.board) {
     for (const f of list.filter((x) => x.kind === 'board')) {
@@ -334,6 +424,10 @@ export async function runBatch(inp: BatchInput): Promise<BatchRow> {
     if (s.target === 'needs-you') needsYou.push({ key: 'schedule', count: 1, text: `Schedule "${s.title}" (${s.words}): ${s.why ?? 'set it up by hand'}.` });
   }
   if (counts.tasks || counts.reminders) translated.push({ key: 'schedules', count: (counts.tasks ?? 0) + (counts.reminders ?? 0), text: `cron jobs → ${counts.tasks ?? 0} tasks, ${counts.reminders ?? 0} reminders (tasks never act by themselves; scripts never run)` });
+  // MI2: custom-store cards still undecided import nothing; they wait in the report.
+  for (const c of inp.cards?.undecided ?? []) needsYou.push({ key: 'custom-card', count: c.tables, text: `Custom store "${c.store}": "${c.title}" (${c.tables} tables) not confirmed, so nothing from it came in. Import the bundle again to map it.` });
+  if (inp.cards?.telemetry.length) inp.leftBehind = [...inp.leftBehind.filter((l) => l.key !== 'telemetry-tables'), { key: 'telemetry-tables', count: inp.cards.telemetry.length, text: `${inp.cards.telemetry.length} log/telemetry tables: not useful to her`, examples: inp.cards.telemetry.slice(0, 4) }];
+  if (inp.cards?.skipped) inp.leftBehind = [...inp.leftBehind, { key: 'custom-skipped', count: inp.cards.skipped, text: `${inp.cards.skipped} custom-store cards you skipped` }];
   for (const f of staging.all('later')) needsYou.push({ key: (f.data as { code: string }).code, count: 1, text: `${(f.data as { what: string }).what}: ${(f.data as { why: string }).why}` });
   const held = staging.counts(choices).held;
   for (const [cat, n] of Object.entries(held)) if (n && !(choices.sensitive?.[cat as 'medical'] === true)) needsYou.push({ key: `held-${cat}`, count: n, text: `${cat === 'medical' ? 'Health/medical' : 'Intimate'}: ${n} items held. Import the bundle again and say yes to bring them.` });
@@ -346,6 +440,9 @@ export async function runBatch(inp: BatchInput): Promise<BatchRow> {
   if (counts.conversations) imported.push({ key: 'conversations', count: counts.conversations, text: `Past conversations: ${counts.conversations}${learnIds.length ? `; learning from ${learnIds.length} in the background` : ''}` });
   if (counts.skills) imported.push({ key: 'skills', count: counts.skills, text: `Skills: ${counts.skills}` });
   if (counts.cards) imported.push({ key: 'board', count: counts.cards, text: `Board cards: ${counts.cards}` });
+  if (counts.people || counts.personFacts) imported.push({ key: 'people', count: (counts.people ?? 0), text: `People: ${counts.people ?? 0} cards, ${counts.personFacts ?? 0} facts${counts.archivedFacts ? ` (${counts.archivedFacts} more as archived notes)` : ''}` });
+  if (counts.customTasks) imported.push({ key: 'tasks', count: counts.customTasks, text: `Tasks: ${counts.customTasks}` });
+  if (counts.goals || counts.goalNotes) imported.push({ key: 'goals', count: (counts.goals ?? 0) + (counts.goalNotes ?? 0), text: `Goals: ${counts.goals ?? 0} (paused in her own plans)${counts.goalNotes ? `, ${counts.goalNotes} as her notes` : ''}` });
   const report: Report = { imported, translated, needsYou, leftBehind: inp.leftBehind };
 
   // Her message in a new "Moving in" conversation (her words come in MI3; this is the plain report).
@@ -451,10 +548,25 @@ export function undoBatch(app: AppContext, id: string, opts: { keepEdited?: bool
         }
       }
     } else if ((i.kind === 'task' || i.kind === 'card') && app.planner) {
-      app.planner.db.prepare('DELETE FROM card_activity WHERE task_id = ?').run(Number(i.native_id));
+      try {
+        app.planner.db.prepare('DELETE FROM card_activity WHERE task_id = ?').run(Number(i.native_id));
+      } catch {
+        /* no board on this server: no card activity */
+      }
       if (app.planner.deleteTask(Number(i.native_id))) bump(i.kind);
     } else if (i.kind === 'reminder' && app.planner) {
       if (Number(app.planner.db.prepare('DELETE FROM reminders WHERE id = ?').run(Number(i.native_id)).changes)) bump('reminder');
+    } else if (i.kind === 'person' && app.people) {
+      if (app.people.forget(Number(i.native_id))) bump('person');
+    } else if (i.kind === 'person_fact' && app.people) {
+      if (app.people.deleteFact(Number(i.native_id))) bump('person_fact');
+    } else if (i.kind === 'goal') {
+      const gdb = app.agenda?.store.db ?? db;
+      try {
+        if (Number(gdb.prepare('DELETE FROM agenda_goals WHERE id = ?').run(Number(i.native_id)).changes)) bump('goal');
+      } catch {
+        /* no agenda table */
+      }
     } else if (i.kind === 'board' && app.board) {
       const bid = Number(i.native_id);
       app.planner?.db.prepare('DELETE FROM board_labels WHERE board_id = ?').run(bid);

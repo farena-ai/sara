@@ -45,6 +45,22 @@ export class Staging {
       CREATE TABLE IF NOT EXISTS findings (id INTEGER PRIMARY KEY AUTOINCREMENT, section TEXT NOT NULL, kind TEXT NOT NULL, ref TEXT NOT NULL, sha TEXT NOT NULL, title TEXT NOT NULL, data TEXT NOT NULL, held TEXT, state TEXT NOT NULL DEFAULT 'new', why TEXT);
       CREATE INDEX IF NOT EXISTS findings_section ON findings(section, state);
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);`);
+    // MI2 (additive): which mapping card made a finding, so re-mapping a card replaces exactly its rows.
+    const cols = new Set((this.db.prepare('PRAGMA table_info(findings)').all() as { name: string }[]).map((c) => c.name));
+    if (!cols.has('card')) this.db.exec('ALTER TABLE findings ADD COLUMN card TEXT');
+    this.db.exec('CREATE INDEX IF NOT EXISTS findings_card ON findings(card)');
+  }
+
+  /** MI2: drops what one mapping card staged (before it maps again, or when it is skipped). */
+  clearCard(card: string): number {
+    this.flush();
+    return Number(this.db.prepare('DELETE FROM findings WHERE card = ?').run(card).changes);
+  }
+  /** MI2: findings per card and section (the card's "what lands where" line). */
+  cardCounts(card: string): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const r of this.db.prepare("SELECT section, COUNT(*) AS n FROM findings WHERE card = ? AND state = 'new' GROUP BY section").all(card) as { section: string; n: number }[]) out[r.section] = r.n;
+    return out;
   }
 
   close(): void {
@@ -70,9 +86,9 @@ export class Staging {
   #ins?: ReturnType<DatabaseSync['prepare']>;
   #pending = 0;
   add(f: Finding): void {
-    this.#ins ??= this.db.prepare('INSERT INTO findings (section, kind, ref, sha, title, data, held) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    this.#ins ??= this.db.prepare('INSERT INTO findings (section, kind, ref, sha, title, data, held, card) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     if (!this.#pending) this.db.exec('BEGIN');
-    this.#ins.run(f.section, f.kind, f.ref, sha(f.data), f.title.slice(0, 300), JSON.stringify(f.data), f.held ?? null);
+    this.#ins.run(f.section, f.kind, f.ref, sha(f.data), f.title.slice(0, 300), JSON.stringify(f.data), f.held ?? null, f.card ?? null);
     if (++this.#pending >= 5000) this.flush();
   }
   flush(): void {
@@ -85,7 +101,7 @@ export class Staging {
   }
 
   #row(r: Record<string, unknown>): Staged {
-    return { id: Number(r.id), section: r.section as Section, kind: String(r.kind), ref: String(r.ref), sha: String(r.sha), title: String(r.title), data: JSON.parse(String(r.data)), ...(r.held ? { held: r.held as Category } : {}), state: r.state as Staged['state'], ...(r.why ? { why: String(r.why) } : {}) };
+    return { id: Number(r.id), section: r.section as Section, kind: String(r.kind), ref: String(r.ref), sha: String(r.sha), title: String(r.title), data: JSON.parse(String(r.data)), ...(r.held ? { held: r.held as Category } : {}), ...(r.card ? { card: String(r.card) } : {}), state: r.state as Staged['state'], ...(r.why ? { why: String(r.why) } : {}) };
   }
   get(id: number): Staged | undefined {
     const r = this.db.prepare('SELECT * FROM findings WHERE id = ?').get(id) as Record<string, unknown> | undefined;
@@ -100,18 +116,24 @@ export class Staging {
    * After the readers: duplicates inside the bundle and against her own notes, and what an earlier
    * move-in of the same agent already brought (§6.4 dedupe, §7.5 re-runs).
    */
-  settle(opts: { already: (ref: string, sha: string) => boolean; alreadyRef: (ref: string) => boolean; existing: (text: string) => { id: number; content: string }[] }): void {
+  settle(opts: { already: (ref: string, sha: string) => boolean; alreadyRef: (ref: string) => boolean; existing: (text: string) => { id: number; content: string }[]; card?: string }): void {
     this.flush();
     const seen = new Map<string, number>();
     const index = new Map<string, number[]>();
     const kept: { id: number; w: Set<string> }[] = [];
     this.db.exec('BEGIN');
     try {
-      const heads = this.db.prepare("SELECT id, kind, ref, sha FROM findings WHERE section != 'later' ORDER BY id").all() as { id: number; kind: string; ref: string; sha: string }[];
+      // MI2: settling one mapping card's rows only re-checks those (the rest were settled when read).
+      const heads = (opts.card ? this.db.prepare("SELECT id, kind, ref, sha FROM findings WHERE card = ? ORDER BY id").all(opts.card) : this.db.prepare("SELECT id, kind, ref, sha FROM findings WHERE section != 'later' ORDER BY id").all()) as { id: number; kind: string; ref: string; sha: string }[];
       for (const f of heads) if (f.kind === 'conversation' ? opts.alreadyRef(f.ref) : opts.already(f.ref, f.sha)) this.setState(f.id, 'already', 'brought in by an earlier move-in');
-      const notes = this.db.prepare("SELECT id, data FROM findings WHERE kind = 'memory' AND state = 'new' ORDER BY id").all() as { id: number; data: string }[];
+      const notes = this.db.prepare("SELECT id, data, card FROM findings WHERE kind = 'memory' AND state = 'new' ORDER BY id").all() as { id: number; data: string; card: string | null }[];
       for (const f of notes) {
         const m = JSON.parse(f.data) as MemoryData;
+        if (opts.card && f.card !== opts.card) {
+          // Already settled: only remembered, so the card's rows are compared with it.
+          seen.set(`${m.superseded ? 's' : ''}${squash(m.content)}`, f.id);
+          continue;
+        }
         const key = `${m.superseded ? 's' : ''}${squash(m.content)}`;
         if (seen.has(key)) {
           this.setState(f.id, 'duplicate', 'the same as another note in the bundle');
@@ -162,8 +184,8 @@ export class Staging {
   }
 
   /** Counts per section for the preview; `writes` = rows the batch will create. */
-  counts(c: Choices): { sections: Record<string, { writes: number; found: number; duplicates: number; already: number; held: Record<string, number> }>; held: Record<string, number> } {
-    const out: Record<string, { writes: number; found: number; duplicates: number; already: number; held: Record<string, number> }> = {};
+  counts(c: Choices): { sections: Record<string, { writes: number; found: number; duplicates: number; already: number; held: Record<string, number>; facts?: number }>; held: Record<string, number> } {
+    const out: Record<string, { writes: number; found: number; duplicates: number; already: number; held: Record<string, number>; facts?: number }> = {};
     const held: Record<string, number> = {};
     for (const s of SECTIONS) out[s] = { writes: 0, found: 0, duplicates: 0, already: 0, held: {} };
     for (const r of this.db.prepare('SELECT section, state, held, COUNT(*) AS n FROM findings GROUP BY section, state, held').all() as { section: string; state: string; held: string | null; n: number }[]) {
@@ -178,6 +200,8 @@ export class Staging {
       }
     }
     for (const f of this.selection(c)) out[f.section].writes += f.kind === 'board' ? (f.data as { cards: unknown[] }).cards.length : 1;
+    // MI2: people cards also count the facts they bring.
+    for (const f of this.selection(c)) if (f.kind === 'person') out.people.facts = (out.people.facts ?? 0) + (f.data as { facts: unknown[]; archivedFacts: unknown[] }).facts.length + (f.data as { archivedFacts: unknown[] }).archivedFacts.length;
     for (const cat of CATEGORIES) held[cat] ??= 0;
     return { sections: out, held };
   }

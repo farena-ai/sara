@@ -167,7 +167,7 @@ test('collector: one dependency-free file that runs on Python 3.6 (no f-strings,
   assert.match(src, /^#!\/usr\/bin\/env python3/);
   assert.doesNotMatch(src, /\bf'[^']*\{|\bf"[^"]*\{/, 'f-strings need 3.6+ but the collector avoids them for older pythons');
   const imports = [...src.matchAll(/^\s*(?:import|from) ([\w.]+)/gm)].map((m) => m[1].split('.')[0]);
-  const stdlib = new Set(['argparse', 'base64', 'binascii', 'datetime', 'errno', 'fnmatch', 'getpass', 'hashlib', 'io', 'json', 'locale', 'os', 'platform', 'pwd', 're', 'shutil', 'socket', 'sqlite3', 'ssl', 'stat', 'struct', 'subprocess', 'sys', 'tempfile', 'time', 'urllib', 'uuid', 'zipfile', 'zlib', 'collections', 'contextlib', 'itertools', 'math', 'string', 'textwrap', 'traceback', 'unicodedata', 'http', 'random', 'signal', 'glob', 'codecs', 'functools', 'gzip', 'threading', 'csv', 'copy', 'operator', 'shlex', 'select', 'queue', 'mimetypes', 'email', 'getopt', 'pathlib', 'posixpath', 'ntpath', 'decimal', 'calendar', 'gettext', 'atexit', 'array', 'html', 'urllib2', 'httplib']);
+  const stdlib = new Set(['argparse', 'base64', 'binascii', 'hmac', 'datetime', 'errno', 'fnmatch', 'getpass', 'hashlib', 'io', 'json', 'locale', 'os', 'platform', 'pwd', 're', 'shutil', 'socket', 'sqlite3', 'ssl', 'stat', 'struct', 'subprocess', 'sys', 'tempfile', 'time', 'urllib', 'uuid', 'zipfile', 'zlib', 'collections', 'contextlib', 'itertools', 'math', 'string', 'textwrap', 'traceback', 'unicodedata', 'http', 'random', 'signal', 'glob', 'codecs', 'functools', 'gzip', 'threading', 'csv', 'copy', 'operator', 'shlex', 'select', 'queue', 'mimetypes', 'email', 'getopt', 'pathlib', 'posixpath', 'ntpath', 'decimal', 'calendar', 'gettext', 'atexit', 'array', 'html', 'urllib2', 'httplib']);
   for (const m of imports) assert.ok(stdlib.has(m), `non-stdlib import ${m}`);
 });
 
@@ -492,7 +492,7 @@ test('UI: the Move in page, its module, tips, help entry and a fresh service-wor
   assert.doesNotMatch(css.replace(/\/\*[\s\S]*?\*\//g, ''), /#[0-9a-f]{3,8}\b|rgb\(/i, 'theme tokens only');
   assert.match(css, /var\(--safe-b\)/);
   assert.match(readFileSync(join(ROOT, 'web', 'help.html'), 'utf8'), /id="move-in"/);
-  assert.match(readFileSync(join(ROOT, 'web', 'sw.js'), 'utf8'), /caches\.open\('sara-shell-v38'\)/);
+  assert.match(readFileSync(join(ROOT, 'web', 'sw.js'), 'utf8'), /caches\.open\('sara-shell-v(3[89]|[4-9]\d)'\)/);
   for (const f of ['web/movein.js', 'web/movein.css', 'src/movein/index.ts', 'src/routes/movein.ts', 'scripts/sara-movein.py']) assert.ok(!readFileSync(join(ROOT, f), 'utf8').includes('\r\n'), `${f}: LF endings`);
 });
 

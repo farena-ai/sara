@@ -1076,6 +1076,23 @@ the README "What's new" row in the same release.
   minutes on the home server, a second run with the saved mapping makes **no** model calls, and the
   same flow works from a Postgres fixture (`psql` + `pg_dump`) and a custom-format dump file.
 
+**As built (2.38.0).** `src/movein/schema.ts` (per-table profiles: observed types, null and distinct
+shares, declared or inferred keys, newest timestamp; families by foreign keys and name prefixes;
+telemetry needs two signals, or name + volume on a schema-only run; fingerprints), `mapping.ts` (12
+targets, a fixed expression/filter menu, validation, the prompt, a no-model guess), `custom.ts` (the
+streaming mapper: joins in a scratch SQLite database, commits every 5,000 rows, minors and goal
+checks), `cards.ts` (card states, one model call per family plus one retry with the errors, cost
+estimate, confirm/skip/reset/edit/pull, saved mappings by fingerprint) and `readers/custom.ts`. The
+collector got a standard-library Postgres client (startup with `default_transaction_read_only=on`,
+SCRAM-SHA-256/md5, `REPEATABLE READ READ ONLY`, catalog queries, `COPY … TO STDOUT CSV`, `ROLLBACK`;
+`psql` if present), a plain `pg_dump` reader (custom-format dumps need `pg_restore` on PATH) and
+`--schema-only`. Tests use a fake Postgres speaking protocol 3.0 with SCRAM that refuses writes.
+Differences: when the model fails twice and the no-model guess passes validation, the card shows the
+guess as a proposal with a warning (not "pick by hand"); skipped cards aren't saved as mappings.
+Schema-only runs on the two real agents (names and counts only): Stacy's custom store 2.24 GB, 293
+tables, 130 cards; Ali's 92 stores, 5,333 tables, most of them probe/round-trip copies of one store
+(duplicate detection across a bundle is left for MI3).
+
 ### Phase 106 · 2.39.0 · MI3: configuration, channels, hooks + the move-in report
 - Config readers (YAML subset, JSON5 with `$include`), providers/routes/voice translation with
   blank keys and reconnect cards, channels (Telegram/Discord bridges, ST3 bridges, allowlists,
