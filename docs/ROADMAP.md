@@ -117,16 +117,16 @@ version's details are in the [changelog](../CHANGELOG.md).
 | 111 | Today, rethought: a designed layout (your day, needs you, with her, work), tiles you can arrange, a Mail tile that shows what changed | 2.44 |
 | 112 | Today on phones: one column in priority order, swipe rows, pull to refresh | 2.45 |
 | 113 | Report a problem or suggest something from inside Sara, no GitHub account needed (with an anonymous install count you can switch off) | 2.46 |
+| 114 | The polish pass: clearer personality dials with examples, better guidance on every page, visual consistency, a beginner path and a coder path | 2.47 |
 
 ## Coming next
 
-In build order; one release per phase. The computer use track is complete (2.20–2.28); the agent staples are complete (2.29–2.36); moving in from other agents is complete (2.37–2.39); chats and sessions are complete (2.40–2.43); Today, rethought, is out (2.44–2.45); reporting a problem from inside Sara is out (2.46); next, a polish pass.
+In build order; one release per phase. The computer use track is complete (2.20–2.28); the agent staples are complete (2.29–2.36); moving in from other agents is complete (2.37–2.39); chats and sessions are complete (2.40–2.43); Today, rethought, is out (2.44–2.45); reporting a problem from inside Sara (2.46) and the polish pass (2.47) are out; next, chat apps catch up.
 
 | Phase | Plan | Version |
 |---|---|---|
 | 60 | Phones: locked-screen calls on iPhone (CallKit), one-tap pairing on iPhone, the iPhone app in the App Store (when Apple approves it) | after Apple's approval |
 | 64 | Be found: app stores, NAS catalogs, Home Assistant's store and directories | ongoing |
-| 114 | The polish pass: clearer personality dials with examples, better guidance on every page, visual consistency, a beginner path and a coder path | 2.47 |
 | 115 | Chat apps catch up: photos and files both ways, a live progress message | 2.48 |
 | 116 | Talk to her while she works (steer, queue, /btw) and a loop guard | 2.49 |
 | 117 | Signal and email | 2.50 |

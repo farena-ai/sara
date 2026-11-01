@@ -97,12 +97,66 @@ export function checkLinks(root: string, files = mdFiles(root)): Broken[] {
   return broken;
 }
 
+/** The one playlist every how-to video belongs to (README, docs/VIDEOS.md, the wizard and the guide link it). */
+export const PLAYLIST = 'PLGtrs9BqXtM8';
+
+/**
+ * Phase 114 (PL1d): YouTube links and thumbnails, checked offline. A watch link needs an 11-character
+ * video id and, when it names a list, the Sara playlist; a thumbnail must belong to a video that is
+ * linked somewhere in the same file; a playlist link must be the Sara playlist.
+ */
+export function checkVideoLinks(file: string, text: string): Broken[] {
+  const out: Broken[] = [];
+  const lines = text.split('\n');
+  const watched = new Set([...text.matchAll(/youtube\.com\/watch\?v=([\w-]+)/g)].map((m) => m[1]));
+  lines.forEach((l, i) => {
+    for (const m of l.matchAll(/https:\/\/(?:www\.)?youtube\.com\/(watch|playlist)\?([^"'\s)<>]+)/g)) {
+      const q = new URLSearchParams(m[2].replace(/&amp;/g, '&'));
+      const v = q.get('v');
+      const list = q.get('list');
+      if (m[1] === 'watch' && !/^[\w-]{11}$/.test(v ?? '')) out.push({ file, line: i + 1, link: m[0], why: 'not an 11-character video id' });
+      if ((m[1] === 'playlist' || list) && list !== PLAYLIST) out.push({ file, line: i + 1, link: m[0], why: `not the Sara playlist (${PLAYLIST})` });
+    }
+    for (const m of l.matchAll(/https:\/\/i\.ytimg\.com\/vi\/([\w-]+)\//g)) {
+      if (!watched.has(m[1])) out.push({ file, line: i + 1, link: m[0], why: 'a thumbnail with no link to its video in this file' });
+    }
+  });
+  return out;
+}
+
+/** With --online: asks YouTube's oEmbed whether each video still exists. Offline or blocked = skipped, not failed. */
+export async function videosOnline(ids: string[]): Promise<{ gone: string[]; skipped: boolean }> {
+  const gone: string[] = [];
+  for (const id of ids) {
+    try {
+      const r = await fetch(`https://www.youtube.com/oembed?format=json&url=https://www.youtube.com/watch?v=${id}`, { signal: AbortSignal.timeout(8000) });
+      if (r.status === 404 || r.status === 400) gone.push(id);
+    } catch {
+      return { gone, skipped: true };
+    }
+  }
+  return { gone, skipped: false };
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-  const root = resolve(process.argv[2] ?? ROOT);
+  const root = resolve(process.argv.slice(2).find((a) => !a.startsWith('--')) ?? ROOT);
   const files = mdFiles(root);
   const broken = checkLinks(root, files);
+  // Phase 114 (PL1d): the how-to video links too (offline; --online also asks YouTube).
+  const videoFiles = [...files, 'web/help.html', 'web/index.html'].filter((f) => existsSync(join(root, f)));
+  const ids = new Set<string>();
+  for (const f of videoFiles) {
+    const text = readFileSync(join(root, f), 'utf8');
+    broken.push(...checkVideoLinks(f, text));
+    for (const m of text.matchAll(/youtube\.com\/watch\?v=([\w-]{11})/g)) ids.add(m[1]);
+  }
+  if (process.argv.includes('--online')) {
+    const r = await videosOnline([...ids]);
+    for (const id of r.gone) broken.push({ file: 'videos', line: 0, link: id, why: 'YouTube says this video is gone' });
+    console.log(r.skipped ? 'Videos: YouTube not reachable, online check skipped.' : `Videos: ${ids.size} checked online.`);
+  }
   for (const b of broken) console.log(`BROKEN ${b.file}:${b.line} ${b.link} (${b.why})`);
-  console.log(`${files.length} Markdown files checked in ${root}: ${broken.length ? `${broken.length} broken link(s).` : 'every relative link resolves.'}`);
+  console.log(`${files.length} Markdown files and ${ids.size} video links checked in ${root}: ${broken.length ? `${broken.length} broken link(s).` : 'every relative link resolves.'}`);
   process.exit(broken.length ? 1 : 0);
 }

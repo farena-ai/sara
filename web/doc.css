@@ -31,3 +31,11 @@ th { color: var(--text-2); font-weight: 600; }
 .guide-dials td:first-child { width: 22%; }
 .small { font-size: 12px; }
 @media (max-width: 640px) { .guide-dials { font-size: 13px; } .guide-dials td, .guide-dials th { padding: 5px 4px; } }
+
+/* Phase 114 (PL1d): the How do I…? index (generated from howto.json by scripts/gen-guide.ts) */
+h4 { font-size: 15px; margin: 16px 0 4px; font-weight: 600; color: var(--text-2); }
+.howto-q { border-bottom: 1px solid var(--hairline); }
+.howto-q summary { cursor: pointer; padding: 6px 0; }
+.howto-q summary:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; border-radius: 4px; }
+.howto-q ol { margin: 0 0 10px; }
+.howto-q:target, h4:target { scroll-margin-top: 16px; }

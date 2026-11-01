@@ -152,6 +152,9 @@ function lastLine(p) {
 
 function renderList() {
   const box = $('#plg-list');
+  // Empty: the empty state carries the one Add a plugin button, so the top one hides (no second copy).
+  const top = document.querySelector('#plg-add')?.closest('.add-row');
+  if (top) top.hidden = !state.plugins.length;
   if (!state.plugins.length) {
     box.replaceChildren(emptyState({ icon: 'puzzle', text: t('No plugins yet. Add one to give her a new ability without changing Sara itself.'), action: { label: t('Add a plugin'), run: () => document.querySelector('#plg-add')?.click() }, howto: true }));
     return;

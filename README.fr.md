@@ -14,7 +14,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1510%20passing-brightgreen" alt="1510 tests passing">
+  <img src="https://img.shields.io/badge/tests-1526%20passing-brightgreen" alt="1526 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -26,6 +26,11 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <img src="docs/screenshots/demo.png" alt="Animated demo: the user says it was a rough week; Sara answers warmly and suggests three tiny things to build; she writes a module and its test, asks before running a command, finds a real bug through a failing test, fixes it and gets all 7 tests green" width="860">
   <br>
   <sub>Une vraie session avec un modèle local (qwen3.8 27B sur Ollama, une RTX 5090) sur un serveur de test jetable, dans le thème Nuit : elle remonte le moral de son interlocuteur, écrit une petite app et son test pendant que le modèle les transmet, demande avant d'exécuter une commande, repère un vrai bug grâce à un test qui échoue et le corrige jusqu'à ce que les 7 tests passent. Images choisies dans l'enregistrement ; rien n'y a été retouché.</sub>
+</p>
+
+<p align="center">
+  <a href="docs/START_HERE.md"><img src="https://img.shields.io/badge/Je%20viens%20de%20l%27installer%2C%20et%20maintenant%20%3F-B4436C?style=for-the-badge" alt="Je viens de l'installer, et maintenant ?" height="34"></a>
+  <a href="docs/FOR_CODERS.md"><img src="https://img.shields.io/badge/Je%20suis%20l%C3%A0%20pour%20coder-6E4BD8?style=for-the-badge" alt="Je suis là pour coder" height="34"></a>
 </p>
 
 > **État :** 2.47, licence MIT, avec cinquante-huit versions riches en nouveautés depuis la 1.0 (toutes
@@ -66,6 +71,34 @@ autres serveurs [en SSH](docs/SSH.md) · des [livres de 1 000 pages](docs/LIBRAR
 qui citent la page · le [mode local privé](docs/PRIVATE_LOCAL.md) · les [conversations de groupe](docs/GROUP_CHATS.md) ·
 [venir de ChatGPT, Character.AI, Replika et d'autres](docs/IMPORT.md).
 
+## Par où commencer
+
+Deux chemins courts pour les dix premières minutes. Choisissez le vôtre ; toutes les fonctions restent disponibles dans les deux cas.
+
+### Je viens de l'installer, et maintenant ?
+
+<img src="docs/screenshots/first-run.webp" alt="Étape 1 sur 4 de la configuration : un champ avec le prénom Alex et trois cartes pour ce que vous ferez surtout avec elle : Compagnie, Code ou Les deux" width="560">
+
+1. **Connectez-vous** avec le code de configuration de son journal (ou votre jeton de propriétaire).
+2. **Donnez-lui votre prénom** et choisissez *Compagnie* quand elle demande ce que vous ferez surtout ensemble.
+3. **Connectez un cerveau :** elle propose un modèle pour votre ordinateur et vérifie qu'il répond (*Connecté au modèle ✓*), ou utilise une offre que vous payez déjà.
+4. **Dites bonjour :** touchez *Organise ma journée avec moi* ou écrivez simplement. Une courte visite suit sa première réponse.
+5. **Rendez-la unique** avec les curseurs de personnalité, puis laissez *Premiers pas* sur Aujourd'hui vous guider pour sa voix, votre téléphone et un briefing du matin.
+
+Le parcours complet, en images : **[Start here](docs/START_HERE.md)**. Toutes les réponses des encadrés *Comment faire… ?* de l'app en une liste : **[How do I…?](docs/HOW_DO_I.md)** (en anglais).
+
+### Je suis là pour coder
+
+<img src="docs/screenshots/connect-brain.webp" alt="Étape 3 sur 4, Connecter un cerveau : quatre cartes (Sur cet ordinateur, Un autre ordinateur à la maison, Dans le cloud, Mon abonnement) et une carte Choisi pour vous avec le modèle local qwen3.8 27B, une étiquette Bon pour coder et Connecté" width="560">
+
+1. **Choisissez *Code*** à la configuration : elle propose un modèle doué pour le code (*Bon pour coder*) ou votre offre Claude Code, Codex ou Grok Build.
+2. **Ouvrez un projet** avec *+ Projet* : un dossier de travail où elle a des fichiers, un terminal et git.
+3. **Demandez-lui quelque chose de réel.** Elle écrit les fichiers, demande avant de lancer une commande et montre les résultats des tests sous forme de cartes.
+4. **Lisez la ligne sous chaque réponse** pour chaque commande et sa sortie ; les commandes risquées peuvent tourner d'abord dans une copie isolée.
+5. **Intégrez-la à vos outils :** GitHub, `sara-chat`, VS Code, MCP pour Claude Code et Cursor, et des budgets qui arrêtent une longue tâche là où vous le décidez.
+
+Le parcours pour les développeurs : **[For coders](docs/FOR_CODERS.md)** (en anglais). Depuis les sources en trois commandes : [Installation](#installation).
+
 ## Vidéos pratiques
 
 Des tutoriels d'une minute, enregistrés sur un serveur de test avec un modèle local (en anglais). <a href="https://www.youtube.com/playlist?list=PLGtrs9BqXtM8">Toutes dans une playlist</a>.
@@ -81,8 +114,16 @@ Des tutoriels d'une minute, enregistrés sur un serveur de test avec un modèle 
 
 ## Quoi de neuf
 
+- **2.47.3** · Commencer ici : un parcours débutant et un parcours développeur, des captures neuves et un index *Comment faire… ?* dans le guide et sur le site de la doc.
+- **2.47.2** · Un seul style et de l'aide partout : un encadré *Comment faire… ?* avec des réponses pas à pas sur chaque page, et des pages vides qui disent ce qui va là.
+- **2.47.1** · Un premier lancement à votre mesure : la configuration demande *compagnie, code ou les deux* et adapte le modèle proposé, la visite et la liste des premiers pas.
+
+<details>
+<summary><b>Historique des versions</b> : ce que chaque version depuis la 2.4 a apporté</summary>
+
 | Version | Ce que vous y gagnez |
 |---|---|
+| **2.47.3** · Commencer ici | **Deux entrées :** [Commencer ici](docs/START_HERE.md) pour « c'est installé, et maintenant ? » et [Pour les développeurs](docs/FOR_CODERS.md), avec les vidéos (en anglais). Des captures neuves, la visite des fonctions découpée en *Pour la compagnie*, *Pour coder* et *Pour les deux*, toutes les réponses *Comment faire… ?* dans un index (dans le guide et sur le site de la doc) et un site de doc réorganisé. |
 | **2.47.2** · Un seul style et de l'aide partout | **Chaque page a maintenant un encadré *Comment faire… ?*** avec des réponses pas à pas (123, avec *Montre-moi*), et les pages vides disent ce qui va là avec une étape claire. Un style de carte, des icônes au lieu des emoji, des espacements et des coins uniformes, un menu de réglages qui ouvre un groupe à la fois, un affichage téléphone plus net sans défilement latéral, un premier écran de connexion plus clair, et la configuration pour coder préfère un modèle capable sur votre propre ordinateur. |
 | **2.47.1** · Un premier lancement sur mesure | **La configuration pose une question : compagnie, code ou les deux.** Vous obtenez un modèle recommandé avec un vrai test *Connecté ✓*, une visite en six étapes adaptée (la visite complète reste dans l'Aide), des suggestions dans une discussion vide et une liste de premiers pas dans le bon ordre pour vous. Les fenêtres ne s'empilent plus, et la note sur le signal anonyme fait partie de la dernière étape. |
 | **2.47** · Une personnalité qui se voit | **Ses réglages de personnalité montrent enfin ce qu'ils font :** des extrémités claires (« Garde ses distances ↔ Ouvertement chaleureuse »), un mot pour la position et une phrase avec sa voix qui change quand on bouge le curseur (125, sans appel à une IA). Des groupes aux noms simples, un résumé « Votre Sara pour l'instant » et des mots clairs sur tous les autres curseurs. Corrigé aussi : Aujourd'hui se met à jour après la configuration, un seul nombre de modèles partout avec une liste groupée, une persona importée est renommée partout d'un coup, et *Partir à* passe avant son événement. |
@@ -130,6 +171,8 @@ Des tutoriels d'une minute, enregistrés sur un serveur de test avec un modèle 
 | **2.5** · Le nouveau look, partie 1 | **Sombre par défaut et son travail à l'écran :** une ligne sous chaque réponse montre ce qu'elle a fait, les résultats arrivent en cartes (météo, tâches, fichiers modifiés, tests, recherches), une conversation plus légère sur téléphone et ordinateur, et les apps Windows et Mac dessinent la page jusque dans la barre de titre. [Le plan](docs/design/NEW_LOOK.md) |
 | **2.4** · Bien rangé | **Tout est plus facile à trouver :** une barre latérale courte avec un menu *Plus* pour épingler, des Réglages avec de vrais titres qui se replient, outils et autorisations expliqués simplement, des photos que l'on peut supprimer de l'album souvenirs, des écrans et menus plus nets dans chaque app, et un enregistrement plus sûr en coulisses. [Ce qui a changé](CHANGELOG.md) |
 
+</details>
+
 <details>
 <summary><b>Versions précédentes : de la 1.1 à la 2.3</b> (grands documents, SSH, Alexa et Google Home, mode foyer, moments, appels vidéo, plusieurs serveurs, mode local privé, conversations de groupe, venir d'autres apps…)</summary>
 
@@ -158,7 +201,6 @@ Toutes les versions : [CHANGELOG.md](CHANGELOG.md) · [versions](https://github.
 
 Dans l'ordre de construction, une version chacune ([la liste complète](docs/ROADMAP.md)) :
 
-- **Une passe de finition** (2.47) : des réglages de personnalité plus clairs avec exemples, de l'aide sur chaque page, un parcours débutant et un parcours développeur.
 - **Ensuite** (2.48–2.61) : photos et fichiers dans les applis de discussion, lui parler pendant qu'elle travaille, Signal, e-mail, WhatsApp, iMessage (BlueBubbles) et SMS, « continue jusqu'au bout », vérifications du code après chaque modification, une galerie de routines et **le Sara Store** pour plugins, compétences et serveurs MCP (ComfyUI, Blender, Playwright…) avec installation en un clic et un moyen de soumettre les vôtres.
 - L'app iPhone (en attente d'Apple), et vos idées dans les [Discussions](https://github.com/farena-ai/sara/discussions).
 
@@ -169,9 +211,13 @@ Le plan complet : [docs/ROADMAP.md](docs/ROADMAP.md).
 Toutes les captures viennent d'un vrai serveur de test jetable avec un modèle local (qwen3.8 27B sur
 Ollama), connecté en tant qu'utilisateur d'exemple « Alex ». Nuit est le thème par défaut.
 
-### Compagne
+### Pour la compagnie
 
-<img src="docs/screenshots/companion.png" alt="Night look: Sara answers a tired user warmly, checks the weather for tomorrow's run and shows it as a card; her presence panel on the right shows her portrait with a mood halo, what she's doing, today's to-dos and the notes she remembered" width="760">
+Parler, organiser votre journée, se souvenir de ce qui compte, et une personnalité que vous façonnez.
+
+#### Compagne
+
+<img src="docs/screenshots/companion.webp" alt="Look Nuit : Alex dit que la semaine a été longue et demande un rappel et deux tâches ; Sara répond avec chaleur, avec une carte Rappel créé et deux cartes Tâche ajoutée, et une ligne sous sa réponse dit ce qu'elle a fait" width="760">
 
 Son propre caractère et des humeurs qui changent selon la façon dont les choses se passent (le halo
 autour de son portrait prend la couleur de son humeur), sa propre journée et ses loisirs, la mémoire
@@ -183,22 +229,67 @@ Claude, Character.AI, SillyTavern, Replika, Nomi ou Kindroid, et validez d'abord
 de groupe ([docs/GROUP_CHATS.md](docs/GROUP_CHATS.md)). Tout sur une seule machine ? Activez **Rien ne
 sort de cet ordinateur** ([docs/PRIVATE_LOCAL.md](docs/PRIVATE_LOCAL.md)).
 
-### Sa présence
+#### Aujourd'hui
 
-<img src="docs/screenshots/presence.png" alt="A coding chat: a Files changed card, then an approval card asking to run npm test; the presence panel shows Waiting for your OK with Allow and Deny, and two background jobs with their last line and a Stop button" width="760">
+<img src="docs/screenshots/today.webp" alt="Aujourd'hui : un Good afternoon, Alex avec son portrait et son humeur, un encadré Comment faire… ?, Votre journée en une frise et la météo de Chicago pour les prochaines heures" width="760">
 
-Un panneau à côté de chaque conversation (une feuille qu'on fait glisser vers le haut sur téléphone)
-avec son portrait qui brille de la couleur de son humeur et **Maintenant** : ce qu'elle fait, les
-validations en attente avec Autoriser / Refuser, les tâches en arrière-plan avec leur dernière ligne
-et Arrêter ; puis les prochaines choses de la journée, les notes qu'elle a utilisées pour la dernière
-réponse (repliées jusqu'à ce que vous les ouvriez) et le modèle, l'espace de travail et la
-confidentialité de la conversation. Sous chaque réponse, une ligne discrète dit ce qu'elle a fait
-(« S'est souvenue de 6 choses · A créé un rappel 0,1 s ») ; touchez-la pour les commandes, la sortie et
-Annuler.
+Là où Sara s'ouvre : son visage, son humeur et un bonjour, puis *Votre journée* en une frise (événements, rappels et tâches avec la météo), *Vous attend* (autorisations, travaux échoués, retards et courrier), *Avec elle*, *Travail* et *Maison et plus*. Les tuiles vides se replient et *Personnaliser* déplace, redimensionne ou masque n'importe laquelle. Sur téléphone, elle s'ouvre sur une carte *Maintenant* ([docs/TODAY.md](docs/TODAY.md)).
 
-### Partenaire de programmation
+#### Agenda
 
-<img src="docs/screenshots/coding.png" alt="A coding chat in a project workspace: she explains her plan, edits five files (a Files changed card), runs the tests, finds three failures, fixes them and ends with a green Tests passed card showing 11; the panel shows two background jobs" width="760">
+<img src="docs/screenshots/planner.webp" alt="L'onglet Tâches de l'Agenda : préparer le sac de sport (aujourd'hui, 17 h), ranger le bureau avant la visite de Maya (vendredi), acheter du lait d'avoine et finir les diapositives du T4" width="760">
+
+Tâches, notes et rappels à partir de phrases ordinaires, livrés dans la conversation, en
+notification sur votre téléphone ou votre ordinateur (Fait / Plus tard dans les apps Windows et Mac)
+et sur Telegram ou Discord ; un briefing du matin ; des rappels liés à un lieu depuis l'app mobile.
+
+#### À votre image
+
+<img src="docs/screenshots/dials.webp" alt="Nom et personnalité : les curseurs de personnalité par groupes, chacun avec ses extrémités, le mot de sa position, un nombre et une phrase dans sa voix qui change quand on le bouge" width="760">
+
+N'importe quel nom, pronoms, âge et apparence (peinte par Grok Imagine, avec des expressions et une
+animation assorties), un assistant guidé « créer votre compagne », des curseurs de personnalité, une
+galerie de personnages de départ, des fichiers de personnage à partager, un modèle pour chaque tâche,
+et toute l'app, le guide d'aide et ses messages en six langues. Chaque réglage a son **?**, il y a de
+courtes visites guidées, et vous pouvez simplement lui demander comment quelque chose fonctionne.
+
+#### Bibliothèque
+
+<img src="docs/screenshots/library.png" alt="Sara answers a book-club question from a Project Gutenberg copy of Jekyll and Hyde, citing p. 6 and p. 9 as links; beside it, the page she read, opened at p. 6 with the passage highlighted" width="860">
+
+Donnez-lui des PDF (scannés aussi, et des livres de 500 à 1 000 pages), Word, Excel, PowerPoint,
+livres numériques, pages web et notes. Elle en retient l'essentiel, répond à partir d'eux et indique
+de quel document et de quelle page vient la réponse, avec un lien qui l'ouvre à cet endroit
+([docs/LIBRARY.md](docs/LIBRARY.md)).
+
+#### Voix
+
+<img src="docs/screenshots/voice.png" alt="The Voice settings page in the Night look: hearing you, her voice, expressive voice, tone, her voice following her mood, live calls and how often she looks during video calls" width="760">
+
+Des appels en direct que vous pouvez interrompre (voix en temps réel de Grok ou d'OpenAI), des appels
+vidéo avec son portrait animé ([docs/VIDEO_CALLS.md](docs/VIDEO_CALLS.md)), des notes vocales sur
+Telegram et Discord, la lecture à voix haute, une voix qui suit son humeur et un portrait animé qui
+parle, avec une synchronisation labiale sur neuf formes de bouche. Parlez-lui sur un Echo avec votre
+propre skill Alexa, faites-en votre assistant Android ou écoutez-la sur des enceintes Google Home
+([docs/VOICE_ASSISTANTS.md](docs/VOICE_ASSISTANTS.md)). Les voix tournent sur votre serveur Linux ou
+viennent de votre abonnement. (Capture d'un serveur de test sous Windows, où la voix locale n'est pas
+encore disponible.)
+
+#### Sur votre téléphone
+
+<img src="docs/screenshots/phone.webp" alt="Deux écrans de téléphone : Aujourd'hui qui s'ouvre sur une carte Maintenant (la suite, 58° et nuageux, son humeur) et Votre journée ; un chat avec des cartes rappel et tâche au-dessus de la barre de message et de la barre flottante du bas" width="860">
+
+Le même look sur téléphone : une barre du bas flottante (Chat, Aujourd'hui, Agenda, Plus), sa
+présence dans une feuille que vous faites glisser depuis son visage, et la barre de message au-dessus
+du clavier. Nuit par défaut ; Jour ou *suivre le système* dans Réglages → Apparence.
+
+### Pour coder
+
+Un espace de travail par projet, une autorisation avant tout ce qui est risqué, et une trace de ce qui a vraiment tourné.
+
+#### Partenaire de programmation
+
+<img src="docs/screenshots/coding.webp" alt="Un chat de code dans l'espace tip-calculator : une carte Tests échoués (3 réussis, 3 échoués), son explication du bug d'arrondi trouvé dans son propre code, une carte Tests réussis avec 6, et la ligne d'étapes sous la réponse" width="760">
 
 Un espace de travail par projet avec fichiers, terminal et git (commit et push avec votre accord) ;
 chaque fichier qu'elle écrit apparaît en direct dans la conversation pendant que le modèle le
@@ -212,62 +303,38 @@ compteur de tokens et de coûts avec budgets ; et une vérification, dans les si
 qu'elle *dit* avoir fait correspond à ce qui a vraiment été exécuté (éventuellement jugée par un petit
 modèle local).
 
-### Agenda
+#### Sa présence
 
-<img src="docs/screenshots/planner.png" alt="One message becomes a reminder and two to-dos, each shown as a card with its time and an Open the Planner link" width="760">
+<img src="docs/screenshots/ask-first.webp" alt="Un chat de code : Sara a écrit tip.js et test.js et demande avant de lancer node --test, avec Autoriser et Refuser dans le chat et dans son panneau, qui indique En attente de votre accord et liste les tâches du jour" width="760">
 
-Tâches, notes et rappels à partir de phrases ordinaires, livrés dans la conversation, en
-notification sur votre téléphone ou votre ordinateur (Fait / Plus tard dans les apps Windows et Mac)
-et sur Telegram ou Discord ; un briefing du matin ; des rappels liés à un lieu depuis l'app mobile.
+Un panneau à côté de chaque conversation (une feuille qu'on fait glisser vers le haut sur téléphone)
+avec son portrait qui brille de la couleur de son humeur et **Maintenant** : ce qu'elle fait, les
+validations en attente avec Autoriser / Refuser, les tâches en arrière-plan avec leur dernière ligne
+et Arrêter ; puis les prochaines choses de la journée, les notes qu'elle a utilisées pour la dernière
+réponse (repliées jusqu'à ce que vous les ouvriez) et le modèle, l'espace de travail et la
+confidentialité de la conversation. Sous chaque réponse, une ligne discrète dit ce qu'elle a fait
+(« S'est souvenue de 6 choses · A créé un rappel 0,1 s ») ; touchez-la pour les commandes, la sortie et
+Annuler.
 
-### Aujourd'hui
+#### Pendant que vous codez
 
-<img src="docs/screenshots/today.png" alt="The Today page: a serif greeting with her portrait and mood, then tiles for the weather in Chicago with the next hours, your day, the Planner with a progress ring, what she remembered, moments with captions she wrote, background work and coming up" width="760">
+<img src="docs/screenshots/work-dials.webp" alt="Réglages, Projets de code : les curseurs de son attitude pendant que vous codez (Bavardage au travail, Célébrations, Taquineries sur les bugs), chacun avec une phrase d'exemple, Discrète quand je suis concentré et le choix de l'espace de travail" width="760">
 
-Là où Sara s'ouvre : son visage, son humeur et un mot d'accueil, puis des tuiles pour la météo (du
-lieu de votre briefing), votre journée, l'agenda avec ses cases à cocher, ce dont elle s'est
-souvenue, vos moments partagés, le travail en arrière-plan, ce qui arrive et votre maison (lumières
-et interrupteurs directement depuis la tuile). Quatre colonnes sur grand écran, une sur téléphone.
+Combien elle bavarde en travaillant, combien elle fête les tests au vert et si elle vous taquine pour une erreur d'un cran : chaque curseur montre une phrase d'exemple, et *Discrète quand je suis concentré* la garde brève pendant que vous enchaînez les commandes. La même page contient ce qu'elle sait de chaque projet ([docs/FOR_CODERS.md](docs/FOR_CODERS.md)).
 
-### Bibliothèque
+#### Barre de commandes
 
-<img src="docs/screenshots/library.png" alt="Sara answers a book-club question from a Project Gutenberg copy of Jekyll and Hyde, citing p. 6 and p. 9 as links; beside it, the page she read, opened at p. 6 with the passage highlighted" width="860">
-
-Donnez-lui des PDF (scannés aussi, et des livres de 500 à 1 000 pages), Word, Excel, PowerPoint,
-livres numériques, pages web et notes. Elle en retient l'essentiel, répond à partir d'eux et indique
-de quel document et de quelle page vient la réponse, avec un lien qui l'ouvre à cet endroit
-([docs/LIBRARY.md](docs/LIBRARY.md)).
-
-### Barre de commandes
-
-<img src="docs/screenshots/command-bar.png" alt="The Ctrl+K command bar over Today: typing 'pa' finds her page, two conversations and five settings" width="760">
+<img src="docs/screenshots/command-bar.webp" alt="La barre de commandes Ctrl+K sur Aujourd'hui : en tapant pla, elle trouve l'Agenda, deux conversations et les réglages correspondants" width="760">
 
 Ctrl+K / ⌘K (ou la loupe sur téléphone) mène à n'importe quel endroit, conversation (aussi par des
 mots à l'intérieur des messages), page de réglages ou réglage précis, ou lance une action : nouvelle
 conversation, confidentielle, appel, changer de compagne, changer de thème.
 
-### Voix
+### Pour les deux
 
-<img src="docs/screenshots/voice.png" alt="The Voice settings page in the Night look: hearing you, her voice, expressive voice, tone, her voice following her mood, live calls and how often she looks during video calls" width="760">
+La même Sara sur tous vos appareils, de l'aide sur chaque page, et une couche de sécurité toujours active.
 
-Des appels en direct que vous pouvez interrompre (voix en temps réel de Grok ou d'OpenAI), des appels
-vidéo avec son portrait animé ([docs/VIDEO_CALLS.md](docs/VIDEO_CALLS.md)), des notes vocales sur
-Telegram et Discord, la lecture à voix haute, une voix qui suit son humeur et un portrait animé qui
-parle, avec une synchronisation labiale sur neuf formes de bouche. Parlez-lui sur un Echo avec votre
-propre skill Alexa, faites-en votre assistant Android ou écoutez-la sur des enceintes Google Home
-([docs/VOICE_ASSISTANTS.md](docs/VOICE_ASSISTANTS.md)). Les voix tournent sur votre serveur Linux ou
-viennent de votre abonnement. (Capture d'un serveur de test sous Windows, où la voix locale n'est pas
-encore disponible.)
-
-### Sur votre téléphone
-
-<img src="docs/screenshots/phone.png" alt="Four phone screens: Today with the weather tile; a chat with a weather card; her presence sheet pulled up from her face; Today in the Day theme. A floating bottom bar with Chat, Today, Planner and More" width="860">
-
-Le même look sur téléphone : une barre du bas flottante (Chat, Aujourd'hui, Agenda, Plus), sa
-présence dans une feuille que vous faites glisser depuis son visage, et la barre de message au-dessus
-du clavier. Nuit par défaut ; Jour ou *suivre le système* dans Réglages → Apparence.
-
-### Partout
+#### Partout
 
 <img src="docs/screenshots/everywhere.png" alt="Sara on a phone answering a book-club question from her library, citing the page" width="260">
 
@@ -284,19 +351,13 @@ une API compatible OpenAI (SillyTavern, Open WebUI, scripts), un serveur MCP (Cl
 Claude Desktop ; [référencé sur Glama](https://glama.ai/mcp/servers/farena-ai/sara)) et des cartes de
 personnage en import et en export ([docs/OTHER_APPS.md](docs/OTHER_APPS.md)).
 
-### À votre image
+#### De l'aide sur chaque page
 
-<img src="docs/screenshots/make-it-yours.png" alt="Name and personality settings: her name, pronouns and age, a Create your companion button and a gallery of starter characters; beside it the personality dials (playfulness, teasing, directness, temper, confidence, message length, tone, curiosity, optimism) and her life" width="760">
+<img src="docs/screenshots/howto.webp" alt="L'encadré Comment faire… ? ouvert en haut de Nom et personnalité : Comment changer son nom ? avec trois étapes numérotées et un bouton Montre-moi, puis deux autres questions" width="760">
 
-N'importe quel nom, pronoms, âge et apparence (peinte par Grok Imagine, avec des expressions et une
-animation assorties), un assistant guidé « créer votre compagne », des curseurs de personnalité, une
-galerie de personnages de départ, des fichiers de personnage à partager, un modèle pour chaque tâche,
-et toute l'app, le guide d'aide et ses messages en six langues. Chaque réglage a son **?**, il y a de
-courtes visites guidées, et vous pouvez simplement lui demander comment quelque chose fonctionne.
+Chaque page et chaque vue commence par un encadré **Comment faire… ?** : deux à quatre questions avec des étapes numérotées, et *Montre-moi* désigne le réglage. Les pages vides disent ce qui va là et proposent une étape suivante. Les 123 réponses en une liste : [docs/HOW_DO_I.md](docs/HOW_DO_I.md).
 
-### Sécurité, toujours active
-
-<img src="docs/screenshots/safety.png" alt="An approval card: Sara asks before running npm test, with Allow and Deny, after a Tests failed card; the status bar says Waiting for your OK" width="760">
+#### Sécurité, toujours active
 
 Les actions risquées attendent votre accord (sous Windows, qui n'a pas d'isolation des commandes,
 chaque commande l'attend) : dans la conversation, dans son panneau, ou en notification avec Autoriser
@@ -342,8 +403,8 @@ qu'aucun test ne vérifiait. Ce qu'elle apporte aujourd'hui, c'est la manière d
 lance les tests, demande avant les étapes risquées, montre ce qui a tourné), pas un meilleur score
 sur ces jeux. Détails, résultats par tâche et comment relancer : [docs/RESULTS.md](docs/RESULTS.md).
 
-En plus, `npm run check` : une vérification des types et 1525 tests automatiques avec un faux modèle
-scripté (sans réseau, sans GPU) : 1510 passent sous Windows, et les 8 autres sont des tests
+En plus, `npm run check` : une vérification des types et 1541 tests automatiques avec un faux modèle
+scripté (sans réseau, sans GPU) : 1526 passent sous Windows, et les 8 autres sont des tests
 d'isolation propres à Linux, exécutés sur un serveur Linux.
 
 ## Comparaison
@@ -421,6 +482,8 @@ sudo sara access       # how you reach her (change: tailscale, local, domain, la
 
 | | |
 |---|---|
+| [Start here](docs/START_HERE.md) · [For coders](docs/FOR_CODERS.md) · [How do I…?](docs/HOW_DO_I.md) · [Videos](docs/VIDEOS.md) | Les dix premières minutes, pour la compagnie ou pour coder ; toutes les réponses des encadrés d'aide ; les vidéos |
+| [Today](docs/TODAY.md) · [Chat commands](docs/CHATS.md) · [Report a problem](docs/SUPPORT.md) | Votre écran d'accueil ; `/new`, `/status` et les autres dans chaque chat ; de l'aide depuis Sara |
 | [Installation](docs/INSTALL.md) | Linux, Docker, Windows, macOS, HTTPS, mises à jour, dépannage |
 | [De quel ordinateur ai-je besoin ?](docs/REQUIREMENTS.md) · [Choisir un modèle](docs/CHOOSING_A_MODEL.md) · [Ce que ça coûte](docs/COSTS.md) | Avant de commencer : matériel, modèles avec tailles de GPU, coûts d'utilisation |
 | [Votre téléphone](docs/PHONE.md) · [Changer d'ordinateur](docs/MOVING.md) | Configurer le téléphone de A à Z ; sauvegarde, installation, restauration |

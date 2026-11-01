@@ -253,10 +253,13 @@ export interface Page {
 
 /** Sidebar groups, in order; files not listed go to "More". */
 const GROUPS: [string, string[]][] = [
-  ['Start here', ['README.md', 'docs/INSTALL.md', 'docs/REQUIREMENTS.md', 'docs/CHOOSING_A_MODEL.md', 'docs/COSTS.md', 'docs/PHONE.md', 'docs/clients.md', 'docs/desktop.md', 'docs/MAC_APP_REMOTE.md', 'docs/SERVERS.md', 'docs/MOVING.md', 'docs/FAQ.md', 'docs/DISCLOSURES.md']],
-  ['Using Sara', ['docs/IMPORT.md', 'docs/CHATS.md', 'docs/GROUP_CHATS.md', 'docs/VIDEO_CALLS.md', 'docs/MOMENTS.md', 'docs/LIBRARY.md', 'docs/HOUSEHOLD.md', 'docs/PRIVATE_LOCAL.md', 'docs/SSH.md']],
-  ['Connect other things', ['docs/OTHER_APPS.md', 'docs/HOME_ASSISTANT.md', 'docs/VOICE_ASSISTANTS.md', 'docs/ALEXA.md', 'docs/PACKAGING.md']],
-  ['Build with Sara', ['docs/EXTENDING.md', 'docs/ARCHITECTURE.md', 'docs/RESULTS.md', 'docs/TRANSLATING.md']],
+  // Phase 114 (PL1d): the two paths first, then the one-list answers and the videos.
+  ['Start here', ['README.md', 'docs/START_HERE.md', 'docs/FOR_CODERS.md', 'docs/HOW_DO_I.md', 'docs/VIDEOS.md', 'docs/FAQ.md', 'docs/SUPPORT.md', 'docs/DISCLOSURES.md']],
+  ['Install', ['docs/INSTALL.md', 'docs/REQUIREMENTS.md', 'docs/CHOOSING_A_MODEL.md', 'docs/COSTS.md', 'docs/PHONE.md', 'docs/clients.md', 'docs/desktop.md', 'docs/MAC_APP_REMOTE.md', 'docs/SERVERS.md', 'docs/MOVING.md']],
+  ['Using Sara', ['docs/TODAY.md', 'docs/CHATS.md', 'docs/PEOPLE.md', 'docs/BOARD.md', 'docs/AGENDA.md', 'docs/GROUP_CHATS.md', 'docs/VIDEO_CALLS.md', 'docs/MOMENTS.md', 'docs/LIBRARY.md', 'docs/GMAIL.md', 'docs/HOUSEHOLD.md', 'docs/PRIVATE_LOCAL.md', 'docs/SSH.md']],
+  ['Moving in', ['docs/IMPORT.md', 'docs/MOVE_IN_GUIDE.md']],
+  ['Connect other things', ['docs/OTHER_APPS.md', 'docs/A2A.md', 'docs/WEBHOOKS.md', 'docs/HOME_ASSISTANT.md', 'docs/VOICE_ASSISTANTS.md', 'docs/ALEXA.md', 'docs/PACKAGING.md']],
+  ['Build with Sara', ['docs/SKILLS.md', 'docs/PLUGINS.md', 'docs/EXTENDING.md', 'docs/ARCHITECTURE.md', 'docs/RESULTS.md', 'docs/TRANSLATING.md']],
   ['Contribute', ['CONTRIBUTING.md', 'docs/GOOD_FIRST_ISSUES.md', 'CODE_OF_CONDUCT.md']],
   ['Safety and security', ['docs/SECURITY_CHECKLIST.md', 'docs/PRIVACY.md', 'docs/COMPLIANCE.md', 'SECURITY.md', 'docs/THREAT_MODEL.md']],
   // docs/ROADMAP.md is the public roadmap (the export publishes docs/ROADMAP.public.md under that name).

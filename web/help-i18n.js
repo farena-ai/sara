@@ -35,7 +35,8 @@ async function translateHelp() {
   };
   const title = dict[norm(document.title)];
   if (title) document.title = title;
-  for (const el of document.querySelectorAll('nav a, nav .brand, main h1, main h2, main h3')) textOf(el);
+  // Phase 114 (PL1d): the How do I…? index adds h4 page titles and <summary> questions (keys the app has).
+  for (const el of document.querySelectorAll('nav a, nav .brand, main h1, main h2, main h3, main h4, main summary')) textOf(el);
   for (const el of document.querySelectorAll(BLOCKS)) {
     const tr = dict[norm(el.innerHTML)];
     if (tr) el.innerHTML = tr;
@@ -44,3 +45,13 @@ async function translateHelp() {
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => void translateHelp());
 else void translateHelp();
+
+// Phase 114 (PL1d): a link to one answer of the How do I…? index (#howto-<page>-<question>) opens it.
+function openTarget() {
+  const id = decodeURIComponent(location.hash.slice(1));
+  const el = id ? document.getElementById(id) : null;
+  if (el?.tagName === 'DETAILS') el.open = true;
+}
+addEventListener('hashchange', openTarget);
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', openTarget);
+else openTarget();

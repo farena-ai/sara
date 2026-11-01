@@ -77,7 +77,8 @@ export function fromHelp(html: string): string[] {
   const nav = /<nav\b[\s\S]*?<\/nav>/.exec(html)?.[0] ?? '';
   for (const m of nav.matchAll(/>([^<]+)</g)) add(m[1]);
   const main = html.slice(html.indexOf('<main>'), html.indexOf('</main>')).replace(/<!--[\s\S]*?-->/g, '');
-  for (const m of main.matchAll(/<(h1|h2|h3)\b[^>]*>([^<]*)<\/\1>/g)) add(m[2]);
+  // Phase 114 (PL1d): h4 page titles and <summary> questions of the How do I…? index too.
+  for (const m of main.matchAll(/<(h1|h2|h3|h4|summary)\b[^>]*>([^<]*)<\/\1>/g)) add(m[2]);
   // Phase 61: every block of the guide (list items, paragraphs, table cells, tips), keyed by its
   // inner HTML as the browser serializes it (see helpBlocks).
   for (const k of helpBlocks(main)) if (/\p{L}/u.test(k) && wanted(k)) out.add(k);

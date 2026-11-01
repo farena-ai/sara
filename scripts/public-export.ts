@@ -102,6 +102,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (!out.startsWith(join(ROOT, 'outputs'))) throw new Error('The copy goes under outputs/.');
     rmSync(out, { recursive: true, force: true });
     for (const p of keep) {
+      // A tracked file deleted in this checkout (not committed yet) is not part of the copy.
+      if (!existsSync(join(ROOT, p))) continue;
       const to = PUBLIC_AS[p] ?? p;
       mkdirSync(dirname(join(out, to)), { recursive: true });
       cpSync(join(ROOT, p), join(out, to));

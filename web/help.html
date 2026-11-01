@@ -15,8 +15,11 @@
 <div class="wrap">
 <nav aria-label="Guides">
   <div class="brand"><img src="/sara-avatar.jpg" alt="">Sara help</div>
+  <a href="#beginner">I just installed it, now what?</a>
+  <a href="#coder">I'm here to code</a>
   <a href="#start">Getting started</a>
   <a href="#gethelp">Getting help</a>
+  <a href="#howto">How do I…?</a>
   <a href="#around">Finding your way around</a>
   <a href="#brain">Choosing a brain</a>
   <a href="#private-local">Nothing leaves this computer</a>
@@ -65,6 +68,32 @@
 <h1>Sara help</h1>
 <p class="muted">Short guides for the self-hosted AI companion and assistant. Everything here also works in the phone apps.</p>
 
+<h2 id="beginner">I just installed it, now what?</h2>
+<p>Seven small steps, about ten minutes. Each one is also a card under <em>Getting started</em> on <em>Today</em> that ticks itself off.</p>
+<p>Prefer to watch? <a href="https://www.youtube.com/watch?v=DTAIW75y7i4&amp;list=PLGtrs9BqXtM8&amp;index=1" target="_blank" rel="noopener">Set up Sara</a>, one minute.</p>
+<ol>
+  <li><strong>Sign in</strong> with the setup code from her log or your owner token, and read the short note about what Sara is.</li>
+  <li><strong>Tell her your name</strong> and pick <em>Company</em> (or <em>Both</em>) when she asks what you will mostly do together.</li>
+  <li><strong>Keep Sara, pick a ready-made character or make your own.</strong> You can change all of it later in <em>Settings → Her</em>.</li>
+  <li><strong>Connect a brain.</strong> She suggests a model for this computer and checks that it answers (<em>Connected ✓</em>). No graphics card? <em>My subscription</em> uses a plan you already pay for. See <a href="#brain">Choosing a brain</a>.</li>
+  <li><strong>Say hello.</strong> Tap a starter like <em>Plan my day with me</em>, or just type. A short tour follows her first reply.</li>
+  <li><strong>Make her yours:</strong> move the dials in <em>Settings → Her → Name and personality</em>; the line under each dial shows how she will sound. See <a href="#shaping">Shaping your companion</a>.</li>
+  <li><strong>Then the rest of <em>Getting started</em>:</strong> her voice, Sara on your phone, a morning briefing and a backup off this server. Stuck on a page? Open its <em>How do I…?</em> box, or the <a href="#howto">index of every answer</a>.</li>
+</ol>
+
+<h2 id="coder">I'm here to code</h2>
+<p>The same setup with <em>Coding</em> picked in step 1. All of it works with a model on your own computer, or with a coding plan you already pay for.</p>
+<p>Prefer to watch? <a href="https://www.youtube.com/watch?v=7i48NiAq-jw&amp;list=PLGtrs9BqXtM8&amp;index=4" target="_blank" rel="noopener">Coding with Sara</a>.</p>
+<ol>
+  <li><strong>Pick <em>Coding</em></strong> in step 1 of the setup. Step 3 suggests a model that is good at code and offers <em>My subscription</em> (Claude Code, Codex or Grok Build) first when you are signed in.</li>
+  <li><strong>Open a project:</strong> <em>+ Project</em> in the sidebar, give it a workspace folder and start a conversation in it. She works in that folder with files, a shell and git.</li>
+  <li><strong>Choose how she runs code</strong> in <em>Settings → Abilities → Tools and approvals</em>: she asks first, and risky commands can run in a sandbox copy first. See <a href="#sandbox">Commands tried in a sandbox first</a>.</li>
+  <li><strong>Read the line under each reply:</strong> it lists what she did (files, commands, tests); tap it for the output. Cards show the files she changed and the test results, and anything risky waits for your <em>Allow</em>.</li>
+  <li><strong>Add a GitHub token</strong> in <em>Settings → Abilities → GitHub</em> for issues and pull requests, and let <a href="#team">a team of helpers</a> plan, build, test and review.</li>
+  <li><strong>Use her from your editor or terminal:</strong> <code>sara-chat</code>, the VS Code panel, MCP for Claude Code and Cursor, or the OpenAI-compatible address. See <a href="#clients">In your terminal and editor</a>.</li>
+  <li><strong>Set a budget</strong> in <em>Settings → Abilities → Budgets</em>, so a long task stops at a limit you choose. See <a href="#budgets">Budgets for her replies</a>.</li>
+</ol>
+
 <h2 id="start">Getting started</h2>
 <ol>
   <li><strong>Sign in.</strong> Use the owner token your server printed when it was installed (on the server: <code>sudo sara reset-token</code> makes a new one). A brand-new server can also be set up in the browser: open her page and type the short setup code from her log (on Umbrel no code is needed); she then shows you your owner token once to save. New phones and computers don't need it: in <em>Settings → Data &amp; health → Devices and sign-in</em> press <em>Add a phone or computer</em> and scan the code.</li>
@@ -81,6 +110,201 @@
   <li><strong>Short tours:</strong> <em>Help</em> in the sidebar has the <em>Companion tour</em> and the <em>Coder tour</em> (six stops each), the full tour (14 stops), shaping her personality, a model for each job, and the team. After her first reply, a new device offers the short tour that fits your choice once.</li>
   <li><strong>Ask her:</strong> "what does jealousy do?", "which model should I use for pictures?", "how do I connect Telegram?". She looks it up in her own settings guide and gives you a link that opens the right page.</li>
 </ul>
+
+<h2 id="howto">How do I…?</h2>
+<p>Every question from the <em>How do I…?</em> boxes in the app, page by page. Open one for its steps; in the app, <em>Show me</em> points at the control.</p>
+<!-- howto:start -->
+<h3>Chat and the main views</h3>
+<h4 id="howto-chat">Chat</h4>
+<details class="howto-q" id="howto-chat-start"><summary>How do I start?</summary><ol><li>Type in the box at the bottom and press Enter.</li><li>Or tap one of the suggestions above.</li></ol></details>
+<details class="howto-q" id="howto-chat-photo"><summary>How do I send her a photo or a file?</summary><ol><li>Press the paperclip next to the box.</li><li>Pick the file; add a line if you like.</li></ol></details>
+<details class="howto-q" id="howto-chat-code"><summary>How do I switch this chat to coding?</summary><ol><li>Press the chip at the top of the chat.</li><li>Pick a workspace and switch the mode to coding.</li></ol></details>
+<h4 id="howto-today">Today</h4>
+<details class="howto-q" id="howto-today-plan"><summary>How do I plan my day with her?</summary><ol><li>Press Plan my day with her.</li><li>She looks at your list, calendar and weather.</li></ol></details>
+<details class="howto-q" id="howto-today-arrange"><summary>How do I change what Today shows?</summary><ol><li>Press Customise.</li><li>Switch sections on or off and drag them in order.</li></ol></details>
+<h4 id="howto-planner">Planner</h4>
+<details class="howto-q" id="howto-planner-todo"><summary>How do I add a to-do?</summary><ol><li>Type it in the box under To-do and press Add.</li><li>Or just tell her in chat: "add milk to my list".</li></ol></details>
+<details class="howto-q" id="howto-planner-remind"><summary>How do I set a reminder?</summary><ol><li>Open Reminders, type what and when.</li><li>Or tell her: "remind me at 5 to call Ana".</li></ol></details>
+<details class="howto-q" id="howto-planner-week"><summary>How do I review my week?</summary><ol><li>Press Review my week.</li></ol></details>
+<h4 id="howto-memory">Memory</h4>
+<details class="howto-q" id="howto-memory-add"><summary>How do I tell her something to remember?</summary><ol><li>Say it in chat: "remember that I'm allergic to nuts".</li><li>Or add a note here.</li></ol></details>
+<details class="howto-q" id="howto-memory-forget"><summary>How do I make her forget something?</summary><ol><li>Find the note (search helps).</li><li>Press Forget on it.</li></ol></details>
+<h4 id="howto-library">Library</h4>
+<details class="howto-q" id="howto-library-add"><summary>How do I give her a document?</summary><ol><li>Drop the file on the box at the top, or click it to pick one.</li><li>She reads it and keeps the key points.</li></ol></details>
+<details class="howto-q" id="howto-library-ask"><summary>How do I ask about a document?</summary><ol><li>Ask in any chat: "what does the lease say about pets?"</li><li>She quotes the part she used.</li></ol></details>
+<h4 id="howto-scrapbook">Scrapbook</h4>
+<details class="howto-q" id="howto-scrapbook-pin"><summary>How do I pin a message?</summary><ol><li>Press 📌 under a message.</li><li>It shows here with the pins and inside jokes.</li></ol></details>
+<details class="howto-q" id="howto-scrapbook-joke"><summary>How do I keep an inside joke?</summary><ol><li>Tell her: "that's our inside joke now".</li><li>Or add it here.</li></ol></details>
+<h4 id="howto-moments">Our moments</h4>
+<details class="howto-q" id="howto-moments-keep"><summary>How do I keep a moment?</summary><ol><li>Press ♡ under a message or a photo.</li><li>It shows here with a caption she writes.</li></ol></details>
+<details class="howto-q" id="howto-moments-auto"><summary>How do I choose which photos land here?</summary><ol><li>Pick under Add photos: all, only kept moments, or off.</li></ol></details>
+<h4 id="howto-story">Your story</h4>
+<details class="howto-q" id="howto-story-look"><summary>How do I get a look back?</summary><ol><li>Pick the dates under Look back.</li><li>Press the button; she writes it from what's on this page.</li></ol></details>
+<details class="howto-q" id="howto-story-open"><summary>How do I see where something came from?</summary><ol><li>Click any entry.</li><li>The chat or note it came from opens.</li></ol></details>
+<h4 id="howto-team">Team</h4>
+<details class="howto-q" id="howto-team-start"><summary>How do I give the team a job?</summary><ol><li>Type the goal in the box.</li><li>Press Start; she plans and hands parts to helpers.</li></ol></details>
+<details class="howto-q" id="howto-team-stop"><summary>How do I stop a helper?</summary><ol><li>Open the task.</li><li>Press Stop next to the helper, or stop the whole task.</li></ol></details>
+<h4 id="howto-findings">Findings</h4>
+<details class="howto-q" id="howto-findings-what"><summary>Where do findings come from?</summary><ol><li>Her security pass after coding turns adds them.</li><li>Dependency checks and sandbox tries add them too.</li></ol></details>
+<details class="howto-q" id="howto-findings-fix"><summary>How do I fix one?</summary><ol><li>Open the finding.</li><li>Press Fix on a branch: she tries it on its own branch.</li></ol></details>
+<h4 id="howto-evals">Evals</h4>
+<details class="howto-q" id="howto-evals-new"><summary>How do I try other settings?</summary><ol><li>Under Try other settings, pick past tasks and variants.</li><li>Check the estimate, then start.</li></ol></details>
+<details class="howto-q" id="howto-evals-read"><summary>How do I read the result?</summary><ol><li>Each variant is scored next to your settings.</li><li>A winner is named only when the evidence says so.</li></ol></details>
+<h3>Her</h3>
+<h4 id="howto-her-character">Name and personality</h4>
+<details class="howto-q" id="howto-her-character-rename"><summary>How do I change her name?</summary><ol><li>Type the new name in Name at the top of this page.</li><li>Click anywhere outside the box: it saves by itself.</li><li>Her notes about herself follow the new name.</li></ol></details>
+<details class="howto-q" id="howto-her-character-make"><summary>How do I make her my own?</summary><ol><li>Press ✨ Create your companion for a guided setup (about 5 minutes).</li><li>Or pick a character under Start from a character and press Use this.</li><li>Nudge the personality dials until the sample line sounds like her.</li></ol></details>
+<details class="howto-q" id="howto-her-character-undo"><summary>How do I go back to how she was?</summary><ol><li>Press Undo changes in the bar at the bottom.</li><li>It brings back how she was when you opened this page.</li></ol></details>
+<h4 id="howto-her-relationship">Relationship</h4>
+<details class="howto-q" id="howto-her-relationship-kind"><summary>How do I change what we are to each other?</summary><ol><li>Pick a card under Your relationship.</li><li>Add your own words in the box below it if you like.</li><li>Press Try it to hear how she'd react.</li></ol></details>
+<details class="howto-q" id="howto-her-relationship-jealous"><summary>How do I make her less jealous?</summary><ol><li>Find Jealousy under the dials.</li><li>Move it to the left; the line above it shows how she'd sound.</li><li>She is never controlling, whatever the dial says.</li></ol></details>
+<h4 id="howto-her-look">Look</h4>
+<details class="howto-q" id="howto-her-look-new"><summary>How do I give her a new face?</summary><ol><li>Describe the look and pick a Style.</li><li>Press Make a picture, then Use this look when you like it.</li><li>Or press Bring my picture to life to start from a photo.</li></ol></details>
+<details class="howto-q" id="howto-her-look-outfit"><summary>How do I change her outfit?</summary><ol><li>Under Outfits and places, describe the outfit.</li><li>Press Try it on.</li><li>Keep favourites in the Closet.</li></ol></details>
+<h4 id="howto-her-voice">Voice</h4>
+<details class="howto-q" id="howto-her-voice-pick"><summary>How do I pick her voice?</summary><ol><li>Choose a voice under Her voice.</li><li>Press Preview to hear it.</li><li>It saves by itself; voice notes and calls use it.</li></ol></details>
+<details class="howto-q" id="howto-her-voice-hear"><summary>How do I talk to her out loud?</summary><ol><li>Choose how she hears you under Hearing you.</li><li>Then press the microphone in the chat box and speak.</li></ol></details>
+<h4 id="howto-her-calls">Calls from her</h4>
+<details class="howto-q" id="howto-her-calls-when"><summary>How do I choose when she may call me?</summary><ol><li>Tick what may ring you: reminders, finished tasks, the morning briefing.</li><li>Set quiet hours and a limit for calls a day.</li><li>Press Call me now to try it.</li></ol></details>
+<details class="howto-q" id="howto-her-calls-off"><summary>How do I stop her calling?</summary><ol><li>Untick every reason at the top of this page.</li><li>She can still send messages; only calls stop.</li></ol></details>
+<h4 id="howto-her-pictures">Pictures from her</h4>
+<details class="howto-q" id="howto-her-pictures-on"><summary>How do I let her send pictures?</summary><ol><li>Pick a way under Pictures.</li><li>For Grok Imagine, paste an xAI API key.</li><li>Ask her in chat: "send me a selfie".</li></ol></details>
+<details class="howto-q" id="howto-her-pictures-off"><summary>How do I stop pictures?</summary><ol><li>Set Pictures to Off.</li><li>She will describe instead of sending a picture.</li></ol></details>
+<h4 id="howto-her-companions">Companions</h4>
+<details class="howto-q" id="howto-her-companions-add"><summary>How do I add another companion?</summary><ol><li>Type a name under Add a companion and pick where to start from.</li><li>Press Add.</li><li>Switch between companions from the sidebar.</li></ol></details>
+<details class="howto-q" id="howto-her-companions-share"><summary>How do companions share the Planner?</summary><ol><li>Under Planner, pick whether to-dos, reminders and notes are shared or their own.</li><li>Memories and chats always stay with each companion.</li></ol></details>
+<h4 id="howto-her-import">Bring her from another app</h4>
+<details class="howto-q" id="howto-her-import-bring"><summary>How do I bring her from another app?</summary><ol><li>Export your data from that app (ChatGPT, Claude, a character app).</li><li>Choose the file under Choose the file.</li><li>Tick what to keep, then press Let her read them.</li></ol></details>
+<details class="howto-q" id="howto-her-import-undo"><summary>How do I throw an import away?</summary><ol><li>Before saving, press Never mind.</li><li>After a read, press Throw it all away.</li></ol></details>
+<h3>You</h3>
+<h4 id="howto-you-about">About you</h4>
+<details class="howto-q" id="howto-you-about-name"><summary>How do I change what she calls me?</summary><ol><li>Type it in What should Sara call you?</li><li>It saves when you leave the box.</li></ol></details>
+<details class="howto-q" id="howto-you-about-path"><summary>How do I switch between company and coding?</summary><ol><li>Pick under What you mostly do with her.</li><li>It changes what you see first and the tour; nothing is taken away.</li></ol></details>
+<details class="howto-q" id="howto-you-about-lang"><summary>How do I change the language?</summary><ol><li>Pick a Language for the app.</li><li>Pick Talk to me in for her replies.</li></ol></details>
+<h4 id="howto-you-briefing">Morning briefing</h4>
+<details class="howto-q" id="howto-you-briefing-on"><summary>How do I get a morning briefing?</summary><ol><li>Switch the briefing on and pick a Time.</li><li>Set Weather for to your town.</li><li>Press Send one now to see it.</li></ol></details>
+<details class="howto-q" id="howto-you-briefing-week"><summary>How do I get a weekly review?</summary><ol><li>Switch on Weekly review and pick the day and time.</li><li>She looks back at your week in chat.</li></ol></details>
+<h4 id="howto-you-leave-by">Leave-by reminders</h4>
+<details class="howto-q" id="howto-you-leave-by-on"><summary>How do I get leave-by reminders?</summary><ol><li>Type your Home address.</li><li>Pick how you're Getting there by.</li><li>Events with a place get a Leave by row on Today.</li></ol></details>
+<details class="howto-q" id="howto-you-leave-by-extra"><summary>How do I leave earlier?</summary><ol><li>Raise Extra minutes.</li><li>Every leave-by time moves that much earlier.</li></ol></details>
+<h4 id="howto-you-adult">Adult mode</h4>
+<details class="howto-q" id="howto-you-adult-on"><summary>How do I turn on adult mode?</summary><ol><li>Press Turn on adult mode and confirm you're 18 or older.</li><li>It works only in a web browser, not in the phone apps.</li></ol></details>
+<details class="howto-q" id="howto-you-adult-off"><summary>How do I turn it off again?</summary><ol><li>Press Turn off adult mode.</li><li>Conversations go back to normal right away.</li></ol></details>
+<h3>Models</h3>
+<h4 id="howto-models-default">Default model</h4>
+<details class="howto-q" id="howto-models-default-pick"><summary>How do I choose the model she thinks with?</summary><ol><li>Pick a Provider.</li><li>Pick a Model from its list.</li><li>Anything without its own model uses this one.</li></ol></details>
+<details class="howto-q" id="howto-models-default-refresh"><summary>How do I see new models?</summary><ol><li>Press ↻ Refresh.</li><li>New models on that provider show up in the list.</li></ol></details>
+<h4 id="howto-models-routes">Which model does what</h4>
+<details class="howto-q" id="howto-models-routes-rec"><summary>How do I let Sara pick models for each job?</summary><ol><li>Press ✨ Use recommended.</li><li>Check the rows; change any with its list.</li></ol></details>
+<details class="howto-q" id="howto-models-routes-test"><summary>How do I test a model on one job?</summary><ol><li>Pick the model in that job's row.</li><li>Press Test to see its speed and an answer.</li></ol></details>
+<h4 id="howto-models-providers">Model providers</h4>
+<details class="howto-q" id="howto-models-providers-add"><summary>How do I add a model service with a key?</summary><ol><li>Pick a Template.</li><li>Paste the API key.</li><li>Press Save provider.</li></ol></details>
+<details class="howto-q" id="howto-models-providers-own"><summary>How do I add my own Ollama on another computer?</summary><ol><li>Pick the Ollama template.</li><li>Set Base URL to that computer's address.</li><li>Press Save provider.</li></ol></details>
+<h4 id="howto-models-subs">Subscriptions</h4>
+<details class="howto-q" id="howto-models-subs-sign"><summary>How do I use my ChatGPT, Claude or Grok plan?</summary><ol><li>Press the sign-in button for your plan.</li><li>Finish the sign-in in the browser tab that opens.</li><li>Pick the model in Default model.</li></ol></details>
+<details class="howto-q" id="howto-models-subs-out"><summary>How do I sign out of a plan?</summary><ol><li>Press Sign out under that plan.</li></ol></details>
+<h4 id="howto-models-local">On this computer</h4>
+<details class="howto-q" id="howto-models-local-get"><summary>How do I download a model to this computer?</summary><ol><li>Pick one under Model to download (the first fits your computer).</li><li>Press Download this model.</li><li>Use it in Default model when it's done.</li></ol></details>
+<details class="howto-q" id="howto-models-local-space"><summary>How do I free up space?</summary><ol><li>Remove a model you don't use from its row.</li><li>Ollama deletes its files.</li></ol></details>
+<h3>Abilities</h3>
+<h4 id="howto-ab-tools">Tools and approvals</h4>
+<details class="howto-q" id="howto-ab-tools-ask"><summary>How do I make her ask before she does something?</summary><ol><li>Find the tool in its group.</li><li>Set it to Ask me first.</li><li>Approval cards then appear in chat.</li></ol></details>
+<details class="howto-q" id="howto-ab-tools-off"><summary>How do I switch a tool off?</summary><ol><li>Find the tool in its group.</li><li>Set it to Off.</li></ol></details>
+<h4 id="howto-ab-skills">Skills</h4>
+<details class="howto-q" id="howto-ab-skills-new"><summary>How do I teach her a skill?</summary><ol><li>Press New skill.</li><li>Write the steps in plain words and save.</li><li>She uses it when a request matches.</li></ol></details>
+<details class="howto-q" id="howto-ab-skills-add"><summary>How do I add a skill from someone else?</summary><ol><li>Press Add a skill.</li><li>Pick a zip, a GitHub link or a file.</li><li>Read it before switching it on.</li></ol></details>
+<h4 id="howto-ab-plugins">Plugins</h4>
+<details class="howto-q" id="howto-ab-plugins-add"><summary>How do I add a plugin?</summary><ol><li>Press Add a plugin.</li><li>Read the permissions it asks for.</li><li>Switch it on when you trust it.</li></ol></details>
+<details class="howto-q" id="howto-ab-plugins-stop"><summary>How do I stop a plugin?</summary><ol><li>Switch it off on its card.</li><li>Its log stays under What it did.</li></ol></details>
+<h4 id="howto-ab-search">Web search</h4>
+<details class="howto-q" id="howto-ab-search-on"><summary>How do I let her search the web?</summary><ol><li>Pick a Search service.</li><li>Paste its API key if it needs one.</li><li>Ask her to look something up.</li></ol></details>
+<details class="howto-q" id="howto-ab-search-free"><summary>How do I search without a key?</summary><ol><li>Pick a service marked Free · no key.</li><li>Or run your own SearXNG and paste its URL.</li></ol></details>
+<h4 id="howto-ab-library">Library</h4>
+<details class="howto-q" id="howto-ab-library-add"><summary>How do I give her a document?</summary><ol><li>Open Library from the sidebar.</li><li>Drop the file on the box at the top.</li><li>Ask her about it in any chat.</li></ol></details>
+<details class="howto-q" id="howto-ab-library-speed"><summary>How do I make reading gentler on my computer?</summary><ol><li>Pick Gentle under Background reading.</li><li>Big documents then take longer.</li></ol></details>
+<h4 id="howto-ab-google">Gmail and Calendar</h4>
+<details class="howto-q" id="howto-ab-google-connect"><summary>How do I connect Gmail and Calendar?</summary><ol><li>Paste your Google Client ID and secret.</li><li>Press Save, then Sign in with Google.</li></ol></details>
+<details class="howto-q" id="howto-ab-google-out"><summary>How do I disconnect Google?</summary><ol><li>Press Sign out of Google.</li></ol></details>
+<h4 id="howto-ab-home">Home Assistant</h4>
+<details class="howto-q" id="howto-ab-home-connect"><summary>How do I connect Home Assistant?</summary><ol><li>Type the Home Assistant address.</li><li>Paste a long-lived access token.</li><li>Press Save and test.</li></ol></details>
+<details class="howto-q" id="howto-ab-home-presence"><summary>How do I let her notice when I get home?</summary><ol><li>Connect Home Assistant first.</li><li>Under Presence, switch on React to what happens at home.</li><li>Pick the people and what she does.</li></ol></details>
+<h4 id="howto-ab-mcp">Other programs (MCP)</h4>
+<details class="howto-q" id="howto-ab-mcp-add"><summary>How do I connect another program (MCP)?</summary><ol><li>Pick Start from, or type the Command or URL.</li><li>Add any Secrets it needs.</li><li>Press Save and connect.</li></ol></details>
+<details class="howto-q" id="howto-ab-mcp-what"><summary>What is an MCP server?</summary><ol><li>A small program that gives her new tools.</li><li>Its tools then appear in Tools and approvals.</li></ol></details>
+<h4 id="howto-ab-projects">Coding projects</h4>
+<details class="howto-q" id="howto-ab-projects-open"><summary>How do I point her at my project?</summary><ol><li>Pick a Workspace (your projects folder).</li><li>In a chat, press the conversation chip and switch to coding.</li><li>Ask: "Look at my project".</li></ol></details>
+<details class="howto-q" id="howto-ab-projects-sandbox"><summary>How do I make her try commands safely?</summary><ol><li>Switch on Try commands in a sandbox first.</li><li>Pick the size and time limits.</li><li>Nothing is applied until you choose.</li></ol></details>
+<details class="howto-q" id="howto-ab-projects-ship"><summary>How do I check before I ship?</summary><ol><li>Press Before you ship.</li><li>Read the results in Findings.</li></ol></details>
+<h4 id="howto-ab-budgets">Budgets</h4>
+<details class="howto-q" id="howto-ab-budgets-set"><summary>How do I limit what a coding reply may use?</summary><ol><li>Under Coding chats, set Tokens, Steps or a Spending limit.</li><li>She stops and asks when a reply reaches it.</li></ol></details>
+<details class="howto-q" id="howto-ab-budgets-near"><summary>What happens near the limit?</summary><ol><li>Choose under Near the limit whether she asks or stops.</li><li>Usage and costs shows what was used.</li></ol></details>
+<h4 id="howto-ab-github">GitHub</h4>
+<details class="howto-q" id="howto-ab-github-token"><summary>How do I add a GitHub token?</summary><ol><li>Make a token on GitHub (Settings → Developer settings).</li><li>Paste it in GitHub token.</li><li>Press Save.</li></ol></details>
+<details class="howto-q" id="howto-ab-github-issues"><summary>How do I turn issues into tasks?</summary><ol><li>Under Issues become tasks, set a label.</li><li>Press Look now to fetch them.</li></ol></details>
+<h4 id="howto-ab-ssh">Servers over SSH</h4>
+<details class="howto-q" id="howto-ab-ssh-add"><summary>How do I add a server?</summary><ol><li>Fill in the name, address, port and user under Add a server.</li><li>Press Check the host key.</li><li>Sign in once with a password or a key.</li></ol></details>
+<details class="howto-q" id="howto-ab-ssh-safe"><summary>Does she ask before running commands there?</summary><ol><li>Yes, every command asks first by default.</li><li>Change it in Tools and approvals.</li></ol></details>
+<h3>Connections</h3>
+<h4 id="howto-co-phone">Phone and notifications</h4>
+<details class="howto-q" id="howto-co-phone-install"><summary>How do I put her on my phone?</summary><ol><li>Open Sara in your phone's browser and sign in.</li><li>Press Install Sara as an app (or Add to Home Screen).</li><li>Then turn on notifications.</li></ol></details>
+<details class="howto-q" id="howto-co-phone-push"><summary>How do I get notifications?</summary><ol><li>Press Turn on for this device.</li><li>Press Send a test.</li></ol></details>
+<h4 id="howto-desktop-app">This computer</h4>
+<details class="howto-q" id="howto-desktop-app-quick"><summary>How do I ask her from anywhere?</summary><ol><li>Pick a Quick ask shortcut.</li><li>Press it in any app and type.</li></ol></details>
+<details class="howto-q" id="howto-desktop-app-notify"><summary>How do I check notifications work?</summary><ol><li>Press Show a test notification.</li></ol></details>
+<h4 id="howto-co-computer">Computer use</h4>
+<details class="howto-q" id="howto-co-computer-on"><summary>How do I let her use this computer?</summary><ol><li>Allow her under This computer.</li><li>Choose when she must ask first under Her actions.</li><li>Move the mouse to take over any time.</li></ol></details>
+<details class="howto-q" id="howto-co-computer-stop"><summary>How do I stop her right away?</summary><ol><li>Move the mouse or press a key.</li><li>She stops and waits.</li></ol></details>
+<h4 id="howto-co-telegram">Telegram</h4>
+<details class="howto-q" id="howto-co-telegram-connect"><summary>How do I get her on Telegram?</summary><ol><li>Make a bot with @BotFather and copy its token.</li><li>Paste it in Bot token.</li><li>Press Link my Telegram and send the bot the code.</li></ol></details>
+<details class="howto-q" id="howto-co-telegram-groups"><summary>How do I add her to a group?</summary><ol><li>Add the bot to the group in Telegram.</li><li>Choose who may talk to her under Remote work and groups.</li></ol></details>
+<h4 id="howto-co-discord">Discord</h4>
+<details class="howto-q" id="howto-co-discord-connect"><summary>How do I get her on Discord?</summary><ol><li>Make an app and bot in the Discord Developer Portal.</li><li>Paste its token in Bot token.</li><li>Press Link my Discord.</li></ol></details>
+<details class="howto-q" id="howto-co-discord-bots"><summary>How do I stop bot loops?</summary><ol><li>Under Other bots, keep replies to bots low.</li><li>1 means she answers a bot once, then waits for a person.</li></ol></details>
+<h4 id="howto-co-apps">Other apps</h4>
+<details class="howto-q" id="howto-co-apps-editor"><summary>How do I use her from my editor?</summary><ol><li>Press Create an API key for another app.</li><li>Copy her address and the key into your editor or tool.</li><li>Pick Sara as the model there.</li></ol></details>
+<details class="howto-q" id="howto-co-apps-alexa"><summary>How do I talk to her through Alexa?</summary><ol><li>Follow Talk to her through Alexa.</li><li>Press Make a link code and say it to Alexa.</li></ol></details>
+<h4 id="howto-co-agents">Other agents</h4>
+<details class="howto-q" id="howto-co-agents-give"><summary>How do I let another agent talk to her?</summary><ol><li>Under Give an agent a key, press Make a key.</li><li>Copy her agent card address and the key to that agent.</li></ol></details>
+<details class="howto-q" id="howto-co-agents-ask"><summary>How do I add an agent she can ask?</summary><ol><li>Paste its address under Add an agent she can ask.</li><li>Press Look it up.</li></ol></details>
+<h4 id="howto-co-hooks">Webhooks</h4>
+<details class="howto-q" id="howto-co-hooks-new"><summary>How do I make a webhook?</summary><ol><li>Press New webhook.</li><li>Pick what sends it and what she does.</li><li>Copy its address into the other app.</li></ol></details>
+<details class="howto-q" id="howto-co-hooks-test"><summary>How do I see what a webhook got?</summary><ol><li>Open the webhook's card.</li><li>Look at its deliveries.</li></ol></details>
+<h3>Data &amp; health</h3>
+<h4 id="howto-dh-health">Health</h4>
+<details class="howto-q" id="howto-dh-health-check"><summary>How do I check everything works?</summary><ol><li>Press Run full check.</li><li>Fix anything marked red with its button.</li></ol></details>
+<details class="howto-q" id="howto-dh-health-runs"><summary>How do I clear old run history?</summary><ol><li>Pick how long to Keep runs.</li><li>Or press Delete run history.</li></ol></details>
+<h4 id="howto-dh-devices">Devices and sign-in</h4>
+<details class="howto-q" id="howto-dh-devices-add"><summary>How do I sign in on another phone or computer?</summary><ol><li>Press Add a phone or computer.</li><li>Scan the code or type it there.</li></ol></details>
+<details class="howto-q" id="howto-dh-devices-lost"><summary>How do I lock out a lost device?</summary><ol><li>Press Sign out all other devices.</li><li>Or make a new token with Make a new token.</li></ol></details>
+<h4 id="howto-dh-backups">Backups</h4>
+<details class="howto-q" id="howto-dh-backups-now"><summary>How do I make a backup now?</summary><ol><li>Press Back up now.</li></ol></details>
+<details class="howto-q" id="howto-dh-backups-offsite"><summary>How do I keep a copy somewhere else?</summary><ol><li>Pick where under Copy backups to.</li><li>Fill in the folder or bucket and a passphrase.</li><li>Press Copy the latest backup now, then Test restore now.</li></ol></details>
+<h4 id="howto-dh-data">Export and import</h4>
+<details class="howto-q" id="howto-dh-data-export"><summary>How do I export everything?</summary><ol><li>Under Export and import, press Export all data.</li><li>Keep the file somewhere safe.</li></ol></details>
+<details class="howto-q" id="howto-dh-data-history"><summary>How do I bring my chat history from another app?</summary><ol><li>Under Bring your history, pick the export file.</li><li>Press Import and check the preview.</li></ol></details>
+<h4 id="howto-dh-movein">Move in from another agent</h4>
+<details class="howto-q" id="howto-dh-movein-move"><summary>How do I move in from another agent?</summary><ol><li>Press Copy the command and run it where that agent lives.</li><li>Or press Make a move-in code.</li><li>Check each card before it's saved.</li></ol></details>
+<details class="howto-q" id="howto-dh-movein-undo"><summary>How do I undo a move-in?</summary><ol><li>Find it under Past move-ins.</li><li>Press Undo this move-in.</li></ol></details>
+<h4 id="howto-dh-updates">Updates</h4>
+<details class="howto-q" id="howto-dh-updates-check"><summary>How do I update Sara?</summary><ol><li>Press Check for updates.</li><li>Press Update now when a new version shows.</li></ol></details>
+<details class="howto-q" id="howto-dh-updates-new"><summary>How do I see what changed?</summary><ol><li>Press What's new in each version.</li></ol></details>
+<h4 id="howto-dh-usage">Usage and costs</h4>
+<details class="howto-q" id="howto-dh-usage-cost"><summary>How do I see what she costs?</summary><ol><li>Read the top line for today.</li><li>Open By model or By what it was for for details.</li></ol></details>
+<details class="howto-q" id="howto-dh-usage-limit"><summary>How do I set a spending limit?</summary><ol><li>Open Budgets on this page or Abilities → Budgets.</li><li>Set a limit per job or per day.</li></ol></details>
+<h4 id="howto-dh-privacy">Privacy</h4>
+<details class="howto-q" id="howto-dh-privacy-see"><summary>How do I see what the check-in sends?</summary><ol><li>Press Show what's sent.</li></ol></details>
+<details class="howto-q" id="howto-dh-privacy-off"><summary>How do I stop the daily check-in?</summary><ol><li>Switch the check-in off on this page.</li><li>Press Reset the install ID to start fresh.</li></ol></details>
+<h4 id="howto-dh-reports">Reports</h4>
+<details class="howto-q" id="howto-dh-reports-report"><summary>How do I report a problem?</summary><ol><li>Press Report a problem.</li><li>Say what happened; add diagnostics if you like.</li><li>Press Send.</li></ol></details>
+<details class="howto-q" id="howto-dh-reports-status"><summary>How do I see what happened to my report?</summary><ol><li>Each report shows its status and replies here.</li></ol></details>
+<h3>Household</h3>
+<h4 id="howto-household">People on this server</h4>
+<details class="howto-q" id="howto-household-invite"><summary>How do I invite someone?</summary><ol><li>Type their name under Invite someone.</li><li>Press Make invite, then Copy link and send it.</li></ol></details>
+<details class="howto-q" id="howto-household-limit"><summary>How do I limit what they use?</summary><ol><li>Set Messages a day and Spending a day.</li><li>Choose the models they may use.</li></ol></details>
+<h4 id="howto-account">Your account</h4>
+<details class="howto-q" id="howto-account-devices"><summary>How do I sign in on another device?</summary><ol><li>Press Devices and sign-in.</li></ol></details>
+<details class="howto-q" id="howto-account-delete"><summary>How do I delete my account?</summary><ol><li>Press Delete my account and confirm.</li><li>Your companion, chats and memories go.</li></ol></details>
+<!-- howto:end -->
 
 <h2 id="around">Finding your way around</h2>
 <ul>

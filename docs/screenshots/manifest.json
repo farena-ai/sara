@@ -1,0 +1,92 @@
+{
+ "_about": "Pictures used by the READMEs and docs. Taken on a throwaway test server with a local model (qwen3.8 27B on Ollama), signed in as the example user Alex; no real data. test/phase114d.test.ts checks every referenced picture is listed here, exists and stays small.",
+ "taken": "2026-11-01",
+ "method": "Throwaway server (SARA_SETUP=off, a fresh SARA_DATA), Night look, 1440×900 desktop and 390×844 phone at 2×, cropped and saved as WebP (quality 80–82).",
+ "files": {
+  "first-run.webp": {
+   "ui": "2.47.2",
+   "what": "Setup step 1: your name and the Company / Coding / Both question",
+   "bytes": 17418
+  },
+  "connect-brain.webp": {
+   "ui": "2.47.2",
+   "what": "Setup step 3: Connect a brain, with the picked-for-you model and Connected",
+   "bytes": 32898
+  },
+  "getting-started.webp": {
+   "ui": "2.47.2",
+   "what": "Today with the Getting started list (company order)",
+   "bytes": 61754
+  },
+  "companion.webp": {
+   "ui": "2.47.2",
+   "what": "A companion chat: a reminder and two to-dos as cards, with the step line",
+   "bytes": 61804
+  },
+  "today.webp": {
+   "ui": "2.47.2",
+   "what": "Today on a desktop (1440 wide)",
+   "bytes": 60380
+  },
+  "phone.webp": {
+   "ui": "2.47.2",
+   "what": "Today and a chat on a phone (390 wide), side by side",
+   "bytes": 73086
+  },
+  "planner.webp": {
+   "ui": "2.47.2",
+   "what": "Planner, To-do tab",
+   "bytes": 22482
+  },
+  "dials.webp": {
+   "ui": "2.47.2",
+   "what": "Name and personality: the personality dials with their sample lines",
+   "bytes": 46174
+  },
+  "howto.webp": {
+   "ui": "2.47.2",
+   "what": "The How do I…? box, open, on Name and personality",
+   "bytes": 44268
+  },
+  "work-dials.webp": {
+   "ui": "2.47.2",
+   "what": "Coding projects: the While you code dials",
+   "bytes": 41212
+  },
+  "ask-first.webp": {
+   "ui": "2.47.2",
+   "what": "A coding chat waiting for Allow before node --test",
+   "bytes": 68046
+  },
+  "coding.webp": {
+   "ui": "2.47.2",
+   "what": "A coding chat: a failing test run, the fix, then all 6 tests green",
+   "bytes": 85936
+  },
+  "command-bar.webp": {
+   "ui": "2.47.2",
+   "what": "The Ctrl+K command bar over Today",
+   "bytes": 30306
+  },
+  "demo.png": {
+   "ui": "2.8.3",
+   "what": "The animated hero demo (APNG; kept from the 2.8.3 recording)",
+   "bytes": 2695495
+  },
+  "library.png": {
+   "ui": "2.8.3",
+   "what": "Library: an answer that cites the page, beside the page",
+   "bytes": 259787
+  },
+  "voice.png": {
+   "ui": "2.8.3",
+   "what": "Settings, Voice",
+   "bytes": 146867
+  },
+  "everywhere.png": {
+   "ui": "2.8.3",
+   "what": "A phone answering a book-club question from her library",
+   "bytes": 164733
+  }
+ }
+}

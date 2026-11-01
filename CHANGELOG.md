@@ -5,6 +5,19 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.47.3 (2026-11-01): start here (Phase 114, polish PL1d; the polish pass is complete)
+
+- **Two ways in:** [docs/START_HERE.md](docs/START_HERE.md) ("I just installed it, now what?") and
+  [docs/FOR_CODERS.md](docs/FOR_CODERS.md), each with its how-to videos
+  ([docs/VIDEOS.md](docs/VIDEOS.md)); the in-app guide opens with the same two paths.
+- **Every *How do I…?* answer in one index:** in the guide and as [docs/HOW_DO_I.md](docs/HOW_DO_I.md),
+  generated from the same answers the app shows.
+- **README:** a *Start here* section, the feature tour split into *For company*, *For coding* and *For
+  both*, the release history folded, and 13 fresh screenshots (small WebP files) in all six languages.
+  The docs site is regrouped (Start here, Using Sara, Connect other things, Build with Sara).
+- Fixed: the Plugins page showed *Add a plugin* twice when empty; the `sara hands --server …` command
+  ran off the phone screen.
+
 ## 2.47.2 (2026-11-01): one look, and help on every page (Phase 114, polish PL1c)
 
 - **How do I…?** on every Settings page, every view and the empty chat: 123 short questions with
