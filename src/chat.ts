@@ -324,6 +324,8 @@ export type ChatEvent =
   | { type: 'proof'; id: string }
   /** Phase 98: what a plugin did at a hook point (a note, a card, a stop, an ask, no answer in time). */
   | (import('./hooks.ts').PluginEvent & { messageId?: number })
+  /** Phase 107 (CH1): how full this turn's history is (characters used of the budget; `dropped` = older messages left out). */
+  | { type: 'context'; used: number; budget: number; dropped: number }
   | { type: 'done'; messageId: number }
   | { type: 'error'; message: string };
 
@@ -834,6 +836,22 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
   return { messages: merged, firstKeptId: start > 0 ? (ids[start] ?? 0) : 0, dropped: start };
 }
 
+/**
+ * Phase 107 (CH1): how full a conversation's history is right now, measured like the next turn's
+ * history (the same budget and limits): /status, the "nearly full" offer and the app's bar.
+ */
+export function contextFill(app: AppContext, conv: Conversation): { used: number; budget: number; dropped: number; percent: number } {
+  const budget = app.settings.get().historyBudgetChars ?? HISTORY_BUDGET_CHARS;
+  const hist = buildHistory(app.store.messages(conv.id), budget);
+  const used = historySize(hist.messages);
+  // Older parts already left out: the chat is full, whatever the kept part measures.
+  return { used, budget, dropped: hist.dropped, percent: hist.dropped > 0 ? 100 : fillPercent(used, budget) };
+}
+
+/** Characters a history takes (the same measure buildHistory keeps under the budget). */
+export const historySize = (messages: ChatMessage[]): number => messages.reduce((n, m) => n + m.content.length + (m.role === 'assistant' && m.toolCalls ? JSON.stringify(m.toolCalls).length : 0) + 20, 0);
+export const fillPercent = (used: number, budget: number): number => (budget > 0 && Number.isFinite(budget) ? Math.min(100, Math.round((used / budget) * 100)) : 0);
+
 export interface TurnOptions {
   /** Answer the last owner message again without adding a new one (Continue after a restart/error). */
   resume?: boolean;
@@ -1323,7 +1341,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const isFirst = store.messages(conv.id).every((m) => m.role === 'notice');
   const meta = { ...(opts.images?.length ? { images: opts.images } : {}), ...(opts.docs?.length ? { docs: opts.docs } : {}) };
   const userMsg = opts.resume || opts.group ? store.messages(conv.id).filter((m) => m.role === 'user').at(-1) : store.addMessage(conv.id, 'user', text, Object.keys(meta).length ? meta : undefined);
-  if (!userMsg) {
+  // Phase 107: a line /reset cleared isn't answered again on Continue.
+  if (!userMsg || (opts.resume && userMsg.meta?.skipped === true && !store.messages(conv.id).some((m) => m.id > userMsg.id && m.role === 'assistant'))) {
     yield { type: 'error', message: 'Nothing to continue.' };
     return;
   }
@@ -1898,6 +1917,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         })()
       : buildHistory(store.messages(conv.id), budget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined);
     const messages: ChatMessage[] = [{ role: 'system', content: (opts.clientNote?.text.trim() ? system + clientNoteSection(opts.clientNote) : system) + (opts.roomNote?.trim() ? roomNoteSection(opts.roomNote) : '') }];
+    yield { type: 'context', used: historySize(hist.messages), budget, dropped: hist.dropped };
     if (hist.dropped) {
       // Older parts didn't fit: say so, with this conversation's own summary if there is one.
       const summary = app.memory?.list({ kind: 'summary', limit: 20 }).find((m) => m.conversationId === conv.id && (m.sourceMessageId ?? 0) < hist.firstKeptId);

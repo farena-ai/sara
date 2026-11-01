@@ -163,8 +163,9 @@ Every module in `src/`, roughly in the order they were added (the phase is noted
 | `src/life.ts` | Her day (daily note), proactive messages, `LifeWorker` |
 | `scripts/eval-life.ts` | Inner life on a local model (day, self-memories, texting first, honesty) |
 | `scripts/eval-safety-classifier.ts` | Safety classifier accuracy on tricky messages |
-| `src/bridges/telegram.ts` | Telegram bridge (Bot API long polling; owner chat, partners, groups, mirror) |
-| `src/bridges/discord.ts` | Discord bridge (gateway WebSocket + REST; owner DMs, servers on mention, NSFW channels) |
+| `src/bridges/telegram.ts` | Telegram bridge (Bot API long polling; owner chat, partners, groups, mirror). Phase 107: commands before the per-conversation queue (the poll loop only waits until a turn is queued, so `/stop` arrives mid-reply), `setMyCommands` per scope × language (`menuPlan`, skipped on an unchanged hash in `bridge_menus`), `/model` buttons `md:<conv>:<i>` |
+| `src/bridges/discord.ts` | Discord bridge (gateway WebSocket + REST; owner DMs, servers on mention, NSFW channels). Phase 107: interaction router by type (2 command → type 4 at once or type 5 + `PATCH /webhooks/{app}/{token}/messages/@original`; 3 buttons `ap:` and the `/model` select `md:<conv>`; 4 autocomplete), one bulk overwrite `PUT /applications/{id}/commands` per hash after READY |
+| `src/bridges/commands.ts` | Phase 107 (CH1, B1): the command layer for every bridge and the web composer: `parseCommand` (native, typed `/new` `!new` `/new@bot`, name + one word in six languages), `commandAllowed(place, who, name)` checked on every command, `runCommand` against a `BridgeAdapter` (current session, next session, stop, clear queue, bot guard), replies through `tr()` in the asker's language, `command:<name>` notices, `nearlyFullOffer` (85 % or `dropped > 0`, once per session), menu lists and hashes |
 | `src/subscriptions/chatgpt.ts` | Sign in with ChatGPT (dynamic registration, PKCE, JWKS-verified ID token, refresh, revoke) |
 | `src/subscriptions/index.ts` | Subscription logins: ChatGPT, Claude token, Grok device login; CLI runtimes |
 | `src/providers/chatgpt.ts` | ChatGPT plan provider (Responses API, namespaced tools, plan-limit errors) |
@@ -288,6 +289,20 @@ Everything lives in `SARA_DATA` (`/var/lib/sara` native, the `sara-data` volume 
 Support/Sara` on a Mac): `sara.db` (SQLite), `settings.json`, `persona.json`, `secrets.enc`,
 `master.key`, `owner.json`, `library/`, `uploads/`, `workspaces/`, `companions/`, `cache/codemap`,
 `logs/` and `backups/`.
+
+**Sessions of a chat (Phase 107, CH1).** A bridge chat (one Telegram chat, one Discord channel, one
+plugin chat) can hold several conversations: `/new` sets `conversations.ended_at` on the current one
+and opens the next with `session_of` = the chat's first conversation (both additive columns; index
+`conversations_channel_open`). `Store.currentChannelConversation` (newest open) is what the bridges
+use; `findChannelConversation` keeps its old meaning when nothing was ended (an open `/new` session
+first, else the oldest match) for the room note, the bot guard, plugins and companion group copies;
+imports use `firstChannelConversation` (the old "any row" form). `bridge_menus(bridge, hash, at,
+error)` records what was last registered with Telegram / Discord. Settings: `chats.commands.native`,
+`chats.commands.namePrefix`, `chats.offerNew` (owner-only). Routes: `GET/PUT /api/chats/commands`,
+`POST /api/chats/menus {bridge}`, `POST /api/conversations/:id/command {text}`, `POST
+/api/conversations/:id/new`, `GET /api/conversations/:id/fill`, `GET /api/conversations/:id/sessions`.
+`runTurn` emits `{type:'context', used, budget, dropped}` with each history build (`contextFill` gives
+the same number outside a turn).
 
 **Household mode (Phase 71).** Each extra person the owner invites gets a whole data folder of their
 own, `members/<id>/`, laid out like the owner's (their own `owner.json`, `sara.db`, `settings.json`,

@@ -1483,3 +1483,23 @@ body:not(.member) [data-member-only] { display: none !important; }
 #cu-this .row { min-height: 44px; }
 #cu-desktop-level, #cu-takeover { min-height: 44px; }
 #cu-this .tip { min-width: 44px; min-height: 44px; }
+
+/* Phase 107 (CH1): chat commands: the Commands cards, typed commands in the chat, Context used. */
+.cmd-list { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; gap: 4px; }
+.cmd-row { display: grid; grid-template-columns: minmax(84px, auto) 1fr auto; gap: 8px; align-items: baseline; padding: 6px 8px; border: 1px solid var(--hairline); border-radius: var(--r-control); font-size: var(--fs-small); }
+.cmd-row code { color: var(--accent-text); }
+.cmd-row .cmd-who { color: var(--muted); white-space: nowrap; }
+.cmd-menu-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+@media (max-width: 560px) {
+  .cmd-row { grid-template-columns: auto 1fr; }
+  .cmd-row .cmd-who { grid-column: 1 / -1; white-space: normal; }
+}
+.msg.user.command-line { opacity: 0.8; font-family: var(--font-mono); }
+.msg.notice.command-reply { white-space: pre-line; text-align: start; border-style: solid; color: var(--text); }
+.msg.notice.command-reply .actions-left { justify-content: center; margin-top: 6px; }
+.msg.notice.command { opacity: 0.85; }
+.cs-fill { width: 100%; height: 8px; accent-color: var(--accent); }
+.cs-sessions { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.cs-sessions button { width: 100%; text-align: start; min-height: 44px; }
+.cs-sessions li.current button { font-weight: 600; }
+.channel-tag.ended-tag { color: var(--muted); font-style: italic; }

@@ -18,6 +18,7 @@ import { identityOf } from '../persona.ts';
 import type { Conversation } from '../store.ts';
 import { takeChatDocument, type SharedDoc } from '../library/intake.ts';
 import { everyoneCalled, nameCalled } from './rules.ts';
+import { askerLanguage, chatsSettings, menuHash, menuList, nearlyFullOffer, nextSession, OTHER_LANGS, ownerLanguage, parseCommand, runCommand, say, setSessionModel, TELEGRAM_LANGS, type Asker, type BridgeAdapter, type CommandName, type CommandReply, type ModelPick, type ParsedCommand, type Place } from './commands.ts';
 
 export interface TelegramSettings {
   enabled: boolean;
@@ -55,6 +56,8 @@ interface TgUser {
   is_bot?: boolean;
   first_name?: string;
   username?: string;
+  /** Phase 107: the user's app language (IETF tag), for command replies. */
+  language_code?: string;
 }
 interface TgMessage {
   message_id: number;
@@ -108,6 +111,15 @@ export class TelegramBridge {
   readonly #toldNo = new Set<number>();
   /** Telegram chats waiting for their turn (one turn per conversation at a time). */
   readonly #queues = new Map<string, Promise<void>>();
+  /** Phase 107: turns waiting in each queue, and a counter /reset and /new bump to drop them. */
+  readonly #waiting = new Map<string, number>();
+  readonly #cleared = new Map<string, number>();
+  /** Phase 107: the bridge's own Stop for turns it runs without the server's tracking (tests, bare apps). */
+  readonly #aborts = new Map<string, AbortController>();
+  /** Phase 107: the last /model choices shown per session (the buttons carry their index). */
+  readonly #picks = new Map<string, ModelPick[]>();
+  /** Phase 107: the command menu registration that is running (tests await it). */
+  menus: Promise<unknown> = Promise.resolve();
 
   constructor(app: AppContext, opts: { apiBase?: string } = {}) {
     this.#app = app;
@@ -118,8 +130,9 @@ export class TelegramBridge {
     return this.#app.vault.get(TELEGRAM_VAULT);
   }
 
-  status(): { running: boolean; bot: string | null; linked: boolean; error: string | null } {
-    return { running: Boolean(this.#abort), bot: this.#bot?.username ?? null, linked: Boolean(telegramSettings(this.#app).ownerChatId), error: this.#error ?? null };
+  status(): { running: boolean; bot: string | null; linked: boolean; error: string | null; menu: { at: string | null; error: string | null } | null } {
+    const m = this.#app.store.bridgeMenu('telegram');
+    return { running: Boolean(this.#abort), bot: this.#bot?.username ?? null, linked: Boolean(telegramSettings(this.#app).ownerChatId), error: this.#error ?? null, menu: m ? { at: m.at, error: m.error } : null };
   }
 
   async #call<T>(method: string, body: Record<string, unknown> = {}, signal?: AbortSignal): Promise<T> {
@@ -151,6 +164,55 @@ export class TelegramBridge {
     this.#abort = new AbortController();
     this.#unsubscribe = this.#app.events?.subscribe((ev) => void this.#mirror(ev));
     void this.#loop(this.#abort.signal);
+    // Phase 107: her commands in Telegram's / menu (skipped when nothing changed since last time).
+    this.menus = this.registerMenus().catch((err: Error) => console.warn(`telegram menus: ${err.message}`));
+  }
+
+  /**
+   * Phase 107 (CH1, §4.5): the setMyCommands calls for every scope and language. Owners' private
+   * chats (and, with owner work in groups, each owner in each group he works in) get the full list;
+   * other private chats new/reset/stop/status/help (or only help when others can't talk to her);
+   * groups help and status. Each list in English (the owner's: his app language) and once more per
+   * language_code (es fr de pt it). Scopes are only a display: every command is checked again.
+   */
+  menuPlan(): { method: 'setMyCommands' | 'deleteMyCommands'; body: Record<string, unknown> }[] {
+    const app = this.#app;
+    const cfg = telegramSettings(app);
+    const owners = [...new Set([cfg.ownerChatId, ...(cfg.ownerUserIds ?? [])].filter((x): x is number => typeof x === 'number' && x > 0))];
+    const full: CommandName[] = ['new', 'reset', 'stop', 'status', 'help', 'model', 'remember', 'settings'];
+    const groups = cfg.ownerWorkInGroups ? app.store.channelKeys('telegram-work').map(Number).filter((n) => Number.isFinite(n) && n < 0) : [];
+    const scopes: { scope: Record<string, unknown>; names: CommandName[]; owner: boolean }[] = [
+      { scope: { type: 'all_private_chats' }, names: cfg.allowOthers ? ['new', 'reset', 'stop', 'status', 'help'] : ['help'], owner: false },
+      { scope: { type: 'all_group_chats' }, names: ['help', 'status'], owner: false },
+      ...owners.map((id) => ({ scope: { type: 'chat', chat_id: id }, names: full, owner: true })),
+      ...groups.flatMap((g) => owners.map((id) => ({ scope: { type: 'chat_member', chat_id: g, user_id: id }, names: full, owner: true }))),
+    ];
+    const native = chatsSettings(app).native;
+    const out: { method: 'setMyCommands' | 'deleteMyCommands'; body: Record<string, unknown> }[] = [];
+    for (const sc of scopes) {
+      const base = sc.owner ? ownerLanguage(app) : 'en';
+      out.push(native ? { method: 'setMyCommands', body: { commands: menuList(app, sc.names, base, sc.owner), scope: sc.scope } } : { method: 'deleteMyCommands', body: { scope: sc.scope } });
+      for (const l of OTHER_LANGS) out.push(native ? { method: 'setMyCommands', body: { commands: menuList(app, sc.names, l, sc.owner), scope: sc.scope, language_code: TELEGRAM_LANGS[l] } } : { method: 'deleteMyCommands', body: { scope: sc.scope, language_code: TELEGRAM_LANGS[l] } });
+    }
+    return out;
+  }
+
+  /** Registers the menus (all calls) unless the same lists were registered before; `force` = "Register menus now". */
+  async registerMenus(force = false): Promise<{ ok: boolean; skipped?: boolean; calls?: number; error?: string }> {
+    const store = this.#app.store;
+    const plan = this.menuPlan();
+    const hash = menuHash(plan);
+    const prev = store.bridgeMenu('telegram');
+    if (!force && prev?.hash === hash && !prev.error) return { ok: true, skipped: true, calls: 0 };
+    try {
+      for (const c of plan) await this.#call(c.method, c.body);
+      store.setBridgeMenu('telegram', { hash, at: this.#app.now().toISOString(), error: null });
+      return { ok: true, calls: plan.length };
+    } catch (err) {
+      const error = (err as Error).message.replace(this.#token ?? '', '***').slice(0, 300);
+      store.setBridgeMenu('telegram', { hash: null, at: prev?.at ?? null, error });
+      return { ok: false, error };
+    }
   }
 
   stop(): void {
@@ -175,7 +237,9 @@ export class TelegramBridge {
         this.#error = undefined;
         for (const u of updates) {
           this.#offset = u.update_id + 1;
-          await this.handle(u).catch((err: Error) => console.warn(`telegram: ${err.message}`));
+          // Phase 107: the loop doesn't wait for her reply (only until the turn is queued), so a
+          // /stop or /reset sent while she answers is read at once.
+          await this.handle(u, { queued: true }).catch((err: Error) => console.warn(`telegram: ${err.message}`));
         }
       } catch (err) {
         if (signal.aborted) return;
@@ -195,11 +259,14 @@ export class TelegramBridge {
     for (const part of splitMessage(text)) await this.#call('sendMessage', { chat_id: chatId, text: part, ...extra });
   }
 
-  /** Handles one update (public for tests). */
-  async handle(u: TgUpdate): Promise<void> {
+  /** Handles one update (public for tests). `queued`: return once the turn is queued, not when it's done. */
+  async handle(u: TgUpdate, o: { queued?: boolean } = {}): Promise<void> {
     const cfg = telegramSettings(this.#app);
     if (u.callback_query) {
       const q = u.callback_query;
+      // Phase 107: a /model pick (owner only, checked again here).
+      const md = q.data?.match(/^md:([\w-]+):(\d{1,3})$/);
+      if (md) return this.#modelPicked(q, md[1], Number(md[2]), cfg);
       const m = q.data?.match(/^ap:([\w-]+):([01])$/);
       if (m && isTelegramOwner(cfg, q.from.id)) {
         const ok = this.#app.approvals.decide(m[1], m[2] === '1');
@@ -219,6 +286,8 @@ export class TelegramBridge {
       if (this.#link && this.#link.code === link[1] && Date.now() < this.#link.expires) {
         this.#link = undefined;
         this.#app.settings.update({ telegram: { ...cfg, ownerChatId: msg.chat.id } });
+        // Phase 107: his private chat gets the full command menu.
+        this.menus = this.registerMenus().catch((err: Error) => console.warn(`telegram menus: ${err.message}`));
         await this.send(msg.chat.id, `${this.#tr("Linked. It's me, {name}. Text me here any time.", { name: this.#app.persona.name })} (${disclosureText(this.#app.persona.name, appLanguage(this.#app.settings.get()))})`);
       } else {
         // Five wrong tries and the code is gone (no guessing it in the 10 minutes it lasts).
@@ -233,6 +302,11 @@ export class TelegramBridge {
     // Phase 43: an owner working with her in a group (tools, her memory).
     const ownerWork = !isPrivate && fromOwner && cfg.ownerWorkInGroups === true;
     const isOwner = isOwnerChat || ownerWork;
+    const place: Place = isPrivate ? (fromOwner ? 'owner-dm' : 'partner-dm') : ownerWork ? 'work-room' : 'room';
+    // Phase 107: commands come first (before the queue, so /stop and /reset work while she answers).
+    // Others' plain /start keeps today's hello; a chat she doesn't talk in gets no commands either.
+    const cmd = text && !msg.document ? parseCommand(text, { herName: this.#app.persona.name, botUsername: this.#bot?.username, namePrefix: chatsSettings(this.#app).namePrefix }) : undefined;
+    if (cmd && !(cmd.name === 'start' && !fromOwner) && (isOwnerChat || ownerWork || cfg.allowOthers)) return this.#command(msg, cmd, place, fromOwner);
     if (!isOwnerChat) {
       if (!cfg.allowOthers && !ownerWork) {
         if (isPrivate && !this.#toldNo.has(msg.chat.id)) {
@@ -282,11 +356,20 @@ export class TelegramBridge {
     const said = heard ? `🎤 ${heard}` : text || (docs.length ? `📄 ${docs[0].name}` : '');
     const content = isPrivate ? said.replace(/^\/start\b\s*/, '') || 'Hi!' : `[${from}]: ${said}`;
     const replyWithVoice = speechOf(this.#app).replyWithVoice(Boolean(heard));
-    // One turn at a time per conversation, in order.
+    // One turn at a time per conversation, in order. Phase 107: /reset and /new drop waiting turns.
     const prev = this.#queues.get(conv.id) ?? Promise.resolve();
-    const next = prev.then(() => this.#turn(conv, msg.chat.id, content, isOwner, replyWithVoice, docs)).catch((err: Error) => console.warn(`telegram turn: ${err.message}`));
+    const gen = this.#cleared.get(conv.id) ?? 0;
+    this.#waiting.set(conv.id, (this.#waiting.get(conv.id) ?? 0) + 1);
+    const where = { place, lang: fromOwner ? ownerLanguage(this.#app) : askerLanguage(msg.from.language_code), ownerChat: msg.from.id };
+    const next = prev
+      .then(() => {
+        if ((this.#cleared.get(conv.id) ?? 0) !== gen) return;
+        this.#waiting.set(conv.id, Math.max(0, (this.#waiting.get(conv.id) ?? 1) - 1));
+        return this.#turn(conv, msg.chat.id, content, isOwner, replyWithVoice, docs, where);
+      })
+      .catch((err: Error) => console.warn(`telegram turn: ${err.message}`));
     this.#queues.set(conv.id, next);
-    await next;
+    if (!o.queued) await next;
   }
 
   #called(msg: TgMessage, text: string, cfg: TelegramSettings): boolean {
@@ -297,18 +380,105 @@ export class TelegramBridge {
     return Boolean(cfg.answerEveryone && everyoneCalled(text));
   }
 
-  #conversation(msg: TgMessage, isOwnerChat: boolean, ownerWork = false): Conversation {
-    const key = String(msg.chat.id);
+  #channelOf(msg: TgMessage, ownerWork: boolean): string {
     const nsfw = msg.chat.type !== 'private' && (telegramSettings(this.#app).nsfwChatIds ?? []).includes(msg.chat.id);
     // Owner work in a group is its own conversation ("-work"): tools and memory, but the group is
     // shared, so it stays non-sexual unless the group is an adult one.
-    const channel = ownerWork ? (nsfw ? 'telegram-work-nsfw' : 'telegram-work') : nsfw ? 'telegram-nsfw' : 'telegram';
-    const existing = this.#app.store.findChannelConversation(channel, key, isOwnerChat || ownerWork ? 'owner' : 'partner');
+    return ownerWork ? (nsfw ? 'telegram-work-nsfw' : 'telegram-work') : nsfw ? 'telegram-nsfw' : 'telegram';
+  }
+
+  /** Phase 107: the chat's current session (the newest one /new hasn't closed), if any. */
+  #current(msg: TgMessage, isOwnerChat: boolean, ownerWork = false): Conversation | undefined {
+    return this.#app.store.currentChannelConversation(this.#channelOf(msg, ownerWork), String(msg.chat.id), isOwnerChat || ownerWork ? 'owner' : 'partner');
+  }
+
+  #conversation(msg: TgMessage, isOwnerChat: boolean, ownerWork = false): Conversation {
+    const key = String(msg.chat.id);
+    const channel = this.#channelOf(msg, ownerWork);
+    const who = isOwnerChat || ownerWork ? 'owner' : 'partner';
+    const existing = this.#app.store.currentChannelConversation(channel, key, who);
     if (existing) return existing;
+    // Every session of the chat was closed from the app: the next one continues the chain.
+    const last = this.#app.store.latestChannelConversation(channel, key, who);
+    if (last) return nextSession(this.#app, last);
     const group = `the group "${msg.chat.title ?? 'group'}"`;
     const partner = isOwnerChat || ownerWork ? null : msg.chat.type === 'private' ? msg.from?.first_name || msg.from?.username || 'someone' : group;
     const title = isOwnerChat ? 'Telegram' : ownerWork ? `Telegram work: ${group}` : `Telegram: ${partner}`;
     return this.#app.store.createConversation({ title, channel, channelKey: key, partner });
+  }
+
+  /** Phase 107: runs a command and sends its reply (owner-only details from a group go to his private chat). */
+  async #command(msg: TgMessage, cmd: ParsedCommand, place: Place, fromOwner: boolean): Promise<void> {
+    const app = this.#app;
+    const chatId = msg.chat.id;
+    const isOwnerChat = place === 'owner-dm';
+    const ownerWork = place === 'work-room';
+    const who: Asker = fromOwner ? 'owner' : 'person';
+    const lang = fromOwner ? ownerLanguage(app) : askerLanguage(msg.from?.language_code);
+    const adapter: BridgeAdapter = {
+      currentSession: () => this.#current(msg, isOwnerChat, ownerWork),
+      startSession: (prev) => (prev ? nextSession(app, prev) : this.#conversation(msg, isOwnerChat, ownerWork)),
+      ...(ownerWork ? { roomSession: () => roomConversation(app, 'telegram', String(chatId)) } : {}),
+      stopTurn: (id) => this.#stopTurn(id),
+      clearQueue: (id) => this.#clearQueue(id),
+      settingsWhere: undefined,
+    };
+    const r = await runCommand({ app, bridge: 'telegram', place, who, lang, cmd, adapter });
+    await this.#deliver(chatId, msg.from!.id, place, r, lang);
+  }
+
+  /** Sends a command reply where it belongs: buttons for picks and approvals; owner-only details privately. */
+  async #deliver(chatId: number, userId: number, place: Place, r: CommandReply, lang: string): Promise<void> {
+    if (!r.text && !r.choices?.length) return;
+    const room = place === 'room' || place === 'work-room';
+    const to = r.ownerOnly && room && !r.refused ? userId : chatId;
+    const extra: Record<string, unknown> = {};
+    if (r.choices?.length && r.conversationId) {
+      this.#picks.set(r.conversationId, r.choices);
+      extra.reply_markup = { inline_keyboard: r.choices.slice(0, 20).map((m, i) => [{ text: `${m.model} · ${m.provider}`.slice(0, 60), callback_data: `md:${r.conversationId}:${i}` }]) };
+    } else if (r.approval) {
+      extra.reply_markup = { inline_keyboard: [[{ text: say(this.#app, lang, en('Allow')), callback_data: `ap:${r.approval.id}:1` }, { text: say(this.#app, lang, en('Deny')), callback_data: `ap:${r.approval.id}:0` }]] };
+      void r.approval.done.then((t) => this.send(to, t)).catch(() => undefined);
+    }
+    try {
+      await this.send(to, r.text, extra);
+      if (to !== chatId) await this.send(chatId, say(this.#app, lang, en('I sent you the details in our private chat.')));
+    } catch (err) {
+      // He never opened a private chat with the bot: Telegram refuses; nothing private goes to the group.
+      if (to !== chatId) await this.send(chatId, say(this.#app, lang, en('Send me a private message first, then try again.'))).catch(() => undefined);
+      else throw err;
+    }
+  }
+
+  /** Phase 107: a /model button (owner only). */
+  async #modelPicked(q: NonNullable<TgUpdate['callback_query']>, convId: string, index: number, cfg: TelegramSettings): Promise<void> {
+    const lang = ownerLanguage(this.#app);
+    const conv = this.#app.store.getConversation(convId);
+    const pick = this.#picks.get(convId)?.[index];
+    if (!isTelegramOwner(cfg, q.from.id)) return void (await this.#call('answerCallbackQuery', { callback_query_id: q.id, text: say(this.#app, askerLanguage(q.from.language_code), en('Only the person who runs me can change that.')) }).catch(() => undefined));
+    if (!conv || !pick) return void (await this.#call('answerCallbackQuery', { callback_query_id: q.id, text: say(this.#app, lang, en('That list is out of date. Send /model again.')) }).catch(() => undefined));
+    const line = setSessionModel(this.#app, conv, pick, lang);
+    await this.#call('answerCallbackQuery', { callback_query_id: q.id, text: line.slice(0, 190) }).catch(() => undefined);
+    if (q.message) {
+      await this.#call('editMessageReplyMarkup', { chat_id: q.message.chat.id, message_id: q.message.message_id, reply_markup: { inline_keyboard: [] } }).catch(() => undefined);
+      await this.send(q.message.chat.id, line);
+    }
+  }
+
+  /** Phase 107: Stop for /stop, /reset and /new: the server's tracked turn, or the bridge's own. */
+  #stopTurn(conversationId: string): boolean {
+    if (this.#app.stopTurn?.(conversationId)) return true;
+    const a = this.#aborts.get(conversationId);
+    if (!a || a.signal.aborted) return false;
+    a.abort(new Error('stopped'));
+    return true;
+  }
+
+  #clearQueue(conversationId: string): number {
+    const n = this.#waiting.get(conversationId) ?? 0;
+    this.#cleared.set(conversationId, (this.#cleared.get(conversationId) ?? 0) + 1);
+    this.#waiting.set(conversationId, 0);
+    return n;
   }
 
   /** Downloads a file the owner sent (Telegram lets bots download up to 20 MB). */
@@ -348,8 +518,9 @@ export class TelegramBridge {
     }
   }
 
-  async #turn(conv: Conversation, chatId: number, content: string, isOwner: boolean, voice = false, docs: SharedDoc[] = []): Promise<void> {
+  async #turn(conv: Conversation, chatId: number, content: string, isOwner: boolean, voice = false, docs: SharedDoc[] = [], where?: { place: Place; lang: string; ownerChat: number }): Promise<void> {
     const app = this.#app;
+    let fill: { used: number; budget: number; dropped: number } | undefined;
     // Wait while a web turn runs in the same conversation.
     for (let i = 0; i < 600 && app.isBusy?.(conv.id); i++) await new Promise((r) => setTimeout(r, 1000));
     const started = Date.now();
@@ -365,6 +536,7 @@ export class TelegramBridge {
     const onEvent = (ev: ChatEvent) => {
       if (ev.type === 'token') reply += ev.text;
       else if (ev.type === 'replace') reply = ev.text;
+      else if (ev.type === 'context') fill = { used: ev.used, budget: ev.budget, dropped: ev.dropped };
       else if (ev.type === 'tool_call') flush();
       else if (ev.type === 'claim_check') {
         // The flagged reply is replaced by her correction.
@@ -392,7 +564,13 @@ export class TelegramBridge {
       if (app.runTracked) await app.runTracked(conv.id, content, onEvent, opts);
       else {
         const { runTurn } = await import('../chat.ts');
-        for await (const ev of runTurn(app, conv.id, content, undefined, opts)) onEvent(ev);
+        const stop = new AbortController();
+        this.#aborts.set(conv.id, stop);
+        try {
+          for await (const ev of runTurn(app, conv.id, content, stop.signal, opts)) onEvent(ev);
+        } finally {
+          if (this.#aborts.get(conv.id) === stop) this.#aborts.delete(conv.id);
+        }
       }
       flush();
       copyOwnerTurnToRoom(app, room, content, outgoing.join('\n\n'));
@@ -410,6 +588,12 @@ export class TelegramBridge {
       await paceLikeTyping(app, t, since, () => void this.#call('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => undefined));
       await this.send(chatId, t);
       since = Date.now();
+    }
+    // Phase 107 (§4.7): nearly full: she offers /new once (in a room he works in, privately to him).
+    if (where) {
+      const fresh = app.store.getConversation(conv.id) ?? conv;
+      const line = nearlyFullOffer(app, fresh, fill, where.lang, where.place);
+      if (line) await this.send(where.place === 'work-room' ? where.ownerChat : chatId, `ℹ️ ${line}`).catch(() => undefined);
     }
   }
 

@@ -8,6 +8,7 @@ import { alexaModel } from '../alexa.ts';
 import { botHourlyCapOf, botTurnLimitOf, cleanBotList, DISCORD_VAULT, discordSettings } from '../bridges/discord.ts';
 import { cleanDiscordIds, cleanTelegramIds } from '../bridges/rules.ts';
 import { TELEGRAM_VAULT, telegramSettings } from '../bridges/telegram.ts';
+import { chatsSettings, COMMAND_WORDS, commandTable } from '../bridges/commands.ts';
 import type { TurnOptions } from '../chat.ts';
 import { as400, fromPhoneApp, fromSaraApp, HttpError, readJson, safeDecode, SECURITY_HEADERS, send } from '../http.ts';
 import { appLanguage } from '../i18n.ts';
@@ -57,6 +58,42 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
   return async (req, res, method, parts) => {
     const [a, b, c] = parts;
     if (a === 'events' && !b && method === 'GET') return streamEvents(req, res);
+
+    // Phase 107 (CH1): chat commands: the table per place, the switches, and the menus' state.
+    if (a === 'chats' && b === 'commands' && !c) {
+      if (opts.demo) throw new HttpError(404, 'Not here.');
+      const view = () => ({
+        commands: commandTable(),
+        words: COMMAND_WORDS,
+        settings: chatsSettings(app),
+        menus: { telegram: app.bridges?.telegram ? { ...app.bridges.telegram.status().menu, running: app.bridges.telegram.status().running } : null, discord: app.bridges?.discord ? { ...app.bridges.discord.status().menu, running: app.bridges.discord.status().running } : null },
+      });
+      if (method === 'GET') return send(res, 200, view());
+      if (method === 'PUT') {
+        const body = await readJson(req);
+        const cur = app.settings.get().chats ?? {};
+        const before = chatsSettings(app);
+        app.settings.update({
+          chats: {
+            ...cur,
+            commands: { ...cur.commands, ...(body.native !== undefined ? { native: Boolean(body.native) } : {}), ...(body.namePrefix !== undefined ? { namePrefix: Boolean(body.namePrefix) } : {}) },
+            ...(body.offerNew !== undefined ? { offerNew: Boolean(body.offerNew) } : {}),
+          },
+        });
+        // Menus on or off: set (or clear) them now; nothing else restarts the bridges.
+        if (chatsSettings(app).native !== before.native) await Promise.all([app.bridges?.telegram?.registerMenus(), app.bridges?.discord?.registerMenus()].map((p) => p?.catch(() => undefined)));
+        return send(res, 200, view());
+      }
+    }
+    if (a === 'chats' && b === 'menus' && !c && method === 'POST') {
+      if (opts.demo) throw new HttpError(404, 'Not here.');
+      const body = await readJson(req);
+      const bridge = body.bridge === 'discord' ? app.bridges?.discord : body.bridge === 'telegram' ? app.bridges?.telegram : undefined;
+      if (!bridge) throw new HttpError(400, 'Which bridge? Telegram or Discord.');
+      if (!bridge.status().running) throw new HttpError(400, 'Connect the bot first, then set its menu.');
+      const r = await bridge.registerMenus(true);
+      return send(res, r.ok ? 200 : 502, { ...r, menu: bridge.status().menu });
+    }
 
     if (a === 'bridges' && b === 'discord') {
       const dc = app.bridges?.discord;

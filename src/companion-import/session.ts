@@ -424,7 +424,7 @@ export class CompanionImporter {
       for (const c of s.convs.filter((x) => pick.has(x.index))) {
         const msgs = c.messages.filter((m) => s.roles[m.speaker] === 'owner' || s.roles[m.speaker] === 'companion');
         if (!msgs.length) continue;
-        const had = app.store.findChannelConversation(channel, c.sourceId);
+        const had = app.store.firstChannelConversation(channel, c.sourceId);
         if (had) {
           convIds.set(c.index, had.id);
           continue;

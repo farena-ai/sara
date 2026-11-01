@@ -194,7 +194,7 @@ export class HistoryImporter {
     const channel = SOURCE_CHANNEL[parsed.source];
     const convs = parsed.conversations;
     const times = convs.flatMap((c) => [c.createdAt, c.messages.at(-1)!.createdAt]).sort();
-    const already = convs.filter((c) => app.store.findChannelConversation(channel, c.sourceId)).length;
+    const already = convs.filter((c) => app.store.firstChannelConversation(channel, c.sourceId)).length;
     const id = randomUUID();
     const preview: HistoryPreview = {
       id,
@@ -277,7 +277,7 @@ export class HistoryImporter {
     try {
       for (let i = 0; i < convs.length; i++) {
         const c = convs[i];
-        if (app.store.findChannelConversation(channel, c.sourceId)) {
+        if (app.store.firstChannelConversation(channel, c.sourceId)) {
           this.#status.skippedExisting++;
         } else {
           const r = app.store.insertImported({

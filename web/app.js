@@ -364,6 +364,8 @@ function convRow(c) {
   // Phase 66: a group chat shows who's in it.
   if (isGroup(c)) a.append(el('span', 'channel-tag group-tag', groupTag(c)));
   else if (c.channel && c.channel !== 'web') a.append(el('span', 'channel-tag', c.partner ? `${c.channel} · ${c.partner}` : c.channel));
+  // Phase 107: an ended session of a chat (/new opened a newer one).
+  if (c.endedAt && c.channel && c.channel !== 'web') a.append(el('span', 'channel-tag ended-tag', t('ended')));
   if (c.offRecord) {
     a.classList.add('offrecord');
     title.prepend('🕶 ');
@@ -1392,6 +1394,9 @@ function renderMessages(messages, opts = {}) {
     } else if (m.role === 'notice' && (m.kind === 'skill' || m.kind === 'skillfix')) {
       // Phase 97: "make this a skill?" and "a fix for …?" (web/learned-skills.js), after her reply.
       els.push(learnCard(m));
+    } else if (m.role === 'notice' && m.kind === 'command') {
+      // Phase 107: /new, /reset, /stop… from a chat app or typed here (never a message to her).
+      els.push(bubble('notice', commandNotice(m), 'command', m.id));
     } else if (m.role === 'notice' && m.kind === 'call') {
       els.push(bubble('notice', `📞 ${t('Sara called you')}: ${m.content}`, 'call', m.id));
     } else if (m.role === 'assistant' && !m.content.trim() && !m.meta?.proof?.length) {
@@ -1536,7 +1541,64 @@ $('#edit-cancel').addEventListener('click', () => {
   autosize();
 });
 
+/** Phase 107: the notice a command left in a conversation. */
+function commandNotice(m) {
+  const meta = m.meta ?? {};
+  const said = {
+    new: meta.room ? t('the room got a fresh conversation too') : meta.to ? t('a new session started; this one is kept') : t('started a new session'),
+    reset: t('cleared'),
+    stop: t('stopped her reply'),
+    model: meta.model ? t('this session uses {model}', { model: meta.model }) : t('back to the default model'),
+    remember: t('saved in her memory'),
+  }[m.content];
+  if (m.content === 'offer') return t('She suggested /new: this chat is getting long');
+  return said ? `/${m.content}${meta.room ? ' room' : ''} · ${said}` : `/${m.content}`;
+}
+
+/** Phase 107: her commands typed in the app: /new, /reset, /stop, /status, /help, /model, /remember. */
+const CHAT_COMMAND = /^\/(new|reset|stop|status|help|model|remember)(?:\s[\s\S]*)?$/i;
+async function runChatCommand(text) {
+  if (!state.currentId) {
+    const conv = await api('/conversations', { method: 'POST', body: {} });
+    state.conversations.unshift(conv);
+    state.currentId = conv.id;
+    state.conv = conv;
+    renderConvSummary();
+    $('#chat-title').textContent = conv.title;
+    renderConversations();
+  }
+  append(bubble('user', text, 'command-line'));
+  try {
+    const r = await api(`/conversations/${state.currentId}/command`, { method: 'POST', body: { text } });
+    if (r.opened && r.opened.id !== state.currentId) {
+      if (!state.conversations.some((c) => c.id === r.opened.id)) state.conversations.unshift(r.opened);
+      state.conversations = state.conversations.map((c) => (c.id === state.currentId ? { ...c, endedAt: c.endedAt ?? new Date().toISOString() } : c));
+      await openConversation(r.opened.id);
+    }
+    const lines = (r.choices ?? []).map((m, i) => `${i + 1}. ${m.model} (${m.provider})`);
+    const reply = bubble('notice', [r.reply, ...lines, ...(lines.length ? [t('Send /model and the number to pick one.')] : [])].filter(Boolean).join('\n'), 'command-reply');
+    if (r.approvalId) {
+      const row = el('div', 'actions-left');
+      for (const [label, approved] of [[t('Allow'), true], [t('Deny'), false]]) {
+        const b = el('button', approved ? 'small' : 'ghost small', label);
+        b.type = 'button';
+        b.addEventListener('click', async () => {
+          row.remove();
+          await api(`/approvals/${r.approvalId}`, { method: 'POST', body: { approved } }).catch((err) => append(bubble('error', err.message)));
+        });
+        row.append(b);
+      }
+      reply.append(row);
+    }
+    append(reply);
+  } catch (err) {
+    append(bubble('error', err.message));
+  }
+}
+
 async function send(text) {
+  // Phase 107: a command never goes to her as a message (photos and documents need a real one).
+  if (CHAT_COMMAND.test(text.trim()) && !state.editing && !state.photos.length && !state.docs.length) return runChatCommand(text.trim());
   if (!state.currentId) {
     const conv = await api('/conversations', { method: 'POST', body: {} });
     state.conversations.unshift(conv);
@@ -2897,7 +2959,46 @@ $('#conv-settings-btn').addEventListener('click', async () => {
   $('#cs-provider').value = c.providerId ?? '';
   $('#cs-private').checked = Boolean(c.private);
   await csLoadModels(c.model);
+  void loadConvFill(c);
   $('#conv-settings').showModal();
+});
+
+/** Phase 107: "Context used" (the same number /status gives) and the earlier sessions of a bridge chat. */
+async function loadConvFill(c) {
+  $('#cs-fill-text').textContent = '';
+  $('#cs-ended').hidden = !c.endedAt;
+  $('#cs-new-row').hidden = !c.channelKey || c.channel === 'web' || isGroup(c) || Boolean(c.endedAt) || c.offRecord === true;
+  const [f, s] = await Promise.all([api(`/conversations/${c.id}/fill`).catch(() => null), api(`/conversations/${c.id}/sessions`).catch(() => null)]);
+  if (state.conv?.id !== c.id) return;
+  $('#cs-fill').value = f?.percent ?? 0;
+  $('#cs-fill-text').textContent = f ? `${t('{n}% of what she can keep in mind', { n: f.percent })}${f.dropped ? ` · ${t('older parts left out')}` : ''}` : '';
+  const list = s?.sessions ?? [];
+  $('#cs-sessions-box').hidden = list.length < 2;
+  $('#cs-sessions').replaceChildren(
+    ...list.map((x) => {
+      const li = el('li', x.current ? 'current' : '');
+      const b = el('button', 'ghost small', `${x.title} · ${new Date(x.createdAt).toLocaleDateString()}${x.endedAt ? ` · ${t('ended')}` : ''}`);
+      b.type = 'button';
+      b.disabled = x.current;
+      b.addEventListener('click', () => {
+        $('#conv-settings').close();
+        void openConversation(x.id);
+      });
+      li.append(b);
+      return li;
+    }),
+  );
+}
+$('#cs-new').addEventListener('click', async () => {
+  try {
+    const r = await api(`/conversations/${state.conv.id}/new`, { method: 'POST', body: {} });
+    $('#conv-settings').close();
+    await loadConversations();
+    if (r.opened) await openConversation(r.opened.id);
+    if (r.reply) append(bubble('notice', r.reply, 'command-reply'));
+  } catch (err) {
+    $('#cs-error').textContent = err.message;
+  }
 });
 
 $('#cs-provider').addEventListener('change', () => csLoadModels(null));
@@ -4120,6 +4221,62 @@ $('#dc-unlink').addEventListener('click', async () => {
   if (!confirm(t('Unlink your Discord?'))) return;
   await saveDiscord({ unlink: true });
 });
+
+// ---------- Phase 107: chat commands (Settings → Telegram / Discord → Commands) ----------
+const CMD_WHO = { owner: 'Only you', dm: 'You, and others in their own chat', all: 'Everyone' };
+const MENU_NAMES = ['new', 'reset', 'stop', 'status', 'help', 'model', 'remember'];
+function menuState(menu) {
+  if (!menu?.running) return t('Connect the bot to set its menu.');
+  if (menu.error) return t("Couldn't set the command menu: {reason}", { reason: menu.error });
+  if (!menu.at) return t('Menu not set yet.');
+  const ms = Date.now() - Date.parse(menu.at);
+  if (ms < 90_000) return t('Menu set just now');
+  if (ms < 90 * 60_000) return t('Menu set {n} min ago', { n: Math.round(ms / 60_000) });
+  if (ms < 36 * 3600_000) return t('Menu set {n} h ago', { n: Math.round(ms / 3600_000) });
+  return t('Menu set {n} days ago', { n: Math.round(ms / 86_400_000) });
+}
+function renderChatCommands(v) {
+  for (const [pre, bridge] of [['tg', 'telegram'], ['dc', 'discord']]) {
+    $(`#${pre}-cmd-native`).checked = v.settings.native;
+    $(`#${pre}-cmd-name`).checked = v.settings.namePrefix;
+    $(`#${pre}-cmd-offer`).checked = v.settings.offerNew;
+    const menu = v.menus?.[bridge];
+    $(`#${pre}-cmd-state`).textContent = v.settings.native ? menuState(menu) : t('Menus are off: typed commands still work.');
+    $(`#${pre}-cmd-register`).disabled = !menu?.running || !v.settings.native;
+    $(`#${pre}-cmd-list`).replaceChildren(
+      ...v.commands
+        .filter((c) => MENU_NAMES.includes(c.name))
+        .map((c) => {
+          const who = c.places['partner-dm'].person && c.places.room.person ? CMD_WHO.all : c.places['partner-dm'].person ? CMD_WHO.dm : CMD_WHO.owner;
+          const li = el('li', 'cmd-row');
+          li.append(el('code', '', `/${c.name}`), el('span', 'cmd-desc', t(c.description)), el('span', 'cmd-who', t(who)));
+          return li;
+        }),
+    );
+  }
+}
+async function loadChatCommands() {
+  try {
+    renderChatCommands(await api('/chats/commands'));
+  } catch {
+    /* not available (demo, a member's space) */
+  }
+}
+async function saveChatCommands(pre) {
+  renderChatCommands(await api('/chats/commands', { method: 'PUT', body: { native: $(`#${pre}-cmd-native`).checked, namePrefix: $(`#${pre}-cmd-name`).checked, offerNew: $(`#${pre}-cmd-offer`).checked } }));
+}
+for (const [pre, bridge] of [['tg', 'telegram'], ['dc', 'discord']]) {
+  $(`#${pre}-cmd-register`).addEventListener('click', async () => {
+    $(`#${pre}-cmd-state`).textContent = t('Setting the menu…');
+    try {
+      await api('/chats/menus', { method: 'POST', body: { bridge } });
+    } catch (err) {
+      $(`#${pre}-cmd-state`).textContent = err.message;
+      return;
+    }
+    await loadChatCommands();
+  });
+}
 
 // ---------- app install + push notifications ----------
 let installPrompt = null;
@@ -6861,7 +7018,7 @@ async function loadSettingsPages() {
   // Phase 71: a household member's space answers only their own pages; the owner's are skipped.
   if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop()]));
   await loadTools();
-  await Promise.all([loadDevices().catch(() => {}), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets()]);
+  await Promise.all([loadDevices().catch(() => {}), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets()]);
 }
 /**
  * M9: text drawn from data before a language change stays in the old language, so the open
@@ -6920,8 +7077,8 @@ const SETTINGS_SAVERS = {
   'models-routes': [saveRoutes],
   'ab-github': [() => saveGitHubWatch().catch((err) => ($('#ghw-status').textContent = err.message))],
   'her-voice': [saveVoice],
-  'co-telegram': [saveTelegram],
-  'co-discord': [saveDiscord],
+  'co-telegram': [saveTelegram, () => saveChatCommands('tg')],
+  'co-discord': [saveDiscord, () => saveChatCommands('dc')],
   'co-phone': [savePush],
   'dh-usage': [saveUsage],
   'dh-health': [saveRuns],
@@ -7059,12 +7216,24 @@ async function updateConvUsage() {
  * ring shows how much of that this conversation fills; the token numbers sit inside its sheet.
  */
 const KEPT_MESSAGES = 60;
+let ringFillTimer;
 function updateContextRing() {
   const msgs = state.messages ?? [];
   const said = msgs.filter((m) => (m.role === 'user' || m.role === 'assistant') && String(m.content ?? '').trim() && !m.meta?.forgotten).length;
   const share = msgs.length ? said / msgs.length : 0;
   const total = said + Math.round((state.conv?.earlier ?? 0) * share);
   setContextRing(state.currentId && !state.conv?.offRecord && total ? Math.min(100, Math.round((total / KEPT_MESSAGES) * 100)) : null, KEPT_MESSAGES);
+  // Phase 107: then the server's own measure (the same number /status gives and the nearly-full offer uses).
+  clearTimeout(ringFillTimer);
+  const id = state.currentId;
+  if (id && !state.conv?.offRecord && total)
+    ringFillTimer = setTimeout(() => {
+      void api(`/conversations/${id}/fill`)
+        .then((f) => {
+          if (state.currentId === id && typeof f.percent === 'number') setContextRing(f.percent, KEPT_MESSAGES);
+        })
+        .catch(() => {});
+    }, 800);
 }
 
 // ---------- Report this reply (Phase 19) ----------

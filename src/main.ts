@@ -841,7 +841,13 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isMember) app.historyImport = new HistoryImporter(() => app);
   tools.add(createWardrobeTool(() => app));
   // Telegram and Discord: one bot each, for the first companion (shared with the others' settings).
-  if (main && !isMember) bridges = { telegram: new TelegramBridge(app), discord: new DiscordBridge(app) };
+  // Phase 107: SARA_TELEGRAM_API / SARA_DISCORD_API / SARA_DISCORD_GATEWAY point the bridges at stand-in
+  // servers for live checks without a real bot (unset in normal use: the real Telegram and Discord).
+  if (main && !isMember)
+    bridges = {
+      telegram: new TelegramBridge(app, process.env.SARA_TELEGRAM_API ? { apiBase: process.env.SARA_TELEGRAM_API } : {}),
+      discord: new DiscordBridge(app, { ...(process.env.SARA_DISCORD_API ? { api: process.env.SARA_DISCORD_API } : {}), ...(process.env.SARA_DISCORD_GATEWAY ? { gateway: process.env.SARA_DISCORD_GATEWAY } : {}) }),
+    };
   if (!isMember) app.bridges = bridges;
   // Phase 98: the owner's companions get the plugins switched on for them (members and the demo never).
   if (!isMember && pluginManager) {

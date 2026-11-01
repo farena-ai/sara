@@ -168,6 +168,8 @@ export interface Settings {
   push?: Partial<PushSettings>;
   /** Telegram bridge (Phase 6). Bot token lives in the vault (bridge:telegram). */
   telegram?: Partial<TelegramSettings>;
+  /** Phase 107 (CH1): chat commands in the bridges (menus, her name as a command, the "nearly full" offer). */
+  chats?: import('./bridges/commands.ts').ChatsSettings;
   /** Voice (Phase 5). Keys live in the vault (voice:openai, voice:elevenlabs). */
   voice?: Partial<VoiceSettings>;
   /** Messages Sara starts herself (Phase 4). */

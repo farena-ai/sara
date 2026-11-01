@@ -23,6 +23,7 @@ import type { Conversation } from '../store.ts';
 import { takeChatDocument, type SharedDoc } from '../library/intake.ts';
 import { MAX_DOC_BYTES } from '../library/store.ts';
 import { nameCalled } from './rules.ts';
+import { askerLanguage, chatsSettings, commandAllowed, DESCRIPTIONS, DISCORD_LOCALES, DISCORD_NAMES, isCommandName, MENU_COMMANDS, menuHash, modelChoices, nearlyFullOffer, nextSession, OTHER_LANGS, ownerLanguage, parseCommand, runCommand, say, setSessionModel, type Asker, type BridgeAdapter, type CommandReply, type ModelPick, type ParsedCommand, type Place } from './commands.ts';
 
 export interface DiscordSettings {
   enabled: boolean;
@@ -118,6 +119,22 @@ interface DUser {
   global_name?: string | null;
   bot?: boolean;
 }
+/** Phase 107: an INTERACTION_CREATE (2 = slash command, 3 = button or select, 4 = autocomplete). */
+interface DInteraction {
+  id: string;
+  token: string;
+  type?: number;
+  application_id?: string;
+  guild_id?: string;
+  channel_id?: string;
+  channel?: { id: string };
+  locale?: string;
+  data?: { custom_id?: string; name?: string; values?: string[]; options?: { name: string; value?: unknown; focused?: boolean }[] };
+  user?: DUser;
+  member?: { user: DUser };
+}
+/** Discord's own status line on the menu (others see less than the owner; checked on every use). */
+const DISCORD_STATUS = en('How full this chat is (the owner sees more)');
 interface DMessage {
   id: string;
   channel_id: string;
@@ -167,6 +184,14 @@ export class DiscordBridge {
   readonly #queues = new Map<string, Promise<void>>();
   /** Phase 47 loop guard per channel (in memory; kept across reconnects, reset on restart of Sara). */
   readonly #botGuard = new Map<string, { replies: number; told: boolean; times: number[] }>();
+  /** Phase 107: the application id from READY (the command menu and interaction edits need it). */
+  #appId: string | undefined;
+  readonly #waiting = new Map<string, number>();
+  readonly #cleared = new Map<string, number>();
+  readonly #aborts = new Map<string, AbortController>();
+  readonly #picks = new Map<string, ModelPick[]>();
+  /** Phase 107: the command menu registration that is running (tests await it). */
+  menus: Promise<unknown> = Promise.resolve();
 
   constructor(app: AppContext, opts: { api?: string; gateway?: string; connect?: GatewayConnect } = {}) {
     this.#app = app;
@@ -179,8 +204,54 @@ export class DiscordBridge {
     return this.#app.vault.get(DISCORD_VAULT);
   }
 
-  status(): { running: boolean; bot: string | null; linked: boolean; error: string | null } {
-    return { running: Boolean(this.#me) && !this.#stopped, bot: this.#me?.username ?? null, linked: Boolean(discordSettings(this.#app).ownerUserId), error: this.#error ?? null };
+  status(): { running: boolean; bot: string | null; linked: boolean; error: string | null; menu: { at: string | null; error: string | null } | null } {
+    const m = this.#app.store.bridgeMenu('discord');
+    return { running: Boolean(this.#me) && !this.#stopped, bot: this.#me?.username ?? null, linked: Boolean(discordSettings(this.#app).ownerUserId), error: this.#error ?? null, menu: m ? { at: m.at, error: m.error } : null };
+  }
+
+  /**
+   * Phase 107 (CH1, §4.5): the global command list for one bulk overwrite: the 7 commands with
+   * localised names and descriptions, in servers and her DMs (contexts 0, 1), shown to everyone
+   * (default_member_permissions null: the server refuses, so he sees them where he isn't an admin).
+   * Switched off: an empty list (removes them).
+   */
+  menuBody(): unknown[] {
+    const app = this.#app;
+    if (!chatsSettings(app).native) return [];
+    const loc = (text: string) => Object.fromEntries(OTHER_LANGS.map((l) => [DISCORD_LOCALES[l], say(app, l, text).slice(0, 100)]));
+    const opt = (name: string, description: string, type: number, more: Record<string, unknown> = {}) => ({ type, name, description: say(app, 'en', description), description_localizations: loc(description), ...more });
+    const choice = (name: string, value: string) => ({ name: say(app, 'en', name), name_localizations: loc(name), value });
+    return MENU_COMMANDS.map((n) => {
+      const description = n === 'status' ? DISCORD_STATUS : DESCRIPTIONS[n];
+      const options =
+        n === 'new'
+          ? [opt('for', en('Who gets the fresh start'), 3, { required: false, choices: [choice(en('me'), 'me'), choice(en('the whole room'), 'room')] })]
+          : n === 'model'
+            ? [opt('name', en('Model name (leave empty for the list)'), 3, { required: false, autocomplete: true })]
+            : n === 'remember'
+              ? [opt('text', en('What to remember'), 3, { required: true, max_length: 400 })]
+              : [];
+      return { type: 1, name: n, name_localizations: DISCORD_NAMES[n], description: say(app, 'en', description).slice(0, 100), description_localizations: loc(description), contexts: [0, 1], default_member_permissions: null, ...(options.length ? { options } : {}) };
+    });
+  }
+
+  /** One bulk overwrite of the global commands, skipped when the list hasn't changed; `force` = "Register menus now". */
+  async registerMenus(force = false): Promise<{ ok: boolean; skipped?: boolean; calls?: number; error?: string }> {
+    const store = this.#app.store;
+    if (!this.#appId) return { ok: false, error: en('Not connected to Discord yet.') };
+    const body = this.menuBody();
+    const hash = menuHash({ app: this.#appId, body });
+    const prev = store.bridgeMenu('discord');
+    if (!force && prev?.hash === hash && !prev.error) return { ok: true, skipped: true, calls: 0 };
+    try {
+      await this.#rest('PUT', `/applications/${this.#appId}/commands`, body);
+      store.setBridgeMenu('discord', { hash, at: this.#app.now().toISOString(), error: null });
+      return { ok: true, calls: 1 };
+    } catch (err) {
+      const error = (err as Error).message.slice(0, 300);
+      store.setBridgeMenu('discord', { hash: null, at: prev?.at ?? null, error });
+      return { ok: false, error };
+    }
   }
 
   async #rest<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -259,18 +330,156 @@ export class DiscordBridge {
       this.#sock?.send(JSON.stringify({ op: 2, d: { token: this.#token, intents: DISCORD_INTENTS, properties: { os: 'linux', browser: 'sara', device: 'sara' } } }));
     } else if (p.op === 1) this.#sock?.send(JSON.stringify({ op: 1, d: this.#seq }));
     else if (p.op === 7 || p.op === 9) this.#sock?.close();
-    else if (p.op === 0 && p.t === 'READY') this.#me = (p.d as { user: DUser }).user;
-    else if (p.op === 0 && p.t === 'MESSAGE_CREATE') await this.handleMessage(p.d as DMessage);
-    else if (p.op === 0 && p.t === 'INTERACTION_CREATE') await this.#onInteraction(p.d as { id: string; token: string; data?: { custom_id?: string }; user?: DUser; member?: { user: DUser } });
+    else if (p.op === 0 && p.t === 'READY') {
+      const d = p.d as { user: DUser; application?: { id?: string } };
+      this.#me = d.user;
+      // Phase 107: keep the application id and set the / menu (skipped when unchanged).
+      if (d.application?.id) this.#appId = d.application.id;
+      this.menus = this.registerMenus().catch((err: Error) => console.warn(`discord menus: ${err.message}`));
+    } else if (p.op === 0 && p.t === 'MESSAGE_CREATE') await this.handleMessage(p.d as DMessage);
+    else if (p.op === 0 && p.t === 'INTERACTION_CREATE') await this.#onInteraction(p.d as DInteraction);
   }
 
-  async #onInteraction(i: { id: string; token: string; data?: { custom_id?: string }; user?: DUser; member?: { user: DUser } }): Promise<void> {
+  /** Phase 107: interactions by type first: commands, autocomplete, then buttons and selects. */
+  async #onInteraction(i: DInteraction): Promise<void> {
+    if (i.type === 2) return this.#onCommand(i);
+    if (i.type === 4) return this.#onAutocomplete(i);
+    if (i.data?.custom_id?.startsWith('md:')) return this.#onModelPick(i);
     const who = i.user ?? i.member?.user;
     const m = i.data?.custom_id?.match(/^ap:([\w-]+):([01])$/);
     let reply = 'Only the owner can answer that.';
     if (m && who && isDiscordOwner(discordSettings(this.#app), who.id)) reply = this.#app.approvals.decide(m[1], m[2] === '1') ? this.#tr(m[2] === '1' ? en('Allowed.') : en('Denied.')) : this.#tr('That request is no longer waiting.');
     // Type 4 = reply with a message (ephemeral flag 64).
     await this.#rest('POST', `/interactions/${i.id}/${i.token}/callback`, { type: 4, data: { content: reply, flags: 64 } });
+  }
+
+  /** Phase 107: where a command was used and by whom (the server decides; menus are only a display). */
+  #placeOf(userId: string, guildId: string | undefined): { place: Place; fromOwner: boolean; ownerWork: boolean; reachable: boolean } {
+    const cfg = discordSettings(this.#app);
+    const fromOwner = isDiscordOwner(cfg, userId);
+    const isDm = !guildId;
+    const ownerWork = !isDm && fromOwner && cfg.ownerWorkInServers === true;
+    const place: Place = isDm ? (fromOwner ? 'owner-dm' : 'partner-dm') : ownerWork ? 'work-room' : 'room';
+    // DMs from others are ignored (as before); servers only when she answers there.
+    return { place, fromOwner, ownerWork, reachable: isDm ? fromOwner : cfg.allowServers || ownerWork };
+  }
+
+  #adapter(channelId: string, place: Place, nsfw: boolean): BridgeAdapter {
+    const app = this.#app;
+    const ownerSide = place === 'owner-dm' || place === 'work-room';
+    const channel = place === 'work-room' ? (nsfw ? 'discord-work-nsfw' : 'discord-work') : nsfw ? 'discord-nsfw' : 'discord';
+    return {
+      currentSession: () => app.store.currentChannelConversation(channel, channelId, ownerSide ? 'owner' : 'partner'),
+      startSession: (prev) => (prev ? nextSession(app, prev) : this.#newConversation(channel, channelId, place === 'owner-dm', place === 'work-room')),
+      ...(place === 'work-room' ? { roomSession: () => roomConversation(app, 'discord', channelId) } : {}),
+      stopTurn: (id) => this.#stopTurn(id),
+      clearQueue: (id) => this.#clearQueue(id),
+      resetGuard: () => void this.#botGuard.delete(channelId),
+    };
+  }
+
+  /** Phase 107: a slash command. Answered inside Discord's 3 seconds: at once, or "thinking…" first and the edit after. */
+  async #onCommand(i: DInteraction): Promise<void> {
+    const app = this.#app;
+    const who = i.member?.user ?? i.user;
+    const channelId = i.channel_id ?? i.channel?.id ?? '';
+    const name = String(i.data?.name ?? '');
+    const callback = (body: unknown) => this.#rest('POST', `/interactions/${i.id}/${i.token}/callback`, body);
+    if (!who || !channelId || !isCommandName(name)) return void (await callback({ type: 4, data: { content: say(app, askerLanguage(i.locale), en('I don\'t know that command.')), flags: 64 } }));
+    const at = this.#placeOf(who.id, i.guild_id);
+    const lang = at.fromOwner ? ownerLanguage(app) : askerLanguage(i.locale);
+    const asker: Asker = who.bot ? 'bot' : at.fromOwner ? 'owner' : 'person';
+    const opt = (n: string) => String(i.data?.options?.find((o) => o.name === n)?.value ?? '');
+    const cmd: ParsedCommand = { name, args: name === 'new' ? (opt('for') === 'room' ? 'room' : '') : name === 'model' ? opt('name') : name === 'remember' ? opt('text') : '', form: 'native' };
+    if (!at.reachable || !commandAllowed(at.place, asker, name)) {
+      const r = at.reachable ? await runCommand({ app, bridge: 'discord', place: at.place, who: asker, lang, cmd, adapter: this.#adapter(channelId, at.place, false) }) : { text: say(app, lang, en('Only the person who runs me can use that here.')) };
+      return void (await callback({ type: 4, data: { content: r.text || '…', flags: 64, allowed_mentions: { parse: [] } } }));
+    }
+    // Private results (status, model, remember, help) only for the person who asked.
+    const ephemeral = name === 'status' || name === 'model' || name === 'remember' || name === 'help' || name === 'settings';
+    const deferred = name === 'status' || name === 'model' || name === 'new' || name === 'remember';
+    if (deferred) await callback({ type: 5, data: { flags: ephemeral ? 64 : 0 } });
+    let r: CommandReply;
+    try {
+      const nsfw = Boolean(i.guild_id) && (await this.#isNsfw(channelId));
+      r = await runCommand({ app, bridge: 'discord', place: at.place, who: asker, lang, cmd, adapter: this.#adapter(channelId, at.place, nsfw) });
+    } catch (err) {
+      r = { text: say(app, lang, en('(Something went wrong: {error})'), { error: (err as Error).message }) };
+    }
+    const data: Record<string, unknown> = { content: r.text || say(app, lang, en('Nothing to stop.')), allowed_mentions: { parse: [] }, ...this.#components(r, lang) };
+    if (r.approval) void r.approval.done.then((t) => this.#rest('POST', `/webhooks/${this.#appId ?? i.application_id}/${i.token}`, { content: t, flags: 64 })).catch(() => undefined);
+    if (deferred) await this.#rest('PATCH', `/webhooks/${this.#appId ?? i.application_id}/${i.token}/messages/@original`, data);
+    else await callback({ type: 4, data: { ...data, ...(ephemeral || r.ownerOnly || r.refused ? { flags: 64 } : {}) } });
+  }
+
+  /** Phase 107: the select for /model picks, or Allow / Deny for a /remember that asks first. */
+  #components(r: CommandReply, lang: string): Record<string, unknown> {
+    if (r.choices?.length && r.conversationId) {
+      this.#picks.set(r.conversationId, r.choices);
+      return { components: [{ type: 1, components: [{ type: 3, custom_id: `md:${r.conversationId}`, placeholder: say(this.#app, lang, en('Pick a model')), options: r.choices.slice(0, 25).map((m, n) => ({ label: m.model.slice(0, 100), description: m.provider.slice(0, 100), value: String(n) })) }] }] };
+    }
+    if (r.approval) return { components: [{ type: 1, components: [{ type: 2, style: 3, label: say(this.#app, lang, en('Allow')), custom_id: `ap:${r.approval.id}:1` }, { type: 2, style: 4, label: say(this.#app, lang, en('Deny')), custom_id: `ap:${r.approval.id}:0` }] }] };
+    return {};
+  }
+
+  /** Phase 107: /model name suggestions (the owner only; others get none). */
+  async #onAutocomplete(i: DInteraction): Promise<void> {
+    const who = i.member?.user ?? i.user;
+    const typed = String(i.data?.options?.find((o) => o.focused)?.value ?? '').toLowerCase();
+    const list = who && isDiscordOwner(discordSettings(this.#app), who.id) ? (await modelChoices(this.#app)).filter((m) => m.model.toLowerCase().includes(typed)).slice(0, 25) : [];
+    await this.#rest('POST', `/interactions/${i.id}/${i.token}/callback`, { type: 8, data: { choices: list.map((m) => ({ name: `${m.model} · ${m.provider}`.slice(0, 100), value: m.model.slice(0, 100) })) } });
+  }
+
+  /** Phase 107: a /model pick from the select (owner only, checked again). */
+  async #onModelPick(i: DInteraction): Promise<void> {
+    const app = this.#app;
+    const who = i.member?.user ?? i.user;
+    const convId = i.data!.custom_id!.slice(3);
+    const callback = (body: unknown) => this.#rest('POST', `/interactions/${i.id}/${i.token}/callback`, body);
+    if (!who || !isDiscordOwner(discordSettings(app), who.id)) return void (await callback({ type: 4, data: { content: say(app, askerLanguage(i.locale), en('Only the person who runs me can change that.')), flags: 64 } }));
+    const lang = ownerLanguage(app);
+    const conv = app.store.getConversation(convId);
+    const pick = this.#picks.get(convId)?.[Number(i.data?.values?.[0])];
+    if (!conv || !pick) return void (await callback({ type: 4, data: { content: say(app, lang, en('That list is out of date. Send /model again.')), flags: 64 } }));
+    // Type 7 = update the message the select was on.
+    await callback({ type: 7, data: { content: setSessionModel(app, conv, pick, lang), components: [] } });
+  }
+
+  /** Phase 107: a typed command (/new, !new, "Sara new") in a message that reached her. */
+  async #typedCommand(msg: DMessage, cmd: ParsedCommand, place: Place, fromOwner: boolean, nsfw: boolean): Promise<void> {
+    const app = this.#app;
+    const lang = fromOwner ? ownerLanguage(app) : 'en';
+    const r = await runCommand({ app, bridge: 'discord', place, who: fromOwner ? 'owner' : 'person', lang, cmd, adapter: this.#adapter(msg.channel_id, place, nsfw) });
+    if (!r.text && !r.choices?.length) return;
+    const extra = this.#components(r, lang);
+    const room = place === 'room' || place === 'work-room';
+    if (r.ownerOnly && room && !r.refused) {
+      // Owner-only details from a server channel go to his DMs; the channel only hears that.
+      const dm = await this.#rest<{ id: string }>('POST', '/users/@me/channels', { recipient_id: msg.author.id }).catch(() => undefined);
+      if (dm?.id) {
+        await this.send(dm.id, r.text, extra);
+        if (r.approval) void r.approval.done.then((t) => this.send(dm.id, t)).catch(() => undefined);
+        return void (await this.send(msg.channel_id, say(app, lang, en('I sent you the details in a direct message.'))));
+      }
+      return void (await this.send(msg.channel_id, say(app, lang, en('Send me a private message first, then try again.'))));
+    }
+    await this.send(msg.channel_id, r.text, extra);
+    if (r.approval) void r.approval.done.then((t) => this.send(msg.channel_id, t)).catch(() => undefined);
+  }
+
+  #stopTurn(conversationId: string): boolean {
+    if (this.#app.stopTurn?.(conversationId)) return true;
+    const a = this.#aborts.get(conversationId);
+    if (!a || a.signal.aborted) return false;
+    a.abort(new Error('stopped'));
+    return true;
+  }
+
+  #clearQueue(conversationId: string): number {
+    const n = this.#waiting.get(conversationId) ?? 0;
+    this.#cleared.set(conversationId, (this.#cleared.get(conversationId) ?? 0) + 1);
+    this.#waiting.set(conversationId, 0);
+    return n;
   }
 
   /** Phase 61: her app lines to the owner in the owner's app language (partners get the English ones). */
@@ -320,6 +529,18 @@ export class DiscordBridge {
     if (isOwnerDm) this.#dmChannel.set(msg.author.id, msg.channel_id);
     // Phase 43: an owner working with her in a server channel (tools, her memory).
     const ownerWork = !isDm && fromOwner && cfg.ownerWorkInServers === true;
+    // Phase 107: a typed command reaches her in a DM, with an @mention, or as "Sara new" (the name
+    // form names her). Bots run no commands. It runs before the queue, so /stop works mid-reply.
+    if (!isBot && text && (isOwnerDm || (!isDm && (cfg.allowServers || ownerWork)))) {
+      const me = this.#me?.id ? new RegExp(`^<@!?${this.#me.id}>[\\s,:]*`) : undefined;
+      const bare = me ? text.replace(me, '') : text;
+      const mentioned = bare !== text;
+      const cmd = parseCommand(bare, { herName: this.#app.persona.name, namePrefix: chatsSettings(this.#app).namePrefix, addressed: mentioned });
+      if (cmd && (isDm || mentioned || cmd.form === 'name')) {
+        const place: Place = isOwnerDm ? 'owner-dm' : ownerWork ? 'work-room' : 'room';
+        return this.#typedCommand(msg, cmd, place, fromOwner, !isDm && (await this.#isNsfw(msg.channel_id)));
+      }
+    }
     if (!isOwnerDm) {
       if (isDm) return; // DMs from others: ignored (servers only, when allowed)
       if (isBot) {
@@ -370,7 +591,17 @@ export class DiscordBridge {
     const voice = speechOf(this.#app).replyWithVoice(Boolean(heard));
     if (isBot && !(await this.#takeBotTurn(msg.channel_id, cfg))) return;
     const prev = this.#queues.get(conv.id) ?? Promise.resolve();
-    const next = prev.then(() => this.#turn(conv, msg.channel_id, content, isOwner, voice, docs)).catch((err: Error) => console.warn(`discord turn: ${err.message}`));
+    // Phase 107: /reset and /new drop the turns still waiting here.
+    const gen = this.#cleared.get(conv.id) ?? 0;
+    this.#waiting.set(conv.id, (this.#waiting.get(conv.id) ?? 0) + 1);
+    const where = { place: (isOwnerDm ? 'owner-dm' : ownerWork ? 'work-room' : 'room') as Place, lang: isOwner ? ownerLanguage(this.#app) : 'en', userId: msg.author.id };
+    const next = prev
+      .then(() => {
+        if ((this.#cleared.get(conv.id) ?? 0) !== gen) return;
+        this.#waiting.set(conv.id, Math.max(0, (this.#waiting.get(conv.id) ?? 1) - 1));
+        return this.#turn(conv, msg.channel_id, content, isOwner, voice, docs, where);
+      })
+      .catch((err: Error) => console.warn(`discord turn: ${err.message}`));
     this.#queues.set(conv.id, next);
     await next;
   }
@@ -431,11 +662,19 @@ export class DiscordBridge {
     // Owner work in a server channel is its own conversation ("-work"): tools and memory, but the
     // channel is shared, so it stays non-sexual unless the channel is an adult one.
     const channel = ownerWork ? (nsfw ? 'discord-work-nsfw' : 'discord-work') : nsfw ? 'discord-nsfw' : 'discord';
-    const existing = this.#app.store.findChannelConversation(channel, msg.channel_id, isOwnerDm || ownerWork ? 'owner' : 'partner');
-    if (existing) return existing;
+    // Phase 107: the chat's current session (the newest one /new hasn't closed).
+    const existing = this.#app.store.currentChannelConversation(channel, msg.channel_id, isOwnerDm || ownerWork ? 'owner' : 'partner');
+    return existing ?? this.#newConversation(channel, msg.channel_id, isOwnerDm, ownerWork);
+  }
+
+  #newConversation(channel: string, channelId: string, isOwnerDm: boolean, ownerWork: boolean): Conversation {
+    const who = isOwnerDm || ownerWork ? 'owner' : 'partner';
+    // Every session of the chat was closed from the app: the next one continues the chain.
+    const last = this.#app.store.latestChannelConversation(channel, channelId, who);
+    if (last) return nextSession(this.#app, last);
     const partner = isOwnerDm || ownerWork ? null : `people in a Discord channel`;
-    const title = isOwnerDm ? 'Discord' : ownerWork ? `Discord work: channel ${msg.channel_id.slice(-4)}` : `Discord channel ${msg.channel_id.slice(-4)}`;
-    return this.#app.store.createConversation({ title, channel, channelKey: msg.channel_id, partner });
+    const title = isOwnerDm ? 'Discord' : ownerWork ? `Discord work: channel ${channelId.slice(-4)}` : `Discord channel ${channelId.slice(-4)}`;
+    return this.#app.store.createConversation({ title, channel, channelKey: channelId, partner });
   }
 
   /** Sends her reply as an audio clip (MP3) with the text alongside. */
@@ -456,8 +695,9 @@ export class DiscordBridge {
     }
   }
 
-  async #turn(conv: Conversation, channelId: string, content: string, isOwner: boolean, voice = false, docs: SharedDoc[] = []): Promise<void> {
+  async #turn(conv: Conversation, channelId: string, content: string, isOwner: boolean, voice = false, docs: SharedDoc[] = [], where?: { place: Place; lang: string; userId: string }): Promise<void> {
     const app = this.#app;
+    let fill: { used: number; budget: number; dropped: number } | undefined;
     for (let i = 0; i < 600 && app.isBusy?.(conv.id); i++) await new Promise((r) => setTimeout(r, 1000));
     const started = Date.now();
     void this.#rest('POST', `/channels/${channelId}/typing`).catch(() => undefined);
@@ -472,6 +712,7 @@ export class DiscordBridge {
     const onEvent = (ev: ChatEvent) => {
       if (ev.type === 'token') reply += ev.text;
       else if (ev.type === 'replace') reply = ev.text;
+      else if (ev.type === 'context') fill = { used: ev.used, budget: ev.budget, dropped: ev.dropped };
       else if (ev.type === 'tool_call') flush();
       else if (ev.type === 'claim_check') ev.correcting ? (reply = '') : flush();
       else if (ev.type === 'notice') sends.push(this.send(channelId, `ℹ️ ${isOwner && ev.key ? this.#tr(ev.key, ev.params) : ev.text}`));
@@ -496,7 +737,13 @@ export class DiscordBridge {
       if (app.runTracked) await app.runTracked(conv.id, content, onEvent, opts);
       else {
         const { runTurn } = await import('../chat.ts');
-        for await (const ev of runTurn(app, conv.id, content, undefined, opts)) onEvent(ev);
+        const stop = new AbortController();
+        this.#aborts.set(conv.id, stop);
+        try {
+          for await (const ev of runTurn(app, conv.id, content, stop.signal, opts)) onEvent(ev);
+        } finally {
+          if (this.#aborts.get(conv.id) === stop) this.#aborts.delete(conv.id);
+        }
       }
       flush();
       copyOwnerTurnToRoom(app, room, content, outgoing.join('\n\n'));
@@ -510,6 +757,14 @@ export class DiscordBridge {
       await paceLikeTyping(app, t, since, () => void this.#rest('POST', `/channels/${channelId}/typing`).catch(() => undefined));
       await this.send(channelId, t);
       since = Date.now();
+    }
+    // Phase 107 (§4.7): nearly full: she offers /new once (in a channel he works in, in his DMs).
+    if (where) {
+      const line = nearlyFullOffer(app, app.store.getConversation(conv.id) ?? conv, fill, where.lang, where.place);
+      if (line) {
+        const to = where.place === 'work-room' ? await this.#rest<{ id: string }>('POST', '/users/@me/channels', { recipient_id: where.userId }).then((d) => d.id).catch(() => undefined) : channelId;
+        if (to) await this.send(to, `ℹ️ ${line}`).catch(() => undefined);
+      }
     }
   }
 

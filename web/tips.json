@@ -1364,6 +1364,30 @@
     "ski-scope": [
       "This companion: only she gets the skill. All my companions: every companion of yours gets it.",
       "skills"
+    ],
+    "tg-cmd-native": [
+      "Puts /new, /stop, /status and the rest in Telegram's and Discord's / menu. Others only see the ones they may use; Sara checks again on every command.",
+      "chatapps"
+    ],
+    "tg-cmd-name": [
+      "Lets you write just her name and a command word, like \"Sara new\", where typing a slash is awkward. Only a message with nothing else in it counts.",
+      "chatapps"
+    ],
+    "tg-cmd-offer": [
+      "When a chat is almost too long for her to keep in mind, she says so once and suggests /new. The old session is kept and summarised.",
+      "chatapps"
+    ],
+    "dc-cmd-native": [
+      "Puts /new, /stop, /status and the rest in Telegram's and Discord's / menu. Others only see the ones they may use; Sara checks again on every command.",
+      "chatapps"
+    ],
+    "dc-cmd-name": [
+      "Lets you write just her name and a command word, like \"Sara new\", where typing a slash is awkward. Only a message with nothing else in it counts.",
+      "chatapps"
+    ],
+    "dc-cmd-offer": [
+      "When a chat is almost too long for her to keep in mind, she says so once and suggests /new. The old session is kept and summarised.",
+      "chatapps"
     ]
   },
   "pages": {

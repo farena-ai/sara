@@ -254,7 +254,7 @@ export interface Page {
 /** Sidebar groups, in order; files not listed go to "More". */
 const GROUPS: [string, string[]][] = [
   ['Start here', ['README.md', 'docs/INSTALL.md', 'docs/REQUIREMENTS.md', 'docs/CHOOSING_A_MODEL.md', 'docs/COSTS.md', 'docs/PHONE.md', 'docs/clients.md', 'docs/desktop.md', 'docs/MAC_APP_REMOTE.md', 'docs/SERVERS.md', 'docs/MOVING.md', 'docs/FAQ.md', 'docs/DISCLOSURES.md']],
-  ['Using Sara', ['docs/IMPORT.md', 'docs/GROUP_CHATS.md', 'docs/VIDEO_CALLS.md', 'docs/MOMENTS.md', 'docs/LIBRARY.md', 'docs/HOUSEHOLD.md', 'docs/PRIVATE_LOCAL.md', 'docs/SSH.md']],
+  ['Using Sara', ['docs/IMPORT.md', 'docs/CHATS.md', 'docs/GROUP_CHATS.md', 'docs/VIDEO_CALLS.md', 'docs/MOMENTS.md', 'docs/LIBRARY.md', 'docs/HOUSEHOLD.md', 'docs/PRIVATE_LOCAL.md', 'docs/SSH.md']],
   ['Connect other things', ['docs/OTHER_APPS.md', 'docs/HOME_ASSISTANT.md', 'docs/VOICE_ASSISTANTS.md', 'docs/ALEXA.md', 'docs/PACKAGING.md']],
   ['Build with Sara', ['docs/EXTENDING.md', 'docs/ARCHITECTURE.md', 'docs/RESULTS.md', 'docs/TRANSLATING.md']],
   ['Contribute', ['CONTRIBUTING.md', 'docs/GOOD_FIRST_ISSUES.md', 'CODE_OF_CONDUCT.md']],

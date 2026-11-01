@@ -5,6 +5,24 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.40.0 (2026-10-31): chat commands everywhere (Phase 107, chats CH1)
+
+- **Commands:** `/new` (a fresh session; the old one is kept and summarised), `/new room` (in a room
+  where you work with her), `/reset` (clear a stuck turn and queued messages), `/stop`, `/status`
+  (model, how full the session is, session age, recent usage and budget), `/help`, `/model` (a pick
+  list) and `/remember`. Guide: [docs/CHATS.md](docs/CHATS.md).
+- **Everywhere:** Telegram (menus set per chat type and in six languages), Discord (application
+  commands, answered within Discord's 3 seconds, with a model picker), plugin bridges and the web app
+  (type them in the composer). Typed `/new`, `!new`, `/new@yourbot`, or "Sara, new" when that's the
+  whole message.
+- **Who may run what is checked every time:** the owner everything; others `/new`, `/reset`, `/stop`,
+  `/help` and a short `/status` in their own chat, only `/help` and a short `/status` in rooms; bots
+  nothing. Replies in the asker's language.
+- **Sessions:** a chat can now have several sessions (the newest open one gets new messages; ended ones
+  stay, marked *ended*). When a session is 85% full she offers `/new` once. Conversation settings show
+  *Context used*, earlier sessions and *Start a new session from here*.
+- Fixed while testing: in Telegram, a `/stop` sent while she was replying now arrives in time.
+
 ## 2.39.0 (2026-10-31): move in, settings, channels, hooks and the report (Phase 106, move-in MI3; the move-in track is complete)
 
 - **Settings become cards you confirm:** providers matched to Sara's presets (keys are never copied:

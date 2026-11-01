@@ -1504,6 +1504,16 @@
         </label>
         <p id="cs-status" class="muted small"></p>
       </div>
+      <div class="tidy-card tidy-stack">
+        <label>Context used <button type="button" class="tip" data-tip="How much of this chat she can still keep in mind at once. Near the end she says so once and suggests /new; the old session is kept and summarised.">?</button> <progress id="cs-fill" class="cs-fill" max="100" value="0"></progress></label>
+        <p id="cs-fill-text" class="muted small"></p>
+        <p id="cs-ended" class="small" hidden>Ended (a newer session is open)</p>
+        <div id="cs-sessions-box" hidden>
+          <h3>Earlier sessions of this chat</h3>
+          <ul id="cs-sessions" class="cs-sessions"></ul>
+        </div>
+        <p id="cs-new-row" class="small" hidden><button id="cs-new" type="button" class="ghost">Start a new session from here</button></p>
+      </div>
       <p class="muted small cs-summary">Sara writes a dated summary of this conversation after it's been quiet for a while. <button id="cs-remember" type="button" class="ghost small">Write summary now</button></p>
       <p id="cs-error" class="error" role="alert"></p>
       <div class="actions tidy-foot">
@@ -2605,6 +2615,12 @@
       <label class="row"><input id="tg-name" type="checkbox"> Answer when her name is said in a group (no @ needed)</label>
       <label class="row"><input id="tg-everyone" type="checkbox"> Answer @all and @everyone in a group</label>
       <label class="web-adult" hidden>Adult groups (group IDs) <input id="tg-nsfw" placeholder="e.g. -1001234567890" spellcheck="false"></label>
+      <h3>Commands <button type="button" class="tip" data-tip="Commands like /new, /stop and /status work in every Telegram chat with her. The list shows who may use each one here; Sara checks it again every time, whatever the menu shows.">?</button></h3>
+      <label class="row"><input id="tg-cmd-native" type="checkbox"> Show commands in the app menu</label>
+      <label class="row"><input id="tg-cmd-name" type="checkbox"> Her name works as a command</label>
+      <label class="row"><input id="tg-cmd-offer" type="checkbox"> Offer a new session when a chat is long</label>
+      <p class="muted small cmd-menu-row"><span id="tg-cmd-state" role="status"></span> <button id="tg-cmd-register" type="button" class="ghost">Register menus now</button></p>
+      <ul id="tg-cmd-list" class="cmd-list"></ul>
         </section>
         <section class="settings-page" data-page="co-discord" data-group="Connections" data-title="Discord" data-owner-only hidden>
       <p class="muted small">At <strong>discord.com/developers</strong>: New Application → Bot → Reset Token (paste it here) and turn on <em>Message Content Intent</em>. Invite it with OAuth2 → URL Generator (scope <code>bot</code>; Send Messages, Read Message History). Then link yourself.</p>
@@ -2628,6 +2644,12 @@
       <label>At most per hour, per channel <select id="dc-bot-cap"><option value="5">5</option><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="60">60</option><option value="120">120</option></select></label>
       </div>
       <label class="web-adult" hidden>Adult channels (channel IDs) <input id="dc-nsfw" placeholder="e.g. 123456789012345678" spellcheck="false"></label>
+      <h3>Commands <button type="button" class="tip" data-tip="Commands like /new, /stop and /status work in every Discord chat with her. The list shows who may use each one here; Sara checks it again every time, whatever the menu shows.">?</button></h3>
+      <label class="row"><input id="dc-cmd-native" type="checkbox"> Show commands in the app menu</label>
+      <label class="row"><input id="dc-cmd-name" type="checkbox"> Her name works as a command</label>
+      <label class="row"><input id="dc-cmd-offer" type="checkbox"> Offer a new session when a chat is long</label>
+      <p class="muted small cmd-menu-row"><span id="dc-cmd-state" role="status"></span> <button id="dc-cmd-register" type="button" class="ghost">Register menus now</button></p>
+      <ul id="dc-cmd-list" class="cmd-list"></ul>
         </section>
         <section class="settings-page" data-page="co-apps" data-group="Connections" data-title="Other apps" hidden>
       <p class="muted small">Talk to her from other apps, with her own memory and personality: chat apps like SillyTavern and Open WebUI (they speak the OpenAI way), and MCP apps like Claude Code, Cursor and Claude Desktop (they can use her memory, planner, library and notes). Give each app its own API key. Her safety rules and the AI notice always apply.</p>

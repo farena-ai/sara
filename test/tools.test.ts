@@ -113,7 +113,8 @@ test('agent loop: model calls a tool, gets the result, then answers; all of it i
 
   const evs = await drain(runTurn(app, conv.id, 'save a todo'));
   const types = evs.map((e) => e.type);
-  assert.deepEqual(types.filter((x) => x !== 'token' && x !== 'notice'), ['tool_call', 'tool_result', 'done'], 'auto tools need no approval events');
+  // Phase 107: `context` (how full the history is) rides along each model call.
+  assert.deepEqual(types.filter((x) => x !== 'token' && x !== 'notice' && x !== 'context'), ['tool_call', 'tool_result', 'done'], 'auto tools need no approval events');
   assert.equal(readFileSync(join(dir, 'workspaces', 'main', 'notes', 'todo.md'), 'utf8'), '- ship it');
 
   // Second model request carries the tool call and its result.

@@ -24,7 +24,8 @@ import { usageLine } from './usage.ts';
 import { cleanMore } from './budget.ts';
 import { MAX_IMAGES_PER_MESSAGE, UploadError } from './uploads.ts';
 import { TogetherStore } from './together.ts';
-import { runTurn, type TurnOptions, type AppContext, type ChatEvent } from './chat.ts';
+import { contextFill, runTurn, type TurnOptions, type AppContext, type ChatEvent } from './chat.ts';
+import { nextSession, parseCommand, runCommand, type BridgeAdapter } from './bridges/commands.ts';
 import { cameraState, FRAME_MAX_BYTES, SAFETY_PAUSE_MS, VideoSessions, videoSettings } from './video.ts';
 import { DISCLOSURE_TEXT, disclosureText } from './safety.ts';
 import { personalize } from './identity.ts';
@@ -1623,6 +1624,28 @@ export function createSaraServer(opts: ServerOptions): Server {
         if (opts.demo && (!offRecord || demoOwner.get(b) !== visitorKey(req))) throw new HttpError(404, 'Conversation not found');
         const conv = cx.store.getConversation(b);
         if (!conv) throw new HttpError(404, 'Conversation not found');
+        // Phase 107 (CH1): how full the history is (the info panel's bar; the same number /status gives).
+        if (c === 'fill' && !parts[3] && method === 'GET') return send(res, 200, contextFill(cx, conv));
+        // Phase 107: every session of this chat ("Earlier sessions of this chat").
+        if (c === 'sessions' && !parts[3] && method === 'GET') return send(res, 200, { sessions: offRecord ? [] : cx.store.sessionsOf(conv).map((x) => ({ id: x.id, title: x.title, createdAt: x.createdAt, endedAt: x.endedAt ?? null, current: x.id === b })) });
+        // Phase 107: "Start a new session from here": the same as /new (the old one is kept and summarised).
+        if ((c === 'new' || c === 'command') && !parts[3] && method === 'POST') {
+          if (opts.demo || offRecord) throw new HttpError(400, "Commands don't work in this conversation.");
+          const body = await readJson(req);
+          const cmd = c === 'new' ? { name: 'new' as const, args: '', form: 'native' as const } : parseCommand(String(body.text ?? ''), { herName: app.persona.name, namePrefix: false });
+          if (!cmd) throw new HttpError(400, 'That is not one of her commands. Send /help to see them.');
+          if (opts.member && (cmd.name === 'model' || cmd.name === 'remember')) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+          // An ended bridge session: the command acts on the chat's open one.
+          const open = () => (conv.endedAt && conv.channelKey ? (app.store.currentChannelConversation(conv.channel, conv.channelKey, conv.partner ? 'partner' : 'owner') ?? conv) : app.store.getConversation(b));
+          const adapter: BridgeAdapter = {
+            currentSession: open,
+            startSession: (prev) => (prev ? nextSession(app, prev, prev.channel === 'web' || !prev.channelKey ? { title: 'New conversation' } : {}) : app.store.createConversation()),
+            stopTurn: (id) => app.stopTurn?.(id) ?? false,
+            clearQueue: () => 0,
+          };
+          const r = await runCommand({ app, bridge: 'web', place: 'owner-dm', who: 'owner', lang: appLanguage(app.settings.get()), cmd, adapter });
+          return send(res, 200, { reply: r.text, command: cmd.name, ...(r.opened ? { opened: r.opened } : {}), ...(r.choices ? { choices: r.choices } : {}), ...(r.approval ? { approvalId: r.approval.id } : {}), ...(r.refused ? { refused: true } : {}) });
+        }
         const view = (m: StoredMessage) => ({
           ...m,
           content: m.role === 'notice' ? m.content.replace(/^\w+:/, '') : m.role === 'tool' ? clip(app.redactor.redact(m.content), 4000) : m.content,

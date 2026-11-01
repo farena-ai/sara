@@ -859,7 +859,36 @@ export class PluginManager {
     }
     const channel = `plugin-${bridge}`;
     const store = a.app.store;
-    const conv = store.findChannelConversation(channel, chatId, owner ? 'owner' : 'partner') ?? store.createConversation({ title: owner ? `${run.manifest.name}` : `${run.manifest.name}: ${from}`, channel, channelKey: chatId, partner: owner ? null : from });
+    const who = owner ? 'owner' : 'partner';
+    // Phase 107 (CH1): the chat's current session (the newest one /new hasn't closed).
+    const make = () => (store.latestChannelConversation(channel, chatId, who) ? nextSessionOf(store.latestChannelConversation(channel, chatId, who)!) : store.createConversation({ title: owner ? `${run.manifest.name}` : `${run.manifest.name}: ${from}`, channel, channelKey: chatId, partner: owner ? null : from }));
+    // Phase 107: typed commands (/new, !new, "Sara new") work here too; never a turn, checked here every time.
+    const { chatsSettings, nextSession, ownerLanguage, parseCommand, runCommand } = await import('../bridges/commands.ts');
+    const nextSessionOf = (prev: import('../store.ts').Conversation) => nextSession(a.app, prev);
+    const cmd = parseCommand(text, { herName: a.app.persona.name, namePrefix: chatsSettings(a.app).namePrefix });
+    if (cmd && !(cmd.name === 'start' && !owner)) {
+      const r = await runCommand({
+        app: a.app,
+        bridge: channel,
+        place: owner ? 'owner-dm' : 'partner-dm',
+        who: owner ? 'owner' : 'person',
+        lang: owner ? ownerLanguage(a.app) : 'en',
+        cmd,
+        adapter: {
+          currentSession: () => store.currentChannelConversation(channel, chatId, who),
+          startSession: (prev) => (prev ? nextSession(a.app, prev) : make()),
+          stopTurn: (id) => a.app.stopTurn?.(id) ?? false,
+          clearQueue: () => 0,
+        },
+      });
+      // A numbered list where there is no native menu ("/model 2" picks the second).
+      const list = r.choices?.length ? `\n${r.choices.map((m, i) => `${i + 1}. ${m.model} (${m.provider})`).join('\n')}` : '';
+      if (r.text) run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: r.text + list });
+      if (r.approval) void r.approval.done.then((t) => run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: t })).catch(() => undefined);
+      this.store.log(run.row.id, a.id, 'call', `bridge ${bridge}: /${cmd.name}`);
+      return { ok: true, command: cmd.name };
+    }
+    const conv = store.currentChannelConversation(channel, chatId, who) ?? make();
     if (a.app.isBusy?.(conv.id)) return { ok: false, reason: 'busy' };
     const runTracked = a.app.runTracked;
     if (!runTracked) return deny('turns are not available here');

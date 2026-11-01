@@ -54,6 +54,10 @@ export interface Conversation {
   archivedAt: string | null;
   /** Phase 22: the owner's tags (lower-case words, e.g. "health", "taxes"). */
   tags: string[];
+  /** Phase 107 (CH1): set by /new: this session of a chat is closed (never cleared). Null = open. */
+  endedAt?: string | null;
+  /** Phase 107: the first conversation of this chat (null = this is the first one). */
+  sessionOf?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -108,6 +112,9 @@ CREATE TABLE IF NOT EXISTS safety_events (
 
 type Row = Record<string, string | number | null>;
 
+/** Phase 43: the owner's side of a chat (partner IS NULL) or someone else's. */
+const whoFilter = (who?: 'owner' | 'partner'): string => (who === 'owner' ? ' AND partner IS NULL' : who === 'partner' ? ' AND partner IS NOT NULL' : '');
+
 function toConversation(r: Row): Conversation {
   return {
     id: String(r.id),
@@ -123,6 +130,8 @@ function toConversation(r: Row): Conversation {
     projectId: r.project_id === null || r.project_id === undefined ? null : Number(r.project_id),
     archivedAt: (r.archived_at as string | null) ?? null,
     tags: r.tags ? (JSON.parse(String(r.tags)) as string[]) : [],
+    endedAt: (r.ended_at as string | null | undefined) ?? null,
+    sessionOf: (r.session_of as string | null | undefined) ?? null,
     createdAt: String(r.created_at),
     updatedAt: String(r.updated_at),
   };
@@ -152,6 +161,13 @@ function migrate(db: DatabaseSync): void {
   if (!cols('conversations').has('project_id')) db.exec('ALTER TABLE conversations ADD COLUMN project_id INTEGER');
   if (!cols('conversations').has('archived_at')) db.exec('ALTER TABLE conversations ADD COLUMN archived_at TEXT');
   if (!cols('conversations').has('tags')) db.exec('ALTER TABLE conversations ADD COLUMN tags TEXT');
+  // Phase 107 (CH1): sessions of one chat. /new closes the current one (ended_at) and opens the next
+  // (session_of = the chat's first conversation). Older versions ignore both columns.
+  if (!cols('conversations').has('ended_at')) db.exec('ALTER TABLE conversations ADD COLUMN ended_at TEXT');
+  if (!cols('conversations').has('session_of')) db.exec('ALTER TABLE conversations ADD COLUMN session_of TEXT');
+  db.exec('CREATE INDEX IF NOT EXISTS conversations_channel_open ON conversations(channel, channel_key, ended_at, created_at)');
+  // Phase 107: the bridges' command menus (what was last registered with Telegram / Discord, when, any error).
+  db.exec('CREATE TABLE IF NOT EXISTS bridge_menus (bridge TEXT PRIMARY KEY, hash TEXT, at TEXT, error TEXT)');
   // Phase 32: a word index over every message, so she can look through past conversations.
   const hasFts = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'messages_fts'").get();
   db.exec(`
@@ -199,22 +215,72 @@ export class Store {
   }
 
   createConversation(
-    opts: { title?: string; providerId?: string | null; model?: string | null; workspace?: string; mode?: ConversationMode; private?: boolean; channel?: string; channelKey?: string | null; partner?: string | null; projectId?: number | null } = {},
+    opts: { title?: string; providerId?: string | null; model?: string | null; workspace?: string; mode?: ConversationMode; private?: boolean; channel?: string; channelKey?: string | null; partner?: string | null; projectId?: number | null; sessionOf?: string | null } = {},
   ): Conversation {
     const ts = this.#now().toISOString();
     const id = randomUUID();
     this.db
-      .prepare('INSERT INTO conversations (id, title, provider_id, model, workspace, mode, private, channel, channel_key, partner, project_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(id, opts.title ?? 'New conversation', opts.providerId ?? null, opts.model ?? null, opts.workspace ?? 'main', opts.mode ?? 'chat', opts.private ? 1 : 0, opts.channel ?? 'web', opts.channelKey ?? null, opts.partner ?? null, opts.projectId ?? null, ts, ts);
+      .prepare('INSERT INTO conversations (id, title, provider_id, model, workspace, mode, private, channel, channel_key, partner, project_id, session_of, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(id, opts.title ?? 'New conversation', opts.providerId ?? null, opts.model ?? null, opts.workspace ?? 'main', opts.mode ?? 'chat', opts.private ? 1 : 0, opts.channel ?? 'web', opts.channelKey ?? null, opts.partner ?? null, opts.projectId ?? null, opts.sessionOf ?? null, ts, ts);
     return this.getConversation(id)!;
   }
 
-  /** The conversation for a chat on a channel (e.g. one Telegram chat). */
+  /**
+   * The conversation for a chat on a channel (e.g. one Telegram chat). Phase 107: the chat's open
+   * session (a /new session first, newest first), else its first conversation, so callers from
+   * before sessions (the room note, the bot guard, plugins) keep their meaning: with no /new, this
+   * is exactly the old "oldest match".
+   */
   findChannelConversation(channel: string, key: string, who?: 'owner' | 'partner'): Conversation | undefined {
+    const r = this.db
+      .prepare(`SELECT * FROM conversations WHERE channel = ? AND channel_key = ?${whoFilter(who)} AND ended_at IS NULL ORDER BY (session_of IS NULL), CASE WHEN session_of IS NULL THEN created_at END ASC, created_at DESC, rowid DESC LIMIT 1`)
+      .get(channel, key) as Row | undefined;
+    return r ? toConversation(r) : this.firstChannelConversation(channel, key, who);
+  }
+
+  /** Phase 107: the chat's first conversation, ended or not (the old "any row" form; imports use it for dedupe). */
+  firstChannelConversation(channel: string, key: string, who?: 'owner' | 'partner'): Conversation | undefined {
     // Phase 43: a chat can hold both (someone talked to her before being made an owner).
-    const filter = who === 'owner' ? ' AND partner IS NULL' : who === 'partner' ? ' AND partner IS NOT NULL' : '';
-    const r = this.db.prepare(`SELECT * FROM conversations WHERE channel = ? AND channel_key = ?${filter} ORDER BY created_at LIMIT 1`).get(channel, key) as Row | undefined;
+    const r = this.db.prepare(`SELECT * FROM conversations WHERE channel = ? AND channel_key = ?${whoFilter(who)} ORDER BY created_at, rowid LIMIT 1`).get(channel, key) as Row | undefined;
     return r ? toConversation(r) : undefined;
+  }
+
+  /** Phase 107 (CH1): the current session of a chat: the newest one that /new hasn't closed. */
+  currentChannelConversation(channel: string, key: string, who?: 'owner' | 'partner'): Conversation | undefined {
+    const r = this.db.prepare(`SELECT * FROM conversations WHERE channel = ? AND channel_key = ?${whoFilter(who)} AND ended_at IS NULL ORDER BY created_at DESC, rowid DESC LIMIT 1`).get(channel, key) as Row | undefined;
+    return r ? toConversation(r) : undefined;
+  }
+
+  /** Phase 107: the newest session of a chat, open or ended (a new session continues its chain). */
+  latestChannelConversation(channel: string, key: string, who?: 'owner' | 'partner'): Conversation | undefined {
+    const r = this.db.prepare(`SELECT * FROM conversations WHERE channel = ? AND channel_key = ?${whoFilter(who)} ORDER BY created_at DESC, rowid DESC LIMIT 1`).get(channel, key) as Row | undefined;
+    return r ? toConversation(r) : undefined;
+  }
+
+  /** Phase 107: closes a session (/new). Returns false when it was already closed. Never reopened. */
+  endConversation(id: string): boolean {
+    return Number(this.db.prepare('UPDATE conversations SET ended_at = ? WHERE id = ? AND ended_at IS NULL').run(this.#now().toISOString(), id).changes) > 0;
+  }
+
+  /** Phase 107: every session of one chat (by its first conversation), oldest first. */
+  sessionsOf(conv: Pick<Conversation, 'id' | 'sessionOf'>): Conversation[] {
+    const root = conv.sessionOf ?? conv.id;
+    return (this.db.prepare('SELECT * FROM conversations WHERE id = ? OR session_of = ? ORDER BY created_at, rowid').all(root, root) as Row[]).map(toConversation);
+  }
+
+  /** Phase 107: the chat keys a channel family has (e.g. every Telegram group an owner works in: 'telegram-work'). */
+  channelKeys(channelPrefix: string): string[] {
+    return (this.db.prepare("SELECT DISTINCT channel_key FROM conversations WHERE (channel = ? OR channel LIKE ? || '-%') AND channel_key IS NOT NULL ORDER BY channel_key").all(channelPrefix, channelPrefix) as Row[]).map((r) => String(r.channel_key));
+  }
+
+  /** Phase 107: the menu state of a bridge (what was registered last). */
+  bridgeMenu(bridge: string): { hash: string | null; at: string | null; error: string | null } | undefined {
+    const r = this.db.prepare('SELECT hash, at, error FROM bridge_menus WHERE bridge = ?').get(bridge) as Row | undefined;
+    return r ? { hash: (r.hash as string | null) ?? null, at: (r.at as string | null) ?? null, error: (r.error as string | null) ?? null } : undefined;
+  }
+
+  setBridgeMenu(bridge: string, v: { hash: string | null; at: string | null; error: string | null }): void {
+    this.db.prepare('INSERT INTO bridge_menus (bridge, hash, at, error) VALUES (?, ?, ?, ?) ON CONFLICT(bridge) DO UPDATE SET hash = excluded.hash, at = excluded.at, error = excluded.error').run(bridge, v.hash, v.at, v.error);
   }
 
   getConversation(id: string): Conversation | undefined {

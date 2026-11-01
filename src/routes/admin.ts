@@ -198,7 +198,10 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
             minGapHours: p.minGapHours === undefined ? cur.minGapHours : Math.min(168, Math.max(1, Number(p.minGapHours) || cur.minGapHours)),
           };
         }
+        const langBefore = appLanguage(app.settings.get());
         app.settings.update(patch);
+        // Phase 107: the owner's command menus follow his app language.
+        if (appLanguage(app.settings.get()) !== langBefore) for (const b of [app.bridges?.telegram, app.bridges?.discord]) void b?.registerMenus().catch(() => undefined);
         return send(res, 200, { ok: true });
       }
     }
