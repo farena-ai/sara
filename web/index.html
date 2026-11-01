@@ -308,6 +308,8 @@
            as a window), so the sidebar, her panel and the phone's bottom bar stay usable (web/today.js). -->
       <dialog id="today" class="today-dialog today-view" data-wired="1" aria-labelledby="td-greeting">
         <div class="td-scroll">
+          <!-- Phase 112 (TD2): pull to refresh (web/today.js pullTracker): the one gesture in browsers and both phone apps. -->
+          <div id="td-pull" class="td-pull" aria-hidden="true"><span class="td-pull-spin"></span></div>
           <header class="td-hero">
             <div class="td-hello">
               <p id="td-date" class="td-date"></p>
@@ -316,7 +318,7 @@
                 <p class="td-mood"><span class="hp-dot" aria-hidden="true"></span><span id="td-her-name" class="td-her-name" data-raw>Sara</span> <span id="td-mood-text" class="td-mood-text"></span></p>
                 <div class="today-her"></div>
               </div>
-              <p class="td-actions"><button id="td-ask" type="button">Plan my day with her</button> <button id="td-refresh" type="button" class="ghost small"><i class="ic" data-icon="update"></i>Refresh</button> <button id="td-custom-open" type="button" class="ghost small" aria-haspopup="dialog" aria-controls="td-custom"><i class="ic" data-icon="sliders"></i>Customise</button> <span id="td-fresh" class="td-fresh muted small"></span> <span id="td-status" class="muted small" role="status"></span></p>
+              <p class="td-actions"><button id="td-ask" type="button">Plan my day with her</button> <button id="td-refresh" type="button" class="ghost small td-hbtn"><i class="ic" data-icon="update"></i><span class="td-btn-text">Refresh</span></button> <button id="td-custom-open" type="button" class="ghost small td-hbtn" aria-haspopup="dialog" aria-controls="td-custom"><i class="ic" data-icon="sliders"></i><span class="td-btn-text">Customise</span></button> <span id="td-fresh" class="td-fresh muted small"></span> <span id="td-status" class="muted small" role="status"></span></p>
             </div>
             <div class="td-face-wrap">
               <button id="td-face-btn" class="td-face-btn" type="button" aria-label="Her page: her day, mood and character"><img id="td-face" class="td-face" src="/sara-portrait.jpg" alt=""></button>
@@ -324,6 +326,12 @@
             </div>
             <button id="td-back" type="button" class="ghost small td-back" title="Back to the conversation (Esc)"><i class="ic" data-icon="back"></i>Chat</button>
           </header>
+          <!-- Phase 112 (TD2): the Now card on phones and tablets: the next things with a countdown, the weather in one line, her mood. -->
+          <section id="td-now" class="td-nowcard" aria-labelledby="td-now-h" hidden>
+            <div class="td-now-head"><h2 id="td-now-h" class="td-now-h">Now</h2><span id="td-now-date" class="td-now-date"></span></div>
+            <ul id="td-now-list" class="td-now-list"></ul>
+            <div id="td-now-acts" class="td-now-acts"></div>
+          </section>
           <section id="td-start" class="today-start" hidden>
             <div class="today-start-head"><h3>Getting started</h3><span id="td-start-count" class="muted small"></span><button id="td-start-hide" type="button" class="ghost small">Hide</button></div>
             <div id="td-start-list" class="today-start-list"></div>
@@ -391,6 +399,8 @@
           <section class="td-custom-card" aria-labelledby="td-custom-more-h">
             <h3 id="td-custom-more-h">Settings</h3>
             <label class="td-c-slider"><span>Since you were away after: <output id="td-away-hours-n" data-raw>8 h</output></span><input id="td-away-hours" type="range" min="3" max="24" step="1" value="8"></label>
+            <label class="row td-c-row"><input id="td-away-voice" type="checkbox"> Away note: a sentence from her</label>
+            <label class="row td-c-row" id="td-away-rooms-row"><input id="td-away-rooms" type="checkbox"> Away note: include rooms</label>
             <label class="row td-c-row"><input id="td-needs-mail" type="checkbox"> Needs you: include mail</label>
             <label class="row td-c-row"><input id="td-usage-cost" type="checkbox"> Usage today: show cost</label>
             <label class="td-c-pick">Coming up: how far <select id="td-coming-days"><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></label>

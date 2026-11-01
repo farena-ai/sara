@@ -14,7 +14,7 @@ em um só app para a web, Windows, Mac e celular.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1456%20passing-brightgreen" alt="1456 tests passing">
+  <img src="https://img.shields.io/badge/tests-1466%20passing-brightgreen" alt="1466 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ em um só app para a web, Windows, Mac e celular.
   <sub>Uma sessão real com um modelo local (qwen3.8 27B no Ollama, uma RTX 5090) em um servidor de teste descartável, no visual Noite: ela anima quem está conversando, escreve um app pequeno e o teste dele enquanto o modelo transmite, pede permissão antes de rodar um comando, pega um bug de verdade com um teste que falha e corrige até os 7 testes passarem. Quadros escolhidos da gravação; nada neles foi editado.</sub>
 </p>
 
-> **Status:** 2.44, licença MIT, com cinquenta e cinco e duas versões com novos recursos desde a 1.0 (todas abaixo). Da
+> **Status:** 2.45, licença MIT, com cinquenta e seis e duas versões com novos recursos desde a 1.0 (todas abaixo). Da
 > 2.5 à 2.8 o app inteiro ganhou um visual novo. O
 > [app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) está no Google
 > Play; o app de iPhone e a versão da Mac App Store chegam assim que a Apple aprovar. Leia
@@ -82,6 +82,7 @@ Guias de um minuto, gravados num servidor de teste com um modelo local (em ingl�
 
 | Versão | O que você ganha |
 |---|---|
+| **2.45** · Hoje no celular | **No celular, o Hoje abre com um cartão Agora** (as duas próximas coisas e quanto falta, a hora de sair, o clima e o humor dela), depois *Precisa de você*, depois seu dia. As seções se recolhem com um resumo e ficam como você deixou naquele aparelho, *Com ela* e *Trabalho* viram fileiras de deslizar (com botões também) e puxar para atualizar funciona no navegador e nos dois apps. Tablets ganham duas colunas. Opcional: uma frase dela sobre o que aconteceu enquanto você estava fora. |
 | **2.44** · Hoje, projetado | **O Hoje agora é organizado de propósito:** *Seu dia* (uma linha do tempo com eventos, lembretes e tarefas, o clima e o que vem por aí), *Precisa de você* (aprovações, falhas, atrasados e o e-mail), *Com ela*, *Trabalho* e *Casa e mais*. As linhas sempre se alinham, blocos vazios se recolhem e *Personalizar* move, redimensiona ou esconde qualquer bloco (arrastando ou pelo teclado), salvo por companheira em todos os aparelhos. O e-mail mostra sua caixa, a mudança desde ontem e o que ela organizou, com Desfazer, e se atualiza sozinho depois de uma limpeza. Um bloco opcional de Salas mostra o que acontece nas salas que ela acompanha. |
 | **2.43** · Ela acompanha a sala | **Em canais do Discord e grupos do Telegram ela acompanha a conversa toda** (liga por sala; um cartão de plano mostra antes o modelo e o limite diário). Quando alguém a chama, ela sabe do que se fala agora, quem está ali e o que mudou desde que falou, e entra no assunto atual em vez de um de uma hora atrás. Cada semana é arquivada na Biblioteca dela como transcrição pesquisável e resumida numa memória da sala com notas sobre as pessoas (cartões de pessoas propostos). *Esquecer esta sala* apaga tudo. 12 canais movimentados reproduzidos em 6 idiomas: no assunto atual 12/12. |
 | **2.42** · Títulos que crescem | **Títulos que dizem do que a conversa tratou.** O primeiro é provisório; depois de algumas trocas, quando o assunto muda claramente e no `/new`, um modelo pequeno no seu próprio computador dá um novo nome («Começar uma horta» → «Declarar impostos como freelancer»). Títulos que você define nunca mudam, os anteriores ficam nas informações da conversa, nada sensível ou privado vai para um título e há um limite diário. 40 sessões de teste: 0,90 no assunto com um modelo local de 12B. |
@@ -152,7 +153,6 @@ Todas as versões: [CHANGELOG.md](CHANGELOG.md) · [versões](https://github.com
 
 Na ordem de construção, uma versão cada ([a lista completa](docs/ROADMAP.md)):
 
-- **Hoje, repensado** (2.44–2.45): um layout que você pode organizar, em telas grandes e celulares.
 - **Uma rodada de acabamento** (2.47): controles de personalidade mais claros com exemplos, ajuda em cada página, um caminho para iniciantes e outro para programadores.
 - **Depois** (2.48–2.61): fotos e arquivos nos apps de chat, falar com ela enquanto trabalha, Signal, e-mail, WhatsApp, iMessage (BlueBubbles) e SMS, "continue até terminar", checagens de código após cada edição, uma galeria de rotinas e **a Sara Store** para plugins, habilidades e servidores MCP (ComfyUI, Blender, Playwright…) com instalação em um clique e um jeito de enviar os seus.
 - O app de iPhone (aguardando a Apple) e suas ideias nas [Discussions](https://github.com/farena-ai/sara/discussions).
@@ -330,8 +330,8 @@ verificava. O que ela acrescenta hoje é o jeito de trabalhar (roda os testes, p
 de passos arriscados, mostra o que foi executado), não uma nota maior nesses conjuntos. Detalhes,
 resultados por tarefa e como rodar de novo: [docs/RESULTS.md](docs/RESULTS.md).
 
-E também `npm run check`: uma checagem de tipos e 1471 testes automáticos com um modelo falso
-roteirizado (sem rede, sem GPU): 1456 passam no Windows e os outros 8 são testes de isolamento só
+E também `npm run check`: uma checagem de tipos e 1481 testes automáticos com um modelo falso
+roteirizado (sem rede, sem GPU): 1466 passam no Windows e os outros 8 são testes de isolamento só
 para Linux, executados em um servidor Linux.
 
 ## Como a Sara se compara

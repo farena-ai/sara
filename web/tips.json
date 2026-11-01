@@ -1405,6 +1405,14 @@
       "How long you need to be away before Today opens with a short note of what happened while you were gone. Slide to Off to never show it.",
       "today"
     ],
+    "td-away-voice": [
+      "Off by default. On: the away note starts with one sentence from her, written by a small model (a local one first), counted in your usage. Off: the note is built from the records alone.",
+      "today"
+    ],
+    "td-away-rooms": [
+      "Off by default. On: the away note may say how many chat rooms she answered in, with their titles. Nothing she or anyone said there is shown.",
+      "today"
+    ],
     "td-needs-mail": [
       "Puts unread mail that Gmail marks important into Needs you. Turn off to keep mail only in the Mail tile.",
       "today"

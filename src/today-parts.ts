@@ -9,12 +9,14 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import type { AppContext } from './chat.ts';
-import { currentTopic, listRooms, recentLines, roomName } from './bridges/keepup.ts';
+import { currentTopic, keepDb, listRooms, recentLines, roomName } from './bridges/keepup.ts';
+import { cheapCall } from './cheap.ts';
+import type { Conversation } from './store.ts';
 import { haCall, switchPlan } from './home-switch.ts';
 import { localDate } from './memory-worker.ts';
 import { netFetch } from './net-guard.ts';
 import { dayStartUtc } from './planner.ts';
-import { dayBounds, todayState, type PartCtx, type TodayPartName } from './today.ts';
+import { dayBounds, todayChanged, todayState, type PartCtx, type TodayPartName } from './today.ts';
 import { HOME_VAULT, type HaState } from './tools/home.ts';
 import { GITHUB_VAULT } from './tools/coding.ts';
 import { repoFromRemote } from './tools/github.ts';
@@ -283,6 +285,63 @@ function needs(deps: PartDeps): Loader {
 
 // ---------- Since you were away (§6.5): built from the stores, no model call ----------
 
+type AwayLine = { kind: string; n: number; failed?: number; titles?: string[] };
+
+/**
+ * Phase 112 (TD2, §15 Q5): the rooms she answered in since `seen`, as a count and the room titles
+ * only (never lines, names or summaries). Only for the owner's main companion and only when he
+ * turned on Include rooms.
+ */
+export function roomsAnswered(app: AppContext, seen: string): { n: number; titles: string[] } {
+  if (!app.roomKeeper || (app.companionId ?? 'main') !== 'main') return { n: 0, titles: [] };
+  const ids = (keepDb(app).prepare("SELECT DISTINCT room_id AS id FROM room_lines WHERE who = 'her' AND at >= ?").all(seen) as { id: number }[]).map((r) => Number(r.id));
+  if (!ids.length) return { n: 0, titles: [] };
+  const rooms = listRooms(app).filter((r) => ids.includes(r.id));
+  return { n: rooms.length, titles: rooms.slice(0, 3).map((r) => roomName(r).slice(0, 60)) };
+}
+
+/** Phase 112 (TD2, §15 Q4): her one sentence about the absence, made once per absence (key: companion and since). */
+const voices = new Map<string, { text: string } | 'pending' | 'none'>();
+const voiceKey = (app: AppContext, since: string) => `${app.dataDir ?? ''}|${app.companionId ?? 'main'}|${since}`;
+const AWAY_CAP = { runs: 6, tokens: 6000 };
+const SENTENCE_SYSTEM = (name: string, owner: string) =>
+  `You are ${name}, ${owner}'s AI companion. Write ONE short, warm sentence (at most 30 words) in your own voice that tells ${owner} what happened while they were away. Use only the facts given; never add any. No lists, no quotes, no emoji, no names other than ${owner}'s.`;
+
+/** The facts the sentence may use: counts only (the same allow-list as the lines). */
+function awayFacts(lines: AwayLine[], hours: number): string {
+  const words: Record<string, (l: AwayLine) => string> = {
+    messages: (l) => `you sent ${l.n} message(s) on your own`,
+    jobs: (l) => `${l.n} background job(s) finished${l.failed ? `, ${l.failed} failed` : ''}`,
+    memories: (l) => `you learned ${l.n} new thing(s) about them`,
+    moments: (l) => `${l.n} new moment(s) were added`,
+    mail: (l) => `you organised ${l.n} email(s)`,
+    rooms: (l) => `you answered in ${l.n} chat room(s)`,
+  };
+  return `Away for ${hours} hours. ${lines.map((l) => words[l.kind]?.(l) ?? '').filter(Boolean).join('; ')}.`;
+}
+
+/**
+ * Starts her sentence in the background (a small call: local model first, then the quick route,
+ * capped by the daily ledger under `today-away`); the page hears SSE `today {part:'away'}` when it
+ * is there. Never writes memory; never blocks the answer.
+ */
+export function startAwaySentence(app: AppContext, since: string, lines: AwayLine[], hours: number): Promise<void> | undefined {
+  const k = voiceKey(app, since);
+  if (voices.has(k)) return undefined;
+  voices.set(k, 'pending');
+  const owner = app.settings.get().ownerName?.trim() || 'them';
+  const conv = { id: '', title: 'Today', providerId: null, model: null, workspace: '', mode: 'chat', private: false, channel: null, channelKey: null, partner: null, projectId: null, archivedAt: null, tags: [] } as unknown as Conversation;
+  const messages = [{ role: 'system' as const, content: SENTENCE_SYSTEM(app.persona.name, owner) }, { role: 'user' as const, content: awayFacts(lines, hours) }];
+  const ask = (model: 'local' | 'quick') => cheapCall(app, { source: 'today-away', purpose: 'today-away', conv, model, messages, maxTokens: 80, temperature: 0.6, cap: AWAY_CAP, estTokens: 400, timeoutMs: 60_000 });
+  return (async () => {
+    let r = await ask('local');
+    if (!r.ok && r.skipped === 'no-model') r = await ask('quick');
+    const text = r.ok ? r.text.replace(/\s+/g, ' ').replace(/^["“]|["”]$/g, '').trim().slice(0, 240) : '';
+    voices.set(k, text ? { text } : 'none');
+    if (text) todayChanged(app, 'away');
+  })().catch(() => void voices.set(k, 'none'));
+}
+
 function away(): Loader {
   return (c) => {
     const { app } = c;
@@ -291,7 +350,7 @@ function away(): Loader {
     if (!hours || !seen) return undefined;
     const gone = c.now.getTime() - Date.parse(seen);
     if (!(gone >= hours * 3600_000)) return undefined;
-    const lines: { kind: string; n: number; failed?: number }[] = [];
+    const lines: AwayLine[] = [];
     // Her messages that came on their own (reach-outs and reminders), only in his own 1:1 chats.
     let msgs = 0;
     for (const cv of app.store.listConversations()) {
@@ -311,9 +370,30 @@ function away(): Loader {
       const n = app.gmail.organisedSince(seen).reduce((a, g) => a + g.count, 0);
       if (n) lines.push({ kind: 'mail', n });
     }
-    return lines.length ? { hours: Math.round(gone / 3600_000), since: seen, lines: lines.slice(0, 5) } : undefined;
+    // Include rooms (off by default): a count and the room titles, nothing else from the rooms.
+    if (owner(c) && c.prefs.awayRooms) {
+      const r = roomsAnswered(app, seen);
+      if (r.n) lines.push({ kind: 'rooms', n: r.n, titles: r.titles });
+    }
+    if (!lines.length) return undefined;
+    const kept = lines.slice(0, 5);
+    const h = Math.round(gone / 3600_000);
+    const out: { hours: number; since: string; lines: AwayLine[]; voice?: string } = { hours: h, since: seen, lines: kept };
+    // Her sentence (off by default): there when it was made, else started now for the next answer.
+    if (c.prefs.awayVoice && !c.demo) {
+      const v = voices.get(voiceKey(app, seen));
+      if (v && typeof v === 'object') out.voice = v.text;
+      else if (!v) void startAwaySentence(app, seen, kept, h);
+    }
+    return out;
   };
 }
+
+/** Tests: her sentence for this absence, once made (or undefined). */
+export const awayVoiceFor = (app: AppContext, since: string): string | undefined => {
+  const v = voices.get(voiceKey(app, since));
+  return v && typeof v === 'object' ? v.text : undefined;
+};
 
 // ---------- Rooms (owner decision 2026-11-01) ----------
 

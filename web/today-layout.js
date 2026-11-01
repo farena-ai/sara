@@ -261,6 +261,10 @@ function drawSheet() {
   $('#td-away-hours').value = String(prefs.awayHours ? prefs.awayHours : 3);
   $('#td-away-hours-n').textContent = prefs.awayHours ? t('{n} h', { n: prefs.awayHours }) : t('Off');
   $('#td-needs-mail').checked = prefs.needsMail !== false;
+  $('#td-away-voice').checked = prefs.awayVoice === true;
+  $('#td-away-rooms').checked = prefs.awayRooms === true;
+  // Include rooms is the owner's (members and the demo never see rooms on Today).
+  $('#td-away-rooms-row').hidden = ctx.member() || ctx.demo();
   $('#td-usage-cost').checked = prefs.usageCost !== false;
   $('#td-coming-days').value = String(prefs.comingDays ?? 7);
   $('#td-phone-open').value = prefs.phoneOpen ?? 'left';
@@ -387,6 +391,14 @@ export function setPrefs(p) {
   }
 }
 export const layoutPrefs = () => prefs;
+/**
+ * Phase 112 (TD2): a section opened or closed on a phone or a tablet, saved for this companion and
+ * that form factor only (the desktop never collapses).
+ */
+export function saveCollapsed(form, list) {
+  if (!prefs || (form !== 'phone' && form !== 'tablet')) return;
+  changed({ ...prefs, collapsed: { ...(prefs.collapsed ?? { phone: [], tablet: [] }), [form]: [...list] } });
+}
 
 export function initTodayLayout(c) {
   ctx = c;
@@ -409,6 +421,14 @@ export function initTodayLayout(c) {
     $('#td-away-hours-n').textContent = v <= 3 ? t('Off') : t('{n} h', { n: v });
   });
   $('#td-away-hours')?.addEventListener('change', (e) => changed({ ...prefs, awayHours: Number(e.target.value) <= 3 ? 0 : Number(e.target.value) }));
+  $('#td-away-voice')?.addEventListener('change', (e) => {
+    changed({ ...prefs, awayVoice: e.target.checked });
+    setTimeout(() => ctx.reloadParts?.(['away']), 700);
+  });
+  $('#td-away-rooms')?.addEventListener('change', (e) => {
+    changed({ ...prefs, awayRooms: e.target.checked });
+    setTimeout(() => ctx.reloadParts?.(['away']), 700);
+  });
   $('#td-needs-mail')?.addEventListener('change', (e) => {
     changed({ ...prefs, needsMail: e.target.checked });
     setTimeout(() => ctx.reloadParts?.(['needs']), 700);

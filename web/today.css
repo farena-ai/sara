@@ -648,10 +648,187 @@ button.brand:focus-visible { outline: 2px solid var(--accent-solid); outline-off
   .td-mood { font-size: 12.5px; }
 }
 @media (pointer: coarse) {
-  .td-link, .td-home-choose summary, .td-home-picks label { min-height: 44px; }
+  .td-link, .td-foot .td-link, .td-home-choose summary, .td-home-picks label { min-height: 44px; }
+  /* Phase 112 (TD2): every target on a touch screen is at least 44 px. */
+  .td-ext, .td-mail-row, .td-mail-link, .td-job-actions > button { min-height: 44px; }
+  .td-mail-link { align-content: center; }
   .td-tick { width: 44px; height: 44px; }
   .td-tick::before { inset: 11px; }
   .td-task { min-height: 44px; }
+}
+
+/* ---------- Phones and tablets (Phase 112, TD2: docs/design/TODAY.md §7) ----------
+   web/today.js sets #today.td-ff-phone (the screen is 600 px or less) or .td-ff-tablet (a touch
+   screen whose Today is narrower than the 12-column grid). Phones: the compact header, the Now
+   card, one column in priority order with a disclosure heading per group, With her and Work as
+   swipe rows. Tablets: the Now card over two tracks, the desktop order, disclosure headings. */
+
+/* The Now card (.td-nowcard: .td-now is the timeline's Now marker): the next things with a countdown, the weather in one line, her mood. */
+.td-nowcard {
+  display: grid;
+  gap: 8px;
+  margin: 0 auto 16px;
+  padding: 14px 16px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent-solid) 30%, var(--hairline-strong));
+  border-radius: 18px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent-solid) 14%, var(--surface-2)), color-mix(in srgb, var(--accent-to) 8%, var(--surface-1)) 75%);
+  box-shadow: var(--glow-edge);
+}
+.td-nowcard[hidden] { display: none; }
+.td-now-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+#today .td-now-h { margin: 0; font-size: var(--fs-meta); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-text); }
+.td-now-date { font-size: var(--fs-meta); color: var(--text-2); white-space: nowrap; }
+.td-now-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.td-now-row { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: center; column-gap: 8px; min-height: 26px; font-size: 14.5px; color: var(--text-1); }
+.td-now-row.soon .td-now-text { font-weight: 650; }
+.td-now-row.quiet, .td-now-row.mood, .td-now-row.clear { color: var(--text-2); font-size: 13.5px; }
+.td-now-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-now-ic { display: grid; place-items: center; width: 22px; height: 22px; color: var(--accent-text); }
+.td-now-ic svg { width: 16px; height: 16px; }
+.td-now-row.clear .td-now-ic { color: var(--success); }
+.td-now-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.td-now-acts:empty { display: none; }
+.td-now-acts > button { min-height: 44px; }
+
+/* Disclosure headings (phones and tablets): 44 px, a chevron, a short summary while collapsed. */
+#today .td-sec-h:has(> .td-sec-toggle)::after { display: none; }
+.td-sec-toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-control);
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+}
+.td-sec-toggle:hover { background: none; color: var(--text-1); }
+.td-sec-toggle:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 2px; }
+.td-sec-toggle::after { content: ""; flex: 1 1 12px; min-width: 12px; height: 1px; background: var(--hairline); }
+.td-chev { flex: none; width: 8px; height: 8px; margin: 0 2px 3px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform var(--dur-fast) var(--ease-out); }
+.td-shut .td-chev { transform: rotate(-45deg); margin-bottom: 0; }
+.td-sec-name { flex: none; }
+.td-sec-sum { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; letter-spacing: .02em; text-transform: none; color: var(--text-2); }
+.td-sec-sum[hidden] { display: none; }
+.td-pg[data-sec="needs"] .td-sec-sum { flex: none; padding: 1px 8px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--text-1); }
+.td-pg[hidden] { display: none; }
+.td-shut { gap: 0; }
+
+/* A phone group with one tile: the heading names it, so the tile's own title and icon are for screen
+   readers; its head keeps only the counts and the ⋯ menu, on the right. */
+#today .td-pg-single .td-tile-head > h3, #today .td-pg-single .td-tile-head > .td-tile-ic, #today .td-pg-single .td-tile-head > .td-needs {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+#today .td-pg-single .td-tile-head { justify-content: flex-end; min-height: 28px; margin: -6px 0 -4px; }
+#today .td-pg-single .td-tile-head > .td-count { margin-left: 0; margin-right: auto; }
+/* Needs you on a phone: an approval's two buttons go under its words. */
+#today.td-ff-phone .td-need.approval { grid-template-columns: 28px minmax(0, 1fr); row-gap: 4px; padding-bottom: 6px; }
+#today.td-ff-phone .td-need.approval > .td-need-acts { grid-column: 2; justify-content: flex-end; }
+#today.td-ff-phone .td-need-title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* Swipe rows (With her, Work): 85% cards that snap, the next one peeking; dots and ‹ › buttons under the row. */
+#today.td-ff-phone .td-swipe > .td-grid {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 2px;
+  padding: 2px;
+  margin: -2px;
+  scrollbar-width: none;
+}
+#today.td-ff-phone .td-swipe > .td-grid::-webkit-scrollbar { display: none; }
+#today.td-ff-phone .td-swipe > .td-grid > .td-tile { flex: 0 0 85%; scroll-snap-align: start; }
+#today.td-ff-phone .td-swipe > .td-grid[hidden] { display: none; }
+.td-swipe-nav { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.td-swipe-nav[hidden] { display: none; }
+.td-swipe-nav > button { width: 44px; min-width: 44px; min-height: 44px; padding: 0; font-size: 22px; line-height: 1; color: var(--text-2); }
+.td-swipe-nav > button:disabled { opacity: .35; }
+.td-dots { display: flex; gap: 6px; }
+.td-dot-i { width: 7px; height: 7px; border-radius: 50%; background: var(--hairline-strong); transition: background var(--dur-fast); }
+.td-dot-i.on { background: var(--accent-solid); }
+
+/* Phone: one column, the compact header (her face, the greeting, Refresh and Customise as icons). */
+#today.td-ff-phone .td-grid { grid-template-columns: minmax(0, 1fr); }
+#today.td-ff-phone .td-grid > .td-tile { grid-column: 1 / -1; }
+#today.td-ff-phone .td-tiles { gap: 14px; }
+#today.td-ff-phone .td-sec { gap: 6px; }
+#today.td-ff-phone .td-hero {
+  grid-template-columns: 44px minmax(0, 1fr) 44px 44px;
+  grid-template-areas: "face greet ref cus" "face badge ref cus" "status status status status";
+  align-items: center;
+  gap: 0 10px;
+  margin-bottom: 12px;
+}
+#today.td-ff-phone .td-hello, #today.td-ff-phone .td-actions, #today.td-ff-phone .td-face-wrap { display: contents; }
+#today.td-ff-phone .td-date, #today.td-ff-phone .td-her, #today.td-ff-phone .td-fresh { display: none; }
+#today.td-ff-phone #td-greeting { grid-area: greet; align-self: end; font-size: 19px; line-height: 1.2; letter-spacing: -0.01em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+#today.td-ff-phone .td-face-btn { grid-area: face; width: 44px; }
+#today.td-ff-phone .td-face-btn::before { inset: -22%; }
+#today.td-ff-phone .td-face { box-shadow: 0 0 0 2px var(--surface-0), 0 0 0 3.5px color-mix(in srgb, var(--accent-solid) 70%, var(--accent-to)); }
+#today.td-ff-phone .td-ai { grid-area: badge; justify-self: start; align-self: start; margin-top: 2px; font-size: 10.5px; padding: 0 8px; }
+#today.td-ff-phone #td-refresh { grid-area: ref; }
+#today.td-ff-phone #td-custom-open { grid-area: cus; }
+#today.td-ff-phone .td-hbtn { width: 44px; min-width: 44px; min-height: 44px; padding: 0; justify-content: center; }
+#today.td-ff-phone .td-hbtn .ic { margin: 0; }
+#today.td-ff-phone .td-btn-text { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+#today.td-ff-phone #td-status { grid-area: status; }
+#today.td-ff-phone #td-status:empty { display: none; }
+#today.td-ff-phone .td-nowcard { margin-bottom: 14px; }
+#today.td-ff-phone .td-wx-hours { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.td-sep { color: var(--text-3); }
+
+/* Tablet: two tracks whatever Today's width (L spans both, S and M take one), the desktop order. */
+#today.td-ff-tablet .td-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+#today.td-ff-tablet .td-grid > .td-md-6 { grid-column: span 6; }
+#today.td-ff-tablet .td-grid > .td-md-12 { grid-column: span 12; }
+#today.td-ff-tablet .td-scroll { padding-bottom: calc(28px + var(--safe-b)); }
+/* The tablet keeps the full header (with the date), so the Now card doesn't repeat it. */
+#today.td-ff-tablet .td-now-date { display: none; }
+.td-grid[hidden] { display: none; }
+
+/* Pull to refresh: a spinner that follows the finger (steps, no inline style) and spins while it loads. */
+.td-pull { position: sticky; top: 0; z-index: 4; display: flex; justify-content: center; height: 0; margin: 0 auto; pointer-events: none; }
+.td-pull-spin {
+  width: 32px;
+  height: 32px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 3px solid var(--hairline-strong);
+  border-top-color: var(--accent-solid);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-2);
+  opacity: 0;
+  transform: translateY(-40px);
+  transition: opacity var(--dur-fast), transform var(--dur-fast) var(--ease-out);
+}
+.td-pull.on .td-pull-spin { opacity: 1; }
+.td-pull[data-step="1"] .td-pull-spin { transform: translateY(-32px) rotate(45deg); }
+.td-pull[data-step="2"] .td-pull-spin { transform: translateY(-22px) rotate(90deg); }
+.td-pull[data-step="3"] .td-pull-spin { transform: translateY(-12px) rotate(135deg); }
+.td-pull[data-step="4"] .td-pull-spin { transform: translateY(0) rotate(180deg); }
+.td-pull[data-step="5"] .td-pull-spin { transform: translateY(6px) rotate(225deg); }
+.td-pull[data-step="6"] .td-pull-spin { transform: translateY(10px) rotate(270deg); }
+.td-pull[data-step="7"] .td-pull-spin { transform: translateY(13px) rotate(315deg); }
+.td-pull[data-step="8"] .td-pull-spin { transform: translateY(16px) rotate(360deg); }
+.td-pull.ready .td-pull-spin { border-color: var(--accent-solid); border-top-color: var(--accent-to); }
+.td-pull.busy .td-pull-spin { opacity: 1; transform: translateY(8px); animation: td-spin calc(var(--dur-slow) * 3) linear infinite; }
+@keyframes td-spin { to { transform: translateY(8px) rotate(360deg); } }
+/* Reduced motion: no travel, no rubber band, no snapping animation; only the spinner shows. */
+@media (prefers-reduced-motion: reduce) {
+  .td-pull .td-pull-spin, .td-pull[data-step] .td-pull-spin { transform: translateY(8px); transition: none; }
+  .td-pull.busy .td-pull-spin { animation: none; border-top-color: var(--accent-to); }
+  .td-chev, .td-dot-i { transition: none; }
+  #today.td-ff-phone .td-swipe > .td-grid { scroll-behavior: auto; }
 }
 
 /* ---------- The native apps' title strip ---------- */

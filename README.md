@@ -11,7 +11,7 @@ Windows, Mac and phones.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1456%20passing-brightgreen" alt="1456 tests passing">
+  <img src="https://img.shields.io/badge/tests-1466%20passing-brightgreen" alt="1466 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -25,7 +25,7 @@ Windows, Mac and phones.
   <sub>A real session on a local model (qwen3.8 27B on Ollama, one RTX 5090) on a throwaway test server, in the Night look: she cheers the user up, writes a small app and its test as the model streams them, asks before running a command, catches a real bug with a failing test and fixes it until all 7 tests pass. Frames picked from the recording; nothing in them was edited.</sub>
 </p>
 
-> **Status:** 2.44, MIT licensed, with fifty-five feature releases since 1.0 (all below). 2.5 to 2.8
+> **Status:** 2.45, MIT licensed, with fifty-six feature releases since 1.0 (all below). 2.5 to 2.8
 > gave the whole app a new look. The [Android app](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > is on Google Play; the iPhone app and the Mac App Store version are coming as soon as Apple approves them.
 > Read [docs/DISCLOSURES.md](docs/DISCLOSURES.md) before using or sharing Sara.
@@ -76,6 +76,7 @@ One-minute walkthroughs, recorded on a throwaway test server with a local model.
 
 | Release | What you get |
 |---|---|
+| **2.45** · Today on phones | **On a phone, Today opens with a Now card** (the next two things with how soon, leave-by, the weather and her mood), then *Needs you*, then your day. Sections fold with a one-line summary and stay as you left them on that device, *With her* and *Work* become swipe rows (with buttons too), and pull to refresh works in the browser and both apps. Tablets get two columns. Optional: a one-sentence "while you were away" note in her voice. |
 | **2.44** · Today, designed | **Today is laid out on purpose now:** *Your day* (one timeline of events, reminders and to-dos, with the weather and what's coming up), *Needs you* (approvals, failed work, overdue items and Mail), *With her*, *Work* and *Home & more*. Rows always line up, empty tiles fold away, and *Customise* moves, resizes or hides any tile (drag or keyboard), saved for each companion on every device. Mail shows your inbox, the change since yesterday and what she organised, with Undo, and updates by itself after a clean-up. An opt-in Rooms tile shows what's going on in rooms she keeps up with. |
 | **2.43** · She keeps up with the room | **In Discord channels and Telegram groups she follows the whole conversation** (switch it on per room; a plan card shows the model and the daily cap first). When someone calls her she knows what's being talked about right now, who's around and what changed since she last spoke, so she joins the present topic instead of an hour-old one. Each week is archived in her Library as a searchable transcript and folded into a room memory with notes about the people there (proposed People cards). *Forget this room* clears it all. 12 replayed busy channels in 6 languages: on the current topic 12/12. |
 | **2.42** · Titles that grow | **Session titles that say what the chat was about.** The first title is a placeholder; after a few exchanges, when the topic clearly moves, and at `/new`, a small model on your own computer names it again ("Starting a Vegetable Garden" → "Filing Freelance Tax Returns"). Titles you set are never changed, earlier titles are kept in the chat's info, nothing sensitive or private ends up in a title, and there's a daily cap. 40 test sessions: 0.90 on topic with a local 12B model. |
@@ -146,7 +147,6 @@ Every release: [CHANGELOG.md](CHANGELOG.md) · [releases](https://github.com/far
 
 In build order, one release each ([the full list](docs/ROADMAP.md)):
 
-- **Today, rethought** (2.44–2.45): a designed layout you can arrange, on big screens and phones.
 - **A polish pass** (2.47): clearer personality dials with examples, guidance on every page, a beginner path and a coder path.
 - **Next** (2.48–2.61): photos and files in chat apps, talking to her while she works, Signal, email, WhatsApp, iMessage (BlueBubbles) and SMS, "keep going until it's done", coding checks after edits, a routines gallery, and **the Sara Store** for plugins, skills and MCP servers (ComfyUI, Blender, Playwright…) with one-click installs and a way to submit your own.
 - The iPhone app (waiting on Apple), and your ideas in [Discussions](https://github.com/farena-ai/sara/discussions).
@@ -316,8 +316,8 @@ README or SPEC that no test checked. What she adds today is the way of working (
 asks before risky steps, shows what ran), not a higher score on these sets. Details, per-task
 results and how to re-run: [docs/RESULTS.md](docs/RESULTS.md).
 
-Plus `npm run check`: a typecheck and 1471 automated tests with a scripted fake model (no network,
-no GPU): 1456 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
+Plus `npm run check`: a typecheck and 1481 automated tests with a scripted fake model (no network,
+no GPU): 1466 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
 
 ## How Sara compares
 

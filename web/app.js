@@ -31,7 +31,7 @@ import { faceUrl, groupTag, initGroups, isGroup, openGroupDialog, showGroupButto
 import { appLink, inPhoneApp, phoneKind } from './pair-link.js';
 import { addToMomentsButton, initMoments, loadMoments, openMoments, renderTodayMoments, renderTodayPhotos } from './moments.js';
 import { closeToday, drawSkeleton, initToday, reloadParts, renderToday, showToday, todayData, todayOpen, todayPartChanged } from './today.js';
-import { editing as todayEditing, initTodayLayout, layoutPrefs, openSheet as openTodayCustomise, savePrefs, setPrefs as setTodayPrefs, tileMenu } from './today-layout.js';
+import { editing as todayEditing, initTodayLayout, layoutPrefs, openSheet as openTodayCustomise, saveCollapsed as saveTodayCollapsed, savePrefs, setPrefs as setTodayPrefs, tileMenu, tileTitle } from './today-layout.js';
 import { initBottomBar } from './bottom-bar.js';
 import { startsOnToday } from './start-view.js';
 import { DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNote, updatesShown, versionChanged } from './update-check.js';
@@ -1336,6 +1336,10 @@ initToday({
   reloadParts: (parts) => reloadParts(parts),
   editing: () => todayEditing(),
   fmt: TODAY_FMT_LATE,
+  // Phase 112 (TD2): phones and tablets: open/closed sections per form factor, headings' names, pull to refresh.
+  saveCollapsed: (form, list) => saveTodayCollapsed(form, list),
+  tileTitle: (id) => tileTitle(id),
+  refresh: () => loadToday(true),
 });
 initTodayLayout({ api, status: (msg) => ($('#td-status').textContent = msg), member: isMember, demo: () => document.body.classList.contains('demo'), data: () => todayData(), reloadParts: (parts) => reloadParts(parts) });
 // Phase 103 (ST8): Planner → Her plans and the chat's "Why I'm writing" line (web/agenda.js).

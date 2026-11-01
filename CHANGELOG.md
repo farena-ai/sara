@@ -5,6 +5,22 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.45.0 (2026-11-01): Today on phones and tablets (Phase 112, Today TD2; the Today track is complete)
+
+- **A Now card first** on phones and tablets: the next two things with how soon ("in 18 min", "Leave
+  by 2:35 for Dentist"), the weather in a line with the first wet hour, and her mood; then *Needs you*
+  (top 3), *Your day*, Weather and Mail, then your own section order.
+- **Folding sections** with a one-line summary when folded (Needs you always shows its count), kept
+  per device kind (phone, tablet) on the server; *When Today opens*: as I left it, everything open,
+  or only Now.
+- **Swipe rows** for *With her* and *Work* (with ‹ › buttons, keyboard and screen reader reachable;
+  a swipe never completes or deletes anything), **pull to refresh** in the browser and both apps, and
+  a quiet refresh of only the stale parts when you come back after a few minutes.
+- **Tablets:** two columns in your desktop order. Esc and Android back close a menu or the Customise
+  sheet before leaving Today. No sideways scrolling from 320 to 430 px; every touch target is 44 px.
+- **Since you were away,** two opt-ins (off by default): a one-sentence note in her voice (local model
+  first, capped, counts only) and a mention of rooms she answered in (owner only).
+
 ## 2.44.0 (2026-11-01): Today, designed (Phase 111, Today TD1)
 
 - **Five sections in a set order:** *Your day* (one timeline of events, reminders, to-dos and leave-by

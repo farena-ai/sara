@@ -48,6 +48,11 @@ export const TILES: readonly TileDef[] = [
 const TILE_BY_ID = new Map(TILES.map((t) => [t.id, t]));
 
 export const PHONE_OPEN = ['left', 'all', 'now'] as const;
+/**
+ * Phase 112 (TD2): what can be collapsed on a phone or a tablet. The sections, plus the phone's own
+ * single-tile groups (Weather and Mail have their own headings there, §7.1).
+ */
+export const COLLAPSIBLE = [...SECTIONS, 'weather', 'mail'] as const;
 export const COMING_DAYS = [7, 14, 30] as const;
 
 export interface TodayPrefs {
@@ -61,6 +66,10 @@ export interface TodayPrefs {
   setupHidden: string[];
   /** Since you were away: hours (0 = off). */
   awayHours: number;
+  /** Phase 112 (TD2, §15 Q4): a one-sentence summary in her voice (a small model call), off by default. */
+  awayVoice: boolean;
+  /** Phase 112 (TD2, §15 Q5): the away note may count the rooms she answered in (titles only), off by default. */
+  awayRooms: boolean;
   needsMail: boolean;
   usageCost: boolean;
   comingDays: number;
@@ -83,6 +92,8 @@ export function defaultPrefs(): TodayPrefs {
     home: { entities: [], scenes: [] },
     setupHidden: [],
     awayHours: 8,
+    awayVoice: false,
+    awayRooms: false,
     needsMail: true,
     usageCost: true,
     comingDays: 7,
@@ -135,7 +146,8 @@ export function normalizePrefs(raw: unknown, base: TodayPrefs = defaultPrefs()):
   }
   if (r.collapsed && typeof r.collapsed === 'object') {
     const c = r.collapsed as Record<string, unknown>;
-    out.collapsed = { phone: strList(c.phone).filter((x) => (SECTIONS as readonly string[]).includes(x)), tablet: strList(c.tablet).filter((x) => (SECTIONS as readonly string[]).includes(x)) };
+    const ok = (x: string) => (COLLAPSIBLE as readonly string[]).includes(x);
+    out.collapsed = { phone: c.phone === undefined ? out.collapsed.phone : strList(c.phone).filter(ok), tablet: c.tablet === undefined ? out.collapsed.tablet : strList(c.tablet).filter(ok) };
   }
   if (r.notToday && typeof r.notToday === 'object') {
     const n = r.notToday as Record<string, unknown>;
@@ -152,6 +164,8 @@ export function normalizePrefs(raw: unknown, base: TodayPrefs = defaultPrefs()):
     if (!Number.isFinite(n)) throw new LayoutError('Away hours must be a number.');
     out.awayHours = n <= 0 ? 0 : Math.min(24, Math.max(4, Math.round(n)));
   }
+  if (typeof r.awayVoice === 'boolean') out.awayVoice = r.awayVoice;
+  if (typeof r.awayRooms === 'boolean') out.awayRooms = r.awayRooms;
   if (typeof r.needsMail === 'boolean') out.needsMail = r.needsMail;
   if (typeof r.usageCost === 'boolean') out.usageCost = r.usageCost;
   if (r.comingDays !== undefined) {
@@ -230,7 +244,8 @@ export function putLayout(app: AppContext, patch: unknown): TodayPrefs {
 /** DELETE /api/today/layout: the designed layout again (the away time and Not today keys stay). */
 export function resetLayout(app: AppContext): TodayPrefs {
   const cur = getLayout(app).prefs;
-  const prefs = { ...defaultPrefs(), notToday: cur.notToday, migrated: cur.migrated, rooms: { on: false, ids: [] } };
+  // The phone's and tablet's open/closed sections are not part of the designed layout: they stay.
+  const prefs = { ...defaultPrefs(), notToday: cur.notToday, migrated: cur.migrated, rooms: { on: false, ids: [] }, collapsed: cur.collapsed };
   write(app, prefs);
   return prefs;
 }

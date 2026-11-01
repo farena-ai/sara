@@ -420,6 +420,7 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean; parts
       if (member) {
         delete (out.layout as Partial<TodayPrefs>).home;
         delete (out.layout as Partial<TodayPrefs>).rooms;
+        delete (out.layout as Partial<TodayPrefs>).awayRooms;
       }
       meta('layout');
     },

@@ -1,6 +1,6 @@
 # Today, rethought: a designed home screen on big screens and phones (design, Phases 111–112, versions 2.44.0–2.45.0)
 
-Status: design study, 2026-10-31. TD1 (Phase 111) is built in 2.44.0, see *As built (2.44.0)* at the end; TD2 is not built yet. This is a read-only study of the code at
+Status: **track complete.** TD1 (Phase 111) is built in 2.44.0 and TD2 (Phase 112) in 2.45.0; see *As built (2.44.0)* and *As built (2.45.0)* at the end. Design study of 2026-10-31. This is a read-only study of the code at
 2.43.0 (Phase 110 CH4 released). It is a ground-up design: no layout, schema or protocol detail is taken
 from Hermes Agent, OpenClaw or any other agent. Zero new npm runtime dependencies. Every outgoing
 request still goes through `src/net-guard.ts` (`netFetch`), as Google, Open-Meteo and Home Assistant do
@@ -1015,3 +1015,73 @@ added, it must leave out this part. Tests: `111.R` in `test/phase111.test.ts`.
 - The away line counts proactive, reminder and job messages from her, finished jobs, new memories,
   new moments and organised emails. Partner and room conversations are never sources of any part
   except the opt-in Rooms tile.
+
+## As built (2.45.0)
+
+Phase 112 (TD2) follows §7 with the §15 defaults (Q4 her sentence **off**, Q5 rooms **off**, Q8 *As I
+left it*). User guide: [../TODAY.md](../TODAY.md) → *Phones and tablets*, *Since you were away*.
+Tests: `test/phase112.test.ts` (112.1–112.8 as in §12.2, plus 112.N the Now card and 112.A the away
+note's two switches).
+
+**Where it lives.**
+- `web/today.js`: `formFactor`, `phoneOrder`, `collapsedAtOpen`, `pullTracker`, `returnParts`,
+  `escAction`, `nowItems`, `rainFrom` (pure, tested in Node); `applyLayout` draws three ways. The
+  form factor is decided by the screen and Today's own width: **phone** when the screen is 600 px or
+  less (a narrow desktop window gets it too), **tablet** on a touch screen whose Today content is
+  narrower than 840 px (an iPad beside the sidebar), otherwise the TD1 desktop. A `ResizeObserver`
+  redraws when it changes (a turned tablet, her panel opening).
+- Phones: the tiles move into `#td-pg-<group>` sections built by appending in `phoneOrder`, so the DOM
+  order is the visual order (no CSS `order`). Groups: `needs`, `day`, `weather`, `mail` (one tile
+  each: the heading names it and the tile's own title is kept for screen readers), then the owner's
+  order of `her`, `work` and `more` (Coming up joins Home & more). With her and Work become swipe rows
+  only with two cards or more: 85% cards, `scroll-snap-type: x mandatory`, a `role="region"` named
+  after the section, decorative dots and **‹ ›** buttons (the visible, keyboard and screen-reader way
+  to move); no row action is a swipe. An empty Needs you is hidden on a phone; the Now card says
+  *Nothing needs you right now.* Needs you shows its top three there.
+- The Now card (`#td-now`, class `.td-nowcard`: `.td-now` is the timeline's Now marker) shows on
+  phones and tablets: the next two timeline items by time with *in N min* / *Now:* / *at* /
+  *Leave by … for …*, the weather in one line with the first wet hour, her mood line, and on a phone
+  the date and *Plan my day with her* (the button node moves there and back).
+- Collapsing: headings become 44 px disclosure buttons on phones and tablets (plain headings on the
+  desktop). `prefs.collapsed.phone` / `.tablet` go through `PUT /api/today/layout` (no new route);
+  the server accepts the sections plus the phone's `weather` and `mail` groups. Reset keeps them (it
+  restores tiles, not what is folded). The *Phone: when Today opens* setting applies on each open:
+  *Everything open*, or *Only Now open* (everything folded except Needs you, which never folds by
+  itself). A folded heading shows a one-line summary; Needs you always shows its count.
+- Pull to refresh: touch events (passive) on `.td-scroll`, armed only at `scrollTop` 0, let go when
+  the page scrolls or the finger moves sideways, refresh once past 64 px (`loadToday(true)`), never
+  twice while one runs. The spinner follows the finger in eight `data-step` classes (no inline style)
+  and only shows, without travel, under reduced motion. Neither phone app wraps the web view in a
+  native pull (`MainActivity` and `WebView.swift` are unchanged; the test checks).
+- Return refresh: back to a visible Today after more than two minutes reloads only the parts older
+  than `PART_LIMIT` (Google parts 2 min, home 30 s, weather 15 min, projects 10 min, local parts 5 min).
+- Since you were away, the two TD1 leftovers: *Away note: include rooms* (`awayRooms`) adds
+  `{kind:'rooms', n, titles}` from `room_lines` where she spoke since `seen_at` (owner, main companion,
+  never members; titles only); *Away note: a sentence from her* (`awayVoice`) starts one `cheapCall`
+  (`source`/`purpose` `today-away`, a local model first, then the quick route, 6 runs and 6,000 tokens
+  a day) with the counted facts only, never waits for it, keeps it per absence and publishes SSE
+  `today {part:'away'}`; it never writes memory. Both have **?** tips; translations in all five
+  languages; help.html has *Today on a phone or tablet* and *Away note*.
+- `web/sw.js` v46.
+
+**Fixed on the way.** The tile foot's ` · ` separators used the class `td-dot` (the timeline's dot), so
+they drew as small circles; they are `td-sep` now. At 320–430 px nothing in Today is wider than the
+screen (checked live on every element at 320, 360, 390 and 430 px, swipe rows aside since they
+scroll inside themselves); the TD1 note of a scroll area 4 px wider than the screen at 390 px no
+longer reproduces with the phone layout. On touch screens every foot link, mail row and job button is
+44 px; the compact header's face is 44 px (the design said 40) so it meets the target rule.
+
+**Deviations.**
+- The design's tablet band was "600–899 px of container"; a portrait tablet beside the sidebar has
+  ~510 px, so tablets are detected by a touch screen and Today narrower than 840 px instead, and two
+  tracks are forced there. A desktop window of the same width keeps the desktop Today.
+- The pull gesture uses touch events rather than pointer events: pointer events are cancelled as soon
+  as the browser starts its own scroll, touch events keep coming in both web views.
+- The phone's single-tile groups keep the tile's ⋯ menu in a slim row at the top of the card.
+
+**Owner checks (TD2).** On your phone (web and the Android app; the iPhone when at hand): pull to
+refresh, fold Work and check it stays folded only on the phone, swipe the Work row, turn on *Away note:
+a sentence from her* and see the sentence after an absence; a quick TalkBack/VoiceOver pass on the Now
+card and Needs you.
+
+**Track complete.** Both phases of this design are built; anything further goes to the backlog.

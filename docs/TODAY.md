@@ -56,9 +56,9 @@ visible next to it, so you see each change as you make it.
   row share any space left over.
 - **Hide** or show any tile with its switch. Hiding from a tile's ⋯ menu gives you 8 seconds to undo.
 - **Reset** brings back the designed layout after one confirmation.
-- Settings at the bottom: *Since you were away after*, *Needs you: include mail*, *Usage today: show
-  cost*, *Coming up: how far* (7, 14 or 30 days), *Phone: when Today opens*, and *Show the Rooms tile*.
-  Each has a **?** tip.
+- Settings at the bottom: *Since you were away after*, *Away note: a sentence from her*, *Away note:
+  include rooms*, *Needs you: include mail*, *Usage today: show cost*, *Coming up: how far* (7, 14 or
+  30 days), *Phone: when Today opens*, and *Show the Rooms tile*. Each has a **?** tip.
 
 Every tile also has a **⋯** menu with *Smaller*, *Larger*, *Move up*, *Move down* and *Hide this tile*.
 With the keyboard, focus a tile and press **Alt+↑/↓** to move it or **Alt+←/→** to resize it; a screen
@@ -87,7 +87,45 @@ A household member sees their own Today: their day, their reminders and to-dos, 
 moments. The server never sends them your mail, approvals, failed jobs, home, usage, coding projects,
 webhooks or rooms. The demo shows sample tiles and can't be customised.
 
-## Phones
+## Since you were away
 
-On a phone, Today keeps the familiar stacked layout and nothing changes yet. Sections, *Now* and
-collapsing on phones come in the next phase (TD2).
+After you have been away for a while (8 hours by default; *Customise → Since you were away after*,
+Off to never show it), a short note above the sections says what happened: messages she sent on her
+own, background jobs that finished (and how many failed), new things she learned, new moments and
+emails she organised. It is counted from the records, with no model call. Dismiss it with ×; it never
+shows twice for the same absence.
+
+Two switches add to it, both **off** until you turn them on:
+
+- **Away note: a sentence from her** starts the note with one sentence in her voice. A small model
+  writes it (a model on your own hardware first, else your quick model), from the counts only; it is
+  made once per absence, appears a moment after Today opens, counts in *Usage* and never goes into
+  her memory.
+- **Away note: include rooms** adds how many chat rooms she answered in, with their titles. Nothing
+  anyone said there is shown. Only for you on your main companion; household members never get it.
+
+## Phones and tablets
+
+**On a phone** Today answers "what now, and anything for me?" first:
+
+- A compact header: her face, the greeting, and **Refresh** and **Customise** as icons.
+- The **Now** card: the next one or two things with how soon (*Standup in 18 min*, *Leave by 2:35 for
+  Dentist*), the weather in one line (*rain from 4 pm*), her mood, today's date and *Plan my day with
+  her*. When nothing needs you it says so here, and the Needs you section stays away.
+- Then, in this order: **Needs you** (the top three, *See all* for the rest), **Your day**, **Weather**,
+  **Mail**, then your other sections in your order. *With her* and *Work* are rows of cards you swipe
+  sideways; the ‹ › buttons and dots under a row do the same without swiping, and Tab reaches every
+  card.
+- **Tap a heading** to fold or unfold a section. A folded section says what is in it (*Mail 1,204 in
+  inbox · 37 unread*); Needs you always shows its count. Phones and tablets remember their own folded
+  sections for this companion, so folding Work on your phone doesn't fold it on the computer.
+  *Customise → Phone: when Today opens* picks *As I left it* (the default), *Everything open* or *Only
+  Now open* (Needs you still opens when something needs you).
+- **Pull down** at the very top to refresh everything. It is the same gesture in the browser, the
+  installed web app and both phone apps. With *reduce motion* on, you only see the spinner.
+- Coming back to Today after more than two minutes away reloads only what is out of date (mail,
+  calendar, home…), quietly.
+
+**On a tablet** Today keeps the desktop order in two columns with the Now card on top, and the section
+headings fold the same way. Android's back button closes an open menu or the Customise sheet before
+it leaves Today.

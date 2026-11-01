@@ -294,6 +294,8 @@ export function awayLines(away) {
       case 'memories': return t('New things she learned: {n}', { n: l.n });
       case 'moments': return t('New moments: {n}', { n: l.n });
       case 'mail': return t('Emails she organised: {n}', { n: l.n });
+      // Phase 112 (TD2): only with Include rooms on: a count and the room titles, nothing else.
+      case 'rooms': return l.titles?.length ? t('Rooms she answered in: {n} ({rooms})', { n: l.n, rooms: l.titles.join(', ') }) : t('Rooms she answered in: {n}', { n: l.n });
       default: return '';
     }
   }).filter(Boolean);
@@ -368,6 +370,148 @@ export function countDoneToday(tasks, now = Date.now()) {
   return tasks.filter((x) => x && x.status === 'done' && x.doneAt && new Date(x.doneAt).toDateString() === day).length;
 }
 
+
+// ---------- phones and tablets (Phase 112, TD2: docs/design/TODAY.md §7) ----------
+
+/**
+ * Which Today to draw: a phone (one column in priority order, the Now card, collapsible groups,
+ * swipe rows), a tablet (two tracks, the Now card, collapsible sections in the desktop order) or
+ * the desktop one (TD1). Phones by the screen (a narrow window gets the phone view too); tablets
+ * are touch screens whose Today is narrower than the 12-column grid (840 px of content).
+ */
+export function formFactor({ viewport = 1440, container = 1200, coarse = false } = {}) {
+  if (viewport <= 600) return 'phone';
+  if (coarse && container < 840) return 'tablet';
+  return 'desktop';
+}
+
+/** The phone's first groups, in priority order (§7.1): each holds one tile and has its own heading. */
+export const PHONE_HEAD = [['needs', 'td-needs'], ['day', 'td-calendar'], ['weather', 'td-weather'], ['mail', 'td-mail']];
+/** Groups on a phone that become swipe rows when they hold more than one card (§7.2). */
+export const SWIPE_GROUPS = ['her', 'work'];
+/** Everything that can be collapsed on a phone or a tablet (the server keeps the same list). */
+export const COLLAPSIBLE = ['day', 'needs', 'her', 'work', 'more', 'weather', 'mail'];
+
+/**
+ * The phone order (§7.1): Now first (always; it can't be hidden), then Needs you, Your day,
+ * Weather and Mail, then the owner's section order for the rest (With her and Work as swipe rows;
+ * Coming up and whatever else Your day or Needs you hold go with Home & more). Hidden tiles stay
+ * hidden (`shown: false`). The page is built in this order, so DOM order is the visual order.
+ */
+export function phoneOrder(prefs, { member = false } = {}) {
+  const model = layoutModel(prefs, { member });
+  const byId = new Map(model.flatMap((s) => s.tiles).map((x) => [x.id, x]));
+  const groups = [{ id: 'now', tiles: [{ id: 'td-now', size: 'L', sizes: ['L'], shown: true }], single: true, swipe: false }];
+  const head = new Set(PHONE_HEAD.map(([, id]) => id));
+  for (const [g, id] of PHONE_HEAD) if (byId.has(id)) groups.push({ id: g, tiles: [byId.get(id)], single: true, swipe: false });
+  const left = model.filter((s) => s.id === 'day' || s.id === 'needs').flatMap((s) => s.tiles).filter((x) => !head.has(x.id));
+  for (const sec of model) {
+    if (sec.id === 'day' || sec.id === 'needs') continue;
+    const tiles = sec.id === 'more' ? [...left, ...sec.tiles] : sec.tiles;
+    groups.push({ id: sec.id, tiles, single: false, swipe: SWIPE_GROUPS.includes(sec.id) });
+  }
+  return groups;
+}
+
+/**
+ * Which groups start collapsed (§7.3): saved per companion AND per form factor (phone, tablet;
+ * the desktop never collapses). On a phone the "when Today opens" setting overrides it: everything
+ * open, or only Now open (Needs you never collapses by itself).
+ */
+export function collapsedAtOpen(prefs, form) {
+  if (form !== 'phone' && form !== 'tablet') return [];
+  const saved = (prefs?.collapsed?.[form] ?? []).filter((x) => COLLAPSIBLE.includes(x));
+  if (form === 'phone' && prefs?.phoneOpen === 'all') return [];
+  if (form === 'phone' && prefs?.phoneOpen === 'now') return COLLAPSIBLE.filter((x) => x !== 'needs');
+  return saved;
+}
+
+/**
+ * Pull to refresh (§7.4) as a small state machine, fed by touch events on Today's scroll area
+ * (the same gesture in mobile browsers, the installed web app and both phone apps' web views):
+ * it arms only when the touch starts at the top (scrollTop 0), lets go when the page scrolls or
+ * the finger moves sideways (a swipe row), and past `threshold` px a release refreshes once.
+ * `step` (0–8) drives the spinner's travel through classes; with reduced motion it stays 0 and
+ * only the spinner shows.
+ */
+export function pullTracker({ threshold = 64, onRefresh, reduced = () => false } = {}) {
+  let s = null;
+  let busy = false;
+  const idle = { pull: 0, step: 0, ready: false, active: false };
+  const view = () => (s ? { pull: s.dy, step: reduced() ? 0 : Math.min(8, Math.floor(s.dy / 16)), ready: s.dy >= threshold, active: s.dy > 4 } : idle);
+  return {
+    start(x, y, scrollTop) {
+      s = !busy && scrollTop <= 0 ? { x, y, dy: 0 } : null;
+      return view();
+    },
+    move(x, y, scrollTop) {
+      if (!s) return idle;
+      const dx = x - s.x;
+      const dy = y - s.y;
+      if (scrollTop > 0 || (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy))) {
+        s = null;
+        return idle;
+      }
+      s.dy = Math.max(0, dy);
+      return view();
+    },
+    end() {
+      const fire = Boolean(s && s.dy >= threshold);
+      s = null;
+      if (fire) {
+        busy = true;
+        Promise.resolve()
+          .then(() => onRefresh?.())
+          .finally(() => (busy = false));
+      }
+      return { ...idle, fired: fire };
+    },
+    cancel() {
+      s = null;
+      return idle;
+    },
+    busy: () => busy,
+  };
+}
+
+/** How old each part may get before a return to Today reloads it (§7.4, §8.2). */
+export const PART_LIMIT = { day: 120_000, coming: 120_000, mail: 120_000, home: 30_000, weather: 15 * 60_000, projects: 10 * 60_000, needs: 5 * 60_000, work: 5 * 60_000, usage: 5 * 60_000, board: 5 * 60_000, plans: 5 * 60_000, memories: 5 * 60_000, moments: 5 * 60_000, her: 5 * 60_000, models: 5 * 60_000, hooks: 5 * 60_000, rooms: 5 * 60_000, away: 5 * 60_000 };
+/**
+ * Back to a visible Today (§7.4): after more than 2 minutes away, the parts older than their
+ * limits (not a full refresh, no spinner); a short look away reloads nothing.
+ */
+export function returnParts({ hiddenAt, now = Date.now(), parts = {}, limits = PART_LIMIT } = {}) {
+  if (!hiddenAt || now - hiddenAt <= 120_000) return [];
+  return Object.entries(parts).filter(([k, v]) => limits[k] && v?.at && now - Date.parse(v.at) > limits[k]).map(([k]) => k);
+}
+
+/**
+ * What Esc (and Android's back, which arrives as Esc in the app) does on Today: an open ⋯ menu or
+ * the Customise sheet closes first; anything else on top keeps it; otherwise back to the chat.
+ */
+export function escAction({ menu = false, sheet = false, other = false } = {}) {
+  if (menu) return 'menu';
+  if (sheet) return 'sheet';
+  if (other) return 'none';
+  return 'leave';
+}
+
+/** The Now card's next things (§7.1): at most two that are not over, each with how soon. */
+export function nowItems(d, now = Date.now()) {
+  return dayItems(d, now)
+    .filter((x) => !x.allDay && !x.past && Number.isFinite(x.at))
+    // By time here (the timeline keeps a leave-by under its event; Now wants the next thing to do).
+    .sort((a, b) => a.at - b.at)
+    .slice(0, 2)
+    .map((x) => ({ ...x, mins: Math.round((x.at - now) / 60_000) }));
+}
+
+/** The first coming hour with rain, snow or a storm (the Now card's "rain from 4 pm"). */
+export function rainFrom(w) {
+  const wet = ['drizzle', 'rain', 'showers', 'snow', 'snow-showers', 'thunder'];
+  return (w?.hours ?? []).find((h) => wet.includes(weatherKind(h.code, h.day !== false).kind)) ?? null;
+}
+
 // ---------- the view ----------
 
 export const todayOpen = () => Boolean($('#today')?.open);
@@ -392,6 +536,9 @@ export function closeToday({ focus = true } = {}) {
 }
 function afterClose(focus) {
   document.documentElement.classList.remove('today-open');
+  // The next open starts from the saved open/closed sections (and the phone's setting) again.
+  shutNow.phone = null;
+  shutNow.tablet = null;
   for (const n of $('#chat').children) n.inert = false;
   if (focus && !matchMedia('(pointer: coarse)').matches) $('#input')?.focus({ preventScroll: true });
 }
@@ -438,7 +585,8 @@ function freshFoot(at, limitMs, extra = []) {
     p.append(tm);
   }
   for (const x of extra) {
-    if (n++) p.append(el('span', 'td-dot', ' · '));
+    // td-sep, not td-dot (that is the timeline's circle): a plain middle dot between the foot's parts.
+    if (n++) p.append(el('span', 'td-sep', ' · '));
     p.append(x);
   }
   return p;
@@ -487,7 +635,8 @@ export function renderWeather(w) {
   const hours = el('ol', 'td-wx-hours');
   hours.setAttribute('aria-label', t('The next hours'));
   // At S size the next-hours row shows three hours (§4.2).
-  for (const h of (w.hours ?? []).slice(0, sizeOf('td-weather') === 'S' ? 3 : 4)) {
+  // A phone's Weather is a full-width card: five hours in a row (§7.1).
+  for (const h of (w.hours ?? []).slice(0, form === 'phone' ? 5 : sizeOf('td-weather') === 'S' ? 3 : 4)) {
     const li = el('li', 'td-wx-hour');
     li.append(el('span', 'td-wx-h', hourOf(h.time)), weatherArt(weatherKind(h.code, h.day !== false).kind, h.day !== false), el('span', 'td-wx-ht', h.temp === null ? '–' : `${h.temp}°`));
     hours.append(li);
@@ -665,7 +814,8 @@ export function renderNeeds(d) {
   const tile = $('#td-needs');
   if (!tile) return;
   const items = needsItems(d);
-  tile.hidden = false;
+  // A phone hides an empty Needs you (the Now card says "Nothing needs you" instead, §7.1).
+  tile.hidden = form === 'phone' && !items.length;
   tileHead(tile, t('Needs you'), items.length ? el('span', 'td-count td-needs', String(items.length)) : null);
   const body = tile.querySelector('.td-body');
   // Only a count that grows is announced, at most once every 30 seconds.
@@ -685,7 +835,8 @@ export function renderNeeds(d) {
   }
   const ul = el('ul', 'td-needs-list');
   const draw = (n) => ul.replaceChildren(...items.slice(0, n).map((x) => needsRow(x, d)));
-  const n = ROWS[sizeOf('td-needs')];
+  // A phone shows the top three (§7.1); See all opens the rest in place.
+  const n = form === 'phone' ? 3 : ROWS[sizeOf('td-needs')];
   draw(n);
   body.replaceChildren(ul, ...seeAll(items, n, draw));
 }
@@ -1301,7 +1452,8 @@ function renderAway(away) {
   const lines = awayLines(away);
   box.hidden = !lines.length || awayDismissed === away?.since;
   if (box.hidden) return;
-  $('#td-away-text').textContent = `${t('While you were away ({n} h):', { n: away.hours })} ${lines.join(' · ')}`;
+  // Her sentence (off by default, §15 Q4) comes first when there is one; the counted lines stay.
+  $('#td-away-text').textContent = `${away.voice ? `${away.voice} ` : ''}${t('While you were away ({n} h):', { n: away.hours })} ${lines.join(' · ')}`;
 }
 let awayDismissed = null;
 
@@ -1319,38 +1471,296 @@ export const todayData = () => state.d;
 export function applyLayout(prefs, { empty = {}, pending = false, keep = [] } = {}) {
   const root = $('#td-tiles');
   if (!root) return [];
+  form = measureForm() ?? form;
+  const view = $('#today');
+  view?.classList.toggle('td-ff-phone', form === 'phone');
+  view?.classList.toggle('td-ff-tablet', form === 'tablet');
   const model = layoutModel(prefs, { member: ctx?.member?.() });
+  const isOn = (x) => x.shown && (pending ? keep.includes(x.id) : !empty[x.id]);
+  const place = (grid, x) => {
+    const tile = $(`#${x.id}`);
+    if (!tile) return false;
+    grid.append(tile);
+    const on = isOn(x);
+    tile.hidden = !on;
+    tile.classList.toggle('td-skel', pending && on);
+    tile.dataset.size = x.size;
+    tile.className = tile.className.split(' ').filter((c) => !/^td-(span|lg|md)-\d+$/.test(c)).join(' ');
+    return on;
+  };
   const visible = [];
-  for (const sec of model) {
-    const node = $(`#td-sec-${sec.id}`);
-    if (!node) continue;
-    root.append(node);
-    const grid = node.querySelector('.td-grid');
-    const shownHere = [];
-    for (const x of sec.tiles) {
-      const tile = $(`#${x.id}`);
-      if (!tile) continue;
-      grid.append(tile);
-      const on = x.shown && (pending ? keep.includes(x.id) : !empty[x.id]);
-      tile.hidden = !on;
-      tile.classList.toggle('td-skel', pending && on);
-      tile.dataset.size = x.size;
-      if (on) shownHere.push(x);
+  const shut = collapsedNow(prefs);
+  if (form === 'phone') {
+    // One column in priority order: the tiles move into the phone's groups (DOM order = visual order).
+    for (const sec of model) {
+      const node = $(`#td-sec-${sec.id}`);
+      if (node) node.hidden = true;
     }
-    const spans = spanClasses(shownHere);
-    for (const x of sec.tiles) {
-      const tile = $(`#${x.id}`);
-      if (!tile) continue;
-      tile.className = tile.className.split(' ').filter((c) => !/^td-(span|lg|md)-\d+$/.test(c)).join(' ');
-      if (spans[x.id]) tile.classList.add(...spans[x.id]);
+    for (const g of phoneOrder(prefs, { member: ctx?.member?.() })) {
+      if (g.id === 'now') continue;
+      const node = phoneGroup(g.id);
+      root.append(node);
+      const grid = node.querySelector('.td-grid');
+      const here = g.tiles.filter((x) => place(grid, x));
+      node.hidden = !here.length;
+      node.classList.toggle('td-pg-single', g.single);
+      // A swipe row only with two cards or more (one card is just a card).
+      node.classList.toggle('td-swipe', g.swipe && here.length > 1);
+      if (g.swipe && here.length > 1) {
+        grid.setAttribute('role', 'region');
+        grid.setAttribute('aria-label', groupTitle(g.id));
+      } else {
+        grid.removeAttribute('role');
+        grid.removeAttribute('aria-label');
+      }
+      setCollapsed(node, g.id, shut.includes(g.id));
+      swipeNav(node, g.swipe ? here.length : 0);
+      visible.push(...here.map((x) => x.id));
     }
-    node.hidden = !shownHere.length;
-    visible.push(...shownHere.map((x) => x.id));
+  } else {
+    for (const node of document.querySelectorAll('#td-tiles > .td-pg')) node.hidden = true;
+    for (const sec of model) {
+      const node = $(`#td-sec-${sec.id}`);
+      if (!node) continue;
+      root.append(node);
+      const grid = node.querySelector('.td-grid');
+      const shownHere = sec.tiles.filter((x) => place(grid, x));
+      const spans = spanClasses(shownHere);
+      for (const x of shownHere) $(`#${x.id}`)?.classList.add(...spans[x.id]);
+      node.hidden = !shownHere.length;
+      // Tablets: the section headings open and close (remembered for tablets only).
+      sectionToggle(node, sec.id, form === 'tablet');
+      if (form === 'tablet') setCollapsed(node, sec.id, shut.includes(sec.id));
+      else grid.hidden = false;
+      visible.push(...shownHere.map((x) => x.id));
+    }
   }
   // Hidden tiles' sizes are remembered for the renderers (rows per size).
   currentSizes = Object.fromEntries(model.flatMap((s) => s.tiles.map((x) => [x.id, x.size])));
   root.append($('#td-live') ?? document.createComment(''));
+  placeNow();
+  summarise();
   return visible;
+}
+
+// ---------- the form factor, the phone's groups, collapsing, swipe rows (TD2) ----------
+
+let form = 'desktop';
+export const currentForm = () => form;
+/** Today's own width (its content box) and the screen: phone, tablet or desktop. Null while Today is closed. */
+function measureForm() {
+  const sc = $('#today .td-scroll');
+  if (!sc || !sc.clientWidth) return null;
+  const cs = getComputedStyle(sc);
+  const container = sc.clientWidth - parseFloat(cs.paddingLeft || '0') - parseFloat(cs.paddingRight || '0');
+  return formFactor({ viewport: innerWidth, container, coarse: matchMedia('(pointer: coarse)').matches });
+}
+
+/** The words for a group's heading on a phone (the sections' own words, plus Weather and Mail). */
+function groupTitle(id) {
+  return { day: t('Your day'), needs: t('Needs you'), her: t('With her'), work: t('Work'), more: t('Home & more'), weather: t('Weather'), mail: t('Mail') }[id] ?? id;
+}
+
+/** A phone group: a section with a disclosure heading, its grid, and (for swipe rows) the dots and buttons. */
+function phoneGroup(id) {
+  let node = $(`#td-pg-${id}`);
+  if (node) return node;
+  node = el('section', 'td-sec td-pg');
+  node.id = `td-pg-${id}`;
+  node.dataset.sec = id;
+  const h = el('h2', 'td-sec-h');
+  h.id = `td-pg-${id}-h`;
+  node.setAttribute('aria-labelledby', h.id);
+  const grid = el('div', 'td-grid');
+  grid.id = `td-pg-${id}-grid`;
+  node.append(h, grid);
+  sectionToggle(node, id, true);
+  return node;
+}
+
+/**
+ * The heading as a disclosure button (44 px, a chevron, aria-expanded) on phones and tablets; a
+ * plain heading on the desktop. Collapsed, it shows a one-line summary.
+ */
+function sectionToggle(node, id, on) {
+  const h = node.querySelector('.td-sec-h');
+  const grid = node.querySelector('.td-grid');
+  if (!h || !grid) return;
+  const has = h.querySelector('.td-sec-toggle');
+  const name = node.classList.contains('td-pg') ? groupTitle(id) : (has?.querySelector('.td-sec-name')?.textContent ?? h.textContent);
+  if (!on) {
+    if (has) h.replaceChildren(name);
+    return;
+  }
+  if (has) return;
+  if (!grid.id) grid.id = `${node.id}-grid`;
+  const b = btn('td-sec-toggle', '');
+  b.setAttribute('aria-expanded', 'true');
+  b.setAttribute('aria-controls', grid.id);
+  const chev = el('span', 'td-chev');
+  chev.setAttribute('aria-hidden', 'true');
+  b.append(chev, el('span', 'td-sec-name', name), el('span', 'td-sec-sum'));
+  b.addEventListener('click', () => toggleGroup(id));
+  h.replaceChildren(b);
+}
+
+/** Open or shut one group; saved for this companion and this form factor only (§7.3). */
+function toggleGroup(id) {
+  const now = collapsedNow(state.prefs);
+  const next = now.includes(id) ? now.filter((x) => x !== id) : [...now, id];
+  shutNow[form] = next;
+  const node = form === 'phone' ? $(`#td-pg-${id}`) : $(`#td-sec-${id}`);
+  if (node) setCollapsed(node, id, next.includes(id));
+  summarise();
+  ctx.saveCollapsed?.(form, next);
+}
+/** This visit's collapsed groups (set when Today opens, from the saved state and the phone setting). */
+const shutNow = { phone: null, tablet: null };
+function collapsedNow(prefs) {
+  if (form === 'desktop') return [];
+  shutNow[form] ??= collapsedAtOpen(prefs, form);
+  return shutNow[form];
+}
+function setCollapsed(node, id, shut) {
+  const grid = node.querySelector('.td-grid');
+  const b = node.querySelector('.td-sec-toggle');
+  if (grid) grid.hidden = shut;
+  node.classList.toggle('td-shut', shut);
+  b?.setAttribute('aria-expanded', String(!shut));
+  const nav = node.querySelector('.td-swipe-nav');
+  if (nav) nav.hidden = shut || !node.classList.contains('td-swipe');
+}
+
+/** Each heading's short summary: Needs you's count always; the rest only while collapsed. */
+function summarise() {
+  const d = state.d;
+  for (const b of document.querySelectorAll('#td-tiles .td-sec-toggle')) {
+    const node = b.closest('.td-sec');
+    const id = node?.dataset.sec;
+    const sum = b.querySelector('.td-sec-sum');
+    if (!id || !sum) continue;
+    const shut = node.classList.contains('td-shut');
+    let words = '';
+    if (d && id === 'needs') {
+      const n = needsItems(d).length;
+      words = n ? String(n) : '';
+    } else if (d && shut) words = groupSummary(id, d, node);
+    sum.textContent = words;
+    sum.hidden = !words;
+  }
+}
+function groupSummary(id, d, node) {
+  const names = () => [...node.querySelectorAll('.td-tile:not([hidden])')].map((x) => ctx.tileTitle?.(x.id) ?? x.querySelector('h3')?.textContent ?? '').filter(Boolean).join(' · ');
+  if (id === 'weather' && d.weather && d.weather.now !== null && d.weather.now !== undefined) return [`${d.weather.now}°`, weatherWords(weatherKind(d.weather.code, d.weather.day !== false).kind)].filter(Boolean).join(' · ');
+  if (id === 'mail' && d.mail && !d.mail.error) return typeof d.mail.total === 'number' ? t('{total} in inbox · {unread} unread', { total: num(d.mail.total), unread: num(d.mail.unread) }) : t('Unread: {n}', { n: num(d.mail.unread) });
+  if (id === 'day' && form === 'phone') {
+    const next = nowItems(d)[0];
+    return next ? `${time(next.at)} ${next.kind === 'leave' ? t('Leave by {time} · {n} min', { time: time(next.at), n: next.minutes }) : next.title}` : '';
+  }
+  return names();
+}
+
+/** A swipe row's dots (decorative) and its Previous/Next buttons: the visible way to move without swiping. */
+function swipeNav(node, n) {
+  let nav = node.querySelector('.td-swipe-nav');
+  const on = node.classList.contains('td-swipe');
+  if (!on) {
+    if (nav) nav.hidden = true;
+    return;
+  }
+  const grid = node.querySelector('.td-grid');
+  if (!nav) {
+    nav = el('div', 'td-swipe-nav');
+    const prev = btn('ghost icon td-swipe-prev', '‹', () => step(-1));
+    prev.setAttribute('aria-label', t('Previous card'));
+    const next = btn('ghost icon td-swipe-next', '›', () => step(1));
+    next.setAttribute('aria-label', t('Next card'));
+    const dots = el('span', 'td-dots');
+    dots.setAttribute('aria-hidden', 'true');
+    nav.append(prev, dots, next);
+    node.append(nav);
+    const cards = () => [...grid.querySelectorAll(':scope > .td-tile:not([hidden])')];
+    const at = () => {
+      const list = cards();
+      const left = grid.scrollLeft;
+      let best = 0;
+      list.forEach((c, i) => {
+        if (Math.abs(c.offsetLeft - grid.offsetLeft - left) < Math.abs(list[best].offsetLeft - grid.offsetLeft - left)) best = i;
+      });
+      return best;
+    };
+    const step = (dir) => {
+      const list = cards();
+      const to = list[Math.max(0, Math.min(list.length - 1, at() + dir))];
+      if (!to) return;
+      grid.scrollTo({ left: to.offsetLeft - grid.offsetLeft, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    };
+    const mark = () => {
+      const i = at();
+      const list = cards();
+      [...dots.children].forEach((d, k) => d.classList.toggle('on', k === i));
+      prev.disabled = i <= 0;
+      next.disabled = i >= list.length - 1;
+    };
+    grid.addEventListener('scroll', () => requestAnimationFrame(mark), { passive: true });
+    nav.mark = mark;
+  }
+  nav.hidden = node.classList.contains('td-shut');
+  const dots = nav.querySelector('.td-dots');
+  dots.replaceChildren(...Array.from({ length: n }, () => el('span', 'td-dot-i')));
+  nav.mark?.();
+}
+
+/**
+ * The Now card (phones and tablets): its place is first, before Getting started; on a phone the
+ * date and Plan my day move into it (the compact header keeps only her face, the greeting,
+ * Refresh and Customise).
+ */
+function placeNow() {
+  const card = $('#td-now');
+  if (!card) return;
+  card.hidden = form === 'desktop';
+  const ask = $('#td-ask');
+  const acts = $('#td-now-acts');
+  if (!ask || !acts) return;
+  if (form === 'phone' && ask.parentNode !== acts) acts.append(ask);
+  if (form !== 'phone' && ask.parentNode === acts) $('#today .td-actions')?.prepend(ask);
+}
+
+/** Fills the Now card from the batched answer: the next things with a countdown, the weather in one line, her mood. */
+export function renderNow(d) {
+  const card = $('#td-now');
+  if (!card || !d) return;
+  const now = Date.now();
+  $('#td-now-date').textContent = new Date(now).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
+  const rows = [];
+  const row = (iconName, text, cls = '') => {
+    const li = el('li', `td-now-row ${cls}`.trim());
+    const ic = icon(iconName);
+    const mark = el('span', 'td-now-ic');
+    mark.setAttribute('aria-hidden', 'true');
+    if (ic) mark.append(ic);
+    li.append(mark, raw(el('span', 'td-now-text', text)));
+    return li;
+  };
+  for (const x of nowItems(d, now)) {
+    if (x.kind === 'leave') rows.push(row('car', t('Leave by {time} for {what}', { time: time(x.at), what: x.title }), 'leave'));
+    else if (x.mins <= 0) rows.push(row(x.kind === 'reminder' ? 'reminder' : 'calendar', t('Now: {what}', { what: x.title }), 'soon'));
+    else if (x.mins < 60) rows.push(row(x.kind === 'reminder' ? 'reminder' : 'calendar', t('{what} in {n} min', { what: x.title, n: x.mins }), 'soon'));
+    else rows.push(row(x.kind === 'reminder' ? 'reminder' : 'calendar', t('{what} at {time}', { what: x.title, time: time(x.at) })));
+  }
+  if (!rows.length) rows.push(row('calendar', dayItems(d, now).length ? t('Nothing else planned today.') : t('Nothing planned. Enjoy the space.'), 'quiet'));
+  const w = d.weather;
+  if (w && w.setUp !== false && !w.error && w.now !== null && w.now !== undefined) {
+    const wet = rainFrom(w);
+    const words = [`${w.now}°`, weatherWords(weatherKind(w.code, w.day !== false).kind), wet ? t('rain from {time}', { time: hourOf(wet.time) }) : ''].filter(Boolean).join(' · ');
+    rows.push(row('weather', words, 'weather'));
+  }
+  const mood = $('#td-mood-text')?.textContent?.trim();
+  if (d.her && mood) rows.push(row('heart', `${$('#td-her-name')?.textContent ?? ''}: ${mood}`, 'mood'));
+  if (!needsItems(d).length) rows.push(row('check', t('Nothing needs you right now.'), 'clear'));
+  $('#td-now-list').replaceChildren(...rows);
+  card.classList.remove('td-skel');
 }
 
 const SKEL_KEY = 'sara.today.slots';
@@ -1425,6 +1835,8 @@ export function renderToday(d, { fmtDue, inDaysWords }) {
   const visible = applyLayout(prefs, { empty: lastEmpty });
   rememberSlots(prefs, visible);
   freshHeader(d);
+  renderNow(d);
+  summarise();
 }
 const lastEmpty = {};
 
@@ -1483,6 +1895,71 @@ export async function reloadParts(parts) {
   state.d = merged;
 }
 
+/**
+ * Phase 112 (TD2): the phone and tablet wiring. The layout follows Today's width (a turned tablet,
+ * her panel opening); pull to refresh on the scroll area; back to a visible Today after more than
+ * two minutes reloads the parts that are past their limits.
+ */
+function initTouch(d) {
+  const sc = d.querySelector('.td-scroll');
+  if (!sc) return;
+  let frame = 0;
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!todayOpen() || !state.prefs) return;
+        const was = form;
+        // Another form factor: every tile is drawn again (rows per size, the phone's empty Needs you).
+        if ((measureForm() ?? form) !== was && state.d) renderToday(state.d, ctx.fmt);
+      });
+    }).observe(sc);
+  }
+  const pull = $('#td-pull');
+  const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const show = (v) => {
+    if (!pull) return;
+    pull.dataset.step = String(v.step ?? 0);
+    pull.classList.toggle('on', Boolean(v.active) || tracker.busy());
+    pull.classList.toggle('ready', Boolean(v.ready));
+  };
+  const tracker = pullTracker({
+    threshold: 64,
+    reduced,
+    onRefresh: async () => {
+      pull?.classList.add('busy', 'on');
+      try {
+        await ctx.refresh?.();
+      } finally {
+        pull?.classList.remove('busy', 'on', 'ready');
+        if (pull) pull.dataset.step = '0';
+      }
+    },
+  });
+  const pt = (e) => e.touches?.[0] ?? e.changedTouches?.[0];
+  sc.addEventListener('touchstart', (e) => {
+    const p = pt(e);
+    if (!p || e.touches.length > 1) return void show(tracker.cancel());
+    show(tracker.start(p.clientX, p.clientY, sc.scrollTop));
+  }, { passive: true });
+  sc.addEventListener('touchmove', (e) => {
+    const p = pt(e);
+    if (p) show(tracker.move(p.clientX, p.clientY, sc.scrollTop));
+  }, { passive: true });
+  sc.addEventListener('touchend', () => show(tracker.end()), { passive: true });
+  sc.addEventListener('touchcancel', () => show(tracker.cancel()), { passive: true });
+  let hiddenAt = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      hiddenAt = Date.now();
+      return;
+    }
+    const parts = todayOpen() && state.d ? returnParts({ hiddenAt, parts: state.d.parts ?? {} }) : [];
+    hiddenAt = 0;
+    if (parts.length) void reloadParts(parts);
+  });
+}
+
 export function initToday(c) {
   ctx = c;
   const d = $('#today');
@@ -1492,9 +1969,9 @@ export function initToday(c) {
   // the Customise sheet).
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape' || !d.open || e.defaultPrevented) return;
-    if (document.querySelector('dialog[open]:not(#today)') || document.querySelector('.her-panel.is-open:is(.mode-overlay, .mode-sheet)')) return;
-    if ($('#main').classList.contains('show-sidebar') || document.querySelector('.tour-card')) return;
-    if (!$('#td-custom')?.hidden) return;
+    const other = Boolean(document.querySelector('dialog[open]:not(#today)') || document.querySelector('.her-panel.is-open:is(.mode-overlay, .mode-sheet)') || $('#main').classList.contains('show-sidebar') || document.querySelector('.tour-card'));
+    // An open ⋯ menu or the Customise sheet closes first (web/today-layout.js handles both).
+    if (escAction({ menu: Boolean(document.querySelector('#today .td-menu')), sheet: !$('#td-custom')?.hidden, other }) !== 'leave') return;
     closeToday();
   });
   d.addEventListener('close', () => afterClose(false));
@@ -1516,6 +1993,7 @@ export function initToday(c) {
     if (!todayOpen()) return;
     rewordFreshness();
   }, 60_000);
+  initTouch(d);
   // Today (or a chat) open and visible: "seen" for Since you were away, at most every 5 minutes.
   setInterval(() => {
     if (document.visibilityState === 'visible' && !ctx.demo()) void ctx.api('/today/seen', { method: 'PUT', body: {} }).catch(() => {});
