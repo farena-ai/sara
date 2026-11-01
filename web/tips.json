@@ -1389,6 +1389,19 @@
       "When a chat is almost too long for her to keep in mind, she says so once and suggests /new. The old session is kept and summarised.",
       "chatapps"
     ]
+,
+    "ap-sessions": [
+      "How many sessions each project shows before See more. The rest are one press away and always in search.",
+      "start"
+    ],
+    "pp-ch-shown": [
+      "Off takes this project out of the sidebar; \"Hidden projects\" at the bottom of the list brings it back. New sessions still land here, and search and the command palette still find them.",
+      "chatapps"
+    ],
+    "pp-ch-rooms": [
+      "Shows a heading per server channel, group or direct chat inside this project, each with its own See more.",
+      "chatapps"
+    ]
   },
   "pages": {
     "her-import": [

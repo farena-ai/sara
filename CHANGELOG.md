@@ -5,6 +5,21 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.41.0 (2026-10-31): a tidy session list (Phase 108, chats CH2)
+
+- **A built-in project per chat app:** Telegram, Discord and one per plugin bridge (WhatsApp,
+  Signal…), created on a chat's first message; web and app chats stay in your own projects. Chats from
+  before 2.41.0 are filed once at startup, with *Put them back* (Undo) on each project's page; chats you
+  had filed yourself stay where they are.
+- Channel projects can be renamed and hidden (*Hidden projects* at the bottom); they can't be archived,
+  and can be deleted only when that channel is off.
+- **Long lists:** each sidebar group and project page shows the newest 8 (5, 8 or 10: Settings → You →
+  About you → Appearance), then *See more* adds 20 at a time, with *Show less*; the server pages them.
+  Earlier sessions of a chat sit under it, dated; busy channel projects can be grouped by room.
+- Rooms show their real names (#general · Server, a group's title) instead of numbers, with a small
+  chip (DM, group). The privacy line of a chat with other people now says it isn't in her memory of
+  you.
+
 ## 2.40.0 (2026-10-31): chat commands everywhere (Phase 107, chats CH1)
 
 - **Commands:** `/new` (a fresh session; the old one is kept and summarised), `/new room` (in a room

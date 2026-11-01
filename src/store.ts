@@ -361,6 +361,61 @@ export class Store {
     return this.getConversation(id);
   }
 
+  /**
+   * Phase 108 (CH2): one page of a sidebar group, newest first (`updated_at`, then id, so rows
+   * with the same time never repeat or go missing between pages). `project`: a project id, 'none'
+   * (live conversations outside every project in `projects`) or 'archived'. `before` is the last
+   * row of the previous page. `more` = how many rows come after this page.
+   */
+  conversationPage(opts: { project: number | 'none' | 'archived'; projects?: readonly number[]; limit: number; before?: { updatedAt: string; id: string } }): { conversations: Conversation[]; more: number } {
+    const where: string[] = [];
+    const args: (string | number)[] = [];
+    if (opts.project === 'archived') where.push('archived_at IS NOT NULL');
+    else if (opts.project === 'none') {
+      where.push('archived_at IS NULL');
+      const ids = (opts.projects ?? []).filter((n) => Number.isInteger(n));
+      where.push(ids.length ? `(project_id IS NULL OR project_id NOT IN (${ids.map(() => '?').join(', ')}))` : '1 = 1');
+      args.push(...ids);
+    } else {
+      where.push('archived_at IS NULL AND project_id = ?');
+      args.push(opts.project);
+    }
+    const base = where.join(' AND ');
+    const page = [...args];
+    let cursor = '';
+    if (opts.before) {
+      cursor = ' AND (updated_at < ? OR (updated_at = ? AND id < ?))';
+      page.push(opts.before.updatedAt, opts.before.updatedAt, opts.before.id);
+    }
+    const limit = Math.max(1, Math.min(200, Math.floor(opts.limit)));
+    const rows = this.db.prepare(`SELECT * FROM conversations WHERE ${base}${cursor} ORDER BY updated_at DESC, id DESC LIMIT ?`).all(...page, limit) as Row[];
+    const last = rows.at(-1);
+    let more = 0;
+    if (last) {
+      more = Number((this.db.prepare(`SELECT COUNT(*) AS n FROM conversations WHERE ${base} AND (updated_at < ? OR (updated_at = ? AND id < ?))`).get(...args, String(last.updated_at), String(last.updated_at), String(last.id)) as Row).n);
+    }
+    return { conversations: rows.map(toConversation), more };
+  }
+
+  /** Phase 108: every session of a chat key on these channels (B3 renames placeholder titles). */
+  sessionsByKey(key: string, channels: readonly string[]): Conversation[] {
+    if (!channels.length) return [];
+    return (this.db.prepare(`SELECT * FROM conversations WHERE channel_key = ? AND channel IN (${channels.map(() => '?').join(', ')}) ORDER BY created_at`).all(key, ...channels) as Row[]).map(toConversation);
+  }
+
+  /** Phase 108: a new title that doesn't count as activity (the list order stays put). */
+  renameQuietly(id: string, title: string): void {
+    this.db.prepare('UPDATE conversations SET title = ? WHERE id = ?').run(title.slice(0, 200), id);
+  }
+
+  /** Phase 108: files conversations into a project without counting as activity (the backfill and its Undo). */
+  setProject(ids: readonly string[], projectId: number | null): number {
+    const st = this.db.prepare('UPDATE conversations SET project_id = ? WHERE id = ?');
+    let n = 0;
+    for (const id of ids) n += Number(st.run(projectId, id).changes);
+    return n;
+  }
+
   /** A project was deleted: its conversations move to "no project". */
   clearProject(projectId: number): number {
     return Number(this.db.prepare('UPDATE conversations SET project_id = NULL WHERE project_id = ?').run(projectId).changes);

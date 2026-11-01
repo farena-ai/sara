@@ -24,6 +24,7 @@ import { takeChatDocument, type SharedDoc } from '../library/intake.ts';
 import { MAX_DOC_BYTES } from '../library/store.ts';
 import { nameCalled } from './rules.ts';
 import { askerLanguage, chatsSettings, commandAllowed, DESCRIPTIONS, DISCORD_LOCALES, DISCORD_NAMES, isCommandName, MENU_COMMANDS, menuHash, modelChoices, nearlyFullOffer, nextSession, OTHER_LANGS, ownerLanguage, parseCommand, runCommand, say, setSessionModel, type Asker, type BridgeAdapter, type CommandReply, type ModelPick, type ParsedCommand, type Place } from './commands.ts';
+import { channelProjectId, discordRoomName, noteRoom, roomOf, roomStale } from './rooms.ts';
 
 export interface DiscordSettings {
   enabled: boolean;
@@ -180,6 +181,9 @@ export class DiscordBridge {
   #link: { code: string; expires: number; misses: number } | undefined;
   #unsubscribe: (() => void) | undefined;
   readonly #nsfw = new Map<string, boolean>();
+  /** Phase 108 (B3): channel names and servers from GET /channels (refreshed at most daily) and server names. */
+  readonly #chanInfo = new Map<string, { name?: string; guildId?: string }>();
+  readonly #guildNames = new Map<string, { name?: string; at: number }>();
   readonly #dmChannel = new Map<string, string>();
   readonly #queues = new Map<string, Promise<void>>();
   /** Phase 47 loop guard per channel (in memory; kept across reconnects, reset on restart of Sara). */
@@ -494,10 +498,50 @@ export class DiscordBridge {
   async #isNsfw(channelId: string): Promise<boolean> {
     if ((discordSettings(this.#app).nsfwChannelIds ?? []).includes(channelId)) return true;
     if (!this.#nsfw.has(channelId)) {
-      const ch = await this.#rest<{ nsfw?: boolean }>('GET', `/channels/${channelId}`).catch(() => ({ nsfw: false }));
+      const ch = await this.#rest<{ nsfw?: boolean; name?: string; guild_id?: string }>('GET', `/channels/${channelId}`).catch(() => ({ nsfw: false }) as { nsfw?: boolean; name?: string; guild_id?: string });
       this.#nsfw.set(channelId, Boolean(ch.nsfw));
+      this.#chanInfo.set(channelId, { ...(typeof ch.name === 'string' ? { name: ch.name } : {}), ...(typeof ch.guild_id === 'string' ? { guildId: ch.guild_id } : {}) });
     }
     return this.#nsfw.get(channelId)!;
+  }
+
+  /**
+   * Phase 108 (B3): the room's real name ("#general · My Server", or the person in a DM) for the
+   * app's row chips and session titles. The server's name is asked once a day at most; a failure
+   * keeps the old name (or none), never the message.
+   */
+  async #noteRoom(msg: DMessage, nsfw: boolean): Promise<void> {
+    const app = this.#app;
+    if (!msg.guild_id) {
+      noteRoom(app, { bridge: 'discord', key: msg.channel_id, kind: 'dm', title: msg.author.global_name || msg.author.username || 'DM' });
+      return;
+    }
+    const cur = roomOf(app, 'discord', msg.channel_id);
+    if (!roomStale(cur, app.now())) return;
+    // New, or a day old: ask Discord (the nsfw flag comes along).
+    let info = cur ? undefined : this.#chanInfo.get(msg.channel_id);
+    if (!info?.name) {
+      const ch = await this.#rest<{ nsfw?: boolean; name?: string; guild_id?: string }>('GET', `/channels/${msg.channel_id}`).catch(() => ({}) as { nsfw?: boolean; name?: string; guild_id?: string });
+      info = { ...(typeof ch.name === 'string' ? { name: ch.name } : {}), ...(typeof ch.guild_id === 'string' ? { guildId: ch.guild_id } : {}) };
+      this.#chanInfo.set(msg.channel_id, info);
+      if (typeof ch.nsfw === 'boolean') this.#nsfw.set(msg.channel_id, ch.nsfw);
+    }
+    if (!info.name) return;
+    const gid = info.guildId ?? msg.guild_id;
+    let g = this.#guildNames.get(gid);
+    if (!g || Date.now() - g.at > 24 * 3600_000) {
+      const r = await this.#rest<{ name?: string }>('GET', `/guilds/${gid}`).catch(() => ({}) as { name?: string });
+      g = { ...(typeof r.name === 'string' ? { name: r.name } : g?.name ? { name: g.name } : {}), at: Date.now() };
+      this.#guildNames.set(gid, g);
+    }
+    const room = noteRoom(app, { bridge: 'discord', key: msg.channel_id, kind: 'room', title: info.name, parentTitle: g.name ?? null, adult: nsfw });
+    // Sessions still called by the placeholder ("Discord channel 1234") get the real name; his own titles stay.
+    const name = discordRoomName(room);
+    const tail = msg.channel_id.slice(-4);
+    if (name) for (const c of app.store.sessionsByKey(msg.channel_id, ['discord', 'discord-nsfw', 'discord-work', 'discord-work-nsfw'])) {
+      if (c.title === `Discord channel ${tail}`) app.store.renameQuietly(c.id, `Discord: ${name}`);
+      else if (c.title === `Discord work: channel ${tail}`) app.store.renameQuietly(c.id, `Discord work: ${name}`);
+    }
   }
 
   /** Handles one MESSAGE_CREATE (public for tests). */
@@ -567,6 +611,7 @@ export class DiscordBridge {
     const files = (msg.attachments ?? []).filter((a) => !(a.content_type ?? '').startsWith('audio/') && !(a.content_type ?? '').startsWith('image/') && !(a.content_type ?? '').startsWith('video/'));
     if (!text && !heard && !(files.length && isOwner)) return;
     const nsfw = !isDm && (await this.#isNsfw(msg.channel_id));
+    await this.#noteRoom(msg, nsfw).catch((err: Error) => console.warn(`discord room name: ${err.message}`));
     const conv = this.#conversation(msg, isOwnerDm, nsfw, ownerWork);
     if (files.length && isOwner) {
       for (const f of files.slice(0, 5)) {
@@ -673,8 +718,11 @@ export class DiscordBridge {
     const last = this.#app.store.latestChannelConversation(channel, channelId, who);
     if (last) return nextSession(this.#app, last);
     const partner = isOwnerDm || ownerWork ? null : `people in a Discord channel`;
-    const title = isOwnerDm ? 'Discord' : ownerWork ? `Discord work: channel ${channelId.slice(-4)}` : `Discord channel ${channelId.slice(-4)}`;
-    return this.#app.store.createConversation({ title, channel, channelKey: channelId, partner });
+    // Phase 108: the room's real name when it is known (B3), else the placeholder that is renamed once it is.
+    const name = discordRoomName(roomOf(this.#app, 'discord', channelId));
+    const title = isOwnerDm ? 'Discord' : ownerWork ? `Discord work: ${name ?? `channel ${channelId.slice(-4)}`}` : name ? `Discord: ${name}` : `Discord channel ${channelId.slice(-4)}`;
+    // Phase 108 (CH2): a chat's first session goes into the Discord project (later ones follow the last one's project).
+    return this.#app.store.createConversation({ title, channel, channelKey: channelId, partner, projectId: channelProjectId(this.#app, channel) });
   }
 
   /** Sends her reply as an audio clip (MP3) with the text alongside. */

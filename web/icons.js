@@ -110,6 +110,11 @@ export const ICONS = {
   warn: '<path d="M10.3 4.3L2.9 17.5a2 2 0 0 0 1.7 3h14.8a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4.5M12 17.2v.1"/>',
   tool: '<circle cx="12" cy="12" r="3"/><path d="M12 3.5v2.5M12 18v2.5M3.5 12H6M18 12h2.5M6 6l1.8 1.8M16.2 16.2L18 18M6 18l1.8-1.8M16.2 7.8L18 6"/>',
   dot: '<circle cx="12" cy="12" r="2.5"/>',
+  // Phase 108 (CH2): channel projects in the sidebar (Telegram, Discord, a plug for plugin bridges).
+  telegram: '<path d="M21 4.5L2.8 11.6l5.9 2.1 2.3 6.3 3.3-4.3 4.7 3.5z"/><path d="M8.7 13.7l12.3-9.2"/>',
+  discord: '<path d="M8.4 6.2A12 12 0 0 0 5 7.3C3.2 10 2.4 12.8 2.6 16a12 12 0 0 0 4.3 2.2l1-1.7M15.6 6.2A12 12 0 0 1 19 7.3c1.8 2.7 2.6 5.5 2.4 8.7a12 12 0 0 1-4.3 2.2l-1-1.7M7.2 16.2c3 1.4 6.6 1.4 9.6 0M9 6.8a12 12 0 0 1 6 0"/><circle cx="9.2" cy="12.4" r="1.3"/><circle cx="14.8" cy="12.4" r="1.3"/>',
+  plug: '<path d="M9 3.5v4M15 3.5v4M6.5 7.5h11v3a5.5 5.5 0 0 1-11 0zM12 16v4.5"/>',
+  hidden: '<path d="M3.5 12s3-6 8.5-6c1.6 0 3 .5 4.2 1.2M20.5 12s-3 6-8.5 6c-1.6 0-3-.5-4.2-1.2"/><path d="M4.5 19.5l15-15"/>',
 };
 
 /** A new icon element, or null for a name that isn't in the set. */

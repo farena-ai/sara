@@ -14,7 +14,7 @@ per il web, Windows, Mac e telefono.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1400%20passing-brightgreen" alt="1400 tests passing">
+  <img src="https://img.shields.io/badge/tests-1411%20passing-brightgreen" alt="1411 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ per il web, Windows, Mac e telefono.
   <sub>Una sessione reale con un modello locale (qwen3.8 27B su Ollama, una RTX 5090) su un server di prova usa e getta, nel tema Notte: tira su il morale di chi le scrive, scrive una piccola app e il suo test mentre il modello li trasmette, chiede prima di eseguire un comando, scopre un vero bug con un test che fallisce e lo corregge finché tutti e 7 i test passano. Fotogrammi scelti dalla registrazione; nulla al loro interno è stato modificato.</sub>
 </p>
 
-> **Stato:** 2.40, licenza MIT, con cinquantuno versioni ricche di novità dalla 1.0 (tutte qui sotto).
+> **Stato:** 2.41, licenza MIT, con cinquantadue versioni ricche di novità dalla 1.0 (tutte qui sotto).
 > Dalla 2.5 alla 2.8 tutta l'app ha cambiato aspetto. L'[app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > è su Google Play; l'app per iPhone e la versione del Mac App Store arriveranno appena Apple le
 > approverà. Leggi [docs/DISCLOSURES.md](docs/DISCLOSURES.md) prima di usare o condividere Sara.
@@ -82,6 +82,7 @@ Guide di un minuto, registrate su un server di prova con un modello locale (in i
 
 | Versione | Cosa ottieni |
 |---|---|
+| **2.41** · Un elenco di sessioni ordinato | **Ogni app di chat ha il suo progetto.** Telegram, Discord e ogni ponte plugin (WhatsApp, Signal…) hanno un progetto integrato che raccoglie le loro chat, così le tue conversazioni web e app restano nei tuoi progetti. Le chat esistenti vengono sistemate una volta, con Annulla. Le stanze mostrano il loro vero nome (#general · Server), le sessioni precedenti stanno sotto la loro chat e le liste lunghe mostrano le più recenti con *Mostra altro*. Rinomina o nascondi un progetto di canale; raggruppa per stanza quello più affollato. |
 | **2.40** · Comandi in chat | **`/new`, `/reset`, `/stop`, `/status`, `/help`, `/model` e `/remember` ovunque:** in Telegram e Discord (nei loro menu dei comandi, registrati per te, nella tua lingua), nell'app web e come «Sara, nuova» dove la barra non è comoda. `/new` apre una sessione nuova e tiene la vecchia (riassunta); `/status` mostra il modello, quanto è piena la sessione e il consumo; quando una sessione è quasi piena è lei a proporre `/new`. I comandi riservati al proprietario sono rifiutati a chiunque altro, ogni volta. |
 | **2.39** · Trasloco: impostazioni e resoconto | **Il resto della vecchia configurazione.** Modelli e fornitori, voce, fuso orario, canali di chat, approvazioni e regole del vecchio agente diventano schede da confermare una per una (le chiavi non vengono mai copiate: le reinserisci tu, al sicuro). Hook e codice dei plugin vengono letti come testo, mai eseguiti, e spiegati in parole semplici con un equivalente in Sara (una regola sulla sua scheda, un controllo che chiede prima, una funzione già presente o un piano per rifarlo come plugin di Sara). Le copie doppie dei database vengono riconosciute e importate una volta sola. Alla fine un resoconto: cosa è arrivato, cosa ti aspetta, cosa è rimasto e dove vive ora in Sara ogni vecchia funzione (scaricalo, o annulla tutto). |
 | **2.38** · Trasloco: i suoi database | **Arrivano anche gli archivi di memoria fatti in casa.** Se il vecchio agente teneva la memoria in un suo database SQLite o Postgres, Sara lo legge (Postgres in sola lettura, con un suo client, o un file `pg_dump`), salta log e telemetria e propone per ogni gruppo di tabelle cos'è e dove va (note, persone e fatti, conversazioni, attività, obiettivi, diario). Confermi ogni scheda; prima non si importa nulla. Le corrispondenze confermate vengono salvate, e Annulla toglie comunque tutto. |
@@ -327,8 +328,8 @@ uno SPEC che nessun test controllava. Quello che aggiunge oggi è il modo di lav
 chiede prima dei passi rischiosi, mostra cosa è stato eseguito), non un punteggio più alto su questi
 insiemi. Dettagli, risultati per compito e come rieseguirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-In più, `npm run check`: un controllo dei tipi e 1415 test automatici con un finto modello guidato
-da script (senza rete, senza GPU): 1400 passano su Windows e gli altri 8 sono test dell'isolamento
+In più, `npm run check`: un controllo dei tipi e 1426 test automatici con un finto modello guidato
+da script (senza rete, senza GPU): 1411 passano su Windows e gli altri 8 sono test dell'isolamento
 solo per Linux, eseguiti su un server Linux.
 
 ## Il confronto

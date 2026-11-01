@@ -14,7 +14,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1400%20passing-brightgreen" alt="1400 tests passing">
+  <img src="https://img.shields.io/badge/tests-1411%20passing-brightgreen" alt="1411 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <sub>Une vraie session avec un modèle local (qwen3.8 27B sur Ollama, une RTX 5090) sur un serveur de test jetable, dans le thème Nuit : elle remonte le moral de son interlocuteur, écrit une petite app et son test pendant que le modèle les transmet, demande avant d'exécuter une commande, repère un vrai bug grâce à un test qui échoue et le corrige jusqu'à ce que les 7 tests passent. Images choisies dans l'enregistrement ; rien n'y a été retouché.</sub>
 </p>
 
-> **État :** 2.40, licence MIT, avec cinquante et un versions riches en nouveautés depuis la 1.0 (toutes
+> **État :** 2.41, licence MIT, avec cinquante-deux versions riches en nouveautés depuis la 1.0 (toutes
 > ci-dessous). De la 2.5 à la 2.8, toute l'app a changé de look. L'[app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > est sur Google Play ; l'app iPhone et la version Mac App Store arrivent dès qu'Apple les aura
 > approuvées. Lisez [docs/DISCLOSURES.md](docs/DISCLOSURES.md) avant d'utiliser ou de partager Sara.
@@ -83,6 +83,7 @@ Des tutoriels d'une minute, enregistrés sur un serveur de test avec un modèle 
 
 | Version | Ce que vous y gagnez |
 |---|---|
+| **2.41** · Une liste de sessions bien rangée | **Chaque appli de discussion a son projet.** Telegram, Discord et chaque passerelle de plugin (WhatsApp, Signal…) ont un projet intégré qui regroupe leurs discussions, et vos conversations web et appli restent dans vos projets. Vos discussions existantes sont rangées une fois, avec Annuler. Les salons affichent leur vrai nom (#general · Serveur), les sessions précédentes se rangent sous leur discussion, et les longues listes montrent les plus récentes avec *Voir plus*. Renommez ou masquez un projet de canal ; groupez un projet chargé par salon. |
 | **2.40** · Commandes de discussion | **`/new`, `/reset`, `/stop`, `/status`, `/help`, `/model` et `/remember` partout :** dans Telegram et Discord (dans leurs propres menus de commandes, enregistrés pour vous, dans votre langue), dans l'appli web, et sous la forme « Sara, nouvelle » quand la barre oblique n'est pas pratique. `/new` démarre une session neuve et garde l'ancienne (résumée) ; `/status` montre le modèle, le remplissage de la session et la consommation ; quand une session est presque pleine, elle propose `/new` elle-même. Les commandes réservées au propriétaire sont refusées à tous les autres, à chaque fois. |
 | **2.39** · Déménagement : réglages et rapport | **Le reste de l'ancienne installation.** Modèles et fournisseurs, voix, fuseau horaire, canaux de discussion, autorisations et règles de l'ancien agent deviennent des cartes que vous confirmez une à une (les clés ne sont jamais copiées : vous les ressaisissez en lieu sûr). Hooks et code de plugins sont lus comme du texte, jamais exécutés, et expliqués simplement avec un équivalent Sara (une règle sur sa fiche, un garde-fou qui demande d'abord, une fonction existante ou un plan pour le refaire en plugin Sara). Les copies en double des bases sont repérées et importées une fois. À la fin, un rapport : ce qui est arrivé, ce qui vous attend, ce qui est resté et où vit chaque ancienne fonction dans Sara (à télécharger, ou tout annuler). |
 | **2.38** · Déménagement : ses bases de données | **Les mémoires maison suivent aussi.** Si l'ancien agent gardait sa mémoire dans sa propre base SQLite ou Postgres, Sara la lit (Postgres en lecture seule, avec son propre client, ou un fichier `pg_dump`), saute journaux et télémétrie et propose pour chaque groupe de tables ce que c'est et où ça va (notes, personnes et faits, conversations, tâches, objectifs, journal). Vous confirmez chaque carte ; rien n'est importé avant. Les correspondances confirmées sont gardées, et Annuler retire toujours tout. |
@@ -335,8 +336,8 @@ qu'aucun test ne vérifiait. Ce qu'elle apporte aujourd'hui, c'est la manière d
 lance les tests, demande avant les étapes risquées, montre ce qui a tourné), pas un meilleur score
 sur ces jeux. Détails, résultats par tâche et comment relancer : [docs/RESULTS.md](docs/RESULTS.md).
 
-En plus, `npm run check` : une vérification des types et 1415 tests automatiques avec un faux modèle
-scripté (sans réseau, sans GPU) : 1400 passent sous Windows, et les 8 autres sont des tests
+En plus, `npm run check` : une vérification des types et 1426 tests automatiques avec un faux modèle
+scripté (sans réseau, sans GPU) : 1411 passent sous Windows, et les 8 autres sont des tests
 d'isolation propres à Linux, exécutés sur un serveur Linux.
 
 ## Comparaison

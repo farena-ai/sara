@@ -81,3 +81,51 @@ A chat app conversation used to be one endless conversation. Now each `/new` clo
 session and opens the next one in the same project (your filing sticks). Messages from the chat app
 always go to the newest open session. You can still read and write in an ended session from the app;
 that doesn't reopen it for the chat app.
+
+## A tidy list (2.41.0)
+
+Each chat service gets its **own project** in the sidebar, with its icon: **Telegram**, **Discord**,
+and one for each chat plugin (**WhatsApp**, **Signal**, **LINE**…: one project per plugin). Sara
+creates it on the first message from that service and files every session from there into it by
+herself. Your chats in the app (browser, desktop app, phone apps) stay in your own projects, and so
+do the API, MCP, Home Assistant, Alexa, other agents, webhooks, group chats and imported history.
+
+- **Name clash:** if you already have a project called *Telegram*, yours is left alone and hers is
+  called *Telegram chats* (*Discord chats*, …).
+- **Chats from before 2.41.0** are filed once, when Sara starts after the update: only chat app
+  conversations that weren't in a project move; the ones you had filed yourself stay where they
+  are. To undo it, open the project's page (▤) and press **Put back the N chats filed here**: exactly
+  those go back to *No project* (chats that arrived later, and ones you moved since, stay put). It
+  works once per project.
+- **Your filing sticks:** move a session to another project and new messages keep landing in it;
+  `/new` starts the next session of that chat in the same project.
+- **Rename** a channel project from ⋯ next to its name or with *Edit* on its page. **Hide** it
+  (⋯ → *Hide from the sidebar*, or *Show in the sidebar* off on its page): **Hidden projects (n)**
+  at the bottom of the list brings it back, and search and the command palette still find its
+  sessions. A channel project **can't be archived** (new sessions would disappear with it), and it
+  **can be deleted only while that channel is off** (Settings → Connections, or the plugin);
+  then its sessions move to *No project*.
+- **Rows:** each session shows where it happens: *DM*, *#general · My Server*, *Book club (group)*,
+  and *your work* for your own session in a group. Discord channels get their real names (asked
+  from Discord at most once a day); old placeholder titles like *Discord channel 1234* are renamed
+  to the room's name the next time someone writes there.
+- **Group by room** (⋯ menu or the project's page, off by default): a heading for each server
+  channel, group or direct chat, each with its own *See more*.
+
+### See more
+
+Every project, *No project* and *Archived* show the **newest 8 sessions**, then **See more (n)**;
+each press adds 20, and **Show less** goes back. Pick 5, 8 or 10 in **Settings → You → About you →
+Appearance → Sessions shown** (per device). The app only fetches the newest 200 of each list at
+first, so a phone never draws thousands of rows; *See more* past that asks the server for the next
+page. Search always looks through everything.
+
+**Ended sessions sit under their chat:** after `/new`, the chat shows once (its open session), with a
+small number next to it; press it to see the earlier sessions with their dates.
+
+### Owner to-do
+
+After updating, look at the sidebar on your phone and on the desktop: check the Telegram and
+Discord projects hold what you expect, and use *Put back* if you'd rather have the old list. Pick the
+page size you like (5 / 8 / 10). When WhatsApp or Signal plugins arrive, say if you'd rather have
+one shared *Chats* project instead of one each.

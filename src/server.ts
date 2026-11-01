@@ -26,6 +26,7 @@ import { MAX_IMAGES_PER_MESSAGE, UploadError } from './uploads.ts';
 import { TogetherStore } from './together.ts';
 import { contextFill, runTurn, type TurnOptions, type AppContext, type ChatEvent } from './chat.ts';
 import { nextSession, parseCommand, runCommand, type BridgeAdapter } from './bridges/commands.ts';
+import { roomChip, roomOfConversation, roomsByKey } from './bridges/rooms.ts';
 import { cameraState, FRAME_MAX_BYTES, SAFETY_PAUSE_MS, VideoSessions, videoSettings } from './video.ts';
 import { DISCLOSURE_TEXT, disclosureText } from './safety.ts';
 import { personalize } from './identity.ts';
@@ -1593,7 +1594,43 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (!b && method === 'GET') {
         const mine = (id: string) => !opts.demo || demoOwner.get(id) === visitorKey(req);
         const off = offStore.listConversations().filter((c) => mine(c.id)).map((c) => ({ ...c, offRecord: true, working: active.has(c.id) }));
-        return send(res, 200, opts.demo ? off : [...off, ...app.store.listConversations().map((c) => ({ ...c, working: active.has(c.id) || (isGroupChannel(c.channel) && rooms().isBusy(String(c.channelKey))), ...groupInfo(c) }))]);
+        // Phase 108 (CH2): each bridge session carries its room chip (B3: "DM", "#general · My Server", "Book club (group)").
+        const roomMap = opts.demo ? undefined : roomsByKey(app);
+        const view = (c: Conversation) => {
+          const chip = roomMap && roomChip(roomOfConversation(app, c, roomMap));
+          return { ...c, working: active.has(c.id) || (isGroupChannel(c.channel) && rooms().isBusy(String(c.channelKey))), ...groupInfo(c), ...(chip ? { room: chip } : {}) };
+        };
+        const q = new URL(req.url ?? '/', 'http://x').searchParams;
+        const activeProjects = () => (app.planner?.projects() ?? []).map((p) => p.id);
+        // Phase 108: one page of one sidebar group (See more past what the app holds): newest first, with how many are left.
+        if (q.has('project')) {
+          const pr = q.get('project') ?? '';
+          const project = pr === 'none' || pr === 'archived' ? pr : Number(pr);
+          if (typeof project === 'number' && !(Number.isInteger(project) && project > 0)) throw new HttpError(400, "That list doesn't exist.");
+          const lim = Math.max(1, Math.min(200, Number(q.get('limit') ?? 20) || 20));
+          const bf = q.get('before');
+          const cut = bf ? bf.lastIndexOf(',') : -1;
+          const before = bf && cut > 0 ? { updatedAt: bf.slice(0, cut), id: bf.slice(cut + 1) } : undefined;
+          if (opts.demo) return send(res, 200, { conversations: [], more: 0 });
+          const page = app.store.conversationPage({ project, projects: activeProjects(), limit: lim, ...(before ? { before } : {}) });
+          return send(res, 200, { conversations: page.conversations.map(view), more: page.more });
+        }
+        // Phase 108: ?cap=N: every group's newest N only (a phone never draws thousands of rows), plus each group's full count.
+        if (q.has('cap')) {
+          const cap = Math.max(20, Math.min(1000, Number(q.get('cap')) || 200));
+          const known = new Set(opts.demo ? [] : activeProjects());
+          const totals: Record<string, number> = { none: off.length };
+          const out: unknown[] = [...off];
+          // The same order as the pages (newest first, then id), so See more continues exactly where this stops.
+          const all = opts.demo ? [] : app.store.listConversations().sort((x, y) => (x.updatedAt === y.updatedAt ? (x.id < y.id ? 1 : -1) : x.updatedAt < y.updatedAt ? 1 : -1));
+          for (const c of all) {
+            const key = c.archivedAt ? 'archived' : c.projectId !== null && known.has(c.projectId) ? `p${c.projectId}` : 'none';
+            const n = (totals[key] = (totals[key] ?? 0) + 1);
+            if (n <= cap) out.push(view(c));
+          }
+          return send(res, 200, { conversations: out, totals, cap });
+        }
+        return send(res, 200, opts.demo ? off : [...off, ...app.store.listConversations().map(view)]);
       }
       if (!b && method === 'POST') {
         const body = await readJson(req);

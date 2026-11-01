@@ -47,6 +47,7 @@ import { createSettingsGuideTool } from './settingsguide.ts';
 import { createReviewTools } from './codereview.ts';
 import { createIssueTool, IssueWatcher } from './issues.ts';
 import { createPlannerTools, PlannerStore, type Reminder } from './planner.ts';
+import { fileChannelChats } from './bridges/rooms.ts';
 import { ReminderScheduler } from './reminders.ts';
 import { CompanionHub, EventHub } from './events.ts';
 import { InnerStore } from './inner.ts';
@@ -878,6 +879,14 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app,
     server,
     start() {
+      // Phase 108 (CH2): the bridge chats from before 2.41.0 go into their channel projects, once (Undo on the project's page).
+      if (main && !isMember && !isDemo) {
+        try {
+          fileChannelChats(app);
+        } catch (err) {
+          console.warn(`chats: filing into channel projects failed: ${(err as Error).message}`);
+        }
+      }
       memoryWorker.start();
       libraryWorker?.start();
       vectorTimer = setInterval(indexVectors, 60_000);

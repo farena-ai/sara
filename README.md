@@ -11,7 +11,7 @@ Windows, Mac and phones.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1400%20passing-brightgreen" alt="1400 tests passing">
+  <img src="https://img.shields.io/badge/tests-1411%20passing-brightgreen" alt="1411 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -25,7 +25,7 @@ Windows, Mac and phones.
   <sub>A real session on a local model (qwen3.8 27B on Ollama, one RTX 5090) on a throwaway test server, in the Night look: she cheers the user up, writes a small app and its test as the model streams them, asks before running a command, catches a real bug with a failing test and fixes it until all 7 tests pass. Frames picked from the recording; nothing in them was edited.</sub>
 </p>
 
-> **Status:** 2.40, MIT licensed, with fifty-one feature releases since 1.0 (all below). 2.5 to 2.8
+> **Status:** 2.41, MIT licensed, with fifty-two feature releases since 1.0 (all below). 2.5 to 2.8
 > gave the whole app a new look. The [Android app](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > is on Google Play; the iPhone app and the Mac App Store version are coming as soon as Apple approves them.
 > Read [docs/DISCLOSURES.md](docs/DISCLOSURES.md) before using or sharing Sara.
@@ -76,6 +76,7 @@ One-minute walkthroughs, recorded on a throwaway test server with a local model.
 
 | Release | What you get |
 |---|---|
+| **2.41** · A tidy session list | **Each chat app gets its own project.** Telegram, Discord and each plugin bridge (WhatsApp, Signal…) have a built-in project that collects their chats, so your own web and app conversations stay in your projects. Your existing chats are filed once, with Undo. Rooms show their real names (#general · Server), earlier sessions sit under their chat, and long lists show the newest few with *See more*. Rename or hide a channel project; group a busy one by room. |
 | **2.40** · Chat commands | **`/new`, `/reset`, `/stop`, `/status`, `/help`, `/model` and `/remember` everywhere:** in Telegram and Discord (their own command menus, registered for you, in your language), in the web app, and as "Sara, new" where slash isn't handy. `/new` starts a fresh session and keeps the old one (summarised); `/status` shows the model, how full the session is and today's usage; when a session is nearly full she offers `/new` herself. Owner-only commands are refused for anyone else, every time. |
 | **2.39** · Move in: settings and a report | **The rest of the old setup.** The old agent's models and providers, voice, time zone, chat channels, approvals and rules become cards you confirm one by one (keys are never copied: you enter them again, safely). Hooks and plugin code are read as text, never run, and explained in plain words with a Sara equivalent (a rule on her sheet, a guard that asks first, an existing feature, or a plan to rebuild it as a Sara plugin). Duplicate database copies are spotted and imported once. At the end, a report: what came over, what needs you, what stayed behind, and where each old feature lives in Sara now (download it, or Undo it all). |
 | **2.38** · Move in: her old databases | **Custom memory stores come too.** If the old agent kept its memory in its own SQLite or Postgres database, Sara reads it (Postgres read-only, with its own client, or a `pg_dump` file), skips logs and telemetry, and proposes for each group of tables what it is and where it goes (notes, people and facts, conversations, tasks, goals, diary). You confirm every card; nothing imports until you do. Confirmed mappings are saved for next time, and Undo still removes it all. |
@@ -313,8 +314,8 @@ README or SPEC that no test checked. What she adds today is the way of working (
 asks before risky steps, shows what ran), not a higher score on these sets. Details, per-task
 results and how to re-run: [docs/RESULTS.md](docs/RESULTS.md).
 
-Plus `npm run check`: a typecheck and 1415 automated tests with a scripted fake model (no network,
-no GPU): 1400 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
+Plus `npm run check`: a typecheck and 1426 automated tests with a scripted fake model (no network,
+no GPU): 1411 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
 
 ## How Sara compares
 

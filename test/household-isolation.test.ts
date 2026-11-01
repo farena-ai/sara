@@ -461,6 +461,28 @@ test('skills she learns (Phase 97): each person learns in their own space; setti
   assert.equal((await call(ana, 'PUT', '/api/skills/learning', { times: 3, perDay: 1 })).status, 200);
 });
 
+test('session list (Phase 108, CH2): pages, capped lists, project pages and the filing Undo are each person\'s own', async () => {
+  for (const p of [ana, ben]) {
+    for (const path of ['/api/conversations?cap=200', '/api/conversations?project=none&limit=50', '/api/conversations?project=archived&limit=50']) {
+      const r = await call(p, 'GET', path);
+      assert.equal(r.status, 200, `${p.name} ${path}: ${r.text}`);
+      for (const v of [owner, ana, ben].filter((x) => x !== p)) assert.ok(!r.text.includes(v.conv) && !r.text.includes(v.marker), `${p.name} ${path} shows nothing of ${v.name}'s`);
+    }
+    const mine = await call(p, 'GET', '/api/conversations?project=none&limit=50');
+    assert.ok(mine.text.includes(p.conv), `${p.name} pages through their own`);
+  }
+  // The owner's projects (ids 1…3) are not a member's: no project page, no Undo, no hide.
+  for (const id of [1, 2, 3]) {
+    assert.ok([200, 404].includes((await call(ana, 'GET', `/api/conversations?project=${id}&limit=20`)).status));
+    assert.ok(!(await call(ana, 'GET', `/api/conversations?project=${id}&limit=20`)).text.includes(owner.conv));
+    const un = await call(ana, 'POST', `/api/projects/${id}/unfile`, {});
+    assert.ok([404, 200].includes(un.status), un.text);
+    if (un.status === 200) assert.equal(un.json.moved, 0);
+  }
+  const own = await call(owner, 'GET', `/api/conversations/${owner.conv}`);
+  assert.equal(own.status, 200, 'the owner\'s conversation is untouched');
+});
+
 test('every route family: no person ever gets another person\'s data', async () => {
   const fam = routeFamilies();
   assert.ok(fam.size > 80, `found ${fam.size} route families`);

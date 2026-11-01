@@ -166,6 +166,7 @@ Every module in `src/`, roughly in the order they were added (the phase is noted
 | `src/bridges/telegram.ts` | Telegram bridge (Bot API long polling; owner chat, partners, groups, mirror). Phase 107: commands before the per-conversation queue (the poll loop only waits until a turn is queued, so `/stop` arrives mid-reply), `setMyCommands` per scope × language (`menuPlan`, skipped on an unchanged hash in `bridge_menus`), `/model` buttons `md:<conv>:<i>` |
 | `src/bridges/discord.ts` | Discord bridge (gateway WebSocket + REST; owner DMs, servers on mention, NSFW channels). Phase 107: interaction router by type (2 command → type 4 at once or type 5 + `PATCH /webhooks/{app}/{token}/messages/@original`; 3 buttons `ap:` and the `/model` select `md:<conv>`; 4 autocomplete), one bulk overwrite `PUT /applications/{id}/commands` per hash after READY |
 | `src/bridges/commands.ts` | Phase 107 (CH1, B1): the command layer for every bridge and the web composer: `parseCommand` (native, typed `/new` `!new` `/new@bot`, name + one word in six languages), `commandAllowed(place, who, name)` checked on every command, `runCommand` against a `BridgeAdapter` (current session, next session, stop, clear queue, bot guard), replies through `tr()` in the asker's language, `command:<name>` notices, `nearlyFullOffer` (85 % or `dropped > 0`, once per session), menu lists and hashes |
+| `src/bridges/rooms.ts` | Phase 108 (CH2, B3): channel projects and room identity: `channelProjectFor(channel)` (the one table: Telegram, Discord, one per plugin bridge), `ensureChannelProject` / `channelProjectId` (a chat's first session), `channelOn` (delete refused while on), the one-time `fileChannelChats` with its per-project Undo (`memory_kv` `chats:filed`), the `rooms` table (§7.3 schema) with `noteRoom` / `roomOf` / `roomChip` |
 | `src/subscriptions/chatgpt.ts` | Sign in with ChatGPT (dynamic registration, PKCE, JWKS-verified ID token, refresh, revoke) |
 | `src/subscriptions/index.ts` | Subscription logins: ChatGPT, Claude token, Grok device login; CLI runtimes |
 | `src/providers/chatgpt.ts` | ChatGPT plan provider (Responses API, namespaced tools, plan-limit errors) |
@@ -303,6 +304,21 @@ error)` records what was last registered with Telegram / Discord. Settings: `cha
 /api/conversations/:id/new`, `GET /api/conversations/:id/fill`, `GET /api/conversations/:id/sessions`.
 `runTurn` emits `{type:'context', used, budget, dropped}` with each history build (`contextFill` gives
 the same number outside a turn).
+
+**A tidy session list (Phase 108, CH2).** `projects.builtin` (`channel:telegram`, `channel:discord`,
+`channel:plugin-<name>`; unique when set) and `projects.hidden` are additive planner columns. A
+bridge's first session of a chat gets its channel project (`src/bridges/rooms.ts`
+`channelProjectId`); later sessions follow the previous one's project. At startup the owner's main
+companion files pre-2.41 bridge chats with no project once (`fileChannelChats`, record in `memory_kv`
+`chats:filed`, Undo `POST /api/projects/:id/unfile`). Builtin projects take only a new name or
+`hidden`; archive → 409; delete → 409 while the channel is on. The B3 `rooms` table (`store.db`,
+CH4's §7.3 schema) names each place (`noteRoom`; Discord via `GET /channels/{id}` + `/guilds/{id}`
+at most daily) and gives each bridge conversation a `room` chip in the list. Paging:
+`Store.conversationPage` (`updated_at DESC, id DESC`, cursor `before=<updatedAt,id>`) behind `GET
+/api/conversations?project=<id|none|archived>&limit=&before=` → `{conversations, more}`; `?cap=N`
+gives every group's newest N plus `totals`; `GET /api/projects/:id?limit=` gives the project page's
+first page. `web/session-list.js` holds the client rules (chains of sessions by `sessionOf`,
+newest-first pages of 5/8/10 plus 20 per *See more*, Group by room).
 
 **Household mode (Phase 71).** Each extra person the owner invites gets a whole data folder of their
 own, `members/<id>/`, laid out like the owner's (their own `owner.json`, `sara.db`, `settings.json`,

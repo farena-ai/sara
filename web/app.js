@@ -49,6 +49,7 @@ import { initLook, setContextRing, setLookBusy, showHeadChips } from './look.js'
 import { closePanel, initHerPanel, openPanel, panelConv, panelFace, panelJobs, panelMessages, panelMood, panelNow, panelOpen, togglePanel } from './her-panel.js';
 import { initCommandBar, openCommandBar, score as cmdScore } from './command-bar.js';
 import { icon, paintIcons, setIcon, TOOL_ICONS } from './icons.js';
+import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, pageOf, pageSize } from './session-list.js';
 import { ring as progressRing, share as shareOf } from './viz.js';
 /** Phase 71: a household member (their own space; owner-only pages and loaders are left out). */
 const isMember = () => document.body.classList.contains('member');
@@ -335,15 +336,36 @@ $('#logout').addEventListener('click', async () => {
 });
 
 // ---------- conversations ----------
+// Phase 108 (CH2): each sidebar group gets its newest 200 from the server (?cap) and its full count;
+// See more past that asks for the next page (?project=…&before=…), so a phone never draws thousands.
+const LIST_CAP = 200;
 async function loadConversations() {
-  const [convs] = await Promise.all([api('/conversations'), loadProjects()]);
-  state.conversations = convs;
+  const [r] = await Promise.all([api(`/conversations?cap=${LIST_CAP}`), loadProjects()]);
+  // An older server answers with the whole list.
+  state.conversations = Array.isArray(r) ? r : r.conversations;
+  state.unloaded = {};
+  if (!Array.isArray(r) && r.totals) {
+    const active = new Set((state.projects ?? []).filter((p) => p.status === 'active').map((p) => p.id));
+    const loaded = {};
+    for (const c of state.conversations) if (!c.offRecord) loaded[groupKeyOf(c, active)] = (loaded[groupKeyOf(c, active)] ?? 0) + 1;
+    for (const [k, n] of Object.entries(r.totals)) if (k !== 'none' || n) state.unloaded[k] = Math.max(0, n - (loaded[k] ?? 0) - (k === 'none' ? state.conversations.filter((c) => c.offRecord).length : 0));
+  }
   renderConversations();
 }
 
-// ---------- conversation list: projects, no project, archived ----------
+// ---------- conversation list: channel projects, projects, no project, archived, hidden ----------
 const collapsed = new Set(JSON.parse(localStorage.getItem('sara.collapsed') ?? '[]'));
 const saveCollapsed = () => localStorage.setItem('sara.collapsed', JSON.stringify([...collapsed]));
+/** Phase 108: rows shown per group (not saved: lists start short) and chats whose earlier sessions are open. */
+const shownRows = new Map();
+const openChains = new Set();
+/** Phase 108: channel projects shown by room (Group by room, this device). */
+const byRoomOn = (id) => (JSON.parse(localStorage.getItem('sara.byRoom') ?? '[]') ?? []).includes(id);
+function setByRoom(id, on) {
+  const s = new Set(JSON.parse(localStorage.getItem('sara.byRoom') ?? '[]') ?? []);
+  on ? s.add(id) : s.delete(id);
+  localStorage.setItem('sara.byRoom', JSON.stringify([...s]));
+}
 
 async function loadProjects() {
   try {
@@ -353,17 +375,49 @@ async function loadProjects() {
   }
 }
 
-function convRow(c) {
+/** Phase 108 (B3): a bridge session's room chip: "DM", "#general · My Server", "Book club (group)". */
+function chipLabel(room) {
+  if (!room) return '';
+  if (room.kind === 'dm') return t('DM');
+  if (room.kind === 'channel') return room.parent ? `#${room.title} · ${room.parent}` : `#${room.title}`;
+  return t('{name} (group)', { name: room.title });
+}
+/** Phase 108: a bridge session's title without the channel's name, for rows inside its channel project. */
+function channelTitle(c) {
+  // Only the placeholder prefixes the bridges write ("Telegram: …", "Discord work: …", "<plugin>: …").
+  const prefix = /^telegram/.test(c.channel) ? /^Telegram( work)?: / : /^discord/.test(c.channel) ? /^Discord( work)?: / : /^plugin-/.test(c.channel) ? /^[^:]{1,60}: / : null;
+  const short = prefix ? c.title.replace(prefix, '').replace(/^the group "(.+)"$/, '$1').trim() : '';
+  return short || c.title;
+}
+const channelIcon = (p) => (p?.channel?.kind === 'telegram' ? 'telegram' : p?.channel?.kind === 'discord' ? 'discord' : 'plug');
+
+function convRow(c, o = {}) {
   const a = document.createElement('a');
   a.href = '#';
-  a.className = `conv${c.id === state.currentId ? ' active' : ''}`;
+  a.className = `conv${c.id === state.currentId ? ' active' : ''}${o.isEarlier ? ' conv-earlier-row' : ''}`;
   a.draggable = true;
   a.dataset.id = c.id;
-  const title = el('span', 'conv-title', c.title);
+  // Phase 108: inside its channel project a session drops the channel's name from its title ("Telegram: Maria" → "Maria").
+  let shown = o.inChannel ? channelTitle(c) : c.title;
+  // Under its room's heading (Group by room) a session named after the room says when it started instead.
+  if (o.inRoom && c.room && (c.room.kind === 'dm' || shown.includes(c.room.title))) shown = t('Session of {date}', { date: new Date(c.createdAt).toLocaleDateString(locale(), { month: 'short', day: 'numeric' }) });
+  const title = el('span', 'conv-title', shown);
+  if (shown !== c.title) a.title = c.title;
   a.append(title);
   // Phase 66: a group chat shows who's in it.
-  if (isGroup(c)) a.append(el('span', 'channel-tag group-tag', groupTag(c)));
-  else if (c.channel && c.channel !== 'web') a.append(el('span', 'channel-tag', c.partner ? `${c.channel} · ${c.partner}` : c.channel));
+  // Phase 108: an earlier session under its chat says when it was (its room is the chat's own).
+  if (o.isEarlier) a.append(el('span', 'channel-tag conv-room-chip', new Date(c.createdAt).toLocaleDateString(locale(), { month: 'short', day: 'numeric' })));
+  else if (isGroup(c)) a.append(el('span', 'channel-tag group-tag', groupTag(c)));
+  // Phase 108: a bridge session shows its room (inside its channel project the channel goes without saying),
+  // unless the title already says it.
+  else if (c.room && !o.inRoom) {
+    const chip = chipLabel(c.room);
+    if (o.inChannel) {
+      if (c.room.kind === 'dm' || !shown.includes(c.room.title)) a.append(el('span', 'channel-tag conv-room-chip', chip));
+      else if (c.room.kind === 'group') a.append(el('span', 'channel-tag conv-room-chip', t('group')));
+    } else a.append(el('span', 'channel-tag conv-room-chip', `${c.channel.replace(/-work|-nsfw/g, '')} · ${chip}`));
+  } else if (c.channel && c.channel !== 'web' && !o.inChannel) a.append(el('span', 'channel-tag', c.partner ? `${c.channel} · ${c.partner}` : c.channel));
+  if (o.inChannel && /-work/.test(c.channel)) a.append(el('span', 'channel-tag conv-room-chip', t('your work')));
   // Phase 107: an ended session of a chat (/new opened a newer one).
   if (c.endedAt && c.channel && c.channel !== 'web') a.append(el('span', 'channel-tag ended-tag', t('ended')));
   if (c.offRecord) {
@@ -374,6 +428,24 @@ function convRow(c) {
     const dot = el('span', 'working-dot');
     dot.title = t('Sara is working here');
     a.prepend(dot);
+  }
+  // Phase 108: ended sessions of this chat sit under it, one press away.
+  if (o.earlier?.length) {
+    const n = o.earlier.length;
+    const eb = el('button', 'conv-earlier-btn ghost', `${o.open ? '▾' : '▸'} ${n}`);
+    eb.type = 'button';
+    eb.setAttribute('aria-expanded', String(Boolean(o.open)));
+    eb.title = n === 1 ? t('1 earlier session of this chat') : t('{n} earlier sessions of this chat', { n });
+    eb.setAttribute('aria-label', eb.title);
+    eb.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const root = c.sessionOf ?? c.id;
+      openChains.has(root) ? openChains.delete(root) : openChains.add(root);
+      renderConversations();
+      document.querySelector(`#conversations a.conv[data-id="${c.id}"] .conv-earlier-btn`)?.focus();
+    });
+    a.append(eb);
   }
   const more = el('button', 'conv-more ghost', '⋯');
   more.type = 'button';
@@ -393,18 +465,99 @@ function convRow(c) {
   return a;
 }
 
+/** Phase 108: one chat (its row, and its ended sessions under it when opened). */
+function appendChain(box, ch, o) {
+  const root = ch.head.sessionOf ?? ch.head.id;
+  const open = openChains.has(root) || ch.earlier.some((c) => c.id === state.currentId);
+  box.append(convRow(ch.head, { ...o, earlier: ch.earlier, open }));
+  if (open && ch.earlier.length) {
+    const sub = el('div', 'conv-earlier');
+    sub.setAttribute('role', 'group');
+    sub.setAttribute('aria-label', t('Earlier sessions of this chat'));
+    for (const c of ch.earlier) sub.append(convRow(c, { ...o, earlier: undefined, isEarlier: true }));
+    box.append(sub);
+  }
+}
+
+/**
+ * Phase 108: the newest rows of a group, then See more (n) and Show less. `o.project` is the
+ * server's name for the group (a project id, none, archived) when it may hold more than the app
+ * has; `o.groupKey` its key in state.unloaded.
+ */
+function appendPage(box, key, convs, o = {}) {
+  const size = pageSize(localStorage);
+  const shown = shownRows.get(key) ?? size;
+  const unloaded = o.groupKey ? (state.unloaded?.[o.groupKey] ?? 0) : 0;
+  const pg = pageOf(convs, { shown, total: convs.length + unloaded, size });
+  const list = el('div', 'conv-page');
+  list.dataset.pageKey = key;
+  for (const ch of pg.rows) appendChain(list, ch, o);
+  box.append(list);
+  if (!pg.more && !pg.less) return;
+  const row = el('div', 'conv-more-row');
+  if (pg.more) {
+    const b = el('button', 'ghost conv-see-more', t('See more ({n})', { n: pg.more }));
+    b.type = 'button';
+    b.setAttribute('aria-label', t('See more: {n} more in {group}', { n: pg.more, group: o.label ?? '' }));
+    b.addEventListener('click', () => void seeMore(key, convs, o, pg.rows.length, b));
+    row.append(b);
+  }
+  if (pg.less) {
+    const l = el('button', 'ghost conv-show-less', t('Show less'));
+    l.type = 'button';
+    l.addEventListener('click', () => {
+      shownRows.delete(key);
+      renderConversations();
+      document.querySelector(`#conversations [data-page-key="${CSS.escape(key)}"]`)?.closest('.conv-group')?.querySelector('.group-toggle')?.focus();
+    });
+    row.append(l);
+  }
+  box.append(row);
+}
+
+async function seeMore(key, convs, o, had, btn) {
+  const size = pageSize(localStorage);
+  const next = (shownRows.get(key) ?? size) + PAGE_STEP;
+  shownRows.set(key, next);
+  // Past what the app holds: the next page from the server, after the group's oldest loaded row.
+  if (o.project !== undefined && o.groupKey && (state.unloaded?.[o.groupKey] ?? 0) > 0 && chains(convs).length < next) {
+    btn.disabled = true;
+    btn.textContent = t('Loading…');
+    try {
+      const r = await api(`/conversations?project=${encodeURIComponent(o.project)}&limit=${PAGE_STEP}&before=${encodeURIComponent(cursorOf(convs))}`);
+      state.conversations = mergePage(state.conversations, r.conversations ?? []);
+      state.unloaded[o.groupKey] = r.more ?? 0;
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = err.message;
+      return;
+    }
+  }
+  renderConversations();
+  // Keyboard and screen readers land on the first new row.
+  const rows = document.querySelectorAll(`#conversations [data-page-key="${CSS.escape(key)}"] > a.conv`);
+  (rows[had] ?? rows[rows.length - 1])?.focus();
+}
+
 function group(key, label, convs, opts = {}) {
-  const box = el('div', 'conv-group');
+  const box = el('div', `conv-group${opts.builtin ? ' group-builtin' : ''}`);
   const head = el('div', 'group-head');
   const isCollapsed = collapsed.has(key);
-  const toggle = el('button', 'group-toggle', `${isCollapsed ? '▸' : '▾'} ${label}`);
+  const toggle = el('button', 'group-toggle', `${isCollapsed ? '▸' : '▾'} `);
   toggle.type = 'button';
-  toggle.append(el('small', 'muted', ` ${convs.length}`));
+  toggle.setAttribute('aria-expanded', String(!isCollapsed));
+  const ic = opts.icon ? icon(opts.icon, 'group-icon') : null;
+  if (ic) toggle.append(ic);
+  toggle.append(document.createTextNode(label));
+  const unloaded = opts.groupKey ? (state.unloaded?.[opts.groupKey] ?? 0) : 0;
+  toggle.append(el('small', 'muted', ` ${convs.length + unloaded}`));
   toggle.addEventListener('click', () => {
     collapsed.has(key) ? collapsed.delete(key) : collapsed.add(key);
     saveCollapsed();
     renderConversations();
+    document.querySelector(`#conversations .conv-group[data-key="${CSS.escape(key)}"] .group-toggle`)?.focus();
   });
+  box.dataset.key = key;
   head.append(toggle);
   for (const b of opts.buttons ?? []) head.append(b);
   box.append(head);
@@ -424,8 +577,98 @@ function group(key, label, convs, opts = {}) {
     });
   }
   if (!isCollapsed) {
-    if (!convs.length && opts.empty) box.append(el('p', 'muted small group-empty', opts.empty));
-    for (const c of convs) box.append(convRow(c));
+    if (!convs.length && !unloaded && opts.empty) box.append(el('p', 'muted small group-empty', opts.empty));
+    const o = { inChannel: Boolean(opts.builtin), label, project: opts.project, groupKey: opts.groupKey };
+    // Phase 108: Group by room: a heading per room, each with its own See more.
+    if (opts.byRoom && convs.length) {
+      for (const r of byRoom(convs)) {
+        box.append(el('div', 'conv-room-head', r.room ? chipLabel(r.room) : t('Other sessions')));
+        appendPage(box, `${key}:r:${r.key}`, r.convs, { ...o, inRoom: Boolean(r.room), project: undefined, groupKey: undefined, label: r.room ? chipLabel(r.room) : label });
+      }
+    } else appendPage(box, key, convs, o);
+  }
+  return box;
+}
+
+/** Phase 108: the ⋯ menu of a channel project's heading (Group by room, Hide, Rename, its page). */
+function builtinMenu(p, anchor) {
+  closeMenus();
+  const menu = el('div', 'pop-menu');
+  const item = (label, fn) => {
+    const b = el('button', 'pop-item', label);
+    b.type = 'button';
+    b.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      closeMenus();
+      await fn();
+    });
+    menu.append(b);
+  };
+  const rooms = byRoomOn(p.id);
+  item(rooms ? `✓ ${t('Group by room')}` : t('Group by room'), () => {
+    setByRoom(p.id, !rooms);
+    renderConversations();
+  });
+  item(t('Hide from the sidebar'), async () => {
+    await api(`/projects/${p.id}`, { method: 'PATCH', body: { hidden: true } });
+    await loadConversations();
+    $('#conversations .conv-group[data-key="hidden"] .group-toggle')?.focus();
+  });
+  item(t('Rename…'), async () => {
+    const name = prompt(t('Rename project'), p.name)?.trim();
+    if (!name || name === p.name) return;
+    try {
+      await api(`/projects/${p.id}`, { method: 'PATCH', body: { name } });
+    } catch (err) {
+      alert(err.message);
+    }
+    await loadConversations();
+  });
+  item(t('Project page'), () => openProjectPage(p.id));
+  document.body.append(menu);
+  const r = anchor.getBoundingClientRect();
+  menu.style.top = `${Math.min(window.innerHeight - menu.offsetHeight - 8, r.bottom + 4)}px`;
+  menu.style.left = `${Math.max(8, r.right - menu.offsetWidth)}px`;
+  menu.querySelector('button')?.focus();
+}
+
+/** Phase 108: "Hidden projects (n)" at the bottom brings a hidden channel project back. */
+function hiddenGroup(hidden, live) {
+  const box = el('div', 'conv-group hidden-projects');
+  box.dataset.key = 'hidden';
+  const head = el('div', 'group-head');
+  const isCollapsed = collapsed.has('hidden');
+  const toggle = el('button', 'group-toggle', `${isCollapsed ? '▸' : '▾'} ${t('Hidden projects ({n})', { n: hidden.length })}`);
+  toggle.type = 'button';
+  toggle.setAttribute('aria-expanded', String(!isCollapsed));
+  toggle.addEventListener('click', () => {
+    collapsed.has('hidden') ? collapsed.delete('hidden') : collapsed.add('hidden');
+    saveCollapsed();
+    renderConversations();
+    $('#conversations .conv-group[data-key="hidden"] .group-toggle')?.focus();
+  });
+  head.append(toggle);
+  box.append(head);
+  if (isCollapsed) return box;
+  for (const p of hidden) {
+    const row = el('div', 'hidden-project');
+    const open = el('button', 'ghost hidden-project-open', '');
+    open.type = 'button';
+    const ic = icon(channelIcon(p), 'group-icon');
+    if (ic) open.append(ic);
+    open.append(document.createTextNode(p.name), el('small', 'muted', ` ${live.filter((c) => c.projectId === p.id).length + (state.unloaded?.[`p${p.id}`] ?? 0)}`));
+    open.title = t('Project page: conversations, to-dos, notes and files');
+    open.addEventListener('click', () => openProjectPage(p.id));
+    const show = el('button', 'ghost small hidden-project-show', t('Show'));
+    show.type = 'button';
+    show.setAttribute('aria-label', t('Show {name} in the sidebar', { name: p.name }));
+    show.addEventListener('click', async () => {
+      await api(`/projects/${p.id}`, { method: 'PATCH', body: { hidden: false } });
+      await loadConversations();
+      $(`#conversations .conv-group[data-key="p${p.id}"] .group-toggle`)?.focus();
+    });
+    row.append(open, show);
+    box.append(row);
   }
   return box;
 }
@@ -472,20 +715,46 @@ function renderConversations() {
   const archived = all.filter((c) => c.archivedAt);
   const projects = (state.projects ?? []).filter((p) => p.status === 'active');
   const known = new Set(projects.map((p) => p.id));
-  const groups = projects.map((p) =>
-    group(`p${p.id}`, p.name, live.filter((c) => c.projectId === p.id), {
-      dropProject: p.id,
-      empty: t('Empty: drag a conversation here, or press +.'),
-      buttons: [smallBtn('+', t('New conversation in {name}', { name: p.name }), () => newConversation(p.id)), smallBtn('▤', t('Project page: conversations, to-dos, notes and files'), () => openProjectPage(p.id))],
-    }),
-  );
+  // Phase 108: what the server holds beyond the app's copy counts only without a tag filter.
+  const paging = (k, project) => (state.tagFilter ? {} : { groupKey: k, project });
+  // Channel projects first (with their icon; an empty one stays out of the way), then his own.
+  const channelGroups = projects
+    .filter((p) => p.builtin && !p.hidden)
+    .map((p) => {
+      const convs = live.filter((c) => c.projectId === p.id);
+      if (!convs.length && !(state.unloaded?.[`p${p.id}`] ?? 0)) return null;
+      const menuBtn = smallBtn('⋯', t('Channel project options'), () => builtinMenu(p, menuBtn));
+      return group(`p${p.id}`, p.name, convs, {
+        builtin: p,
+        icon: channelIcon(p),
+        dropProject: p.id,
+        byRoom: byRoomOn(p.id),
+        ...paging(`p${p.id}`, p.id),
+        buttons: [smallBtn('▤', t('Project page: conversations, to-dos, notes and files'), () => openProjectPage(p.id)), menuBtn],
+      });
+    })
+    .filter(Boolean);
+  const groups = projects
+    .filter((p) => !p.builtin)
+    .map((p) =>
+      group(`p${p.id}`, p.name, live.filter((c) => c.projectId === p.id), {
+        dropProject: p.id,
+        empty: t('Empty: drag a conversation here, or press +.'),
+        ...paging(`p${p.id}`, p.id),
+        buttons: [smallBtn('+', t('New conversation in {name}', { name: p.name }), () => newConversation(p.id)), smallBtn('▤', t('Project page: conversations, to-dos, notes and files'), () => openProjectPage(p.id))],
+      }),
+    );
   const loose = live.filter((c) => c.projectId === null || !known.has(c.projectId));
-  const parts = [...groups, group('none', projects.length ? t('No project') : t('Conversations'), loose, { dropProject: null })];
-  if (archived.length) parts.push(group('archived', t('Archived'), archived));
-  if (!collapsed.has('archived-init')) {
-    collapsed.add('archived');
-    collapsed.add('archived-init');
-    saveCollapsed();
+  const parts = [...channelGroups, ...groups, group('none', projects.some((p) => !p.builtin) ? t('No project') : t('Conversations'), loose, { dropProject: null, ...paging('none', 'none') })];
+  if (archived.length || (!state.tagFilter && state.unloaded?.archived)) parts.push(group('archived', t('Archived'), archived, paging('archived', 'archived')));
+  const hidden = projects.filter((p) => p.hidden);
+  if (hidden.length) parts.push(hiddenGroup(hidden, live));
+  for (const [k, init] of [['archived', 'archived-init'], ['hidden', 'hidden-init']]) {
+    if (!collapsed.has(init)) {
+      collapsed.add(k);
+      collapsed.add(init);
+      saveCollapsed();
+    }
   }
   nav.replaceChildren(...parts);
 }
@@ -612,14 +881,24 @@ function openProjectDialog(p, thenMove = null) {
   $('#pd-workspace').value = p?.workspace ?? '';
   $('#pd-error').textContent = '';
   $('#pd-delete').hidden = !p;
-  $('#pd-archive').hidden = !p;
+  $('#pd-archive').hidden = !p || Boolean(p.builtin);
+  // Phase 108: a channel project takes a new name only; it can be deleted once its channel is off.
+  const builtin = Boolean(p?.builtin);
+  $('#pd-workspace-row').hidden = builtin;
+  $('#pd-workspace-about').hidden = builtin;
+  $('#pd-builtin-about').hidden = !builtin;
+  $('#pd-delete').disabled = builtin && p.channel?.on === true;
+  if (builtin) {
+    const channel = p.channel?.name ?? p.name;
+    $('#pd-builtin-about').textContent = p.channel?.on ? t('This project holds the {channel} chats. Rename it here, or hide it on its page. It can be deleted once {channel} is off.', { channel }) : t('{channel} is off, so this project can be deleted. Its chats move to No project.', { channel });
+  }
   $('#project-dialog').showModal();
   $('#pd-name').focus();
 }
 $('#new-project').addEventListener('click', () => openProjectDialog(null));
 $('#pd-save').addEventListener('click', async () => {
   $('#pd-error').textContent = '';
-  const body = { name: $('#pd-name').value.trim(), workspace: $('#pd-workspace').value.trim() || null };
+  const body = projectEditing?.builtin ? { name: $('#pd-name').value.trim() } : { name: $('#pd-name').value.trim(), workspace: $('#pd-workspace').value.trim() || null };
   try {
     const p = projectEditing ? await api(`/projects/${projectEditing.id}`, { method: 'PATCH', body }) : await api('/projects', { method: 'POST', body });
     if (projectEditing) {
@@ -644,7 +923,13 @@ $('#pd-archive').addEventListener('click', async () => {
 $('#pd-delete').addEventListener('click', async () => {
   if (!projectEditing) return;
   if (!confirm(t('Delete the project "{name}"? Nothing else is deleted: its conversations move to No project and its to-dos stay (without a project).', { name: projectEditing.name }))) return;
-  await api(`/projects/${projectEditing.id}`, { method: 'DELETE' });
+  try {
+    await api(`/projects/${projectEditing.id}`, { method: 'DELETE' });
+  } catch (err) {
+    // Phase 108: a channel project while its channel is on (409).
+    $('#pd-error').textContent = err.message;
+    return;
+  }
   $('#project-dialog').close();
   await loadConversations();
 });
@@ -2902,7 +3187,7 @@ function convFacts() {
     return [
       [t('Who is here'), (c.group?.members ?? []).map((m) => m.name).join(', ')],
       ...(style ? [[t('Who answers'), style]] : []),
-      [t('Privacy'), c.private ? t('Private: local models only, nothing leaves your server') : c.channel === 'a2a' ? t('Another agent: kept here, nothing is learned from it') : t('Saved: she remembers what matters'), c.private ? 'hp-private' : ''],
+      [t('Privacy'), c.private ? t('Private: local models only, nothing leaves your server') : c.channel === 'a2a' ? t('Another agent: kept here, nothing is learned from it') : c.partner ? t('Other people: kept here, not in her memory of you') : t('Saved: she remembers what matters'), c.private ? 'hp-private' : ''],
     ];
   }
   const s = state.providers;
@@ -2910,7 +3195,7 @@ function convFacts() {
   const model = c.model ?? (c.providerId ? null : s.defaultModel) ?? '';
   const label = s.providers.find((p) => p.id === prov)?.label ?? prov ?? t('no provider');
   const demo = document.body.classList.contains('demo');
-  const privacy = c.offRecord ? [t('Off the record: nothing is saved'), 'hp-offrecord'] : c.private ? [t('Private: local models only, nothing leaves your server'), 'hp-private'] : demo ? [t('Demo: not saved, gone after a few hours'), 'hp-offrecord'] : c.channel === 'a2a' ? [t('Another agent: kept here, nothing is learned from it'), 'hp-offrecord'] : [t('Saved: she remembers what matters'), ''];
+  const privacy = c.offRecord ? [t('Off the record: nothing is saved'), 'hp-offrecord'] : c.private ? [t('Private: local models only, nothing leaves your server'), 'hp-private'] : demo ? [t('Demo: not saved, gone after a few hours'), 'hp-offrecord'] : c.channel === 'a2a' ? [t('Another agent: kept here, nothing is learned from it'), 'hp-offrecord'] : c.partner ? [t('Other people: kept here, not in her memory of you'), 'hp-offrecord'] : [t('Saved: she remembers what matters'), ''];
   return [
     [t('Model'), model ? `${model} · ${label}` : label],
     ...(isMember() || demo ? [] : [[t('Workspace'), c.workspace === 'main' ? t('main folder') : String(c.workspace ?? '')]]),
@@ -7847,30 +8132,88 @@ async function loadProjectPreviews(ws) {
   );
 }
 
+/** Phase 108: one session on the project page (with its room chip and the ended mark). */
+function projectConvRow(c, builtin) {
+  const shown = builtin ? channelTitle(c) : c.title;
+  const a = el('a', 'pp-item', shown);
+  a.href = '#';
+  if (c.room && (!builtin || c.room.kind === 'dm' || !shown.includes(c.room.title))) a.append(el('small', 'muted conv-room-chip', ` · ${builtin ? chipLabel(c.room) : `${c.channel.replace(/-work|-nsfw/g, '')} · ${chipLabel(c.room)}`}`));
+  else if (c.room?.kind === 'group') a.append(el('small', 'muted conv-room-chip', ` · ${t('group')}`));
+  if (c.endedAt && c.channel !== 'web') a.append(el('small', 'muted', ` ${t('(ended)')}`));
+  if (c.archivedAt) a.append(el('small', 'muted', ` ${t('(archived)')}`));
+  a.addEventListener('click', async (e) => {
+    e.preventDefault();
+    $('#project-page').close();
+    await openConversation(c.id);
+  });
+  return a;
+}
+
+/** Phase 108: the project page's sessions: the newest few, then See more in pages of 20 from the server. */
+function renderProjectConvs(list, more) {
+  const builtin = Boolean(pageProject?.builtin);
+  const box = $('#pp-convs');
+  if (!list.length) return void box.replaceChildren(el('p', 'muted small', t('No conversations yet.')));
+  box.replaceChildren(...list.map((c) => projectConvRow(c, builtin)));
+  if (!more) return;
+  const b = el('button', 'ghost conv-see-more pp-see-more', t('See more ({n})', { n: more }));
+  b.type = 'button';
+  b.addEventListener('click', async () => {
+    b.disabled = true;
+    b.textContent = t('Loading…');
+    try {
+      const r = await api(`/conversations?project=${pageProject.id}&limit=${PAGE_STEP}&before=${encodeURIComponent(cursorOf(list))}`);
+      const next = mergePage(list, r.conversations ?? []);
+      renderProjectConvs(next, r.more ?? 0);
+      box.querySelectorAll('a.pp-item')[list.length]?.focus();
+    } catch (err) {
+      b.disabled = false;
+      b.textContent = err.message;
+    }
+  });
+  const row = el('div', 'conv-more-row');
+  row.append(b);
+  box.append(row);
+}
+
+/** Phase 108: the channel project card (what it holds, Show in the sidebar, Group by room, its settings, Put them back). */
+function renderChannelCard(p) {
+  const card = $('#pp-channel');
+  card.hidden = !p.builtin;
+  if (!p.builtin) return;
+  const name = p.channel?.name ?? p.name;
+  $('#pp-ch-about').textContent = t('New {channel} sessions land here by themselves; your chats in the app stay in your own projects.', { channel: name });
+  $('#pp-ch-shown').checked = !p.hidden;
+  $('#pp-ch-rooms').checked = byRoomOn(p.id);
+  $('#pp-ch-settings').textContent = t('{channel} settings', { channel: name });
+  const filed = p.filed ?? 0;
+  $('#pp-ch-unfile').hidden = !filed;
+  $('#pp-ch-unfile').textContent = filed === 1 ? t('Put back the 1 chat filed here') : t('Put back the {n} chats filed here', { n: filed });
+  $('#pp-ch-status').textContent = '';
+}
+
 async function openProjectPage(id) {
-  const d = await api(`/projects/${id}`);
+  const d = await api(`/projects/${id}?limit=${pageSize(localStorage)}`);
+  const builtin = Boolean(d.project.builtin);
   void loadProjectGit(d.project.workspace);
   void loadProjectPreviews(d.project.workspace);
   pageProject = d.project;
   // Phase 50: Overview first; the Map tab shows her code map of the workspace.
   resetProjectMap(d.project.workspace);
   $('#pp-title').textContent = d.project.name;
-  $('#pp-ws').textContent = d.project.workspace ? t('workspace: {name}', { name: d.project.workspace }) : t('no workspace');
-  $('#pp-convs').replaceChildren(
-    ...(d.conversations.length
-      ? d.conversations.map((c) => {
-          const a = el('a', 'pp-item', c.title);
-          a.href = '#';
-          if (c.archivedAt) a.append(el('small', 'muted', ` ${t('(archived)')}`));
-          a.addEventListener('click', async (e) => {
-            e.preventDefault();
-            $('#project-page').close();
-            await openConversation(c.id);
-          });
-          return a;
-        })
-      : [el('p', 'muted small', t('No conversations yet.'))]),
-  );
+  $('#pp-ws').textContent = builtin ? '' : d.project.workspace ? t('workspace: {name}', { name: d.project.workspace }) : t('no workspace');
+  // Phase 108: a channel project's page: its sessions and the channel card; to-dos and notes only when it has some.
+  renderChannelCard(d.project);
+  $('#pp-map-tab').closest('.pp-tabs').hidden = builtin;
+  $('#pp-overview').classList.toggle('pp-grid-channel', builtin);
+  $('#pp-git-refresh').closest('section').hidden = builtin;
+  $('#pp-new-conv').hidden = builtin;
+  $('#pp-starter').hidden = builtin;
+  $('#pp-tasks').closest('section').hidden = builtin && !d.tasks.length;
+  $('#pp-notes').closest('section').hidden = builtin && !d.notes.length;
+  $('#pp-previews').closest('section').hidden = builtin;
+  $('#pp-files').closest('section').hidden = builtin;
+  renderProjectConvs(d.conversations, d.more ?? 0);
   const open = d.tasks.filter((t) => t.status !== 'done');
   const done = d.tasks.filter((t) => t.status === 'done');
   $('#pp-tasks').replaceChildren(
@@ -7944,6 +8287,46 @@ $('#rc-open-skills')?.addEventListener('click', () => showSettingsTab('ab-skills
 $('#pp-edit').addEventListener('click', () => {
   $('#project-page').close();
   openProjectDialog(pageProject);
+});
+// Phase 108 (CH2): the channel project card.
+$('#pp-ch-shown').addEventListener('change', async () => {
+  const hidden = !$('#pp-ch-shown').checked;
+  try {
+    pageProject = await api(`/projects/${pageProject.id}`, { method: 'PATCH', body: { hidden } });
+    $('#pp-ch-status').textContent = hidden ? t('Hidden. "Hidden projects" at the bottom of the list brings it back.') : t('Back in the sidebar.');
+  } catch (err) {
+    $('#pp-ch-shown').checked = !hidden;
+    $('#pp-ch-status').textContent = err.message;
+  }
+  await loadConversations();
+});
+$('#pp-ch-rooms').addEventListener('change', () => {
+  setByRoom(pageProject.id, $('#pp-ch-rooms').checked);
+  renderConversations();
+});
+$('#pp-ch-settings').addEventListener('click', () => {
+  const kind = pageProject?.channel?.kind;
+  $('#project-page').close();
+  showSettingsTab(kind === 'telegram' ? 'co-telegram' : kind === 'discord' ? 'co-discord' : 'ab-plugins', { focus: true });
+});
+$('#pp-ch-unfile').addEventListener('click', async () => {
+  const n = pageProject.filed ?? 0;
+  if (!confirm(t('Put the {n} chats that were filed here when Sara updated back in No project? Chats that arrive later stay here.', { n }))) return;
+  try {
+    const r = await api(`/projects/${pageProject.id}/unfile`, { method: 'POST', body: {} });
+    await loadConversations();
+    await openProjectPage(pageProject.id);
+    $('#pp-ch-status').textContent = r.moved === 1 ? t('1 chat is back in No project.') : t('{n} chats are back in No project.', { n: r.moved });
+  } catch (err) {
+    $('#pp-ch-status').textContent = err.message;
+  }
+});
+// Phase 108: Settings → Appearance → Sessions shown (5 / 8 / 10, this device).
+$('#ap-sessions').value = String(pageSize(localStorage));
+$('#ap-sessions').addEventListener('change', () => {
+  localStorage.setItem(PAGE_KEY, $('#ap-sessions').value);
+  shownRows.clear();
+  renderConversations();
 });
 $('#pp-new-conv').addEventListener('click', async () => {
   $('#project-page').close();

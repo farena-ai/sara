@@ -341,6 +341,19 @@ export class PluginManager {
     return JSON.parse(row.manifest) as PluginManifest;
   }
 
+  /** Phase 108 (CH2): an installed plugin that provides this bridge is on for this companion (its channel project can't be deleted then). */
+  bridgeOn(app: AppContext, bridge: string): boolean {
+    const a = [...this.#attached.values()].find((x) => x.app === app);
+    if (!a) return false;
+    return this.store.all().some((row) => row.status === 'installed' && this.enabledFor(row.id, a.id) && this.manifestOf(row).permissions.bridges.includes(bridge));
+  }
+
+  /** Phase 108: the name of the plugin that provides a bridge ("WhatsApp bridge"), for its channel project. */
+  bridgeLabel(bridge: string): string | undefined {
+    for (const row of this.store.all()) if (this.manifestOf(row).permissions.bridges.includes(bridge)) return this.manifestOf(row).name;
+    return undefined;
+  }
+
   /** Recomputes the folder's hash: false (and the plugin switched off) when it changed on disk. */
   verify(id: string): boolean {
     const row = this.store.get(id);
@@ -861,7 +874,9 @@ export class PluginManager {
     const store = a.app.store;
     const who = owner ? 'owner' : 'partner';
     // Phase 107 (CH1): the chat's current session (the newest one /new hasn't closed).
-    const make = () => (store.latestChannelConversation(channel, chatId, who) ? nextSessionOf(store.latestChannelConversation(channel, chatId, who)!) : store.createConversation({ title: owner ? `${run.manifest.name}` : `${run.manifest.name}: ${from}`, channel, channelKey: chatId, partner: owner ? null : from }));
+    // Phase 108 (CH2): a chat's first session goes into the bridge's own project ("WhatsApp", "Signal").
+    const { channelProjectId } = await import('../bridges/rooms.ts');
+    const make = () => (store.latestChannelConversation(channel, chatId, who) ? nextSessionOf(store.latestChannelConversation(channel, chatId, who)!) : store.createConversation({ title: owner ? `${run.manifest.name}` : `${run.manifest.name}: ${from}`, channel, channelKey: chatId, partner: owner ? null : from, projectId: channelProjectId(a.app, channel, run.manifest.name) }));
     // Phase 107: typed commands (/new, !new, "Sara new") work here too; never a turn, checked here every time.
     const { chatsSettings, nextSession, ownerLanguage, parseCommand, runCommand } = await import('../bridges/commands.ts');
     const nextSessionOf = (prev: import('../store.ts').Conversation) => nextSession(a.app, prev);

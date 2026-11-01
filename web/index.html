@@ -1384,6 +1384,17 @@
           <div id="pm-detail" class="pm-detail"><p class="muted small">Pick a file to see its functions and classes (with line numbers), what it imports and what imports it.</p></div>
         </div>
       </section>
+      <section id="pp-channel" class="tidy-card pp-channel" hidden>
+        <h3>Channel project <button type="button" class="tip" data-tip="Sara files every Telegram (or Discord, WhatsApp…) session here by itself, so your own projects stay tidy. Rename or hide it any time; it can be deleted once that channel is off.">?</button></h3>
+        <p id="pp-ch-about" class="muted small"></p>
+        <label class="row"><input id="pp-ch-shown" type="checkbox"> Show in the sidebar</label>
+        <label class="row"><input id="pp-ch-rooms" type="checkbox"> Group by room</label>
+        <div class="pp-ch-actions">
+          <button id="pp-ch-settings" type="button" class="ghost small">Channel settings</button>
+          <button id="pp-ch-unfile" type="button" class="ghost small" hidden>Put them back</button>
+        </div>
+        <p id="pp-ch-status" class="muted small" role="status"></p>
+      </section>
       <div class="pp-grid" id="pp-overview">
         <section>
           <h3>Conversations <button id="pp-new-conv" type="button" class="ghost small">+ New</button> <button id="pp-starter" type="button" class="ghost small">New project from a starter</button></h3>
@@ -1463,8 +1474,9 @@
     <form method="dialog" class="settings-body">
       <h2 id="pd-title">New project</h2>
       <label>Name <input id="pd-name" maxlength="80" placeholder="e.g. Kitchen remodel, Weather app"></label>
-      <label>Workspace (optional) <input id="pd-workspace" list="cs-workspaces" maxlength="64" placeholder="for coding: her files for this project live here"></label>
-      <p class="muted small">New conversations started in the project use this workspace, so coding sessions share the same files. The project also collects its to-dos and notes.</p>
+      <label id="pd-workspace-row">Workspace (optional) <input id="pd-workspace" list="cs-workspaces" maxlength="64" placeholder="for coding: her files for this project live here"></label>
+      <p id="pd-workspace-about" class="muted small">New conversations started in the project use this workspace, so coding sessions share the same files. The project also collects its to-dos and notes.</p>
+      <p id="pd-builtin-about" class="muted small" hidden></p>
       <p id="pd-error" class="error"></p>
       <div class="actions">
         <button id="pd-delete" type="button" class="ghost danger-text" hidden>Delete project</button>
@@ -2197,6 +2209,9 @@
         </label>
         <label>Layout
           <select id="ap-density"><option value="comfy">Comfortable</option><option value="compact">Compact (more on screen)</option></select>
+        </label>
+        <label>Sessions shown
+          <select id="ap-sessions"><option value="5" data-raw>5</option><option value="8">8 (the default)</option><option value="10" data-raw>10</option></select>
         </label>
       </div>
       <div class="ap-swatches" id="ap-swatches" aria-hidden="true"></div>

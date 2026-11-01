@@ -128,12 +128,16 @@ export function importAll(app: AppContext, data: unknown): ImportResult {
   try {
     // Projects first, so conversations filed in a project stay filed there.
     if (app.planner) {
+      const hasBuiltin = (db.prepare('PRAGMA table_info(projects)').all() as Row[]).some((c) => c.name === 'builtin');
       for (const p of f.projects ?? []) {
         const name = req(p.name, 'a project name');
-        const existing = db.prepare('SELECT id FROM projects WHERE name = ?').get(name) as Row | undefined;
+        // Phase 108 (CH2): a channel project joins this server's own one for that channel (renamed or not).
+        const builtin = hasBuiltin && typeof p.builtin === 'string' && p.builtin.startsWith('channel:') ? p.builtin : null;
+        const existing = ((builtin ? db.prepare('SELECT id FROM projects WHERE builtin = ?').get(builtin) : undefined) ?? db.prepare('SELECT id FROM projects WHERE name = ?').get(name)) as Row | undefined;
         if (existing) projMap.set(Number(p.id), Number(existing.id));
         else {
           const id = db.prepare('INSERT INTO projects (name, description, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').run(name, String(p.description ?? ''), p.status === 'archived' ? 'archived' : 'active', v(p.created_at) ?? now, v(p.updated_at) ?? now).lastInsertRowid;
+          if (builtin) db.prepare("UPDATE projects SET builtin = ?, hidden = ?, status = 'active' WHERE id = ?").run(builtin, Number(p.hidden ?? 0) === 1 ? 1 : 0, id);
           projMap.set(Number(p.id), Number(id));
           r.projects++;
         }

@@ -1,6 +1,6 @@
 # Chats and sessions: commands in every channel, a tidy list, titles that grow, keeping up with the room (design, Phases 107–110, versions 2.40.0–2.43.0)
 
-Status: design study, 2026-10-31. CH1 (Phase 107) is built in 2.40.0 (see §4.11a); CH2–CH4 are not built yet. This is a read-only study of the code at
+Status: design study, 2026-10-31. CH1 (Phase 107) is built in 2.40.0 (see §4.11a) and CH2 (Phase 108) in 2.41.0 (see §5.8a); CH3–CH4 are not built yet. This is a read-only study of the code at
 2.39.0 (Phase 106 released, move-in track complete) plus the official Discord and Telegram developer
 documentation (sources in §13). It is a ground-up design: no code, schema or protocol detail is taken
 from Hermes Agent, OpenClaw or any other agent. Zero new npm runtime dependencies. Every outgoing
@@ -579,6 +579,59 @@ more*, for an owner in several busy rooms.
   `updated_at`).
 - Static checks: no inline `style=`, every new string in the i18n files, tips covered
   (`node scripts/tip-coverage.ts` = 0 uncovered), 44 px targets (the existing web-static test).
+
+### 5.8a As built (2.41.0)
+
+Built as designed in `src/bridges/rooms.ts` (§5.2 table, B3), `src/planner.ts` (columns),
+`src/store.ts` (`conversationPage`), `src/routes/planner.ts`, the list route in `src/server.ts` and
+`web/session-list.js` (the paging and chain rules, shared by the sidebar and the project page), with
+these choices and differences:
+
+- **Blocking-question defaults applied:** Q10 (a name clash makes the builtin *Telegram chats* /
+  *Discord chats*; his project is never taken over; a further clash adds a number) and Q11 (one
+  project per plugin bridge, named from a small table — WhatsApp, Signal, LINE… — else the plugin's
+  own name).
+- **Filing:** a chat's *first* session gets the channel project (`channelProjectId`); later sessions
+  follow the previous session's `projectId` (CH1's `nextSession`), so a session he moved stays moved.
+  The one-time filing runs at startup of the owner's main companion (`fileChannelChats`) and is
+  recorded in `memory_kv` `chats:filed` as `{at, moved: [{id, projectId}]}`; the project is created
+  then only for channels that have unfiled chats, otherwise on the first message. Undo
+  (`POST /api/projects/:id/unfile`) is per project and once: it puts back the moved ids still in
+  that project.
+- **Routes:** `PATCH /api/projects/:id` on a builtin takes `name` and `hidden` (archive → 409,
+  workspace/description → 400; `hidden` on his own projects → 400; a name clash → 409 for every
+  project instead of a database error). `DELETE` → 409 with `errorKey` while the channel is on
+  (Telegram/Discord `enabled`, or a plugin providing that bridge switched on for this companion).
+  `GET /api/projects` (and `/:id`) adds `builtin`, `hidden`, `channel {kind, bridge, name, on}` and
+  `filed`. `GET /api/conversations?project=<id|none|archived>&limit=&before=<updatedAt,id>` returns
+  `{conversations, more}` ordered by `updated_at DESC, id DESC`; `?cap=N` (new) returns each group's
+  newest N plus `totals` per group. The web always loads with `?cap=200` and asks for pages only
+  past that, instead of switching on at "more than 200"; the plain form is unchanged for old clients.
+  `GET /api/projects/:id?limit=` gives the project page its first page and `more`.
+- **Rows and chains:** sessions of one chat (`session_of`) are one row: the open session, with a
+  small count that opens the ended ones (dated) under it. A row's room chip comes from B3 (`room`
+  on each conversation: `{kind: dm|group|channel, title, parent}`). Inside a channel project the
+  placeholder prefix (*Telegram: *, *Discord work: *, *<plugin>: *) is left off the row's title and a
+  chip that only repeats the title is dropped (the full title is the row's tooltip).
+- **B3 rooms:** the `rooms` table is created with the full §7.3 schema (CH4's columns unused yet).
+  Telegram notes the room on every handled message (DM name or group title); Discord asks
+  `GET /channels/{id}` and `GET /guilds/{id}` at most once a day per room and renames sessions still
+  called by the old placeholder (*Discord channel 1234* → *Discord: #general · My Server*) without
+  counting it as activity. Plugin bridges note no room yet (the inbound message has no kind/title).
+- **Settings:** *Sessions shown* (5 / 8 / 10) is a per-device choice in Settings → You → About you
+  → Appearance (`localStorage`), not `chats.list.pageSize`, like the rest of that section. *Group by
+  room* is per device too.
+- **Sidebar:** channel projects first (icons `telegram`, `discord`, `plug` in `web/icons.js`); an
+  empty channel project (e.g. after Undo) stays out of the sidebar until a session lands; *Hidden
+  projects (n)* is the last group, collapsed by default. The project page of a channel project shows
+  the channel card (Show in the sidebar, Group by room, the channel's settings, Put them back) and
+  its sessions; to-dos and notes only when it has some; no workspace, previews, files, changes or
+  Map.
+- **Hooks for CH3/CH4:** CH3's retitling should keep the placeholder-prefix rule in mind (the row
+  drops only the bridges' own prefixes; a `title_source` column would let it skip owner titles);
+  CH4 hangs keep-up on the existing `rooms` row (`roomOf`, `noteRoom`, `roomChip`).
+- **Not built:** the command palette lists only the sessions the app has loaded (search covers the
+  rest); a room-grouped project pages only through loaded rows.
 
 ### 5.9 Owner to-dos
 

@@ -1503,3 +1503,38 @@ body:not(.member) [data-member-only] { display: none !important; }
 .cs-sessions button { width: 100%; text-align: start; min-height: 44px; }
 .cs-sessions li.current button { font-weight: 600; }
 .channel-tag.ended-tag { color: var(--muted); font-style: italic; }
+
+/* Phase 108 (CH2): the tidy session list (channel projects, See more, earlier sessions, hidden projects, the channel card). */
+.group-toggle .group-icon { width: 14px; height: 14px; vertical-align: -2px; margin-inline-end: 6px; }
+.group-builtin .group-toggle { color: var(--text-2); }
+.conv-more-row { display: flex; align-items: center; gap: var(--s-2); padding: 0 2px var(--s-1); }
+button.conv-see-more, button.conv-show-less { min-height: 44px; padding: 0 10px; border: 0; background: none; box-shadow: none; font-size: var(--fs-small); font-weight: 500; }
+.conv-more-row button.conv-see-more, .conv-more-row button.conv-show-less { border: 0; background: none; box-shadow: none; border-radius: var(--r-control); }
+.conv-more-row button.conv-see-more { flex: 1 1 auto; justify-content: flex-start; text-align: start; color: var(--accent-text); }
+.conv-more-row button.conv-show-less { flex: 0 0 auto; color: var(--text-3); }
+.conv-more-row button.conv-see-more:hover, .conv-more-row button.conv-show-less:hover { background: var(--surface-2); }
+.channel-tag.conv-room-chip { text-transform: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46%; }
+#conversations button.conv-earlier-btn { flex: 0 0 auto; min-width: 32px; padding: 0 8px; color: var(--text-3); font-size: var(--fs-meta); border-radius: var(--r-pill); }
+.conv-earlier { margin-inline-start: 14px; padding-inline-start: 4px; border-inline-start: 1px solid var(--hairline); }
+.conv-room-head { padding: var(--s-2) 10px 2px; color: var(--text-3); font-size: var(--fs-meta); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hidden-project { display: flex; align-items: center; gap: var(--s-1); }
+.hidden-project button.hidden-project-open { flex: 1; min-width: 0; min-height: 44px; justify-content: flex-start; text-align: start; padding: 0 10px; border: 0; background: none; box-shadow: none; color: var(--text-2); font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hidden-project button.hidden-project-open .group-icon { width: 14px; height: 14px; margin-inline-end: 6px; flex: 0 0 auto; }
+.hidden-project button.hidden-project-show { min-height: 44px; border: 0; background: none; box-shadow: none; color: var(--accent-text); }
+.pp-channel { margin-bottom: var(--s-3); }
+.pp-channel.tidy-card { gap: 0; }
+#pp-ch-about { margin: var(--s-1) 0 var(--s-2); }
+.pp-ch-actions { margin-top: var(--s-2); }
+.pp-channel h3 { margin: 0; }
+.pp-channel label.row { min-height: 44px; display: flex; align-items: center; gap: var(--s-2); }
+.pp-ch-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.pp-ch-actions button { min-height: 44px; }
+#pp-convs .conv-more-row { padding: 0; }
+.pp-grid.pp-grid-channel { grid-template-columns: minmax(0, 1fr); }
+.pp-grid-channel #pp-convs { max-height: min(52vh, 480px); }
+@media (hover: none), (max-width: 760px) {
+  #conversations a.conv { min-height: 44px; }
+  #pp-convs a.pp-item { min-height: 44px; display: flex; align-items: center; gap: 4px; }
+  /* A 44 px target that doesn't make its row taller (the row has 8 px padding). */
+  #conversations button.conv-earlier-btn { min-width: 44px; min-height: 44px; margin-block: -8px; border-color: transparent; background: none; box-shadow: none; }
+}

@@ -18,6 +18,13 @@ export interface Project {
   status: 'active' | 'archived';
   /** Default workspace for new conversations in this project (coding projects keep their files together). */
   workspace: string | null;
+  /**
+   * Phase 108 (CH2): a channel's own project ('channel:telegram', 'channel:discord',
+   * 'channel:plugin-signal'); null for the owner's projects. Renamable and hideable, never archived.
+   */
+  builtin: string | null;
+  /** Phase 108: taken out of the sidebar ("Hidden projects" brings it back); its sessions stay searchable. */
+  hidden: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -290,6 +297,10 @@ export class PlannerStore {
     db.exec(SCHEMA);
     const cols = new Set((db.prepare('PRAGMA table_info(projects)').all() as Row[]).map((r) => String(r.name)));
     if (!cols.has('workspace')) db.exec('ALTER TABLE projects ADD COLUMN workspace TEXT');
+    // Phase 108 (CH2): channel projects (docs/design/CHATS.md §5.3). Older versions ignore both columns.
+    if (!cols.has('builtin')) db.exec('ALTER TABLE projects ADD COLUMN builtin TEXT');
+    if (!cols.has('hidden')) db.exec('ALTER TABLE projects ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0');
+    db.exec('CREATE UNIQUE INDEX IF NOT EXISTS projects_builtin ON projects(builtin) WHERE builtin IS NOT NULL');
     const rcols = new Set((db.prepare('PRAGMA table_info(reminders)').all() as Row[]).map((r) => String(r.name)));
     if (!rcols.has('call')) db.exec('ALTER TABLE reminders ADD COLUMN call INTEGER NOT NULL DEFAULT 0');
     if (!rcols.has('place_id')) db.exec('ALTER TABLE reminders ADD COLUMN place_id INTEGER');
@@ -326,9 +337,32 @@ export class PlannerStore {
       description: String(r.description),
       status: r.status === 'archived' ? 'archived' : 'active',
       workspace: (r.workspace as string | null) ?? null,
+      builtin: (r.builtin as string | null | undefined) ?? null,
+      hidden: Number(r.hidden ?? 0) === 1,
       createdAt: String(r.created_at),
       updatedAt: String(r.updated_at),
     }));
+  }
+
+  /** Phase 108 (CH2): the channel project with this builtin key, if it exists. */
+  builtinProject(key: string): Project | undefined {
+    return this.projects(true).find((p) => p.builtin === key);
+  }
+
+  /**
+   * Phase 108: creates a channel's project. A name the owner already uses is never taken over:
+   * the builtin is then "<name> chats" (and a number after that, if even that is taken).
+   */
+  createBuiltinProject(key: string, name: string): Project {
+    const have = this.builtinProject(key);
+    if (have) return have;
+    const taken = (n: string) => Boolean(this.db.prepare('SELECT 1 FROM projects WHERE name = ?').get(n));
+    let pick = name;
+    if (taken(pick)) pick = `${name} chats`;
+    for (let i = 2; taken(pick) && i < 100; i++) pick = `${name} chats ${i}`;
+    const ts = this.#ts();
+    this.db.prepare('INSERT INTO projects (name, created_at, updated_at, builtin) VALUES (?, ?, ?, ?)').run(pick, ts, ts, key);
+    return this.builtinProject(key)!;
   }
 
   /** Finds a project by name (case-insensitive), creating it if needed. */
@@ -344,12 +378,12 @@ export class PlannerStore {
     return Number(this.db.prepare('INSERT INTO projects (name, created_at, updated_at) VALUES (?, ?, ?)').run(n, this.#ts(), this.#ts()).lastInsertRowid);
   }
 
-  updateProject(id: number, patch: { name?: string; description?: string; status?: 'active' | 'archived'; workspace?: string | null }): Project | undefined {
+  updateProject(id: number, patch: { name?: string; description?: string; status?: 'active' | 'archived'; workspace?: string | null; hidden?: boolean }): Project | undefined {
     const cur = this.projects(true).find((p) => p.id === id);
     if (!cur) return undefined;
     this.db
-      .prepare('UPDATE projects SET name = ?, description = ?, status = ?, workspace = ?, updated_at = ? WHERE id = ?')
-      .run(patch.name?.trim() || cur.name, patch.description ?? cur.description, patch.status ?? cur.status, patch.workspace !== undefined ? patch.workspace : cur.workspace, this.#ts(), id);
+      .prepare('UPDATE projects SET name = ?, description = ?, status = ?, workspace = ?, hidden = ?, updated_at = ? WHERE id = ?')
+      .run(patch.name?.trim() || cur.name, patch.description ?? cur.description, patch.status ?? cur.status, patch.workspace !== undefined ? patch.workspace : cur.workspace, (patch.hidden ?? cur.hidden) ? 1 : 0, this.#ts(), id);
     return this.projects(true).find((p) => p.id === id);
   }
 

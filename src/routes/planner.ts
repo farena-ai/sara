@@ -7,7 +7,9 @@ import { as400, fromPhoneApp, HttpError, readJson, send, validWorkspace } from '
 import { findAddress, leaveBySettings } from '../leaveby.ts';
 import { localDate } from '../memory-worker.ts';
 import { netFetch } from '../net-guard.ts';
-import { parseWhen, PLACE_DUE, type PlannerStore, type Priority, type Repeat, REPEATS } from '../planner.ts';
+import { parseWhen, PLACE_DUE, type PlannerStore, type Priority, type Project, type Repeat, REPEATS } from '../planner.ts';
+import { channelName, channelOfBuiltin, channelOn, filedCount, roomChip, roomOfConversation, roomsByKey, unfileChannelChats } from '../bridges/rooms.ts';
+import type { Conversation } from '../store.ts';
 import { ReminderScheduler } from '../reminders.ts';
 import { reviewSettings } from '../review.ts';
 import { adultModeOn } from '../settings.ts';
@@ -94,6 +96,12 @@ async function todayWeather(place: { name: string; lat: number; lon: number }, u
 
 export function createPlannerRoutes(ctx: RouteCtx): RouteHandler {
   const { app, opts, rootDir } = ctx;
+  // Phase 108 (CH2): a channel project says which channel it holds, whether that channel is on (then
+  // it can't be deleted) and how many chats the one-time filing moved in (its Undo).
+  const projectView = (p: Project) => {
+    const ch = channelOfBuiltin(p.builtin);
+    return ch ? { ...p, channel: { kind: ch.kind, bridge: ch.bridge, name: channelName(app, p.builtin), on: channelOn(app, p.builtin) }, filed: filedCount(app, p.id) } : p;
+  };
   function needPlanner(): PlannerStore {
     if (!app.planner) throw new HttpError(404, 'Planner is not available');
     return app.planner;
@@ -176,8 +184,9 @@ export function createPlannerRoutes(ctx: RouteCtx): RouteHandler {
     if (a === 'projects' && !b) {
       const pl = needPlanner();
       if (method === 'GET') {
-        const convs = app.store.listConversations();
-        return send(res, 200, pl.projects(true).map((p) => ({ ...p, conversations: convs.filter((c) => c.projectId === p.id).length })));
+        const counts = new Map<number, number>();
+        for (const c of app.store.listConversations()) if (c.projectId !== null) counts.set(c.projectId, (counts.get(c.projectId) ?? 0) + 1);
+        return send(res, 200, pl.projects(true).map((p) => ({ ...projectView(p), conversations: counts.get(p.id) ?? 0 })));
       }
       if (method === 'POST') {
         const body = await readJson(req);
@@ -191,7 +200,7 @@ export function createPlannerRoutes(ctx: RouteCtx): RouteHandler {
         }
         const p = pl.updateProject(id, { ...(body.workspace ? { workspace: validWorkspace(body.workspace) } : {}), status: 'active' });
         app.events?.publish({ type: 'planner', what: 'tasks' });
-        return send(res, 201, p);
+        return send(res, 201, p && projectView(p));
       }
     }
     if (a === 'projects' && b) {
@@ -201,7 +210,16 @@ export function createPlannerRoutes(ctx: RouteCtx): RouteHandler {
       if (method === 'GET' && !c) {
         const p = pl.projects(true).find((x) => x.id === id);
         if (!p) throw new HttpError(404, 'Project not found');
-        const conversations = app.store.listConversations().filter((cv) => cv.projectId === id);
+        // Phase 108 (CH2): ?limit= gives the newest sessions and how many more there are (See more pages
+        // through GET /api/conversations?project=…); without it, every one (older apps).
+        const lim = Number(new URL(req.url ?? '/', 'http://x').searchParams.get('limit') ?? '');
+        const page = lim > 0 ? app.store.conversationPage({ project: id, limit: lim }) : undefined;
+        const roomMap = roomsByKey(app);
+        const withRoom = (cv: Conversation) => {
+          const chip = roomChip(roomOfConversation(app, cv, roomMap));
+          return chip ? { ...cv, room: chip } : cv;
+        };
+        const conversations = (page ? page.conversations : app.store.listConversations().filter((cv) => cv.projectId === id)).map(withRoom);
         const tasks = pl.tasks({ status: 'all', projectId: id });
         const notes = pl.notes().filter((n) => n.projectId === id);
         let files: { path: string; size: number; modifiedAt: string }[] = [];
@@ -213,20 +231,50 @@ export function createPlannerRoutes(ctx: RouteCtx): RouteHandler {
             files = [];
           }
         }
-        return send(res, 200, { project: p, conversations, tasks, notes, files, filesTruncated: truncated });
+        return send(res, 200, { project: projectView(p), conversations, ...(page ? { more: page.more } : {}), tasks, notes, files, filesTruncated: truncated });
       }
-      if (method === 'PATCH') {
+      // Phase 108: Undo of the one-time filing: the chats it moved here (and still here) go back to No project.
+      if (c === 'unfile' && method === 'POST') {
+        const p = pl.projects(true).find((x) => x.id === id);
+        if (!p) throw new HttpError(404, 'Project not found');
+        const moved = unfileChannelChats(app, id);
+        app.events?.publish({ type: 'planner', what: 'tasks' });
+        return send(res, 200, { ok: true, moved });
+      }
+      if (method === 'PATCH' && !c) {
         const body = await readJson(req);
+        const cur = pl.projects(true).find((x) => x.id === id);
+        if (!cur) throw new HttpError(404, 'Project not found');
+        // Phase 108 (CH2): a channel project takes a new name and Hide only (§5.3); it can't be
+        // archived, because archiving would hide the new sessions the channel files into it.
+        if (cur.builtin) {
+          if (body.status === 'archived') throw new HttpError(409, "A channel project can't be archived. Hide it instead.");
+          if (body.workspace || (body.description !== undefined && String(body.description) !== cur.description)) throw new HttpError(400, 'A channel project only takes a new name or Hide.');
+        } else if (body.hidden !== undefined && Boolean(body.hidden) !== cur.hidden) throw new HttpError(400, 'Only channel projects can be hidden. Archive this one instead.');
+        if (body.name !== undefined) {
+          const name = String(body.name).trim().slice(0, 80);
+          const clash = name && pl.projects(true).find((x) => x.id !== id && x.name.toLowerCase() === name.toLowerCase());
+          if (clash) throw new HttpError(409, 'There is already a project called "{name}".', { params: { name } });
+        }
         const p = pl.updateProject(id, {
-          ...(body.workspace !== undefined ? { workspace: body.workspace ? validWorkspace(body.workspace) : null } : {}),
+          ...(body.workspace !== undefined && !cur.builtin ? { workspace: body.workspace ? validWorkspace(body.workspace) : null } : {}),
           ...(body.name !== undefined ? { name: String(body.name).slice(0, 80) } : {}),
-          ...(body.description !== undefined ? { description: String(body.description).slice(0, 2000) } : {}),
+          ...(body.description !== undefined && !cur.builtin ? { description: String(body.description).slice(0, 2000) } : {}),
           ...(body.status !== undefined ? { status: body.status === 'archived' ? 'archived' : 'active' } : {}),
+          ...(body.hidden !== undefined && cur.builtin ? { hidden: Boolean(body.hidden) } : {}),
         });
         if (!p) throw new HttpError(404, 'Project not found');
-        return send(res, 200, p);
+        app.events?.publish({ type: 'planner', what: 'tasks' });
+        return send(res, 200, projectView(p));
       }
-      if (method === 'DELETE') {
+      if (method === 'DELETE' && !c) {
+        const cur = pl.projects(true).find((x) => x.id === id);
+        if (!cur) throw new HttpError(404, 'Project not found');
+        // Phase 108: not while its channel is on (new sessions would have nowhere to go).
+        if (cur.builtin && channelOn(app, cur.builtin)) {
+          const channel = channelName(app, cur.builtin);
+          throw new HttpError(409, 'This project holds the {channel} chats. Turn {channel} off first, or hide it.', { params: { channel } });
+        }
         // Its conversations and to-dos stay; they just lose the project.
         const moved = app.store.clearProject(id);
         if (!pl.deleteProject(id)) throw new HttpError(404, 'Project not found');

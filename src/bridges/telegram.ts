@@ -19,6 +19,7 @@ import type { Conversation } from '../store.ts';
 import { takeChatDocument, type SharedDoc } from '../library/intake.ts';
 import { everyoneCalled, nameCalled } from './rules.ts';
 import { askerLanguage, chatsSettings, menuHash, menuList, nearlyFullOffer, nextSession, OTHER_LANGS, ownerLanguage, parseCommand, runCommand, say, setSessionModel, TELEGRAM_LANGS, type Asker, type BridgeAdapter, type CommandName, type CommandReply, type ModelPick, type ParsedCommand, type Place } from './commands.ts';
+import { channelProjectId, noteRoom } from './rooms.ts';
 
 export interface TelegramSettings {
   enabled: boolean;
@@ -396,6 +397,8 @@ export class TelegramBridge {
     const key = String(msg.chat.id);
     const channel = this.#channelOf(msg, ownerWork);
     const who = isOwnerChat || ownerWork ? 'owner' : 'partner';
+    // Phase 108 (B3): the room's real name, for the app's row chips (a DM, or the group's title).
+    noteRoom(this.#app, { bridge: 'telegram', key, kind: msg.chat.type === 'private' ? 'dm' : 'room', title: msg.chat.type === 'private' ? msg.from?.first_name || msg.from?.username || 'DM' : msg.chat.title ?? 'group', adult: channel.endsWith('-nsfw') });
     const existing = this.#app.store.currentChannelConversation(channel, key, who);
     if (existing) return existing;
     // Every session of the chat was closed from the app: the next one continues the chain.
@@ -404,7 +407,8 @@ export class TelegramBridge {
     const group = `the group "${msg.chat.title ?? 'group'}"`;
     const partner = isOwnerChat || ownerWork ? null : msg.chat.type === 'private' ? msg.from?.first_name || msg.from?.username || 'someone' : group;
     const title = isOwnerChat ? 'Telegram' : ownerWork ? `Telegram work: ${group}` : `Telegram: ${partner}`;
-    return this.#app.store.createConversation({ title, channel, channelKey: key, partner });
+    // Phase 108 (CH2): a chat's first session goes into the Telegram project (later ones follow the last one's project).
+    return this.#app.store.createConversation({ title, channel, channelKey: key, partner, projectId: channelProjectId(this.#app, channel) });
   }
 
   /** Phase 107: runs a command and sends its reply (owner-only details from a group go to his private chat). */
