@@ -5,6 +5,22 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.47.1 (2026-11-01): a first run that fits you (Phase 114, polish PL1b)
+
+- **Company, coding or both:** the first setup step asks what you're here for (saved per companion,
+  changeable in Settings → You → About you). It sets the recommended model, the tour, the starter
+  suggestions and the order of *Getting started*; everything stays available either way.
+- **Connect a brain:** a *Picked for you* card (the model, why, where it runs, *Change*), a live
+  *Connected ✓* check that sends a real test message before *Next* turns on, and *Next* as the one
+  main button (*Skip for now* is a quiet link, *Set up later* moved to the header). Coders get a
+  model good with code and tools.
+- **Two six-stop tours** (companion, coder) offered after her first reply; *The full tour* stays in
+  Help. **Starter chips** in setup's last step and in any empty chat, matched to your choice.
+- **One first-run queue:** the setup wizard, the anonymous check-in note, notices and the tour offer
+  never cover each other; the check-in note (same words, same buttons) is now part of the last setup
+  step.
+- Automatic chat titles are shorter and in sentence case.
+
 ## 2.47.0 (2026-11-01): personality you can see (Phase 114, polish PL1a)
 
 - **The personality dials explain themselves:** new end words for each dial (*Keeps her distance ↔

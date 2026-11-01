@@ -324,6 +324,16 @@
   "Pick one of the offered speeds.",
   "Gentle (chat always first)",
   "Normal",
-  "Fast"
+  "Fast",
+  "Open a project",
+  "Point a conversation at a project folder and switch it to coding.",
+  "Choose how she runs code",
+  "Tools and approvals: a sandbox for commands, and what she must ask you first.",
+  "Add a GitHub token",
+  "So she can clone, open pull requests and review them.",
+  "Use her from your editor",
+  "The VS Code extension, the terminal client or any MCP or OpenAI-compatible app.",
+  "Set a budget",
+  "How many tokens a coding reply or a background job may use before she stops."
  ]
 }

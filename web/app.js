@@ -39,7 +39,8 @@ import { startsOnToday } from './start-view.js';
 import { DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNote, updatesShown, versionChanged } from './update-check.js';
 import { initHousehold, joinFromLink, loadAccount, loadHousehold, showPaused } from './household.js';
 import { initNav, relabelNav, revealNav, setMore } from './nav.js';
-import { hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton } from './hub.js';
+import { foldFirstRun, hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton, unfoldFirstRun } from './hub.js';
+import { createQueue, normPath, offerText, overlayCount, pathChoices, starterChips, tourFor } from './first-run.js';
 import { emptyState, initTidy, overflowMenu } from './tidy.js';
 import { addStep, finishStep, hasSteps, memoryStep, pluginStep, recallStep, runLink, runStep, setBudget, skillStep, stepLine, waitStep } from './steps.js';
 import { budgetCard, budgetMeter, fillBudgetSelect, overrideNote } from './budget-view.js';
@@ -58,6 +59,10 @@ import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, p
 import { ring as progressRing, share as shareOf } from './viz.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let hubReady = false;
+// Phase 114 (PL1b, F2): one first-run queue: the check-in notice, the hub's notice and the tour offer
+// each wait until nothing else covers the page (web/first-run.js).
+// While the wizard is about to open (it loads a moment first) the queue holds too.
+const firstRun = createQueue({ doc: document, busy: () => Boolean(state.setupPending) || overlayCount(document) > 0 });
 /** Phase 71: a household member (their own space; owner-only pages and loaders are left out). */
 const isMember = () => document.body.classList.contains('member');
 const $ = (sel) => document.querySelector(sel);
@@ -190,9 +195,18 @@ async function boot() {
   if (onToday) void openToday();
   if (session.adultAsk) $('#adult-ask').showModal();
   const setup = await api('/setup').catch(() => ({ done: true }));
-  if (!setup.done) openSetup(setup);
-  else if (!state.providers.providers.length) openSettings('models');
-  else if (!tourFromHash() && !/^#reports?\b/.test(location.hash)) setTimeout(offerFirstTour, 4000);
+  state.usePath = normPath(setup.usePath);
+  if (!state.messages?.length) renderMessages([]); // the empty chat's chips follow the use choice
+  if (!setup.done) {
+    state.setupPending = true;
+    openSetup(setup).finally(() => (state.setupPending = false));
+  } else if (!state.providers.providers.length) openSettings('models');
+  else if (!tourFromHash() && !/^#reports?\b/.test(location.hash)) {
+    // The demo keeps its own start (the full tour offered after a moment); everyone else is offered
+    // the short tour for their use choice after her first reply (Phase 114, F2).
+    if (session.demo) setTimeout(offerFirstTour, 4000);
+    else queueTourOffer();
+  }
   refreshSaraStatus();
   setInterval(refreshSaraStatus, 5 * 60_000);
   // 2.18: the update check starts once the first-run windows (setup, the tour offer) had their turn.
@@ -201,7 +215,7 @@ async function boot() {
   // page), Report a problem and My reports (web/hub.js).
   if (!hubReady) {
     hubReady = true;
-    initHub({ demo: Boolean(session.demo), openSettings });
+    initHub({ demo: Boolean(session.demo), openSettings, queue: firstRun });
   }
   reportFromHash();
   initVoice();
@@ -1632,6 +1646,14 @@ function renderMessages(messages, opts = {}) {
     const empty = document.createElement('div');
     empty.className = 'empty';
     empty.textContent = t('Say hi to Sara.');
+    // Phase 114 (F13): starter chips for the use choice (not on the demo, which has its own start).
+    const chips = document.body.classList.contains('demo') || !state.providers?.providers?.length ? [] : starterChips(state.usePath, 'chat', t);
+    if (chips.length) {
+      empty.classList.add('empty-start');
+      const row = el('div', 'chips empty-chips');
+      row.append(...chips.map((c) => starterButton(c, () => runStarter(c))));
+      empty.append(row);
+    }
     box.replaceChildren(empty);
     return;
   }
@@ -2429,6 +2451,11 @@ async function runStream(path, body, userBubble) {
     }
     refreshSaraStatus();
     void updateConvUsage();
+    // Phase 114 (F2): her first reply lets the tour offer through the first-run queue.
+    if (state.messages?.some((m) => m.role === 'assistant' && m.content.trim())) {
+      state.replied = true;
+      firstRun.pump();
+    }
   }
 }
 
@@ -7529,6 +7556,7 @@ async function loadSettingsPages() {
   await Promise.all([loadProviders(), loadYours()]);
   $('#owner-name').value = s.ownerName;
   $('#time-zone').value = s.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  $('#use-path').value = normPath(s.usePath);
   $('#ui-language').value = s.language ?? 'auto';
   $('#talk-language').value = s.talkLanguage ?? 'auto';
   $('#story-yearly').checked = Boolean(s.storyYearly);
@@ -7565,6 +7593,18 @@ async function rerenderAfterLanguage() {
   await initVoice().catch(() => {}); // call buttons and the live-call notes
 }
 $('#open-settings').addEventListener('click', openSettings);
+// Phase 114 (PL1b): the use choice, changeable here any time (Getting started, the tour offered and the chips follow it).
+$('#use-path').addEventListener('change', async () => {
+  const v = normPath($('#use-path').value);
+  try {
+    await api('/settings', { method: 'PUT', body: { usePath: v } });
+    state.usePath = v;
+    if (!state.messages?.length) renderMessages([]);
+    if (todayOpen()) await loadChecklist();
+  } catch (err) {
+    $('#settings-error').textContent = err.message;
+  }
+});
 
 async function saveCoreSettings() {
   const before = currentLang();
@@ -8059,6 +8099,24 @@ const TOURS = {
     { before: navStep('#open-settings'), sel: '#open-settings', title: t('Settings'), text: t('Everything is in pages: Her, Models, You, Abilities, Connections. Every setting has a ? that explains it.') },
     { before: navStep('#open-help'), sel: '#open-help', title: t('Help'), text: t('Come back here for these tours and the guide. Or just ask her how something works.') },
   ],
+  // Phase 114 (PL1b, F12, docs/design/POLISH.md §5): the two short tours offered after her first reply.
+  company: [
+    { before: sidebar(false), sel: '#input', title: t('Talk to her'), text: t('Type here, or use the microphone. The + button attaches a photo or a file, or starts something to do together.') },
+    { before: sidebar(false), sel: '#her-face', title: t('Her panel'), text: t('Her face opens her panel: her mood, what she is doing right now, approvals waiting, your day and what she remembered for this reply. On a phone it slides up from the bottom.') },
+    { when: () => !phoneWidth(), before: navStep('#open-today'), sel: '#open-today', title: t('Today'), text: t('Your home screen: the weather, your day, the Planner, what she remembered, photos, background work and your home, as tiles. Her face at the top of the list opens it too.') },
+    { when: () => phoneWidth(), before: sidebar(false), sel: '#bb-today', title: t('Today'), text: t('Your home screen: the weather, your day, the Planner, what she remembered, photos, background work and your home, as tiles. Her face at the top of the list opens it too.') },
+    { before: navStep('#open-planner'), sel: '#open-planner', title: t('Planner'), text: t('To-dos, reminders and notes. You can also just ask her: "remind me to call Mom at 5".') },
+    { before: navStep('#open-memory'), sel: '#open-memory', title: t('Memory'), text: t('What she remembers about you. Look through it, correct it or make her forget something.') },
+    { before: settingsAt('her-character'), sel: '#settings-nav-list [data-page="her-character"]', title: t('Make her yours'), text: t('Her name, personality, look and voice are under Settings → Her. Every setting has a ? that explains it.') },
+  ],
+  coding: [
+    { before: async () => { sidebar(false)(); await showHeadChips(); }, sel: '#conv-settings-btn', title: t('This conversation'), text: t('The folder, model and mode of this conversation. Switch the mode to Coding for project work: she reads, edits and runs things in that folder.') },
+    { before: sidebar(false), sel: '#messages', title: t('Her steps'), text: t('Under each reply a step line says what she did: files read, commands run, tests. Open it for every step, and Show the run for the whole turn.') },
+    { when: () => !isMember(), before: settingsAt('ab-tools'), sel: '#tool-list', title: t('Ask me first'), text: t('For each tool: Ask me first, Always allowed or Never. Commands run in a sandbox when one is set up, and her approvals wait in the chat and in her panel.') },
+    { before: navStep('#open-team'), sel: '#open-team', title: t('Team'), text: t('For bigger jobs she leads helpers that plan, build, test and review.') },
+    { before: navStep('#open-findings'), sel: '#open-findings', title: t('Findings'), text: t('Her security pass adds what it finds here after coding turns, each with a fix she can make on its own branch.') },
+    { when: () => !isMember(), before: settingsAt('ab-projects'), sel: '#pj-work-dials', title: t('Coding projects'), text: t('Your project folders, how she is while you code, the sandbox and the security pass, in one page.') },
+  ],
   studio: [
     { sel: '#st-wizard', title: t('Create your companion'), text: t('The easiest way: a guided setup with cards, about 5 minutes. Every step can be skipped.'), before: settingsAt('her-character') },
     { sel: '#st-archetypes', title: t('Starting points'), text: t('Or pick a starting point and adjust from there. Changes save by themselves; Undo brings back how she was when you opened this page.') },
@@ -8120,19 +8178,69 @@ function offerFirstTour() {
   // Phase 113: not over the check-in's first-run notice (it is offered on a later visit instead).
   if (localStorage.getItem('sara.tour.first') || tourRunning() || document.querySelector('dialog[open]:not(#today)') || !$('#hub-first').hidden) return;
   localStorage.setItem('sara.tour.first', 'offered');
+  // Phase 114 (F12): the short tour for the use choice (six stops); the demo keeps the full one.
+  const demo = document.body.classList.contains('demo');
+  const tour = demo ? 'first' : tourFor(state.usePath);
   const box = el('div', 'tour-offer');
   box.setAttribute('role', 'status');
   const yes = el('button', 'small', t('Show me around'));
   const no = el('button', 'ghost small', t('No thanks'));
   const btns = el('div', 'row-btns');
-  btns.append(no, yes);
-  box.append(el('p', '', t('New here? A one-minute tour shows where everything is. (Help in the sidebar has it any time.)')), btns);
+  btns.append(no);
+  // Both: the Coder tour one press away too.
+  if (!demo && normPath(state.usePath) === 'both') {
+    const code = el('button', 'ghost small', t('Coder tour'));
+    code.addEventListener('click', () => {
+      box.remove();
+      runTour('coding');
+    });
+    btns.append(code);
+  }
+  btns.append(yes);
+  box.append(el('p', '', demo ? t('New here? The tour shows where everything is, in 14 stops. (Help in the sidebar has it any time.)') : offerText(state.usePath, t)), btns);
   yes.addEventListener('click', () => {
     box.remove();
-    runTour('first');
+    runTour(tour);
   });
-  no.addEventListener('click', () => box.remove());
+  no.addEventListener('click', () => {
+    box.remove();
+    firstRun.pump();
+  });
   document.body.append(box);
+}
+/** Phase 114 (F2): the tour offer waits in the first-run queue until her first reply. */
+function queueTourOffer() {
+  if (localStorage.getItem('sara.tour.first') || document.body.classList.contains('demo')) return;
+  firstRun.add('tour', offerFirstTour, () => Boolean(state.replied) && !tourRunning());
+}
+
+/** Phase 114 (F13): a starter chip (wizard step 4 and the empty chat). */
+function starterButton(c, onClick) {
+  const b = el('button', 'chip starter-chip', c.label);
+  b.type = 'button';
+  b.dataset.kind = c.kind;
+  b.addEventListener('click', async () => {
+    b.disabled = true;
+    try {
+      await onClick();
+    } finally {
+      b.disabled = false;
+    }
+  });
+  return b;
+}
+/** What a starter chip does: a real message (a coding conversation for code ones), the starter projects, or a page. */
+async function runStarter(c) {
+  if (c.kind === 'page') return void (await openSettings(c.page));
+  if (todayOpen()) closeToday({ focus: false });
+  if (c.kind === 'starter') return void $('#pp-starter').click();
+  if (c.kind === 'code' && state.conv?.mode !== 'coding') {
+    const conv = await api('/conversations', { method: 'POST', body: { mode: 'coding' } });
+    state.conversations.unshift(conv);
+    await openConversation(conv.id);
+  }
+  if (state.streaming) return;
+  await send(c.text);
 }
 
 initDialogs();
@@ -9052,9 +9160,13 @@ async function loadChecklist() {
   // 2.8: the same count as a small ring before the words (decorative; the words say it).
   document.querySelector('.today-start-head > .pring')?.remove();
   $('#td-start-count').before(progressRing(shareOf(c.items.length - left.length, c.items.length), { size: 26, stroke: 3 }));
+  // Phase 114 (F11): the order follows the use choice (the server sends it); the next step stands out.
+  const next = left[0]?.id;
+  $('#td-start').dataset.path = c.path ?? 'both';
   $('#td-start-list').replaceChildren(
     ...c.items.map((i) => {
-      const b = el('button', `start-item${i.done ? ' done' : ''}`);
+      const b = el('button', `start-item${i.done ? ' done' : ''}${i.id === next ? ' next' : ''}`);
+      b.dataset.step = i.id;
       b.type = 'button';
       b.disabled = i.done;
       b.append(el('span', 'start-tick', i.done ? '✓' : ''), el('span', 'start-label', t(i.label)), el('span', 'start-hint', t(i.hint)));
@@ -10811,7 +10923,10 @@ $('#look-reset').addEventListener('click', async () => {
 });
 
 // ---------- first-run setup guide ----------
-const su = { step: 1, info: null, provider: null, vibe: 'warm', openSubs: false, original: null, changed: false };
+// Phase 114 (PL1b): `path` = the use choice of step 1; `brainOk` = the picked model answered a test
+// ping; `ping` numbers the pings (a newer one wins); `coderPick` = the model Models → Which model does
+// what would pick for coding.
+const su = { step: 1, info: null, provider: null, vibe: 'warm', openSubs: false, original: null, changed: false, path: 'both', brainOk: false, ping: 0, coderPick: '', local: false };
 
 function suShow(step) {
   su.step = step;
@@ -10819,7 +10934,103 @@ function suShow(step) {
   $('#setup-step').textContent = t('Step {step} of 4', { step });
   $('#su-back').hidden = step === 1 || step === 4;
   $('#su-skip').hidden = step === 4;
-  $('#su-next').textContent = step === 4 ? t('Start talking') : step === 3 && !su.provider ? t('Skip for now') : t('Next');
+  // Phase 114 (F3): Next is the primary button everywhere. In Connect a brain it waits until a model
+  // answered (or subscriptions open at the end); skipping is a quiet link, never the strong button.
+  $('#su-next').textContent = step === 4 ? t('Start talking') : t('Next');
+  $('#su-next').disabled = step === 3 && !su.brainOk && !su.openSubs;
+  $('#su-later').hidden = step !== 3 || su.brainOk;
+  if (step === 4) suStepFour();
+}
+
+/** Phase 114 (F9): the three use cards of step 1. */
+function suPathCards() {
+  $('#su-path').replaceChildren(
+    ...pathChoices(t).map((c) => {
+      const b = el('button', 'pick-card su-path-card');
+      b.type = 'button';
+      b.dataset.path = c.id;
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-checked', String(c.id === su.path));
+      b.append(el('span', 'su-path-icon', c.icon), el('strong', '', c.title), el('span', 'muted small', c.text));
+      b.addEventListener('click', () => {
+        su.path = c.id;
+        for (const x of document.querySelectorAll('#su-path .su-path-card')) x.setAttribute('aria-checked', String(x === b));
+      });
+      return b;
+    }),
+  );
+}
+
+/**
+ * Phase 114 (§5.2/§5.3): My subscription comes first, tagged, when no Ollama was found here
+ * ("Easiest") or for a coder who is already signed in to one.
+ */
+function suOrderBrains() {
+  const signed = Object.values(su.info?.subscriptions ?? {}).some(Boolean);
+  const up = (su.path === 'coding' && signed) || !su.info?.ollama?.[0];
+  const box = $('#su-subs-box');
+  const tag = $('#su-subs-tag');
+  tag.hidden = !up;
+  tag.textContent = signed ? t('Signed in ✓') : t('Easiest');
+  if (up) $('#su-local').before(box);
+  else $('#su-key-box').after(box);
+}
+
+/** Phase 114 (F5/F6): the picked-for-you card: the model, why, where it runs, and its status chip. */
+function suPicked(model) {
+  $('#su-pick-name').textContent = model;
+  const where = CLOUD_TAG.test(model) ? t('on Ollama Cloud') : su.local ? t('runs on this computer') : t('in the cloud');
+  const why = model === su.coderPick ? t('good with code and tools') : t('a good all-rounder');
+  const tags = [el('span', 'muted', ` · ${why} · ${where}`)];
+  if (model === su.coderPick && su.path !== 'company') tags.push(el('span', 'su-chip su-chip-code', t('Good for coding')));
+  $('#su-pick-tags').replaceChildren(...tags);
+}
+function suStatus(kind) {
+  const chip = $('#su-status');
+  chip.dataset.state = kind;
+  chip.textContent = kind === 'ok' ? t('Connected ✓') : kind === 'checking' ? t('Checking it answers…') : kind === 'fail' ? t('No answer yet') : '';
+}
+/** Phase 114 (§5.2 step 3): done when the picked model answers a short test message. */
+async function suPing() {
+  const model = $('#su-model').value;
+  const run = ++su.ping;
+  su.brainOk = false;
+  suStatus('checking');
+  suShow(3);
+  try {
+    const r = await api('/model-jobs/test', { method: 'POST', body: { job: 'quick', providerId: su.provider, model } });
+    if (run !== su.ping) return;
+    if (!r.ok) throw new Error(r.error || t('It did not answer.'));
+    su.brainOk = true;
+    suStatus('ok');
+    $('#su-error').textContent = '';
+  } catch (err) {
+    if (run !== su.ping) return;
+    suStatus('fail');
+    $('#su-error').textContent = `${err.message} ${t('Pick another model with Change, or press Skip for now.')}`;
+  }
+  suShow(3);
+}
+$('#su-change').addEventListener('click', () => {
+  $('#su-model-pick').hidden = false;
+  $('#su-change').hidden = true;
+  $('#su-model').focus();
+});
+$('#su-model').addEventListener('change', () => {
+  suPicked($('#su-model').value);
+  void suPing();
+});
+
+/** Phase 114 (F2/F13): the last step: starter chips for the use choice and the check-in card folded in. */
+function suStepFour() {
+  const talks = Boolean(su.provider && su.brainOk) || Boolean(state.providers?.providers?.length);
+  const chips = starterChips(su.path, 'wizard', t).filter((c) => talks || c.kind === 'page');
+  $('#su-starters').replaceChildren(...chips.map((c) => starterButton(c, () => {
+    su.starter = c;
+    return suFinish();
+  })));
+  $('#su-starters-note').hidden = !chips.length;
+  foldFirstRun($('#su-checkin'));
 }
 
 async function openSetup(info) {
@@ -10847,6 +11058,11 @@ async function openSetup(info) {
   const presets = state.providers.presets.filter((p) => p.needsKey);
   $('#su-preset').replaceChildren(...presets.map((p) => new Option(p.label, p.id)));
   suShowLocal(info.ollama?.[0]);
+  su.path = normPath(info.usePath);
+  su.brainOk = false;
+  su.provider = null;
+  $('#su-model-row').hidden = true;
+  suPathCards();
   suShow(1);
   $('#setup').showModal();
 }
@@ -10864,6 +11080,8 @@ function suShowLocal(found) {
   if (!found.models && !found.cloud) return;
   const go = el('button', '', t('Use it'));
   go.type = 'button';
+  go.className = 'su-use-local';
+  su.useLocal = go;
   go.addEventListener('click', () => suConnect({ id: 'ollama-local', label: t('Ollama on this computer'), kind: 'openai-compatible', baseUrl: found.url, local: true, needsKey: false }));
   box.append(go);
 }
@@ -10895,7 +11113,10 @@ for (const r of document.querySelectorAll('input[name="su-who"]'))
         },
       });
   });
-$('#su-subs').addEventListener('change', () => (su.openSubs = $('#su-subs').checked));
+$('#su-subs').addEventListener('change', () => {
+  su.openSubs = $('#su-subs').checked;
+  suShow(su.step);
+});
 
 /**
  * A sensible first model for a beginner from a provider's list: a well-known general model of a
@@ -10915,6 +11136,8 @@ function suggestModel(models) {
 async function suConnect(config, apiKey) {
   $('#su-error').textContent = '';
   $('#su-model-row').hidden = true;
+  su.brainOk = false;
+  su.local = Boolean(config.local);
   try {
     await api(`/providers/${config.id}`, { method: 'PUT', body: { ...config, ...(apiKey ? { apiKey } : {}) } });
     $('#su-model-note').textContent = t('Loading models…');
@@ -10925,17 +11148,27 @@ async function suConnect(config, apiKey) {
     const view = await modelViewFor(config.id);
     const models = view.models;
     if (!models.length) throw new Error(t('Connected to {label}, but it has no models yet.', { label: config.label }));
-    const pick = suggestModel(models);
+    // Phase 114 (§5.3): for coding, the model Which model does what → Use recommended picks for code.
+    const rec = su.path === 'company' ? null : (await api('/model-jobs/recommend').catch(() => null))?.picks?.coding;
+    su.coderPick = rec && rec.providerId === config.id && models.includes(rec.model) ? rec.model : '';
+    const pick = su.path === 'coding' && su.coderPick ? su.coderPick : suggestModel(models);
     fillModelOptions($('#su-model'), view, '', { pick });
     $('#su-model').value = pick;
     const counted = countWords(modelCounts(models), Boolean(config.local), t);
-    $('#su-model-note').textContent = `${t('Connected ✓ {label}: {count}.', { label: config.label, count: counted })} ${models.length > 1 ? t('We picked {model}, a good all-rounder; any of them works and you can change it later.', { model: pick }) : t('You can change it later.')}`;
+    $('#su-model-note').textContent = `${config.label}: ${counted}. ${models.length > 1 ? t('Any of them works; you can change it now or later.') : t('You can change it later.')}`;
     su.provider = config.id;
+    suPicked(pick);
+    $('#su-model-pick').hidden = true;
+    $('#su-change').hidden = models.length < 2;
+    // F6: the Use it button becomes a Connected chip.
+    if (config.id === 'ollama-local') su.useLocal?.replaceWith(el('span', 'su-chip', t('Connected ✓')));
     suShow(3);
     $('#su-model-row').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    await suPing();
   } catch (err) {
     $('#su-model-row').hidden = true;
     $('#su-error').textContent = err.message;
+    suShow(3);
   }
 }
 $('#su-key-go').addEventListener('click', () => {
@@ -10954,15 +11187,26 @@ $('#su-host-go').addEventListener('click', () => {
 
 async function suFinish() {
   await api('/setup/done', { method: 'POST', body: {} });
+  // Phase 114 (F2): the check-in card goes back where it lives (seen; it doesn't come again).
+  unfoldFirstRun();
+  state.usePath = su.path;
   $('#setup').close();
   await loadProviders();
   await loadConversations();
   setChatTitle(); // M3: the header shows the character picked in setup
   // Phase 114 (F1): Today under the wizard shows the name and the brain just set up (what Refresh does).
   if (todayOpen()) await Promise.all([loadToday(true), loadChecklist()]).catch(() => undefined);
+  const starter = su.starter;
+  su.starter = null;
   if (su.openSubs) openSettings('models');
   else if (!state.providers.providers.length) openSettings('models');
-  else setTimeout(offerFirstTour, 1500);
+  else {
+    if (!state.messages?.length) renderMessages([]);
+    // Phase 114 (F2): the tour is offered after her first reply, never on top of something else.
+    queueTourOffer();
+    if (starter) await runStarter(starter);
+  }
+  firstRun.pump();
 }
 
 $('#su-back').addEventListener('click', async () => {
@@ -10985,13 +11229,21 @@ for (const id of ['#su-owner', '#su-name'])
     $('#su-next').click();
   });
 $('#su-skip').addEventListener('click', () => suFinish());
+// Phase 114 (F3): Connect a brain later (Getting started keeps the step).
+$('#su-later').addEventListener('click', () => {
+  $('#su-done-title').textContent = t('Almost there');
+  suShow(4);
+});
 $('#su-next').addEventListener('click', async () => {
   $('#su-error').textContent = '';
   try {
     if (su.step === 1) {
       const name = $('#su-owner').value.trim();
       if (!name) return ($('#su-error').textContent = t('Type your name so Sara knows what to call you (or press Skip setup).'));
-      await api('/settings', { method: 'PUT', body: { ownerName: name, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } });
+      // Phase 114 (F9): the use choice is saved with the name (for this companion; About you changes it).
+      await api('/settings', { method: 'PUT', body: { ownerName: name, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, usePath: su.path } });
+      state.usePath = su.path;
+      suOrderBrains();
       return suShow(2);
     }
     if (su.step === 2) {
@@ -11018,7 +11270,7 @@ $('#su-next').addEventListener('click', async () => {
     }
     if (su.step === 3) {
       if (su.provider && $('#su-model').value) await api('/settings', { method: 'PUT', body: { defaultProviderId: su.provider, defaultModel: $('#su-model').value } });
-      $('#su-done-title').textContent = (su.provider ? t('All set. Say hi to Sara!') : t('Almost there'));
+      $('#su-done-title').textContent = (su.provider && su.brainOk ? t('All set. Say hi to Sara!') : t('Almost there'));
       return suShow(4);
     }
     await suFinish();

@@ -14,7 +14,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1488%20passing-brightgreen" alt="1488 tests passing">
+  <img src="https://img.shields.io/badge/tests-1497%20passing-brightgreen" alt="1497 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -83,6 +83,7 @@ Des tutoriels d'une minute, enregistrés sur un serveur de test avec un modèle 
 
 | Version | Ce que vous y gagnez |
 |---|---|
+| **2.47.1** · Un premier lancement sur mesure | **La configuration pose une question : compagnie, code ou les deux.** Vous obtenez un modèle recommandé avec un vrai test *Connecté ✓*, une visite en six étapes adaptée (la visite complète reste dans l'Aide), des suggestions dans une discussion vide et une liste de premiers pas dans le bon ordre pour vous. Les fenêtres ne s'empilent plus, et la note sur le signal anonyme fait partie de la dernière étape. |
 | **2.47** · Une personnalité qui se voit | **Ses réglages de personnalité montrent enfin ce qu'ils font :** des extrémités claires (« Garde ses distances ↔ Ouvertement chaleureuse »), un mot pour la position et une phrase avec sa voix qui change quand on bouge le curseur (125, sans appel à une IA). Des groupes aux noms simples, un résumé « Votre Sara pour l'instant » et des mots clairs sur tous les autres curseurs. Corrigé aussi : Aujourd'hui se met à jour après la configuration, un seul nombre de modèles partout avec une liste groupée, une persona importée est renommée partout d'un coup, et *Partir à* passe avant son événement. |
 | **2.46** · Signaler un problème depuis Sara | **Aide → Signaler un problème ou Suggérer quelque chose** (ou `/bug` et `/idea` dans n'importe quelle discussion, ou *Signaler* sur une erreur) : pas besoin de compte GitHub. Les diagnostics facultatifs sont créés sur votre ordinateur, montrés en entier avec une case par partie et nettoyés des clés, e-mails et chemins avant tout envoi. *Mes signalements* montre l'état et nos réponses. Sara envoie aussi un petit signal anonyme par jour (version, Windows/Mac/Linux, fonctions activées) pour vous aider et planifier ; ni adresse IP, ni nom, ni discussions ne sont gardés. *Voir ce qui est envoyé* ou désactivez-le dans Réglages → Données et santé → Confidentialité. |
 | **2.45** · Aujourd'hui sur téléphone | **Sur téléphone, Aujourd'hui s'ouvre sur une carte Maintenant** (les deux prochaines choses et dans combien de temps, l'heure de départ, la météo et son humeur), puis *Vous attend*, puis votre journée. Les sections se replient avec un résumé et restent comme vous les avez laissées sur cet appareil, *Avec elle* et *Travail* deviennent des rangées à faire glisser (avec boutons aussi), et tirer pour actualiser marche dans le navigateur et les deux applis. Les tablettes ont deux colonnes. En option : une phrase d'elle sur ce qui s'est passé pendant votre absence. |
@@ -340,8 +341,8 @@ qu'aucun test ne vérifiait. Ce qu'elle apporte aujourd'hui, c'est la manière d
 lance les tests, demande avant les étapes risquées, montre ce qui a tourné), pas un meilleur score
 sur ces jeux. Détails, résultats par tâche et comment relancer : [docs/RESULTS.md](docs/RESULTS.md).
 
-En plus, `npm run check` : une vérification des types et 1503 tests automatiques avec un faux modèle
-scripté (sans réseau, sans GPU) : 1488 passent sous Windows, et les 8 autres sont des tests
+En plus, `npm run check` : une vérification des types et 1512 tests automatiques avec un faux modèle
+scripté (sans réseau, sans GPU) : 1497 passent sous Windows, et les 8 autres sont des tests
 d'isolation propres à Linux, exécutés sur un serveur Linux.
 
 ## Comparaison

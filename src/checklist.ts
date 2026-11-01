@@ -2,7 +2,9 @@
 // useful, each ticked off by itself when it's done (nothing to mark by hand), each opening the
 // place where it's done. The owner can hide the list.
 import type { AppContext } from './chat.ts';
+import { usePathOf, type UsePath } from './settings.ts';
 import { NOT_IMPORTED } from './store.ts';
+import { GITHUB_VAULT } from './tools/coding.ts';
 import { DEFAULT_VOICE, VOICE_VAULT } from './voice.ts';
 
 export interface ChecklistItem {
@@ -20,7 +22,24 @@ export interface ChecklistInput {
   /** Browsers/phones that get notifications. */
   pushDevices: number;
   personaCustom: boolean;
+  /** Phase 114 (PL1b): a household member's own list (no owner-only steps: brain, tools, GitHub, budgets, backups). */
+  member?: boolean;
 }
+
+/**
+ * Phase 114 (PL1b, docs/design/POLISH.md §5): the order of Getting started for each use choice. Every
+ * list has 7 steps; company follows the beginner path, coding the coder path; both (also when never
+ * chosen) keeps the list from before the choice existed, so nobody's progress moves around.
+ */
+export const CHECKLIST_ORDER: Record<UsePath, readonly string[]> = {
+  company: ['brain', 'talk', 'yours', 'voice', 'phone', 'morning', 'backup'],
+  coding: ['brain', 'project', 'tools', 'github', 'editor', 'budgets', 'backup'],
+  both: ['brain', 'talk', 'yours', 'phone', 'voice', 'morning', 'backup'],
+};
+/** Steps on owner-only pages: a household member never sees them. */
+export const OWNER_STEPS: readonly string[] = ['brain', 'tools', 'github', 'budgets', 'backup'];
+/** Signed-in apps that are an editor or a terminal (the VS Code extension, the terminal client, an MCP client). */
+const EDITOR_APP = /VS ?Code|Code\b|terminal|cli\b|Zed|JetBrains|Cursor|MCP|Neovim|Emacs/i;
 
 /** M6: her voice counts as picked only when the chosen engine can really speak. */
 export function voiceWorks(app: AppContext): boolean {
@@ -31,12 +50,13 @@ export function voiceWorks(app: AppContext): boolean {
   return Boolean(app.vault.get(v.tts === 'openai' ? VOICE_VAULT.openai : VOICE_VAULT.elevenlabs));
 }
 
-export function checklist(app: AppContext, input: ChecklistInput): { hidden: boolean; items: ChecklistItem[] } {
+export function checklist(app: AppContext, input: ChecklistInput): { hidden: boolean; path: UsePath; items: ChecklistItem[] } {
   const s = app.settings.get();
   const subs = app.subscriptions;
   const brain = Boolean(s.defaultProviderId && s.defaultModel) || Boolean(subs?.grokStatus().signedIn || subs?.claudeStatus().signedIn || subs?.chatgpt?.status().signedIn);
   const talked = Boolean(app.store.db.prepare(`SELECT 1 FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.role = 'user' AND c.partner IS NULL AND ${NOT_IMPORTED} LIMIT 1`).get());
-  const items: ChecklistItem[] = [
+  const coded = Boolean(app.store.db.prepare("SELECT 1 FROM conversations c WHERE (c.mode = 'coding' OR c.workspace != 'main') AND c.partner IS NULL LIMIT 1").get());
+  const all: ChecklistItem[] = [
     { id: 'brain', label: 'Connect a brain', hint: 'The AI model she thinks with: on this computer, in the cloud, or your subscription.', done: brain, open: 'settings:models-default' },
     { id: 'talk', label: 'Say hello', hint: 'Just type: ask her anything, or tell her about your day.', done: talked, open: 'chat' },
     { id: 'yours', label: 'Make Sara your own', hint: 'Her name, personality and look.', done: input.personaCustom || Boolean(app.look?.custom), open: 'settings:her-character' },
@@ -44,6 +64,15 @@ export function checklist(app: AppContext, input: ChecklistInput): { hidden: boo
     { id: 'voice', label: 'Pick her voice', hint: 'For voice notes, read-aloud and calls.', done: voiceWorks(app), open: 'settings:her-voice' },
     { id: 'morning', label: 'Get a morning briefing', hint: 'Weather, your list and calendar, once a day.', done: Boolean(s.briefing?.enabled), open: 'settings:you-briefing' },
     { id: 'backup', label: 'Keep a copy somewhere else', hint: 'An encrypted backup off this server, in case the server is lost.', done: Boolean(s.offsite?.kind && s.offsite.kind !== 'off'), open: 'settings:dh-backups' },
+    // Phase 114 (PL1b): the coder path's steps.
+    { id: 'project', label: 'Open a project', hint: 'Point a conversation at a project folder and switch it to coding.', done: coded, open: 'settings:ab-projects' },
+    { id: 'tools', label: 'Choose how she runs code', hint: 'Tools and approvals: a sandbox for commands, and what she must ask you first.', done: Object.keys(s.toolPermissions ?? {}).length > 0 || s.sandboxGate !== undefined, open: 'settings:ab-tools' },
+    { id: 'github', label: 'Add a GitHub token', hint: 'So she can clone, open pull requests and review them.', done: Boolean(app.vault.get(GITHUB_VAULT)), open: 'settings:ab-github' },
+    { id: 'editor', label: 'Use her from your editor', hint: 'The VS Code extension, the terminal client or any MCP or OpenAI-compatible app.', done: input.devices.some((d) => EDITOR_APP.test(d)), open: 'settings:co-apps' },
+    { id: 'budgets', label: 'Set a budget', hint: 'How many tokens a coding reply or a background job may use before she stops.', done: s.turnBudgets !== undefined || s.jobBudget !== undefined, open: 'settings:ab-budgets' },
   ];
-  return { hidden: Boolean(s.checklistHidden), items };
+  const path = usePathOf(s.usePath);
+  const byId = new Map(all.map((i) => [i.id, i]));
+  const items = CHECKLIST_ORDER[path].filter((id) => !input.member || !OWNER_STEPS.includes(id)).map((id) => byId.get(id)!);
+  return { hidden: Boolean(s.checklistHidden), path, items };
 }

@@ -65,7 +65,7 @@ test('a fake model titles a session after 3 exchanges; a topic change gets a new
   const req = app.requests.at(-1)!;
   assert.equal(req.maxTokens, 24);
   assert.equal(req.temperature, 0.2);
-  assert.match(req.messages[0].content, /2 to 7 words .* in English\. .*answer SAME/);
+  assert.match(req.messages[0].content, /3 to 5 words .* in English, in sentence case .*answer SAME/); // 2.47.1 (F14): was 2 to 7 words, no case rule
   assert.match(req.messages[1].content, /Current title: I want to plant tomatoes/);
   // Fewer than 20 new messages: no check at all.
   talk(app, conv.id, GARDEN);

@@ -98,7 +98,9 @@ self.addEventListener('install', (event) => {
   //   (hub.js, hub.css). Phase 112 had caches.open('sara-shell-v46').
   //   Phase 114 (PL1a, 2.47.0): the personality dials redesign (dials.js: a word and a sample line per
   //   band) and one model count (model-count.js). Phase 113 had caches.open('sara-shell-v47').
-  event.waitUntil(caches.open('sara-shell-v48').then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  //   Phase 114 (PL1b, 2.47.1): the first run in one queue, the use choice, two short tours, starter
+  //   chips (first-run.js, first-run.css). PL1a had caches.open('sara-shell-v48').
+  event.waitUntil(caches.open('sara-shell-v49').then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {

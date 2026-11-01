@@ -105,9 +105,11 @@ html.sara-busy .td-face { animation: her-breathe var(--breathe) ease-in-out infi
   box-shadow: var(--glow-edge);
 }
 #today .today-start-head h3 { margin: 0; font-size: 16px; font-weight: 600; color: var(--text-1); }
-#today .today-start-list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 8px; margin-top: 12px; }
-#today .start-item { min-height: 44px; padding: 8px 12px; border-radius: 12px; align-items: center; }
-#today .start-item .start-hint { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+/* Phase 114 (F11): two columns with the whole one-line description (never cut off), the next step highlighted. */
+#today .today-start-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); margin-top: var(--s-3); }
+#today .start-item { min-height: 44px; padding: var(--s-2) var(--s-3); border-radius: var(--r-control); align-items: center; }
+#today .start-item .start-hint { display: block; overflow: visible; white-space: normal; text-overflow: clip; }
+#today .start-item.next { border-color: var(--accent-solid); box-shadow: inset 0 0 0 1px var(--accent-solid), var(--glow-edge); }
 #today .start-item.done .start-hint { display: none; }
 
 /* ---------- The sections and the grid (Phase 111, TD1: docs/design/TODAY.md §3) ----------
@@ -633,13 +635,12 @@ button.brand:focus-visible { outline: 2px solid var(--accent-solid); outline-off
   #today .td-tile { padding: 14px 15px; border-radius: 16px; }
   .td-scroll { padding: 16px 12px 22px; }
   .td-ask-row { margin-top: 16px; }
-  /* Getting started: two short columns (the hint is in each item's place once opened). */
-  #today .today-start-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Getting started: one column on a phone, so every description fits in full (Phase 114, F11). */
+  #today .today-start-list { grid-template-columns: minmax(0, 1fr); }
   /* Customise as a bottom sheet (TD2 polishes phones). */
   .td-custom { top: auto; left: 0; width: 100%; max-height: 85%; border-left: 0; border-top: 1px solid var(--hairline-strong); border-radius: 20px 20px 0 0; }
   .td-actions { gap: 6px; }
-  #today .start-item .start-hint { display: none; }
-  #today .start-item { padding: 8px 10px; }
+  #today .start-item { padding: var(--s-2) var(--s-3); }
 }
 @media (max-width: 380px) {
   .td-hero { grid-template-columns: minmax(0, 1fr); }

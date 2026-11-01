@@ -28,6 +28,7 @@
   <link rel="stylesheet" href="/movein.css">
   <link rel="stylesheet" href="/agenda.css">
   <link rel="stylesheet" href="/hub.css">
+  <link rel="stylesheet" href="/first-run.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -594,7 +595,9 @@
       <p class="muted small">Every setting has a <span class="tip-demo">?</span>: hover or tap it for what it does, with an example and a link to the guide.</p>
       <h3>Short tours</h3>
       <div class="pick-cards" role="list">
-        <button type="button" class="pick-card" data-tour="first"><strong>Getting around</strong><span class="muted small">Chat, your day, her page, the team and settings. 1 minute.</span></button>
+        <button type="button" class="pick-card" data-tour="company"><strong>Companion tour</strong><span class="muted small">Six stops: talking, her panel, Today, Planner, Memory, her settings.</span></button>
+        <button type="button" class="pick-card" data-tour="coding"><strong>Coder tour</strong><span class="muted small">Six stops: the conversation chip, her steps, approvals, Team, Findings, Coding projects.</span></button>
+        <button type="button" class="pick-card" data-tour="first"><strong>The full tour</strong><span class="muted small">Every place in 14 stops: chat, your day, her page, the team and settings.</span></button>
         <button type="button" class="pick-card" data-tour="studio"><strong>Shape her personality</strong><span class="muted small">The Personality studio: starting points, dials, her life, Try it.</span></button>
         <button type="button" class="pick-card" data-tour="models"><strong>A model for each job</strong><span class="muted small">Which model chats, codes, sees pictures and plans.</span></button>
         <button type="button" class="pick-card" data-tour="team"><strong>The team</strong><span class="muted small">Bigger jobs: her helpers plan, build, test and review.</span></button>
@@ -647,6 +650,7 @@
   <div id="hub-first" class="hub-note" role="region" aria-labelledby="hub-first-text" hidden>
     <p id="hub-first-text">Sara sends one small anonymous check-in a day so we can support you and plan features: the version, the kind of computer (Windows, Mac or Linux) and which features are switched on. We don&#39;t keep your IP address, your name, your chats or anything about your system beyond that.</p>
     <div class="hub-note-actions"><button id="hub-first-show" type="button" class="ghost small">Show what's sent</button><button id="hub-first-off" type="button" class="ghost small">Turn off</button><button id="hub-first-ok" type="button" class="small">Got it</button></div>
+    <pre id="hub-first-preview" class="hub-first-preview" hidden></pre>
   </div>
   <div id="hub-banner" class="hub-note hub-banner" role="status" aria-live="polite" hidden>
     <span id="hub-banner-level" class="hub-level"></span>
@@ -675,12 +679,17 @@
   <!-- First-run setup guide -->
   <dialog id="setup" class="setup">
     <form method="dialog" class="settings-body">
-      <p class="setup-step muted small" id="setup-step"></p>
+      <!-- Phase 114 (PL1b, F3): "Set up later" is a quiet link up here, never the strongest button. -->
+      <div class="setup-head"><p class="setup-step muted small" id="setup-step"></p><button id="su-skip" type="button" class="linkish small">Set up later</button></div>
 
       <section data-step="1">
         <h2>Welcome! Let's set things up</h2>
         <p class="muted">Four quick steps. You can change everything later in Settings.</p>
         <label>What should she call you? <input id="su-owner" maxlength="80" autocomplete="given-name" placeholder="Your first name"></label>
+        <!-- Phase 114 (PL1b, F9): the use choice; it changes only the order of things, the tour and the starter chips. -->
+        <h3 id="su-path-q" class="su-q">What will you mostly do with her?</h3>
+        <div id="su-path" class="pick-cards su-path" role="radiogroup" aria-labelledby="su-path-q"></div>
+        <p class="muted small">It only changes what you see first: everything stays available. Change it any time in Settings → You → About you.</p>
       </section>
 
       <section data-step="2" hidden>
@@ -742,32 +751,41 @@
             <button id="su-key-go" type="button">Connect</button>
           </div>
         </details>
-        <details class="su-choice">
-          <summary>My subscription <span class="su-sub">ChatGPT, Claude or Grok · uses the plan you already pay for</span></summary>
+        <details class="su-choice" id="su-subs-box">
+          <summary>My subscription <span id="su-subs-tag" class="su-chip su-tag" hidden></span> <span class="su-sub">ChatGPT, Claude or Grok · uses the plan you already pay for</span></summary>
           <p class="small">Signing in takes a browser step. Finish this guide, then press <em>Sign in</em> under Settings → Models → Subscriptions; it opens for you at the end.</p>
           <label class="row"><input id="su-subs" type="checkbox"> Open subscriptions when I'm done</label>
         </details>
         <p class="muted small">Not sure? <a href="/help#brain" target="_blank" rel="noopener">Compare the choices</a>.</p>
-        <div id="su-model-row" hidden>
-          <label>Model to use <select id="su-model"></select></label>
+        <!-- Phase 114 (PL1b, F5/F6): the pick as a card with a status chip; the full list behind Change. -->
+        <div id="su-model-row" class="su-pick" hidden>
+          <div class="su-pick-head"><span class="su-pick-title">Picked for you</span><span id="su-status" class="su-chip" role="status"></span></div>
+          <p class="su-pick-model"><strong id="su-pick-name"></strong><span id="su-pick-tags" class="su-pick-tags"></span></p>
           <p class="muted small" id="su-model-note"></p>
+          <button id="su-change" type="button" class="ghost small">Change</button>
+          <label id="su-model-pick" hidden>Model to use <select id="su-model"></select></label>
         </div>
       </section>
 
       <section data-step="4" hidden>
         <h2 id="su-done-title">All set</h2>
+        <!-- Phase 114 (PL1b, F2/F13): starter chips that send a real first message, and the check-in notice folded in. -->
+        <p id="su-starters-note" class="muted">Pick one to start, or press Start talking and say anything.</p>
+        <div id="su-starters" class="chips su-starters"></div>
+        <div id="su-checkin" class="su-checkin"></div>
         <ul class="setup-tips">
           <li>Just type to talk; 📎 sends a photo or a document. Talking out loud (🎙) and calls (📞) appear once her voice is set up in Settings → Voice.</li>
           <li><strong>✨ Create your companion</strong> (Settings → Name and personality): her personality, life, look and voice in 8 short steps.</li>
           <li>Put her on your phone: Settings → Connections → Install as an app.</li>
           <li>She's an AI. If you ever sincerely ask, she'll say so.</li>
         </ul>
+        <p class="muted small"><a href="https://www.youtube.com/watch?v=DTAIW75y7i4&amp;list=PLGtrs9BqXtM8&amp;index=1" target="_blank" rel="noopener noreferrer">Watch the setup video ↗</a></p>
       </section>
 
       <p id="su-error" class="error" role="alert"></p>
       <div class="actions setup-actions">
         <button id="su-back" type="button" class="ghost">Back</button>
-        <button id="su-skip" type="button" class="ghost">Skip setup</button>
+        <button id="su-later" type="button" class="linkish" hidden>Skip for now</button>
         <button id="su-next" type="button">Next</button>
       </div>
     </form>
@@ -2345,6 +2363,9 @@
         <section class="settings-page" data-page="you-about" data-group="You" data-title="About you" hidden>
       <label>What should Sara call you? <input id="owner-name" maxlength="80"></label>
       <label>Time zone <input id="time-zone" placeholder="e.g. America/Chicago"></label>
+      <label>What you mostly do with her
+        <select id="use-path"><option value="company">Company: talk, plan my day, remember things</option><option value="coding">Coding: my projects, tests, reviews</option><option value="both">Both</option></select>
+      </label>
       <h3>Language</h3>
       <div class="row-grid">
         <label>Language

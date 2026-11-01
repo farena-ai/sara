@@ -31,6 +31,12 @@ import type { McpServerConfig } from './tools/mcp.ts';
 import type { SearchProvider } from './tools/search.ts';
 import type { Permission } from './tools/types.ts';
 
+/** Phase 114 (PL1b): the use choice: company, coding or both. */
+export type UsePath = 'company' | 'coding' | 'both';
+export const USE_PATHS: readonly UsePath[] = ['company', 'coding', 'both'];
+/** A stored or sent value as a use choice ('both' when missing or unknown). */
+export const usePathOf = (v: unknown): UsePath => (USE_PATHS.includes(v as UsePath) ? (v as UsePath) : 'both');
+
 export interface Settings {
   providers: ProviderConfig[];
   defaultProviderId?: string;
@@ -43,6 +49,12 @@ export interface Settings {
   disclosureAcceptedAt?: string;
   /** The first-run setup guide was finished or skipped (Phase 10). */
   setupDone?: boolean;
+  /**
+   * Phase 114 (PL1b): what the owner mostly does with this companion (wizard step 1, Settings → You →
+   * About you). Changes only the order of Getting started, the tour offered and the starter chips; every
+   * feature stays available. Missing = 'both'.
+   */
+  usePath?: UsePath;
   /** Per-tool permission overrides (tool name → auto/ask/never). */
   toolPermissions?: Record<string, Permission>;
   /** Allow shell commands network access inside the sandbox. Default true. */

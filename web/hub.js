@@ -23,7 +23,9 @@ async function api(path, opts = {}) {
   return data;
 }
 
-const st = { demo: false, member: false, openSettings: null, pending: null, diag: null, sending: false };
+// Phase 114 (PL1b): `queue` is the app's first-run queue (web/first-run.js); `firstPending` = the
+// first-run notice still waits for an answer; `folded` = it sits inside the wizard's last step.
+const st = { demo: false, member: false, openSettings: null, pending: null, diag: null, sending: false, queue: null, firstPending: false, folded: false };
 const KIND = { bug: () => t('A problem'), idea: () => t('An idea'), question: () => t('A question') };
 const STATUS = {
   new: () => t('New'),
@@ -64,11 +66,55 @@ async function refresh() {
   }
   st.member = Boolean(info.member);
   if (st.member) return;
-  if (info.firstRun) whenClear(() => {
-    $('#hub-first').hidden = false;
-    void api('/hub/first-run', { method: 'POST', body: { action: 'shown' } }).catch(() => {});
-  });
-  if (info.banner) whenClear(() => showBanner(info.banner));
+  if (info.firstRun) {
+    st.firstPending = true;
+    later('notice', showFirst);
+  }
+  if (info.banner) later('banner', () => showBanner(info.banner));
+}
+
+/** Phase 114 (PL1b): through the first-run queue when there is one (never two notes at once). */
+function later(id, fn) {
+  if (st.queue) st.queue.add(id, fn);
+  else whenClear(fn);
+}
+
+function showFirst() {
+  if (!st.firstPending || st.folded) return;
+  $('#hub-first').hidden = false;
+  // The first check-in waits until this was shown (src/routes/hub.ts).
+  void api('/hub/first-run', { method: 'POST', body: { action: 'shown' } }).catch(() => {});
+}
+
+/**
+ * Phase 114 (PL1b, F2): the first-run notice as a card inside the wizard's last step (same text, same
+ * three buttons) instead of a second note over the page. Returns false when there is nothing to show.
+ */
+export function foldFirstRun(host) {
+  if (!st.firstPending || st.member || st.demo || !host) return false;
+  st.queue?.drop('notice');
+  const note = $('#hub-first');
+  if (!st.folded) {
+    st.home ??= { parent: note.parentNode, next: note.nextSibling };
+    note.classList.replace('hub-note', 'hub-note-folded');
+    host.append(note);
+    st.folded = true;
+  }
+  note.hidden = false;
+  void api('/hub/first-run', { method: 'POST', body: { action: 'shown' } }).catch(() => {});
+  return true;
+}
+
+/** The wizard closed: the card goes back where it lives; an unanswered one counts as seen (Got it). */
+export function unfoldFirstRun() {
+  if (!st.folded) return;
+  st.folded = false;
+  const note = $('#hub-first');
+  note.hidden = true;
+  note.classList.replace('hub-note-folded', 'hub-note');
+  $('#hub-first-preview').hidden = true;
+  if (st.home?.parent) st.home.parent.insertBefore(note, st.home.next);
+  if (st.firstPending) void firstRun('dismiss');
 }
 
 /** Shown only once no window covers the page (setup, sign-in steps): a notice under a window isn't seen. */
@@ -97,8 +143,10 @@ function showBanner(n) {
 }
 
 async function firstRun(action) {
+  st.firstPending = false;
   $('#hub-first').hidden = true;
   await api('/hub/first-run', { method: 'POST', body: { action } }).catch(() => {});
+  st.queue?.pump();
 }
 
 // ---- Settings → Data & health → Privacy ----
@@ -310,9 +358,22 @@ export function hubHash(hash) {
 export function initHub(o = {}) {
   st.demo = Boolean(o.demo);
   st.openSettings = o.openSettings ?? null;
+  st.queue = o.queue ?? null;
   $('#hub-first-ok').addEventListener('click', () => void firstRun('dismiss'));
   $('#hub-first-off').addEventListener('click', () => void firstRun('off'));
   $('#hub-first-show').addEventListener('click', async () => {
+    // Phase 114 (PL1b): inside the wizard it shows what's sent right in the card (no window over the wizard).
+    if (st.folded) {
+      const pre = $('#hub-first-preview');
+      try {
+        pre.textContent = JSON.stringify((await api('/hub/preview')).payload, null, 2);
+        pre.hidden = false;
+      } catch (err) {
+        pre.textContent = err.message;
+        pre.hidden = false;
+      }
+      return;
+    }
     await firstRun('dismiss');
     await st.openSettings?.('dh-privacy');
     await showPreview();

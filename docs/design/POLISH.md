@@ -736,6 +736,36 @@ Why first: the owner's own example, plus four real bugs. Small surface, high vis
 - [ ] Title prompt test: no Title Case output in the eval fixture set (`title-evals.ts`).
 - [ ] Walkthrough screenshots `b01…b06`, `01…09` retaken on both sizes and reviewed.
 
+**As built (2.47.1), PL1b:**
+- One first-run queue (`web/first-run.js`): the wizard first (the queue holds while it loads), the check-in card folded into
+  step 4 with the same text and three buttons (*Show what's sent* opens the payload inside the card; `shown` is recorded, so
+  the first ping still waits for it; finishing the wizard with it unanswered counts as *Got it*), then the tour offer once her
+  first reply has landed. Hub notices go through the same queue. Today is a page under everything, not an overlay (the count
+  leaves `#today` out). The disclosure stays its own required screen before all of it (R4).
+- Wizard: step 1 has the use cards (💬 Company · 💻 Coding · ✨ Both), saved as `usePath` **per companion** (a companion
+  key, not `settings.ui.path`) and changeable in Settings → You → About you; step 3 has Next as the only primary button,
+  disabled until the picked model answers a test message (or *Open subscriptions when I'm done* is ticked), *Skip for now* as a
+  quiet link and *Set up later* in the header; the picked-for-you card (model · why · where it runs, *Change* opens the grouped
+  list) with a status chip (Checking… / Connected ✓ / No answer yet), *Use it* turns into a Connected chip; for coding the
+  pick is the *Use recommended* coding model with a "Good for coding" chip; *My subscription* moves first ("Easiest") when no
+  Ollama was found, or for a coder already signed in ("Signed in ✓"). No GPU check yet. Step 4: three starter chips
+  (company: Tell me about yourself / Plan my day with me / What can you do?; coding: Look at my project / Fix a failing test /
+  Start a new project + Connect GitHub / Use her from my editor) that send a real first message (code chips in a new coding
+  conversation) and the setup video link.
+- Tours: `company` (talk · her panel · Today · Planner · Memory · Settings → Her) and `coding` (conversation chip · step line
+  · Ask me first · Team · Findings · Coding projects), six stops at each width; members skip the owner-only stops. Both gets the
+  Companion tour with a *Coder tour* button beside it. The 14-stop tour is "The full tour" in Help; the demo still offers it
+  after 4 s.
+- Empty chat: "Say hi" plus four chips for the choice (not on the demo, not before a brain is connected).
+- Getting started: 7 steps per choice; company §5.2, coding §5.3 (Open a project, Choose how she runs code, Add a GitHub
+  token, Use her from your editor, Set a budget, each ticked from real state); *Both* and never-chosen keep the list from before
+  (so nobody's progress moves). Members never see owner-only steps. Two columns with the whole description (one column on the
+  phone), the next step outlined.
+- F14: the title prompt asks for 3–5 casual words in sentence case; `sentenceCase` fixes a Title Case answer (names from the
+  talk and words like GitHub/API keep their capitals; German untouched).
+- Not in PL1b (left for PL1c): F10 claim screen, F7 step 2 choice cards, F8 one "make her" option list, the "How do I…?"
+  link from each Getting started card, a GPU check for "Easiest".
+
 ### PL1c (2.47.2): one look across every page
 
 - Components: `emptyState()`, "How do I…?" block + `web/howto.json` for every page and view, card head

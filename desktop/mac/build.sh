@@ -131,12 +131,17 @@ MNT=$(hdiutil attach -readwrite -noverify -noautoopen "$RW" | grep -o '/Volumes/
 [ -d "$MNT" ] || { echo "The disk image didn't mount." >&2; exit 1; }
 LAID_OUT=0
 if [ "${SARA_DMG_TEMPLATE:-0}" != 1 ] && [ $OTHER_SARA = 0 ]; then
-  if osascript dmg/layout.applescript Sara >/dev/null; then
-    for _ in 1 2 3 4 5 6 7 8 9 10; do
-      if grep -aq icvp "$MNT/.DS_Store" 2>/dev/null; then LAID_OUT=1; break; fi
-      sleep 1
-    done
-  fi
+  # Finder can take a moment to see a freshly attached disk ("Can't get disk"), so try a few times.
+  for _try in 1 2 3 4 5; do
+    sleep 2
+    if osascript dmg/layout.applescript Sara >/dev/null; then
+      for _ in 1 2 3 4 5 6 7 8 9 10; do
+        if grep -aq icvp "$MNT/.DS_Store" 2>/dev/null; then LAID_OUT=1; break; fi
+        sleep 1
+      done
+    fi
+    [ $LAID_OUT = 1 ] && break
+  done
 fi
 if [ $LAID_OUT = 1 ]; then
   echo "Disk image window laid out by Finder."

@@ -1,5 +1,6 @@
 // HTTP API + static web UI. No framework; node:http only.
 import { countModels } from './model-names.ts';
+import { usePathOf } from './settings.ts';
 import { clearTodayCache } from './today.ts';
 import { netFetch, privateLocalOn } from './net-guard.ts';
 import { createReadStream, existsSync, readFileSync, rmSync, statSync } from 'node:fs';
@@ -1551,7 +1552,7 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (!b && method === 'GET') {
         const s = app.settings.get();
         // Phase 71: a member's models are set up by the owner: no first-run guide.
-        if (opts.member) return send(res, 200, { done: true, ownerName: s.ownerName ?? '', ollama: [], subscriptions: { grok: false, claude: false, chatgpt: false } });
+        if (opts.member) return send(res, 200, { done: true, ownerName: s.ownerName ?? '', usePath: usePathOf(s.usePath), ollama: [], subscriptions: { grok: false, claude: false, chatgpt: false } });
         const done = Boolean(s.setupDone) || (s.providers.length > 0 && Boolean(s.ownerName));
         // Phase 114 (F4): `models` counts the models on that computer (as Models → On this computer
         // does); `cloud` the Ollama Cloud tags it also has.
@@ -1576,6 +1577,8 @@ export function createSaraServer(opts: ServerOptions): Server {
         return send(res, 200, {
           done,
           ownerName: s.ownerName ?? '',
+          // Phase 114 (PL1b): the use choice from step 1 (shown again when the wizard is reopened).
+          usePath: usePathOf(s.usePath),
           ollama: ollama.slice(0, 1),
           subscriptions: { grok: subs?.grokStatus().signedIn ?? false, claude: subs?.claudeStatus().signedIn ?? false, chatgpt: Boolean(subs?.chatgpt.status().signedIn) },
         });

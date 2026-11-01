@@ -14,7 +14,7 @@ para la web, Windows, Mac y el móvil.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1488%20passing-brightgreen" alt="1488 tests passing">
+  <img src="https://img.shields.io/badge/tests-1497%20passing-brightgreen" alt="1497 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -83,6 +83,7 @@ Guías de un minuto, grabadas en un servidor de prueba con un modelo local (en i
 
 | Versión | Qué te trae |
 |---|---|
+| **2.47.1** · Un comienzo a tu medida | **La configuración hace una pregunta: compañía, programación o ambas.** Recibes un modelo recomendado con una prueba real *Conectado ✓*, un recorrido de seis paradas a juego (el completo sigue en Ayuda), sugerencias para empezar en un chat vacío y una lista de primeros pasos en el orden que te conviene. Las ventanas nunca se amontonan, y el aviso de la señal anónima va en el último paso. |
 | **2.47** · Una personalidad que se ve | **Sus diales de personalidad ahora muestran lo que hacen:** extremos claros («Guarda las distancias ↔ Abiertamente cálida»), una palabra para el punto actual y una frase con su voz que cambia al moverlo (125, sin llamar a ninguna IA). Grupos con nombres claros, un resumen «Tu Sara hasta ahora» y palabras sencillas en el resto de controles. También: Hoy se actualiza tras la configuración, un mismo número de modelos en todas partes con un selector agrupado, importar una persona la renombra en todas partes a la vez y *Salir a las* va antes de su evento. |
 | **2.46** · Informa de un problema desde Sara | **Ayuda → Informar de un problema o Sugerir algo** (o `/bug` e `/idea` en cualquier chat, o *Informar* en un error): sin cuenta de GitHub. El diagnóstico opcional se crea en tu ordenador, se muestra completo con una casilla por parte y se limpia de claves, correos y rutas antes de enviar nada. *Mis informes* muestra el estado y nuestras respuestas. Sara también envía una pequeña señal anónima al día (versión, Windows/Mac/Linux, qué funciones están activas) para poder ayudarte y planificar; no se guarda la IP, el nombre ni los chats. *Ver qué se envía* o desactívalo en Ajustes → Datos y estado → Privacidad. |
 | **2.45** · Hoy en el móvil | **En el móvil, Hoy empieza con una tarjeta Ahora** (las dos próximas cosas y cuánto falta, cuándo salir, el tiempo y su ánimo), luego *Te necesita* y luego tu día. Las secciones se pliegan con un resumen y quedan como las dejaste en ese dispositivo, *Con ella* y *Trabajo* pasan a filas deslizables (también con botones) y tirar para actualizar funciona en el navegador y en las dos apps. Las tabletas tienen dos columnas. Opcional: una frase suya sobre lo que pasó mientras no estabas. |
@@ -335,8 +336,8 @@ prueba comprobaba. Lo que aporta hoy es la forma de trabajar (ejecuta las prueba
 antes de pasos arriesgados, muestra lo que se ejecutó), no una puntuación más alta en estos
 conjuntos. Detalles, resultados por tarea y cómo repetirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-Además, `npm run check`: una comprobación de tipos y 1503 pruebas automáticas con un modelo falso
-programado (sin red, sin GPU): 1488 pasan en Windows y las otras 8 son pruebas del aislamiento solo
+Además, `npm run check`: una comprobación de tipos y 1512 pruebas automáticas con un modelo falso
+programado (sin red, sin GPU): 1497 pasan en Windows y las otras 8 son pruebas del aislamiento solo
 para Linux, que se ejecutan en un servidor Linux.
 
 ## Cómo se compara Sara

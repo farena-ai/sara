@@ -19,7 +19,7 @@ import { OFFSITE_PASS_VAULT, OFFSITE_S3_VAULT } from '../offsite.ts';
 import { accessInfo, adminHelp, systemName } from '../platform.ts';
 import { onThisComputer } from '../private-local.ts';
 import { qrSvg } from '../qr.ts';
-import { ROUTE_PURPOSES, type RoutePurpose, type Settings } from '../settings.ts';
+import { ROUTE_PURPOSES, type RoutePurpose, type Settings, USE_PATHS, type UsePath, usePathOf } from '../settings.ts';
 import { MCP_PRESETS, type McpServerConfig, mcpVaultKey, validateMcpConfig } from '../tools/mcp.ts';
 import { noSandboxNote } from '../tools/sandbox.ts';
 import { SEARCH_PROVIDERS, type SearchProvider, searchVaultKey } from '../tools/search.ts';
@@ -70,6 +70,9 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           appLanguage: appLanguage(s),
           talkLanguage: s.talkLanguage ?? 'auto',
           storyYearly: s.story?.yearly === true,
+          // Phase 114 (PL1b): company, coding or both (this companion's; 'both' when never chosen).
+          usePath: usePathOf(s.usePath),
+          usePathChosen: s.usePath !== undefined,
           // Phase 46: how the owner reaches her (read-only; the installer sets it).
           access: accessInfo(),
           // Phase 46c: admin commands in this system's words (sudo sara … / sara … / docker …).
@@ -96,6 +99,10 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
         if (body.language !== undefined) patch.language = langPick(body.language, 'Language');
         if (body.talkLanguage !== undefined) patch.talkLanguage = langPick(body.talkLanguage, 'Talk to me in');
         if (body.languageDetected !== undefined) patch.languageDetected = toLang(body.languageDetected) ?? 'en';
+        if (body.usePath !== undefined) {
+          if (!USE_PATHS.includes(body.usePath as UsePath)) throw new HttpError(400, 'Pick company, coding or both.');
+          patch.usePath = body.usePath as UsePath;
+        }
         if (body.storyYearly !== undefined) patch.story = { ...app.settings.get().story, yearly: Boolean(body.storyYearly) };
         if (body.historyBudgetChars !== undefined) {
           const n = Number(body.historyBudgetChars);
@@ -446,6 +453,7 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           devices: auth.devices().map((d) => d.label),
           pushDevices: (app.push?.list().length ?? 0) + (app.push?.apns?.devices().length ?? 0),
           personaCustom: existsSync(join(app.dataDir, 'persona.json')),
+          member: Boolean(opts.member),
         });
       if (method === 'GET') return send(res, 200, await view());
       if (method === 'PUT') {

@@ -1,0 +1,61 @@
+/* Phase 114 (PL1b, docs/design/POLISH.md §5): the first run: the wizard's use choice, the picked-for-you
+   card and its status chip, the starter chips, the check-in card folded into the last step, and the empty
+   chat's chips. Theme tokens only; every target at least 44 px; nothing moves (reduced motion is moot). */
+
+/* Header row of the wizard: the step count and "Set up later" (a quiet link, F3). */
+#setup .setup-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding-right: calc(var(--s-8) + var(--s-2)); }
+#setup .setup-head .setup-step { margin: 0; }
+#setup .setup-head #su-skip, #setup #su-later { min-height: 44px; padding: 0 var(--s-2); color: var(--text-2); }
+#setup .setup-head #su-skip:hover, #setup #su-later:hover { color: var(--accent-text); }
+#setup .setup-actions #su-later { margin-right: auto; }
+#setup .setup-actions #su-next:disabled { opacity: .55; cursor: not-allowed; }
+
+/* Step 1: three use cards (F9). */
+#setup .su-q { margin: var(--s-5) 0 var(--s-2); font-size: var(--fs-body); }
+#setup .su-path { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); }
+#setup .su-path-card { min-height: 88px; gap: var(--s-1); padding: var(--s-3); border-radius: var(--r-card); }
+#setup .su-path-icon { font-size: 22px; line-height: 1; }
+
+/* Step 3: the picked-for-you card (F5) with its status chip (F6). */
+#setup .su-pick { margin: var(--s-3) 0 0; padding: var(--s-4); border: 1px solid var(--hairline-strong); border-radius: var(--r-card); background: linear-gradient(165deg, var(--accent-soft), var(--surface-1) 80%); display: grid; gap: var(--s-2); }
+#setup .su-pick[hidden] { display: none; }
+#setup .su-pick-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
+#setup .su-pick-title { font-size: var(--fs-small); color: var(--text-2); letter-spacing: .04em; text-transform: uppercase; }
+#setup .su-pick-model { margin: 0; overflow-wrap: anywhere; }
+#setup .su-pick-model strong { font-size: 16px; }
+#setup .su-pick-tags { display: inline; }
+#setup .su-pick-tags .su-chip { margin-left: var(--s-2); }
+#setup .su-pick p.muted { margin: 0; }
+#setup #su-change { justify-self: start; min-height: 44px; }
+#setup #su-model-pick select { width: 100%; min-height: 44px; }
+.su-chip { display: inline-flex; align-items: center; gap: var(--s-1); padding: 2px var(--s-2); border-radius: var(--r-pill); border: 1px solid var(--hairline-strong); background: var(--surface-2); color: var(--text-1); font-size: var(--fs-small); font-weight: 600; white-space: nowrap; }
+.su-chip:empty { display: none; }
+.su-chip[data-state="ok"], .su-found > .su-chip { background: var(--success-soft); border-color: var(--success); color: var(--text-1); }
+.su-chip[data-state="checking"] { color: var(--text-2); }
+.su-chip[data-state="fail"] { background: var(--warn-soft); border-color: var(--warn); }
+.su-chip-code { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent-solid) 50%, transparent); }
+#setup .su-tag { margin-left: var(--s-1); vertical-align: middle; }
+#setup .su-tag[hidden] { display: none; }
+#setup .su-found .su-use-local { min-height: 44px; }
+
+/* Step 4: starter chips and the check-in card (F2, F13). */
+#setup .su-starters { gap: var(--s-2); margin: var(--s-2) 0 var(--s-4); }
+.starter-chip { min-height: 44px; padding: var(--s-2) var(--s-4); font-size: 14px; }
+.starter-chip[data-kind="page"] { border-style: dashed; }
+#setup .su-checkin:empty { display: none; }
+.hub-note-folded { margin: 0 0 var(--s-4); padding: var(--s-3) var(--s-4); border: 1px solid var(--hairline-strong); border-radius: var(--r-card); background: var(--surface-1); color: var(--text-1); font-size: 14px; line-height: 1.45; }
+.hub-note-folded[hidden] { display: none; }
+.hub-note-folded p { margin: 0 0 var(--s-2); }
+.hub-first-preview { margin: var(--s-2) 0 0; padding: var(--s-2) var(--s-3); max-height: 220px; overflow: auto; background: var(--surface-0); color: var(--text-1); border: 1px solid var(--line); border-radius: var(--r-control); font: 12px/1.45 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.hub-first-preview[hidden] { display: none; }
+
+/* The empty chat: "Say hi" and four chips for the use choice (F13). */
+#messages .empty-start { display: grid; justify-items: center; gap: var(--s-3); max-width: 44ch; }
+#messages .empty-chips { justify-content: center; gap: var(--s-2); margin: 0; }
+
+@media (max-width: 720px) {
+  #setup .su-path { grid-template-columns: minmax(0, 1fr); }
+  #setup .su-path-card { min-height: 56px; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: var(--s-3); align-items: center; }
+  #setup .su-path-icon { grid-row: 1 / 3; }
+  #messages .empty-start { max-width: 100%; padding: 0 var(--s-4); }
+}
