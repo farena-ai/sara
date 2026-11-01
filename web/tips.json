@@ -1611,6 +1611,10 @@
       "Tokens and estimated costs of every model call (chats, jobs, team tasks, memory and other helpers), budgets for jobs and team tasks, and your price table.",
       "usage"
     ],
+    "dh-privacy": [
+      "The anonymous daily check-in: switch it off, see exactly what it sends, or start over with a new install ID.",
+      "support"
+    ],
     "dh-reports": [
       "Replies you reported with ⚑.",
       "safety"

@@ -9,6 +9,7 @@
 // (no tools, nothing private, the full safety layer), its lines are tagged "(bot)", and a loop guard
 // per channel keeps two bots from talking forever: after botTurnLimit bot-triggered replies she
 // waits for a person to write there, and botHourlyCap caps bot-triggered replies per hour.
+import { accessInfo } from '../platform.ts';
 import { copyOwnerTurnToRoom, roomConversation, roomNote } from './room.ts';
 import { netFetch, openWebSocket, privateLocalOn } from '../net-guard.ts';
 import { randomInt } from 'node:crypto';
@@ -388,6 +389,8 @@ export class DiscordBridge {
       stopTurn: (id) => this.#stopTurn(id),
       clearQueue: (id) => this.#clearQueue(id),
       resetGuard: () => void this.#botGuard.delete(channelId),
+      // Phase 113: /bug and /idea link to the report sheet when the server knows its address.
+      ...(accessInfo().url ? { appLink: accessInfo().url! } : {}),
     };
   }
 

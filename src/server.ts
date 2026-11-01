@@ -65,6 +65,7 @@ import { createVoiceRoutes } from './routes/voice.ts';
 import { createLiveUpgrade } from './routes/live.ts';
 import { createHandsRoutes, createHandsUpgrade } from './routes/hands.ts';
 import { createMoveInPublic, createMoveInRoutes, serveCollector } from './routes/movein.ts';
+import { createHubRoutes } from './routes/hub.ts';
 
 // Kept exported from here for main.ts and the tests.
 export { clientIp, fromPhoneApp, fromSaraApp, proxyTrust } from './http.ts';
@@ -841,6 +842,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   // Phase 104: move in from another agent (src/routes/movein.ts); the collector's `send` uses a move-in code.
   const moveInRoutes = createMoveInRoutes(ctx);
   const moveInPublic = createMoveInPublic(ctx);
+  // Phase 113: the daily check-in's settings, Report a problem and My reports (src/routes/hub.ts).
+  const hubRoutes = createHubRoutes(ctx);
   app.hands?.onStop((conversationId) => active.get(conversationId)?.controller.abort());
 
   async function api(req: IncomingMessage, res: ServerResponse, method: string, parts: string[]): Promise<void> {
@@ -1200,6 +1203,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await memoryRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await roomRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await peopleRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await hubRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 16: Adult mode. Off by default; on only from a web browser with the 18+ confirmation.
     if (a === 'pair' && !b && method === 'POST') {
       // A new code replaces any earlier one.
@@ -1709,7 +1713,7 @@ export function createSaraServer(opts: ServerOptions): Server {
             clearQueue: () => 0,
           };
           const r = await runCommand({ app, bridge: 'web', place: 'owner-dm', who: 'owner', lang: appLanguage(app.settings.get()), cmd, adapter });
-          return send(res, 200, { reply: r.text, command: cmd.name, ...(r.opened ? { opened: r.opened } : {}), ...(r.choices ? { choices: r.choices } : {}), ...(r.approval ? { approvalId: r.approval.id } : {}), ...(r.refused ? { refused: true } : {}) });
+          return send(res, 200, { reply: r.text, command: cmd.name, ...(r.opened ? { opened: r.opened } : {}), ...(r.choices ? { choices: r.choices } : {}), ...(r.approval ? { approvalId: r.approval.id } : {}), ...(r.refused ? { refused: true } : {}), ...(r.report ? { report: r.report } : {}) });
         }
         const view = (m: StoredMessage) => ({
           ...m,

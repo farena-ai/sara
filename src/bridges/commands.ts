@@ -16,7 +16,7 @@ import type { Conversation } from '../store.ts';
 import { nextPlaceholder } from '../titles.ts';
 import { turnBudgetFor, turnBudgetSettings } from '../budget.ts';
 
-export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings';
+export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea';
 /** Where the line was written: his DM, someone else's DM, a shared room, a room where he works with her. */
 export type Place = 'owner-dm' | 'partner-dm' | 'room' | 'work-room';
 /** Who wrote it (decided by the bridge from the platform user id, never by a name). */
@@ -24,7 +24,8 @@ export type Asker = 'owner' | 'person' | 'bot';
 
 /** The commands in the platforms' menus, in menu order. */
 export const MENU_COMMANDS = ['new', 'reset', 'stop', 'status', 'help', 'model', 'remember'] as const;
-const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings'];
+// Phase 113: /bug and /idea (Report a problem, Suggest something) are typed, not in the menus.
+const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea'];
 export const isCommandName = (s: string): s is CommandName => (ALL as readonly string[]).includes(s);
 
 /** One line per command (menus and /help). The owner's /status says more than the one others get. */
@@ -38,6 +39,8 @@ export const DESCRIPTIONS: Record<CommandName, string> = {
   remember: en('Save a note in her memory'),
   start: en('Say hello'),
   settings: en('Where her settings are'),
+  bug: en('Report a problem to the people who make Sara'),
+  idea: en('Suggest something to the people who make Sara'),
 };
 /** /status as others see it (no model, no budget). */
 export const PUBLIC_STATUS = en('How full this chat is');
@@ -171,6 +174,8 @@ export interface BridgeAdapter {
   resetGuard?(): void;
   /** Where her settings are (a link when the server knows its address). */
   settingsWhere?: string;
+  /** Phase 113: the app's address for "open the report sheet" (when the server knows it). */
+  appLink?: string;
 }
 
 export interface ModelPick {
@@ -193,6 +198,8 @@ export interface CommandReply {
   approval?: { id: string; summary: string; done: Promise<string> };
   /** The session /new opened. */
   opened?: Conversation;
+  /** Phase 113: the web app opens the report sheet with this (from /bug or /idea). */
+  report?: { kind: 'bug' | 'idea'; text: string };
 }
 
 export interface CommandContext {
@@ -285,6 +292,9 @@ export async function runCommand(c: CommandContext): Promise<CommandReply> {
       return modelCommand(c, conv);
     case 'remember':
       return rememberCommand(c, conv);
+    case 'bug':
+    case 'idea':
+      return reportCommand(c, conv);
   }
 }
 
@@ -296,6 +306,7 @@ function helpText(app: AppContext, c: CommandContext): string {
     .filter((n) => commandAllowed(c.place, c.who, n))
     .map((n) => `/${n}: ${tr(n === 'status' && c.who !== 'owner' ? PUBLIC_STATUS : DESCRIPTIONS[n])}`);
   if (c.who === 'owner' && c.place === 'work-room') lines.push(`/new room: ${tr('Also start a new conversation for the whole room')}`);
+  if (c.who === 'owner') for (const n of ['bug', 'idea'] as const) lines.push(`/${n}: ${tr(DESCRIPTIONS[n])}`);
   const name = chatsSettings(app).namePrefix && c.bridge !== 'web' ? `\n${tr('You can also write just my name and the word, like "{example}".', { example: `${app.persona.name} ${c.lang === 'de' ? 'neu' : 'new'}` })}` : '';
   return `${tr('What you can do here:')}\n${lines.join('\n')}${name}`;
 }
@@ -452,6 +463,36 @@ async function rememberCommand(c: CommandContext, conv: Conversation | undefined
   const req = app.approvals.request(session.id, AbortSignal.timeout(10 * 60_000));
   const done = req.decision.then((ok) => (ok ? save() : tr("All right, I won't keep it.")));
   return { text: tr('Remember this? "{text}"', { text: fact }), approval: { id: req.id, summary: tr('Remember: {text}', { text: fact }), done }, ownerOnly: true };
+}
+
+/**
+ * Phase 113: /bug and /idea. In the web app they open the report sheet (with the text, where the
+ * person picks diagnostics). Elsewhere a bare /bug answers with where the sheet is; `/bug <text>`
+ * files a quick report without diagnostics once the owner says yes on the confirm card.
+ */
+async function reportCommand(c: CommandContext, conv: Conversation | undefined): Promise<CommandReply> {
+  const { app } = c;
+  const kind = c.cmd.name === 'idea' ? 'idea' : 'bug';
+  const tr = (text: string, params?: Record<string, unknown>) => say(app, c.lang, text, params);
+  const text = c.cmd.args.replace(/\s+/g, ' ').trim().slice(0, 2000);
+  if (c.bridge === 'web') return { text: kind === 'idea' ? tr('Opening Suggest something…') : tr('Opening Report a problem…'), report: { kind, text } };
+  const where = c.adapter.appLink ? tr('Open Sara for the full form with diagnostics: {link}', { link: `${c.adapter.appLink}/#report=${kind}` }) : tr('Open Sara for the full form with diagnostics: Help → Report a problem.');
+  if (!app.hub || app.hub.demo) return { text: tr('Reports are not available here.'), ownerOnly: true };
+  if (!text) return { text: `${kind === 'idea' ? tr('Tell me your idea after the command, like: /idea {example}', { example: 'a dark mode for the planner' }) : tr('Tell me what went wrong after the command, like: /bug {example}', { example: 'the reminder came an hour late' })}\n${where}`, ownerOnly: true };
+  const session = conv ?? c.adapter.startSession(undefined);
+  const hub = app.hub;
+  const req = app.approvals.request(session.id, AbortSignal.timeout(10 * 60_000));
+  const done = req.decision.then(async (ok) => {
+    if (!ok) return tr('All right, nothing was sent.');
+    const { fileTicket } = await import('../hub.ts');
+    const r = await fileTicket(hub, { kind, title: text.slice(0, 120), body: text });
+    if (r.ok) return tr('Sent as {ticket}. You can follow it in Sara: Help → My reports.', { ticket: r.ticket });
+    if (r.code === 'private') return tr("Reports can't be sent while “Nothing leaves this computer” is on.");
+    if (r.code === 'limit') return tr('Too many reports today. Try again tomorrow.');
+    return tr("The support desk didn't answer. Try again later.");
+  });
+  const summary = kind === 'idea' ? tr('Send this idea to the people who make Sara (no diagnostics): {text}', { text }) : tr('Send this problem report to the people who make Sara (no diagnostics): {text}', { text });
+  return { text: `${summary}\n${where}`, approval: { id: req.id, summary, done }, ownerOnly: true };
 }
 
 // ---------------------------------------------------------------------------------------------

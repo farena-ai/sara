@@ -27,6 +27,7 @@
   <link rel="stylesheet" href="/hooks.css">
   <link rel="stylesheet" href="/movein.css">
   <link rel="stylesheet" href="/agenda.css">
+  <link rel="stylesheet" href="/hub.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -600,6 +601,12 @@
       </div>
       <h3>Ask her</h3>
       <p class="muted small">She knows her own settings. Ask in any chat, for example “what does jealousy do?” or “which model should I use for pictures?”; she explains and gives you a link to the right page.</p>
+      <h3>Problems and ideas</h3>
+      <div class="pick-cards" role="list">
+        <button id="help-report" type="button" class="pick-card"><strong>Report a problem</strong><span class="muted small">Tell the people who make Sara what went wrong. You see everything before it's sent.</span></button>
+        <button id="help-suggest" type="button" class="pick-card"><strong>Suggest something</strong><span class="muted small">An idea or a feature you'd like.</span></button>
+        <button id="help-mine" type="button" class="pick-card"><strong>My reports</strong><span class="muted small">What you sent, its status and our replies.</span></button>
+      </div>
       <h3>The guide</h3>
       <p><a href="/help" target="_blank" rel="noopener">Read the whole guide ↗</a></p>
     </div>
@@ -636,6 +643,17 @@
   </dialog>
   <!-- 2.18: "Sara was updated to X" after the reload, and "Sara was updated. Reload" on pages that
        were busy when the server changed version (web/update-check.js). -->
+  <!-- Phase 113: the check-in's first-run notice (once, the owner's) and a notice from the hub (once) -->
+  <div id="hub-first" class="hub-note" role="region" aria-labelledby="hub-first-text" hidden>
+    <p id="hub-first-text">Sara sends one small anonymous check-in a day so we can support you and plan features: the version, the kind of computer (Windows, Mac or Linux) and which features are switched on. We don&#39;t keep your IP address, your name, your chats or anything about your system beyond that.</p>
+    <div class="hub-note-actions"><button id="hub-first-show" type="button" class="ghost small">Show what's sent</button><button id="hub-first-off" type="button" class="ghost small">Turn off</button><button id="hub-first-ok" type="button" class="small">Got it</button></div>
+  </div>
+  <div id="hub-banner" class="hub-note hub-banner" role="status" aria-live="polite" hidden>
+    <span id="hub-banner-level" class="hub-level"></span>
+    <span id="hub-banner-text" class="hub-banner-text"></span>
+    <a id="hub-banner-link" class="hub-banner-link" target="_blank" rel="noopener noreferrer" hidden>More</a>
+    <button id="hub-banner-close" type="button" class="ghost icon" aria-label="Close"><i class="ic" data-icon="close"></i></button>
+  </div>
   <div id="update-note" class="update-note" role="status" aria-live="polite" hidden>
     <i class="ic" data-icon="update"></i><span id="update-note-text"></span>
     <button id="update-note-reload" type="button" hidden>Reload now</button>
@@ -3228,6 +3246,16 @@
       <div class="add-row"><label>Your member token <input id="acc-del-token" type="password" autocomplete="current-password" data-nodirty></label><button id="acc-delete" type="button" class="danger">Delete my account</button></div>
       <p id="acc-status" class="small" role="status"></p>
     </section>
+        <section class="settings-page" data-page="dh-privacy" data-group="Data & health" data-title="Privacy" data-owner-only hidden>
+      <div class="hub-privacy" data-noauto data-nodirty>
+        <label class="row"><input id="hub-on" type="checkbox"> <span>Anonymous daily check-in</span> <button type="button" class="tip" data-tip="Once a day Sara tells the people who make her the version, the kind of computer and which features are on, with a random ID. No names, chats, addresses or model names. Off: nothing is sent.">?</button></label>
+        <p id="hub-status" class="muted small" role="status"></p>
+        <div class="add-row"><button id="hub-show" type="button" class="ghost">Show what's sent</button> <button type="button" class="tip" data-tip="The exact text the next check-in would send, made from your settings right now. Nothing else goes with it.">?</button></div>
+        <pre id="hub-preview" class="hub-preview" data-raw hidden></pre>
+        <div class="add-row"><button id="hub-reset" type="button" class="ghost">Reset the install ID</button> <button type="button" class="tip" data-tip="Makes a new random ID, so later check-ins can't be linked to earlier ones. Reports you sent stay in My reports.">?</button></div>
+        <p class="muted small">Reports you send from Help go only when you press Send, with only the parts you ticked. <a href="/help#support" target="_blank" rel="noopener">Guide</a></p>
+      </div>
+        </section>
         <section class="settings-page" data-page="dh-reports" data-group="Data & health" data-title="Reports" hidden>
       <p class="muted small">Replies you reported with ⚑. Each is kept here; unless you unticked it, it was also sent to the app's developer (only the reply, the reason and your note).</p>
       <div id="reports-list" class="list"></div>
@@ -3259,6 +3287,30 @@
       <label class="row"><input id="report-dev" type="checkbox" checked> Also send it to the app's developer (only this reply, the reason and your note)</label>
       <p class="small"><button id="report-send" type="button">Report</button> <span id="report-status" class="muted" role="status"></span></p>
     </form>
+  </dialog>
+  <!-- Phase 113: Report a problem / Suggest something (one sheet) and My reports -->
+  <dialog id="hub-report" class="small-dialog" aria-labelledby="hub-report-title">
+    <form id="hub-report-form" method="dialog" class="settings-body hub-sheet" novalidate>
+      <h2 id="hub-report-title">Report a problem</h2>
+      <p class="muted small">This goes to the people who make Sara (not to her), and only when you press Send.</p>
+      <label>What is it <select id="hub-kind"><option value="bug">A problem</option><option value="idea">An idea</option><option value="question">A question</option></select> <button type="button" class="tip" data-tip="A problem: something broke or acts wrong. An idea: something you'd like her to do. A question: anything else for the team.">?</button></label>
+      <label>Title <input id="hub-title" maxlength="120" autocomplete="off"> <button type="button" class="tip" data-tip="One short line, like &quot;Reminders come an hour late&quot;. Up to 120 characters.">?</button></label>
+      <label>What happened <textarea id="hub-body" rows="5" maxlength="8000"></textarea> <button type="button" class="tip" data-tip="What you did, what you expected and what happened instead. Leave out passwords and private details.">?</button></label>
+      <label>Email for a reply (optional) <input id="hub-email" type="email" maxlength="200" autocomplete="email"> <button type="button" class="tip" data-tip="Only if you'd like an answer by email too. Replies always show in Help → My reports.">?</button></label>
+      <h3>Diagnostics (optional) <button type="button" class="tip" data-tip="Made on this computer and shown here in full: version, recent log lines, which settings are on (no values) and the steps of the failed reply. Keys, emails and your folder names are hidden. Untick any part.">?</button></h3>
+      <button id="hub-diag-add" type="button" class="ghost">Add diagnostics</button>
+      <div id="hub-diag" class="hub-diag"></div>
+      <p id="hub-report-status" class="small" role="status"></p>
+      <div class="actions"><button id="hub-report-cancel" type="button" class="ghost">Cancel</button><button id="hub-report-send" type="button">Send</button></div>
+    </form>
+  </dialog>
+  <dialog id="hub-mine" class="small-dialog" aria-labelledby="hub-mine-title">
+    <div class="settings-body hub-sheet">
+      <h2 id="hub-mine-title">My reports</h2>
+      <p id="hub-mine-status" class="muted small" role="status"></p>
+      <div id="hub-mine-list" class="hub-list"></div>
+      <div class="actions"><button id="hub-mine-new" type="button" class="ghost">Report a problem</button></div>
+    </div>
   </dialog>
   <!-- Phase 88: the one-time warning before "Always allowed" -->
   <dialog id="cu-always-warn" class="proof-dlg" aria-labelledby="cu-always-warn-title">

@@ -1,0 +1,52 @@
+/* Phase 113: the check-in notice, the hub's notices, Settings → Privacy, the report sheet and My reports (web/hub.js). Theme tokens only. */
+.hub-note { position: fixed; z-index: 61; left: 50%; bottom: calc(16px + var(--safe-b)); transform: translateX(-50%); width: min(620px, calc(100vw - 24px)); padding: 12px 14px; background: var(--glass-strong, var(--surface-2)); backdrop-filter: var(--glass-filter); color: var(--text-1); border: 1px solid var(--hairline-strong); border-radius: 16px; box-shadow: var(--shadow-2); font-size: 14px; line-height: 1.45; }
+.hub-note[hidden] { display: none; }
+.hub-note p { margin: 0 0 10px; }
+.hub-note-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.hub-note-actions button { min-height: 44px; }
+.hub-banner { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; bottom: calc(76px + var(--safe-b)); border-color: var(--info); }
+.hub-banner[data-level="update"] { border-color: var(--update-accent); }
+.hub-banner[data-level="known-issue"] { border-color: var(--warn); }
+.hub-level { flex: none; font-weight: 600; color: var(--info); }
+.hub-banner[data-level="update"] .hub-level { color: var(--update-accent); }
+.hub-banner[data-level="known-issue"] .hub-level { color: var(--warn); }
+.hub-banner-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.hub-banner-link { flex: none; min-height: 44px; display: inline-flex; align-items: center; padding: 0 6px; color: var(--accent-text); }
+.hub-banner .icon { min-width: 44px; min-height: 44px; }
+
+.hub-privacy .add-row button:not(.tip) { min-height: 44px; }
+.hub-privacy .add-row { align-items: center; }
+.hub-preview, .hub-part-text { margin: 8px 0 0; padding: 10px 12px; max-height: 320px; overflow: auto; background: var(--surface-0); color: var(--text-1); border: 1px solid var(--line); border-radius: 10px; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.hub-sheet label:not(.hub-part-head) { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0; }
+.hub-sheet label > .tip { order: 1; }
+.hub-sheet label > input:not([type="checkbox"]), .hub-sheet label > select, .hub-sheet label > textarea { order: 2; flex: 1 0 100%; width: 100%; min-height: 44px; box-sizing: border-box; }
+.hub-sheet .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.hub-sheet .actions button, #hub-diag-add { min-height: 44px; }
+.hub-diag { display: grid; gap: 10px; margin-top: 8px; }
+.hub-part { padding: 8px 10px; border: 1px solid var(--hairline-strong); border-radius: 12px; background: var(--surface-1); }
+.hub-part-head { display: flex; align-items: center; gap: 8px; margin: 0; min-height: 44px; }
+.hub-part-head input { width: 22px; height: 22px; flex: none; }
+.hub-part-text { max-height: 200px; }
+
+.hub-list { display: grid; gap: 12px; max-height: 60vh; overflow: auto; }
+.hub-ticket { padding: 12px 14px; border: 1px solid var(--hairline-strong); border-radius: 14px; background: var(--surface-1); }
+.hub-ticket-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hub-ticket-title { margin: 6px 0 2px; font-weight: 600; overflow-wrap: anywhere; }
+.hub-chip { margin-left: auto; padding: 2px 10px; border-radius: 999px; font-size: 12px; background: var(--accent-soft); color: var(--accent-text); }
+.hub-chip[data-status="fixed"], .hub-chip[data-status="closed"] { background: var(--success-soft); color: var(--success); }
+.hub-chip[data-status="waiting"] { background: var(--warn-soft); color: var(--warn); }
+.hub-fixed { color: var(--success); margin: 2px 0; }
+.hub-reply { margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); }
+.hub-reply.mine { background: var(--accent-soft); }
+.hub-reply-text { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.hub-reply-box { display: flex; gap: 8px; align-items: flex-end; margin-top: 10px; }
+.hub-reply-box textarea { flex: 1; min-height: 44px; }
+.hub-reply-box button { min-height: 44px; }
+.msg.error .hub-report-this { min-height: 44px; padding: 0 4px; }
+
+@media (max-width: 640px) {
+  .hub-note { bottom: calc(76px + var(--safe-b)); }
+  .hub-banner { bottom: calc(136px + var(--safe-b)); }
+  .hub-reply-box { flex-direction: column; align-items: stretch; }
+}

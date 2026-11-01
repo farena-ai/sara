@@ -5,6 +5,23 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.46.0 (2026-11-01): report a problem from inside Sara (Phase 113)
+
+- **Report a problem / Suggest something** in Help, `/bug` and `/idea` in chat (in Telegram and
+  Discord `/bug <text>` sends a quick report after you tap Allow), and *Report this* on error notices.
+  No GitHub account needed. Guide: [docs/SUPPORT.md](docs/SUPPORT.md).
+- **Optional diagnostics,** built on your computer and shown in full with a tick box per part:
+  version and platform, recent log lines and the error, which features are on (no values), the
+  failing turn's tool names and statuses. Keys, tokens, emails, IP addresses and home-folder paths
+  are removed before sending.
+- **My reports:** each report's status, the version that fixed it, our replies, and a reply box.
+- **An anonymous daily check-in** (on by default; a notice explains it on first run): the version,
+  how Sara was installed, Windows/Mac/Linux, the app language, how many companions and household
+  members, and which features and chat apps are switched on. No name, chats, model names, paths or
+  addresses; the IP address isn't kept. Never sent from the demo, in private local mode, or by
+  household members. Settings → Data & health → *Privacy*: switch it off, *Show what's sent*, or
+  reset the install ID. [docs/PRIVACY.md](docs/PRIVACY.md) has the details.
+
 ## 2.45.0 (2026-11-01): Today on phones and tablets (Phase 112, Today TD2; the Today track is complete)
 
 - **A Now card first** on phones and tablets: the next two things with how soon ("in 18 min", "Leave

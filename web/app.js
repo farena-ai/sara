@@ -37,6 +37,7 @@ import { startsOnToday } from './start-view.js';
 import { DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNote, updatesShown, versionChanged } from './update-check.js';
 import { initHousehold, joinFromLink, loadAccount, loadHousehold, showPaused } from './household.js';
 import { initNav, relabelNav, revealNav, setMore } from './nav.js';
+import { hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton } from './hub.js';
 import { emptyState, initTidy, overflowMenu } from './tidy.js';
 import { addStep, finishStep, hasSteps, memoryStep, pluginStep, recallStep, runLink, runStep, setBudget, skillStep, stepLine, waitStep } from './steps.js';
 import { budgetCard, budgetMeter, fillBudgetSelect, overrideNote } from './budget-view.js';
@@ -53,6 +54,8 @@ import { initCommandBar, openCommandBar, score as cmdScore } from './command-bar
 import { icon, paintIcons, setIcon, TOOL_ICONS } from './icons.js';
 import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, pageOf, pageSize } from './session-list.js';
 import { ring as progressRing, share as shareOf } from './viz.js';
+/** Phase 113: web/hub.js is wired (after the first sign-in). */
+let hubReady = false;
 /** Phase 71: a household member (their own space; owner-only pages and loaders are left out). */
 const isMember = () => document.body.classList.contains('member');
 const $ = (sel) => document.querySelector(sel);
@@ -187,11 +190,18 @@ async function boot() {
   const setup = await api('/setup').catch(() => ({ done: true }));
   if (!setup.done) openSetup(setup);
   else if (!state.providers.providers.length) openSettings('models');
-  else if (!tourFromHash()) setTimeout(offerFirstTour, 4000);
+  else if (!tourFromHash() && !/^#reports?\b/.test(location.hash)) setTimeout(offerFirstTour, 4000);
   refreshSaraStatus();
   setInterval(refreshSaraStatus, 5 * 60_000);
   // 2.18: the update check starts once the first-run windows (setup, the tour offer) had their turn.
   startUpdateChecks();
+  // Phase 113: the check-in's first-run notice and the hub's notices (shown once no window covers the
+  // page), Report a problem and My reports (web/hub.js).
+  if (!hubReady) {
+    hubReady = true;
+    initHub({ demo: Boolean(session.demo), openSettings });
+  }
+  reportFromHash();
   initVoice();
   // Opened while she's ringing (e.g. from the "Sara is calling" notification): show the call.
   const answer = JSON.parse(sessionStorage.getItem('sara.answer') ?? 'null');
@@ -1451,6 +1461,8 @@ function bubble(role, text, kind, id, images = [], docs = []) {
   div.className = `msg ${role}${kind ? ` ${kind}` : ''}`;
   if (role === 'assistant') setReply(div, text);
   else div.textContent = (text === '(photo)' && images.length) || (text === '(document)' && docs.length) ? '' : text;
+  // Phase 113: "Report this" on an error notice opens Report a problem with the error filled in.
+  if (role === 'error' && hubReady && !document.body.classList.contains('demo') && text) div.append(' ', reportThisButton(String(text), state.currentId));
   // Phase 44: documents shared with the message (open them in her library).
   if (docs.length) {
     const row = el('div', 'msg-docs');
@@ -1873,7 +1885,8 @@ function commandNotice(m) {
 }
 
 /** Phase 107: her commands typed in the app: /new, /reset, /stop, /status, /help, /model, /remember. */
-const CHAT_COMMAND = /^\/(new|reset|stop|status|help|model|remember)(?:\s[\s\S]*)?$/i;
+// Phase 113: /bug and /idea open the report sheet (the server answers with what to fill in).
+const CHAT_COMMAND = /^\/(new|reset|stop|status|help|model|remember|bug|idea)(?:\s[\s\S]*)?$/i;
 async function runChatCommand(text) {
   if (!state.currentId) {
     const conv = await api('/conversations', { method: 'POST', body: {} });
@@ -1892,6 +1905,7 @@ async function runChatCommand(text) {
       state.conversations = state.conversations.map((c) => (c.id === state.currentId ? { ...c, endedAt: c.endedAt ?? new Date().toISOString() } : c));
       await openConversation(r.opened.id);
     }
+    if (r.report) openHubReport({ kind: r.report.kind, text: r.report.text });
     const lines = (r.choices ?? []).map((m, i) => `${i + 1}. ${m.model} (${m.provider})`);
     const reply = bubble('notice', [r.reply, ...lines, ...(lines.length ? [t('Send /model and the number to pick one.')] : [])].filter(Boolean).join('\n'), 'command-reply');
     if (r.approvalId) {
@@ -1909,6 +1923,9 @@ async function runChatCommand(text) {
     }
     append(reply);
   } catch (err) {
+    // Phase 113: /bug and /idea open the sheet even where commands don't run (off the record).
+    const m = /^\/(bug|idea)(?:\s+([\s\S]*))?$/i.exec(text.trim());
+    if (m && !document.body.classList.contains('demo')) return openHubReport({ kind: m[1].toLowerCase(), text: (m[2] ?? '').trim() });
     append(bubble('error', err.message));
   }
 }
@@ -7251,7 +7268,7 @@ const SETTINGS_ORDER = [
   'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
   'ab-projects', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-recipes',
   'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-apps', 'co-agents', 'co-hooks',
-  'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-reports',
+  'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
   'household', 'account',
 ];
 // A small heading inside a group, before the first of these pages.
@@ -7396,6 +7413,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'models-local') void loadLocalModels();
   if (pick === 'household') void loadHousehold();
   if (pick === 'account') void loadAccount();
+  if (pick === 'dh-privacy') void loadPrivacy();
   $('#settings-empty').hidden = true;
   $('#settings').classList.add('page-open'); // phone: show the page instead of the list
   $('.settings-pages').scrollTop = 0;
@@ -8062,9 +8080,18 @@ function tourFromHash() {
   return true;
 }
 window.addEventListener('hashchange', tourFromHash);
+/** Phase 113: /#report=bug, /#report=idea and /#reports open the report sheet or My reports (links from /bug in the chat apps). */
+function reportFromHash() {
+  if (!hubReady || document.body.classList.contains('demo') || !/^#reports?\b/.test(location.hash)) return false;
+  const h = location.hash;
+  history.replaceState(null, '', '/');
+  return hubHash(h);
+}
+window.addEventListener('hashchange', reportFromHash);
 /** Offered once on each device after setup: a small card, never in the way. */
 function offerFirstTour() {
-  if (localStorage.getItem('sara.tour.first') || tourRunning() || document.querySelector('dialog[open]:not(#today)')) return;
+  // Phase 113: not over the check-in's first-run notice (it is offered on a later visit instead).
+  if (localStorage.getItem('sara.tour.first') || tourRunning() || document.querySelector('dialog[open]:not(#today)') || !$('#hub-first').hidden) return;
   localStorage.setItem('sara.tour.first', 'offered');
   const box = el('div', 'tour-offer');
   box.setAttribute('role', 'status');

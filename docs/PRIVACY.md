@@ -4,8 +4,9 @@ Sara keeps your conversations, memories, notes, documents and keys on your own s
 lists every connection Sara makes to anything outside it, when it happens, and how to turn it off.
 It was made by searching the code (`src/` and `deploy/`) for every outgoing address.
 
-Short version: **nothing leaves until you set something up**, with one exception you control: a
-reply you report with ⚑ is also sent to the app's developer unless you untick the box.
+Short version: **nothing leaves until you set something up**, with two exceptions you control: a
+reply you report with ⚑ is also sent to the app's developer unless you untick the box, and an
+**anonymous daily check-in you can switch off** (announced the first time you open Sara; see below).
 
 ## While she runs
 
@@ -13,6 +14,8 @@ reply you report with ⚑ is also sent to the app's developer unless you untick 
 |---|---|---|---|
 | **Your messages** (with the context she needs: her character, the memories that fit, recent messages) | The model provider you chose: your own Ollama/vLLM/llama.cpp (stays on your hardware), or OpenAI, Anthropic, xAI, OpenRouter, Ollama Cloud, a subscription | Every reply, and background work (memory notes, summaries, her diary, the library) on the model you picked for that job | Use a local model. Private conversations only ever use models on your own hardware |
 | **Reports** (⚑ on a reply) | The developer's report inbox, `sara.backstagecoding.com` | Only when you press ⚑ and send a report. Sent: that reply's text (secrets scrubbed), the reason, your note, the model name, the Sara version and whether it came from the web or a phone app. Nothing else from the conversation | Untick **Also send it to the app's developer** in the report box (it's ticked by default), or set `SARA_REPORT_TO=off` on the server. The report always stays in Settings → Data & health → Reports |
+| **Anonymous daily check-in** (2.46) | Sara's support desk at `backstagecoding.com` | Once a day (at a random time, the first one 10 to 60 minutes after Sara starts, and only after you've seen the notice about it). Sent: a random install ID made on your server (not derived from anything on it), the Sara version, how she was installed (installer, Docker, source, desktop app, Homebrew, winget), Windows/Mac/Linux and the processor type, the app language, how many companions and household members, which bridges and features are on (on/off only, by name such as `telegram` or `plugins`), and whether your models are local, cloud or both. **Never** names, chats, memories, addresses, file paths, model names or keys. The desk reads a country from the connection and doesn't keep the IP address | Settings → Data & health → Privacy → *Anonymous daily check-in* (or *Turn off* on the first-run notice). *Show what's sent* shows the exact text; *Reset the install ID* starts over. Never sent from the demo, from household members' spaces (the server checks in once), or while *Nothing leaves this computer* is on |
+| **Report a problem / Suggest something** (2.46) | Sara's support desk at `backstagecoding.com` | Only when you press *Send* in Help → Report a problem (or `/bug`, `/idea`). Sent: the kind, your title and text, your email only if you typed one, the version, system and language, and the diagnostics parts you ticked (version and platform, the last 200 log lines, the error, which settings are on without their values, the tool names and results of the failed reply). Every part is made on your server and shown to you in full first; keys, tokens, emails, internet addresses and your folder names are replaced before it leaves. *My reports* asks the desk for replies only while you have it open | Don't send one. Refused while *Nothing leaves this computer* is on and in the demo. [SUPPORT.md](SUPPORT.md) |
 | **Update checks** | GitHub (`api.github.com` on Windows and macOS; `git fetch` from github.com on Linux) | When you press *Check for updates* (Settings → Data & health → Updates) or run `sara check-updates` / `sara update` | Don't press it. Sara doesn't check on her own |
 | **Weather** | Open-Meteo (`api.open-meteo.com`, `geocoding-api.open-meteo.com`), free, no account | Once you set a city for the morning briefing: finding the city, then the forecast for the briefing (and, at most hourly, for her outfit when *Dress automatically* is on) | Leave the city empty (Settings → You → Morning briefing) |
 | **Place look-ups and travel times** | OpenStreetMap: `nominatim.openstreetmap.org` (address search) and `routing.openstreetmap.de` (travel time) | When you save a place by address (Planner → Reminders → Places), and for leave-by reminders on calendar events with an address | Save places with "Save where I am" in the phone app; leave Leave-by reminders off (Settings → You) |
@@ -150,7 +153,8 @@ connected services. See [INSTALL.md → Logs](INSTALL.md#logs).
 does it with one switch, enforced in Sara's code: while it's on, her server connects only to the
 computer she runs on (`127.0.0.0/8`, `::1`, `localhost`), decided by the address before any DNS
 lookup, and every table row above that would reach another computer is refused or paused (cloud
-models and subscriptions, web search and pages, reports to the developer, update checks, weather
+models and subscriptions, web search and pages, reports to the developer, the daily check-in and
+Report a problem, update checks, weather
 and travel times, Gmail and Calendar, GitHub, MCP and Home Assistant on other computers, Telegram
 and Discord, notifications through browser and Apple push services, voices and calls, pictures of
 her, off-server S3 backups, the testing browser's public web, and internet for her commands). The

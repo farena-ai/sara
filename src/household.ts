@@ -523,6 +523,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   // Phase 87: computer use on their OWN computers. The routes answer 403 ownerOnly unless the owner
   // switched on "Let household members use computer use" (src/routes/hands.ts checks it each time).
   'hands', 'computer',
+  // Phase 113: Report a problem and My reports (their own tickets in their own space; the check-in settings answer ownerOnly)
+  'hub',
 ]);
 
 /** Families a member may write to only partly: GET-only for members. */

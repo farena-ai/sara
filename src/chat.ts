@@ -283,6 +283,8 @@ export interface AppContext {
   browsers?: import('./browser.ts').BrowserManager;
   /** Phase 87: Sara's hands on the owner's computers (one hub per person, shared by their companions). */
   hands?: import('./hands.ts').HandsHub;
+  /** Phase 113: the hub (check-in settings for the owner; Report a problem and My reports for everyone; src/hub.ts). */
+  hub?: import('./hub.ts').HubSpace;
   /**
    * Phase 71: set in a household member's space: the models the owner allowed them and their daily
    * limits, checked before every model call (src/household.ts). Unset for the owner.

@@ -5,6 +5,7 @@
 // disclosure. Groups: Sara answers when mentioned or replied to.
 // Phase 43: more owners by user ID; owners can work with her (tools) in groups when allowed; she
 // can also answer to her name without the @ and to @all / @everyone; adult groups by ID.
+import { accessInfo } from '../platform.ts';
 import { copyOwnerTurnToRoom, roomConversation, roomNote } from './room.ts';
 import { netFetch, privateLocalOn } from '../net-guard.ts';
 import { randomInt } from 'node:crypto';
@@ -521,6 +522,8 @@ export class TelegramBridge {
       stopTurn: (id) => this.#stopTurn(id),
       clearQueue: (id) => this.#clearQueue(id),
       settingsWhere: undefined,
+      // Phase 113: /bug and /idea link to the report sheet when the server knows its address.
+      ...(accessInfo().url ? { appLink: accessInfo().url! } : {}),
     };
     const r = await runCommand({ app, bridge: 'telegram', place, who, lang, cmd, adapter });
     await this.#deliver(chatId, msg.from!.id, place, r, lang);

@@ -131,6 +131,9 @@ import { cookieValue, HouseholdStore, MEMBER_TOKEN_PREFIX, MemberPolicy, MemberS
 import type { Vault as VaultT } from './vault.ts';
 import { AlexaService } from './alexa.ts';
 import { PresenceWorker } from './presence.ts';
+import { detectChannel, hubArch, hubBase, type HubOs, hubOs, HubPinger, HubState, modelKind, pingBlocked, scrubText, TicketStore, type HubFacts, type HubSpace } from './hub.ts';
+import { appLanguage } from './i18n.ts';
+import { homedir } from 'node:os';
 
 // A promise nobody waited for that failed: log it and carry on (a background job, a model call
 // whose answer was no longer needed). A thrown error nothing caught: log it plainly and stop, so
@@ -514,6 +517,84 @@ const serverOpts = {
   anyPasskeys: () => auth.passkeys().length > 0 || [...memberSpaces.values()].some((sp) => sp.auth.passkeys().length > 0),
 };
 
+// ---- Phase 113: the hub (docs/SUPPORT.md): the daily check-in (the owner's server only, never the
+// demo or a member's space) and every person's Report a problem / My reports ----
+const hubState = new HubState(dataDir);
+const hubUrl = hubBase(process.env);
+/** Counts and on/off ids only (src/hub.ts buildPing checks every value against its lists). */
+function hubFacts(): HubFacts {
+  const s = settings.get();
+  const on = (b: boolean, id: string) => (b ? [id] : []);
+  const safe = (f: () => boolean) => {
+    try {
+      return f();
+    } catch {
+      return false;
+    }
+  };
+  const bridgesOn = [
+    ...on(safe(() => bridges?.telegram?.status().running === true), 'telegram'),
+    ...on(safe(() => bridges?.discord?.status().running === true), 'discord'),
+    ...on(Boolean(s.alexa?.skillId), 'alexa'),
+    ...on(safe(() => auth.devices().some((d) => d.kind === 'home-assistant')), 'home_assistant'),
+  ];
+  const plugins = s.plugins ?? {};
+  const features = [
+    ...on(safe(() => auth.devices().some((d) => d.kind === 'hands')), 'computer_use'),
+    ...on(Object.values(plugins).some((p) => p?.enabled), 'plugins'),
+    ...on(safe(() => auth.devices().some((d) => d.kind === 'a2a')), 'a2a'),
+    ...on(safe(() => (hookManager?.store.all().length ?? 0) > 0), 'webhooks'),
+    ...on((s.mcpServers ?? []).some((m) => m.enabled), 'mcp'),
+    ...on(Boolean(s.search?.provider) && String(s.search?.provider) !== 'none', 'web_search'),
+    ...on(safe(() => google.status().connected === true), 'gmail'),
+    ...on(Boolean(s.githubWatch), 'github'),
+    ...on(safe(() => (sshManager?.list().length ?? 0) > 0), 'ssh'),
+    ...on(s.agenda?.enabled === true, 'agenda'),
+    ...on(voice.available.stt || voice.available.tts, 'voice_local'),
+    ...on(Boolean(s.offsite?.kind) && s.offsite?.kind !== 'off', 'offsite_backup'),
+    ...on(safe(() => household.members().some((m) => m.status === 'active')), 'household'),
+    ...on(safe(() => auth.devices().some((d) => d.kind === 'api')), 'other_apps'),
+    ...on(auth.twoStepOn, 'two_step'),
+  ];
+  return {
+    version: info.version,
+    channel: detectChannel({ root }),
+    os: hubOs() as HubOs,
+    arch: hubArch(),
+    lang: appLanguage(s),
+    companions: companions.all().length,
+    members: household.members().filter((m) => m.status === 'active').length,
+    bridges: bridgesOn,
+    features,
+    model: modelKind(s.providers),
+  };
+}
+const hubBlocked = () => pingBlocked({ demo: isDemo, on: hubState.get().on, noticeShown: Boolean(hubState.get().noticeShownAt), base: hubUrl });
+// SARA_HUB_FIRST_MS: a shorter first wait, honoured only for a hub on this computer (local checks).
+const hubFirst = Number(process.env.SARA_HUB_FIRST_MS);
+const hubPinger = isDemo ? undefined : new HubPinger({ state: hubState, facts: hubFacts, blocked: hubBlocked, base: hubUrl, log: (l) => console.warn(l), ...(Number.isFinite(hubFirst) && hubFirst > 0 ? { firstDelayMs: hubFirst } : {}) });
+const hubSpaces = new Map<string, HubSpace>();
+/** One hub per person's space: their own tickets (in their space's own sara.db, through its first companion's connection), the server's state. */
+function hubFor(space: Space, db: DatabaseSync): HubSpace {
+  const had = hubSpaces.get(space.id);
+  if (had) return had;
+  const member = Boolean(space.member);
+  const h: HubSpace = {
+    state: hubState,
+    base: hubUrl,
+    member,
+    demo: isDemo,
+    tickets: new TicketStore(db),
+    facts: hubFacts,
+    blocked: () => (member ? 'member' : hubBlocked()),
+    ...(member ? {} : { pinger: hubPinger }),
+    scrub: (x) => scrubText(x, (y) => redactor.redact(y), { homes: [homedir()], dirs: [dataDir, root] }),
+    ...(member ? {} : { logLines: (n: number) => log.recent({ limit: n }).reverse().map((l) => `${l.t} ${l.level} ${l.msg}`).join('\n') }),
+  };
+  hubSpaces.set(space.id, h);
+  return h;
+}
+
 /** Builds one companion: the first lives in the data folder itself, the others in companions/<id>/. */
 // Phase 56: every provider's model list, kept current (one for the server; never on the demo).
 const modelCatalog = isDemo
@@ -752,6 +833,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.hands = space.hands;
     for (const t of createComputerTools(app)) tools.add(t);
   }
+  // Phase 113: Report a problem and My reports (each person's own); the check-in settings (the owner's).
+  if (!isDemo) app.hub = hubFor(space, store.db);
   if (!isMember) app.jobs.onEnd = (job) => {
     // Phase 111: Today's Running now and Needs you follow.
     todayChanged(app, 'work');
@@ -993,6 +1076,7 @@ function buildMemberSpace(member: MemberRecord, dir: string, givenAuth?: OwnerAu
 async function deleteMemberSpace(id: string): Promise<void> {
   const sp = memberSpaces.get(id);
   memberSpaces.delete(id);
+  hubSpaces.delete(id);
   pairs.clear(id);
   if (sp) {
     for (const c of sp.companions.all()) await c.stop().catch(() => {});
@@ -1181,6 +1265,8 @@ server.listen(port, host, () => {
   codemaps.start();
   modelCatalog?.start(guard);
   if (!isDemo) healthHistory?.start();
+  // Phase 113: the anonymous daily check-in (10–60 minutes after start, then about daily).
+  hubPinger?.start();
   void bridges?.discord?.restart().then(() => {
     const st = bridges!.discord!.status();
     if (st.running || st.error) console.log(`Discord: ${st.running ? `${st.bot} ${st.linked ? '(linked)' : '(not linked yet)'}` : `not running (${st.error})`}`);
@@ -1211,6 +1297,7 @@ async function shutdown(): Promise<void> {
   codemaps.stop();
   modelCatalog?.stop();
   healthHistory?.stop();
+  hubPinger?.stop();
   clearInterval(backupTimer);
   bridges?.telegram?.stop();
   bridges?.discord?.stop();
