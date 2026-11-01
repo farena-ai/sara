@@ -8,7 +8,8 @@ import { openLightbox } from './lightbox.js';
 import { browserLang, currentIdentity, currentLang, locale, savedLang, setIdentity, setLanguage, serverText, t, toLang, translateOnly } from './naming.js';
 import { autoSave, initDialogs, markDirty, onSave, runSave, saved } from './dialogs.js';
 import { endTour, startTour, tourRunning } from './tour.js';
-import { isDocFile, loadLibrarySettings, openLibrary, saveLibrarySettings, uploadDoc, waitRead } from './library.js';
+import { isDocFile, loadLibrarySettings, openArchives, openLibrary, saveLibrarySettings, uploadDoc, waitRead } from './library.js';
+import { initRooms, loadRoomList } from './rooms.js';
 import { initProjectMap, resetProjectMap } from './codemap.js';
 import { initSkills, loadSkills, skillApproval } from './skills.js';
 import { initLearning, learnCard, loadLearning } from './learned-skills.js';
@@ -1299,6 +1300,8 @@ async function askInChat(text) {
 }
 // Phase 101 (ST6): Memory → People (web/people.js).
 initPeople({ jumpTo: (convId, msgId) => openAtMessage(convId, msgId), openMemory: () => openMemory({ tab: 'people' }) });
+// Phase 110 (CH4): the room window opens the room's archive in the Library and the People cards it proposed.
+initRooms({ openArchive: (roomId) => void openArchives(roomId), openPerson: (id) => void showPerson(id) });
 initToday({
   api,
   status: (msg) => ($('#td-status').textContent = msg),
@@ -4398,6 +4401,8 @@ function renderTelegram(tg) {
   $('#tg-token').placeholder = tg.hasToken ? t('saved (leave empty to keep)') : t('not set');
   $('#tg-status').textContent = tg.running ? (tg.linked ? t('Connected as {bot}, linked to you.', { bot: `@${tg.bot}` }) : t('Connected as {bot}, not linked yet.', { bot: `@${tg.bot}` })) : tg.error ? t('Not connected: {error}', { error: tg.error }) : tg.hasToken ? t('Not connected.') : '';
   $('#tg-link').hidden = !tg.running;
+  // Phase 110 (CH4): the groups she is in, each with Keep up with this room.
+  void loadRoomList($('#tg-rooms'), 'telegram');
   $('#tg-unlink').hidden = !tg.linked;
   // Phase 43: more owners, owner work in groups, when she answers, adult groups (web only).
   $('#tg-owners').value = (tg.ownerUserIds ?? []).join(', ');
@@ -4451,6 +4456,7 @@ function renderDiscord(dc) {
   $('#dc-token').placeholder = dc.hasToken ? t('saved (leave empty to keep)') : t('not set');
   $('#dc-status').textContent = dc.running ? (dc.linked ? t('Connected as {bot}, linked to you.', { bot: dc.bot }) : t('Connected as {bot}, not linked yet.', { bot: dc.bot })) : dc.error ? t('Not connected: {error}', { error: dc.error }) : dc.hasToken ? t('Not connected.') : '';
   $('#dc-link').hidden = !dc.running;
+  void loadRoomList($('#dc-rooms'), 'discord');
   $('#dc-unlink').hidden = !dc.linked;
   // Phase 43: more owners, owner work in servers, when she answers, adult channels (web only).
   $('#dc-owners').value = (dc.ownerUserIds ?? []).join(', ');
@@ -8341,6 +8347,10 @@ function renderChannelCard(p) {
   $('#pp-ch-unfile').hidden = !filed;
   $('#pp-ch-unfile').textContent = filed === 1 ? t('Put back the 1 chat filed here') : t('Put back the {n} chats filed here', { n: filed });
   $('#pp-ch-status').textContent = '';
+  // Phase 110 (CH4): the channel's rooms, each with Keep up with this room (Telegram and Discord).
+  const bridge = p.channel?.bridge;
+  $('#pp-rooms-box').hidden = bridge !== 'telegram' && bridge !== 'discord';
+  if (!$('#pp-rooms-box').hidden) void loadRoomList($('#pp-rooms'), bridge).then((rooms) => ($('#pp-rooms-box').hidden = !rooms?.length));
 }
 
 async function openProjectPage(id) {

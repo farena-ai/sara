@@ -158,3 +158,38 @@ After updating, look at the sidebar on your phone and on the desktop: check the 
 Discord projects hold what you expect, and use *Put back* if you'd rather have the old list. Pick the
 page size you like (5 / 8 / 10). When WhatsApp or Signal plugins arrive, say if you'd rather have
 one shared *Chats* project instead of one each.
+
+## Keeping up with a room (2.43.0)
+
+Per room and only when you switch it on: open a group or server channel under *Rooms* (*Settings →
+Telegram* or *Discord*, or the channel's project page) and turn on *Keep up with this room*. A plan
+card shows the summary model, how often it runs, the estimated tokens a day and the cost (free on
+this computer); nothing starts until you confirm it.
+
+- She reads every message there, not only the ones that call her, so when she's called she joins
+  the current topic, knows who is active and what changed since she last spoke, and notices when her
+  old topic has moved on. Reading never starts a turn, a tool or a handoff, and nothing is posted in
+  the room.
+- *What she knows right now* on the card shows exactly the block she'd get if called now.
+- Lines are kept 7 days. Each night after 04:00 older weeks become a read-only weekly transcript in
+  her Library (*Archive: <room>*, searchable by you, and by her only in your own chats when you ask),
+  a room memory (topics, short notes about the people there, with the week as source) and proposed
+  People cards; then the raw lines are deleted.
+- Room people are used only in that room unless you switch on *Use what she learned in rooms* or
+  *Share between rooms* on their People card.
+- Safety: lines that trip the minors check are stored as `[removed]`; if someone in the room writes
+  about being in crisis, her next reply there within 2 hours brings the help resources. She never
+  posts on her own.
+- *Forget this room* deletes the log, summaries, room memory, the people notes and proposed cards
+  from it, and its archive (and her sessions there, if you tick that).
+- Never for household members or in the demo.
+
+### Owner to-do
+
+- **Discord:** keep-up needs the *Message Content Intent* (Developer Portal → your app → Bot →
+  Privileged Gateway Intents). Bots in fewer than 100 servers just switch it on.
+- **Telegram:** turn privacy mode off (@BotFather → /setprivacy → Disable), then remove her from the
+  group and add her again, or make her a group admin. The card shows *Sees every message* when it
+  works. Telegram doesn't tell bots about deleted messages.
+- Try it in one busy channel and read *What she knows right now* after an hour; after day 8 open the
+  room's archive in the Library and look at the proposed People cards.

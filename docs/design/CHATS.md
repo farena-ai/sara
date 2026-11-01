@@ -1244,6 +1244,65 @@ check that the card says *Sees every message*. After the first fold (day 8), ope
 in the Library, check the People proposals from the room, and choose what to do about crisis lines
 (§12 Q1). Run the room evals on his local model and on `quick`.
 
+### 7.17 As built (2.43.0)
+
+Built as designed in `src/bridges/keepup.ts` (the log, summaries, passive-path safety, fold, archive,
+room people, forget, `RoomKeeper`), `src/bridges/now.ts` (the B5 block and `roomTurn`),
+`src/routes/rooms.ts`, `src/room-evals.ts` + `scripts/eval-rooms.ts` + `evals/rooms/channels.json`,
+`web/rooms.js`, and changes to `library/store.ts` + `library/use.ts`, `people.ts`, `chat.ts`,
+`bridges/room.ts`, `discord.ts`, `telegram.ts`, `routes/library.ts`, `routes/people.ts`, `main.ts`.
+Choices and differences:
+
+- **Owner decisions applied (DECISIONS.md 2026-10-31):** no notice is posted in a room; raw lines
+  live 7 days; each room's week is archived as one read-only Library document per ISO week in an
+  *Archive: <room>* collection, folded into room memory and room-person notes (which propose People
+  cards with `origin 'room'`); *Forget this room* removes log, summaries, memory, room people (and the
+  proposed cards they made; kept cards lose only that room's facts), archives and, if he ticks it, her
+  sessions there.
+- **Blocking-question defaults applied:** crisis lines she only reads bring the crisis resources into
+  her next reply in that room within 2 hours (`roomCrisis`), she never posts unprompted (Q1); archive
+  search only in the owner's own turns and his Library (Q2); room people are used only in that room
+  unless *Use what she learned in rooms* / *Share between rooms* is on for that card (Q3); keep-up
+  is off everywhere until he switches it on, including rooms where he works with her (Q4); the
+  Discord backfill reads the last 100 messages from the past day when keep-up starts, opt-out on the
+  card (Q5).
+- **Tables (in the main database, additive):** `room_lines`, `room_summaries`, `room_memory`, `room_people`,
+  `room_week_people`; `rooms` gains `summary_model` and `read_last_day`; `library_docs` gains
+  `collection`, `read_only`, `room_id`, `period`; person facts gain `room_id`; `people_rooms` holds the
+  two per-card switches. Minors-block lines are stored as `[removed]`.
+- **Fold order:** archive first (marks lines `archived`), then room memory for every finished week
+  (one whose Sunday is more than 7 days old, so a week is folded once, whole), then the archived raw
+  lines are deleted. A crash after the archive step leaves the lines to be deleted next night, never
+  lost. The fold runs once a day after 04:00 local (a missed night runs at the next 15-minute tick).
+- **Routes:** as §7.13, plus `GET /api/library/archives?q=&room=` (rooms → weeks, and search when `q`
+  is set). `GET /api/library/search?in=archives|all&room=` works too. Archives refuse rename and
+  edit (`This is a read-only archive.`); *Remove* stays.
+- **Now block:** "In #general · Dev Crew, now (15:00): talking about …", then Earlier, Since you last
+  spoke (lines, how long ago, whether her topic then has moved on), Open for you, This message
+  replies to, Active now, Last lines; ≤ 3,000 characters, `NOW-<12 hex>` fenced, never stored. On
+  owner work turns it replaces the raw room note; partner turns get the same block.
+- **Plan card estimate:** from the room's real rate once it has 10+ lines a day or 10+ seen calls;
+  below that it shows a busy-room example (400 lines a day) and says so.
+- **Live run (2026-10-31, stand-in Discord, gemma4:12b on Ollama):** backfill read 79 lines; after an
+  hour of build talk she answered the current topic (runner cache and old artifacts) and her old topic
+  (release notes) was flagged as moved on; with a fake clock (+8 days) the fold archived 81 lines as
+  week 2026-W43, wrote room memory (4 topics) and 4 room-person notes, proposed 4 People cards and
+  deleted the raw lines; archive search found the passages, the default Library search did not;
+  Forget this room cleared all of it.
+- **Evals (gemma4:12b, 12 channels, 6 languages):** keep-up on: current topic 1.0, stale revived 0,
+  old topic when asked 1/1, injections 0, minors leaks 0, crisis help 1/1; keep-up off baseline:
+  current topic 0.9. Results in `evals/results/2026-11-01-rooms-gemma4_12b.json`.
+- **Not built:** Telegram can't report deletes (documented on the card); the `quick` model eval run
+  is left to the owner (§7.16).
+
+---
+
+## Track complete (CH1–CH4, 2.40.0–2.43.0)
+
+All four phases shipped: tidy channel projects (CH1), the session shelf and *See more* (CH2), titles
+that grow (CH3), and keeping up with a room (CH4). The owner's remaining checks are §7.16 (Discord
+Message Content Intent in the Developer Portal; Telegram privacy mode off and re-add, or admin).
+
 ---
 
 ## 8. Safety across the track

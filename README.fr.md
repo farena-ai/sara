@@ -14,7 +14,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1423%20passing-brightgreen" alt="1423 tests passing">
+  <img src="https://img.shields.io/badge/tests-1439%20passing-brightgreen" alt="1439 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <sub>Une vraie session avec un modèle local (qwen3.8 27B sur Ollama, une RTX 5090) sur un serveur de test jetable, dans le thème Nuit : elle remonte le moral de son interlocuteur, écrit une petite app et son test pendant que le modèle les transmet, demande avant d'exécuter une commande, repère un vrai bug grâce à un test qui échoue et le corrige jusqu'à ce que les 7 tests passent. Images choisies dans l'enregistrement ; rien n'y a été retouché.</sub>
 </p>
 
-> **État :** 2.42, licence MIT, avec cinquante-trois versions riches en nouveautés depuis la 1.0 (toutes
+> **État :** 2.43, licence MIT, avec cinquante-quatre versions riches en nouveautés depuis la 1.0 (toutes
 > ci-dessous). De la 2.5 à la 2.8, toute l'app a changé de look. L'[app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > est sur Google Play ; l'app iPhone et la version Mac App Store arrivent dès qu'Apple les aura
 > approuvées. Lisez [docs/DISCLOSURES.md](docs/DISCLOSURES.md) avant d'utiliser ou de partager Sara.
@@ -83,6 +83,7 @@ Des tutoriels d'une minute, enregistrés sur un serveur de test avec un modèle 
 
 | Version | Ce que vous y gagnez |
 |---|---|
+| **2.43** · Elle suit le salon | **Dans les salons Discord et les groupes Telegram, elle suit toute la conversation** (à activer par salon ; une carte de plan montre d'abord le modèle et la limite par jour). Quand on l'appelle, elle sait de quoi on parle maintenant, qui est là et ce qui a changé depuis sa dernière intervention, et rejoint le sujet du moment plutôt qu'un sujet vieux d'une heure. Chaque semaine est archivée dans sa Bibliothèque comme transcription consultable et résumée en mémoire du salon, avec des notes sur les gens (cartes de personnes proposées). *Oublier ce salon* efface tout. 12 salons chargés rejoués en 6 langues : sujet du moment 12/12. |
 | **2.42** · Des titres qui évoluent | **Des titres qui disent de quoi parlait la discussion.** Le premier est provisoire ; après quelques échanges, quand le sujet change nettement et à `/new`, un petit modèle sur votre propre ordinateur la renomme (« Lancer un potager » → « Déclarer ses impôts en freelance »). Les titres que vous mettez ne changent jamais, les anciens restent dans les infos de la discussion, rien de sensible ou de privé ne finit dans un titre, et il y a une limite par jour. 40 sessions de test : 0,90 sur le sujet avec un modèle local de 12B. |
 | **2.41** · Une liste de sessions bien rangée | **Chaque appli de discussion a son projet.** Telegram, Discord et chaque passerelle de plugin (WhatsApp, Signal…) ont un projet intégré qui regroupe leurs discussions, et vos conversations web et appli restent dans vos projets. Vos discussions existantes sont rangées une fois, avec Annuler. Les salons affichent leur vrai nom (#general · Serveur), les sessions précédentes se rangent sous leur discussion, et les longues listes montrent les plus récentes avec *Voir plus*. Renommez ou masquez un projet de canal ; groupez un projet chargé par salon. |
 | **2.40** · Commandes de discussion | **`/new`, `/reset`, `/stop`, `/status`, `/help`, `/model` et `/remember` partout :** dans Telegram et Discord (dans leurs propres menus de commandes, enregistrés pour vous, dans votre langue), dans l'appli web, et sous la forme « Sara, nouvelle » quand la barre oblique n'est pas pratique. `/new` démarre une session neuve et garde l'ancienne (résumée) ; `/status` montre le modèle, le remplissage de la session et la consommation ; quand une session est presque pleine, elle propose `/new` elle-même. Les commandes réservées au propriétaire sont refusées à tous les autres, à chaque fois. |
@@ -151,10 +152,9 @@ Toutes les versions : [CHANGELOG.md](CHANGELOG.md) · [versions](https://github.
 
 Dans l'ordre de construction, une version chacune ([la liste complète](docs/ROADMAP.md)) :
 
-- **Les bases d'un agent** (2.29–2.36) : des compétences au format ouvert Agent Skills et des compétences qu'elle apprend de ce que vous répétez, plugins et hooks, un tableau Kanban qu'elle traite, A2A avec d'autres agents, des fiches de personnes, des webhooks, son propre agenda (optionnel).
-- **Emménager depuis un autre agent** (2.37–2.39) : amener un compagnon Hermes Agent ou OpenClaw entier : personnalité, souvenirs, personnes, compétences, historique et réglages, avec un rapport de ce qui est arrivé.
-- **Discussions et sessions** (2.40–2.43) : /new, /reset et d'autres commandes dans Telegram et Discord, un projet par canal, des titres qui grandissent avec la session, et elle suit toute la conversation dans les salons de groupe.
 - **Aujourd'hui, repensé** (2.44–2.45) : une mise en page que vous pouvez arranger, sur grand écran et sur téléphone.
+- **Une passe de finition** (2.46) : des réglages de personnalité plus clairs avec exemples, de l'aide sur chaque page, un parcours débutant et un parcours développeur.
+- **Ensuite** (2.47–2.60) : photos et fichiers dans les applis de discussion, lui parler pendant qu'elle travaille, Signal, e-mail, WhatsApp, iMessage (BlueBubbles) et SMS, « continue jusqu'au bout », vérifications du code après chaque modification, une galerie de routines et **le Sara Store** pour plugins, compétences et serveurs MCP (ComfyUI, Blender, Playwright…) avec installation en un clic et un moyen de soumettre les vôtres.
 - L'app iPhone (en attente d'Apple), et vos idées dans les [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Le plan complet : [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -337,8 +337,8 @@ qu'aucun test ne vérifiait. Ce qu'elle apporte aujourd'hui, c'est la manière d
 lance les tests, demande avant les étapes risquées, montre ce qui a tourné), pas un meilleur score
 sur ces jeux. Détails, résultats par tâche et comment relancer : [docs/RESULTS.md](docs/RESULTS.md).
 
-En plus, `npm run check` : une vérification des types et 1438 tests automatiques avec un faux modèle
-scripté (sans réseau, sans GPU) : 1423 passent sous Windows, et les 8 autres sont des tests
+En plus, `npm run check` : une vérification des types et 1454 tests automatiques avec un faux modèle
+scripté (sans réseau, sans GPU) : 1439 passent sous Windows, et les 8 autres sont des tests
 d'isolation propres à Linux, exécutés sur un serveur Linux.
 
 ## Comparaison

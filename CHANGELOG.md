@@ -5,6 +5,27 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.43.0 (2026-10-31): she keeps up with the room (Phase 110, chats CH4; the chats track is complete)
+
+- **Keep up with this room** (Discord server channels, Telegram groups; per room, off until you confirm
+  a plan card with the model, how often and the daily cap): she reads every line into a room log and
+  keeps a cheap rolling summary (falls back to the last lines without a model). When she's called, her
+  turn gets "the room right now": the current topic, who's active, what changed since she last spoke
+  and whether her old topic has gone stale; the people side gets the same. Reading never starts a turn
+  or a tool. Guide: [docs/CHATS.md](docs/CHATS.md).
+- **Every night:** finished weeks are archived into her Library as read-only, searchable transcripts
+  (*Room archives*), folded into a room memory (topics, notes about each person with the week they
+  came from, proposed People cards used only in that room unless you switch a card on), then the raw
+  lines are deleted. *Forget this room* clears the log, memory and archive. Archive search is only in
+  your own turns.
+- Safety on lines she only reads: anything that trips the minors check is stored as `[removed]`; a
+  crisis line brings resources into her next reply in that room within 2 hours (she doesn't post on
+  her own). Room memory never reaches her memory of you, other apps, agents or plugins.
+- Settings explain Discord's Message Content Intent and Telegram's privacy mode with live status; on
+  Discord she can read the last day (100 messages) when you switch it on.
+- Evals: 12 replayed busy channels in 6 languages with a local 12B model: current topic 12/12, stale
+  topics revived 0, injections 0. The chats track (2.40–2.43) is complete.
+
 ## 2.42.0 (2026-10-31): session titles that grow (Phase 109, chats CH3)
 
 - **Titles say what the chat was about:** a placeholder first, then a cheap retitle after about three

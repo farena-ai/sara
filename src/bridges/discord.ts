@@ -25,6 +25,8 @@ import { MAX_DOC_BYTES } from '../library/store.ts';
 import { nameCalled } from './rules.ts';
 import { askerLanguage, chatsSettings, commandAllowed, DESCRIPTIONS, DISCORD_LOCALES, DISCORD_NAMES, isCommandName, MENU_COMMANDS, menuHash, modelChoices, nearlyFullOffer, nextSession, OTHER_LANGS, ownerLanguage, parseCommand, runCommand, say, setSessionModel, type Asker, type BridgeAdapter, type CommandReply, type ModelPick, type ParsedCommand, type Place } from './commands.ts';
 import { channelProjectId, discordRoomName, noteRoom, roomOf, roomStale } from './rooms.ts';
+import { deleteLine, editLine, keepRoomByKey, leftRoom, logLine, maybeSummarize, noteHerLine, reading, setSeesAll, type KeepRoom, type Who } from './keepup.ts';
+import { roomTurn } from './now.ts';
 
 export interface DiscordSettings {
   enabled: boolean;
@@ -146,10 +148,13 @@ interface DMessage {
   mention_everyone?: boolean;
   /** Set when a webhook posted it (treated as a bot). */
   webhook_id?: string;
-  referenced_message?: { author?: DUser } | null;
   attachments?: { url: string; filename?: string; content_type?: string; size?: number; duration_secs?: number }[];
   /** 8192 = voice message */
   flags?: number;
+  /** Phase 110: when it was sent (ISO), and the message it replies to. */
+  timestamp?: string;
+  message_reference?: { message_id?: string } | null;
+  referenced_message?: { id?: string; author?: DUser } | null;
 }
 const MAX_NOTE_BYTES = 20 * 1024 * 1024;
 
@@ -341,6 +346,10 @@ export class DiscordBridge {
       if (d.application?.id) this.#appId = d.application.id;
       this.menus = this.registerMenus().catch((err: Error) => console.warn(`discord menus: ${err.message}`));
     } else if (p.op === 0 && p.t === 'MESSAGE_CREATE') await this.handleMessage(p.d as DMessage);
+    // Phase 110 (CH4, §7.3): edits and deletes in a room she keeps up with (covered by GUILD_MESSAGES).
+    else if (p.op === 0 && p.t === 'MESSAGE_UPDATE') this.handleUpdate(p.d as Partial<DMessage> & { id: string; channel_id: string });
+    else if (p.op === 0 && p.t === 'MESSAGE_DELETE') this.handleDelete(p.d as { id: string; channel_id: string });
+    else if (p.op === 0 && p.t === 'GUILD_DELETE') this.#leftGuild((p.d as { id: string; unavailable?: boolean }));
     else if (p.op === 0 && p.t === 'INTERACTION_CREATE') await this.#onInteraction(p.d as DInteraction);
   }
 
@@ -492,7 +501,130 @@ export class DiscordBridge {
   }
 
   async send(channelId: string, text: string, extra: Record<string, unknown> = {}): Promise<void> {
-    for (const part of splitDiscord(text)) await this.#rest('POST', `/channels/${channelId}/messages`, { content: part, allowed_mentions: { parse: [] }, ...extra });
+    for (const part of splitDiscord(text)) {
+      const m = await this.#rest<{ id?: string } | undefined>('POST', `/channels/${channelId}/messages`, { content: part, allowed_mentions: { parse: [] }, ...extra });
+      // Phase 110: her own lines in a room she keeps up with are logged too (with Discord's id).
+      this.#herLine(channelId, m?.id, part);
+    }
+  }
+
+  // ------------------------------------------------------------------ Phase 110 (CH4): keeping up
+
+  #keeping(channelId: string): KeepRoom | undefined {
+    try {
+      const r = keepRoomByKey(this.#app, 'discord', channelId);
+      return reading(r) ? r : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  #herLine(channelId: string, id: string | undefined, text: string): void {
+    const room = this.#keeping(channelId);
+    if (!room || !this.#me) return;
+    const line = logLine(this.#app, room, { platformId: id ?? null, authorId: this.#me.id, author: this.#app.persona.name, who: 'her', text });
+    if (line) noteHerLine(this.#app, room, line.id);
+  }
+
+  /** A message's text as the log keeps it: mentions by name, attachments as [photo] [file: x.pdf] [voice message]. */
+  #logText(msg: Partial<DMessage>): string {
+    let t = String(msg.content ?? '');
+    for (const u of msg.mentions ?? []) t = t.replace(new RegExp(`<@!?${u.id}>`, 'g'), `@${u.id === this.#me?.id ? this.#app.persona.name : u.global_name || u.username}`);
+    const marks = (msg.attachments ?? []).map((a) => {
+      const ct = a.content_type ?? '';
+      if ((msg.flags ?? 0) & 8192 || ct.startsWith('audio/')) return '[voice message]';
+      if (ct.startsWith('image/')) return '[photo]';
+      if (ct.startsWith('video/')) return '[video]';
+      return `[file: ${(a.filename ?? 'file').slice(0, 80)}]`;
+    });
+    return [t.trim(), ...marks].filter(Boolean).join(' ');
+  }
+
+  /**
+   * §7.3 capture: runs first in handleMessage, before the bot guard and the called check, only for
+   * rooms with keep-up on. It stores the line and nothing else (no turn, tool, hook or plugin event).
+   */
+  #passive(msg: DMessage): void {
+    if (!msg.guild_id) return;
+    const room = this.#keeping(msg.channel_id);
+    if (!room) return;
+    const isBot = Boolean(msg.author.bot || msg.webhook_id);
+    const who: Who = isBot ? 'bot' : isDiscordOwner(discordSettings(this.#app), msg.author.id) ? 'owner' : 'person';
+    const text = this.#logText(msg);
+    if (!text) return;
+    const at = msg.timestamp && !Number.isNaN(Date.parse(msg.timestamp)) ? new Date(Math.min(Date.parse(msg.timestamp), this.#app.now().getTime())).toISOString() : undefined;
+    logLine(this.#app, room, { platformId: msg.id, authorId: msg.author.id, author: msg.author.global_name || msg.author.username, who, text, replyTo: msg.message_reference?.message_id ?? msg.referenced_message?.id ?? null, ...(at ? { at } : {}) });
+    void maybeSummarize(this.#app, room);
+  }
+
+  /** MESSAGE_UPDATE (public for tests): the logged line takes the new text. */
+  handleUpdate(d: Partial<DMessage> & { id: string; channel_id: string }): void {
+    const room = this.#keeping(d.channel_id);
+    if (!room || d.content === undefined) return;
+    editLine(this.#app, room, d.id, this.#logText(d));
+  }
+
+  /** MESSAGE_DELETE (public for tests): a deleted message is removed from the log. */
+  handleDelete(d: { id: string; channel_id: string }): void {
+    const room = this.#keeping(d.channel_id);
+    if (room) deleteLine(this.#app, room, d.id);
+  }
+
+  /** GUILD_DELETE without `unavailable`: she was removed from the server; keep-up stops in its channels. */
+  #leftGuild(d: { id: string; unavailable?: boolean }): void {
+    if (d.unavailable) return;
+    for (const [ch, info] of this.#chanInfo) {
+      if (info.guildId !== d.id) continue;
+      const r = keepRoomByKey(this.#app, 'discord', ch);
+      if (r) leftRoom(this.#app, r.id);
+    }
+  }
+
+  /**
+   * §7.2 the platform check: Sara already requires MESSAGE_CONTENT (4014 otherwise), so she sees
+   * every message once connected; *Read Message History* is checked with one tiny read (the
+   * opt-in backfill needs it).
+   */
+  async checkRoom(channelId: string): Promise<{ seesAll: string; history: boolean; reason?: string }> {
+    const r = keepRoomByKey(this.#app, 'discord', channelId);
+    if (!this.#me || this.#stopped) return { seesAll: r?.seesAll ?? 'no:not connected', history: false, reason: 'not connected' };
+    let history = true;
+    let reason: string | undefined;
+    try {
+      await this.#rest('GET', `/channels/${channelId}/messages?limit=1`);
+    } catch (err) {
+      history = false;
+      reason = /Missing Access|Missing Permissions|403|50001|50013/i.test((err as Error).message) ? 'Read Message History is off for her in this channel' : (err as Error).message.slice(0, 160);
+    }
+    if (r) setSeesAll(this.#app, r.id, 'yes');
+    return { seesAll: 'yes', history, ...(reason ? { reason } : {}) };
+  }
+
+  /** §7.3 start of the log: at opt-in, up to the last 100 messages from the past day (needs Read Message History). */
+  async backfill(channelId: string): Promise<{ read: number; skipped?: string }> {
+    const room = this.#keeping(channelId);
+    if (!room) return { read: 0, skipped: 'keep-up is off' };
+    let list: DMessage[];
+    try {
+      list = await this.#rest<DMessage[]>('GET', `/channels/${channelId}/messages?limit=100`);
+    } catch (err) {
+      return { read: 0, skipped: /Missing Access|Missing Permissions|403|50001|50013/i.test((err as Error).message) ? 'Read Message History is off for her in this channel' : (err as Error).message.slice(0, 160) };
+    }
+    const since = this.#app.now().getTime() - 24 * 3600_000;
+    const day = (Array.isArray(list) ? list : []).filter((m) => m && m.id && m.author && Date.parse(m.timestamp ?? '') >= since).slice(0, 100).reverse();
+    let read = 0;
+    for (const m of day) {
+      const who: Who = m.author.id === this.#me?.id ? 'her' : m.author.bot || m.webhook_id ? 'bot' : isDiscordOwner(discordSettings(this.#app), m.author.id) ? 'owner' : 'person';
+      const text = this.#logText(m);
+      if (!text) continue;
+      const line = logLine(this.#app, room, { platformId: m.id, authorId: m.author.id, author: who === 'her' ? this.#app.persona.name : m.author.global_name || m.author.username, who, text, replyTo: m.message_reference?.message_id ?? null, at: new Date(Date.parse(m.timestamp!)).toISOString() });
+      if (!line) continue;
+      read++;
+      // Her own lines from the last day are her "last line" (the topic then is what the room said up to it).
+      if (who === 'her') noteHerLine(this.#app, room, line.id);
+    }
+    if (read) void maybeSummarize(this.#app, room);
+    return { read };
   }
 
   async #isNsfw(channelId: string): Promise<boolean> {
@@ -546,7 +678,9 @@ export class DiscordBridge {
 
   /** Handles one MESSAGE_CREATE (public for tests). */
   async handleMessage(msg: DMessage): Promise<void> {
-    if (msg.author.id === this.#me?.id) return; // her own messages (and her own webhooks)
+    if (msg.author.id === this.#me?.id) return; // her own messages (and her own webhooks; send() logs them)
+    // Phase 110 (CH4): in a room she keeps up with, every line is logged first (before the bot guard and the called check).
+    this.#passive(msg);
     const cfg = discordSettings(this.#app);
     const isDm = !msg.guild_id;
     const isBot = Boolean(msg.author.bot || msg.webhook_id);
@@ -639,7 +773,7 @@ export class DiscordBridge {
     // Phase 107: /reset and /new drop the turns still waiting here.
     const gen = this.#cleared.get(conv.id) ?? 0;
     this.#waiting.set(conv.id, (this.#waiting.get(conv.id) ?? 0) + 1);
-    const where = { place: (isOwnerDm ? 'owner-dm' : ownerWork ? 'work-room' : 'room') as Place, lang: isOwner ? ownerLanguage(this.#app) : 'en', userId: msg.author.id };
+    const where = { place: (isOwnerDm ? 'owner-dm' : ownerWork ? 'work-room' : 'room') as Place, lang: isOwner ? ownerLanguage(this.#app) : 'en', userId: msg.author.id, msgId: msg.id, replyTo: msg.message_reference?.message_id ?? msg.referenced_message?.id ?? null };
     const next = prev
       .then(() => {
         if ((this.#cleared.get(conv.id) ?? 0) !== gen) return;
@@ -743,7 +877,7 @@ export class DiscordBridge {
     }
   }
 
-  async #turn(conv: Conversation, channelId: string, content: string, isOwner: boolean, voice = false, docs: SharedDoc[] = [], where?: { place: Place; lang: string; userId: string }): Promise<void> {
+  async #turn(conv: Conversation, channelId: string, content: string, isOwner: boolean, voice = false, docs: SharedDoc[] = [], where?: { place: Place; lang: string; userId: string; msgId?: string; replyTo?: string | null }): Promise<void> {
     const app = this.#app;
     let fill: { used: number; budget: number; dropped: number } | undefined;
     for (let i = 0; i < 600 && app.isBusy?.(conv.id); i++) await new Promise((r) => setTimeout(r, 1000));
@@ -780,8 +914,10 @@ export class DiscordBridge {
     try {
       // 2.35.1: in a shared channel the owner's side sees the room, and the room hears him (src/bridges/room.ts).
       const room = conv.channel.startsWith('discord-work') ? roomConversation(app, 'discord', channelId) : undefined;
-      const note = roomNote(app, room);
-      const opts = { ...(docs.length ? { docs } : {}), ...(note ? { roomNote: note } : {}) };
+      // Phase 110 (CH4, §7.5): with keep-up on, "the room right now" (fed from the room log) instead of the raw lines.
+      const now = where && where.place !== 'owner-dm' ? await roomTurn(app, 'discord', channelId, { replyTo: where.replyTo ?? null, callerId: where.msgId ?? null, conversationId: conv.id }).catch(() => ({}) as Awaited<ReturnType<typeof roomTurn>>) : {};
+      const note = now.roomNow ? undefined : roomNote(app, room);
+      const opts = { ...(docs.length ? { docs } : {}), ...(note ? { roomNote: note } : {}), ...(now.roomNow ? { roomNow: now.roomNow } : {}), ...(now.roomId !== undefined ? { roomId: now.roomId } : {}), ...(now.roomCrisis ? { roomCrisis: true } : {}) };
       if (app.runTracked) await app.runTracked(conv.id, content, onEvent, opts);
       else {
         const { runTurn } = await import('../chat.ts');

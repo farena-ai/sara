@@ -85,7 +85,9 @@ const VECTOR_BATCH = 32;
 
 export type DocStatus = 'waiting' | 'reading' | 'ready' | 'failed';
 export type LearnStatus = 'off' | 'waiting' | 'learning' | 'done' | 'failed';
-export type DocOrigin = 'library' | 'chat' | 'telegram' | 'discord';
+export type DocOrigin = 'library' | 'chat' | 'telegram' | 'discord' | 'room-archive';
+/** Phase 110 (CH4): where a search looks: her library (the default), the room archives, or both. */
+export type SearchIn = 'library' | 'archives' | 'all';
 
 export interface LibraryDoc {
   id: number;
@@ -116,6 +118,14 @@ export interface LibraryDoc {
   pages: number;
   addedAt: string;
   readAt: string | null;
+  /** Phase 110 (CH4): the collection it belongs to ('Archive: #general · My Server'), or null. */
+  collection: string | null;
+  /** Phase 110: a read-only document (a room archive): no rename, no edits, never learned. */
+  readOnly: boolean;
+  /** Phase 110: the room it belongs to (Forget this room deletes it). */
+  roomId: number | null;
+  /** Phase 110: the ISO week of a room archive ('2026-W44'). */
+  period: string | null;
 }
 
 export interface Passage {
@@ -241,7 +251,15 @@ const MIGRATIONS: [string, string, string][] = [
   ['library_passages', 'page', 'ALTER TABLE library_passages ADD COLUMN page INTEGER'],
   ['library_docs', 'overview', 'ALTER TABLE library_docs ADD COLUMN overview TEXT'],
   ['library_docs', 'pages', 'ALTER TABLE library_docs ADD COLUMN pages INTEGER NOT NULL DEFAULT 0'],
+  // Phase 110 (CH4, docs/design/CHATS.md §7.9): collections and read-only room archives.
+  ['library_docs', 'collection', 'ALTER TABLE library_docs ADD COLUMN collection TEXT'],
+  ['library_docs', 'read_only', 'ALTER TABLE library_docs ADD COLUMN read_only INTEGER NOT NULL DEFAULT 0'],
+  ['library_docs', 'room_id', 'ALTER TABLE library_docs ADD COLUMN room_id INTEGER'],
+  ['library_docs', 'period', 'ALTER TABLE library_docs ADD COLUMN period TEXT'],
 ];
+
+/** SQL for "this document is a room archive" (alias d). */
+const ARCHIVE_SQL = "(coalesce(d.read_only, 0) = 1 OR d.origin = 'room-archive')";
 
 export type JobPhase = 'text' | 'ocr' | 'structure' | 'summaries' | 'learn' | 'vectors' | 'done' | 'cancelled';
 /** Phase 74: a long document's reading job, kept in the database so a restart goes on where it was. */
@@ -359,6 +377,10 @@ function toDoc(r: Row): LibraryDoc {
     pages: Number(r.pages ?? 0),
     addedAt: String(r.added_at),
     readAt: (r.read_at as string | null) ?? null,
+    collection: (r.collection as string | null) ?? null,
+    readOnly: Number(r.read_only ?? 0) === 1,
+    roomId: r.room_id === null || r.room_id === undefined ? null : Number(r.room_id),
+    period: (r.period as string | null) ?? null,
   };
 }
 
@@ -746,11 +768,72 @@ export class LibraryStore {
   }
 
   /** Her library (kept documents), newest first; or the documents read once in one conversation. */
-  list(opts: { conversationId?: string } = {}): LibraryDoc[] {
+  list(opts: { conversationId?: string; collection?: string } = {}): LibraryDoc[] {
+    // Phase 110: room archives are never in this list (the prompt's "In your library", the tool's
+    // list, MCP, exports); they have their own (`archives`).
     const rows = opts.conversationId
       ? this.db.prepare('SELECT * FROM library_docs WHERE keep = 0 AND conversation_id = ? ORDER BY id DESC').all(opts.conversationId)
-      : this.db.prepare('SELECT * FROM library_docs WHERE keep = 1 ORDER BY id DESC').all();
+      : opts.collection
+        ? this.db.prepare('SELECT * FROM library_docs WHERE keep = 1 AND collection = ? ORDER BY id DESC').all(opts.collection)
+        : this.db.prepare(`SELECT * FROM library_docs d WHERE keep = 1 AND NOT ${ARCHIVE_SQL} ORDER BY id DESC`).all();
     return (rows as Row[]).map(toDoc);
+  }
+
+  /** Phase 110 (CH4): the room archives (one document per room and week), newest week first; or one room's. */
+  archives(roomId?: number): LibraryDoc[] {
+    const rows = roomId === undefined ? this.db.prepare(`SELECT * FROM library_docs d WHERE ${ARCHIVE_SQL} ORDER BY coalesce(period, '') DESC, id DESC`).all() : this.db.prepare(`SELECT * FROM library_docs d WHERE ${ARCHIVE_SQL} AND room_id = ? ORDER BY coalesce(period, '') DESC, id DESC`).all(roomId);
+    return (rows as Row[]).map(toDoc);
+  }
+
+  /** Phase 110: a room's archive document for one ISO week, if there is one. */
+  archiveFor(roomId: number, period: string): LibraryDoc | undefined {
+    const r = this.db.prepare(`SELECT * FROM library_docs d WHERE ${ARCHIVE_SQL} AND room_id = ? AND period = ? ORDER BY id LIMIT 1`).get(roomId, period) as Row | undefined;
+    return r ? toDoc(r) : undefined;
+  }
+
+  /**
+   * Phase 110 (CH4, §7.9): a new read-only weekly transcript of a room. Kept, never learned
+   * (`learn = 'off'`), ready at once (no reading job: the text is ours). Runs inside the caller's
+   * transaction (the fold's archive step).
+   */
+  addArchive(a: { name: string; collection: string; roomId: number; period: string }): LibraryDoc {
+    const now = this.#now().toISOString();
+    const sha = createHash('sha256').update(`room-archive:${a.roomId}:${a.period}:${now}`).digest('hex');
+    const id = Number(
+      this.db
+        .prepare("INSERT INTO library_docs (name, kind, size, sha, ext, title, status, keep, origin, passages, chars, learn, added_at, read_at, collection, read_only, room_id, period) VALUES (?, 'transcript', 0, ?, 'txt', NULL, 'ready', 1, 'room-archive', 0, 0, 'off', ?, ?, ?, 1, ?, ?)")
+        .run(cleanName(a.name), sha, now, now, a.collection.slice(0, 200), a.roomId, a.period).lastInsertRowid,
+    );
+    return this.get(id)!;
+  }
+
+  /**
+   * Phase 110: appends passages to a document (FTS5 indexes them as they are written). Runs inside
+   * the caller's transaction. The original "file" of an archive is its passages (size = text bytes).
+   */
+  appendPassages(docId: number, passages: { place: string; heading: string | null; text: string }[]): number {
+    const doc = this.get(docId);
+    if (!doc || !passages.length) return 0;
+    const last = this.db.prepare('SELECT coalesce(MAX(ord), -1) AS o FROM library_passages WHERE doc_id = ?').get(docId) as { o: number };
+    const put = this.db.prepare('INSERT INTO library_passages (doc_id, ord, place, heading, text) VALUES (?, ?, ?, ?, ?)');
+    let chars = 0;
+    passages.forEach((p, i) => {
+      put.run(docId, Number(last.o) + 1 + i, String(p.place ?? '').slice(0, 80), p.heading?.slice(0, 200) ?? null, String(p.text));
+      chars += p.text.length;
+    });
+    this.db.prepare('UPDATE library_docs SET passages = passages + ?, chars = chars + ?, size = size + ? WHERE id = ?').run(passages.length, chars, Buffer.byteLength(passages.map((p) => p.text).join('\n'), 'utf8'), docId);
+    return passages.length;
+  }
+
+  /** Phase 110: what the room archives hold (the Library's storage line and Forget this room's card). */
+  archiveCounts(roomId?: number): { docs: number; passages: number; bytes: number } {
+    const r = (roomId === undefined ? this.db.prepare(`SELECT COUNT(*) AS docs, coalesce(SUM(passages), 0) AS passages, coalesce(SUM(size), 0) AS bytes FROM library_docs d WHERE ${ARCHIVE_SQL}`).get() : this.db.prepare(`SELECT COUNT(*) AS docs, coalesce(SUM(passages), 0) AS passages, coalesce(SUM(size), 0) AS bytes FROM library_docs d WHERE ${ARCHIVE_SQL} AND room_id = ?`).get(roomId)) as Record<string, number>;
+    return { docs: Number(r.docs), passages: Number(r.passages), bytes: Number(r.bytes) };
+  }
+
+  /** Phase 110: renames a collection (the documents in it keep their read-only names). */
+  renameCollection(from: string, to: string): number {
+    return Number(this.db.prepare('UPDATE library_docs SET collection = ? WHERE collection = ?').run(to.trim().slice(0, 200), from).changes);
   }
 
   /** Documents waiting to be read (oldest first); ones with a reading job are run by the job. */
@@ -770,22 +853,28 @@ export class LibraryStore {
   }
 
   setLearn(id: number, learn: LearnStatus, patch: { error?: string | null; facts?: number; summary?: string | null } = {}): void {
+    // Phase 110: room archives are never learned (her memory never learns room talk from them).
+    if (learn !== 'off' && this.get(id)?.readOnly) return;
     this.db.prepare('UPDATE library_docs SET learn = ?, learn_error = ?, facts = coalesce(?, facts), summary = coalesce(?, summary) WHERE id = ?').run(learn, patch.error ?? null, patch.facts ?? null, patch.summary?.trim().slice(0, 300) || null, id);
   }
 
   rename(id: number, name: string): LibraryDoc | undefined {
+    // Phase 110: a read-only document (a room archive) keeps its name (its collection can be renamed).
+    if (this.get(id)?.readOnly) throw new Error('This document is read-only.');
     this.db.prepare('UPDATE library_docs SET name = ? WHERE id = ?').run(cleanName(name), id);
     return this.get(id);
   }
 
   /** Keeps a read-once document in her library after all (it becomes searchable everywhere). */
   keep(id: number, learn = true): LibraryDoc | undefined {
+    if (this.get(id)?.readOnly) return this.get(id);
     this.db.prepare("UPDATE library_docs SET keep = 1, conversation_id = NULL, origin = CASE origin WHEN 'chat' THEN 'chat' ELSE origin END, learn = CASE WHEN ? AND learn = 'off' THEN 'waiting' ELSE learn END WHERE id = ?").run(learn ? 1 : 0, id);
     return this.get(id);
   }
 
   /** Stores what was read: replaces any passages from an earlier read. */
   setRead(id: number, r: { title?: string | null; kind: string; parts: PartIn[]; warnings: string[]; pagesSeen?: number }): LibraryDoc | undefined {
+    if (this.get(id)?.readOnly) throw new Error('This document is read-only.');
     const passages = toPassages(r.parts);
     this.db.exec('BEGIN');
     try {
@@ -910,14 +999,21 @@ export class LibraryStore {
   }
 
   counts(): { docs: number; passages: number; chars: number; bytes: number; reading: number } {
-    const r = this.db.prepare("SELECT COUNT(*) AS docs, coalesce(SUM(passages), 0) AS passages, coalesce(SUM(chars), 0) AS chars, coalesce(SUM(size), 0) AS bytes, coalesce(SUM(status IN ('waiting', 'reading')), 0) AS reading FROM library_docs WHERE keep = 1").get() as Record<string, number>;
+    const r = this.db.prepare(`SELECT COUNT(*) AS docs, coalesce(SUM(passages), 0) AS passages, coalesce(SUM(chars), 0) AS chars, coalesce(SUM(size), 0) AS bytes, coalesce(SUM(status IN ('waiting', 'reading')), 0) AS reading FROM library_docs d WHERE keep = 1 AND NOT ${ARCHIVE_SQL}`).get() as Record<string, number>;
     return { docs: Number(r.docs), passages: Number(r.passages), chars: Number(r.chars), bytes: Number(r.bytes), reading: Number(r.reading) };
   }
 
   /** Which documents a search may look in: her library, plus what was read once in this chat. */
-  #scope(conversationId?: string, docIds?: number[]): { sql: string; args: (string | number)[] } {
+  #scope(conversationId?: string, docIds?: number[], where: SearchIn = 'library', roomId?: number): { sql: string; args: (string | number)[] } {
     const parts = ['(d.keep = 1' + (conversationId ? ' OR d.conversation_id = ?' : '') + ')', "d.status = 'ready'"];
     const args: (string | number)[] = conversationId ? [conversationId] : [];
+    // Phase 110 (CH4): archives only when asked for ('archives' or 'all'); never in the default search.
+    if (where === 'library') parts.push(`NOT ${ARCHIVE_SQL}`);
+    else if (where === 'archives') parts.push(ARCHIVE_SQL);
+    if (roomId !== undefined && where !== 'library') {
+      parts.push('d.room_id = ?');
+      args.push(roomId);
+    }
     if (docIds?.length) {
       parts.push(`d.id IN (${docIds.map(() => '?').join(',')})`);
       args.push(...docIds);
@@ -926,10 +1022,10 @@ export class LibraryStore {
   }
 
   /** Passages with the words of the text (best first, by FTS5 rank). */
-  searchWords(text: string, opts: { conversationId?: string; docIds?: number[]; limit?: number } = {}): { passage: Passage; rank: number }[] {
+  searchWords(text: string, opts: { conversationId?: string; docIds?: number[]; limit?: number; in?: SearchIn; roomId?: number } = {}): { passage: Passage; rank: number }[] {
     const q = ftsQuery(text);
     if (!q) return [];
-    const scope = this.#scope(opts.conversationId, opts.docIds);
+    const scope = this.#scope(opts.conversationId, opts.docIds, opts.in, opts.roomId);
     const rows = this.db
       .prepare(
         `SELECT p.*, bm25(library_fts, 1.0, 0.6) AS rank FROM library_fts JOIN library_passages p ON p.id = library_fts.rowid JOIN library_docs d ON d.id = p.doc_id WHERE library_fts MATCH ? AND ${scope.sql} ORDER BY rank LIMIT ?`,
@@ -943,7 +1039,7 @@ export class LibraryStore {
     if (!target) return 0;
     const todo = this.db
       .prepare(
-        `SELECT p.id, p.doc_id, p.text, p.heading FROM library_passages p JOIN library_docs d ON d.id = p.doc_id LEFT JOIN library_vectors v ON v.passage_id = p.id WHERE d.status = 'ready' AND (v.passage_id IS NULL OR v.model != ?)${docId ? ' AND p.doc_id = ?' : ''} ORDER BY d.keep ASC, p.id LIMIT ?`,
+        `SELECT p.id, p.doc_id, p.text, p.heading FROM library_passages p JOIN library_docs d ON d.id = p.doc_id LEFT JOIN library_vectors v ON v.passage_id = p.id WHERE d.status = 'ready' AND NOT ${ARCHIVE_SQL} AND (v.passage_id IS NULL OR v.model != ?)${docId ? ' AND p.doc_id = ?' : ''} ORDER BY d.keep ASC, p.id LIMIT ?`,
       )
       .all(target.model, ...(docId ? [docId] : []), limit) as { id: number; doc_id: number; text: string; heading: string | null }[];
     if (!todo.length) return 0;
@@ -978,7 +1074,7 @@ export class LibraryStore {
   }
 
   /** Passages closest in meaning to the text (best first), above the floor. */
-  async searchMeaning(target: EmbedTarget | undefined, text: string, opts: { conversationId?: string; docIds?: number[]; limit?: number; timeoutMs?: number } = {}): Promise<{ passage: Passage; score: number }[]> {
+  async searchMeaning(target: EmbedTarget | undefined, text: string, opts: { conversationId?: string; docIds?: number[]; limit?: number; timeoutMs?: number; in?: SearchIn; roomId?: number } = {}): Promise<{ passage: Passage; score: number }[]> {
     if (!target || !text.trim()) return [];
     const index = this.vectorIndex(target.model);
     if (!index.count) return [];
@@ -990,7 +1086,7 @@ export class LibraryStore {
       this.vectorError = (err as Error).message;
       return [];
     }
-    const scope = this.#scope(opts.conversationId, opts.docIds);
+    const scope = this.#scope(opts.conversationId, opts.docIds, opts.in, opts.roomId);
     const allowed = new Set((this.db.prepare(`SELECT d.id FROM library_docs d WHERE ${scope.sql}`).all(...scope.args) as { id: number }[]).map((r) => r.id));
     // Approximate scores over the whole block, then the best few exactly.
     const cands = index.candidates(q, allowed, Math.max(48, (opts.limit ?? 8) * 4));
@@ -1010,7 +1106,7 @@ export class LibraryStore {
    * Finds passages by words and by meaning and merges them (reciprocal rank: a passage both ways
    * comes first). Each result names its document and place.
    */
-  async find(text: string, opts: { target?: EmbedTarget; conversationId?: string; docIds?: number[]; limit?: number; timeoutMs?: number } = {}): Promise<PassageHit[]> {
+  async find(text: string, opts: { target?: EmbedTarget; conversationId?: string; docIds?: number[]; limit?: number; timeoutMs?: number; in?: SearchIn; roomId?: number } = {}): Promise<PassageHit[]> {
     const limit = opts.limit ?? 5;
     const words = this.searchWords(text, { ...opts, limit: limit * 2 });
     const meaning = await this.searchMeaning(opts.target, text, { ...opts, limit: limit * 2 });

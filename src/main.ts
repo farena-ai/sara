@@ -118,6 +118,7 @@ import { workspaceDir } from './tools/workspace.ts';
 import { createTuneTool } from './studio.ts';
 import { DriftStore } from './drift.ts';
 import { TitleKeeper } from './titles.ts';
+import { RoomKeeper } from './bridges/keepup.ts';
 import { paceFactor, tensionHalfLife } from './bond.ts';
 import { CompanionManager, CompanionSettings, companionDirs, LinkedToolRegistry, MAIN_ID, type Companion } from './companions.ts';
 import { pickCompanion, type HouseholdHooks, type MemberHooks } from './server.ts';
@@ -783,6 +784,9 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   app.memoryNudge = () => memoryWorker.nudge();
   // Phase 109 (CH3): titles that grow with the session (each space's own conversations and ledger; never the demo).
   if (!isDemo) app.titles = new TitleKeeper(app);
+  // Phase 110 (CH4): keeping up with rooms (the owner's main companion only: bridges, rooms and
+  // archives exist only there; never members, other companions or the demo).
+  if (!isDemo && !isMember && main) app.roomKeeper = new RoomKeeper(app);
   // Phase 44: a shared library is read (and learned into memory) by the first companion's worker.
   const ownsLibrary = main || space.settings.get().companionLibrary !== 'shared';
   const libraryWorker = ownsLibrary ? new LibraryWorker(app, () => app.library) : undefined;
@@ -1085,6 +1089,13 @@ const evalTimer = setInterval(() => guard('evals', () => {
   for (const c of ownerSpace.companions.all()) c.app.evals?.tick();
 }), 3600_000);
 evalTimer.unref();
+
+// Phase 110 (CH4, §7.7): the nightly fold of the rooms she keeps up with (04:00 local, or the next
+// start after a missed night): archive into the Library, room memory, then delete the raw lines.
+const foldTick = () => guard('rooms', () => void ownerSpace.companions.main.app.roomKeeper?.tick().then((rs) => rs.filter((r) => r.archived || r.memories.length).forEach((r) => console.log(`Rooms: folded room ${r.roomId} (${r.archived} lines archived, ${r.memories.length} weeks of room memory, ${r.deleted} raw lines deleted).`))));
+const foldTimer = setInterval(foldTick, 15 * 60_000);
+foldTimer.unref();
+if (!isDemo) setTimeout(foldTick, 90_000).unref();
 
 const householdTimer = setInterval(() => guard('household', householdSweep), 3600_000);
 householdTimer.unref();

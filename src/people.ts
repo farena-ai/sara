@@ -37,7 +37,7 @@ export interface Person {
   lastMentioned: string | null;
   mentions: number;
   /** 'her' = she made it active on her own (mentioned in 3 conversations), 'owner' = he added or accepted it. */
-  origin: 'her' | 'owner' | 'memory' | null;
+  origin: 'her' | 'owner' | 'memory' | 'room' | null;
   /** The photo he added (file name in the people folder), or null (initials). */
   photo: string | null;
   createdAt: string;
@@ -61,7 +61,20 @@ export interface PersonFact {
   private: boolean;
   /** Held on several cards until the owner (or a later message) says which person it is about. */
   pending: string | null;
+  /** Phase 110 (CH4, §7.8): learned in a chat room (scope = that room); null = from her own memory. */
+  roomId: number | null;
   createdAt: string;
+}
+
+/** Phase 110: which room user is which card, and how far his switches let the room's notes go. */
+export interface PersonRoom {
+  personId: number;
+  roomId: number;
+  platformUserId: string;
+  /** "Use what she learned in rooms": these notes in his own chats too. */
+  useInOwn: boolean;
+  /** "Share between rooms": in his other rooms where the same platform user is. */
+  shareRooms: boolean;
 }
 
 export interface AboutItem {
@@ -315,6 +328,7 @@ function toFact(r: Row): PersonFact {
     edited: Boolean(r.edited),
     private: Boolean(r.private),
     pending: (r.pending as string | null) ?? null,
+    roomId: r.room_id === null || r.room_id === undefined ? null : Number(r.room_id),
     createdAt: String(r.created_at),
   };
 }
@@ -338,6 +352,8 @@ export interface SectionContext extends FindContext {
   private: boolean;
   maxChars: number;
   today: string;
+  /** Phase 110: the room this turn happens in (its own room facts are allowed; others per the gate). */
+  roomId?: number;
 }
 
 export interface PeopleOptions {
@@ -387,7 +403,14 @@ export class PeopleStore {
     const pc = has('people');
     for (const [c, type] of [['origin', 'TEXT'], ['photo', 'TEXT']]) if (!pc.has(c)) db.exec(`ALTER TABLE people ADD COLUMN ${c} ${type}`);
     const fc = has('person_facts');
-    for (const [c, type] of [['private', 'INTEGER NOT NULL DEFAULT 0'], ['pending', 'TEXT']]) if (!fc.has(c)) db.exec(`ALTER TABLE person_facts ADD COLUMN ${c} ${type}`);
+    for (const [c, type] of [['private', 'INTEGER NOT NULL DEFAULT 0'], ['pending', 'TEXT'], ['room_id', 'INTEGER']]) if (!fc.has(c)) db.exec(`ALTER TABLE person_facts ADD COLUMN ${c} ${type}`);
+    // Phase 110 (CH4, §7.8): room people linked to cards by platform user id (never by name alone).
+    db.exec(`CREATE TABLE IF NOT EXISTS people_rooms (
+  person_id INTEGER NOT NULL, room_id INTEGER NOT NULL, platform_user_id TEXT NOT NULL,
+  use_in_own INTEGER NOT NULL DEFAULT 0,
+  share_rooms INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (person_id, room_id)
+)`);
     db.exec('CREATE TABLE IF NOT EXISTS memory_kv (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
   }
 
@@ -508,6 +531,13 @@ export class PeopleStore {
 
   #wipe(id: number): void {
     this.db.prepare('DELETE FROM person_facts WHERE person_id = ?').run(id);
+    // Phase 110: forgetting a person clears their room notes too (the archive is his record and stays).
+    try {
+      for (const r of this.db.prepare('SELECT room_id, platform_user_id FROM people_rooms WHERE person_id = ?').all(id) as Row[]) this.db.prepare("UPDATE room_people SET notes = '[]', person_id = NULL WHERE room_id = ? AND platform_user_id = ?").run(Number(r.room_id), String(r.platform_user_id));
+    } catch {
+      /* no rooms here */
+    }
+    this.db.prepare('DELETE FROM people_rooms WHERE person_id = ?').run(id);
     this.db.prepare('DELETE FROM person_links WHERE a = ? OR b = ?').run(id, id);
     this.db.prepare('DELETE FROM person_mentions WHERE person_id = ?').run(id);
     this.#removePhoto(id);
@@ -619,7 +649,7 @@ export class PeopleStore {
   }
 
   /** Links a memory to a person (one fact per person per memory). */
-  addFact(personId: number, f: { content: string; memoryId?: number | null; conversationId?: string | null; messageId?: number | null; happenedOn: string; evidence?: string | null; sure?: number; category?: FactCategory | null; private?: boolean; pending?: string | null }): PersonFact | undefined {
+  addFact(personId: number, f: { content: string; memoryId?: number | null; conversationId?: string | null; messageId?: number | null; happenedOn: string; evidence?: string | null; sure?: number; category?: FactCategory | null; private?: boolean; pending?: string | null; roomId?: number | null }): PersonFact | undefined {
     if (f.memoryId != null) {
       const have = this.db.prepare('SELECT id FROM person_facts WHERE person_id = ? AND memory_id = ?').get(personId, f.memoryId) as Row | undefined;
       if (have) return this.fact(Number(have.id));
@@ -627,6 +657,7 @@ export class PeopleStore {
     const r = this.db
       .prepare('INSERT INTO person_facts (person_id, content, memory_id, conversation_id, message_id, happened_on, evidence, sure, category, private, pending, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .run(personId, f.content.slice(0, 2000), f.memoryId ?? null, f.conversationId ?? null, f.messageId ?? null, f.happenedOn, f.evidence ?? null, f.sure ?? 0.7, f.category ?? null, f.private ? 1 : 0, f.pending ?? null, this.#ts());
+    if (f.roomId != null) this.db.prepare('UPDATE person_facts SET room_id = ? WHERE id = ?').run(f.roomId, Number(r.lastInsertRowid));
     if (f.category) this.db.prepare('UPDATE people SET sensitive = 1 WHERE id = ?').run(personId);
     this.#changed();
     return this.fact(Number(r.lastInsertRowid));
@@ -1012,7 +1043,7 @@ export class PeopleStore {
     for (const p of r.found.slice(0, 3)) {
       const who = [p.relation ? p.relation.replace(/^my\s+/i, 'your ') : '', p.fullName && p.fullName !== p.name ? p.fullName : '', p.birthday ? `birthday ${fmtDay(p.birthday)}` : ''].filter(Boolean).join(', ');
       const facts = this.facts(p.id)
-        .filter((f) => !f.pending && (!f.private || ctx.private) && (!f.category || TOPIC[f.category].test(text)))
+        .filter((f) => !f.pending && (!f.private || ctx.private) && (!f.category || TOPIC[f.category].test(text)) && this.roomFactAllowed(f, ctx.roomId))
         .map((f) => {
           const fw = new Set((fold(f.content).match(/[\p{L}\p{N}]{4,}/gu) ?? []).map((w) => w.replace(/s$/, '')));
           const overlap = [...fw].filter((w) => words.has(w) && !fold(p.name).includes(w)).length;
@@ -1035,6 +1066,75 @@ export class PeopleStore {
       if (push(line)) amb.push(a.label);
     }
     return { text: lines.join('\n'), personIds: ids, ambiguous: amb };
+  }
+
+  // ---------------------------------------------------------------- Phase 110: room people (§7.8)
+
+  /** The room links of a card (which rooms, which platform user, his two switches). */
+  rooms(personId: number): PersonRoom[] {
+    return (this.db.prepare('SELECT * FROM people_rooms WHERE person_id = ? ORDER BY room_id').all(personId) as Row[]).map((r) => ({ personId: Number(r.person_id), roomId: Number(r.room_id), platformUserId: String(r.platform_user_id), useInOwn: Number(r.use_in_own) === 1, shareRooms: Number(r.share_rooms) === 1 }));
+  }
+
+  /** The card linked to a room user (by platform user id only: a matching name never links). */
+  personForRoomUser(platformUserId: string, roomId?: number): Person | undefined {
+    const r = (roomId === undefined ? this.db.prepare("SELECT p.* FROM people_rooms x JOIN people p ON p.id = x.person_id WHERE x.platform_user_id = ? AND p.status IN ('proposed','active') ORDER BY p.status = 'active' DESC LIMIT 1").get(platformUserId) : this.db.prepare("SELECT p.* FROM people_rooms x JOIN people p ON p.id = x.person_id WHERE x.platform_user_id = ? AND x.room_id = ? AND p.status IN ('proposed','active') LIMIT 1").get(platformUserId, roomId)) as Row | undefined;
+    return r ? toPerson(r) : undefined;
+  }
+
+  linkRoom(personId: number, roomId: number, platformUserId: string): void {
+    this.db.prepare('INSERT INTO people_rooms (person_id, room_id, platform_user_id) VALUES (?, ?, ?) ON CONFLICT(person_id, room_id) DO UPDATE SET platform_user_id = excluded.platform_user_id').run(personId, roomId, platformUserId);
+  }
+
+  /** His two switches on a card's room link. */
+  setRoomSwitches(personId: number, roomId: number, patch: { useInOwn?: boolean; shareRooms?: boolean }): PersonRoom | undefined {
+    if (patch.useInOwn !== undefined) this.db.prepare('UPDATE people_rooms SET use_in_own = ? WHERE person_id = ? AND room_id = ?').run(patch.useInOwn ? 1 : 0, personId, roomId);
+    if (patch.shareRooms !== undefined) this.db.prepare('UPDATE people_rooms SET share_rooms = ? WHERE person_id = ? AND room_id = ?').run(patch.shareRooms ? 1 : 0, personId, roomId);
+    this.#changed();
+    return this.rooms(personId).find((x) => x.roomId === roomId);
+  }
+
+  /** Cards with the same name as a proposed room card ("Same as Scott?"): the merge flow decides. */
+  sameNameAs(id: number): Person[] {
+    const p = this.get(id);
+    if (!p) return [];
+    return this.#byName(p.name, ['active', 'proposed']).filter((x) => x.id !== id);
+  }
+
+  /**
+   * The gate for room facts (§7.8): in that room's turns yes; in his own chats only with
+   * "Use what she learned in rooms"; in another room only with "Share between rooms" and the same
+   * platform user linked in both rooms. Facts from her own memory (no room) are unchanged.
+   */
+  roomFactAllowed(f: Pick<PersonFact, 'personId' | 'roomId'>, here?: number): boolean {
+    if (f.roomId === null || f.roomId === undefined) return true;
+    if (here === f.roomId) return true;
+    const link = this.db.prepare('SELECT platform_user_id, use_in_own, share_rooms FROM people_rooms WHERE person_id = ? AND room_id = ?').get(f.personId, f.roomId) as Row | undefined;
+    if (!link) return false;
+    if (here === undefined) return Number(link.use_in_own) === 1;
+    if (Number(link.share_rooms) !== 1) return false;
+    return Boolean(this.db.prepare('SELECT 1 FROM people_rooms WHERE person_id = ? AND room_id = ? AND platform_user_id = ?').get(f.personId, here, String(link.platform_user_id)));
+  }
+
+  /** Forget this room (§7.10): its facts, links, and the proposed cards whose only source was this room. Active cards stay (minus the room facts). */
+  forgetRoom(roomId: number): { facts: number; links: number; cardsRemoved: string[]; cardsKept: string[] } {
+    const linked = (this.db.prepare('SELECT person_id FROM people_rooms WHERE room_id = ?').all(roomId) as Row[]).map((r) => Number(r.person_id));
+    const facts = Number(this.db.prepare('DELETE FROM person_facts WHERE room_id = ?').run(roomId).changes);
+    const links = Number(this.db.prepare('DELETE FROM people_rooms WHERE room_id = ?').run(roomId).changes);
+    const cardsRemoved: string[] = [];
+    const cardsKept: string[] = [];
+    for (const id of linked) {
+      const p = this.get(id);
+      if (!p) continue;
+      const otherFacts = (this.db.prepare('SELECT COUNT(*) AS n FROM person_facts WHERE person_id = ?').get(id) as { n: number }).n;
+      const otherRooms = (this.db.prepare('SELECT COUNT(*) AS n FROM people_rooms WHERE person_id = ?').get(id) as { n: number }).n;
+      if (p.status === 'proposed' && p.origin === 'room' && !otherFacts && !otherRooms && !p.mentions) {
+        this.#wipe(id);
+        this.db.prepare('DELETE FROM people WHERE id = ?').run(id);
+        cardsRemoved.push(p.name);
+      } else cardsKept.push(p.name);
+    }
+    this.#changed();
+    return { facts, links, cardsRemoved, cardsKept };
   }
 
   /** Birthdays on cards that aren't already a date memory (those come through the dates as before). */

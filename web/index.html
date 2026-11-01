@@ -1202,6 +1202,56 @@
     </form>
   </dialog>
 
+  <dialog id="room-dialog" class="room-dialog" aria-label="Room">
+    <form method="dialog" class="settings-body room-body" data-nodirty>
+      <h2 id="rm-title">Room</h2>
+      <p id="rm-state" class="room-state small" role="status"></p>
+      <label class="row room-card"><input id="rm-keep" type="checkbox"> <span>Keep up with this room <button type="button" class="tip" data-tip="She reads every message here, not only ones that call her, so she joins the current topic instead of an old one. Kept 7 days, then folded into room memory and a weekly archive in her Library.">?</button></span></label>
+      <p id="rm-platform" class="muted small"></p>
+      <p id="rm-sees" class="small" role="status"></p>
+      <div class="room-settings">
+        <label>Summary model <button type="button" class="tip" data-tip="Small calls that keep a short summary of the room. This computer is free and private; Quick helpers may cost a little. Off keeps only the last lines.">?</button>
+          <select id="rm-model"><option value="local">This computer</option><option value="quick">Quick helpers</option><option value="off">Off: last lines only</option></select>
+        </label>
+        <label>Summaries a day <button type="button" class="tip" data-tip="A cap on the summary calls for this room. Past it she uses the last lines and simple counts until tomorrow.">?</button> <output id="rm-per-day-out" for="rm-per-day">7</output>
+          <input id="rm-per-day" type="range" min="0" max="30" step="1" value="7">
+        </label>
+        <label id="rm-last-day-row" class="row room-card"><input id="rm-last-day" type="checkbox" checked> <span>Read the last day when I turn this on <button type="button" class="tip" data-tip="When you switch this on, she reads up to the last 100 messages from the past day so she isn't starting cold. Needs Read Message History.">?</button></span></label>
+      </div>
+      <p id="rm-usage" class="muted small"></p>
+      <h3>What she knows right now <button type="button" class="tip" data-tip="Exactly what she'd be told about this room if someone called her now: the topic, who's active, what changed since she last spoke.">?</button></h3>
+      <pre id="rm-now" class="room-now"></pre>
+      <h3>Room memory <button type="button" class="tip" data-tip="What the room talked about each week, and short notes about the people there from their own messages. Made every night from the lines older than 7 days.">?</button></h3>
+      <div id="rm-memory" class="room-memory"></div>
+      <div class="room-actions">
+        <button id="rm-archive" type="button" class="ghost">Open the archive in her Library</button>
+        <button id="rm-check" type="button" class="ghost">Check again</button>
+      </div>
+      <h3>Forget this room <button type="button" class="tip" data-tip="Deletes this room's log, its room memory, the people notes from it and its archive in her Library. Can't be undone.">?</button></h3>
+      <div class="room-actions"><button id="rm-forget" type="button" class="danger">Forget this room</button></div>
+    </form>
+  </dialog>
+  <dialog id="room-plan" class="room-dialog" aria-label="Keep up with this room">
+    <form method="dialog" class="settings-body room-body" data-nodirty>
+      <h2>Keep up with this room</h2>
+      <p id="rp-room" class="muted small"></p>
+      <ul id="rp-list" class="room-plan-list"></ul>
+      <p id="rp-sees" class="small" role="status"></p>
+      <p id="rp-error" class="small error" role="alert" hidden></p>
+      <div class="actions"><button id="rp-no" value="cancel" class="ghost">Not now</button><button id="rp-confirm" type="button">Keep up with this room</button></div>
+    </form>
+  </dialog>
+  <dialog id="room-forget" class="room-dialog" aria-label="Forget this room">
+    <form method="dialog" class="settings-body room-body" data-nodirty>
+      <h2>Forget this room?</h2>
+      <p id="rf-counts" class="small"></p>
+      <p id="rf-cards" class="muted small"></p>
+      <label class="row room-card"><input id="rf-sessions" type="checkbox"> <span>Also delete her chat sessions in this room <button type="button" class="tip" data-tip="Off: your chats with her in this room stay (they are yours). On: those sessions are deleted too.">?</button></span></label>
+      <p class="muted small">There is no Undo: the data is really gone, apart from backups made before now.</p>
+      <p id="rf-done" class="small" role="status"></p>
+      <div class="actions"><button value="cancel" class="ghost">Cancel</button><button id="rf-go" type="button" class="danger">Forget this room</button></div>
+    </form>
+  </dialog>
   <dialog id="library" aria-label="Library">
     <form method="dialog" class="settings-body">
       <section id="lib-home">
@@ -1220,6 +1270,13 @@
         <div id="lib-hits" class="lib-hits" hidden></div>
         <p id="lib-summary" class="muted small"></p>
         <div id="lib-list" class="lib-list"></div>
+        <section id="lib-archives" class="lib-archives" hidden data-nodirty>
+          <h3>Room archives <button type="button" class="tip" data-tip="Read-only weekly transcripts of rooms she keeps up with. Searchable by you, and by her when you ask; never added to her chats on their own.">?</button></h3>
+          <p id="la-summary" class="muted small"></p>
+          <input id="la-q" type="search" placeholder="Search the room archives">
+          <div id="la-hits" class="lib-hits" hidden></div>
+          <div id="la-list" class="la-list"></div>
+        </section>
         <label id="lib-shared-row" class="row small" hidden data-nodirty><input id="lib-shared" type="checkbox"> One library for all companions (takes effect after a restart)</label>
       </section>
       <section id="lib-doc" hidden>
@@ -1394,6 +1451,10 @@
           <button id="pp-ch-unfile" type="button" class="ghost small" hidden>Put them back</button>
         </div>
         <p id="pp-ch-status" class="muted small" role="status"></p>
+        <div id="pp-rooms-box" hidden>
+          <h4>Keep up with this room <button type="button" class="tip" data-tip="She reads every message here, not only ones that call her, so she joins the current topic instead of an old one. Kept 7 days, then folded into room memory and a weekly archive in her Library.">?</button></h4>
+          <div id="pp-rooms" class="room-list" data-nodirty></div>
+        </div>
       </section>
       <div class="pp-grid" id="pp-overview">
         <section>
@@ -2662,6 +2723,9 @@
       <label class="row"><input id="tg-cmd-offer" type="checkbox"> Offer a new session when a chat is long</label>
       <p class="muted small cmd-menu-row"><span id="tg-cmd-state" role="status"></span> <button id="tg-cmd-register" type="button" class="ghost">Register menus now</button></p>
       <ul id="tg-cmd-list" class="cmd-list"></ul>
+      <h3>Rooms <button type="button" class="tip" data-tip="The groups she is in. Open one to let her keep up with it: she reads every message there, keeps a short summary and joins the current topic when she's called. Telegram tells bots nothing about deleted messages.">?</button></h3>
+      <p class="muted small">To read every message, turn privacy mode off in @BotFather (/setprivacy → Disable), then remove her from the group and add her again — or make her a group admin.</p>
+      <div id="tg-rooms" class="room-list" data-nodirty></div>
         </section>
         <section class="settings-page" data-page="co-discord" data-group="Connections" data-title="Discord" data-owner-only hidden>
       <p class="muted small">At <strong>discord.com/developers</strong>: New Application → Bot → Reset Token (paste it here) and turn on <em>Message Content Intent</em>. Invite it with OAuth2 → URL Generator (scope <code>bot</code>; Send Messages, Read Message History). Then link yourself.</p>
@@ -2691,6 +2755,9 @@
       <label class="row"><input id="dc-cmd-offer" type="checkbox"> Offer a new session when a chat is long</label>
       <p class="muted small cmd-menu-row"><span id="dc-cmd-state" role="status"></span> <button id="dc-cmd-register" type="button" class="ghost">Register menus now</button></p>
       <ul id="dc-cmd-list" class="cmd-list"></ul>
+      <h3>Rooms <button type="button" class="tip" data-tip="The server channels she has talked in. Open one to let her keep up with it: she reads every message there, keeps a short summary and joins the current topic when she's called.">?</button></h3>
+      <p class="muted small">Reading every message uses Discord's Message Content Intent, which Sara already needs. It's a switch in the Developer Portal for bots in fewer than 100 servers; bigger, verified bots need Discord's approval.</p>
+      <div id="dc-rooms" class="room-list" data-nodirty></div>
         </section>
         <section class="settings-page" data-page="co-apps" data-group="Connections" data-title="Other apps" hidden>
       <p class="muted small">Talk to her from other apps, with her own memory and personality: chat apps like SillyTavern and Open WebUI (they speak the OpenAI way), and MCP apps like Claude Code, Cursor and Claude Desktop (they can use her memory, planner, library and notes). Give each app its own API key. Her safety rules and the AI notice always apply.</p>

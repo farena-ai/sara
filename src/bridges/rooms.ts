@@ -213,7 +213,7 @@ type Row = Record<string, string | number | null>;
 const toRoom = (r: Row): Room => ({ id: Number(r.id), bridge: String(r.bridge), key: String(r.key), kind: r.kind === 'dm' ? 'dm' : 'room', title: String(r.title), parentTitle: (r.parent_title as string | null) ?? null, adult: Number(r.adult) === 1, checkedAt: (r.checked_at as string | null) ?? null });
 
 const ready = new WeakSet<object>();
-function rooms(app: AppContext): AppContext['store']['db'] {
+export function rooms(app: AppContext): AppContext["store"]["db"] {
   if (!ready.has(app.store.db)) {
     roomsTable(app);
     ready.add(app.store.db);

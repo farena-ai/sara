@@ -55,6 +55,7 @@ import { createPlannerRoutes } from './routes/planner.ts';
 import { createBoardRoutes, DEMO_CARD_ACTIONS } from './routes/board.ts';
 import { createMemoryRoutes } from './routes/memory.ts';
 import { createPeopleRoutes } from './routes/people.ts';
+import { createRoomRoutes } from './routes/rooms.ts';
 import { createConnectionsRoutes, createHomeAssistantApi } from './routes/connections.ts';
 import { createAdminRoutes } from './routes/admin.ts';
 import { createModelsRoutes } from './routes/models.ts';
@@ -815,6 +816,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const memoryRoutes = createMemoryRoutes(ctx);
   // Phase 101 (ST6): people cards (src/routes/people.ts).
   const peopleRoutes = createPeopleRoutes(ctx);
+  // Phase 110 (CH4): keeping up with rooms (src/routes/rooms.ts).
+  const roomRoutes = createRoomRoutes(ctx);
   const connectionsRoutes = createConnectionsRoutes(ctx);
   const adminRoutes = createAdminRoutes(ctx);
   const modelsRoutes = createModelsRoutes(ctx);
@@ -1181,6 +1184,7 @@ export function createSaraServer(opts: ServerOptions): Server {
 
     // Memory: memories, scrapbook, moments, photos, uploads, find: src/routes/memory.ts.
     if ((await memoryRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await roomRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await peopleRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 16: Adult mode. Off by default; on only from a web browser with the 18+ confirmation.
     if (a === 'pair' && !b && method === 'POST') {

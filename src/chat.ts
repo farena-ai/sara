@@ -1,6 +1,6 @@
 // One conversational turn: disclosure, safety checks, provider routing, then the agent loop
 // (model → tool calls → results → model …) with streaming and persistence.
-import { roomNoteSection } from './bridges/room.ts';
+import { roomNoteSection, roomNowSection } from './bridges/room.ts';
 import { privateLocalOn } from './net-guard.ts';
 import { onThisComputer } from './private-local.ts';
 import { randomBytes } from 'node:crypto';
@@ -144,6 +144,8 @@ export interface AppContext {
   driftWork?: Promise<unknown>;
   /** Phase 109 (CH3): titles that grow with the session (src/titles.ts; every space but the demo). */
   titles?: import('./titles.ts').TitleKeeper;
+  /** Phase 110 (CH4): the nightly fold of the rooms she keeps up with (the owner's main companion only). */
+  roomKeeper?: import('./bridges/keepup.ts').RoomKeeper;
   /** Long-term memory (Phase 3). Optional so bare test apps work without it. */
   memory?: MemoryStore;
   /** Phase 101 (ST6): people cards built from memory (src/people.ts; same database, per companion). None in the demo. */
@@ -889,6 +891,16 @@ export interface TurnOptions {
   /** 2.35.1: in a shared channel, the room's recent lines for the owner's turn (src/bridges/room.ts); context only, never stored here. */
   roomNote?: string;
   /**
+   * Phase 110 (CH4, §7.5): "the room right now" in a room she keeps up with (src/bridges/now.ts).
+   * The owner's work turns get it through roomNoteSection in place of the raw lines; partner turns
+   * through roomNowSection after the partner note. Context only, never stored.
+   */
+  roomNow?: string;
+  /** Phase 110: the room this turn happens in (its room-people facts may be used here). */
+  roomId?: number;
+  /** Phase 110 (§7.11): a crisis line was read in this room in the last 2 hours: the care note and the resources. */
+  roomCrisis?: boolean;
+  /**
    * Phase 66: one reply in a group chat (src/group-round.ts). The round has already shown the AI
    * notices, run the room-wide minors check, shown crisis help and saved the owner's message in her
    * copy; this turn answers it (or, for banter, the others' last lines) without saving it again.
@@ -1401,7 +1413,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   if (opts.group) safetyNotes.push(opts.group.note);
   // Phase 100: who is asking, and that its words are data (the first safety note she reads after hers).
   if (opts.outside) safetyNotes.push(outsideNote(opts.outside, app.persona.name));
-  if (detectCrisis(text) || label === 'CRISIS' || opts.group?.crisis) {
+  if (detectCrisis(text) || label === 'CRISIS' || opts.group?.crisis || opts.roomCrisis) {
     if ((!opts.resume || opts.replay?.messageEdited) && !opts.group) {
       store.recordSafetyEvent('crisis_referral', conv.id);
       store.addMessage(conv.id, 'notice', `crisis:${CRISIS_RESOURCES}`);
@@ -1565,7 +1577,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     if (app.people && !peopleGate) {
       try {
         if (!opts.resume && userMsg) app.people.noteMessage(conv.id, userMsg.id, text, now.toISOString(), { work: isWorkChannel(conv.channel) });
-        const sec = app.people.section(text, { conversationId: conv.id, work: isWorkChannel(conv.channel), owner: s.ownerName?.trim() || 'the owner', private: Boolean(conv.private), maxChars: Math.floor(memCfg.injectBudgetChars * 0.4), today: localDate(now.toISOString(), s.timeZone) });
+        const sec = app.people.section(text, { conversationId: conv.id, work: isWorkChannel(conv.channel), owner: s.ownerName?.trim() || 'the owner', private: Boolean(conv.private), maxChars: Math.floor(memCfg.injectBudgetChars * 0.4), today: localDate(now.toISOString(), s.timeZone), ...(opts.roomId !== undefined ? { roomId: opts.roomId } : {}) });
         if (sec.text) peopleText = sec.text;
       } catch (err) {
         console.warn(`people: ${(err as Error).message}`);
@@ -1920,7 +1932,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           return { messages: [...earlier, ...own], firstKeptId: userMsg.id, dropped: 0 };
         })()
       : buildHistory(store.messages(conv.id), budget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined);
-    const messages: ChatMessage[] = [{ role: 'system', content: (opts.clientNote?.text.trim() ? system + clientNoteSection(opts.clientNote) : system) + (opts.roomNote?.trim() ? roomNoteSection(opts.roomNote) : '') }];
+    const messages: ChatMessage[] = [{ role: 'system', content: (opts.clientNote?.text.trim() ? system + clientNoteSection(opts.clientNote) : system) + (opts.roomNow?.trim() ? (conv.partner ? roomNowSection(opts.roomNow) : roomNoteSection(opts.roomNow, undefined, true)) : opts.roomNote?.trim() ? roomNoteSection(opts.roomNote) : '') }];
     yield { type: 'context', used: historySize(hist.messages), budget, dropped: hist.dropped };
     if (hist.dropped) {
       // Older parts didn't fit: say so, with this conversation's own summary if there is one.

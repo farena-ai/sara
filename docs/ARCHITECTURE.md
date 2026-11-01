@@ -170,6 +170,10 @@ Every module in `src/`, roughly in the order they were added (the phase is noted
 | `src/cheap.ts` | Phase 109 (CH3, B4): small model calls that never take a turn: `cheapRoute` (local first: a `local` provider in the quick chain, the conversation's own, the Private route, any local provider; `quick` = the quick route as it is; private chats local only), `cheapCall` (the daily ledger checked before, `usageScope` purpose, one fallback), `fenceLines` (others' lines as fenced data), `safeLines` (minors pre-filter) |
 | `src/titles.ts` | Phase 109 (CH3): titles that grow: `TitleKeeper` (`afterTurn`, `atNew`, `nameNow`, `retitleAll`), the triggers (`dueReason`: 6 messages or 1,500 characters, then the word check every 20 messages, /new with 6 new), `titleSourceOf` (old rows), `checkTitle` (redactor, explicit, minors, sensitive words, people cards outside his own chats), `cleanTitle`, `codeTitle` (no-model fallback), `nextPlaceholder` (`Telegram · Oct 31`) |
 | `src/title-evals.ts`, `scripts/eval-titles.ts`, `evals/titles/sessions.json` | Phase 109: the title evals (40 sessions, six languages; scored in code) |
+| `src/bridges/keepup.ts` | Phase 110 (CH4): keeping up with a room: the room log (`logLine`, edits, deletes, minors lines as `[removed]`, crisis lines read → `takeCrisis` within 2 h), the rolling summary (`maybeSummarize`, `cheapCall` `room:<id>` / `room-summary`, daily cap, code fallback), `roomPlan` (the plan card), the nightly fold (`RoomKeeper.tick`: archive → room memory + room-person notes → delete lines older than 7 days), `forgetRoom` |
+| `src/bridges/now.ts` | Phase 110: "the room right now" (`nowBlock`, `roomTurn`): topic, who's active, what changed since she last spoke, whether her old topic is stale, ≤ 3,000 characters, fenced, never stored |
+| `src/routes/rooms.ts`, `web/rooms.js` | Phase 110: the Rooms cards (owner only, never the demo): plan card, room window, *What she knows right now*, room memory, *Forget this room* |
+| `src/room-evals.ts`, `scripts/eval-rooms.ts`, `evals/rooms/channels.json` | Phase 110: the room evals (12 replayed busy channels, six languages; keep-up on vs off; scored in code) |
 | `src/subscriptions/chatgpt.ts` | Sign in with ChatGPT (dynamic registration, PKCE, JWKS-verified ID token, refresh, revoke) |
 | `src/subscriptions/index.ts` | Subscription logins: ChatGPT, Claude token, Grok device login; CLI runtimes |
 | `src/providers/chatgpt.ts` | ChatGPT plan provider (Responses API, namespaced tools, plan-limit errors) |
@@ -335,6 +339,17 @@ in-memory store) and `nextSession` calls `atNew(prev.id)`. The model call goes t
 row in place. Routes: `PATCH /api/conversations/:id {title | keepTitle | titleSource:'auto'}`, `POST
 /api/conversations/:id/retitle`, `GET|PUT /api/chats/titles`, `POST /api/chats/titles/retitle-all`;
 `GET /api/conversations/:id` adds `titleSource`, `titleHistory`, `titleNever`.
+
+**Keeping up with a room (Phase 110, CH4).** Per room and opt-in (a plan card he confirms), Sara logs
+every line of a Discord server channel or Telegram group into `room_lines` (7 days), keeps a cheap
+rolling summary (`room_summaries`), and gives her turns there a fenced *room right now* block. The
+room log is never her memory of the owner: nothing from it reaches MemoryStore, the memory worker,
+recall or skills, and reading never starts a turn or a tool. Nightly after 04:00 the week is archived
+as a read-only Library document (`library_docs.collection` *Archive: <room>*, `read_only`, `room_id`,
+`period`; excluded from the default library search, found with `in: 'archives'|'all'` in the owner's
+own turns only), folded into `room_memory` and `room_people` (which propose People cards, gated to
+that room unless the card's `people_rooms` switches say otherwise), and the raw lines are deleted.
+Owner and main companion only; never members or the demo.
 
 **Household mode (Phase 71).** Each extra person the owner invites gets a whole data folder of their
 own, `members/<id>/`, laid out like the owner's (their own `owner.json`, `sara.db`, `settings.json`,

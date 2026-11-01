@@ -7,6 +7,7 @@ import { forgetMemory } from '../memory-worker.ts';
 import { backfillDone, startBackfill } from '../people-backfill.ts';
 import { CIRCLES, FACT_CATEGORIES, type FactCategory, type Person, type PersonFact, validBirthday } from '../people.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { keepRoom, roomName } from '../bridges/keepup.ts';
 
 const PHOTO_MAX = 3 * 1024 * 1024;
 
@@ -37,6 +38,18 @@ export function createPeopleRoutes(ctx: RouteCtx): RouteHandler {
       links: people.links(p.id).map((l) => ({ id: l.person.id, name: l.person.name, relation: l.relation, status: l.person.status })),
       mentions: people.recentMentions(p.id, 6).map((m) => ({ ...m, title: title(m.conversationId) })),
       conversations: people.conversationsMentioning(p.id),
+      // Phase 110 (CH4, §7.8): "Seen in #general · My Server (Discord)" and his two switches per room.
+      rooms: people.rooms(p.id).map((x) => {
+        const r = (() => {
+          try {
+            return keepRoom(app, x.roomId);
+          } catch {
+            return undefined;
+          }
+        })();
+        return { ...x, name: r ? roomName(r) : null, bridge: r?.bridge ?? null };
+      }),
+      sameAs: p.origin === 'room' && p.status === 'proposed' ? people.sameNameAs(p.id).map((o) => ({ id: o.id, name: o.name, status: o.status })) : [],
     });
     const person = (raw: string | undefined) => {
       const id = Number(raw);

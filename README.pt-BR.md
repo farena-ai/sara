@@ -14,7 +14,7 @@ em um só app para a web, Windows, Mac e celular.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1423%20passing-brightgreen" alt="1423 tests passing">
+  <img src="https://img.shields.io/badge/tests-1439%20passing-brightgreen" alt="1439 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ em um só app para a web, Windows, Mac e celular.
   <sub>Uma sessão real com um modelo local (qwen3.8 27B no Ollama, uma RTX 5090) em um servidor de teste descartável, no visual Noite: ela anima quem está conversando, escreve um app pequeno e o teste dele enquanto o modelo transmite, pede permissão antes de rodar um comando, pega um bug de verdade com um teste que falha e corrige até os 7 testes passarem. Quadros escolhidos da gravação; nada neles foi editado.</sub>
 </p>
 
-> **Status:** 2.42, licença MIT, com cinquenta e três e duas versões com novos recursos desde a 1.0 (todas abaixo). Da
+> **Status:** 2.43, licença MIT, com cinquenta e quatro e duas versões com novos recursos desde a 1.0 (todas abaixo). Da
 > 2.5 à 2.8 o app inteiro ganhou um visual novo. O
 > [app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) está no Google
 > Play; o app de iPhone e a versão da Mac App Store chegam assim que a Apple aprovar. Leia
@@ -82,6 +82,7 @@ Guias de um minuto, gravados num servidor de teste com um modelo local (em ingl�
 
 | Versão | O que você ganha |
 |---|---|
+| **2.43** · Ela acompanha a sala | **Em canais do Discord e grupos do Telegram ela acompanha a conversa toda** (liga por sala; um cartão de plano mostra antes o modelo e o limite diário). Quando alguém a chama, ela sabe do que se fala agora, quem está ali e o que mudou desde que falou, e entra no assunto atual em vez de um de uma hora atrás. Cada semana é arquivada na Biblioteca dela como transcrição pesquisável e resumida numa memória da sala com notas sobre as pessoas (cartões de pessoas propostos). *Esquecer esta sala* apaga tudo. 12 canais movimentados reproduzidos em 6 idiomas: no assunto atual 12/12. |
 | **2.42** · Títulos que crescem | **Títulos que dizem do que a conversa tratou.** O primeiro é provisório; depois de algumas trocas, quando o assunto muda claramente e no `/new`, um modelo pequeno no seu próprio computador dá um novo nome («Começar uma horta» → «Declarar impostos como freelancer»). Títulos que você define nunca mudam, os anteriores ficam nas informações da conversa, nada sensível ou privado vai para um título e há um limite diário. 40 sessões de teste: 0,90 no assunto com um modelo local de 12B. |
 | **2.41** · Uma lista de sessões arrumada | **Cada app de chat tem seu projeto.** Telegram, Discord e cada ponte de plugin (WhatsApp, Signal…) têm um projeto embutido que junta as conversas deles, e suas conversas da web e dos apps ficam nos seus projetos. As conversas existentes são arrumadas uma vez, com Desfazer. Salas mostram o nome real (#general · Servidor), sessões anteriores ficam sob a conversa e listas longas mostram as mais novas com *Ver mais*. Renomeie ou oculte um projeto de canal; agrupe um movimentado por sala. |
 | **2.40** · Comandos de chat | **`/new`, `/reset`, `/stop`, `/status`, `/help`, `/model` e `/remember` em todo lugar:** no Telegram e no Discord (nos próprios menus de comandos, registrados para você, no seu idioma), no app web e como "Sara, nova" quando a barra não está à mão. `/new` começa uma sessão nova e guarda a antiga (resumida); `/status` mostra o modelo, quanto a sessão está cheia e o uso; quando a sessão está quase cheia ela mesma oferece `/new`. Comandos só do dono são recusados para qualquer outra pessoa, sempre. |
@@ -150,10 +151,9 @@ Todas as versões: [CHANGELOG.md](CHANGELOG.md) · [versões](https://github.com
 
 Na ordem de construção, uma versão cada ([a lista completa](docs/ROADMAP.md)):
 
-- **O básico de um agente** (2.29–2.36): skills no formato aberto Agent Skills e skills que ela aprende com o que você repete, plugins e hooks, um quadro Kanban que ela toca, A2A com outros agentes, cartões de pessoas, webhooks, a própria agenda dela (opcional).
-- **Mudança de outro agente** (2.37–2.39): traga um companheiro inteiro do Hermes Agent ou OpenClaw: personalidade, memórias, pessoas, skills, histórico e configurações, com um relatório do que veio.
-- **Chats e sessões** (2.40–2.43): /new, /reset e outros comandos no Telegram e Discord, um projeto por canal, títulos que crescem com a sessão, e ela acompanha a conversa toda nos canais de grupo.
 - **Hoje, repensado** (2.44–2.45): um layout que você pode organizar, em telas grandes e celulares.
+- **Uma rodada de acabamento** (2.46): controles de personalidade mais claros com exemplos, ajuda em cada página, um caminho para iniciantes e outro para programadores.
+- **Depois** (2.47–2.60): fotos e arquivos nos apps de chat, falar com ela enquanto trabalha, Signal, e-mail, WhatsApp, iMessage (BlueBubbles) e SMS, "continue até terminar", checagens de código após cada edição, uma galeria de rotinas e **a Sara Store** para plugins, habilidades e servidores MCP (ComfyUI, Blender, Playwright…) com instalação em um clique e um jeito de enviar os seus.
 - O app de iPhone (aguardando a Apple) e suas ideias nas [Discussions](https://github.com/farena-ai/sara/discussions).
 
 O plano completo: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -329,8 +329,8 @@ verificava. O que ela acrescenta hoje é o jeito de trabalhar (roda os testes, p
 de passos arriscados, mostra o que foi executado), não uma nota maior nesses conjuntos. Detalhes,
 resultados por tarefa e como rodar de novo: [docs/RESULTS.md](docs/RESULTS.md).
 
-E também `npm run check`: uma checagem de tipos e 1438 testes automáticos com um modelo falso
-roteirizado (sem rede, sem GPU): 1423 passam no Windows e os outros 8 são testes de isolamento só
+E também `npm run check`: uma checagem de tipos e 1454 testes automáticos com um modelo falso
+roteirizado (sem rede, sem GPU): 1439 passam no Windows e os outros 8 são testes de isolamento só
 para Linux, executados em um servidor Linux.
 
 ## Como a Sara se compara

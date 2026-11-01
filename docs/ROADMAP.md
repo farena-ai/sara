@@ -113,18 +113,33 @@ version's details are in the [changelog](../CHANGELOG.md).
 | 107 | Chat commands everywhere: /new, /reset, /stop, /status, /help in Telegram, Discord and later channels | 2.40 |
 | 108 | A tidy session list: a project per channel (Telegram, Discord…), and *See more* in long projects | 2.41 |
 | 109 | Session titles that improve as the conversation goes on (your own titles stay) | 2.42 |
+| 110 | She keeps up with the room: in Discord channels and Telegram groups she follows the whole conversation (opt-in per channel), so she joins what's happening now, not an hour-old topic, remembers the room and its people over time, and keeps older weeks as a searchable archive in her Library | 2.43 |
 
 ## Coming next
 
-In build order; one release per phase. The computer use track is complete (2.20–2.28); the agent staples are complete (2.29–2.36); moving in from other agents is complete (2.37–2.39); chats and sessions are under way (chat commands, the tidy session list and growing titles are out).
+In build order; one release per phase. The computer use track is complete (2.20–2.28); the agent staples are complete (2.29–2.36); moving in from other agents is complete (2.37–2.39); chats and sessions are complete (2.40–2.43); next, Today rethought and a polish pass.
 
 | Phase | Plan | Version |
 |---|---|---|
 | 60 | Phones: locked-screen calls on iPhone (CallKit), one-tap pairing on iPhone, the iPhone app in the App Store (when Apple approves it) | after Apple's approval |
 | 64 | Be found: app stores, NAS catalogs, Home Assistant's store and directories | ongoing |
-| 110 | She keeps up with the room: in Discord channels and Telegram groups she follows the whole conversation (opt-in per channel), so she joins what's happening now, not an hour-old topic, remembers the room and its people over time, and keeps older weeks as a searchable archive in her Library | 2.43 |
 | 111 | Today, rethought: a designed layout (your day, needs you, with her, work), tiles you can arrange, a Mail tile that shows what changed | 2.44 |
 | 112 | Today on phones: one column in priority order, swipe rows, pull to refresh | 2.45 |
+| 113 | The polish pass: clearer personality dials with examples, better guidance on every page, visual consistency, a beginner path and a coder path | 2.46 |
+| 114 | Chat apps catch up: photos and files both ways, a live progress message | 2.47 |
+| 115 | Talk to her while she works (steer, queue, /btw) and a loop guard | 2.48 |
+| 116 | Signal and email | 2.49 |
+| 117 | Keep going until it's done, and repeating loops | 2.50 |
+| 118 | "When it comes up" reminders; pick up a chat in another app | 2.51 |
+| 119 | Coding precision: language-server checks after edits, @-references | 2.52 |
+| 120 | Beginner setup: a routines gallery and a one-click safety check-up | 2.53 |
+| 121 | WhatsApp (official API), iMessage via BlueBubbles, SMS via AgentText, Matrix | 2.54 |
+| 122 | Big tool sets: a lean tool list, /compact | 2.55 |
+| 123 | The Sara Store: plugins, skills and MCP servers (ComfyUI, Blender, Playwright…) at backstagecoding.com/sara/store | 2.56 |
+| 124 | One-click installs from Settings, and submit your own plugins and MCP entries | 2.57 |
+| 125 | "Hey Sara" on desktop and Android | 2.58 |
+| 126 | Companion packs to share | 2.59 |
+| 127 | A second polish pass | 2.60 |
 
 Ideas and requests are welcome in [Discussions](https://github.com/farena-ai/sara/discussions)
 and [issues](https://github.com/farena-ai/sara/issues). See [CONTRIBUTING.md](../CONTRIBUTING.md).

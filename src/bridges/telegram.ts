@@ -20,6 +20,8 @@ import { takeChatDocument, type SharedDoc } from '../library/intake.ts';
 import { everyoneCalled, nameCalled } from './rules.ts';
 import { askerLanguage, chatsSettings, menuHash, menuList, nearlyFullOffer, nextSession, OTHER_LANGS, ownerLanguage, parseCommand, runCommand, say, setSessionModel, TELEGRAM_LANGS, type Asker, type BridgeAdapter, type CommandName, type CommandReply, type ModelPick, type ParsedCommand, type Place } from './commands.ts';
 import { channelProjectId, noteRoom } from './rooms.ts';
+import { editLine, keepRoomByKey, leftRoom, logLine, maybeSummarize, noteHerLine, reading, setSeesAll, type KeepRoom, type Who } from './keepup.ts';
+import { roomTurn } from './now.ts';
 
 export interface TelegramSettings {
   enabled: boolean;
@@ -71,12 +73,20 @@ interface TgMessage {
   photo?: unknown;
   /** Phase 44: a file (PDF, Word…) the owner sends goes to her library. */
   document?: { file_id: string; file_name?: string; mime_type?: string; file_size?: number };
-  reply_to_message?: { from?: TgUser };
+  reply_to_message?: { message_id?: number; from?: TgUser };
   entities?: { type: string; offset: number; length: number }[];
+  /** Phase 110: when it was sent (Unix seconds). */
+  date?: number;
+  video?: unknown;
+  sticker?: { emoji?: string };
 }
 interface TgUpdate {
   update_id: number;
   message?: TgMessage;
+  /** Phase 110 (CH4): an edit in a group she keeps up with updates the logged line. */
+  edited_message?: TgMessage;
+  /** Phase 110: her own membership changed (removed from a group: keep-up stops there). */
+  my_chat_member?: { chat: { id: number; type: string }; new_chat_member?: { status?: string } };
   callback_query?: { id: string; from: TgUser; data?: string; message?: TgMessage };
 }
 
@@ -233,7 +243,7 @@ export class TelegramBridge {
     let backoff = 1000;
     while (!signal.aborted) {
       try {
-        const updates = await this.#call<TgUpdate[]>('getUpdates', { offset: this.#offset, timeout: 50, allowed_updates: ['message', 'callback_query'] }, AbortSignal.any([signal, AbortSignal.timeout(65_000)]));
+        const updates = await this.#call<TgUpdate[]>('getUpdates', { offset: this.#offset, timeout: 50, allowed_updates: ['message', 'callback_query', 'edited_message', 'my_chat_member'] }, AbortSignal.any([signal, AbortSignal.timeout(65_000)]));
         backoff = 1000;
         this.#error = undefined;
         for (const u of updates) {
@@ -257,7 +267,77 @@ export class TelegramBridge {
   }
 
   async send(chatId: number, text: string, extra: Record<string, unknown> = {}): Promise<void> {
-    for (const part of splitMessage(text)) await this.#call('sendMessage', { chat_id: chatId, text: part, ...extra });
+    for (const part of splitMessage(text)) {
+      const m = await this.#call<{ message_id?: number } | undefined>('sendMessage', { chat_id: chatId, text: part, ...extra });
+      // Phase 110: her own lines in a group she keeps up with are logged too (with Telegram's id).
+      this.#herLine(chatId, m?.message_id, part);
+    }
+  }
+
+  // ------------------------------------------------------------------ Phase 110 (CH4): keeping up
+
+  #keeping(chatId: number): KeepRoom | undefined {
+    if (chatId > 0) return undefined; // private chats are not rooms
+    try {
+      const r = keepRoomByKey(this.#app, 'telegram', String(chatId));
+      return reading(r) ? r : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  #herLine(chatId: number, id: number | undefined, text: string): void {
+    const room = this.#keeping(chatId);
+    if (!room) return;
+    const line = logLine(this.#app, room, { platformId: id === undefined ? null : String(id), authorId: String(this.#bot?.id ?? 'her'), author: this.#app.persona.name, who: 'her', text });
+    if (line) noteHerLine(this.#app, room, line.id);
+  }
+
+  /** A message's text as the log keeps it (attachments as [photo] [file: x.pdf] [voice message]; voice isn't transcribed passively). */
+  #logText(msg: TgMessage): string {
+    const marks = [msg.photo ? '[photo]' : '', msg.voice || msg.audio ? '[voice message]' : '', msg.video ? '[video]' : '', msg.document ? `[file: ${(msg.document.file_name ?? 'file').slice(0, 80)}]` : '', msg.sticker ? `[sticker${msg.sticker.emoji ? ` ${msg.sticker.emoji}` : ''}]` : ''].filter(Boolean);
+    return [(msg.text ?? msg.caption ?? '').trim(), ...marks].filter(Boolean).join(' ');
+  }
+
+  /** §7.3 capture: first in handle(), before the bot check and the called check; only for groups with keep-up on. */
+  #passive(msg: TgMessage): void {
+    if (msg.chat.type === 'private' || !msg.from) return;
+    const room = this.#keeping(msg.chat.id);
+    if (!room) return;
+    const who: Who = msg.from.is_bot ? (msg.from.id === this.#bot?.id ? 'her' : 'bot') : isTelegramOwner(telegramSettings(this.#app), msg.from.id) ? 'owner' : 'person';
+    const text = this.#logText(msg);
+    if (!text) return;
+    const at = msg.date ? new Date(Math.min(msg.date * 1000, this.#app.now().getTime())).toISOString() : undefined;
+    logLine(this.#app, room, { platformId: String(msg.message_id), authorId: String(msg.from.id), author: msg.from.first_name || msg.from.username || 'someone', who, text, replyTo: msg.reply_to_message?.message_id !== undefined ? String(msg.reply_to_message.message_id) : null, ...(at ? { at } : {}) });
+    void maybeSummarize(this.#app, room);
+  }
+
+  /**
+   * §7.2 the platform check: `getMe.can_read_all_group_messages` (privacy mode off, then re-added)
+   * or the bot is an admin of the group (`getChatMember`). Otherwise keep-up is refused (or paused)
+   * with the fix steps.
+   */
+  async checkRoom(chatId: number): Promise<{ seesAll: string; reason?: string }> {
+    const r = keepRoomByKey(this.#app, 'telegram', String(chatId));
+    let seesAll = 'no:not connected';
+    try {
+      const me = await this.#call<TgUser & { can_read_all_group_messages?: boolean }>('getMe');
+      this.#bot = me;
+      if (me.can_read_all_group_messages) seesAll = 'yes';
+      else {
+        const m = await this.#call<{ status?: string }>('getChatMember', { chat_id: chatId, user_id: me.id }).catch(() => ({}) as { status?: string });
+        if (m.status === 'administrator' || m.status === 'creator') seesAll = 'admin';
+        else if (m.status === 'left' || m.status === 'kicked') seesAll = 'no:left';
+        else seesAll = 'no:privacy';
+      }
+    } catch (err) {
+      seesAll = `no:${(err as Error).message.replace(this.#token ?? '', '***').slice(0, 120)}`;
+    }
+    if (r) {
+      setSeesAll(this.#app, r.id, seesAll);
+      if (seesAll === 'no:left') leftRoom(this.#app, r.id);
+    }
+    return { seesAll, ...(seesAll.startsWith('no:') ? { reason: seesAll.slice(3) } : {}) };
   }
 
   /** Handles one update (public for tests). `queued`: return once the turn is queued, not when it's done. */
@@ -276,7 +356,22 @@ export class TelegramBridge {
       } else await this.#call('answerCallbackQuery', { callback_query_id: q.id }).catch(() => undefined);
       return;
     }
+    // Phase 110 (CH4): edits in a group she keeps up with; her own removal from a group stops keep-up there.
+    if (u.edited_message) {
+      const e = u.edited_message;
+      const room = this.#keeping(e.chat.id);
+      if (room) editLine(this.#app, room, String(e.message_id), this.#logText(e));
+      return;
+    }
+    if (u.my_chat_member) {
+      const st = u.my_chat_member.new_chat_member?.status;
+      const r = keepRoomByKey(this.#app, 'telegram', String(u.my_chat_member.chat.id));
+      if (r && (st === 'left' || st === 'kicked')) leftRoom(this.#app, r.id);
+      return;
+    }
     const msg = u.message;
+    // Phase 110: in a group she keeps up with, every line is logged first (bots too, marked).
+    if (msg) this.#passive(msg);
     if (!msg?.from || msg.from.is_bot) return;
     const text = (msg.text ?? msg.caption ?? '').trim();
     const isPrivate = msg.chat.type === 'private';
@@ -361,7 +456,7 @@ export class TelegramBridge {
     const prev = this.#queues.get(conv.id) ?? Promise.resolve();
     const gen = this.#cleared.get(conv.id) ?? 0;
     this.#waiting.set(conv.id, (this.#waiting.get(conv.id) ?? 0) + 1);
-    const where = { place, lang: fromOwner ? ownerLanguage(this.#app) : askerLanguage(msg.from.language_code), ownerChat: msg.from.id };
+    const where = { place, lang: fromOwner ? ownerLanguage(this.#app) : askerLanguage(msg.from.language_code), ownerChat: msg.from.id, msgId: String(msg.message_id), replyTo: msg.reply_to_message?.message_id !== undefined ? String(msg.reply_to_message.message_id) : null };
     const next = prev
       .then(() => {
         if ((this.#cleared.get(conv.id) ?? 0) !== gen) return;
@@ -522,7 +617,7 @@ export class TelegramBridge {
     }
   }
 
-  async #turn(conv: Conversation, chatId: number, content: string, isOwner: boolean, voice = false, docs: SharedDoc[] = [], where?: { place: Place; lang: string; ownerChat: number }): Promise<void> {
+  async #turn(conv: Conversation, chatId: number, content: string, isOwner: boolean, voice = false, docs: SharedDoc[] = [], where?: { place: Place; lang: string; ownerChat: number; msgId?: string; replyTo?: string | null }): Promise<void> {
     const app = this.#app;
     let fill: { used: number; budget: number; dropped: number } | undefined;
     // Wait while a web turn runs in the same conversation.
@@ -563,8 +658,10 @@ export class TelegramBridge {
     try {
       // 2.35.1: in a shared channel the owner's side sees the room, and the room hears him (src/bridges/room.ts).
       const room = conv.channel.startsWith('telegram-work') ? roomConversation(app, 'telegram', String(chatId)) : undefined;
-      const note = roomNote(app, room);
-      const opts = { ...(docs.length ? { docs } : {}), ...(note ? { roomNote: note } : {}) };
+      // Phase 110 (CH4, §7.5): with keep-up on, "the room right now" (fed from the room log) instead of the raw lines.
+      const now = chatId < 0 && where ? await roomTurn(app, 'telegram', String(chatId), { replyTo: where.replyTo ?? null, callerId: where.msgId ?? null, conversationId: conv.id }).catch(() => ({}) as Awaited<ReturnType<typeof roomTurn>>) : {};
+      const note = now.roomNow ? undefined : roomNote(app, room);
+      const opts = { ...(docs.length ? { docs } : {}), ...(note ? { roomNote: note } : {}), ...(now.roomNow ? { roomNow: now.roomNow } : {}), ...(now.roomId !== undefined ? { roomId: now.roomId } : {}), ...(now.roomCrisis ? { roomCrisis: true } : {}) };
       if (app.runTracked) await app.runTracked(conv.id, content, onEvent, opts);
       else {
         const { runTurn } = await import('../chat.ts');

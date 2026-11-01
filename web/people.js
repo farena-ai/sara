@@ -260,6 +260,7 @@ function tile(p) {
   top.append(el('span', 'ppl-name', p.name));
   if (p.status === 'proposed') top.append(el('span', 'ppl-badge check', t('to check')));
   else if (p.origin === 'her') top.append(el('span', 'ppl-badge her', t('added on her own')));
+  if (p.origin === 'room') top.append(el('span', 'ppl-badge room', t('from a room')));
   mid.append(top);
   if (p.relation) mid.append(el('span', 'ppl-rel', p.relation));
   const sub = [p.lastMentioned ? t('mentioned {when}', { when: agoWords(p.lastMentioned) }) : '', p.birthday ? birthdayWords(p.birthday) : ''].filter(Boolean);
@@ -276,7 +277,7 @@ function proposedCard(p) {
   const why = [p.conversations ? (p.conversations === 1 ? t('Mentioned in 1 conversation') : t('Mentioned in {n} conversations', { n: p.conversations })) : '', p.factCount === 1 ? t('1 thing she knows') : t('{n} things she knows', { n: p.factCount })].filter(Boolean);
   const card = proposalCard({
     title: p.name,
-    source: p.origin === 'her' ? t('added on her own') : t('from what she remembers'),
+    source: p.origin === 'her' ? t('added on her own') : p.origin === 'room' ? `${t('from a room')}${p.relation ? ` · ${p.relation}` : ''}` : t('from what she remembers'),
     chips: [...(p.relation ? [{ text: p.relation }] : []), { text: CIRCLE_ONE[p.circle]?.() ?? p.circle, cls: `ppl-circle c-${p.circle}` }],
     why: [why.join(' · ')],
     body: [facts],
@@ -515,6 +516,33 @@ function renderCard() {
     knows.append(ul);
   } else knows.append(el('p', 'muted small', t('Nothing yet. When you talk about {name}, she adds it here with where she heard it.', { name: p.name })));
   parts.push(knows);
+  // Phase 110 (CH4, §7.8): the rooms she knows this person from, with his two switches per room.
+  if (d.rooms?.length) {
+    const sec = el('section', 'ppl-sec ppl-rooms');
+    sec.append(el('h4', '', t('From rooms')));
+    for (const r of d.rooms) {
+      const row = el('div', 'ppl-room');
+      row.append(el('p', 'small', t('Seen in {room}', { room: `${r.name ?? '?'}${r.bridge ? ` (${r.bridge === 'discord' ? 'Discord' : r.bridge === 'telegram' ? 'Telegram' : r.bridge})` : ''}` })));
+      for (const [key, label, tip] of [
+        ['useInOwn', t('Use what she learned in rooms'), t('Lets her use the notes from rooms about this person in your own chats too. Off: she only uses them in that room.')],
+        ['shareRooms', t('Share between rooms'), t('When this person is in several of your rooms, lets her use what she learned about them in one room in the others.')],
+      ]) {
+        const lab = el('label', 'row ppl-room-switch');
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.checked = Boolean(r[key]);
+        box.addEventListener('change', () => void api(`/people/${p.id}/rooms/${r.roomId}`, { method: 'PUT', body: { [key]: box.checked } }).catch(() => (box.checked = !box.checked)));
+        const tipBtn = el('button', 'tip', '?');
+        tipBtn.type = 'button';
+        tipBtn.dataset.tip = tip;
+        lab.append(box, el('span', '', label), tipBtn);
+        row.append(lab);
+      }
+      sec.append(row);
+    }
+    if (d.sameAs?.length) sec.append(el('p', 'muted small', t('Same as {names}? Use Merge with… if so.', { names: d.sameAs.map((x) => x.name).join(', ') })));
+    parts.push(sec);
+  }
   if (sens.length) {
     const det = el('details', 'ppl-sec ppl-sens');
     if (st.sensitive) det.open = true;

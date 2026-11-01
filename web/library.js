@@ -297,7 +297,10 @@ async function openDoc(id, { quiet = false, page = 0 } = {}) {
   showContents(d, r.sections);
   $('#lib-doc-download').setAttribute('download', d.name);
   $('#lib-doc-keep').hidden = d.keep;
-  $('#lib-doc-relearn').hidden = !d.keep || d.status !== 'ready';
+  $('#lib-doc-relearn').hidden = !d.keep || d.status !== 'ready' || d.readOnly;
+  // Phase 110: a room archive is read-only (no re-read, no learning; Remove stays: his records, his choice).
+  $('#lib-doc-reread').hidden = Boolean(d.readOnly);
+  if (d.readOnly) $('#lib-doc-state').textContent = t('A read-only room archive: other people\'s words, kept as your record. She never learns from it by herself.');
   $('#lib-doc-facts').replaceChildren(
     ...(r.facts.length
       ? r.facts.map((f) => {
@@ -349,6 +352,74 @@ function showHome() {
   $('#lib-doc').hidden = true;
   $('#lib-home').hidden = false;
   void loadList();
+  void loadArchives();
+}
+
+// ---------- Phase 110 (CH4): the room archives (rooms → weeks, search, read-only viewer)
+let archiveRoom = null;
+async function loadArchives() {
+  const box = $('#lib-archives');
+  let r;
+  try {
+    r = await api(`/library/archives${archiveRoom ? `?room=${archiveRoom}` : ''}`);
+  } catch {
+    box.hidden = true; // not the owner's space, or the demo
+    return;
+  }
+  box.hidden = !r.rooms.length && !archiveRoom;
+  $('#la-summary').textContent = r.counts.docs ? t('Archived weeks: {n} ({size}). Read-only; kept until you delete them.', { n: r.counts.docs, size: sizeText(r.counts.bytes) }) : t('No archived weeks yet.');
+  $('#la-list').replaceChildren(
+    ...r.rooms.map((room) => {
+      const sec = el('div', 'la-room');
+      sec.append(el('h4', '', room.collection.replace(/^Archive: /, '')));
+      for (const d of room.weeks) {
+        const card = el('button', 'lib-card la-week');
+        card.type = 'button';
+        card.append(el('span', 'lib-icon', '🗂'));
+        const body = el('span', 'lib-card-body');
+        body.append(el('span', 'lib-name', d.name.replace(/^Archive: .* — /, '')), el('span', 'lib-state small muted', `${t('Passages: {n}', { n: d.passages })} · ${sizeText(d.size)}`));
+        card.append(body);
+        card.addEventListener('click', () => void openDoc(d.id));
+        sec.append(card);
+      }
+      return sec;
+    }),
+  );
+}
+let archiveTimer;
+$('#la-q').addEventListener('input', () => {
+  clearTimeout(archiveTimer);
+  archiveTimer = setTimeout(async () => {
+    const q = $('#la-q').value.trim();
+    const box = $('#la-hits');
+    if (!q) return void (box.hidden = true);
+    try {
+      const r = await api(`/library/archives?q=${encodeURIComponent(q)}${archiveRoom ? `&room=${archiveRoom}` : ''}`);
+      box.hidden = false;
+      box.replaceChildren(
+        ...(r.hits.length
+          ? r.hits.map((h) => {
+              const b = el('button', 'lib-hit');
+              b.type = 'button';
+              b.append(el('span', 'lib-name small', `${(h.collection ?? '').replace(/^Archive: /, '')} · ${h.place}`), el('span', 'small', h.text.slice(0, 300)));
+              b.addEventListener('click', () => void openDoc(h.docId));
+              return b;
+            })
+          : [el('p', 'muted small', t('Nothing found in the room archives.'))]),
+      );
+    } catch (err) {
+      box.hidden = false;
+      box.replaceChildren(el('p', 'muted small', err.message));
+    }
+  }, 300);
+});
+
+/** Opens the Library at the room archives (of one room when given). */
+export async function openArchives(roomId = null) {
+  archiveRoom = roomId;
+  await openLibrary();
+  await loadArchives();
+  $('#lib-archives').scrollIntoView({ block: 'start' });
 }
 
 async function addFiles(files) {
@@ -387,6 +458,7 @@ async function addFiles(files) {
 }
 
 export async function openLibrary(docId, page = 0) {
+  if (!docId) archiveRoom = archiveRoom ?? null;
   $('#lib-upload-status').textContent = '';
   $('#lib-q').value = '';
   $('#lib-hits').hidden = true;

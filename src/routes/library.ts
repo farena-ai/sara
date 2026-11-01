@@ -207,6 +207,40 @@ export function createLibraryRoutes(ctx: RouteCtx): RouteHandler {
         if (err instanceof LibUploadError) throw new HttpError(err.status, err.message, err.extra);
         throw err;
       };
+      // Phase 110 (CH4, §7.9): the Archives (rooms → weeks), its search and one collection's documents.
+      // The owner's only: members' spaces have no rooms, and the demo none.
+      const archivesAllowed = () => {
+        if (opts.demo || opts.member) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+      };
+      if (b === 'archives' && !c && method === 'GET') {
+        archivesAllowed();
+        const text = q.get('q')?.trim() ?? '';
+        const roomId = q.get('room') ? Number(q.get('room')) : undefined;
+        if (text) {
+          const hits = await lib.find(text, { limit: 12, timeoutMs: 4000, in: 'archives', ...(roomId !== undefined && Number.isInteger(roomId) ? { roomId } : {}) });
+          return send(res, 200, { hits: hits.map((h) => ({ docId: h.doc.id, name: h.doc.name, collection: h.doc.collection, period: h.doc.period, place: h.passage.place, heading: h.passage.heading, text: h.passage.text, ord: h.passage.ord })) });
+        }
+        const docs = lib.archives(roomId !== undefined && Number.isInteger(roomId) ? roomId : undefined);
+        const rooms = new Map<string, { collection: string; roomId: number | null; weeks: ReturnType<typeof docView>[] }>();
+        for (const d of docs) {
+          const k = d.collection ?? d.name;
+          if (!rooms.has(k)) rooms.set(k, { collection: k, roomId: d.roomId, weeks: [] });
+          rooms.get(k)!.weeks.push(docView(d));
+        }
+        return send(res, 200, { rooms: [...rooms.values()], counts: lib.archiveCounts() });
+      }
+      if (b === 'archives' && c === 'rename' && method === 'POST') {
+        archivesAllowed();
+        const body = await readJson(req);
+        const from = String(body.from ?? '');
+        const to = String(body.to ?? '').trim();
+        if (!from || !to) throw new HttpError(400, 'Bad request');
+        return send(res, 200, { renamed: lib.renameCollection(from, to) });
+      }
+      if (!b && method === 'GET' && q.get('collection')) {
+        archivesAllowed();
+        return send(res, 200, { docs: lib.list({ collection: q.get('collection')! }).map(docView) });
+      }
       if (!b && method === 'GET') {
         const t = embedTarget(app);
         const counts = lib.counts();
@@ -286,8 +320,11 @@ export function createLibraryRoutes(ctx: RouteCtx): RouteHandler {
       if (b === 'search' && method === 'GET') {
         const text = q.get('q')?.trim() ?? '';
         if (!text) return send(res, 200, { hits: [] });
-        const hits = await lib.find(text, { target: embedTarget(app), limit: 10, timeoutMs: 4000 });
-        return send(res, 200, { hits: hits.map((h) => ({ docId: h.doc.id, name: h.doc.name, place: h.passage.place, page: h.passage.page, heading: h.passage.heading, text: h.passage.text, ord: h.passage.ord, by: h.by })) });
+        const where = q.get('in') === 'archives' || q.get('in') === 'all' ? (q.get('in') as 'archives' | 'all') : 'library';
+        if (where !== 'library') archivesAllowed();
+        const roomQ = q.get('room') ? Number(q.get('room')) : undefined;
+        const hits = await lib.find(text, { target: embedTarget(app), limit: 10, timeoutMs: 4000, in: where, ...(roomQ !== undefined && Number.isInteger(roomQ) ? { roomId: roomQ } : {}) });
+        return send(res, 200, { hits: hits.map((h) => ({ docId: h.doc.id, name: h.doc.name, collection: h.doc.collection, place: h.passage.place, page: h.passage.page, heading: h.passage.heading, text: h.passage.text, ord: h.passage.ord, by: h.by })) });
       }
       if (b === 'settings' && !c) {
         const view = () => ({ shared: app.settings.get().companionLibrary === 'shared', ...libraryLimits(app.settings.get()), owner: !opts.member, maxBytes });
@@ -342,6 +379,11 @@ export function createLibraryRoutes(ctx: RouteCtx): RouteHandler {
           }
           res.writeHead(200, { ...headers, 'content-length': size });
           return void createReadStream(path).pipe(res);
+        }
+        // Phase 110: a room archive is read-only: no rename, no re-read, no learning (delete per week stays).
+        if (doc.readOnly && ((!c && method === 'PATCH') || c === 'reread' || c === 'learn' || c === 'ocr')) {
+          for await (const _ of req as AsyncIterable<Buffer>) void _;
+          throw new HttpError(409, 'This is a read-only archive.', { errorKey: 'This is a read-only archive.' });
         }
         if (!c && method === 'PATCH') {
           const body = await readJson(req);
