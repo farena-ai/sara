@@ -1,0 +1,1215 @@
+{
+ "her-character": [
+  {
+   "id": "rename",
+   "q": "How do I change her name?",
+   "steps": [
+    "Type the new name in Name at the top of this page.",
+    "Click anywhere outside the box: it saves by itself.",
+    "Her notes about herself follow the new name."
+   ],
+   "show": "#my-name"
+  },
+  {
+   "id": "make",
+   "q": "How do I make her my own?",
+   "steps": [
+    "Press ✨ Create your companion for a guided setup (about 5 minutes).",
+    "Or pick a character under Start from a character and press Use this.",
+    "Nudge the personality dials until the sample line sounds like her."
+   ],
+   "show": "#st-wizard",
+   "start": "yours"
+  },
+  {
+   "id": "undo",
+   "q": "How do I go back to how she was?",
+   "steps": [
+    "Press Undo changes in the bar at the bottom.",
+    "It brings back how she was when you opened this page."
+   ],
+   "show": "#st-undo"
+  }
+ ],
+ "her-relationship": [
+  {
+   "id": "kind",
+   "q": "How do I change what we are to each other?",
+   "steps": [
+    "Pick a card under Your relationship.",
+    "Add your own words in the box below it if you like.",
+    "Press Try it to hear how she'd react."
+   ],
+   "show": "#bd-try"
+  },
+  {
+   "id": "jealous",
+   "q": "How do I make her less jealous?",
+   "steps": [
+    "Find Jealousy under the dials.",
+    "Move it to the left; the line above it shows how she'd sound.",
+    "She is never controlling, whatever the dial says."
+   ]
+  }
+ ],
+ "her-look": [
+  {
+   "id": "new",
+   "q": "How do I give her a new face?",
+   "steps": [
+    "Describe the look and pick a Style.",
+    "Press Make a picture, then Use this look when you like it.",
+    "Or press Bring my picture to life to start from a photo."
+   ],
+   "show": "#look-draft"
+  },
+  {
+   "id": "outfit",
+   "q": "How do I change her outfit?",
+   "steps": [
+    "Under Outfits and places, describe the outfit.",
+    "Press Try it on.",
+    "Keep favourites in the Closet."
+   ],
+   "show": "#look-outfit-go"
+  }
+ ],
+ "her-voice": [
+  {
+   "id": "pick",
+   "q": "How do I pick her voice?",
+   "steps": [
+    "Choose a voice under Her voice.",
+    "Press Preview to hear it.",
+    "It saves by itself; voice notes and calls use it."
+   ],
+   "show": "#v-preview",
+   "start": "voice"
+  },
+  {
+   "id": "hear",
+   "q": "How do I talk to her out loud?",
+   "steps": [
+    "Choose how she hears you under Hearing you.",
+    "Then press the microphone in the chat box and speak."
+   ]
+  }
+ ],
+ "her-calls": [
+  {
+   "id": "when",
+   "q": "How do I choose when she may call me?",
+   "steps": [
+    "Tick what may ring you: reminders, finished tasks, the morning briefing.",
+    "Set quiet hours and a limit for calls a day.",
+    "Press Call me now to try it."
+   ],
+   "show": "#cl-test"
+  },
+  {
+   "id": "off",
+   "q": "How do I stop her calling?",
+   "steps": [
+    "Untick every reason at the top of this page.",
+    "She can still send messages; only calls stop."
+   ]
+  }
+ ],
+ "her-pictures": [
+  {
+   "id": "on",
+   "q": "How do I let her send pictures?",
+   "steps": [
+    "Pick a way under Pictures.",
+    "For Grok Imagine, paste an xAI API key.",
+    "Ask her in chat: \"send me a selfie\"."
+   ]
+  },
+  {
+   "id": "off",
+   "q": "How do I stop pictures?",
+   "steps": [
+    "Set Pictures to Off.",
+    "She will describe instead of sending a picture."
+   ]
+  }
+ ],
+ "her-companions": [
+  {
+   "id": "add",
+   "q": "How do I add another companion?",
+   "steps": [
+    "Type a name under Add a companion and pick where to start from.",
+    "Press Add.",
+    "Switch between companions from the sidebar."
+   ],
+   "show": "#cmp-add"
+  },
+  {
+   "id": "share",
+   "q": "How do companions share the Planner?",
+   "steps": [
+    "Under Planner, pick whether to-dos, reminders and notes are shared or their own.",
+    "Memories and chats always stay with each companion."
+   ]
+  }
+ ],
+ "her-import": [
+  {
+   "id": "bring",
+   "q": "How do I bring her from another app?",
+   "steps": [
+    "Export your data from that app (ChatGPT, Claude, a character app).",
+    "Choose the file under Choose the file.",
+    "Tick what to keep, then press Let her read them."
+   ]
+  },
+  {
+   "id": "undo",
+   "q": "How do I throw an import away?",
+   "steps": [
+    "Before saving, press Never mind.",
+    "After a read, press Throw it all away."
+   ]
+  }
+ ],
+ "you-about": [
+  {
+   "id": "name",
+   "q": "How do I change what she calls me?",
+   "steps": [
+    "Type it in What should Sara call you?",
+    "It saves when you leave the box."
+   ],
+   "show": "#owner-name"
+  },
+  {
+   "id": "path",
+   "q": "How do I switch between company and coding?",
+   "steps": [
+    "Pick under What you mostly do with her.",
+    "It changes what you see first and the tour; nothing is taken away."
+   ],
+   "show": "#use-path"
+  },
+  {
+   "id": "lang",
+   "q": "How do I change the language?",
+   "steps": [
+    "Pick a Language for the app.",
+    "Pick Talk to me in for her replies."
+   ]
+  }
+ ],
+ "you-briefing": [
+  {
+   "id": "on",
+   "q": "How do I get a morning briefing?",
+   "steps": [
+    "Switch the briefing on and pick a Time.",
+    "Set Weather for to your town.",
+    "Press Send one now to see it."
+   ],
+   "show": "#br-send",
+   "start": "morning"
+  },
+  {
+   "id": "week",
+   "q": "How do I get a weekly review?",
+   "steps": [
+    "Switch on Weekly review and pick the day and time.",
+    "She looks back at your week in chat."
+   ]
+  }
+ ],
+ "you-leave-by": [
+  {
+   "id": "on",
+   "q": "How do I get leave-by reminders?",
+   "steps": [
+    "Type your Home address.",
+    "Pick how you're Getting there by.",
+    "Events with a place get a Leave by row on Today."
+   ],
+   "show": "#lb-home"
+  },
+  {
+   "id": "extra",
+   "q": "How do I leave earlier?",
+   "steps": [
+    "Raise Extra minutes.",
+    "Every leave-by time moves that much earlier."
+   ]
+  }
+ ],
+ "you-adult": [
+  {
+   "id": "on",
+   "q": "How do I turn on adult mode?",
+   "steps": [
+    "Press Turn on adult mode and confirm you're 18 or older.",
+    "It works only in a web browser, not in the phone apps."
+   ],
+   "show": "#adult-on"
+  },
+  {
+   "id": "off",
+   "q": "How do I turn it off again?",
+   "steps": [
+    "Press Turn off adult mode.",
+    "Conversations go back to normal right away."
+   ],
+   "show": "#adult-off"
+  }
+ ],
+ "models-default": [
+  {
+   "id": "pick",
+   "q": "How do I choose the model she thinks with?",
+   "steps": [
+    "Pick a Provider.",
+    "Pick a Model from its list.",
+    "Anything without its own model uses this one."
+   ],
+   "show": "#default-model",
+   "start": "brain"
+  },
+  {
+   "id": "refresh",
+   "q": "How do I see new models?",
+   "steps": [
+    "Press ↻ Refresh.",
+    "New models on that provider show up in the list."
+   ],
+   "show": "#load-models"
+  }
+ ],
+ "models-routes": [
+  {
+   "id": "rec",
+   "q": "How do I let Sara pick models for each job?",
+   "steps": [
+    "Press ✨ Use recommended.",
+    "Check the rows; change any with its list."
+   ],
+   "show": "#jobs-recommend"
+  },
+  {
+   "id": "test",
+   "q": "How do I test a model on one job?",
+   "steps": [
+    "Pick the model in that job's row.",
+    "Press Test to see its speed and an answer."
+   ]
+  }
+ ],
+ "models-providers": [
+  {
+   "id": "add",
+   "q": "How do I add a model service with a key?",
+   "steps": [
+    "Pick a Template.",
+    "Paste the API key.",
+    "Press Save provider."
+   ],
+   "show": "#p-save"
+  },
+  {
+   "id": "own",
+   "q": "How do I add my own Ollama on another computer?",
+   "steps": [
+    "Pick the Ollama template.",
+    "Set Base URL to that computer's address.",
+    "Press Save provider."
+   ]
+  }
+ ],
+ "models-subs": [
+  {
+   "id": "sign",
+   "q": "How do I use my ChatGPT, Claude or Grok plan?",
+   "steps": [
+    "Press the sign-in button for your plan.",
+    "Finish the sign-in in the browser tab that opens.",
+    "Pick the model in Default model."
+   ],
+   "show": "#sub-chatgpt-go"
+  },
+  {
+   "id": "out",
+   "q": "How do I sign out of a plan?",
+   "steps": [
+    "Press Sign out under that plan."
+   ]
+  }
+ ],
+ "models-local": [
+  {
+   "id": "get",
+   "q": "How do I download a model to this computer?",
+   "steps": [
+    "Pick one under Model to download (the first fits your computer).",
+    "Press Download this model.",
+    "Use it in Default model when it's done."
+   ],
+   "show": "#lm-download"
+  },
+  {
+   "id": "space",
+   "q": "How do I free up space?",
+   "steps": [
+    "Remove a model you don't use from its row.",
+    "Ollama deletes its files."
+   ]
+  }
+ ],
+ "ab-tools": [
+  {
+   "id": "ask",
+   "q": "How do I make her ask before she does something?",
+   "steps": [
+    "Find the tool in its group.",
+    "Set it to Ask me first.",
+    "Approval cards then appear in chat."
+   ],
+   "start": "tools"
+  },
+  {
+   "id": "off",
+   "q": "How do I switch a tool off?",
+   "steps": [
+    "Find the tool in its group.",
+    "Set it to Off."
+   ]
+  }
+ ],
+ "ab-skills": [
+  {
+   "id": "new",
+   "q": "How do I teach her a skill?",
+   "steps": [
+    "Press New skill.",
+    "Write the steps in plain words and save.",
+    "She uses it when a request matches."
+   ],
+   "show": "#skl-new"
+  },
+  {
+   "id": "add",
+   "q": "How do I add a skill from someone else?",
+   "steps": [
+    "Press Add a skill.",
+    "Pick a zip, a GitHub link or a file.",
+    "Read it before switching it on."
+   ],
+   "show": "#skl-add"
+  }
+ ],
+ "ab-plugins": [
+  {
+   "id": "add",
+   "q": "How do I add a plugin?",
+   "steps": [
+    "Press Add a plugin.",
+    "Read the permissions it asks for.",
+    "Switch it on when you trust it."
+   ],
+   "show": "#plg-add"
+  },
+  {
+   "id": "stop",
+   "q": "How do I stop a plugin?",
+   "steps": [
+    "Switch it off on its card.",
+    "Its log stays under What it did."
+   ]
+  }
+ ],
+ "ab-search": [
+  {
+   "id": "on",
+   "q": "How do I let her search the web?",
+   "steps": [
+    "Pick a Search service.",
+    "Paste its API key if it needs one.",
+    "Ask her to look something up."
+   ],
+   "show": "#search-provider"
+  },
+  {
+   "id": "free",
+   "q": "How do I search without a key?",
+   "steps": [
+    "Pick a service marked Free · no key.",
+    "Or run your own SearXNG and paste its URL."
+   ]
+  }
+ ],
+ "ab-library": [
+  {
+   "id": "add",
+   "q": "How do I give her a document?",
+   "steps": [
+    "Open Library from the sidebar.",
+    "Drop the file on the box at the top.",
+    "Ask her about it in any chat."
+   ]
+  },
+  {
+   "id": "speed",
+   "q": "How do I make reading gentler on my computer?",
+   "steps": [
+    "Pick Gentle under Background reading.",
+    "Big documents then take longer."
+   ]
+  }
+ ],
+ "ab-google": [
+  {
+   "id": "connect",
+   "q": "How do I connect Gmail and Calendar?",
+   "steps": [
+    "Paste your Google Client ID and secret.",
+    "Press Save, then Sign in with Google."
+   ],
+   "show": "#g-connect"
+  },
+  {
+   "id": "out",
+   "q": "How do I disconnect Google?",
+   "steps": [
+    "Press Sign out of Google."
+   ],
+   "show": "#g-disconnect"
+  }
+ ],
+ "ab-home": [
+  {
+   "id": "connect",
+   "q": "How do I connect Home Assistant?",
+   "steps": [
+    "Type the Home Assistant address.",
+    "Paste a long-lived access token.",
+    "Press Save and test."
+   ],
+   "show": "#ha-save"
+  },
+  {
+   "id": "presence",
+   "q": "How do I let her notice when I get home?",
+   "steps": [
+    "Connect Home Assistant first.",
+    "Under Presence, switch on React to what happens at home.",
+    "Pick the people and what she does."
+   ],
+   "show": "#pr-on"
+  }
+ ],
+ "ab-mcp": [
+  {
+   "id": "add",
+   "q": "How do I connect another program (MCP)?",
+   "steps": [
+    "Pick Start from, or type the Command or URL.",
+    "Add any Secrets it needs.",
+    "Press Save and connect."
+   ],
+   "show": "#mcp-save"
+  },
+  {
+   "id": "what",
+   "q": "What is an MCP server?",
+   "steps": [
+    "A small program that gives her new tools.",
+    "Its tools then appear in Tools and approvals."
+   ]
+  }
+ ],
+ "ab-projects": [
+  {
+   "id": "open",
+   "q": "How do I point her at my project?",
+   "steps": [
+    "Pick a Workspace (your projects folder).",
+    "In a chat, press the conversation chip and switch to coding.",
+    "Ask: \"Look at my project\"."
+   ],
+   "show": "#pj-refresh",
+   "start": "project"
+  },
+  {
+   "id": "sandbox",
+   "q": "How do I make her try commands safely?",
+   "steps": [
+    "Switch on Try commands in a sandbox first.",
+    "Pick the size and time limits.",
+    "Nothing is applied until you choose."
+   ],
+   "show": "#sbx-recheck"
+  },
+  {
+   "id": "ship",
+   "q": "How do I check before I ship?",
+   "steps": [
+    "Press Before you ship.",
+    "Read the results in Findings."
+   ],
+   "show": "#pj-redteam"
+  }
+ ],
+ "ab-budgets": [
+  {
+   "id": "set",
+   "q": "How do I limit what a coding reply may use?",
+   "steps": [
+    "Under Coding chats, set Tokens, Steps or a Spending limit.",
+    "She stops and asks when a reply reaches it."
+   ],
+   "start": "budgets"
+  },
+  {
+   "id": "near",
+   "q": "What happens near the limit?",
+   "steps": [
+    "Choose under Near the limit whether she asks or stops.",
+    "Usage and costs shows what was used."
+   ]
+  }
+ ],
+ "ab-github": [
+  {
+   "id": "token",
+   "q": "How do I add a GitHub token?",
+   "steps": [
+    "Make a token on GitHub (Settings → Developer settings).",
+    "Paste it in GitHub token.",
+    "Press Save."
+   ],
+   "show": "#gh-save",
+   "start": "github"
+  },
+  {
+   "id": "issues",
+   "q": "How do I turn issues into tasks?",
+   "steps": [
+    "Under Issues become tasks, set a label.",
+    "Press Look now to fetch them."
+   ],
+   "show": "#ghw-check"
+  }
+ ],
+ "ab-ssh": [
+  {
+   "id": "add",
+   "q": "How do I add a server?",
+   "steps": [
+    "Fill in the name, address, port and user under Add a server.",
+    "Press Check the host key.",
+    "Sign in once with a password or a key."
+   ],
+   "show": "#ssh-add-go"
+  },
+  {
+   "id": "safe",
+   "q": "Does she ask before running commands there?",
+   "steps": [
+    "Yes, every command asks first by default.",
+    "Change it in Tools and approvals."
+   ]
+  }
+ ],
+ "co-phone": [
+  {
+   "id": "install",
+   "q": "How do I put her on my phone?",
+   "steps": [
+    "Open Sara in your phone's browser and sign in.",
+    "Press Install Sara as an app (or Add to Home Screen).",
+    "Then turn on notifications."
+   ],
+   "show": "#install-app",
+   "start": "phone"
+  },
+  {
+   "id": "push",
+   "q": "How do I get notifications?",
+   "steps": [
+    "Press Turn on for this device.",
+    "Press Send a test."
+   ],
+   "show": "#push-on"
+  }
+ ],
+ "desktop-app": [
+  {
+   "id": "quick",
+   "q": "How do I ask her from anywhere?",
+   "steps": [
+    "Pick a Quick ask shortcut.",
+    "Press it in any app and type."
+   ],
+   "show": "#dk-quick-try"
+  },
+  {
+   "id": "notify",
+   "q": "How do I check notifications work?",
+   "steps": [
+    "Press Show a test notification."
+   ],
+   "show": "#dk-test"
+  }
+ ],
+ "co-computer": [
+  {
+   "id": "on",
+   "q": "How do I let her use this computer?",
+   "steps": [
+    "Allow her under This computer.",
+    "Choose when she must ask first under Her actions.",
+    "Move the mouse to take over any time."
+   ]
+  },
+  {
+   "id": "stop",
+   "q": "How do I stop her right away?",
+   "steps": [
+    "Move the mouse or press a key.",
+    "She stops and waits."
+   ]
+  }
+ ],
+ "co-telegram": [
+  {
+   "id": "connect",
+   "q": "How do I get her on Telegram?",
+   "steps": [
+    "Make a bot with @BotFather and copy its token.",
+    "Paste it in Bot token.",
+    "Press Link my Telegram and send the bot the code."
+   ],
+   "show": "#tg-link"
+  },
+  {
+   "id": "groups",
+   "q": "How do I add her to a group?",
+   "steps": [
+    "Add the bot to the group in Telegram.",
+    "Choose who may talk to her under Remote work and groups."
+   ]
+  }
+ ],
+ "co-discord": [
+  {
+   "id": "connect",
+   "q": "How do I get her on Discord?",
+   "steps": [
+    "Make an app and bot in the Discord Developer Portal.",
+    "Paste its token in Bot token.",
+    "Press Link my Discord."
+   ],
+   "show": "#dc-link"
+  },
+  {
+   "id": "bots",
+   "q": "How do I stop bot loops?",
+   "steps": [
+    "Under Other bots, keep replies to bots low.",
+    "1 means she answers a bot once, then waits for a person."
+   ]
+  }
+ ],
+ "co-apps": [
+  {
+   "id": "editor",
+   "q": "How do I use her from my editor?",
+   "steps": [
+    "Press Create an API key for another app.",
+    "Copy her address and the key into your editor or tool.",
+    "Pick Sara as the model there."
+   ],
+   "show": "#oa-key-new",
+   "start": "editor"
+  },
+  {
+   "id": "alexa",
+   "q": "How do I talk to her through Alexa?",
+   "steps": [
+    "Follow Talk to her through Alexa.",
+    "Press Make a link code and say it to Alexa."
+   ],
+   "show": "#alexa-code-new"
+  }
+ ],
+ "co-agents": [
+  {
+   "id": "give",
+   "q": "How do I let another agent talk to her?",
+   "steps": [
+    "Under Give an agent a key, press Make a key.",
+    "Copy her agent card address and the key to that agent."
+   ],
+   "show": "#a2a-in-make"
+  },
+  {
+   "id": "ask",
+   "q": "How do I add an agent she can ask?",
+   "steps": [
+    "Paste its address under Add an agent she can ask.",
+    "Press Look it up."
+   ],
+   "show": "#a2a-out-look"
+  }
+ ],
+ "co-hooks": [
+  {
+   "id": "new",
+   "q": "How do I make a webhook?",
+   "steps": [
+    "Press New webhook.",
+    "Pick what sends it and what she does.",
+    "Copy its address into the other app."
+   ],
+   "show": "#hk-new"
+  },
+  {
+   "id": "test",
+   "q": "How do I see what a webhook got?",
+   "steps": [
+    "Open the webhook's card.",
+    "Look at its deliveries."
+   ]
+  }
+ ],
+ "dh-health": [
+  {
+   "id": "check",
+   "q": "How do I check everything works?",
+   "steps": [
+    "Press Run full check.",
+    "Fix anything marked red with its button."
+   ],
+   "show": "#doctor-run"
+  },
+  {
+   "id": "runs",
+   "q": "How do I clear old run history?",
+   "steps": [
+    "Pick how long to Keep runs.",
+    "Or press Delete run history."
+   ],
+   "show": "#runs-delete"
+  }
+ ],
+ "dh-devices": [
+  {
+   "id": "add",
+   "q": "How do I sign in on another phone or computer?",
+   "steps": [
+    "Press Add a phone or computer.",
+    "Scan the code or type it there."
+   ],
+   "show": "#pair-new"
+  },
+  {
+   "id": "lost",
+   "q": "How do I lock out a lost device?",
+   "steps": [
+    "Press Sign out all other devices.",
+    "Or make a new token with Make a new token."
+   ],
+   "show": "#dev-others"
+  }
+ ],
+ "dh-backups": [
+  {
+   "id": "now",
+   "q": "How do I make a backup now?",
+   "steps": [
+    "Press Back up now."
+   ],
+   "show": "#bk-now"
+  },
+  {
+   "id": "offsite",
+   "q": "How do I keep a copy somewhere else?",
+   "steps": [
+    "Pick where under Copy backups to.",
+    "Fill in the folder or bucket and a passphrase.",
+    "Press Copy the latest backup now, then Test restore now."
+   ],
+   "show": "#os-now",
+   "start": "backup"
+  }
+ ],
+ "dh-data": [
+  {
+   "id": "export",
+   "q": "How do I export everything?",
+   "steps": [
+    "Under Export and import, press Export all data.",
+    "Keep the file somewhere safe."
+   ]
+  },
+  {
+   "id": "history",
+   "q": "How do I bring my chat history from another app?",
+   "steps": [
+    "Under Bring your history, pick the export file.",
+    "Press Import and check the preview."
+   ],
+   "show": "#hist-go"
+  }
+ ],
+ "dh-movein": [
+  {
+   "id": "move",
+   "q": "How do I move in from another agent?",
+   "steps": [
+    "Press Copy the command and run it where that agent lives.",
+    "Or press Make a move-in code.",
+    "Check each card before it's saved."
+   ],
+   "show": "#mi-copy"
+  },
+  {
+   "id": "undo",
+   "q": "How do I undo a move-in?",
+   "steps": [
+    "Find it under Past move-ins.",
+    "Press Undo this move-in."
+   ]
+  }
+ ],
+ "dh-updates": [
+  {
+   "id": "check",
+   "q": "How do I update Sara?",
+   "steps": [
+    "Press Check for updates.",
+    "Press Update now when a new version shows."
+   ],
+   "show": "#up-check"
+  },
+  {
+   "id": "new",
+   "q": "How do I see what changed?",
+   "steps": [
+    "Press What's new in each version."
+   ],
+   "show": "#up-whatsnew"
+  }
+ ],
+ "dh-usage": [
+  {
+   "id": "cost",
+   "q": "How do I see what she costs?",
+   "steps": [
+    "Read the top line for today.",
+    "Open By model or By what it was for for details."
+   ]
+  },
+  {
+   "id": "limit",
+   "q": "How do I set a spending limit?",
+   "steps": [
+    "Open Budgets on this page or Abilities → Budgets.",
+    "Set a limit per job or per day."
+   ]
+  }
+ ],
+ "dh-privacy": [
+  {
+   "id": "see",
+   "q": "How do I see what the check-in sends?",
+   "steps": [
+    "Press Show what's sent."
+   ],
+   "show": "#hub-show"
+  },
+  {
+   "id": "off",
+   "q": "How do I stop the daily check-in?",
+   "steps": [
+    "Switch the check-in off on this page.",
+    "Press Reset the install ID to start fresh."
+   ],
+   "show": "#hub-reset"
+  }
+ ],
+ "dh-reports": [
+  {
+   "id": "report",
+   "q": "How do I report a problem?",
+   "steps": [
+    "Press Report a problem.",
+    "Say what happened; add diagnostics if you like.",
+    "Press Send."
+   ],
+   "show": "#hub-mine-new"
+  },
+  {
+   "id": "status",
+   "q": "How do I see what happened to my report?",
+   "steps": [
+    "Each report shows its status and replies here."
+   ]
+  }
+ ],
+ "household": [
+  {
+   "id": "invite",
+   "q": "How do I invite someone?",
+   "steps": [
+    "Type their name under Invite someone.",
+    "Press Make invite, then Copy link and send it."
+   ],
+   "show": "#hh-invite"
+  },
+  {
+   "id": "limit",
+   "q": "How do I limit what they use?",
+   "steps": [
+    "Set Messages a day and Spending a day.",
+    "Choose the models they may use."
+   ]
+  }
+ ],
+ "account": [
+  {
+   "id": "devices",
+   "q": "How do I sign in on another device?",
+   "steps": [
+    "Press Devices and sign-in."
+   ],
+   "show": "#acc-devices"
+  },
+  {
+   "id": "delete",
+   "q": "How do I delete my account?",
+   "steps": [
+    "Press Delete my account and confirm.",
+    "Your companion, chats and memories go."
+   ],
+   "show": "#acc-delete"
+  }
+ ],
+ "chat": [
+  {
+   "id": "start",
+   "q": "How do I start?",
+   "steps": [
+    "Type in the box at the bottom and press Enter.",
+    "Or tap one of the suggestions above."
+   ],
+   "show": "#input"
+  },
+  {
+   "id": "photo",
+   "q": "How do I send her a photo or a file?",
+   "steps": [
+    "Press the paperclip next to the box.",
+    "Pick the file; add a line if you like."
+   ]
+  },
+  {
+   "id": "code",
+   "q": "How do I switch this chat to coding?",
+   "steps": [
+    "Press the chip at the top of the chat.",
+    "Pick a workspace and switch the mode to coding."
+   ],
+   "show": "#conv-settings-btn"
+  }
+ ],
+ "today": [
+  {
+   "id": "plan",
+   "q": "How do I plan my day with her?",
+   "steps": [
+    "Press Plan my day with her.",
+    "She looks at your list, calendar and weather."
+   ],
+   "show": "#td-ask"
+  },
+  {
+   "id": "arrange",
+   "q": "How do I change what Today shows?",
+   "steps": [
+    "Press Customise.",
+    "Switch sections on or off and drag them in order."
+   ]
+  }
+ ],
+ "planner": [
+  {
+   "id": "todo",
+   "q": "How do I add a to-do?",
+   "steps": [
+    "Type it in the box under To-do and press Add.",
+    "Or just tell her in chat: \"add milk to my list\"."
+   ]
+  },
+  {
+   "id": "remind",
+   "q": "How do I set a reminder?",
+   "steps": [
+    "Open Reminders, type what and when.",
+    "Or tell her: \"remind me at 5 to call Ana\"."
+   ]
+  },
+  {
+   "id": "week",
+   "q": "How do I review my week?",
+   "steps": [
+    "Press Review my week."
+   ],
+   "show": "#review-now"
+  }
+ ],
+ "memory": [
+  {
+   "id": "add",
+   "q": "How do I tell her something to remember?",
+   "steps": [
+    "Say it in chat: \"remember that I'm allergic to nuts\".",
+    "Or add a note here."
+   ]
+  },
+  {
+   "id": "forget",
+   "q": "How do I make her forget something?",
+   "steps": [
+    "Find the note (search helps).",
+    "Press Forget on it."
+   ]
+  }
+ ],
+ "library": [
+  {
+   "id": "add",
+   "q": "How do I give her a document?",
+   "steps": [
+    "Drop the file on the box at the top, or click it to pick one.",
+    "She reads it and keeps the key points."
+   ],
+   "show": "#lib-drop"
+  },
+  {
+   "id": "ask",
+   "q": "How do I ask about a document?",
+   "steps": [
+    "Ask in any chat: \"what does the lease say about pets?\"",
+    "She quotes the part she used."
+   ]
+  }
+ ],
+ "scrapbook": [
+  {
+   "id": "pin",
+   "q": "How do I pin a message?",
+   "steps": [
+    "Press 📌 under a message.",
+    "It shows here with the pins and inside jokes."
+   ]
+  },
+  {
+   "id": "joke",
+   "q": "How do I keep an inside joke?",
+   "steps": [
+    "Tell her: \"that's our inside joke now\".",
+    "Or add it here."
+   ]
+  }
+ ],
+ "moments": [
+  {
+   "id": "keep",
+   "q": "How do I keep a moment?",
+   "steps": [
+    "Press ♡ under a message or a photo.",
+    "It shows here with a caption she writes."
+   ]
+  },
+  {
+   "id": "auto",
+   "q": "How do I choose which photos land here?",
+   "steps": [
+    "Pick under Add photos: all, only kept moments, or off."
+   ],
+   "show": "#mo-mode"
+  }
+ ],
+ "story": [
+  {
+   "id": "look",
+   "q": "How do I get a look back?",
+   "steps": [
+    "Pick the dates under Look back.",
+    "Press the button; she writes it from what's on this page."
+   ]
+  },
+  {
+   "id": "open",
+   "q": "How do I see where something came from?",
+   "steps": [
+    "Click any entry.",
+    "The chat or note it came from opens."
+   ]
+  }
+ ],
+ "team": [
+  {
+   "id": "start",
+   "q": "How do I give the team a job?",
+   "steps": [
+    "Type the goal in the box.",
+    "Press Start; she plans and hands parts to helpers."
+   ],
+   "show": "#team-goal"
+  },
+  {
+   "id": "stop",
+   "q": "How do I stop a helper?",
+   "steps": [
+    "Open the task.",
+    "Press Stop next to the helper, or stop the whole task."
+   ]
+  }
+ ],
+ "findings": [
+  {
+   "id": "what",
+   "q": "Where do findings come from?",
+   "steps": [
+    "Her security pass after coding turns adds them.",
+    "Dependency checks and sandbox tries add them too."
+   ]
+  },
+  {
+   "id": "fix",
+   "q": "How do I fix one?",
+   "steps": [
+    "Open the finding.",
+    "Press Fix on a branch: she tries it on its own branch."
+   ]
+  }
+ ],
+ "evals": [
+  {
+   "id": "new",
+   "q": "How do I try other settings?",
+   "steps": [
+    "Under Try other settings, pick past tasks and variants.",
+    "Check the estimate, then start."
+   ]
+  },
+  {
+   "id": "read",
+   "q": "How do I read the result?",
+   "steps": [
+    "Each variant is scored next to your settings.",
+    "A winner is named only when the evidence says so."
+   ]
+  }
+ ]
+}

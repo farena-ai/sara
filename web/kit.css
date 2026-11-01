@@ -1,0 +1,164 @@
+/* Phase 114 (PL1c, docs/design/POLISH.md §4): one look across every page. Loaded last. Spacing uses the
+   --s-* scale only, corners only --r-card / --r-control / --r-pill, colours only theme tokens; every
+   target at least 44 px; nothing animates with reduced motion (theme.css has the global rule).
+     1 the "How do I…?" block · 2 the one empty state · 3 card head and status chip · 4 warn callout ·
+     5 settings header, nav and footer · 6 the claim screen · 7 the setup wizard · 8 window headers and
+     widths · 9 phones */
+
+/* ---------- 1. "How do I…?" (§4.5, web/howto.js) ---------- */
+.howto { margin: 0 0 var(--s-3); border: 1px solid var(--hairline-strong); border-radius: var(--r-card); background: var(--surface-1); }
+.howto > summary { display: flex; align-items: center; gap: var(--s-2); min-height: 44px; padding: 0 var(--s-4); cursor: pointer; list-style: none; font-weight: 600; color: var(--text-1); }
+.howto > summary::-webkit-details-marker { display: none; }
+.howto > summary::after { content: '▸'; margin-left: auto; color: var(--text-2); transition: transform var(--dur-fast) ease-out; }
+.howto[open] > summary::after { transform: rotate(90deg); }
+.howto-mark { display: inline-grid; place-items: center; width: var(--s-6); height: var(--s-6); border-radius: var(--r-pill); background: var(--accent-soft); color: var(--accent-text); font-size: 13px; font-weight: 700; }
+.howto-count { padding: 0 var(--s-2); border-radius: var(--r-pill); background: var(--surface-0); }
+.howto-list { display: grid; gap: var(--s-1); padding: 0 var(--s-3) var(--s-3); }
+.howto-q { border-radius: var(--r-control); }
+.howto-q > summary { display: flex; align-items: center; min-height: 44px; padding: 0 var(--s-2); cursor: pointer; border-radius: var(--r-control); color: var(--text-1); }
+.howto-q > summary:hover { background: var(--surface-0); }
+.howto-q[open] { background: var(--surface-0); }
+.howto-steps { margin: 0; padding: 0 var(--s-4) var(--s-2) calc(var(--s-6) + var(--s-2)); display: grid; gap: var(--s-1); color: var(--text-2); line-height: 1.45; }
+.howto-show { min-height: 44px; margin: 0 0 var(--s-1) var(--s-6); padding: 0 var(--s-2); }
+.howto-pulse { outline: 2px solid var(--accent-solid); outline-offset: 3px; border-radius: var(--r-control); animation: howto-pulse 1.6s ease-out 1; }
+@keyframes howto-pulse { 0% { box-shadow: 0 0 0 0 var(--accent-soft); } 60% { box-shadow: 0 0 0 var(--s-3) transparent; } 100% { box-shadow: none; } }
+#settings-howto { padding: 0 var(--s-6); }
+#settings-howto:empty { display: none; }
+
+/* ---------- 2. The one empty state (§4.4, emptyState() in web/tidy.js) ---------- */
+.empty-state { display: grid; justify-items: center; gap: var(--s-2); margin: 0; padding: var(--s-6) var(--s-4); list-style: none; border: 1px dashed var(--hairline-strong); border-radius: var(--r-card); background: transparent; color: var(--text-2); text-align: center; grid-column: 1 / -1; }
+.empty-state .empty-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: var(--r-pill); background: var(--accent-soft); color: var(--accent-text); font-size: 22px; line-height: 1; }
+.empty-state .empty-icon svg.ic { width: var(--s-6); height: var(--s-6); }
+.empty-state .empty-text { max-width: 44ch; color: var(--text-1); font-size: 14px; line-height: 1.45; }
+.empty-state .empty-hint { max-width: 44ch; font-size: 13px; line-height: 1.45; }
+.empty-state .empty-actions { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: var(--s-2); margin-top: var(--s-1); }
+.empty-state .empty-actions > button { min-height: 44px; }
+
+/* ---------- 3. Card head with a status chip (§4.2) ---------- */
+.card-head { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.card-head > h3, .card-head > h4 { margin: 0; }
+.status-chip { display: inline-flex; align-items: center; gap: var(--s-1); margin-left: auto; padding: var(--s-1) var(--s-3); border-radius: var(--r-pill); border: 1px solid var(--hairline-strong); background: var(--surface-1); color: var(--text-2); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.status-chip[data-state="ok"] { border-color: color-mix(in srgb, var(--ok, var(--accent-solid)) 55%, transparent); color: var(--ok, var(--accent-text)); }
+.status-chip[data-state="warn"] { border-color: var(--warn); color: var(--warn); }
+.kit-card { display: grid; gap: var(--s-3); padding: var(--s-4); border: 1px solid var(--hairline-strong); border-radius: var(--r-card); background: var(--surface-1); }
+.kit-card > p { margin: 0; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: var(--s-1); padding: var(--s-1); border: 1px solid var(--hairline-strong); border-radius: var(--r-pill); background: var(--surface-0); }
+.seg > button { min-height: 44px; padding: 0 var(--s-4); border: 0; border-radius: var(--r-pill); background: transparent; color: var(--text-2); }
+.seg > button[aria-checked="true"] { background: var(--btn-fill); color: var(--on-btn); }
+.seg-meaning { margin: var(--s-1) 0 0; }
+.seg-meaning[hidden] { display: none; }
+.kit-replaced, dialog .kit-replaced, #settings .settings-page .kit-replaced { display: none; }
+.kit-cards { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s-2); margin: var(--s-2) 0; }
+.kit-card-choice { min-height: 72px; gap: var(--s-1); padding: var(--s-3); border-radius: var(--r-card); }
+.kit-card-choice .kit-tag { margin: 0; }
+
+/* ---------- 4. Warning callout (§4.2, S12) ---------- */
+.callout-warn { display: flex; align-items: flex-start; gap: var(--s-2); margin: var(--s-2) 0; padding: var(--s-3) var(--s-4); border: 1px solid var(--warn); border-radius: var(--r-card); background: var(--warn-soft); color: var(--text-1); line-height: 1.45; }
+.callout-warn strong { color: var(--text-1); }
+#sbx-isolation.callout-warn strong { color: var(--text-1); }
+.callout-warn > svg.callout-ic { flex: none; width: 18px; height: 18px; align-self: center; color: var(--warn); }
+
+/* ---------- 5. Settings: header, nav, footer ---------- */
+.settings-page-desc { margin: 0 var(--s-8) var(--s-2) var(--s-6); }
+.settings-nav-items .settings-nav-item { min-height: 44px; }
+.settings-actions[data-quiet] #settings-hint { visibility: hidden; }
+/* S5: Recipes is a redirect to Skills, not a page in the list. */
+#settings-nav-list [data-page="ab-recipes"] { display: none; }
+
+/* S9: the household model picker: All / Only these, grouped, no inner scroll box. */
+.hh-models { display: grid; gap: var(--s-2); max-height: none; overflow: visible; }
+.hh-only { display: grid; gap: var(--s-2); }
+.hh-only[hidden] { display: none; }
+.hh-model-find { max-width: 320px; }
+.hh-model-list { display: grid; gap: var(--s-3); }
+.hh-model-group { display: grid; gap: var(--s-1); }
+.hh-model-group[hidden], .hh-model-group label[hidden] { display: none; }
+.hh-model-head { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+
+/* S10: one line on top; rows that override it stand out in the accent. */
+.jobs-default-line { margin: 0 0 var(--s-2); font-weight: 600; color: var(--text-1); }
+.jobs-default-line:empty { display: none; }
+.job-row.job-own { border-color: var(--accent-solid); box-shadow: inset 0 0 0 1px var(--accent-solid); }
+.usage-lead { margin: 0 0 var(--s-1); font-size: 16px; font-weight: 600; color: var(--text-1); }
+.usage-lead:empty { display: none; }
+
+/* ---------- 6. The claim screen (F10) ---------- */
+#login-form.claiming > #login-intro,
+#login-form.claiming > #login-token,
+#login-form.claiming > #login-help,
+#login-form.claiming > button[type="submit"] { display: none; }
+.claim-token-open { margin: var(--s-2) 0 0; text-align: center; }
+.claim-token-open > button { min-height: 44px; padding: 0 var(--s-3); color: var(--text-2); }
+.claim-token-open > button[hidden] { display: none; }
+
+/* ---------- 7. The setup wizard (F7, step 3 cards, no ✕, full screen on phones) ---------- */
+#setup .setup-head { padding-right: 0; }
+#setup .su-who { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); margin: var(--s-3) 0 var(--s-2); }
+#setup .su-who-card { min-height: 132px; align-items: center; justify-items: center; gap: var(--s-1); padding: var(--s-3); text-align: center; border-radius: var(--r-card); }
+#setup .su-who-card > * { align-self: center; }
+#setup .su-who-art { display: grid; place-items: center; width: 56px; height: 56px; border-radius: var(--r-pill); overflow: hidden; background: var(--accent-soft); color: var(--accent-text); }
+#setup .su-who-art svg.ic { width: var(--s-6); height: var(--s-6); }
+#setup .su-who-face { width: 100%; height: 100%; object-fit: cover; }
+#setup .su-new-note { margin: var(--s-2) 0 0; }
+#setup .su-ways { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); margin: var(--s-3) 0; }
+#setup .su-way { min-height: 72px; gap: var(--s-1); padding: var(--s-3); border-radius: var(--r-card); }
+#setup .su-way .su-sub { display: block; margin: 0; padding: 0; }
+#setup .su-way strong { display: block; }
+#setup .su-found { display: flex; align-items: center; gap: var(--s-3); }
+#setup .su-found .su-use-local { flex: none; white-space: nowrap; padding: 0 var(--s-4); }
+#setup .su-way-panel { margin: 0 0 var(--s-3); padding: var(--s-4); border: 1px solid var(--hairline-strong); border-radius: var(--r-card); background: var(--surface-1); display: grid; gap: var(--s-2); }
+#setup .su-way-panel[hidden] { display: none; }
+#setup .su-way-panel p { margin: 0; }
+
+/* ---------- 8. Windows: one header, two widths (V1) ---------- */
+#planner, #memory, #story, #findings, #scrapbook, #team { width: min(720px, 96vw); }
+#library, #moments, #evals { width: min(1040px, 96vw); }
+dialog .settings-body > .howto { margin: 0; }
+
+/* ---------- 8a. Chat message actions (V9) ---------- */
+.msg-actions .msg-ic { display: inline-grid; place-items: center; min-width: 32px; min-height: 32px; padding: 0; border-radius: var(--r-pill); color: var(--text-2); }
+.msg-actions .msg-ic svg.ic { width: 16px; height: 16px; }
+.msg-actions .msg-ic.on { color: var(--accent-text); }
+.msg-actions .msg-model { padding: 0 var(--s-2); border: 1px solid var(--hairline-strong); border-radius: var(--r-pill); color: var(--text-2); font-size: 11.5px; }
+@media (pointer: coarse) { .msg-actions .msg-ic { min-width: 44px; min-height: 44px; } }
+
+.conv-usage { cursor: pointer; }
+
+/* ---------- 8b. Today (V4, V5, M4) ---------- */
+/* V4: one height and one shape for the hero's buttons. */
+#today .td-actions > button, #today .td-actions .td-hbtn { min-height: 44px; border-radius: var(--r-pill); }
+/* V4: "← Chat" sits left of the date line, clear of her portrait ring. */
+#today .td-dateline { display: flex; align-items: center; gap: var(--s-3); }
+#today .td-dateline .td-date { margin: 0; }
+#today .td-dateline .td-back { position: static; flex: none; }
+#today .td-hero:has(.td-back) .td-face-wrap { margin-top: 0; }
+/* V5: on Today her face already leads the page, so the panel shows her mood without a second portrait. */
+@media (min-width: 1101px) {
+  body:has(#today[open]) #hp-open-her { display: none; }
+}
+#today .td-howto { margin: 0 0 var(--s-4); }
+#today.td-ff-phone .td-day-empty { display: none; }
+
+/* ---------- 9. Phones ---------- */
+@media (max-width: 720px) {
+  /* M1: back chip and close on row 1, the title on row 2. */
+  .settings-page-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-1); padding: var(--s-2) var(--s-4) var(--s-1); }
+  .settings-page-head #settings-back { justify-self: start; min-height: 44px; margin-right: var(--s-8); }
+  .settings-page-head h2 { overflow-wrap: anywhere; }
+  .settings-page-desc { margin: 0 var(--s-4) var(--s-2); }
+  #settings-howto { padding: 0 var(--s-4); }
+  /* No sideways scrolling in the sheet (a long command line on Computer use pushed it 23 px). */
+  .settings-dialog .settings-pages { overflow-x: clip; }
+  .settings-dialog .settings-pages :is(code, pre, kbd) { white-space: pre-wrap; overflow-wrap: anywhere; }
+  /* M2: no scroll boxes inside the scrolling sheet; long lists fold behind "Show all". */
+  .settings-dialog .settings-pages :is(.hh-models, .hh-model-list, .routes, .route-list, .mi-batches, .skl-list, .plg-log, .tool-perms) { max-height: none; overflow: visible; }
+  /* The wizard covers the whole screen (Today and the bottom bar don't show under it). */
+  dialog#setup { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; padding-top: var(--safe-t); padding-bottom: var(--safe-b); }
+  #setup .su-who, #setup .su-ways { grid-template-columns: minmax(0, 1fr); }
+  #setup .su-who-card { min-height: 64px; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: var(--s-3); justify-items: start; text-align: start; }
+  #setup .su-who-art { grid-row: 1 / 3; width: 44px; height: 44px; }
+  .empty-state { padding: var(--s-5) var(--s-3); }
+  /* M3: the album row wraps to rows on a phone instead of running off the edge. */
+  .mo-albums { flex-wrap: wrap; overflow-x: visible; }
+  .mo-album { width: calc(50% - var(--s-1)); border-radius: var(--r-card); }
+}

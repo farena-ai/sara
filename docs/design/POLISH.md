@@ -792,6 +792,44 @@ Why first: the owner's own example, plus four real bugs. Small surface, high vis
       page and view), no nested scroll containers inside the Settings sheet.
 - [ ] Full 1440 and 390 screenshot walk of all pages and views repeated and reviewed (126+ images).
 
+**As built (2.47.2), PL1c:**
+- Components: `web/howto.json` + `web/howto.js` (the folded "How do I…?" block: 2–4 questions per Settings page and per
+  view, numbered steps, *Show me* scrolls to and pulses the control; 48 Settings pages, 10 views and the empty chat), the one
+  `emptyState({ icon, text, why, action, howto })` in `tidy.js` (icons.js icon in a 48 px circle; every plain "None yet"
+  list now uses it, the views' emoji became outline icons), `kit.js` `choices()` (segments / choice cards over the real
+  control), `kit.css` (tokens only: every spacing value is a `--s-*` token, radii only card/control/pill), status chips,
+  the warn callout (S12, Coding projects' "not isolated").
+- Settings: accordion nav (S1: opening a group closes the others; one group open after visiting every page), one intro per
+  page (S2: on 27 pages the longer first paragraph moved into the block, search still reads it), Recipes out of the list
+  (S5, `#settings=ab-recipes` lands on Skills), Library *Gentle · Normal · Fast* and group banter *Calm · Some · Lively*
+  segments (S6), Web search cards with "Free · no key" / "Needs a key" (S7), Usage plain purpose names and a lead line
+  (S8), the household picker *All my models / Only these…* grouped by provider, searchable, the Ollama Cloud note once per
+  group, no scroll box (S9), Which model does what: one line on top, rows that override it in the accent (S10),
+  Telegram/Discord status chip and titled cards, "Switched on" instead of a "Connected" tick box (S11), Updates
+  "What's new" (S13), "Changes save by themselves" only on pages with inputs (S15).
+- Views: pin vs keep words (V3: Scrapbook "Pins and jokes", ♡ = keep in Our moments), Today's hero buttons one height and
+  shape, "← Chat" left of the date (V4), no second portrait in her panel while Today is open on a desktop (V5), plain
+  subtitles under Findings' tabs and on Evals (V8), message actions as outline icons with labels and tooltips, the model
+  as a quiet chip (V9), the chat usage line leads with "N% full · free (on this computer)", tokens on tap (V10).
+- Phone: the Settings header on two rows (M1), no inner scroll boxes in the sheet and no sideways scroll (M2), the
+  Moments album row wraps (M3), the empty *Your day* tile folds away under the Now card (M4); all pages and views at 390 have
+  `scrollWidth ≤ clientWidth`.
+- PL1b leftovers: the claim screen (F10: one main button, the token sign-in behind *I already have a token*, placeholder
+  `ABCD-1234`, help names the terminal, the desktop app and docker logs), wizard step 2 choice cards (F7: Keep {name} with
+  her portrait, A ready-made character, Make my own), one "make her" flow (F8: *Make my own* opens ✨ Create your companion
+  after setup; the wizard's mini form with its own option lists is gone), step 3's four ways as choice cards instead of
+  folding details, no ✕ beside *Set up later* (`data-nox`), the wizard covers the whole phone screen (Today no longer shows
+  under it), Getting started cards open their page with the matching question expanded.
+- BACKLOG: the coding pick prefers a capable model on this computer (`localCoderOk`: a coding family from 7B, or a strong
+  tool-using family from 14B; abliterated/uncensored/raw Hugging Face builds left out; `localCoderRank` puts coder families
+  and official `family:size` tags first) and falls back to the cloud coder only when there is none.
+- `sw.js` → `sara-shell-v50` (PL1b's activate step kept v48 by mistake, so the v49 cache was deleted on activation; fixed).
+- Not in PL1c (left for PL1d or later): P5/P6 (Name and personality in three tabs, one gallery for characters and starting
+  points), V6 (Memory settings moved out of the view), V7 (the date chip), V1's single shared window header component
+  (widths are now two: 720 / 1040), tokenising the older CSS files' 1,500 raw spacing values (only `kit.css` is token-only;
+  the lint test covers it), the 6 English tips that are themselves over 260 characters (their 12 translations too), a GPU
+  check for "Easiest", a desktop/phone `howto` index page in the guide (PL1d).
+
 ### PL1d (2.47.3): docs, README, guide, videos
 
 - §6 in full: README buttons for both paths, shorter *What's new*, Feature tour split, 5 localised

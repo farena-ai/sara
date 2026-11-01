@@ -2,6 +2,7 @@
 // Our moments, Scrapbook, Team). Each window's opening paragraph shows two lines with "Show more",
 // so the controls sit near the top instead of under a wall of text. Styles live in ui-tidy.css.
 import { t } from './naming.js';
+import { icon as makeIcon, ICONS } from './icons.js';
 
 /** The windows whose first paragraph (right under the title) is folded to two lines. */
 export const INTRO_WINDOWS = ['#planner', '#memory', '#lib-home', '#story', '#moments', '#scrapbook', '#team'];
@@ -84,20 +85,62 @@ export function wireOverflow(root = document) {
   }
 }
 
-/** The shared empty state: an icon, one line, and an optional hint below (styles: .empty-state). */
+/**
+ * The one empty state (Phase 114 PL1c, docs/design/POLISH.md §4.4; styles: .empty-state in kit.css):
+ * an icon in a soft circle, what goes here in one sentence, why it's empty or how it fills (muted),
+ * then at most one main button and a "How do I…?" link to the page's own block.
+ *   emptyState({ icon, text, why, action: { label, run }, howto: true, tag })
+ *   emptyState(icon, text, tag, hint)   (the older call, same look)
+ * `icon` is a name from icons.js (an outline icon) or, for content, an emoji.
+ */
 export function emptyState(icon, text, tag = 'div', hint = '') {
-  const box = document.createElement(tag);
+  const o = icon && typeof icon === 'object' ? icon : { icon, text, tag, why: hint };
+  const box = document.createElement(o.tag ?? 'div');
   box.className = 'empty-state';
   const add = (cls, words) => {
     const span = document.createElement('span');
     span.className = cls;
-    span.textContent = words;
+    if (words !== undefined) span.textContent = words;
     box.append(span);
+    return span;
   };
-  add('empty-icon', icon);
-  add('empty-text', text);
-  if (hint) add('empty-hint', hint);
+  const ring = add('empty-icon');
+  ring.setAttribute('aria-hidden', 'true');
+  const svg = o.icon && ICONS[o.icon] ? makeIcon(o.icon) : null;
+  if (svg) ring.append(svg);
+  else ring.textContent = o.icon ?? '';
+  add('empty-text', o.text);
+  if (o.why) add('empty-hint', o.why);
+  if (o.action || o.howto) {
+    const row = add('empty-actions');
+    if (o.action) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = o.action.ghost ? 'ghost small' : 'small';
+      b.textContent = o.action.label;
+      b.addEventListener('click', () => o.action.run());
+      row.append(b);
+    }
+    if (o.howto) {
+      const h = document.createElement('button');
+      h.type = 'button';
+      h.className = 'linkish small empty-howto';
+      h.textContent = `${t('How do I…?')} ▸`;
+      h.addEventListener('click', () => openHowtoNear(h));
+      row.append(h);
+    }
+  }
   return box;
+}
+/** Opens the "How do I…?" block of the window or Settings page a control is in. */
+export function openHowtoNear(node) {
+  const scope = node.closest('dialog') ?? document;
+  const block = [...scope.querySelectorAll('details.howto')].find((d) => d.getClientRects().length);
+  if (!block) return false;
+  block.open = true;
+  block.scrollIntoView({ block: 'nearest' });
+  block.querySelector('summary')?.focus();
+  return true;
 }
 
 export function initTidy() {

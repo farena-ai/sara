@@ -5,6 +5,23 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.47.2 (2026-11-01): one look, and help on every page (Phase 114, polish PL1c)
+
+- **How do I…?** on every Settings page, every view and the empty chat: 123 short questions with
+  numbered steps and a *Show me* that points at the control. The *Getting started* cards open the
+  matching answer.
+- **Empty pages explain themselves:** one style everywhere (an icon, what goes here and why, one main
+  button, a *How do I…?* link) instead of "None yet."
+- **One look:** one card style, outline icons instead of emoji in the views, the designed spacing
+  and three corner sizes, one intro per page (27 repeated ones removed), and a settings menu that
+  opens one group at a time.
+- **Phones:** a two-row Settings header, no boxes scrolling inside the page, no sideways scrolling,
+  the setup wizard covers the whole screen.
+- **Setup:** a clearer first sign-in screen (one main button; *I already have a token* behind a
+  link), choice cards in steps 2 and 3, *Make my own* opens *Create your companion*, and the coding
+  path picks a capable model on this computer first (cloud only when none fits).
+- The new translations were drafted with a local model; corrections are welcome.
+
 ## 2.47.1 (2026-11-01): a first run that fits you (Phase 114, polish PL1b)
 
 - **Company, coding or both:** the first setup step asks what you're here for (saved per companion,

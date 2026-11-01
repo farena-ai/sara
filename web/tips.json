@@ -713,30 +713,6 @@
       "Your first name or a nickname. Example: Alex.",
       "start"
     ],
-    "su-name": [
-      "Your companion's name. You can change it any time.",
-      "start"
-    ],
-    "su-pronouns": [
-      "How your companion is referred to: she, he or they.",
-      "start"
-    ],
-    "su-age": [
-      "Your companion's age. Always 18 or older.",
-      "start"
-    ],
-    "su-rel": [
-      "How you two relate: a close friend, dating, a partner, an assistant, a coach… It shapes how warm and close she is. Change it later in Settings.",
-      "shaping"
-    ],
-    "su-talk": [
-      "How she writes: casual like texting, thoughtful and full, or short and to the point. Fine-tune it later in the Personality studio.",
-      "shaping"
-    ],
-    "su-interests": [
-      "A few things she's into, separated by commas. Example: hiking, jazz, cooking.",
-      "shaping"
-    ],
     "su-host": [
       "The other computer's address with Ollama. Example: 192.168.1.20 (port 11434 is added for you).",
       "brain"

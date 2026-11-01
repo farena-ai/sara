@@ -7,7 +7,7 @@
 // cards, labelled with the plugin's name. Nothing a plugin sends is ever used as markup or script.
 import { serverText, t } from './naming.js';
 import { icon } from './icons.js';
-import { overflowMenu } from './tidy.js';
+import { overflowMenu, emptyState } from './tidy.js';
 import { proposalCard } from './proposal-card.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -153,7 +153,7 @@ function lastLine(p) {
 function renderList() {
   const box = $('#plg-list');
   if (!state.plugins.length) {
-    box.replaceChildren(el('p', 'muted small', t('No plugins yet. Add one to give her a new ability without changing Sara itself.')));
+    box.replaceChildren(emptyState({ icon: 'puzzle', text: t('No plugins yet. Add one to give her a new ability without changing Sara itself.'), action: { label: t('Add a plugin'), run: () => document.querySelector('#plg-add')?.click() }, howto: true }));
     return;
   }
   box.replaceChildren(...state.plugins.map(pluginCard));

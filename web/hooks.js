@@ -5,7 +5,7 @@
 // or Run it for real), Send a test (the exact curl), the log and its menu. Deliveries in the chat are
 // drawn by hookNotice() with the shared proposal card. Everything a sender sent is set as text.
 import { serverText, t } from './naming.js';
-import { overflowMenu } from './tidy.js';
+import { overflowMenu, emptyState } from './tidy.js';
 import { proposalCard } from './proposal-card.js';
 import { sparkline } from './viz.js';
 
@@ -214,7 +214,7 @@ function renderReach() {
 function renderList() {
   const box = $('#hk-list');
   if (!state.hooks.length) {
-    box.replaceChildren(el('p', 'muted small', t('No webhooks yet. Make one with New webhook.')));
+    box.replaceChildren(emptyState({ icon: 'plug', text: t('No webhooks yet.'), why: t('A webhook lets another app or service tell her something happened.'), action: { label: t('New webhook'), run: () => document.querySelector('#hk-new')?.click() }, howto: true }));
     return;
   }
   box.replaceChildren(...state.hooks.map(hookCard));
@@ -720,7 +720,7 @@ async function logPanel(h, panel) {
   try {
     const r = await api(`/hooks/${enc(h.id)}/deliveries`);
     panel.replaceChildren();
-    if (!r.deliveries.length) return panel.append(el('p', 'muted small', t('No deliveries yet.')));
+    if (!r.deliveries.length) return panel.append(emptyState({ icon: 'mail', text: t('No deliveries yet.') }));
     const table = el('table', 'hk-log');
     const thead = el('thead');
     const tr0 = el('tr');

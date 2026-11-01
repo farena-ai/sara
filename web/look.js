@@ -154,6 +154,7 @@ export function setContextRing(pct, kept) {
     return;
   }
   ring.style.setProperty('--ctx', String(pct));
+  ring.dataset.pct = String(pct);
   ring.classList.toggle('full', pct >= 100);
   ring.classList.toggle('high', pct >= 80 && pct < 100);
   $('#ctx-pct').textContent = `${pct}%`;

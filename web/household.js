@@ -35,26 +35,86 @@ function fillSelect(sel, values, label, current) {
   sel.value = String(current ?? values[0]);
 }
 
-/** Tick boxes for the owner's models (the first ticked is their default). */
+/**
+ * The models a member may use (the first ticked is their default). Phase 114 (PL1c, S9): "All my
+ * models" or "Only these…"; with Only these, a searchable list grouped by provider (Ollama Cloud
+ * apart, its subscription note once per group) and no scroll box of its own.
+ */
 function modelPicker(models, chosen, onChange) {
   const box = el('div', 'hh-models');
-  if (!models.length) box.append(el('p', 'muted small', t('Add a model first (Settings → Models).')));
-  for (const m of models) {
-    const lab = el('label', 'row');
-    const cb = el('input');
-    cb.type = 'checkbox';
-    cb.checked = chosen.some((c) => c.providerId === m.providerId && c.model === m.model);
-    cb.dataset.provider = m.providerId;
-    cb.dataset.model = m.model;
-    if (onChange) cb.addEventListener('change', onChange);
-    const name = el('span', '', `${m.model} `);
-    name.append(el('span', 'muted small', `(${m.label})`));
-    // Ollama Cloud models run on your Ollama subscription: say so before you share one.
-    if (/(:|-)cloud$/i.test(m.model)) name.append(' ', el('span', 'badge warn small', t('Ollama Cloud: uses your subscription')));
-    name.dataset.raw = '';
-    lab.append(cb, ' ', name);
-    box.append(lab);
+  if (!models.length) {
+    box.append(el('p', 'muted small', t('Add a model first (Settings → Models).')));
+    return box;
   }
+  const isOn = (m) => chosen.some((c) => c.providerId === m.providerId && c.model === m.model);
+  const all = models.every(isOn);
+  const mode = el('div', 'seg hh-mode');
+  mode.setAttribute('role', 'radiogroup');
+  mode.setAttribute('aria-label', t('Models they may use'));
+  const list = el('div', 'hh-model-list');
+  const find = el('input', 'hh-model-find');
+  find.type = 'search';
+  find.placeholder = t('Find a model');
+  find.setAttribute('aria-label', t('Find a model'));
+  find.dataset.nodirty = '';
+  const groups = new Map();
+  for (const m of models) {
+    const cloud = /(:|-)cloud$/i.test(m.model);
+    const key = cloud ? `${m.label} · Ollama Cloud` : m.label;
+    if (!groups.has(key)) groups.set(key, { cloud, items: [] });
+    groups.get(key).items.push(m);
+  }
+  const boxes = [];
+  for (const [label, g] of groups) {
+    const sec = el('div', 'hh-model-group');
+    const head = el('p', 'hh-model-head small');
+    const name = el('strong', '', label);
+    name.dataset.raw = '';
+    head.append(name);
+    // Ollama Cloud models run on your Ollama subscription: said once, before you share one.
+    if (g.cloud) head.append(' ', el('span', 'badge warn small', t('Ollama Cloud: uses your subscription')));
+    sec.append(head);
+    for (const m of g.items) {
+      const lab = el('label', 'row');
+      const cb = el('input');
+      cb.type = 'checkbox';
+      cb.checked = all || isOn(m);
+      cb.dataset.provider = m.providerId;
+      cb.dataset.model = m.model;
+      if (onChange) cb.addEventListener('change', onChange);
+      const n = el('span', '', m.model);
+      n.dataset.raw = '';
+      lab.append(cb, ' ', n);
+      sec.append(lab);
+      boxes.push({ lab, cb, sec, text: `${m.model} ${label}`.toLowerCase() });
+    }
+    list.append(sec);
+  }
+  find.addEventListener('input', () => {
+    const q = find.value.trim().toLowerCase();
+    for (const b of boxes) b.lab.hidden = Boolean(q) && !b.text.includes(q);
+    for (const sec of list.children) sec.hidden = ![...sec.querySelectorAll('label.row')].some((l) => !l.hidden);
+  });
+  const only = el('div', 'hh-only');
+  only.append(find, list);
+  const pick = (which) => {
+    for (const b of mode.children) b.setAttribute('aria-checked', String(b.dataset.mode === which));
+    only.hidden = which === 'all';
+    if (which === 'all' && boxes.some((b) => !b.cb.checked)) {
+      for (const b of boxes) b.cb.checked = true;
+      onChange?.();
+    }
+  };
+  for (const [id, label] of [['all', t('All my models')], ['only', t('Only these…')]]) {
+    const b = el('button', '', label);
+    b.type = 'button';
+    b.dataset.mode = id;
+    b.setAttribute('role', 'radio');
+    b.addEventListener('click', () => pick(id));
+    mode.append(b);
+  }
+  box.append(mode, only);
+  pick(all ? 'all' : 'only');
   return box;
 }
 const pickedModels = (box) => [...box.querySelectorAll('input[type=checkbox]:checked')].map((cb) => ({ providerId: cb.dataset.provider, model: cb.dataset.model }));

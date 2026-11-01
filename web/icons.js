@@ -118,6 +118,10 @@ export const ICONS = {
   discord: '<path d="M8.4 6.2A12 12 0 0 0 5 7.3C3.2 10 2.4 12.8 2.6 16a12 12 0 0 0 4.3 2.2l1-1.7M15.6 6.2A12 12 0 0 1 19 7.3c1.8 2.7 2.6 5.5 2.4 8.7a12 12 0 0 1-4.3 2.2l-1-1.7M7.2 16.2c3 1.4 6.6 1.4 9.6 0M9 6.8a12 12 0 0 1 6 0"/><circle cx="9.2" cy="12.4" r="1.3"/><circle cx="14.8" cy="12.4" r="1.3"/>',
   plug: '<path d="M9 3.5v4M15 3.5v4M6.5 7.5h11v3a5.5 5.5 0 0 1-11 0zM12 16v4.5"/>',
   hidden: '<path d="M3.5 12s3-6 8.5-6c1.6 0 3 .5 4.2 1.2M20.5 12s-3 6-8.5 6c-1.6 0-3-.5-4.2-1.2"/><path d="M4.5 19.5l15-15"/>',
+  // Phase 114 (PL1c, V9): the chat's message actions as icons.
+  copy: '<rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/>',
+  flag: '<path d="M5 21V4.5M5 4.5h11l-2 4 2 4H5"/>',
+  play: '<path d="M8 5.5v13l10.5-6.5z"/>',
 };
 
 /** A new icon element, or null for a name that isn't in the set. */

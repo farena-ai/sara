@@ -5,6 +5,7 @@
 // summaries, and opens at a page (the links in her answers: /#view=library:<id>:<page>).
 import { serverText, t } from './naming.js';
 import { emptyState } from './tidy.js';
+import { choices } from './kit.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -198,7 +199,7 @@ async function loadList() {
       return card;
     }),
   );
-  if (!c.docs) $('#lib-list').replaceChildren(emptyState('📚', t('Nothing here yet. Add a document to get started.')));
+  if (!c.docs) $('#lib-list').replaceChildren(emptyState('library', t('Nothing here yet. Add a document to get started.')));
   // Still reading or learning: look again shortly.
   if (r.docs.some((d) => ['waiting', 'reading'].includes(d.status) || ['waiting', 'learning'].includes(d.learn) || (jobRunning(d.job) && !d.job.paused && !d.job.needs))) scheduleRefresh();
 }
@@ -469,6 +470,7 @@ export async function openLibrary(docId, page = 0) {
 
 // ---------- Phase 74: the Library settings page (Settings → Abilities → Library)
 const SPEED_WORDS = { 1: 'Gentle (chat always first)', 2: 'Normal', 3: 'Fast' };
+let speedSeg = null;
 function speedLabel() {
   $('#lib-speed-n').textContent = t(SPEED_WORDS[$('#lib-speed').value] ?? 'Normal');
 }
@@ -480,6 +482,13 @@ export async function loadLibrarySettings() {
   $('#lib-ocr').value = r.ocr;
   $('#lib-speed').value = String(r.speed);
   speedLabel();
+  // Phase 114 (PL1c, S6): three segments with a one-line meaning instead of a 3-step slider.
+  speedSeg ??= choices($('#lib-speed'), [
+    { value: 1, label: t('Gentle'), meaning: t('Reads only while you are not chatting; big books take longer.') },
+    { value: 2, label: t('Normal'), meaning: t('Reads in the background and pauses while she answers you.') },
+    { value: 3, label: t('Fast'), meaning: t('Reads as fast as the model allows; chats may wait a little.') },
+  ], { label: t('Background reading') });
+  speedSeg.sync();
   $('#lib-settings-status').textContent = '';
 }
 export async function saveLibrarySettings() {

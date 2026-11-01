@@ -5,6 +5,7 @@
 // Every value from the server is set as text (nothing becomes markup).
 import { locale, t } from './naming.js';
 import { proposalCard } from './proposal-card.js';
+import { emptyState } from './tidy.js';
 
 let ctx = null;
 let view = null;
@@ -353,7 +354,7 @@ function renderPanel() {
   const list = $('#ag-items');
   list.replaceChildren(...(items.length ? items.map((x) => itemRow(x)) : [el('p', 'muted small ag-empty', on ? t('Nothing planned yet. When you mention something coming up, she may plan to ask how it went.') : t('Nothing planned.'))]));
   const goals = view.goals.filter((g) => g.status !== 'proposed');
-  $('#ag-goal-list').replaceChildren(...(goals.length ? goals.map(goalCard) : [el('p', 'muted small ag-empty', t('No goals yet. Add one, or tell her what you want to keep at.'))]));
+  $('#ag-goal-list').replaceChildren(...(goals.length ? goals.map(goalCard) : [emptyState({ icon: 'target', text: t('No goals yet. Add one, or tell her what you want to keep at.'), howto: true })]));
   const hist = $('#ag-history');
   hist.replaceChildren(...(view.history.length ? view.history.map(historyRow) : [el('li', 'muted small ag-empty', t('Nothing yet.'))]));
   renderSettings();

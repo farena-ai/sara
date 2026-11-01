@@ -691,6 +691,8 @@ export function renderDay(d, fmtDue) {
   if (later) foot.push(btn('td-link', t('More to-dos today: {n}', { n: later }), openPlanner));
   foot.push(btn('td-link', t('Open the Planner'), openPlanner));
   const at = d.parts?.day?.at;
+  // Phase 114 (PL1c, M4): on a phone the Now card already says the day is empty; this tile then folds away.
+  (list.closest?.('.today-card') ?? list).classList?.toggle('td-day-empty', !items.length && !d.calendar?.error);
   list.replaceChildren(
     ...(d.calendar?.error ? [el('p', 'error small', d.calendar.error)] : []),
     ...(items.length ? [ol, ...seeAll(items, ROWS[sizeOf('td-calendar')] + 2, draw)] : [el('p', 'td-empty muted small', t('Nothing planned. Enjoy the space.'))]),

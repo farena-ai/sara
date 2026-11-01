@@ -44,6 +44,30 @@ const CODE = /coder|codestral|devstral|-code\b|code:|kimi-k2|kimi-k3|qwen3.*code
 const STRONG = /gpt-5|claude|opus|sonnet|kimi-k3|glm-5\.\d(?!-flash)|deepseek-v4-pro|grok-4(?!.*fast)|mistral-large|nemotron-3-ultra|qwen3\.\d+-max/i;
 const FAST = /flash|mini\b|-mini|nano|haiku|small|lite|fast|:(\d|1[0-4])b\b|-(\d|1[0-4])b\b|gpt-oss:20b/i;
 
+/** Local coding families (7B and up is enough) and strong general families with good tool use (14B and up). */
+const LOCAL_CODER = /coder|codestral|devstral|-code\b|code:|deepseek/i;
+const LOCAL_TOOLS = /gpt-oss|qwen3(\.\d+)?[:-]|qwen2\.5[:-]|glm-4\.\d|mistral-small|gemma4[:-]|llama4/i;
+/** Builds that are not for everyday coding (abliterated, captioning, uncensored remixes, raw Hugging Face pulls). */
+const NOT_FOR_CODE = /ablit|uncensor|heretic|nsfw|caption|unleashed|^hf\.co\//i;
+/** The size in billions from a tag like qwen3-coder:30b or deepseek-coder-v2-16b (undefined when unknown). */
+export function modelSizeB(model: string): number | undefined {
+  const m = /[:-](\d+(?:\.\d+)?)b(?![a-z])/i.exec(model);
+  return m ? Number(m[1]) : undefined;
+}
+/** A local model that can carry a coding chat: a coding family from 7B, or a strong tool-using family from 14B. */
+export function localCoderOk(model: string): boolean {
+  if (NOT_CHAT.test(model) || NOT_FOR_CODE.test(model)) return false;
+  const size = modelSizeB(model);
+  if (LOCAL_CODER.test(model)) return size === undefined || size >= 7;
+  return LOCAL_TOOLS.test(model) && size !== undefined && size >= 14;
+}
+
+/** Lower is better: a coding family first, then an official family:size tag (qwen3:30b), then remixes. */
+export function localCoderRank(model: string): number {
+  if (LOCAL_CODER.test(model)) return 0;
+  return /^[a-z][a-z-]*[\d.]*:\d+(\.\d+)?b\b/i.test(model) ? 1 : 2;
+}
+
 export interface Candidate {
   providerId: string;
   provider: string;
@@ -95,8 +119,11 @@ export function recommend(cands: Candidate[], current: { providerId?: string; mo
   // Phase 92: Seeing your screen: a local model that can see, when there is one (screenshots stay home).
   out.screen = pick(chat.filter((c) => SEES.test(c.model) && c.local)[0], 'Can see pictures, on your own hardware.');
   out.vision = cur && SEES.test(cur.model) ? pick(cur, 'Your talking model can see pictures too.') : pick(first(chat.filter((c) => SEES.test(c.model)), (c) => c.local), 'Can see pictures.');
-  const coder = first(chat.filter((c) => CODE.test(c.model)), (c) => /coder|code/i.test(c.model));
-  out.coding = pick(coder, 'Good with code and tools.');
+  // Phase 114 (PL1c, owner rule "local by default"): a capable coding model on your own hardware
+  // first; a cloud one only when there is none.
+  const localCoder = chat.filter((c) => c.local && localCoderOk(c.model)).sort((a, b) => localCoderRank(a.model) - localCoderRank(b.model))[0];
+  const coder = localCoder ?? first(chat.filter((c) => CODE.test(c.model)), (c) => /coder|code/i.test(c.model));
+  out.coding = pick(coder, localCoder ? 'Good with code and tools, on your own hardware.' : 'Good with code and tools.');
   out.review = pick(first(chat.filter((c) => STRONG.test(c.model) || CODE.test(c.model))), 'A strong model for the security review.');
   const strong = first(chat.filter((c) => STRONG.test(c.model)));
   out.planning = pick(strong ?? cur, strong ? 'A strong, careful model.' : 'Your talking model.');

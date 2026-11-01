@@ -215,7 +215,7 @@ function renderColumns() {
 }
 
 function boardEmpty() {
-  const e = emptyState('🗂️', t('This board is empty.'), 'div', t('Add a card below, or ask her: “put the trip planning on my board”.'));
+  const e = emptyState('todo', t('This board is empty.'), 'div', t('Add a card below, or ask her: “put the trip planning on my board”.'));
   e.classList.add('bd-empty');
   return e;
 }

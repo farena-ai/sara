@@ -3,6 +3,9 @@
 // bubbles (her face, name and colour). The round itself streams through app.js runStream, which
 // calls speakerHeader() for each reply. See docs/GROUP_CHATS.md.
 import { t } from './naming.js';
+import { choices } from './kit.js';
+
+let banterSeg = null;
 
 const $ = (sel) => document.querySelector(sel);
 const ctx = { api: null, openConversation: null, loadConversations: null, switchCompanion: null, companions: () => [], current: () => null };
@@ -95,6 +98,7 @@ export function openGroupDialog(conv = null) {
   $('#gc-title').value = room?.title ?? '';
   $('#gc-style').value = room?.turnStyle ?? 'fits';
   $('#gc-banter').value = String(room?.banter ?? 0);
+  banterSeg?.sync();
   $('#gc-private').checked = Boolean(room?.private);
   $('#gc-private').disabled = Boolean(room);
   $('#gc-create').hidden = Boolean(room);
@@ -147,6 +151,12 @@ export function initGroups(opts) {
     syncCreate();
     void autosave({ turnStyle: $('#gc-style').value });
   });
+  // Phase 114 (PL1c, §3.4): Calm · Some · Lively as segments with the meaning under them.
+  banterSeg = choices($('#gc-banter'), [
+    { value: 0, label: t('Calm'), meaning: t('They answer you, then stop.') },
+    { value: 1, label: t('Some'), meaning: t('One extra reply between them now and then.') },
+    { value: 2, label: t('Lively'), meaning: t('Up to two extra replies between them.') },
+  ], { label: t('Banter between them') });
   $('#gc-banter').addEventListener('input', syncCreate);
   $('#gc-banter').addEventListener('change', () => void autosave({ banter: Number($('#gc-banter').value) }));
   $('#gc-title').addEventListener('change', () => {

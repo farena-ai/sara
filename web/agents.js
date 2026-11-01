@@ -5,7 +5,7 @@
 // (its card as a review card, the shared proposal card), and the last 20 requests. Everything an
 // agent sends is set as text: nothing from outside becomes markup.
 import { serverText, t } from './naming.js';
-import { overflowMenu } from './tidy.js';
+import { overflowMenu, emptyState } from './tidy.js';
 import { proposalCard } from './proposal-card.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -176,7 +176,7 @@ function policyLines(p) {
 function renderPeers() {
   const box = $('#a2a-peers');
   if (!state.peers.length) {
-    box.replaceChildren(el('p', 'muted small', t('No agents yet. Give one a key below, or add one she can ask.')));
+    box.replaceChildren(emptyState({ icon: 'team', text: t('No agents yet. Give one a key below, or add one she can ask.'), howto: true }));
     return;
   }
   box.replaceChildren(...state.peers.map(peerCard));

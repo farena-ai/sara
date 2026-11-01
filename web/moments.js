@@ -176,7 +176,7 @@ export async function loadMoments() {
     : d.settings.mode === 'off'
       ? t('Adding photos is off. Use “Add to our moments” under a photo in a conversation, or switch it on above.')
       : t('Photos you two share show up here by themselves, each with a caption from her. Keep a moment with ♡ under a message.');
-  $('#mo-list').replaceChildren(...(body.length ? body : [emptyState('📷', empty)]));
+  $('#mo-list').replaceChildren(...(body.length ? body : [emptyState('photo', empty)]));
   // While captions are being written, look again now and then.
   if (d.pending && !st.poll) st.poll = setInterval(() => (!$('#moments').open ? stopPoll() : void loadMoments()), 5000);
   if (!d.pending) stopPoll();

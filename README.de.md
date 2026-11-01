@@ -14,7 +14,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1497%20passing-brightgreen" alt="1497 tests passing">
+  <img src="https://img.shields.io/badge/tests-1510%20passing-brightgreen" alt="1510 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -83,6 +83,7 @@ Einminütige Anleitungen, aufgenommen auf einem Testserver mit einem lokalen Mod
 
 | Version | Was du bekommst |
 |---|---|
+| **2.47.2** · Ein Stil und Hilfe auf jeder Seite | **Jede Seite hat jetzt ein *Wie geht…?*-Feld** mit Schritt-für-Schritt-Antworten (123, mit *Zeig es mir*), und leere Seiten sagen, was dort hinkommt, mit einem klaren nächsten Schritt. Ein Kartenstil, Symbole statt Emoji, einheitliche Abstände und Ecken, ein Einstellungsmenü, das eine Gruppe nach der anderen öffnet, ein aufgeräumtes Handy-Layout ohne seitliches Scrollen, ein klarerer erster Anmeldebildschirm, und die Coding-Einrichtung bevorzugt ein fähiges Modell auf deinem eigenen Rechner. |
 | **2.47.1** · Ein Start, der passt | **Die Einrichtung stellt eine Frage: Gesellschaft, Programmieren oder beides.** Du bekommst ein empfohlenes Modell mit einem echten *Verbunden ✓*-Test, eine passende Tour mit sechs Stationen (die ganze Tour bleibt in der Hilfe), Startvorschläge im leeren Chat und eine Erste-Schritte-Liste in der für dich richtigen Reihenfolge. Fenster stapeln sich nie, und der Hinweis zur anonymen Rückmeldung ist Teil des letzten Schritts. |
 | **2.47** · Persönlichkeit, die man sieht | **Ihre Persönlichkeitsregler zeigen jetzt, was sie tun:** klare Endpunkte („Hält Abstand ↔ Offen herzlich“), ein Wort für die aktuelle Stufe und ein Satz in ihrer Stimme, der sich beim Verschieben ändert (125 Stück, ganz ohne KI-Aufruf). Gruppen mit klaren Namen, eine Zusammenfassung „Deine Sara bisher“ und klare Worte an jedem anderen Regler. Außerdem behoben: Heute aktualisiert sich nach der Einrichtung, überall dieselbe Modellzahl mit gruppierter Auswahl, ein Persona-Import benennt sie überall auf einmal um, und *Losfahren* steht vor seinem Termin. |
 | **2.46** · Probleme direkt aus Sara melden | **Hilfe → Problem melden oder Etwas vorschlagen** (oder `/bug` und `/idea` in jedem Chat, oder *Melden* bei einem Fehler): kein GitHub-Konto nötig. Optionale Diagnosedaten entstehen auf deinem Rechner, werden vollständig gezeigt, mit einem Häkchen pro Teil, und vor dem Senden von Schlüsseln, E-Mails und Pfaden befreit. *Meine Meldungen* zeigt den Stand und unsere Antworten. Außerdem sendet Sara einmal am Tag eine kleine anonyme Rückmeldung (Version, Windows/Mac/Linux, welche Funktionen an sind), damit wir helfen und planen können; IP-Adresse, Name und Chats werden nicht gespeichert. *Zeigen, was gesendet wird* oder ausschalten unter Einstellungen → Daten & Zustand → Datenschutz. |
@@ -336,8 +337,8 @@ wurden. Was sie heute beiträgt, ist die Arbeitsweise (sie lässt die Tests lauf
 riskanten Schritten, zeigt, was gelaufen ist), nicht ein höheres Ergebnis bei diesen Sätzen.
 Details, Ergebnisse pro Aufgabe und wie man es wiederholt: [docs/RESULTS.md](docs/RESULTS.md).
 
-Dazu `npm run check`: eine Typprüfung und 1512 automatische Tests mit einem geskripteten
-Schein-Modell (ohne Netz, ohne GPU): 1497 laufen unter Windows durch, die anderen 8 sind
+Dazu `npm run check`: eine Typprüfung und 1525 automatische Tests mit einem geskripteten
+Schein-Modell (ohne Netz, ohne GPU): 1510 laufen unter Windows durch, die anderen 8 sind
 Linux-spezifische Sandbox-Tests, die auf einem Linux-Server laufen.
 
 ## Sara im Vergleich

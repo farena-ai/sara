@@ -14,6 +14,7 @@
 // ship card's section and "Red-team this" on the chat cards (/api/redteam).
 import { locale, serverText, t } from './naming.js';
 import { icon } from './icons.js';
+import { emptyState } from './tidy.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => {
@@ -370,7 +371,7 @@ export async function refreshFindings() {
   if (st.tab === 'redteam') return void renderRedTeam();
   const list = $('#fnd-list');
   if (!data.findings.length) {
-    list.replaceChildren(el('p', 'muted fnd-empty', st.filter.status === 'open' ? t('Nothing open here. Her security pass checks the files she changes after each coding turn.') : t('No findings match these filters.')));
+    list.replaceChildren(st.filter.status === 'open' ? emptyState({ icon: 'shield', text: t('Nothing open here.'), why: t('Her security pass adds findings here after each coding turn.'), howto: true }) : emptyState({ icon: 'search', text: t('No findings match these filters.') }));
   } else list.replaceChildren(...data.findings.map((f) => findingCard(f, refreshFindings)));
   // A fix still working: look again in a moment (stops when the window closes or none is left).
   clearTimeout(st.poll);
@@ -563,6 +564,9 @@ async function renderThreatModel() {
 }
 
 function showTab(tab) {
+  // Phase 114 (PL1c, V8): the coder names stay; a plain line under the tabs says what each one is.
+  const sub = $('#fnd-tab-sub');
+  if (sub) sub.textContent = { list: t('What her checks found in your code, each with the real line.'), threats: t('How someone could attack this project, written from its own code.'), redteam: t('She tries to break it before you ship.') }[tab] ?? '';
   st.tab = tab;
   for (const [id, name] of [['#fnd-tab-list', 'list'], ['#fnd-tab-threats', 'threats'], ['#fnd-tab-redteam', 'redteam']]) {
     $(id).classList.toggle('active', tab === name);

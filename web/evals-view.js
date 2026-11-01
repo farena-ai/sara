@@ -8,6 +8,7 @@ import { locale, serverText, t } from './naming.js';
 import { icon } from './icons.js';
 import { openDiffSheet } from './branch-view.js';
 import { openRunView } from './run-view.js';
+import { emptyState } from './tidy.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => {
@@ -414,7 +415,7 @@ function renderHistory(list) {
   const box = $('#ev-history');
   box.replaceChildren();
   if (!list?.length) {
-    box.append(el('p', 'muted small', t('No settings were changed by an eval yet.')));
+    box.append(emptyState({ icon: 'flask', text: t('No settings were changed by an eval yet.') }));
     return;
   }
   const ul = el('ul', 'ev-history-list');
@@ -450,7 +451,7 @@ export async function refreshEvals() {
   $('#ev-monthly').value = d.schedule.monthly ? 'on' : 'off';
   $('#ev-mbudget').value = String(d.schedule.budgetTokens);
   const list = $('#ev-list');
-  list.replaceChildren(...(d.evals.length ? d.evals.filter((e) => e.status !== 'draft').map(evalRow) : [el('p', 'muted small ev-empty', t('No evals yet. Pick variants above to try them on your own past tasks.'))]));
+  list.replaceChildren(...(d.evals.length ? d.evals.filter((e) => e.status !== 'draft').map(evalRow) : [emptyState({ icon: 'flask', text: t('No evals yet. Pick variants above to try them on your own past tasks.'), howto: true })]));
   renderHistory(d.history);
   if (st.open) await openEval(st.open);
 }

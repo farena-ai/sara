@@ -7,6 +7,7 @@
 // masked sample rows, three samples made by the real mapper, a pick-list of destinations and a
 // column map (no SQL), Looks right / Skip, progress while the rows stream, and saved mappings.
 import { serverText, t } from './naming.js';
+import { emptyState } from './tidy.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -778,7 +779,7 @@ async function renderMappings() {
   if (!box) return;
   const r = await api('/movein/mappings').catch(() => ({ mappings: [] }));
   if (!r.mappings.length) {
-    box.replaceChildren(el('p', 'muted small', t('None yet. A store card you confirm is saved here, so the same kind of store maps itself next time.')));
+    box.replaceChildren(emptyState({ icon: 'package', text: t('No saved mappings.'), why: t('A store card you confirm is saved here, so the same kind of store maps itself next time.') }));
     return;
   }
   const ul = el('ul', 'mi-batch-list');
@@ -802,7 +803,7 @@ function renderBatches() {
   if (!box || !state.overview) return;
   const list = state.overview.batches ?? [];
   if (!list.length) {
-    box.replaceChildren(el('p', 'muted small', t('None yet.')));
+    box.replaceChildren(emptyState({ icon: 'package', text: t('No move-ins yet.'), howto: true }));
     return;
   }
   const ul = el('ul', 'mi-batch-list');

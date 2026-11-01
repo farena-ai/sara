@@ -6,7 +6,7 @@
 // all. Workspaces whose own skills are not trusted yet are listed with a Trust button (owner only).
 import { currentIdentity, serverText, t } from './naming.js';
 import { icon } from './icons.js';
-import { overflowMenu } from './tidy.js';
+import { overflowMenu, emptyState } from './tidy.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -188,7 +188,7 @@ function renderList() {
   const show = $('#skl-show').value;
   const list = state.skills.filter((s) => (show === 'on' ? s.enabled : show === 'mine' ? s.scope === 'companion' || s.scope === 'shared' : show === 'builtin' ? s.scope === 'builtin' : true));
   if (!list.length) {
-    box.replaceChildren(el('p', 'muted small', state.skills.length ? t('No skills match.') : t('No skills yet. Make one with New skill, or add one from a zip, a git address or a folder.')));
+    box.replaceChildren(state.skills.length ? emptyState({ icon: 'search', text: t('No skills match.') }) : emptyState({ icon: 'sparkle', text: t('No skills yet. Make one with New skill, or add one from a zip, a git address or a folder.'), howto: true }));
     return;
   }
   box.replaceChildren(...list.map(card));

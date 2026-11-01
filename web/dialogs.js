@@ -75,6 +75,14 @@ export async function runSave(dialog) {
   return a.running;
 }
 
+/** Phase 114 (PL1c): a control changed by code for the person (segment buttons, choice cards) saves like a trusted change. */
+export function changedByHand(node) {
+  const dialog = node.closest('dialog');
+  if (!dialog || !autos.has(dialog) || node.closest('[data-noauto]')) return;
+  dirty.add(dialog);
+  saveSoon(dialog);
+}
+
 function saveSoon(dialog, ms = 350) {
   const a = autos.get(dialog);
   clearTimeout(a.timer);
@@ -162,7 +170,8 @@ function wire(dialog) {
   x.title = t('Close (Esc)');
   x.append(icon('close') ?? '✕');
   x.addEventListener('click', () => requestClose(dialog));
-  if (!dialog.dataset.required) top(dialog).append(x);
+  // Windows with their own quiet close in the header (data-nox, e.g. setup's "Set up later") skip the ✕.
+  if (!dialog.dataset.required && !('nox' in dialog.dataset)) top(dialog).append(x);
   // Esc
   dialog.addEventListener('cancel', (e) => {
     if (dialog.dataset.required) return e.preventDefault(); // e.g. the required first-run steps

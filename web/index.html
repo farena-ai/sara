@@ -29,6 +29,7 @@
   <link rel="stylesheet" href="/agenda.css">
   <link rel="stylesheet" href="/hub.css">
   <link rel="stylesheet" href="/first-run.css">
+  <link rel="stylesheet" href="/kit.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -42,22 +43,25 @@
       <h1>Sara</h1>
       <!-- Phase 59: first sign-in in the browser on a new server (src/claim.ts) -->
       <div id="claim" class="claim" hidden>
-        <h2>Welcome! Set up Sara</h2>
+        <!-- Phase 114 (PL1c, F10): one main button; the token sign-in folds under "I already have a token". -->
+        <h2>Welcome! Let's set things up</h2>
         <p id="claim-intro" class="muted">This server has no owner yet. Set it up now to become its owner.</p>
-        <label id="claim-code-row" class="claim-code-row">Setup code <button type="button" class="tip" data-tip="An 8-character code Sara prints in her log at every start, next to the words &quot;setup code&quot;. It only works on a new server, for a while after she starts, from this machine or your home network.">?</button>
-          <input id="claim-code" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12"></label>
+        <label id="claim-code-row" class="claim-code-row">Setup code <button type="button" class="tip" data-tip="The 8-character code (like ABCD-1234) Sara shows at every start: in her terminal, the desktop app or docker logs. It works only on a new server, for a while after she starts, from your home network.">?</button>
+          <input id="claim-code" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" placeholder="ABCD-1234"></label>
         <details id="claim-help" class="login-help muted small">
           <summary>Where do I find the setup code?</summary>
-          <p>Open the app's log in your server's dashboard and look for &quot;setup code&quot;:</p>
+          <p>It shows each time Sara starts, next to the words &quot;setup code&quot;:</p>
+          <p>Started in a terminal: in that terminal window.</p>
+          <p>Desktop app: in the app's window while it starts.</p>
+          <p>Docker: <code>docker compose logs sara</code></p>
           <p>CasaOS or ZimaOS: the app's menu (⋮), then Logs.</p>
           <p>TrueNAS: Apps, then Sara, then the logs icon under Workloads.</p>
           <p>Unraid: Docker, click Sara's icon, then Logs.</p>
-          <p>Docker: <code>docker compose logs sara</code></p>
           <p>The code is new at every start. If it timed out, restart the app and use the new one.</p>
         </details>
         <button id="claim-go" type="button">Set up Sara</button>
         <p id="claim-closed" class="muted small" hidden></p>
-        <p class="or-divider"><span>Or sign in with the owner token</span></p>
+        <p class="claim-token-open"><button id="claim-token-show" type="button" class="linkish small" aria-expanded="false">I already have a token</button></p>
       </div>
       <p class="muted" id="login-intro">Enter the owner token printed in the server log on first start.</p>
       <input id="login-token" type="password" autocomplete="current-password" placeholder="Owner token" required>
@@ -314,7 +318,8 @@
           <div id="td-pull" class="td-pull" aria-hidden="true"><span class="td-pull-spin"></span></div>
           <header class="td-hero">
             <div class="td-hello">
-              <p id="td-date" class="td-date"></p>
+              <!-- Phase 114 (PL1c, V4): "← Chat" left of the date line, clear of her portrait. -->
+              <div class="td-dateline"><button id="td-back" type="button" class="ghost small td-back" title="Back to the conversation (Esc)"><i class="ic" data-icon="back"></i>Chat</button><p id="td-date" class="td-date"></p></div>
               <h2 id="td-greeting" tabindex="-1">Today</h2>
               <div id="td-her" class="td-her" hidden>
                 <p class="td-mood"><span class="hp-dot" aria-hidden="true"></span><span id="td-her-name" class="td-her-name" data-raw>Sara</span> <span id="td-mood-text" class="td-mood-text"></span></p>
@@ -326,7 +331,6 @@
               <button id="td-face-btn" class="td-face-btn" type="button" aria-label="Her page: her day, mood and character"><img id="td-face" class="td-face" src="/sara-portrait.jpg" alt=""></button>
               <span class="ai-badge td-ai" title="Sara is an AI companion">AI companion</span>
             </div>
-            <button id="td-back" type="button" class="ghost small td-back" title="Back to the conversation (Esc)"><i class="ic" data-icon="back"></i>Chat</button>
           </header>
           <!-- Phase 112 (TD2): the Now card on phones and tablets: the next things with a countdown, the weather in one line, her mood. -->
           <section id="td-now" class="td-nowcard" aria-labelledby="td-now-h" hidden>
@@ -677,7 +681,7 @@
 
   <!-- Sara: her day, inner life, texting first, character -->
   <!-- First-run setup guide -->
-  <dialog id="setup" class="setup">
+  <dialog id="setup" class="setup" data-nox>
     <form method="dialog" class="settings-body">
       <!-- Phase 114 (PL1b, F3): "Set up later" is a quiet link up here, never the strongest button. -->
       <div class="setup-head"><p class="setup-step muted small" id="setup-step"></p><button id="su-skip" type="button" class="linkish small">Set up later</button></div>
@@ -694,68 +698,51 @@
 
       <section data-step="2" hidden>
         <h2>Your companion</h2>
-        <div class="yours-head">
-          <img class="my-face" src="/sara-portrait.jpg" alt="">
-          <div class="yours-who">
-            <label class="row"><input type="radio" name="su-who" value="keep" checked> Keep <strong>Sara</strong> as she is</label>
-            <label class="row"><input type="radio" name="su-who" value="gallery"> Start from a ready-made character</label>
-            <label class="row"><input type="radio" name="su-who" value="new"> Make my own companion</label>
-          </div>
-        </div>
+        <!-- Phase 114 (PL1c, F7/F8): the same choice cards as steps 1 and 3; "Make my own" opens Create your companion after setup. -->
+        <div id="su-who" class="pick-cards su-who" role="radiogroup" aria-label="Your companion"></div>
         <div id="su-gallery-box" hidden>
-          <p class="muted small">Pick one to start from. Everything can be changed later in Settings → Name and personality.</p>
-          <p class="muted small">The picture stays as it is: you can make a new look for your character later in Settings → Look.</p>
+          <p class="muted small">Pick one to start from. Her picture stays; change anything later in Settings → Name and personality.</p>
           <div id="su-gallery" class="gallery-cards" aria-label="Characters to start from"></div>
         </div>
-        <div id="su-new" hidden>
-          <div class="add-row">
-            <label>Name <input id="su-name" maxlength="40" placeholder="e.g. Max"></label>
-            <label>Pronouns <select id="su-pronouns"><option value="she">she / her</option><option value="he">he / him</option><option value="they">they / them</option></select></label>
-            <label>Age <input id="su-age" type="number" min="18" max="120" value="29"></label>
-          </div>
-          <div class="add-row">
-            <label>Relationship <select id="su-rel"></select></label>
-            <label>How they talk <select id="su-talk"></select></label>
-          </div>
-          <div class="chips" id="su-vibe" role="radiogroup" aria-label="Vibe"></div>
-          <label>Interests <input id="su-interests" maxlength="300" placeholder="e.g. hiking, sci-fi, cooking"></label>
-          <p class="muted small">After setup, <strong>✨ Create your companion</strong> (Settings → Name and personality) shapes their personality, life, look and voice in 8 short steps.</p>
-        </div>
+        <p id="su-new" class="su-new-note muted small" hidden>After setup, <strong>✨ Create your companion</strong> opens: name, personality, life, look and voice in 8 short steps. Every step can be skipped.</p>
       </section>
 
       <section data-step="3" hidden>
         <h2>Connect a brain</h2>
         <p class="muted">Sara needs an AI model to think with. Pick the way that suits you; you can change it or add more later, and her memories stay.</p>
-        <details class="su-choice" id="su-local">
-          <summary>On this computer <span class="su-sub">Most private · free · needs a strong computer</span></summary>
+        <!-- Phase 114 (PL1c): four choice cards; the picked one opens its panel under the row. -->
+        <div id="su-ways" class="pick-cards su-ways" role="radiogroup" aria-label="Ways to connect a brain">
+          <button type="button" class="pick-card su-way" role="radio" aria-checked="false" data-way="local" aria-controls="su-local"><strong>On this computer</strong> <span class="su-sub muted small">Most private · free · needs a strong computer</span></button>
+          <button type="button" class="pick-card su-way" role="radio" aria-checked="false" data-way="host" aria-controls="su-host-box"><strong>Another computer at home</strong> <span class="su-sub muted small">Private · free · e.g. your gaming PC with Ollama</span></button>
+          <button type="button" class="pick-card su-way" role="radio" aria-checked="false" data-way="key" aria-controls="su-key-box"><strong>In the cloud</strong> <span class="su-sub muted small">Fast and capable · pay for what you use · needs an account key</span></button>
+          <button type="button" class="pick-card su-way" role="radio" aria-checked="false" data-way="subs" aria-controls="su-subs-box"><strong>My subscription</strong> <span id="su-subs-tag" class="su-chip su-tag" hidden></span> <span class="su-sub muted small">ChatGPT, Claude or Grok · uses the plan you already pay for</span></button>
+        </div>
+        <div class="su-way-panel" id="su-local" hidden>
           <div id="su-found" class="su-found" hidden></div>
           <div id="su-local-none">
             <p class="small">Runs the model with <strong>Ollama</strong> right here, so nothing you say leaves this machine. Install Ollama from <a href="https://ollama.com/download" target="_blank" rel="noopener">ollama.com</a>, get a model (for example <code>ollama pull gemma3</code>), then:</p>
             <button id="su-rescan" type="button" class="ghost small">Look again</button>
           </div>
-        </details>
-        <details class="su-choice">
-          <summary>Another computer at home <span class="su-sub">Private · free · e.g. your gaming PC with Ollama</span></summary>
+        </div>
+        <div class="su-way-panel" id="su-host-box" hidden>
           <div class="add-row">
             <label>Its address <input id="su-host" placeholder="192.168.1.20 or my-pc.tailnet.ts.net"></label>
             <button id="su-host-go" type="button">Connect</button>
           </div>
           <p class="muted small">On that computer, Ollama must accept connections from the network (set <code>OLLAMA_HOST=0.0.0.0</code>). It has to be on when you talk to her.</p>
-        </details>
-        <details class="su-choice" id="su-key-box">
-          <summary>In the cloud <span class="su-sub">Fast and capable · pay for what you use · needs an account key</span></summary>
+        </div>
+        <div class="su-way-panel" id="su-key-box" hidden>
           <p class="muted small">Your messages go to the company you pick to be answered. Get a key from their website (OpenAI, Anthropic, xAI, OpenRouter or Ollama Cloud).</p>
           <div class="add-row">
             <label>Service <select id="su-preset"></select></label>
             <label>Key <input id="su-key" type="password" autocomplete="off"></label>
             <button id="su-key-go" type="button">Connect</button>
           </div>
-        </details>
-        <details class="su-choice" id="su-subs-box">
-          <summary>My subscription <span id="su-subs-tag" class="su-chip su-tag" hidden></span> <span class="su-sub">ChatGPT, Claude or Grok · uses the plan you already pay for</span></summary>
+        </div>
+        <div class="su-way-panel" id="su-subs-box" hidden>
           <p class="small">Signing in takes a browser step. Finish this guide, then press <em>Sign in</em> under Settings → Models → Subscriptions; it opens for you at the end.</p>
           <label class="row"><input id="su-subs" type="checkbox"> Open subscriptions when I'm done</label>
-        </details>
+        </div>
         <p class="muted small">Not sure? <a href="/help#brain" target="_blank" rel="noopener">Compare the choices</a>.</p>
         <!-- Phase 114 (PL1b, F5/F6): the pick as a card with a status chip; the full list behind Change. -->
         <div id="su-model-row" class="su-pick" hidden>
@@ -1141,9 +1128,9 @@
   <dialog id="scrapbook">
     <form method="dialog" class="settings-body scrapbook">
       <h2>Our scrapbook</h2>
-      <p class="muted small">Moments you pinned (📌 under a message), inside jokes, and the photos you two shared. Sara can add to it too, and look back at it.</p>
+      <p class="muted small">Messages you pinned (📌 under a message) and your inside jokes. Sara can add to it too, and look back at it. Photos and the moments you keep (♡) are in Our moments.</p>
       <div class="tabs" role="tablist">
-        <button type="button" class="tab active" role="tab" aria-selected="true" data-sb="moments">Moments &amp; jokes</button>
+        <button type="button" class="tab active" role="tab" aria-selected="true" data-sb="moments">Pins and jokes</button>
         <button type="button" class="tab" role="tab" aria-selected="false" data-sb="photos">Photos</button>
       </div>
       <div id="sb-moments" class="sb-list"></div>
@@ -1222,6 +1209,7 @@
         <button id="fnd-tab-threats" type="button" class="tab" role="tab" aria-selected="false">Threat model</button>
         <button id="fnd-tab-redteam" type="button" class="tab" role="tab" aria-selected="false">Red team</button>
       </div>
+      <p id="fnd-tab-sub" class="muted small tab-sub">What her checks found in your code, each with the real line.</p>
       <div class="fnd-filters" data-nodirty>
         <label>Project <select id="fnd-ws"></select></label>
         <label>Status <select id="fnd-status"><option value="open">Open</option><option value="fixed">Fixed</option><option value="dismissed">Dismissed</option><option value="accepted">Accepted</option><option value="all">All</option></select></label>
@@ -1246,6 +1234,7 @@
       <h2>Evals</h2>
       <p class="muted small">Try other settings on your own past tasks: each task is replayed with your settings now and with each variant, in throwaway copies, then scored in the open. A winner is named only when the evidence says so.</p>
       <section class="ev-new" data-nodirty>
+        <p class="muted small tab-sub">An eval replays your own past tasks with other settings and scores both, so you see which works better.</p>
         <h3>Try other settings <button type="button" class="tip" data-tip="Pick which of your past tasks to use and up to three variants. Nothing runs until you have seen the estimate and the ceiling and said yes.">?</button></h3>
         <div class="ev-picks">
           <label class="ev-field"><span>Tasks from</span> <button type="button" class="tip" data-tip="Coding conversations are graded by your project's tests when it has them. Off-the-record chats are never used; private ones only when every model is on this computer.">?</button> <select id="ev-kind"><option value="coding">Coding conversations</option><option value="everyday">Everyday chats</option><option value="both">Coding and everyday</option></select></label>
@@ -1800,6 +1789,7 @@
           <h2 id="settings-page-title"></h2>
         </header>
         <p id="settings-page-desc" class="settings-page-desc" hidden><span id="settings-help-text"></span> <a id="settings-help-link" href="/help" target="_blank" rel="noopener">Read the guide ↗</a></p>
+        <div id="settings-howto" class="settings-howto"></div>
         <div class="settings-pages settings-body">
         <section class="settings-page" data-page="her-character" data-group="Her" data-title="Name and personality" hidden>
       <div class="yours-head">
@@ -1922,7 +1912,7 @@
       </div>
         </section>
         <section class="settings-page desktop-only" data-page="desktop-app" data-group="Connections" data-title="This computer" hidden>
-      <p class="muted small">Settings for the Sara app on this computer.</p>
+      <p class="muted small page-lead">Settings for the Sara app on this computer.</p>
       <label class="row"><input id="dk-login" type="checkbox"> Start Sara when I sign in to this computer <button type="button" class="tip" data-tip="Sara opens quietly next to the clock (menu bar on a Mac, system tray on Windows) when you sign in, so her messages, reminders and calls reach you without opening anything.">?</button></label>
       <label class="row"><input id="dk-keep" type="checkbox"> Keep running when I close the window <button type="button" class="tip" data-tip="Closing the window then just hides it: Sara stays next to the clock and can still notify you and ring. Quit from her icon there. Off = closing the window quits.">?</button></label>
       <div id="dk-quick-row" class="add-row dk-quick" hidden>
@@ -1935,7 +1925,7 @@
       <p id="dk-version" class="muted small"></p>
         </section>
         <section class="settings-page" data-page="co-computer" data-group="Connections" data-title="Computer use" hidden>
-      <p class="muted small">Sara can use her own browser on your computer: open pages, read them, take screenshots, check console errors, and click, type, choose and upload to fill in forms. You see a "Sara is working" badge with Stop while she does. It works through the Sara app for Windows or Mac and is off until you switch it on there.</p>
+      <p class="muted small page-lead">Sara can use her own browser on your computer: open pages, read them, take screenshots, check console errors, and click, type, choose and upload to fill in forms. You see a "Sara is working" badge with Stop while she does. It works through the Sara app for Windows or Mac and is off until you switch it on there.</p>
       <div id="cu-this" class="cu-this" hidden>
         <h3>This computer</h3>
         <label class="row"><input id="cu-optin" type="checkbox" data-noauto> Let Sara use this computer <button type="button" class="tip" data-tip="Off by default. On: Sara may use her own browser window here (its own profile, never yours) to look at pages, read their errors, click and type. You see what she does and can stop her any time.">?</button></label>
@@ -1995,7 +1985,7 @@
         <label class="row">Approvals for clicking and typing <select id="cu-level" data-noauto><option value="task">Ask once per task</option><option value="ask">Ask every time</option><option value="always">Always allowed</option></select> <button type="button" class="tip" data-tip="Once per task (default): her first action on a site asks. Every time: each action asks. Always allowed: no cards. Payments and account settings always ask.">?</button></label>
         <h4>Always allowed on these sites</h4>
         <ul id="cu-always" class="cu-list"></ul>
-        <p id="cu-always-none" class="muted small">None yet. Press Always on a card to add a site here.</p>
+        <p id="cu-always-none" class="muted small">No sites here yet. Press Always on a card to add one.</p>
         <h4>Check-ups</h4>
         <p class="muted small">Ask her "make my computer faster", "why is my disk full" or "check my startup apps". She checks first without changing anything, shows a report, and each change she suggests asks you on that computer.</p>
         <label class="row"><input id="cu-checkup-ext" type="checkbox" data-noauto> Include my browser extensions in check-ups <button type="button" class="tip" data-tip="On by default. Check-ups then list the extensions in your own browsers (shown only: Sara never changes your browser). Off: she leaves them out.">?</button></label>
@@ -2007,7 +1997,7 @@
       <p id="cu-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="her-companions" data-group="Her" data-title="Companions" hidden>
-      <p class="muted small">You can have more than one companion on this server. Each has her own name, character, look, voice, conversations and memories. They share your sign-in, devices, keys, models, tools and backups. Switch between them with ⇄ at the top of the sidebar.</p>
+      <p class="muted small page-lead">You can have more than one companion on this server. Each has her own name, character, look, voice, conversations and memories. They share your sign-in, devices, keys, models, tools and backups. Switch between them with ⇄ at the top of the sidebar.</p>
       <ul id="cmp-list" class="cmp-list"></ul>
       <h3>Add a companion</h3>
       <div class="add-row">
@@ -2021,7 +2011,7 @@
       <p id="cmp-planner-note" class="muted small">A change applies after the next restart or update.</p>
         </section>
         <section class="settings-page" data-page="her-import" data-group="Her" data-title="Bring her from another app" data-owner-only hidden>
-      <p class="muted small">Bring your chats from Character.AI, SillyTavern, Replika, Nomi, Kindroid, ChatGPT, Claude or a saved transcript. She reads them and suggests what she learned about you, your history together and her character. Nothing is saved until you check it and press Save. <a href="/help#import" target="_blank" rel="noopener">How to export from each app</a></p>
+      <p class="muted small page-lead">Bring your chats from Character.AI, SillyTavern, Replika, Nomi, Kindroid, ChatGPT, Claude or a saved transcript. She reads them and suggests what she learned about you, your history together and her character. Nothing is saved until you check it and press Save. <a href="/help#import" target="_blank" rel="noopener">How to export from each app</a></p>
       <p class="muted small mi-link">Moving a whole Hermes Agent, OpenClaw or custom companion? <button type="button" class="ghost small" data-goto-tab="dh-movein">Move in from another agent</button></p>
       <h3>Choose the file</h3>
       <p class="muted small">A .zip export (up to 200 MB) or one chat file: .json, .jsonl, .csv, .txt or .md (up to 50 MB). Character cards are imported in Name and personality instead.</p>
@@ -2059,7 +2049,7 @@
       <p id="ci-msg" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="her-look" data-group="Her" data-title="Look" hidden>
-      <p class="muted small">Describe a look and Grok Imagine paints it (on your Grok subscription, or an xAI key). Like it? Sara then gets matching happy, caring and sleepy pictures and blink/talk frames, so she animates like the default. About a minute.</p>
+      <p class="muted small page-lead">Describe a look and Grok Imagine paints it (on your Grok subscription, or an xAI key). Like it? Sara then gets matching happy, caring and sleepy pictures and blink/talk frames, so she animates like the default. About a minute.</p>
       <label>Describe the look <input id="look-desc" maxlength="600" placeholder="e.g. a man in his 30s with short dark curly hair, a beard and a denim jacket"></label>
       <div class="add-row">
         <label>Style <select id="look-style"><option value="illustrated">Illustrated</option><option value="photo">Photo-realistic</option><option value="anime">Anime</option><option value="3d">3D animated</option></select></label>
@@ -2196,7 +2186,7 @@
       </details>
         </section>
         <section class="settings-page" data-page="her-calls" data-group="Her" data-title="Calls from her" hidden>
-      <p class="muted small">She can ring you, like a phone call, in the Sara app on your phone or in this browser. Answer and she tells you why she called. Miss it and she sends it as a message instead.</p>
+      <p class="muted small page-lead">She can ring you, like a phone call, in the Sara app on your phone or in this browser. Answer and she tells you why she called. Miss it and she sends it as a message instead.</p>
       <label class="row"><input id="cl-on" type="checkbox"> Let her call me</label>
       <div id="cl-rules">
         <label>Reminders <select id="cl-rem"><option value="asked">Only when I ask her to call ("call me at 5")</option><option value="call">Every reminder</option><option value="message">Never: messages only</option></select></label>
@@ -2217,7 +2207,7 @@
       <p id="cl-note" class="muted small">Android: switch on Instant notifications (Connections → Phone and notifications) so the phone can ring. iPhone: rings while the app is open; otherwise a “Sara is calling” notification (needs your Apple push key, Settings → Phone and notifications).</p>
         </section>
         <section class="settings-page" data-page="her-pictures" data-group="Her" data-title="Pictures from her" hidden>
-      <p class="muted small">Sara can send you photos of herself. Her own portraits cost nothing. New pictures are made with xAI Grok Imagine from her look, using your Grok subscription (or an xAI API key); she asks first unless you change <em>take_photo</em> above.</p>
+      <p class="muted small page-lead">Sara can send you photos of herself. Her own portraits cost nothing. New pictures are made with xAI Grok Imagine from her look, using your Grok subscription (or an xAI API key); she asks first unless you change <em>take_photo</em> above.</p>
       <label>Pictures
         <select id="ph-mode">
           <option value="off">Off</option>
@@ -2233,7 +2223,7 @@
       <div id="ph-taken" class="ph-taken"></div>
         </section>
         <section class="settings-page" data-page="models-local" data-group="Models" data-title="On this computer" data-owner-only hidden>
-      <p class="muted small">Run her model on this computer, and if you like, keep everything here: nothing goes to the internet.</p>
+      <p class="muted small page-lead">Run her model on this computer, and if you like, keep everything here: nothing goes to the internet.</p>
       <div class="pl-card" id="pl-card" data-noauto data-nodirty>
         <label class="row pl-switch"><input id="pl-on" type="checkbox"> <span>Nothing leaves this computer</span> <button type="button" class="tip" data-tip="On: Sara only connects to this computer (127.0.0.1, ::1, localhost). Cloud models, web search, bridges, phone notifications, updates and reports pause until you turn it off. Your model must run here.">?</button></label>
         <p id="pl-status" class="muted small" role="status"></p>
@@ -2285,6 +2275,7 @@
         </section>
         <section class="settings-page" data-page="models-routes" data-group="Models" data-title="Which model does what" data-owner-only hidden>
       <p class="muted small">Every job uses your default model unless you pick one here. A conversation's own model choice still wins. <em>✨ Use recommended</em> fills in picks from what's connected; changes save by themselves.</p>
+      <p id="jobs-default-line" class="jobs-default-line" data-raw></p>
       <div class="jobs-top">
         <button id="jobs-recommend" type="button" class="ghost">✨ Use recommended</button>
         <span id="jobs-status" class="muted small" role="status"></span>
@@ -2305,7 +2296,7 @@
       <p class="muted small">Pictures she makes: <a href="#" data-goto="her-pictures">Pictures from her</a>. Hearing you and her voice: <a href="#" data-goto="her-voice">Voice</a>.</p>
         </section>
         <section class="settings-page" data-page="models-subs" data-group="Models" data-title="Subscriptions" data-owner-only hidden>
-      <p class="muted small">Use a subscription you already pay for instead of an API key. Each one shows up as a model provider once you're signed in.</p>
+      <p class="muted small page-lead">Use a subscription you already pay for instead of an API key. Each one shows up as a model provider once you're signed in.</p>
       <p id="sub-error" class="error small" role="alert"></p>
       <div class="sub-card">
         <strong>ChatGPT</strong> <span id="sub-chatgpt-status" class="muted small"></span>
@@ -2338,7 +2329,7 @@
       </div>
         </section>
         <section class="settings-page" data-page="models-providers" data-group="Models" data-title="Model providers" data-owner-only hidden>
-      <p class="muted small">Where Sara's models come from. Keys are stored encrypted on your server and never shown again. Subscriptions (Settings → Models → Subscriptions) add themselves here.</p>
+      <p class="muted small page-lead">Where Sara's models come from. Keys are stored encrypted on your server and never shown again. Subscriptions (Settings → Models → Subscriptions) add themselves here.</p>
       <div id="provider-list"></div>
 
       <details id="add-provider" data-noauto>
@@ -2416,7 +2407,7 @@
       </div>
         </section>
         <section class="settings-page" data-page="you-briefing" data-group="You" data-title="Morning briefing" hidden>
-      <p class="muted small">Once a day at the time you pick, Sara sends a short message with the weather and what's on your list (due to-dos and reminders). It arrives like her other messages: in chat, as a notification and on Telegram/Discord if linked. Weather comes from Open-Meteo (free, no account).</p>
+      <p class="muted small page-lead">Once a day at the time you pick, Sara sends a short message with the weather and what's on your list (due to-dos and reminders). It arrives like her other messages: in chat, as a notification and on Telegram/Discord if linked. Weather comes from Open-Meteo (free, no account).</p>
       <label class="row"><input id="br-enabled" type="checkbox"> Send me a morning briefing</label>
       <div class="row-grid">
         <label>Time <input id="br-time" type="time" value="07:30"></label>
@@ -2436,7 +2427,7 @@
       <label class="row"><input id="story-yearly" type="checkbox"> Send me a look back on our anniversary</label>
 </section>
         <section class="settings-page" data-page="you-leave-by" data-group="You" data-title="Leave-by reminders" hidden>
-      <p class="muted small">For events on your Google Calendar that have an address, Sara works out how long it takes to get there from home and texts you when it's time to leave. Online meetings and events without an address are skipped. Addresses and routes come from OpenStreetMap (free, no account); travel times don't include traffic, so add a little extra time.</p>
+      <p class="muted small page-lead">For events on your Google Calendar that have an address, Sara works out how long it takes to get there from home and texts you when it's time to leave. Online meetings and events without an address are skipped. Addresses and routes come from OpenStreetMap (free, no account); travel times don't include traffic, so add a little extra time.</p>
       <p id="lb-cal" class="small" hidden>Connect Google Calendar first (Settings → Abilities → Gmail and Calendar).</p>
       <label class="row"><input id="lb-enabled" type="checkbox" data-noauto> Remind me when it's time to leave</label>
       <label>Home address <input id="lb-home" placeholder="Street and number, town"></label>
@@ -2498,7 +2489,7 @@
       <p class="muted small">Using another email provider? Email and calendar with an app password are under "Tools from other programs" below (Fastmail, iCloud, Outlook and more).</p>
         </section>
         <section class="settings-page" data-page="ab-github" data-group="Abilities" data-title="GitHub" data-owner-only hidden>
-      <p class="muted small">Only needed if you want her to push to GitHub. Make a <strong>fine-grained token</strong> at github.com → Settings → Developer settings → Personal access tokens, for just the repositories you choose, with <em>Contents: Read and write</em>. Pushing still asks you first. Delegating to Claude Code or Grok Build needs those subscriptions signed in (Models → Subscriptions).</p>
+      <p class="muted small page-lead">Only needed if you want her to push to GitHub. Make a <strong>fine-grained token</strong> at github.com → Settings → Developer settings → Personal access tokens, for just the repositories you choose, with <em>Contents: Read and write</em>. Pushing still asks you first. Delegating to Claude Code or Grok Build needs those subscriptions signed in (Models → Subscriptions).</p>
       <div class="add-row"><label>GitHub token <input id="gh-token" type="password" autocomplete="off" placeholder="not set"></label><button id="gh-save" type="button">Save</button><button id="gh-clear" type="button" class="ghost" hidden>Remove</button></div>
       <p id="gh-status" class="muted small" role="status"></p>
       <h3>Issues become tasks <button type="button" class="tip" data-tip="She looks for new open issues in these repositories and puts each on your planner, then tells you. Any open issue can go to her team (Team → From a GitHub issue), which works it through to a reviewed pull request. The check runs on your own server (a GitHub API call); it costs nothing. Off until you pick how often.">?</button></h3>
@@ -2511,7 +2502,7 @@
       <p id="ghw-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="ab-projects" data-group="Abilities" data-title="Coding projects" data-owner-only hidden>
-      <p class="muted small">What she knows about the code in each workspace: how to build and test it, its layout and rules, and the notes she keeps (decisions, conventions, commands). She looks again by herself every hour; coding conversations and her team use it.</p>
+      <p class="muted small page-lead">What she knows about the code in each workspace: how to build and test it, its layout and rules, and the notes she keeps (decisions, conventions, commands). She looks again by herself every hour; coding conversations and her team use it.</p>
       <h3>How she is while you code <button type="button" class="tip" data-tip="Chatter, celebrating passing tests and teasing about bugs, only in coding conversations. The same dials as Her → Name and personality; a change here shows there too.">?</button></h3>
       <div id="pj-work-dials" class="dials"></div>
       <label class="row"><input id="pj-work-quiet" type="checkbox"> Quiet when I'm focused</label>
@@ -2595,7 +2586,7 @@
       <div class="add-row"><button id="rc-open-skills" type="button">Open Skills</button></div>
         </section>
         <section class="settings-page" data-page="ab-skills" data-group="Abilities" data-title="Skills" hidden>
-      <p class="muted small">Skills are how-tos she follows for kinds of tasks: a code review, a changelog entry, a weekly review, a trip. She sees the list in every chat with you and opens the one that fits. They are folders in the open Agent Skills format, so you can bring them from other apps and take them along.</p>
+      <p class="muted small page-lead">Skills are how-tos she follows for kinds of tasks: a code review, a changelog entry, a weekly review, a trip. She sees the list in every chat with you and opens the one that fits. They are folders in the open Agent Skills format, so you can bring them from other apps and take them along.</p>
       <p id="skl-migrated" class="skl-note" hidden></p>
       <div class="add-row skl-top"><button id="skl-new" type="button">New skill</button><button id="skl-add" type="button" class="ghost">Add a skill</button><button id="skl-export-all" type="button" class="ghost">Export all</button></div>
       <div id="skl-recipe-row" class="add-row" hidden><label>From a recipe <select id="skl-recipe"></select></label><button id="skl-recipe-go" type="button" class="ghost">Make it a skill</button></div>
@@ -2630,7 +2621,7 @@
       <p id="skl-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="ab-plugins" data-group="Abilities" data-title="Plugins" data-owner-only hidden>
-      <p class="muted small">A plugin is a small program someone wrote for Sara: it can give her a tool, look at a turn and add a note, show a card, run on a schedule or carry a chat app. Each one runs in its own fenced process with only the permissions you approve, and is off until you switch it on. <strong>She still follows her rules: a plugin can add, never remove.</strong> <a href="/help#plugins" target="_blank" rel="noopener">How plugins work</a></p>
+      <p class="muted small page-lead">A plugin is a small program someone wrote for Sara: it can give her a tool, look at a turn and add a note, show a card, run on a schedule or carry a chat app. Each one runs in its own fenced process with only the permissions you approve, and is off until you switch it on. <strong>She still follows her rules: a plugin can add, never remove.</strong> <a href="/help#plugins" target="_blank" rel="noopener">How plugins work</a></p>
       <p id="plg-off" class="skl-note" hidden></p>
       <p id="plg-fence-note" class="skl-warn small" hidden>This computer can't fence plugins in (Windows, or Linux without bubblewrap): they run with Node's permission limits only. Add only plugins whose author you trust.</p>
       <div class="add-row skl-top"><button id="plg-add" type="button">Add a plugin</button></div>
@@ -2640,7 +2631,7 @@
       <p id="plg-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="ab-home" data-group="Abilities" data-title="Home Assistant" data-owner-only hidden>
-      <p class="muted small">Let her see and control your home through <strong>Home Assistant</strong>: lights, switches, thermostats, locks, blinds, scenes. She can look on her own; every change asks you first. Your Home Assistant must be reachable from this server (for example your Nabu Casa address, or over Tailscale).</p>
+      <p class="muted small page-lead">Let her see and control your home through <strong>Home Assistant</strong>: lights, switches, thermostats, locks, blinds, scenes. She can look on her own; every change asks you first. Your Home Assistant must be reachable from this server (for example your Nabu Casa address, or over Tailscale).</p>
       <label>Home Assistant address <input id="ha-url" placeholder="https://homeassistant.local:8123" autocomplete="off"></label>
       <label>Long-lived access token <input id="ha-token" type="password" autocomplete="off" placeholder="not set"></label>
       <p class="muted small">Make one in Home Assistant: click your name (bottom left) → Security → Long-lived access tokens → Create token.</p>
@@ -2670,7 +2661,7 @@
       </div>
         </section>
         <section class="settings-page" data-page="ab-ssh" data-group="Abilities" data-title="Servers over SSH" data-owner-only hidden>
-      <p class="muted small">Let her work on your other servers over SSH, with a password or a key. Every command she runs there asks you first (you can change that in Tools and approvals), and risky ones always ask. After you sign in once with a password she makes her own key for that server and stops using the password.</p>
+      <p class="muted small page-lead">Let her work on your other servers over SSH, with a password or a key. Every command she runs there asks you first (you can change that in Tools and approvals), and risky ones always ask. After you sign in once with a password she makes her own key for that server and stops using the password.</p>
       <p id="ssh-off" class="muted small" role="status" hidden></p>
       <div id="ssh-list" class="ssh-list"></div>
       <div id="ssh-signin" class="ssh-form" data-nodirty data-noauto hidden>
@@ -2723,7 +2714,7 @@
       <p id="search-status" class="muted small"></p>
         </section>
         <section class="settings-page" data-page="ab-library" data-group="Abilities" data-title="Library" data-owner-only hidden>
-      <p class="muted small">How big the documents in her library may be, and how she reads long ones. A 1,000-page book is read in the background, page by page, and can be paused; every scanned page is read by her picture model. Saved as you change it.</p>
+      <p class="muted small page-lead">How big the documents in her library may be, and how she reads long ones. A 1,000-page book is read in the background, page by page, and can be paused; every scanned page is read by her picture model. Saved as you change it.</p>
       <label>Largest document
         <select id="lib-max-mb">
           <option value="100">Up to 100 MB</option>
@@ -2756,7 +2747,7 @@
       <p id="lib-settings-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="ab-mcp" data-group="Abilities" data-title="Other programs (MCP)" data-owner-only hidden>
-      <p class="muted small">Plug-in tool servers (Model Context Protocol), such as your email or calendar. Their tools appear above: ones the server marks as read-only run on their own, everything that sends, changes or deletes asks you first.</p>
+      <p class="muted small page-lead">Plug-in tool servers (Model Context Protocol), such as your email or calendar. Their tools appear above: ones the server marks as read-only run on their own, everything that sends, changes or deletes asks you first.</p>
       <div id="mcp-list"></div>
       <details id="mcp-add" data-noauto>
         <summary>Add or update an MCP server</summary>
@@ -2820,42 +2811,59 @@
       <p id="install-row" class="small" hidden><button id="install-app" type="button" class="ghost">Install Sara as an app</button></p>
         </section>
         <section class="settings-page" data-page="co-telegram" data-group="Connections" data-title="Telegram" data-owner-only hidden>
-      <p class="muted small">Text Sara from your phone. In Telegram, message <strong>@BotFather</strong>, send <code>/newbot</code>, pick a name, and paste the token it gives you here. Then press <em>Link my Telegram</em>.</p>
+      <p class="muted small page-lead">Text Sara from your phone. In Telegram, message <strong>@BotFather</strong>, send <code>/newbot</code>, pick a name, and paste the token it gives you here. Then press <em>Link my Telegram</em>.</p>
+      <!-- Phase 114 (PL1c, S11): a status chip in the head, the settings in titled cards. -->
+      <div class="kit-card">
+      <div class="card-head"><h3>Connection</h3><span id="tg-chip" class="status-chip" role="status">Not set up</span></div>
       <label>Bot token <input id="tg-token" type="password" autocomplete="off" placeholder="not set"></label>
-      <label class="row"><input id="tg-enabled" type="checkbox"> Connected</label>
+      <label class="row"><input id="tg-enabled" type="checkbox"> Switched on</label>
       <label class="row"><input id="tg-mirror" type="checkbox"> Send reminders and messages she starts to my Telegram too</label>
       <label class="row"><input id="tg-others" type="checkbox"> Let other people talk to her (as an AI, no tools, nothing private, nothing sexual)</label>
       <p class="muted small"><span id="tg-status"></span> <button id="tg-link" type="button" class="ghost">Link my Telegram</button> <button id="tg-unlink" type="button" class="ghost" hidden>Unlink</button></p>
       <p id="tg-code" class="small"></p>
+      </div>
+      <div class="kit-card">
       <h3>Remote work and groups</h3>
       <label>More owners (Telegram user IDs) <input id="tg-owners" placeholder="e.g. 123456789, 987654321" spellcheck="false" inputmode="numeric"></label>
       <label class="row"><input id="tg-work" type="checkbox"> Owners can use her tools in groups too</label>
       <label class="row"><input id="tg-name" type="checkbox"> Answer when her name is said in a group (no @ needed)</label>
       <label class="row"><input id="tg-everyone" type="checkbox"> Answer @all and @everyone in a group</label>
       <label class="web-adult" hidden>Adult groups (group IDs) <input id="tg-nsfw" placeholder="e.g. -1001234567890" spellcheck="false"></label>
+      </div>
+      <div class="kit-card">
       <h3>Commands <button type="button" class="tip" data-tip="Commands like /new, /stop and /status work in every Telegram chat with her. The list shows who may use each one here; Sara checks it again every time, whatever the menu shows.">?</button></h3>
       <label class="row"><input id="tg-cmd-native" type="checkbox"> Show commands in the app menu</label>
       <label class="row"><input id="tg-cmd-name" type="checkbox"> Her name works as a command</label>
       <label class="row"><input id="tg-cmd-offer" type="checkbox"> Offer a new session when a chat is long</label>
       <p class="muted small cmd-menu-row"><span id="tg-cmd-state" role="status"></span> <button id="tg-cmd-register" type="button" class="ghost">Register menus now</button></p>
       <ul id="tg-cmd-list" class="cmd-list"></ul>
+      </div>
+      <div class="kit-card">
       <h3>Rooms <button type="button" class="tip" data-tip="The groups she is in. Open one to let her keep up with it: she reads every message there, keeps a short summary and joins the current topic when she's called. Telegram tells bots nothing about deleted messages.">?</button></h3>
       <p class="muted small">To read every message, turn privacy mode off in @BotFather (/setprivacy → Disable), then remove her from the group and add her again — or make her a group admin.</p>
       <div id="tg-rooms" class="room-list" data-nodirty></div>
+      </div>
         </section>
         <section class="settings-page" data-page="co-discord" data-group="Connections" data-title="Discord" data-owner-only hidden>
-      <p class="muted small">At <strong>discord.com/developers</strong>: New Application → Bot → Reset Token (paste it here) and turn on <em>Message Content Intent</em>. Invite it with OAuth2 → URL Generator (scope <code>bot</code>; Send Messages, Read Message History). Then link yourself.</p>
+      <p class="muted small page-lead">At <strong>discord.com/developers</strong>: New Application → Bot → Reset Token (paste it here) and turn on <em>Message Content Intent</em>. Invite it with OAuth2 → URL Generator (scope <code>bot</code>; Send Messages, Read Message History). Then link yourself.</p>
+      <!-- Phase 114 (PL1c, S11): a status chip in the head, the settings in titled cards. -->
+      <div class="kit-card">
+      <div class="card-head"><h3>Connection</h3><span id="dc-chip" class="status-chip" role="status">Not set up</span></div>
       <label>Bot token <input id="dc-token" type="password" autocomplete="off" placeholder="not set"></label>
-      <label class="row"><input id="dc-enabled" type="checkbox"> Connected</label>
+      <label class="row"><input id="dc-enabled" type="checkbox"> Switched on</label>
       <label class="row"><input id="dc-mirror" type="checkbox"> Send reminders and messages she starts to my Discord DMs too</label>
       <label class="row"><input id="dc-servers" type="checkbox"> Answer other people in servers (as an AI, no tools, nothing private; adult only in adult channels)</label>
       <p class="muted small"><span id="dc-status"></span> <button id="dc-link" type="button" class="ghost">Link my Discord</button> <button id="dc-unlink" type="button" class="ghost" hidden>Unlink</button></p>
       <p id="dc-code" class="small"></p>
+      </div>
+      <div class="kit-card">
       <h3>Remote work and servers</h3>
       <label>More owners (Discord user IDs) <input id="dc-owners" placeholder="e.g. 123456789012345678" spellcheck="false" inputmode="numeric"></label>
       <label class="row"><input id="dc-work" type="checkbox"> Owners can use her tools in server channels too</label>
       <label class="row"><input id="dc-name" type="checkbox"> Answer when her name is said in a server (no @ needed)</label>
       <label class="row"><input id="dc-everyone" type="checkbox"> Answer @everyone and @here</label>
+      </div>
+      <div class="kit-card">
       <h3>Other bots</h3>
       <p class="muted small">Discord only: Telegram never passes one bot's messages to another bot.</p>
       <label class="row"><input id="dc-bots" type="checkbox"> Answer other bots (when they @mention her, reply to her, or say her name)</label>
@@ -2865,18 +2873,23 @@
       <label>At most per hour, per channel <select id="dc-bot-cap"><option value="5">5</option><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="60">60</option><option value="120">120</option></select></label>
       </div>
       <label class="web-adult" hidden>Adult channels (channel IDs) <input id="dc-nsfw" placeholder="e.g. 123456789012345678" spellcheck="false"></label>
+      </div>
+      <div class="kit-card">
       <h3>Commands <button type="button" class="tip" data-tip="Commands like /new, /stop and /status work in every Discord chat with her. The list shows who may use each one here; Sara checks it again every time, whatever the menu shows.">?</button></h3>
       <label class="row"><input id="dc-cmd-native" type="checkbox"> Show commands in the app menu</label>
       <label class="row"><input id="dc-cmd-name" type="checkbox"> Her name works as a command</label>
       <label class="row"><input id="dc-cmd-offer" type="checkbox"> Offer a new session when a chat is long</label>
       <p class="muted small cmd-menu-row"><span id="dc-cmd-state" role="status"></span> <button id="dc-cmd-register" type="button" class="ghost">Register menus now</button></p>
       <ul id="dc-cmd-list" class="cmd-list"></ul>
+      </div>
+      <div class="kit-card">
       <h3>Rooms <button type="button" class="tip" data-tip="The server channels she has talked in. Open one to let her keep up with it: she reads every message there, keeps a short summary and joins the current topic when she's called.">?</button></h3>
       <p class="muted small">Reading every message uses Discord's Message Content Intent, which Sara already needs. It's a switch in the Developer Portal for bots in fewer than 100 servers; bigger, verified bots need Discord's approval.</p>
       <div id="dc-rooms" class="room-list" data-nodirty></div>
+      </div>
         </section>
         <section class="settings-page" data-page="co-apps" data-group="Connections" data-title="Other apps" hidden>
-      <p class="muted small">Talk to her from other apps, with her own memory and personality: chat apps like SillyTavern and Open WebUI (they speak the OpenAI way), and MCP apps like Claude Code, Cursor and Claude Desktop (they can use her memory, planner, library and notes). Give each app its own API key. Her safety rules and the AI notice always apply.</p>
+      <p class="muted small page-lead">Talk to her from other apps, with her own memory and personality: chat apps like SillyTavern and Open WebUI (they speak the OpenAI way), and MCP apps like Claude Code, Cursor and Claude Desktop (they can use her memory, planner, library and notes). Give each app its own API key. Her safety rules and the AI notice always apply.</p>
       <h3>Her addresses <button type="button" class="tip" data-tip="Paste these into the other app. The first is for chat apps that work with OpenAI (pick the model sara). The second is for MCP apps. If you reach her another way (Tailscale, your own web address), use that address instead.">?</button></h3>
       <p class="small">For chat apps (OpenAI-compatible): <code id="oa-v1"></code> <button id="oa-v1-copy" type="button" class="ghost small">Copy</button></p>
       <p class="small">For MCP apps: <code id="oa-mcp"></code> <button id="oa-mcp-copy" type="button" class="ghost small">Copy</button></p>
@@ -3185,18 +3198,19 @@
       </ol>
       <div id="mi-work" class="mi-work" aria-live="polite" data-noauto></div>
       <h3>Past move-ins <button type="button" class="tip" data-tip="Every move-in is one batch. Undo removes exactly what it brought (notes, conversations, skills, tasks, cards) and puts her old personality back. Available for 30 days.">?</button></h3>
-      <div id="mi-batches" class="mi-batches" data-noauto><p class="muted small">None yet.</p></div>
+      <div id="mi-batches" class="mi-batches" data-noauto></div>
       <h3>Saved store mappings <button type="button" class="tip" data-tip="Every store card you confirm is saved by the shape of its tables (names only, no data). A later bundle with the same tables maps itself with no model calls. Export them to share with someone using the same plugin.">?</button></h3>
-      <div id="mi-mappings" class="mi-batches" data-noauto><p class="muted small">None yet.</p></div>
+      <div id="mi-mappings" class="mi-batches" data-noauto></div>
       <p class="actions-left"><a class="button ghost" href="/api/movein/mappings/export" download="sara-movein-mappings.json">Export the mappings</a> <button type="button" class="file-button ghost" data-pick="mi-map-file">Add a mappings file</button><input id="mi-map-file" type="file" accept=".json,application/json" hidden data-noauto></p>
       <p id="mi-map-note" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="dh-updates" data-group="Data & health" data-title="Updates" data-owner-only hidden>
-      <p class="muted small">New versions bring fixes and new things to do. Updating makes a backup first, then installs and restarts Sara (about a minute; conversations in progress stop). If the new version doesn't start properly, Sara goes back to the version she had by herself.</p>
+      <p class="muted small page-lead">New versions bring fixes and new things to do. Updating makes a backup first, then installs and restarts Sara (about a minute; conversations in progress stop). If the new version doesn't start properly, Sara goes back to the version she had by herself.</p>
       <p><strong id="up-version"></strong></p>
       <p id="up-message" class="small" role="status"></p>
       <ul id="up-changes" class="small" hidden></ul>
       <p class="actions-left"><button id="up-check" type="button" class="ghost">Check for updates</button> <button id="up-go" type="button" hidden>Update now</button></p>
+      <p class="small"><a id="up-whatsnew" href="https://github.com/farena-ai/sara/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">What's new in each version ↗</a></p>
       <p id="up-download-row" hidden><a id="up-download" class="button" target="_blank" rel="noopener noreferrer" href="https://github.com/farena-ai/sara/releases/latest">Download the new version</a></p>
       <p id="up-manual" class="muted small" hidden><span data-admin-when="known">To update her: <code data-admin="update">sudo sara update</code>.</span><span data-admin-when="unknown">This server updates from the command line. On the server run <code>sudo sara update</code> (Docker: <code>docker compose pull &amp;&amp; docker compose up -d</code>).</span></p>
         </section>
@@ -3204,7 +3218,8 @@
       <div class="add-row" data-nodirty>
         <label>Show <select id="usage-range"><option value="today">Today</option><option value="week">Last 7 days</option><option value="month">Last 30 days</option></select></label>
       </div>
-      <p id="usage-total" class="small" role="status"></p>
+      <p id="usage-lead" class="usage-lead"></p>
+      <p id="usage-total" class="small muted" role="status"></p>
       <div id="usage-companions-box" hidden>
         <h3>By companion</h3>
         <ul id="usage-companions" class="usage-list"></ul>
@@ -3229,7 +3244,7 @@
       </details>
         </section>
         <section class="settings-page" data-page="household" data-group="Household" data-title="People on this server" data-owner-only hidden>
-      <p class="muted small">Invite other adults to use this server with their own companions and a private space of their own. You choose which models they may use and how much a day. You can't read their conversations, memories, companions or moments: you only see how much they use, to manage the bill.</p>
+      <p class="muted small page-lead">Invite other adults to use this server with their own companions and a private space of their own. You choose which models they may use and how much a day. You can't read their conversations, memories, companions or moments: you only see how much they use, to manage the bill.</p>
       <h3>Invite someone <button type="button" class="tip" data-tip="Makes a one-time invite link and code. Send it to them privately. It works once, until it expires, and you can cancel it below while it waits.">?</button></h3>
       <div class="hh-invite" data-nodirty data-noauto>
         <label>Their name <button type="button" class="tip" data-tip="Only a label for you, shown in this list. Example: Sam. They pick their own companion's name later.">?</button> <input id="hh-name" maxlength="40" placeholder="e.g. Sam"></label>
@@ -3260,7 +3275,7 @@
       <p class="muted small">Whoever runs a server can technically read its disk, and your server backups contain every space (encrypted when they leave the server). The app itself never shows you their data.</p>
     </section>
         <section class="settings-page" data-page="account" data-group="Household" data-title="Your account" data-member-only hidden>
-      <p class="muted small">You use this server as a member of the owner's household. Your companions, conversations, memories, planner, library and moments are yours: the owner can't read them, and sees only how many messages you send and roughly what they cost.</p>
+      <p class="muted small page-lead">You use this server as a member of the owner's household. Your companions, conversations, memories, planner, library and moments are yours: the owner can't read them, and sees only how many messages you send and roughly what they cost.</p>
       <dl id="acc-info" class="acc-info"></dl>
       <h3>Sign-in and devices</h3>
       <p class="small"><button id="acc-devices" type="button" class="ghost">Devices and sign-in</button> <span class="muted">Passkeys, two-step sign-in, phones and apps, API keys.</span></p>
@@ -3287,7 +3302,7 @@
       </div>
         </section>
         <section class="settings-page" data-page="dh-reports" data-group="Data & health" data-title="Reports" hidden>
-      <p class="muted small">Replies you reported with ⚑. Each is kept here; unless you unticked it, it was also sent to the app's developer (only the reply, the reason and your note).</p>
+      <p class="muted small page-lead">Replies you reported with ⚑. Each is kept here; unless you unticked it, it was also sent to the app's developer (only the reply, the reason and your note).</p>
       <div id="reports-list" class="list"></div>
       <div id="reports-inbox-box" hidden>
         <h3>Reports from the apps</h3>

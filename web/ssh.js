@@ -3,6 +3,7 @@
 // and Remove; an Add form; the sign-in box (approve the host key, then a password box or a key).
 // The password goes from the password box to the server once and is never kept in this page.
 import { serverText, t } from './naming.js';
+import { emptyState } from './tidy.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -140,7 +141,7 @@ function render(v) {
   const off = $('#ssh-off');
   off.hidden = v.available !== false && !v.privateLocal;
   off.textContent = v.available === false ? t('The ssh program isn’t installed on the Sara server (it comes with OpenSSH: openssh-client on Linux, built into macOS and Windows 10/11).') : v.privateLocal ? t('Private local mode is on: she can only reach servers on this computer.') : '';
-  $('#ssh-list').replaceChildren(...(state.servers.length ? state.servers.map(card) : [el('p', 'muted small', t('No servers yet.'))]));
+  $('#ssh-list').replaceChildren(...(state.servers.length ? state.servers.map(card) : [emptyState({ icon: 'server', text: t('No servers yet.'), why: t('Add one below; every command she runs there asks you first.'), howto: true })]));
   if (current) {
     const s = state.servers.find((x) => x.id === current.id);
     if (s) fillSignin(s);

@@ -34,7 +34,7 @@ export function wanted(s: string): boolean {
   if (/^[\w.-]+\.(js|ts|json|md|txt|png|jpg|sh|p8)$/i.test(s)) return false; // file names
   if (/^(https?:\/\/|\/api\/|#)\S*$/.test(s)) return false;
   if (/^[a-z][\w-]*$/.test(s) && /[-_]/.test(s)) return false; // ids / model names like gpt-4o-mini
-  if (!/\s/.test(s) && (/[/@]|\w\.\w/.test(s) || /^[A-Z0-9]{6,}$/.test(s) || /^GOCSPX/.test(s))) return false; // addresses, handles, sample keys
+  if (!/\s/.test(s) && (/[/@]|\w\.\w/.test(s) || /^[A-Z0-9]+(-[A-Z0-9]+)*$/.test(s) && s.length >= 6 || /^GOCSPX/.test(s))) return false; // addresses, handles, sample keys
   if (/^[-/~]/.test(s) || /^(npx|main|owner\/name)$/.test(s)) return false; // commands, paths, sample names
   return true;
 }
@@ -152,6 +152,12 @@ export function serverFiles(dir = join(ROOT, 'src')): string[] {
   return out.sort();
 }
 
+/** Phase 114 (PL1c): the "How do I…?" questions and steps from howto.json (web/howto.js translates them). */
+export function fromHowto(json: string): string[] {
+  const j = JSON.parse(json) as Record<string, { q: string; steps: string[] }[]>;
+  return Object.values(j).flatMap((list) => list.flatMap((x) => [x.q, ...x.steps])).map(norm).filter(Boolean);
+}
+
 /** Tip texts and page summaries from tips.json. */
 export function fromTips(json: string): string[] {
   const j = JSON.parse(json) as { tips?: Record<string, [string, string]>; pages?: Record<string, [string, string]> };
@@ -169,6 +175,7 @@ export function allKeys(): Map<string, string> {
   add(fromHtml(readFileSync(join(ROOT, 'web', 'index.html'), 'utf8')), 'index.html');
   for (const f of webJsFiles()) add(fromJs(readFileSync(f, 'utf8')), f.slice(ROOT.length + 1).replace(/\\/g, '/'));
   add(fromTips(readFileSync(join(ROOT, 'web', 'tips.json'), 'utf8')), 'tips.json');
+  add(fromHowto(readFileSync(join(ROOT, 'web', 'howto.json'), 'utf8')), 'howto.json');
   add(fromHelp(readFileSync(join(ROOT, 'web', 'help.html'), 'utf8')), 'help.html');
   for (const f of serverFiles()) add(fromServer(readFileSync(f, 'utf8')), f.slice(ROOT.length + 1).replace(/\\/g, '/'));
   // Extra keys a module asks for by list (see web/i18n/_extra.json): words built from data, e.g. memory kinds.

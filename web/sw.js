@@ -100,12 +100,15 @@ self.addEventListener('install', (event) => {
   //   band) and one model count (model-count.js). Phase 113 had caches.open('sara-shell-v47').
   //   Phase 114 (PL1b, 2.47.1): the first run in one queue, the use choice, two short tours, starter
   //   chips (first-run.js, first-run.css). PL1a had caches.open('sara-shell-v48').
-  event.waitUntil(caches.open('sara-shell-v49').then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  //   Phase 114 (PL1c, 2.47.2): one look across every page: the "How do I…?" blocks (howto.js,
+  //   howto.json), the one empty state, segment buttons and choice cards (kit.js, kit.css). PL1b had
+  //   caches.open('sara-shell-v49') (and its activate step kept v48 by mistake; both go now).
+  event.waitUntil(caches.open('sara-shell-v50').then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
-  // Every older cache goes (sara-shell-v47 from Phase 113, sara-shell-v46 from Phase 112, sara-shell-v45 from Phase 111, sara-shell-v44 from Phase 110, sara-shell-v43 from Phase 109, sara-shell-v42 from Phase 108, sara-shell-v41 from Phase 107, sara-shell-v40 from Phase 106, sara-shell-v39 from Phase 105, sara-shell-v38 from Phase 104, sara-shell-v37 from Phase 103, sara-shell-v36 from Phase 102, sara-shell-v35 from Phase 101, sara-shell-v34 from Phase 100, sara-shell-v33 from Phase 99, sara-shell-v32 from Phase 98, sara-shell-v31 from Phase 97, sara-shell-v30 from Phase 96, sara-shell-v29 from Phase 95, sara-shell-v28 from Phase 94, sara-shell-v27 from Phase 93, sara-shell-v26 from Phase 92, sara-shell-v25 from Phase 91, sara-shell-v24 from Phase 90, sara-shell-v23 from Phase 89, sara-shell-v22 from Phase 88, sara-shell-v21 from Phase 87, sara-shell-v20 from Phase 86, sara-shell-v19 from 2.18, sara-shell-v18 from Phase 85, sara-shell-v17 from Phase 84, sara-shell-v16 from Phase 83, sara-shell-v15 from Phase 82, sara-shell-v14 from Phase 81, sara-shell-v13 from Phase 80, sara-shell-v12 from Phase 79, sara-shell-v11 from Phase 78, sara-shell-v10 from Phase 77 and before).
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== 'sara-shell-v48').map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  // Every older cache goes (sara-shell-v49 from PL1b, sara-shell-v48 from PL1a, sara-shell-v47 from Phase 113, sara-shell-v46 from Phase 112, sara-shell-v45 from Phase 111, sara-shell-v44 from Phase 110, sara-shell-v43 from Phase 109, sara-shell-v42 from Phase 108, sara-shell-v41 from Phase 107, sara-shell-v40 from Phase 106, sara-shell-v39 from Phase 105, sara-shell-v38 from Phase 104, sara-shell-v37 from Phase 103, sara-shell-v36 from Phase 102, sara-shell-v35 from Phase 101, sara-shell-v34 from Phase 100, sara-shell-v33 from Phase 99, sara-shell-v32 from Phase 98, sara-shell-v31 from Phase 97, sara-shell-v30 from Phase 96, sara-shell-v29 from Phase 95, sara-shell-v28 from Phase 94, sara-shell-v27 from Phase 93, sara-shell-v26 from Phase 92, sara-shell-v25 from Phase 91, sara-shell-v24 from Phase 90, sara-shell-v23 from Phase 89, sara-shell-v22 from Phase 88, sara-shell-v21 from Phase 87, sara-shell-v20 from Phase 86, sara-shell-v19 from 2.18, sara-shell-v18 from Phase 85, sara-shell-v17 from Phase 84, sara-shell-v16 from Phase 83, sara-shell-v15 from Phase 82, sara-shell-v14 from Phase 81, sara-shell-v13 from Phase 80, sara-shell-v12 from Phase 79, sara-shell-v11 from Phase 78, sara-shell-v10 from Phase 77 and before).
+  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== 'sara-shell-v50').map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
 self.addEventListener('fetch', (event) => {

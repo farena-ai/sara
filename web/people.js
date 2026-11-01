@@ -142,7 +142,7 @@ export async function loadPeople() {
     if (st.backfill?.state === 'running') pollBackfill();
   } catch (err) {
     if (err.status === 404) {
-      $('#ppl-list').replaceChildren(emptyState('👥', t('People cards are not available here.')));
+      $('#ppl-list').replaceChildren(emptyState('team', t('People cards are not available here.')));
       return;
     }
     showErr(err);
@@ -242,7 +242,7 @@ function renderList() {
   const list = $('#ppl-list');
   if (!st.list.length) {
     const q = st.q.trim();
-    list.replaceChildren(emptyState('👥', q ? t('Nobody matches “{q}”.', { q }) : st.filter === 'proposed' ? t('Nothing to check right now.') : t('No people yet.'), 'div', q || st.filter !== 'all' ? '' : t('As you talk about the people in your life, she suggests a card for each. You can also add one.')));
+    list.replaceChildren(emptyState('team', q ? t('Nobody matches “{q}”.', { q }) : st.filter === 'proposed' ? t('Nothing to check right now.') : t('No people yet.'), 'div', q || st.filter !== 'all' ? '' : t('As you talk about the people in your life, she suggests a card for each. You can also add one.')));
     list.classList.remove('ppl-review-mode');
     return;
   }
