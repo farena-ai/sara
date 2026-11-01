@@ -8,7 +8,7 @@ import { execFile, spawn } from 'node:child_process';
 import { arch, platform, totalmem } from 'node:os';
 import { assertOnline, netFetch } from './net-guard.ts';
 import type { ProviderConfig } from './providers/types.ts';
-import { isCloudModelName } from './model-names.ts';
+import { isCloudModelName, EMBED_MODEL_NAME } from './model-names.ts';
 
 export const DEFAULT_OLLAMA = 'http://127.0.0.1:11434';
 export const OLLAMA_DOWNLOAD = 'https://ollama.com/download';
@@ -152,7 +152,7 @@ export async function detectOllama(root = DEFAULT_OLLAMA, fetchImpl: typeof fetc
 }
 
 /** Models that really run here (not Ollama Cloud, not embedding-only). */
-export const chatModels = (models: OllamaModel[]): OllamaModel[] => models.filter((m) => !m.cloud && !/embed|minilm|bge-|e5-/i.test(m.name));
+export const chatModels = (models: OllamaModel[]): OllamaModel[] => models.filter((m) => !m.cloud && !EMBED_MODEL_NAME.test(m.name));
 
 // ---------- downloading a model ----------
 

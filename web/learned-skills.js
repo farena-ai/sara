@@ -225,7 +225,7 @@ export async function loadLearning() {
   $('#lsk-chains').checked = s.chains;
   $('#lsk-fixes').checked = s.fixes;
   $('#lsk-times').value = String(s.times);
-  $('#lsk-times-n').textContent = String(s.times);
+  $('#lsk-times-n').textContent = t('{n} times (on 2+ days)', { n: s.times });
   const fill = (sel, list, words, value) => {
     sel.replaceChildren(...list.map((n) => {
       const o = el('option', '', words(n));
@@ -254,7 +254,7 @@ async function save(patch) {
 export function initLearning() {
   if (!$('#lsk-offer')) return;
   for (const [id, key] of [['#lsk-offer', 'offer'], ['#lsk-check', 'check'], ['#lsk-chains', 'chains'], ['#lsk-fixes', 'fixes']]) $(id).addEventListener('change', (e) => void save({ [key]: e.target.checked }));
-  $('#lsk-times').addEventListener('input', (e) => ($('#lsk-times-n').textContent = e.target.value));
+  $('#lsk-times').addEventListener('input', (e) => ($('#lsk-times-n').textContent = t('{n} times (on 2+ days)', { n: e.target.value })));
   $('#lsk-times').addEventListener('change', (e) => void save({ times: Number(e.target.value) }));
   $('#lsk-lookback').addEventListener('change', (e) => void save({ lookBackDays: Number(e.target.value) }));
   $('#lsk-perday').addEventListener('change', (e) => void save({ perDay: Number(e.target.value) }));

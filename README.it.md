@@ -14,7 +14,7 @@ per il web, Windows, Mac e telefono.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1477%20passing-brightgreen" alt="1477 tests passing">
+  <img src="https://img.shields.io/badge/tests-1488%20passing-brightgreen" alt="1488 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ per il web, Windows, Mac e telefono.
   <sub>Una sessione reale con un modello locale (qwen3.8 27B su Ollama, una RTX 5090) su un server di prova usa e getta, nel tema Notte: tira su il morale di chi le scrive, scrive una piccola app e il suo test mentre il modello li trasmette, chiede prima di eseguire un comando, scopre un vero bug con un test che fallisce e lo corregge finché tutti e 7 i test passano. Fotogrammi scelti dalla registrazione; nulla al loro interno è stato modificato.</sub>
 </p>
 
-> **Stato:** 2.46, licenza MIT, con cinquantasette versioni ricche di novità dalla 1.0 (tutte qui sotto).
+> **Stato:** 2.47, licenza MIT, con cinquantotto versioni ricche di novità dalla 1.0 (tutte qui sotto).
 > Dalla 2.5 alla 2.8 tutta l'app ha cambiato aspetto. L'[app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > è su Google Play; l'app per iPhone e la versione del Mac App Store arriveranno appena Apple le
 > approverà. Leggi [docs/DISCLOSURES.md](docs/DISCLOSURES.md) prima di usare o condividere Sara.
@@ -82,6 +82,7 @@ Guide di un minuto, registrate su un server di prova con un modello locale (in i
 
 | Versione | Cosa ottieni |
 |---|---|
+| **2.47** · Una personalità che si vede | **I suoi regolatori di personalità ora mostrano cosa fanno:** estremi chiari («Tiene le distanze ↔ Apertamente affettuosa»), una parola per la posizione e una frase con la sua voce che cambia mentre lo sposti (125, senza chiamare nessuna IA). Gruppi con nomi semplici, un riepilogo «La tua Sara finora» e parole chiare su ogni altro cursore. Sistemato anche: Oggi si aggiorna dopo la configurazione, lo stesso numero di modelli ovunque con una scelta raggruppata, importare una persona la rinomina ovunque in una volta e *Parti alle* viene prima del suo evento. |
 | **2.46** · Segnala un problema da Sara | **Aiuto → Segnala un problema o Suggerisci qualcosa** (o `/bug` e `/idea` in qualsiasi chat, o *Segnala* su un errore): senza account GitHub. La diagnostica facoltativa nasce sul tuo computer, viene mostrata per intero con una casella per parte e ripulita da chiavi, email e percorsi prima di inviare. *Le mie segnalazioni* mostra lo stato e le nostre risposte. Sara invia anche un piccolo segnale anonimo al giorno (versione, Windows/Mac/Linux, quali funzioni sono attive) per aiutarti e pianificare; non conserviamo IP, nome o chat. *Mostra cosa viene inviato* o spegnilo in Impostazioni → Dati e stato → Privacy. |
 | **2.45** · Oggi sul telefono | **Sul telefono, Oggi si apre con una scheda Adesso** (le prossime due cose e fra quanto, quando partire, il meteo e il suo umore), poi *Ti aspetta*, poi la tua giornata. Le sezioni si chiudono con un riassunto e restano come le hai lasciate su quel dispositivo, *Con lei* e *Lavoro* diventano righe da scorrere (anche con pulsanti) e il trascina per aggiornare funziona nel browser e nelle due app. I tablet hanno due colonne. Facoltativo: una frase sua su cosa è successo mentre eri via. |
 | **2.44** · Oggi, progettato | **Oggi è organizzato con cura:** *La tua giornata* (una linea del tempo con eventi, promemoria e cose da fare, il meteo e cosa arriva), *Ti aspetta* (approvazioni, errori, scadenze passate e la posta), *Con lei*, *Lavoro* e *Casa e altro*. Le righe sono sempre allineate, i riquadri vuoti si chiudono e *Personalizza* sposta, ridimensiona o nasconde ogni riquadro (trascinando o da tastiera), salvato per compagna su ogni dispositivo. La posta mostra la casella, il cambiamento da ieri e cosa ha sistemato lei, con Annulla, e si aggiorna da sola dopo una pulizia. Un riquadro Stanze opzionale mostra cosa succede nelle stanze che segue. |
@@ -331,8 +332,8 @@ uno SPEC che nessun test controllava. Quello che aggiunge oggi è il modo di lav
 chiede prima dei passi rischiosi, mostra cosa è stato eseguito), non un punteggio più alto su questi
 insiemi. Dettagli, risultati per compito e come rieseguirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-In più, `npm run check`: un controllo dei tipi e 1492 test automatici con un finto modello guidato
-da script (senza rete, senza GPU): 1477 passano su Windows e gli altri 8 sono test dell'isolamento
+In più, `npm run check`: un controllo dei tipi e 1503 test automatici con un finto modello guidato
+da script (senza rete, senza GPU): 1488 passano su Windows e gli altri 8 sono test dell'isolamento
 solo per Linux, eseguiti su un server Linux.
 
 ## Il confronto

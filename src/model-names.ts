@@ -11,3 +11,16 @@ export const CLOUD_MODEL_NAME = /(:|-)cloud$/i;
 
 /** Is this an Ollama Cloud model name? */
 export const isCloudModelName = (model: string): boolean => CLOUD_MODEL_NAME.test(String(model ?? '').trim());
+
+/** Embedding-only models (they can't chat): left out of model counts and the local chat list. */
+export const EMBED_MODEL_NAME = /embed|minilm|bge-|e5-/i;
+
+/**
+ * Phase 114 (F4): one counting rule for a model list: Ollama Cloud tags apart from the models on
+ * this computer, embedding models not counted. web/model-count.js keeps the same rules (tested).
+ */
+export function countModels(names: string[]): { here: number; cloud: number } {
+  const chat = names.filter((m) => !EMBED_MODEL_NAME.test(String(m)));
+  const cloud = chat.filter((m) => isCloudModelName(m)).length;
+  return { here: chat.length - cloud, cloud };
+}

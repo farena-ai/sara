@@ -5,6 +5,24 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.47.0 (2026-11-01): personality you can see (Phase 114, polish PL1a)
+
+- **The personality dials explain themselves:** new end words for each dial (*Keeps her distance ↔
+  Openly warm*), a word and the number for where it sits, and a line in her voice that changes as you
+  move it: 125 written lines (5 steps × 25 dials), no model call. Focus a dial to see what that step
+  means and when it shows. Plainer group names (*How warm she is*, *How she pushes back*, *You two*,
+  *While you code*), a *Your Sara so far* summary, bigger end words and clear space between dials on
+  phones. *Try it* still lets you hear her with everything combined.
+- **Plain words on the other sliders:** Today's away note, her plans, memory fade, group banter,
+  titles, skills, catch-ups and Discord turns.
+- **Fixed:** Today now refreshes when the setup wizard closes (your name and *Connect a brain*
+  ticked); model counts agree everywhere (this computer and cloud counted separately) and the
+  wizard's model list is grouped with a recommended pick; importing a persona renames her notes, her
+  message limits follow the dial and the sidebar name updates at once (Undo renames back); *Leave by*
+  sits at its own time before its event (and the repeated hour when summer time ends is labelled);
+  the Rooms tile reads *Lately: … · last from Ana: "…"* instead of bare keywords; a duplicate link
+  target in the guide.
+
 ## 2.46.0 (2026-11-01): report a problem from inside Sara (Phase 113)
 
 - **Report a problem / Suggest something** in Help, `/bug` and `/idea` in chat (in Telegram and

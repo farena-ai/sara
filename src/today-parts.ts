@@ -9,7 +9,7 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import type { AppContext } from './chat.ts';
-import { currentTopic, keepDb, listRooms, recentLines, roomName } from './bridges/keepup.ts';
+import { currentTopic, keepDb, listRooms, recentLines, roomName, topicParts } from './bridges/keepup.ts';
 import { cheapCall } from './cheap.ts';
 import type { Conversation } from './store.ts';
 import { haCall, switchPlan } from './home-switch.ts';
@@ -421,7 +421,8 @@ function rooms(): Loader {
         const last = lines.at(-1);
         const recent = lines.filter((l) => l.who === 'person' || l.who === 'owner').filter((l) => c.now.getTime() - Date.parse(l.at) < 3 * 3600_000);
         const who = [...new Set(recent.map((l) => l.author))].slice(-4);
-        return { id: r.id, bridge: r.bridge, name: roomName(r), topic: currentTopic(app, r.id).slice(0, 140), who, last: last?.at ?? null, paused: Boolean(r.pausedReason) };
+        // Phase 114 (B2): `topic` is a readable English line; `topicParts` lets Today write it in the app's language.
+        return { id: r.id, bridge: r.bridge, name: roomName(r), topic: currentTopic(app, r.id).slice(0, 140), topicParts: topicParts(app, r.id), who, last: last?.at ?? null, paused: Boolean(r.pausedReason) };
       });
     return { on: true, items: list, available };
   };

@@ -399,7 +399,7 @@
           <div id="td-custom-list" class="td-custom-list"></div>
           <section class="td-custom-card" aria-labelledby="td-custom-more-h">
             <h3 id="td-custom-more-h">Settings</h3>
-            <label class="td-c-slider"><span>Since you were away after: <output id="td-away-hours-n" data-raw>8 h</output></span><input id="td-away-hours" type="range" min="3" max="24" step="1" value="8"></label>
+            <label class="td-c-slider"><span>Show While you were away after: <output id="td-away-hours-n" data-raw>8 h</output></span><small class="muted slider-means">Shorter = you'll see it more often.</small><input id="td-away-hours" type="range" min="3" max="24" step="1" value="8"></label>
             <label class="row td-c-row"><input id="td-away-voice" type="checkbox"> Away note: a sentence from her</label>
             <label class="row td-c-row" id="td-away-rooms-row"><input id="td-away-rooms" type="checkbox"> Away note: include rooms</label>
             <label class="row td-c-row"><input id="td-needs-mail" type="checkbox"> Needs you: include mail</label>
@@ -806,6 +806,7 @@
         <div id="wz-talk-dials" class="dials"></div>
         <p class="small">Humour</p>
         <div id="wz-humour" class="chips" role="radiogroup" aria-label="Humour"></div>
+        <p id="wz-humour-say" class="dial-say small" aria-live="polite"></p>
       </section>
       <section data-wz="4" hidden>
         <h2>Her life</h2>
@@ -1100,14 +1101,14 @@
           <label class="row"><input id="ag-follow" type="checkbox"> She may schedule follow-ups herself <button type="button" class="tip" data-tip="She may plan to ask how something you mentioned went, at a sensible time. At most 5 open and 2 new a day, never more than 30 days ahead, always quoting your words.">?</button></label>
           <label class="row"><input id="ag-research" type="checkbox"> She may look things up for her plans <button type="button" class="tip" data-tip="Off by default. On: she may ask to do one web search before a follow-up; each one waits for your Allow once and counts in her budget. Not in private local mode without a local search.">?</button></label>
           <p id="ag-research-note" class="muted small" hidden>No web search is set up (Settings → Web search), so she can't look things up.</p>
-          <label class="ag-slider"><span>Messages a day, shared with her first messages: <output id="ag-max-n" data-raw>2</output> <button type="button" class="tip" data-tip="The most messages she starts in a day, her plans and her own first messages together. Her plans never add more than this. 0 stops both.">?</button></span><input id="ag-max" type="range" min="0" max="5" step="1" value="2"></label>
-          <label class="ag-slider"><span>Only after you've been quiet, in hours: <output id="ag-gap-n" data-raw>6</output> <button type="button" class="tip" data-tip="She writes first only when you haven't written for this many hours, and not again sooner than that. Shared with her first messages.">?</button></span><input id="ag-gap" type="range" min="1" max="24" step="1" value="6"></label>
+          <label class="ag-slider"><span>She may message first: <output id="ag-max-n" data-raw>2</output> <button type="button" class="tip" data-tip="The most messages she starts in a day, her plans and her own first messages together. Her plans never add more than this. 0 stops both.">?</button></span><input id="ag-max" type="range" min="0" max="5" step="1" value="2"><small class="muted slider-means">Her plans and her own first messages share this. 0 = never.</small></label>
+          <label class="ag-slider"><span>Only after you've been quiet for: <output id="ag-gap-n" data-raw>6</output> <button type="button" class="tip" data-tip="She writes first only when you haven't written for this many hours, and not again sooner than that. Shared with her first messages.">?</button></span><input id="ag-gap" type="range" min="1" max="24" step="1" value="6"></label>
           <div class="ag-row2">
             <label class="ag-slider"><span>Quiet from: <output id="ag-qs-n" data-raw>22</output> <button type="button" class="tip" data-tip="No messages from her from this hour until the end hour (wraps past midnight). Shared with her first messages.">?</button></span><input id="ag-qs" type="range" min="0" max="23" step="1" value="22"></label>
             <label class="ag-slider"><span>Quiet until: <output id="ag-qe-n" data-raw>9</output> <button type="button" class="tip" data-tip="The hour her quiet time ends. Plans due in quiet hours wait for their window, then move once to the next day.">?</button></span><input id="ag-qe" type="range" min="0" max="23" step="1" value="9"></label>
           </div>
-          <label class="ag-slider"><span>Daily budget, tokens: <output id="ag-tokens-n" data-raw>30k</output> <button type="button" class="tip" data-tip="The most tokens her plans may use in a day for writing and looking things up. Checked before every model call: when it is used up she waits for tomorrow.">?</button></span><input id="ag-tokens" type="range" min="0" max="100000" step="5000" value="30000"></label>
-          <label class="ag-slider"><span>Daily budget, dollars: <output id="ag-usd-n" data-raw>$0.10</output> <button type="button" class="tip" data-tip="The most money her plans may spend in a day on paid models (local models cost nothing). A household member's budget also stays inside their own limits.">?</button></span><input id="ag-usd" type="range" min="0" max="0.5" step="0.01" value="0.1"></label>
+          <label class="ag-slider"><span>Daily limit for her plans: <output id="ag-tokens-n" data-raw>30k</output> <button type="button" class="tip" data-tip="The most tokens her plans may use in a day for writing and looking things up. Checked before every model call: when it is used up she waits for tomorrow.">?</button></span><input id="ag-tokens" type="range" min="0" max="100000" step="5000" value="30000"></label>
+          <label class="ag-slider"><span>On paid models, at most: <output id="ag-usd-n" data-raw>$0.10</output> <button type="button" class="tip" data-tip="The most money her plans may spend in a day on paid models (local models cost nothing). A household member's budget also stays inside their own limits.">?</button></span><input id="ag-usd" type="range" min="0" max="0.5" step="0.01" value="0.1"><small class="muted slider-means">Models on this computer are free.</small></label>
           <p class="actions-left"><button id="ag-clear" type="button" class="ghost small danger">Clear her plans</button></p>
           </div>
         </details>
@@ -1299,7 +1300,7 @@
         <label>Summary model <button type="button" class="tip" data-tip="Small calls that keep a short summary of the room. This computer is free and private; Quick helpers may cost a little. Off keeps only the last lines.">?</button>
           <select id="rm-model"><option value="local">This computer</option><option value="quick">Quick helpers</option><option value="off">Off: last lines only</option></select>
         </label>
-        <label>Summaries a day <button type="button" class="tip" data-tip="A cap on the summary calls for this room. Past it she uses the last lines and simple counts until tomorrow.">?</button> <output id="rm-per-day-out" for="rm-per-day">7</output>
+        <label>Catch-up summaries a day <button type="button" class="tip" data-tip="A cap on the summary calls for this room. Past it she uses the last lines and simple counts until tomorrow.">?</button> <output id="rm-per-day-out" for="rm-per-day">7</output>
           <input id="rm-per-day" type="range" min="0" max="30" step="1" value="7">
         </label>
         <label id="rm-last-day-row" class="row room-card"><input id="rm-last-day" type="checkbox" checked> <span>Read the last day when I turn this on <button type="button" class="tip" data-tip="When you switch this on, she reads up to the last 100 messages from the past day so she isn't starting cold. Needs Read Message History.">?</button></span></label>
@@ -1457,7 +1458,7 @@
       <label>Write notes when a conversation goes quiet for <button type="button" class="tip" data-tip="She also writes notes as soon as you start a new conversation, and every 40 messages in a long one, so this rarely matters. Shorter = notes sooner but more background work for your model.">?</button> <select id="mem-quiet"><option value="10">10 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option><option value="120">2 hours</option></select></label>
       <label>How much she brings to mind each message <button type="button" class="tip" data-tip="How many notes from before she gets with every message. More = she remembers more at once, but each reply is a little slower and costs a little more on paid models. Normal suits most people.">?</button> <select id="mem-budget"><option value="1000">A little (fastest)</option><option value="2500">Normal</option><option value="4500">A lot (best memory, a bit slower)</option></select></label>
       <label>Old memories <button type="button" class="tip" data-tip="Like a person: with fading, things from long ago only come back when something brings them up (you mention it, or she looks it up). Promises and dates never fade. 'Never fade' keeps everything equally fresh.">?</button> <select id="mem-fade"><option value="never">Never fade</option><option value="slow">Fade slowly (after a year)</option><option value="normal">Fade like a person (after about 4 months)</option><option value="custom">Custom (you pick how fast)</option></select></label>
-      <label id="mem-halflife-row" hidden><span>Half-life: <span id="mem-halflife-n"></span> <button type="button" class="tip" data-tip="How many days until an old note counts half as much. Short = she lives in the present; long = old things stay close. Notes that match what you say still come up, and pinned notes never fade.">?</button></span><input id="mem-halflife" type="range" min="7" max="1095" step="1" value="120"></label>
+      <label id="mem-halflife-row" hidden><span>Old notes fade after about: <span id="mem-halflife-n"></span> <button type="button" class="tip" data-tip="How many days until an old note counts half as much. Short = she lives in the present; long = old things stay close. Notes that match what you say still come up, and pinned notes never fade.">?</button></span><input id="mem-halflife" type="range" min="7" max="1095" step="1" value="120"><small class="muted slider-means">Pinned notes never fade.</small></label>
       <p id="mem-decay" class="muted small"><span>How fading works:</span> <button type="button" class="tip" data-tip="The rule she uses right now, in plain words. Pin a note (on the Memory list or in She remembered) to keep it from fading.">?</button> <span id="mem-decay-text"></span></p>
       <label>Recall on her own <button type="button" class="tip" data-tip="When something matches her past runs (the same error, a command that failed, a file you have a note about), she gets a short note with where it came from, shown as Remembered on her own. Coding only: just coding chats.">?</button> <select id="mem-recall"><option value="off">Off</option><option value="coding">Coding conversations only</option><option value="everywhere">Everywhere</option></select></label>
       <label id="mem-sharing-row" hidden>Between companions <button type="button" class="tip" data-tip="Shared: what one companion learns about you (your job, your sister's name) the others know too. Their conversations, notes and what they say about themselves stay their own either way.">?</button> <select id="mem-sharing"><option value="own">Each knows only what you told her</option><option value="shared">Share what they know about you</option></select></label>
@@ -1606,7 +1607,7 @@
         </select>
       </label>
       <p id="gc-style-hint" class="muted small"></p>
-      <label><span>Banter: <span id="gc-banter-n">0</span> <button type="button" class="tip" data-tip="How many extra replies they may trade with each other after answering you (0 to 2). 0 keeps it calm and cheap; 2 is livelier. Never during a hard moment. Saved as you change it.">?</button></span><input id="gc-banter" type="range" min="0" max="2" step="1" value="0"></label>
+      <label><span>Banter between them: <span id="gc-banter-n">0</span> <button type="button" class="tip" data-tip="How many extra replies they may trade with each other after answering you (0 to 2). 0 keeps it calm and cheap; 2 is livelier. Never during a hard moment. Saved as you change it.">?</button></span><input id="gc-banter" type="range" min="0" max="2" step="1" value="0"></label>
       <label class="row"><input id="gc-private" type="checkbox"> Private: models on my own hardware only <button type="button" class="tip" data-tip="Like a private conversation, for every member: only local models, no web or add-on tools. Set when the chat is made.">?</button></label>
       <p class="muted small">Group chats use read-only tools only (looking things up, her past chats, her library). Each companion's AI notice is shown when the chat starts and every 3 hours.</p>
       <p id="gc-saved" class="muted small" role="status"></p>
@@ -1830,15 +1831,18 @@
           <label>How she talks <select id="st-talk"></select></label>
           <label>Humour <select id="st-humour"></select></label>
         </div>
-        <h3>Personality dials <button type="button" class="tip" data-tip="Slide each dial toward the words that fit her. The middle means balanced (no special instruction). Each dial has its own ? with examples. Help → Shaping your companion shows every dial at low, middle and high.">?</button> <a class="small" href="/help#shaping" target="_blank" rel="noopener">Guide</a></h3>
+        <p id="st-humour-say" class="dial-say small" aria-live="polite"></p>
+        <h3>Personality dials <button type="button" class="tip" data-tip="Slide each dial toward the words that fit her. The line under each dial shows how she'd sound there; the shaded middle is her usual self and adds nothing. Try it asks her for real, with every dial at once.">?</button> <a class="small" href="/help#shaping" target="_blank" rel="noopener">Guide</a></h3>
+        <p class="dial-sofar"><span class="dial-sofar-title">Your Sara so far</span> <span id="st-sofar" class="dial-sofar-words"></span></p>
         <div id="st-dials" class="dials"></div>
         <h3>Her life <button type="button" class="tip" data-tip="The details of her life: she keeps them consistent and brings them up naturally. Fill in what you like and leave the rest empty, or press Fill in the rest for me.">?</button></h3>
         <div id="st-life" class="life-grid"></div>
         <p class="actions-left"><button id="st-fill" type="button" class="ghost">✍️ Fill in the rest for me</button> <span class="muted small">Uses your background model; ready-made details if it's not available.</span></p>
-        <h3>At work <button type="button" class="tip" data-tip="How she is while you code together: chatter, celebrating passing tests, teasing about bugs. These only apply in coding conversations; her chat personality above stays as it is. The middle adds nothing.">?</button></h3>
+        <h3>While you code <button type="button" class="tip" data-tip="How she is while you code together: chatter, celebrating passing tests, teasing about bugs. These only apply in coding conversations; her chat personality above stays as it is. The middle adds nothing.">?</button></h3>
         <p class="muted small">Coding conversations only. Her chat personality above isn't changed by these.</p>
         <div id="st-work-dials" class="dials"></div>
         <label class="row"><input id="work-quiet" type="checkbox"> Quiet when I'm focused</label>
+        <p id="work-quiet-say" class="dial-say small" hidden></p>
         <p class="actions-left"><button id="st-work-try" type="button" class="ghost">Try it at work</button> <span class="muted small">She answers a passing test, a silly bug and a short command.</span></p>
         <div id="st-work-samples" class="samples" hidden></div>
         <div class="studio-bar">
@@ -2382,8 +2386,9 @@
         <label>Model for titles <button type="button" class="tip" data-tip="A short, cheap call per title. This computer keeps it on your machine; Quick helpers uses your quick route and may cost a little. Private chats always use this computer.">?</button>
           <select id="ti-model"><option value="local">This computer</option><option value="quick">Quick helpers</option></select>
         </label>
-        <label>Titles a day <button type="button" class="tip" data-tip="A cap so titles never run up a bill. Past the cap she keeps the current titles until tomorrow.">?</button> <output id="ti-cap-out" for="ti-cap">60</output>
+        <label>Chat titles a day <button type="button" class="tip" data-tip="A cap so titles never run up a bill. Past the cap she keeps the current titles until tomorrow.">?</button> <output id="ti-cap-out" for="ti-cap">60</output>
           <input id="ti-cap" type="range" min="10" max="200" step="10" value="60">
+          <small class="muted slider-means">Past this she keeps the current titles.</small>
         </label>
         <p id="ti-state" class="muted small" role="status"></p>
         <p class="small"><button id="ti-all" type="button" class="ghost">Name recent chats now</button></p>
@@ -2486,6 +2491,10 @@
         </section>
         <section class="settings-page" data-page="ab-projects" data-group="Abilities" data-title="Coding projects" data-owner-only hidden>
       <p class="muted small">What she knows about the code in each workspace: how to build and test it, its layout and rules, and the notes she keeps (decisions, conventions, commands). She looks again by herself every hour; coding conversations and her team use it.</p>
+      <h3>How she is while you code <button type="button" class="tip" data-tip="Chatter, celebrating passing tests and teasing about bugs, only in coding conversations. The same dials as Her → Name and personality; a change here shows there too.">?</button></h3>
+      <div id="pj-work-dials" class="dials"></div>
+      <label class="row"><input id="pj-work-quiet" type="checkbox"> Quiet when I'm focused</label>
+      <p id="pj-work-quiet-say" class="dial-say small" hidden></p>
       <div class="add-row"><label>Workspace <select id="pj-ws"></select></label><button id="pj-refresh" type="button" class="ghost">Look again</button><button id="pj-redteam" type="button" class="ghost">Before you ship</button></div>
       <div id="pj-list" class="pj-list"></div>
       <div id="sbx-form">
@@ -2579,7 +2588,7 @@
         <h3>Skills she learns <button type="button" class="tip" data-tip="When you ask for the same thing again and again, or she repeats the same coding steps, she asks after her reply whether to keep it as a skill. Nothing is saved without your OK.">?</button></h3>
         <div class="lsk-settings">
           <label class="row"><input id="lsk-offer" type="checkbox"> <span>Offer to make skills <button type="button" class="tip" data-tip="On: after a reply she may show one card: make this a skill? Off: she stops watching for repeats. Private, partner, group and other apps' chats are never looked at.">?</button></span></label>
-          <label class="lsk-slider"><span>How many times before she offers: <span id="lsk-times-n">3</span> <button type="button" class="tip" data-tip="How often the same kind of request (or the same steps) must come up, on at least two different days, before she offers. 3 is the default; higher means fewer offers.">?</button></span><input id="lsk-times" type="range" min="2" max="6" step="1" value="3"></label>
+          <label class="lsk-slider"><span>She offers a skill after you've asked: <span id="lsk-times-n">3</span> <button type="button" class="tip" data-tip="How often the same kind of request (or the same steps) must come up, on at least two different days, before she offers. 3 is the default; higher means fewer offers.">?</button></span><input id="lsk-times" type="range" min="2" max="6" step="1" value="3"></label>
           <div class="lsk-picks">
             <label><span>Look back <button type="button" class="tip" data-tip="Only repeats within this many days count. Older ones are forgotten.">?</button></span><select id="lsk-lookback"></select></label>
             <label><span>Offers per day <button type="button" class="tip" data-tip="At most this many make-this-a-skill cards a day, never in quiet hours and never in the middle of a task.">?</button></span><select id="lsk-perday"></select></label>
@@ -2831,7 +2840,7 @@
       <label class="row"><input id="dc-bots" type="checkbox"> Answer other bots (when they @mention her, reply to her, or say her name)</label>
       <div id="dc-bots-more" hidden>
       <label>Only these bots (bot or webhook IDs, leave empty for any) <input id="dc-bot-list" placeholder="e.g. 123456789012345678" spellcheck="false"></label>
-      <label>Replies to bots before a person must speak: <span id="dc-bot-turns-n">2</span> <input id="dc-bot-turns" type="range" min="1" max="10" step="1" value="2"></label>
+      <label>Replies to bots before a person must speak: <span id="dc-bot-turns-n">2</span> <input id="dc-bot-turns" type="range" min="1" max="10" step="1" value="2"><small class="muted slider-means">1 = she answers a bot once, then waits for a person.</small></label>
       <label>At most per hour, per channel <select id="dc-bot-cap"><option value="5">5</option><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="60">60</option><option value="120">120</option></select></label>
       </div>
       <label class="web-adult" hidden>Adult channels (channel IDs) <input id="dc-nsfw" placeholder="e.g. 123456789012345678" spellcheck="false"></label>

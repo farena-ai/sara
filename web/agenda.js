@@ -315,8 +315,11 @@ function renderSettings() {
 
 function outText(id, v) {
   const n = Number(v);
-  if (id === 'ag-tokens') return kTokens(n);
-  if (id === 'ag-usd') return `$${n.toFixed(2)}`;
+  // Phase 114 (§3.4): the value in words people use, not a bare number.
+  if (id === 'ag-tokens') return `${t('about {n} short tasks', { n: Math.max(1, Math.round(n / 1000)) })} (${kTokens(n)})`;
+  if (id === 'ag-usd') return n ? t('${usd} a day', { usd: n.toFixed(2) }) : t('nothing on paid models');
+  if (id === 'ag-max') return n === 0 ? t('never') : n === 1 ? t('once a day') : t('{n} times a day', { n });
+  if (id === 'ag-gap') return n === 1 ? t('1 hour') : t('{n} hours', { n });
   if (id === 'ag-qs' || id === 'ag-qe') return new Date(2026, 0, 1, n).toLocaleTimeString(locale(), { hour: 'numeric' });
   return String(n);
 }

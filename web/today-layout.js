@@ -259,7 +259,7 @@ function drawSheet() {
     }),
   );
   $('#td-away-hours').value = String(prefs.awayHours ? prefs.awayHours : 3);
-  $('#td-away-hours-n').textContent = prefs.awayHours ? t('{n} h', { n: prefs.awayHours }) : t('Off');
+  $('#td-away-hours-n').textContent = prefs.awayHours ? t('{n} hours away', { n: prefs.awayHours }) : t('Off');
   $('#td-needs-mail').checked = prefs.needsMail !== false;
   $('#td-away-voice').checked = prefs.awayVoice === true;
   $('#td-away-rooms').checked = prefs.awayRooms === true;
@@ -418,7 +418,7 @@ export function initTodayLayout(c) {
   });
   $('#td-away-hours')?.addEventListener('input', (e) => {
     const v = Number(e.target.value);
-    $('#td-away-hours-n').textContent = v <= 3 ? t('Off') : t('{n} h', { n: v });
+    $('#td-away-hours-n').textContent = v <= 3 ? t('Off') : t('{n} hours away', { n: v });
   });
   $('#td-away-hours')?.addEventListener('change', (e) => changed({ ...prefs, awayHours: Number(e.target.value) <= 3 ? 0 : Number(e.target.value) }));
   $('#td-away-voice')?.addEventListener('change', (e) => {

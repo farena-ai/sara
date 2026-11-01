@@ -14,7 +14,7 @@ em um só app para a web, Windows, Mac e celular.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1477%20passing-brightgreen" alt="1477 tests passing">
+  <img src="https://img.shields.io/badge/tests-1488%20passing-brightgreen" alt="1488 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ em um só app para a web, Windows, Mac e celular.
   <sub>Uma sessão real com um modelo local (qwen3.8 27B no Ollama, uma RTX 5090) em um servidor de teste descartável, no visual Noite: ela anima quem está conversando, escreve um app pequeno e o teste dele enquanto o modelo transmite, pede permissão antes de rodar um comando, pega um bug de verdade com um teste que falha e corrige até os 7 testes passarem. Quadros escolhidos da gravação; nada neles foi editado.</sub>
 </p>
 
-> **Status:** 2.46, licença MIT, com cinquenta e sete e duas versões com novos recursos desde a 1.0 (todas abaixo). Da
+> **Status:** 2.47, licença MIT, com cinquenta e oito e duas versões com novos recursos desde a 1.0 (todas abaixo). Da
 > 2.5 à 2.8 o app inteiro ganhou um visual novo. O
 > [app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) está no Google
 > Play; o app de iPhone e a versão da Mac App Store chegam assim que a Apple aprovar. Leia
@@ -82,6 +82,7 @@ Guias de um minuto, gravados num servidor de teste com um modelo local (em ingl�
 
 | Versão | O que você ganha |
 |---|---|
+| **2.47** · Uma personalidade que dá para ver | **Os controles de personalidade dela agora mostram o que fazem:** pontas claras («Mantém distância ↔ Abertamente carinhosa»), uma palavra para a posição e uma frase na voz dela que muda conforme você mexe (125, sem chamar nenhuma IA). Grupos com nomes simples, um resumo «Sua Sara até agora» e palavras claras em todos os outros controles. Também: o Hoje atualiza depois da configuração, o mesmo número de modelos em todo lugar com uma lista agrupada, importar uma persona a renomeia em todo lugar de uma vez e *Sair às* vem antes do evento. |
 | **2.46** · Relate um problema de dentro da Sara | **Ajuda → Relatar um problema ou Sugerir algo** (ou `/bug` e `/idea` em qualquer conversa, ou *Relatar* num erro): sem conta no GitHub. O diagnóstico opcional é montado no seu computador, mostrado inteiro com uma caixa por parte e limpo de chaves, e-mails e caminhos antes do envio. *Meus relatos* mostra o andamento e nossas respostas. A Sara também envia um pequeno sinal anônimo por dia (versão, Windows/Mac/Linux, quais recursos estão ligados) para podermos ajudar e planejar; não guardamos IP, nome nem conversas. *Ver o que é enviado* ou desligue em Configurações → Dados e saúde → Privacidade. |
 | **2.45** · Hoje no celular | **No celular, o Hoje abre com um cartão Agora** (as duas próximas coisas e quanto falta, a hora de sair, o clima e o humor dela), depois *Precisa de você*, depois seu dia. As seções se recolhem com um resumo e ficam como você deixou naquele aparelho, *Com ela* e *Trabalho* viram fileiras de deslizar (com botões também) e puxar para atualizar funciona no navegador e nos dois apps. Tablets ganham duas colunas. Opcional: uma frase dela sobre o que aconteceu enquanto você estava fora. |
 | **2.44** · Hoje, projetado | **O Hoje agora é organizado de propósito:** *Seu dia* (uma linha do tempo com eventos, lembretes e tarefas, o clima e o que vem por aí), *Precisa de você* (aprovações, falhas, atrasados e o e-mail), *Com ela*, *Trabalho* e *Casa e mais*. As linhas sempre se alinham, blocos vazios se recolhem e *Personalizar* move, redimensiona ou esconde qualquer bloco (arrastando ou pelo teclado), salvo por companheira em todos os aparelhos. O e-mail mostra sua caixa, a mudança desde ontem e o que ela organizou, com Desfazer, e se atualiza sozinho depois de uma limpeza. Um bloco opcional de Salas mostra o que acontece nas salas que ela acompanha. |
@@ -331,8 +332,8 @@ verificava. O que ela acrescenta hoje é o jeito de trabalhar (roda os testes, p
 de passos arriscados, mostra o que foi executado), não uma nota maior nesses conjuntos. Detalhes,
 resultados por tarefa e como rodar de novo: [docs/RESULTS.md](docs/RESULTS.md).
 
-E também `npm run check`: uma checagem de tipos e 1492 testes automáticos com um modelo falso
-roteirizado (sem rede, sem GPU): 1477 passam no Windows e os outros 8 são testes de isolamento só
+E também `npm run check`: uma checagem de tipos e 1503 testes automáticos com um modelo falso
+roteirizado (sem rede, sem GPU): 1488 passam no Windows e os outros 8 são testes de isolamento só
 para Linux, executados em um servidor Linux.
 
 ## Como a Sara se compara

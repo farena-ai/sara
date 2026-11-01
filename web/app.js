@@ -5,6 +5,8 @@ import { VideoCallView } from './video-call.js';
 import { parse as parseMd, toDom } from './markdown.js';
 import { Presence, setLookVersion } from './presence.js';
 import { openLightbox } from './lightbox.js';
+import { dialRows as dialRowsOf, refreshDials, soFarText } from './dials.js';
+import { CLOUD_TAG, countWords, modelCounts } from './model-count.js';
 import { browserLang, currentIdentity, currentLang, locale, savedLang, setIdentity, setLanguage, serverText, t, toLang, translateOnly } from './naming.js';
 import { autoSave, initDialogs, markDirty, onSave, runSave, saved } from './dialogs.js';
 import { endTour, startTour, tourRunning } from './tour.js';
@@ -3387,6 +3389,15 @@ $('#cs-remember').addEventListener('click', async () => {
 // ---------- Sara: status, her day, inner life, character ----------
 // Phase 104: a move-in (or its Undo) changed her personality: refresh her name everywhere.
 document.addEventListener('sara:persona-changed', () => {
+  // Phase 114 (B3): her new name everywhere at once (the sidebar label, the chat header), the way
+  // a save in the Studio does it; there is no server push for persona changes.
+  void api('/persona')
+    .then((pe) => {
+      if (!pe?.persona) return;
+      setIdentity(pe.persona);
+      setChatTitle();
+    })
+    .catch(() => undefined);
   void loadYours().catch(() => undefined);
   void refreshSaraStatus();
   void loadCompanions().catch(() => undefined);
@@ -6521,10 +6532,17 @@ function decayWords(halfLifeDays, minStanding = 0.5) {
   if (!halfLifeDays) return t('Nothing fades: every note weighs the same however old it is. Notes that match what you say come first; pinned notes, promises and dates always count.');
   return t("A note's weight halves every {days} days since it happened or was last used. Notes that match what you say always come to mind, just ranked lower when old; others stay out once they are older than about {out} days. Pinned notes, open promises and dates never fade.", { days: halfLifeDays, out: Math.round(halfLifeDays * Math.log2(1 / Math.max(0.001, minStanding))) });
 }
+/** Phase 114 (§3.4): a half-life in the unit people use: days, weeks, months or years. */
+function fadeWords(days) {
+  if (days < 14) return t('{n} days', { n: days });
+  if (days < 61) return t('{n} weeks', { n: Math.round(days / 7) });
+  if (days < 730) return t('{n} months', { n: Math.round(days / 30.4) });
+  return t('{n} years', { n: Math.round((days / 365) * 10) / 10 });
+}
 function showDecay() {
   const custom = $('#mem-fade').value === 'custom';
   $('#mem-halflife-row').hidden = !custom;
-  $('#mem-halflife-n').textContent = t('{n} days', { n: $('#mem-halflife').value });
+  $('#mem-halflife-n').textContent = fadeWords(Number($('#mem-halflife').value));
   $('#mem-decay-text').textContent = decayWords(decayHalfLife(), state.memDecay?.minStanding ?? 0.5);
 }
 $('#mem-fade').addEventListener('change', showDecay);
@@ -7117,20 +7135,29 @@ function checkedAgo(iso) {
  * Fills a model <select> from a provider's list: its models (new ones marked), then the Ollama Cloud
  * models not added to that Ollama yet in their own group. `current` stays listed even if retired.
  */
-function fillModelOptions(sel, view, current, { blank = '' } = {}) {
-  const opt = (e) => new Option(e.new ? `${e.id}  · ${t('New')}` : e.id, e.id);
-  const entries = view.entries.filter((e) => !e.unpulled);
+function fillModelOptions(sel, view, current, { blank = '', pick = '' } = {}) {
+  const opt = (e) => new Option(e.id === pick ? `${e.id}  · ${t('picked for you')}` : e.new ? `${e.id}  · ${t('New')}` : e.id, e.id);
+  // Phase 114 (F5): Ollama's own models and its Ollama Cloud models in two groups (the pick first).
+  const isCloud = (e) => CLOUD_TAG.test(e.id);
+  const first = (list) => [...list.filter((e) => e.id === pick), ...list.filter((e) => e.id !== pick)];
+  const here = first(view.entries.filter((e) => !isCloud(e) && !e.unpulled));
+  const cloudPulled = first(view.entries.filter((e) => isCloud(e) && !e.unpulled));
   const cloud = view.entries.filter((e) => e.unpulled);
   const known = view.entries.some((e) => e.id === current);
-  const items = [...(blank ? [new Option(blank, '')] : []), ...(current && !known ? [new Option(current, current)] : []), ...entries.map(opt)];
-  if (cloud.length) {
+  const group = (label, list) => {
     const g = document.createElement('optgroup');
-    g.label = t('Ollama Cloud (added when you pick one)');
-    g.append(...cloud.map(opt));
-    items.push(g);
-  }
+    g.label = label;
+    g.append(...list.map(opt));
+    return g;
+  };
+  const items = [...(blank ? [new Option(blank, '')] : []), ...(current && !known ? [new Option(current, current)] : [])];
+  if (here.length && cloudPulled.length) items.push(group(t('On this computer'), here), group(t('Ollama Cloud'), cloudPulled));
+  else items.push(...here.map(opt), ...cloudPulled.map(opt));
+  if (cloud.length) items.push(group(t('Ollama Cloud (added when you pick one)'), cloud));
   sel.replaceChildren(...items);
 }
+/** Phase 114 (F4): the count of a provider's list in words, the same everywhere. */
+const modelCountWords = (view, providerId) => countWords(modelCounts(view.models), Boolean(state.providers?.providers?.find((p) => p.id === providerId)?.local), t);
 
 /**
  * A model chooser: a list of the provider's models plus "Other (type a name)…".
@@ -7213,7 +7240,7 @@ async function loadModels(fresh) {
     $('#default-model').hidden = Boolean(select.value);
     select.hidden = false;
     const fresh_ = view.entries.filter((e) => e.new).length;
-    status.textContent = [models.length === 1 ? t('1 model available') : t('{n} models available', { n: models.length }), fresh_ ? t('{n} new', { n: fresh_ }) : '', checkedAgo(view.checkedAt), view.error ?? ''].filter(Boolean).join(' · ');
+    status.textContent = [modelCountWords(view, id), fresh_ ? t('{n} new', { n: fresh_ }) : '', checkedAgo(view.checkedAt), view.error ?? ''].filter(Boolean).join(' · ');
   } catch (err) {
     select.hidden = true;
     $('#default-model').hidden = false;
@@ -7401,7 +7428,7 @@ function showSettingsTab(page, opts = {}) {
   }
   if (pick === 'ab-plugins') void loadPlugins();
   if (pick === 'ab-budgets') void loadBudgets();
-  if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam()]);
+  if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam(), loadProjectDials()]);
   if (pick === 'ab-ssh') void loadSsh();
   if (pick === 'ab-library') void loadLibrarySettings();
   if (pick === 'co-apps') void Promise.all([loadOtherApps(), loadAlexa()]);
@@ -9605,64 +9632,18 @@ $('#my-advanced').addEventListener('click', () => {
 
 // ---------- Phase 34: personality studio ----------
 const studio = { defs: null, draft: null, opened: null };
-const TIP_EXAMPLES = (d) => `${d.tip}\n\nLow: ${d.examples[0]}\nMiddle: ${d.examples[1]}\nHigh: ${d.examples[2]}`;
-function traitWordJs(d, v) {
-  const b = v <= 1 ? 0 : v <= 3 ? 1 : v <= 6 ? 2 : v <= 8 ? 3 : 4;
-  if (b === 2) return t('Balanced');
-  const end = b < 2 ? d.low : d.high;
-  const oneWord = !/\s/.test(end) && !/^very /i.test(end);
-  const strong = b === 0 || b === 4;
-  // M9: in the app's language (the dial ends come from the server in English).
-  const word = t(end).toLocaleLowerCase(locale());
-  if (oneWord) return strong ? t('Very {word}', { word }) : t('A bit {word}', { word });
-  return strong ? t(end) : t('Leaning: {word}', { word });
-}
-
+// Phase 114 (PL1a): the dial rows live in web/dials.js (a word, a sample line and five bands per
+// dial; the ? tip keeps only its one line). The sample line is written copy: moving a dial never
+// asks the model (Try it does).
+const dialVars = () => ({ you: $('#owner-name')?.value.trim() ?? '', name: currentIdentity()?.name || 'Sara' });
+const dialPlans = () => {
+  $('#settings').close();
+  void openHerPlans();
+};
 /** Slider rows for the given dials; changes go to `target()` (a draft persona). */
 function dialRows(box, ids, target, onChange, grouped = false) {
-  const defs = studio.defs.traits.filter((d) => !ids || ids.includes(d.id));
-  const groups = !ids || grouped ? [...new Set(defs.map((d) => d.group))] : [null];
-  box.replaceChildren();
-  for (const g of groups) {
-    const wrap = el('div', 'dial-group');
-    if (g) wrap.append(el('p', 'dial-group-name', t(g)));
-    for (const d of defs.filter((x) => !g || x.group === g)) {
-      const row = el('div', 'dial');
-      const head = el('div', 'dial-head');
-      const label = el('span', 'dial-label', d.label);
-      const tip = el('button', 'tip', '?');
-      tip.type = 'button';
-      tip.dataset.tip = TIP_EXAMPLES(d);
-      const word = el('span', 'dial-word muted small', '');
-      head.append(label, tip, word);
-      const range = document.createElement('input');
-      range.type = 'range';
-      range.min = '0';
-      range.max = '10';
-      range.step = '1';
-      range.dataset.dial = d.id;
-      range.setAttribute('aria-label', d.label);
-      const ends = el('div', 'dial-ends muted small');
-      ends.append(el('span', '', d.low), el('span', '', d.high));
-      const show = () => {
-        const v = target().traits?.[d.id] ?? 5;
-        range.value = String(v);
-        word.textContent = traitWordJs(d, v);
-      };
-      range.addEventListener('input', () => {
-        const p = target();
-        p.traits = { ...p.traits, [d.id]: Number(range.value) };
-        word.textContent = traitWordJs(d, Number(range.value));
-        onChange?.();
-      });
-      row.show = show;
-      row.append(head, range, ends);
-      wrap.append(row);
-    }
-    box.append(wrap);
-  }
+  dialRowsOf(box, studio.defs.traits, ids, target, () => onChange?.(), { grouped, vars: dialVars, onPlans: dialPlans });
 }
-const refreshDials = (box) => box.querySelectorAll('.dial').forEach((r) => r.show());
 
 function pickCards(box, items, selected, onPick) {
   box.replaceChildren(
@@ -9713,10 +9694,14 @@ function buildStudio() {
   $('#st-humour').replaceChildren(...d.humours.map((r) => new Option(r.label, r.id)));
   dialRows($('#st-dials'), d.traits.filter((t) => t.group !== 'Together' && t.group !== 'Work').map((t) => t.id), () => studio.draft, studioChanged, true);
   // Phase 51: how she is at work (coding conversations only), apart from her chat personality.
-  dialRows($('#st-work-dials'), d.traits.filter((t) => t.group === 'Work').map((t) => t.id), () => studio.draft, studioChanged);
+  dialRows($('#st-work-dials'), d.traits.filter((t) => t.group === 'Work').map((t) => t.id), () => studio.draft, () => {
+    refreshDials($('#pj-work-dials'));
+    studioChanged();
+  });
   $('#work-quiet').addEventListener('change', () => {
     if ($('#work-quiet').checked) studio.draft.quietFocus = true;
     else delete studio.draft.quietFocus;
+    if ($('#pj-work-quiet')) $('#pj-work-quiet').checked = $('#work-quiet').checked;
     studioChanged();
   });
   renderGallery($('#gallery-cards'), { onUse: galleryUse });
@@ -9727,6 +9712,48 @@ function buildStudio() {
     studio.draft.humour = $('#st-humour').value;
     studioChanged();
   });
+  buildWorkDialsOnProjects();
+}
+
+// Phase 114: the sample line of her humour style, the Quiet when I'm focused line, and the
+// "Your Sara so far" strip (the dials off the middle, in words). Written copy: no model call.
+const humourSay = (id) => t(studio.defs?.humours.find((h) => h.id === id)?.say ?? '');
+function renderDialExtras() {
+  const p = studio.draft;
+  if (!p || !studio.defs) return;
+  $('#st-sofar').textContent = soFarText(studio.defs.traits.filter((d) => d.group !== 'Together' && d.group !== 'Work'), p.traits);
+  $('#st-humour-say').textContent = humourSay(p.humour ?? 'own');
+  for (const id of ['#work-quiet-say', '#pj-work-quiet-say']) {
+    $(id).hidden = p.quietFocus !== true;
+    $(id).textContent = t(studio.defs.quietFocus?.say ?? '');
+  }
+}
+
+// Phase 114 (P10): the work dials and Quiet when I'm focused again at the top of Abilities → Coding
+// projects (same draft, same save as Her → Name and personality).
+function buildWorkDialsOnProjects() {
+  const box = $('#pj-work-dials');
+  if (!box || box.childElementCount) return;
+  const work = studio.defs.traits.filter((d) => d.group === 'Work').map((d) => d.id);
+  dialRows(box, work, () => studio.draft, () => {
+    refreshDials($('#st-work-dials'));
+    studioChanged();
+  });
+  $('#pj-work-quiet').addEventListener('change', () => {
+    if ($('#pj-work-quiet').checked) studio.draft.quietFocus = true;
+    else delete studio.draft.quietFocus;
+    $('#work-quiet').checked = $('#pj-work-quiet').checked;
+    studioChanged();
+  });
+}
+/** Coding projects opened: her work dials need her persona (loaded once per Settings window). */
+async function loadProjectDials() {
+  if (!yours.persona || !studio.defs) await loadYours().catch(() => undefined);
+  if (!studio.defs) return;
+  buildWorkDialsOnProjects();
+  refreshDials($('#pj-work-dials'));
+  $('#pj-work-quiet').checked = studio.draft?.quietFocus === true;
+  renderDialExtras();
 }
 
 function renderStudio() {
@@ -9737,7 +9764,9 @@ function renderStudio() {
   $('#st-humour').value = p.humour ?? 'own';
   refreshDials($('#st-dials'));
   refreshDials($('#st-work-dials'));
+  refreshDials($('#pj-work-dials'));
   $('#work-quiet').checked = p.quietFocus === true;
+  if ($('#pj-work-quiet')) $('#pj-work-quiet').checked = p.quietFocus === true;
   refreshLife($('#st-life'), p);
   studioChanged();
   renderBond();
@@ -9751,6 +9780,7 @@ function studioChanged() {
   const changed = studioChangedSinceOpen();
   $('#st-changed').textContent = changed ? t('Changed and saved. Undo goes back to how she was.') : t('No changes yet');
   $('#st-undo').disabled = !changed;
+  renderDialExtras();
   if (studioDirty()) markDirty($('#settings'));
 }
 
@@ -10128,9 +10158,11 @@ async function openWizard() {
       b.type = 'button';
       b.dataset.id = h.id;
       b.setAttribute('role', 'radio');
+      b.title = t(h.say ?? '');
       b.addEventListener('click', () => {
         wz.draft.humour = h.id;
         markCard($('#wz-humour'), h.id);
+        $('#wz-humour-say').textContent = humourSay(h.id);
       });
       return b;
     }),
@@ -10154,6 +10186,7 @@ function wzRender() {
   markCard($('#wz-archetypes'), p.archetype);
   markCard($('#wz-talk'), p.talk);
   markCard($('#wz-humour'), p.humour ?? 'own');
+  $('#wz-humour-say').textContent = humourSay(p.humour ?? 'own');
   markCard($('#wz-rel'), p.relationship ?? 'friend');
   refreshDials($('#wz-dials'));
   refreshDials($('#wz-talk-dials'));
@@ -10825,8 +10858,10 @@ function suShowLocal(found) {
   $('#su-local-none').hidden = Boolean(found);
   if (!found) return;
   $('#su-local').open = true;
-  box.replaceChildren(el('span', 'su-found-text', found.models ? (found.models === 1 ? t('Found Ollama on this computer with 1 model.') : t('Found Ollama on this computer with {n} models.', { n: found.models })) : t('Found Ollama on this computer, but it has no models yet: run ollama pull gemma3 there, then Look again.')));
-  if (!found.models) return;
+  // Phase 114 (F4): the models on that computer, counted as Models → On this computer counts them.
+  const cloudToo = found.cloud ? ` ${t('It can use Ollama Cloud models too.')}` : '';
+  box.replaceChildren(el('span', 'su-found-text', found.models ? `${found.models === 1 ? t('Found Ollama on this computer with 1 model.') : t('Found Ollama on this computer with {n} models.', { n: found.models })}${cloudToo}` : found.cloud ? t('Found Ollama on this computer with Ollama Cloud models only.') : t('Found Ollama on this computer, but it has no models yet: run ollama pull gemma3 there, then Look again.')));
+  if (!found.models && !found.cloud) return;
   const go = el('button', '', t('Use it'));
   go.type = 'button';
   go.addEventListener('click', () => suConnect({ id: 'ollama-local', label: t('Ollama on this computer'), kind: 'openai-compatible', baseUrl: found.url, local: true, needsKey: false }));
@@ -10884,12 +10919,17 @@ async function suConnect(config, apiKey) {
     await api(`/providers/${config.id}`, { method: 'PUT', body: { ...config, ...(apiKey ? { apiKey } : {}) } });
     $('#su-model-note').textContent = t('Loading models…');
     $('#su-model-row').hidden = false;
-    const { models } = await api(`/providers/${config.id}/models`);
+    // Phase 114 (F4/F5): the same list and count as Models → Default model, in two groups (on this
+    // computer, Ollama Cloud) with the pick first, instead of every raw tag in one long list.
+    modelCache.delete(config.id);
+    const view = await modelViewFor(config.id);
+    const models = view.models;
     if (!models.length) throw new Error(t('Connected to {label}, but it has no models yet.', { label: config.label }));
-    $('#su-model').replaceChildren(...models.map((m) => new Option(m, m)));
     const pick = suggestModel(models);
+    fillModelOptions($('#su-model'), view, '', { pick });
     $('#su-model').value = pick;
-    $('#su-model-note').textContent = `${models.length === 1 ? t('Connected ✓ 1 model on {label}.', { label: config.label }) : t('Connected ✓ {n} models on {label}.', { n: models.length, label: config.label })} ${models.length > 1 ? t('We picked {model}, a good all-rounder; any of them works and you can change it later.', { model: pick }) : t('You can change it later.')}`;
+    const counted = countWords(modelCounts(models), Boolean(config.local), t);
+    $('#su-model-note').textContent = `${t('Connected ✓ {label}: {count}.', { label: config.label, count: counted })} ${models.length > 1 ? t('We picked {model}, a good all-rounder; any of them works and you can change it later.', { model: pick }) : t('You can change it later.')}`;
     su.provider = config.id;
     suShow(3);
     $('#su-model-row').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -10918,6 +10958,8 @@ async function suFinish() {
   await loadProviders();
   await loadConversations();
   setChatTitle(); // M3: the header shows the character picked in setup
+  // Phase 114 (F1): Today under the wizard shows the name and the brain just set up (what Refresh does).
+  if (todayOpen()) await Promise.all([loadToday(true), loadChecklist()]).catch(() => undefined);
   if (su.openSubs) openSettings('models');
   else if (!state.providers.providers.length) openSettings('models');
   else setTimeout(offerFirstTour, 1500);

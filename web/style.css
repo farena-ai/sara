@@ -833,14 +833,50 @@ dialog.ring::backdrop { background: transparent; }
 .pick-card[aria-checked="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .pick-card strong { font-size: 14px; }
 .pick-emoji { font-size: 22px; line-height: 1; }
-.dials { display: grid; gap: 4px; }
-.dial-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 18px; margin-bottom: 6px; }
-.dial-group-name { grid-column: 1 / -1; margin: 6px 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-.dial { display: grid; gap: 2px; }
-.dial-head { display: flex; align-items: center; gap: 6px; font-size: 14px; }
-.dial-word { margin-left: auto; }
-.dial input[type=range] { width: 100%; accent-color: var(--accent); margin: 2px 0; }
-.dial-ends { display: flex; justify-content: space-between; font-size: 11px; }
+/* Phase 114 (PL1a): a dial row = name, step word and number, her sample line, the track with five
+   soft ticks and the shaded middle (her usual self), the end words right under the track, then a
+   16 px gap before the next dial. Phones: 24 px either side so the thumb never meets the edge swipe. */
+.dials { display: grid; gap: var(--s-2); }
+.dial-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--s-4) var(--s-6); margin-bottom: var(--s-4); }
+.dial-group-name { grid-column: 1 / -1; margin: var(--s-2) 0 0; font-size: var(--fs-small); font-weight: 600; color: var(--text-2); }
+.dial { position: relative; display: grid; gap: var(--s-1); align-content: start; }
+.dial-head { display: flex; align-items: center; gap: var(--s-2); font-size: 14px; min-height: 28px; }
+.dial-word { margin-left: auto; font-weight: 600; color: var(--accent-text); }
+.dial-num { min-width: 2ch; text-align: right; font-variant-numeric: tabular-nums; }
+.dial-say { margin: 0; font-size: var(--fs-small); color: var(--text-1); font-style: italic; }
+.dial .dial-say { min-height: 2.6em; }
+.dial-say.swap { animation: dial-say-in 120ms var(--ease-out); }
+@keyframes dial-say-in { from { opacity: .2; } to { opacity: 1; } }
+.dial-when { display: none; margin: var(--s-1) 0 0; padding: var(--s-2) var(--s-3); border-radius: var(--r-control); border: 1px solid var(--hairline-strong); background: var(--surface-2); color: var(--text-2); }
+/* In the flow (never over the next dial): shown while the slider has focus; a mouse hover gets the title. */
+.dial:focus-within .dial-when { display: block; }
+.dial-track { position: relative; }
+.dial-track input[type=range] { position: relative; width: 100%; margin: 0; min-height: 28px; accent-color: var(--accent); background: transparent; }
+.dial-ticks { position: absolute; left: 8px; right: 8px; top: 50%; height: 0; pointer-events: none; }
+.dial-ticks > span { position: absolute; top: 0; transform: translateY(-50%); }
+.dial-tick { width: 2px; height: 16px; margin-left: -1px; border-radius: var(--r-pill); background: var(--text-3); opacity: .7; }
+.dial-tick.at-0 { left: 0; }
+.dial-tick.at-2 { left: 20%; }
+.dial-tick.at-4 { left: 40%; }
+.dial-tick.at-7 { left: 70%; }
+.dial-tick.at-9 { left: 90%; }
+.dial-zone { left: 40%; width: 20%; height: 18px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--accent) 26%, transparent); }
+.dial-ends { display: flex; justify-content: space-between; gap: var(--s-3); font-size: 13px; color: var(--text-2); }
+.dial-ends > span:last-child { text-align: right; }
+.dial-note { margin: 0; }
+.dial-note .linkish { min-height: 0; }
+.dial-sofar { margin: 0 0 var(--s-3); padding: var(--s-2) var(--s-3); border-radius: var(--r-control); background: var(--surface-2); font-size: var(--fs-small); }
+.dial-sofar-title { font-weight: 600; margin-right: var(--s-2); }
+@media (max-width: 600px) {
+  .dial-track { padding-inline: var(--s-6); }
+  .dial-ticks { left: calc(var(--s-6) + 8px); right: calc(var(--s-6) + 8px); }
+  .dial-ends { padding-inline: var(--s-2); }
+}
+@media (pointer: coarse) {
+  .dial-track input[type=range] { min-height: 44px; }
+  .dial-note .linkish { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) { .dial-say.swap { animation: none; } }
 .life-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px 14px; }
 .life-grid label[hidden] { display: none; }
 .studio-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; background: var(--panel); border-top: 1px solid var(--border); padding: 10px 0; margin-top: 8px; }
@@ -1592,3 +1628,5 @@ button.conv-see-more, button.conv-show-less { min-height: 44px; padding: 0 10px;
   .room-dialog { width: 100vw; max-width: 100vw; margin: 0; border-radius: 0; max-height: 100dvh; padding-top: var(--safe-t); }
   .room-row { padding: var(--s-2); }
 }
+/* Phase 114 (§3.4): the one-line meaning under a slider. */
+.slider-means { display: block; margin-top: var(--s-1); font-weight: 400; }

@@ -14,7 +14,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1477%20passing-brightgreen" alt="1477 tests passing">
+  <img src="https://img.shields.io/badge/tests-1488%20passing-brightgreen" alt="1488 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <sub>Eine echte Sitzung mit einem lokalen Modell (qwen3.8 27B auf Ollama, eine RTX 5090) auf einem Wegwerf-Testserver, im Nacht-Look: Sie muntert ihr Gegenüber auf, schreibt eine kleine App samt Test, während das Modell sie streamt, fragt, bevor sie einen Befehl ausführt, findet über einen fehlschlagenden Test einen echten Fehler und behebt ihn, bis alle 7 Tests grün sind. Ausgewählte Bilder aus der Aufnahme; nichts darin wurde bearbeitet.</sub>
 </p>
 
-> **Status:** 2.46, MIT-Lizenz, mit siebenundfünfzig Funktions-Releases seit 1.0 (alle unten). Mit 2.5 bis 2.8
+> **Status:** 2.47, MIT-Lizenz, mit achtundfünfzig Funktions-Releases seit 1.0 (alle unten). Mit 2.5 bis 2.8
 > hat die ganze App einen neuen Look bekommen. Die
 > [Android-App](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) ist bei Google
 > Play; die iPhone-App und die Version für den Mac App Store folgen, sobald Apple sie freigibt.
@@ -83,6 +83,7 @@ Einminütige Anleitungen, aufgenommen auf einem Testserver mit einem lokalen Mod
 
 | Version | Was du bekommst |
 |---|---|
+| **2.47** · Persönlichkeit, die man sieht | **Ihre Persönlichkeitsregler zeigen jetzt, was sie tun:** klare Endpunkte („Hält Abstand ↔ Offen herzlich“), ein Wort für die aktuelle Stufe und ein Satz in ihrer Stimme, der sich beim Verschieben ändert (125 Stück, ganz ohne KI-Aufruf). Gruppen mit klaren Namen, eine Zusammenfassung „Deine Sara bisher“ und klare Worte an jedem anderen Regler. Außerdem behoben: Heute aktualisiert sich nach der Einrichtung, überall dieselbe Modellzahl mit gruppierter Auswahl, ein Persona-Import benennt sie überall auf einmal um, und *Losfahren* steht vor seinem Termin. |
 | **2.46** · Probleme direkt aus Sara melden | **Hilfe → Problem melden oder Etwas vorschlagen** (oder `/bug` und `/idea` in jedem Chat, oder *Melden* bei einem Fehler): kein GitHub-Konto nötig. Optionale Diagnosedaten entstehen auf deinem Rechner, werden vollständig gezeigt, mit einem Häkchen pro Teil, und vor dem Senden von Schlüsseln, E-Mails und Pfaden befreit. *Meine Meldungen* zeigt den Stand und unsere Antworten. Außerdem sendet Sara einmal am Tag eine kleine anonyme Rückmeldung (Version, Windows/Mac/Linux, welche Funktionen an sind), damit wir helfen und planen können; IP-Adresse, Name und Chats werden nicht gespeichert. *Zeigen, was gesendet wird* oder ausschalten unter Einstellungen → Daten & Zustand → Datenschutz. |
 | **2.45** · Heute auf dem Handy | **Auf dem Handy beginnt Heute mit einer Jetzt-Karte** (die nächsten zwei Dinge und wann, Losfahren, das Wetter und ihre Stimmung), dann *Braucht dich*, dann dein Tag. Abschnitte klappen mit einer Zusammenfassung ein und bleiben auf dem Gerät, wie du sie gelassen hast, *Mit ihr* und *Arbeit* werden zu Wischreihen (auch mit Knöpfen), und Ziehen zum Aktualisieren klappt im Browser und in beiden Apps. Tablets bekommen zwei Spalten. Optional: ein Satz von ihr, was passiert ist, während du weg warst. |
 | **2.44** · Heute, gestaltet | **Heute ist jetzt bewusst aufgebaut:** *Dein Tag* (eine Zeitleiste aus Terminen, Erinnerungen und Aufgaben, dazu Wetter und was bald kommt), *Braucht dich* (Freigaben, Fehlgeschlagenes, Überfälliges und Mail), *Mit ihr*, *Arbeit* und *Zuhause & mehr*. Reihen schließen immer bündig ab, leere Kacheln klappen weg, und *Anpassen* verschiebt, vergrößert oder versteckt jede Kachel (Ziehen oder Tastatur), gespeichert pro Begleiterin auf jedem Gerät. Mail zeigt deinen Posteingang, die Änderung seit gestern und was sie sortiert hat, mit Rückgängig, und aktualisiert sich nach dem Aufräumen selbst. Eine optionale Räume-Kachel zeigt, was in den Räumen los ist, die sie verfolgt. |
@@ -334,8 +335,8 @@ wurden. Was sie heute beiträgt, ist die Arbeitsweise (sie lässt die Tests lauf
 riskanten Schritten, zeigt, was gelaufen ist), nicht ein höheres Ergebnis bei diesen Sätzen.
 Details, Ergebnisse pro Aufgabe und wie man es wiederholt: [docs/RESULTS.md](docs/RESULTS.md).
 
-Dazu `npm run check`: eine Typprüfung und 1492 automatische Tests mit einem geskripteten
-Schein-Modell (ohne Netz, ohne GPU): 1477 laufen unter Windows durch, die anderen 8 sind
+Dazu `npm run check`: eine Typprüfung und 1503 automatische Tests mit einem geskripteten
+Schein-Modell (ohne Netz, ohne GPU): 1488 laufen unter Windows durch, die anderen 8 sind
 Linux-spezifische Sandbox-Tests, die auf einem Linux-Server laufen.
 
 ## Sara im Vergleich

@@ -22,7 +22,7 @@ import { detectMinorSexualContent } from '../safety.ts';
 import { adultModeOn } from '../settings.ts';
 import { applyArchetype, applyRelationship, applyTalk, ARCHETYPES, fillLife, fillLifeQuick, makeUnique, savePersona, SCENARIOS, surprise, trySamples } from '../studio.ts';
 import { ACTIVITIES, type ListId, LISTS } from '../together.ts';
-import { HUMOURS, LIFE_FIELDS, QUIET_FOCUS, TRAITS } from '../traits.ts';
+import { GROUP_TITLES, HUMOURS, initiativeToProactive, LIFE_FIELDS, NEVER_CONTROLLING, QUIET_FOCUS, QUIET_FOCUS_SAY, TRAITS } from '../traits.ts';
 import { allScenarios, cleanWardrobe, type WardrobeSettings, wardrobeSettings } from '../wardrobe.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
@@ -122,8 +122,14 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
       };
       if (!c && method === 'GET') {
         return send(res, 200, {
-          traits: TRAITS.map(({ id, label, group, low, high, tip, examples }) => ({ id, label, group, low, high, tip, examples })),
-          humours: Object.entries(HUMOURS).map(([id, h]) => ({ id, label: h.label })),
+          // Phase 114: a word, meaning and sample line per band (UI copy, never sent to the model), the
+          // moment the lines answer, the plain group name, and the real first-message limit per band.
+          traits: TRAITS.map(({ id, label, group, low, high, tip, examples, steps, when, was }) => ({
+            id, label, group, groupTitle: GROUP_TITLES[group], low, high, tip, examples, steps, when, ...(was ? { was } : {}),
+            ...(id === 'jealousy' || id === 'possessive' ? { note: NEVER_CONTROLLING } : {}),
+            ...(id === 'initiative' ? { limits: [0, 2, 5, 7, 9].map((v) => initiativeToProactive(v)) } : {}),
+          })),
+          humours: Object.entries(HUMOURS).map(([id, h]) => ({ id, label: h.label, say: h.say })),
           life: LIFE_FIELDS.map(({ id, label, placeholder }) => ({ id, label, placeholder })),
           archetypes: ARCHETYPES.map(({ id, emoji, label, blurb }) => ({ id, emoji, label, blurb })),
           talk: Object.entries(TALK).map(([id, t]) => ({ id, label: t.label })),
@@ -131,7 +137,7 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
           scenarios: SCENARIOS.map(({ id, label, text, set }) => ({ id, label, text, set })),
           inCharacter: app.settings.get().persona?.inCharacter ?? 'off',
           // Phase 51: the "Quiet when I'm focused" switch (the work dials are in `traits`).
-          quietFocus: { label: QUIET_FOCUS.label, tip: QUIET_FOCUS.tip },
+          quietFocus: { label: QUIET_FOCUS.label, tip: QUIET_FOCUS.tip, say: QUIET_FOCUS_SAY },
           // Phase 35: you and her.
           relationshipTypes: Object.entries(RELATIONSHIPS).map(([id, r]) => ({ id, label: r.label, ...RELATIONSHIP_INFO[id] })),
           away: Object.entries(AWAY).map(([id, x]) => ({ id, label: x.label })),

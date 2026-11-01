@@ -387,7 +387,7 @@ export const crisisPending = (app: AppContext, roomId: number): boolean => {
 
 /** §7.6: she spoke in the room: her line and the topic at that moment (for "your topic went stale"). */
 export function noteHerLine(app: AppContext, room: KeepRoom, lineId: number): void {
-  const topic = currentTopic(app, room.id) || null;
+  const topic = topicWordsNow(app, room.id) || null;
   keepDb(app).prepare('UPDATE rooms SET her_last_line_id = ?, her_last_topic = ? WHERE id = ?').run(lineId, topic?.slice(0, 200) ?? null, room.id);
 }
 
@@ -451,13 +451,39 @@ const toSummary = (r: Row): RoomSummary => {
   return { id: Number(r.id), roomId: Number(r.room_id), throughLine: Number(r.through_line), topic: String(r.topic), threads: Array.isArray(extra.threads) ? extra.threads : [], changed: String(extra.changed ?? ''), forHer: String(extra.forHer ?? ''), text: String(r.text), model: (r.model as string | null) ?? null, tokens: Number(r.tokens), at: String(r.at) };
 };
 
-/** The topic now: the summary's when it is about the latest lines, else the code fallback's words. */
-export function currentTopic(app: AppContext, roomId: number): string {
+/**
+ * Phase 114 (B2): what a room is about now, in parts: the summary's topic when it is about the
+ * latest lines; else, with no model call, the room's frequent words and its latest line (who said
+ * it, cut to 80 characters). `quiet` when nothing is left to show.
+ */
+export function topicParts(app: AppContext, roomId: number): { summary?: string; words: string[]; last?: { who: string; text: string }; quiet: boolean } {
   const s = latestSummary(app, roomId);
   const fresh = recentLines(app, roomId, 30);
   const since = s ? fresh.filter((l) => l.id > s.throughLine).length : fresh.length;
-  if (s && since < SUMMARY_MIN_LINES) return s.topic;
-  return codeTopic(fresh);
+  if (s && since < SUMMARY_MIN_LINES && s.topic.trim()) return { summary: s.topic, words: [], quiet: false };
+  const words = codeTopic(fresh).split(', ').filter(Boolean);
+  const l = [...fresh].reverse().find((x) => !x.flags.removed && x.text.trim());
+  const flat = l ? l.text.replace(/\s+/g, ' ').trim() : '';
+  const last = l ? { who: l.author || 'someone', text: flat.length > 80 ? `${flat.slice(0, 79).trimEnd()}…` : flat } : undefined;
+  return { words, ...(last ? { last } : {}), quiet: !words.length && !last };
+}
+
+/**
+ * The topic now, as a readable line: the summary's topic, else (Phase 114, B2) "Lately: flat,
+ * alfama, found · last from Ana: “found a flat in alfama!”", else "Quiet lately". English; Today
+ * builds the same line in the app's language from topicParts.
+ */
+export function currentTopic(app: AppContext, roomId: number): string {
+  const p = topicParts(app, roomId);
+  if (p.summary) return p.summary;
+  if (p.quiet) return 'Quiet lately';
+  return [p.words.length ? `Lately: ${p.words.join(', ')}` : '', p.last ? `last from ${p.last.who}: “${p.last.text}”` : ''].filter(Boolean).join(' · ');
+}
+
+/** The topic's words only (the summary's topic, else the frequent words): what "your topic went stale" compares. */
+function topicWordsNow(app: AppContext, roomId: number): string {
+  const p = topicParts(app, roomId);
+  return p.summary ?? p.words.join(', ');
 }
 
 /** The stub conversation a room's cheap calls run under (no id: nothing is stored there). */

@@ -1,4 +1,5 @@
 // HTTP API + static web UI. No framework; node:http only.
+import { countModels } from './model-names.ts';
 import { clearTodayCache } from './today.ts';
 import { netFetch, privateLocalOn } from './net-guard.ts';
 import { createReadStream, existsSync, readFileSync, rmSync, statSync } from 'node:fs';
@@ -1552,7 +1553,9 @@ export function createSaraServer(opts: ServerOptions): Server {
         // Phase 71: a member's models are set up by the owner: no first-run guide.
         if (opts.member) return send(res, 200, { done: true, ownerName: s.ownerName ?? '', ollama: [], subscriptions: { grok: false, claude: false, chatgpt: false } });
         const done = Boolean(s.setupDone) || (s.providers.length > 0 && Boolean(s.ownerName));
-        const ollama: { url: string; models: number }[] = [];
+        // Phase 114 (F4): `models` counts the models on that computer (as Models → On this computer
+        // does); `cloud` the Ollama Cloud tags it also has.
+        const ollama: { url: string; models: number; cloud: number }[] = [];
         if (!done || /[?&]detect\b/.test(req.url ?? '')) {
           const hosts = ['127.0.0.1', 'host.docker.internal'];
           await Promise.all(
@@ -1561,7 +1564,8 @@ export function createSaraServer(opts: ServerOptions): Server {
                 const r = await netFetch(`http://${h}:11434/api/tags`, { signal: AbortSignal.timeout(1500) });
                 if (!r.ok) return;
                 const j = (await r.json()) as { models?: { name: string }[] };
-                ollama.push({ url: `http://${h}:11434/v1`, models: (j.models ?? []).filter((m) => !/embed/i.test(m.name)).length });
+                const n = countModels((j.models ?? []).map((m) => m.name));
+                ollama.push({ url: `http://${h}:11434/v1`, models: n.here, cloud: n.cloud });
               } catch {
                 /* not there */
               }

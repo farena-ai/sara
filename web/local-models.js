@@ -3,6 +3,7 @@
 // pauses, and a model on this computer: Ollama found (or how to get it), the hardware, a suggested
 // model, Download with progress and Cancel, and the models already here with Use.
 import { serverText, t } from './naming.js';
+import { EMBED_TAG } from './model-count.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -98,7 +99,8 @@ function renderModels(m) {
   models = m;
   const box = $('#lm-ollama');
   if (m.ollama.found) {
-    const here = m.ollama.models.filter((x) => !x.cloud);
+    // Phase 114 (F4): counted like the first-run guide and Default model (embedding models left out).
+    const here = m.ollama.models.filter((x) => !x.cloud && !EMBED_TAG.test(x.name));
     box.replaceChildren(el('p', 'small', t('Ollama {version} is running on this computer, with {n} models here.', { version: m.ollama.version ?? '', n: here.length })));
   } else {
     const p = el('p', 'small', t("Ollama isn't running on this computer. It's a free program that runs AI models on your own computer; Sara uses it for models here."));

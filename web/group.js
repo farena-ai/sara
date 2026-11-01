@@ -82,7 +82,8 @@ function syncCreate() {
   $('#gc-count').textContent = t('{n} of 2 to 4 picked', { n });
   $('#gc-create').disabled = !dlg.editing && (n < 2 || n > 4);
   $('#gc-style-hint').textContent = t(STYLE_HINT[$('#gc-style').value] ?? STYLE_HINT.fits);
-  $('#gc-banter-n').textContent = $('#gc-banter').value;
+  // Phase 114 (§3.4): the value in words (0 calm, 1 some, 2 lively).
+  $('#gc-banter-n').textContent = [t('Calm (0)'), t('Some (1)'), t('Lively (2)')][Number($('#gc-banter').value)] ?? $('#gc-banter').value;
 }
 
 /** Opens the window: a new group chat, or (with a conversation) that room's settings. */

@@ -92,7 +92,7 @@ const allParts = (app: AppContext, extra: Parameters<typeof todayLoaders>[0] = {
 
 // ------------------------------------------------------------------ 1 · dayItems
 
-test('111.1 dayItems: events, reminders, timed to-dos and leave-by in time order, all-day first, past flagged, undated out; leave-by follows its event', async () => {
+test('111.1 dayItems: events, reminders, timed to-dos and leave-by in time order, all-day first, past flagged, undated out; leave-by before its event (Phase 114 B1)', async () => {
   const m = await load('today.js');
   const at = (h: string) => new Date(`2026-10-31T${h}:00`).toISOString();
   const now = Date.parse(at('10:00'));
@@ -101,9 +101,9 @@ test('111.1 dayItems: events, reminders, timed to-dos and leave-by in time order
     calendar: { events: [{ id: 'e2', title: 'Dentist', start: at('15:00'), end: at('15:45'), location: '12 Oak Ave' }, { id: 'e1', title: 'Standup', start: at('09:30'), end: at('09:45') }, { id: 'e0', title: 'Halloween', allDay: true, start: '2026-10-31' }], leaveBy: [{ eventId: 'e2', leaveAt: at('14:20'), minutes: 25 }] },
     agenda: { reminders: [{ id: 1, text: 'Call Mom', dueAt: at('17:30') }], tasks: [{ id: 7, title: 'Feed the cat', dueAt: at('08:30') }, { id: 8, title: 'Undated', dueAt: null }, { id: 9, title: 'Yesterday', dueAt: new Date('2026-10-30T12:00:00').toISOString(), overdue: true }] },
   }, now);
-  assert.deepEqual(items.map((x: { kind: string; title: string }) => `${x.kind}:${x.title}`), ['event:Halloween', 'todo:Feed the cat', 'event:Standup', 'event:Dentist', 'leave:Dentist', 'reminder:Call Mom']);
+  assert.deepEqual(items.map((x: { kind: string; title: string }) => `${x.kind}:${x.title}`), ['event:Halloween', 'todo:Feed the cat', 'event:Standup', 'leave:Dentist', 'event:Dentist', 'reminder:Call Mom']);
   assert.deepEqual(items.map((x: { past: boolean }) => x.past), [false, true, true, false, false, false]);
-  assert.equal(items[4].minutes, 25, 'the leave-by row carries the travel time');
+  assert.equal(items[3].minutes, 25, 'the leave-by row carries the travel time');
 });
 
 // ------------------------------------------------------------------ 2 · needsItems

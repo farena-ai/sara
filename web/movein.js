@@ -43,7 +43,7 @@ const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { ye
 const size = (n) => (n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(1)} GB` : n >= 1024 ** 2 ? `${(n / 1024 ** 2).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
 let helpers = { copyText: async () => {}, openConversation: () => {}, showSettingsTab: () => {} };
-let state = { overview: null, bundle: null, preview: null, choices: null, paused: false, uploading: null, poll: 0, cards: null, cardPoll: 0, localOnly: true, editing: {}, drafts: {}, cardBusy: false, trans: null, transPoll: 0 };
+let state = { watching: false, overview: null, bundle: null, preview: null, choices: null, paused: false, uploading: null, poll: 0, cards: null, cardPoll: 0, localOnly: true, editing: {}, drafts: {}, cardBusy: false, trans: null, transPoll: 0 };
 
 const SECTION_NAME = {
   persona: () => t('Personality'),
@@ -247,6 +247,7 @@ async function refresh() {
     return;
   }
   if (pv.state === 'importing') {
+    state.watching = true;
     work(progressCard(pv.line || t('Moving in…'), true));
     state.poll = setTimeout(() => void refresh(), 1200);
     return;
@@ -258,6 +259,12 @@ async function refresh() {
     return;
   }
   if (pv.state === 'imported') {
+    // Phase 114 (B3): the batch runs in the background; when it is done her name and face are
+    // re-loaded (the Import press itself only started it).
+    if (state.watching) {
+      state.watching = false;
+      document.dispatchEvent(new CustomEvent('sara:persona-changed'));
+    }
     await renderDone(pv);
     return;
   }
@@ -352,8 +359,8 @@ function renderPreview(pv) {
     b.disabled = true;
     try {
       await api(`/movein/bundles/${enc(state.bundle)}/import`, { method: 'POST', body: { choices: ch } });
-      // Her name, picture line and companion list show the new personality right away.
-      document.dispatchEvent(new CustomEvent('sara:persona-changed'));
+      // Her name, picture line and companion list follow when the batch is done (see refresh).
+      state.watching = true;
       await refresh();
     } catch (err) {
       b.disabled = false;

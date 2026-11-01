@@ -53,7 +53,8 @@ test('dials and life become plain instructions; middle settings add nothing; unk
   assert.match(prompt, /Never deny being an AI when sincerely asked/);
   assert.match(prompt, /Never produce sexual content involving minors/);
   assert.equal(traitLines({ warmth: 5 }).length, 0);
-  assert.equal(traitWord(TRAITS[0], 10), 'Very warm');
+  // Phase 114: Warmth's high end is now "Openly warm" (a strong band still reads as the end words).
+  assert.equal(traitWord(TRAITS[0], 10), 'Openly warm');
   assert.equal(traitWord(TRAITS.find((t) => t.id === 'teasing')!, 7), 'Leaning: teases a lot');
   assert.equal(validatePersona({ ...base0, humour: 'nonsense' }).humour, undefined);
 });

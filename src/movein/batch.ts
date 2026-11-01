@@ -16,6 +16,7 @@ import type { Bundle } from './bundle.ts';
 import type { StoreCopy } from './cards.ts';
 import type { CodeCard, CodeInput } from './code-read.ts';
 import type { Proposal } from './config.ts';
+import { savePersona } from '../studio.ts';
 import { herMessage, livesLines } from './report.ts';
 import { addRules, applyTranslations, keepCode, saveChanges, undoChanges } from './translate.ts';
 import { ACTIVE_NOTES, type Choices, LEARN_DAYS, type Staging } from './staging.ts';
@@ -536,10 +537,13 @@ function uniqueBoardName(app: AppContext, base: string): string {
   return n;
 }
 
-/** Writes her sheet without renaming old notes (so Undo can put everything back exactly). */
+/**
+ * Phase 114 (B3): her new sheet goes through savePersona like every other save: her old notes are
+ * renamed to the new name, and her Starts conversations dial sets how often she may text first.
+ * Undo renames them back (undoBatch). The page re-loads her name when the batch is done.
+ */
 export function applyPersona(app: AppContext, p: Persona): void {
-  writeFileAtomic(join(app.dataDir, 'persona.json'), JSON.stringify(p, null, 2) + '\n', 0o600);
-  app.persona = p;
+  savePersona(app, p);
 }
 
 /** What Undo will touch: counts per kind, and imported notes the owner edited since (§7.4). */
@@ -643,13 +647,19 @@ export function undoBatch(app: AppContext, id: string, opts: { keepEdited?: bool
     } else if (i.kind === 'persona') {
       const dir = join(app.dataDir, 'movein', id);
       const before = join(dir, 'persona.before.json');
+      // Phase 114 (B3): the move-in renamed her old notes; the name they had comes back with her.
+      const was = app.persona;
       if (existsSync(before)) {
         const p = validatePersona(JSON.parse(readFileSync(before, 'utf8')));
+        savePersona(app, p);
         copyFileSync(before, join(app.dataDir, 'persona.json'));
-        app.persona = p;
       } else {
         rmSync(join(app.dataDir, 'persona.json'), { force: true });
-        if (app.defaultPersonaPath) app.persona = loadPersona(app.defaultPersonaPath);
+        if (app.defaultPersonaPath) {
+          const p = loadPersona(app.defaultPersonaPath);
+          if (was.name !== p.name) app.memory?.renameCompanion(was.name, p.name);
+          app.persona = p;
+        }
       }
       bump('persona');
     }

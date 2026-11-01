@@ -211,8 +211,9 @@ const dayRange = (day, now) => {
 
 /**
  * B1 · Your day as one timeline (§4.1): calendar events, reminders, to-dos with a time today and
- * leave-by times, in time order, all-day first; past items flagged (not removed); a leave-by row
- * follows its event. Undated to-dos stay off (Needs you or the Planner).
+ * leave-by times, in time order, all-day first; past items flagged (not removed). Phase 114 (B1):
+ * a leave-by row sits at its own time, so it comes BEFORE its event (you act on it first).
+ * Undated to-dos stay off (Needs you or the Planner).
  */
 export function dayItems(d, now = Date.now()) {
   const { start, end } = dayRange(d?.day, now);
@@ -221,6 +222,11 @@ export function dayItems(d, now = Date.now()) {
     const at = e.allDay ? null : Date.parse(e.start);
     const fin = Date.parse(e.end ?? e.start);
     items.push({ kind: 'event', id: e.id, title: e.title, at, allDay: Boolean(e.allDay), where: e.location ?? '', past: !e.allDay && Number.isFinite(fin) && fin < now });
+    const lb = e.allDay ? undefined : (d?.calendar?.leaveBy ?? []).find((l) => l.eventId === e.id);
+    if (lb) {
+      const la = Date.parse(lb.leaveAt);
+      if (Number.isFinite(la)) items.push({ kind: 'leave', id: `leave:${e.id}`, title: e.title, at: la, allDay: false, where: '', minutes: lb.minutes, mode: lb.mode ?? '', past: la < now, of: e.id });
+    }
   }
   for (const r of d?.agenda?.reminders ?? []) {
     const at = Date.parse(r.dueAt);
@@ -232,18 +238,23 @@ export function dayItems(d, now = Date.now()) {
     if (!Number.isFinite(at) || at < start || at >= end) continue;
     items.push({ kind: 'todo', id: x.id, title: x.title, at, allDay: false, where: '', past: at < now });
   }
-  items.sort((a, b) => (a.allDay === b.allDay ? (a.at ?? 0) - (b.at ?? 0) : a.allDay ? -1 : 1));
-  const out = [];
-  for (const x of items) {
-    out.push(x);
-    if (x.kind !== 'event') continue;
-    const lb = (d?.calendar?.leaveBy ?? []).find((l) => l.eventId === x.id);
-    if (lb) {
-      const at = Date.parse(lb.leaveAt);
-      out.push({ kind: 'leave', id: `leave:${x.id}`, title: x.title, at, allDay: false, where: '', minutes: lb.minutes, past: at < now, of: x.id });
-    }
-  }
-  return out;
+  // All-day first, then by time; at the same minute a leave-by goes before anything else.
+  const rank = (x) => (x.kind === 'leave' ? 0 : 1);
+  return items.sort((a, b) => (a.allDay === b.allDay ? (a.at ?? 0) - (b.at ?? 0) || rank(a) - rank(b) : a.allDay ? -1 : 1));
+}
+
+/**
+ * Phase 114 (B1, R3): during the hour a clock repeats when summer time ends, the same wall time
+ * happens twice; '1st' / '2nd' tells them apart ('' the rest of the year). `offset(ms)` is the
+ * zone's offset in minutes (Date#getTimezoneOffset by default; tests pass their own).
+ */
+export function repeatedHour(at, offset = (ms) => new Date(ms).getTimezoneOffset()) {
+  if (!Number.isFinite(at)) return '';
+  const HOUR = 3_600_000;
+  const o = offset(at);
+  if (offset(at + HOUR) > o) return '1st';
+  if (offset(at - HOUR) < o) return '2nd';
+  return '';
 }
 
 const NEEDS_RANK = ['approval', 'failed', 'overdue', 'board', 'mail', 'hook', 'plan', 'model'];
@@ -692,12 +703,17 @@ function openPlanner() {
 }
 function dayRow(x, fmtDue) {
   const li = el('li', `td-time-row ${x.kind}${x.past ? ' past' : ''}`);
-  const when = el('span', 'td-when', x.allDay ? t('all day') : x.at === null ? '' : time(x.at));
+  // Phase 114 (B1): the repeated hour when summer time ends reads "1:30 (1st)" and "1:30 (2nd)".
+  const rep = x.allDay || x.at === null ? '' : repeatedHour(x.at);
+  const at = x.allDay ? t('all day') : x.at === null ? '' : rep ? `${time(x.at)} ${rep === '1st' ? t('(1st)') : t('(2nd)')}` : time(x.at);
+  const when = el('span', 'td-when', at);
   const dot = el('span', 'td-dot');
   dot.setAttribute('aria-hidden', 'true');
   const what = el('span', 'td-what');
   if (x.kind === 'leave') {
-    const title = el('span', 'td-what-title', t('Leave by {time} · {n} min', { time: time(x.at), n: x.minutes }));
+    const how = { car: t('({n} min by car)', { n: x.minutes }), bike: t('({n} min by bike)', { n: x.minutes }), walk: t('({n} min on foot)', { n: x.minutes }) }[x.mode] ?? t('({n} min)', { n: x.minutes });
+    const title = el('span', 'td-what-title', `${t('Leave by {time} for {what}', { time: time(x.at), what: x.title })} ${how}`);
+    title.dataset.raw = '';
     const car = icon('car');
     if (car) title.prepend(car);
     what.append(title);
@@ -1227,6 +1243,22 @@ function purposeWords(p) {
 }
 
 /**
+ * Phase 114 (B2): a room's line on Today: her summary's topic, else what was said lately in plain
+ * words ("Lately: flat, alfama · last from Ana: “found a flat in alfama!”"), else "Quiet lately".
+ * No model call; the server sends the parts (and an English line for older answers).
+ */
+export function roomTopicLine(r) {
+  const p = r?.topicParts;
+  if (!p) return r?.topic ?? '';
+  if (p.summary) return p.summary;
+  if (p.quiet) return t('Quiet lately');
+  const parts = [];
+  if (p.words?.length) parts.push(t('Lately: {words}', { words: p.words.join(', ') }));
+  if (p.last) parts.push(t('last from {who}: “{text}”', { who: p.last.who, text: p.last.text }));
+  return parts.join(' · ');
+}
+
+/**
  * Rooms (owner decision 2026-11-01): the keep-up rooms in a few words each: topic, who spoke
  * lately, the last activity, and Peek (the room window). Off until the owner switches it on.
  */
@@ -1246,7 +1278,8 @@ export function renderRooms(part) {
       if (ic) head.append(ic);
       head.append(raw(el('span', 'td-room-name', r.name)), el('span', 'muted small td-room-at', r.last ? freshAgo(r.last) : ''));
       row.append(head);
-      if (r.topic) row.append(raw(el('p', 'td-room-topic small', r.topic)));
+      const topic = roomTopicLine(r);
+      if (topic) row.append(raw(el('p', 'td-room-topic small', topic)));
       if (r.who?.length) row.append(raw(el('p', 'td-room-who muted small', r.who.join(', '))));
       const peek = btn('ghost small td-room-peek', t('Peek'), () => ctx.openRoom?.(r.id));
       peek.setAttribute('aria-label', t('Peek into {room}', { room: r.name }));

@@ -92,11 +92,11 @@ export class LeaveByWorker {
    * Phase 111 (TD1, §4.1): today's leave-by times for Today's timeline, from the same address and
    * route caches the reminders use (no new hosts; nothing when leave-by is off or has no home).
    */
-  async planFor(events: { id: string; start: string; allDay: boolean; location?: string }[]): Promise<{ eventId: string; leaveAt: string; minutes: number }[]> {
+  async planFor(events: { id: string; start: string; allDay: boolean; location?: string }[]): Promise<{ eventId: string; leaveAt: string; minutes: number; mode: TravelMode }[]> {
     const cfg = leaveBySettings(this.#app);
     if (!cfg.enabled || !cfg.home) return [];
     const now = this.#app.now().getTime();
-    const out: { eventId: string; leaveAt: string; minutes: number }[] = [];
+    const out: { eventId: string; leaveAt: string; minutes: number; mode: TravelMode }[] = [];
     for (const e of events.slice(0, 8)) {
       const loc = e.location?.trim() ?? '';
       if (e.allDay || !loc || ONLINE.test(loc)) continue;
@@ -114,7 +114,7 @@ export class LeaveByWorker {
         this.#routes.set(e.id, route);
       }
       if (route.minutes === null || route.minutes < 3) continue;
-      out.push({ eventId: e.id, leaveAt: new Date(start - (route.minutes + cfg.bufferMin) * 60_000).toISOString(), minutes: route.minutes });
+      out.push({ eventId: e.id, leaveAt: new Date(start - (route.minutes + cfg.bufferMin) * 60_000).toISOString(), minutes: route.minutes, mode: cfg.mode });
     }
     return out;
   }
