@@ -42,8 +42,8 @@ const enc = encodeURIComponent;
 const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '');
 const size = (n) => (n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(1)} GB` : n >= 1024 ** 2 ? `${(n / 1024 ** 2).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
-let helpers = { copyText: async () => {}, openConversation: () => {} };
-let state = { overview: null, bundle: null, preview: null, choices: null, paused: false, uploading: null, poll: 0, cards: null, cardPoll: 0, localOnly: true, editing: {}, drafts: {}, cardBusy: false };
+let helpers = { copyText: async () => {}, openConversation: () => {}, showSettingsTab: () => {} };
+let state = { overview: null, bundle: null, preview: null, choices: null, paused: false, uploading: null, poll: 0, cards: null, cardPoll: 0, localOnly: true, editing: {}, drafts: {}, cardBusy: false, trans: null, transPoll: 0 };
 
 const SECTION_NAME = {
   persona: () => t('Personality'),
@@ -141,7 +141,10 @@ export function initMoveIn(h) {
 /** Server events: a bundle's state moved on. */
 export function moveInEvent(ev) {
   if (!document.querySelector('[data-page="dh-movein"]:not([hidden])')) return;
-  if (state.bundle && ev?.id === state.bundle) void refresh();
+  if (state.bundle && ev?.id === state.bundle) {
+    if (ev.line === 'translations' && state.preview?.state === 'ready') void loadTranslations();
+    else void refresh();
+  }
 }
 
 export async function loadMoveIn() {
@@ -334,6 +337,7 @@ function renderPreview(pv) {
   root.append(planCard(pv), head);
   if (pv.persona) root.append(personaCard(pv));
   if (pv.stores?.cards) root.append(storesBox(pv));
+  if (pv.translations?.config || pv.translations?.code) root.append(translationsBox());
   for (const key of ['memories', 'profile', 'people', 'conversations', 'skills', 'schedules', 'tasks', 'board', 'agenda', 'reflections']) {
     const s = pv.sections[key];
     if (!s || (!s.found && key !== 'memories')) continue;
@@ -356,7 +360,7 @@ function renderPreview(pv) {
       $('#mi-note').textContent = err.message;
     }
   });
-  imp.disabled = Boolean(personaPending) || Boolean(pv.stores?.busy);
+  imp.disabled = Boolean(personaPending) || Boolean(pv.stores?.busy) || Boolean(pv.translations?.busy);
   go.append(imp, btn(t('Not now'), 'ghost', async () => {
     state.choices = null;
     state.bundle = null;
@@ -571,10 +575,10 @@ function heldCard(pv) {
 function laterCard(list) {
   const c = el('details', 'mi-card mi-later');
   const s = el('summary', '');
-  s.append(el('strong', '', t('Read in the next updates ({n})', { n: list.length })), tip(t('Custom stores, settings, hooks and plugins stay in the bundle. Sara reads them in the 2.38 and 2.39 updates: import the same bundle again then and only the new parts come in.')));
+  s.append(el('strong', '', t('Also for you to look at ({n})', { n: list.length })), tip(t('Things Sara found but does not bring in by herself, each with what to do instead. They are listed in your report too.')));
   c.append(s);
   const ul = el('ul', 'small');
-  for (const x of list) ul.append(el('li', '', x.what));
+  for (const x of list) ul.append(el('li', '', `${x.what}: ${x.why}`));
   c.append(ul);
   return c;
 }
@@ -598,8 +602,14 @@ async function renderDone(pv) {
   const b = pv.batchId ? await api(`/movein/batches/${enc(pv.batchId)}`).catch(() => null) : null;
   const c = el('section', 'mi-card mi-done');
   c.append(el('h4', '', b?.state === 'partial' ? t('Stopped part way') : t('Moved in')));
-  if (b?.report) c.append(reportView(b.report));
+  if (b?.report) c.append(reportView(b.report, b.id));
   const acts = el('div', 'mi-actions');
+  if (b) {
+    const dl = el('a', 'button ghost', t('Download the report'));
+    dl.href = `/api/movein/batches/${enc(b.id)}/report.md`;
+    dl.setAttribute('download', '');
+    acts.append(dl);
+  }
   if (b) acts.append(btn(t('Undo this move-in'), 'danger', () => undo(b.id)));
   acts.append(btn(t('Delete the bundle now'), 'ghost', deleteBundle));
   c.append(acts, el('p', 'muted small', t('The bundle is deleted from the server 48 hours after the move-in. Delete your own copy too.')));
@@ -607,22 +617,65 @@ async function renderDone(pv) {
   void loadOverview();
 }
 
-function reportView(r) {
+function reportView(r, batchId) {
+  const wrap = el('div', 'mi-report-wrap');
   const box = el('div', 'mi-report');
-  const list = (title, lines, cls) => {
-    if (!lines?.length) return;
+  const list = (title, lines, cls, tipText) => {
     const sec = el('div', `mi-report-list ${cls}`);
-    sec.append(el('h5', '', `${title} (${lines.reduce((n, l) => n + (l.count || 0), 0)})`));
+    const h = el('h5', '', `${title} (${(lines ?? []).reduce((n, l) => n + (l.count || 0), 0)})`);
+    h.append(tip(tipText));
+    sec.append(h);
     const ul = el('ul', 'small');
-    for (const l of lines) ul.append(el('li', '', reportLine(l)));
+    if (!lines?.length) ul.append(el('li', 'muted', t('nothing')));
+    for (const l of lines ?? []) {
+      const li = el('li', 'mi-r-line');
+      li.append(el('span', '', reportLine(l)));
+      if (l.examples?.length && /^(cfg|code|tr|connect|rebuild)/.test(l.key)) li.append(el('span', 'muted', ` · ${l.examples[0]}`));
+      const go = l.page ? pageButton(l.page, t('Open')) : null;
+      if (go) li.append(go);
+      if (l.key === 'rebuild' && l.ref && batchId) {
+        li.append(btn(t('Rebuild as a Sara plugin'), 'small', async (b) => {
+          b.disabled = true;
+          try {
+            const x = await api(`/movein/batches/${enc(batchId)}/rebuild`, { method: 'POST', body: { key: l.ref } });
+            helpers.openConversation(x.conversationId);
+          } catch (err) {
+            b.disabled = false;
+            li.append(el('p', 'mi-error small', err.message));
+          }
+        }));
+      }
+      ul.append(li);
+    }
     sec.append(ul);
     box.append(sec);
   };
-  list(t('Imported'), r.imported, 'mi-r-in');
-  list(t('Translated'), r.translated, 'mi-r-tr');
-  list(t('Needs you'), r.needsYou, 'mi-r-need');
-  list(t('Left behind'), r.leftBehind, 'mi-r-left');
-  return box;
+  list(t('Imported'), r.imported, 'mi-r-in', t('What came in as it was: personality, notes, past chats, skills, tasks and cards.'));
+  list(t('Translated'), r.translated, 'mi-r-tr', t('Old settings, schedules, hooks and plugins turned into the way Sara does the same thing.'));
+  list(t('Needs you'), r.needsYou, 'mi-r-need', t('Keys to paste, channels to reconnect, cards you did not decide and rebuild plans. Each line says what to do.'));
+  list(t('Left behind'), r.leftBehind, 'mi-r-left', t('What stayed out on purpose, each with the reason: secrets, logs, copies, old approvals and things Sara does her own way.'));
+  wrap.append(box);
+  if (r.lives?.length) {
+    const d = el('details', 'mi-card mi-lives');
+    const sm = el('summary', '');
+    sm.append(el('strong', '', t('Where your old features live now ({n})', { n: r.lives.length })), tip(t('Every old feature and the place in Sara where you find it now.')));
+    d.append(sm);
+    const tbl = el('table', 'mi-rows-table small');
+    const hr = el('tr', '');
+    hr.append(el('th', '', t('On the old agent')), el('th', '', t('In Sara now')));
+    tbl.append(hr);
+    for (const x of r.lives) {
+      const tr = el('tr', '');
+      const now = el('td', '', x.now);
+      const go = x.page ? pageButton(x.page, t('Open')) : null;
+      if (go) now.append(go);
+      tr.append(el('td', '', x.old), now);
+      tbl.append(tr);
+    }
+    d.append(tbl);
+    wrap.append(d);
+  }
+  return wrap;
 }
 function reportLine(l) {
   const map = {
@@ -641,6 +694,7 @@ function reportLine(l) {
     'custom-card': () => t('A store card not confirmed: nothing from it came in ({text})', { text: l.text.split('"')[3] ?? '' }),
     schedules: () => t('Old schedules → {n} tasks and reminders (they never act by themselves)', { n: l.count }),
     'skills-held': () => t('{n} skills run scripts: off until you check them (Settings → Abilities → Skills)', { n: l.count }),
+    'store-copies': () => t('{n} copies of one store (same tables): only one was mapped', { n: l.count }),
   };
   if (map[l.key]) return map[l.key]();
   if (LEFT_NAME[l.key]) return `${LEFT_NAME[l.key]()} · ${l.count}`;
@@ -660,6 +714,7 @@ async function undo(batchId) {
   dlg.append(el('h4', '', t('Undo this move-in?')));
   const n = Object.values(pre.counts).reduce((a, b) => a + b, 0);
   dlg.append(el('p', '', t('This removes the {n} things it brought (notes, conversations, skills, tasks and cards) and puts her old personality back.', { n })));
+  if (pre.counts.setting || pre.counts['persona-rule']) dlg.append(el('p', '', t('It also removes the providers it added and puts back the settings and rules it changed, unless you changed them again since.')));
   let keep = null;
   if (pre.edited.length) {
     const l = el('label', 'mi-switch');
@@ -747,7 +802,13 @@ function renderBatches() {
   for (const b of list) {
     const li = el('li', 'mi-batch');
     const label = { done: t('moved in'), partial: t('stopped part way'), undone: t('undone'), importing: t('moving in…') }[b.state] ?? b.state;
-    li.append(el('span', 'mi-batch-name', `${b.agentName} · ${b.sourceKind === 'openclaw' ? 'OpenClaw' : 'Hermes Agent'}`), el('span', 'muted small', `${fmtDate(b.createdAt)} · ${label}`));
+    li.append(el('span', 'mi-batch-name', `${b.agentName} · ${b.sourceKind === 'openclaw' ? 'OpenClaw' : b.sourceKind === 'custom' ? t('custom agent') : 'Hermes Agent'}`), el('span', 'muted small', `${fmtDate(b.createdAt)} · ${label}`));
+    if (b.hasReport && b.state !== 'undone') {
+      const dl = el('a', 'button ghost small', t('Report'));
+      dl.href = `/api/movein/batches/${enc(b.id)}/report.md`;
+      dl.setAttribute('download', '');
+      li.append(dl);
+    }
     if (b.state === 'done' || b.state === 'partial') li.append(btn(t('Undo'), 'ghost small', () => undo(b.id)));
     ul.append(li);
   }
@@ -884,6 +945,18 @@ function renderCards(r) {
     for (const x of s.left) ul.append(el('li', 'muted', `${x.name} · ${x.why}`));
     line.append(ul);
     parts.push(line);
+  }
+  // MI3: copies of one store (backups, probe and round-trip copies) are mapped once.
+  if (r.copies?.length) {
+    const d = el('details', 'mi-store');
+    const sm = el('summary', '');
+    sm.append(el('strong', '', t('{n} copies of a store, mapped once', { n: r.copies.length })), tip(t('Stores with exactly the same tables as another one (backups, test or round-trip copies) are not mapped again. Only the main one gets cards.')));
+    d.append(sm);
+    const ul = el('ul', 'mi-tele small');
+    for (const x of r.copies.slice(0, 60)) ul.append(el('li', '', `${x.label} → ${x.ofLabel}`));
+    if (r.copies.length > 60) ul.append(el('li', 'muted', t('and {n} more', { n: r.copies.length - 60 })));
+    d.append(ul);
+    parts.push(d);
   }
   // Ask her (one model call per card) or map by hand.
   const todo = r.cards.filter((c) => c.state === 'new' || c.state === 'failed').length;
@@ -1133,4 +1206,254 @@ function editor(c) {
   }));
   box.append(acts);
   return box;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Phase 106 (MI3, §9): settings and channels as proposals, hooks and plugins as explainer cards.
+// Nothing here runs old code: the server only ever reads it as text. Confirm or Skip each card.
+// ---------------------------------------------------------------------------------------------
+/** Server page names → the Settings pages they open. */
+const PAGE = {
+  models: 'models-providers', voice: 'her-voice', telegram: 'co-telegram', discord: 'co-discord', hooks: 'co-hooks', agents: 'co-agents',
+  abilities: 'ab-tools', skills: 'ab-skills', plugins: 'ab-plugins', mcp: 'ab-mcp', you: 'you-about', her: 'her-character', companions: 'her-companions',
+  google: 'ab-google', library: 'ab-library', look: 'her-look', budgets: 'ab-budgets', checkup: 'dh-health', runs: 'dh-reports', memory: 'dh-data', agenda: 'her-character',
+};
+const KIND_NAME = {
+  provider: () => t('Model provider'), 'sign-in': () => t('Sign-in'), local: () => t('Local models'), route: () => t('Which model does what'), voice: () => t('Voice'),
+  channel: () => t('Channel'), peer: () => t('Other agent'), webhook: () => t('Webhooks'), mcp: () => t('MCP server'), timezone: () => t('Time zone'),
+  approvals: () => t('Approvals'), roster: () => t('Another agent'), knob: () => t('Other setting'),
+};
+const KIND_TIP = {
+  provider: () => t('A model service the old agent used. Confirm adds it to Sara with an empty key: paste your own key in Settings → Models. Pick another kind if the match is wrong.'),
+  'sign-in': () => t('The old agent signed in to a subscription. Confirm adds Sara\'s own sign-in for it; you sign in again with your account.'),
+  local: () => t('Models on the old computer or your home network. Sara adds them only if her server can reach that address.'),
+  voice: () => t('Her old voice. Confirm switches Sara to the same service and voice when she has it; paste that service\'s key in Settings → Voice.'),
+  channel: () => t('Where you talked to the old agent. Sara never connects a channel by herself: confirm puts the reconnect steps in your report. Stop the old bot first, or both of us will answer.'),
+  peer: () => t('Another agent the old one talked to. It is never connected by a move-in: add it again in Settings → Other agents with a new key.'),
+  webhook: () => t('Outside services that sent events to the old agent. Sara makes new signed addresses; confirm puts the steps in your report.'),
+  mcp: () => t('Tool servers the old agent started. Programs never start from a move-in; add the ones you still want in Settings → Abilities.'),
+  timezone: () => t('Your time zone from the old agent. Sara uses it only when she has none yet.'),
+  info: () => t('Shown so nothing is silent, never copied. Old allowlists and approvals never become "Always allowed" in Sara.'),
+};
+const TR_NAME = {
+  rule: () => t('Becomes a personality rule'), guard: () => t('Sara asks first'), feature: () => t('Sara does this already'), left: () => t('Left behind'),
+  rebuild: () => t('A rebuild plan'), flag: () => t('Needs you: not translated'),
+};
+const INTENT_NAME = {
+  style: () => t('reply style'), context: () => t('adds context'), guard: () => t('tool guard'), logging: () => t('logging'), ritual: () => t('session start'),
+  memory: () => t('memory engine'), integration: () => t('integration'), unclear: () => t('unclear'),
+};
+const FLAG_NAME = { 'reads-secrets': () => t('reads secret files'), obfuscated: () => t('hides what it does'), 'runs-programs': () => t('runs programs'), 'writes-files': () => t('writes files') };
+
+function pageButton(page, label) {
+  const id = PAGE[page];
+  if (!id) return null;
+  return btn(label ?? t('Open'), 'ghost small', () => helpers.showSettingsTab(id));
+}
+
+function translationsBox() {
+  const box = el('section', 'mi-card mi-trans');
+  box.id = 'mi-trans';
+  const h = el('h4', '', t('Settings, channels, hooks and plugins'));
+  h.append(tip(t('Her old settings as cards. Confirm what you want, skip the rest. Keys never move: you paste them again. Hooks and plugins were read as text and never run.')));
+  box.append(h, el('p', 'muted small', t('Loading the cards…')));
+  void loadTranslations();
+  return box;
+}
+
+async function loadTranslations() {
+  clearTimeout(state.transPoll);
+  if (!state.bundle) return;
+  let r;
+  try {
+    r = await api(`/movein/bundles/${enc(state.bundle)}/translations`);
+  } catch (err) {
+    $('#mi-trans')?.append(el('p', 'mi-error small', err.message));
+    return;
+  }
+  state.trans = r;
+  renderTranslations(r);
+  if (r.busy) state.transPoll = setTimeout(() => void loadTranslations(), 1200);
+  const note = $('#mi-note');
+  if (note && r.undecided && !state.preview?.stores?.undecided) note.textContent = t('{n} setting and hook cards are not decided yet: they change nothing.', { n: r.undecided });
+}
+
+function renderTranslations(r) {
+  const box = $('#mi-trans');
+  if (!box) return;
+  const parts = [box.querySelector('h4')];
+  if (!r.config.length && !r.code.length) {
+    parts.push(el('p', 'muted small', t('No settings, hooks or plugins in this bundle.')));
+    box.replaceChildren(...parts);
+    return;
+  }
+  const act = r.config.filter((p) => p.mode !== 'info');
+  const info = r.config.filter((p) => p.mode === 'info');
+  if (act.length) {
+    parts.push(el('h5', 'mi-trans-head', t('Settings and channels ({n})', { n: act.length })));
+    const grid = el('div', 'mi-card-grid');
+    for (const p of act) grid.append(configCard(p));
+    parts.push(grid);
+  }
+  if (r.code.length) {
+    const hh = el('h5', 'mi-trans-head', t('Hooks and plugins ({n})', { n: r.code.length }));
+    hh.append(tip(t('Each hook or plugin explained in plain words, with what Sara saw in its code. Nothing of it ever runs. Rules and guards apply when you confirm them; integrations become rebuild plans.')));
+    parts.push(hh);
+    const grid = el('div', 'mi-card-grid');
+    for (const c of r.code) grid.append(codeCard(c));
+    parts.push(grid);
+  }
+  if (info.length) {
+    const d = el('details', 'mi-info');
+    const sm = el('summary', '');
+    sm.append(el('strong', '', t('Shown, not copied ({n})', { n: info.length })), tip(KIND_TIP.info()));
+    d.append(sm);
+    const ul = el('ul', 'mi-info-list small');
+    for (const p of info) {
+      const li = el('li', '');
+      li.append(el('strong', '', `${KIND_NAME[p.kind]?.() ?? p.kind}: ${p.title}`), el('span', 'muted', ` · ${p.old}`));
+      if (p.why) li.append(el('span', 'mi-why', ` · ${p.why}`));
+      const go = pageButton(p.page, t('Open'));
+      if (go) li.append(go);
+      ul.append(li);
+    }
+    d.append(ul);
+    parts.push(d);
+  }
+  box.replaceChildren(...parts);
+}
+
+function decisionRow(card, kind) {
+  const row = el('div', 'mi-actions');
+  const send = async (decision, b) => {
+    b.disabled = true;
+    try {
+      const body = { key: card.key, decision };
+      const sel = row.parentElement?.querySelector('select.mi-pick');
+      if (sel && decision === 'confirm') body.choice = sel.value;
+      await api(`/movein/bundles/${enc(state.bundle)}/translations/${kind}`, { method: 'POST', body });
+      await loadTranslations();
+    } catch (err) {
+      b.disabled = false;
+      row.append(el('p', 'mi-error small', err.message));
+    }
+  };
+  const on = card.state === 'confirmed';
+  const off = card.state === 'skipped';
+  row.append(btn(on ? t('✓ Confirmed') : t('Confirm'), on ? 'primary' : '', (b) => send(on ? 'reset' : 'confirm', b)), btn(off ? t('✓ Skipped') : t('Skip'), off ? 'primary' : 'ghost', (b) => send(off ? 'reset' : 'skip', b)));
+  return row;
+}
+
+function configCard(p) {
+  const c = el('article', `mi-map mi-cfg mi-map-${p.state === 'confirmed' ? 'confirmed' : p.state === 'skipped' ? 'skipped' : 'new'}`);
+  const head = el('div', 'mi-map-head');
+  const h = el('h5', '', p.title);
+  head.append(h, el('span', 'mi-pill', KIND_NAME[p.kind]?.() ?? p.kind), tip(KIND_TIP[p.kind]?.() ?? KIND_TIP.info()));
+  c.append(head, el('p', 'small', t('On the old agent: {what}', { what: p.old })));
+  if (p.options?.length) {
+    const lab = el('label', 'mi-field');
+    const sel = el('select', 'mi-pick');
+    for (const o of p.options) {
+      const opt = el('option', '', o.value === 'other-openai' ? t('Other (OpenAI-compatible, same address)') : o.value === 'local' ? t("Sara's own voice on the server") : o.value === 'off' ? t('No voice') : o.label);
+      opt.value = o.value;
+      opt.selected = o.value === p.choice;
+      sel.append(opt);
+    }
+    sel.addEventListener('change', () => {
+      if (p.state === 'confirmed') void api(`/movein/bundles/${enc(state.bundle)}/translations/config`, { method: 'POST', body: { key: p.key, decision: 'confirm', choice: sel.value } }).then(loadTranslations).catch(() => null);
+    });
+    lab.append(el('span', '', p.kind === 'voice' ? t('Becomes') : t('In Sara')), sel, tip(p.kind === 'voice' ? t('The voice service Sara uses. Her own voice on the server needs no key.') : t("Sara's name for this kind of service. The key stays empty until you paste yours.")));
+    c.append(lab);
+  }
+  c.append(el('p', 'muted small', t('Lives in Sara now: {where}', { where: p.lives })));
+  if (p.secrets?.length) c.append(el('p', 'small mi-keys', t('Keys removed, never moved: {names}', { names: p.secrets.join(', ') })));
+  if (p.warn) c.append(el('p', 'small mi-warn', p.warn));
+  if (p.why) c.append(el('p', 'small mi-why', p.why));
+  if (p.steps?.length) {
+    const ol = el('ol', 'small mi-steps-list');
+    for (const x of p.steps) ol.append(el('li', '', x));
+    c.append(ol);
+  }
+  if (p.reach === 'yes') c.append(el('p', 'small mi-staged', t('✓ Sara reaches this address from her server.')));
+  c.append(decisionRow(p, 'config'));
+  const go = pageButton(p.page, t('Open in Settings'));
+  if (go) c.append(go);
+  return c;
+}
+
+function codeCard(cd) {
+  const tr = cd.translation;
+  const c = el('article', `mi-map mi-code mi-map-${cd.state === 'confirmed' ? 'confirmed' : cd.state === 'skipped' ? 'skipped' : tr.type === 'flag' ? 'failed' : 'new'}`);
+  const head = el('div', 'mi-map-head');
+  head.append(el('h5', '', cd.name), el('span', 'mi-pill', cd.kind === 'hook' ? t('hook') : t('plugin')), el('span', 'mi-pill mi-pill-off', INTENT_NAME[cd.intent]?.() ?? cd.intent));
+  if (cd.enabled === false) head.append(el('span', 'mi-pill mi-pill-off', t('was off')));
+  head.append(tip(t('Read as text, never run. Sara says what it did in plain words and quotes the code for every claim; claims she could not quote are dropped.')));
+  c.append(head, el('p', '', cd.summary));
+  const what = el('div', 'mi-ask');
+  what.append(el('strong', '', TR_NAME[tr.type]?.() ?? tr.type));
+  if (tr.type === 'rule') what.append(el('p', '', `“${tr.rule}”`), el('p', 'muted small', t('Added to her sheet under "How she talks" when you confirm. Her safety rules stay as they are.')));
+  if (tr.type === 'guard') what.append(el('p', '', t('Sara will ask you before every "{tool}" step. This only ever makes her more careful.', { tool: tr.tool })));
+  if (tr.type === 'feature' || tr.type === 'left') what.append(el('p', '', tr.feature ?? tr.why ?? ''));
+  if (tr.where) what.append(el('p', 'muted small', t('Lives in Sara now: {where}', { where: tr.where })));
+  if (tr.type === 'rebuild' && tr.plan) {
+    const ul = el('ul', 'small mi-think');
+    ul.append(el('li', '', t('What it did: {what}', { what: tr.plan.did })), el('li', '', t('Hosts: {list}', { list: tr.plan.hosts.join(', ') || t('none found') })), el('li', '', t('Secrets it needs (names only): {list}', { list: tr.plan.secrets.join(', ') || t('none') })));
+    what.append(ul, el('p', 'muted small', t('After the move-in, the report has "Rebuild as a Sara plugin": a coding task you approve, ending in the normal plugin review.')));
+  }
+  if (tr.type === 'flag' && tr.why) what.append(el('p', 'small mi-warn', tr.why));
+  c.append(what);
+  if (cd.flags?.length) c.append(el('p', 'mi-chips small', cd.flags.map((f) => FLAG_NAME[f]?.() ?? f).join(' · ')));
+  if (cd.claims?.length) {
+    const d = el('details', 'mi-samples');
+    d.append(el('summary', '', t('What Sara saw in the code ({n})', { n: cd.claims.length })));
+    const ul = el('ul', 'small mi-think');
+    for (const x of cd.claims) {
+      const li = el('li', '');
+      li.append(el('span', '', `${x.text} `), el('code', 'mi-quote', x.quote), el('span', 'muted', ` · ${x.file}`));
+      ul.append(li);
+    }
+    d.append(ul);
+    c.append(d);
+  }
+  if (cd.by === 'model') c.append(el('p', 'muted small', t('Read by {model}; {n} claims without a real quote were dropped.', { model: cd.model || t('her model'), n: cd.dropped ?? 0 })));
+  const code = el('details', 'mi-samples');
+  code.append(el('summary', '', t('Show the code (as text)')));
+  code.addEventListener('toggle', async () => {
+    if (!code.open || code.dataset.loaded) return;
+    code.dataset.loaded = '1';
+    try {
+      const r = await api(`/movein/bundles/${enc(state.bundle)}/translations/text?key=${enc(cd.key)}`);
+      for (const f of r.files) {
+        const pre = el('pre', 'mi-cmd mi-code-text', f.text);
+        pre.setAttribute('translate', 'no');
+        code.append(el('p', 'small mi-rows-name', f.path), pre);
+      }
+    } catch (err) {
+      code.append(el('p', 'mi-error small', err.message));
+    }
+  });
+  c.append(code);
+  const acts = el('div', 'mi-actions');
+  if (['rule', 'guard', 'feature'].includes(tr.type)) c.append(decisionRow(cd, 'code'));
+  else {
+    const off = cd.state === 'skipped';
+    acts.append(btn(off ? t('✓ Skipped') : t('Skip'), off ? 'primary' : 'ghost', async (b) => {
+      b.disabled = true;
+      await api(`/movein/bundles/${enc(state.bundle)}/translations/code`, { method: 'POST', body: { key: cd.key, decision: off ? 'reset' : 'skip' } }).catch(() => null);
+      await loadTranslations();
+    }));
+  }
+  acts.append(btn(t('Ask her to read it'), 'ghost small', async (b) => {
+    b.disabled = true;
+    try {
+      await api(`/movein/bundles/${enc(state.bundle)}/translations/ask`, { method: 'POST', body: { key: cd.key, localOnly: state.localOnly } });
+      b.textContent = t('She is reading it…');
+      setTimeout(() => void loadTranslations(), 800);
+    } catch (err) {
+      b.disabled = false;
+      acts.append(el('p', 'mi-error small', err.message));
+    }
+  }), tip(t('Her model reads the code as untrusted text (your own hardware only, unless you allowed other models for the store cards). Every claim must quote the code.')));
+  c.append(acts);
+  return c;
 }

@@ -5,6 +5,24 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.39.0 (2026-10-31): move in, settings, channels, hooks and the report (Phase 106, move-in MI3; the move-in track is complete)
+
+- **Settings become cards you confirm:** providers matched to Sara's presets (keys are never copied:
+  you enter them again into the vault), sign-ins, local models (only if Sara can reach them), voice,
+  time zone. Telegram, Discord, other agents and webhooks become *connect this* cards (never
+  connected for you); approvals, sandboxes and allow-lists are shown, not copied.
+- **Hooks and plugin code are read as text, never run,** and explained with quotes, then translated
+  to a rule on her sheet (one that would weaken her AI disclosure is refused), a guard that only ever
+  asks first, an existing Sara feature, *left behind*, or a plan to rebuild it as a Sara plugin
+  (names, hosts, secret names, a draft manifest). *Ask her to read it* uses a local model by default.
+- **Duplicate database copies** (backups, probes) are recognised by fingerprint and mapped once; her
+  name comes from SOUL.md/IDENTITY.md for custom sources; the collector reads more YAML (multi-line and
+  quoted values).
+- **The move-in report:** imported, translated, needs you, left behind, with counts and links, where
+  each old feature lives in Sara now, and her own note; download it as Markdown. Undo also puts settings
+  back and removes the added rules.
+- The move-in track (2.37–2.39) is complete.
+
 ## 2.38.0 (2026-10-31): move in, her old databases (Phase 105, move-in MI2)
 
 - **Custom SQLite and Postgres stores:** the move-in page gets *Her old databases*. Sara profiles

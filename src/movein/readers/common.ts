@@ -4,7 +4,7 @@ import { detectMinorSexualContent } from '../../safety.ts';
 import { parseSkill } from '../../skills.ts';
 import type { Bundle } from '../bundle.ts';
 import { categoryOf, unsafeLine } from '../text.ts';
-import type { Finding, LaterData, ReaderContext, SkillData } from '../types.ts';
+import type { Finding, ReaderContext, SkillData } from '../types.ts';
 
 export type Row = Record<string, unknown>;
 
@@ -111,29 +111,11 @@ export function note(emit: (f: Finding) => void, skipped: Record<string, number>
   emit({ section: f.section, kind: 'memory', ref: f.ref, title: text.slice(0, 120), data: { kind, content: text, happenedOn: f.happenedOn, ...(f.pinned ? { pinned: true } : {}), ...(f.superseded ? { superseded: true } : {}), ...(f.tag ? { tag: f.tag } : {}), ...(f.evidence ? { evidence: f.evidence } : {}), ...(f.archived ? { archived: true } : {}) }, ...(held ? { held } : {}), ...(f.card ? { card: f.card } : {}) });
 }
 
-/** Hooks, plugins and config: packed, read in a later update (MI3: §6.10). */
-export function readLater(b: Bundle, emit: (f: Finding) => void, roots: { hooks: string[]; plugins: string[] }): void {
-  const later = (ref: string, title: string, data: LaterData) => emit({ section: 'later', kind: 'later', ref, title, data });
-  const seenHooks = new Set<string>();
-  for (const pre of roots.hooks) {
-    for (const f of b.list(pre)) {
-      const name = f.slice(pre.length).split('/')[0];
-      if (!name || seenHooks.has(pre + name)) continue;
-      seenHooks.add(pre + name);
-      later(`${pre}${name}/`, name, { code: 'hook', what: `hook "${name}"`, why: 'Hooks are read, never run. Sara will translate them in the 2.39 update; the bundle keeps them.' });
-    }
-  }
-  const seenPlugins = new Set<string>();
-  for (const pre of roots.plugins) {
-    for (const f of b.list(pre)) {
-      const name = f.slice(pre.length).split('/')[0];
-      if (!name || seenPlugins.has(pre + name)) continue;
-      seenPlugins.add(pre + name);
-      later(`${pre}${name}/`, name, { code: 'plugin', what: `plugin "${name}"`, why: 'Plugin code is read, never run. Sara will turn it into rebuild plans in the 2.39 update; the bundle keeps it.' });
-    }
-  }
-  for (const it of b.manifest.items) {
-    // Custom stores (reader "custom") are mapped on cards since MI2 (src/movein/custom.ts), not listed here.
-    if (it.kind === 'config') later(it.path, it.path.split('/').at(-1)!.replace(/\.json$/, ''), { code: 'config', what: `settings in ${it.path.split('/').at(-1)!.replace(/\.json$/, '')} (${it.redacted ?? 0} secret values removed)`, why: 'Models, voice and channels are translated in the 2.39 update; keys are never carried over.' });
-  }
+/**
+ * Hooks, plugins and config were "read in a later update" in MI1/MI2. Since MI3 (2.39) they become
+ * the translation cards (src/movein/translate.ts) after reading, so nothing is listed here any more;
+ * the function stays so the readers keep one call for the parts that need the owner.
+ */
+export function readLater(_b: Bundle, _emit: (f: Finding) => void, _roots: { hooks: string[]; plugins: string[] }): void {
+  /* MI3: see src/movein/translate.ts */
 }

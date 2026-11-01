@@ -1532,7 +1532,7 @@
       "care"
     ],
     "dh-movein": [
-      "Bring a Hermes Agent or OpenClaw companion over in three steps: run the collector on the old computer, upload its file, check the preview. Undo removes it all.",
+      "Bring a Hermes Agent, OpenClaw or custom companion over in three steps: run the collector on the old computer, upload its file, check the preview. Undo removes it all.",
       "move-in"
     ],
     "dh-updates": [

@@ -109,16 +109,16 @@ version's details are in the [changelog](../CHANGELOG.md).
 | 103 | Her own agenda (opt-in): goals and follow-ups she keeps with you | 2.36 |
 | 104 | Move in from another agent 1: Hermes Agent and OpenClaw (personality, memories, profile, history, skills, schedules), preview and Undo | 2.37 |
 | 105 | Move in 2: custom memory stores (SQLite, Postgres): she proposes how tables map, you confirm | 2.38 |
+| 106 | Move in 3: settings, channels and custom hooks translated (never run), with a full report of what came over | 2.39 |
 
 ## Coming next
 
-In build order; one release per phase. The computer use track is complete (2.20–2.28); the agent staples are complete (2.29–2.36); moving in from other agents is under way (Hermes Agent, OpenClaw and custom databases are out).
+In build order; one release per phase. The computer use track is complete (2.20–2.28); the agent staples are complete (2.29–2.36); moving in from other agents is complete (2.37–2.39); next are chats and sessions.
 
 | Phase | Plan | Version |
 |---|---|---|
 | 60 | Phones: locked-screen calls on iPhone (CallKit), one-tap pairing on iPhone, the iPhone app in the App Store (when Apple approves it) | after Apple's approval |
 | 64 | Be found: app stores, NAS catalogs, Home Assistant's store and directories | ongoing |
-| 106 | Move in 3: settings, channels and custom hooks translated (never run), with a full report of what came over | 2.39 |
 | 107 | Chat commands everywhere: /new, /reset, /stop, /status, /help in Telegram, Discord and later channels | 2.40 |
 | 108 | A tidy session list: a project per channel (Telegram, Discord…), and *See more* in long projects | 2.41 |
 | 109 | Session titles that improve as the conversation goes on (your own titles stay) | 2.42 |

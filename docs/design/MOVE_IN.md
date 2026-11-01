@@ -1110,6 +1110,47 @@ tables, 130 cards; Ali's 92 stores, 5,333 tables, most of them probe/round-trip 
   whose coding task produces an ST3 plugin that passes ST3's permission review; Undo removes the
   whole batch including settings it added.
 
+**As built (2.39.0).** `src/movein/config.ts` reads the redacted config trees from the bundle
+(Hermes `config.yaml` and profiles, OpenClaw `openclaw.json` with `$include`) and turns them into
+proposals: providers matched to Sara's presets with a pick-list and blank keys, subscription
+sign-ins, local models (added only when Sara's server reaches the address), routes and fallbacks
+(an info card: pick per job once the providers work), voice (vendor + voice id, the key re-entered),
+time zone (only when Sara has none), Telegram/Discord/A2A/webhooks as *connect this* cards with the
+switch-over warning, WhatsApp/Signal and the like as "not yet" with the plugin-bridge route, MCP
+servers, approvals/sandboxes/allowlists shown and never copied, and every other top-level key as a
+"Sara manages this differently" note with its page. `src/movein/code-read.ts` reads hooks and
+plugins as text only (a YAML-subset/front-matter reader, regex scans for events, tools, hosts,
+secret names, file writes, encoded payloads) and gives each one translation: a personality rule
+(reply-style hooks; a rule that would switch off the disclosure or claim to be human is refused),
+a guard (only ever makes a tool *ask*), an existing Sara feature, left behind with the reason, or a
+rebuild plan (names, hosts, secret names and a draft ST3 manifest that passes ST3's check; never
+the code). Every claim quotes the file (Phase 81 rule); "Ask her to read it" runs the background
+model chain on the scrubbed text as untrusted data (local models unless the owner allowed others)
+and drops unquotable claims. `src/movein/translate.ts` keeps the decisions in the staging
+database, applies only confirmed cards inside the batch (`setting` and `persona-rule` ledger items,
+a `persona.before.json` snapshot) and Undo returns each setting unless the owner changed it again.
+`src/movein/report.ts` builds the "where it lives now" lines, her message, the Markdown download
+(`GET /api/movein/batches/:id/report.md`) and the rebuild coding conversation
+(`POST /api/movein/batches/:id/rebuild`, the old code copied as `.txt` reference only). Routes:
+`GET/POST /api/movein/bundles/:id/translations[/config|/code|/ask|/text]`. MI2 seams: duplicate
+stores are found by schema fingerprint across a bundle and mapped once (copies listed under *Left
+behind*); a custom folder's name comes from its `SOUL.md`/`IDENTITY.md`; the page lead names custom
+companions. The collector's YAML reader now takes keys with colons (`qwen3:8b:`), plain values that go on over
+more-indented lines, quoted values that close on a later line and YAML's own escapes (all seen on
+the real Hermes configs, which it read only as key skeletons before). Differences: a channel card
+never stores a token (the owner pastes it on the channel's page); routes are an info card rather
+than auto-applied; the model read is optional (the regex reading is always there). Counts-only runs
+on the two real agents (key names, file names and sizes; no values or code): Stacy's OpenClaw config
+19 top-level keys, 5 values redacted → 24 proposals (10 providers, 1 local, 2 channels, 1 route,
+2 approvals, 8 notes), 1 hook; Ali's three Hermes profiles 80, 75 and 4 top-level keys (26 + 13
+values redacted) → 84, 76 and 2 proposals, 3 hooks and 11 plugins (894 files, 6.7 MB, read as text
+only).
+
+**Track complete.** MI1–MI3 are built: the collector, the bundle and the exact readers; custom
+SQLite/Postgres stores with model-proposed mappings; configuration, channels, hooks and plugins as
+decisions, and the four-list report. Later work belongs to the features the report points at
+(channels, plugins, webhooks), not to the move-in.
+
 ---
 
 ## 15. Blocking questions (with the defaults the parent applies if the owner is away)

@@ -16,7 +16,7 @@ import type { Bundle } from './bundle.ts';
 import { cardKey, type MapResult, previewMapping, runMapping } from './custom.ts';
 import { type FamilyMapping, guessMapping, maskSample, mappingPrompt, normMapping, parseAnswer, validate } from './mapping.ts';
 import type { Row } from './readers/common.ts';
-import { type Family, profileStore, type StoreProfile, type TableProfile } from './schema.ts';
+import { type Family, fingerprint, profileStore, type StoreProfile, type StoreSchemaFile, type TableProfile } from './schema.ts';
 import type { Staging } from './staging.ts';
 import { categoryOf } from './text.ts';
 
@@ -97,6 +97,10 @@ export class StoreCards {
   get cards(): Card[] {
     return this.#d.staging.meta<Card[]>('cards') ?? [];
   }
+  /** MI3: stores recognised as copies of another store in this bundle (mapped once). */
+  get copies(): StoreCopy[] {
+    return this.#d.staging.meta<StoreCopy[]>('storeCopies') ?? [];
+  }
   #setCards(cards: Card[]): void {
     this.#d.staging.setMeta('cards', cards);
     this.#d.publish();
@@ -113,7 +117,11 @@ export class StoreCards {
 
   /** §8.1: profiles + families for every custom store of the bundle; saved mappings re-run at once (§7.5, §8.5). */
   async discover(b: Bundle, signal?: AbortSignal): Promise<void> {
-    const paths = b.manifest.items.filter((it) => (it.kind === 'sqlite' || it.kind === 'postgres') && it.reader === 'custom').map((it) => it.path);
+    const all = b.manifest.items.filter((it) => (it.kind === 'sqlite' || it.kind === 'postgres') && it.reader === 'custom').map((it) => it.path);
+    // MI3: copies of one store (backups, probe and round-trip copies) are recognised by their
+    // fingerprint and mapped once; the copies are listed (left behind), never turned into cards.
+    const { keep: paths, copies } = await duplicateStores(b, all);
+    this.#d.staging.setMeta('storeCopies', copies);
     const stores: StoreProfile[] = [];
     for (const p of paths) {
       if (signal?.aborted) break;
@@ -378,7 +386,7 @@ export class StoreCards {
   }
 
   /** The cards for the page (with their masked sample rows) and the per-store skipped lists. */
-  view(chosen: Set<string> = new Set()): { stores: Record<string, unknown>[]; cards: Record<string, unknown>[] } {
+  view(chosen: Set<string> = new Set()): { stores: Record<string, unknown>[]; cards: Record<string, unknown>[]; copies: StoreCopy[] } {
     const stores = this.stores.map((s) => {
       const by = (v: string) => s.tables.filter((t) => t.verdict === v).map((t) => ({ key: t.key, name: t.name, rows: t.rows, why: t.why, packed: t.packed > 0, signals: t.telemetry }));
       return { id: s.id, label: s.label, kind: s.kind, tables: s.tables.length, families: s.families.length, telemetry: by('telemetry'), left: s.tables.filter((t) => !['data', 'telemetry'].includes(t.verdict)).map((t) => ({ key: t.key, name: t.name, rows: t.rows, verdict: t.verdict, why: t.why })) };
@@ -393,7 +401,7 @@ export class StoreCards {
         tables: (s ? this.#tablesOf(c, s) : []).map((t) => ({ key: t.key, name: t.name, schema: t.schema ?? null, rows: t.rows, packed: t.packed, newest: t.newest, cats: t.cats, columns: t.columns.map((x) => ({ name: x.name, type: x.type, observed: x.observed, date: x.date ?? null, id: x.looksId })), fks: t.fks, samples: (smp[t.key] ?? []).slice(0, 3) })),
       };
     });
-    return { stores, cards };
+    return { stores, cards, copies: this.copies };
   }
 
   /** Cards the owner still has to decide (the report's "needs you"). */
@@ -403,4 +411,55 @@ export class StoreCards {
   busy(): boolean {
     return this.cards.some((c) => c.state === 'proposing' || c.state === 'mapping');
   }
+}
+
+/** A copy of another store in the same bundle (same tables and columns): mapped once, listed here. */
+export interface StoreCopy {
+  path: string;
+  label: string;
+  /** The store that is mapped instead. */
+  of: string;
+  ofLabel: string;
+  rows: number;
+}
+
+const COPY_HINT = /(^|[^a-z])(copy|copies|backup|bak|probe|roundtrip|round[-_]trip|rt|snapshot|snap|old|orig|tmp|temp|test|dup|clone|mirror|\d{6,}|\d{4}-\d{2}-\d{2})([^a-z]|$)/i;
+
+/**
+ * Groups a bundle's custom stores by fingerprint (sorted table + column names). In each group the
+ * store kept is the one whose name doesn't look like a copy, then the one with the most rows; the
+ * others are copies when their name looks like a copy or their row counts equal the kept store's.
+ * Same-shaped stores with different data and ordinary names stay separate.
+ */
+export async function duplicateStores(b: Bundle, paths: string[]): Promise<{ keep: string[]; copies: StoreCopy[] }> {
+  const info: { path: string; label: string; fp: string; rows: number; sig: string }[] = [];
+  for (const p of paths) {
+    let schema: StoreSchemaFile | undefined;
+    try {
+      schema = JSON.parse(await b.text(`${p}schema.json`, 64 * 1024 * 1024)) as StoreSchemaFile;
+    } catch {
+      schema = undefined;
+    }
+    const src = b.manifest.items.find((it) => it.path === p)?.source ?? p;
+    const tables = (schema?.tables ?? []).map((t) => ({ name: t.schema ? `${t.schema}.${t.name}` : t.name, columns: t.columns.map((c) => c.name), rows: t.rows ?? 0 }));
+    info.push({ path: p, label: src.split('/').filter(Boolean).slice(-2).join('/'), fp: tables.length ? fingerprint(tables) : `none:${p}`, rows: tables.reduce((n, t) => n + Math.max(0, t.rows), 0), sig: tables.map((t) => `${t.name}=${t.rows}`).sort().join(',') });
+  }
+  const groups = new Map<string, typeof info>();
+  for (const i of info) groups.set(i.fp, [...(groups.get(i.fp) ?? []), i]);
+  const keep: string[] = [];
+  const copies: StoreCopy[] = [];
+  for (const g of groups.values()) {
+    if (g.length === 1) {
+      keep.push(g[0].path);
+      continue;
+    }
+    const ranked = [...g].sort((x, y) => Number(COPY_HINT.test(x.label.split('/').at(-1)!)) - Number(COPY_HINT.test(y.label.split('/').at(-1)!)) || y.rows - x.rows || x.label.length - y.label.length);
+    const main = ranked[0];
+    keep.push(main.path);
+    for (const o of ranked.slice(1)) {
+      if (COPY_HINT.test(o.label.split('/').at(-1)!) || o.sig === main.sig || o.rows === 0) copies.push({ path: o.path, label: o.label, of: main.path, ofLabel: main.label, rows: o.rows });
+      else keep.push(o.path);
+    }
+  }
+  return { keep: paths.filter((p) => keep.includes(p)), copies };
 }

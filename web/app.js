@@ -9207,6 +9207,7 @@ initHooks({
 // Phase 104: Settings → Data & health → Move in from another agent.
 initMoveIn({
   copyText,
+  showSettingsTab: (page) => showSettingsTab(page),
   openConversation: (id) => {
     if ($('#settings').open) $('#settings').close();
     void openConversation(id);

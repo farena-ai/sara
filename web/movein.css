@@ -113,3 +113,29 @@
   .mi-card-grid { grid-template-columns: minmax(0, 1fr); }
   .mi-stores { padding-bottom: calc(var(--s-3) + var(--safe-b)); }
 }
+
+/* Phase 106 (MI3, §9, §10): settings and channel cards, the hook explainer, the full report. */
+.mi-trans { border-color: var(--accent-solid); }
+.mi-trans-head { margin: var(--s-2) 0 0; display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; font-size: 1rem; }
+.mi-info summary, .mi-lives summary { min-height: 44px; display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; cursor: pointer; }
+.mi-info-list { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; overflow-wrap: anywhere; }
+.mi-info-list li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1); }
+.mi-cfg p, .mi-code p { margin: 0; overflow-wrap: anywhere; }
+.mi-cfg .mi-field { grid-template-columns: 5em minmax(0, 1fr) auto; }
+.mi-keys { color: var(--text-2); }
+.mi-warn { color: var(--warn); font-weight: 600; }
+.mi-steps-list { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; overflow-wrap: anywhere; }
+.mi-quote { font-family: var(--font-mono, ui-monospace, monospace); font-size: .8rem; padding: 1px 4px; border-radius: 4px; background: var(--surface-2); overflow-wrap: anywhere; }
+.mi-code-text { max-height: 20em; overflow: auto; user-select: text; word-break: normal; overflow-wrap: anywhere; }
+.mi-cfg .mi-actions button, .mi-code .mi-actions button, .mi-cfg > button, .mi-r-line button, .mi-info-list button, .mi-lives button, .mi-done .mi-actions .button { min-height: 44px; }
+.mi-cfg > button, .mi-code > button { justify-self: start; padding-inline: var(--s-3); }
+.mi-r-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-2); }
+.mi-report-wrap { display: grid; gap: var(--s-3); min-width: 0; }
+.mi-lives .mi-rows-table td { max-width: none; }
+.mi-batch .button.small { min-height: 44px; display: inline-flex; align-items: center; }
+@media (max-width: 720px) {
+  .mi-cfg .mi-field { grid-template-columns: minmax(0, 1fr) auto; }
+  .mi-trans, .mi-done { padding-bottom: calc(var(--s-3) + var(--safe-b)); }
+  .mi-lives .mi-rows-table th, .mi-lives .mi-rows-table td { display: block; border-bottom: 0; }
+  .mi-lives .mi-rows-table tr { display: block; border-bottom: 1px solid var(--hairline); padding: 4px 0; }
+}

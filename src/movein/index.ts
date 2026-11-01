@@ -16,6 +16,8 @@ import { Bundle, BundleError } from './bundle.ts';
 import { type Card, deleteMapping, ensureMappingTable, saveMapping, savedMappings, type SavedMapping, StoreCards } from './cards.ts';
 import { normMapping } from './mapping.ts';
 import { customReader } from './readers/custom.ts';
+import { rebuildTask } from './report.ts';
+import { Translations } from './translate.ts';
 import { hermesReader } from './readers/hermes.ts';
 import { openclawReader } from './readers/openclaw.ts';
 import { ACTIVE_NOTES, type Choices, LEARN_DAYS, Staging } from './staging.ts';
@@ -84,6 +86,7 @@ export class MoveIn {
   readonly #bundles = new Map<string, Bundle>();
   readonly #staging = new Map<string, Staging>();
   readonly #cards = new Map<string, StoreCards>();
+  readonly #trans = new Map<string, Translations>();
 
   constructor(app: () => AppContext) {
     this.#app = app;
@@ -305,6 +308,10 @@ export class MoveIn {
       s.line = 'Looking at the custom stores';
       this.#save(s);
       await this.#cardsOf(s.id).discover(b, ac.signal);
+      // MI3 (§9): settings become proposals, hooks and plugins code cards (read as text, never run).
+      s.line = 'Translating settings, hooks and plugins';
+      this.#save(s);
+      await this.#transOf(s.id).discover(b, ac.signal);
       s.state = 'ready';
       s.line = 'Ready';
     } catch (err) {
@@ -346,6 +353,56 @@ export class MoveIn {
     }
     return c;
   }
+  #transOf(id: string): Translations {
+    let t = this.#trans.get(id);
+    if (!t) {
+      t = new Translations({ app: this.#app(), staging: this.#stagingOf(id), bundle: () => this.#bundle(id), publish: () => this.#app().events?.publish({ type: 'movein', id, state: this.#sessions.get(id)?.state ?? 'ready', line: 'translations' }) });
+      this.#trans.set(id, t);
+    }
+    return t;
+  }
+  #readyTrans(id: string): Translations {
+    const s = this.#sessions.get(id);
+    if (!s) throw new BundleError('That bundle is gone.');
+    if (s.state !== 'ready') throw new BundleError(s.state === 'imported' ? 'This bundle was already imported.' : 'The bundle is not ready yet.');
+    return this.#transOf(id);
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // MI3: settings, channels, hooks and plugins (§9): cards decided one by one
+  // ---------------------------------------------------------------------------------------------
+  translations(id: string): Record<string, unknown> {
+    const s = this.#sessions.get(id);
+    if (!s) throw new BundleError('That bundle is gone.');
+    if (s.state !== 'ready' && s.state !== 'imported') return { state: s.state, config: [], code: [] };
+    return { state: s.state, ...this.#transOf(id).view() };
+  }
+  decideConfig(id: string, key: string, decision: 'confirm' | 'skip' | 'reset', choice?: string) {
+    return this.#readyTrans(id).decideConfig(key, decision, choice);
+  }
+  decideCode(id: string, key: string, decision: 'confirm' | 'skip' | 'reset') {
+    return this.#readyTrans(id).decideCode(key, decision);
+  }
+  askCode(id: string, key: string, opts: { localOnly?: boolean } = {}): void {
+    this.#readyTrans(id).ask(key, opts);
+  }
+  async transIdle(id: string): Promise<void> {
+    await this.#trans.get(id)?.idle();
+  }
+  /** The text of one hook or plugin, secrets scrubbed (the explainer's "Show the code"). Never run. */
+  async codeText(id: string, key: string): Promise<{ files: { path: string; text: string }[] }> {
+    const s = this.#sessions.get(id);
+    if (!s || (s.state !== 'ready' && s.state !== 'imported')) throw new BundleError('The bundle is not ready.');
+    const inp = await this.#transOf(id).input(key);
+    if (!inp) throw new BundleError('That card is gone.');
+    const app = this.#app();
+    return { files: [...inp.files.entries()].slice(0, 40).map(([path, text]) => ({ path, text: scrub(app, text).slice(0, 60_000) })) };
+  }
+  /** §9.3 "Rebuild this as a Sara plugin": a coding conversation with the plan; nothing runs until the owner says so. */
+  rebuild(batchId: string, key: string): { conversationId: string } {
+    return rebuildTask(this.#app(), batchId, key);
+  }
+
   #readyCards(id: string): StoreCards {
     const s = this.#sessions.get(id);
     if (!s) throw new BundleError('That bundle is gone.');
@@ -457,7 +514,7 @@ export class MoveIn {
       state: s.state,
       name: s.name,
       batchId: s.batchId ?? null,
-      source: { kind: src.kind, agentId: src.agentId, displayName: src.displayName ?? src.agentId, agent: AGENT_NAME[src.kind] ?? src.kind },
+      source: { kind: src.kind, agentId: src.agentId, displayName: displayNameOf(src, pf), agent: AGENT_NAME[src.kind] ?? src.kind },
       createdAt: manifest.createdAt ?? null,
       collector: manifest.collector ?? null,
       sections,
@@ -469,7 +526,11 @@ export class MoveIn {
       leftBehind: st.meta<ReportLine[]>('leftBehind') ?? [],
       stores: (() => {
         const c = this.#cardsOf(id);
-        return { stores: c.stores.length, cards: c.cards.length, confirmed: c.cards.filter((x) => x.state === 'confirmed').length, skipped: c.cards.filter((x) => x.state === 'skipped').length, undecided: c.undecided().length, busy: c.busy() };
+        return { stores: c.stores.length, cards: c.cards.length, confirmed: c.cards.filter((x) => x.state === 'confirmed').length, skipped: c.cards.filter((x) => x.state === 'skipped').length, undecided: c.undecided().length, busy: c.busy(), copies: c.copies.length };
+      })(),
+      translations: (() => {
+        const v = this.#transOf(id).view();
+        return { config: v.config.length, code: v.code.length, undecided: v.undecided, busy: v.busy, keys: v.keys };
       })(),
       plan: st.meta('plan') ?? null,
       summary: st.meta('summary') ?? null,
@@ -491,6 +552,10 @@ export class MoveIn {
     for (const x of this.#sessions.values()) if (x.state === 'importing') throw new BundleError('Another move-in is running. Wait for it to finish.');
     const cards = this.#cardsOf(id);
     if (cards.busy()) throw new BundleError('She is still working on the store cards. Wait for them to finish.');
+    const trans = this.#transOf(id);
+    if (trans.busy()) throw new BundleError('She is still reading a hook or plugin. Wait for her to finish.');
+    const tview = trans.view();
+    const codeInputs = await Promise.all(tview.code.map((c) => trans.input(c.key))).then((l) => l.filter((x): x is NonNullable<typeof x> => Boolean(x)));
     const app = this.#app();
     const b = await this.#bundle(id);
     const st = this.#stagingOf(id);
@@ -513,6 +578,12 @@ export class MoveIn {
           progress(s.line);
         },
         leftBehind: st.meta<ReportLine[]>('leftBehind') ?? [],
+        agentName: (() => {
+          const persona = [...st.all('persona')][0];
+          return displayNameOf(b.manifest.source, persona?.data as PersonaFinding | undefined);
+        })(),
+        translations: { config: tview.config, code: tview.code, inputs: codeInputs },
+        copies: cards.copies,
         cards: { undecided: cards.undecided().map((c) => ({ key: c.key, title: c.family.title, store: cards.stores.find((x) => x.id === c.store)?.label ?? c.store, tables: c.family.tables.length })), telemetry: cards.stores.flatMap((x) => x.tables.filter((t) => t.verdict === 'telemetry').map((t) => t.name)), skipped: cards.cards.filter((c) => c.state === 'skipped').length },
       });
       s.batchId = r.id;
@@ -562,6 +633,8 @@ export class MoveIn {
     s?.abort?.abort();
     this.#cards.get(id)?.stop();
     this.#cards.delete(id);
+    this.#trans.get(id)?.stop();
+    this.#trans.delete(id);
     this.#staging.get(id)?.close();
     this.#staging.delete(id);
     this.#bundles.delete(id);
@@ -582,10 +655,22 @@ export class MoveIn {
 
   close(): void {
     for (const c of this.#cards.values()) c.stop();
+    for (const t of this.#trans.values()) t.stop();
     for (const s of this.#sessions.values()) s.abort?.abort();
     for (const st of this.#staging.values()) st.close();
     this.#staging.clear();
   }
+}
+
+/**
+ * The old agent's name: the collector's, or for a custom folder (where the collector only knows the
+ * folder name) the name on its SOUL.md / IDENTITY.md draft.
+ */
+export function displayNameOf(src: { kind: string; agentId: string; displayName?: string }, pf?: PersonaFinding): string {
+  const given = src.displayName?.trim();
+  if (given && (src.kind !== 'custom' || given !== src.agentId)) return given;
+  const fromSoul = pf?.drafts[0]?.sheet.name?.trim();
+  return fromSoul || given || src.agentId;
 }
 
 /** The left-behind list from the manifest (every skip has a reason code) plus what the server dropped. */

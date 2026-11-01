@@ -43,7 +43,7 @@ import sys
 import time
 import zipfile
 
-VERSION = '2.38.0'
+VERSION = '2.39.0'
 FORMAT = 'saramove'
 FORMAT_VERSION = 1
 MiB = 1024 * 1024
@@ -462,6 +462,40 @@ def json5_loads(text):
     return v
 
 
+_YAML_ESC = {'0': '\0', 'a': '\a', 'b': '\b', 't': '\t', '\t': '\t', 'n': '\n', 'v': '\v', 'f': '\f', 'r': '\r', 'e': '\x1b',
+             ' ': ' ', '"': '"', '/': '/', '\\': '\\', 'N': '\x85', '_': '\xa0', 'L': '\u2028', 'P': '\u2029'}
+
+
+def _yaml_dq(t):
+    """A YAML double-quoted string with YAML's own escapes (\\e, \\x41, \\U0001F600...), which JSON lacks."""
+    out = []
+    i = 1
+    while i < len(t):
+        c = t[i]
+        if c == '"':
+            if t[i + 1:].strip():
+                raise NotUnderstood('bad quoted string')
+            return ''.join(out)
+        if c == '\\' and i + 1 < len(t):
+            e = t[i + 1]
+            n = {'x': 2, 'u': 4, 'U': 8}.get(e)
+            if n:
+                h = t[i + 2:i + 2 + n]
+                if len(h) != n or not re.match(r'^[0-9A-Fa-f]+$', h):
+                    raise NotUnderstood('bad quoted string')
+                out.append(chr(int(h, 16)))
+                i += 2 + n
+                continue
+            if e not in _YAML_ESC:
+                raise NotUnderstood('bad quoted string')
+            out.append(_YAML_ESC[e])
+            i += 2
+            continue
+        out.append(c)
+        i += 1
+    raise NotUnderstood('bad quoted string')
+
+
 def _yaml_scalar(t):
     t = t.strip()
     if t == '' or t in ('~', 'null', 'Null', 'NULL'):
@@ -470,9 +504,9 @@ def _yaml_scalar(t):
         raise NotUnderstood('anchors, aliases and tags are not read')
     if t[0] == '"':
         try:
-            return json.loads(t)
+            return json.loads(t, strict=False)
         except ValueError:
-            raise NotUnderstood('bad quoted string')
+            return _yaml_dq(t)
     if t[0] == "'":
         if not t.endswith("'") or len(t) < 2:
             raise NotUnderstood('bad quoted string')
@@ -549,6 +583,25 @@ def yaml_loads(text):
             return ' '.join(x for x in out if x) + '\n'
         return '\n'.join(out) + '\n'
 
+    def quoted_rest(rest):
+        """A quoted value whose closing quote is on a later line: fold the lines in (YAML flow folding)."""
+        q = rest[:1]
+        if q not in ('"', "'"):
+            return rest
+        def closed(x):
+            if q == "'":
+                y = x[1:].replace("''", '')
+                return y.endswith("'")
+            y = re.sub(r'\\.', '', x[1:])
+            return '"' in y
+        n = 0
+        while not closed(rest) and pos[0] < len(lines) and n < 500:
+            nxt = lines[pos[0]].strip()
+            rest = rest + ('\n' if nxt == '' else ' ' + nxt)
+            pos[0] += 1
+            n += 1
+        return rest
+
     def node(ind):
         skip_blank()
         if pos[0] >= len(lines):
@@ -573,7 +626,7 @@ def yaml_loads(text):
             if rest == '':
                 pos[0] += 1
                 out.append(node(ind + 1))
-            elif re.match(r'^[^"\'\[{][^:]*:(\s|$)', rest) or re.match(r'^"[^"]*"\s*:(\s|$)', rest):
+            elif re.match(r'^[^"\'\[{][^#]*?:(\s|$)', rest) or re.match(r'^"[^"]*"\s*:(\s|$)', rest):
                 # "- key: value" starts a mapping inside the list.
                 lines[pos[0]] = ' ' * (ind + 2) + rest
                 out.append(mapping(ind + 2))
@@ -582,7 +635,7 @@ def yaml_loads(text):
                 if rest in ('|', '|-', '>', '>-'):
                     out.append(block_string(ind, rest))
                 else:
-                    out.append(_yaml_scalar(rest))
+                    out.append(_yaml_scalar(quoted_rest(rest)))
 
     def mapping(ind):
         out = {}
@@ -596,7 +649,8 @@ def yaml_loads(text):
                 return out
             if li > ind:
                 raise NotUnderstood('odd indentation at line %d' % (pos[0] + 1))
-            m = re.match(r'^\s*("(?:[^"\\]|\\.)*"|\'[^\']*\'|[^:#][^:]*?)\s*:(?:\s+(.*))?$', l)
+            # A plain key may hold colons of its own ("qwen3:8b:", "http://host:"): only ": " or a final ":" ends it.
+            m = re.match(r'^\s*("(?:[^"\\]|\\.)*"|\'[^\']*\'|[^\s:#"\'][^#]*?)\s*:(?:\s+(.*))?$', l)
             if not m:
                 if l.lstrip().startswith('- '):
                     return out
@@ -620,6 +674,12 @@ def yaml_loads(text):
             elif rest in ('|', '|-', '|+', '>', '>-', '>+'):
                 out[k] = block_string(ind, rest)
             else:
+                # A quoted value may close on a later line; a plain one may go on over more-indented lines.
+                rest = quoted_rest(rest)
+                while rest[:1] not in ('[', '{', '"', "'") and pos[0] < len(lines) and lines[pos[0]].strip() and not lines[pos[0]].lstrip().startswith('#') \
+                        and indent_of(lines[pos[0]]) > ind and (not re.match(r'^\s*(?:- |[^\s#"\'][^#]*?:(?:\s|$))', lines[pos[0]])):
+                    rest = rest + ' ' + _strip_comment(lines[pos[0]]).strip()
+                    pos[0] += 1
                 out[k] = _yaml_scalar(rest)
 
     v = node(0)
@@ -2192,7 +2252,9 @@ def display_name(plan):
             if m:
                 return m.group(1).strip()
     for it in plan.items:
-        if it['kind'] in ('persona', 'ws-persona'):
+        # A --scan folder's SOUL.md / IDENTITY.md / PERSONA.md / CHARACTER.md names it too (2.39).
+        scanned = it['kind'] == 'persona-extra' and re.match(r'(?i)^(SOUL|IDENTITY|PERSONA|CHARACTER)\.md$', os.path.basename(it['rel']))
+        if it['kind'] in ('persona', 'ws-persona') or scanned:
             text = read_text(it['src'], 64 * 1024)
             m = re.search(r'(?im)^\s*[-*]?\s*\**name\**\s*[:\uff1a]\s*\**([^\n*]{1,40})', text) or re.search(r'(?m)^#\s+(?:I am |I\'m )?([A-Z][\w\- ]{0,30})\s*$', text)
             if m and not re.match(r'(?i)^(soul|identity|persona|who i am|about me)$', m.group(1).strip()):

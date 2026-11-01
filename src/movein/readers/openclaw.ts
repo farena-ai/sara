@@ -76,7 +76,7 @@ export const openclawReader: MoveInReader = {
       const r = workingRules(f, ctx.scrub);
       for (const rule of r.rules) note(emit, skipped, ctx, { section: 'memories', ref: rule.from, text: rule.text, kind: 'lesson', happenedOn: isoDay(items.find((it) => it.path === f.path)?.mtime, today), pinned: true, tag: 'working rule' });
       skipped['safety-layer'] = (skipped['safety-layer'] ?? 0) + r.leftOut.length;
-      if (r.tools.length) emit({ section: 'later', kind: 'later', ref: `${f.path}#tools`, title: 'AGENTS.md tools', data: { code: 'tools', what: `${r.tools.length} tool notes in AGENTS.md`, why: 'Tool habits are matched to Sara\'s own tools in the 2.39 update.' } });
+      if (r.tools.length) emit({ section: 'later', kind: 'later', ref: `${f.path}#tools`, title: 'AGENTS.md tools', data: { code: 'tools', what: `${r.tools.length} tool notes in AGENTS.md`, why: 'Sara has her own tools (Settings → Abilities → Tools); tell her if one you relied on is missing.' } });
     }
 
     // ---------------- the profile: USER.md directives (§6.4, [O4]) ----------------
@@ -110,7 +110,7 @@ export const openclawReader: MoveInReader = {
       for (const x of markdownItems(await b.text(it.path, 1024 * 1024))) note(emit, skipped, ctx, { section: 'reflections', ref: `${it.path}#L${x.line}`, text: x.text, kind: 'reflection', happenedOn: isoDay(/(\d{4}-\d{2}-\d{2})/.exec(it.path)?.[1] ?? it.mtime, today) });
     }
     if (b.has(`${WS}HEARTBEAT.md`)) emit({ section: 'later', kind: 'later', ref: `${WS}HEARTBEAT.md`, title: 'HEARTBEAT.md', data: { code: 'agenda', what: 'HEARTBEAT.md check-ins', why: 'Her own plans (Settings → Her → Her own plans) are off until you switch them on; add these there if you want them.' } });
-    if (b.has(`${WS}BOOT.md`)) emit({ section: 'later', kind: 'later', ref: `${WS}BOOT.md`, title: 'BOOT.md', data: { code: 'boot', what: 'BOOT.md start-up checklist', why: 'Start-up rules are translated in the 2.39 update.' } });
+    if (b.has(`${WS}BOOT.md`)) emit({ section: 'later', kind: 'later', ref: `${WS}BOOT.md`, title: 'BOOT.md', data: { code: 'boot', what: 'BOOT.md start-up checklist', why: 'Sara starts every chat with her memory and greets you herself; keep anything still useful as a note or a scheduled task.' } });
 
     // ---------------- sessions (§6.6): legacy JSONL trees ----------------
     const agent = b.manifest.source.agentId;

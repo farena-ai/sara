@@ -536,11 +536,20 @@
 
 <h2 id="move-in">Move in from another agent</h2>
 <ul>
-  <li>Bring a whole Hermes Agent or OpenClaw companion over in <em>Settings → Data &amp; health → Move in from another agent</em>: copy the command, run it on the old agent's computer, then upload the <code>.saramove</code> file it makes.</li>
+  <li>Bring a whole Hermes Agent, OpenClaw or custom companion over in <em>Settings → Data &amp; health → Move in from another agent</em>: copy the command, run it on the old agent's computer, then upload the <code>.saramove</code> file it makes.</li>
   <li>The collector only reads. It shows a plan first, never opens keys or passwords, and keeps health and intimate items out unless you say yes. Add <code>--plan-only</code> to just look.</li>
   <li>Sara shows what will come in before anything changes: her personality as a draft you decide on, notes, what she knew about you, past conversations, skills, schedules and board cards. Old schedules become tasks that never act by themselves.</li>
   <li><strong>Her old databases</strong> (custom SQLite stores, a Postgres database, or a pg_dump file) become cards, one per group of tables. She proposes where each goes (notes, people cards with their facts, conversations, tasks, goals, or skip) and shows samples made from the real rows; log and telemetry tables are skipped. Nothing imports until you press <strong>Looks right</strong>, and confirmed cards are saved so the same kind of store maps itself next time.</li>
-  <li>The whole move-in is one batch: <strong>Undo this move-in</strong> removes exactly what it brought and puts her old personality back. Details: <code>docs/MOVE_IN_GUIDE.md</code>.</li>
+  <li>The whole move-in is one batch: <strong>Undo this move-in</strong> removes exactly what it brought, puts her old personality back and returns every setting it changed. Details: <code>docs/MOVE_IN_GUIDE.md</code>.</li>
+</ul>
+
+<h2 id="move-in-settings">Her old settings, channels, hooks and plugins</h2>
+<ul>
+  <li>Her old settings arrive as cards you decide one by one with <strong>Confirm</strong> or <strong>Skip</strong>: model providers matched to Sara's own list (pick another from the list if the match is wrong), her voice, your time zone. Keys never move: a confirmed provider arrives with an empty key and the report tells you where to paste yours.</li>
+  <li>Telegram and Discord become <strong>connect this</strong> cards: Sara never connects a channel by herself. Stop the old agent's bot first, or both of you answer. Other agents, webhooks and MCP servers get new keys and addresses made in Sara; old allowlists and approvals are shown, never copied.</li>
+  <li>Hooks and plugins are read as text and <strong>never run</strong>. Each card says in plain words what it did and quotes the code for every claim. A reply-style hook can become a rule under <em>How she talks</em>, a guard makes her ask before a tool, and things Sara already does are named. Unclear code, or code that reads keys, is flagged for you.</li>
+  <li>Integrations become a rebuild plan: the hosts it talked to, the secrets it needed (names only) and a draft plugin. <strong>Rebuild as a Sara plugin</strong> in the report opens a coding conversation; nothing starts until you say so, and the plugin goes through the normal plugin review.</li>
+  <li>The report lists everything in four groups (imported, translated, needs you, left behind), says where each old feature lives in Sara now, and <strong>Download the report</strong> saves it as a Markdown file.</li>
 </ul>
 
 <h2 id="her-plans">Her own plans (off by default)</h2>

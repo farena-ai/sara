@@ -38,8 +38,9 @@ Sara then checks every file's hash and reads the bundle. She shows:
   has an on/off switch.
 - **Held for you.** Health and intimate items stay out until you say yes for that category.
   Intimate items also need Adult mode.
-- **Read in the next updates.** Custom databases, settings, hooks and plugins. They stay in the
-  bundle. Sara reads them in 2.38 and 2.39.
+- **Settings, channels, hooks and plugins.** Cards you decide one by one (see below).
+- **Also for you to look at.** Things Sara found but doesn't bring in by herself, each with what to
+  do instead.
 - **Left behind (why).** Every skipped thing, with a reason: secrets, logs, media, backups,
   telemetry and search indexes.
 
@@ -72,12 +73,47 @@ her diary, or skip. Nothing is imported from a card until you press *Looks right
 field by hand. Confirmed mappings are saved, so the next move-in from the same kind of database needs
 no new questions. Everything lands in the same batch, so Undo removes it too.
 
+## Her old settings, channels, hooks and plugins
+
+Each old setting is a card with **Confirm** and **Skip**. Nothing on a card changes anything until
+you confirm it and press Import.
+
+- **Model providers** are matched to Sara's own list; pick another from the list if the match is
+  wrong. Keys never move: a confirmed provider arrives with an empty key, and the report says where
+  to paste yours (*Settings → Models*). Subscription sign-ins (ChatGPT, Claude) become Sara's own
+  sign-in; you sign in again. Models on the old computer are only added if Sara's server can reach
+  them.
+- **Voice** switches to the same service and voice when Sara has it (paste that service's key in
+  *Settings → Voice*). **Time zone** is used only when Sara has none yet.
+- **Telegram, Discord, other agents and webhooks** become *connect this* steps in your report. Sara
+  never connects them by herself. Stop the old agent's bot first, or both of you will answer.
+  Channels Sara doesn't speak yet are listed with the plugin-bridge route.
+- **Approvals, sandboxes and allowlists** are shown, never copied: Sara asks in her own way.
+- **Hooks and plugins** are read as text and never run. Each card says what it did, with quotes from
+  its code. A reply-style hook can become a rule in *How she talks*; a guard makes her ask before a
+  tool; things Sara already does are named with their page. Code that is unclear, hidden or reads
+  keys is flagged for you. **Ask her to read it** lets her model read the code (your own hardware
+  only, unless you allowed other models); every claim must quote the code.
+- **Integrations** (a Spotify or calendar plugin, say) become a rebuild plan. After the move-in, the
+  report has **Rebuild as a Sara plugin**: a coding conversation with the plan and the old code as
+  text. Nothing starts until you say so, and the finished plugin goes through the plugin review.
+
+If the old agent left copies or backups of the same database, Sara maps it once and lists the copies
+under *Left behind*.
+
+## The report
+
+When the import is done, the page shows the report: *Imported*, *Translated*, *Needs you* and *Left
+behind*, each with counts and links to the right page, a list of where each old feature lives in
+Sara now, and her message about the move. **Download the report** saves it as a Markdown file.
+
 ## Undo
 
 **Settings → Data & health → Move in → Past move-ins → Undo** (for 30 days). Sara shows how many
 things will go first. Undo removes exactly what that move-in brought: notes, conversations, skills,
 tasks, reminders, cards, its board and the notes she learned from those conversations. It puts her
-old personality back. Notes you edited since are kept unless you untick that. Each move-in is its
+old personality back and returns the settings it changed (providers it added are removed; a
+setting you changed again since stays as you set it). Notes you edited since are kept unless you untick that. Each move-in is its
 own batch, so undoing one leaves the others.
 
 The bundle is deleted from Sara 48 hours after the move-in, or at Undo, or with **Delete the

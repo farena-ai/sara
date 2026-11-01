@@ -437,7 +437,9 @@ test('collector: the built-in Postgres client and dump reader are stdlib only (P
   const src = readFileSync(COLLECTOR, 'utf8');
   assert.doesNotMatch(src, /\bimport (psycopg|asyncpg|pg8000|requests)\b|from (psycopg|asyncpg|pg8000) /);
   assert.doesNotMatch(src, /(^|[^\w'"])f'[^']*\{|(^|[^\w'"])f"[^"]*\{/m, 'no f-strings');
-  assert.match(src, /^VERSION = '2\.38\.0'/m);
+  // The collector's version follows Sara's (bumped with each release).
+  const pkgVersion = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
+  assert.ok(src.includes(`VERSION = '${pkgVersion}'`), `scripts/sara-movein.py VERSION should be ${pkgVersion}`);
   assert.match(src, /SCRAM-SHA-256/);
   assert.match(src, /READ ONLY/);
 });

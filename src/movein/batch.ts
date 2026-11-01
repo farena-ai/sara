@@ -13,6 +13,11 @@ import { SOURCE_CHANNEL, type HistorySource } from '../history-import/types.ts';
 import type { MemoryKind } from '../memory.ts';
 import { loadPersona, type Persona, validatePersona } from '../persona.ts';
 import type { Bundle } from './bundle.ts';
+import type { StoreCopy } from './cards.ts';
+import type { CodeCard, CodeInput } from './code-read.ts';
+import type { Proposal } from './config.ts';
+import { herMessage, livesLines } from './report.ts';
+import { addRules, applyTranslations, keepCode, saveChanges, undoChanges } from './translate.ts';
 import { ACTIVE_NOTES, type Choices, LEARN_DAYS, type Staging } from './staging.ts';
 import type { BoardData, ConversationData, GoalData, MemoryData, PersonaFinding, PersonData, ScheduleData, SkillData, Staged, TaskData } from './types.ts';
 import { AGENT_NAME } from './types.ts';
@@ -39,12 +44,36 @@ export interface ReportLine {
   count: number;
   text: string;
   examples?: string[];
+  /** MI3: the Settings page that fixes it (the report's link) and, for rebuild plans, the card key. */
+  page?: string;
+  ref?: string;
+  bytes?: number;
+}
+/** MI3 (§10): one line per old feature: where it lives in Sara now. */
+export interface LivesLine {
+  old: string;
+  now: string;
+  page?: string;
 }
 export interface Report {
   imported: ReportLine[];
   translated: ReportLine[];
   needsYou: ReportLine[];
   leftBehind: ReportLine[];
+  /** MI3: where each old feature lives now, and the old agent's name/kind (for the Markdown file). */
+  lives?: LivesLine[];
+  agent?: { name: string; kind: string; createdAt: string };
+  /** MI3: rebuild plans by code-card key (names, hosts, secret names, a draft ST3 manifest; no code). */
+  plans?: Record<string, RebuildEntry>;
+}
+export interface RebuildEntry {
+  name: string;
+  kind: string;
+  summary: string;
+  did: string;
+  hosts: string[];
+  secrets: string[];
+  manifest: Record<string, unknown>;
 }
 
 export interface PersonaChoice {
@@ -127,6 +156,12 @@ export interface BatchInput {
   leftBehind: ReportLine[];
   /** MI2: custom-store cards the owner hasn't decided (needs you), telemetry tables skipped (left behind). */
   cards?: { undecided: { key: string; title: string; store: string; tables: number }[]; telemetry: string[]; skipped: number };
+  /** MI3: the settings proposals and code cards with the owner's decisions, and the code text to keep. */
+  translations?: { config: Proposal[]; code: CodeCard[]; inputs: CodeInput[] };
+  /** MI3: stores recognised as copies of another store in the bundle. */
+  copies?: StoreCopy[];
+  /** The old agent's name (custom folders: from SOUL.md). */
+  agentName?: string;
 }
 
 /** Runs the import. Returns the batch (done, or partial after Stop). */
@@ -142,7 +177,7 @@ export async function runBatch(inp: BatchInput): Promise<BatchRow> {
   const herPast = choices.herPast;
   const id = randomUUID();
   const now = app.now().toISOString();
-  db.prepare('INSERT INTO movein_batches (id, source_kind, agent_id, agent_name, bundle_sha256, her_past, created_at, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(id, kind, m.source.agentId, m.source.displayName ?? m.source.agentId, inp.bundleSha, herPast ? 1 : 0, now, 'importing');
+  db.prepare('INSERT INTO movein_batches (id, source_kind, agent_id, agent_name, bundle_sha256, her_past, created_at, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(id, kind, m.source.agentId, inp.agentName ?? m.source.displayName ?? m.source.agentId, inp.bundleSha, herPast ? 1 : 0, now, 'importing');
   const item = db.prepare('INSERT INTO movein_items (batch_id, kind, native_table, native_id, source, sha256) VALUES (?, ?, ?, ?, ?, ?)');
   const record = (k: string, table: string, nativeId: string | number, ref: string | null, sha: string | null) => item.run(id, k, table, String(nativeId), ref, sha);
   const counts: Record<string, number> = {};
@@ -417,39 +452,73 @@ export async function runBatch(inp: BatchInput): Promise<BatchRow> {
     }
   }
 
-  // ---------------- report (§10: MI1's first report) ----------------
+  // ---------------- settings, channels, hooks and plugins (MI3 §9: confirmed cards only) ----------------
+  const tr = inp.translations;
+  const applied = tr && !signal.aborted ? applyTranslations(app, tr.config, tr.code) : undefined;
+  if (tr && signal.aborted) stopped = true;
+  if (applied) {
+    tick('Settings');
+    const dir = join(app.dataDir, 'movein', id);
+    for (const it of applied.items.filter((x) => x.kind === 'setting')) record('setting', it.table, it.id, it.ref, null);
+    saveChanges(dir, applied.changes);
+    if (applied.rules.length) {
+      // Her sheet is snapshotted first (unless the persona step already did), so Undo can take the rules back out.
+      mkdirSync(dir, { recursive: true, mode: 0o700 });
+      const cur = join(app.dataDir, 'persona.json');
+      if (!existsSync(join(dir, 'persona.before.json')) && !existsSync(join(dir, 'persona.before.none'))) {
+        if (existsSync(cur)) copyFileSync(cur, join(dir, 'persona.before.json'));
+        else writeFileAtomic(join(dir, 'persona.before.none'), '', 0o600);
+      }
+      const n = addRules(app, applied.rules, (p) => applyPersona(app, p));
+      for (const it of applied.items.filter((x) => x.kind === 'persona-rule')) record('persona-rule', 'persona.json', it.id, it.ref, null);
+      bump('rules', n);
+    }
+    if (tr?.inputs.length) bump('codeFiles', await keepCode(dir, tr.inputs));
+    translated.push(...applied.translated);
+    needsYou.push(...applied.needsYou);
+    inp.leftBehind = [...inp.leftBehind, ...applied.leftBehind];
+  }
+
+  // ---------------- report (§10) ----------------
   for (const f of staging.all('schedules')) {
     const s = f.data as ScheduleData;
     if (f.state !== 'new') continue;
-    if (s.target === 'needs-you') needsYou.push({ key: 'schedule', count: 1, text: `Schedule "${s.title}" (${s.words}): ${s.why ?? 'set it up by hand'}.` });
+    if (s.target === 'needs-you') needsYou.push({ key: 'schedule', count: 1, text: `Schedule "${s.title}" (${s.words}): ${s.why ?? 'set it up by hand'}.`, page: 'planner' });
   }
-  if (counts.tasks || counts.reminders) translated.push({ key: 'schedules', count: (counts.tasks ?? 0) + (counts.reminders ?? 0), text: `cron jobs → ${counts.tasks ?? 0} tasks, ${counts.reminders ?? 0} reminders (tasks never act by themselves; scripts never run)` });
+  if (counts.tasks || counts.reminders) translated.unshift({ key: 'schedules', count: (counts.tasks ?? 0) + (counts.reminders ?? 0), text: `cron jobs → ${counts.tasks ?? 0} tasks, ${counts.reminders ?? 0} reminders (tasks never act by themselves; scripts never run)` });
   // MI2: custom-store cards still undecided import nothing; they wait in the report.
   for (const c of inp.cards?.undecided ?? []) needsYou.push({ key: 'custom-card', count: c.tables, text: `Custom store "${c.store}": "${c.title}" (${c.tables} tables) not confirmed, so nothing from it came in. Import the bundle again to map it.` });
   if (inp.cards?.telemetry.length) inp.leftBehind = [...inp.leftBehind.filter((l) => l.key !== 'telemetry-tables'), { key: 'telemetry-tables', count: inp.cards.telemetry.length, text: `${inp.cards.telemetry.length} log/telemetry tables: not useful to her`, examples: inp.cards.telemetry.slice(0, 4) }];
   if (inp.cards?.skipped) inp.leftBehind = [...inp.leftBehind, { key: 'custom-skipped', count: inp.cards.skipped, text: `${inp.cards.skipped} custom-store cards you skipped` }];
+  // MI3: copies of one store (backups, probe and round-trip copies) were mapped once.
+  if (inp.copies?.length) {
+    const by = new Map<string, StoreCopy[]>();
+    for (const c of inp.copies) by.set(c.ofLabel, [...(by.get(c.ofLabel) ?? []), c]);
+    for (const [of, list] of by) inp.leftBehind.push({ key: 'store-copies', count: list.length, text: `${list.length} copies of the store "${of}" (same tables): only that one was mapped`, examples: list.slice(0, 4).map((c) => c.label) });
+  }
   for (const f of staging.all('later')) needsYou.push({ key: (f.data as { code: string }).code, count: 1, text: `${(f.data as { what: string }).what}: ${(f.data as { why: string }).why}` });
   const held = staging.counts(choices).held;
   for (const [cat, n] of Object.entries(held)) if (n && !(choices.sensitive?.[cat as 'medical'] === true)) needsYou.push({ key: `held-${cat}`, count: n, text: `${cat === 'medical' ? 'Health/medical' : 'Intimate'}: ${n} items held. Import the bundle again and say yes to bring them.` });
-  if (counts.skillsHeld) needsYou.push({ key: 'skills-held', count: counts.skillsHeld, text: `${counts.skillsHeld} skills run scripts: they are off until you check them (Settings → Abilities → Skills).` });
+  if (counts.skillsHeld) needsYou.push({ key: 'skills-held', count: counts.skillsHeld, text: `${counts.skillsHeld} skills run scripts: they are off until you check them (Settings → Abilities → Skills).`, page: 'skills' });
   const imported: ReportLine[] = [];
-  if (counts.persona) imported.push({ key: 'persona', count: 1, text: `Personality: her sheet from ${personaF?.ref.split('/').at(-1) ?? 'the persona files'}${counts.personaNotes ? `, ${counts.personaNotes} lines kept as her notes` : ''}` });
-  if (counts.memories) imported.push({ key: 'memories', count: counts.memories, text: `Memories: ${counts.memories}${counts.archived ? ` (${counts.archived} archived)` : ''}` });
-  if (counts.profile) imported.push({ key: 'profile', count: counts.profile, text: `About you: ${counts.profile} facts` });
-  if (counts.reflections) imported.push({ key: 'reflections', count: counts.reflections, text: `Reflections: ${counts.reflections}` });
+  if (counts.persona) imported.push({ key: 'persona', count: 1, text: `Personality: her sheet from ${personaF?.ref.split('/').at(-1) ?? 'the persona files'}${counts.personaNotes ? `, ${counts.personaNotes} lines kept as her notes` : ''}`, page: 'her' });
+  if (counts.memories) imported.push({ key: 'memories', count: counts.memories, text: `Memories: ${counts.memories}${counts.archived ? ` (${counts.archived} archived)` : ''}`, page: 'memory' });
+  if (counts.profile) imported.push({ key: 'profile', count: counts.profile, text: `About you: ${counts.profile} facts`, page: 'memory' });
+  if (counts.reflections) imported.push({ key: 'reflections', count: counts.reflections, text: `Reflections: ${counts.reflections}`, page: 'memory' });
   if (counts.conversations) imported.push({ key: 'conversations', count: counts.conversations, text: `Past conversations: ${counts.conversations}${learnIds.length ? `; learning from ${learnIds.length} in the background` : ''}` });
-  if (counts.skills) imported.push({ key: 'skills', count: counts.skills, text: `Skills: ${counts.skills}` });
+  if (counts.skills) imported.push({ key: 'skills', count: counts.skills, text: `Skills: ${counts.skills}`, page: 'skills' });
   if (counts.cards) imported.push({ key: 'board', count: counts.cards, text: `Board cards: ${counts.cards}` });
   if (counts.people || counts.personFacts) imported.push({ key: 'people', count: (counts.people ?? 0), text: `People: ${counts.people ?? 0} cards, ${counts.personFacts ?? 0} facts${counts.archivedFacts ? ` (${counts.archivedFacts} more as archived notes)` : ''}` });
   if (counts.customTasks) imported.push({ key: 'tasks', count: counts.customTasks, text: `Tasks: ${counts.customTasks}` });
   if (counts.goals || counts.goalNotes) imported.push({ key: 'goals', count: (counts.goals ?? 0) + (counts.goalNotes ?? 0), text: `Goals: ${counts.goals ?? 0} (paused in her own plans)${counts.goalNotes ? `, ${counts.goalNotes} as her notes` : ''}` });
-  const report: Report = { imported, translated, needsYou, leftBehind: inp.leftBehind };
+  const lives = livesLines(counts, tr?.config ?? [], tr?.code ?? [], Boolean(app.board), Boolean(app.people));
+  const plans: Record<string, RebuildEntry> = {};
+  for (const c of tr?.code ?? []) if (c.translation.type === 'rebuild' && c.translation.plan && c.state !== 'skipped') plans[c.key] = { name: c.name, kind: c.kind, summary: c.summary, ...c.translation.plan };
+  const report: Report = { imported, translated, needsYou, leftBehind: inp.leftBehind, lives, agent: { name: inp.agentName ?? m.source.displayName ?? m.source.agentId, kind: agent, createdAt: now }, ...(Object.keys(plans).length ? { plans } : {}) };
 
-  // Her message in a new "Moving in" conversation (her words come in MI3; this is the plain report).
+  // Her message in a new "Moving in" conversation, in her own words (first person, her current name).
   const welcome = app.store.createConversation({ title: 'Moving in' });
-  const name = app.persona.name;
-  const lines = [`I've moved in${herPast ? ` from ${agent}` : ''}. Here's what came with me:`, ...imported.map((l) => `• ${l.text}`), ...(translated.length ? ['', 'Translated:', ...translated.map((l) => `• ${l.text}`)] : []), ...(needsYou.length ? ['', 'Needs you:', ...needsYou.slice(0, 12).map((l) => `• ${l.text}`)] : []), '', `Left behind on purpose: ${inp.leftBehind.map((l) => l.text).join('; ') || 'nothing'}.`, '', `You can undo this move-in for ${UNDO_DAYS} days in Settings → Data & health → Move in from another agent.`];
-  app.store.addMessage(welcome.id, 'assistant', lines.join('\n').replace(/\bI've moved in\b/, `${name} here: I've moved in`), { moveIn: id });
+  app.store.addMessage(welcome.id, 'assistant', herMessage(app.persona.name, herPast ? agent : '', report), { moveIn: id });
   record('conversation', 'conversations', welcome.id, null, null);
 
   const state: BatchState = stopped ? 'partial' : 'done';
@@ -585,7 +654,22 @@ export function undoBatch(app: AppContext, id: string, opts: { keepEdited?: bool
       bump('persona');
     }
   }
-  rmSync(join(app.dataDir, 'movein', id), { recursive: true, force: true });
+  // MI3: settings it changed go back (unless you changed them again since), providers it added go.
+  const dir = join(app.dataDir, 'movein', id);
+  const st = undoChanges(app, dir);
+  if (st.restored) removed.setting = st.restored;
+  if (st.kept.length) removed.settingKept = st.kept.length;
+  // Personality rules from hooks: when her whole sheet wasn't replaced, only those lines come off it.
+  const rules = items.filter((i) => i.kind === 'persona-rule').map((i) => i.native_id);
+  if (rules.length && !items.some((i) => i.kind === 'persona')) {
+    const cur = app.persona;
+    const left = cur.speech.filter((x) => !rules.includes(x));
+    if (left.length !== cur.speech.length) {
+      applyPersona(app, validatePersona({ ...cur, speech: left }));
+      removed.rule = cur.speech.length - left.length;
+    }
+  }
+  rmSync(dir, { recursive: true, force: true });
   db.prepare("UPDATE movein_batches SET state = 'undone', finished_at = ? WHERE id = ?").run(app.now().toISOString(), id);
   app.events?.publish({ type: 'memory', conversationId: '' });
   return { removed };

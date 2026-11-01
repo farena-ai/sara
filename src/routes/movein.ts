@@ -22,7 +22,13 @@
 //   POST   /api/movein/bundles/:id/cards/pull   {store, table} pull a telemetry table back in
 //   GET    /api/movein/mappings                 saved mappings · GET …/mappings/export (JSON, names only)
 //   POST   /api/movein/mappings/import          a shared mappings file · DELETE …/mappings/:fingerprint
+//   GET    /api/movein/bundles/:id/translations   MI3: settings proposals + hook/plugin cards (never run)
+//   POST   /api/movein/bundles/:id/translations/config {key, decision: confirm|skip|reset, choice?}
+//   POST   /api/movein/bundles/:id/translations/code   {key, decision}  ·  …/ask {key, localOnly?}
+//   GET    /api/movein/bundles/:id/translations/text?key=   a hook/plugin as text (scrubbed)
 //   GET    /api/movein/batches/:id              a move-in and its report
+//   GET    /api/movein/batches/:id/report.md    the report as a Markdown file
+//   POST   /api/movein/batches/:id/rebuild      {key} a rebuild plan → a coding conversation (owner says go)
 //   GET    /api/movein/batches/:id/undo         what Undo removes (and imported notes you edited)
 //   POST   /api/movein/batches/:id/undo         Undo this move-in
 // Before sign-in, with the move-in code only (the collector's `send`):
@@ -33,6 +39,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { HttpError, readJson, send } from '../http.ts';
 import { BundleError } from '../movein/bundle.ts';
 import { COLLECTOR_PATH, MoveIn } from '../movein/index.ts';
+import { reportMarkdown } from '../movein/report.ts';
 import type { ImportChoices } from '../movein/batch.ts';
 import { CATEGORIES, SECTIONS, type Section } from '../movein/types.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
@@ -167,6 +174,29 @@ export function createMoveInRoutes(ctx: RouteCtx): RouteHandler {
           return send(res, 200, { ok: true });
         }
         if (!d && method === 'DELETE') return send(res, 200, { deleted: mi.deleteBundle(c) });
+        if (d === 'translations') {
+          const q = new URL(req.url ?? '/', 'http://x').searchParams;
+          if (!e && method === 'GET') return send(res, 200, mi.translations(c));
+          if (e === 'text' && method === 'GET') return send(res, 200, await mi.codeText(c, String(q.get('key') ?? '')));
+          if (method === 'POST') {
+            const body = await readJson(req, 16 * 1024);
+            const key = String(body.key ?? '');
+            const decision = (['confirm', 'skip', 'reset'] as const).find((x) => x === body.decision);
+            const owner400 = <T>(f: () => T): T => {
+              try {
+                return f();
+              } catch (err) {
+                throw err instanceof HttpError ? err : new HttpError(400, (err as Error).message);
+              }
+            };
+            if (e === 'config' && decision) return send(res, 200, { card: owner400(() => mi.decideConfig(c, key, decision, typeof body.choice === 'string' ? body.choice : undefined)) });
+            if (e === 'code' && decision) return send(res, 200, { card: owner400(() => mi.decideCode(c, key, decision)) });
+            if (e === 'ask') {
+              owner400(() => mi.askCode(c, key, { localOnly: body.localOnly !== false }));
+              return send(res, 202, { ok: true });
+            }
+          }
+        }
         if (d === 'cards') {
           const q = new URL(req.url ?? '/', 'http://x').searchParams;
           if (!e && method === 'GET') return send(res, 200, mi.cards(c, { localOnly: q.get('localOnly') !== '0', sensitive: (q.get('sensitive') ?? '').split(',').filter((x) => (CATEGORIES as readonly string[]).includes(x)) }));
@@ -211,6 +241,19 @@ export function createMoveInRoutes(ctx: RouteCtx): RouteHandler {
         const x = mi.batch(c);
         if (!x) throw new HttpError(404, 'No such move-in.');
         if (!d && method === 'GET') return send(res, 200, x);
+        if (d === 'report.md' && method === 'GET') {
+          res.writeHead(200, { 'content-type': 'text/markdown; charset=utf-8', 'content-disposition': `attachment; filename="move-in-report-${x.createdAt.slice(0, 10)}.md"`, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
+          res.end(reportMarkdown(x));
+          return;
+        }
+        if (d === 'rebuild' && method === 'POST') {
+          const body = await readJson(req, 4096);
+          try {
+            return send(res, 200, mi.rebuild(c, String(body.key ?? '')));
+          } catch (err) {
+            throw new HttpError(400, (err as Error).message);
+          }
+        }
         if (d === 'undo' && method === 'GET') return send(res, 200, mi.undoPreview(c));
         if (d === 'undo' && method === 'POST') {
           const body = await readJson(req, 4096);
