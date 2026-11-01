@@ -16,7 +16,7 @@ import type { Conversation } from '../store.ts';
 import { nextPlaceholder } from '../titles.ts';
 import { turnBudgetFor, turnBudgetSettings } from '../budget.ts';
 
-export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea';
+export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea' | 'progress';
 /** Where the line was written: his DM, someone else's DM, a shared room, a room where he works with her. */
 export type Place = 'owner-dm' | 'partner-dm' | 'room' | 'work-room';
 /** Who wrote it (decided by the bridge from the platform user id, never by a name). */
@@ -25,7 +25,8 @@ export type Asker = 'owner' | 'person' | 'bot';
 /** The commands in the platforms' menus, in menu order. */
 export const MENU_COMMANDS = ['new', 'reset', 'stop', 'status', 'help', 'model', 'remember'] as const;
 // Phase 113: /bug and /idea (Report a problem, Suggest something) are typed, not in the menus.
-const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea'];
+// Phase 115 (BR1): /progress on|off (the live progress message in this chat), typed, owner only.
+const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea', 'progress'];
 export const isCommandName = (s: string): s is CommandName => (ALL as readonly string[]).includes(s);
 
 /** One line per command (menus and /help). The owner's /status says more than the one others get. */
@@ -41,6 +42,7 @@ export const DESCRIPTIONS: Record<CommandName, string> = {
   settings: en('Where her settings are'),
   bug: en('Report a problem to the people who make Sara'),
   idea: en('Suggest something to the people who make Sara'),
+  progress: en('Show or hide her progress message in this chat (on / off)'),
 };
 /** /status as others see it (no model, no budget). */
 export const PUBLIC_STATUS = en('How full this chat is');
@@ -176,6 +178,8 @@ export interface BridgeAdapter {
   settingsWhere?: string;
   /** Phase 113: the app's address for "open the report sheet" (when the server knows it). */
   appLink?: string;
+  /** Phase 115 (BR1): this chat's place for /progress (bridge and chat key; the choice lives on its room row). */
+  progressKey?: { bridge: string; key: string };
 }
 
 export interface ModelPick {
@@ -295,7 +299,22 @@ export async function runCommand(c: CommandContext): Promise<CommandReply> {
     case 'bug':
     case 'idea':
       return reportCommand(c, conv);
+    case 'progress':
+      return progressCommand(c);
   }
+}
+
+/** Phase 115 (BR1): /progress on|off sets this chat's progress message; /progress alone says the state. */
+async function progressCommand(c: CommandContext): Promise<CommandReply> {
+  const tr = (text: string, params?: Record<string, unknown>) => say(c.app, c.lang, text, params);
+  const k = c.adapter.progressKey;
+  if (!k) return { text: tr('Progress messages are not available in this chat.') };
+  const { progressOn, setRoomFlag } = await import('./media.ts');
+  const arg = fold(c.cmd.args.trim());
+  const on = /^(on|yes|si|oui|ja|sim|an|ein)$/.test(arg) ? true : /^(off|no|non|nein|nao|aus)$/.test(arg) ? false : undefined;
+  if (on !== undefined) setRoomFlag(c.app, k.bridge, k.key, 'progress', on);
+  const now = progressOn(c.app, k.bridge, k.key, c.place);
+  return { text: now ? tr('Progress messages are on in this chat: on long jobs one message shows what I am doing. /progress off hides it.') : tr('Progress messages are off in this chat. /progress on shows them on long jobs.') };
 }
 
 const bridgeName = (b: string): string => (b === 'telegram' ? 'Telegram' : b === 'discord' ? 'Discord' : b === 'web' ? 'Sara' : b.replace(/^plugin-/, ''));
@@ -307,6 +326,7 @@ function helpText(app: AppContext, c: CommandContext): string {
     .map((n) => `/${n}: ${tr(n === 'status' && c.who !== 'owner' ? PUBLIC_STATUS : DESCRIPTIONS[n])}`);
   if (c.who === 'owner' && c.place === 'work-room') lines.push(`/new room: ${tr('Also start a new conversation for the whole room')}`);
   if (c.who === 'owner') for (const n of ['bug', 'idea'] as const) lines.push(`/${n}: ${tr(DESCRIPTIONS[n])}`);
+  if (c.who === 'owner' && (c.place === 'owner-dm' || c.place === 'work-room')) lines.push(`/progress: ${tr(DESCRIPTIONS.progress)}`);
   const name = chatsSettings(app).namePrefix && c.bridge !== 'web' ? `\n${tr('You can also write just my name and the word, like "{example}".', { example: `${app.persona.name} ${c.lang === 'de' ? 'neu' : 'new'}` })}` : '';
   return `${tr('What you can do here:')}\n${lines.join('\n')}${name}`;
 }

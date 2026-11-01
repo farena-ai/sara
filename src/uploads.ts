@@ -44,6 +44,30 @@ export class UploadStore {
     return { id, mime: kind.mime };
   }
 
+  /**
+   * Phase 115 (BR1 B1): raw bytes from a chat app (a Telegram photo, a Discord attachment, a plugin
+   * bridge's chunks). The same checks as save(): size, and the first bytes must be a real picture.
+   */
+  saveBytes(bytes: Buffer): Upload {
+    if (!bytes.length) throw new UploadError('That photo is empty.');
+    if (bytes.length > MAX_IMAGE_BYTES) throw new UploadError(`Photos can be up to ${MAX_IMAGE_BYTES / 1024 / 1024} MB.`);
+    const kind = KINDS.find((k) => k.magic(bytes));
+    if (!kind) throw new UploadError('Only JPEG, PNG, WebP or GIF photos can be sent.');
+    const id = `${createHash('sha256').update(bytes).digest('hex').slice(0, 32)}.${kind.ext}`;
+    mkdirSync(this.dir, { recursive: true, mode: 0o700 });
+    const file = join(this.dir, id);
+    if (!existsSync(file)) writeFileSync(file, bytes, { mode: 0o600 });
+    return { id, mime: kind.mime };
+  }
+
+  /** Phase 115: deletes one stored photo now (a refused picture from someone else, an expired one). */
+  remove(id: string): boolean {
+    const f = this.get(id);
+    if (!f) return false;
+    rmSync(f.path, { force: true });
+    return true;
+  }
+
   /** Path and type of a stored photo, or undefined for unknown/invalid ids. */
   get(id: string): { path: string; mime: string } | undefined {
     if (!/^[0-9a-f]{32}\.(jpg|png|webp|gif)$/.test(id)) return undefined;

@@ -43,7 +43,7 @@ import sys
 import time
 import zipfile
 
-VERSION = '2.47.3'
+VERSION = '2.48.0'
 FORMAT = 'saramove'
 FORMAT_VERSION = 1
 MiB = 1024 * 1024

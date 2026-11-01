@@ -21,6 +21,7 @@ import { join, resolve } from 'node:path';
 import type { AppContext, ChatEvent } from '../chat.ts';
 import type { EventHub, HubEvent } from '../events.ts';
 import { cleanCard, type HookPlugin, type PluginCard, type PluginHookPoint, type PluginHost } from '../hooks.ts';
+import { en } from '../i18n.ts';
 import { localDate } from '../memory-worker.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { fromFolder, fromGit, hashFiles, PackageError, type PackageFile, type PackageFinding, type PackageLimits, scanPackage, stripTop, writePackage } from '../packages.ts';
@@ -111,7 +112,31 @@ interface Running {
   proc: PluginProcess;
   tools: string[];
   lastFetches: number[];
+  /** Phase 115 (BR1 §4.9): what the plugin opted into in `ready` (only what its permissions allow). */
+  bridge?: { files: boolean; edit: boolean; maxBytes: number };
+  /** Phase 115: files coming in by chunks (`bridge.file`), per fileId, for 60 s. */
+  inFiles?: Map<string, InFile>;
+  /** Phase 115: progress refs it was given (`p-<n>`) → the conversation (for its Stop). */
+  refs?: Map<string, string>;
+  refSeq?: number;
 }
+
+interface InFile {
+  bridge: string;
+  chatId: string;
+  name: string;
+  mime: string;
+  size: number;
+  parts: Buffer[];
+  got: number;
+  next: number;
+  done: boolean;
+  at: number;
+}
+
+/** Phase 115 (BR1 §4.9): chunk and file caps of the plugin bridge contract v1.1. */
+const PLUGIN_CHUNK_BYTES = 512 * 1024;
+const PLUGIN_FILE_MAX = 20 * 1024 * 1024;
 
 interface Attached {
   id: string;
@@ -137,6 +162,8 @@ export interface ManagerOptions {
   httpGet?: typeof pinnedGet;
   /** Tests: the backoff and time limits are the real ones unless set. */
   execPath?: string;
+  /** Phase 115: the progress message's clock (tests drive a fake one). */
+  clock?: import('../bridges/sendq.ts').Clock;
 }
 
 /** A very small JSON-schema check for plugin tool arguments (object, required, types, enum). */
@@ -171,6 +198,8 @@ export class PluginManager {
   readonly #attached = new Map<string, Attached>();
   readonly #waiting = new Map<string, { call: WaitingCall; resolve: (ok: boolean) => void; timer: NodeJS.Timeout }>();
   #tick: NodeJS.Timeout | undefined;
+  /** Phase 115: the pacer for plugin bridges' progress messages. */
+  #bridgeQueue: import('../bridges/sendq.ts').SendQueue | undefined;
   readonly #lastRun = new Map<string, number>();
 
   constructor(opts: ManagerOptions) {
@@ -537,11 +566,19 @@ export class PluginManager {
       }
     }
     const lang = String((a.app.settings.get() as { language?: string }).language ?? 'en');
-    return { plugin: row.id, companion: a.id, lang, settings, secrets, bridges: m.permissions.bridges };
+    // Phase 115 (BR1 §4.9): what Sara supports; v1 plugins ignore the new fields.
+    return { plugin: row.id, companion: a.id, lang, settings, secrets, bridges: m.permissions.bridges, ...(m.permissions.bridges.length ? { bridgeApi: 2, bridgeFeatures: ['files', 'edit'] } : {}) };
   }
 
   #ready(a: Attached, run: Running, msg: InMessage): void {
     this.#unregister(a, run);
+    // Phase 115: the bridge features it opts into (files only with the bridgeFiles permission).
+    const b = msg.bridge && typeof msg.bridge === 'object' && !Array.isArray(msg.bridge) ? (msg.bridge as { files?: unknown; edit?: unknown; maxBytes?: unknown }) : undefined;
+    if (b && run.manifest.permissions.bridges.length) {
+      const files = b.files === true && run.manifest.permissions.bridgeFiles;
+      if (b.files === true && !files) this.store.log(run.row.id, a.id, 'denied', 'it asked for files in its chats without the bridgeFiles permission');
+      run.bridge = { files, edit: b.edit === true, maxBytes: Math.max(0, Math.min(PLUGIN_FILE_MAX, Number(b.maxBytes) || PLUGIN_FILE_MAX)) };
+    } else delete run.bridge;
     const declared = new Set(run.manifest.permissions.tools);
     const offered = Array.isArray(msg.tools) ? msg.tools.slice(0, 20) : [];
     for (const raw of offered) {
@@ -751,6 +788,8 @@ export class PluginManager {
 
       case 'bridge.inbound':
         return this.#bridgeInbound(a, run, msg, deny);
+      case 'bridge.file':
+        return this.#bridgeFile(a, run, msg, deny);
       default:
         return deny(`unknown op "${cut(op, 30)}"`);
     }
@@ -857,13 +896,77 @@ export class PluginManager {
     return { text: this.opts.scrub(out) };
   }
 
+  /**
+   * Phase 115 (BR1 §4.9): a file to Sara, in base64 chunks of at most 512 KB (so a line stays under
+   * the 1 MB cap), in order, within 60 s. Only with the bridgeFiles permission and the plugin's
+   * opt-in in `ready`; the total is checked against its own maxBytes (≤ 20 MB). The assembled file
+   * is taken by the bridge.inbound that names it (`files: [{fileId}]`).
+   */
+  #bridgeFile(a: Attached, run: Running, msg: InMessage, deny: (why: string) => never): Record<string, unknown> {
+    if (!run.manifest.permissions.bridgeFiles) return deny('it has no bridgeFiles permission');
+    if (!run.bridge?.files) return deny("it didn't ask for files in its ready message");
+    const bridge = String(msg.bridge ?? run.manifest.permissions.bridges[0] ?? '');
+    if (!run.manifest.permissions.bridges.includes(bridge)) return deny(`it doesn't provide the bridge "${cut(bridge, 30)}"`);
+    const fileId = String(msg.fileId ?? '');
+    const chatId = String(msg.chatId ?? '').trim();
+    if (!/^[\w.-]{1,80}$/.test(fileId) || !/^[\w@.:+-]{1,80}$/.test(chatId)) return deny('a file chunk without a file id or chat id');
+    const data = Buffer.from(String(msg.data ?? ''), 'base64');
+    if (data.length > PLUGIN_CHUNK_BYTES) return deny('a chunk over 512 KB');
+    const now = Date.now();
+    run.inFiles ??= new Map();
+    for (const [k, f] of run.inFiles) if (now - f.at > 60_000) run.inFiles.delete(k);
+    const max = run.bridge.maxBytes;
+    let f = run.inFiles.get(fileId);
+    const seq = Number(msg.seq ?? 0);
+    if (!f) {
+      const size = Number(msg.size);
+      if (seq !== 0) return deny('a file must start with chunk 0');
+      if (!Number.isInteger(size) || size <= 0 || size > max) return deny(`a file over its ${max} bytes`);
+      if (run.inFiles.size >= 8) return deny('more than 8 files at once');
+      f = { bridge, chatId, name: cut(String(msg.name ?? 'file').replace(/[\\/\r\n]/g, '_'), 120) || 'file', mime: cut(String(msg.mime ?? ''), 100), size, parts: [], got: 0, next: 0, done: false, at: now };
+      run.inFiles.set(fileId, f);
+    }
+    if (f.done) return deny('that file is already complete');
+    if (seq !== f.next || f.chatId !== chatId) {
+      run.inFiles.delete(fileId);
+      return deny('chunks out of order');
+    }
+    f.got += data.length;
+    if (f.got > f.size) {
+      run.inFiles.delete(fileId);
+      return deny('more bytes than the file said');
+    }
+    f.parts.push(data);
+    f.next++;
+    if (msg.last === true) {
+      if (f.got !== f.size) {
+        run.inFiles.delete(fileId);
+        return deny('the file is shorter than it said');
+      }
+      f.done = true;
+    }
+    return { ok: true, received: f.got };
+  }
+
+  /** Phase 115: sends one of her pictures or files to a plugin: bridge.send with `files`, then bridge.file chunks. */
+  #sendFileOut(run: Running, bridge: string, chatId: string, file: { path: string; name: string; mime: string }, text?: string): void {
+    const bytes = readFileSync(file.path);
+    const fileId = randomUUID();
+    run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, ...(text ? { text } : {}), files: [{ fileId, name: file.name, mime: file.mime, size: bytes.length }] });
+    const n = Math.max(1, Math.ceil(bytes.length / PLUGIN_CHUNK_BYTES));
+    for (let i = 0; i < n; i++) run.proc.send({ v: 1, type: 'bridge.file', bridge, chatId, fileId, seq: i, last: i === n - 1, data: bytes.subarray(i * PLUGIN_CHUNK_BYTES, (i + 1) * PLUGIN_CHUNK_BYTES).toString('base64') });
+  }
+
   async #bridgeInbound(a: Attached, run: Running, msg: InMessage, deny: (why: string) => never): Promise<Record<string, unknown>> {
     const bridge = String(msg.bridge ?? run.manifest.permissions.bridges[0] ?? '');
     if (!run.manifest.permissions.bridges.includes(bridge)) return deny(`it doesn't provide the bridge "${cut(bridge, 30)}"`);
     const chatId = String(msg.chatId ?? '').trim();
     const text = String(msg.text ?? '').trim().slice(0, 8000);
     const from = cut(String(msg.from ?? '').replace(/[\r\n]/g, ' ').trim() || 'someone', 60);
-    if (!/^[\w@.:+-]{1,80}$/.test(chatId) || !text) return deny('a message without a chat id or text');
+    // Phase 115: files it assembled with bridge.file, and the progress message's Stop.
+    const fileIds = Array.isArray(msg.files) ? msg.files.slice(0, 5).map((f) => String((f as { fileId?: unknown } | null)?.fileId ?? '')).filter(Boolean) : [];
+    const action = msg.action === 'stop' ? 'stop' : undefined;
+    if (!/^[\w@.:+-]{1,80}$/.test(chatId) || (!text && !fileIds.length && !action)) return deny('a message without a chat id or text');
     const cfg = this.companionSettings(a.id)[run.row.id]?.bridge;
     const owner = (cfg?.ownerChats ?? []).includes(chatId);
     if (!owner && cfg?.others !== true) {
@@ -873,14 +976,24 @@ export class PluginManager {
     const channel = `plugin-${bridge}`;
     const store = a.app.store;
     const who = owner ? 'owner' : 'partner';
+    if (action === 'stop') {
+      // The Stop on its progress message: owner chats only (checked here, whatever the plugin says).
+      if (!owner) {
+        this.store.log(run.row.id, a.id, 'denied', 'a Stop from a chat that is not an owner chat');
+        return { ok: false, reason: 'owner only' };
+      }
+      const ref = String(msg.ref ?? '');
+      const convId = run.refs?.get(ref) ?? store.currentChannelConversation(channel, chatId, who)?.id;
+      return { ok: true, stopped: Boolean(convId && a.app.stopTurn?.(convId)) };
+    }
     // Phase 107 (CH1): the chat's current session (the newest one /new hasn't closed).
     // Phase 108 (CH2): a chat's first session goes into the bridge's own project ("WhatsApp", "Signal").
     const { channelProjectId } = await import('../bridges/rooms.ts');
     const make = () => (store.latestChannelConversation(channel, chatId, who) ? nextSessionOf(store.latestChannelConversation(channel, chatId, who)!) : store.createConversation({ title: owner ? `${run.manifest.name}` : `${run.manifest.name}: ${from}`, titleSource: 'placeholder', channel, channelKey: chatId, partner: owner ? null : from, projectId: channelProjectId(a.app, channel, run.manifest.name) }));
     // Phase 107: typed commands (/new, !new, "Sara new") work here too; never a turn, checked here every time.
-    const { chatsSettings, nextSession, ownerLanguage, parseCommand, runCommand } = await import('../bridges/commands.ts');
+    const { chatsSettings, nextSession, ownerLanguage, parseCommand, runCommand, say } = await import('../bridges/commands.ts');
     const nextSessionOf = (prev: import('../store.ts').Conversation) => nextSession(a.app, prev);
-    const cmd = parseCommand(text, { herName: a.app.persona.name, namePrefix: chatsSettings(a.app).namePrefix });
+    const cmd = text && !fileIds.length ? parseCommand(text, { herName: a.app.persona.name, namePrefix: chatsSettings(a.app).namePrefix }) : undefined;
     if (cmd && !(cmd.name === 'start' && !owner)) {
       const r = await runCommand({
         app: a.app,
@@ -894,6 +1007,7 @@ export class PluginManager {
           startSession: (prev) => (prev ? nextSession(a.app, prev) : make()),
           stopTurn: (id) => a.app.stopTurn?.(id) ?? false,
           clearQueue: () => 0,
+          progressKey: { bridge: channel, key: chatId },
         },
       });
       // A numbered list where there is no native menu ("/model 2" picks the second).
@@ -907,21 +1021,122 @@ export class PluginManager {
     if (a.app.isBusy?.(conv.id)) return { ok: false, reason: 'busy' };
     const runTracked = a.app.runTracked;
     if (!runTracked) return deny('turns are not available here');
+    const media = await import('../bridges/media.ts');
+    const lang = owner ? ownerLanguage(a.app) : 'en';
+    const sendLine = (t: string) => run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: say(a.app, lang, t) });
+    // Phase 115: the files it named (assembled from its bridge.file chunks).
+    const extra: { images?: string[]; othersPhotos?: string[]; docs?: import('../library/intake.ts').SharedDoc[]; via: string } = { via: channel };
+    let described = '';
+    if (fileIds.length) {
+      if (!run.bridge?.files) return deny('it sent files without the bridgeFiles permission');
+      const got = fileIds.map((id) => {
+        const f = run.inFiles?.get(id);
+        if (f?.done && f.chatId === chatId) run.inFiles!.delete(id);
+        return f?.done && f.chatId === chatId ? { name: f.name, mime: f.mime, bytes: Buffer.concat(f.parts) } : undefined;
+      });
+      if (got.some((g) => !g)) this.store.log(run.row.id, a.id, 'denied', 'a message named a file that was not complete');
+      const isPic = (b: Buffer) => (b[0] === 0xff && b[1] === 0xd8) || b.subarray(0, 4).toString('latin1') === '\x89PNG' || b.subarray(0, 4).toString('latin1') === 'GIF8' || b.subarray(8, 12).toString('latin1') === 'WEBP';
+      const pics = got.filter((g): g is NonNullable<typeof g> => Boolean(g && isPic(g.bytes)));
+      const docs = got.filter((g): g is NonNullable<typeof g> => Boolean(g && !isPic(g.bytes)));
+      if (pics.length) {
+        const place = owner ? 'owner-dm' : 'partner-dm';
+        if (!owner && !media.othersPhotosOn(a.app, channel, chatId)) sendLine(media.PHOTOS_OFF_LINE);
+        else if (media.photoQuotaHit(a.app, channel, chatId, owner ? 'owner' : 'person', place)) sendLine(media.QUOTA_LINE);
+        else {
+          const fit = pics.filter((p) => p.bytes.length <= media.MAX_PHOTO_IN_BYTES);
+          if (fit.length < pics.length) sendLine(media.PHOTO_SIZE_LINE);
+          const taken = await media.takeIncoming(a.app, conv, { bridge: channel, chatKey: chatId, who: owner ? 'owner' : 'person', name: from, place, adult: false }, fit.map((p) => ({ bytes: p.bytes, name: p.name, mime: p.mime })));
+          if (taken.blocked) {
+            run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: taken.blocked.why === 'minor' ? taken.blocked.reply : say(a.app, lang, taken.blocked.reply) });
+            return { ok: true, blocked: taken.blocked.why };
+          }
+          for (const r of taken.refused) sendLine(r);
+          if (taken.images.length) extra.images = taken.images;
+          if (taken.othersPhotos.length) extra.othersPhotos = taken.othersPhotos;
+          described = taken.described;
+        }
+      }
+      if (docs.length) {
+        if (!owner) sendLine("I only keep documents for the person who runs me.");
+        else {
+          const { takeChatDocument } = await import('../library/intake.ts');
+          for (const d of docs) {
+            const r = await takeChatDocument(a.app, conv, { name: d.name, bytes: d.bytes }, text);
+            if (r.problem) sendLine(r.problem);
+            else (extra.docs ??= []).push(r.doc!);
+          }
+        }
+      }
+      if (!text && !extra.images && !extra.othersPhotos && !extra.docs) return { ok: true, conversation: conv.id, files: 0 };
+    }
+    const content = `${text || (extra.docs?.length ? `📄 ${extra.docs.map((d) => d.name).join(', ')}` : '(photo)')}${described}`;
     let reply = '';
     const notices: string[] = [];
+    const out = new media.Outgoing();
+    // Phase 115 (§4.9): the live progress message, for plugins that opted into `edit`.
+    let progress: import('../bridges/progress.ts').ProgressMessage | undefined;
+    if (owner && run.bridge?.edit && media.progressOn(a.app, channel, chatId, 'owner-dm')) {
+      const { ProgressMessage } = await import('../bridges/progress.ts');
+      const { SendQueue } = await import('../bridges/sendq.ts');
+      const ps = media.progressSettings(a.app);
+      run.refs ??= new Map();
+      progress = new ProgressMessage({
+        port: {
+          create: async (t) => {
+            const ref = `p-${(run.refSeq = (run.refSeq ?? 0) + 1)}`;
+            run.refs!.set(ref, conv.id);
+            run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, ref, text: t });
+            return ref;
+          },
+          edit: async (ref, t) => {
+            run.proc.send({ v: 1, type: 'bridge.edit', bridge, chatId, ref, text: t });
+          },
+        },
+        queue: (this.#bridgeQueue ??= new SendQueue({ ...(this.opts.clock ? { clock: this.opts.clock } : {}) })),
+        key: `${channel}:${chatId}`,
+        ...(this.opts.clock ? { clock: this.opts.clock } : {}),
+        afterMs: ps.afterSeconds * 1000,
+        intervalMs: 3000,
+        final: 'summary',
+        lang,
+        owner: true,
+        scrub: (t) => this.opts.scrub(t),
+      }).start();
+    }
     const done = new Promise<void>((resolveTurn) => {
-      void runTracked(conv.id, text, (ev: ChatEvent) => {
+      void runTracked(conv.id, content, (ev: ChatEvent) => {
+        progress?.event(ev);
+        if (owner) out.onEvent(ev);
         if (ev.type === 'token') reply += ev.text;
         else if (ev.type === 'replace') reply = ev.text;
         else if (ev.type === 'notice' && (ev.kind === 'disclosure' || ev.kind === 'crisis')) notices.push(ev.text);
-      })
+      }, { ...extra })
         .catch(() => undefined)
         .finally(resolveTurn);
     });
     await Promise.race([done, new Promise((r) => setTimeout(r, BRIDGE_TURN_MS).unref?.())]);
+    const closing = progress?.finish();
     // The AI notice and crisis help go out first, then her reply (the plugin never sees other channels).
     for (const n of notices) run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: n });
-    if (reply.trim()) run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: reply.trim() });
+    let text2 = reply.trim();
+    if (out.items.length && owner) {
+      if (!run.bridge?.files) sendLine(en('I kept that in the app (sending pictures and files here is off).'));
+      else {
+        const sent = await media.deliverOutgoing(a.app, store.getConversation(conv.id) ?? conv, { bridge: channel, chatKey: chatId, place: 'owner-dm', lang }, {
+          maxPhotoBytes: run.bridge.maxBytes,
+          maxFileBytes: run.bridge.maxBytes,
+          captionMax: 1024,
+          sendPhotos: async (files, caption) => {
+            files.forEach((f, n) => this.#sendFileOut(run, bridge, chatId, f, n === 0 ? caption : undefined));
+          },
+          sendFile: async (f, caption) => this.#sendFileOut(run, bridge, chatId, f, caption),
+        }, out.items, text2).catch(() => ({ captionUsed: false, lines: [] as string[] }));
+        if (sent.captionUsed) text2 = '';
+        for (const l of sent.lines) run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: l });
+      }
+    }
+    if (text2) run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: text2 });
+    await closing?.catch(() => undefined);
     this.store.log(run.row.id, a.id, 'call', `bridge ${bridge}: a ${owner ? 'owner' : 'partner'} turn`);
     return { ok: true, conversation: conv.id };
   }

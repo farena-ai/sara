@@ -41,6 +41,8 @@ export function createRoomRoutes(ctx: RouteCtx): RouteHandler {
     const view = (r: KeepRoom) => ({
       id: r.id,
       bridge: r.bridge,
+      // Phase 115: the room's chat key (its own Look at pictures here / Progress here choices).
+      key: r.key,
       name: roomName(r),
       title: r.title,
       parentTitle: r.parentTitle,

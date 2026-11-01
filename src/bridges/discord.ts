@@ -23,6 +23,12 @@ import { identityOf } from '../persona.ts';
 import type { Conversation } from '../store.ts';
 import { takeChatDocument, type SharedDoc } from '../library/intake.ts';
 import { MAX_DOC_BYTES } from '../library/store.ts';
+import { closeProgress, deliverOutgoing, DISCORD_FILE_OUT, FIRST_4_LINE, MAX_PHOTO_IN_BYTES, MAX_PHOTOS_IN, openProgress, othersPhotosOn, Outgoing, PHOTO_SIZE_LINE, PHOTOS_OFF_LINE, photoQuotaHit, progressOn, progressSettings, QUOTA_LINE, takeIncoming, takeLeftoverProgress, type IncomingFile, type MediaPort } from './media.ts';
+import { finalLine, ProgressMessage } from './progress.ts';
+import { PRIO_FILE, PRIO_REPLY, RateLimited, realClock, SendQueue, type Clock } from './sendq.ts';
+import type { TurnExtra } from './telegram.ts';
+import { adultModeOn } from '../settings.ts';
+import { readFileSync } from 'node:fs';
 import { nameCalled } from './rules.ts';
 import { askerLanguage, chatsSettings, commandAllowed, DESCRIPTIONS, DISCORD_LOCALES, DISCORD_NAMES, isCommandName, MENU_COMMANDS, menuHash, modelChoices, nearlyFullOffer, nextSession, OTHER_LANGS, ownerLanguage, parseCommand, runCommand, say, setSessionModel, type Asker, type BridgeAdapter, type CommandReply, type ModelPick, type ParsedCommand, type Place } from './commands.ts';
 import { channelProjectId, discordRoomName, noteRoom, roomOf, roomStale } from './rooms.ts';
@@ -149,7 +155,7 @@ interface DMessage {
   mention_everyone?: boolean;
   /** Set when a webhook posted it (treated as a bot). */
   webhook_id?: string;
-  attachments?: { url: string; filename?: string; content_type?: string; size?: number; duration_secs?: number }[];
+  attachments?: { id?: string; url: string; filename?: string; content_type?: string; size?: number; duration_secs?: number; description?: string }[];
   /** 8192 = voice message */
   flags?: number;
   /** Phase 110: when it was sent (ISO), and the message it replies to. */
@@ -203,11 +209,17 @@ export class DiscordBridge {
   /** Phase 107: the command menu registration that is running (tests await it). */
   menus: Promise<unknown> = Promise.resolve();
 
-  constructor(app: AppContext, opts: { api?: string; gateway?: string; connect?: GatewayConnect } = {}) {
+  /** Phase 115 (BR1 B2): the send pacer (her reply first, then files, then progress edits; 429 and buckets). */
+  readonly sendq: SendQueue;
+  readonly #clock: Clock;
+
+  constructor(app: AppContext, opts: { api?: string; gateway?: string; connect?: GatewayConnect; clock?: Clock } = {}) {
     this.#app = app;
     this.#api = opts.api ?? 'https://discord.com/api/v10';
     this.#gateway = opts.gateway ?? 'wss://gateway.discord.gg/?v=10&encoding=json';
     this.#connect = opts.connect ?? nodeConnect;
+    this.#clock = opts.clock ?? realClock;
+    this.sendq = new SendQueue({ clock: this.#clock });
   }
 
   get #token(): string | undefined {
@@ -271,10 +283,24 @@ export class DiscordBridge {
       ...(body ? { body: JSON.stringify(body) } : {}),
       signal: AbortSignal.timeout(30_000),
     });
+    return this.#answer<T>(method, path, res);
+  }
+
+  /** Phase 115: a REST answer. A 429 becomes RateLimited (`retry_after`, seconds); an empty bucket pauses that channel. */
+  async #answer<T>(method: string, path: string, res: Response): Promise<T> {
+    const lane = /^\/channels\/(\d+)/.exec(path)?.[1];
+    if (lane && res.headers.get('x-ratelimit-remaining') === '0') this.sendq.pause(`dc:${lane}`, Math.ceil(Number(res.headers.get('x-ratelimit-reset-after') ?? 1) * 1000));
     if (res.status === 204) return undefined as T;
-    const j = (await res.json().catch(() => ({}))) as T & { message?: string };
+    const j = (await res.json().catch(() => ({}))) as T & { message?: string; retry_after?: number };
+    if (res.status === 429) throw new RateLimited(Math.ceil(Number(j.retry_after ?? res.headers.get('retry-after') ?? 1) * 1000), `Discord ${method}: too many requests`);
     if (!res.ok) throw new Error(`Discord ${method} ${path.split('/').slice(0, 3).join('/')}: ${j.message ?? res.status}`);
     return j;
+  }
+
+  /** Phase 115: a multipart message (files[n] + payload_json), like sendVoice. */
+  async #multipart<T>(path: string, form: FormData): Promise<T> {
+    const res = await netFetch(`${this.#api}${path}`, { method: 'POST', headers: { authorization: `Bot ${this.#token}` }, body: form, signal: AbortSignal.timeout(120_000) });
+    return this.#answer<T>('POST', path, res);
   }
 
   async restart(): Promise<void> {
@@ -295,6 +321,18 @@ export class DiscordBridge {
     this.#stopped = false;
     this.#unsubscribe = this.#app.events?.subscribe((ev) => void this.#mirror(ev));
     this.#open();
+  }
+
+  /** Phase 115: the start-up pass over progress messages a restart left open (tests await it). */
+  leftovers: Promise<void> = Promise.resolve();
+  async #closeLeftovers(): Promise<void> {
+    let rows: ReturnType<typeof takeLeftoverProgress> = [];
+    try {
+      rows = takeLeftoverProgress(this.#app, 'discord');
+    } catch {
+      return;
+    }
+    for (const r of rows) await this.#rest('PATCH', `/channels/${r.chatId}/messages/${r.messageId}`, { content: finalLine({ kind: 'restart' }, 0, 0, ownerLanguage(this.#app), true), components: [] }).catch(() => undefined);
   }
 
   stop(): void {
@@ -346,6 +384,8 @@ export class DiscordBridge {
       // Phase 107: keep the application id and set the / menu (skipped when unchanged).
       if (d.application?.id) this.#appId = d.application.id;
       this.menus = this.registerMenus().catch((err: Error) => console.warn(`discord menus: ${err.message}`));
+      // Phase 115 (BR1 §4.8): progress messages a restart left open get their final line (once).
+      this.leftovers = this.#closeLeftovers();
     } else if (p.op === 0 && p.t === 'MESSAGE_CREATE') await this.handleMessage(p.d as DMessage);
     // Phase 110 (CH4, §7.3): edits and deletes in a room she keeps up with (covered by GUILD_MESSAGES).
     else if (p.op === 0 && p.t === 'MESSAGE_UPDATE') this.handleUpdate(p.d as Partial<DMessage> & { id: string; channel_id: string });
@@ -360,6 +400,13 @@ export class DiscordBridge {
     if (i.type === 4) return this.#onAutocomplete(i);
     if (i.data?.custom_id?.startsWith('md:')) return this.#onModelPick(i);
     const who = i.user ?? i.member?.user;
+    // Phase 115 (BR1): the progress message's Stop (the same as /stop; owner only, checked here).
+    const st = i.data?.custom_id?.match(/^st:([\w-]+)$/);
+    if (st) {
+      const owner = Boolean(who && isDiscordOwner(discordSettings(this.#app), who.id));
+      const content = !owner ? say(this.#app, askerLanguage(i.locale), en('Only the person who runs me can stop this.')) : this.#tr(this.#stopTurn(st[1]) ? en('Stopping.') : en('Nothing to stop.'));
+      return void (await this.#rest('POST', `/interactions/${i.id}/${i.token}/callback`, { type: 4, data: { content, flags: 64 } }));
+    }
     const m = i.data?.custom_id?.match(/^ap:([\w-]+):([01])$/);
     let reply = 'Only the owner can answer that.';
     if (m && who && isDiscordOwner(discordSettings(this.#app), who.id)) reply = this.#app.approvals.decide(m[1], m[2] === '1') ? this.#tr(m[2] === '1' ? en('Allowed.') : en('Denied.')) : this.#tr('That request is no longer waiting.');
@@ -389,6 +436,7 @@ export class DiscordBridge {
       stopTurn: (id) => this.#stopTurn(id),
       clearQueue: (id) => this.#clearQueue(id),
       resetGuard: () => void this.#botGuard.delete(channelId),
+      progressKey: { bridge: 'discord', key: channelId },
       // Phase 113: /bug and /idea link to the report sheet when the server knows its address.
       ...(accessInfo().url ? { appLink: accessInfo().url! } : {}),
     };
@@ -505,7 +553,8 @@ export class DiscordBridge {
 
   async send(channelId: string, text: string, extra: Record<string, unknown> = {}): Promise<void> {
     for (const part of splitDiscord(text)) {
-      const m = await this.#rest<{ id?: string } | undefined>('POST', `/channels/${channelId}/messages`, { content: part, allowed_mentions: { parse: [] }, ...extra });
+      // Phase 115 (B2): through the pacer, ahead of files and progress edits; a 429 waits and retries.
+      const m = await this.sendq.send(`dc:${channelId}`, PRIO_REPLY, () => this.#rest<{ id?: string } | undefined>('POST', `/channels/${channelId}/messages`, { content: part, allowed_mentions: { parse: [] }, ...extra }));
       // Phase 110: her own lines in a room she keeps up with are logged too (with Discord's id).
       this.#herLine(channelId, m?.id, part);
     }
@@ -743,13 +792,54 @@ export class DiscordBridge {
       if (!heard) return void (await this.send(msg.channel_id, isOwnerDm ? this.#tr("I couldn't make out any words in that one. Try again?") : "I couldn't make out any words in that one. Try again?"));
     }
     const isOwner = isOwnerDm || ownerWork;
+    // Phase 115 (BR1 §4.2): pictures are seen like a photo from the app (2.47 filtered them out and
+    // ignored a message with only a picture). Bots' pictures are never looked at.
+    const pictures = isBot ? [] : (msg.attachments ?? []).filter((a) => /^image\/(jpeg|png|webp|gif)$/i.test(a.content_type ?? ''));
     // Phase 44: documents from an owner go to her library (or are read once, if the message says so).
     const docs: SharedDoc[] = [];
     const files = (msg.attachments ?? []).filter((a) => !(a.content_type ?? '').startsWith('audio/') && !(a.content_type ?? '').startsWith('image/') && !(a.content_type ?? '').startsWith('video/'));
-    if (!text && !heard && !(files.length && isOwner)) return;
+    if (!text && !heard && !(files.length && isOwner) && !pictures.length) return;
     const nsfw = !isDm && (await this.#isNsfw(msg.channel_id));
     await this.#noteRoom(msg, nsfw).catch((err: Error) => console.warn(`discord room name: ${err.message}`));
     const conv = this.#conversation(msg, isOwnerDm, nsfw, ownerWork);
+    const place: Place = isOwnerDm ? 'owner-dm' : ownerWork ? 'work-room' : 'room';
+    let extra: TurnExtra = {};
+    let pictureText = '';
+    if (pictures.length) {
+      const lang = isOwner ? ownerLanguage(this.#app) : 'en';
+      const line = (t: string) => this.send(msg.channel_id, say(this.#app, lang, t));
+      const who = isOwner ? 'owner' : 'person';
+      if (!isOwner && !othersPhotosOn(this.#app, 'discord', msg.channel_id)) await line(PHOTOS_OFF_LINE);
+      else if (photoQuotaHit(this.#app, 'discord', msg.channel_id, who, place)) await line(QUOTA_LINE);
+      else {
+        const fit = pictures.filter((a) => (a.size ?? 0) <= MAX_PHOTO_IN_BYTES);
+        if (fit.length < pictures.length) await line(PHOTO_SIZE_LINE);
+        const got: IncomingFile[] = [];
+        // Signed CDN links expire: downloaded at once.
+        for (const a of fit.slice(0, MAX_PHOTOS_IN)) {
+          try {
+            const res = await netFetch(a.url, { signal: AbortSignal.timeout(120_000) });
+            if (!res.ok) throw new Error(`download failed (${res.status})`);
+            got.push({ bytes: Buffer.from(await res.arrayBuffer()), ...(a.filename ? { name: a.filename } : {}), ...(a.content_type ? { mime: a.content_type } : {}), ...(a.description ? { alt: a.description } : {}), ...(a.id ? { ref: a.id } : {}) });
+          } catch (err) {
+            await this.send(msg.channel_id, isOwner ? this.#tr("I couldn't get that file: {error}", { error: (err as Error).message }) : say(this.#app, lang, en("I couldn't look at that picture right now.")));
+          }
+        }
+        if (got.length) {
+          const shown = (msg.author.global_name || msg.author.username).replace(/[[\]]/g, '') || 'someone';
+          const adult = adultModeOn(this.#app.settings.get()) && nsfw;
+          const taken = await takeIncoming(this.#app, conv, { bridge: 'discord', chatKey: msg.channel_id, who, name: shown, place, adult }, got);
+          if (taken.blocked) return void (await this.send(msg.channel_id, taken.blocked.why === 'minor' ? taken.blocked.reply : say(this.#app, lang, taken.blocked.reply)));
+          for (const r of taken.refused) await line(r);
+          if (fit.length > MAX_PHOTOS_IN && (taken.images.length || taken.othersPhotos.length)) await line(FIRST_4_LINE);
+          extra = { ...(taken.images.length ? { images: taken.images } : {}), ...(taken.othersPhotos.length ? { othersPhotos: taken.othersPhotos } : {}), via: 'discord' };
+          // The sender's alt text is part of their message (others' only reaches her inside the fence).
+          const alts = isOwner ? got.filter((g) => g.alt).map((g) => ` [image description: ${g.alt!.replace(/\s+/g, ' ').slice(0, 300)}]`).join('') : '';
+          pictureText = `${alts}${taken.described}`;
+        }
+      }
+      if (!text && !heard && !(files.length && isOwner) && !extra.images && !extra.othersPhotos) return;
+    }
     if (files.length && isOwner) {
       for (const f of files.slice(0, 5)) {
         try {
@@ -764,8 +854,8 @@ export class DiscordBridge {
         }
       }
     }
-    if (!text && !heard && !docs.length) return;
-    const said = heard ? `🎤 ${heard}` : text || (docs.length ? `📄 ${docs.map((d) => d.name).join(', ')}` : '');
+    if (!text && !heard && !docs.length && !extra.images && !extra.othersPhotos) return;
+    const said = (heard ? `🎤 ${heard}` : text || (docs.length ? `📄 ${docs.map((d) => d.name).join(', ')}` : extra.images || extra.othersPhotos ? '(photo)' : '')) + pictureText;
     // Bots are tagged as bots; a person can't pass as one by naming themselves "… (bot)".
     const shown = (msg.author.global_name || msg.author.username).replace(/\s*\(bot\)\s*$/i, '').replace(/[[\]]/g, '') || msg.author.username;
     const name = isBot ? `${shown} (bot)` : shown;
@@ -781,7 +871,7 @@ export class DiscordBridge {
       .then(() => {
         if ((this.#cleared.get(conv.id) ?? 0) !== gen) return;
         this.#waiting.set(conv.id, Math.max(0, (this.#waiting.get(conv.id) ?? 1) - 1));
-        return this.#turn(conv, msg.channel_id, content, isOwner, voice, docs, where);
+        return this.#turn(conv, msg.channel_id, content, isOwner, voice, docs, where, extra);
       })
       .catch((err: Error) => console.warn(`discord turn: ${err.message}`));
     this.#queues.set(conv.id, next);
@@ -880,11 +970,17 @@ export class DiscordBridge {
     }
   }
 
-  async #turn(conv: Conversation, channelId: string, content: string, isOwner: boolean, voice = false, docs: SharedDoc[] = [], where?: { place: Place; lang: string; userId: string; msgId?: string; replyTo?: string | null }): Promise<void> {
+  async #turn(conv: Conversation, channelId: string, content: string, isOwner: boolean, voice = false, docs: SharedDoc[] = [], where?: { place: Place; lang: string; userId: string; msgId?: string; replyTo?: string | null }, extra: TurnExtra = {}): Promise<void> {
     const app = this.#app;
     let fill: { used: number; budget: number; dropped: number } | undefined;
     for (let i = 0; i < 600 && app.isBusy?.(conv.id); i++) await new Promise((r) => setTimeout(r, 1000));
     const started = Date.now();
+    // Phase 115 (BR1): her pictures and files (sent after the turn) and the live progress message.
+    const out = new Outgoing();
+    const progress = where && isOwner && progressOn(app, 'discord', channelId, where.place) ? this.#progress(conv, channelId) : undefined;
+    let pictureError = false;
+    // Phase 115: app lines (errors) never become a picture's caption.
+    const errorLines = new Set<string>();
     void this.#rest('POST', `/channels/${channelId}/typing`).catch(() => undefined);
     const typing = setInterval(() => void this.#rest('POST', `/channels/${channelId}/typing`).catch(() => undefined), 8000);
     let reply = '';
@@ -895,6 +991,9 @@ export class DiscordBridge {
       reply = '';
     };
     const onEvent = (ev: ChatEvent) => {
+      progress?.event(ev);
+      // Fixes 2.47: her pictures and screenshots were made and never arrived.
+      if (isOwner) out.onEvent(ev);
       if (ev.type === 'token') reply += ev.text;
       else if (ev.type === 'replace') reply = ev.text;
       else if (ev.type === 'context') fill = { used: ev.used, budget: ev.budget, dropped: ev.dropped };
@@ -911,7 +1010,14 @@ export class DiscordBridge {
         );
       } else if (ev.type === 'error') {
         flush();
-        if (ev.message !== 'Stopped.') outgoing.push(isOwner ? this.#tr('(Something went wrong: {error})', { error: ev.message }) : "Sorry, I can't answer right now.");
+        if (extra.images?.length && /image|vision|picture|multimodal/i.test(ev.message) && !pictureError) {
+          pictureError = true;
+          outgoing.push(isOwner ? this.#tr("I can't see pictures with the model I'm using. Set a picture model in Settings → Which model does what.") : "Sorry, I can't answer right now.");
+        } else if (ev.message !== 'Stopped.') {
+          const line = isOwner ? this.#tr('(Something went wrong: {error})', { error: ev.message }) : "Sorry, I can't answer right now.";
+          errorLines.add(line);
+          outgoing.push(line);
+        }
       }
     };
     try {
@@ -920,7 +1026,7 @@ export class DiscordBridge {
       // Phase 110 (CH4, §7.5): with keep-up on, "the room right now" (fed from the room log) instead of the raw lines.
       const now = where && where.place !== 'owner-dm' ? await roomTurn(app, 'discord', channelId, { replyTo: where.replyTo ?? null, callerId: where.msgId ?? null, conversationId: conv.id }).catch(() => ({}) as Awaited<ReturnType<typeof roomTurn>>) : {};
       const note = now.roomNow ? undefined : roomNote(app, room);
-      const opts = { ...(docs.length ? { docs } : {}), ...(note ? { roomNote: note } : {}), ...(now.roomNow ? { roomNow: now.roomNow } : {}), ...(now.roomId !== undefined ? { roomId: now.roomId } : {}), ...(now.roomCrisis ? { roomCrisis: true } : {}) };
+      const opts = { ...extra, ...(docs.length ? { docs } : {}), ...(note ? { roomNote: note } : {}), ...(now.roomNow ? { roomNow: now.roomNow } : {}), ...(now.roomId !== undefined ? { roomId: now.roomId } : {}), ...(now.roomCrisis ? { roomCrisis: true } : {}) };
       if (app.runTracked) await app.runTracked(conv.id, content, onEvent, opts);
       else {
         const { runTurn } = await import('../chat.ts');
@@ -937,7 +1043,14 @@ export class DiscordBridge {
     } finally {
       clearInterval(typing);
     }
+    const closing = progress?.finish();
     await Promise.allSettled(sends);
+    // Pictures first (her reply as the message text when it fits), then files, then her text.
+    if (out.items.length && where) {
+      const sent = await deliverOutgoing(app, app.store.getConversation(conv.id) ?? conv, { bridge: 'discord', chatKey: channelId, place: where.place, lang: ownerLanguage(app) }, this.#mediaPort(channelId), out.items, outgoing.length === 1 && !errorLines.has(outgoing[0]) ? outgoing[0] : '').catch((err: Error) => ({ captionUsed: false, lines: [this.#tr("I couldn't send the picture here ({reason}). It's in the app.", { reason: err.message.slice(0, 120) })] }));
+      if (sent.captionUsed) outgoing.splice(0, 1);
+      outgoing.push(...sent.lines);
+    }
     let since = started;
     for (const t of outgoing) {
       if (voice && t.length <= 1200 && !t.includes('```') && (await this.sendVoice(channelId, t))) continue;
@@ -945,6 +1058,7 @@ export class DiscordBridge {
       await this.send(channelId, t);
       since = Date.now();
     }
+    await closing?.catch(() => undefined);
     // Phase 107 (§4.7): nearly full: she offers /new once (in a channel he works in, in his DMs).
     if (where) {
       const line = nearlyFullOffer(app, app.store.getConversation(conv.id) ?? conv, fill, where.lang, where.place);
@@ -953,6 +1067,63 @@ export class DiscordBridge {
         if (to) await this.send(to, `ℹ️ ${line}`).catch(() => undefined);
       }
     }
+  }
+
+  /** Phase 115 (BR1 §4.8): the progress message of one turn (POST, then PATCH in place). */
+  #progress(conv: Conversation, channelId: string): ProgressMessage {
+    const app = this.#app;
+    const ps = progressSettings(app);
+    const lang = ownerLanguage(app);
+    const components = (stop: boolean) => (stop ? [{ type: 1, components: [{ type: 2, style: 2, label: `⏹ ${say(app, lang, en('Stop'))}`, custom_id: `st:${conv.id}` }] }] : []);
+    return new ProgressMessage({
+      port: {
+        create: async (text, stop) => (await this.#rest<{ id?: string }>('POST', `/channels/${channelId}/messages`, { content: text, allowed_mentions: { parse: [] }, components: components(stop) }))?.id,
+        edit: (ref, text, stop) => this.#rest('PATCH', `/channels/${channelId}/messages/${ref}`, { content: text, components: components(stop) }).then(() => undefined),
+        remove: (ref) => this.#rest('DELETE', `/channels/${channelId}/messages/${ref}`).then(() => undefined),
+      },
+      queue: this.sendq,
+      key: `dc:${channelId}`,
+      clock: this.#clock,
+      afterMs: ps.afterSeconds * 1000,
+      intervalMs: 2500,
+      final: ps.final,
+      lang,
+      owner: true,
+      scrub: (t) => app.redactor.redact(t),
+      onOpen: (ref) => openProgress(app, conv.id, 'discord', channelId, ref),
+      onClose: () => closeProgress(app, conv.id),
+    }).start();
+  }
+
+  /** Phase 115 (BR1 §4.3): pictures and files as one multipart message each (files[n], payload_json). */
+  #mediaPort(channelId: string): MediaPort {
+    const post = (files: { path: string; mime: string; name: string }[], content: string | undefined, alt: string) => {
+      const form = new FormData();
+      form.append('payload_json', JSON.stringify({ ...(content ? { content } : {}), allowed_mentions: { parse: [] }, attachments: files.map((f, n) => ({ id: n, filename: f.name, ...(alt ? { description: alt } : {}) })) }));
+      files.forEach((f, n) => form.append(`files[${n}]`, new Blob([new Uint8Array(readFileSync(f.path))], { type: f.mime }), f.name));
+      return this.sendq.send(`dc:${channelId}`, PRIO_FILE, () => this.#multipart<{ id?: string; attachments?: { id: string }[] }>(`/channels/${channelId}/messages`, form));
+    };
+    const ext = (mime: string) => (mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : mime === 'image/gif' ? 'gif' : 'jpg');
+    return {
+      maxPhotoBytes: DISCORD_FILE_OUT,
+      maxFileBytes: DISCORD_FILE_OUT,
+      captionMax: 1900,
+      sendPhotos: async (files, caption) => {
+        const m = await post(files.map((f, n) => ({ ...f, name: `photo-${n + 1}.${ext(f.mime)}` })), caption, say(this.#app, ownerLanguage(this.#app), en('A photo from Sara')));
+        return (m?.attachments ?? []).map((a) => a.id);
+      },
+      sendFile: async (f, caption) => (await post([f], caption, ''))?.attachments?.[0]?.id,
+    };
+  }
+
+  /** Phase 115: a small test picture to the owner's DMs (Settings → Discord → Send me a test picture). */
+  async testPicture(png: Buffer): Promise<void> {
+    const dm = await this.#ownerDm();
+    if (!dm) throw new Error(en('Link your Discord first.'));
+    const form = new FormData();
+    form.append('payload_json', JSON.stringify({ content: this.#tr('A test picture from Sara. Pictures and files reach you here.'), attachments: [{ id: 0, filename: 'test.png', description: 'A test picture' }] }));
+    form.append('files[0]', new Blob([new Uint8Array(png)], { type: 'image/png' }), 'test.png');
+    await this.sendq.send(`dc:${dm}`, PRIO_FILE, () => this.#multipart(`/channels/${dm}/messages`, form));
   }
 
   async #ownerDm(): Promise<string | undefined> {

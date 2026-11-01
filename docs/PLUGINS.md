@@ -269,6 +269,26 @@ notice first). Messages from chats that aren't paired are ignored and logged. He
 notice or crisis help, first) is sent back as `{"type": "bridge.send"}`. The conversation channel is
 `plugin-<bridge>`; the plugin never sees other channels.
 
+### Pictures and files (contract v1.1, 2.48.0)
+
+v1 plugins stay text-only and keep working unchanged. A plugin that wants pictures and files needs
+both:
+
+- `"bridgeFiles": true` in `permissions` (only with at least one entry in `bridges`; the add card says
+  *Can send and receive pictures and files in its chats*), and
+- the opt-in in its `ready` message: `"bridge": {"files": true, "edit": true, "maxBytes": 20000000}`
+  (`edit` lets Sara edit her progress message in place; `maxBytes` is capped at 20 MB).
+
+Files travel in chunks: `{"type": "bridge.file", "bridge", "chatId", "fileId", "seq", "last", "data"}`
+with `data` base64 and at most 512 KB per chunk, in order, complete within 60 s. The first chunk
+also carries `name`, `mime` and `size`. Then `bridge.inbound` names them:
+`{"files": [{"fileId": "…"}], "text": "caption"}` (up to 5). Pictures are checked like any other
+upload (type by magic bytes, the minors check); pictures from other people follow *Look at pictures
+other people send* (off by default). Outbound, Sara sends `bridge.send` with
+`files: [{fileId, name, mime, size}]` followed by the `bridge.file` chunks. Without the permission or
+the opt-in she sends one text line instead (*I kept that in the app …*). The SDK's
+`sara.sendFile({ bridge, chatId, from, text, name, mime, data })` does the chunking for you.
+
 ## 9. Testing your plugin
 
 - Run Sara with a scratch data folder, add your plugin from *A folder on this server*, read the

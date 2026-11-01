@@ -241,6 +241,9 @@ test('114c.13 the new strings are translated in all five languages; sw.js keeps 
     for (const k of keys) assert.ok(d[k]?.trim(), `${l}: ${k}`);
   }
   const sw = web('sw.js');
-  assert.match(sw, /caches\.open\('sara-shell-v50'\)/);
-  assert.match(sw, /keys\.filter\(\(k\) => k !== 'sara-shell-v50'\)/, 'activate keeps the cache install just opened');
+  // Phase 115: later phases bump the cache, so the check is that activate keeps exactly the cache that
+  // install opens (v50 or newer), which is what this test guarded.
+  const opened = sw.match(/waitUntil\(caches\.open\('sara-shell-v(\d+)'\)/);
+  assert.ok(opened && Number(opened[1]) >= 50);
+  assert.match(sw, new RegExp(`keys\\.filter\\(\\(k\\) => k !== 'sara-shell-v${opened[1]}'\\)`), 'activate keeps the cache install just opened');
 });

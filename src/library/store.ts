@@ -85,7 +85,7 @@ const VECTOR_BATCH = 32;
 
 export type DocStatus = 'waiting' | 'reading' | 'ready' | 'failed';
 export type LearnStatus = 'off' | 'waiting' | 'learning' | 'done' | 'failed';
-export type DocOrigin = 'library' | 'chat' | 'telegram' | 'discord' | 'room-archive';
+export type DocOrigin = 'library' | 'chat' | 'telegram' | 'discord' | 'plugin' | 'room-archive';
 /** Phase 110 (CH4): where a search looks: her library (the default), the room archives, or both. */
 export type SearchIn = 'library' | 'archives' | 'all';
 

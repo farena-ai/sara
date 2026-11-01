@@ -25,6 +25,7 @@ import { AlexaService } from './alexa.ts';
 import { DEFAULT_APP_NAME, KeyLimiter } from './other-apps.ts';
 import { usageLine } from './usage.ts';
 import { cleanMore } from './budget.ts';
+import { forgetConversationFiles } from './bridges/media.ts';
 import { MAX_IMAGES_PER_MESSAGE, UploadError } from './uploads.ts';
 import { TogetherStore } from './together.ts';
 import { contextFill, runTurn, type TurnOptions, type AppContext, type ChatEvent } from './chat.ts';
@@ -1838,6 +1839,8 @@ export function createSaraServer(opts: ServerOptions): Server {
           cx.store.deleteConversation(b);
           // Documents read once in it go too (kept ones stay in her library).
           cx.library?.deleteForConversation(b);
+          // Phase 115 (BR1): the pictures and files that crossed a chat app in it go too.
+          if (cx === app) forgetConversationFiles(app, b);
           app.uploads?.prune(app.store.imagesInUse());
           app.events?.publish({ type: 'memory', conversationId: b });
           return send(res, 200, { ok: true, forgotten });

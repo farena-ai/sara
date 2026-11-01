@@ -159,6 +159,45 @@ Discord projects hold what you expect, and use *Put back* if you'd rather have t
 page size you like (5 / 8 / 10). When WhatsApp or Signal plugins arrive, say if you'd rather have
 one shared *Chats* project instead of one each.
 
+## Pictures, files and progress (2.48.0)
+
+**Pictures and files both ways.** Send her a photo (with or without a caption), an album or a file in
+Telegram or Discord and she looks at it the way she would in the app. Selfies, pictures she makes and
+files she shares with the new `send_file` tool arrive as real photos and files. Albums are read as one
+message (up to 4 pictures; she says if she looked at the first 4 only). Pictures up to 8 MB.
+
+- *Settings → Telegram* (or *Discord*) → **Pictures and files**: *Send me pictures and files here*
+  (on), *Look at pictures other people send* (off), *Send screenshots of her work* (off; only ever to
+  your private chat), *Keep other people's pictures for* (7 days), *Send me a test picture* and
+  today's counts.
+- **Other people's pictures** (partners, people in rooms) are off by default. When you switch them on
+  (here, or per room under *Rooms*), each picture is first described by your picture model and
+  checked; she only gets the description, fenced as untrusted text. A picture that may show a minor
+  is deleted at once; explicit pictures are refused outside an adult place. Daily quotas apply.
+- **Private conversations** never send anything out. If your picture model isn't on this computer,
+  photos in a private conversation get a short note instead of being read.
+- `send_file` works only in your own conversations (never with partners, in rooms she only talks
+  in, private conversations, or for other apps). She asks first in a shared work room or above 5 MB,
+  refuses saved secrets and asks about key-shaped files.
+- **Files in this chat** (in a conversation's settings) lists what came in or went out, with
+  *Remove*. Other people's picture bytes go after 7 days, copies of sent files after 30 days, the
+  lines after a year.
+
+**Progress while she works.** On long jobs one message shows what she's doing, updated in place at
+most every few seconds, with a **⏹ Stop** button (only you can press it). When she's done it becomes
+one summary line (*✅ Done · 6 steps · 1:12*), or is removed if you prefer. It never shows commands,
+output, arguments or secrets. Settings → Telegram/Discord → **Progress while she works** (private
+chats only by default, after 10 seconds); per room under *Rooms*; per chat with `/progress on` or
+`/progress off`.
+
+### Owner to-do
+
+- Set a picture model (`vision` in *Settings → Which model does what*) if you want photos read by a
+  different model than the talking one.
+- From your phone: send a photo and an album of three in Telegram and Discord; ask for a selfie and a
+  chart as a file; run a long job and press Stop once; in a test group check that a friend's photo
+  gets *I can't look at pictures here* until you turn it on for that room.
+
 ## Keeping up with a room (2.43.0)
 
 Per room and only when you switch it on: open a group or server channel under *Rooms* (*Settings →

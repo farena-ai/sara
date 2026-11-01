@@ -17,6 +17,8 @@ export interface ToolContext {
   companionName?: string;
   /** Attach a stored picture (upload id) to Sara's reply (share_photo / take_photo). */
   attachImage?: (uploadId: string) => void;
+  /** Phase 115 (BR1): a file send_file shared (its `shared_files` id): a chip on her reply, sent by chat apps after the turn. */
+  attachFile?: (file: { id: string; name: string; mime: string; bytes: number; caption?: string }) => void;
   /** Phase 49: a picture the model looks at together with this tool's result (upload id). */
   showModel?: (uploadId: string) => void;
   /** Phase 49: a screenshot for the proof strip on her final message (upload id). */

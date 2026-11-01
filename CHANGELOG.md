@@ -5,6 +5,27 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.48.0 (2026-11-01): chat apps catch up (Phase 115)
+
+- **Fixed:** in Telegram and Discord her pictures (selfies, proof pictures) were made but never sent;
+  Telegram dropped a photo that had a caption; Discord ignored images and picture-only messages; a
+  private conversation with a cloud picture model failed (it now stays local); documents from plugin
+  bridges were labelled as Telegram.
+- **Photos and files both ways:** photos with captions, albums and pictures sent as files reach her;
+  documents go into the chat's files. She sends pictures and files back with the new `send_file` tool
+  (only in your own chats; it refuses saved secrets, asks about key-shaped text, and asks first in a
+  shared room or above 5 MB). File chips with downloads and a *Files in this chat* panel.
+- **Pictures from other people** in a room are off by default; switched on per room, the picture
+  model describes them first and she only gets that description, fenced as untrusted. Anything that
+  may show a minor is deleted at once. Partner chats still get no tools, files or pictures from her.
+- **One live progress message** in Telegram, Discord and plugin bridges: after 10 seconds, one
+  message edited in place with what she's doing (never commands, output or secrets), a Stop button
+  only you can use, and one summary line when she's done (her answer comes as new messages so your
+  phone still notifies). Switch it per app, per room or per chat (`/progress`).
+- **Plugin bridge contract 1.1:** files in chunks behind the new `bridgeFiles` permission;
+  `sendFile` in the SDK. Guide: [docs/PLUGINS.md](docs/PLUGINS.md), [docs/CHATS.md](docs/CHATS.md).
+- Other people's pictures are kept 7 days, sent-file copies 30 days.
+
 ## 2.47.3 (2026-11-01): start here (Phase 114, polish PL1d; the polish pass is complete)
 
 - **Two ways in:** [docs/START_HERE.md](docs/START_HERE.md) ("I just installed it, now what?") and

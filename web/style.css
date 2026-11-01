@@ -1150,6 +1150,12 @@ p:has(> #dc-status:empty):not(:has(> button:not([hidden]))) { display: none; }
 .preview-stage.phone iframe { width: 390px; max-width: 100%; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
 .preview-card { align-self: flex-start; display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin: 4px 0; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); font-size: 13px; max-width: min(720px, 85%); }
 .preview-card .muted { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Phase 115 (BR1): files she shared (send_file) and the progress message preview. */
+.file-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.file-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); color: var(--text); text-decoration: none; }
+.file-chip:hover, .file-chip:focus-visible { border-color: var(--accent); }
+.file-chip-name { font-weight: 600; max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prog-preview { white-space: pre-wrap; font: inherit; font-size: 0.9rem; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); color: var(--text); margin: 0; }
 .proof-strip { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-end; margin-top: 8px; }
 .proof-strip .proof-label { width: 100%; font-size: 12px; color: var(--muted); }
 .proof-strip img { height: 72px; max-width: 160px; object-fit: cover; object-position: top; border-radius: 6px; border: 1px solid var(--border); cursor: zoom-in; }

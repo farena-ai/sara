@@ -9,6 +9,8 @@ import { botHourlyCapOf, botTurnLimitOf, cleanBotList, DISCORD_VAULT, discordSet
 import { cleanDiscordIds, cleanTelegramIds } from '../bridges/rules.ts';
 import { TELEGRAM_VAULT, telegramSettings } from '../bridges/telegram.ts';
 import { chatsSettings, COMMAND_WORDS, commandTable } from '../bridges/commands.ts';
+import { conversationFiles, expireShared, mediaCounts, mediaSettings, progressSettings, QUOTAS, roomFlags, setRoomFlag, sharedFile } from '../bridges/media.ts';
+import { TEST_PICTURE } from '../bridges/test-picture.ts';
 import { cheapRoute } from '../cheap.ts';
 import { CAP_MAX, CAP_MIN, titleSettings, titleUsage } from '../titles.ts';
 import type { TurnOptions } from '../chat.ts';
@@ -122,6 +124,93 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         const r = await app.titles.retitleAll();
         return send(res, 200, { ...r, today: titleUsage(app) });
       }
+    }
+    // Phase 115 (BR1 §4.12, §4.13): pictures and files in chat apps, and the progress message.
+    if (a === 'chats' && b === 'media' && !c) {
+      if (opts.demo) throw new HttpError(404, 'Not here.');
+      const view = () => ({ media: mediaSettings(app), progress: progressSettings(app), today: mediaCounts(app), quotas: QUOTAS });
+      if (method === 'GET') return send(res, 200, view());
+      if (method === 'PUT') {
+        if (opts.member) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+        const body = await readJson(req);
+        const cur = (app.settings.get().chats ?? {}) as Record<string, unknown>;
+        const m = mediaSettings(app);
+        const p = progressSettings(app);
+        const bm = (body.media ?? {}) as Record<string, unknown>;
+        const bp = (body.progress ?? {}) as Record<string, unknown>;
+        const one = <T>(v: unknown, list: readonly T[], d: T): T => (list.includes(v as T) ? (v as T) : d);
+        app.settings.update({
+          chats: {
+            ...cur,
+            media: {
+              send: bm.send !== undefined ? Boolean(bm.send) : m.send,
+              photosFromOthers: one(bm.photosFromOthers, ['off', 'describe'] as const, m.photosFromOthers),
+              proof: bm.proof !== undefined ? Boolean(bm.proof) : m.proof,
+              keepOthersDays: one(Number(bm.keepOthersDays), [1, 7, 30], m.keepOthersDays),
+              sentKeepDays: one(Number(bm.sentKeepDays), [7, 30, 90], m.sentKeepDays),
+            },
+            progress: {
+              on: bp.on !== undefined ? Boolean(bp.on) : p.on,
+              apps: { ...p.apps, ...Object.fromEntries((['telegram', 'discord', 'plugins'] as const).filter((k) => (bp.apps as Record<string, unknown> | undefined)?.[k] !== undefined).map((k) => [k, Boolean((bp.apps as Record<string, unknown>)[k])])) },
+              where: one(bp.where, ['private', 'work'] as const, p.where),
+              afterSeconds: one(Number(bp.afterSeconds), [5, 10, 20, 30], p.afterSeconds),
+              final: one(bp.final, ['summary', 'delete'] as const, p.final),
+            },
+          } as never,
+        });
+        return send(res, 200, view());
+      }
+    }
+    // Phase 115: one room's own choices (Look at pictures here, Progress here; null = the global value).
+    if (a === 'chats' && b === 'rooms' && c && method === 'PUT') {
+      if (opts.demo || opts.member) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+      const [bridge, ...rest] = safeDecode(c).split(':');
+      const key = rest.join(':');
+      if (!/^(telegram|discord|plugin-[a-z0-9-]+)$/.test(bridge) || !/^[\w@.:+-]{1,80}$/.test(key)) throw new HttpError(400, 'Which room?');
+      const body = await readJson(req);
+      const flag = (v: unknown) => (v === null || v === 'default' ? null : Boolean(v));
+      if (body.photosFromOthers !== undefined) setRoomFlag(app, bridge, key, 'photos_from_others', flag(body.photosFromOthers));
+      if (body.progress !== undefined) setRoomFlag(app, bridge, key, 'progress', flag(body.progress));
+      return send(res, 200, roomFlags(app, bridge, key));
+    }
+    if (a === 'chats' && b === 'rooms' && c && method === 'GET') {
+      if (opts.demo) throw new HttpError(404, 'Not here.');
+      const [bridge, ...rest] = safeDecode(c).split(':');
+      return send(res, 200, roomFlags(app, bridge, rest.join(':')));
+    }
+    // Phase 115 (§4.12): a file she shared (download only, never shown inline), and removing its bytes now.
+    if (a === 'files' && b && !c) {
+      if (opts.demo) throw new HttpError(404, 'Not here.');
+      const row = sharedFile(app, safeDecode(b));
+      // Only files of this companion's (and person's) own conversations.
+      if (!row || !app.store.getConversation(row.conversationId)) throw new HttpError(404, 'That file is not here.');
+      if (method === 'DELETE') {
+        expireShared(app, row.id);
+        return send(res, 200, { ok: true, status: 'expired' });
+      }
+      if (method === 'GET') {
+        if (row.status !== 'ok' || !row.path || !existsSync(row.path)) throw new HttpError(410, 'That file is no longer kept.');
+        const name = (row.name ?? 'file').replace(/["\\\r\n]/g, '_');
+        res.writeHead(200, { ...SECURITY_HEADERS, 'content-type': 'application/octet-stream', 'content-disposition': `attachment; filename="${name.replace(/[^\x20-\x7e]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(name)}`, 'x-content-type-options': 'nosniff', 'cache-control': 'private, no-store' });
+        return void createReadStream(row.path).pipe(res);
+      }
+    }
+    if (a === 'conversations' && b && c === 'files' && method === 'GET') {
+      if (opts.demo) throw new HttpError(404, 'Not here.');
+      const id = safeDecode(b);
+      if (!app.store.getConversation(id)) throw new HttpError(404, 'Conversation not found.');
+      return send(res, 200, { files: conversationFiles(app, id).map((r) => ({ id: r.id, direction: r.direction, bridge: r.bridge, sender: r.sender, kind: r.kind, name: r.kind === 'file' ? r.name : null, bytes: r.bytes, status: r.status, reason: r.reason, createdAt: r.createdAt, kept: r.status === 'ok' && (r.kind === 'file' ? Boolean(r.path) : Boolean(r.uploadId)), uploadId: r.sender !== 'person' && r.kind !== 'file' ? r.uploadId : null })) });
+    }
+    if (a === 'bridges' && (b === 'telegram' || b === 'discord') && c === 'test-picture' && method === 'POST') {
+      if (opts.demo || opts.member) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+      const br = b === 'telegram' ? app.bridges?.telegram : app.bridges?.discord;
+      if (!br?.status().running) throw new HttpError(400, 'Connect the bot first, then try again.');
+      try {
+        await br.testPicture(TEST_PICTURE);
+      } catch (err) {
+        throw new HttpError(502, "Couldn't send the test picture: {reason}", { params: { reason: app.redactor.redact((err as Error).message).slice(0, 200) } });
+      }
+      return send(res, 200, { ok: true });
     }
     if (a === 'chats' && b === 'menus' && !c && method === 'POST') {
       if (opts.demo) throw new HttpError(404, 'Not here.');

@@ -134,7 +134,7 @@ test('PL1d: every README has both path buttons, three What\'s new lines and the 
     assert.match(top, /<a href="docs\/FOR_CODERS\.md"><img src="https:\/\/img\.shields\.io\/badge\/[^"]+" alt="[^"]+"/, `${f}: coder button`);
     const heads = [...md.matchAll(/^## .+$/gm)];
     const wn = md.slice(heads[3].index!, heads[4].index!);
-    assert.equal([...wn.matchAll(/^- \*\*2\.47(\.\d)?\*\* · /gm)].length, 3, `${f}: three What's new lines`);
+    assert.equal([...wn.matchAll(/^- \*\*\d+\.\d+(\.\d+)?\*\* · /gm)].length, 3, `${f}: three What's new lines`);
     assert.match(wn, /<details>\n<summary><b>[^<]+<\/b>[^<]*<\/summary>\n\n\| [^\n]+\|\n\|---\|---\|\n\| \*\*\d+\.\d+(\.\d+)?\*\* · /, `${f}: the release table folds under its summary`);
   }
 });

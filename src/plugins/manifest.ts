@@ -44,6 +44,8 @@ export interface PluginPermissions {
   settings: boolean;
   cards: boolean;
   bridges: string[];
+  /** Phase 115 (BR1 §4.9): pictures and files both ways in its chats (opt-in; v1 plugins stay text only). */
+  bridgeFiles: boolean;
   model: { callsPerDay: number; tokensPerDay: number };
   memory: 'none' | 'shared-notes';
 }
@@ -72,7 +74,7 @@ export class ManifestError extends Error {
 }
 
 const TOP_KEYS = new Set(['manifest', 'id', 'name', 'version', 'description', 'author', 'license', 'homepage', 'sara', 'main', 'permissions', 'schedules', 'settings', 'i18n', '$schema']);
-const PERMISSION_KEYS = new Set(['hooks', 'tools', 'callTools', 'network', 'files', 'settings', 'cards', 'bridges', 'model', 'memory']);
+const PERMISSION_KEYS = new Set(['hooks', 'tools', 'callTools', 'network', 'files', 'settings', 'cards', 'bridges', 'bridgeFiles', 'model', 'memory']);
 export const ID_RE = /^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$/;
 const SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const TOOL_RE = /^[a-z][a-z0-9_]{0,39}$/;
@@ -236,7 +238,9 @@ function parsePermissions(v: unknown): PluginPermissions {
   }
   const memory = p.memory === undefined ? 'none' : p.memory;
   if (memory !== 'none' && memory !== 'shared-notes') throw new ManifestError('permissions.memory may be none or shared-notes.');
-  return { hooks, tools, callTools, network, files, settings: bool('settings'), cards: bool('cards'), bridges, model, memory };
+  const bridgeFiles = bool('bridgeFiles');
+  if (bridgeFiles && !bridges.length) throw new ManifestError('permissions.bridgeFiles needs a bridge in permissions.bridges.');
+  return { hooks, tools, callTools, network, files, settings: bool('settings'), cards: bool('cards'), bridges, bridgeFiles, model, memory };
 }
 
 function parseSettings(v: unknown, allowed: boolean): PluginSetting[] {
@@ -399,6 +403,7 @@ export function permissionLines(m: PluginManifest, toolLabel: (name: string) => 
   if (p.files.read.includes('workspace')) out.push({ id: 'files:workspace', key: 'Can read your main workspace (read only)', risk: 'high' });
   if (p.memory === 'shared-notes') out.push({ id: 'memory', key: 'Can read the notes about you that other apps may see (read only)', risk: 'high' });
   for (const b of p.bridges) out.push({ id: `bridge:${b}`, key: 'Carries chats with her for {bridge}', params: { bridge: b }, risk: 'high' });
+  if (p.bridgeFiles) out.push({ id: 'bridgeFiles', key: 'Can send and receive pictures and files in its chats', risk: 'high' });
   for (const h of p.hooks) if (HOOK_WORDS[h]) out.push({ id: `hook:${h}`, key: HOOK_WORDS[h], risk: h === 'turn.before' || h === 'reply.after' || h === 'tool.after' ? 'medium' : 'low' });
   for (const s of m.schedules) out.push(scheduleWords(s));
   for (const t of p.tools) out.push({ id: `tool:${t}`, key: 'Adds a tool: {tool} (asks you first)', params: { tool: t }, risk: 'low' });
@@ -420,6 +425,7 @@ export function permissionIds(m: PluginManifest): string[] {
     ...p.files.write.map((f) => `write:${f}`),
     ...(p.memory !== 'none' ? [`memory:${p.memory}`] : []),
     ...p.bridges.map((b) => `bridge:${b}`),
+    ...(p.bridgeFiles ? ['bridgeFiles'] : []),
     ...p.hooks.map((h) => `hook:${h}`),
     ...m.schedules.map((s) => `schedule:${s.id}:${s.every}:${s.at ?? ''}`),
     ...p.tools.map((t) => `tool:${t}`),

@@ -40,6 +40,8 @@ export interface CheapRequest {
   /** Tokens this call may use at most (checked against `cap.tokens` before it starts). */
   estTokens?: number;
   timeoutMs?: number;
+  /** Phase 115 (BR1 describe-first): a ready route (the picture model) instead of the local / quick one. */
+  route?: ModelChoice[];
 }
 
 export type CheapResult =
@@ -117,7 +119,7 @@ export function fenceLines(lines: string[], label: string, fence: string = rando
 
 /** One small call: route, cap, usage scope, ledger. Never throws. */
 export async function cheapCall(app: AppContext, req: CheapRequest): Promise<CheapResult> {
-  const route = cheapRoute(app, req.conv, req.model, req.purpose);
+  const route = req.route ?? cheapRoute(app, req.conv, req.model, req.purpose);
   if (!route.length) return { ok: false, skipped: 'no-model', reason: req.conv.private || req.model === 'local' ? 'no model on this computer' : 'no quick model' };
   let ledger: DailyLedger;
   try {

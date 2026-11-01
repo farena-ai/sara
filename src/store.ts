@@ -527,9 +527,10 @@ export class Store {
   imagesInUse(): Set<string> {
     const out = new Set<string>();
     // Phase 49: screenshots on her replies (the proof strip) count too.
-    for (const r of this.db.prepare(`SELECT meta FROM messages WHERE meta LIKE '%"images"%' OR meta LIKE '%"proof"%'`).all() as Row[]) {
-      const m = JSON.parse(String(r.meta)) as { images?: unknown; proof?: unknown };
-      for (const list of [m.images, m.proof]) if (Array.isArray(list)) for (const id of list) out.add(String(id));
+    // Phase 115: pictures from other people (kept until the sweep removes them) count too.
+    for (const r of this.db.prepare(`SELECT meta FROM messages WHERE meta LIKE '%"images"%' OR meta LIKE '%"proof"%' OR meta LIKE '%"othersPhotos"%'`).all() as Row[]) {
+      const m = JSON.parse(String(r.meta)) as { images?: unknown; proof?: unknown; othersPhotos?: unknown };
+      for (const list of [m.images, m.proof, m.othersPhotos]) if (Array.isArray(list)) for (const id of list) out.add(String(id));
     }
     return out;
   }

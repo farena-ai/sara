@@ -1801,6 +1801,9 @@ function renderMessages(messages, opts = {}) {
       const extra = m.role === 'assistant' ? overrideNote(m.meta?.budget) : null;
       if (extra) b.append(extra);
       if (Array.isArray(m.meta?.proof) && m.meta.proof.length) b.append(proofStrip(m.meta.proof));
+      // Phase 115: files she shared, and where a photo came from.
+      if (m.role === 'assistant' && Array.isArray(m.meta?.files) && m.meta.files.length) b.append(fileChips(m.meta.files));
+      if (m.role === 'user' && m.meta?.via && Array.isArray(m.meta?.images) && m.meta.images.length) b.prepend(el('span', 'msg-from muted small via-badge', t('Photo from {app}', { app: VIA_NAMES[m.meta.via] ?? String(m.meta.via).replace(/^plugin-/, '') })));
       if (m.meta?.team?.id) {
         const tb = el('button', 'ghost small team-link', `👥 ${t('Team task')} #${m.meta.team.id}`);
         tb.type = 'button';
@@ -2430,6 +2433,9 @@ async function runStream(path, body, userBubble) {
         } else if (ev.type === 'proof') {
           // Phase 49: a screenshot she took; the strip lands on her reply when it's done.
           place(proofStrip([ev.id], true));
+        } else if (ev.type === 'file') {
+          // Phase 115: a file she shared (send_file): a chip that downloads it.
+          place(fileChips([ev]));
         } else if (ev.type === 'image') {
           endReply();
           place(bubble('assistant', '', 'photo', undefined, [`/api/uploads/${ev.id}`]));
@@ -2553,6 +2559,22 @@ $('#preview-width').addEventListener('click', () => {
   $('#preview-width').setAttribute('aria-pressed', String(phone));
   $('#preview-width').textContent = phone ? `🖥 ${t('Desktop')}` : `📱 ${t('Phone')}`;
 });
+
+/** Phase 115 (BR1): a chip per file she shared with send_file (name, size, download). */
+const fileSize = (n) => (n < 1024 ? `${n} B` : n < 1024 * 1024 ? `${Math.round(n / 1024)} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);
+function fileChips(files) {
+  const box = el('div', 'file-chips');
+  for (const f of files) {
+    const a = el('a', 'file-chip');
+    a.href = `/api/files/${encodeURIComponent(f.id)}`;
+    a.setAttribute('download', f.name ?? 'file');
+    a.append(el('span', 'file-chip-name', f.name ?? t('File')), el('span', 'file-chip-size muted small', fileSize(Number(f.bytes ?? 0))));
+    a.title = t('Download {name}', { name: f.name ?? '' });
+    box.append(a);
+  }
+  return box;
+}
+const VIA_NAMES = { telegram: 'Telegram', discord: 'Discord' };
 
 /** A small strip of screenshots she took while testing (proof for her claims). */
 function proofStrip(ids, live = false) {
@@ -3347,8 +3369,40 @@ $('#conv-settings-btn').addEventListener('click', async () => {
   void loadConvFill(c);
   renderConvTitle(c);
   void loadConvTitle(c);
+  void loadConvFiles(c);
   $('#conv-settings').showModal();
 });
+
+/** Phase 115 (BR1 §4.13): Files in this chat (in and out, with size and Remove). */
+async function loadConvFiles(c) {
+  const box = $('#cs-files-box');
+  box.hidden = true;
+  if (c.offRecord) return;
+  try {
+    const { files } = await api(`/conversations/${c.id}/files`);
+    $('#cs-files').replaceChildren(
+      ...files.map((f) => {
+        const li = el('li', 'cs-file');
+        const what = f.kind === 'file' ? f.name : f.direction === 'in' ? (f.sender === 'person' ? t('A picture from someone else') : t('A picture you sent')) : f.kind === 'proof' ? t('A screenshot she sent') : t('A picture she sent');
+        const kept = f.kept ? fileSize(f.bytes) : f.status === 'refused' ? t('Refused') : t('No longer kept');
+        li.append(el('span', 'cs-file-name', what), el('span', 'muted small', ` · ${kept} · ${new Date(f.createdAt).toLocaleDateString(locale())}`));
+        if (f.kept && f.kind === 'file') {
+          const rm = el('button', 'ghost small', t('Remove'));
+          rm.type = 'button';
+          rm.addEventListener('click', async () => {
+            await api(`/files/${encodeURIComponent(f.id)}`, { method: 'DELETE' }).catch(() => undefined);
+            void loadConvFiles(c);
+          });
+          li.append(document.createTextNode(' '), rm);
+        }
+        return li;
+      }),
+    );
+    box.hidden = !files.length;
+  } catch {
+    /* not available here */
+  }
+}
 
 /** Phase 107: "Context used" (the same number /status gives) and the earlier sessions of a bridge chat. */
 async function loadConvFill(c) {
@@ -4685,6 +4739,61 @@ for (const [pre, bridge] of [['tg', 'telegram'], ['dc', 'discord']]) {
       return;
     }
     await loadChatCommands();
+  });
+}
+
+// ---------- Phase 115 (BR1): pictures and files, and the progress message (Settings → Telegram / Discord) ----------
+const MEDIA_PAGES = [['tg', 'telegram'], ['dc', 'discord']];
+/** A static preview of the progress message, in the app language (the same words the server sends). */
+function progressPreview(final) {
+  const working = [`⏳ ${t('Working on it')} · 0:42`, `✅ ${t('Read a file')} ×3`, `✅ ${t('Ran the tests')}`, `▸ ${t('Editing a file…')}`, `[ ⏹ ${t('Stop')} ]`];
+  return [...working, '', final === 'delete' ? t('Then it is removed when she answers.') : `✅ ${t('Done · {n} steps · {time}', { n: 6, time: '1:12' })}`].join('\n');
+}
+function renderChatMedia(v) {
+  for (const [pre, bridge] of MEDIA_PAGES) {
+    $(`#${pre}-media-send`).checked = v.media.send;
+    $(`#${pre}-media-others`).value = v.media.photosFromOthers;
+    $(`#${pre}-media-proof`).checked = v.media.proof;
+    $(`#${pre}-media-keep`).value = String(v.media.keepOthersDays);
+    $(`#${pre}-prog-on`).checked = v.progress.on && v.progress.apps[bridge] !== false;
+    $(`#${pre}-prog-where`).value = v.progress.where;
+    $(`#${pre}-prog-after`).value = String(v.progress.afterSeconds);
+    $(`#${pre}-prog-final`).value = v.progress.final;
+    const c = v.today?.[bridge] ?? { photosIn: 0, othersIn: 0, picturesOut: 0, filesOut: 0 };
+    $(`#${pre}-media-today`).textContent = t('Today: {mine} pictures from you, {others} from other people; {pics} pictures and {files} files from her.', { mine: c.photosIn, others: c.othersIn, pics: c.picturesOut, files: c.filesOut });
+    $(`#${pre}-prog-preview`).textContent = progressPreview(v.progress.final);
+  }
+}
+async function loadChatMedia() {
+  try {
+    renderChatMedia(await api('/chats/media'));
+  } catch {
+    /* not available (demo, a member's space) */
+  }
+}
+async function saveChatMedia(pre) {
+  const bridge = pre === 'tg' ? 'telegram' : 'discord';
+  renderChatMedia(
+    await api('/chats/media', {
+      method: 'PUT',
+      body: {
+        media: { send: $(`#${pre}-media-send`).checked, photosFromOthers: $(`#${pre}-media-others`).value, proof: $(`#${pre}-media-proof`).checked, keepOthersDays: Number($(`#${pre}-media-keep`).value) },
+        progress: { apps: { [bridge]: $(`#${pre}-prog-on`).checked }, where: $(`#${pre}-prog-where`).value, afterSeconds: Number($(`#${pre}-prog-after`).value), final: $(`#${pre}-prog-final`).value },
+      },
+    }),
+  );
+}
+for (const [pre, bridge] of MEDIA_PAGES) {
+  $(`#${pre}-prog-final`).addEventListener('change', () => ($(`#${pre}-prog-preview`).textContent = progressPreview($(`#${pre}-prog-final`).value)));
+  $(`#${pre}-media-test`).addEventListener('click', async () => {
+    const state = $(`#${pre}-media-test-state`);
+    state.textContent = t('Sending…');
+    try {
+      await api(`/bridges/${bridge}/test-picture`, { method: 'POST', body: {} });
+      state.textContent = t('Sent. Check your chat with her.');
+    } catch (err) {
+      state.textContent = err.message;
+    }
   });
 }
 
@@ -7627,7 +7736,7 @@ async function loadSettingsPages() {
   // Phase 71: a household member's space answers only their own pages; the owner's are skipped.
   if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop()]));
   await loadTools();
-  await Promise.all([loadDevices().catch(() => {}), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadTitleSettings(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets()]);
+  await Promise.all([loadDevices().catch(() => {}), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets()]);
 }
 /**
  * M9: text drawn from data before a language change stays in the old language, so the open
@@ -7698,8 +7807,8 @@ const SETTINGS_SAVERS = {
   'models-routes': [saveRoutes],
   'ab-github': [() => saveGitHubWatch().catch((err) => ($('#ghw-status').textContent = err.message))],
   'her-voice': [saveVoice],
-  'co-telegram': [saveTelegram, () => saveChatCommands('tg')],
-  'co-discord': [saveDiscord, () => saveChatCommands('dc')],
+  'co-telegram': [saveTelegram, () => saveChatCommands('tg'), () => saveChatMedia('tg')],
+  'co-discord': [saveDiscord, () => saveChatCommands('dc'), () => saveChatMedia('dc')],
   'co-phone': [savePush],
   'dh-usage': [saveUsage],
   'dh-health': [saveRuns],

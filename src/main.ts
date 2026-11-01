@@ -104,6 +104,8 @@ import { createRecallTool, sharedWithApps } from './recall.ts';
 import { backfill, RecallIndex, recallMode } from './triggers.ts';
 import { LibraryStore } from './library/store.ts';
 import { LibraryWorker } from './library/worker.ts';
+import { createSendFileTool } from './tools/send-file.ts';
+import { sweepShared } from './bridges/media.ts';
 import { createLibraryTool } from './library/use.ts';
 import { CodeMaps } from './codemap/index.ts';
 import { createCodeTools } from './codemap/tools.ts';
@@ -633,6 +635,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   tools.add(createRecallTool(() => app));
   // Phase 44: her library (documents she keeps), and the tool to look things up in it.
   tools.add(createLibraryTool(() => app));
+  // Phase 115 (BR1): she can share a file in the chat (a chip in the app; a real file in chat apps).
+  tools.add(createSendFileTool(() => app));
   // Phase 34: she can adjust her own dials when asked (the owner approves each change).
   tools.add(createTuneTool(() => app));
   // Phase 50: the code map tools and her recipes.
@@ -1186,6 +1190,16 @@ if (!isDemo) setTimeout(foldTick, 90_000).unref();
 
 const householdTimer = setInterval(() => guard('household', householdSweep), 3600_000);
 householdTimer.unref();
+
+// Phase 115 (BR1 §4.10): the hourly sweep of pictures and files that crossed a chat app (other
+// people's picture bytes after 7 days, copies of files she sent after 30, rows after a year).
+const mediaSweep = () => guard('media', () => {
+  const r = sweepShared(ownerSpace.companions.main.app);
+  if (r.photos || r.files || r.rows) console.log(`Chat apps: removed ${r.photos} picture(s) from other people, ${r.files} shared file copy(ies), ${r.rows} old row(s).`);
+});
+const mediaTimer = setInterval(mediaSweep, 3600_000);
+mediaTimer.unref();
+if (!isDemo) setTimeout(mediaSweep, 120_000).unref();
 if (!isDemo) setTimeout(() => guard('household', householdSweep), 60_000).unref();
 
 /**
@@ -1293,6 +1307,7 @@ async function shutdown(): Promise<void> {
   ownerSpace.hands?.closeAll();
   for (const sp of memberSpaces.values()) sp.hands?.closeAll();
   clearInterval(householdTimer);
+  clearInterval(mediaTimer);
   await browsers.closeAll().catch(() => {});
   codemaps.stop();
   modelCatalog?.stop();

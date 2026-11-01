@@ -45,6 +45,7 @@ const PERM = {
   'Can read your main workspace (read only)': () => t('Can read your main workspace (read only)'),
   'Can read the notes about you that other apps may see (read only)': () => t('Can read the notes about you that other apps may see (read only)'),
   'Carries chats with her for {bridge}': (p) => t('Carries chats with her for {bridge}', p),
+  'Can send and receive pictures and files in its chats': () => t('Can send and receive pictures and files in its chats'),
   "Sees what you write before each reply (it can add a note for her, it can't change her rules)": () => t("Sees what you write before each reply (it can add a note for her, it can't change her rules)"),
   'Sees each step before it runs (it can stop it or make it ask you, never let it through)': () => t('Sees each step before it runs (it can stop it or make it ask you, never let it through)'),
   "Sees each step's result (it can add a card under it)": () => t("Sees each step's result (it can add a card under it)"),

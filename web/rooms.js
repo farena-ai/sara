@@ -107,6 +107,28 @@ function renderRoom(d) {
   $('#rm-last-day').checked = r.readLastDay;
   $('#rm-usage').textContent = r.keepUp ? `${t('Summaries today: {runs} · tokens: {tokens} of {cap}', { runs: d.today.runs, tokens: number(d.today.tokens), cap: number(r.dailyTokens) })} · ${summaryWords(d.summary)} · ${t('Lines in the log: {n}', { n: number(d.lines) })}` : '';
   $('#rm-forget').disabled = !(d.forget && (d.forget.lines || d.forget.weeks || d.forget.archives || d.forget.peopleNotes));
+  void loadRoomFlags(r);
+}
+
+/** Phase 115 (BR1): this room's own choices for pictures from others and the progress message. */
+const flagValue = (v) => (v === null || v === undefined ? 'default' : v ? 'on' : 'off');
+async function loadRoomFlags(r) {
+  try {
+    const f = await api(`/chats/rooms/${encodeURIComponent(`${r.bridge}:${r.key}`)}`);
+    $('#rm-photos').value = flagValue(f.photosFromOthers);
+    $('#rm-progress').value = flagValue(f.progress);
+  } catch {
+    /* not available */
+  }
+}
+async function saveRoomFlag(name, value) {
+  if (!current) return;
+  const r = current.room;
+  try {
+    await api(`/chats/rooms/${encodeURIComponent(`${r.bridge}:${r.key}`)}`, { method: 'PUT', body: { [name]: value === 'default' ? null : value === 'on' } });
+  } catch (err) {
+    $('#rm-state').textContent = err.message;
+  }
 }
 
 async function loadNow(id) {
@@ -245,6 +267,8 @@ export function initRooms(h = {}) {
     } else if (!$('#rm-keep').checked && current.room.keepUp) void save({ keepUp: false }).then(() => loadNow(current.room.id));
   });
   $('#rm-model').addEventListener('change', () => void save({ model: $('#rm-model').value }));
+  $('#rm-photos').addEventListener('change', () => void saveRoomFlag('photosFromOthers', $('#rm-photos').value));
+  $('#rm-progress').addEventListener('change', () => void saveRoomFlag('progress', $('#rm-progress').value));
   $('#rm-per-day').addEventListener('input', () => ($('#rm-per-day-out').textContent = $('#rm-per-day').value));
   $('#rm-per-day').addEventListener('change', () => void save({ dailyTokens: Number($('#rm-per-day').value) * REFRESH_TOKENS }));
   $('#rm-last-day').addEventListener('change', () => void save({ readLastDay: $('#rm-last-day').checked }));

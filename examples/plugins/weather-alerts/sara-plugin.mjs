@@ -7,7 +7,8 @@
 //     hooks: { 'turn.before': async (data, sara) => ({ note: '…' }), 'reply.after': async (data, sara) => ({ card: { title: '…', lines: ['…'] } }) },
 //     schedules: { morning: async (sara) => { await sara.notify('Good morning'); } },
 //     events: { planner: async (data, sara) => {} },
-//     bridges: { line: { send: async ({ chatId, text }, sara) => {} } },
+//     bridges: { line: { send: async ({ chatId, text, ref, files }, sara) => {}, edit: async ({ chatId, ref, text }) => {}, file: async ({ fileId, seq, last, data }) => {} } },
+//     bridge: { files: true, edit: true },   // Phase 115: opt in (files also need permissions.bridgeFiles)
 //     init: async (sara) => {},
 //   });
 //
@@ -44,6 +45,15 @@ export function plugin(def = {}) {
     },
     notes: () => call('memory.notes').then((r) => r.notes ?? []),
     bridgeInbound: (m) => call('bridge.inbound', m),
+    // Phase 115 (bridge contract v1.1, with permissions.bridgeFiles and `bridge.files` in the plugin):
+    // a picture or file to Sara, in chunks of at most 512 KB, then the message that names it.
+    sendFile: async ({ bridge, chatId, from, text, name, mime, data }) => {
+      const bytes = Buffer.from(data);
+      const fileId = `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+      const n = Math.max(1, Math.ceil(bytes.length / (512 * 1024)));
+      for (let i = 0; i < n; i++) await call('bridge.file', { bridge, chatId, fileId, name, mime, size: bytes.length, seq: i, last: i === n - 1, data: bytes.subarray(i * 512 * 1024, (i + 1) * 512 * 1024).toString('base64') });
+      return call('bridge.inbound', { bridge, chatId, from, text: text ?? '', files: [{ fileId }] });
+    },
     log: (text, level = 'info') => write({ type: 'log', level, text: String(text) }),
   };
 
@@ -71,7 +81,10 @@ export function plugin(def = {}) {
       } catch (err) {
         sara.log(`init failed: ${err?.message ?? err}`, 'error');
       }
-      write({ type: 'ready', tools: (def.tools ?? []).map((t) => ({ name: t.name, description: t.description ?? '', parameters: t.parameters ?? { type: 'object', properties: {} }, permission: t.permission ?? 'ask' })) });
+      // Phase 115: a bridge plugin opts into files and edits (Sara only allows what its permissions say).
+      const feats = new Set(msg.bridgeFeatures ?? []);
+      const bridge = def.bridge && msg.bridgeApi >= 2 ? { files: def.bridge.files === true && feats.has('files'), edit: def.bridge.edit === true && feats.has('edit'), ...(def.bridge.maxBytes ? { maxBytes: def.bridge.maxBytes } : {}) } : undefined;
+      write({ type: 'ready', tools: (def.tools ?? []).map((t) => ({ name: t.name, description: t.description ?? '', parameters: t.parameters ?? { type: 'object', properties: {} }, permission: t.permission ?? 'ask' })), ...(bridge ? { bridge } : {}) });
       return;
     }
     if (msg.type === 'hook') return answer(msg.id, () => def.hooks?.[msg.hook]?.(msg.data ?? {}, sara));
@@ -87,9 +100,25 @@ export function plugin(def = {}) {
     if (msg.type === 'event') return answer(msg.id, () => def.events?.[msg.event]?.(msg.data ?? {}, sara));
     if (msg.type === 'bridge.send') {
       try {
-        await def.bridges?.[msg.bridge]?.send?.({ chatId: msg.chatId, text: msg.text }, sara);
+        // Phase 115: `ref` (a progress message to edit later) and `files` (chunks follow as bridge.file).
+        await def.bridges?.[msg.bridge]?.send?.({ chatId: msg.chatId, text: msg.text, ...(msg.ref ? { ref: msg.ref } : {}), ...(msg.files ? { files: msg.files } : {}) }, sara);
       } catch (err) {
         sara.log(`bridge.send failed: ${err?.message ?? err}`, 'error');
+      }
+    }
+    if (msg.type === 'bridge.edit') {
+      try {
+        await def.bridges?.[msg.bridge]?.edit?.({ chatId: msg.chatId, ref: msg.ref, text: msg.text }, sara);
+      } catch (err) {
+        sara.log(`bridge.edit failed: ${err?.message ?? err}`, 'error');
+      }
+    }
+    if (msg.type === 'bridge.file') {
+      // A chunk of one of her pictures or files (base64), in order; `last` on the final one.
+      try {
+        await def.bridges?.[msg.bridge]?.file?.({ chatId: msg.chatId, fileId: msg.fileId, seq: msg.seq, last: msg.last, data: msg.data }, sara);
+      } catch (err) {
+        sara.log(`bridge.file failed: ${err?.message ?? err}`, 'error');
       }
     }
   };

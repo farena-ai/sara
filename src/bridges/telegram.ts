@@ -23,6 +23,11 @@ import { askerLanguage, chatsSettings, menuHash, menuList, nearlyFullOffer, next
 import { channelProjectId, noteRoom } from './rooms.ts';
 import { editLine, keepRoomByKey, leftRoom, logLine, maybeSummarize, noteHerLine, reading, setSeesAll, type KeepRoom, type Who } from './keepup.ts';
 import { roomTurn } from './now.ts';
+import { closeProgress, deliverOutgoing, FIRST_4_LINE, MAX_PHOTO_IN_BYTES, MAX_PHOTOS_IN, openProgress, othersPhotosOn, Outgoing, PHOTO_SIZE_LINE, PHOTOS_OFF_LINE, photoQuotaHit, progressOn, progressSettings, QUOTA_LINE, takeIncoming, takeLeftoverProgress, TELEGRAM_FILE_OUT, TELEGRAM_PHOTO_OUT, type IncomingFile, type MediaPort } from './media.ts';
+import { finalLine, ProgressMessage } from './progress.ts';
+import { PRIO_FILE, PRIO_REPLY, RateLimited, realClock, SendQueue, type Clock } from './sendq.ts';
+import { readFileSync } from 'node:fs';
+import { adultModeOn } from '../settings.ts';
 
 export interface TelegramSettings {
   enabled: boolean;
@@ -42,6 +47,13 @@ export interface TelegramSettings {
   answerName?: boolean;
   /** Answer @all / @everyone in a group. */
   answerEveryone?: boolean;
+}
+
+/** Phase 115: what a chat-app turn adds to the turn options (pictures, where it came from). */
+export interface TurnExtra {
+  images?: string[];
+  othersPhotos?: string[];
+  via?: string;
 }
 
 export const DEFAULT_TELEGRAM: TelegramSettings = { enabled: false, allowOthers: false, mirror: true, ownerUserIds: [], ownerWorkInGroups: false, nsfwChatIds: [], answerName: false, answerEveryone: false };
@@ -71,7 +83,10 @@ interface TgMessage {
   caption?: string;
   voice?: { file_id: string; duration?: number; file_size?: number };
   audio?: { file_id: string; duration?: number; file_size?: number };
-  photo?: unknown;
+  /** Phase 115 (BR1): the same picture at several sizes (smallest first). */
+  photo?: { file_id: string; file_size?: number; width?: number; height?: number }[];
+  /** Phase 115: an album's pictures arrive as separate updates sharing this id. */
+  media_group_id?: string;
   /** Phase 44: a file (PDF, Word…) the owner sends goes to her library. */
   document?: { file_id: string; file_name?: string; mime_type?: string; file_size?: number };
   reply_to_message?: { message_id?: number; from?: TgUser };
@@ -132,10 +147,21 @@ export class TelegramBridge {
   readonly #picks = new Map<string, ModelPick[]>();
   /** Phase 107: the command menu registration that is running (tests await it). */
   menus: Promise<unknown> = Promise.resolve();
+  /** Phase 115 (BR1 B2): the send pacer (her reply first, then files, then progress edits). */
+  readonly sendq: SendQueue;
+  readonly #clock: Clock;
+  readonly #albumMs: number;
+  /** Phase 115: album pictures waiting for the rest of their group (1.5 s after the last one). */
+  readonly #albums = new Map<string, { msgs: TgMessage[]; timer: NodeJS.Timeout; go: (msgs: TgMessage[]) => Promise<void> }>();
+  /** Phase 115: the album turns started (tests await them). */
+  albumTurns: Promise<unknown>[] = [];
 
-  constructor(app: AppContext, opts: { apiBase?: string } = {}) {
+  constructor(app: AppContext, opts: { apiBase?: string; clock?: Clock; albumMs?: number } = {}) {
     this.#app = app;
     this.#apiBase = opts.apiBase ?? 'https://api.telegram.org';
+    this.#clock = opts.clock ?? realClock;
+    this.#albumMs = opts.albumMs ?? 1500;
+    this.sendq = new SendQueue({ clock: this.#clock });
   }
 
   get #token(): string | undefined {
@@ -151,9 +177,21 @@ export class TelegramBridge {
     const token = this.#token;
     if (!token) throw new Error('No Telegram bot token');
     const res = await netFetch(`${this.#apiBase}/bot${token}/${method}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: signal ?? AbortSignal.timeout(30_000) });
-    const j = (await res.json().catch(() => ({}))) as { ok?: boolean; result?: T; description?: string };
+    return this.#result<T>(method, res);
+  }
+
+  /** Phase 115: a Bot API answer; a 429 becomes RateLimited (`parameters.retry_after`, seconds). */
+  async #result<T>(method: string, res: Response): Promise<T> {
+    const j = (await res.json().catch(() => ({}))) as { ok?: boolean; result?: T; description?: string; error_code?: number; parameters?: { retry_after?: number } };
+    if (!j.ok && (res.status === 429 || j.error_code === 429)) throw new RateLimited(Math.ceil(Number(j.parameters?.retry_after ?? 1) * 1000), `Telegram ${method}: too many requests`);
     if (!j.ok) throw new Error(`Telegram ${method}: ${j.description ?? `HTTP ${res.status}`}`);
     return j.result as T;
+  }
+
+  /** Phase 115: a multipart upload (sendPhoto, sendMediaGroup, sendDocument), like sendVoice. */
+  async #upload<T>(method: string, form: FormData): Promise<T> {
+    const res = await netFetch(`${this.#apiBase}/bot${this.#token}/${method}`, { method: 'POST', body: form, signal: AbortSignal.timeout(120_000) });
+    return this.#result<T>(method, res);
   }
 
   /** (Re)starts polling according to settings. */
@@ -175,6 +213,8 @@ export class TelegramBridge {
     }
     this.#abort = new AbortController();
     this.#unsubscribe = this.#app.events?.subscribe((ev) => void this.#mirror(ev));
+    // Phase 115 (BR1 §4.8): progress messages a restart left open get their final line (once, best effort).
+    this.leftovers = this.#closeLeftovers();
     void this.#loop(this.#abort.signal);
     // Phase 107: her commands in Telegram's / menu (skipped when nothing changed since last time).
     this.menus = this.registerMenus().catch((err: Error) => console.warn(`telegram menus: ${err.message}`));
@@ -227,6 +267,18 @@ export class TelegramBridge {
     }
   }
 
+  /** Phase 115: the start-up pass over progress messages a restart left open (tests await it). */
+  leftovers: Promise<void> = Promise.resolve();
+  async #closeLeftovers(): Promise<void> {
+    let rows: ReturnType<typeof takeLeftoverProgress> = [];
+    try {
+      rows = takeLeftoverProgress(this.#app, 'telegram');
+    } catch {
+      return;
+    }
+    for (const r of rows) await this.#call('editMessageText', { chat_id: Number(r.chatId), message_id: Number(r.messageId), text: finalLine({ kind: 'restart' }, 0, 0, ownerLanguage(this.#app), true), reply_markup: { inline_keyboard: [] } }).catch(() => undefined);
+  }
+
   stop(): void {
     this.#abort?.abort();
     this.#abort = undefined;
@@ -269,7 +321,8 @@ export class TelegramBridge {
 
   async send(chatId: number, text: string, extra: Record<string, unknown> = {}): Promise<void> {
     for (const part of splitMessage(text)) {
-      const m = await this.#call<{ message_id?: number } | undefined>('sendMessage', { chat_id: chatId, text: part, ...extra });
+      // Phase 115 (B2): through the pacer, ahead of files and progress edits; a 429 waits and retries.
+      const m = await this.sendq.send(`tg:${chatId}`, PRIO_REPLY, () => this.#call<{ message_id?: number } | undefined>('sendMessage', { chat_id: chatId, text: part, ...extra }));
       // Phase 110: her own lines in a group she keeps up with are logged too (with Telegram's id).
       this.#herLine(chatId, m?.message_id, part);
     }
@@ -349,6 +402,13 @@ export class TelegramBridge {
       // Phase 107: a /model pick (owner only, checked again here).
       const md = q.data?.match(/^md:([\w-]+):(\d{1,3})$/);
       if (md) return this.#modelPicked(q, md[1], Number(md[2]), cfg);
+      // Phase 115 (BR1): the progress message's Stop (the same as /stop; owner only, checked here).
+      const st = q.data?.match(/^st:([\w-]+)$/);
+      if (st) {
+        if (!isTelegramOwner(cfg, q.from.id)) return void (await this.#call('answerCallbackQuery', { callback_query_id: q.id, text: say(this.#app, askerLanguage(q.from.language_code), en('Only the person who runs me can stop this.')) }).catch(() => undefined));
+        const stopped = this.#stopTurn(st[1]);
+        return void (await this.#call('answerCallbackQuery', { callback_query_id: q.id, text: this.#tr(stopped ? en('Stopping.') : en('Nothing to stop.')) }).catch(() => undefined));
+      }
       const m = q.data?.match(/^ap:([\w-]+):([01])$/);
       if (m && isTelegramOwner(cfg, q.from.id)) {
         const ok = this.#app.approvals.decide(m[1], m[2] === '1');
@@ -415,6 +475,28 @@ export class TelegramBridge {
       // Groups: when mentioned or replied to (and, when switched on, her name or @all / @everyone).
       if (!isPrivate && !this.#called(msg, text, cfg)) return;
     }
+    // Phase 115 (BR1 §4.2): photos (and pictures sent "as a file") are seen like a photo from the app.
+    // Fixes 2.47: a captioned photo was answered as text only (the picture was dropped silently).
+    const imageDoc = msg.document && /^image\/(jpeg|png|webp|gif)$/i.test(msg.document.mime_type ?? '') && (msg.document.file_size ?? 0) <= MAX_PHOTO_IN_BYTES ? msg.document : undefined;
+    if (msg.photo?.length || imageDoc) {
+      const c = { isOwner: isOwnerChat || ownerWork, isOwnerChat, ownerWork, place, fromOwner };
+      const group = msg.media_group_id ? `${msg.chat.id}:${msg.media_group_id}` : undefined;
+      if (!group) return this.#photos([msg], c, o.queued === true);
+      // An album: its pictures arrive one update each; they become one message 1.5 s after the last.
+      const held = this.#albums.get(group);
+      if (held) {
+        clearTimeout(held.timer);
+        held.msgs.push(msg);
+      }
+      const entry = held ?? { msgs: [msg], timer: undefined as unknown as NodeJS.Timeout, go: (msgs: TgMessage[]) => this.#photos(msgs, c, true) };
+      entry.timer = setTimeout(() => {
+        this.#albums.delete(group);
+        this.albumTurns.push(entry.go(entry.msgs).catch((err: Error) => console.warn(`telegram album: ${err.message}`)));
+      }, this.#albumMs);
+      entry.timer.unref?.();
+      this.#albums.set(group, entry);
+      return;
+    }
     // Phase 11: voice notes are transcribed and answered (with a voice note, if set up).
     let heard = '';
     const note = msg.voice ?? msg.audio;
@@ -443,30 +525,71 @@ export class TelegramBridge {
         return void (await this.send(msg.chat.id, this.#tr("I couldn't get that file: {error}", { error: (err as Error).message })));
       }
     }
-    if (!text && !heard && !docs.length) {
-      if (msg.photo) await this.send(msg.chat.id, isOwner ? this.#tr('I can only read text and voice notes here for now. Tell me about it?') : 'I can only read text and voice notes here for now. Tell me about it?');
-      return;
-    }
+    if (!text && !heard && !docs.length) return;
 
     const conv = this.#conversation(msg, isOwnerChat, ownerWork);
     const from = msg.from.first_name || msg.from.username || 'someone';
     const said = heard ? `🎤 ${heard}` : text || (docs.length ? `📄 ${docs[0].name}` : '');
     const content = isPrivate ? said.replace(/^\/start\b\s*/, '') || 'Hi!' : `[${from}]: ${said}`;
     const replyWithVoice = speechOf(this.#app).replyWithVoice(Boolean(heard));
-    // One turn at a time per conversation, in order. Phase 107: /reset and /new drop waiting turns.
+    await this.#enqueue(msg, conv, content, isOwner, replyWithVoice, docs, place, fromOwner, {}, o.queued === true);
+  }
+
+  /** One turn at a time per conversation, in order. Phase 107: /reset and /new drop waiting turns. */
+  async #enqueue(msg: TgMessage, conv: Conversation, content: string, isOwner: boolean, voice: boolean, docs: SharedDoc[], place: Place, fromOwner: boolean, extra: TurnExtra, queued: boolean): Promise<void> {
     const prev = this.#queues.get(conv.id) ?? Promise.resolve();
     const gen = this.#cleared.get(conv.id) ?? 0;
     this.#waiting.set(conv.id, (this.#waiting.get(conv.id) ?? 0) + 1);
-    const where = { place, lang: fromOwner ? ownerLanguage(this.#app) : askerLanguage(msg.from.language_code), ownerChat: msg.from.id, msgId: String(msg.message_id), replyTo: msg.reply_to_message?.message_id !== undefined ? String(msg.reply_to_message.message_id) : null };
+    const where = { place, lang: fromOwner ? ownerLanguage(this.#app) : askerLanguage(msg.from?.language_code), ownerChat: msg.from!.id, msgId: String(msg.message_id), replyTo: msg.reply_to_message?.message_id !== undefined ? String(msg.reply_to_message.message_id) : null };
     const next = prev
       .then(() => {
         if ((this.#cleared.get(conv.id) ?? 0) !== gen) return;
         this.#waiting.set(conv.id, Math.max(0, (this.#waiting.get(conv.id) ?? 1) - 1));
-        return this.#turn(conv, msg.chat.id, content, isOwner, replyWithVoice, docs, where);
+        return this.#turn(conv, msg.chat.id, content, isOwner, voice, docs, where, extra);
       })
       .catch((err: Error) => console.warn(`telegram turn: ${err.message}`));
     this.#queues.set(conv.id, next);
-    if (!o.queued) await next;
+    if (!queued) await next;
+  }
+
+  /**
+   * Phase 115 (BR1 §4.2, §4.6): one message's pictures (or an album's). The owner's are seen like
+   * web photos; someone else's only when the place allows it, described first. Caps (the largest
+   * size ≤ 8 MB, 4 a message) and the daily quota are checked before anything is downloaded.
+   */
+  async #photos(msgs: TgMessage[], c: { isOwner: boolean; isOwnerChat: boolean; ownerWork: boolean; place: Place; fromOwner: boolean }, queued: boolean): Promise<void> {
+    const app = this.#app;
+    const msg = msgs[0];
+    const chatId = msg.chat.id;
+    const key = String(chatId);
+    const lang = c.fromOwner ? ownerLanguage(app) : askerLanguage(msg.from?.language_code);
+    const line = (text: string) => this.send(chatId, say(app, lang, text));
+    const who = c.isOwner ? 'owner' : 'person';
+    if (!c.isOwner && !othersPhotosOn(app, 'telegram', key)) return void (await line(PHOTOS_OFF_LINE));
+    if (photoQuotaHit(app, 'telegram', key, who, c.place)) return void (await line(QUOTA_LINE));
+    const picks = msgs.map((m) => (m.photo?.length ? [...m.photo].filter((p) => (p.file_size ?? 0) <= MAX_PHOTO_IN_BYTES).sort((a, b) => (b.file_size ?? 0) - (a.file_size ?? 0) || (b.width ?? 0) * (b.height ?? 0) - (a.width ?? 0) * (a.height ?? 0))[0] : m.document)).filter((f): f is { file_id: string; file_size?: number } => Boolean(f));
+    if (!picks.length) return void (await line(PHOTO_SIZE_LINE));
+    const files: IncomingFile[] = [];
+    for (const f of picks.slice(0, MAX_PHOTOS_IN)) {
+      try {
+        files.push({ bytes: await this.#download(f), ref: f.file_id });
+      } catch (err) {
+        await this.send(chatId, c.isOwner ? this.#tr("I couldn't get that file: {error}", { error: (err as Error).message }) : say(app, lang, en("I couldn't look at that picture right now.")));
+      }
+    }
+    if (!files.length) return;
+    const conv = this.#conversation(msg, c.isOwnerChat, c.ownerWork);
+    const from = msg.from?.first_name || msg.from?.username || 'someone';
+    const adult = adultModeOn(app.settings.get()) && (conv.channel.endsWith('-nsfw') || c.place === 'partner-dm');
+    const taken = await takeIncoming(app, conv, { bridge: 'telegram', chatKey: key, who, name: from, place: c.place, adult }, files);
+    if (taken.blocked) return void (await this.send(chatId, taken.blocked.why === 'minor' ? taken.blocked.reply : say(app, lang, taken.blocked.reply)));
+    for (const r of taken.refused) await line(r);
+    if (!taken.images.length && !taken.othersPhotos.length) return;
+    if (picks.length > MAX_PHOTOS_IN) await line(FIRST_4_LINE);
+    const caption = (msgs.find((m) => m.caption?.trim())?.caption ?? '').trim();
+    const said = `${caption || '(photo)'}${taken.described}`;
+    const content = msg.chat.type === 'private' ? said : `[${from}]: ${said}`;
+    await this.#enqueue(msg, conv, content, c.isOwner, false, [], c.place, c.fromOwner, { ...(taken.images.length ? { images: taken.images } : {}), ...(taken.othersPhotos.length ? { othersPhotos: taken.othersPhotos } : {}), via: 'telegram' }, queued);
   }
 
   #called(msg: TgMessage, text: string, cfg: TelegramSettings): boolean {
@@ -522,6 +645,7 @@ export class TelegramBridge {
       stopTurn: (id) => this.#stopTurn(id),
       clearQueue: (id) => this.#clearQueue(id),
       settingsWhere: undefined,
+      progressKey: { bridge: 'telegram', key: String(chatId) },
       // Phase 113: /bug and /idea link to the report sheet when the server knows its address.
       ...(accessInfo().url ? { appLink: accessInfo().url! } : {}),
     };
@@ -620,12 +744,18 @@ export class TelegramBridge {
     }
   }
 
-  async #turn(conv: Conversation, chatId: number, content: string, isOwner: boolean, voice = false, docs: SharedDoc[] = [], where?: { place: Place; lang: string; ownerChat: number; msgId?: string; replyTo?: string | null }): Promise<void> {
+  async #turn(conv: Conversation, chatId: number, content: string, isOwner: boolean, voice = false, docs: SharedDoc[] = [], where?: { place: Place; lang: string; ownerChat: number; msgId?: string; replyTo?: string | null }, extra: TurnExtra = {}): Promise<void> {
     const app = this.#app;
     let fill: { used: number; budget: number; dropped: number } | undefined;
     // Wait while a web turn runs in the same conversation.
     for (let i = 0; i < 600 && app.isBusy?.(conv.id); i++) await new Promise((r) => setTimeout(r, 1000));
     const started = Date.now();
+    // Phase 115 (BR1): her pictures and files (sent after the turn) and the live progress message.
+    const out = new Outgoing();
+    const progress = where && isOwner && progressOn(app, 'telegram', String(chatId), where.place) ? this.#progress(conv, chatId) : undefined;
+    let pictureError = false;
+    // Phase 115: app lines (errors) never become a picture's caption.
+    const errorLines = new Set<string>();
     const typing = setInterval(() => void this.#call('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => undefined), 4500);
     void this.#call('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => undefined);
     let reply = '';
@@ -636,6 +766,9 @@ export class TelegramBridge {
     };
     const sends: Promise<unknown>[] = [];
     const onEvent = (ev: ChatEvent) => {
+      progress?.event(ev);
+      // Fixes 2.47: her pictures (a selfie asked for here) and screenshots were made and never arrived.
+      if (isOwner) out.onEvent(ev);
       if (ev.type === 'token') reply += ev.text;
       else if (ev.type === 'replace') reply = ev.text;
       else if (ev.type === 'context') fill = { used: ev.used, budget: ev.budget, dropped: ev.dropped };
@@ -655,7 +788,15 @@ export class TelegramBridge {
         );
       } else if (ev.type === 'error') {
         flush();
-        if (ev.message !== 'Stopped.') outgoing.push(isOwner ? this.#tr('(Something went wrong: {error})', { error: ev.message }) : "Sorry, I can't answer right now.");
+        // Phase 115 (§4.5): a model that can't take pictures gets a plain line on bridges.
+        if (extra.images?.length && /image|vision|picture|multimodal/i.test(ev.message) && !pictureError) {
+          pictureError = true;
+          outgoing.push(isOwner ? this.#tr("I can't see pictures with the model I'm using. Set a picture model in Settings → Which model does what.") : "Sorry, I can't answer right now.");
+        } else if (ev.message !== 'Stopped.') {
+          const line = isOwner ? this.#tr('(Something went wrong: {error})', { error: ev.message }) : "Sorry, I can't answer right now.";
+          errorLines.add(line);
+          outgoing.push(line);
+        }
       }
     };
     try {
@@ -664,7 +805,7 @@ export class TelegramBridge {
       // Phase 110 (CH4, §7.5): with keep-up on, "the room right now" (fed from the room log) instead of the raw lines.
       const now = chatId < 0 && where ? await roomTurn(app, 'telegram', String(chatId), { replyTo: where.replyTo ?? null, callerId: where.msgId ?? null, conversationId: conv.id }).catch(() => ({}) as Awaited<ReturnType<typeof roomTurn>>) : {};
       const note = now.roomNow ? undefined : roomNote(app, room);
-      const opts = { ...(docs.length ? { docs } : {}), ...(note ? { roomNote: note } : {}), ...(now.roomNow ? { roomNow: now.roomNow } : {}), ...(now.roomId !== undefined ? { roomId: now.roomId } : {}), ...(now.roomCrisis ? { roomCrisis: true } : {}) };
+      const opts = { ...extra, ...(docs.length ? { docs } : {}), ...(note ? { roomNote: note } : {}), ...(now.roomNow ? { roomNow: now.roomNow } : {}), ...(now.roomId !== undefined ? { roomId: now.roomId } : {}), ...(now.roomCrisis ? { roomCrisis: true } : {}) };
       if (app.runTracked) await app.runTracked(conv.id, content, onEvent, opts);
       else {
         const { runTurn } = await import('../chat.ts');
@@ -681,7 +822,15 @@ export class TelegramBridge {
     } finally {
       clearInterval(typing);
     }
+    // The progress message turns into its summary line (its edit waits behind her answer in the pacer).
+    const closing = progress?.finish();
     await Promise.allSettled(sends);
+    // Pictures first (her reply as the caption when it fits), then files, then her text.
+    if (out.items.length && where) {
+      const sent = await deliverOutgoing(app, app.store.getConversation(conv.id) ?? conv, { bridge: 'telegram', chatKey: String(chatId), place: where.place, lang: ownerLanguage(app) }, this.#mediaPort(chatId), out.items, outgoing.length === 1 && !errorLines.has(outgoing[0]) ? outgoing[0] : '').catch((err: Error) => ({ captionUsed: false, lines: [this.#tr("I couldn't send the picture here ({reason}). It's in the app.", { reason: err.message.slice(0, 120) })] }));
+      if (sent.captionUsed) outgoing.splice(0, 1);
+      outgoing.push(...sent.lines);
+    }
     let since = started;
     for (const t of outgoing) {
       // Spoken replies: short ones as a voice note (with code or long text, as text).
@@ -693,12 +842,92 @@ export class TelegramBridge {
       await this.send(chatId, t);
       since = Date.now();
     }
+    await closing?.catch(() => undefined);
     // Phase 107 (§4.7): nearly full: she offers /new once (in a room he works in, privately to him).
     if (where) {
       const fresh = app.store.getConversation(conv.id) ?? conv;
       const line = nearlyFullOffer(app, fresh, fill, where.lang, where.place);
       if (line) await this.send(where.place === 'work-room' ? where.ownerChat : chatId, `ℹ️ ${line}`).catch(() => undefined);
     }
+  }
+
+  /** Phase 115 (BR1 §4.8): the progress message of one turn (posted after `afterSeconds`, edited in place). */
+  #progress(conv: Conversation, chatId: number): ProgressMessage {
+    const app = this.#app;
+    const ps = progressSettings(app);
+    const lang = ownerLanguage(app);
+    const kb = (stop: boolean) => ({ inline_keyboard: stop ? [[{ text: `⏹ ${tr(en('Stop'), lang)}`, callback_data: `st:${conv.id}` }]] : [] });
+    const notModified = (err: Error) => {
+      if (!/not modified/i.test(err.message)) throw err;
+    };
+    return new ProgressMessage({
+      port: {
+        create: async (text, stop) => {
+          const m = await this.#call<{ message_id?: number }>('sendMessage', { chat_id: chatId, text, reply_markup: kb(stop) });
+          return m?.message_id !== undefined ? String(m.message_id) : undefined;
+        },
+        edit: (ref, text, stop) => this.#call('editMessageText', { chat_id: chatId, message_id: Number(ref), text, reply_markup: kb(stop) }).then(() => undefined, notModified),
+        remove: (ref) => this.#call('deleteMessage', { chat_id: chatId, message_id: Number(ref) }).then(() => undefined),
+      },
+      queue: this.sendq,
+      key: `tg:${chatId}`,
+      clock: this.#clock,
+      afterMs: ps.afterSeconds * 1000,
+      // A group's 20-a-minute cap is shared with her replies.
+      intervalMs: chatId < 0 ? 6000 : 3000,
+      final: ps.final,
+      lang,
+      owner: true,
+      scrub: (t) => app.redactor.redact(t),
+      onOpen: (ref) => openProgress(app, conv.id, 'telegram', String(chatId), ref),
+      onClose: () => closeProgress(app, conv.id),
+    }).start();
+  }
+
+  /** Phase 115 (BR1 §4.3): photos (sendPhoto, or an album) and documents, multipart like sendVoice. */
+  #mediaPort(chatId: number): MediaPort {
+    const blob = (path: string, mime: string) => new Blob([new Uint8Array(readFileSync(path))], { type: mime });
+    return {
+      maxPhotoBytes: TELEGRAM_PHOTO_OUT,
+      maxFileBytes: TELEGRAM_FILE_OUT,
+      captionMax: 1024,
+      sendPhotos: async (files, caption) => {
+        const key = `tg:${chatId}`;
+        if (files.length === 1) {
+          const form = new FormData();
+          form.append('chat_id', String(chatId));
+          form.append('photo', blob(files[0].path, files[0].mime), files[0].name);
+          if (caption) form.append('caption', caption);
+          const m = await this.sendq.send(key, PRIO_FILE, () => this.#upload<{ photo?: { file_id: string }[] }>('sendPhoto', form));
+          return [m?.photo?.at(-1)?.file_id ?? ''];
+        }
+        const form = new FormData();
+        form.append('chat_id', String(chatId));
+        form.append('media', JSON.stringify(files.map((f, n) => ({ type: 'photo', media: `attach://p${n}`, ...(n === 0 && caption ? { caption } : {}) }))));
+        files.forEach((f, n) => form.append(`p${n}`, blob(f.path, f.mime), f.name));
+        const list = await this.sendq.send(key, PRIO_FILE, () => this.#upload<{ photo?: { file_id: string }[] }[]>('sendMediaGroup', form));
+        return (list ?? []).map((m) => m.photo?.at(-1)?.file_id ?? '');
+      },
+      sendFile: async (f, caption) => {
+        const form = new FormData();
+        form.append('chat_id', String(chatId));
+        form.append('document', blob(f.path, f.mime), f.name);
+        if (caption) form.append('caption', caption.slice(0, 1024));
+        const m = await this.sendq.send(`tg:${chatId}`, PRIO_FILE, () => this.#upload<{ document?: { file_id: string } }>('sendDocument', form));
+        return m?.document?.file_id;
+      },
+    };
+  }
+
+  /** Phase 115: a small test picture to the owner's chat (Settings → Telegram → Send me a test picture). */
+  async testPicture(png: Buffer): Promise<void> {
+    const chat = telegramSettings(this.#app).ownerChatId;
+    if (!chat) throw new Error(en('Link your Telegram first.'));
+    const form = new FormData();
+    form.append('chat_id', String(chat));
+    form.append('photo', new Blob([new Uint8Array(png)], { type: 'image/png' }), 'test.png');
+    form.append('caption', this.#tr('A test picture from Sara. Pictures and files reach you here.'));
+    await this.sendq.send(`tg:${chat}`, PRIO_FILE, () => this.#upload('sendPhoto', form));
   }
 
   /** Reminders and messages she starts herself also go to the owner's Telegram. */

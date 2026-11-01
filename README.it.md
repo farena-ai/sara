@@ -14,7 +14,7 @@ per il web, Windows, Mac e telefono.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1526%20passing-brightgreen" alt="1526 tests passing">
+  <img src="https://img.shields.io/badge/tests-1548%20passing-brightgreen" alt="1548 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -113,15 +113,16 @@ Guide di un minuto, registrate su un server di prova con un modello locale (in i
 
 ## Novità
 
+- **2.48** · Le app di chat si mettono in pari: foto e file nei due sensi su Telegram e Discord (i suoi selfie ora arrivano) e un messaggio di avanzamento dal vivo con un pulsante Ferma mentre lavora.
 - **2.47.3** · Inizia da qui: un percorso per chi inizia e uno per chi programma, schermate nuove e un indice *Come faccio a…?* nella guida e sul sito della documentazione.
 - **2.47.2** · Un solo stile e aiuto in ogni pagina: un riquadro *Come faccio a…?* con risposte passo passo su ogni pagina, e pagine vuote che dicono cosa ci va.
-- **2.47.1** · Un primo avvio su misura: la configurazione chiede *compagnia, programmazione o entrambi* e adatta il modello proposto, il tour e l'elenco dei primi passi.
 
 <details>
 <summary><b>Cronologia delle versioni</b>: cosa ha portato ogni versione dalla 2.4</summary>
 
 | Versione | Cosa ottieni |
 |---|---|
+| **2.48** · Le app di chat si mettono in pari | **Foto e file nei due sensi su Telegram e Discord:** mandale una foto (con didascalia, un album o come file) o un documento e lo legge; chiedile un selfie, un grafico o un file e arriva (`send_file`). Le foto di altre persone in una stanza restano spente finché non le attivi, e allora vede solo una descrizione. **Un solo messaggio di avanzamento** si aggiorna mentre lavora, ha un pulsante Ferma e finisce come una riga di riepilogo. Anche i ponti dei plugin possono portare file. |
 | **2.47.3** · Inizia da qui | **Due ingressi:** [Inizia da qui](docs/START_HERE.md) per «l'ho installata, e adesso?» e [Per chi programma](docs/FOR_CODERS.md), entrambi con i video (in inglese). Schermate nuove, il giro delle funzioni diviso in *Per compagnia*, *Per programmare* e *Per entrambi*, tutte le risposte *Come faccio a…?* in un indice (nella guida e sul sito della documentazione) e un sito della documentazione riorganizzato. |
 | **2.47.2** · Un solo stile e aiuto in ogni pagina | **Ogni pagina ora ha un riquadro *Come faccio…?*** con risposte passo passo (123, con *Mostrami*), e le pagine vuote dicono cosa ci va con un passo chiaro. Un solo stile di scheda, icone al posto delle emoji, spaziature e angoli uniformi, un menu delle impostazioni che apre un gruppo alla volta, il telefono più ordinato e senza scorrimento laterale, una prima schermata di accesso più chiara, e la configurazione per programmare preferisce un modello capace sul tuo computer. |
 | **2.47.1** · Un primo avvio su misura | **La configurazione fa una domanda: compagnia, programmazione o entrambe.** Ricevi un modello consigliato con una vera prova *Connesso ✓*, un tour di sei tappe adatto (quello completo resta in Aiuto), suggerimenti per iniziare in una chat vuota e una lista dei primi passi nell'ordine giusto per te. Le finestre non si sovrappongono più, e la nota sul segnale anonimo è nell'ultimo passo. |
@@ -200,7 +201,7 @@ Tutte le versioni: [CHANGELOG.md](CHANGELOG.md) · [versioni](https://github.com
 
 In ordine di costruzione, una versione ciascuna ([l'elenco completo](docs/ROADMAP.md)):
 
-- **Poi** (2.48–2.61): foto e file nelle app di chat, parlarle mentre lavora, Signal, email, WhatsApp, iMessage (BlueBubbles) e SMS, «continua finché è fatto», controlli del codice dopo ogni modifica, una galleria di routine e **il Sara Store** per plugin, abilità e server MCP (ComfyUI, Blender, Playwright…) con installazione in un clic e un modo per inviare i tuoi.
+- **Poi** (2.49–2.61): foto e file nelle app di chat, parlarle mentre lavora, Signal, email, WhatsApp, iMessage (BlueBubbles) e SMS, «continua finché è fatto», controlli del codice dopo ogni modifica, una galleria di routine e **il Sara Store** per plugin, abilità e server MCP (ComfyUI, Blender, Playwright…) con installazione in un clic e un modo per inviare i tuoi.
 - L'app per iPhone (in attesa di Apple) e le tue idee nelle [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Il piano completo: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -395,8 +396,8 @@ uno SPEC che nessun test controllava. Quello che aggiunge oggi è il modo di lav
 chiede prima dei passi rischiosi, mostra cosa è stato eseguito), non un punteggio più alto su questi
 insiemi. Dettagli, risultati per compito e come rieseguirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-In più, `npm run check`: un controllo dei tipi e 1541 test automatici con un finto modello guidato
-da script (senza rete, senza GPU): 1526 passano su Windows e gli altri 8 sono test dell'isolamento
+In più, `npm run check`: un controllo dei tipi e 1563 test automatici con un finto modello guidato
+da script (senza rete, senza GPU): 1548 passano su Windows e gli altri 8 sono test dell'isolamento
 solo per Linux, eseguiti su un server Linux.
 
 ## Il confronto

@@ -166,9 +166,12 @@ test('theme-boot: Night unless Day (or the system, when light) was picked; the n
 test('step line: built from the stream events and the stored tool messages; replaces the grey boxes', () => {
   for (const fn of ['stepLine', 'addStep', 'waitStep', 'runStep', 'finishStep', 'memoryStep', 'stepWords', 'fmtDuration']) assert.match(steps, new RegExp(`export (function|const) ${fn}\\b`), fn);
   // Every word on the line goes through t() as a literal (so the extractor and translations see it).
-  assert.doesNotMatch(steps, /pair\('/);
-  assert.ok((steps.match(/pair\(t\('/g) ?? []).length >= 40);
-  assert.match(steps, /t\('Checking the weather…'\), t\('Checked the weather'\)/);
+  // Phase 115 (BR1 B3): the verb table moved to web/step-words.js (shared with the chat apps' progress message); steps.js re-exports stepWords.
+  const words = web('step-words.js');
+  assert.match(steps, /import \{ stepWordsWith \} from '\.\/step-words\.js'/);
+  assert.doesNotMatch(words, /pair\('/);
+  assert.ok((words.match(/pair\(t\('/g) ?? []).length >= 40);
+  assert.match(words, /t\('Checking the weather…'\), t\('Checked the weather'\)/);
   // History: tool messages become steps (no toolBlock), memories used in the reply too.
   const render = /function renderMessages\(messages, opts = \{\}\) \{([\s\S]*?)\n\}\n/.exec(app)![1];
   assert.doesNotMatch(render, /toolBlock\(/);

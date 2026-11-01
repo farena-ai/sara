@@ -330,6 +330,8 @@ export type ChatEvent =
   | { type: 'image'; id: string }
   /** Phase 49: a screenshot she took (upload id): the proof strip on her reply. */
   | { type: 'proof'; id: string }
+  /** Phase 115 (BR1): a file she shared with send_file (a `shared_files` id): a chip on her reply; chat apps send it after the turn. */
+  | { type: 'file'; id: string; name: string; mime: string; bytes: number; caption?: string }
   /** Phase 98: what a plugin did at a hook point (a note, a card, a stop, an ask, no answer in time). */
   | (import('./hooks.ts').PluginEvent & { messageId?: number })
   /** Phase 107 (CH1): how full this turn's history is (characters used of the budget; `dropped` = older messages left out). */
@@ -687,8 +689,18 @@ async function prepareCall(tool: Tool, args: Record<string, unknown>, signal: Ab
   }
 }
 
+/** Phase 115 (BR1): the note a private conversation's photo gets when the picture model is in the cloud. */
+export const PRIVATE_PHOTO_NOTE = "[a photo was shared; the picture model isn't on this computer, so you can't see it]";
+
+/** Phase 115: the picture route runs on the owner's own hardware (what a private conversation may use). */
+export function visionOnThisComputer(app: AppContext, route: { providerId: string; model: string }): boolean {
+  const config = app.settings.get().providers.find((p) => p.id === route.providerId);
+  return Boolean(config?.local) && !isCloudModelName(route.model);
+}
+
+// Phase 115: send_file shares a file out of the server (a chat app), so it is off in private chats too.
 export const OFFSERVER_TOOL = (name: string) =>
-  name === 'web_fetch' || name === 'web_search' || name === 'delegate_task' || name === 'git_push' || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('calendar_') || name.startsWith('github_');
+  name === 'send_file' || name === 'web_fetch' || name === 'web_search' || name === 'delegate_task' || name === 'git_push' || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('calendar_') || name.startsWith('github_');
 
 /** Default size of the conversation history sent to the model (characters, about 4 per token). */
 export const HISTORY_BUDGET_CHARS = 48_000;
@@ -865,6 +877,15 @@ export interface TurnOptions {
   resume?: boolean;
   /** Photo upload ids sent with this message. */
   images?: string[];
+  /** Phase 115 (BR1): the chat app the message came from ("telegram", "discord", "plugin-x"), for the "from Telegram" badge. */
+  via?: string;
+  /**
+   * Phase 115: pictures from someone else in this message (upload ids). Never given to the talking
+   * model (describe-first put a fenced description in the text); kept for the cleanup sweep.
+   */
+  othersPhotos?: string[];
+  /** Phase 115: the private conversation's picture model isn't on this computer: the note goes with the message. */
+  photoNote?: boolean;
   /** Phase 44: documents shared with this message (kept in her library or read once here). */
   docs?: import('./library/intake.ts').SharedDoc[];
   /**
@@ -1357,7 +1378,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   }
 
   const isFirst = store.messages(conv.id).every((m) => m.role === 'notice');
-  const meta = { ...(opts.images?.length ? { images: opts.images } : {}), ...(opts.docs?.length ? { docs: opts.docs } : {}) };
+  const meta = { ...(opts.images?.length ? { images: opts.images } : {}), ...(opts.docs?.length ? { docs: opts.docs } : {}), ...(opts.via ? { via: opts.via } : {}), ...(opts.othersPhotos?.length ? { othersPhotos: opts.othersPhotos } : {}) };
   const userMsg = opts.resume || opts.group ? store.messages(conv.id).filter((m) => m.role === 'user').at(-1) : store.addMessage(conv.id, 'user', text, Object.keys(meta).length ? meta : undefined);
   // Phase 107: a line /reset cleared isn't answered again on Continue.
   if (!userMsg || (opts.resume && userMsg.meta?.skipped === true && !store.messages(conv.id).some((m) => m.id > userMsg.id && m.role === 'assistant'))) {
@@ -1438,11 +1459,15 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const visionSet = Boolean(jobRoutes.vision && app.settings.get().providers.some((p) => p.id === jobRoutes.vision!.providerId));
   const photosNow = (Array.isArray(userMsg?.meta?.images) && (userMsg.meta.images as unknown[]).length > 0) || Boolean(opts.liveFrame);
   let job: Job = 'turn';
+  let privateVisionOff = false;
   try {
     // Adult turns (this message or any of the last few) go to the owner's adult route, if set.
     const recentUser = store.messages(conv.id).filter((m) => m.role === 'user' && !isForgotten(m)).slice(-6);
     const adult = adultOn && (conv.channel.endsWith('-nsfw') || (!conv.partner && !isWorkChannel(conv.channel))) && recentUser.some((m) => detectExplicit(m.content));
-    job = adult && jobRoutes.adult ? 'turn' : photosNow && visionSet ? 'vision' : conv.mode !== 'coding' && jobRoutes.research && RESEARCH_RE.test(text) ? 'research' : opts.quickModel ? 'quick' : 'turn';
+    // Phase 115 (BR1, §4.5): a private conversation with a picture model that isn't on this computer
+    // stays on its local chain; the talking model gets a note instead of the picture (no throw).
+    privateVisionOff = Boolean(conv.private && photosNow && visionSet && !visionOnThisComputer(app, jobRoutes.vision!));
+    job = adult && jobRoutes.adult ? 'turn' : photosNow && visionSet && !privateVisionOff ? 'vision' : conv.mode !== 'coding' && jobRoutes.research && RESEARCH_RE.test(text) ? 'research' : opts.quickModel ? 'quick' : 'turn';
     chain = resolveChain(app, conv, job, adult);
     // Phase 78: every provider of the chain is recorded (model, tokens, cost, latency per call).
     if (rec.on) chain = chain.map((c) => ({ ...c, provider: rec.wrap(c.provider) }));
@@ -1495,6 +1520,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   }
   // Phase 70: the album stays in her own conversations with the owner: never for other apps, shared work channels or groups.
   if (opts.externalApp || opts.group || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'moments');
+  // Phase 115 (BR1, §4.4): send_file only in the owner's own conversations (never other apps, MCP,
+  // A2A, outside requests, voice assistants or groups of companions; partner chats have no tools).
+  if (opts.externalApp || external || opts.group || opts.outside || ['api', 'mcp', 'home-assistant', 'alexa', 'a2a', 'webhook'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'send_file');
   // Phase 73: her SSH tools work on the owner's real servers: only in the owner's own chats with her
   // (never other apps, MCP, the OpenAI-compatible API, group chats, shared work channels or private chats).
   if (opts.externalApp || opts.group || conv.private || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => !isSshTool(t.spec.name));
@@ -1624,7 +1652,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const pendingImages: string[] = [];
   // Phase 49: screenshots from her testing browser go on her final reply as a proof strip.
   const pendingProof: string[] = [];
-  const takeImages = (): Record<string, unknown> => ({ ...(pendingImages.length ? { images: pendingImages.splice(0) } : {}), ...(pendingProof.length ? { proof: pendingProof.splice(0) } : {}) });
+  // Phase 115 (BR1): files she shared with send_file ride on her reply too (the web app's file chips).
+  const pendingFiles: { id: string; name: string; mime: string; bytes: number; caption?: string }[] = [];
+  const takeImages = (): Record<string, unknown> => ({ ...(pendingImages.length ? { images: pendingImages.splice(0) } : {}), ...(pendingProof.length ? { proof: pendingProof.splice(0) } : {}), ...(pendingFiles.length ? { files: pendingFiles.splice(0) } : {}) });
   const receipts: Receipt[] = [];
   // Earlier tool receipts in this conversation (for recaps that name the same files).
   const priorReceipts: Receipt[] = store
@@ -1943,6 +1973,14 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const summary = app.memory?.list({ kind: 'summary', limit: 20 }).find((m) => m.conversationId === conv.id && (m.sourceMessageId ?? 0) < hist.firstKeptId);
       messages.push({ role: 'user', content: `[Note from the app: this conversation is long, so its earliest part is left out here.${summary ? ` Summary of it: ${summary.content}` : ''}]` });
     }
+    // Phase 115 (BR1, §4.5): the picture model of a private conversation isn't on this computer.
+    if (privateVisionOff) {
+      const i = hist.messages.findLastIndex((m) => m.role === 'user');
+      if (i >= 0) {
+        const m = hist.messages[i] as Extract<ChatMessage, { role: 'user' }>;
+        hist.messages[i] = { ...m, content: `${m.content.replace(/ \[\d+ photo\(s\) shared earlier\]/, '')} ${PRIVATE_PHOTO_NOTE}` };
+      }
+    }
     // Phase 69: the camera picture of a classic video call rides on this message (never stored).
     if (opts.liveFrame && sees(provider, model)) {
       const i = hist.messages.findLastIndex((m) => m.role === 'user');
@@ -2083,12 +2121,12 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       }
       // M8: a later step (after her tools) failing quietly when she already answered: her reply
       // stands, and a red error under it would only confuse. The log keeps it.
-      if (answered && !reply && !calls.length && !signal.aborted && !pendingImages.length && !pendingProof.length) {
+      if (answered && !reply && !calls.length && !signal.aborted && !pendingImages.length && !pendingProof.length && !pendingFiles.length) {
         console.warn(`after her reply, a follow-up step failed: ${(err as Error).message}`);
         break; // ends the turn normally ("done")
       }
       // Keep what she had written; mark it unfinished so the app offers Continue.
-      if (reply || pendingImages.length || pendingProof.length) store.addMessage(conv.id, 'assistant', reply, { model, provider: provider.config.label, partial: true, ...(signal.aborted && String((signal.reason as Error)?.message) === 'restart' ? { interrupted: 'restart' } : {}), ...takeImages() });
+      if (reply || pendingImages.length || pendingProof.length || pendingFiles.length) store.addMessage(conv.id, 'assistant', reply, { model, provider: provider.config.label, partial: true, ...(signal.aborted && String((signal.reason as Error)?.message) === 'restart' ? { interrupted: 'restart' } : {}), ...takeImages() });
       const hasPhotos = messages.some((m) => m.role === 'user' && m.images?.length);
       const msg = (err as Error).message;
       yield {
@@ -2185,6 +2223,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       let snapshotNote = '';
       const shown: string[] = [];
       const newProof: string[] = [];
+      const newFiles: typeof pendingFiles = [];
       // Phase 87: step thumbnails from her hands (kept in the run record by their hash).
       const thumbs: string[] = [];
       // Phase 80: the sandbox try of this call (if any) and the owner's choice.
@@ -2392,6 +2431,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
               conversationId: conv.id,
               companionName: app.persona.name,
               attachImage: (id) => pendingImages.push(id),
+              attachFile: (f) => {
+                pendingFiles.push(f);
+                newFiles.push(f);
+              },
               // Phase 49: screenshots she can look at, and the proof strip for the owner.
               showModel: (id) => shown.push(id),
               attachProof: (id) => {
@@ -2452,6 +2495,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       yield { type: 'tool_result', id: call.id, name: call.name, status, output: clip(output, UI_OUTPUT_LIMIT), ms, ...(snapshotId ? { snapshotId } : {}), ...(card ? { card } : {}) };
       for (const img of pendingImages) yield { type: 'image', id: img };
       for (const img of newProof) yield { type: 'proof', id: img };
+      for (const f of newFiles.splice(0)) yield { type: 'file', ...f };
       if (signal.aborted) {
         yield { type: 'error', message: 'Stopped.' };
         return;
@@ -2462,7 +2506,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       yield { type: 'error', message: personalize(`Stopped after ${maxSteps} steps. Say "continue" to let her keep going.`, identityOf(app.persona)) };
     }
   }
-  if (pendingImages.length || pendingProof.length) lastAssistantId = store.addMessage(conv.id, 'assistant', '', { model, provider: provider.config.label, ...takeImages() }).id;
+  if (pendingImages.length || pendingProof.length || pendingFiles.length) lastAssistantId = store.addMessage(conv.id, 'assistant', '', { model, provider: provider.config.label, ...takeImages() }).id;
   // Phase 79: the budget's outcome on the reply (the step line meter, the "Budget reached" card with
   // what was dropped and Continue) and on the run (runs.budget, the summary step stopped='budget').
   if (meter) {

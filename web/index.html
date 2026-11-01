@@ -1310,6 +1310,8 @@
         <label>Catch-up summaries a day <button type="button" class="tip" data-tip="A cap on the summary calls for this room. Past it she uses the last lines and simple counts until tomorrow.">?</button> <output id="rm-per-day-out" for="rm-per-day">7</output>
           <input id="rm-per-day" type="range" min="0" max="30" step="1" value="7">
         </label>
+        <label>Look at pictures here <select id="rm-photos"><option value="default">As in Settings</option><option value="on">Yes, described first</option><option value="off">No</option></select> <button type="button" class="tip" data-tip="Pictures people send in this room: off, or described first by your picture model so only the description reaches her. Keeping up never looks at pictures.">?</button></label>
+        <label>Progress here <select id="rm-progress"><option value="default">As in Settings</option><option value="on">On</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="The live progress message when you work with her in this room. It shows only what she's doing in plain words, never output or secrets.">?</button></label>
         <label id="rm-last-day-row" class="row room-card"><input id="rm-last-day" type="checkbox" checked> <span>Read the last day when I turn this on <button type="button" class="tip" data-tip="When you switch this on, she reads up to the last 100 messages from the past day so she isn't starting cold. Needs Read Message History.">?</button></span></label>
       </div>
       <p id="rm-usage" class="muted small"></p>
@@ -1694,6 +1696,10 @@
           <h4 class="small">Earlier titles</h4>
           <ul id="cs-title-history" class="cs-title-history"></ul>
         </div>
+      </div>
+      <div id="cs-files-box" class="tidy-card tidy-stack" hidden>
+        <h3>Files in this chat <button type="button" class="tip" data-tip="Pictures and files that came in or went out of this chat through a chat app or send_file. Remove deletes the bytes now; the line stays. Other people's pictures go after 7 days.">?</button></h3>
+        <ul id="cs-files" class="cs-files"></ul>
       </div>
       <p class="muted small cs-summary">Sara writes a dated summary of this conversation after it's been quiet for a while. <button id="cs-remember" type="button" class="ghost small">Write summary now</button></p>
       <p id="cs-error" class="error" role="alert"></p>
@@ -2839,6 +2845,24 @@
       <ul id="tg-cmd-list" class="cmd-list"></ul>
       </div>
       <div class="kit-card">
+      <h3>Pictures and files</h3>
+      <label class="row"><input id="tg-media-send" type="checkbox"> Send me pictures and files here <button type="button" class="tip" data-tip="When she makes a picture or shares a file in Telegram, it arrives as a real photo or file. Off: she says it's in the app instead.">?</button></label>
+      <label>Look at pictures other people send <select id="tg-media-others"><option value="off">No</option><option value="describe">Yes, described first</option></select> <button type="button" class="tip" data-tip="Off by default. When on, a picture from someone else is first described by your picture model, checked, and only the description reaches her. Their pictures are kept 7 days.">?</button></label>
+      <label class="row"><input id="tg-media-proof" type="checkbox"> Send screenshots of her work <button type="button" class="tip" data-tip="Screenshots she takes while using the computer or a browser can show private things. Off by default; when on, they go only to your private chat.">?</button></label>
+      <label>Keep other people's pictures for <select id="tg-media-keep"><option value="1">1 day</option><option value="7">7 days</option><option value="30">30 days</option></select> <button type="button" class="tip" data-tip="How long other people's pictures are kept before the bytes are deleted. Her description of each one stays in the chat.">?</button></label>
+      <p id="tg-media-today" class="muted small" role="status"></p>
+      <p class="cmd-menu-row"><button id="tg-media-test" type="button" class="ghost">Send me a test picture</button> <button type="button" class="tip" data-tip="Sends a small test picture to your private chat with her, so you can check the setup without asking a model anything.">?</button> <span id="tg-media-test-state" class="muted small" role="status"></span></p>
+      </div>
+      <div class="kit-card">
+      <h3>Progress while she works</h3>
+      <label class="row"><input id="tg-prog-on" type="checkbox"> Show her progress while she works <button type="button" class="tip" data-tip="On long jobs, one message shows what she's doing and is updated in place, then becomes a short summary above her answer. Never shows commands, output or secrets.">?</button></label>
+      <label>Where it shows <select id="tg-prog-where"><option value="private">Private chats only</option><option value="work">Also rooms where I work with her</option></select> <button type="button" class="tip" data-tip="Private chats only, or also the rooms where you work with her. Partner chats and rooms she only talks in never get one.">?</button></label>
+      <label>Show it after <select id="tg-prog-after"><option value="5">5 seconds</option><option value="10">10 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option></select> <button type="button" class="tip" data-tip="Quick replies don't need it. She only posts the progress message when a reply takes longer than this.">?</button></label>
+      <label>When she's done <select id="tg-prog-final"><option value="summary">Keep one summary line</option><option value="delete">Remove it</option></select> <button type="button" class="tip" data-tip="Keep a one-line summary (steps and time) above her answer, or remove the progress message completely.">?</button></label>
+      <p class="muted small">How it looks (in your language):</p>
+      <pre id="tg-prog-preview" class="prog-preview" aria-label="Preview of the progress message"></pre>
+      </div>
+      <div class="kit-card">
       <h3>Rooms <button type="button" class="tip" data-tip="The groups she is in. Open one to let her keep up with it: she reads every message there, keeps a short summary and joins the current topic when she's called. Telegram tells bots nothing about deleted messages.">?</button></h3>
       <p class="muted small">To read every message, turn privacy mode off in @BotFather (/setprivacy → Disable), then remove her from the group and add her again — or make her a group admin.</p>
       <div id="tg-rooms" class="room-list" data-nodirty></div>
@@ -2881,6 +2905,24 @@
       <label class="row"><input id="dc-cmd-offer" type="checkbox"> Offer a new session when a chat is long</label>
       <p class="muted small cmd-menu-row"><span id="dc-cmd-state" role="status"></span> <button id="dc-cmd-register" type="button" class="ghost">Register menus now</button></p>
       <ul id="dc-cmd-list" class="cmd-list"></ul>
+      </div>
+      <div class="kit-card">
+      <h3>Pictures and files</h3>
+      <label class="row"><input id="dc-media-send" type="checkbox"> Send me pictures and files here <button type="button" class="tip" data-tip="When she makes a picture or shares a file in Discord, it arrives as a real photo or file. Off: she says it's in the app instead.">?</button></label>
+      <label>Look at pictures other people send <select id="dc-media-others"><option value="off">No</option><option value="describe">Yes, described first</option></select> <button type="button" class="tip" data-tip="Off by default. When on, a picture from someone else is first described by your picture model, checked, and only the description reaches her. Their pictures are kept 7 days.">?</button></label>
+      <label class="row"><input id="dc-media-proof" type="checkbox"> Send screenshots of her work <button type="button" class="tip" data-tip="Screenshots she takes while using the computer or a browser can show private things. Off by default; when on, they go only to your private chat.">?</button></label>
+      <label>Keep other people's pictures for <select id="dc-media-keep"><option value="1">1 day</option><option value="7">7 days</option><option value="30">30 days</option></select> <button type="button" class="tip" data-tip="How long other people's pictures are kept before the bytes are deleted. Her description of each one stays in the chat.">?</button></label>
+      <p id="dc-media-today" class="muted small" role="status"></p>
+      <p class="cmd-menu-row"><button id="dc-media-test" type="button" class="ghost">Send me a test picture</button> <button type="button" class="tip" data-tip="Sends a small test picture to your private chat with her, so you can check the setup without asking a model anything.">?</button> <span id="dc-media-test-state" class="muted small" role="status"></span></p>
+      </div>
+      <div class="kit-card">
+      <h3>Progress while she works</h3>
+      <label class="row"><input id="dc-prog-on" type="checkbox"> Show her progress while she works <button type="button" class="tip" data-tip="On long jobs, one message shows what she's doing and is updated in place, then becomes a short summary above her answer. Never shows commands, output or secrets.">?</button></label>
+      <label>Where it shows <select id="dc-prog-where"><option value="private">Private chats only</option><option value="work">Also rooms where I work with her</option></select> <button type="button" class="tip" data-tip="Private chats only, or also the rooms where you work with her. Partner chats and rooms she only talks in never get one.">?</button></label>
+      <label>Show it after <select id="dc-prog-after"><option value="5">5 seconds</option><option value="10">10 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option></select> <button type="button" class="tip" data-tip="Quick replies don't need it. She only posts the progress message when a reply takes longer than this.">?</button></label>
+      <label>When she's done <select id="dc-prog-final"><option value="summary">Keep one summary line</option><option value="delete">Remove it</option></select> <button type="button" class="tip" data-tip="Keep a one-line summary (steps and time) above her answer, or remove the progress message completely.">?</button></label>
+      <p class="muted small">How it looks (in your language):</p>
+      <pre id="dc-prog-preview" class="prog-preview" aria-label="Preview of the progress message"></pre>
       </div>
       <div class="kit-card">
       <h3>Rooms <button type="button" class="tip" data-tip="The server channels she has talked in. Open one to let her keep up with it: she reads every message there, keeps a short summary and joins the current topic when she's called.">?</button></h3>

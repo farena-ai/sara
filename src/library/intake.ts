@@ -39,6 +39,14 @@ export async function waitUntilRead(app: AppContext, ids: number[], ms = 45_000)
 }
 
 /**
+ * Phase 115 (BR1): where a chat document came from, by the conversation's channel. Before 2.48.0 a
+ * plugin bridge's document was labelled Telegram (everything that wasn't Discord was).
+ */
+export function chatOrigin(channel: string): 'discord' | 'telegram' | 'plugin' {
+  return channel.startsWith('discord') ? 'discord' : channel.startsWith('telegram') ? 'telegram' : 'plugin';
+}
+
+/**
  * Takes a document sent on Telegram or Discord: saves it (kept unless the caption asks to read
  * it once), starts reading, waits a little. Returns it for the turn, or a reason it couldn't.
  */
@@ -49,7 +57,7 @@ export async function takeChatDocument(app: AppContext, conv: Conversation, file
   if (!detectKind(file.name, file.bytes)) return { problem: `I can't read that kind of file. I can read ${SUPPORTED.map((k) => k.label).join(', ')}.` };
   const keep = !readOnceAsked(caption);
   const had = keep ? lib.findKept(file.bytes) : undefined;
-  const doc = had ?? lib.add({ name: file.name, bytes: file.bytes, keep, conversationId: keep ? null : conv.id, origin: conv.channel.startsWith('discord') ? 'discord' : 'telegram' });
+  const doc = had ?? lib.add({ name: file.name, bytes: file.bytes, keep, conversationId: keep ? null : conv.id, origin: chatOrigin(conv.channel) });
   app.libraryNudge?.();
   app.events?.publish({ type: 'library', id: doc.id });
   await waitUntilRead(app, [doc.id]);
