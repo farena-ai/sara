@@ -537,7 +537,8 @@ test('web: typed /new, /status and /help; POST …/new; GET …/fill and …/ses
   const tgc = app.store.createConversation({ title: 'Telegram', channel: 'telegram', channelKey: '1001' });
   app.store.addMessage(tgc.id, 'user', 'hi');
   const r = await api('POST', `/conversations/${tgc.id}/new`, {});
-  assert.equal((r.json.opened as { title: string }).title, 'Telegram');
+  // Phase 109 (CH3): a /new session's placeholder carries the day, so sessions of one chat can be told apart.
+  assert.equal((r.json.opened as { title: string }).title, 'Telegram · Oct 31');
   assert.equal(app.store.currentChannelConversation('telegram', '1001', 'owner')!.id, (r.json.opened as { id: string }).id);
   // The commands table is the owner's.
   const tab = await api('GET', '/chats/commands');

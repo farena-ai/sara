@@ -167,6 +167,9 @@ Every module in `src/`, roughly in the order they were added (the phase is noted
 | `src/bridges/discord.ts` | Discord bridge (gateway WebSocket + REST; owner DMs, servers on mention, NSFW channels). Phase 107: interaction router by type (2 command → type 4 at once or type 5 + `PATCH /webhooks/{app}/{token}/messages/@original`; 3 buttons `ap:` and the `/model` select `md:<conv>`; 4 autocomplete), one bulk overwrite `PUT /applications/{id}/commands` per hash after READY |
 | `src/bridges/commands.ts` | Phase 107 (CH1, B1): the command layer for every bridge and the web composer: `parseCommand` (native, typed `/new` `!new` `/new@bot`, name + one word in six languages), `commandAllowed(place, who, name)` checked on every command, `runCommand` against a `BridgeAdapter` (current session, next session, stop, clear queue, bot guard), replies through `tr()` in the asker's language, `command:<name>` notices, `nearlyFullOffer` (85 % or `dropped > 0`, once per session), menu lists and hashes |
 | `src/bridges/rooms.ts` | Phase 108 (CH2, B3): channel projects and room identity: `channelProjectFor(channel)` (the one table: Telegram, Discord, one per plugin bridge), `ensureChannelProject` / `channelProjectId` (a chat's first session), `channelOn` (delete refused while on), the one-time `fileChannelChats` with its per-project Undo (`memory_kv` `chats:filed`), the `rooms` table (§7.3 schema) with `noteRoom` / `roomOf` / `roomChip` |
+| `src/cheap.ts` | Phase 109 (CH3, B4): small model calls that never take a turn: `cheapRoute` (local first: a `local` provider in the quick chain, the conversation's own, the Private route, any local provider; `quick` = the quick route as it is; private chats local only), `cheapCall` (the daily ledger checked before, `usageScope` purpose, one fallback), `fenceLines` (others' lines as fenced data), `safeLines` (minors pre-filter) |
+| `src/titles.ts` | Phase 109 (CH3): titles that grow: `TitleKeeper` (`afterTurn`, `atNew`, `nameNow`, `retitleAll`), the triggers (`dueReason`: 6 messages or 1,500 characters, then the word check every 20 messages, /new with 6 new), `titleSourceOf` (old rows), `checkTitle` (redactor, explicit, minors, sensitive words, people cards outside his own chats), `cleanTitle`, `codeTitle` (no-model fallback), `nextPlaceholder` (`Telegram · Oct 31`) |
+| `src/title-evals.ts`, `scripts/eval-titles.ts`, `evals/titles/sessions.json` | Phase 109: the title evals (40 sessions, six languages; scored in code) |
 | `src/subscriptions/chatgpt.ts` | Sign in with ChatGPT (dynamic registration, PKCE, JWKS-verified ID token, refresh, revoke) |
 | `src/subscriptions/index.ts` | Subscription logins: ChatGPT, Claude token, Grok device login; CLI runtimes |
 | `src/providers/chatgpt.ts` | ChatGPT plan provider (Responses API, namespaced tools, plan-limit errors) |
@@ -319,6 +322,19 @@ at most daily) and gives each bridge conversation a `room` chip in the list. Pag
 gives every group's newest N plus `totals`; `GET /api/projects/:id?limit=` gives the project page's
 first page. `web/session-list.js` holds the client rules (chains of sessions by `sessionOf`,
 newest-first pages of 5/8/10 plus 20 per *See more*, Group by room).
+
+**Titles that grow (Phase 109, CH3).** `conversations.title_source` (`placeholder` / `auto` /
+`owner`; null = an old row, classified by `titleSourceOf`), `title_history` (JSON, newest last, 10
+kept) and `titled_through` (the last message id the title covers) are additive `store.db` columns.
+`Store.setTitle` changes a title without counting as activity. The server calls
+`app.titles.afterTurn(id)` when a tracked turn ends (never for off-the-record chats, which live in the
+in-memory store) and `nextSession` calls `atNew(prev.id)`. The model call goes through
+`src/cheap.ts` (`source` and `purpose` `titles`, `maxTokens` 24, temperature 0.2) and spends from
+`budget_ledger` in `store.db` (`DailyLedger` in `src/budget.ts`, the owner's local day; cap
+`chats.titles.dailyCap`, default 60). A change publishes `{type:'title'}`; the web replaces that one
+row in place. Routes: `PATCH /api/conversations/:id {title | keepTitle | titleSource:'auto'}`, `POST
+/api/conversations/:id/retitle`, `GET|PUT /api/chats/titles`, `POST /api/chats/titles/retitle-all`;
+`GET /api/conversations/:id` adds `titleSource`, `titleHistory`, `titleNever`.
 
 **Household mode (Phase 71).** Each extra person the owner invites gets a whole data folder of their
 own, `members/<id>/`, laid out like the owner's (their own `owner.json`, `sara.db`, `settings.json`,

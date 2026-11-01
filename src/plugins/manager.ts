@@ -876,7 +876,7 @@ export class PluginManager {
     // Phase 107 (CH1): the chat's current session (the newest one /new hasn't closed).
     // Phase 108 (CH2): a chat's first session goes into the bridge's own project ("WhatsApp", "Signal").
     const { channelProjectId } = await import('../bridges/rooms.ts');
-    const make = () => (store.latestChannelConversation(channel, chatId, who) ? nextSessionOf(store.latestChannelConversation(channel, chatId, who)!) : store.createConversation({ title: owner ? `${run.manifest.name}` : `${run.manifest.name}: ${from}`, channel, channelKey: chatId, partner: owner ? null : from, projectId: channelProjectId(a.app, channel, run.manifest.name) }));
+    const make = () => (store.latestChannelConversation(channel, chatId, who) ? nextSessionOf(store.latestChannelConversation(channel, chatId, who)!) : store.createConversation({ title: owner ? `${run.manifest.name}` : `${run.manifest.name}: ${from}`, titleSource: 'placeholder', channel, channelKey: chatId, partner: owner ? null : from, projectId: channelProjectId(a.app, channel, run.manifest.name) }));
     // Phase 107: typed commands (/new, !new, "Sara new") work here too; never a turn, checked here every time.
     const { chatsSettings, nextSession, ownerLanguage, parseCommand, runCommand } = await import('../bridges/commands.ts');
     const nextSessionOf = (prev: import('../store.ts').Conversation) => nextSession(a.app, prev);

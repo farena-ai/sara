@@ -1,0 +1,1104 @@
+{
+ "_about": "Phase 109 (CH3, docs/design/CHATS.md §6.7): 40 invented sessions in six languages for the title evals (scripts/eval-titles.ts). The example owner is Alex; everyone else is invented. Each session has 2–5 topic words (a title matches when one of its words starts like one of them), 10 change topic halfway (after/lines2), 5 are partner or room chats (partner) and 5 are sensitive (avoid: words the title must never show). people: third people named in it (never in a title).",
+ "owner": "Alex",
+ "sessions": [
+  {
+   "id": "en-garden",
+   "lang": "en",
+   "kind": "plain",
+   "topics": [
+    "garden",
+    "tomato",
+    "vegetable",
+    "planting",
+    "seedling"
+   ],
+   "lines": [
+    "I want to start a vegetable garden in the backyard this spring.",
+    "Lovely idea. How much sun does the backyard get?",
+    "About six hours. I was thinking tomatoes and peppers.",
+    "Tomatoes love that. Start seedlings indoors in March, plant out after the last frost.",
+    "Should I build raised beds or plant straight in the ground?",
+    "Raised beds warm up faster and drain better, so they're great for tomatoes."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "en-laptop",
+   "lang": "en",
+   "kind": "plain",
+   "topics": [
+    "laptop",
+    "computer",
+    "notebook",
+    "buying",
+    "budget"
+   ],
+   "lines": [
+    "I need a new laptop for work, my old one is dying.",
+    "What do you mostly use it for?",
+    "Spreadsheets, video calls and some light photo editing. Budget around 1200.",
+    "Then 16 GB of memory and a good screen matter more than a fast graphics card.",
+    "Is a 14 inch screen big enough or should I go 16?",
+    "14 inch is easier to carry; 16 is nicer for photo editing at a desk."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "en-trip",
+   "lang": "en",
+   "kind": "plain",
+   "topics": [
+    "lisbon",
+    "portugal",
+    "trip",
+    "travel",
+    "itinerary",
+    "vacation"
+   ],
+   "lines": [
+    "My partner and I are going to Lisbon for five days in May.",
+    "Fun! Do you want a rough plan for the days?",
+    "Yes, we like food, old neighborhoods and maybe a day trip.",
+    "Day one Alfama and the castle, day two Belém, and Sintra makes a great day trip.",
+    "Where should we eat the famous custard tarts?",
+    "Pastéis de Belém is the classic, and Manteigaria in the center is just as good."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "en-resume",
+   "lang": "en",
+   "kind": "plain",
+   "topics": [
+    "resume",
+    "cv",
+    "job",
+    "application",
+    "interview"
+   ],
+   "lines": [
+    "Can you help me rewrite my resume for a project manager job?",
+    "Sure. What's your current role and the biggest project you led?",
+    "I'm a team lead at a logistics company, I led a warehouse software rollout.",
+    "Put that rollout at the top with numbers: sites, people trained, time saved.",
+    "How long should the resume be?",
+    "Two pages at most, with the last ten years in detail."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "es-paella",
+   "lang": "es",
+   "kind": "plain",
+   "topics": [
+    "paella",
+    "receta",
+    "arroz",
+    "cocina",
+    "cocinar"
+   ],
+   "lines": [
+    "Quiero hacer una paella para ocho personas el sábado.",
+    "¡Qué bien! ¿De marisco, de pollo o mixta?",
+    "Mixta, con pollo y gambas. ¿Qué arroz uso?",
+    "Arroz bomba o calasparra, absorbe bien el caldo sin pasarse.",
+    "¿Cuánto caldo necesito por taza de arroz?",
+    "Más o menos tres partes de caldo por una de arroz, y no remuevas al final."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "es-bici",
+   "lang": "es",
+   "kind": "plain",
+   "topics": [
+    "bicicleta",
+    "bici",
+    "ciclismo",
+    "ruta",
+    "rueda"
+   ],
+   "lines": [
+    "Me he comprado una bicicleta de carretera y quiero empezar a salir los domingos.",
+    "¡Genial! ¿Cuántos kilómetros te ves haciendo al principio?",
+    "Unos treinta, por una ruta tranquila cerca del río.",
+    "Perfecto para empezar. Revisa la presión de las ruedas antes de cada salida.",
+    "¿Qué llevo en la bolsa del sillín?",
+    "Una cámara de repuesto, desmontables, una mini bomba y algo de comer."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "es-mudanza",
+   "lang": "es",
+   "kind": "plain",
+   "topics": [
+    "mudanza",
+    "piso",
+    "casa",
+    "mudarse",
+    "alquiler"
+   ],
+   "lines": [
+    "El mes que viene me mudo a un piso nuevo en Valencia.",
+    "¡Enhorabuena! ¿Quieres hacer una lista para la mudanza?",
+    "Sí, me agobia empaquetar todo y cambiar los contratos.",
+    "Empieza por lo que no usas a diario y da de alta la luz y el internet con dos semanas.",
+    "¿Contrato una empresa de mudanzas o alquilo una furgoneta?",
+    "Si tienes muebles grandes y pocos amigos libres, la empresa compensa."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "es-ingles",
+   "lang": "es",
+   "kind": "plain",
+   "topics": [
+    "ingles",
+    "idioma",
+    "aprender",
+    "clases",
+    "estudiar"
+   ],
+   "lines": [
+    "Quiero mejorar mi inglés para el trabajo, sobre todo hablar.",
+    "¿Qué nivel tienes ahora más o menos?",
+    "Entiendo bastante, pero me bloqueo en las reuniones.",
+    "Practica conversación corta cada día y prepara frases para las reuniones.",
+    "¿Me recomiendas clases online o un intercambio de idiomas?",
+    "Las dos cosas: clases para la estructura e intercambio para soltarte."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "fr-jardin",
+   "lang": "fr",
+   "kind": "plain",
+   "topics": [
+    "balcon",
+    "plante",
+    "jardin",
+    "fleur",
+    "herbe"
+   ],
+   "lines": [
+    "Je voudrais mettre des plantes sur mon balcon cet été.",
+    "Bonne idée ! Ton balcon est orienté comment ?",
+    "Plein sud, il fait très chaud l'après-midi.",
+    "Alors choisis des plantes qui aiment le soleil : lavande, romarin, géraniums.",
+    "Et pour les herbes aromatiques, c'est possible ?",
+    "Oui, le thym et le basilic adorent le soleil, arrose le soir."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "fr-velo",
+   "lang": "fr",
+   "kind": "plain",
+   "topics": [
+    "voiture",
+    "achat",
+    "occasion",
+    "vehicule",
+    "auto"
+   ],
+   "lines": [
+    "Je cherche une voiture d'occasion pour aller au travail.",
+    "Tu fais combien de kilomètres par jour ?",
+    "Environ quarante, surtout sur l'autoroute.",
+    "Une petite diesel ou une hybride récente serait économique pour ça.",
+    "Qu'est-ce que je dois vérifier avant d'acheter ?",
+    "Le carnet d'entretien, le contrôle technique et un essai sur route."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "fr-pain",
+   "lang": "fr",
+   "kind": "plain",
+   "topics": [
+    "pain",
+    "levain",
+    "boulangerie",
+    "farine",
+    "recette"
+   ],
+   "lines": [
+    "J'ai envie de faire mon propre pain au levain.",
+    "Super projet ! Tu as déjà un levain ?",
+    "Non, il faut le faire moi-même ?",
+    "Oui : farine et eau, à nourrir chaque jour pendant une semaine.",
+    "Quelle farine est la meilleure pour commencer ?",
+    "Une farine T65 pour le pain, avec un peu de seigle pour le levain."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "fr-mariage",
+   "lang": "fr",
+   "kind": "plain",
+   "topics": [
+    "mariage",
+    "discours",
+    "temoin",
+    "noce",
+    "toast"
+   ],
+   "lines": [
+    "Je suis témoin au mariage de mon meilleur ami et je dois faire un discours.",
+    "Quel honneur ! Tu veux qu'on l'écrive ensemble ?",
+    "Oui, je veux quelque chose de drôle mais touchant.",
+    "Commence par une anecdote, puis ce que tu admires chez lui, et finis par un toast.",
+    "Combien de temps doit durer le discours ?",
+    "Trois à cinq minutes, c'est parfait."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "de-umzug",
+   "lang": "de",
+   "kind": "plain",
+   "topics": [
+    "umzug",
+    "wohnung",
+    "berlin",
+    "miete",
+    "umziehen"
+   ],
+   "lines": [
+    "Ich ziehe nächsten Monat in eine neue Wohnung in Berlin.",
+    "Glückwunsch! Brauchst du Hilfe bei der Planung?",
+    "Ja, vor allem mit dem Ummelden und den Kartons.",
+    "Melde dich innerhalb von zwei Wochen beim Bürgeramt an und pack Zimmer für Zimmer.",
+    "Soll ich ein Umzugsunternehmen nehmen?",
+    "Bei vielen Möbeln und einem vierten Stock ohne Aufzug lohnt es sich."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "de-laufen",
+   "lang": "de",
+   "kind": "plain",
+   "topics": [
+    "laufen",
+    "marathon",
+    "training",
+    "joggen",
+    "halbmarathon"
+   ],
+   "lines": [
+    "Ich möchte im Herbst meinen ersten Halbmarathon laufen.",
+    "Super! Wie oft läufst du gerade?",
+    "Zweimal pro Woche, jeweils etwa fünf Kilometer.",
+    "Steigere langsam auf drei bis vier Läufe pro Woche mit einem langen Lauf am Sonntag.",
+    "Welche Schuhe brauche ich dafür?",
+    "Lass dich im Laufladen beraten, die Schuhe sollten zu deinem Laufstil passen."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "de-geburtstag",
+   "lang": "de",
+   "kind": "plain",
+   "topics": [
+    "geburtstag",
+    "party",
+    "feier",
+    "geschenk",
+    "fest",
+    "uberraschung"
+   ],
+   "lines": [
+    "Ich plane eine Überraschungsparty zum Geburtstag meiner Schwester.",
+    "Wie schön! Wie viele Gäste sollen kommen?",
+    "Etwa zwanzig, im Garten meiner Eltern.",
+    "Dann brauchst du einen Plan B bei Regen, zum Beispiel ein Zelt.",
+    "Was für ein Geschenk könnten wir zusammen schenken?",
+    "Ein Wochenendausflug, für den alle etwas dazugeben."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "de-steuer",
+   "lang": "de",
+   "kind": "plain",
+   "topics": [
+    "steuer",
+    "steuererklarung",
+    "finanzamt",
+    "elster"
+   ],
+   "lines": [
+    "Ich muss dieses Jahr zum ersten Mal meine Steuererklärung machen.",
+    "Machst du sie mit Elster oder mit einer App?",
+    "Mit Elster, aber ich verstehe die Formulare nicht.",
+    "Fang mit dem Mantelbogen und der Anlage N für dein Gehalt an.",
+    "Kann ich die Fahrten zur Arbeit absetzen?",
+    "Ja, über die Pendlerpauschale in der Anlage N."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "pt-churrasco",
+   "lang": "pt-BR",
+   "kind": "plain",
+   "topics": [
+    "churrasco",
+    "carne",
+    "picanha",
+    "festa"
+   ],
+   "lines": [
+    "Vou fazer um churrasco no domingo para os amigos do trabalho.",
+    "Que legal! Quantas pessoas vão?",
+    "Umas quinze. Quanto de carne eu compro?",
+    "Conta uns quatrocentos gramas por pessoa, com picanha, linguiça e frango.",
+    "E para quem não come carne?",
+    "Legumes grelhados, queijo coalho e pão de alho resolvem."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "pt-violao",
+   "lang": "pt-BR",
+   "kind": "plain",
+   "topics": [
+    "violao",
+    "musica",
+    "acorde",
+    "tocar",
+    "aula"
+   ],
+   "lines": [
+    "Quero aprender a tocar violão sozinho em casa.",
+    "Ótimo! Você já tem um violão?",
+    "Tenho um velho do meu pai, mas nunca toquei.",
+    "Começa trocando as cordas e aprendendo os acordes básicos: Dó, Sol, Ré e Lá menor.",
+    "Quanto tempo por dia devo praticar?",
+    "Vinte minutos todo dia valem mais que duas horas no fim de semana."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "it-pasta",
+   "lang": "it",
+   "kind": "plain",
+   "topics": [
+    "pasta",
+    "fresca",
+    "ricetta",
+    "cucina",
+    "farina"
+   ],
+   "lines": [
+    "Voglio imparare a fare la pasta fresca in casa.",
+    "Bello! Hai già provato qualche volta?",
+    "No, mai. Quanta farina e quante uova servono?",
+    "Cento grammi di farina per ogni uovo, e impasta per dieci minuti.",
+    "Meglio le tagliatelle o i ravioli per iniziare?",
+    "Le tagliatelle: sono più semplici e non serve il ripieno."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "it-cane",
+   "lang": "it",
+   "kind": "plain",
+   "topics": [
+    "cane",
+    "cucciolo",
+    "adottare",
+    "addestramento",
+    "canile"
+   ],
+   "lines": [
+    "Stiamo pensando di adottare un cane dal canile.",
+    "Che bella scelta! Avete già un'idea della taglia?",
+    "Media, perché viviamo in un appartamento con un piccolo giardino.",
+    "Un cane adulto e tranquillo potrebbe essere perfetto per voi.",
+    "Come lo abituiamo alla casa nuova?",
+    "Routine fisse, passeggiate regolari e tanta pazienza i primi giorni."
+   ],
+   "people": [],
+   "avoid": []
+  },
+  {
+   "id": "en-garden-tax",
+   "lang": "en",
+   "kind": "change",
+   "topics": [
+    "garden",
+    "tomato",
+    "compost",
+    "vegetable"
+   ],
+   "lines": [
+    "My tomatoes keep splitting, what am I doing wrong in the garden?",
+    "Usually it's uneven watering. Do you water at the same time each day?",
+    "Not really, sometimes I forget for three days and then soak them.",
+    "That's the cause. Water deeply every other morning and mulch to keep the soil even.",
+    "Would compost help too?",
+    "Yes, compost holds moisture and feeds them slowly."
+   ],
+   "after": [
+    "tax",
+    "return",
+    "deduction",
+    "irs",
+    "refund"
+   ],
+   "lines2": [
+    "Different topic: I have to file my tax return this week and I'm lost.",
+    "Okay, are you employed, self-employed or both?",
+    "Both, I did some freelance design work on the side.",
+    "Then you need a Schedule C for the freelance income and expenses.",
+    "Can I deduct my home office?",
+    "If the room is used only for work, yes, with the simplified method per square foot.",
+    "And the new laptop I bought for the design jobs?",
+    "The business share of it counts as a deduction on the Schedule C."
+   ],
+   "people": [
+    "Jordan"
+   ],
+   "avoid": []
+  },
+  {
+   "id": "en-dog-car",
+   "lang": "en",
+   "kind": "change",
+   "topics": [
+    "puppy",
+    "dog",
+    "training",
+    "crate"
+   ],
+   "lines": [
+    "My friend Priya gave me tips but our new puppy still cries in his crate at night.",
+    "That's very normal in the first week. Is the crate in your bedroom?",
+    "No, it's in the kitchen.",
+    "Try moving it next to your bed for a few nights so he feels you close.",
+    "Should I let him out when he cries?",
+    "Only for a quick quiet potty break, then straight back in."
+   ],
+   "after": [
+    "car",
+    "insurance",
+    "quote",
+    "premium",
+    "policy"
+   ],
+   "lines2": [
+    "Unrelated, but my car insurance renewal just came in way higher.",
+    "How much higher than last year?",
+    "Almost forty percent, and I had no claims.",
+    "Get two or three other quotes, and ask your insurer to match the best one.",
+    "Does raising the deductible help?",
+    "Yes, a higher deductible lowers the premium, if you can afford it in a claim.",
+    "Okay, I'll compare quotes tonight.",
+    "Check the coverage limits are the same so the comparison is fair."
+   ],
+   "people": [
+    "Priya"
+   ],
+   "avoid": []
+  },
+  {
+   "id": "es-viaje-coche",
+   "lang": "es",
+   "kind": "change",
+   "topics": [
+    "viaje",
+    "japon",
+    "tokio",
+    "itinerario",
+    "vuelo"
+   ],
+   "lines": [
+    "En octubre me voy de viaje a Japón dos semanas.",
+    "¡Qué envidia! ¿Ya tienes el itinerario?",
+    "Tokio, Kioto y quizás Osaka. Los vuelos ya están.",
+    "Compra el JR Pass si vas a moverte mucho entre ciudades.",
+    "¿Cuántos días en Tokio?",
+    "Cinco días está bien para ver lo principal sin correr."
+   ],
+   "after": [
+    "coche",
+    "taller",
+    "reparacion",
+    "frenos",
+    "averia"
+   ],
+   "lines2": [
+    "Cambiando de tema, el coche hace un ruido raro al frenar.",
+    "¿Es un chirrido o más bien un golpe?",
+    "Un chirrido metálico, sobre todo en la ciudad.",
+    "Suele ser el desgaste de las pastillas de freno. Llévalo al taller pronto.",
+    "¿Es peligroso conducir así?",
+    "Si las pastillas están al límite pueden dañar los discos, mejor no esperar.",
+    "Vale, pido cita en el taller mañana.",
+    "Pide que revisen también el líquido de frenos."
+   ],
+   "people": [
+    "Lucía"
+   ],
+   "avoid": []
+  },
+  {
+   "id": "es-boda-gym",
+   "lang": "es",
+   "kind": "change",
+   "topics": [
+    "boda",
+    "invitados",
+    "banquete",
+    "celebracion"
+   ],
+   "lines": [
+    "Mi hermano Javier se casa en junio y me toca ayudar con la boda.",
+    "¡Enhorabuena a la familia! ¿En qué te toca ayudar?",
+    "Con la lista de invitados y el banquete.",
+    "Empieza por una hoja con todos los invitados y confirma con dos meses.",
+    "¿Menú cerrado o buffet para el banquete?",
+    "Para más de cien invitados el buffet suele salir mejor."
+   ],
+   "after": [
+    "gimnasio",
+    "entrenamiento",
+    "ejercicio",
+    "rutina",
+    "pesas"
+   ],
+   "lines2": [
+    "Otra cosa: quiero apuntarme al gimnasio y no sé por dónde empezar.",
+    "¿Buscas fuerza, perder peso o sentirte mejor en general?",
+    "Más fuerza, sobre todo en la espalda.",
+    "Tres días de pesas con ejercicios básicos: remo, peso muerto ligero y dominadas asistidas.",
+    "¿Cuánto tiempo cada sesión?",
+    "Unos cuarenta y cinco minutos con calentamiento.",
+    "¿Y cardio?",
+    "Diez o quince minutos al final o un día aparte."
+   ],
+   "people": [
+    "Javier"
+   ],
+   "avoid": []
+  },
+  {
+   "id": "fr-voyage-impots",
+   "lang": "fr",
+   "kind": "change",
+   "topics": [
+    "voyage",
+    "italie",
+    "rome",
+    "itineraire",
+    "vacances"
+   ],
+   "lines": [
+    "On part en vacances en Italie en août avec les enfants.",
+    "Super ! Vous avez déjà un itinéraire ?",
+    "Rome quelques jours, puis la côte.",
+    "Avec des enfants, trois jours à Rome suffisent, puis la plage près de Naples.",
+    "Il fait très chaud à Rome en août ?",
+    "Oui, visitez le matin et faites une pause l'après-midi."
+   ],
+   "after": [
+    "impot",
+    "declaration",
+    "fiscal",
+    "revenu",
+    "taxe"
+   ],
+   "lines2": [
+    "Autre chose : je dois faire ma déclaration d'impôts en ligne.",
+    "Tu es salarié ou indépendant ?",
+    "Salarié, mais j'ai aussi loué un appartement cette année.",
+    "Les loyers se déclarent en revenus fonciers, micro-foncier si moins de 15 000 euros.",
+    "Et les frais de garde des enfants ?",
+    "Ils donnent un crédit d'impôt, case 7GA sur la déclaration.",
+    "Je dois envoyer des justificatifs ?",
+    "Non, garde-les simplement en cas de contrôle."
+   ],
+   "people": [
+    "Camille"
+   ],
+   "avoid": []
+  },
+  {
+   "id": "fr-cuisine-ordi",
+   "lang": "fr",
+   "kind": "change",
+   "topics": [
+    "cuisine",
+    "renovation",
+    "travaux",
+    "meuble"
+   ],
+   "lines": [
+    "On veut refaire la cuisine, elle date des années 80.",
+    "Gros projet ! Vous gardez la même disposition ?",
+    "Oui, mais on change les meubles et le plan de travail.",
+    "Garder la plomberie au même endroit réduit beaucoup le coût des travaux.",
+    "Quel plan de travail résiste le mieux ?",
+    "Le quartz est solide et facile à entretenir."
+   ],
+   "after": [
+    "ordinateur",
+    "imprimante",
+    "wifi",
+    "reseau",
+    "connexion"
+   ],
+   "lines2": [
+    "Rien à voir, mais le wifi coupe tout le temps dans le salon.",
+    "La box est loin du salon ?",
+    "Oui, à l'autre bout de l'appartement.",
+    "Un répéteur wifi ou un système mesh réglerait le problème.",
+    "Lequel est le plus simple ?",
+    "Le mesh : deux bornes, une seule application, pas de réglages compliqués.",
+    "Et pour l'imprimante qui ne se connecte plus ?",
+    "Reconnecte-la au réseau après avoir installé le mesh."
+   ],
+   "people": [
+    "Hugo"
+   ],
+   "avoid": []
+  },
+  {
+   "id": "de-garten-auto",
+   "lang": "de",
+   "kind": "change",
+   "topics": [
+    "garten",
+    "rasen",
+    "hecke",
+    "pflanzen"
+   ],
+   "lines": [
+    "Mein Rasen im Garten hat überall braune Flecken.",
+    "Seit wann sind die Flecken da?",
+    "Seit dem heißen Juli, obwohl ich gieße.",
+    "Gieße seltener, aber dafür länger, und mähe nicht zu kurz.",
+    "Soll ich nachsäen?",
+    "Ja, im September ist die beste Zeit zum Nachsäen."
+   ],
+   "after": [
+    "auto",
+    "werkstatt",
+    "reifen",
+    "inspektion",
+    "tuv"
+   ],
+   "lines2": [
+    "Anderes Thema: mein Auto muss nächste Woche zum TÜV.",
+    "Ist die letzte Inspektion lange her?",
+    "Über ein Jahr, und die Reifen sind auch alt.",
+    "Lass die Reifen prüfen, unter drei Millimetern Profil solltest du sie wechseln.",
+    "Was wird beim TÜV am häufigsten bemängelt?",
+    "Licht, Bremsen und Reifen. Prüf vorher alle Lampen.",
+    "Kann die Werkstatt das gleich mitmachen?",
+    "Ja, viele Werkstätten bieten die Hauptuntersuchung direkt an."
+   ],
+   "people": [
+    "Jonas"
+   ],
+   "avoid": []
+  },
+  {
+   "id": "de-kochen-job",
+   "lang": "de",
+   "kind": "change",
+   "topics": [
+    "kochen",
+    "rezept",
+    "suppe",
+    "abendessen"
+   ],
+   "lines": [
+    "Was kann ich heute Abend schnell kochen? Ich habe Kartoffeln und Lauch.",
+    "Wie wäre es mit einer Kartoffel-Lauch-Suppe?",
+    "Gute Idee, wie lange dauert die?",
+    "Etwa dreißig Minuten: Lauch andünsten, Kartoffeln dazu, mit Brühe kochen und pürieren.",
+    "Kann ich Speck dazugeben?",
+    "Ja, knusprig gebraten oben drauf schmeckt sie super."
+   ],
+   "after": [
+    "bewerbung",
+    "job",
+    "stelle",
+    "vorstellungsgesprach",
+    "gehalt"
+   ],
+   "lines2": [
+    "Übrigens, ich habe morgen ein Vorstellungsgespräch für eine neue Stelle.",
+    "Toll! Für welche Position?",
+    "Teamleitung im Vertrieb.",
+    "Bereite zwei Beispiele vor, wie du ein Team zu einem Ziel geführt hast.",
+    "Was sage ich, wenn sie nach dem Gehalt fragen?",
+    "Nenne eine Spanne, die du vorher recherchiert hast, leicht über deinem Ziel.",
+    "Und welche Fragen stelle ich am Ende?",
+    "Frag nach den Zielen für das erste Jahr und wie das Team arbeitet."
+   ],
+   "people": [
+    "Anna"
+   ],
+   "avoid": []
+  },
+  {
+   "id": "pt-viagem-banco",
+   "lang": "pt-BR",
+   "kind": "change",
+   "topics": [
+    "viagem",
+    "praia",
+    "nordeste",
+    "ferias",
+    "hotel"
+   ],
+   "lines": [
+    "Estou planejando umas férias na praia no Nordeste em janeiro.",
+    "Que delícia! Já escolheu a cidade?",
+    "Estou entre Maceió e Porto de Galinhas.",
+    "Porto de Galinhas tem piscinas naturais lindas; Maceió tem mais opções de hotel.",
+    "Quantos dias você recomenda?",
+    "Uma semana dá para aproveitar bem e fazer um passeio de barco."
+   ],
+   "after": [
+    "banco",
+    "cartao",
+    "conta",
+    "emprestimo",
+    "juros"
+   ],
+   "lines2": [
+    "Mudando de assunto, meu banco quer cobrar uma tarifa nova no cartão.",
+    "Quanto é a tarifa?",
+    "Trinta reais por mês, e eu quase não uso o cartão.",
+    "Peça a isenção ou mude para uma conta digital sem tarifa.",
+    "Vale a pena levar o empréstimo junto?",
+    "Compare os juros antes; às vezes a portabilidade sai mais barata.",
+    "Vou ligar para o banco amanhã.",
+    "Anote o número do protocolo da ligação."
+   ],
+   "people": [
+    "Marcos"
+   ],
+   "avoid": []
+  },
+  {
+   "id": "it-casa-pc",
+   "lang": "it",
+   "kind": "change",
+   "topics": [
+    "casa",
+    "mutuo",
+    "appartamento",
+    "acquisto"
+   ],
+   "lines": [
+    "Stiamo cercando casa da comprare a Bologna.",
+    "Bello! Avete già parlato con la banca per il mutuo?",
+    "Sì, ci danno fino a duecentomila euro.",
+    "Allora cercate appartamenti sotto i duecentotrentamila, contando le spese.",
+    "Meglio un appartamento nuovo o da ristrutturare?",
+    "Da ristrutturare costa meno ma servono tempo e un buon preventivo."
+   ],
+   "after": [
+    "computer",
+    "portatile",
+    "lento",
+    "virus",
+    "aggiornamento"
+   ],
+   "lines2": [
+    "Altra cosa: il mio portatile è diventato lentissimo.",
+    "Da quanto tempo?",
+    "Da dopo l'ultimo aggiornamento di Windows.",
+    "Controlla quali programmi partono all'avvio e disattiva quelli inutili.",
+    "Potrebbe essere un virus?",
+    "Fai una scansione completa con l'antivirus integrato per sicurezza.",
+    "E se è ancora lento?",
+    "Un disco SSD nuovo lo renderebbe molto più veloce."
+   ],
+   "people": [
+    "Giulia"
+   ],
+   "avoid": []
+  },
+  {
+   "id": "en-partner-movies",
+   "lang": "en",
+   "kind": "partner",
+   "topics": [
+    "movie",
+    "film",
+    "watch",
+    "recommend",
+    "cinema"
+   ],
+   "lines": [
+    "Hi! Can you recommend a movie for tonight? Something funny.",
+    "Sure! Do you like older comedies or new ones?",
+    "Newer ones, nothing too silly though.",
+    "Try The Grand Budapest Hotel: funny, clever and beautiful to watch.",
+    "I've seen it. Anything else like it?",
+    "Then Knives Out: a witty mystery with a great cast."
+   ],
+   "people": [
+    "Mia"
+   ],
+   "partner": "Mia",
+   "avoid": []
+  },
+  {
+   "id": "es-partner-futbol",
+   "lang": "es",
+   "kind": "partner",
+   "topics": [
+    "futbol",
+    "partido",
+    "equipo",
+    "liga"
+   ],
+   "lines": [
+    "¿Viste el partido de anoche? ¡Qué final!",
+    "¡Sí! El gol en el último minuto fue increíble.",
+    "Mi equipo está a tres puntos del líder de la liga.",
+    "Quedan ocho partidos, todavía hay mucha liga por delante.",
+    "¿Crees que podemos ganar la liga?",
+    "Si ganáis el próximo partido contra el líder, todo es posible."
+   ],
+   "people": [
+    "Diego"
+   ],
+   "partner": "Diego",
+   "avoid": []
+  },
+  {
+   "id": "fr-room-jeux",
+   "lang": "fr",
+   "kind": "partner",
+   "topics": [
+    "jeu",
+    "partie",
+    "soiree",
+    "societe",
+    "plateau"
+   ],
+   "lines": [
+    "Salut ! On organise une soirée jeux de société samedi, tu as des idées ?",
+    "Avec plaisir ! Vous serez combien ?",
+    "Six personnes, des débutants et des habitués.",
+    "Codenames marche très bien pour six, et Dixit pour les débutants.",
+    "Et un jeu un peu plus long pour finir la soirée ?",
+    "Les Aventuriers du Rail : une partie dure environ une heure."
+   ],
+   "people": [
+    "Léa",
+    "Théo"
+   ],
+   "partner": "the group \"Les copains\"",
+   "avoid": []
+  },
+  {
+   "id": "de-room-wandern",
+   "lang": "de",
+   "kind": "partner",
+   "topics": [
+    "wandern",
+    "wanderung",
+    "berg",
+    "tour",
+    "alpen"
+   ],
+   "lines": [
+    "Hallo zusammen, wir planen eine Wanderung in den Alpen im September.",
+    "Schöne Idee! Wie fit ist die Gruppe?",
+    "Gemischt, manche wandern oft, andere selten.",
+    "Eine Tour mit 800 Höhenmetern und einer Hütte zum Einkehren passt für alle.",
+    "Brauchen wir eine Übernachtung auf der Hütte?",
+    "Für eine Zweitagestour ja, reserviert die Hütte früh."
+   ],
+   "people": [
+    "Felix",
+    "Sophie"
+   ],
+   "partner": "people in a Discord channel",
+   "avoid": []
+  },
+  {
+   "id": "it-partner-libri",
+   "lang": "it",
+   "kind": "partner",
+   "topics": [
+    "libro",
+    "libri",
+    "lettura",
+    "romanzo",
+    "leggere"
+   ],
+   "lines": [
+    "Ciao! Mi consigli un libro da leggere in vacanza?",
+    "Certo! Ti piacciono i romanzi gialli o le storie d'amore?",
+    "I gialli, ma niente di troppo cruento.",
+    "Prova i romanzi di Camilleri con il commissario Montalbano.",
+    "Sono lunghi?",
+    "No, sono brevi e si leggono in un paio di giorni."
+   ],
+   "people": [
+    "Marco"
+   ],
+   "partner": "Marco",
+   "avoid": []
+  },
+  {
+   "id": "en-sens-doctor",
+   "lang": "en",
+   "kind": "sensitive",
+   "topics": [
+    "doctor",
+    "appointment",
+    "visit",
+    "checkup",
+    "health",
+    "medical"
+   ],
+   "lines": [
+    "I have to see a doctor about my depression medication next week.",
+    "I'm glad you're getting support. Do you want to prepare what to say?",
+    "Yes, I want to ask if the dose is right, I still feel low most mornings.",
+    "Write down when you feel low and any side effects, so the doctor can adjust it.",
+    "Should I mention I sleep badly too?",
+    "Yes, sleep matters a lot for this. Bring it up."
+   ],
+   "people": [],
+   "avoid": [
+    "depress",
+    "medication",
+    "antidepress"
+   ]
+  },
+  {
+   "id": "fr-sens-intime",
+   "lang": "fr",
+   "kind": "sensitive",
+   "topics": [
+    "couple",
+    "relation",
+    "parler",
+    "medecin"
+   ],
+   "lines": [
+    "J'ai des problèmes d'érection depuis quelques semaines et ça stresse mon couple.",
+    "Merci de me faire confiance. C'est fréquent et ça se soigne bien.",
+    "Je n'ose pas en parler à ma compagne.",
+    "Parlez-en simplement, sans pression : elle s'inquiète peut-être aussi.",
+    "Je devrais voir un médecin ?",
+    "Oui, un médecin peut vérifier la cause et proposer des solutions."
+   ],
+   "people": [],
+   "avoid": [
+    "erection",
+    "sexe",
+    "sexual"
+   ]
+  },
+  {
+   "id": "pt-sens-gravidez",
+   "lang": "pt-BR",
+   "kind": "sensitive",
+   "topics": [
+    "bebe",
+    "familia",
+    "consulta",
+    "planejamento"
+   ],
+   "lines": [
+    "Acho que estou grávida, o teste deu positivo hoje de manhã.",
+    "Que notícia grande! Como você está se sentindo?",
+    "Feliz e com medo ao mesmo tempo.",
+    "É normal. O primeiro passo é marcar uma consulta para confirmar e começar o pré-natal.",
+    "Quando conto para a minha família?",
+    "Quando você se sentir pronta; muita gente espera o primeiro trimestre."
+   ],
+   "people": [],
+   "avoid": [
+    "gravid",
+    "gravidez",
+    "pregnan"
+   ]
+  },
+  {
+   "id": "de-sens-therapie",
+   "lang": "de",
+   "kind": "sensitive",
+   "topics": [
+    "termin",
+    "hilfe",
+    "unterstutzung",
+    "beratung",
+    "erster"
+   ],
+   "lines": [
+    "Ich habe nächste Woche meinen ersten Termin bei einer Therapeutin wegen meiner Angststörung.",
+    "Das ist ein mutiger Schritt. Wie geht es dir damit?",
+    "Ich bin nervös und weiß nicht, was ich sagen soll.",
+    "Du musst nichts vorbereiten. Erzähl einfach, was dich gerade am meisten belastet.",
+    "Was, wenn ich anfange zu weinen?",
+    "Das ist völlig in Ordnung, dafür ist der Raum da."
+   ],
+   "people": [],
+   "avoid": [
+    "therap",
+    "angst",
+    "angststor"
+   ]
+  },
+  {
+   "id": "es-sens-cancer",
+   "lang": "es",
+   "kind": "sensitive",
+   "topics": [
+    "familia",
+    "apoyo",
+    "madre",
+    "cuidar",
+    "hospital"
+   ],
+   "lines": [
+    "A mi madre le han diagnosticado cáncer de mama y empieza la quimio el lunes.",
+    "Lo siento mucho. ¿Cómo estás tú?",
+    "Asustado. Quiero ayudarla pero no sé cómo.",
+    "Acompañarla a las sesiones y ocuparte de cosas prácticas ya es mucho apoyo.",
+    "¿Qué le llevo al hospital?",
+    "Una manta, algo para leer y agua; las sesiones pueden ser largas."
+   ],
+   "people": [],
+   "avoid": [
+    "cancer",
+    "quimio",
+    "chemo"
+   ]
+  }
+ ]
+}

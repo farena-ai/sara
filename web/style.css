@@ -1502,6 +1502,19 @@ body:not(.member) [data-member-only] { display: none !important; }
 .cs-sessions { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .cs-sessions button { width: 100%; text-align: start; min-height: 44px; }
 .cs-sessions li.current button { font-weight: 600; }
+.cs-title-box h4 { margin: 4px 0 0; color: var(--muted); font-weight: 600; }
+.cs-title-now { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
+.cs-title-text { font-weight: 600; overflow-wrap: anywhere; }
+.cs-title-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+.cs-title-actions button, .cs-title-row button, #ti-all { min-height: 44px; }
+.cs-title-history { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.cs-title-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; min-height: 44px; }
+.cs-title-old { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ti-card input[type=range] { width: 100%; min-height: 44px; accent-color: var(--accent); }
+/* Phase 109: a new title fades in where the old one was (the row keeps its place and size). */
+#conversations a.conv.conv-retitled .conv-title { animation: conv-retitle .6s ease-out; }
+@keyframes conv-retitle { from { opacity: .25; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #conversations a.conv.conv-retitled .conv-title { animation: none; } }
 .channel-tag.ended-tag { color: var(--muted); font-style: italic; }
 
 /* Phase 108 (CH2): the tidy session list (channel projects, See more, earlier sessions, hidden projects, the channel card). */

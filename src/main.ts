@@ -117,6 +117,7 @@ import { createSkillTools } from './skill-tools.ts';
 import { workspaceDir } from './tools/workspace.ts';
 import { createTuneTool } from './studio.ts';
 import { DriftStore } from './drift.ts';
+import { TitleKeeper } from './titles.ts';
 import { paceFactor, tensionHalfLife } from './bond.ts';
 import { CompanionManager, CompanionSettings, companionDirs, LinkedToolRegistry, MAIN_ID, type Companion } from './companions.ts';
 import { pickCompanion, type HouseholdHooks, type MemberHooks } from './server.ts';
@@ -780,6 +781,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   const indexVectors = () => guard('embeddings', () => app.vectors!.index());
   const memoryWorker = new MemoryWorker(app, memory);
   app.memoryNudge = () => memoryWorker.nudge();
+  // Phase 109 (CH3): titles that grow with the session (each space's own conversations and ledger; never the demo).
+  if (!isDemo) app.titles = new TitleKeeper(app);
   // Phase 44: a shared library is read (and learned into memory) by the first companion's worker.
   const ownsLibrary = main || space.settings.get().companionLibrary !== 'shared';
   const libraryWorker = ownsLibrary ? new LibraryWorker(app, () => app.library) : undefined;

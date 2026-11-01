@@ -447,6 +447,8 @@ function convRow(c, o = {}) {
     });
     a.append(eb);
   }
+  // Phase 109: a title event rebuilds just this row with the same options.
+  a.rowOpts = o;
   const more = el('button', 'conv-more ghost', '⋯');
   more.type = 'button';
   more.title = t('Move, archive or delete');
@@ -3245,6 +3247,8 @@ $('#conv-settings-btn').addEventListener('click', async () => {
   $('#cs-private').checked = Boolean(c.private);
   await csLoadModels(c.model);
   void loadConvFill(c);
+  renderConvTitle(c);
+  void loadConvTitle(c);
   $('#conv-settings').showModal();
 });
 
@@ -4563,6 +4567,147 @@ for (const [pre, bridge] of [['tg', 'telegram'], ['dc', 'discord']]) {
   });
 }
 
+// ---------- Phase 109 (CH3): titles that grow (Settings → You → Session titles) ----------
+let titleCardOwner = false;
+function renderTitleSettings(v) {
+  titleCardOwner = v.owner !== false;
+  $('#ti-auto').checked = v.settings.auto;
+  $('#ti-model').value = v.settings.model;
+  $('#ti-cap').min = String(v.limits?.min ?? 10);
+  $('#ti-cap').max = String(v.limits?.max ?? 200);
+  $('#ti-cap').value = String(v.settings.dailyCap);
+  $('#ti-cap-out').textContent = String(v.settings.dailyCap);
+  for (const id of ['#ti-auto', '#ti-model', '#ti-cap', '#ti-all']) $(id).disabled = !titleCardOwner;
+  const used = t('Today: {n} of {cap} titles', { n: v.today.runs, cap: v.today.cap });
+  const model = v.model ? t('Model: {model} ({label})', { model: v.model.model, label: v.model.label }) : v.settings.model === 'local' ? t('No model on this computer yet: titles stay as they are (chats from Telegram or Discord get a few topic words). Set one up in Models → On this computer, or pick Quick helpers.') : t('No quick model is set: titles stay as they are.');
+  $('#ti-state').textContent = `${used} · ${model}`;
+}
+async function loadTitleSettings() {
+  try {
+    $('#ti-card').hidden = false;
+    renderTitleSettings(await api('/chats/titles'));
+  } catch {
+    $('#ti-card').hidden = true; // not available (the demo)
+  }
+}
+async function saveTitleSettings() {
+  if ($('#ti-card').hidden || !titleCardOwner) return;
+  renderTitleSettings(await api('/chats/titles', { method: 'PUT', body: { auto: $('#ti-auto').checked, model: $('#ti-model').value, dailyCap: Number($('#ti-cap').value) } }));
+}
+$('#ti-cap').addEventListener('input', () => ($('#ti-cap-out').textContent = $('#ti-cap').value));
+$('#ti-all').addEventListener('click', async () => {
+  $('#ti-all').disabled = true;
+  $('#ti-state').textContent = t('Naming your recent chats…');
+  try {
+    const r = await api('/chats/titles/retitle-all', { method: 'POST', body: {} });
+    $('#ti-state').textContent = r.changed === 1 ? t('1 chat has a new title.') : t('{n} chats have a new title.', { n: r.changed });
+    void loadConversations();
+  } catch (err) {
+    $('#ti-state').textContent = err.message;
+  } finally {
+    $('#ti-all').disabled = !titleCardOwner;
+  }
+});
+
+/** The info panel's Title part: the current title and who named it, Keep / Let her / Name it now, earlier titles. */
+const TITLE_SRC = { placeholder: 'from the first message', auto: 'named by her', owner: 'your title' };
+function renderConvTitle(c) {
+  const box = $('#cs-title-box');
+  box.hidden = Boolean(c.offRecord) || isGroup(c);
+  if (box.hidden) return;
+  const src = c.titleSource ?? 'placeholder';
+  const never = c.titleNever && c.titleNever !== 'owner' ? c.titleNever : null;
+  $('#cs-title-text').textContent = c.title;
+  $('#cs-title-src').textContent = t(TITLE_SRC[src] ?? TITLE_SRC.placeholder);
+  $('#cs-title-keep').hidden = src === 'owner' || Boolean(never);
+  $('#cs-title-auto').hidden = src !== 'owner' || Boolean(never);
+  $('#cs-title-now').hidden = src === 'owner' || Boolean(never);
+  $('#cs-title-state').textContent = never ? t('This chat keeps its title (it comes from where the chat started).') : '';
+  const earlier = (c.titleHistory ?? []).filter((h) => h.title !== c.title).reverse();
+  $('#cs-title-earlier').hidden = !earlier.length;
+  $('#cs-title-history').replaceChildren(
+    ...earlier.map((h) => {
+      const li = el('li', 'cs-title-row');
+      const when = new Date(h.at).toLocaleDateString(locale(), { month: 'short', day: 'numeric' });
+      li.append(el('span', 'cs-title-old', h.title), el('span', 'muted small', when));
+      const use = el('button', 'ghost small', t('Use this title'));
+      use.type = 'button';
+      use.addEventListener('click', () => void setConvTitle({ title: h.title }));
+      li.append(use);
+      return li;
+    }),
+  );
+}
+async function loadConvTitle(c) {
+  try {
+    const full = await api(`/conversations/${c.id}?limit=20`);
+    if (state.conv?.id !== c.id) return;
+    state.conv = { ...state.conv, titleSource: full.titleSource, titleHistory: full.titleHistory, titleNever: full.titleNever, title: full.title };
+    renderConvTitle(state.conv);
+  } catch {
+    $('#cs-title-box').hidden = true;
+  }
+}
+/** Applies a title change from the info panel (his title, Keep, Let her name it again). */
+async function setConvTitle(body) {
+  $('#cs-title-state').textContent = '';
+  try {
+    const conv = await api(`/conversations/${state.conv.id}`, { method: 'PATCH', body });
+    applyTitle(conv.id, conv.title);
+    await loadConvTitle(state.conv);
+  } catch (err) {
+    $('#cs-title-state').textContent = err.message;
+  }
+}
+$('#cs-title-keep').addEventListener('click', () => void setConvTitle({ keepTitle: true }));
+$('#cs-title-auto').addEventListener('click', () => void setConvTitle({ titleSource: 'auto' }));
+$('#cs-title-now').addEventListener('click', async () => {
+  $('#cs-title-now').disabled = true;
+  $('#cs-title-state').textContent = t('Naming it…');
+  try {
+    const r = await api(`/conversations/${state.conv.id}/retitle`, { method: 'POST', body: {} });
+    applyTitle(state.conv.id, r.title);
+    await loadConvTitle(state.conv);
+    const why = { same: t('The title still fits.'), cap: t("Today's titles are used up; she names it tomorrow."), 'no-model': t('No model for titles is set up.'), empty: t('Nothing to name yet.') }[String(r.skipped ?? '').split(':')[0]];
+    $('#cs-title-state').textContent = r.changed ? '' : (why ?? t("She kept the title: the new one didn't pass her checks."));
+  } catch (err) {
+    $('#cs-title-state').textContent = err.message;
+  } finally {
+    $('#cs-title-now').disabled = false;
+  }
+});
+
+/**
+ * A title changed (her retitle, another device): only that row's text changes, in place, once per
+ * frame, so the list never jumps or redraws (rows keep their order: a title isn't activity).
+ */
+const pendingTitles = new Map();
+let titleFrame = 0;
+function applyTitle(id, title) {
+  if (!title) return;
+  state.conversations = (state.conversations ?? []).map((x) => (x.id === id ? { ...x, title } : x));
+  if (state.conv?.id === id) state.conv = { ...state.conv, title };
+  pendingTitles.set(id, title);
+  if (titleFrame) return;
+  titleFrame = requestAnimationFrame(() => {
+    titleFrame = 0;
+    for (const [cid] of pendingTitles) {
+      for (const row of document.querySelectorAll(`#conversations a.conv[data-id="${CSS.escape(cid)}"]`)) {
+        const c = state.conversations.find((x) => x.id === cid);
+        if (!c || !row.rowOpts) continue;
+        const fresh = convRow(c, row.rowOpts);
+        fresh.classList.add('conv-retitled');
+        row.replaceWith(fresh);
+      }
+      if (state.conv?.id === cid) {
+        $('#chat-title').textContent = pendingTitles.get(cid);
+        renderConvSummary();
+      }
+    }
+    pendingTitles.clear();
+  });
+}
+
 // ---------- app install + push notifications ----------
 let installPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -5735,6 +5880,12 @@ function startEvents() {
   // Phase 87: her hands on a computer: live-view frames, Stop pressed there, computers coming and going.
   es.addEventListener('computer', (e) => onComputerEvent(JSON.parse(e.data)));
   // A turn started or ended somewhere else (another device, Telegram, Discord): follow along.
+  // Phase 109 (CH3): a session got a new title: its row changes in place (no list reload).
+  es.addEventListener('title', (e) => {
+    const ev = JSON.parse(e.data);
+    applyTitle(ev.conversationId, ev.title);
+    if (ev.conversationId === state.currentId && state.conv) state.conv = { ...state.conv, titleSource: ev.source };
+  });
   es.addEventListener('turn', (e) => {
     const { conversationId } = JSON.parse(e.data);
     void loadConversations();
@@ -7303,7 +7454,7 @@ async function loadSettingsPages() {
   // Phase 71: a household member's space answers only their own pages; the owner's are skipped.
   if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop()]));
   await loadTools();
-  await Promise.all([loadDevices().catch(() => {}), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets()]);
+  await Promise.all([loadDevices().catch(() => {}), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadTitleSettings(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets()]);
 }
 /**
  * M9: text drawn from data before a language change stays in the old language, so the open
@@ -7350,7 +7501,7 @@ async function saveCoreSettings() {
 // Each Settings page saves only its own part (H1): a change to the time zone no longer rewrites
 // tool permissions or reconnects the Discord/Telegram bots. Pages not listed save themselves.
 const SETTINGS_SAVERS = {
-  'you-about': [saveCoreSettings],
+  'you-about': [saveCoreSettings, saveTitleSettings],
   'you-briefing': [saveCoreSettings, saveBriefing, saveReview],
   'models-default': [saveCoreSettings],
   'you-leave-by': [saveLeaveBy],

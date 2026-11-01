@@ -5,6 +5,22 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.42.0 (2026-10-31): session titles that grow (Phase 109, chats CH3)
+
+- **Titles say what the chat was about:** a placeholder first, then a cheap retitle after about three
+  exchanges, again when a word check sees the topic move (the model is asked only then), and for the
+  closed session at `/new`. Earlier titles (the last 10) are kept in the chat's info with *Use this
+  title*; *Keep this title* and any title you type are never changed.
+- **This computer first:** the background model on your own computer by default, *Quick helpers* only
+  if you pick it, nothing paid by itself; private chats use local models only (or keep the
+  placeholder). A daily cap (60 runs by default, 10–200) with today's use shown. Settings → You →
+  About you → *Session titles*, plus *Name recent chats now*.
+- **Never in a title:** secrets, explicit content, health or intimate details, names from your people
+  cards outside your own chats, or a partner's own name. Off-the-record, imported, group, webhook,
+  agent and app chats aren't retitled.
+- The sidebar row updates in place (no jumping). Evals: 40 sessions (`scripts/eval-titles.ts`), 0.90
+  on topic and 1.0 on sensitive and people checks with a local 12B model.
+
 ## 2.41.0 (2026-10-31): a tidy session list (Phase 108, chats CH2)
 
 - **A built-in project per chat app:** Telegram, Discord and one per plugin bridge (WhatsApp,

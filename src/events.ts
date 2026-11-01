@@ -39,6 +39,8 @@ export type HubEvent = (
   /** A turn started or ended in a conversation (any device, Telegram or Discord): the other open
    * apps refresh it, so a chat can be picked up anywhere. */
   | { type: 'turn'; conversationId: string; state: 'started' | 'ended' }
+  /** Phase 109 (CH3): a session's title changed (she renamed it, or he did): the row updates in place. */
+  | { type: 'title'; conversationId: string; title: string; source: 'placeholder' | 'auto' | 'owner' }
   /** Phase 49: a preview link opened (or closed: null) in a conversation. */
   | { type: 'preview'; conversationId: string; preview: { url: string; port: number; workspace: string; jobId: number } | null }
   /** Phase 70: the album "Our moments" changed (photos added, captions written). */

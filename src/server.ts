@@ -33,6 +33,7 @@ import { personalize } from './identity.ts';
 import { stripTypeScriptTypes } from 'node:module';
 import { identityOf } from './persona.ts';
 import { cleanTags, CONVERSATION_MODES, Store, type Conversation, type ConversationMode, type StoredMessage } from './store.ts';
+import { titleView } from './titles.ts';
 import { clampBanter, GROUP_CHANNEL, groupRooms, isGroupChannel, MAX_MEMBERS, MIN_MEMBERS, TURN_STYLES, type GroupRoom, type TurnStyle } from './group.ts';
 import { runGroupRound, type RoundMember } from './group-round.ts';
 import { ToolRegistry } from './tools/registry.ts';
@@ -472,6 +473,8 @@ export function createSaraServer(opts: ServerOptions): Server {
       app.healthHistory?.turn(firstToken || null, failed);
     } finally {
       active.delete(conversationId);
+      // Phase 109 (CH3): the title check runs after the turn (never for off-the-record chats).
+      if (shared && !opts.replay) void app.titles?.afterTurn(conversationId);
       // Phase 49: her testing browser closes with the turn.
       void app.browsers?.close(conversationId).catch(() => {});
       if (shared) app.events?.publish({ type: 'turn', conversationId, state: 'ended' });
@@ -1665,6 +1668,13 @@ export function createSaraServer(opts: ServerOptions): Server {
         if (c === 'fill' && !parts[3] && method === 'GET') return send(res, 200, contextFill(cx, conv));
         // Phase 107: every session of this chat ("Earlier sessions of this chat").
         if (c === 'sessions' && !parts[3] && method === 'GET') return send(res, 200, { sessions: offRecord ? [] : cx.store.sessionsOf(conv).map((x) => ({ id: x.id, title: x.title, createdAt: x.createdAt, endedAt: x.endedAt ?? null, current: x.id === b })) });
+        // Phase 109 (CH3): "Name it now": she names it from what it covered (budget-checked; his own titles stay).
+        if (c === 'retitle' && !parts[3] && method === 'POST') {
+          if (opts.demo || offRecord || !app.titles) throw new HttpError(400, "This chat keeps its title.", { errorKey: 'This chat keeps its title.' });
+          const r = await app.titles.nameNow(b);
+          const now = app.store.getConversation(b);
+          return send(res, 200, { changed: Boolean(r?.changed), title: now?.title ?? conv.title, ...(r?.skipped ? { skipped: r.skipped } : {}), ...(now ? titleView(app, now, app.store.titleState(b)) : {}) });
+        }
         // Phase 107: "Start a new session from here": the same as /new (the old one is kept and summarised).
         if ((c === 'new' || c === 'command') && !parts[3] && method === 'POST') {
           if (opts.demo || offRecord) throw new HttpError(400, "Commands don't work in this conversation.");
@@ -1720,7 +1730,8 @@ export function createSaraServer(opts: ServerOptions): Server {
           // without it, everything (phone apps and older clients).
           const { limit } = pageOpts();
           const page = limit ? cx.store.messagesPage(b, { limit }) : { messages: cx.store.messages(b), earlier: 0 };
-          return send(res, 200, { ...conv, ...(offRecord ? { offRecord: true } : {}), ...groupInfo(conv), messages: page.messages.map(view), earlier: page.earlier, pinned: pins(), activity: activityView(b), together: cx.together?.activity(b) ?? null });
+          const ts = cx.store.titleState(b);
+          return send(res, 200, { ...conv, ...(offRecord ? { offRecord: true } : {}), ...titleView(cx, conv, ts), ...(offRecord ? { titleNever: 'off-record' } : {}), ...groupInfo(conv), messages: page.messages.map(view), earlier: page.earlier, pinned: pins(), activity: activityView(b), together: cx.together?.activity(b) ?? null });
         }
         if (c === 'messages' && !parts[3] && method === 'GET') {
           const { limit, before } = pageOpts();
@@ -1740,6 +1751,19 @@ export function createSaraServer(opts: ServerOptions): Server {
         }
         if (!c && method === 'PATCH') {
           const body = await readJson(req);
+          // Phase 109 (CH3): a title he types (or picks from the earlier ones) is his: never changed by her.
+          if (body.title !== undefined && String(body.title).trim()) {
+            const typed = String(body.title).replace(/\s+/g, ' ').trim().slice(0, 120);
+            cx.store.setTitle(b, typed, { source: 'owner' });
+            if (!offRecord) app.events?.publish({ type: 'title', conversationId: b, title: typed, source: 'owner' });
+          } else if (body.keepTitle === true) {
+            // "Keep this title": her title becomes his (no history entry: the title didn't change).
+            cx.store.setTitle(b, conv.title, { source: 'owner', record: false });
+          } else if (body.titleSource === 'auto') {
+            // "Let her name it again": back to hers; the next check names it from the whole session.
+            if (offRecord) throw new HttpError(400, "Off-the-record chats keep their title.");
+            cx.store.setTitle(b, conv.title, { source: 'auto', through: null, record: false });
+          }
           // Phase 66: renaming a group chat renames the room and every member's copy.
           const grp = roomOf(conv);
           if (grp && body.title !== undefined && String(body.title).trim()) {
@@ -1751,7 +1775,8 @@ export function createSaraServer(opts: ServerOptions): Server {
             res,
             200,
             cx.store.updateConversation(b, {
-              ...(body.title !== undefined ? { title: String(body.title).slice(0, 120) } : {}),
+              // Phase 109: the title itself was saved above (as his, without counting as activity, so the row keeps its place).
+              ...(body.title !== undefined && !String(body.title).trim() ? { title: String(body.title).slice(0, 120) } : {}),
               // Demo visitors keep the model the demo was set up with.
               ...(body.providerId !== undefined && !opts.demo ? { providerId: body.providerId ? String(body.providerId) : null } : {}),
               ...(body.model !== undefined && !opts.demo ? { model: body.model ? String(body.model) : null } : {}),

@@ -1526,6 +1526,20 @@
         </div>
         <p id="cs-new-row" class="small" hidden><button id="cs-new" type="button" class="ghost">Start a new session from here</button></p>
       </div>
+      <div id="cs-title-box" class="tidy-card tidy-stack cs-title-box">
+        <h3>Title <button type="button" class="tip" data-tip="Her last titles for this chat, newest last. Use one to keep it as your own title; she won't rename a title you keep or type.">?</button></h3>
+        <p class="cs-title-now"><span id="cs-title-text" class="cs-title-text"></span> <span id="cs-title-src" class="channel-tag"></span></p>
+        <p class="cs-title-actions">
+          <button id="cs-title-keep" type="button" class="ghost small">Keep this title</button>
+          <button id="cs-title-auto" type="button" class="ghost small" hidden>Let her name it again</button>
+          <button id="cs-title-now" type="button" class="ghost small">Name it now</button>
+        </p>
+        <p id="cs-title-state" class="muted small" role="status"></p>
+        <div id="cs-title-earlier" hidden>
+          <h4 class="small">Earlier titles</h4>
+          <ul id="cs-title-history" class="cs-title-history"></ul>
+        </div>
+      </div>
       <p class="muted small cs-summary">Sara writes a dated summary of this conversation after it's been quiet for a while. <button id="cs-remember" type="button" class="ghost small">Write summary now</button></p>
       <p id="cs-error" class="error" role="alert"></p>
       <div class="actions tidy-foot">
@@ -2215,6 +2229,18 @@
         </label>
       </div>
       <div class="ap-swatches" id="ap-swatches" aria-hidden="true"></div>
+      <div id="ti-card" class="tidy-card tidy-stack ti-card">
+        <h3>Session titles</h3>
+        <label class="row"><input id="ti-auto" type="checkbox"> <span>Titles that grow <button type="button" class="tip" data-tip="She renames a chat from what it actually covered after a few messages, and again when the topic clearly changes. A title you type yourself is never changed.">?</button></span></label>
+        <label>Model for titles <button type="button" class="tip" data-tip="A short, cheap call per title. This computer keeps it on your machine; Quick helpers uses your quick route and may cost a little. Private chats always use this computer.">?</button>
+          <select id="ti-model"><option value="local">This computer</option><option value="quick">Quick helpers</option></select>
+        </label>
+        <label>Titles a day <button type="button" class="tip" data-tip="A cap so titles never run up a bill. Past the cap she keeps the current titles until tomorrow.">?</button> <output id="ti-cap-out" for="ti-cap">60</output>
+          <input id="ti-cap" type="range" min="10" max="200" step="10" value="60">
+        </label>
+        <p id="ti-state" class="muted small" role="status"></p>
+        <p class="small"><button id="ti-all" type="button" class="ghost">Name recent chats now</button></p>
+      </div>
         </section>
         <section class="settings-page" data-page="you-briefing" data-group="You" data-title="Morning briefing" hidden>
       <p class="muted small">Once a day at the time you pick, Sara sends a short message with the weather and what's on your list (due to-dos and reminders). It arrives like her other messages: in chat, as a notification and on Telegram/Discord if linked. Weather comes from Open-Meteo (free, no account).</p>

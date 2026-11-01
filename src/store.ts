@@ -58,6 +58,14 @@ export interface Conversation {
   endedAt?: string | null;
   /** Phase 107: the first conversation of this chat (null = this is the first one). */
   sessionOf?: string | null;
+  /**
+   * Phase 109 (CH3): who named it: 'placeholder' (from the opening, no model), 'auto' (she retitled
+   * it from what it covered) or 'owner' (he typed or kept it: never changed). Null = a row from
+   * before 2.42.0 (`titleSourceOf` classifies it).
+   */
+  titleSource?: TitleSource | null;
+  /** Phase 109: the last message id the current title covers. */
+  titledThrough?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -71,6 +79,15 @@ export function cleanTags(v: unknown): string[] {
 }
 
 export type ConversationMode = 'chat' | 'coding';
+export type TitleSource = 'placeholder' | 'auto' | 'owner';
+/** Phase 109: one earlier title (newest last, 10 kept). `source` may also be 'code' (the no-model fallback). */
+export interface TitleEntry {
+  title: string;
+  source: TitleSource | 'code';
+  at: string;
+  through: number | null;
+}
+export const TITLE_HISTORY_MAX = 10;
 export const CONVERSATION_MODES: readonly ConversationMode[] = ['chat', 'coding'];
 
 export interface StoredMessage {
@@ -132,6 +149,8 @@ function toConversation(r: Row): Conversation {
     tags: r.tags ? (JSON.parse(String(r.tags)) as string[]) : [],
     endedAt: (r.ended_at as string | null | undefined) ?? null,
     sessionOf: (r.session_of as string | null | undefined) ?? null,
+    titleSource: r.title_source === 'placeholder' || r.title_source === 'auto' || r.title_source === 'owner' ? r.title_source : null,
+    titledThrough: r.titled_through === null || r.titled_through === undefined ? null : Number(r.titled_through),
     createdAt: String(r.created_at),
     updatedAt: String(r.updated_at),
   };
@@ -165,6 +184,10 @@ function migrate(db: DatabaseSync): void {
   // (session_of = the chat's first conversation). Older versions ignore both columns.
   if (!cols('conversations').has('ended_at')) db.exec('ALTER TABLE conversations ADD COLUMN ended_at TEXT');
   if (!cols('conversations').has('session_of')) db.exec('ALTER TABLE conversations ADD COLUMN session_of TEXT');
+  // Phase 109 (CH3): titles that grow: who named it, the last 10 titles, the last message it covers.
+  if (!cols('conversations').has('title_source')) db.exec('ALTER TABLE conversations ADD COLUMN title_source TEXT');
+  if (!cols('conversations').has('title_history')) db.exec('ALTER TABLE conversations ADD COLUMN title_history TEXT');
+  if (!cols('conversations').has('titled_through')) db.exec('ALTER TABLE conversations ADD COLUMN titled_through INTEGER');
   db.exec('CREATE INDEX IF NOT EXISTS conversations_channel_open ON conversations(channel, channel_key, ended_at, created_at)');
   // Phase 107: the bridges' command menus (what was last registered with Telegram / Discord, when, any error).
   db.exec('CREATE TABLE IF NOT EXISTS bridge_menus (bridge TEXT PRIMARY KEY, hash TEXT, at TEXT, error TEXT)');
@@ -215,13 +238,13 @@ export class Store {
   }
 
   createConversation(
-    opts: { title?: string; providerId?: string | null; model?: string | null; workspace?: string; mode?: ConversationMode; private?: boolean; channel?: string; channelKey?: string | null; partner?: string | null; projectId?: number | null; sessionOf?: string | null } = {},
+    opts: { title?: string; providerId?: string | null; model?: string | null; workspace?: string; mode?: ConversationMode; private?: boolean; channel?: string; channelKey?: string | null; partner?: string | null; projectId?: number | null; sessionOf?: string | null; titleSource?: TitleSource } = {},
   ): Conversation {
     const ts = this.#now().toISOString();
     const id = randomUUID();
     this.db
-      .prepare('INSERT INTO conversations (id, title, provider_id, model, workspace, mode, private, channel, channel_key, partner, project_id, session_of, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(id, opts.title ?? 'New conversation', opts.providerId ?? null, opts.model ?? null, opts.workspace ?? 'main', opts.mode ?? 'chat', opts.private ? 1 : 0, opts.channel ?? 'web', opts.channelKey ?? null, opts.partner ?? null, opts.projectId ?? null, opts.sessionOf ?? null, ts, ts);
+      .prepare('INSERT INTO conversations (id, title, provider_id, model, workspace, mode, private, channel, channel_key, partner, project_id, session_of, title_source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(id, opts.title ?? 'New conversation', opts.providerId ?? null, opts.model ?? null, opts.workspace ?? 'main', opts.mode ?? 'chat', opts.private ? 1 : 0, opts.channel ?? 'web', opts.channelKey ?? null, opts.partner ?? null, opts.projectId ?? null, opts.sessionOf ?? null, opts.titleSource ?? null, ts, ts);
     return this.getConversation(id)!;
   }
 
@@ -329,6 +352,8 @@ export class Store {
   updateConversation(id: string, patch: { title?: string; providerId?: string | null; model?: string | null; workspace?: string; mode?: ConversationMode; private?: boolean; projectId?: number | null; archived?: boolean; tags?: string[] }): Conversation | undefined {
     const c = this.getConversation(id);
     if (!c) return undefined;
+    // Nothing to change (a PATCH that only renamed it: setTitle did that): not activity either.
+    if (!Object.values(patch).some((v) => v !== undefined)) return c;
     // Tags don't count as activity either.
     if (patch.tags !== undefined) {
       const tags = cleanTags(patch.tags);
@@ -406,6 +431,51 @@ export class Store {
   /** Phase 108: a new title that doesn't count as activity (the list order stays put). */
   renameQuietly(id: string, title: string): void {
     this.db.prepare('UPDATE conversations SET title = ? WHERE id = ?').run(title.slice(0, 200), id);
+  }
+
+  /** Phase 109 (CH3): the title's state: its source as stored (null = an old row), its history (newest last), the last message it covers. */
+  titleState(id: string): { source: TitleSource | null; history: TitleEntry[]; through: number | null } | undefined {
+    const r = this.db.prepare('SELECT title_source, title_history, titled_through FROM conversations WHERE id = ?').get(id) as Row | undefined;
+    if (!r) return undefined;
+    let history: TitleEntry[] = [];
+    try {
+      const h = r.title_history ? (JSON.parse(String(r.title_history)) as unknown) : [];
+      if (Array.isArray(h)) history = h.filter((e): e is TitleEntry => Boolean(e && typeof e === 'object' && typeof (e as TitleEntry).title === 'string')).slice(-TITLE_HISTORY_MAX);
+    } catch {
+      /* a damaged list starts again */
+    }
+    const src = r.title_source;
+    return { source: src === 'placeholder' || src === 'auto' || src === 'owner' ? src : null, history, through: r.titled_through === null || r.titled_through === undefined ? null : Number(r.titled_through) };
+  }
+
+  /**
+   * Phase 109: sets the title and who named it, without counting as activity (the list order
+   * stays put). A changed title is added to the history (newest last, 10 kept); `through` moves
+   * on when given. `record: false` changes the source only (no history entry).
+   */
+  setTitle(id: string, title: string, opts: { source: TitleSource; through?: number | null; historySource?: TitleEntry['source']; record?: boolean }): Conversation | undefined {
+    const st = this.titleState(id);
+    const c = this.getConversation(id);
+    if (!st || !c) return undefined;
+    const clean = title.replace(/\s+/g, ' ').trim().slice(0, 200) || c.title;
+    const history = [...st.history];
+    const through = opts.through === undefined ? st.through : opts.through;
+    // The first change of an old row keeps where it started.
+    if (!history.length && clean !== c.title && opts.record !== false) history.push({ title: c.title, source: st.source ?? 'placeholder', at: c.createdAt, through: null });
+    if (opts.record !== false && clean !== c.title) history.push({ title: clean, source: opts.historySource ?? opts.source, at: this.#now().toISOString(), through: through ?? null });
+    this.db.prepare('UPDATE conversations SET title = ?, title_source = ?, title_history = ?, titled_through = ? WHERE id = ?').run(clean, opts.source, history.length ? JSON.stringify(history.slice(-TITLE_HISTORY_MAX)) : null, through ?? null, id);
+    return this.getConversation(id);
+  }
+
+  /** Phase 109: the first thing he (or a partner) said in it (classifying an old row's title). */
+  firstUserText(id: string): string | undefined {
+    const r = this.db.prepare(`SELECT content FROM messages WHERE conversation_id = ? AND role = 'user' ORDER BY id LIMIT 1`).get(id) as Row | undefined;
+    return r ? String(r.content) : undefined;
+  }
+
+  /** Phase 109: the title still fits (or was checked): only the covered message id moves on. */
+  setTitledThrough(id: string, through: number): void {
+    this.db.prepare('UPDATE conversations SET titled_through = ? WHERE id = ?').run(through, id);
   }
 
   /** Phase 108: files conversations into a project without counting as activity (the backfill and its Undo). */

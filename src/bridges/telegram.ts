@@ -408,7 +408,7 @@ export class TelegramBridge {
     const partner = isOwnerChat || ownerWork ? null : msg.chat.type === 'private' ? msg.from?.first_name || msg.from?.username || 'someone' : group;
     const title = isOwnerChat ? 'Telegram' : ownerWork ? `Telegram work: ${group}` : `Telegram: ${partner}`;
     // Phase 108 (CH2): a chat's first session goes into the Telegram project (later ones follow the last one's project).
-    return this.#app.store.createConversation({ title, channel, channelKey: key, partner, projectId: channelProjectId(this.#app, channel) });
+    return this.#app.store.createConversation({ title, titleSource: 'placeholder', channel, channelKey: key, partner, projectId: channelProjectId(this.#app, channel) });
   }
 
   /** Phase 107: runs a command and sends its reply (owner-only details from a group go to his private chat). */

@@ -142,6 +142,8 @@ export interface AppContext {
   drift?: import('./drift.ts').DriftStore;
   /** Phase 34: the last in-character check started (tests and evals await it). */
   driftWork?: Promise<unknown>;
+  /** Phase 109 (CH3): titles that grow with the session (src/titles.ts; every space but the demo). */
+  titles?: import('./titles.ts').TitleKeeper;
   /** Long-term memory (Phase 3). Optional so bare test apps work without it. */
   memory?: MemoryStore;
   /** Phase 101 (ST6): people cards built from memory (src/people.ts; same database, per companion). None in the demo. */
@@ -1353,6 +1355,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const innerState = app.inner && innerEnabled(app) && !conv.partner && !opts.outside ? (opts.resume || (opts.group && !opts.group.ownerTurn) ? app.inner.get() : app.inner.onOwnerMessage(text, gapHours, now)) : undefined;
   if (isFirst && conv.title === 'New conversation' && !opts.group) {
     store.updateConversation(conv.id, { title: text.replace(/\s+/g, ' ').slice(0, 60) });
+    // Phase 109: a placeholder from the opening; she renames it once the session has said what it is about.
+    store.setTitle(conv.id, text.replace(/\s+/g, ' ').slice(0, 60), { source: 'placeholder', record: false });
   }
 
   // Optional local classifier: can only add protection on top of the heuristics.

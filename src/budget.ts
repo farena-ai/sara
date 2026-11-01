@@ -582,3 +582,51 @@ export function budgetSummaryFallback(st: BudgetState, s: Pick<Settings, 'langua
     ? trOwner('I stopped here: this task reached {reason}. Not done: {dropped}. Press "Continue with more" if you want me to go on.', s, { reason, dropped: st.dropped.slice(0, 8).join('; ') })
     : trOwner('I stopped here: this task reached {reason}, so I didn\'t finish it. Press "Continue with more" if you want me to go on.', s, { reason });
 }
+
+// ---------------------------------------------------------------------------------------------
+// Phase 109 (CH3, docs/design/CHATS.md §3.1 B4): the daily ledger per source, shared by the small
+// model calls that never take a turn (titles now, room summaries in CH4). One row per day and
+// source in the database it is given (the companion's store.db for titles); A2A, webhooks and
+// plugins keep the same table in their own databases. The day is the owner's local day.
+// ---------------------------------------------------------------------------------------------
+
+export const LEDGER_SQL = `CREATE TABLE IF NOT EXISTS budget_ledger (
+  day TEXT NOT NULL, source TEXT NOT NULL, tokens INTEGER NOT NULL DEFAULT 0, usd REAL NOT NULL DEFAULT 0, runs INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, source)
+);`;
+
+export interface LedgerRow {
+  tokens: number;
+  usd: number;
+  runs: number;
+}
+
+/** What a source spent today, and adding to it. `day()` gives the owner's local day (YYYY-MM-DD). */
+export class DailyLedger {
+  readonly #db: import('node:sqlite').DatabaseSync;
+  readonly #day: () => string;
+  constructor(db: import('node:sqlite').DatabaseSync, day: () => string) {
+    this.#db = db;
+    this.#day = day;
+    db.exec(LEDGER_SQL);
+  }
+  day(): string {
+    return this.#day();
+  }
+  get(source: string, day: string = this.#day()): LedgerRow {
+    const r = this.#db.prepare('SELECT tokens, usd, runs FROM budget_ledger WHERE day = ? AND source = ?').get(day, source) as LedgerRow | undefined;
+    return r ? { tokens: Number(r.tokens), usd: Number(r.usd), runs: Number(r.runs) } : { tokens: 0, usd: 0, runs: 0 };
+  }
+  add(source: string, add: Partial<LedgerRow>): void {
+    this.#db
+      .prepare('INSERT INTO budget_ledger (day, source, tokens, usd, runs) VALUES (?, ?, ?, ?, ?) ON CONFLICT(day, source) DO UPDATE SET tokens = tokens + excluded.tokens, usd = usd + excluded.usd, runs = runs + excluded.runs')
+      .run(this.#day(), source, Math.round(add.tokens ?? 0), add.usd ?? 0, add.runs ?? 0);
+  }
+  /** True when one more run (and `next` tokens) still fits under the caps (0/undefined = no cap). */
+  fits(source: string, cap: { runs?: number; tokens?: number }, next: { tokens?: number } = {}): boolean {
+    const used = this.get(source);
+    if (cap.runs && used.runs + 1 > cap.runs) return false;
+    if (cap.tokens && used.tokens + (next.tokens ?? 0) > cap.tokens) return false;
+    return true;
+  }
+}

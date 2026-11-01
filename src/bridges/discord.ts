@@ -722,7 +722,7 @@ export class DiscordBridge {
     const name = discordRoomName(roomOf(this.#app, 'discord', channelId));
     const title = isOwnerDm ? 'Discord' : ownerWork ? `Discord work: ${name ?? `channel ${channelId.slice(-4)}`}` : name ? `Discord: ${name}` : `Discord channel ${channelId.slice(-4)}`;
     // Phase 108 (CH2): a chat's first session goes into the Discord project (later ones follow the last one's project).
-    return this.#app.store.createConversation({ title, channel, channelKey: channelId, partner, projectId: channelProjectId(this.#app, channel) });
+    return this.#app.store.createConversation({ title, titleSource: 'placeholder', channel, channelKey: channelId, partner, projectId: channelProjectId(this.#app, channel) });
   }
 
   /** Sends her reply as an audio clip (MP3) with the text alongside. */

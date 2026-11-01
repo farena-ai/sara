@@ -13,6 +13,7 @@ import { appLanguage, en, toLang, tr as translate } from '../i18n.ts';
 import { identityOf } from '../persona.ts';
 import { localDate } from '../memory-worker.ts';
 import type { Conversation } from '../store.ts';
+import { nextPlaceholder } from '../titles.ts';
 import { turnBudgetFor, turnBudgetSettings } from '../budget.ts';
 
 export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings';
@@ -72,6 +73,8 @@ export const OTHER_LANGS = ['es', 'fr', 'de', 'pt-BR', 'it'] as const;
 export interface ChatsSettings {
   commands?: { native?: boolean; namePrefix?: boolean };
   offerNew?: boolean;
+  /** Phase 109 (CH3): titles that grow (src/titles.ts `titleSettings`). */
+  titles?: { auto?: boolean; model?: 'local' | 'quick'; dailyCap?: number };
 }
 export function chatsSettings(app: AppContext): { native: boolean; namePrefix: boolean; offerNew: boolean } {
   const c = (app.settings.get() as { chats?: ChatsSettings }).chats ?? {};
@@ -223,7 +226,9 @@ function notice(app: AppContext, conv: Conversation | undefined, name: CommandNa
 export function nextSession(app: AppContext, prev: Conversation, overrides: { title?: string } = {}): Conversation {
   app.store.endConversation(prev.id);
   const next = app.store.createConversation({
-    title: overrides.title ?? prev.title,
+    // Phase 109 (CH3): a fresh placeholder with the day ("Telegram · Oct 31"), not the old session's title.
+    title: overrides.title ?? nextPlaceholder(app, prev),
+    titleSource: 'placeholder',
     channel: prev.channel,
     channelKey: prev.channelKey,
     partner: prev.partner,
@@ -237,6 +242,8 @@ export function nextSession(app: AppContext, prev: Conversation, overrides: { ti
   notice(app, next, 'new', { from: prev.id, title: prev.title });
   // An owner session is summarised now by the memory worker (partner chats have no memory by rule).
   if (!prev.partner) app.memoryNudge?.();
+  // Phase 109: the closed session gets its final title from what it covered (when it had 6 new messages).
+  void app.titles?.atNew(prev.id);
   return next;
 }
 

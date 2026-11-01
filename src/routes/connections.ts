@@ -9,6 +9,8 @@ import { botHourlyCapOf, botTurnLimitOf, cleanBotList, DISCORD_VAULT, discordSet
 import { cleanDiscordIds, cleanTelegramIds } from '../bridges/rules.ts';
 import { TELEGRAM_VAULT, telegramSettings } from '../bridges/telegram.ts';
 import { chatsSettings, COMMAND_WORDS, commandTable } from '../bridges/commands.ts';
+import { cheapRoute } from '../cheap.ts';
+import { CAP_MAX, CAP_MIN, titleSettings, titleUsage } from '../titles.ts';
 import type { TurnOptions } from '../chat.ts';
 import { as400, fromPhoneApp, fromSaraApp, HttpError, readJson, safeDecode, SECURITY_HEADERS, send } from '../http.ts';
 import { appLanguage } from '../i18n.ts';
@@ -83,6 +85,41 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         // Menus on or off: set (or clear) them now; nothing else restarts the bridges.
         if (chatsSettings(app).native !== before.native) await Promise.all([app.bridges?.telegram?.registerMenus(), app.bridges?.discord?.registerMenus()].map((p) => p?.catch(() => undefined)));
         return send(res, 200, view());
+      }
+    }
+    // Phase 109 (CH3): titles that grow (Settings → You → Session titles): the switches, today's use, the model.
+    if (a === 'chats' && b === 'titles') {
+      if (opts.demo) throw new HttpError(404, 'Not here.');
+      const view = () => {
+        const ts = titleSettings(app);
+        const probe = { id: '', title: '', providerId: null, model: null, workspace: 'main', mode: 'chat' as const, private: false, channel: 'web', channelKey: null, partner: null, projectId: null, archivedAt: null, tags: [], createdAt: '', updatedAt: '' };
+        const [route] = cheapRoute(app, probe, ts.model, 'titles');
+        const [local] = cheapRoute(app, probe, 'local', 'titles');
+        return { settings: ts, limits: { min: CAP_MIN, max: CAP_MAX }, today: titleUsage(app), model: route ? { label: route.provider.config.label, model: route.model, local: Boolean(local && local.provider.config.id === route.provider.config.id && local.model === route.model) } : null, localModel: local ? { label: local.provider.config.label, model: local.model } : null, owner: !opts.member };
+      };
+      if (!c && method === 'GET') return send(res, 200, view());
+      if (!c && method === 'PUT') {
+        if (opts.member) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+        const body = await readJson(req);
+        const cur = app.settings.get().chats ?? {};
+        const was = titleSettings(app);
+        const cap = Number(body.dailyCap);
+        app.settings.update({
+          chats: {
+            ...cur,
+            titles: {
+              auto: body.auto !== undefined ? Boolean(body.auto) : was.auto,
+              model: body.model === 'quick' || body.model === 'local' ? body.model : was.model,
+              dailyCap: body.dailyCap !== undefined && Number.isFinite(cap) ? Math.min(CAP_MAX, Math.max(CAP_MIN, Math.round(cap))) : was.dailyCap,
+            },
+          },
+        });
+        return send(res, 200, view());
+      }
+      if (c === 'retitle-all' && method === 'POST') {
+        if (!app.titles) throw new HttpError(400, 'Titles are not available here.');
+        const r = await app.titles.retitleAll();
+        return send(res, 200, { ...r, today: titleUsage(app) });
       }
     }
     if (a === 'chats' && b === 'menus' && !c && method === 'POST') {

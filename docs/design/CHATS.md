@@ -1,6 +1,6 @@
 # Chats and sessions: commands in every channel, a tidy list, titles that grow, keeping up with the room (design, Phases 107–110, versions 2.40.0–2.43.0)
 
-Status: design study, 2026-10-31. CH1 (Phase 107) is built in 2.40.0 (see §4.11a) and CH2 (Phase 108) in 2.41.0 (see §5.8a); CH3–CH4 are not built yet. This is a read-only study of the code at
+Status: design study, 2026-10-31. CH1 (Phase 107) is built in 2.40.0 (see §4.11a), CH2 (Phase 108) in 2.41.0 (see §5.8a) and CH3 (Phase 109) in 2.42.0 (see §6.9a); CH4 is not built yet. This is a read-only study of the code at
 2.39.0 (Phase 106 released, move-in track complete) plus the official Discord and Telegram developer
 documentation (sources in §13). It is a ground-up design: no code, schema or protocol detail is taken
 from Hermes Agent, OpenClaw or any other agent. Zero new npm runtime dependencies. Every outgoing
@@ -746,6 +746,57 @@ Every change appends `{title, source, at, through}` (newest last, 10 kept). The 
 - Old rows: a pre-2.42 custom title is classified `owner`, and a first-message title `placeholder`.
 - Off-record, import, group, webhook and A2A conversations are never retitled.
 - The eval set runs end to end with a fake model and produces the score file.
+
+### 6.9a As built (2.42.0)
+
+Built as designed in `src/titles.ts`, `src/cheap.ts` (B4), `src/budget.ts` (`DailyLedger`),
+`src/store.ts` (the three columns, `setTitle`, `titleState`), `src/title-evals.ts` +
+`scripts/eval-titles.ts` + `evals/titles/sessions.json`, with these choices and differences:
+
+- **Blocking-question default applied:** Q6 (titles use this computer's model when one is set up;
+  *Quick helpers* only when he picks it; nothing paid starts by itself). With neither, titles stay as
+  they are, except the no-model fallback below.
+- **Triggers:** a `TitleKeeper` per space (every space but the demo; members use their own store and
+  ledger, the owner's switches). The server calls `afterTurn` in `runTracked`'s `finally` (after the
+  turn is no longer busy; never for off-the-record chats, which live in the in-memory store, nor
+  replays); `nextSession` calls `atNew` for the closed session. *First*: `titled_through` is null
+  and 6 messages or 1,500 characters. *Topic*: 20 messages past `titled_through`, then the word check
+  (stop-words in six languages, words cut to 6 letters); a same-topic result only moves
+  `titled_through`. A dropped or SAME answer also moves it, so a failed try waits for the next
+  trigger.
+- **Ledger:** `DailyLedger` (`budget_ledger` created in `store.db`, the owner's local day) is a new
+  shared helper; A2A, webhooks and plugins keep their own `budget_ledger` tables in their own
+  databases (not moved). The run counts before the call (cap 60 runs a day, and 60 × 724 tokens);
+  tokens are added from the usage meter when the provider reports them, else estimated.
+- **Route:** local = a `local` provider that isn't an Ollama cloud model (and, in private local mode,
+  on this computer): the quick chain's local entries first, then the conversation's own model, the
+  Private route, any other local provider with a model. Private chats are local whatever the pick.
+- **Output checks (more than designed):** besides length, the redactor (a title that changes under
+  it is dropped, not saved redacted), `detectExplicit`, `minorSexualMatch` and people-card names
+  (outside his own chats), a small six-language list of health and intimate words is dropped too,
+  and in a partner chat the partner's own name is taken out of the title. A placeholder that itself
+  fails these checks (a first message about health) becomes *A personal conversation*.
+- **No-model fallback:** a bridge placeholder (*Telegram*, *Discord: …*, *… · Oct 31*) gets up to three
+  topic words from his lines once, still a placeholder (a model names it later); other titles stay.
+- **Placeholders:** a chat's first bridge session keeps its 2.41 title (*Telegram*, *Discord: #general ·
+  My Server*: CH2's prefix rule still applies); `/new` sessions get `{placeholder} · {Mon D}` in the app
+  language. Old rows are classified on first use (`titleSourceOf`).
+- **Owner titles:** `PATCH {title}` saves it as *owner* without counting as activity (the row keeps its
+  place), `{keepTitle: true}` = *Keep this title*, `{titleSource: 'auto'}` = *Let her name it again*
+  (the next check names it from the whole session). `POST …/retitle` (*Name it now*) works with the
+  switch off and leaves owner titles alone. `POST /api/chats/titles/retitle-all` names his recent
+  (14 days, 20 at most) sessions that are due.
+- **UI:** Settings → You → About you → *Session titles* (switch, model pick-list, *Titles a day* 10–200,
+  today's use, *Name recent chats now*); the conversation's info has *Title* with its source, *Keep
+  this title* / *Let her name it again* / *Name it now* and *Earlier titles* with dates and *Use this
+  title*. A `title` event replaces just that sidebar row (same place and size, a short fade).
+- **Evals:** 20 plain, 10 topic-change, 5 partner/room and 5 sensitive sessions (en 8, es 8, fr 8, de 8,
+  pt-BR 4, it 4). The change is scored at `/new` (the second half is 8 lines, short of the 20-message
+  topic check); the code check's view of the move is reported on its own. Language is scored by a
+  small function-word check. Live result on gemma4:12b (this computer): see `evals/results/`.
+- **Not built:** the summary's topic in the word check (no per-session topic line exists yet; CH4's
+  room summary can feed it); title retitling of rooms' own conversations beyond the same rules; a
+  Settings → Chats page (the card sits on About you).
 
 ### 6.10 Owner to-dos
 

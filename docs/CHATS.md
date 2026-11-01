@@ -123,6 +123,35 @@ page. Search always looks through everything.
 **Ended sessions sit under their chat:** after `/new`, the chat shows once (its open session), with a
 small number next to it; press it to see the earlier sessions with their dates.
 
+## Titles that grow (2.42.0)
+
+A session starts with a placeholder: your first message in the app, or the chat's own name in
+Telegram and Discord (*Telegram*, *Discord: #general · My Server*; a session opened with `/new` adds the
+day, *Telegram · Oct 31*). Then she names it from what it actually covered:
+
+- after 3 exchanges (6 messages) or about 1,500 characters, whichever comes first;
+- when the talk clearly moves on: at most every 20 new messages a word check (no model, six
+  languages) compares the title with the last 20 messages, and only when under 15 % of its words are
+  still in use does she ask the model, which may answer that the title still fits;
+- at `/new`, for the session being closed, when it had 6 new messages since its last title.
+
+Each title is one short call to a model on this computer (*Settings → You → About you → Session
+titles → Model for titles*: *This computer* or *Quick helpers*), at most 60 a day (*Titles a day*,
+10–200). Private chats only ever use this computer; with no model there, the placeholder stays.
+With no model at all, a Telegram or Discord placeholder gets a few plain topic words once.
+
+A title you type is never changed. *This conversation* (the ⚙ in the chat's header) shows the title,
+who named it and its earlier titles with their dates: *Use this title* or *Keep this title* makes it
+yours, *Let her name it again* hands it back, *Name it now* asks her straight away. Titles stay
+neutral: no names of other people in shared chats, nothing intimate, no health details, no secrets;
+a title that fails these checks is dropped and the old one kept (a first message that itself says too
+much becomes *A personal conversation*). Off-the-record, imported, group, webhook, A2A and other apps'
+chats keep their titles.
+
+Owner to-do: run `node scripts/eval-titles.ts --model <your local model>` (and on your quick model,
+with `--route quick --ollama <its address>`), then pick the model for titles; after a week, say if the
+titles are too long or too formal.
+
 ### Owner to-do
 
 After updating, look at the sidebar on your phone and on the desktop: check the Telegram and
