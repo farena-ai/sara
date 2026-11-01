@@ -273,6 +273,8 @@ export interface AppContext {
   google?: import('./google.ts').GoogleAccount;
   /** Gmail organizing (archive, labels, trash…): the undo log and bulk runs. Owner only, never the demo. */
   gmail?: import('./gmail-organize.ts').GmailOrganizer;
+  /** Phase 111 (TD1): Today's cached outside parts and their generations (src/today.ts; per companion). */
+  todayState?: import('./today.ts').TodayState;
   /** Phase 73: the owner's servers over SSH (owner space only; never members or the demo). */
   ssh?: import('./ssh.ts').SshManager;
   /** Phase 49: preview links to the web apps her jobs run (shared by every companion). */

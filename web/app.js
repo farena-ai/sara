@@ -9,7 +9,7 @@ import { browserLang, currentIdentity, currentLang, locale, savedLang, setIdenti
 import { autoSave, initDialogs, markDirty, onSave, runSave, saved } from './dialogs.js';
 import { endTour, startTour, tourRunning } from './tour.js';
 import { isDocFile, loadLibrarySettings, openArchives, openLibrary, saveLibrarySettings, uploadDoc, waitRead } from './library.js';
-import { initRooms, loadRoomList } from './rooms.js';
+import { initRooms, loadRoomList, openRoom } from './rooms.js';
 import { initProjectMap, resetProjectMap } from './codemap.js';
 import { initSkills, loadSkills, skillApproval } from './skills.js';
 import { initLearning, learnCard, loadLearning } from './learned-skills.js';
@@ -18,7 +18,7 @@ import { initAgents, loadAgents } from './agents.js';
 import { hookNotice, initHooks, loadHooks } from './hooks.js';
 import { initMoveIn, loadMoveIn, moveInEvent } from './movein.js';
 import { boardEvent, initBoard, openCardOnBoard, plannerView, rememberView } from './board.js';
-import { agendaEvent, agendaNotice, agendaWhy, initAgenda, loadAgenda, renderPlansTile } from './agenda.js';
+import { agendaEvent, agendaNotice, agendaWhy, initAgenda, loadAgenda, openHerPlans, renderPlansTile } from './agenda.js';
 import { initPeople, peopleEvent, peopleOnOpen, showPerson } from './people.js';
 import { initOtherApps, keyUse, loadOtherApps } from './other-apps.js';
 import { initAlexa, loadAlexa } from './alexa.js';
@@ -30,7 +30,8 @@ import { initLocalModels, loadLocalModels, setPrivateBadge } from './local-model
 import { faceUrl, groupTag, initGroups, isGroup, openGroupDialog, showGroupButton, speakerHeader } from './group.js';
 import { appLink, inPhoneApp, phoneKind } from './pair-link.js';
 import { addToMomentsButton, initMoments, loadMoments, openMoments, renderTodayMoments, renderTodayPhotos } from './moments.js';
-import { closeToday, initToday, renderTodayTiles, showToday, todayOpen } from './today.js';
+import { closeToday, drawSkeleton, initToday, reloadParts, renderToday, showToday, todayData, todayOpen, todayPartChanged } from './today.js';
+import { editing as todayEditing, initTodayLayout, layoutPrefs, openSheet as openTodayCustomise, savePrefs, setPrefs as setTodayPrefs, tileMenu } from './today-layout.js';
 import { initBottomBar } from './bottom-bar.js';
 import { startsOnToday } from './start-view.js';
 import { DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNote, updatesShown, versionChanged } from './update-check.js';
@@ -1217,6 +1218,8 @@ initCommandBar({
     { key: 'place:her', icon: 'heart', label: t('Her page'), sub: t('Her day, mood and character'), hint: 'Alt+H', run: () => openSara() },
     { key: 'place:settings', icon: 'settings', label: t('Settings'), hint: 'Ctrl+,', run: () => openSettings() },
     { key: 'place:help', icon: 'help', label: t('Help'), sub: t('Tours and the guide'), run: () => $('#open-help').click() },
+    // Phase 111 (TD1): Customise Today (reorder, resize and hide its tiles).
+    { key: 'place:today-customise', icon: 'sliders', label: t('Customise Today'), sub: t('Move, resize or hide tiles'), run: async () => { await openToday(); openTodayCustomise(); } },
   ],
   conversations: () =>
     state.conversations
@@ -1291,6 +1294,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && $('#main').classList.contains('show-sidebar') && !document.querySelector('dialog[open]:not(#today)')) closeSidebar();
 });
 // Phase 75 (stage 3): Today's tiles (web/today.js) and the phone's bottom bar (web/bottom-bar.js).
+/** Phase 111: Today's date words, set once loadToday's helpers exist (initToday runs before them). */
+const TODAY_FMT_LATE = { fmtDue: (iso) => fmtDue(iso), inDaysWords: (n) => inDaysWords(n) };
 /** Puts words in the message box for the owner to check and send (smart-home asks from Today). */
 async function askInChat(text) {
   if (!state.currentId || state.conv?.offRecord) await newConversation();
@@ -1314,7 +1319,25 @@ initToday({
   // Phase 103: Today's "Her plans" tile (web/agenda.js).
   renderPlans: (plans, head) => renderPlansTile(plans, head),
   renderPhotos: renderTodayPhotos,
+  // Phase 111 (TD1): the tiles that moved here from loadToday, and the layout (web/today-layout.js).
+  renderMoments: renderTodayMoments,
+  showPerson: (id) => showPerson(id),
+  openRoom: (id) => {
+    closeToday({ focus: false });
+    void openRoom(id);
+  },
+  openHerPlans: () => {
+    closeToday({ focus: false });
+    void openHerPlans();
+  },
+  modelText: (n) => `🔄 ${modelNoticeText(n)}`,
+  tileMenu: (tile) => tileMenu(tile),
+  savePrefs: (patch) => savePrefs(patch),
+  reloadParts: (parts) => reloadParts(parts),
+  editing: () => todayEditing(),
+  fmt: TODAY_FMT_LATE,
 });
+initTodayLayout({ api, status: (msg) => ($('#td-status').textContent = msg), member: isMember, demo: () => document.body.classList.contains('demo'), data: () => todayData(), reloadParts: (parts) => reloadParts(parts) });
 // Phase 103 (ST8): Planner → Her plans and the chat's "Why I'm writing" line (web/agenda.js).
 initAgenda({
   api,
@@ -5862,7 +5885,11 @@ function startEvents() {
   es.addEventListener('history-import', (e) => renderHistStatus(JSON.parse(e.data).status));
   // Phase 104: a move-in's upload, check, read or import moved on.
   es.addEventListener('movein', (e) => moveInEvent(JSON.parse(e.data)));
+  // Phase 111 (TD1): a part of Today changed (Mail after a Gmail clean-up, Needs you, Running now…): only that part reloads.
+  es.addEventListener('today', (e) => todayPartChanged(JSON.parse(e.data).part));
+  es.addEventListener('job', () => todayPartChanged('work'));
   es.addEventListener('planner', () => {
+    todayPartChanged('day');
     if ($('#planner').open) loadPlanner();
     window.dispatchEvent(new Event('sara:planner'));
     boardEvent();
@@ -5872,13 +5899,13 @@ function startEvents() {
   es.addEventListener('board', () => {
     boardEvent();
     // Today's "On the board" tile (waiting cards, her work) follows too, at most every 2 s.
-    if (todayOpen() && !todayBoardTimer) todayBoardTimer = setTimeout(() => ((todayBoardTimer = 0), void loadToday()), 2000);
+    if (todayOpen() && !todayBoardTimer) todayBoardTimer = setTimeout(() => ((todayBoardTimer = 0), todayPartChanged('board')), 500);
   });
   // Phase 103 (ST8): her plans changed (planned, sent, edited, switched): Her plans and Today follow.
   let todayPlansTimer = 0;
   es.addEventListener('agenda', () => {
     agendaEvent();
-    if (todayOpen() && !todayPlansTimer) todayPlansTimer = setTimeout(() => ((todayPlansTimer = 0), void loadToday()), 1500);
+    if (todayOpen() && !todayPlansTimer) todayPlansTimer = setTimeout(() => ((todayPlansTimer = 0), todayPartChanged('plans')), 500);
   });
   // Phase 101 (ST6): people cards changed (her memory worker, another tab): the open People page follows.
   es.addEventListener('people', () => peopleEvent());
@@ -5895,13 +5922,20 @@ function startEvents() {
   es.addEventListener('turn', (e) => {
     const { conversationId } = JSON.parse(e.data);
     void loadConversations();
-    if (conversationId === state.currentId && !state.streaming && !state.watch) void openConversation(conversationId);
+    // Phase 111: Today stays open (it is often left open on a second screen); the chat underneath reloads when he goes back to it.
+    if (conversationId === state.currentId && !state.streaming && !state.watch) {
+      if (todayOpen()) state.reopenAfterToday = conversationId;
+      else void openConversation(conversationId);
+    }
   });
   // Phase 81: findings changed (a security pass ended, a fix moved on): the open window and the chat follow.
   es.addEventListener('findings', (e) => {
     const ev = JSON.parse(e.data);
     void refreshFindings();
-    if (ev.summary && ev.conversationId === state.currentId && !state.streaming && !state.watch) void openConversation(ev.conversationId);
+    if (ev.summary && ev.conversationId === state.currentId && !state.streaming && !state.watch) {
+      if (todayOpen()) state.reopenAfterToday = ev.conversationId;
+      else void openConversation(ev.conversationId);
+    }
   });
   // Phase 84: an eval moved on (a replay finished, the judge, the result).
   es.addEventListener('eval', (e) => onEvalEvent(JSON.parse(e.data)));
@@ -7833,6 +7867,8 @@ const TODAY_GREETINGS = { late: 'Up late', morning: 'Good morning', afternoon: '
 const inDaysWords = (n) => (n === 0 ? t('today') : n === 1 ? t('tomorrow') : t('in {n} days', { n }));
 async function loadToday(fresh = false) {
   $('#td-status').textContent = fresh ? t('Refreshing…') : '';
+  // Phase 111 (TD1): the slots of the last open are drawn before the answer (no layout shift).
+  if (!todayData()) drawSkeleton();
   let d;
   try {
     d = await api(`/today${fresh ? '?fresh=1' : ''}`);
@@ -7845,14 +7881,6 @@ async function loadToday(fresh = false) {
   const hello = d.greetingKey ? t(TODAY_GREETINGS[d.greetingKey]) : d.greeting;
   $('#td-greeting').textContent = d.greetingKey && d.owner ? t('{greeting}, {name}', { greeting: hello, name: d.owner }) : hello;
   $('#td-date').textContent = d.day ? new Date(`${d.day}T12:00:00`).toLocaleDateString(locale(), { weekday: 'long', month: 'long', day: 'numeric' }) : d.date;
-  const list = (id) => $(`#${id} .today-list`);
-  // Phase 75 (stage 3): your day (reminders + calendar), the Planner and the rest are tiles (web/today.js).
-  $('#td-mail').hidden = !d.mail;
-  if (d.mail)
-    list('td-mail').replaceChildren(
-      el('p', 'small', d.mail.error ? d.mail.error : d.mail.important.length ? t('{n} unread in your inbox. Looks important:', { n: d.mail.unread }) : t('{n} unread in your inbox.', { n: d.mail.unread })),
-      ...d.mail.important.map((m) => todayRow(m.subject, m.from)),
-    );
   // The greeting's mood line under her name (the AI notice sits beside her face).
   $('#td-her').hidden = !d.her;
   if (d.her) {
@@ -7871,35 +7899,11 @@ async function loadToday(fresh = false) {
       box.append(day);
     }
   }
-  renderTodayMoments(d);
-  $('#td-dates').hidden = !d.dates.length;
-  // Phase 101 (ST6): a date about someone on a people card opens their card.
-  list('td-dates').replaceChildren(
-    ...d.dates.map((x) => {
-      const row = todayRow(x.what, inDaysWords(x.inDays), x.inDays === 0 ? 'overdue' : '');
-      if (x.personId) {
-        row.classList.add('td-person');
-        row.tabIndex = 0;
-        row.setAttribute('role', 'button');
-        row.setAttribute('aria-label', t('Open {name}', { name: x.person }));
-        const open = (e) => {
-          e.stopPropagation();
-          closeToday({ focus: false });
-          void showPerson(x.personId);
-        };
-        row.addEventListener('click', open);
-        row.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open(e)));
-      }
-      return row;
-    }),
-  );
-  // Phase 56: retired models and what now uses their replacement.
-  $('#td-models').hidden = !d.models?.length;
-  // UX 19: the server sends the facts too (modelItems), so the sentence is in the app language.
-  const modelLines = d.modelItems?.length ? d.modelItems.map(modelNoticeText) : (d.models ?? []);
-  list('td-models').replaceChildren(...modelLines.map((line) => todayRow(`🔄 ${line}`, '', 'wrap')));
-  await renderTodayTiles(d, { fmtDue });
+  // Phase 75 / 111: every tile is drawn by web/today.js from this one answer (sections, sizes, the fill rule).
+  setTodayPrefs(d.layout);
+  renderToday({ ...d, layout: layoutPrefs() ?? d.layout }, TODAY_FMT);
 }
+const TODAY_FMT = { fmtDue: (iso) => fmtDue(iso), inDaysWords: (n) => inDaysWords(n) };
 /** Today, the home screen: over the chat column (web/today.js); the tiles fill in as they load. */
 async function openToday() {
   const first = !todayOpen();
@@ -7907,6 +7911,11 @@ async function openToday() {
   await Promise.all([loadToday(), loadChecklist()]);
 }
 $('#open-today').addEventListener('click', openToday);
+// Phase 111: back from Today, the conversation underneath catches up with what happened meanwhile.
+$('#today').addEventListener('close', () => {
+  if (state.reopenAfterToday && state.reopenAfterToday === state.currentId) void openConversation(state.currentId);
+  state.reopenAfterToday = null;
+});
 // Her face and name at the top of the sidebar go to Today too (on phones, the list closes).
 $('#brand-today').addEventListener('click', () => {
   $('#main').classList.remove('show-sidebar');

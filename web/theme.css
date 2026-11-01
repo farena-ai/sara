@@ -11,6 +11,12 @@
    (--titlebar), so no top inset there. A short iPhone home-screen view ends above the home
    indicator, so no bottom inset there. */
 :root {
+  /* Phase 111 (TD1): Today's grid. The row floor keeps slots from jumping while the batch arrives. */
+  --td-row: 132px;
+  --td-gap: 14px;
+  --td-sec-gap: 26px;
+}
+:root {
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
 }

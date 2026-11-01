@@ -88,6 +88,37 @@ export class LeaveByWorker {
     if (this.#timer) clearInterval(this.#timer);
   }
 
+  /**
+   * Phase 111 (TD1, §4.1): today's leave-by times for Today's timeline, from the same address and
+   * route caches the reminders use (no new hosts; nothing when leave-by is off or has no home).
+   */
+  async planFor(events: { id: string; start: string; allDay: boolean; location?: string }[]): Promise<{ eventId: string; leaveAt: string; minutes: number }[]> {
+    const cfg = leaveBySettings(this.#app);
+    if (!cfg.enabled || !cfg.home) return [];
+    const now = this.#app.now().getTime();
+    const out: { eventId: string; leaveAt: string; minutes: number }[] = [];
+    for (const e of events.slice(0, 8)) {
+      const loc = e.location?.trim() ?? '';
+      if (e.allDay || !loc || ONLINE.test(loc)) continue;
+      const start = Date.parse(e.start);
+      if (!Number.isFinite(start) || start < now) continue;
+      let route = this.#routes.get(e.id);
+      if (!route || route.location !== loc) {
+        let place = this.#places.get(loc);
+        if (place === undefined) {
+          place = (await findAddress(loc, this.#fetch).catch(() => undefined)) ?? null;
+          this.#places.set(loc, place);
+        }
+        const minutes = place ? ((await travelMinutes(cfg.home, place, cfg.mode, this.#fetch).catch(() => undefined)) ?? null) : null;
+        route = { location: loc, minutes };
+        this.#routes.set(e.id, route);
+      }
+      if (route.minutes === null || route.minutes < 3) continue;
+      out.push({ eventId: e.id, leaveAt: new Date(start - (route.minutes + cfg.bufferMin) * 60_000).toISOString(), minutes: route.minutes });
+    }
+    return out;
+  }
+
   /** Checks the next few hours of the calendar; sends any reminder that is due. Returns what was sent. */
   async tick(): Promise<string[]> {
     const app = this.#app;

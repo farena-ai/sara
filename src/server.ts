@@ -1,4 +1,5 @@
 // HTTP API + static web UI. No framework; node:http only.
+import { clearTodayCache } from './today.ts';
 import { netFetch, privateLocalOn } from './net-guard.ts';
 import { createReadStream, existsSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { appLanguage, en, trOwner } from './i18n.ts';
@@ -513,6 +514,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     const { id, decision } = app.approvals.request(conversationId, t.controller.signal);
     const callId = `app-${id}`;
     t.approvals.set(callId, { type: 'approval', approvalId: id, id: callId, name, summary, args });
+    todayNeeds();
     t.status = 'waiting';
     t.detail = summary;
     externalTurns.set(conversationId, (externalTurns.get(conversationId) ?? 0) + 1);
@@ -532,6 +534,7 @@ export function createSaraServer(opts: ServerOptions): Server {
       })
       .finally(() => {
         t.approvals.delete(callId);
+        todayNeeds();
         const n = (externalTurns.get(conversationId) ?? 1) - 1;
         if (n > 0) return void externalTurns.set(conversationId, n);
         externalTurns.delete(conversationId);
@@ -672,24 +675,33 @@ export function createSaraServer(opts: ServerOptions): Server {
         turn.status = 'waiting';
         turn.detail = ev.summary;
         turn.approvals.set(ev.id, ev);
+        todayNeeds();
         break;
       case 'tool_running':
         turn.approvals.delete(ev.id);
+        todayNeeds();
         turn.status = 'running';
         turn.detail = ev.summary;
         break;
       case 'sandbox_running':
         // Phase 80: the command is being tried in a throwaway copy first.
         turn.approvals.delete(ev.id);
+        todayNeeds();
         turn.status = 'running';
         turn.detail = 'trying it in a sandbox copy';
         break;
       case 'tool_result':
         turn.approvals.delete(ev.id);
+        todayNeeds();
         turn.status = 'thinking';
         turn.detail = '';
         break;
     }
+  }
+
+  /** Phase 111 (TD1): an approval arrived or was answered: Today's Needs you reloads (at most every 1.5 s on the page). */
+  function todayNeeds(): void {
+    app.events?.publish({ type: 'today', part: 'needs' });
   }
 
   function activityView(conversationId: string) {
@@ -1067,6 +1079,8 @@ export function createSaraServer(opts: ServerOptions): Server {
       else {
         try {
           await app.google.finish(url.searchParams.get('code') ?? '', url.searchParams.get('state') ?? '');
+          // Phase 111: every companion's Today reads Google again.
+          for (const cx of opts.companions?.all() ?? [{ app }]) clearTodayCache(cx.app);
         } catch (err) {
           result = 'failed';
           console.warn(`google sign-in: ${(err as Error).message}`);

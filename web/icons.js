@@ -94,6 +94,9 @@ export const ICONS = {
   update: '<path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4.5v4h-4M12 16.5v-8M8.8 11.5L12 8.3l3.2 3.2"/>',
   package: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9M8 5.2l8 4.6"/>',
   wrench: '<path d="M14.7 6.3a4 4 0 0 0 5 5L20 11a4.5 4.5 0 0 1-5.6 5.6L7.5 21.5a2.1 2.1 0 0 1-3-3l4.9-6.9A4.5 4.5 0 0 1 15 6z"/>',
+  // Phase 111: a tile's ⋯ menu on Today.
+  dots: '<circle cx="5.5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18.5" cy="12" r="1.4"/>',
+  car: '<path d="M5 16.5V12l2-5h10l2 5v4.5M5 16.5h14M5 16.5V19M19 16.5V19M7.5 12h9"/><circle cx="8" cy="14.3" r=".6"/><circle cx="16" cy="14.3" r=".6"/>',
   sliders: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
   // Phase 81: the security pass and findings (a shield with a check).
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>',

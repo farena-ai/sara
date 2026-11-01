@@ -14,7 +14,9 @@ import { ReminderScheduler } from '../reminders.ts';
 import { reviewSettings } from '../review.ts';
 import { adultModeOn } from '../settings.ts';
 import { gatherStory, lookbacks, STORY_FILTERS, type StoryFilter } from '../story.ts';
-import { buildToday } from '../today.ts';
+import { buildToday, todayChanged } from '../today.ts';
+import { addNotToday, getLayout, LayoutError, putLayout, resetLayout, setSeen } from '../today-layout.ts';
+import { todayLoaders } from '../today-parts.ts';
 import { workspaceDir } from '../tools/workspace.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
@@ -117,34 +119,100 @@ export function createPlannerRoutes(ctx: RouteCtx): RouteHandler {
     if (!['low', 'normal', 'high'].includes(String(v))) throw new HttpError(400, 'priority must be low, normal or high');
     return v as Priority;
   }
+  /** Phase 111: the approvals waiting in this companion's turns (Needs you; there is no list route). */
+  const pendingApprovals = () =>
+    [...ctx.active.entries()].flatMap(([conversationId, t]) => [...t.approvals.values()].map((ap) => ({ approvalId: ap.approvalId, conversationId, name: ap.name, summary: ap.summary, since: t.startedAt })));
+  const seenAt = new Map<string, number>();
+  /** The weather part (and the old weather route): the briefing place, 15-minute cache, an honest error. */
+  async function weatherPart(fresh: boolean): Promise<Record<string, unknown>> {
+    const cfg = briefingSettings(app);
+    if (opts.demo || !cfg.place) return { setUp: false };
+    const units = cfg.units ?? defaultUnits(app.settings.get().timeZone);
+    const key = `${cfg.place.lat},${cfg.place.lon},${units}`;
+    let cached = true;
+    if (fresh || !weatherCache || weatherCache.key !== key || Date.now() - weatherCache.at > WEATHER_MS) {
+      try {
+        weatherCache = { key, at: Date.now(), data: await todayWeather(cfg.place, units) };
+        cached = false;
+      } catch {
+        return { setUp: true, place: cfg.place.name.split(',')[0], units, error: true, at: new Date().toISOString() };
+      }
+    }
+    return { setUp: true, ...weatherCache.data, at: new Date(weatherCache.at).toISOString(), ...(cached ? { cached: true } : {}) };
+  }
+  const stripAt = (w: Record<string, unknown>) => {
+    const { at: _at, cached: _c, ...rest } = w;
+    return rest;
+  };
   return async (req, res, method, parts) => {
     const [a, b, c] = parts;
     // Phase 14: the phone app's home-screen widget (her face, mood, last message) and its
     // notification check (her messages that arrived on their own, after a given id).
     if (a === 'today' && !b && method === 'GET') {
-      const today = await buildToday(app, { fresh: new URL(req.url ?? '/', 'http://x').searchParams.has('fresh') });
+      const url = new URL(req.url ?? '/', 'http://x');
+      const fresh = url.searchParams.has('fresh');
+      const parts = (url.searchParams.get('parts') ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+      const phoneApp = fromPhoneApp(req);
+      // Phase 111 (TD1): one batched answer for the whole page (src/today.ts, src/today-parts.ts).
+      const today = await buildToday(app, {
+        fresh,
+        ...(parts.length ? { parts } : {}),
+        demo: Boolean(opts.demo),
+        phoneApp,
+        loaders: {
+          ...todayLoaders({ approvals: pendingApprovals, companions: () => (opts.companions?.all() ?? []).map((x) => x.app) }),
+          weather: async () => {
+            const w = await weatherPart(fresh);
+            return w.setUp === false ? undefined : w;
+          },
+        },
+      });
       // Phase 70: "On this day" from the album (never on the demo; adults-only photos only with Adult mode, never in the phone apps).
-      const otd = opts.demo ? undefined : app.moments?.onThisDay(app.now(), app.settings.get().timeZone, { adultOk: adultModeOn(app.settings.get()) && !fromPhoneApp(req) });
+      const otd = opts.demo || (parts.length && !parts.includes('moments')) ? undefined : app.moments?.onThisDay(app.now(), app.settings.get().timeZone, { adultOk: adultModeOn(app.settings.get()) && !phoneApp });
       return send(res, 200, otd ? { ...today, onThisDay: { kind: otd.kind, ...(otd.years ? { years: otd.years } : {}), items: otd.items.map((m) => ({ id: m.id, image: m.image, caption: m.caption, text: m.text.slice(0, 200), takenAt: m.takenAt, from: m.from })) } } : today);
+    }
+
+    // Phase 111 (TD1): this companion's Today layout (reorder, resize, hide, the Customise settings),
+    // when Today was last seen (Since you were away) and Needs you's "Not today". Writes are refused
+    // on the demo by the server's demo rule; members reach their own companion's.
+    if (a === 'today' && (b === 'layout' || b === 'seen' || b === 'needs')) {
+      if (opts.demo) throw new HttpError(403, 'Not available in the demo.');
+      try {
+        if (b === 'layout' && !c && method === 'GET') return send(res, 200, { prefs: getLayout(app).prefs });
+        if (b === 'layout' && !c && method === 'PUT') {
+          const prefs = putLayout(app, await readJson(req));
+          todayChanged(app, 'layout');
+          return send(res, 200, { prefs });
+        }
+        if (b === 'layout' && !c && method === 'DELETE') {
+          const prefs = resetLayout(app);
+          todayChanged(app, 'layout');
+          return send(res, 200, { prefs });
+        }
+        if (b === 'seen' && !c && method === 'PUT') {
+          // At most once a minute per device (the page sends it every few minutes while visible).
+          const dev = String(req.headers['x-sara-device'] ?? req.socket.remoteAddress ?? '');
+          const last = seenAt.get(dev) ?? 0;
+          if (Date.now() - last >= 60_000) {
+            seenAt.set(dev, Date.now());
+            setSeen(app);
+          }
+          return send(res, 200, { ok: true });
+        }
+        if (b === 'needs' && c && parts[3] === 'not-today' && method === 'POST') {
+          const prefs = addNotToday(app, decodeURIComponent(c).slice(0, 64));
+          return send(res, 200, { notToday: prefs.notToday });
+        }
+      } catch (err) {
+        if (err instanceof LayoutError) throw new HttpError(400, err.message);
+        throw err;
+      }
     }
 
     // Phase 75 (stage 3): the Today page's weather tile. Read-only, from the place set for the morning
     // briefing (Open-Meteo, free, no key); nothing set up → { setUp: false } and the tile stays away.
     // Never on the demo. Cached for 15 minutes; a failed lookup says so instead of guessing.
-    if (a === 'today' && b === 'weather' && !c && method === 'GET') {
-      const cfg = briefingSettings(app);
-      if (opts.demo || !cfg.place) return send(res, 200, { setUp: false });
-      const units = cfg.units ?? defaultUnits(app.settings.get().timeZone);
-      const key = `${cfg.place.lat},${cfg.place.lon},${units}`;
-      if (!weatherCache || weatherCache.key !== key || Date.now() - weatherCache.at > WEATHER_MS) {
-        try {
-          weatherCache = { key, at: Date.now(), data: await todayWeather(cfg.place, units) };
-        } catch {
-          return send(res, 200, { setUp: true, place: cfg.place.name.split(',')[0], units, error: true });
-        }
-      }
-      return send(res, 200, { setUp: true, ...weatherCache.data });
-    }
+    if (a === 'today' && b === 'weather' && !c && method === 'GET') return send(res, 200, stripAt(await weatherPart(false)));
 
     if (a === 'planner' && !b && method === 'GET') {
       const pl = needPlanner();

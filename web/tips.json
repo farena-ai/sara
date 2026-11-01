@@ -1388,8 +1388,7 @@
     "dc-cmd-offer": [
       "When a chat is almost too long for her to keep in mind, she says so once and suggests /new. The old session is kept and summarised.",
       "chatapps"
-    ]
-,
+    ],
     "ap-sessions": [
       "How many sessions each project shows before See more. The rest are one press away and always in search.",
       "start"
@@ -1401,6 +1400,30 @@
     "pp-ch-rooms": [
       "Shows a heading per server channel, group or direct chat inside this project, each with its own See more.",
       "chatapps"
+    ],
+    "td-away-hours": [
+      "How long you need to be away before Today opens with a short note of what happened while you were gone. Slide to Off to never show it.",
+      "today"
+    ],
+    "td-needs-mail": [
+      "Puts unread mail that Gmail marks important into Needs you. Turn off to keep mail only in the Mail tile.",
+      "today"
+    ],
+    "td-usage-cost": [
+      "Shows today's estimated spend next to tokens. Local models and subscriptions always count as $0.",
+      "today"
+    ],
+    "td-coming-days": [
+      "How far ahead Coming up looks for events, dates and birthdays.",
+      "today"
+    ],
+    "td-phone-open": [
+      "What Today looks like when you open it on a phone: sections open or closed as you left them, all open, or only the Now card.",
+      "today"
+    ],
+    "td-rooms-on": [
+      "Off by default. On: a Rooms tile shows what is going on in the Discord channels and Telegram groups where Keep up is on, from her own room summary. Only for you, never for household members.",
+      "today"
     ]
   },
   "pages": {

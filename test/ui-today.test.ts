@@ -123,7 +123,8 @@ function todayDom() {
   const body = new Node('body');
   const at = html.indexOf('<div id="td-tiles"');
   const block = html.slice(at, html.indexOf('</div>\n          <p class="td-ask-row">', at));
-  for (const m of block.matchAll(/<section class="([^"]+)" id="([\w-]+)"( hidden)?[^>]*>([\s\S]*?)<\/section>/g)) {
+  // Phase 111: tiles sit inside the five section blocks; only the tiles become nodes here.
+  for (const m of block.matchAll(/<section class="([^"]*\btd-tile\b[^"]*)" id="([\w-]+)"( hidden)?[^>]*>([\s\S]*?)<\/section>/g)) {
     const s = new Node('section');
     s.className = m[1];
     s.id = m[2];
@@ -195,10 +196,11 @@ test('Today: a view over the chat column (not a window), old ids and deep link k
   assert.match(app, /async function newConversation\(projectId = null, offRecord = false\) \{\n {2}if \(todayOpen\(\)\) closeToday\(\{ focus: false \}\);/);
 });
 
-test('Today: grid of 3-4 columns wide, 2 on tablets, 1 on phones; reduced motion; title strip', () => {
-  assert.match(todayCss, /\.td-tiles \{[^}]*grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 250px\), 1fr\)\);/);
-  assert.match(todayCss, /@container today \(min-width: 1100px\) \{ \.td-tiles \{ grid-template-columns: repeat\(4, minmax\(0, 1fr\)\); \} \}/);
-  assert.match(todayCss, /@container today \(min-width: 600px\) \{ \.td-wide \{ grid-column: span 2; \} \}/, 'a wide tile spans two only where two fit');
+test('Today: five sections, each a 12-column grid (S/M/L spans by container width); reduced motion; title strip', () => {
+  // Phase 111 (TD1): the old auto-fill grid became sections with a 12-column grid each.
+  assert.match(todayCss, /\.td-grid \{[^}]*grid-template-columns: repeat\(12, minmax\(0, 1fr\)\);/);
+  assert.match(todayCss, /@container today \(min-width: 1060px\)/);
+  assert.match(todayCss, /@container today \(min-width: 840px\)/);
   assert.match(todayCss, /container: today \/ inline-size;/);
   // Motion only through the theme's durations (theme.css turns them off for reduced motion).
   assert.doesNotMatch(todayCss, /\d+ms|\d\.\d+s\b/, 'no fixed durations');
@@ -277,7 +279,7 @@ test('Today tiles render from the data (weather, your day, Planner) and stay awa
     assert.ok(dayT.textContent.indexOf('Call Mom') < dayT.textContent.indexOf('Dinner with Mia'), 'in time order');
     assert.match(dayT.textContent, /Luigi’s/);
     m.renderDay({ agenda: { reminders: [], tasks: [] } });
-    assert.match(dayT.textContent, /No reminders for today\./, 'no calendar connected and nothing due');
+    assert.match(dayT.textContent, /Nothing planned\. Enjoy the space\./, 'no calendar connected and nothing due (Phase 111 words)');
     m.renderDay({ agenda: { reminders: [], tasks: [] }, calendar: { events: [], error: 'Google said no' } });
     assert.match(dayT.textContent, /Google said no/, 'the calendar’s own error stays visible');
 
@@ -296,21 +298,19 @@ test('Today tiles render from the data (weather, your day, Planner) and stay awa
   }
 });
 
-test('Today tiles: memories, moments, work, home and set-up come from the existing routes; home changes go through her', () => {
-  assert.match(todayJs, /ctx\.api\('\/memories\?kind=fact'\)/);
-  assert.match(todayJs, /ctx\.api\('\/moments'\)/);
-  assert.match(todayJs, /ctx\.api\('\/jobs'\)/);
-  assert.match(todayJs, /ctx\.api\('\/team'\)/);
-  assert.match(todayJs, /ctx\.api\(`\/home\/entities\?domains=\$\{HOME_DOMAINS\.join\(','\)\}`\)/);
-  assert.match(todayJs, /ctx\.api\('\/today\/weather'\)/);
-  // Home Assistant: state only; "Ask Sara" fills the message box (the owner sends it, and the
-  // home_control approval rule applies). No route that switches a device directly.
-  assert.doesNotMatch(todayJs, /\/home\/(services|call|toggle|control)|method: 'POST', body: \{ entity/);
+test('Today tiles: everything comes from the one batched GET /api/today; home changes go through her or the switch rule', () => {
+  // Phase 111 (TD1): no per-tile fetches any more; memories, moments, work and home are parts of /api/today.
+  assert.doesNotMatch(todayJs, /ctx\.api\('\/(memories\?kind=fact|moments|jobs|team|today\/weather)'\)/);
+  assert.match(app, /api\(`\/today\$\{fresh \? '\?fresh=1' : ''\}`\)/);
+  assert.match(todayJs, /ctx\.api\(`\/today\?parts=\$\{/, 'live parts reload by name');
+  // Home Assistant: switches and picked scenes go through the existing switch route (and its rule);
+  // everything else keeps "Ask Sara", which fills the message box (the owner sends it).
+  assert.doesNotMatch(todayJs, /\/home\/(services|call|control)/);
   assert.match(todayJs, /btn\('td-dev-ask ghost small', t\('Ask Sara'\), \(\) => askAbout\(e\)\)/);
   assert.match(app, /async function askInChat\(text\) \{[\s\S]*?\$\('#input'\)\.value = text;[\s\S]*?\$\('#input'\)\.focus\(\);\n\}/);
   assert.doesNotMatch(app.slice(app.indexOf('async function askInChat'), app.indexOf('initToday({')), /sendMessage|runStream|submit/, 'never sent for the owner');
-  // Demo and members: no home tile, no set-up lines.
-  assert.match(todayJs, /if \(ctx\.demo\(\) \|\| ctx\.member\(\)\) \{\n {4}tile\.hidden = true;/);
+  // Demo and members: no home tile (the server leaves the part out too).
+  assert.match(todayJs, /if \(!h \|\| ctx\.demo\(\) \|\| ctx\.member\(\)\) \{\n {4}tile\.hidden = true;/);
   // The checklist, the briefing ask and refresh stay on Today.
   assert.match(app, /\$\('#td-ask'\)\.addEventListener\('click'/);
   assert.match(app, /\$\('#td-refresh'\)\.addEventListener\('click', \(\) => loadToday\(true\)\);/);

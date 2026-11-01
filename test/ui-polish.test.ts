@@ -208,7 +208,7 @@ test('viz.js: weather art from the codes, sparklines and rings from real numbers
   assert.equal(v.share(9, 4), 1);
   // A ring without a known share moves instead of showing a made-up percentage.
   assert.match(web('viz.js'), /arc\.setAttribute\('stroke-dasharray', known \? `\$\{\(value \* 100\)\.toFixed\(1\)\} 100` : '28 100'\);/);
-  assert.match(web('today.js'), /w\.jobs\.map\(\(j\) => card\(j\.label, since\(j\.startedAt\), lastLine\(j\.tail\), j, null\)\)/, 'running jobs: a moving ring');
+  assert.match(web('today.js'), /w\.jobs\.slice\(0, small \? 1 : 3\)\.map\(\(j\) => card\(j\.label, since\(j\.startedAt\), small \? '' : lastLine\(j\.tail\), j, null\)\)/, 'running jobs: a moving ring');
   assert.match(web('today.js'), /export function countDoneToday\(tasks, now = Date\.now\(\)\)/);
   (globalThis as Record<string, unknown>).matchMedia ??= () => ({ matches: false, addEventListener() {} });
   const t = await import(`data:text/javascript;base64,${Buffer.from(web('today.js').replace(/^import \{[^}]*\} from '\.\/naming\.js';$/m, "const t = (s) => s; const locale = () => 'en-US';").replace(/from '\.\/(icons|viz)\.js';/g, (_m, n: string) => `from '${pathToFileURL(join(ROOT, 'web', `${n}.js`)).href}';`)).toString('base64')}`);

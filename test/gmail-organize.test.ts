@@ -457,9 +457,9 @@ test('gmail organize: a big set runs as a background job with progress, can be s
   assert.match(later.undoProblem(again.actionId!) ?? '', /no Gmail change|more than 30 days/);
 });
 
-test('gmail organize: a change she makes clears the Today mail cache (the tile asks Gmail again)', () => {
+test('gmail organize: a change she makes tells Today (the tile asks Gmail again; Phase 111 generation counter)', () => {
   const src = readFileSync(join(ROOT, 'src', 'gmail-organize.ts'), 'utf8');
-  const rec = src.slice(src.indexOf('#record('), src.indexOf('#record(') + 600);
-  assert.match(rec, /forgetTodayMail\(\)/);
-  assert.match(readFileSync(join(ROOT, 'src', 'today.ts'), 'utf8'), /export function forgetTodayMail\(\): void \{\n  cache = undefined;/);
+  assert.doesNotMatch(src, /from '\.\/today\.ts'/, 'no import cycle: Today is told through onChange');
+  assert.ok((src.match(/this\.#o\.onChange\?\.\(\)/g) ?? []).length >= 2, 'after a run (and every 1,000 on the way) and on Undo');
+  assert.match(readFileSync(join(ROOT, 'src', 'today.ts'), 'utf8'), /export function todayChanged\(app: AppContext, part: TodayPartName \| string\): void \{/);
 });

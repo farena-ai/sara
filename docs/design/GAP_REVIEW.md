@@ -1,7 +1,7 @@
 # Gap review: what Hermes Agent and OpenClaw have that Sara doesn't (yet)
 
 Status: research and design only, 2026-10-31, against Sara 2.42.0 (Phases 1–109 built; 110–113
-planned). Nothing in this file is built or scheduled. ROADMAP Phase 113 says the owner then picks
+planned). Nothing in this file is built or scheduled. ROADMAP Phase 114 says the owner then picks
 which of these suggestions become the next phases. No code, schema or wording was taken from Hermes
 Agent or OpenClaw: this file only names their **features**, from their public docs, with a link for
 each claim ([Sources](#sources)). The owner's two real installs are used only at the level of feature
@@ -11,7 +11,7 @@ hooks, cron, kanban, Discord, Telegram, iMessage and WhatsApp bridges). Nobody l
 machine for this review.
 
 **How it was checked.** Sara's side comes from SOURCE_OF_TRUTH, ARCHITECTURE, CHANGELOG 2.0–2.42,
-the README tour, ROADMAP through Phase 113, the design files in this folder, and a grep of `src/` and
+the README tour, ROADMAP through Phase 114, the design files in this folder, and a grep of `src/` and
 `web/` for each item (file names are given where they matter). Hermes Agent's and OpenClaw's side
 comes from their docs indexes (`llms.txt`) and the feature pages linked below, read on 2026-10-31.
 Where a claim rests on a page title or one-line summary rather than the page body, it says
@@ -287,10 +287,10 @@ WeCom). Suggestion #3 takes only the chat apps a companion user actually uses.
 
 ---
 
-## 4. Recommended order after Phase 113
+## 4. Recommended order after Phase 114
 
 One release each, in this order. Each needs the owner's OK before it goes on the ROADMAP (Rule 9),
-and any paid or scheduled part needs it separately (Rule 7). Versions assume Phase 113 is 2.46.0.
+and any paid or scheduled part needs it separately (Rule 7). Versions assume Phase 114 is 2.46.0.
 
 | Phase | Version | What | Suggestions |
 |---|---|---|---|

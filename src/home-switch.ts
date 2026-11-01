@@ -21,6 +21,14 @@ const SENSITIVE = /(^|[^a-z])(garage|gates?|doors?|locks?|unlock|alarms?|siren|s
 export type SwitchPlan = { ok: true; domain: string; service: string; to: 'on' | 'off' | 'open' | 'closed' } | { ok: false; why: 'ask' | 'unreachable' };
 
 /**
+ * Phase 111 (TD1, §4.10): a scene may run from Today only when the owner picked it there (a scene can
+ * unlock or open, so they are opt-in one by one) and it isn't named like a lock, door or alarm.
+ */
+export function sceneAllowed(id: string, name: string, picked: readonly string[]): boolean {
+  return id.startsWith('scene.') && ENTITY_ID.test(id) && picked.includes(id) && !SENSITIVE.test(name) && !SENSITIVE.test(id.replace(/_/g, ' '));
+}
+
+/**
  * What pressing the switch does for this entity in this state, or why it can't be done here.
  * `want` is the state the switch was moved to (on/off); without it, the opposite of now.
  */

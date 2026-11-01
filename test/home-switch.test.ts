@@ -234,7 +234,7 @@ test('the tile: a real switch for what may switch, Ask Sara for the rest, the re
   assert.match(js, /btn\('td-dev-ask ghost small', t\('Ask Sara'\), \(\) => askAbout\(e\)\)/, 'Ask Sara stays for the rest');
   assert.doesNotMatch(js, /confirm\(/, 'no confirm step');
   // Still hidden for members and on the demo.
-  assert.match(js, /if \(ctx\.demo\(\) \|\| ctx\.member\(\)\) \{\s*tile\.hidden = true;/);
+  assert.match(js, /if \(!h \|\| ctx\.demo\(\) \|\| ctx\.member\(\)\) \{\s*tile\.hidden = true;/);
   const css = readFileSync(join(ROOT, 'web', 'today.css'), 'utf8');
   assert.match(css, /\.td-dev-switch \{[^}]*height: 44px;/, '44 px target');
 });

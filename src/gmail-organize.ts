@@ -15,7 +15,6 @@ import { exactDates, gmailDates } from './gmail-dates.ts';
 import type { JobManager } from './jobs.ts';
 import type { ApprovalDetail } from './tools/types.ts';
 import { cardFor } from './cards.ts';
-import { forgetTodayMail } from './today.ts';
 
 const GMAIL = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
@@ -180,7 +179,12 @@ export interface Opts {
   backoffMs?: number;
   jobs?: () => JobManager | undefined;
   workspaceOf?: (conversationId: string) => string | undefined;
+  /** Phase 111 (TD1): the mailbox changed (each recorded change, and every 500 messages of a run): Today reloads its Mail tile. */
+  onChange?: () => void;
 }
+
+/** Phase 111: Today's Mail tile tells the page at least this often during a long run. */
+export const TODAY_EVERY = 500;
 
 const ID_RE = /^[\w-]{6,64}$/;
 
@@ -210,6 +214,8 @@ export class GmailOrganizer {
       undone_at TEXT,
       undo_of TEXT
     )`);
+    // Phase 111: the label's name, for Today's "She organised today" (additive).
+    if (!(db.prepare('PRAGMA table_info(gmail_actions)').all() as { name: string }[]).some((c) => c.name === 'label_name')) db.exec('ALTER TABLE gmail_actions ADD COLUMN label_name TEXT');
     // Older than the undo window (and a day's grace): the ids aren't needed any more.
     db.prepare('DELETE FROM gmail_actions WHERE created_at < ?').run(new Date(this.#o.now().getTime() - (UNDO_DAYS + 1) * 86_400_000).toISOString());
   }
@@ -335,6 +341,16 @@ export class GmailOrganizer {
     const doneIds: string[] = [];
     let failed = 0;
     let error: string | undefined;
+    // Phase 111: Today hears about a long run as it goes (every 500 messages), not only at the end.
+    let told = 0;
+    const outer = progress;
+    progress = (n) => {
+      outer(n);
+      if (Math.floor(n / TODAY_EVERY) > told) {
+        told = Math.floor(n / TODAY_EVERY);
+        this.#o.onChange?.();
+      }
+    };
     if (!change.per) {
       for (let i = 0; i < ids.length && !signal?.aborted; i += 1000) {
         const chunk = ids.slice(i, i + 1000);
@@ -370,13 +386,31 @@ export class GmailOrganizer {
     return { doneIds, failed, ...(error ? { error } : {}) };
   }
 
-  #record(r: Omit<Row, 'id' | 'created_at' | 'undone_at'>): string {
+  #record(r: Omit<Row, 'id' | 'created_at' | 'undone_at'>, labelName?: string): string {
     const id = `g_${randomBytes(6).toString('base64url').replace(/[-_]/g, 'x')}`;
     this.#db
-      .prepare('INSERT INTO gmail_actions (id, created_at, conversation_id, action, query, add_labels, remove_labels, per, ids, done, failed, undo_of) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(id, this.#o.now().toISOString(), r.conversation_id, r.action, r.query, r.add_labels, r.remove_labels, r.per, r.ids, r.done, r.failed, r.undo_of);
-    forgetTodayMail();
+      .prepare('INSERT INTO gmail_actions (id, created_at, conversation_id, action, query, add_labels, remove_labels, per, ids, done, failed, undo_of, label_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(id, this.#o.now().toISOString(), r.conversation_id, r.action, r.query, r.add_labels, r.remove_labels, r.per, r.ids, r.done, r.failed, r.undo_of, labelName ?? null);
+    // Phase 111 (TD1, §5.2): Today's mail cache is cleared and the open pages reload the Mail tile.
+    this.#o.onChange?.();
     return id;
+  }
+
+  /**
+   * Phase 111: "She organised today" on Today's Mail tile: this companion's changes since `sinceIso`
+   * that are not undone (undo records left out), grouped by action and label, newest first.
+   */
+  organisedSince(sinceIso: string): { action: string; label?: string; count: number; ids: string[] }[] {
+    const rows = this.#db.prepare('SELECT id, action, done, label_name FROM gmail_actions WHERE created_at >= ? AND undone_at IS NULL AND undo_of IS NULL ORDER BY created_at DESC, rowid DESC').all(sinceIso) as { id: string; action: string; done: number; label_name: string | null }[];
+    const groups = new Map<string, { action: string; label?: string; count: number; ids: string[] }>();
+    for (const r of rows) {
+      const k = `${r.action}|${r.label_name ?? ''}`;
+      const g = groups.get(k) ?? { action: r.action, ...(r.label_name ? { label: r.label_name } : {}), count: 0, ids: [] };
+      g.count += Number(r.done);
+      g.ids.push(r.id);
+      groups.set(k, g);
+    }
+    return [...groups.values()].slice(0, 8);
   }
 
   /** Runs an approved plan; writes the undo record for the messages that changed. */
@@ -394,7 +428,7 @@ export class GmailOrganizer {
     const total = plan.ids.length;
     const r = await this.#apply(plan.ids, change, opts.signal, (n) => opts.progress?.(`${words.ing}: ${n.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} done`));
     const actionId = r.doneIds.length
-      ? this.#record({ conversation_id: opts.conversationId ?? null, action: plan.action, query: plan.query, add_labels: JSON.stringify(change.add), remove_labels: JSON.stringify(change.remove), per: change.per ?? null, ids: JSON.stringify(r.doneIds), done: r.doneIds.length, failed: r.failed, undo_of: null })
+      ? this.#record({ conversation_id: opts.conversationId ?? null, action: plan.action, query: plan.query, add_labels: JSON.stringify(change.add), remove_labels: JSON.stringify(change.remove), per: change.per ?? null, ids: JSON.stringify(r.doneIds), done: r.doneIds.length, failed: r.failed, undo_of: null }, labelName)
       : undefined;
     return { ...(actionId ? { actionId } : {}), action: plan.action, done: r.doneIds.length, failed: r.failed, total, query: plan.query, stopped: Boolean(opts.signal?.aborted), ...(labelName ? { label: labelName } : {}), ...(r.error ? { error: r.error } : {}) };
   }

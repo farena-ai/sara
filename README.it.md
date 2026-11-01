@@ -14,7 +14,7 @@ per il web, Windows, Mac e telefono.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1439%20passing-brightgreen" alt="1439 tests passing">
+  <img src="https://img.shields.io/badge/tests-1456%20passing-brightgreen" alt="1456 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -28,7 +28,7 @@ per il web, Windows, Mac e telefono.
   <sub>Una sessione reale con un modello locale (qwen3.8 27B su Ollama, una RTX 5090) su un server di prova usa e getta, nel tema Notte: tira su il morale di chi le scrive, scrive una piccola app e il suo test mentre il modello li trasmette, chiede prima di eseguire un comando, scopre un vero bug con un test che fallisce e lo corregge finché tutti e 7 i test passano. Fotogrammi scelti dalla registrazione; nulla al loro interno è stato modificato.</sub>
 </p>
 
-> **Stato:** 2.43, licenza MIT, con cinquantaquattro versioni ricche di novità dalla 1.0 (tutte qui sotto).
+> **Stato:** 2.44, licenza MIT, con cinquantacinque versioni ricche di novità dalla 1.0 (tutte qui sotto).
 > Dalla 2.5 alla 2.8 tutta l'app ha cambiato aspetto. L'[app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > è su Google Play; l'app per iPhone e la versione del Mac App Store arriveranno appena Apple le
 > approverà. Leggi [docs/DISCLOSURES.md](docs/DISCLOSURES.md) prima di usare o condividere Sara.
@@ -82,6 +82,7 @@ Guide di un minuto, registrate su un server di prova con un modello locale (in i
 
 | Versione | Cosa ottieni |
 |---|---|
+| **2.44** · Oggi, progettato | **Oggi è organizzato con cura:** *La tua giornata* (una linea del tempo con eventi, promemoria e cose da fare, il meteo e cosa arriva), *Ti aspetta* (approvazioni, errori, scadenze passate e la posta), *Con lei*, *Lavoro* e *Casa e altro*. Le righe sono sempre allineate, i riquadri vuoti si chiudono e *Personalizza* sposta, ridimensiona o nasconde ogni riquadro (trascinando o da tastiera), salvato per compagna su ogni dispositivo. La posta mostra la casella, il cambiamento da ieri e cosa ha sistemato lei, con Annulla, e si aggiorna da sola dopo una pulizia. Un riquadro Stanze opzionale mostra cosa succede nelle stanze che segue. |
 | **2.43** · Segue la stanza | **Nei canali Discord e nei gruppi Telegram segue tutta la conversazione** (si accende per stanza; una scheda col piano mostra prima il modello e il limite giornaliero). Quando qualcuno la chiama sa di cosa si parla adesso, chi c'è e cosa è cambiato dal suo ultimo intervento, così entra nell'argomento attuale e non in uno di un'ora fa. Ogni settimana viene archiviata nella sua Biblioteca come trascrizione ricercabile e riassunta in una memoria della stanza con note sulle persone (schede persona proposte). *Dimentica questa stanza* cancella tutto. 12 canali affollati riprodotti in 6 lingue: argomento attuale 12/12. |
 | **2.42** · Titoli che crescono | **Titoli che dicono di cosa parlava la chat.** Il primo è provvisorio; dopo qualche scambio, quando l'argomento cambia chiaramente e a `/new`, un piccolo modello sul tuo computer le ridà un nome («Iniziare un orto» → «Dichiarazione dei redditi da freelance»). I titoli che scegli tu non cambiano mai, i precedenti restano nelle info della chat, niente di sensibile o privato finisce in un titolo, e c'è un limite giornaliero. 40 sessioni di prova: 0,90 sull'argomento con un modello locale da 12B. |
 | **2.41** · Un elenco di sessioni ordinato | **Ogni app di chat ha il suo progetto.** Telegram, Discord e ogni ponte plugin (WhatsApp, Signal…) hanno un progetto integrato che raccoglie le loro chat, così le tue conversazioni web e app restano nei tuoi progetti. Le chat esistenti vengono sistemate una volta, con Annulla. Le stanze mostrano il loro vero nome (#general · Server), le sessioni precedenti stanno sotto la loro chat e le liste lunghe mostrano le più recenti con *Mostra altro*. Rinomina o nascondi un progetto di canale; raggruppa per stanza quello più affollato. |
@@ -152,8 +153,8 @@ Tutte le versioni: [CHANGELOG.md](CHANGELOG.md) · [versioni](https://github.com
 In ordine di costruzione, una versione ciascuna ([l'elenco completo](docs/ROADMAP.md)):
 
 - **Oggi, ripensato** (2.44–2.45): un layout che puoi sistemare, su schermi grandi e telefoni.
-- **Una passata di rifinitura** (2.46): regolatori della personalità più chiari con esempi, aiuto in ogni pagina, un percorso per chi inizia e uno per chi programma.
-- **Poi** (2.47–2.60): foto e file nelle app di chat, parlarle mentre lavora, Signal, email, WhatsApp, iMessage (BlueBubbles) e SMS, «continua finché è fatto», controlli del codice dopo ogni modifica, una galleria di routine e **il Sara Store** per plugin, abilità e server MCP (ComfyUI, Blender, Playwright…) con installazione in un clic e un modo per inviare i tuoi.
+- **Una passata di rifinitura** (2.47): regolatori della personalità più chiari con esempi, aiuto in ogni pagina, un percorso per chi inizia e uno per chi programma.
+- **Poi** (2.48–2.61): foto e file nelle app di chat, parlarle mentre lavora, Signal, email, WhatsApp, iMessage (BlueBubbles) e SMS, «continua finché è fatto», controlli del codice dopo ogni modifica, una galleria di routine e **il Sara Store** per plugin, abilità e server MCP (ComfyUI, Blender, Playwright…) con installazione in un clic e un modo per inviare i tuoi.
 - L'app per iPhone (in attesa di Apple) e le tue idee nelle [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Il piano completo: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -329,8 +330,8 @@ uno SPEC che nessun test controllava. Quello che aggiunge oggi è il modo di lav
 chiede prima dei passi rischiosi, mostra cosa è stato eseguito), non un punteggio più alto su questi
 insiemi. Dettagli, risultati per compito e come rieseguirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-In più, `npm run check`: un controllo dei tipi e 1454 test automatici con un finto modello guidato
-da script (senza rete, senza GPU): 1439 passano su Windows e gli altri 8 sono test dell'isolamento
+In più, `npm run check`: un controllo dei tipi e 1471 test automatici con un finto modello guidato
+da script (senza rete, senza GPU): 1456 passano su Windows e gli altri 8 sono test dell'isolamento
 solo per Linux, eseguiti su un server Linux.
 
 ## Il confronto

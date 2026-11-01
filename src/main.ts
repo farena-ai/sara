@@ -82,6 +82,7 @@ import { HandsHub } from './hands.ts';
 import { createComputerTools } from './tools/computer.ts';
 import { UploadStore } from './uploads.ts';
 import { BriefingWorker } from './briefing.ts';
+import { gmailTodayHook, todayChanged } from './today.ts';
 import { LeaveByWorker } from './leaveby.ts';
 import { ReviewWorker } from './review.ts';
 import { createPhotoTools, DEFAULT_IMAGE_MODEL, photoSettings, xaiImageKey } from './photos.ts';
@@ -752,6 +753,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     for (const t of createComputerTools(app)) tools.add(t);
   }
   if (!isMember) app.jobs.onEnd = (job) => {
+    // Phase 111: Today's Running now and Needs you follow.
+    todayChanged(app, 'work');
     previews.jobEnded(job.id, app.jobs);
     // Phase 89: her dev tunnels to that job's port end with it.
     space.hands?.tunnels.jobEnded(job.id, app.jobs);
@@ -771,7 +774,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     for (const t of createGoogleTools(google, () => settingsC.get().timeZone)) tools.add(t);
     // Gmail organizing (archive, labels, trash…, with Undo): the owner's own Gmail only; never the demo.
     if (!isDemo) {
-      app.gmail = new GmailOrganizer(google, store.db, { timeZone: () => settingsC.get().timeZone, now: () => app.now(), jobs: () => app.jobs, workspaceOf: (id) => store.getConversation(id)?.workspace });
+      app.gmail = new GmailOrganizer(google, store.db, { timeZone: () => settingsC.get().timeZone, now: () => app.now(), jobs: () => app.jobs, workspaceOf: (id) => store.getConversation(id)?.workspace, onChange: gmailTodayHook(app) });
       for (const t of createGmailOrganizeTools({ google, organizer: app.gmail })) tools.add(t);
     }
   }

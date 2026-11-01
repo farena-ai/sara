@@ -30,6 +30,8 @@ export type HubEvent = (
   | { type: 'hooks'; hookId?: string }
   /** Phase 103 (ST8): her plans changed (planned, sent, edited, switched). Nothing of what they say. */
   | { type: 'agenda' }
+  /** Phase 111 (TD1): a part of Today changed (mail organised, a switch pressed…): open pages reload that part. */
+  | { type: 'today'; part: string }
   // Phase 104 (move-in): a bundle's upload, check, read or import moved on (src/movein/index.ts).
   | { type: 'movein'; id: string; state: string; line: string }
   /** Phase 52: device-code sign-in requests waiting for the owner. */

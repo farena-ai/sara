@@ -20,9 +20,10 @@ import { cleanPresence, PRESENCE_KINDS, presenceSettings } from '../presence.ts'
 import { DEFAULT_REPORT_INBOX, REASON_LABELS, validReason } from '../reports.ts';
 import { disclosureText } from '../safety.ts';
 import { adultModeOn } from '../settings.ts';
-import { clearTodayCache } from '../today.ts';
+import { clearTodayCache, todayChanged } from '../today.ts';
+import { getLayout } from '../today-layout.ts';
 import { ACTION_WORDS, RECONNECT_TEXT } from '../gmail-organize.ts';
-import { ENTITY_ID, haCall, switchPlan } from '../home-switch.ts';
+import { sceneAllowed, ENTITY_ID, haCall, switchPlan } from '../home-switch.ts';
 import { cleanHomeUrl, HOME_VAULT, type HaState } from '../tools/home.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
@@ -261,7 +262,9 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       const redirect = `${origin}/api/google/callback`;
       if (!b && method === 'GET') return send(res, 200, { ...g.status(), redirect });
       if (!b && method === 'DELETE') {
-        clearTodayCache();
+        // Phase 111: every companion's Today forgets the Google parts (one Google account per server).
+        for (const cx of opts.companions?.all() ?? []) clearTodayCache(cx.app);
+        clearTodayCache(app);
         await g.disconnect();
         return send(res, 200, g.status());
       }
@@ -359,6 +362,16 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         if (before.status === 404) throw new HttpError(404, 'Home Assistant has no such device.');
         if (!before.data) throw new HttpError(502, 'Couldn’t reach Home Assistant.');
         const want = body.to === 'on' || body.to === 'off' ? body.to : undefined;
+        // Phase 111 (TD1, §4.10): a scene the owner picked for Today runs like a switch (him pressing it);
+        // a scene that isn't picked, or is named like a lock or door, goes through her (Ask Sara).
+        if (id.startsWith('scene.')) {
+          const nm = typeof before.data.attributes?.friendly_name === 'string' ? before.data.attributes.friendly_name : id;
+          if (!sceneAllowed(id, nm, getLayout(app).prefs.home.scenes)) throw new HttpError(403, 'Ask Sara for this one: it only changes after you say yes.', { askSara: true });
+          const ran = await haCall(base, token, '/api/services/scene/turn_on', { method: 'POST', body: { entity_id: id } });
+          if (!ran.status || ran.status >= 400) throw new HttpError(502, 'Home Assistant didn’t make the change.');
+          todayChanged(app, 'home');
+          return send(res, 200, { id, name: nm.slice(0, 80), state: 'scening', was: String(before.data.state ?? '').slice(0, 40), asked: 'on' });
+        }
         const plan = switchPlan(before.data, want);
         if (!plan.ok) throw plan.why === 'unreachable' ? new HttpError(409, 'Home Assistant can’t reach it right now.') : new HttpError(403, 'Ask Sara for this one: it only changes after you say yes.', { askSara: true });
         const done = await haCall(base, token, `/api/services/${plan.domain}/${plan.service}`, { method: 'POST', body: { entity_id: id } });
@@ -367,6 +380,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         const after = await haCall<HaState>(base, token, `/api/states/${id}`);
         const now = after.data ?? before.data;
         const name = typeof now.attributes?.friendly_name === 'string' ? now.attributes.friendly_name.slice(0, 80) : id;
+        todayChanged(app, 'home');
         return send(res, 200, { id, name, state: String(now.state ?? '').slice(0, 40), was: String(before.data.state ?? '').slice(0, 40), asked: plan.to });
       }
       const view = () => ({ ...presenceSettings(app), connected: Boolean(base && token), log: app.presence?.log ?? [] });

@@ -5,6 +5,28 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.44.0 (2026-11-01): Today, designed (Phase 111, Today TD1)
+
+- **Five sections in a set order:** *Your day* (one timeline of events, reminders, to-dos and leave-by
+  times with a Now marker, plus Weather and *Coming up* for 7/14/30 days with birthdays), *Needs you*
+  (one ranked list: approvals you can settle right there, failed work, overdue items, with *Not
+  today*), *With her* (She remembered, On this day, Her plans), *Work* (Running now, the board, coding
+  projects, *Usage today*) and *Home & more* (who's home and the scenes you pick). Guide:
+  [docs/TODAY.md](docs/TODAY.md).
+- **Tidy by design:** a 12-column grid with small, medium and large tiles that always fill a row;
+  empty tiles and empty sections fold away; no jumping while it loads.
+- **Customise:** move, resize and hide tiles and sections (drag, the tile's ⋯ menu, or Alt+arrows),
+  saved for each companion on the server so every device matches; *Reset* restores the design.
+- **Mail 2.0, and the stale-mail fix:** the tile shows your inbox and unread with the change since
+  yesterday, what looks important, and *She organised today* with Undo, and it now updates by itself
+  during and after a Gmail clean-up or an Undo. Before, a load running during a clean-up could put old
+  numbers back, the cache was shared by all companions, and an open Today was never told.
+- *Since you were away* (after 8 hours, adjustable) and an *Updated N min ago* line on every tile that
+  reads from outside. An opt-in **Rooms** tile (owner request) shows what's going on in rooms she keeps
+  up with, with no new model calls; never for household members or the demo.
+- One batched `GET /api/today` with a time limit per part; household members get their own Today
+  with owner-only parts left out on the server.
+
 ## 2.43.0 (2026-10-31): she keeps up with the room (Phase 110, chats CH4; the chats track is complete)
 
 - **Keep up with this room** (Discord server channels, Telegram groups; per room, off until you confirm
