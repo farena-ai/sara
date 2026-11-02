@@ -1,0 +1,58 @@
+{
+  "format": "sara-companion",
+  "v": 1,
+  "id": "juniper",
+  "version": "1.0.0",
+  "sara": ">=2.60.0",
+  "name": "Juniper",
+  "summary": "A warm, cozy friend: tea, kind words and good company.",
+  "author": {
+    "name": "The Sara team"
+  },
+  "license": "CC-BY-4.0",
+  "remix": "yes",
+  "rating": "general",
+  "romance": false,
+  "language": "en",
+  "tags": [
+    "friend",
+    "cozy",
+    "everyday"
+  ],
+  "includes": {
+    "persona": true,
+    "dials": true,
+    "look": "none",
+    "closet": 0,
+    "reference": 0,
+    "voice": true,
+    "greeting": true
+  },
+  "skills": [
+    {
+      "bundled": "cozy-evenings",
+      "why": "Ideas for a slow evening."
+    }
+  ],
+  "routines": [
+    {
+      "id": "bedtime",
+      "answers": {
+        "text": "Time to wind down, {{user}}",
+        "time": "22:00"
+      },
+      "why": "She'll nudge you to put the screens away."
+    }
+  ],
+  "suggests": [],
+  "needs": {
+    "pictures": true,
+    "voices": [
+      "kokoro:1"
+    ]
+  },
+  "made": {
+    "with": "Sara 2.60.0",
+    "at": "2026-11-02"
+  }
+}

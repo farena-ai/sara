@@ -3,7 +3,10 @@
 // version (`v1/entries/<id>/<version>.json`) and, for plugins and skills, the package (`.zip`) by
 // sha256 and by its content hash (`hashFiles` of the unpacked files, the review card's fingerprint).
 // Unknown fields anywhere refuse the whole file (new fields come with `v: 2`); an item of a kind this
-// Sara doesn't know (companion, routine, starter, bundle: reserved for later phases) is skipped.
+// Sara doesn't know (routine, starter, bundle: reserved for later phases) is skipped. Phase 127
+// (2.60.0, docs/design/PACKS.md §11.2) adds the fourth kind, `companion`: a pack zip like a plugin's,
+// with `rating` and `romance` on the item and a `companion` block (the pack manifest) on the entry.
+// 2.57–2.59 Saras skip companion items before reading their fields, so the new fields don't reach them.
 // Pure: no I/O here. The signature, sequence and expiry rules are in verify.ts.
 import { ID_RE, parseSemver } from '../plugins/manifest.ts';
 
@@ -15,13 +18,18 @@ export const ITEMS_MAX = 2000;
 export const VERSIONS_MAX = 10;
 /** `expires` may be at most this long after `generated` (a month's list plus room). */
 export const EXPIRY_MAX_MS = 45 * 24 * 3600_000;
-export const KINDS = ['plugin', 'skill', 'mcp'] as const;
+export const KINDS = ['plugin', 'skill', 'mcp', 'companion'] as const;
+/** The kinds 2.57–2.59 knew (a 2.59 reader is emulated with these in the tests). */
+export const KINDS_259 = ['plugin', 'skill', 'mcp'] as const;
 export type StoreKind = (typeof KINDS)[number];
 /** Kinds later phases add to the same index (skipped here, never an error). */
-export const RESERVED_KINDS = ['companion', 'routine', 'starter', 'bundle'] as const;
+export const RESERVED_KINDS = ['routine', 'starter', 'bundle'] as const;
+export const COMPANION_RATINGS = ['general', 'mature', 'explicit'] as const;
+/** A companion pack's zip may be bigger than a plugin's (pictures): §4.10. */
+export const COMPANION_PACKAGE_MAX = 25 * 1024 * 1024;
 export const TRUST = ['first-party', 'reviewed', 'community'] as const;
 export type StoreTrust = (typeof TRUST)[number];
-export const CATEGORIES = ['everyday', 'coding', 'chat-apps', 'home', 'creative', 'knowledge', 'search', 'tool-servers', 'skills'] as const;
+export const CATEGORIES = ['everyday', 'coding', 'chat-apps', 'home', 'creative', 'knowledge', 'search', 'tool-servers', 'skills', 'companions'] as const;
 export const PLATFORMS = ['windows', 'macos', 'linux'] as const;
 export type StorePlatform = (typeof PLATFORMS)[number];
 export const FIELD_KINDS = ['text', 'url', 'folder', 'number', 'choice', 'secret'] as const;
@@ -69,6 +77,9 @@ export interface StoreItem {
   works?: StorePlatform[];
   latest: string;
   versions: StoreVersion[];
+  /** Companions (2.60): the author's rating and whether she's romantic. */
+  rating?: (typeof COMPANION_RATINGS)[number];
+  romance?: boolean;
 }
 export interface StoreBlock {
   id: string;
@@ -149,6 +160,8 @@ export interface StoreEntry {
   scripts?: boolean;
   mcp?: McpRecipe;
   manifest?: Record<string, unknown>;
+  /** Companions (2.60): the pack's manifest, so the item page shows her before download. */
+  companion?: Record<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -225,7 +238,8 @@ function parseVersion(v: unknown, what: string, kind: StoreKind): StoreVersion {
     out.package = rel(o.package, `${what}.package`);
     out.sha256 = hex(o.sha256, `${what}.sha256`);
     out.contentSha = hex(o.contentSha, `${what}.contentSha`);
-    if (!Number.isInteger(o.size) || (o.size as number) < 1 || (o.size as number) > 10 * 1024 * 1024) bad(`${what}.size must be a number of bytes (at most 10 MB).`);
+    const cap = kind === 'companion' ? COMPANION_PACKAGE_MAX : 10 * 1024 * 1024;
+    if (!Number.isInteger(o.size) || (o.size as number) < 1 || (o.size as number) > cap) bad(`${what}.size must be a number of bytes (at most ${cap / 1048576} MB).`);
     out.size = o.size as number;
   }
   if (o.yanked !== undefined) out.yanked = text(o.yanked, `${what}.yanked`, 300);
@@ -233,7 +247,8 @@ function parseVersion(v: unknown, what: string, kind: StoreKind): StoreVersion {
 }
 
 function parseItem(v: Record<string, unknown>, what: string, reserved: readonly string[]): StoreItem {
-  const o = obj(v, what, ['id', 'kind', 'name', 'summary', 'trust', 'category', 'tags', 'author', 'icon', 'iconSha', 'works', 'latest', 'versions'], ['id', 'kind', 'name', 'summary', 'trust', 'author', 'latest', 'versions']);
+  const companion = v.kind === 'companion';
+  const o = obj(v, what, ['id', 'kind', 'name', 'summary', 'trust', 'category', 'tags', 'author', 'icon', 'iconSha', 'works', 'latest', 'versions', ...(companion ? ['rating', 'romance'] : [])], ['id', 'kind', 'name', 'summary', 'trust', 'author', 'latest', 'versions', ...(companion ? ['rating', 'romance'] : [])]);
   const id = isStoreId(o.id) ? o.id : bad(`${what}.id must be lowercase letters, digits and dashes (at most 48).`);
   const kind = oneOf(o.kind, KINDS, `${what}.kind`);
   const trust = oneOf(o.trust, TRUST, `${what}.trust`);
@@ -254,6 +269,11 @@ function parseItem(v: Record<string, unknown>, what: string, reserved: readonly 
     latest,
     versions,
   };
+  if (companion) {
+    item.rating = oneOf(o.rating, COMPANION_RATINGS, `${what}.rating`);
+    item.romance = typeof o.romance === 'boolean' ? o.romance : bad(`${what}.romance must be true or false.`);
+    if (item.rating === 'explicit' && !item.romance) bad(`${what}: an explicit companion is romantic too.`);
+  }
   if (o.category !== undefined) item.category = text(o.category, `${what}.category`, 24);
   if (o.tags !== undefined) item.tags = strings(o.tags, `${what}.tags`, 8, 24);
   if (o.works !== undefined) item.works = strings(o.works, `${what}.works`, 3, 10).map((w, i) => oneOf(w, PLATFORMS, `${what}.works[${i}]`));
@@ -284,7 +304,7 @@ function parseBlock(v: unknown, what: string): StoreBlock {
  * The index, from its JSON text (already signature-checked by verify.ts). `skipped` lists the ids of
  * items of a kind this Sara doesn't know (reserved for later phases), which are left out.
  */
-export function parseIndex(json: string | unknown): { index: StoreIndex; skipped: string[] } {
+export function parseIndex(json: string | unknown, kinds: readonly string[] = KINDS): { index: StoreIndex; skipped: string[] } {
   if (typeof json === 'string' && Buffer.byteLength(json) > INDEX_MAX_BYTES) bad('The store list is bigger than 2 MB.');
   let raw: unknown = json;
   if (typeof json === 'string') {
@@ -317,9 +337,14 @@ export function parseIndex(json: string | unknown): { index: StoreIndex; skipped
     const id = isStoreId(it.id) ? it.id : bad(`items[${i}].id must be lowercase letters, digits and dashes (at most 48).`);
     if (seen.has(id)) bad(`"${id}" is in the list twice.`);
     seen.add(id);
-    if (!(KINDS as readonly unknown[]).includes(it.kind)) {
+    if (!(kinds as readonly unknown[]).includes(it.kind)) {
       // A kind of a later phase (or one we never heard of): skipped, not an error.
       if (typeof it.kind !== 'string' || !/^[a-z][a-z0-9-]{0,23}$/.test(it.kind)) bad(`items[${i}].kind is not a kind name.`);
+      skipped.push(id);
+      return;
+    }
+    // §11.1: an explicit companion is never community (it needs a person's review first): left out.
+    if (it.kind === 'companion' && it.rating === 'explicit' && it.trust === 'community') {
       skipped.push(id);
       return;
     }
@@ -404,7 +429,7 @@ export function parseEntry(json: string | unknown, expect?: { id: string; versio
       bad('The entry is not JSON.');
     }
   }
-  const o = obj(raw, 'The entry', ['format', 'v', 'id', 'kind', 'version', 'name', 'description', 'about', 'author', 'license', 'source', 'shots', 'changes', 'checks', 'review', 'tested', 'needs', 'works', 'scripts', 'mcp', 'manifest'], ['format', 'v', 'id', 'kind', 'version', 'name', 'description', 'about', 'author', 'license', 'shots', 'changes', 'checks', 'tested', 'needs', 'works']);
+  const o = obj(raw, 'The entry', ['format', 'v', 'id', 'kind', 'version', 'name', 'description', 'about', 'author', 'license', 'source', 'shots', 'changes', 'checks', 'review', 'tested', 'needs', 'works', 'scripts', 'mcp', 'manifest', 'companion'], ['format', 'v', 'id', 'kind', 'version', 'name', 'description', 'about', 'author', 'license', 'shots', 'changes', 'checks', 'tested', 'needs', 'works']);
   if (o.format !== ENTRY_FORMAT) bad('This is not a Sara Store entry.');
   if (o.v !== 1) bad("This Sara is too old for the store's list. Update Sara.");
   const kind = oneOf(o.kind, KINDS, 'kind');
@@ -449,7 +474,14 @@ export function parseEntry(json: string | unknown, expect?: { id: string; versio
     e.review = { by: 'team', at: day(r.at, 'review.at'), ...(r.notes !== undefined ? { notes: text(r.notes, 'review.notes', 1200) } : {}) };
   }
   if (o.scripts !== undefined) e.scripts = typeof o.scripts === 'boolean' ? o.scripts : bad('scripts must be true or false.');
-  if (kind === 'mcp') {
+  if (kind === 'companion') {
+    if (o.manifest !== undefined || o.mcp !== undefined) bad('A companion entry carries her pack manifest (companion), not a manifest or a recipe.');
+    const c = o.companion;
+    if (!c || typeof c !== 'object' || Array.isArray(c) || (c as Record<string, unknown>).format !== 'sara-companion') bad('A companion entry carries her pack manifest.');
+    if ((c as Record<string, unknown>).id !== e.id || (c as Record<string, unknown>).version !== e.version) bad("The companion entry's manifest doesn't match the entry.");
+    e.companion = c as Record<string, unknown>;
+  } else if (o.companion !== undefined) bad('Only companions carry a pack manifest.');
+  else if (kind === 'mcp') {
     if (o.manifest !== undefined) bad('A tool server entry has a recipe (mcp), not a manifest.');
     e.mcp = parseRecipe(o.mcp);
   } else {

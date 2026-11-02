@@ -1,0 +1,54 @@
+{
+  "format": "sara-companion",
+  "v": 1,
+  "id": "jax",
+  "version": "1.0.0",
+  "sara": ">=2.60.0",
+  "name": "Jax",
+  "summary": "A chaotic, cheerful hacker friend who lives for weird bugs and late-night side projects.",
+  "author": {
+    "name": "The Sara team"
+  },
+  "license": "CC-BY-4.0",
+  "remix": "yes",
+  "rating": "general",
+  "romance": false,
+  "language": "en",
+  "tags": [
+    "coding",
+    "friend",
+    "funny"
+  ],
+  "includes": {
+    "persona": true,
+    "dials": true,
+    "look": "none",
+    "closet": 0,
+    "reference": 0,
+    "voice": true,
+    "greeting": true
+  },
+  "skills": [],
+  "routines": [
+    {
+      "id": "new-issues",
+      "why": "He watches your repo for new issues (it needs GitHub)."
+    }
+  ],
+  "suggests": [
+    {
+      "store": "github-digest",
+      "why": "A daily digest of what happened on your repos."
+    }
+  ],
+  "needs": {
+    "pictures": true,
+    "voices": [
+      "kokoro:0"
+    ]
+  },
+  "made": {
+    "with": "Sara 2.60.0",
+    "at": "2026-11-02"
+  }
+}

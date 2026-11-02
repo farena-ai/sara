@@ -1,0 +1,7 @@
+{
+  "first": "Hello, {{user}}. Sit down, there's no rush. What's on your mind today?",
+  "others": [
+    "Good to see you. What are you trying to figure out this week?",
+    "Morning. Before we start: what would make today feel like a good day?"
+  ]
+}

@@ -11,7 +11,9 @@ import { BODY_TOKENS_ADVISED, estimateTokens, parseSkill, SKILL_NAME_RE } from '
 import { windowsCommand } from '../tools/mcp.ts';
 import { parseRecipe, type McpRecipe, type StoreIndex, type StoreKind } from './format.ts';
 
-export type CheckId = 'limits' | 'manifest' | 'id' | 'permissions' | 'secrets' | 'scan' | 'smoke' | 'shots' | 'listing';
+export type CheckId = 'limits' | 'manifest' | 'id' | 'permissions' | 'secrets' | 'scan' | 'smoke' | 'shots' | 'listing'
+  // Phase 127: a companion pack's own checks (src/packs/checks.ts)
+  | 'layout' | 'persona' | 'minors' | 'safety' | 'owner-name' | 'rating' | 'real-person' | 'pictures' | 'rights' | 'voice' | 'skills';
 export interface CheckResult {
   id: CheckId;
   ok: boolean;
@@ -62,7 +64,7 @@ export function checkShots(shots: readonly PackageFile[], min: number): CheckRes
   return result('shots', p, shots.length ? [] : ['No screenshots: the page will show only words.']);
 }
 
-function checkLimits(files: readonly PackageFile[], lim: PackageLimits): CheckResult {
+export function checkLimits(files: readonly PackageFile[], lim: PackageLimits): CheckResult {
   const p: string[] = [];
   if (files.length > lim.maxFiles) p.push(`More than ${lim.maxFiles} files.`);
   const total = files.reduce((n, f) => n + f.data.length, 0);
@@ -75,7 +77,7 @@ function checkLimits(files: readonly PackageFile[], lim: PackageLimits): CheckRe
 }
 
 /** Key-shaped strings, private-key blocks and .env files anywhere in the package. */
-function checkSecrets(files: readonly PackageFile[]): CheckResult {
+export function checkSecrets(files: readonly PackageFile[]): CheckResult {
   const p: string[] = [];
   for (const f of scanPackage(files)) if (f.kind === 'secret') p.push(`${f.file} line ${f.line ?? '?'} looks like a key or password. Keys belong in a secret setting, never in the files.`);
   for (const f of files) {

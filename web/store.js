@@ -9,6 +9,7 @@ import { serverText, t } from './naming.js';
 import { reviewCard as pluginCard, permText } from './plugins.js';
 import { showStoreImport } from './skills.js';
 import { proposalCard } from './proposal-card.js';
+import { openCard } from './packs.js';
 
 const $ = (sel) => document.querySelector(sel);
 async function api(path, opts = {}) {
@@ -136,14 +137,16 @@ const tipBtn = (text) => {
   return b;
 };
 const enc = encodeURIComponent;
-const KIND = { plugin: () => t('Plugin'), skill: () => t('Skill'), mcp: () => t('Tool server') };
-const GLYPH = { plugin: '▣', skill: '✎', mcp: '⚙' };
+const KIND = { plugin: () => t('Plugin'), skill: () => t('Skill'), mcp: () => t('Tool server'), companion: () => t('Companion') };
+const GLYPH = { plugin: '▣', skill: '✎', mcp: '⚙', companion: '☺' };
 export const TRUST = {
   'first-party': () => t('Made by the Sara team'),
   reviewed: () => t('Reviewed by the Sara team'),
   community: () => t('Not reviewed by people yet'),
 };
 const SHELVES = [
+  // Phase 127 (PACKS.md §13.3): Companions is the first shelf (it's what most beginners come for).
+  ['companions', () => t('Companions')],
   ['popular', () => t('Popular with beginners')],
   ['everyday', () => t('Everyday')],
   ['coding', () => t('Coding')],
@@ -154,7 +157,7 @@ const SHELVES = [
   ['more', () => t('More')],
   ['community', () => t('Community')],
 ];
-const shelfOf = (i) => (i.trust === 'community' ? 'community' : i.kind === 'skill' ? 'skills' : ['everyday', 'coding', 'home', 'creative'].includes(i.category) ? i.category : i.kind === 'mcp' ? 'tool-servers' : 'more');
+const shelfOf = (i) => (i.kind === 'companion' && i.trust !== 'community' ? 'companions' : i.trust === 'community' ? 'community' : i.kind === 'skill' ? 'skills' : ['everyday', 'coding', 'home', 'creative'].includes(i.category) ? i.category : i.kind === 'mcp' ? 'tool-servers' : 'more');
 const pathOf = (l) => t(l.key, Object.fromEntries(Object.entries(l.params ?? {}).map(([k, v]) => [k, String(v)])));
 const lineText = (l) => {
   const own = permText(l);
@@ -186,6 +189,7 @@ function actionFor(i) {
   if (!i.canRun) return { label: t('Can’t run here'), off: true, why: i.why ? t(i.why.text, i.why.params ?? {}) : '' };
   if (i.updateAvailable) return { label: t('Update'), go: 'update' };
   if (i.installed) return { label: t('Installed'), off: true };
+  if (i.kind === 'companion') return { label: t('Add'), go: 'get' };
   return { label: t('Get'), go: 'get' };
 }
 
@@ -203,7 +207,7 @@ function icon(i) {
 }
 
 function card(i) {
-  const c = el('article', `sto-card${i.trust === 'community' ? ' community' : ''}`);
+  const c = el('article', `sto-card${i.trust === 'community' ? ' community' : ''}${i.kind === 'companion' ? ' sto-companion' : ''}`);
   const open = btn('', 'sto-open', () => openItem(i.id));
   open.setAttribute('aria-label', t('Open {name}', { name: i.name }));
   const head = el('div', 'sto-card-head');
@@ -231,7 +235,7 @@ function renderShelves() {
   const items = (s.items ?? []).filter((i) => matches(i, g.q));
   if (g.q && !items.length) box.append(el('p', 'muted', t('Nothing in the store matches that.')));
   const groups = new Map();
-  if (!g.q) groups.set('popular', items.filter((i) => i.trust === 'first-party').slice(0, 5));
+  if (!g.q) groups.set('popular', items.filter((i) => i.trust === 'first-party' && i.kind !== 'companion').slice(0, 5));
   for (const i of items) {
     const k = shelfOf(i);
     if (!groups.has(k) || k === 'popular') groups.set(k, groups.get(k) ?? []);
@@ -376,7 +380,11 @@ async function startInstall(id, path, b) {
   }
   try {
     const r = await api(path, { method: 'POST', body: path === '/store/install' ? { id, understand } : { item: id } });
-    if (r.kind === 'plugin') showPlugin(r.review);
+    if (r.kind === 'companion') {
+      // Phase 127: the pack card; Add her makes a new companion.
+      $('#store-panel').close();
+      openCard({ ...r.card, face: null }, { done: () => void loadGetMore() });
+    } else if (r.kind === 'plugin') showPlugin(r.review);
     else if (r.kind === 'skill') {
       $('#store-panel').close();
       showStoreImport(r.review, () => void loadGetMore());
@@ -721,6 +729,19 @@ export async function openSubmit() {
   panel(t('Submit yours'), [section(t('1 What is it?'), kinds), section(t('2 Where is it?'), pl, fl, check), out]);
 }
 
+/** Phase 127: *Send to the Sara Store* from Share her: the companion pack, checked, into Submit yours. */
+export async function openSubmitPack(r) {
+  let key = null;
+  try {
+    key = (await api('/store/author')).short;
+  } catch {
+    key = null;
+  }
+  const out = el('div', 'stp-out');
+  panel(t('Submit yours'), [section(t('1 What is it?'), el('p', 'muted small', t('A companion pack, checked by Share her.'))), out]);
+  showReport(out, r, key);
+}
+
 function showReport(out, r, key) {
   const rep = r.report;
   const nodes = [el('p', rep.ready ? 'skl-note' : 'skl-warn', rep.ready ? t('{name} {version}: ready to submit.', { name: rep.name || rep.id, version: rep.version }) : t('Not ready yet: fix the ✗ lines, then check it again.')), reportList(rep)];
@@ -847,6 +868,7 @@ async function openSub(sub) {
 }
 
 export function initGetMore() {
+  document.addEventListener('sara:submit-pack', (e) => void openSubmitPack(e.detail));
   $('#sto-q')?.addEventListener('input', () => {
     g.q = $('#sto-q').value;
     renderShelves();

@@ -81,6 +81,7 @@ import { createHandsRoutes, createHandsUpgrade } from './routes/hands.ts';
 import { createMoveInPublic, createMoveInRoutes, serveCollector } from './routes/movein.ts';
 import { createHubRoutes } from './routes/hub.ts';
 import { createStoreRoutes } from './routes/store.ts';
+import { createPackRoutes } from './routes/packs.ts';
 import { createWakeRoutes } from './routes/wake.ts';
 
 // Kept exported from here for main.ts and the tests.
@@ -897,6 +898,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const storeRoutes = createStoreRoutes(ctx);
   // Phase 126: Hey Sara (src/routes/wake.ts).
   const wakeRoutes = createWakeRoutes(ctx);
+  // Phase 127: companion packs (src/routes/packs.ts).
+  const packRoutes = createPackRoutes(ctx);
   app.hands?.onStop((conversationId) => active.get(conversationId)?.controller.abort());
 
   async function api(req: IncomingMessage, res: ServerResponse, method: string, parts: string[]): Promise<void> {
@@ -1268,6 +1271,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await peopleRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await hubRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await storeRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await packRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 16: Adult mode. Off by default; on only from a web browser with the 18+ confirmation.
     if (a === 'pair' && !b && method === 'POST') {
       // A new code replaces any earlier one.

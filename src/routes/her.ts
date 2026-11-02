@@ -16,6 +16,7 @@ import { expressionFor, leansPlayful, moodLabel } from '../inner.ts';
 import { cleanMeta, isAdultOutfit, LOOK_STYLES, type LookMeta, outfitPrompt, OUTFITS, PARTS, PLACES } from '../look.ts';
 import { localDate } from '../memory-worker.ts';
 import { privateLocalOn } from '../net-guard.ts';
+import { fillNames, scrubPersona } from '../packs/scrub.ts';
 import { loadPersona, type Persona, SAFETY_BOUNDARIES, validatePersona } from '../persona.ts';
 import { talksHere } from '../private-local.ts';
 import { detectMinorSexualContent } from '../safety.ts';
@@ -316,7 +317,8 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
         } catch {
           /* no card imported before */
         }
-        const card = personaToCard(app.persona, extras, app.now());
+        // Phase 127 (§16 Q8): never the owner's name, his notes about the two of them or his hard limits.
+        const card = personaToCard(scrubPersona(app.persona, app.settings.get().ownerName).persona, extras, app.now());
         const base = app.persona.name.replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '') || 'character';
         if (c === 'json') {
           res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'content-disposition': `attachment; filename="${base}.card.json"`, 'cache-control': 'no-store', ...SECURITY_HEADERS });
@@ -356,6 +358,8 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
       let c: ReturnType<typeof parseCharacter>;
       try {
         c = parseCharacter(body.file);
+        // Phase 127: a shared file says {{user}} where the owner's name was; this owner's name goes back in.
+        c = { ...c, persona: validatePersona(fillNames(c.persona, app.settings.get().ownerName, c.persona.name)) };
       } catch (err) {
         throw as400(err);
       }

@@ -12,9 +12,10 @@ import { writeFileAtomic } from '../fs-util.ts';
 import { isLoopbackHost, netFetch, outboundAllowed, privateLocalOn } from '../net-guard.ts';
 import type { PackageFile } from '../packages.ts';
 import { compareSemver, satisfies } from '../plugins/manifest.ts';
-import { parseEntry, type StoreBlock, type StoreEntry, type StoreIndex, type StoreItem, type StorePlatform, type StoreVersion } from './format.ts';
+import { COMPANION_PACKAGE_MAX, parseEntry, type StoreBlock, type StoreEntry, type StoreIndex, type StoreItem, type StorePlatform, type StoreVersion } from './format.ts';
 import type { StoreInstalls } from './installs.ts';
 import { STORE_KEYS } from './keys.ts';
+import { STORE_COMPANION_LIMITS } from '../packs/format.ts';
 import { acceptIndex, checkPackage, checkPinned, indexFresh, sha256, StoreRefused } from './verify.ts';
 
 export const STORE_DEFAULT = 'https://backstagecoding.com/sara/store';
@@ -341,8 +342,10 @@ export class StoreClient {
     const hit = this.version(id, version);
     if (!hit?.v.package) throw new StoreRefused('missing', 'That add-on has no package.');
     if (!this.installAllowed()) throw new StoreRefused('expired', "The list expired: installs wait until Sara can check again.");
-    const zip = (await this.#get(hit.v.package, PACKAGE_CAP)).body;
-    return checkPackage(zip, hit.v);
+    // Phase 127: a companion pack (pictures) may be up to 25 MB, read with its own limits.
+    const companion = hit.item.kind === 'companion';
+    const zip = (await this.#get(hit.v.package, companion ? COMPANION_PACKAGE_MAX : PACKAGE_CAP)).body;
+    return checkPackage(zip, hit.v, companion ? STORE_COMPANION_LIMITS : undefined);
   }
 
   /** Keeps entries/ and shots/ under 50 MB, oldest first. */
@@ -495,10 +498,13 @@ export interface ShelfItem {
   icon?: string;
   yankedHere?: string;
   blockedHere?: string;
+  /** Companions (2.60): the author's rating and whether she's romantic. */
+  rating?: string;
+  romance?: boolean;
 }
 
 /** The read model of GET /api/store (§6.2). */
-export function shelfView(client: StoreClient, o: { saraVersion: string; platform?: NodeJS.Platform; installs?: StoreInstalls; on: boolean; community: boolean }): Record<string, unknown> {
+export function shelfView(client: StoreClient, o: { saraVersion: string; platform?: NodeJS.Platform; installs?: StoreInstalls; on: boolean; community: boolean; adultAny?: boolean }): Record<string, unknown> {
   const blocked = client.blocked();
   const cur = client.current();
   const st = client.state();
@@ -509,6 +515,8 @@ export function shelfView(client: StoreClient, o: { saraVersion: string; platfor
   const heldIds = new Set(client.held().map((h) => h.id));
   for (const it of cur?.index.items ?? []) {
     if (it.trust === 'community' && !o.community) continue;
+    // Phase 127 (PACKS.md §10.2): an explicit companion shows only where Adult mode is on for one of his companions.
+    if (it.kind === 'companion' && it.rating === 'explicit' && !o.adultAny) continue;
     const listed = it.versions.filter((v) => !v.yanked);
     const v = listed.find((x) => x.version === it.latest) ?? listed[0];
     if (!v) continue;
@@ -537,6 +545,7 @@ export function shelfView(client: StoreClient, o: { saraVersion: string; platfor
       ...(it.icon && it.iconSha ? { icon: it.iconSha } : {}),
       ...(row?.state === 'yanked' ? { yankedHere: row.state_note ?? '' } : {}),
       ...(row?.state === 'blocked' ? { blockedHere: row.state_note ?? '' } : {}),
+      ...(it.kind === 'companion' ? { rating: it.rating ?? 'general', romance: Boolean(it.romance) } : {}),
     });
   }
   const expired = cur ? !indexFresh(cur.index) : false;

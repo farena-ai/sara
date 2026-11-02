@@ -144,6 +144,7 @@ import { PresenceWorker } from './presence.ts';
 import { applyIndex, localStore, storeBase, storeBlocked, StoreClient } from './store/client.ts';
 import { StoreInstalls } from './store/installs.ts';
 import { StoreInstaller } from './store/install.ts';
+import { PackInstaller, PackInstalls } from './packs/install.ts';
 import { fetchHeld } from './store/submit.ts';
 import { storeSettings } from './routes/store.ts';
 import { detectChannel, hubArch, hubBase, type HubOs, hubOs, HubPinger, HubState, localHub, modelKind, pingBlocked, scrubText, TicketStore, type HubFacts, type HubSpace } from './hub.ts';
@@ -452,7 +453,9 @@ if (storeClient) {
       ...(storeInstalls ? { installs: storeInstalls } : {}),
       ...(pluginManager ? { plugins: pluginManager } : {}),
       others: async (row, reason) => {
-        if (storeOwnerApp && storeInstalls) await new StoreInstaller({ app: storeOwnerApp, client: storeClient, installs: storeInstalls, ...(pluginManager ? { plugins: pluginManager } : {}) }).blockOther(row, reason);
+        // Phase 127: a pulled companion pack pauses her (the pack installer of src/packs/install.ts).
+        const packs = storeOwnerApp && row.kind === 'companion' ? new PackInstaller({ app: storeOwnerApp, companions, rootDir: dataDir, installs: new PackInstalls(storeOwnerApp.store.db), client: storeClient, ...(storeInstalls ? { storeInstalls } : {}) }) : undefined;
+        if (storeOwnerApp && storeInstalls) await new StoreInstaller({ app: storeOwnerApp, client: storeClient, installs: storeInstalls, ...(pluginManager ? { plugins: pluginManager } : {}), ...(packs ? { packs } : {}) }).blockOther(row, reason);
       },
     });
   };

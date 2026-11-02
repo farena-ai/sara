@@ -49,6 +49,7 @@ import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, sa
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
 import { initNav, relabelNav, revealNav, setMore } from './nav.js';
 import { initGetMore, initStore, loadGetMore, loadStorePrivacy } from './store.js';
+import { decorateCompanionRows, initPacks } from './packs.js';
 import { loadWakePage, renderVoiceInstall, wakeEvent } from './wake.js';
 import { foldFirstRun, hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton, unfoldFirstRun } from './hub.js';
 import { createQueue, normPath, offerText, overlayCount, pathChoices, starterChips, tourFor } from './first-run.js';
@@ -235,6 +236,7 @@ async function boot() {
     initHub({ demo: Boolean(session.demo), openSettings, queue: firstRun });
     initStore({ demo: Boolean(session.demo) });
     initGetMore();
+initPacks({ current: () => state.companions?.companions.find((c) => c.current)?.id ?? 'main', refresh: () => void renderCompanionsPage().catch(() => undefined) });
   }
   reportFromHash();
   initVoice();
@@ -6459,6 +6461,7 @@ async function renderCompanionsPage() {
   $('#cmp-list').replaceChildren(
     ...d.companions.map((c) => {
       const li = el('li');
+      li.dataset.id = c.id;
       const name = el('strong', '', c.name);
       li.append(name);
       if (c.current) li.append(el('span', 'muted small', ` ${t('talking to now')}`));
@@ -6486,6 +6489,8 @@ async function renderCompanionsPage() {
       return li;
     }),
   );
+  // Phase 127: each row's pack line and ⋯ menu (Share her, Update from a file, …).
+  if (!state.demo) void decorateCompanionRows($('#cmp-list'), { refresh: () => void renderCompanionsPage() });
   const from = $('#cmp-from');
   from.replaceChildren(new Option(t('A new character (shape them afterwards)'), ''), ...d.companions.map((c) => new Option(`${t('A copy of')} ${c.name}`, c.id)));
   $('#cmp-planner').value = d.planner;

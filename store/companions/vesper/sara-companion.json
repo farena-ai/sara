@@ -1,0 +1,54 @@
+{
+  "format": "sara-companion",
+  "v": 1,
+  "id": "vesper",
+  "version": "1.0.0",
+  "sara": ">=2.60.0",
+  "name": "Vesper",
+  "summary": "A deep-space survey ship's calm voice: status reports with warmth under the protocol.",
+  "author": {
+    "name": "The Sara team"
+  },
+  "license": "CC-BY-4.0",
+  "remix": "yes",
+  "rating": "general",
+  "romance": false,
+  "language": "en",
+  "tags": [
+    "sci-fi",
+    "assistant",
+    "calm"
+  ],
+  "includes": {
+    "persona": true,
+    "dials": true,
+    "look": "none",
+    "closet": 0,
+    "reference": 0,
+    "voice": true,
+    "greeting": true
+  },
+  "skills": [],
+  "routines": [
+    {
+      "id": "morning-brief",
+      "why": "A morning status report for the day ahead."
+    }
+  ],
+  "suggests": [
+    {
+      "store": "weather-alerts",
+      "why": "So she can mention the rain before you leave."
+    }
+  ],
+  "needs": {
+    "pictures": true,
+    "voices": [
+      "piper:hfc_female"
+    ]
+  },
+  "made": {
+    "with": "Sara 2.60.0",
+    "at": "2026-11-02"
+  }
+}

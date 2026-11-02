@@ -1,0 +1,9 @@
+{
+  "tts": "local",
+  "localVoice": "piper:hfc_female",
+  "speed": 1,
+  "openaiVoice": "",
+  "elevenlabsVoice": "",
+  "xaiVoice": "eve",
+  "xaiLanguage": "en"
+}

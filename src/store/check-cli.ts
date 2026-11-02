@@ -10,9 +10,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fromZip, PackageError } from '../packages.ts';
-import { STORE_PLUGIN_LIMITS } from './checks.ts';
-import { packFiles } from './pack.ts';
+import { PackageError } from '../packages.ts';
+import { packFiles, readStoreZip } from './pack.ts';
 import { smokeFence } from './pack-cli.ts';
 import type { Fence } from '../plugins/runtime.ts';
 
@@ -42,7 +41,7 @@ export async function checkJob(dir: string, o: { saraVersion: string; fence?: Fe
   if (job.sha256 && createHash('sha256').update(zip).digest('hex') !== job.sha256) return done({ ready: false, fence: String(fence), error: "The package doesn't match the hash it was sent with." });
   let files;
   try {
-    files = fromZip(zip, STORE_PLUGIN_LIMITS);
+    files = readStoreZip(zip);
   } catch (err) {
     return done({ ready: false, fence: String(fence), error: err instanceof PackageError ? err.message : 'The package could not be read.' });
   }

@@ -167,7 +167,8 @@ test('1 · the format takes the §4.2 index and §4.3 entries and refuses each b
 });
 
 test('2 · items of later kinds are skipped, not an error, and absent from GET /api/store', async (t) => {
-  const kinds = ['companion', 'routine', 'starter', 'bundle'];
+  // Phase 127 (2.60.0) made `companion` a known kind; the 2.59 reader's skip of it is test/phase127.test.ts #31.
+  const kinds = ['routine', 'starter', 'bundle'];
   const base = sampleIndex();
   const idx = sampleIndex({ items: [...base.items, ...kinds.map((k) => ({ id: `a-${k}`, kind: k, whatever: { future: true } }))] });
   const { index, skipped } = parseIndex(JSON.stringify(idx));

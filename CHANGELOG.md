@@ -5,6 +5,30 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.60.0 (2026-11-02): companion packs (Phase 127)
+
+- **Share her.** Settings → Her → ⋯ → *Share her* builds a `.sara-companion.zip` of exactly what you
+  tick (her character, dials, look, closet, a face reference, voice choice, first message, her skills,
+  suggested routines) and shows, locked, what never leaves: memories, chats, people cards, keys and the
+  vault, your name (it becomes `{{user}}`), your relationship notes, hard limits and stop word, pictures
+  she sent you and a cloned voice. Picture metadata is stripped. *Check it* runs the same 15 checks the
+  store uses, then *Save the file* or *Send to the Sara Store*.
+- **Install a pack** as a new companion (never over one you have; the 8-companion cap and unique names
+  apply) through a review card; her first chat starts with the AI notice, then the pack's greeting;
+  routines are offered, never switched on. **Updates** show a three-way diff: the author's changes are
+  offered, your own edits are kept, pronouns and age stay yours, and *Go back* restores the last version.
+- **Character cards** V1/V2/V3 (PNG, JSON, CHARX) and Sara character files import as packs; a lorebook
+  becomes at most 10 background lines, never memories, and remote links in a card are never fetched.
+- **Content rules:** the minors check (look-alike letters and spacing folded) runs when a pack is made,
+  reviewed and installed, with no override. A pack's rating (general, mature, explicit) maps onto Adult
+  mode; explicit lines wait until Adult mode is on, and explicit packs aren't listed on the store yet.
+  Real people need consent (a short name list trips the check); every picture states its rights.
+- **On the Sara Store:** companions are a fourth kind (older Saras skip them); four starter companions,
+  Juniper, Rowan, Vesper and Jax, made by us (looks to come).
+- **Fixed:** exporting a character card or character file included your name, relationship notes and
+  hard limits; they're removed now, and importing it back fills in the new owner's name.
+  Guide: [docs/PACKS.md](docs/PACKS.md).
+
 ## 2.59.0 (2026-11-02): "Hey Sara" (Phase 126)
 
 - **Say her name and talk, in the Windows app.** A 5 MB keyword model (sherpa-onnx, Apache-2.0) runs on

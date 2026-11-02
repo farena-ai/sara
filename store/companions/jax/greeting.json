@@ -1,0 +1,7 @@
+{
+  "first": "yo {{user}}! perfect timing, i just broke something interesting. what are we building today?",
+  "others": [
+    "ok hear me out: one tiny side project. what are you working on?",
+    "hey! got any weird bugs for me? i'm bored and caffeinated."
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "format": "sara-companion",
+  "v": 1,
+  "id": "rowan",
+  "version": "1.0.0",
+  "sara": ">=2.60.0",
+  "name": "Rowan",
+  "summary": "A calm, grounded mentor: good questions, clear thinking and room to grow.",
+  "author": {
+    "name": "The Sara team"
+  },
+  "license": "CC-BY-4.0",
+  "remix": "yes",
+  "rating": "general",
+  "romance": false,
+  "language": "en",
+  "tags": [
+    "mentor",
+    "calm",
+    "learning"
+  ],
+  "includes": {
+    "persona": true,
+    "dials": true,
+    "look": "none",
+    "closet": 0,
+    "reference": 0,
+    "voice": true,
+    "greeting": true
+  },
+  "skills": [],
+  "routines": [
+    {
+      "id": "weekly-review",
+      "why": "A calm look back at the week, and what comes next."
+    }
+  ],
+  "suggests": [
+    {
+      "store": "reading-list",
+      "why": "So they can keep track of what you want to read."
+    }
+  ],
+  "needs": {
+    "pictures": true,
+    "voices": [
+      "kokoro:7"
+    ]
+  },
+  "made": {
+    "with": "Sara 2.60.0",
+    "at": "2026-11-02"
+  }
+}

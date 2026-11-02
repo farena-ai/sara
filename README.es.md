@@ -14,7 +14,7 @@ para la web, Windows, Mac y el móvil.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1825%20passing-brightgreen" alt="1825 tests passing">
+  <img src="https://img.shields.io/badge/tests-1842%20passing-brightgreen" alt="1842 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -114,15 +114,16 @@ Guías de un minuto, grabadas en un servidor de prueba con un modelo local (en i
 
 ## Novedades
 
+- **2.60** · Paquetes de compañeras: comparte el carácter, el aspecto, la voz y las habilidades de inicio de una compañera como archivo o en la Sara Store, sin compartir nunca tus recuerdos ni tus chats; también se importan tarjetas de personaje.
 - **2.59** · «Hey Sara»: di su nombre para hablar sin manos en la app de Windows (un pequeño modelo en tu ordenador solo escucha eso), un atajo para hablar en todas partes, y oído y voces locales en Windows.
 - **2.58** · Conseguir más: explora la Sara Store dentro de Sara, instala con un clic a través de la tarjeta de revisión de siempre, mira exactamente qué cambia una actualización y envía tus propios complementos con `sara pack` y `sara submit`; sin GitHub.
-- **2.57** · Abre la Sara Store: una estantería firmada de complementos en backstagecoding.com/sara/store (seis plugins pequeños y seis servidores de herramientas, entre ellos ComfyUI y Blender), que cada Sara comprueba antes de mostrarla.
 
 <details>
 <summary><b>Historial de versiones</b>: lo que trajo cada versión desde la 2.4</summary>
 
 | Versión | Qué te trae |
 |---|---|
+| **2.60** · Paquetes de compañeras | **Compártela:** Ajustes → Ella → ⋯ → *Compartirla* arma un paquete con exactamente lo que marques (su carácter, diales, aspecto, armario, voz, primer mensaje, habilidades, rutinas sugeridas) y muestra lo que nunca sale: recuerdos, chats, personas, claves, tu nombre (pasa a ser `{{user}}`), tus notas de relación y tus límites. **Instala un paquete** como compañera nueva, nunca encima de una que ya tengas, con una tarjeta de revisión; las actualizaciones muestran qué cambió la autora y mantienen tus propios cambios. Las tarjetas de personaje V1/V2/V3 (PNG, JSON, CHARX) se importan como paquetes, y un lorebook se convierte en unas pocas líneas de fondo, nunca en recuerdos. La comprobación de menores se hace al crear, revisar e instalar el paquete, sin excepción; las clasificaciones se ajustan al modo adulto. Cuatro compañeras de inicio en la tienda: Juniper, Rowan, Vesper y Jax. También arreglado: exportar una tarjeta de personaje ya no incluye tu nombre ni tus notas. |
 | **2.59** · «Hey Sara» | **Di su nombre y habla** en la app de Windows: un modelo de 5 MB en tu ordenador solo escucha «Hey Sara» (o tus propias palabras para cada compañera), y no se envía nada hasta que las dices; la grabación empieza después de la frase, el audio nunca se guarda y un punto en el icono de la bandeja muestra cuándo escucha. Apagado hasta que lo actives, en cada dispositivo; se pausa con la pantalla bloqueada; si dos dispositivos te oyen, responde uno. **Habla con Sara** con Ctrl+Alt+Espacio o la bandeja, y en Android con un botón Hablar en la notificación y un mosaico de ajustes rápidos. El aviso de IA se dice primero y la ayuda en crisis se lee completa. **Oído y voces locales en Windows:** `sara voice install` (unos 650 MB, cada archivo comprobado), antes solo en Linux. Mac, Linux y el detector de Android siempre a la escucha vienen después. |
 | **2.58** · Conseguir más | **Ajustes → Habilidades → Conseguir más:** explora y busca en la Sara Store, abre un elemento e instálalo con un clic a través de la tarjeta de revisión de siempre (nada se activa solo). Los servidores de herramientas tienen una tarjeta con el comando exacto (y su forma en Windows), lo que necesita, a qué puede llegar y si va aislado; las claves van a la bóveda. **Las actualizaciones** muestran exactamente qué cambia, con los permisos nuevos marcados, y puedes volver atrás. **Mis complementos** lo lista todo con su origen. **Envía los tuyos:** `sara pack` revisa un plugin, una habilidad o un servidor de herramientas en tu ordenador (manifiesto, permisos, búsqueda de secretos, prueba rápida aislada, capturas) y luego *Enviar* en Ajustes o `sara submit` lo manda, firmado con tu propia clave de autor. El equipo de Sara lo revisa antes de publicarlo, y en *Mis envíos* puedes seguirlo y responder. Las denuncias y retiradas apagan un complemento, nunca lo borran. |
 | **2.57** · Abre la Sara Store | **Una estantería firmada** en [backstagecoding.com/sara/store](https://backstagecoding.com/sara/store/): Alertas del tiempo, Concentración, Escenas de casa, Resumen de GitHub, Lista de lectura y Notas de webhooks, más servidores de herramientas para ComfyUI, Blender, un navegador (Playwright), GitHub, archivos de este ordenador y documentación (Context7), cada uno con una versión exacta fijada. Sara comprueba la firma de la lista, la huella de cada archivo y la caducidad antes de mostrar nada; una lista dañada, vieja o retirada se rechaza y se conserva la última buena. Al mirar no se envía ningún identificador ni cookie. Las instalaciones siguen pasando por la tarjeta de revisión de siempre y nada se activa solo; lo retirado de la tienda se apaga, nunca se borra. **Ordenar habilidades:** las que no se usan se pueden archivar y recuperar. Lo siguiente: instalar desde Sara y enviar las tuyas. |
@@ -217,7 +218,7 @@ Todas las versiones: [CHANGELOG.md](CHANGELOG.md) · [versiones](https://github.
 
 En orden de construcción, una versión cada una ([la lista completa](docs/ROADMAP.md)):
 
-- **Después** (2.60–2.61): fotos y archivos en las apps de chat, hablarle mientras trabaja, Signal, correo, WhatsApp, iMessage (BlueBubbles) y SMS, «sigue hasta terminar», comprobaciones de código tras cada cambio, una galería de rutinas y **la Sara Store** de plugins, habilidades y servidores MCP (ComfyUI, Blender, Playwright…) con instalación en un clic y una forma de enviar los tuyos.
+- **Después** (2.61): fotos y archivos en las apps de chat, hablarle mientras trabaja, Signal, correo, WhatsApp, iMessage (BlueBubbles) y SMS, «sigue hasta terminar», comprobaciones de código tras cada cambio, una galería de rutinas y **la Sara Store** de plugins, habilidades y servidores MCP (ComfyUI, Blender, Playwright…) con instalación en un clic y una forma de enviar los tuyos.
 - La app de iPhone (esperando a Apple) y tus ideas en [Discussions](https://github.com/farena-ai/sara/discussions).
 
 El plan completo: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -414,8 +415,8 @@ prueba comprobaba. Lo que aporta hoy es la forma de trabajar (ejecuta las prueba
 antes de pasos arriesgados, muestra lo que se ejecutó), no una puntuación más alta en estos
 conjuntos. Detalles, resultados por tarea y cómo repetirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-Además, `npm run check`: una comprobación de tipos y 1840 pruebas automáticas con un modelo falso
-programado (sin red, sin GPU): 1825 pasan en Windows y las otras 8 son pruebas del aislamiento solo
+Además, `npm run check`: una comprobación de tipos y 1857 pruebas automáticas con un modelo falso
+programado (sin red, sin GPU): 1842 pasan en Windows y las otras 8 son pruebas del aislamiento solo
 para Linux, que se ejecutan en un servidor Linux.
 
 ## Cómo se compara Sara

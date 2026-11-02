@@ -1,15 +1,18 @@
 // Phase 125 (2.58.0, SARA_STORE.md §9.1–§9.3, K4): `sara pack`, *Check it* in *Submit yours*, and the
-// hub's checker all run this: find what the folder is (a plugin, a skill or a tool-server recipe),
+// hub's checker all run this: find what the folder is (a plugin, a skill, a tool-server recipe or,
+// since Phase 127, a companion pack checked by src/packs/checks.ts),
 // run every check of checks.ts plus the fenced smoke test, and build the package that is sent (the
 // whole folder, screenshots and CHANGES.md included, as a stored zip). The report says *ready* only
 // with no failures. Nothing here touches the network.
-import { readFileSync } from 'node:fs';
-import { basename } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import { fromFolder, fromZip, hashFiles, PackageError, stripTop, type PackageFile } from '../packages.ts';
 import { MANIFEST_FILE } from '../plugins/manifest.ts';
 import type { Fence } from '../plugins/runtime.ts';
 import { parseSkill } from '../skills.ts';
 import { zipStored } from '../zip-write.ts';
+import { checkCompanion } from '../packs/checks.ts';
+import { PACK_FILE, STORE_COMPANION_LIMITS } from '../packs/format.ts';
 import { checkPlugin, checkRecipe, checkSkill, RECIPE_MAX_BYTES, splitListing, STORE_PLUGIN_LIMITS, type CheckResult, type PackReport } from './checks.ts';
 import type { StoreIndex, StoreKind } from './format.ts';
 import { smokeTest } from './smoke.ts';
@@ -26,6 +29,9 @@ export interface PackOptions {
   dataDirs?: readonly string[];
   /** A skill's store id when the folder name isn't it. */
   id?: string;
+  /** Companion packs: the author's owner name and people-card names (checked here, never sent), and his consent tick. */
+  ownerNames?: string[];
+  consent?: boolean;
   readyMs?: number;
   watchMs?: number;
 }
@@ -39,6 +45,7 @@ export interface Pack {
 /** What a folder (or an unpacked zip) is, by the file at its top. */
 export function kindOf(files: readonly PackageFile[]): StoreKind | undefined {
   const { files: inner } = stripTop([...files]);
+  if (inner.some((f) => f.path === PACK_FILE)) return 'companion';
   if (inner.some((f) => f.path === MANIFEST_FILE)) return 'plugin';
   if (inner.some((f) => f.path === 'SKILL.md')) return 'skill';
   if (inner.some((f) => f.path === RECIPE_FILE)) return 'mcp';
@@ -53,7 +60,15 @@ export async function packFiles(files: PackageFile[], o: PackOptions, folderName
   const kind = kindOf(inner);
   const zip = zipStored(inner.map((f) => ({ path: f.path, data: f.data })));
   const out = (report: Pack['report']): Pack => ({ report, zip, sha256: sha256(zip), size: zip.length });
-  if (!kind) return out(failed('unknown', `There is no ${MANIFEST_FILE}, SKILL.md or ${RECIPE_FILE} at the top of it, so Sara can't tell what it is.`));
+  if (!kind) return out(failed('unknown', `There is no ${MANIFEST_FILE}, SKILL.md, ${RECIPE_FILE} or ${PACK_FILE} at the top of it, so Sara can't tell what it is.`));
+  if (kind === 'companion') {
+    // §6.2: the store's rules (listing, rights, licence); the owner-name check runs only on the author's Sara.
+    const r = checkCompanion(inner, { mode: 'store', ...(o.ownerNames ? { ownerNames: o.ownerNames } : {}), ...(o.consent ? { consent: true } : {}) });
+    const { pack: _m, persona: _p, ...report } = r;
+    void _m;
+    void _p;
+    return out({ ...report, contentSha: hashFiles(inner) });
+  }
   if (kind === 'plugin') {
     const report: Pack['report'] = checkPlugin(inner, { saraVersion: o.saraVersion, ...(o.index ? { index: o.index } : {}), ...(o.authorKey ? { authorKey: o.authorKey } : {}) });
     const { pkg } = splitListing(inner);
@@ -98,11 +113,22 @@ export async function packFiles(files: PackageFile[], o: PackOptions, folderName
   return out(report);
 }
 
+/** A package zip with the right limits: a companion pack may be up to 25 MB, everything else 10 MB. */
+export function readStoreZip(zip: Buffer): PackageFile[] {
+  try {
+    return fromZip(zip, STORE_PLUGIN_LIMITS);
+  } catch (err) {
+    const files = fromZip(zip, STORE_COMPANION_LIMITS);
+    if (kindOf(files) !== 'companion') throw err;
+    return files;
+  }
+}
+
 /** `sara pack <folder>` (or a .zip): read it with the store's limits; links and oversize files fail plainly. */
 export async function packPath(path: string, o: PackOptions): Promise<Pack> {
   let files: PackageFile[];
   try {
-    files = /\.zip$/i.test(path) ? fromZip(readFileSync(path), STORE_PLUGIN_LIMITS) : fromFolder(path, STORE_PLUGIN_LIMITS);
+    files = /\.zip$/i.test(path) ? readStoreZip(readFileSync(path)) : fromFolder(path, existsSync(join(path, PACK_FILE)) ? STORE_COMPANION_LIMITS : STORE_PLUGIN_LIMITS);
   } catch (err) {
     const why = err instanceof PackageError ? err.message : (err as Error).message;
     const zip = Buffer.alloc(0);

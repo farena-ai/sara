@@ -279,6 +279,8 @@ const OWNER_ONLY = ['lean', 'pickup', 'backups', 'update', 'doctor', 'logs', 'st
   'safety-check',
   // Phase 124: the Sara Store's reader (the list, Check now, its settings) is the owner's.
   'store',
+  // Phase 127: companion packs (Share her, the pack card, updates) are the owner's (§16 Q9: members don't install packs in 2.60).
+  'packs',
   // Phase 87: computer use. Member routes in src/household.ts, but answered 403 ownerOnly while the
   // owner's "Let household members use computer use" is off (the default, as here).
   'hands', 'computer'];

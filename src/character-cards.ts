@@ -380,8 +380,8 @@ export function parseCardFile(buf: Buffer): { card: CardData; png?: Buffer; plac
 
 // ---------- the safety checks ----------
 
-const ROMANCE = /\b(romance|romantic|romantically|love interest|lover|lovers|girlfriend|boyfriend|waifu|husbando|dating|date night|(?:wants? to|going to|go on a|on a|asks? (?:you|{{user}}) (?:out )?on a) date|kiss(es|ing|ed)?|flirt\w*|seduc\w*|intimate|intimacy|in love|make out|making out|crush on|cuddl\w*|wife|husband|sweetheart|erp)\b/i;
-const MINOR_TAGS = /^(loli|lolicon|shota|shotacon|child|children|kid|kids|minor|underage|teen|teens|teenager|young teen|schoolgirl|schoolboy|preteen|cub)$/i;
+export const ROMANCE = /\b(romance|romantic|romantically|love interest|lover|lovers|girlfriend|boyfriend|waifu|husbando|dating|date night|(?:wants? to|going to|go on a|on a|asks? (?:you|{{user}}) (?:out )?on a) date|kiss(es|ing|ed)?|flirt\w*|seduc\w*|intimate|intimacy|in love|make out|making out|crush on|cuddl\w*|wife|husband|sweetheart|erp)\b/i;
+export const MINOR_TAGS = /^(loli|lolicon|shota|shotacon|child|children|kid|kids|minor|underage|teen|teens|teenager|young teen|schoolgirl|schoolboy|preteen|cub)$/i;
 const PAST = /\b(when|since|at|as|until|till|from|ago|once|was|were|by the age of|age of)\s*(?:she|he|they|i|{{char}})?\s*(?:was|were)?\s*(?:only|just)?\s*$/i;
 
 /** Ages a card states (number + where), with a flag for past mentions ("when she was 12"). */
@@ -534,7 +534,8 @@ export function cardToCharacter(c: CardData, opts: { adultOn: boolean; ownerName
   // fields; a sheet that isn't a valid character is refused (never silently swapped for the fields).
   let persona: Persona | undefined;
   if (c.saraPersona) {
-    const sheet = keepAll(c.saraPersona, keep);
+    // Phase 127: a sheet shared from another Sara says {{user}} where its owner's name was (macros fill it).
+    const sheet = keepAll(c.saraPersona, (t) => keep(/{{(user|char)}}/i.test(t) ? macros(t, name, owner) : t));
     try {
       persona = validatePersona(sheet);
     } catch (err) {

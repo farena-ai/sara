@@ -11,7 +11,7 @@ Windows, Mac and phones.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1825%20passing-brightgreen" alt="1825 tests passing">
+  <img src="https://img.shields.io/badge/tests-1842%20passing-brightgreen" alt="1842 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -107,15 +107,16 @@ One-minute walkthroughs, recorded on a throwaway test server with a local model.
 
 ## What's new
 
+- **2.60** · Companion packs: share a companion's character, look, voice and starter skills as a file or on the Sara Store, without ever sharing your memories or chats; character cards import too.
 - **2.59** · "Hey Sara": say her name to talk hands-free in the Windows app (a small model on your computer listens only for it), a Talk shortcut everywhere, and local hearing and voices on Windows.
 - **2.58** · Get more: browse the Sara Store inside Sara, install with one click through the usual review card, see exactly what an update changes, and submit your own add-ons with `sara pack` and `sara submit`; no GitHub needed.
-- **2.57** · The Sara Store opens: a signed shelf of add-ons at backstagecoding.com/sara/store (six small plugins and six tool servers, ComfyUI and Blender among them), checked by every Sara before she shows it.
 
 <details>
 <summary><b>Release history</b>: what each release from 2.4 brought</summary>
 
 | Release | What you get |
 |---|---|
+| **2.60** · Companion packs | **Share her:** Settings → Her → ⋯ → *Share her* builds a pack of exactly what you tick (her character, dials, look, closet, voice, first message, skills, suggested routines) and shows what never leaves: memories, chats, people, keys, your name (it becomes `{{user}}`), your relationship notes and limits. **Install a pack** as a new companion, never over one you have, through a review card; updates show what the author changed and keep your own edits. Character Card V1/V2/V3 (PNG, JSON, CHARX) import as packs, with a lorebook turned into a few background lines, never memories. The minors check runs when a pack is made, reviewed and installed, with no override; ratings map onto Adult mode. Four starter companions on the store: Juniper, Rowan, Vesper and Jax. Also fixed: exporting a character card no longer includes your name or notes. |
 | **2.59** · "Hey Sara" | **Say her name and talk** in the Windows app: a 5 MB model on your computer listens only for "Hey Sara" (or your own words for each companion), and nothing is sent until you say them; recording starts after the phrase, audio is never kept, and a dot on the tray icon shows when she's listening. Off until you switch it on, on each device; pauses while the screen is locked; when two devices hear you, one answers. **Talk to Sara** with Ctrl+Alt+Space or the tray, and on Android a Talk button in the notification and a Quick Settings tile. The AI notice is spoken first and crisis help is read in full. **Local hearing and voices on Windows:** `sara voice install` (about 650 MB, every file checked) where it used to be Linux only. Mac, Linux and the always-listening Android detector come next. |
 | **2.58** · Get more | **Settings → Abilities → Get more:** browse and search the Sara Store, open an item, and install with one click through the usual review card (nothing switches on by itself). Tool servers get a card with the exact command (and its Windows form), what it needs, what it can reach and whether it's fenced; keys go to the vault. **Updates** show exactly what changed, with any new permission marked, and you can go back. **My add-ons** lists everything with where it came from. **Submit your own:** `sara pack` checks a plugin, skill or tool server on your computer (manifest, permissions, a secret scan, a fenced smoke test, screenshots), then *Submit* in Settings or `sara submit` sends it, signed with your own author key. The Sara team reviews it before it's listed, and you can follow and answer from *My submissions*. Reports and takedowns switch an add-on off, never delete it. |
 | **2.57** · The Sara Store opens | **A signed shelf** at [backstagecoding.com/sara/store](https://backstagecoding.com/sara/store/): Weather alerts, Focus, Home scenes, GitHub digest, Reading list and Webhook notes, plus tool servers for ComfyUI, Blender, a browser (Playwright), GitHub, files on this computer and docs (Context7), each with an exact pinned version. Sara checks the list's signature, every file's fingerprint and its expiry before showing anything; a damaged, old or withdrawn list is refused and the last good one kept. Browsing sends no id or cookie. Installs still go through the usual review card and nothing switches on by itself; add-ons pulled from the store are switched off, never deleted. **Skill tidy-up:** unused skills can be archived and brought back. Installing from inside Sara and submitting your own come next. |
@@ -210,7 +211,7 @@ Every release: [CHANGELOG.md](CHANGELOG.md) · [releases](https://github.com/far
 
 In build order, one release each ([the full list](docs/ROADMAP.md)):
 
-- **Next** (2.60–2.61): photos and files in chat apps, talking to her while she works, Signal, email, WhatsApp, iMessage (BlueBubbles) and SMS, "keep going until it's done", coding checks after edits, a routines gallery, and **the Sara Store** for plugins, skills and MCP servers (ComfyUI, Blender, Playwright…) with one-click installs and a way to submit your own.
+- **Next** (2.61): photos and files in chat apps, talking to her while she works, Signal, email, WhatsApp, iMessage (BlueBubbles) and SMS, "keep going until it's done", coding checks after edits, a routines gallery, and **the Sara Store** for plugins, skills and MCP servers (ComfyUI, Blender, Playwright…) with one-click installs and a way to submit your own.
 - The iPhone app (waiting on Apple), and your ideas in [Discussions](https://github.com/farena-ai/sara/discussions).
 
 The full plan: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -397,8 +398,8 @@ README or SPEC that no test checked. What she adds today is the way of working (
 asks before risky steps, shows what ran), not a higher score on these sets. Details, per-task
 results and how to re-run: [docs/RESULTS.md](docs/RESULTS.md).
 
-Plus `npm run check`: a typecheck and 1840 automated tests with a scripted fake model (no network,
-no GPU): 1825 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
+Plus `npm run check`: a typecheck and 1857 automated tests with a scripted fake model (no network,
+no GPU): 1842 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
 
 ## How Sara compares
 

@@ -1,7 +1,7 @@
 # The Sara Store
 
-The Sara Store is a public shelf of add-ons for Sara: plugins and tool servers (MCP). The Sara team
-makes, checks and signs everything on it. You can see it at
+The Sara Store is a public shelf of add-ons for Sara: plugins, skills, tool servers (MCP) and, from
+2.60, companions ([PACKS.md](PACKS.md)). The Sara team makes, checks and signs everything on it. You can see it at
 <https://backstagecoding.com/sara/store/>.
 
 Nothing from the store switches on by itself. Every add-on shows you what it can do before you add it,
@@ -73,9 +73,17 @@ On an add-on's page or in My add-ons, press **Report this**, pick what's wrong a
 Only what you write is sent (keys and passwords are taken out), plus its own log lines if you tick that
 box and have read them. The Sara team reads every report.
 
+## Companions (Sara 2.60)
+
+The **Companions** shelf lists companion packs: Juniper, Rowan, Vesper and Jax first. **Get** opens her
+card; **Add her** makes a new companion and changes nobody you have. In 2.60, packs rated Explicit are
+not listed on the store (they work as files, see [PACKS.md](PACKS.md)), and fan characters and
+real people are never listed. A Sara older than 2.60 doesn't show this shelf at all.
+
 ## Making your own and sending it to us
 
-Plugins: see [PLUGINS.md](PLUGINS.md). Tool servers: see [OTHER_APPS.md](OTHER_APPS.md).
+Plugins: see [PLUGINS.md](PLUGINS.md). Tool servers: see [OTHER_APPS.md](OTHER_APPS.md). Companions:
+**⋯ → Share her → Send to the Sara Store** (see [PACKS.md](PACKS.md)).
 
 1. Check it: `sara pack <folder>` on a server (or **Get more → Submit yours → Check it** in the app).
    It checks the manifest and permissions, looks for keys left in the files, runs a fenced smoke test

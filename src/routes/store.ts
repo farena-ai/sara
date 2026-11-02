@@ -33,7 +33,11 @@ import { imageType, STORE_PLUGIN_LIMITS } from '../store/checks.ts';
 import { shelfView } from '../store/client.ts';
 import { isStoreId, shortKey } from '../store/format.ts';
 import { entryLines, InstallError, StoreInstaller } from '../store/install.ts';
-import { packFiles, packPath, type Pack } from '../store/pack.ts';
+import { packFiles, packPath, readStoreZip, type Pack } from '../store/pack.ts';
+import { STORE_COMPANION_LIMITS } from '../packs/format.ts';
+import { ownerNames } from '../packs/scrub.ts';
+import { adultModeOn } from '../settings.ts';
+import { packInstallerFor } from './packs.ts';
 import { smokeFence } from '../store/pack-cli.ts';
 import { authorKey, DeskError, deskDown, refreshSubmission, replySubmission, sendReport, submissions, submit } from '../store/submit.ts';
 import { sha256, StoreRefused } from '../store/verify.ts';
@@ -132,14 +136,17 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
     }
     const client = app.storeClient;
     const settings = () => storeSettings(app.settings.get() as never);
+    // Phase 127: explicit companions show only where Adult mode is on for at least one of his companions.
+    const adultAny = () => (ctx.opts.companions?.all().map((x) => x.app) ?? [app]).some((x) => adultModeOn(x.settings.get()));
     const saraVersion = app.pluginManager?.version ?? SARA_VERSION;
     const view = () => {
       if (!client) return { ...settings(), blocked: 'demo', freshness: 'none', items: [], held: [], notices: [] };
-      return shelfView(client, { saraVersion, installs: app.storeInstalls, ...settings() });
+      return shelfView(client, { saraVersion, installs: app.storeInstalls, ...settings(), adultAny: adultAny() });
     };
     const installer = () => {
       if (!client || !app.storeInstalls) throw new HttpError(404, en('The Sara Store is not available here.'));
-      return new StoreInstaller({ app, client, installs: app.storeInstalls, ...(app.pluginManager ? { plugins: app.pluginManager } : {}) });
+      const packs = packInstallerFor(ctx);
+      return new StoreInstaller({ app, client, installs: app.storeInstalls, ...(app.pluginManager ? { plugins: app.pluginManager } : {}), ...(packs ? { packs } : {}) });
     };
     const url = new URL(req.url ?? '/', 'http://x');
     const desk = () => {
@@ -197,11 +204,11 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
       const { lines, error } = entryLines(entry, saraVersion);
       const held = client.held().some((h) => h.id === c);
       return send(res, 200, {
-        item: { id: hit.item.id, kind: hit.item.kind, name: hit.item.name, summary: hit.item.summary, trust: hit.item.trust, category: hit.item.category ?? 'more', author: { name: hit.item.author.name, key: shortKey(hit.item.author.key) }, ...(hit.item.iconSha ? { icon: hit.item.iconSha } : {}) },
+        item: { id: hit.item.id, kind: hit.item.kind, name: hit.item.name, summary: hit.item.summary, trust: hit.item.trust, category: hit.item.category ?? 'more', author: { name: hit.item.author.name, key: shortKey(hit.item.author.key) }, ...(hit.item.iconSha ? { icon: hit.item.iconSha } : {}), ...(hit.item.kind === 'companion' ? { rating: hit.item.rating, romance: hit.item.romance } : {}) },
         version: hit.v.version,
         versions: hit.item.versions.map((v) => ({ version: v.version, published: v.published, ...(v.yanked ? { yanked: v.yanked } : {}) })),
         size: hit.v.size ?? null,
-        entry: { description: entry.description, about: entry.about, license: entry.license, source: entry.source ?? null, contact: entry.author.contact ?? null, shots: entry.shots.map((s) => ({ sha: s.sha256, alt: s.alt })), changes: entry.changes, checks: entry.checks, review: entry.review ?? null, tested: entry.tested ?? [], needs: entry.needs ?? [], works: entry.works ?? [], ...(entry.mcp ? { mcp: entry.mcp } : {}) },
+        entry: { description: entry.description, about: entry.about, license: entry.license, source: entry.source ?? null, contact: entry.author.contact ?? null, shots: entry.shots.map((s) => ({ sha: s.sha256, alt: s.alt })), changes: entry.changes, checks: entry.checks, review: entry.review ?? null, tested: entry.tested ?? [], needs: entry.needs ?? [], works: entry.works ?? [], ...(entry.mcp ? { mcp: entry.mcp } : {}), ...(entry.companion ? { companion: entry.companion } : {}) },
         lines,
         ...(error ? { linesError: error } : {}),
         installed: row ? { version: row.version, state: row.state, note: row.state_note } : null,
@@ -308,13 +315,13 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
       try {
         const k = authorKey(app.vault, { create: false });
         const index = client?.current()?.index;
-        const o = { saraVersion, smoke: smokeFence(), dataDirs: [app.dataDir], ...(index ? { index } : {}), ...(k ? { authorKey: k.fingerprint } : {}) };
+        const o = { saraVersion, smoke: smokeFence(), dataDirs: [app.dataDir], ...(index ? { index } : {}), ...(k ? { authorKey: k.fingerprint } : {}), ownerNames: ownerNames(app.settings.get().ownerName) };
         if (type.startsWith('application/json')) {
           const body = await readJson(req);
           pack = await packPath(checkServerFolder(String(body.path ?? '')), o);
         } else {
-          const buf = await readRaw(req, STORE_PLUGIN_LIMITS.maxZipBytes + 1);
-          pack = await packFiles(fromZip(buf, STORE_PLUGIN_LIMITS), o, (url.searchParams.get('name') ?? '').replace(/\.zip$/i, '').slice(0, 60));
+          const buf = await readRaw(req, STORE_COMPANION_LIMITS.maxZipBytes + 1);
+          pack = await packFiles(readStoreZip(buf), o, (url.searchParams.get('name') ?? '').replace(/\.zip$/i, '').slice(0, 60));
         }
       } catch (err) {
         fail(err);

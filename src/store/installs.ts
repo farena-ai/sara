@@ -7,7 +7,8 @@ import type { DatabaseSync } from 'node:sqlite';
 export type InstallState = 'ok' | 'yanked' | 'blocked' | 'removed-from-store';
 export interface StoreInstallRow {
   item: string;
-  kind: 'plugin' | 'skill' | 'mcp';
+  /** Phase 127: `companion` rows have the companion's id as local_ref. */
+  kind: 'plugin' | 'skill' | 'mcp' | 'companion';
   version: string;
   trust: string;
   local_ref: string;

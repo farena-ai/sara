@@ -88,6 +88,8 @@ export interface InstallerDeps {
   now?: () => Date;
   /** Tests: the 30-second Test (initialize + tools/list). */
   testMs?: number;
+  /** Phase 127: companion packs (the card and the new companion). */
+  packs?: import('../packs/install.ts').PackInstaller;
 }
 
 const which = (cmd: string, pathVar: string | undefined, platform: NodeJS.Platform): boolean => {
@@ -125,7 +127,7 @@ export class StoreInstaller {
   }
 
   /** Get (or Update): download, verify and stage the right review. Nothing is installed by this. */
-  async install(id: string, o: { version?: string; community?: boolean; understand?: boolean } = {}): Promise<{ kind: 'plugin'; review: Review } | { kind: 'skill'; review: Record<string, unknown> } | { kind: 'mcp'; review: McpReview }> {
+  async install(id: string, o: { version?: string; community?: boolean; understand?: boolean } = {}): Promise<{ kind: 'plugin'; review: Review } | { kind: 'skill'; review: Record<string, unknown> } | { kind: 'mcp'; review: McpReview } | { kind: 'companion'; token: string; card: import('../packs/install.ts').PackCard }> {
     const { item, v } = this.#pick(id, o.version, o);
     if (item.kind === 'mcp') return { kind: 'mcp', review: await this.mcpReview(item, v) };
     let files: PackageFile[];
@@ -134,6 +136,17 @@ export class StoreInstaller {
     } catch (err) {
       if (err instanceof StoreRefused && (err.code === 'hash' || err.code === 'content')) throw new InstallError(409, 'mismatch', "That download didn't match the store's list, so Sara threw it away. Try again later.");
       throw new InstallError(502, 'download', err instanceof StoreRefused ? err.message : "Sara couldn't download it. Try again later.");
+    }
+    if (item.kind === 'companion') {
+      // Phase 127 (PACKS.md §8.1): the same card as a file, with the store's strip; Add her makes a new companion.
+      const packs = this.d.packs;
+      if (!packs) throw new InstallError(409, 'companions', 'More companions are not available on this server.');
+      const { card } = packs.preview(files, { origin: 'store', trust: item.trust, store: { item: id, version: v.version, entrySha: v.entrySha, trust: item.trust } });
+      if (card.id !== id) {
+        packs.cancel(card.token);
+        throw new InstallError(409, 'mismatch', "That download didn't match the store's list, so Sara threw it away. Try again later.");
+      }
+      return { kind: 'companion', token: card.token, card };
     }
     if (item.kind === 'plugin') {
       const pm = this.d.plugins;
@@ -355,7 +368,8 @@ export class StoreInstaller {
       await this.d.app.mcp?.start(cfg).catch(() => undefined);
       const v = (JSON.parse(row.prev_recipe) as { version?: string }).version;
       this.d.installs.upsert({ ...row, version: v ?? row.version, recipe: row.prev_recipe, prev_recipe: row.recipe, updated_at: at });
-    } else throw new InstallError(409, 'skill', 'A skill goes back from its own page (Versions).');
+    } else if (row.kind === 'companion') throw new InstallError(409, 'companion', 'A companion goes back from her row in Settings → Her → Companions.');
+    else throw new InstallError(409, 'skill', 'A skill goes back from its own page (Versions).');
     return this.d.installs.get(item)!;
   }
 
@@ -371,6 +385,8 @@ export class StoreInstaller {
     } else if (row.kind === 'skill') {
       const [scope, name] = splitRef(row.local_ref);
       app.skills?.delete(scope, name);
+    } else if (row.kind === 'companion') {
+      throw new InstallError(409, 'companion', 'A companion goes with Retire her (Settings → Her → Companions).');
     } else {
       app.mcp?.stop(row.local_ref);
       app.settings.update({ mcpServers: (app.settings.get().mcpServers ?? []).filter((x) => x.name !== row.local_ref) });
@@ -391,6 +407,9 @@ export class StoreInstaller {
     } else if (row.kind === 'mcp') {
       app.mcp?.stop(row.local_ref);
       app.settings.update({ mcpServers: (app.settings.get().mcpServers ?? []).map((x) => (x.name === row.local_ref ? { ...x, enabled: false } : x)) });
+    } else if (row.kind === 'companion') {
+      // PACKS.md §11.2: she is paused with the reason (never deleted); a minors reason removes her pictures at once.
+      this.d.packs?.block(row.local_ref, reason, /\b(minor|minors|underage|child|children)\b/i.test(reason));
     }
     void reason;
   }

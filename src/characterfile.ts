@@ -5,6 +5,7 @@ import { DEFAULT_VOICE, type VoiceSettings } from './voice.ts';
 import { LOOK_PATHS } from './look.ts';
 import { validatePersona, type Persona } from './persona.ts';
 import type { AppContext } from './chat.ts';
+import { scrubPersona } from './packs/scrub.ts';
 
 export const CHARACTER_FORMAT = 'sara-character';
 const MAX_PICTURE = 5 * 1024 * 1024;
@@ -35,15 +36,24 @@ function voiceOf(app: AppContext): VoiceSettings {
   return { ...DEFAULT_VOICE, ...v, openai: { ...DEFAULT_VOICE.openai, ...v.openai }, elevenlabs: { ...DEFAULT_VOICE.elevenlabs, ...v.elevenlabs }, xai: { ...DEFAULT_VOICE.xai, ...v.xai } };
 }
 
-export function exportCharacter(app: AppContext): CharacterFile {
+/** Her voice choice (which voice, how fast), never keys or addresses. */
+export function characterVoice(app: AppContext): CharacterVoice {
   const v = voiceOf(app);
+  return { tts: v.tts, localVoice: v.localVoice, speed: v.speed, openaiVoice: v.openai.ttsVoice, elevenlabsVoice: v.elevenlabs.voiceId, xaiVoice: v.xai.voiceId, xaiLanguage: v.xai.language };
+}
+
+/**
+ * The character file. Phase 127 (§16 Q8, a privacy fix): it never carries the owner's name (it
+ * becomes {{user}}), his own words about the two of them, his hard limits or his stop word.
+ */
+export function exportCharacter(app: AppContext): CharacterFile {
   const files = app.look?.files() ?? {};
   return {
     format: CHARACTER_FORMAT,
     version: 1,
     exportedAt: app.now().toISOString(),
-    persona: app.persona,
-    voice: { tts: v.tts, localVoice: v.localVoice, speed: v.speed, openaiVoice: v.openai.ttsVoice, elevenlabsVoice: v.elevenlabs.voiceId, xaiVoice: v.xai.voiceId, xaiLanguage: v.xai.language },
+    persona: scrubPersona(app.persona, app.settings.get().ownerName).persona,
+    voice: characterVoice(app),
     ...(Object.keys(files).length ? { look: Object.fromEntries(Object.entries(files).map(([k, b]) => [k, b.toString('base64')])) } : {}),
   };
 }

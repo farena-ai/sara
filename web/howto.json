@@ -184,6 +184,26 @@
     "Under Planner, pick whether to-dos, reminders and notes are shared or their own.",
     "Memories and chats always stay with each companion."
    ]
+  },
+  {
+   "id": "pack-share",
+   "q": "How do I share a companion with a friend?",
+   "steps": [
+    "Open the ⋯ menu on her row and pick Share her.",
+    "Tick what goes in: her memories, your chats and keys never do.",
+    "Press Check it, then Save the file or Send to the Sara Store."
+   ],
+   "show": "#cmp-list"
+  },
+  {
+   "id": "pack-add",
+   "q": "How do I add a companion from a file or a character card?",
+   "steps": [
+    "Press From a file… and choose a companion pack, a character card or a character file.",
+    "Read her card: everything that will shape her is on it.",
+    "Press Add her: she is a new companion and nobody you have changes."
+   ],
+   "show": "#cmp-from-file"
   }
  ],
  "her-import": [

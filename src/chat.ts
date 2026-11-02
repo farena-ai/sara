@@ -1,5 +1,6 @@
 // One conversational turn: disclosure, safety checks, provider routing, then the agent loop
 // (model → tool calls → results → model …) with streaming and persistence.
+import { packPaused } from './packs/install.ts';
 import { roomNoteSection, roomNowSection } from './bridges/room.ts';
 import { privateLocalOn } from './net-guard.ts';
 import { onThisComputer } from './private-local.ts';
@@ -1513,6 +1514,12 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const text = typed.text;
   if (!text) {
     yield { type: 'error', message: 'Message is empty.' };
+    return;
+  }
+  // Phase 127 (PACKS.md §11.2): a companion whose pack the Sara Store pulled is paused (her chats stay readable).
+  const pulled = packPaused(app.dataDir);
+  if (pulled) {
+    yield { type: 'error', message: `${app.persona.name} was pulled from the Sara Store: ${pulled.reason || 'no reason given'}. Settings → Her → Companions has the ways out.` };
     return;
   }
   const now = app.now();

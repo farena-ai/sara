@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 156 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 158 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -268,6 +268,18 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Under Planner, pick whether to-dos, reminders and notes are shared or their own.
 2. Memories and chats always stay with each companion.
+
+**How do I share a companion with a friend?**
+
+1. Open the ⋯ menu on her row and pick Share her.
+2. Tick what goes in: her memories, your chats and keys never do.
+3. Press Check it, then Save the file or Send to the Sara Store.
+
+**How do I add a companion from a file or a character card?**
+
+1. Press From a file… and choose a companion pack, a character card or a character file.
+2. Read her card: everything that will shape her is on it.
+3. Press Add her: she is a new companion and nobody you have changes.
 
 ### Bring her from another app
 

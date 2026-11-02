@@ -35,6 +35,7 @@
   <link rel="stylesheet" href="/lean.css">
   <link rel="stylesheet" href="/wake.css">
   <link rel="stylesheet" href="/store.css">
+  <link rel="stylesheet" href="/packs.css">
   <link rel="stylesheet" href="/begin.css">
   <link rel="stylesheet" href="/refs.css">
   <link rel="stylesheet" href="/recall.css">
@@ -1864,10 +1865,15 @@
     <div id="ski-review-row" class="add-row" hidden><label>Add it to <select id="ski-scope" data-nodirty></select></label><button id="ski-accept" type="button">Add it</button></div>
     <div class="add-row"><button id="ski-cancel" type="button" class="ghost">Cancel</button></div>
   </dialog>
-  <dialog id="store-panel" class="skill-editor store-panel" aria-labelledby="stp-title">
+  <dialog id="store-panel" class="skill-editor store-panel" aria-labelledby="stp-title" data-nox>
     <div class="stp-bar"><button id="stp-back" type="button" class="ghost" hidden>← Back</button><h2 id="stp-title">Get more</h2><button id="stp-close" type="button" class="ghost stp-x" aria-label="Close">✕</button></div>
     <div id="stp-body" class="stp-body"></div>
     <p id="stp-status" class="muted small" role="status"></p>
+  </dialog>
+  <dialog id="pack-panel" class="skill-editor pack-panel" aria-labelledby="pkp-title" data-nox>
+    <div class="stp-bar"><button id="pkp-back" type="button" class="ghost" hidden>← Back</button><h2 id="pkp-title">Companion pack</h2><button id="pkp-close" type="button" class="ghost stp-x" aria-label="Close">✕</button></div>
+    <div id="pkp-body" class="stp-body pkp-body"></div>
+    <p id="pkp-status" class="muted small" role="status"></p>
   </dialog>
   <dialog id="plugin-add" class="skill-editor" aria-labelledby="pla-heading">
     <h2 id="pla-heading">Add a plugin</h2>
@@ -1933,7 +1939,7 @@
         <p class="muted small">Her picture stays when you choose a character. <button id="gallery-look" type="button" class="ghost small">Make a new look</button></p>
         <p id="gallery-status" class="muted small" role="status"></p>
         <div id="card-drop" class="card-drop" data-nodirty data-noauto>
-          <p class="actions-left"><button id="card-import" type="button" class="ghost small">Import a character…</button> <details id="card-share" class="share-menu"><summary class="button ghost small">Share or export ▾</summary><span class="share-menu-items"><a id="gallery-share" class="button ghost small" href="/api/character/export" download>Sara character file (for another Sara)</a> <button id="card-export-png" type="button" class="ghost small">Character card, PNG (for SillyTavern and other apps)</button> <a id="card-export-json" class="button ghost small" href="/api/character/card/json" download>Character card, JSON (for other apps)</a></span></details> <button type="button" class="tip" data-tip="Import takes both kinds of file: a Sara character file or a character card (PNG or JSON from SillyTavern and similar apps). You see a preview first. Share: a Sara file for another Sara, a card for other apps. Her safety rules always stay.">?</button></p>
+          <p class="actions-left"><button id="card-import" type="button" class="ghost small">Import a character…</button> <details id="card-share" class="share-menu"><summary class="button ghost small">Share or export ▾</summary><span class="share-menu-items"><a id="gallery-share" class="button ghost small" href="/api/character/export" download>Sara character file (for another Sara)</a> <button id="card-export-png" type="button" class="ghost small">Character card, PNG (for SillyTavern and other apps)</button> <a id="card-export-json" class="button ghost small" href="/api/character/card/json" download>Character card, JSON (for other apps)</a> <button id="card-share-pack" type="button" class="ghost small" data-owner-only>A companion pack (her look, voice and skills too)</button></span></details> <button type="button" class="tip" data-tip="Import takes both kinds of file: a Sara character file or a character card (PNG or JSON from SillyTavern and similar apps). You see a preview first. Share: a Sara file for another Sara, a card for other apps. Her safety rules always stay.">?</button></p>
           <p class="muted small">Or drop a file here. A Sara character file keeps everything (look and voice too); a card is the format other apps read.</p>
           <input id="card-file" type="file" accept=".png,.json,image/png,application/json" hidden>
           <div id="card-preview" class="card-preview" hidden>
@@ -2125,7 +2131,7 @@
         <label>Pronouns <select id="cmp-pronouns"><option value="she">she / her</option><option value="he">he / him</option><option value="they">they / them</option></select></label>
       </div>
       <label>Start from <select id="cmp-from"><option value="">A new character (shape them afterwards)</option></select></label>
-      <p class="small"><button id="cmp-add" type="button">Add</button> <span id="cmp-status" class="muted small"></span></p>
+      <p class="small"><button id="cmp-add" type="button">Add</button> <button id="cmp-from-file" type="button" class="ghost" data-owner-only>From a file…</button> <button type="button" class="tip" data-tip="A companion pack (.sara-companion.zip), a character card (PNG, JSON or CHARX) or a Sara character file. You see her card first. It always makes a new companion; the ones you have don't change.">?</button> <input id="cmp-file" type="file" accept=".zip,.png,.json,.charx,application/zip,image/png,application/json" hidden> <span id="cmp-status" class="muted small"></span></p>
       <h3>Planner</h3>
       <label>To-dos, reminders and notes <select id="cmp-planner"><option value="shared">One planner, shared by all companions</option><option value="separate">Each companion keeps her own</option></select></label>
       <p id="cmp-planner-note" class="muted small">A change applies after the next restart or update.</p>

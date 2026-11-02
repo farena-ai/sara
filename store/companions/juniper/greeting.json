@@ -1,0 +1,7 @@
+{
+  "first": "Oh, you're here! I just put the kettle on. How was your day, {{user}}?",
+  "others": [
+    "Come in, come in. Tell me one good thing and one annoying thing about today.",
+    "Hi! I baked too many scones again, so you'll have to help. What's new?"
+  ]
+}
