@@ -14,7 +14,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1737%20passing-brightgreen" alt="1737 tests passing">
+  <img src="https://img.shields.io/badge/tests-1751%20passing-brightgreen" alt="1751 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -114,15 +114,16 @@ Einminütige Anleitungen, aufgenommen auf einem Testserver mit einem lokalen Mod
 
 ## Was ist neu
 
+- **2.56** · Schlank und aufgeräumt: Jeder Schritt bietet ihr nur die passenden Werkzeuge an (gemessen 54–77 % weniger Tokens pro Schritt), den Rest sucht sie selbst, und `/compact` fasst einen langen Chat zu einer Zusammenfassung zusammen, die du sehen und rückgängig machen kannst.
 - **2.55** · WhatsApp: Schreib ihr über WhatsApp, über Metas offiziellen Dienst mit deinem eigenen Konto, mit einer geführten Einrichtung in 10 Schritten, die jeden Schritt prüft.
 - **2.54** · Routinen und ein Sicherheits-Check: zehn fertige Routinen (Morgenbriefing, CI beobachten, Preisalarm…) mit den Kosten, bevor du eine einschaltest, und eine Seite, die in einfachen Worten sagt, wie sicher dein Setup ist, mit Ein-Klick-Korrekturen, die nur verschärfen.
-- **2.53** · Präzises Programmieren: Nach jeder Änderung führt sie den Typprüfer oder Linter deines Projekts aus und behebt, was sie kaputt gemacht hat, in derselben Antwort; zeig ihr Dinge mit `@file`, `@diff`, `@url` und mehr.
 
 <details>
 <summary><b>Versionsgeschichte</b>: was jede Version seit 2.4 gebracht hat</summary>
 
 | Version | Was du bekommst |
 |---|---|
+| **2.56** · Schlank und aufgeräumt | **Eine kurze Werkzeugliste pro Schritt:** im Code gewählt (ohne Modellaufruf) aus dem, was du gerade tust: Modus, deine Wörter, `@`-Verweise, kürzliche Nutzung, ein geladener Skill, frühere Runden eines Ziels, dazu Werkzeuge, die aus Sicherheitsgründen immer dabei sind. Den Rest findet sie mit *find tools*, und jeder Aufruf wird weiter gegen alles geprüft, was sie darf. Gemessen: eine frische Installation sinkt von 11.871 auf 5.471 Tokens pro Schritt (−54 %), mit vier MCP-Servern von 23.476 auf 5.438 (−77 %). `/tools` zeigt, was angeboten wird. **`/compact`:** fasst den älteren Teil eines langen Chats zusammen, zuerst auf diesem Computer geschrieben (private Chats verlassen ihn nie). Deine Nachrichten bleiben im Verlauf, mit *Zusammenfassung zeigen* und *Rückgängig*; es läuft auch von selbst kurz vor der Grenze, und Krisennachrichten bleiben Wort für Wort. Funktioniert in jeder Chat-App. |
 | **2.55.3** · MCP unter Windows | Behoben: Unter Windows starteten MCP-Server, die mit `npx` gestartet werden (auch die eingebauten Vorlagen), nicht. |
 | **2.55.2** · iMessage | **iMessage über BlueBubbles** (Einstellungen → Verbindungen → iMessage, ein optionales Plugin): Schreib ihr aus Nachrichten auf deinem iPhone. Braucht einen Mac mit BlueBubbles und einer eigenen Apple-ID für sie (mit deiner läuft Sara nicht, sonst sähe sie all deine Chats). Acht geführte Schritte mit ✓, einfache Lösungen, Text, Fotos und Dateien, und sie holt nach, was geschickt wurde, während sie offline war. Tipp-Punkte und Tapbacks nur, wenn die Private API von BlueBubbles schon an ist; Sara bittet dich nie, dafür die Sicherheit deines Macs zu senken. |
 | **2.55.1** · Matrix | **Matrix** (Einstellungen → Verbindungen → Matrix, ein optionales Plugin): Sprich mit ihr in Element oder jeder Matrix-App über ein eigenes Matrix-Konto. Fünf geführte Schritte, jeder mit einem ✓ geprüft, und einfache Lösungen für jeden Fehler. Text, Fotos und Sprachnachrichten; nur du, außer du erlaubst andere (auch ganze Server); Einladungen von Fremden werden abgelehnt. Nur Räume ohne Ende-zu-Ende-Verschlüsselung: In einem verschlüsselten Raum erklärt sie, warum sie ihn nicht lesen kann, und geht. |
@@ -213,7 +214,7 @@ Alle Versionen: [CHANGELOG.md](CHANGELOG.md) · [Releases](https://github.com/fa
 
 In Bau-Reihenfolge, je ein Release ([die ganze Liste](docs/ROADMAP.md)):
 
-- **Danach** (2.56–2.61): Fotos und Dateien in Chat-Apps, mit ihr reden, während sie arbeitet, Signal, E-Mail, WhatsApp, iMessage (BlueBubbles) und SMS, „mach weiter, bis es fertig ist“, Code-Prüfungen nach Änderungen, eine Routinen-Galerie und **der Sara Store** für Plugins, Skills und MCP-Server (ComfyUI, Blender, Playwright…) mit Installation per Klick und einem Weg, eigene einzureichen.
+- **Danach** (2.57–2.61): Fotos und Dateien in Chat-Apps, mit ihr reden, während sie arbeitet, Signal, E-Mail, WhatsApp, iMessage (BlueBubbles) und SMS, „mach weiter, bis es fertig ist“, Code-Prüfungen nach Änderungen, eine Routinen-Galerie und **der Sara Store** für Plugins, Skills und MCP-Server (ComfyUI, Blender, Playwright…) mit Installation per Klick und einem Weg, eigene einzureichen.
 - Die iPhone-App (wartet auf Apple) und deine Ideen in den [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Der ganze Plan: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -410,8 +411,8 @@ wurden. Was sie heute beiträgt, ist die Arbeitsweise (sie lässt die Tests lauf
 riskanten Schritten, zeigt, was gelaufen ist), nicht ein höheres Ergebnis bei diesen Sätzen.
 Details, Ergebnisse pro Aufgabe und wie man es wiederholt: [docs/RESULTS.md](docs/RESULTS.md).
 
-Dazu `npm run check`: eine Typprüfung und 1752 automatische Tests mit einem geskripteten
-Schein-Modell (ohne Netz, ohne GPU): 1737 laufen unter Windows durch, die anderen 8 sind
+Dazu `npm run check`: eine Typprüfung und 1766 automatische Tests mit einem geskripteten
+Schein-Modell (ohne Netz, ohne GPU): 1751 laufen unter Windows durch, die anderen 8 sind
 Linux-spezifische Sandbox-Tests, die auf einem Linux-Server laufen.
 
 ## Sara im Vergleich

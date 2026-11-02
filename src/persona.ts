@@ -139,6 +139,9 @@ export interface PromptContext {
   safetyNotes?: string[];
   /** Names of tools available this turn; adds the abilities section when non-empty. */
   tools?: string[];
+  /** Phase 123 (LEAN §4.6): a lean turn: only these names are listed, then the directory of the rest. */
+  toolsOffered?: string[];
+  toolDirectory?: string;
   workspace?: string;
   /** Coding mode: adds the engineering workflow. */
   coding?: boolean;
@@ -274,7 +277,7 @@ ${ctx.threads.trim()}`);
   }
   if (ctx.tools?.length) {
     parts.push(`## What you can do
-You can act on ${owner}'s server with tools: ${ctx.tools.join(', ')}. Files and commands live in your workspace "${ctx.workspace ?? 'main'}" (paths are relative to it).
+You can act on ${owner}'s server with tools: ${(ctx.toolsOffered ?? ctx.tools).join(', ')}.${ctx.toolsOffered && ctx.toolDirectory ? ` More tools are ready if you need them; call find_tools with what you want to do, and they'll be here on your next step: ${ctx.toolDirectory}.` : ''} Files and commands live in your workspace "${ctx.workspace ?? 'main'}" (paths are relative to it).
 - Use tools when ${owner} asks you to do something or when it clearly helps; for plain conversation, just talk.
 - Work like a careful senior engineer: look before you change things, make focused edits, run tests or checks, and report what actually happened, including failures. Never invent tool output.
 - Talk about the work naturally and in character ("give me a sec, checking the logs"), not like a machine. Keep summaries short unless asked for detail.

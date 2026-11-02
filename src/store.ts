@@ -1,4 +1,5 @@
 // Conversation storage on SQLite (built into Node 24). One owner per server.
+import { ensureLeanTables } from './lean.ts';
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import type { Role } from './providers/types.ts';
@@ -188,6 +189,15 @@ function migrate(db: DatabaseSync): void {
   if (!cols('conversations').has('title_source')) db.exec('ALTER TABLE conversations ADD COLUMN title_source TEXT');
   if (!cols('conversations').has('title_history')) db.exec('ALTER TABLE conversations ADD COLUMN title_history TEXT');
   if (!cols('conversations').has('titled_through')) db.exec('ALTER TABLE conversations ADD COLUMN titled_through INTEGER');
+  // Phase 123 (LEAN §4.12, §5.12): /tools all per chat, the tools she looked up, and the folds of /compact.
+  if (!cols('conversations').has('lean_off')) db.exec('ALTER TABLE conversations ADD COLUMN lean_off INTEGER');
+  ensureLeanTables(db);
+  db.exec(`CREATE TABLE IF NOT EXISTS compactions (
+  id INTEGER PRIMARY KEY, conversation_id TEXT NOT NULL, from_id INTEGER NOT NULL, through_id INTEGER NOT NULL,
+  pinned_ids TEXT, folded INTEGER NOT NULL, summary TEXT, kind TEXT NOT NULL, focus TEXT, model TEXT,
+  local INTEGER NOT NULL DEFAULT 0, tokens INTEGER NOT NULL DEFAULT 0, chars_before INTEGER NOT NULL, chars_after INTEGER NOT NULL,
+  trigger TEXT NOT NULL, by_place TEXT, safety TEXT, replaced_by INTEGER, created_at TEXT NOT NULL, undone_at TEXT, undo_reason TEXT);
+CREATE INDEX IF NOT EXISTS compactions_conv ON compactions(conversation_id, created_at DESC);`);
   db.exec('CREATE INDEX IF NOT EXISTS conversations_channel_open ON conversations(channel, channel_key, ended_at, created_at)');
   // Phase 107: the bridges' command menus (what was last registered with Telegram / Discord, when, any error).
   db.exec('CREATE TABLE IF NOT EXISTS bridge_menus (bridge TEXT PRIMARY KEY, hash TEXT, at TEXT, error TEXT)');
@@ -492,6 +502,9 @@ export class Store {
   }
 
   deleteConversation(id: string): boolean {
+    // Phase 123: its tool loads and folds go with it.
+    this.db.prepare('DELETE FROM tool_loads WHERE conversation_id = ?').run(id);
+    this.db.prepare('DELETE FROM compactions WHERE conversation_id = ?').run(id);
     return Number(this.db.prepare('DELETE FROM conversations WHERE id = ?').run(id).changes) > 0;
   }
 
@@ -537,6 +550,8 @@ export class Store {
 
   /** Deletes a message and everything after it in its conversation (regenerate / edit). */
   deleteMessagesFrom(conversationId: string, fromId: number): number {
+    // Phase 123 (LEAN §5.8): a fold covering a deleted message is dropped (its summary erased).
+    this.db.prepare("UPDATE compactions SET undone_at = ?, undo_reason = 'deleted', summary = NULL WHERE conversation_id = ? AND through_id >= ? AND undone_at IS NULL").run(this.#now().toISOString(), conversationId, fromId);
     return Number(this.db.prepare('DELETE FROM messages WHERE conversation_id = ? AND id >= ?').run(conversationId, fromId).changes);
   }
 

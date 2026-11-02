@@ -20,8 +20,10 @@ import { fmtEvery, loopsFor, parseLoopCommand } from '../loops.ts';
 import { checkOptions, defaultChecks } from '../persist.ts';
 import { answerFire, idFromList, mentionLines, mentionSettings, mergeMentionSettings, ownChat, parseWhenCommand, rememberList, setMention } from '../mentions.ts';
 import { pickupsFor, placeName } from '../pickup.ts';
+import { leanSettings as leanSettingsOf } from '../lean.ts';
+import { compactAllowed as compactAllowedOf, getFold as getFoldSync, undoFold as undoFoldSync } from '../compact.ts';
 
-export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea' | 'progress' | 'steer' | 'queue' | 'btw' | 'goal' | 'loop' | 'when' | 'continue' | 'problems';
+export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea' | 'progress' | 'steer' | 'queue' | 'btw' | 'goal' | 'loop' | 'when' | 'continue' | 'problems' | 'compact' | 'tools';
 /** Where the line was written: his DM, someone else's DM, a shared room, a room where he works with her. */
 export type Place = 'owner-dm' | 'partner-dm' | 'room' | 'work-room';
 /** Who wrote it (decided by the bridge from the platform user id, never by a name). */
@@ -29,7 +31,8 @@ export type Asker = 'owner' | 'person' | 'bot';
 
 /** The commands in the platforms' menus, in menu order. */
 // Phase 119 (RECALL §5.4, §11 Q14): /continue is in the menus; /when is typed (and in /help).
-export const MENU_COMMANDS = ['new', 'reset', 'stop', 'status', 'help', 'model', 'remember', 'continue'] as const;
+// Phase 123 (LEAN §5.9, §11 Q8): /compact is in the menus, next to /new; /tools is typed.
+export const MENU_COMMANDS = ['new', 'compact', 'reset', 'stop', 'status', 'help', 'model', 'remember', 'continue'] as const;
 // Phase 113: /bug and /idea (Report a problem, Suggest something) are typed, not in the menus.
 // Phase 115 (BR1): /progress on|off (the live progress message in this chat), typed, owner only.
 // Phase 116 (BR2 §5.7): /steer, /queue and /btw take text (owner only; /queue also for someone in their own DM).
@@ -38,7 +41,7 @@ export const BUSY_COMMANDS = ['steer', 'queue', 'btw'] as const;
 export const PERSIST_COMMANDS = ['goal', 'loop'] as const;
 /** Phase 119: owner-only commands that don't exist for anyone else (their line stays a normal message). */
 export const OWNER_ONLY_COMMANDS: ReadonlySet<CommandName> = new Set(['when', 'continue', 'problems']);
-const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea', 'progress', ...BUSY_COMMANDS, ...PERSIST_COMMANDS, 'when', 'problems'];
+const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea', 'progress', ...BUSY_COMMANDS, ...PERSIST_COMMANDS, 'when', 'problems', 'tools'];
 export const isCommandName = (s: string): s is CommandName => (ALL as readonly string[]).includes(s);
 
 /** One line per command (menus and /help). The owner's /status says more than the one others get. */
@@ -63,6 +66,8 @@ export const DESCRIPTIONS: Record<CommandName, string> = {
   when: en('Reminders for when a person or topic comes up (list, add, forget)'),
   continue: en('Pick up our chat from your other app here'),
   problems: en('The latest type errors in this chat’s project (check, on, off)'),
+  compact: en('Tidy the older part of this chat into a summary (undo, show)'),
+  tools: en('Which tools she has in this chat (all, lean, +name, -name)'),
 };
 /** /status as others see it (no model, no budget). */
 export const PUBLIC_STATUS = en('How full this chat is');
@@ -77,6 +82,9 @@ export const COMMAND_WORDS: Readonly<Partial<Record<CommandName, readonly string
   stop: ['stop', 'para', 'parar', 'detente', 'arrete', 'arreter', 'stopp', 'halt', 'ferma', 'fermati'],
   status: ['status', 'estado', 'statut', 'etat', 'stato'],
   help: ['help', 'ayuda', 'aide', 'hilfe', 'ajuda', 'aiuto'],
+  // Phase 123 (LEAN §4.9, §5.9).
+  compact: ['compact', 'compactar', 'resumir', 'ordenar', 'compacter', 'kompakt', 'compattare'],
+  tools: ['tools', 'herramientas', 'outils', 'werkzeuge', 'ferramentas', 'strumenti'],
 };
 
 /** Discord's localised command names (lowercase, its naming rule) by Discord locale. */
@@ -89,6 +97,7 @@ export const DISCORD_NAMES: Readonly<Record<(typeof MENU_COMMANDS)[number], Reco
   model: { 'es-ES': 'modelo', fr: 'modèle', de: 'modell', 'pt-BR': 'modelo', it: 'modello' },
   remember: { 'es-ES': 'recordar', fr: 'retenir', de: 'merken', 'pt-BR': 'lembrar', it: 'ricorda' },
   continue: { 'es-ES': 'continuar', fr: 'continuer', de: 'fortsetzen', 'pt-BR': 'continuar', it: 'continua' },
+  compact: { 'es-ES': 'compactar', fr: 'compacter', de: 'kompakt', 'pt-BR': 'compactar', it: 'compattare' },
 };
 /** Sara's languages → Discord locales and Telegram language codes (two letters; pt-BR is `pt`). */
 export const DISCORD_LOCALES: Readonly<Record<string, string>> = { es: 'es-ES', fr: 'fr', de: 'de', 'pt-BR': 'pt-BR', it: 'it' };
@@ -233,6 +242,8 @@ export interface CommandReply {
   report?: { kind: 'bug' | 'idea'; text: string };
   /** Phase 116: a /btw answer (marked as a side note; never stored). */
   aside?: boolean;
+  /** Phase 123: buttons under the reply (Telegram inline keyboard, Discord components); plugin bridges get the typed form. */
+  buttons?: { label: string; data: string }[];
 }
 
 export interface CommandContext {
@@ -351,7 +362,79 @@ export async function runCommand(c: CommandContext): Promise<CommandReply> {
       return continueCommand(c, conv);
     case 'problems':
       return problemsCommand(c, conv);
+    case 'compact':
+      return compactCommand(c, conv);
+    case 'tools':
+      return toolsCommand(c, conv);
   }
+}
+
+/** Phase 123 (LEAN §5.9): /compact [focus] · /compact undo · /compact show (owner only, his DM and work session). */
+async function compactCommand(c: CommandContext, conv: Conversation | undefined): Promise<CommandReply> {
+  const { app } = c;
+  const tr = (text: string, params?: Record<string, unknown>) => say(app, c.lang, text, params);
+  if (c.place === 'partner-dm' || c.place === 'room') return { text: tr('Only the person who runs me can use that here.'), refused: true };
+  const { compactAllowed, compactNow, foldSummaryText, undoFold } = await import('../compact.ts');
+  if (!conv || !talked(app, conv)) return { text: tr('This chat is already short; nothing to tidy.') };
+  if (!compactAllowed(app, conv)) return { text: tr("I don't tidy this kind of chat."), refused: true };
+  const arg = c.cmd.args.trim();
+  const sub = fold(arg);
+  if (/^(undo|deshacer|annuler|ruckgangig|desfazer|annulla)$/.test(sub)) {
+    const r = undoFold(app, conv.id);
+    return { text: r ? tr('Untidied: she reads the earlier messages again.') : tr('Nothing is tidied in this chat.') };
+  }
+  if (/^(show|mostrar|montrer|zeigen|mostra)$/.test(sub)) {
+    const t = foldSummaryText(app, conv.id);
+    return { text: t ? `${tr('The tidy summary:')}\n${t}` : tr('Nothing is tidied in this chat.') };
+  }
+  const run = async (): Promise<string> => {
+    const r = await compactNow(app, conv, { ...(arg ? { focus: arg } : {}), trigger: c.bridge === 'web' ? 'command' : 'command', place: c.bridge });
+    if ('skipped' in r) return r.skipped === 'refused' ? tr("I can't keep that in a summary.") : r.skipped === 'not-here' ? tr("I don't tidy this kind of chat.") : tr('This chat is already short; nothing to tidy.');
+    const f = r.fold;
+    const how = f.kind === 'plain' ? tr('as a plain list') : f.local ? tr('written on this computer') : tr('written by the quick model');
+    const extra = f.kind === 'plain' && f.safety.why === 'cap' ? ` ${tr("Today's tidy budget is used up.")}` : '';
+    return `${tr('Tidied {n} earlier messages into a summary ({how}).', { n: f.folded, how })}${extra} ${tr('Send /compact undo to put them back, or /compact show to read it.')}`;
+  };
+  // A turn in progress is never changed: the tidy waits until she's done (at most 10 minutes).
+  if (app.isBusy?.(conv.id)) {
+    void (async () => {
+      for (let i = 0; i < 600 && app.isBusy?.(conv.id); i++) await new Promise((r) => setTimeout(r, 1000));
+      await run().catch(() => undefined);
+    })();
+    return { text: tr("She's working; I'll tidy when she's done.") };
+  }
+  const text = await run();
+  const cur = (await import('../compact.ts')).currentFold(app, conv.id);
+  return { text, ...(cur && text.includes('/compact undo') ? { buttons: [{ label: tr('Undo'), data: `cu:${cur.id}` }] } : {}) };
+}
+
+/** Phase 123 (LEAN §4.9): /tools · /tools all · /tools lean · /tools +name · /tools -name (zero model calls). */
+async function toolsCommand(c: CommandContext, conv: Conversation | undefined): Promise<CommandReply> {
+  const { app } = c;
+  const tr = (text: string, params?: Record<string, unknown>) => say(app, c.lang, text, params);
+  if (c.place === 'partner-dm' || c.place === 'room' || app.member) return { text: tr('Only the person who runs me can use that here.'), refused: true };
+  const lean = await import('../lean.ts');
+  const cv = conv ?? c.adapter.startSession(undefined);
+  lean.ensureLeanTables(app.store.db);
+  const arg = c.cmd.args.trim();
+  const turn = app.store.messages(cv.id).filter((m) => m.role === 'user').at(-1)?.id ?? 0;
+  if (/^all$/i.test(arg)) {
+    lean.setLeanOff(app.store.db, cv.id, true);
+    return { text: tr('Every tool is offered in this chat now. /tools lean goes back to the short list.'), ownerOnly: c.place === 'work-room' };
+  }
+  if (/^lean$/i.test(arg)) {
+    lean.setLeanOff(app.store.db, cv.id, false);
+    return { text: tr('Back to the short list in this chat.'), ownerOnly: c.place === 'work-room' };
+  }
+  const pm = /^([+-])\s*([\w:.-]{2,80})$/.exec(arg);
+  if (pm) {
+    const name = pm[2];
+    const known = app.tools.list().some((t) => t.spec.name === name || lean.familyOf(t).id === name || lean.familyOf(t).id.replace(/^(mcp|plugin):/, '') === name);
+    if (!known) return { text: tr('No tool or group called “{name}” here.', { name }), ownerOnly: c.place === 'work-room' };
+    lean.setChatPin(app.store.db, cv.id, name, pm[1] === '+', turn, app.now().toISOString());
+    return { text: pm[1] === '+' ? tr('{name} is offered every turn in this chat.', { name }) : tr('{name} is back to “when needed”.', { name }), ownerOnly: c.place === 'work-room' };
+  }
+  return { text: lean.toolsReport(app, cv), ownerOnly: c.place === 'work-room' };
 }
 
 /** Phase 120 (PRECISE §5.8): the six reference forms, in his language. */
@@ -492,6 +575,14 @@ export function chatButton(app: AppContext, data: string): { text: string; edit?
     const r = answerFire(app, Number(wm[1]), wm[2] as 'done' | 'again' | 'forget');
     if (!r.ok) return { text: tr('No longer waiting') };
     return { text: wm[2] === 'done' ? tr('Done') : wm[2] === 'again' ? tr('It will come up again next time.') : tr('Forgotten.') };
+  }
+  // Phase 123: Undo under a /compact reply.
+  const cu = /^cu:(\d+)$/.exec(data);
+  if (cu) {
+    const f = getFoldSync(app, Number(cu[1]));
+    if (!f || f.undoneAt) return { text: tr('No longer waiting') };
+    undoFoldSync(app, f.conversationId, f.id);
+    return { text: tr('Untidied: she reads the earlier messages again.'), edit: tr('Untidied: she reads the earlier messages again.') };
   }
   const pk = /^pk:([0-9a-f]{16}):([01])$/.exec(data);
   if (pk) {
@@ -894,8 +985,13 @@ export function nearlyFullOffer(app: AppContext, conv: Conversation, fill: { use
   if (!fill || !chatsSettings(app).offerNew || place === 'room') return undefined;
   if (!(fill.dropped > 0 || (fill.budget > 0 && fill.used / fill.budget >= OFFER_AT))) return undefined;
   if (app.store.messages(conv.id).some((m) => m.role === 'notice' && m.content === 'command:offer')) return undefined;
+  // Phase 123 (LEAN §5.7): with automatic tidying on, the fold already happened (or will at the next
+  // message); the line only goes out when it is off or the last automatic fold failed.
+  const set = leanSettingsOf(app).compact;
+  const lastAuto = app.store.messages(conv.id).findLast((m) => m.role === 'notice' && m.content.startsWith('compact:'));
+  if (set.auto && compactAllowedOf(app, conv) && !(lastAuto?.meta?.autoOff)) return undefined;
   notice(app, conv, 'offer');
-  return say(app, lang, "This chat is getting long. Send /new for a fresh start; I'll keep a summary of this one.");
+  return say(app, lang, en('This chat is getting long. Send /compact to tidy the older part, or /new for a fresh start.'));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -929,6 +1025,9 @@ export function afterTurnExtras(app: AppContext, conversationId: string, place: 
     if (refused.length) out.before = refused.map((r) => tr("(I couldn't attach {token}: {why})", { token: r.token, why: tr(r.why ?? 'Not attached') })).join('\n');
     const lastHer = page.findLast((m) => m.role === 'assistant');
     const chk = lastHer && lastHer.id > (lastUser?.id ?? 0) ? (lastHer.meta?.checks as { state?: string; left?: number; checker?: string; files?: string[] } | undefined) : undefined;
+    // Phase 123 (LEAN §5.7): an automatic fold before this reply: one line, once per fold.
+    const auto = page.findLast((m) => m.role === 'notice' && m.content.startsWith('compact:') && (m.meta?.trigger === 'auto' || m.meta?.trigger === 'goal') && m.id > (lastUser?.id ?? 0));
+    if (auto) out.before = [out.before, tr('(I tidied the older part of this chat to keep it in view. /compact undo to put it back.)')].filter(Boolean).join('\n');
     if (chk?.state === 'left' && chk.left) out.rows.push({ text: tr('⚠ {n} type errors left in {file} ({checker}).', { n: chk.left, file: chk.files?.[0] ?? '', checker: chk.checker ?? '' }), buttons: [] });
   }
   if (place !== 'owner-dm') return out;

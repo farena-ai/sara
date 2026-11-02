@@ -5,6 +5,27 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.56.0 (2026-11-02): lean and tidy (Phase 123)
+
+- **A short tool list per step.** Every step used to send every tool she may use (67 on a fresh
+  install, 141 with four MCP servers). Now code picks what to offer, with no model call: a core for
+  the mode, six tools always kept for safety, your pins, the tools your words name (six languages),
+  `@`-references, recent use, a loaded skill's tools and a goal's earlier rounds. *find tools* lets her
+  load up to 5 more by itself; every call is still checked against the full list she's allowed, with
+  the same approval cards. Measured (o200k tokens per step): fresh install 11,871 → 5,471 (−54%),
+  coding 12,885 → 6,355; with four MCP servers 23,476 → 5,438 (−77%), coding 24,490 → 6,325. Switches
+  on above about 6,000 tokens of tools; off for /v1, MCP-server mode, groups and partner chats.
+  `/tools` lists what's offered, `/tools all` turns it off for a chat; Settings → Abilities → Tools and
+  approvals → *Short tool list*.
+- **`/compact`** folds the older part of a long chat into a summary for her: written on this computer
+  first (private chats never leave it; else the quick model; a plain code-written list if neither
+  can), with your last 6 turns kept word for word. Your messages stay in the thread, dimmed under a
+  divider with *Show summary* and *Undo*. `/compact <what to keep>`, `/compact show`, `/compact undo`;
+  in every chat app (Telegram and Discord menus, with an Undo button). It also runs by itself at 85%,
+  between turns. Crisis messages stay word for word for 24 hours, refused requests are never
+  summarised, and forgetting a message drops the fold that covered it. Guide:
+  [docs/TOOLS_AND_COMPACT.md](docs/TOOLS_AND_COMPACT.md).
+
 ## 2.55.3 (2026-11-02): MCP servers start on Windows
 
 - **Fixed:** on Windows, every MCP server started with `npx` (including the built-in presets) failed

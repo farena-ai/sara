@@ -47,6 +47,8 @@ export interface ToolContext {
   screenModel?: { local: boolean; describe: (img: { mime: string; data: string }) => Promise<string | undefined> };
   /** Phase 98: a plugin tool's own card (data in Sara's card schema) shown under the step. */
   attachCard?: (card: import('../hooks.ts').PluginCard) => void;
+  /** Phase 123 (LEAN §4.7): this turn's lean tool list (find_tools loads into it). */
+  lean?: { find: (args: Record<string, unknown>) => string };
 }
 
 export interface Tool {

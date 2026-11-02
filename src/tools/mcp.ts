@@ -1,6 +1,7 @@
 // Model Context Protocol client: connects to MCP servers (stdio or streamable HTTP), lists their
 // tools and exposes them through the tool registry as mcp_<server>_<tool>. Stdio servers run in the
 // same bubblewrap sandbox as shell commands, with their own home directory.
+import { clearSizes } from '../lean.ts';
 import { netFetch, privateLocalOn } from '../net-guard.ts';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -381,6 +382,8 @@ export class McpManager {
       conn.close();
       return conn;
     }
+    // Phase 123: the server's list may have changed: its schema sizes are measured again.
+    clearSizes();
     for (const t of conn.tools) this.#registry.add(this.#wrap(conn, t));
     return conn;
   }

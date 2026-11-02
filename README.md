@@ -11,7 +11,7 @@ Windows, Mac and phones.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1737%20passing-brightgreen" alt="1737 tests passing">
+  <img src="https://img.shields.io/badge/tests-1751%20passing-brightgreen" alt="1751 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -107,15 +107,16 @@ One-minute walkthroughs, recorded on a throwaway test server with a local model.
 
 ## What's new
 
+- **2.56** · Lean and tidy: each step offers her only the tools that fit (54–77% fewer tokens per step, measured), she can look up the rest herself, and `/compact` tidies a long chat into a summary you can see and undo.
 - **2.55** · WhatsApp, Matrix and iMessage: text her from WhatsApp through Meta's official service on your own account, with a 10-step guided setup that checks each step.
 - **2.54** · Routines and a safety check-up: ten ready-made routines (morning briefing, watch my CI, price watch…) with the cost shown before you turn one on, and a page that says in plain words how safe your setup is, with one-click fixes that only tighten.
-- **2.53** · Coding precision: after each edit she runs your project's own type checker or linter and fixes what she broke in the same reply; point her at things with `@file`, `@diff`, `@url` and more.
 
 <details>
 <summary><b>Release history</b>: what each release from 2.4 brought</summary>
 
 | Release | What you get |
 |---|---|
+| **2.56** · Lean and tidy | **A short tool list per step:** chosen in code (no model call) from what you're doing: the mode, the words you use, `@`-references, recent use, a loaded skill, a goal's earlier rounds, plus tools that are always kept for safety. She can look up the rest with *find tools*, and every call is still checked against everything she's allowed. Measured: a fresh install goes from 11,871 to 5,471 tokens a step (−54%); with four MCP servers, from 23,476 to 5,438 (−77%). `/tools` shows what's offered. **`/compact`:** folds the older part of a long chat into a summary written on this computer first (private chats never leave it). Your messages stay in the thread, with *Show summary* and *Undo*; it also runs by itself near the limit, and crisis messages stay word for word. Works in every chat app. |
 | **2.55.3** · MCP on Windows | Fixed: on Windows, MCP servers started with `npx` (including the built-in presets) failed to start. |
 | **2.55.2** · iMessage | **iMessage through BlueBubbles** (Settings → Connections → iMessage, an optional plugin): text her from Messages on your iPhone. Needs a Mac running BlueBubbles with an Apple ID of her own (Sara refuses to run on yours, because she'd see all your chats). Eight guided steps checked with a ✓, plain-language fixes, text, photos and files, and she catches up on anything sent while she was offline. Typing dots and tapbacks only if BlueBubbles' Private API is already on; Sara never asks you to lower your Mac's security for it. |
 | **2.55.1** · Matrix | **Matrix** (Settings → Connections → Matrix, an optional plugin): talk to her in Element or any Matrix app through a Matrix account of her own. Five guided steps, each checked with a ✓, and plain-language fixes for every error. Text, photos and voice notes; only you unless you allow others (whole servers too); strangers' invites are declined. Rooms without end-to-end encryption only: in an encrypted room she explains why she can't read it and leaves. |
@@ -206,7 +207,7 @@ Every release: [CHANGELOG.md](CHANGELOG.md) · [releases](https://github.com/far
 
 In build order, one release each ([the full list](docs/ROADMAP.md)):
 
-- **Next** (2.56–2.61): photos and files in chat apps, talking to her while she works, Signal, email, WhatsApp, iMessage (BlueBubbles) and SMS, "keep going until it's done", coding checks after edits, a routines gallery, and **the Sara Store** for plugins, skills and MCP servers (ComfyUI, Blender, Playwright…) with one-click installs and a way to submit your own.
+- **Next** (2.57–2.61): photos and files in chat apps, talking to her while she works, Signal, email, WhatsApp, iMessage (BlueBubbles) and SMS, "keep going until it's done", coding checks after edits, a routines gallery, and **the Sara Store** for plugins, skills and MCP servers (ComfyUI, Blender, Playwright…) with one-click installs and a way to submit your own.
 - The iPhone app (waiting on Apple), and your ideas in [Discussions](https://github.com/farena-ai/sara/discussions).
 
 The full plan: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -393,8 +394,8 @@ README or SPEC that no test checked. What she adds today is the way of working (
 asks before risky steps, shows what ran), not a higher score on these sets. Details, per-task
 results and how to re-run: [docs/RESULTS.md](docs/RESULTS.md).
 
-Plus `npm run check`: a typecheck and 1752 automated tests with a scripted fake model (no network,
-no GPU): 1737 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
+Plus `npm run check`: a typecheck and 1766 automated tests with a scripted fake model (no network,
+no GPU): 1751 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
 
 ## How Sara compares
 

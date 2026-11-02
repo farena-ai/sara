@@ -21,6 +21,8 @@ when a chat is long or stuck, stop her, and see what she is using, without leavi
 | `/when` | (2.52.0) "When it comes up" reminders. `/when Dan: he owes me $20` sets one (a single capitalised word is a person on your People cards; anything else is words to watch for; `, every time` at the end makes it repeat). `/when` lists them with numbers; `/when forget 1`, `/when again 1`, `/when off`, `/when on`. Typed only (not in the `/` menu). In a work room the answer comes privately. Full guide: [WHEN.md](WHEN.md). | Only you, in your own chats. For anyone else it stays a normal message. Never reaches a model. |
 | `/continue` | (2.52.0) Picks up your latest conversation from another of your own chats (the app, Telegram, Discord): `/continue` takes the newest (or lists them when there are several), `/continue 2` takes one from the list, `/continue telegram` / `/continue app` by app, `/continue off` undoes it. Nothing is copied: she is given that chat's summary and last few exchanges for each reply here. In the `/` menu. | Only you, in your own private chats. Never in shared rooms or other people's chats. Never reaches a model. |
 | `/problems` | (2.53.0) The latest type errors in this chat's project, from Sara's checks after her edits (≤ 10 lines). `/problems check` runs a check now; `/problems off` / `/problems on` sets the project's choice. `/help refs` lists the `@file:` / `@diff` / `@url:` forms you can type. Full guide: [CHECKS.md](CHECKS.md). | Only you, in your own chats and work rooms. Never reaches a model. |
+| `/compact` | (2.56.0) Tidies the older part of this chat: it is folded into a short summary she reads instead, and your last turns stay word for word. The summary is written by a model on this computer first (private chats: only there, or a plain list made by the app). `/compact keep the API part` says what to keep in particular; `/compact show` sends the summary; `/compact undo` (or *Undo* under the reply in Telegram and Discord) puts everything back. In the menus, next to `/new`. Full guide: [TOOLS_AND_COMPACT.md](TOOLS_AND_COMPACT.md). | Only you, in your own chats and work sessions. Never in other people's chats or shared rooms. |
+| `/tools` | (2.56.0) Which tools she is sent in this chat and what she can look up (no model call). `/tools all` sends every tool here until `/tools lean`; `/tools +github` always offers a tool, group or MCP server here, `/tools -github` stops. Typed only. | Only you, in your own chats and work sessions. |
 
 **Ways to write them**
 
@@ -64,10 +66,14 @@ messages every turn. It ends by itself after 12 messages here or 24 hours.
 ## When a chat gets long
 
 When a chat is almost too long for her to keep in mind (85 % of her history budget, or once older
-parts already have to be left out), she says once per session: *"This chat is getting long. Send
-/new for a fresh start; I'll keep a summary of this one."* In a room where you work with her, that
-note goes to you privately. Switch it off with *Offer a new session when a chat is long*. The
-number is the same as `/status` and the ring in the app's header.
+parts already have to be left out), she **tidies the older part on her own** (2.56.0) before your next
+message is answered: in Telegram and Discord you see *"(I tidied the older part of this chat to keep it
+in view. /compact undo to put it back.)"* once. Your messages are never deleted; `/compact undo` puts
+them back. With *Tidy long chats on their own* off (Settings → Models → Default model → Long
+conversations), or after two failed tries, she says once per session instead: *"This chat is getting
+long. Send /compact to tidy the older part, or /new for a fresh start."* Switch that note off with
+*Offer a new session when a chat is long*. The number is the same as `/status` and the ring in the
+app's header.
 
 ## Menus
 

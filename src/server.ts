@@ -58,6 +58,9 @@ import { createAgentRoutes } from './routes/agents.ts';
 import { createHookRoutes } from './routes/hooks.ts';
 import { createPersistRoutes } from './routes/persist.ts';
 import { createPreciseRoutes } from './routes/precise.ts';
+import { createLeanRoutes } from './routes/lean.ts';
+import { compactNow, foldView, listFolds } from './compact.ts';
+import { ensureLeanTables, setChatPin, setLeanOff, toolsView } from './lean.ts';
 import { createSafetyCheckRoutes } from './routes/safety-check.ts';
 import { createRoutineRoutes } from './routes/routines.ts';
 import { createRecallRoutes } from './routes/recall.ts';
@@ -859,6 +862,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const persistRoutes = createPersistRoutes(ctx);
   // Phase 120: checks after her edits and @-references (src/routes/precise.ts).
   const preciseRoutes = createPreciseRoutes(ctx);
+  // Phase 123: the lean tool list and /compact (src/routes/lean.ts).
+  const leanRoutes = createLeanRoutes(ctx);
   // Phase 121: the safety check-up and the routines gallery (src/routes/safety-check.ts, src/routes/routines.ts).
   const safetyCheckRoutes = createSafetyCheckRoutes(ctx);
   const routineRoutes = createRoutineRoutes(ctx);
@@ -1221,6 +1226,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await agendaRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await persistRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await preciseRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await leanRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await safetyCheckRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await routineRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await recallRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1739,7 +1745,41 @@ export function createSaraServer(opts: ServerOptions): Server {
         const conv = cx.store.getConversation(b);
         if (!conv) throw new HttpError(404, 'Conversation not found');
         // Phase 107 (CH1): how full the history is (the info panel's bar; the same number /status gives).
-        if (c === 'fill' && !parts[3] && method === 'GET') return send(res, 200, contextFill(cx, conv));
+        if (c === 'fill' && !parts[3] && method === 'GET') {
+          // Phase 123: the fold and the tool numbers ride along (the ring's sheet).
+          if (offRecord || opts.demo) return send(res, 200, { ...contextFill(cx, conv), fold: null, tools: null });
+          let tools: Record<string, unknown> | null = null;
+          if (!opts.member && !conv.partner) {
+            const v = toolsView(cx, conv);
+            tools = { lean: v.lean, offered: (v.offered as unknown[]).length, eligible: v.eligible, offeredTokens: v.offeredTokens, eligibleTokens: v.eligibleTokens };
+          }
+          return send(res, 200, { ...contextFill(cx, conv), fold: foldView(cx, conv), tools });
+        }
+        // Phase 123 (LEAN §5.13): Tidy this chat (409 while a turn runs: the app queues it).
+        if (c === 'compact' && !parts[3] && method === 'POST') {
+          if (opts.demo || offRecord) throw new HttpError(404, 'Not found');
+          const body = await readJson(req).catch(() => ({}) as Record<string, unknown>);
+          if (cx.isBusy?.(b)) throw new HttpError(409, "She's working; I'll tidy when she's done.", { errorKey: "She's working; I'll tidy when she's done." });
+          const r = await compactNow(cx, conv, { ...(typeof body.focus === 'string' && body.focus.trim() ? { focus: body.focus } : {}), trigger: body.button ? 'button' : 'command', place: 'web' });
+          return send(res, 200, r);
+        }
+        if (c === 'compactions' && !parts[3] && method === 'GET') {
+          if (opts.demo || offRecord) return send(res, 200, { folds: [] });
+          return send(res, 200, { folds: listFolds(cx, b) });
+        }
+        // Phase 123 (LEAN §4.13): this chat's tools (offered with reasons, deferred families, pins).
+        if (c === 'tools' && !parts[3] && (method === 'GET' || method === 'PUT')) {
+          if (opts.demo || offRecord || opts.member) throw new HttpError(404, 'Not found');
+          if (method === 'PUT') {
+            const body = await readJson(req);
+            ensureLeanTables(cx.store.db);
+            if (body.lean === 'off' || body.lean === 'follow') setLeanOff(cx.store.db, b, body.lean === 'off');
+            const turn = cx.store.messages(b).filter((m) => m.role === 'user').at(-1)?.id ?? 0;
+            if (typeof body.pin === 'string' && body.pin.trim()) setChatPin(cx.store.db, b, body.pin.trim().slice(0, 80), true, turn, cx.now().toISOString());
+            if (typeof body.unpin === 'string' && body.unpin.trim()) setChatPin(cx.store.db, b, body.unpin.trim().slice(0, 80), false, turn, cx.now().toISOString());
+          }
+          return send(res, 200, toolsView(cx, conv));
+        }
         // Phase 107: every session of this chat ("Earlier sessions of this chat").
         if (c === 'sessions' && !parts[3] && method === 'GET') return send(res, 200, { sessions: offRecord ? [] : cx.store.sessionsOf(conv).map((x) => ({ id: x.id, title: x.title, createdAt: x.createdAt, endedAt: x.endedAt ?? null, current: x.id === b })) });
         // Phase 109 (CH3): "Name it now": she names it from what it covered (budget-checked; his own titles stay).

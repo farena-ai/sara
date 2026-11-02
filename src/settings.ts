@@ -239,6 +239,8 @@ export interface Settings {
    * *Backup check* routine turns it on); `last`: the last weekly run's statuses (only a change posts);
    * `accepted`: ambers the owner marked "I know, don't warn me" (red can't be hidden).
    */
+  /** Phase 123 (LEAN §3.3): the short tool list and tidying long chats (src/lean.ts normLean). */
+  lean?: Partial<import('./lean.ts').LeanSettings>;
   safetyCheck?: { weekly?: boolean; last?: { at: string; statuses: Record<string, 'green' | 'amber' | 'red' | 'skip'> }; accepted?: Record<string, string> };
   /**
    * Phase 72: her Alexa skill (server-wide, the owner's): the skill id from the Alexa developer

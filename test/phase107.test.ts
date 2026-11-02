@@ -284,7 +284,7 @@ test('telegram menus: setMyCommands per scope and language, skipped on an unchan
   const names = (c: { body: Record<string, unknown> }) => (c.body.commands as { command: string }[]).map((x) => x.command);
   assert.deepEqual(names(calls.find((c) => (c.body.scope as { type: string }).type === 'all_private_chats')!), ['help'], 'others only get help when they may not talk to her');
   assert.deepEqual(names(calls.find((c) => (c.body.scope as { type: string }).type === 'all_group_chats')!), ['help', 'status']);
-  assert.deepEqual(names(calls.find((c) => (c.body.scope as { type: string; chat_id?: number }).chat_id === OWNER)!), ['new', 'reset', 'stop', 'status', 'help', 'model', 'remember', 'continue', 'settings', 'steer', 'queue', 'btw'], 'Phase 116: /steer, /queue and /btw in his list; Phase 119: /continue');
+  assert.deepEqual(names(calls.find((c) => (c.body.scope as { type: string; chat_id?: number }).chat_id === OWNER)!), ['new', 'compact', 'reset', 'stop', 'status', 'help', 'model', 'remember', 'continue', 'settings', 'steer', 'queue', 'btw'], 'Phase 116: /steer, /queue and /btw in his list; Phase 119: /continue; Phase 123: /compact next to /new');
   const de = calls.find((c) => c.body.language_code === 'de' && (c.body.scope as { type: string }).type === 'chat')!;
   assert.notEqual((de.body.commands as { description: string }[])[0].description, 'Start a fresh session (the last one is kept)', 'German descriptions');
   assert.equal((await bridge.registerMenus()).skipped, true, 'same lists: nothing sent');
@@ -302,10 +302,11 @@ test('telegram menus: setMyCommands per scope and language, skipped on an unchan
 
 test('nearly full: offered once at 85 % or when older parts are left out, never in a room, never twice', async (t) => {
   const { app, bridge, tg } = await tgSetup(t, { ownerWorkInGroups: false });
-  app.settings.update({ historyBudgetChars: 2000 });
+  // Phase 123 (LEAN §5.7): the line is sent only when automatic tidying is off (or failed), and names /compact.
+  app.settings.update({ historyBudgetChars: 2000, lean: { compact: { auto: false } } } as never);
   app.script.push(text('Sure.'));
   await bridge.handle(dm(OWNER, 'x'.repeat(1700)));
-  const offer = "ℹ️ This chat is getting long. Send /new for a fresh start; I'll keep a summary of this one.";
+  const offer = 'ℹ️ This chat is getting long. Send /compact to tidy the older part, or /new for a fresh start.';
   assert.equal(tg.texts(OWNER).filter((x) => x === offer).length, 1);
   app.script.push(text('Again.'));
   await bridge.handle(dm(OWNER, 'more'));
@@ -401,8 +402,8 @@ test('discord: one bulk overwrite per hash, with localisations and contexts', as
   assert.equal(puts.length, 1);
   const cmds = puts[0].body as { name: string; contexts: number[]; name_localizations: Record<string, string>; description_localizations: Record<string, string>; default_member_permissions: unknown; options?: { name: string; autocomplete?: boolean }[] }[];
   // Phase 116: /steer, /queue and /btw follow the seven, each with a required text option.
-  // Phase 119: /continue joined the menus (RECALL §5.4).
-  assert.deepEqual(cmds.map((c) => c.name), ['new', 'reset', 'stop', 'status', 'help', 'model', 'remember', 'continue', 'steer', 'queue', 'btw']);
+  // Phase 119: /continue joined the menus (RECALL §5.4). Phase 123: /compact next to /new (LEAN §11 Q8).
+  assert.deepEqual(cmds.map((c) => c.name), ['new', 'compact', 'reset', 'stop', 'status', 'help', 'model', 'remember', 'continue', 'steer', 'queue', 'btw']);
   for (const c of cmds) {
     assert.deepEqual(c.contexts, [0, 1]);
     assert.equal(c.default_member_permissions, null);

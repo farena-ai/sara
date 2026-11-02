@@ -231,8 +231,8 @@ export class TelegramBridge {
     const app = this.#app;
     const cfg = telegramSettings(app);
     const owners = [...new Set([cfg.ownerChatId, ...(cfg.ownerUserIds ?? [])].filter((x): x is number => typeof x === 'number' && x > 0))];
-    // Phase 116: /steer, /queue and /btw in the owner's lists.
-    const full: CommandName[] = ['new', 'reset', 'stop', 'status', 'help', 'model', 'remember', 'continue', 'settings', 'steer', 'queue', 'btw'];
+    // Phase 116: /steer, /queue and /btw in the owner's lists. Phase 123: /compact next to /new.
+    const full: CommandName[] = ['new', 'compact', 'reset', 'stop', 'status', 'help', 'model', 'remember', 'continue', 'settings', 'steer', 'queue', 'btw'];
     const groups = cfg.ownerWorkInGroups ? app.store.channelKeys('telegram-work').map(Number).filter((n) => Number.isFinite(n) && n < 0) : [];
     const scopes: { scope: Record<string, unknown>; names: CommandName[]; owner: boolean }[] = [
       { scope: { type: 'all_private_chats' }, names: cfg.allowOthers ? ['new', 'reset', 'stop', 'status', 'help'] : ['help'], owner: false },
@@ -423,7 +423,7 @@ export class TelegramBridge {
         return void (await this.#call('answerCallbackQuery', { callback_query_id: q.id, text: this.#tr(stopped ? en('Stopping.') : en('Nothing to stop.')) }).catch(() => undefined));
       }
       // Phase 119: the ⏰ buttons and the pickup offer (owner only, checked here).
-      if (q.data && /^(wm|pk):/.test(q.data)) {
+      if (q.data && /^(wm|pk|cu):/.test(q.data)) {
         if (!isTelegramOwner(cfg, q.from.id)) return void (await this.#call('answerCallbackQuery', { callback_query_id: q.id, text: say(this.#app, askerLanguage(q.from.language_code), en('Only the owner can answer that.')) }).catch(() => undefined));
         const r = chatButton(this.#app, q.data);
         await this.#call('answerCallbackQuery', { callback_query_id: q.id, text: (r?.text ?? '').slice(0, 190) }).catch(() => undefined);
@@ -719,6 +719,9 @@ export class TelegramBridge {
     } else if (r.approval) {
       extra.reply_markup = { inline_keyboard: [[{ text: say(this.#app, lang, en('Allow')), callback_data: `ap:${r.approval.id}:1` }, { text: say(this.#app, lang, en('Deny')), callback_data: `ap:${r.approval.id}:0` }]] };
       void r.approval.done.then((t) => this.send(to, t)).catch(() => undefined);
+    } else if (r.buttons?.length) {
+      // Phase 123: Undo under a /compact reply.
+      extra.reply_markup = { inline_keyboard: [r.buttons.slice(0, 4).map((b) => ({ text: b.label.slice(0, 60), callback_data: b.data }))] };
     }
     try {
       await this.send(to, r.text, extra);

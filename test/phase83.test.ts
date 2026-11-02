@@ -431,6 +431,9 @@ test('a private conversation branches only on local models; the diff helpers are
 
 test('speed: step N of a turn in a 2,000-message conversation is rebuilt in well under 100 ms', async (t) => {
   const s = setup(t);
+  // Phase 123: a chat this full would be tidied before the turn (one cheap call from the script);
+  // this test measures rebuilding a step, so automatic tidying is off here.
+  s.app.settings.update({ lean: { compact: { auto: false } } } as never);
   const conv = s.app.store.createConversation({ mode: 'chat' });
   const ins = s.app.store.db.prepare('INSERT INTO messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)');
   s.app.store.db.exec('BEGIN');

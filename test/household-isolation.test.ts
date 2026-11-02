@@ -260,7 +260,7 @@ function routeFamilies(): Map<string, Set<string>> {
   return fam;
 }
 /** Owner-only route families (a member gets 403 ownerOnly). Every family must be in one of the two lists. */
-const OWNER_ONLY = ['pickup', 'backups', 'update', 'doctor', 'logs', 'status', 'health', 'access', 'private-local', 'local-models', 'subscriptions', 'mcp', 'bridges', 'chats', 'github', 'github-watch', 'google', 'home', 'ssh', 'workspaces', 'jobs', 'previews', 'team', 'codemap', 'code-projects', 'starters', 'recipes', 'history-import', 'import', 'model-jobs', 'tools', 'search', 'desktop-apps', 'claim', 'demo', 'public', 'login', 'telegram', 'discord', 'budgets', 'sandbox', 'security-pass', 'findings', 'threat-model', 'evals', 'redteam',
+const OWNER_ONLY = ['lean', 'pickup', 'backups', 'update', 'doctor', 'logs', 'status', 'health', 'access', 'private-local', 'local-models', 'subscriptions', 'mcp', 'bridges', 'chats', 'github', 'github-watch', 'google', 'home', 'ssh', 'workspaces', 'jobs', 'previews', 'team', 'codemap', 'code-projects', 'starters', 'recipes', 'history-import', 'import', 'model-jobs', 'tools', 'search', 'desktop-apps', 'claim', 'demo', 'public', 'login', 'telegram', 'discord', 'budgets', 'sandbox', 'security-pass', 'findings', 'threat-model', 'evals', 'redteam',
   // Phase 98 (ST3): plugins: install, enable, settings, update, rollback, remove, log, calls (owner only).
   'plugins',
   // Phase 102 (ST7): webhooks: list, make, change, rotate, test, log, enable, remove (owner only).

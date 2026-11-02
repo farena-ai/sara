@@ -32,6 +32,7 @@
   <link rel="stylesheet" href="/kit.css">
   <link rel="stylesheet" href="/busy.css">
   <link rel="stylesheet" href="/persist.css">
+  <link rel="stylesheet" href="/lean.css">
   <link rel="stylesheet" href="/begin.css">
   <link rel="stylesheet" href="/refs.css">
   <link rel="stylesheet" href="/recall.css">
@@ -217,6 +218,15 @@
             <p id="ctx-full" class="ctx-full"></p>
             <p id="ctx-how" class="muted small"></p>
             <p id="conv-usage" class="conv-usage muted small" hidden></p>
+            <!-- Phase 123: the tools line, What she has, Tidy this chat (web/lean.js) -->
+            <p id="ctx-tools" class="muted small" hidden></p>
+            <button id="ctx-what" class="ghost small lean-what" type="button" hidden>What she has</button>
+            <div id="ctx-what-list" class="lean-what-list" hidden></div>
+            <div class="ctx-acts">
+              <button id="ctx-tidy" class="ghost small" type="button">Tidy this chat</button>
+              <button id="ctx-new" class="ghost small" type="button">New session</button>
+            </div>
+            <p id="ctx-tidy-note" class="muted small" role="status"></p>
           </div>
         </div>
         <button id="head-more" class="ghost icon head-more" type="button" aria-label="This conversation: model, voice and server" aria-expanded="false" aria-controls="head-chips">⋯</button>
@@ -2375,6 +2385,52 @@
           <option value="400000">Very long (about 100,000 tokens: big cloud models)</option>
         </select>
       </label>
+      <div class="lean-card">
+        <h3>Tidy long chats <button type="button" class="tip" data-tip="Folds the older part of this chat into a short summary she reads instead, so the thread stays in view. Your messages stay right where they are, and Undo puts everything back.">?</button></h3>
+        <label class="row"><input id="compact-auto" type="checkbox"> Tidy long chats on their own</label>
+        <label>When the chat is
+          <select id="compact-at">
+            <option value="0.75">75 % full</option>
+            <option value="0.85">85 % full</option>
+            <option value="0.95">95 % full</option>
+          </select>
+        </label>
+        <label>Keep your last turns word for word <button type="button" class="tip" data-tip="Your newest messages and her answers are never folded. Six turns keeps the current task readable; fewer frees more room.">?</button>
+          <select id="compact-keep">
+            <option value="3">3 turns</option>
+            <option value="6">6 turns</option>
+            <option value="10">10 turns</option>
+          </select>
+        </label>
+        <label>Who writes the summary <button type="button" class="tip" data-tip="A model on this computer writes it first; nothing leaves. Private chats always use one, or a plain list made by the app when none is set up.">?</button>
+          <select id="compact-model">
+            <option value="auto">A model on this computer first, else the quick model</option>
+            <option value="local">Only a model on this computer</option>
+            <option value="quick">The quick model</option>
+            <option value="plain">No model: a plain list</option>
+          </select>
+        </label>
+        <label>Daily limit <button type="button" class="tip" data-tip="How many tidies a day, and how many tokens they may read and write together. Past it she makes a plain list instead, which costs nothing.">?</button>
+          <select id="compact-runs">
+            <option value="20">20 tidies</option>
+            <option value="40">40 tidies</option>
+            <option value="100">100 tidies</option>
+          </select>
+        </label>
+        <label>Token limit a day <button type="button" class="tip" data-tip="Tokens all tidies of a day may read and write together. A model on this computer costs nothing; the limit matters for the quick model.">?</button>
+          <select id="compact-tokens">
+            <option value="200000">200k tokens</option>
+            <option value="500000">500k tokens</option>
+            <option value="1000000">1M tokens</option>
+          </select>
+        </label>
+        <label>Keep a crisis conversation word for word for <button type="button" class="tip" data-tip="If something you said pointed to a crisis, that exchange is never folded for this long. After it, the summary note still tells her it happened.">?</button>
+          <select id="compact-crisis">
+            <option value="24">24 hours</option>
+            <option value="72">72 hours</option>
+          </select>
+        </label>
+      </div>
         </section>
         <section class="settings-page" data-page="models-routes" data-group="Models" data-title="Which model does what" data-owner-only hidden>
       <p class="muted small">Every job uses your default model unless you pick one here. A conversation's own model choice still wins. <em>✨ Use recommended</em> fills in picks from what's connected; changes save by themselves.</p>
@@ -2571,6 +2627,32 @@
         <section class="settings-page" data-page="ab-tools" data-group="Abilities" data-title="Tools and approvals" data-owner-only hidden>
       <p id="sandbox-status" class="muted"></p>
       <p id="sandbox-note" class="small" hidden></p>
+      <div class="lean-card">
+        <h3>Short tool list <button type="button" class="tip" data-tip="With many tools (MCP servers, plugins), sending every one with every message fills a small model's memory. She gets the ones this message needs and looks up the rest. Nothing is switched off: your approvals work the same.">?</button></h3>
+        <label>Send her
+          <select id="lean-mode">
+            <option value="auto">Automatic: a short list when there are many tools</option>
+            <option value="always">Always the short list</option>
+            <option value="off">Every tool, every message</option>
+          </select>
+        </label>
+        <p id="lean-measure" class="muted small"></p>
+        <label>Short list above <button type="button" class="tip" data-tip="Automatic switches to the short list once all her tools together pass this size. A fresh install measures about 9,700 tokens, so 6,000 makes it short; 12,000 only with MCP servers or plugins.">?</button>
+          <select id="lean-above">
+            <option value="3000">3,000 tokens</option>
+            <option value="6000">6,000 tokens</option>
+            <option value="12000">12,000 tokens</option>
+          </select>
+        </label>
+        <label>Keep a looked-up tool for <button type="button" class="tip" data-tip="She asked for tools she didn't have. They stay ready in this chat for this many of your messages.">?</button>
+          <select id="lean-sticky">
+            <option value="5">5 of your messages</option>
+            <option value="10">10 of your messages</option>
+            <option value="20">20 of your messages</option>
+          </select>
+        </label>
+        <label class="row"><input id="lean-localcore" type="checkbox"> Smaller list on models on this computer <button type="button" class="tip" data-tip="Models on this computer have the least room. With this on, her everyday list starts with 7 tools there; the rest is one look-up away.">?</button></label>
+      </div>
       <div class="perm-legend" role="note" aria-label="What the three choices mean">
         <div class="perm-card perm-auto"><strong>Allowed</strong><span>She does it by herself when it helps, and shows you what she did.</span></div>
         <div class="perm-card perm-ask"><strong>Ask me first</strong><span>She asks in the chat every time and waits for your yes or no.</span></div>

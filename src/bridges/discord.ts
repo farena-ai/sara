@@ -423,7 +423,7 @@ export class DiscordBridge {
       return void (await this.#rest('POST', `/interactions/${i.id}/${i.token}/callback`, { type: 4, data: { content, flags: 64 } }));
     }
     // Phase 119: the ⏰ buttons and the pickup offer (owner only, checked here); the row is updated in place.
-    if (i.data?.custom_id && /^(wm|pk):/.test(i.data.custom_id)) {
+    if (i.data?.custom_id && /^(wm|pk|cu):/.test(i.data.custom_id)) {
       if (!who || !isDiscordOwner(discordSettings(this.#app), who.id)) return void (await this.#rest('POST', `/interactions/${i.id}/${i.token}/callback`, { type: 4, data: { content: say(this.#app, askerLanguage(i.locale), en('Only the owner can answer that.')), flags: 64 } }));
       const r = chatButton(this.#app, i.data.custom_id);
       return void (await this.#rest('POST', `/interactions/${i.id}/${i.token}/callback`, { type: 7, data: { ...(r?.edit ? { content: r.edit } : {}), components: [] } }));
@@ -516,6 +516,8 @@ export class DiscordBridge {
       return { components: [{ type: 1, components: [{ type: 3, custom_id: `md:${r.conversationId}`, placeholder: say(this.#app, lang, en('Pick a model')), options: r.choices.slice(0, 25).map((m, n) => ({ label: m.model.slice(0, 100), description: m.provider.slice(0, 100), value: String(n) })) }] }] };
     }
     if (r.approval) return { components: [{ type: 1, components: [{ type: 2, style: 3, label: say(this.#app, lang, en('Allow')), custom_id: `ap:${r.approval.id}:1` }, { type: 2, style: 4, label: say(this.#app, lang, en('Deny')), custom_id: `ap:${r.approval.id}:0` }] }] };
+    // Phase 123: Undo under a /compact reply.
+    if (r.buttons?.length) return { components: [{ type: 1, components: r.buttons.slice(0, 5).map((b) => ({ type: 2, style: 2, label: b.label.slice(0, 80), custom_id: b.data })) }] };
     return {};
   }
 

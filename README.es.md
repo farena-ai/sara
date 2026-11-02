@@ -14,7 +14,7 @@ para la web, Windows, Mac y el móvil.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1737%20passing-brightgreen" alt="1737 tests passing">
+  <img src="https://img.shields.io/badge/tests-1751%20passing-brightgreen" alt="1751 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -114,15 +114,16 @@ Guías de un minuto, grabadas en un servidor de prueba con un modelo local (en i
 
 ## Novedades
 
+- **2.56** · Ligera y ordenada: en cada paso solo le ofrece las herramientas que encajan (entre un 54 y un 77 % menos de tokens por paso, medido), el resto lo busca ella, y `/compact` resume un chat largo en un resumen que puedes ver y deshacer.
 - **2.55** · WhatsApp: escríbele desde WhatsApp con el servicio oficial de Meta en tu propia cuenta, con una configuración guiada de 10 pasos que comprueba cada uno.
 - **2.54** · Rutinas y una revisión de seguridad: diez rutinas listas (resumen matutino, vigilar mi CI, alerta de precio…) con el coste a la vista antes de activarlas, y una página que dice en palabras sencillas lo seguro que está tu sistema, con arreglos de un clic que solo endurecen.
-- **2.53** · Precisión al programar: tras cada cambio ejecuta el comprobador de tipos o linter de tu proyecto y arregla lo que rompió en la misma respuesta; señálale cosas con `@file`, `@diff`, `@url` y más.
 
 <details>
 <summary><b>Historial de versiones</b>: lo que trajo cada versión desde la 2.4</summary>
 
 | Versión | Qué te trae |
 |---|---|
+| **2.56** · Ligera y ordenada | **Una lista corta de herramientas por paso:** elegida en código (sin llamar a ningún modelo) según lo que haces: el modo, tus palabras, las referencias con `@`, el uso reciente, una habilidad cargada, las rondas anteriores de un objetivo y las que siempre se mantienen por seguridad. El resto lo busca ella con *find tools*, y cada llamada se sigue comprobando contra todo lo que tiene permitido. Medido: una instalación nueva pasa de 11.871 a 5.471 tokens por paso (−54 %); con cuatro servidores MCP, de 23.476 a 5.438 (−77 %). `/tools` muestra lo que se ofrece. **`/compact`:** resume la parte antigua de un chat largo, escrito primero en este ordenador (los chats privados nunca salen de él). Tus mensajes siguen en el hilo, con *Ver resumen* y *Deshacer*; también se hace solo cerca del límite y los mensajes de crisis se mantienen palabra por palabra. Funciona en todas las apps de chat. |
 | **2.55.3** · MCP en Windows | Arreglado: en Windows, los servidores MCP que se inician con `npx` (incluidas las plantillas incorporadas) no arrancaban. |
 | **2.55.2** · iMessage | **iMessage con BlueBubbles** (Ajustes → Conexiones → iMessage, un plugin opcional): escríbele desde Mensajes en tu iPhone. Necesita un Mac con BlueBubbles y un Apple ID propio para ella (Sara no funciona con el tuyo, porque vería todos tus chats). Ocho pasos guiados comprobados con un ✓, soluciones sencillas, texto, fotos y archivos, y se pone al día con lo que le llegó mientras estaba desconectada. Puntos de escritura y reacciones solo si la Private API de BlueBubbles ya está activada; Sara nunca te pide bajar la seguridad de tu Mac para eso. |
 | **2.55.1** · Matrix | **Matrix** (Ajustes → Conexiones → Matrix, un plugin opcional): habla con ella en Element o cualquier app de Matrix con una cuenta de Matrix propia. Cinco pasos guiados, cada uno comprobado con un ✓, y soluciones sencillas para cada error. Texto, fotos y notas de voz; solo tú salvo que permitas a otros (también servidores enteros); las invitaciones de desconocidos se rechazan. Solo salas sin cifrado de extremo a extremo: en una sala cifrada explica por qué no puede leerla y se va. |
@@ -213,7 +214,7 @@ Todas las versiones: [CHANGELOG.md](CHANGELOG.md) · [versiones](https://github.
 
 En orden de construcción, una versión cada una ([la lista completa](docs/ROADMAP.md)):
 
-- **Después** (2.56–2.61): fotos y archivos en las apps de chat, hablarle mientras trabaja, Signal, correo, WhatsApp, iMessage (BlueBubbles) y SMS, «sigue hasta terminar», comprobaciones de código tras cada cambio, una galería de rutinas y **la Sara Store** de plugins, habilidades y servidores MCP (ComfyUI, Blender, Playwright…) con instalación en un clic y una forma de enviar los tuyos.
+- **Después** (2.57–2.61): fotos y archivos en las apps de chat, hablarle mientras trabaja, Signal, correo, WhatsApp, iMessage (BlueBubbles) y SMS, «sigue hasta terminar», comprobaciones de código tras cada cambio, una galería de rutinas y **la Sara Store** de plugins, habilidades y servidores MCP (ComfyUI, Blender, Playwright…) con instalación en un clic y una forma de enviar los tuyos.
 - La app de iPhone (esperando a Apple) y tus ideas en [Discussions](https://github.com/farena-ai/sara/discussions).
 
 El plan completo: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -410,8 +411,8 @@ prueba comprobaba. Lo que aporta hoy es la forma de trabajar (ejecuta las prueba
 antes de pasos arriesgados, muestra lo que se ejecutó), no una puntuación más alta en estos
 conjuntos. Detalles, resultados por tarea y cómo repetirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-Además, `npm run check`: una comprobación de tipos y 1752 pruebas automáticas con un modelo falso
-programado (sin red, sin GPU): 1737 pasan en Windows y las otras 8 son pruebas del aislamiento solo
+Además, `npm run check`: una comprobación de tipos y 1766 pruebas automáticas con un modelo falso
+programado (sin red, sin GPU): 1751 pasan en Windows y las otras 8 son pruebas del aislamiento solo
 para Linux, que se ejecutan en un servidor Linux.
 
 ## Cómo se compara Sara

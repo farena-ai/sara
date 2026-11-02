@@ -47,6 +47,7 @@ import { RunStore, runSettings } from './runs.ts';
 import { createStarterTool } from './starters.ts';
 import { createProjectNoteTool, ProjectKnowledgeStore } from './projectknow.ts';
 import { createSettingsGuideTool } from './settingsguide.ts';
+import { findToolsTool } from './lean.ts';
 import { createReviewTools } from './codereview.ts';
 import { createIssueTool, IssueWatcher } from './issues.ts';
 import { createPlannerTools, PlannerStore, type Reminder } from './planner.ts';
@@ -967,6 +968,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   app.projects = new ProjectKnowledgeStore(app, store.db);
   if (!isMember) tools.add(createProjectNoteTool(() => app));
   tools.add(createSettingsGuideTool());
+  // Phase 123 (LEAN §4.7): she looks up and loads tools she wasn't sent (offered in lean turns only).
+  tools.add(findToolsTool());
   // Phase 121: her read-only safety report and the routine card (she can't fix or turn on anything).
   if (!isMember && !isDemo) {
     tools.add(createSafetyReportTool(() => (app as AppContext & { safetyDeps?: () => SafetyDeps }).safetyDeps?.() ?? { app, auth, dataDir, sandbox: app.sandbox, version: info.version }));

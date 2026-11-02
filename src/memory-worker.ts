@@ -1,6 +1,7 @@
 // 3.1 + 3.2: after a conversation goes quiet, the conversation's own model writes a dated summary
 // and pulls out a few owner facts. Every fact must cite the owner's message and quote his exact
 // words; anything that can't be verified against the transcript is dropped (receipts for memory).
+import { dropFoldsCovering } from './compact.ts';
 import { guard } from './log.ts';
 import type { MemoryKind } from './memory.ts';
 import { resolveFor, type AppContext } from './chat.ts';
@@ -433,6 +434,8 @@ export function forgetMemory(app: AppContext, mem: MemoryStore, id: number): { r
   const touched = new Map<string, number>();
   const hide = (convId: string, msgId: number) => {
     app.store.updateMessageMeta(msgId, { forgotten: true });
+    // Phase 123 (LEAN §5.8): forget wins: a fold covering it is dropped and its summary erased.
+    dropFoldsCovering(app, convId, msgId);
     hidden.push(msgId);
     touched.set(convId, Math.min(touched.get(convId) ?? Number.POSITIVE_INFINITY, msgId));
   };

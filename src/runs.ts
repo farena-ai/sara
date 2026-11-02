@@ -107,6 +107,19 @@ export interface StepInfo {
   inputsSha?: string;
   /** Phase 96: the skills loaded in the conversation at this step (up front or with skill_use). */
   skills?: string[];
+  /** Phase 123: the lean tool list of this step (and the fold its history used). */
+  lean?: StepLean;
+}
+
+/** Phase 123 (LEAN §4.8): offered names (the first step in full, later ones as `+added`), loads, sizes. */
+export interface StepLean {
+  lean?: boolean;
+  offered?: string[];
+  loaded?: { name: string; why: string }[];
+  eligible?: number;
+  eligibleTokens?: number;
+  offeredTokens?: number;
+  foldId?: number;
 }
 
 export interface RunSettings {
@@ -190,6 +203,8 @@ export interface StepView {
   inputsSha: string | null;
   /** Phase 96: the skills loaded at this step (empty before 2.29). */
   skills: string[];
+  /** Phase 123: the lean tool list and fold of this step (null before 2.56). */
+  lean: StepLean | null;
 }
 
 /** Phase 83: one message of a branch, kept in the run record (never in the conversation). */
@@ -298,6 +313,8 @@ export class RunStore {
     if (!cols('run_steps').has('inputs_sha')) db.exec('ALTER TABLE run_steps ADD COLUMN inputs_sha TEXT');
     // Phase 96 (additive): which skills were loaded at each step.
     if (!cols('run_steps').has('skills')) db.exec('ALTER TABLE run_steps ADD COLUMN skills TEXT');
+    // Phase 123 (additive): the lean tool list and the fold of each step.
+    if (!cols('run_steps').has('lean')) db.exec('ALTER TABLE run_steps ADD COLUMN lean TEXT');
     // Phase 87 (additive): step thumbnails of computer use (320 px JPEGs, redacted on the device),
     // kept by hash with their run; a shorter retention than the run itself (30 days).
     db.exec(`CREATE TABLE IF NOT EXISTS run_thumbs (
@@ -387,8 +404,8 @@ export class RunStore {
     const msgIds = s.tools.map((t) => t.messageId).filter((x): x is number => Boolean(x));
     const bytes = (calls?.length ?? 0) + (tools?.length ?? 0) + (files?.length ?? 0) + (contra?.length ?? 0) + (extra?.length ?? 0) + (picks?.length ?? 0) + 300;
     this.#db
-      .prepare('INSERT INTO run_steps (run_id, idx, at, label, model, provider, system_sha, history_from_id, history_to_id, extra, memory_picks, policy_id, calls, tool_calls, tool_message_ids, files_touched, contradictions, tokens_in, tokens_out, usd, unpriced, unreported, ms, stopped, reply_message_id, bytes, inputs_sha, skills) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(runId, idx, at, info.label?.slice(0, 200) ?? null, s.model ?? info.model ?? null, s.provider ?? info.provider ?? null, sha, info.historyFromId ?? null, info.historyToId ?? null, extra, picks, info.policyId ?? null, calls, tools, msgIds.length ? JSON.stringify(msgIds) : null, files, contra, sum.in, sum.out, sum.usd, sum.unpriced, sum.unreported, sum.ms, s.stopped ?? null, s.replyMessageId ?? null, bytes, info.inputsSha ?? null, info.skills?.length ? JSON.stringify(info.skills.slice(0, 50)) : null);
+      .prepare('INSERT INTO run_steps (run_id, idx, at, label, model, provider, system_sha, history_from_id, history_to_id, extra, memory_picks, policy_id, calls, tool_calls, tool_message_ids, files_touched, contradictions, tokens_in, tokens_out, usd, unpriced, unreported, ms, stopped, reply_message_id, bytes, inputs_sha, skills, lean) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(runId, idx, at, info.label?.slice(0, 200) ?? null, s.model ?? info.model ?? null, s.provider ?? info.provider ?? null, sha, info.historyFromId ?? null, info.historyToId ?? null, extra, picks, info.policyId ?? null, calls, tools, msgIds.length ? JSON.stringify(msgIds) : null, files, contra, sum.in, sum.out, sum.usd, sum.unpriced, sum.unreported, sum.ms, s.stopped ?? null, s.replyMessageId ?? null, bytes, info.inputsSha ?? null, info.skills?.length ? JSON.stringify(info.skills.slice(0, 50)) : null, info.lean ? JSON.stringify(info.lean).slice(0, 60_000) : null);
     return bytes;
   }
 
@@ -478,6 +495,7 @@ export class RunStore {
       extra: parse<string[]>(r.extra, []),
       inputsSha: (r.inputs_sha as string | null | undefined) ?? null,
       skills: parse<string[]>(r.skills, []),
+      lean: parse<StepLean | null>(r.lean, null),
     };
   }
 

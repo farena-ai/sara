@@ -41,6 +41,7 @@ import { initBottomBar } from './bottom-bar.js';
 import { startsOnToday } from './start-view.js';
 import { DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNote, updatesShown, versionChanged } from './update-check.js';
 import { initHousehold, joinFromLink, loadAccount, loadHousehold, showPaused } from './household.js';
+import { compactNotice, dimFolded, initLean, loadLean, paintSheet } from './lean.js';
 import { initPersist, loadPersistSettings, loadRepeats, persistEvent, persistMessage, persistOpen, savePersistSettings } from './persist.js';
 import { initRoutines, loadRoutines, openRoutinesAt, setRoutinesOpener, todayRoutineCards } from './routines.js';
 import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-check.js';
@@ -1779,6 +1780,9 @@ function renderMessages(messages, opts = {}) {
         const pc = previewCard(m.content);
         if (pc) els.push(pc);
       }
+    } else if (m.role === 'notice' && m.kind === 'compact') {
+      // Phase 123: the tidy divider (Show summary, Undo) (web/lean.js).
+      els.push(compactNotice(m, messages));
     } else if (persistMessage(m)) {
       // Phase 118: a goal round / repeat line, or a folded "no change" tick.
       els.push(persistMessage(m));
@@ -1880,6 +1884,8 @@ function renderMessages(messages, opts = {}) {
   }
   flush();
   box.replaceChildren(...els);
+  // Phase 123: the messages a tidy stands in for stay in place, dimmed.
+  dimFolded(box, messages);
   for (const b of els) {
     if (!b._msg) continue;
     const m = b._msg;
@@ -1976,7 +1982,8 @@ function commandNotice(m) {
 
 /** Phase 107: her commands typed in the app: /new, /reset, /stop, /status, /help, /model, /remember. */
 // Phase 113: /bug and /idea open the report sheet (the server answers with what to fill in).
-const CHAT_COMMAND = /^\/(new|reset|stop|status|help|model|remember|bug|idea|when|continue)(?:\s[\s\S]*)?$/i;
+// Phase 123: /compact and /tools.
+const CHAT_COMMAND = /^\/(new|reset|stop|status|help|model|remember|bug|idea|when|continue|compact|tools)(?:\s[\s\S]*)?$/i;
 async function runChatCommand(text) {
   if (!state.currentId) {
     const conv = await api('/conversations', { method: 'POST', body: {} });
@@ -1997,7 +2004,7 @@ async function runChatCommand(text) {
     }
     if (r.report) openHubReport({ kind: r.report.kind, text: r.report.text });
     // Phase 119: /continue made a pickup here: its chip at the top of the thread.
-    if (/^\/continue\b/i.test(text)) {
+    if (/^\/(continue|compact)\b/i.test(text)) {
       await openConversation(state.currentId);
       $('#pickup-banner').hidden = true;
     }
@@ -7776,6 +7783,8 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'co-imessage') void loadIMessagePage();
   if (pick === 'ab-budgets') void loadBudgets();
   if (pick === 'ab-persist') void loadPersistSettings();
+  // Phase 123: the Short tool list and Tidy long chats cards.
+  if (pick === 'ab-tools' || pick === 'models-default') void loadLean();
   if (pick === 'ab-precise') void loadPreciseSettings();
   if (pick === 'ab-when') void loadWhenSettings();
   if (pick === 'co-pickup') void loadPickupSettings();
@@ -8150,6 +8159,8 @@ function updateContextRing() {
       void api(`/conversations/${id}/fill`)
         .then((f) => {
           if (state.currentId === id && typeof f.percent === 'number') setContextRing(f.percent, KEPT_MESSAGES);
+          // Phase 123: the tools line and Tidy this chat in the ring's sheet.
+          if (state.currentId === id) paintSheet(f);
         })
         .catch(() => {});
     }, 800);
@@ -8978,6 +8989,8 @@ initPlugins();
 initBusy({ api, state, append, bubble, el, canSteer: () => !state.conv?.partner, allowed: busySendAllowed, sendNow: (text) => void send(text) });
 // Phase 118: this chat's goal and repeats (web/persist.js).
 initPersist({ api, state, el, openConversation: (id) => void openConversation(id), openSettings: (page) => void openSettings(page) });
+// Phase 123: the short tool list and Tidy this chat (web/lean.js).
+initLean({ api, state, el, reload: () => void openConversation(state.currentId), newSession: () => void runChatCommand('/new') });
 // Phase 121: routines (Planner → Routines) and the safety check-up (Settings → Data & health).
 initRoutines({ api, el, openConversation: (id) => { $('#planner').close(); void openConversation(id); }, openSettings: (page) => { $('#planner').close(); void openSettings(page); } });
 initSafetyCheck({ api, el, openSettings: (page) => void openSettings(page) });

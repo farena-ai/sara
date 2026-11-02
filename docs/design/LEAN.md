@@ -13,6 +13,31 @@ pinned), and one ordinary tool, `find_tools`, lets her load the rest. The only n
 phase is the summary `/compact` writes, and it goes through the Phase 109 cheap-call helper
 (`src/cheap.ts`) with its local-first route, its daily ledger and its private-chat rule.
 
+> **As built (2.56.0), 2026-11-02.** Built as designed in `src/lean.ts`, `src/compact.ts`,
+> `src/routes/lean.ts`, `web/lean.js`/`lean.css`, `test/phase123.test.ts`; §11 defaults applied (cold
+> built-ins deferred; auto above 6,000 tokens; no per-model window; no fold inside a turn; no `/compact`
+> off the record or in partner chats; no hand-editing; `/compact` in the Telegram and Discord menus,
+> `/tools` typed; `/v1` and MCP-server turns keep the full list; plugins can't load tools; local first,
+> then quick (never in private), 40 folds / 500k tokens a day; his last 6 turns kept). **Re-measured on
+> the build** with the §1.1 harness (fresh folder, recording stand-in model, `o200k_base`): fresh install
+> everyday 67 tools / 9,603 schema tokens → 18 / 2,778 (fixed part 11,871 → 5,471); coding 67 → 23
+> (12,885 → 6,355); with the four MCP servers (started with `npx`, which works since 2.55.3) 141 tools /
+> 20,640 → 18 / 2,778 (23,476 → 5,438, −77 %) and coding 24,490 → 6,325 (−74 %); "open an issue on the
+> Sara repo" offers 12 GitHub tools up front (30 tools, 7,240). On a local model with *localCore* the
+> everyday list is 14 tools (4,878). Live with Ollama gemma4:12b: she called `find_tools("entity store
+> or memory store")`, got `mcp_memory_create_entities` loaded and used it through the normal card; a web
+> `/compact` folded 12 messages (91 % → 40 %); an automatic fold ran in a stand-in Telegram chat.
+> **Differences from the text:** families come from name prefixes (no `family` field set in `main.ts`);
+> the persona's tool paragraphs stay keyed on the eligible list; replays and evals run with the full list
+> (`force: 'off'`) and a replayed step doesn't re-apply a fold; a repeated identical `find_tools` query is
+> answered by `find_tools` itself ("already looked") rather than the loop guard (which only counts
+> failures); the fold focus is sent with the messages, not in the instruction (gemma4:12b returned
+> nothing with it there); a summary over 3,000 characters is cut at its last sentence instead of
+> retried; the "no thrash" rule counts his messages since the last fold *or undo* notice; the CH1 line
+> is only sent with auto off or after the two-failure switch-off; Telegram/Discord also show the turn's
+> `compact` notice line before the "(I tidied…)" line; *Jump to the tidy line*, the run view's tools line
+> and the step line's *loaded* tag are not built.
+
 **The owner's words (2026-10-31, approving the gap review's suggestions as Phases 115–128):** "I like
 the top 10 as well as the lower down ones." The ROADMAP line he approved:
 

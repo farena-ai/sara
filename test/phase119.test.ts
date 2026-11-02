@@ -360,8 +360,8 @@ test('the chip and the chat-app buttons: again re-arms, forget cancels; others g
   assert.deepEqual(ex.rows[0].buttons.map((b) => b.data.replace(/\d+/, 'N')), ['wm:N:done', 'wm:N:again', 'wm:N:forget']);
   assert.equal(afterTurnExtras(app, s.tg.id, 'partner-dm').rows.length, 0);
   const src = readFileSync(join(ROOT, 'src', 'bridges', 'telegram.ts'), 'utf8');
-  assert.match(src, /\^\(wm\|pk\):[\s\S]{0,600}Only the owner can answer that/, 'someone else pressing it: the existing rule');
-  assert.match(readFileSync(join(ROOT, 'src', 'bridges', 'discord.ts'), 'utf8'), /\^\(wm\|pk\):[\s\S]{0,600}Only the owner can answer that/);
+  assert.match(src, /\^\(wm\|pk(?:\|cu)?\):[\s\S]{0,600}Only the owner can answer that/, 'someone else pressing it: the existing rule (Phase 123 adds cu: for /compact Undo)');
+  assert.match(readFileSync(join(ROOT, 'src', 'bridges', 'discord.ts'), 'utf8'), /\^\(wm\|pk(?:\|cu)?\):[\s\S]{0,600}Only the owner can answer that/);
 });
 
 test('/when: set for card #1, list with numbers, forget; others: a normal message; work room: privately; no provider request', async (t) => {

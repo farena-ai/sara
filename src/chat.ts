@@ -47,6 +47,8 @@ import { projectSection } from './projectknow.ts';
 import { librarySection } from './library/use.ts';
 import { recipesSection } from './recipes.ts';
 import { loadedSkills, SKILL_KEEP_MESSAGES, skillsSection } from './skill-tools.ts';
+import { ensureLeanTables, familyOf, FIND_TOOLS, findToolsTool, leanFor, leanOff, leanSettings, loadRows, schemaHint, writeLoad, type TurnTools } from './lean.ts';
+import { autoFold, foldFor } from './compact.ts';
 import { RECALL_MARK, recallHooks, recallMode } from './triggers.ts';
 import { CHANGES_FILES } from './codemap/tools.ts';
 import { checksAllowed, TurnChecks, type ChecksCard, type ChecksChip } from './diagnostics.ts';
@@ -307,7 +309,7 @@ export interface AppContext {
 
 export type ChatEvent =
   /** Phase 61: `key` + `params` (fallback notices) let the app and the bridges word it in the owner's language; `text` is the English. */
-  | { type: 'notice'; kind: 'disclosure' | 'crisis' | 'fallback'; text: string; key?: string; params?: Record<string, unknown> }
+  | { type: 'notice'; kind: 'disclosure' | 'crisis' | 'fallback' | 'compact'; text: string; key?: string; params?: Record<string, unknown> }
   | { type: 'token'; text: string }
   | { type: 'tool_call'; id: string; name: string; summary: string; args: Record<string, unknown> }
   /** A long tool call is still being written by the model (chars so far). */
@@ -775,8 +777,14 @@ export function stripOwnTag(text: string, name: string): string {
   return out.trim() ? out : text;
 }
 
-export function buildHistory(messages: StoredMessage[], budgetChars = Number.POSITIVE_INFINITY, loadImage?: (id: string) => ImageData | undefined, group?: { ownerName: string }, refsText?: (messageId: number, full: boolean) => string): { messages: ChatMessage[]; firstKeptId: number; dropped: number } {
+export function buildHistory(messages: StoredMessage[], budgetChars = Number.POSITIVE_INFINITY, loadImage?: (id: string) => ImageData | undefined, group?: { ownerName: string }, refsText?: (messageId: number, full: boolean) => string, fold?: { throughId: number; note: string; pinned?: Set<number> }): { messages: ChatMessage[]; firstKeptId: number; dropped: number } {
   const out: ChatMessage[] = [];
+  // Phase 123 (LEAN §5.4): a fold stands in for everything up to `throughId` (pinned messages stay
+  // in place); its note goes first and counts against the budget like any message.
+  if (fold) {
+    messages = messages.filter((m) => m.id > fold.throughId || m.role === 'notice' || fold.pinned?.has(m.id));
+    budgetChars -= fold.note.length + 20;
+  }
   // Phase 120 (PRECISE §5.6): only the newest owner message with @-references carries their full
   // block; older ones carry a one-line stub each (refsText decides, with the owner's olderAs choice).
   const newestRefs = refsText ? messages.findLast((m) => m.role === 'user' && Array.isArray(m.meta?.refs) && (m.meta.refs as unknown[]).length && !isForgotten(m))?.id : undefined;
@@ -869,6 +877,7 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
   while (start < out.length && out[start].role === 'tool') start++;
   // Phase 96: skill bodies still in use that fell before the start come back as a note.
   const kept: ChatMessage[] = [...skillBody.entries()].filter(([i]) => i < start).map(([, body]) => ({ role: 'user', content: `[Note from the app: a skill you loaded earlier for this task, kept here while you work on it:]\n${body}` }));
+  if (fold) kept.unshift({ role: 'user', content: fold.note });
   const sliced = [...kept, ...out.slice(start)];
   // Every tool result goes right after the request that asked for it (providers refuse anything
   // else). Something saved in between while she was working (a job's report, a briefing, a call
@@ -910,9 +919,9 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
  * Phase 107 (CH1): how full a conversation's history is right now, measured like the next turn's
  * history (the same budget and limits): /status, the "nearly full" offer and the app's bar.
  */
-export function contextFill(app: AppContext, conv: Conversation): { used: number; budget: number; dropped: number; percent: number } {
+export function contextFill(app: AppContext, conv: Pick<Conversation, 'id'>): { used: number; budget: number; dropped: number; percent: number } {
   const budget = app.settings.get().historyBudgetChars ?? HISTORY_BUDGET_CHARS;
-  const hist = buildHistory(app.store.messages(conv.id), budget, undefined, undefined, refsTextFor(app));
+  const hist = buildHistory(app.store.messages(conv.id), budget, undefined, undefined, refsTextFor(app), foldFor(app, conv));
   const used = historySize(hist.messages);
   // Older parts already left out: the chat is full, whatever the kept part measures.
   return { used, budget, dropped: hist.dropped, percent: hist.dropped > 0 ? 100 : fillPercent(used, budget) };
@@ -1180,6 +1189,12 @@ export interface BeforeModelCall {
   policyId?: string;
   /** Phase 96: the skills loaded in this conversation at this call (up front or with skill_use). */
   skills?: string[];
+  /** Phase 123: how many tools were eligible (the gate's list) when fewer were offered. */
+  eligible?: number;
+  /** Phase 123: the lean step record (offered names, loads with reasons, token estimates). */
+  lean?: import('./runs.ts').StepLean;
+  /** Phase 123: the fold this step's history used. */
+  foldId?: number;
 }
 export interface BeforeTool {
   step: number;
@@ -1310,7 +1325,7 @@ export function recorderHooks(app: AppContext, rec: RunRecorder): TurnHooks {
       // Phase 83: one hash of the history + notes sent, so a replay can prove it rebuilt them.
       const inputsSha = inputsHash(c.messages.slice(1));
       rec.overheadMs += performance.now() - t0;
-      rec.startStep({ model: c.model, provider: c.provider.config.label, system: lastClean, historyFromId: c.historyFromId, historyToId: c.historyToId, extra, inputsSha, ...(c.memoryPicks?.length ? { memoryPicks: c.memoryPicks } : {}), ...(c.policyId ? { policyId: c.policyId } : {}), ...(c.skills?.length ? { skills: c.skills } : {}) });
+      rec.startStep({ model: c.model, provider: c.provider.config.label, system: lastClean, historyFromId: c.historyFromId, historyToId: c.historyToId, extra, inputsSha, ...(c.memoryPicks?.length ? { memoryPicks: c.memoryPicks } : {}), ...(c.policyId ? { policyId: c.policyId } : {}), ...(c.skills?.length ? { skills: c.skills } : {}), ...(c.lean || c.foldId ? { lean: { ...(c.lean ?? {}), ...(c.foldId ? { foldId: c.foldId } : {}) } } : {}) });
     },
     afterReply(c) {
       rec.reply(c.messageId);
@@ -1591,6 +1606,16 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // Phase 35: the stop word ends any scene at once.
   if (!conv.partner && usedStopWord(text, app.persona.intimacy?.stopWord)) safetyNotes.push(STOP_NOTE(app.settings.get().ownerName?.trim() || 'the owner'));
 
+  // Phase 123 (LEAN §5.7): near the limit, the older part is tidied before the first model call (his
+  // own chats, coding chats and goal rounds; never a partner chat, a group, another app, a replay or
+  // an eval). A slow fold goes on in the background and applies from the next turn.
+  if (!opts.group && !opts.outside && !external && !opts.externalApp && !opts.replay && !opts.recorder && !opts.clientHistory && !conv.partner && !opts.resume) {
+    const f = await autoFold(app, conv, opts.persist?.kind === 'goal' ? 'goal' : 'auto');
+    if (f) yield { type: 'notice', kind: 'compact', text: `✂ ${f.folded} earlier messages tidied`, key: '✂ {n} earlier messages tidied', params: { n: f.folded } };
+  }
+  /** Phase 123: the active fold (the history after it, its note first). */
+  const activeFold = opts.clientHistory || opts.group || opts.replay ? undefined : foldFor(app, conv);
+
   let provider: Provider;
   let model: string;
   let chain: ModelChoice[];
@@ -1652,6 +1677,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const s = app.settings.get();
   const modelKey = `${provider.config.id}/${model}`;
   const noTools = app.noToolModels ?? (app.noToolModels = new Set());
+  // Phase 123: find_tools lives in the registry (Settings shows it; the gate finds it).
+  if (!app.tools.get(FIND_TOOLS)) app.tools.add(findToolsTool());
   let tools = noTools.has(modelKey) || conv.partner || opts.noTools ? [] : app.tools.enabled(s.toolPermissions).filter((t) => !((conv.private || privateLocalOn()) && OFFSERVER_TOOL(t.spec.name)));
   // Hardening M3: with her tools allowed for other apps, her look-back over every past conversation stays out.
   if (opts.externalApp) tools = tools.filter((t) => t.spec.name !== 'recall');
@@ -2100,6 +2127,41 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       yield ev;
     }
   }
+  // Phase 123 part A (LEAN §4.3, §4.4): which eligible tools are OFFERED as schemas this turn. The
+  // run gate below keeps checking `tools` (the eligible list), so nothing about permissions changes.
+  const leanSet = leanSettings(app).tools;
+  const leanPlace = tools.length > 0 && !opts.group && !opts.outside && !external && !opts.externalApp && !conv.partner && !opts.noTools && provider.config.kind !== 'claude-code' && provider.config.kind !== 'grok-cli';
+  let turnTools: TurnTools;
+  {
+    let loads: ReturnType<typeof loadRows> = [];
+    let chatOff = false;
+    try {
+      ensureLeanTables(store.db);
+      loads = loadRows(store.db, conv.id);
+      chatOff = leanOff(store.db, conv.id);
+    } catch {
+      /* an off-record store */
+    }
+    const recentMsgs = store.messages(conv.id).slice(-SKILL_KEEP_MESSAGES);
+    const skillText = [String((userMsg.meta?.autoSkill as { text?: string } | undefined)?.text ?? ''), ...recentMsgs.filter((m) => m.role === 'tool' && typeof m.meta?.skill === 'string').map((m) => m.content)].join('\n');
+    const ownerTurnIds = store.messages(conv.id).filter((m) => m.role === 'user' && !m.meta?.steer).map((m) => m.id).reverse();
+    turnTools = leanFor(leanSet, leanPlace ? tools : tools.filter((t) => t.spec.name !== FIND_TOOLS), { text, mode: conv.mode === 'coding' || isWorkChannel(conv.channel) ? 'coding' : 'chat', local: provider.config.local === true && !isCloudModelName(model), turnId: userMsg.id, ownerTurnIds, skillText, goal: Boolean(opts.persist), ...(!leanPlace || chatOff || opts.replay ? { force: 'off' as const } : {}) }, loads, loads.filter((r) => r.pinned).map((r) => r.tool));
+    if (!turnTools.lean) tools = tools.filter((t) => t.spec.name !== FIND_TOOLS);
+  }
+  /** Writes this turn's loads (asked, ref, skill, find, used) to tool_loads; `n` = how many are written. */
+  let loadsWritten = 0;
+  const writeLoads = () => {
+    if (!turnTools.lean || opts.replay) return;
+    try {
+      const at = app.now().toISOString();
+      for (const [name, why] of turnTools.offered) if (why === 'asked' || why === 'ref' || why === 'skill') writeLoad(store.db, conv.id, name, familyOf(app.tools.get(name) ?? { spec: { name, description: '', parameters: {} } }).id, why, userMsg.id, at);
+      for (const l of turnTools.loaded.slice(loadsWritten)) writeLoad(store.db, conv.id, l.name, familyOf(app.tools.get(l.name) ?? { spec: { name: l.name, description: '', parameters: {} } }).id, l.why, userMsg.id, at);
+      loadsWritten = turnTools.loaded.length;
+    } catch {
+      /* off the record */
+    }
+  };
+  writeLoads();
   const replaySystem = opts.replay ? opts.replay.system + (safetyNotes.some((n) => !opts.replay!.system.includes(n)) ? `\n\n## Important for this reply\n${safetyNotes.filter((n) => !opts.replay!.system.includes(n)).map((n) => `- ${n}`).join('\n')}` : '') : '';
   // Phase 116 (BR2 §5.8): the tool-loop guard, per turn (a replay decides again from the recorded steps).
   const guard = new LoopGuard((v) => app.redactor.redactValue(v));
@@ -2189,6 +2251,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       ownerName: opts.outside ? opts.outside.operator : (conv.partner ?? s.ownerName),
       safetyNotes,
       tools: tools.map((t) => t.spec.name),
+      // Phase 123 (LEAN §4.6): the names line lists the offered tools, then the directory.
+      ...(turnTools.lean ? { toolsOffered: turnTools.offeredNames(tools), toolDirectory: turnTools.directory() } : {}),
       workspace: conv.workspace,
       coding: conv.mode === 'coding',
       // Phase 51: short commands in a coding conversation (for "Quiet when I'm focused").
@@ -2238,10 +2302,12 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           }
           return { messages: [...earlier, ...own], firstKeptId: userMsg.id, dropped: 0 };
         })()
-      : buildHistory(store.messages(conv.id), budget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined, opts.group ? undefined : refsText);
+      : buildHistory(store.messages(conv.id), budget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined, opts.group ? undefined : refsText, activeFold);
     const messages: ChatMessage[] = [{ role: 'system', content: (opts.clientNote?.text.trim() ? system + clientNoteSection(opts.clientNote) : system) + (opts.roomNow?.trim() ? (conv.partner ? roomNowSection(opts.roomNow) : roomNoteSection(opts.roomNow, undefined, true)) : opts.roomNote?.trim() ? roomNoteSection(opts.roomNote) : '') }];
     yield { type: 'context', used: historySize(hist.messages), budget, dropped: hist.dropped };
-    if (hist.dropped) {
+    if (hist.dropped && activeFold) {
+      messages.push({ role: 'user', content: '[Note from the app: even after the tidied part, this conversation is long, so some messages after it are left out here.]' });
+    } else if (hist.dropped) {
       // Older parts didn't fit: say so, with this conversation's own summary if there is one.
       const summary = app.memory?.list({ kind: 'summary', limit: 20 }).find((m) => m.conversationId === conv.id && (m.sourceMessageId ?? 0) < hist.firstKeptId);
       messages.push({ role: 'user', content: `[Note from the app: this conversation is long, so its earliest part is left out here.${summary ? ` Summary of it: ${summary.content}` : ''}]` });
@@ -2314,7 +2380,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         historyFromId: hist.firstKeptId,
         historyToId: store.lastMessageId(conv.id),
         extra: messages.slice(1).filter((m) => !sent.has(m)).map((m) => (typeof m.content === 'string' ? m.content : '')),
-        tools: tools.map((t) => t.spec.name),
+        // Phase 123: what was sent (plugins see the offered names; the eligible count rides along).
+        tools: turnTools.offeredNames(tools),
+        eligible: tools.length,
+        ...(turnTools.lean ? { lean: turnTools.stepRecord() } : {}),
+        ...(activeFold ? { foldId: activeFold.id } : {}),
         ...(injection?.picks.length ? { memoryPicks: injection.picks, policyId: injection.picks[0]?.policy ?? memPolicy } : { policyId: memPolicy }),
         ...(turnSkills.size ? { skills: [...turnSkills] } : {}),
       };
@@ -2362,7 +2432,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     try {
       const p = provider;
       const m = model;
-      const offered = tools.map((t) => t.spec);
+      const offered = turnTools.offeredSpecs(tools);
       for await (const ev of streamWithin((sig) => p.stream({ model: m, messages, tools: offered, signal: sig, ...(callMax ? { maxTokens: callMax } : {}), ...(callThink ? { reasoning: callThink } : {}) }), signal, fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }))) {
         if (ev.type === 'text') {
           reply += ev.text;
@@ -2537,6 +2607,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       let pluginCard: PluginCard | undefined;
 
       const set = tool ? app.tools.permission(call.name, s.toolPermissions) : 'never';
+      // Phase 123 (LEAN §4.5): an eligible tool she called without its schema runs through the same gate and is loaded.
+      const wasOffered = turnTools.isOffered(call.name);
       // Phase 116 (BR2 §5.8): the loop guard, before anything is prepared or asked.
       const offeredNow = Boolean(tool) && !conv.partner && tools.some((t) => t.spec.name === call.name) && !(tool?.isAvailable && !tool.isAvailable());
       const guardHit: GuardHit | undefined = offeredNow ? guard.check(call.name, call.arguments) : undefined;
@@ -2787,6 +2859,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
               attachCard: (c) => {
                 if (tool.source?.startsWith('Plugin: ')) pluginCard = c;
               },
+              ...(turnTools.lean ? { lean: { find: (a: Record<string, unknown>) => turnTools.find(a, ownerWord) } } : {}),
             });
             if (tried && sbDecision === 'ran') output = `[tried in a sandbox copy first: ${changesLine(tried.changes)}; the owner chose to run it for real]\n${output}`;
           } catch (err) {
@@ -2816,6 +2889,23 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         }
         if (checkBlock) output = `${output}\n\n${checkBlock}`;
       }
+      // Phase 123: a call to an eligible tool that wasn't offered: loaded from the next step on; a
+      // failed one shows her the fields it takes.
+      if (turnTools.lean && tool && !wasOffered && turnTools.isEligible(call.name) && status !== 'denied') {
+        turnTools.load([call.name], 'used');
+        if (status === 'error') output = `${output}\n${schemaHint(tool)}`;
+      }
+      if (turnTools.lean && ranTool && call.name !== FIND_TOOLS) {
+        const why = turnTools.offered.get(call.name);
+        if (why && why !== 'core' && why !== 'safety' && why !== 'pinned') {
+          try {
+            writeLoad(store.db, conv.id, call.name, familyOf(tool!).id, 'used', userMsg.id, app.now().toISOString(), true);
+          } catch {
+            /* off the record */
+          }
+        }
+      }
+      writeLoads();
       // Scrub before it is stored, shown or sent back to the model.
       output = app.redactor.redact(output + snapshotNote);
       // Phase 116: what the guard learns from a call that really ran (never one Stop cancelled), or a no on its card.
