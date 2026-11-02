@@ -56,10 +56,15 @@ export function toAnthropic(messages: ChatMessage[]): { system: string; messages
       const prev = out.at(-1);
       if (prev?.role === 'user' && Array.isArray(prev.content) && prev.content.every((b) => b.type === 'tool_result')) prev.content.push(block);
       else out.push({ role: 'user', content: [block] });
-    } else if (m.images?.length) {
-      out.push({ role: 'user', content: [...m.images.map((img): Block => ({ type: 'image', source: { type: 'base64', media_type: img.mime, data: img.data } })), { type: 'text', text: m.content }] });
     } else {
-      out.push({ role: 'user', content: m.content });
+      const blocks: Block[] = [...(m.images ?? []).map((img): Block => ({ type: 'image', source: { type: 'base64', media_type: img.mime, data: img.data } })), { type: 'text', text: m.content }];
+      // Phase 116 (BR2 risk 1): a user line after tool results (a steer) or after another user line
+      // goes into the same user turn: the tool_result blocks first, then the text.
+      const prev = out.at(-1);
+      if (prev?.role === 'user') {
+        prev.content = [...(typeof prev.content === 'string' ? [{ type: 'text', text: prev.content } as Block] : prev.content), ...blocks];
+      } else if (m.images?.length) out.push({ role: 'user', content: blocks });
+      else out.push({ role: 'user', content: m.content });
     }
   }
   return { system, messages: out };

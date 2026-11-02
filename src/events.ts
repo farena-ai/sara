@@ -41,6 +41,8 @@ export type HubEvent = (
   /** A turn started or ended in a conversation (any device, Telegram or Discord): the other open
    * apps refresh it, so a chat can be picked up anywhere. */
   | { type: 'turn'; conversationId: string; state: 'started' | 'ended' }
+  /** Phase 116 (BR2 §5.10): a steer or queued message changed (null: the conversation's waiting items were cleared). */
+  | { type: 'pending'; conversationId: string; item: import('./pending.ts').PendingItem | null; line?: string }
   /** Phase 109 (CH3): a session's title changed (she renamed it, or he did): the row updates in place. */
   | { type: 'title'; conversationId: string; title: string; source: 'placeholder' | 'auto' | 'owner' }
   /** Phase 49: a preview link opened (or closed: null) in a conversation. */

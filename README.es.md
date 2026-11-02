@@ -14,7 +14,7 @@ para la web, Windows, Mac y el móvil.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1548%20passing-brightgreen" alt="1548 tests passing">
+  <img src="https://img.shields.io/badge/tests-1570%20passing-brightgreen" alt="1570 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -114,15 +114,16 @@ Guías de un minuto, grabadas en un servidor de prueba con un modelo local (en i
 
 ## Novedades
 
+- **2.49** · Háblale mientras trabaja: *Díselo ya* cambia el rumbo en su siguiente paso, *Después* espera su turno, `/btw` da una respuesta rápida aparte; y deja de repetir una llamada que falla una y otra vez.
 - **2.48** · Las apps de chat se ponen al día: fotos y archivos en ambos sentidos en Telegram y Discord (sus selfies ya llegan) y un mensaje de progreso en vivo con botón de parar mientras trabaja.
 - **2.47.3** · Empieza aquí: un camino para principiantes y otro para programadores, capturas nuevas y un índice de *¿Cómo hago…?* en la guía y en la web de documentación.
-- **2.47.2** · Un solo estilo y ayuda en cada página: un cuadro *¿Cómo hago…?* con respuestas paso a paso en cada página, y páginas vacías que dicen qué va ahí.
 
 <details>
 <summary><b>Historial de versiones</b>: lo que trajo cada versión desde la 2.4</summary>
 
 | Versión | Qué te trae |
 |---|---|
+| **2.49** · Háblale mientras trabaja | **Ya no hace falta esperar a que termine.** Escribe mientras trabaja y elige: *Díselo ya* (lo lee antes de su siguiente paso y cambia el rumbo; nunca puede aprobar nada), *Después* (espera y se ejecuta como su propio turno) o *Solo una pregunta* (`/btw`: una respuesta rápida aparte, sin guardar nada, el trabajo sigue). Igual en Telegram y Discord (`/queue`, `/btw`). Un **freno de bucles** la detiene tras tres llamadas idénticas fallidas y la obliga a cambiar de enfoque. |
 | **2.48** · Las apps de chat se ponen al día | **Fotos y archivos en ambos sentidos en Telegram y Discord:** mándale una foto (con texto, un álbum o como archivo) o un documento y lo lee; pídele un selfie, un gráfico o un archivo y llega (`send_file`). Las fotos de otras personas en una sala siguen desactivadas hasta que las actives, y entonces solo ve una descripción. **Un mensaje de progreso** se actualiza mientras trabaja, tiene un botón de parar y termina como una línea de resumen. Los puentes de plugins también pueden llevar archivos. |
 | **2.47.3** · Empieza aquí | **Dos formas de empezar:** [Empieza aquí](docs/START_HERE.md) para «ya lo instalé, ¿y ahora?» y [Para programadores](docs/FOR_CODERS.md), ambas con los vídeos (en inglés). Capturas nuevas, el recorrido de funciones dividido en *Para compañía*, *Para programar* y *Para ambos*, todas las respuestas de *¿Cómo hago…?* en un índice (en la guía y en la web de documentación) y una web de documentación reorganizada. |
 | **2.47.2** · Un solo estilo y ayuda en cada página | **Cada página tiene ahora un recuadro *¿Cómo hago…?*** con respuestas paso a paso (123, con *Muéstramelo*), y las páginas vacías dicen qué va ahí y ofrecen un paso claro. Un estilo de tarjeta, iconos en vez de emoji, espaciado y esquinas unificados, un menú de ajustes que abre un grupo a la vez, el móvil más ordenado y sin desplazamiento lateral, una pantalla de primer acceso más clara, y la configuración de programación prefiere un modelo capaz en tu propio ordenador. |
@@ -202,7 +203,7 @@ Todas las versiones: [CHANGELOG.md](CHANGELOG.md) · [versiones](https://github.
 
 En orden de construcción, una versión cada una ([la lista completa](docs/ROADMAP.md)):
 
-- **Después** (2.49–2.61): fotos y archivos en las apps de chat, hablarle mientras trabaja, Signal, correo, WhatsApp, iMessage (BlueBubbles) y SMS, «sigue hasta terminar», comprobaciones de código tras cada cambio, una galería de rutinas y **la Sara Store** de plugins, habilidades y servidores MCP (ComfyUI, Blender, Playwright…) con instalación en un clic y una forma de enviar los tuyos.
+- **Después** (2.50–2.61): fotos y archivos en las apps de chat, hablarle mientras trabaja, Signal, correo, WhatsApp, iMessage (BlueBubbles) y SMS, «sigue hasta terminar», comprobaciones de código tras cada cambio, una galería de rutinas y **la Sara Store** de plugins, habilidades y servidores MCP (ComfyUI, Blender, Playwright…) con instalación en un clic y una forma de enviar los tuyos.
 - La app de iPhone (esperando a Apple) y tus ideas en [Discussions](https://github.com/farena-ai/sara/discussions).
 
 El plan completo: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -399,8 +400,8 @@ prueba comprobaba. Lo que aporta hoy es la forma de trabajar (ejecuta las prueba
 antes de pasos arriesgados, muestra lo que se ejecutó), no una puntuación más alta en estos
 conjuntos. Detalles, resultados por tarea y cómo repetirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-Además, `npm run check`: una comprobación de tipos y 1563 pruebas automáticas con un modelo falso
-programado (sin red, sin GPU): 1548 pasan en Windows y las otras 8 son pruebas del aislamiento solo
+Además, `npm run check`: una comprobación de tipos y 1585 pruebas automáticas con un modelo falso
+programado (sin red, sin GPU): 1570 pasan en Windows y las otras 8 son pruebas del aislamiento solo
 para Linux, que se ejecutan en un servidor Linux.
 
 ## Cómo se compara Sara

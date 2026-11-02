@@ -159,6 +159,25 @@ Discord projects hold what you expect, and use *Put back* if you'd rather have t
 page size you like (5 / 8 / 10). When WhatsApp or Signal plugins arrive, say if you'd rather have
 one shared *Chats* project instead of one each.
 
+## Talking to her while she works (2.49.0)
+
+You don't have to wait for her to finish. Whatever you send while she's working goes one of three ways:
+
+| Choice | What happens | In the app | In Telegram / Discord |
+|---|---|---|---|
+| **Tell her now** (the default for you) | She reads it before her next step and changes course. It never approves anything and never interrupts a tool that's running or a card that's waiting. | Send (or Enter) | Just send it; she reacts 👀 and says she got your note |
+| **After this** | It waits and runs as its own turn when she's done. Remove it or send it now from its chip. | Send ▾ → *After this* (or Alt+Enter) | `/queue <text>` |
+| **Just asking** | A quick answer on the side from a small model. Nothing is saved, she uses no tools, and the work carries on. | Send ▾ → *Just asking* | `/btw <question>` |
+
+- People you chat with in rooms or partner chats always wait their turn; only you can steer her.
+- After a restart, waiting messages don't run by themselves; she tells you they were dropped.
+- `/reset` and *New* drop anything still waiting.
+- Change the default in Settings → You → *While she's working*. Side questions have a daily cap (60 by default); in private chats they use only a model on this computer.
+
+### She stops repeating herself
+
+If the same tool call fails the same way three times in one turn, she's blocked from trying it again and told to change approach. If she keeps trying, her tools switch off for the rest of that turn. A note from you clears it; a new turn starts fresh. You'll see "Stopped repeating…" in her steps and in the progress message.
+
 ## Pictures, files and progress (2.48.0)
 
 **Pictures and files both ways.** Send her a photo (with or without a caption), an album or a file in

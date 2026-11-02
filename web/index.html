@@ -30,6 +30,7 @@
   <link rel="stylesheet" href="/hub.css">
   <link rel="stylesheet" href="/first-run.css">
   <link rel="stylesheet" href="/kit.css">
+  <link rel="stylesheet" href="/busy.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -291,6 +292,13 @@
       </div>
       <div id="together-bar" class="offrecord-bar" hidden><span id="together-now"></span> <button id="together-end" type="button" class="ghost small">End</button></div>
       <div id="attachments" class="attachments" hidden></div>
+      <!-- Phase 116 (BR2 §5.5): what waits while she works (chips) and the side question's card. -->
+      <div id="pending-chips" class="pending-chips" role="list" aria-label="Messages waiting for her" hidden></div>
+      <div id="aside-card" class="aside-card" role="status" hidden>
+        <div class="aside-head"><span aria-hidden="true">💬</span> <strong>Side question</strong> <span class="aside-note muted small">Not added to the chat</span> <button id="aside-close" type="button" class="ghost icon" aria-label="Close"><i class="ic" data-icon="close"></i></button></div>
+        <p id="aside-q" class="aside-q muted small" data-raw></p>
+        <div id="aside-a" class="aside-a" data-raw></div>
+      </div>
       <form id="composer">
         <textarea id="input" rows="1" placeholder="Message Sara…" autocomplete="off" aria-label="Message Sara…"></textarea>
         <div class="plus-wrap">
@@ -307,7 +315,15 @@
         <button id="call" class="ghost icon" type="button" title="Hands-free call: just talk, interrupt her any time" hidden><i class="ic" data-icon="phone"></i></button>
         <button id="video-call-btn" class="ghost icon" type="button" title="Video call: see her full size as you talk" hidden><i class="ic" data-icon="video"></i></button>
         <button id="mic" class="ghost icon" type="button" title="Talk (click to start, click again to send)" hidden><i class="ic" data-icon="mic"></i></button>
-        <button id="send" type="submit" aria-label="Send"><i class="ic" data-icon="send"></i></button>
+        <button id="send" type="submit" aria-label="Send"><i class="ic" data-icon="send"></i><span id="send-label" class="send-label" hidden></span></button>
+        <div class="send-more-wrap">
+          <button id="send-more" class="send-more" type="button" aria-label="More ways to send while she works" aria-haspopup="menu" aria-expanded="false" aria-controls="send-menu" hidden><i class="ic" data-icon="chevron-down"></i></button>
+          <div id="send-menu" class="send-menu head-pop" role="menu" hidden>
+            <button class="pop-item" type="button" role="menuitem" data-busy="steer" title="She reads it before her next step. It can't answer an approval card: use Allow or Deny for that."><strong>Tell her now</strong><span class="muted small">She reads it before her next step.</span></button>
+            <button class="pop-item" type="button" role="menuitem" data-busy="queue" title="She does it when she's finished, as its own message."><strong>After this</strong><span class="muted small">She does it when she's finished.</span></button>
+            <button class="pop-item" type="button" role="menuitem" data-busy="btw" title="A quick answer on the side from what's in this chat. It isn't saved and she doesn't stop working."><strong>Just asking</strong><span class="muted small">A quick answer on the side. Not added to the chat.</span></button>
+          </div>
+        </div>
         <button id="stop" type="button" class="ghost" hidden>Stop</button>
       </form>
       <!-- Phase 75 (stage 3): Today, the home screen. A view over the chat column (opened with show(), not
@@ -2411,6 +2427,23 @@
         <p id="ti-state" class="muted small" role="status"></p>
         <p class="small"><button id="ti-all" type="button" class="ghost">Name recent chats now</button></p>
       </div>
+      <!-- Phase 116 (BR2 §5.5): talking to her while she works. -->
+      <div id="wb-card" class="tidy-card tidy-stack wb-card">
+        <h3>While she's working</h3>
+        <label>When you send a message while she's working <button type="button" class="tip" data-tip="Tell her now: she reads it before her next step and adjusts. Queue it: she does it when she's finished. Either way you can change it per message with the ▾ next to Send.">?</button>
+          <select id="wb-mode"><option value="steer">Tell her now</option><option value="queue">Queue it for after</option></select>
+        </label>
+        <label>Messages that can wait <button type="button" class="tip" data-tip="How many messages can wait their turn in one conversation. More than this and she asks you to wait a moment.">?</button>
+          <select id="wb-max"><option value="3" data-raw>3</option><option value="5">5 (the default)</option><option value="10" data-raw>10</option></select>
+        </label>
+        <label>Side questions use <button type="button" class="tip" data-tip="Side questions (/btw) are answered by a small model so the big job isn't disturbed. On a computer that runs one model at a time, they may wait for her current step.">?</button>
+          <select id="wb-model"><option value="quick">Quick model</option><option value="local">This computer's model</option></select>
+        </label>
+        <label>Side questions per day <button type="button" class="tip" data-tip="A cap on side questions so a stuck script can't run up a bill. Private chats always use a model on your own computer.">?</button>
+          <select id="wb-cap"><option value="20" data-raw>20</option><option value="60">60 (the default)</option><option value="200" data-raw>200</option></select>
+        </label>
+        <p id="wb-state" class="muted small" role="status"></p>
+      </div>
         </section>
         <section class="settings-page" data-page="you-briefing" data-group="You" data-title="Morning briefing" hidden>
       <p class="muted small page-lead">Once a day at the time you pick, Sara sends a short message with the weather and what's on your list (due to-dos and reminders). It arrives like her other messages: in chat, as a notification and on Telegram/Discord if linked. Weather comes from Open-Meteo (free, no account).</p>
@@ -2515,6 +2548,9 @@
       <p id="pj-work-quiet-say" class="dial-say small" hidden></p>
       <div class="add-row"><label>Workspace <select id="pj-ws"></select></label><button id="pj-refresh" type="button" class="ghost">Look again</button><button id="pj-redteam" type="button" class="ghost">Before you ship</button></div>
       <div id="pj-list" class="pj-list"></div>
+      <!-- Phase 116 (BR2 §5.8): the loop guard, read-only (fixed in v1). -->
+      <h3>Loop guard <button type="button" class="tip" data-tip="If the exact same step fails the same way 3 times in one reply, Sara blocks it and makes her try something else or ask you. It can only stop a step, never run one.">?</button></h3>
+      <p class="muted small" id="lg-line">On: the same failing step 3 times in one reply is blocked. Always on.</p>
       <div id="sbx-form">
       <h3>Try commands in a sandbox first</h3>
       <p class="muted small">Before a command changes your project, she can run it in a throwaway copy and show you what it did: files added, changed or deleted, writes outside the project, network use, programs left running. Then you choose: apply the changes, discard them, or run it for real.</p>

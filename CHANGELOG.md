@@ -5,6 +5,24 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.49.0 (2026-11-01): talk to her while she works (Phase 116)
+
+- **Send while she works and choose what happens:** *Tell her now* (the default for you: she reads it
+  at the next safe point between steps and changes course; never inside a running tool or while a
+  card waits, and it can never approve anything), *After this* (it waits and runs as its own turn;
+  *Now* and × on its chip), or *Just asking* (a quick side answer from a small model with no tools;
+  nothing is saved and the work carries on; 60 a day by default, local only in private chats).
+  Enter sends the default, Alt+Enter the other choice; Settings → You → *While she's working*.
+- **The same in Telegram, Discord and plugin bridges:** a plain message steers (👀 and "Got your
+  note"), `/queue` waits, `/btw` asks on the side. People in rooms and partner chats always wait their
+  turn. Waiting messages don't run after a restart; `/reset` says how many were dropped.
+- **Loop guard:** the same tool call failing the same way three times is blocked for the rest of the
+  turn (before any approval card) and she's told to change approach; if she keeps trying, her tools
+  switch off for that turn. A note from you clears it. Shown as "Stopped repeating…" in her steps and
+  the progress message.
+- Works with every model provider (each gets your note in the shape it accepts after tool results).
+  Guide: [docs/CHATS.md](docs/CHATS.md).
+
 ## 2.48.0 (2026-11-01): chat apps catch up (Phase 115)
 
 - **Fixed:** in Telegram and Discord her pictures (selfies, proof pictures) were made but never sent;

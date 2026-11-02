@@ -14,7 +14,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1548%20passing-brightgreen" alt="1548 tests passing">
+  <img src="https://img.shields.io/badge/tests-1570%20passing-brightgreen" alt="1570 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -114,15 +114,16 @@ Des tutoriels d'une minute, enregistrés sur un serveur de test avec un modèle 
 
 ## Quoi de neuf
 
+- **2.49** · Lui parler pendant qu'elle travaille : *Dis-lui maintenant* réoriente le travail à l'étape suivante, *Après ça* attend son tour, `/btw` donne une réponse rapide à côté ; et elle cesse de répéter un appel qui échoue sans cesse.
 - **2.48** · Les applis de discussion rattrapent leur retard : photos et fichiers dans les deux sens sur Telegram et Discord (ses selfies arrivent enfin) et un message de progression en direct avec un bouton Arrêter pendant qu'elle travaille.
 - **2.47.3** · Commencer ici : un parcours débutant et un parcours développeur, des captures neuves et un index *Comment faire… ?* dans le guide et sur le site de la doc.
-- **2.47.2** · Un seul style et de l'aide partout : un encadré *Comment faire… ?* avec des réponses pas à pas sur chaque page, et des pages vides qui disent ce qui va là.
 
 <details>
 <summary><b>Historique des versions</b> : ce que chaque version depuis la 2.4 a apporté</summary>
 
 | Version | Ce que vous y gagnez |
 |---|---|
+| **2.49** · Lui parler pendant qu'elle travaille | **Plus besoin d'attendre qu'elle ait fini.** Écrivez pendant qu'elle travaille et choisissez : *Dis-lui maintenant* (elle le lit avant l'étape suivante et change de cap ; cela ne peut jamais rien approuver), *Après ça* (le message attend et passe à son tour) ou *Juste une question* (`/btw` : une réponse rapide à côté, rien n'est gardé, le travail continue). Pareil sur Telegram et Discord (`/queue`, `/btw`). Un **garde-fou contre les boucles** l'arrête après trois appels identiques en échec et l'oblige à changer d'approche. |
 | **2.48** · Les applis de discussion rattrapent leur retard | **Photos et fichiers dans les deux sens sur Telegram et Discord :** envoyez-lui une photo (avec légende, en album ou en fichier) ou un document et elle le lit ; demandez un selfie, un graphique ou un fichier et il arrive (`send_file`). Les photos des autres dans un salon restent coupées tant que vous ne les activez pas, et elle n'en voit alors qu'une description. **Un seul message de progression** se met à jour pendant qu'elle travaille, a un bouton Arrêter et finit en une ligne de résumé. Les passerelles de plugins transportent aussi des fichiers. |
 | **2.47.3** · Commencer ici | **Deux entrées :** [Commencer ici](docs/START_HERE.md) pour « c'est installé, et maintenant ? » et [Pour les développeurs](docs/FOR_CODERS.md), avec les vidéos (en anglais). Des captures neuves, la visite des fonctions découpée en *Pour la compagnie*, *Pour coder* et *Pour les deux*, toutes les réponses *Comment faire… ?* dans un index (dans le guide et sur le site de la doc) et un site de doc réorganisé. |
 | **2.47.2** · Un seul style et de l'aide partout | **Chaque page a maintenant un encadré *Comment faire… ?*** avec des réponses pas à pas (123, avec *Montre-moi*), et les pages vides disent ce qui va là avec une étape claire. Un style de carte, des icônes au lieu des emoji, des espacements et des coins uniformes, un menu de réglages qui ouvre un groupe à la fois, un affichage téléphone plus net sans défilement latéral, un premier écran de connexion plus clair, et la configuration pour coder préfère un modèle capable sur votre propre ordinateur. |
@@ -202,7 +203,7 @@ Toutes les versions : [CHANGELOG.md](CHANGELOG.md) · [versions](https://github.
 
 Dans l'ordre de construction, une version chacune ([la liste complète](docs/ROADMAP.md)) :
 
-- **Ensuite** (2.49–2.61) : photos et fichiers dans les applis de discussion, lui parler pendant qu'elle travaille, Signal, e-mail, WhatsApp, iMessage (BlueBubbles) et SMS, « continue jusqu'au bout », vérifications du code après chaque modification, une galerie de routines et **le Sara Store** pour plugins, compétences et serveurs MCP (ComfyUI, Blender, Playwright…) avec installation en un clic et un moyen de soumettre les vôtres.
+- **Ensuite** (2.50–2.61) : photos et fichiers dans les applis de discussion, lui parler pendant qu'elle travaille, Signal, e-mail, WhatsApp, iMessage (BlueBubbles) et SMS, « continue jusqu'au bout », vérifications du code après chaque modification, une galerie de routines et **le Sara Store** pour plugins, compétences et serveurs MCP (ComfyUI, Blender, Playwright…) avec installation en un clic et un moyen de soumettre les vôtres.
 - L'app iPhone (en attente d'Apple), et vos idées dans les [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Le plan complet : [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -404,8 +405,8 @@ qu'aucun test ne vérifiait. Ce qu'elle apporte aujourd'hui, c'est la manière d
 lance les tests, demande avant les étapes risquées, montre ce qui a tourné), pas un meilleur score
 sur ces jeux. Détails, résultats par tâche et comment relancer : [docs/RESULTS.md](docs/RESULTS.md).
 
-En plus, `npm run check` : une vérification des types et 1563 tests automatiques avec un faux modèle
-scripté (sans réseau, sans GPU) : 1548 passent sous Windows, et les 8 autres sont des tests
+En plus, `npm run check` : une vérification des types et 1585 tests automatiques avec un faux modèle
+scripté (sans réseau, sans GPU) : 1570 passent sous Windows, et les 8 autres sont des tests
 d'isolation propres à Linux, exécutés sur un serveur Linux.
 
 ## Comparaison

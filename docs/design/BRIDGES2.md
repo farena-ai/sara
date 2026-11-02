@@ -1275,3 +1275,22 @@ Sara code read for §1: `src/bridges/telegram.ts`, `discord.ts`, `commands.ts`, 
 `web/app.js` (`setComposerBusy`, the composer submit, `runStream`), `web/steps.js` (`stepWords`); docs
 `ROADMAP.md` (Phases 115–116), `design/GAP_REVIEW.md` (#1, #2, #4, #10), `design/CHATS.md`,
 `PLUGINS.md` (§6, §8).
+
+> **As built (2.49.0), Phase 116.** Built as designed with the §11 defaults (steer by default for the
+> owner, partners always queue, `/btw` on the quick route and local-only in private chats, queued
+> messages never run after a restart, older clients keep the 409). New: `src/pending.ts` (one queue
+> per conversation for web, Telegram, Discord and plugins; queued rows are not stored until their turn
+> starts), `src/loop-guard.ts` (M10 failure signatures; block on the 3rd identical failure before any
+> approval card; tools off after 3 more blocked tries; a call declined twice isn't asked again; per
+> turn, cleared by an owner steer, replay seeds it from recorded steps), `src/btw.ts` (cheap call, no
+> tools, one usage row, daily cap 60, 429 at the cap), `web/busy.js` + `web/busy.css` (split Send:
+> *Tell her now* / *After this* / *Just asking*; Enter = default, Alt+Enter = the other; waiting chips
+> with *Now* and ×; the side-question card; steer bubbles "You, while she worked:"). Commands `/steer`,
+> `/queue`, `/btw`; `/reset` reports dropped waiting messages. Risk 1 (a user line after tool results)
+> is handled per adapter: OpenAI-style and Ollama keep tool → user; Mistral folds the steer into the
+> last tool result (`foldSteers`); Anthropic puts the tool results and the steer in one user turn;
+> ChatGPT Responses sends function_call_output then user; CLI agents get "sent while you worked"; a
+> steer with images stays its own message. Below 420 px the Send label is hidden (tooltip and
+> aria-label keep the choice). Found live and fixed: in the Telegram progress message a later
+> "denied" result overwrote the loop-guard line. Not shown live: a partner's queued message (unit
+> tested) and the restart notice reaching Telegram (the row is marked told).

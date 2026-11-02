@@ -29,6 +29,8 @@ import { forgetConversationFiles } from './bridges/media.ts';
 import { MAX_IMAGES_PER_MESSAGE, UploadError } from './uploads.ts';
 import { TogetherStore } from './together.ts';
 import { contextFill, runTurn, type TurnOptions, type AppContext, type ChatEvent } from './chat.ts';
+import { PENDING_LINES, PendingInputs, pendingFor, whileBusySettings } from './pending.ts';
+import { answerAside } from './btw.ts';
 import { nextSession, parseCommand, runCommand, type BridgeAdapter } from './bridges/commands.ts';
 import { roomChip, roomOfConversation, roomsByKey } from './bridges/rooms.ts';
 import { cameraState, FRAME_MAX_BYTES, SAFETY_PAUSE_MS, VideoSessions, videoSettings } from './video.ts';
@@ -446,6 +448,17 @@ export function createSaraServer(opts: ServerOptions): Server {
   const offApp = new Proxy(app, { get: (t, k: string) => (k in offOverrides ? offOverrides[k as keyof AppContext] : t[k as keyof AppContext]) }) as AppContext;
   /** The context a conversation lives in (off-the-record ones are only in memory). */
   const ctxOf = (id: string): AppContext => (offStore.getConversation(id) ? offApp : app);
+  // Phase 116 (BR2 B5): the one queue. Its turns never meet the 409 (the server's busy test is
+  // shared), and web items without a runner of their own run in the background (the open page
+  // follows them through its watch path). Off-the-record chats keep theirs in memory, unpublished.
+  const offPending = new PendingInputs(offStore.db, app.now);
+  offOverrides.pending = offPending;
+  for (const [cx, p] of [[app, pendingFor(app)], [offApp, offPending]] as const) {
+    p.externalBusy = (id) => active.has(id) && ctxOf(id) === cx;
+    if (cx === app) p.publish ??= (ev) => app.events?.publish(ev);
+    p.defaultRunner = (convId) => (item) => runBackground(convId, item.content, { ...(item.meta.images?.length ? { images: item.meta.images } : {}), ...(Array.isArray(item.meta.docs) && item.meta.docs.length ? { docs: item.meta.docs as never } : {}), pendingId: item.id });
+  }
+  const pendOf = (id: string) => (ctxOf(id) === app ? pendingFor(app) : offPending);
 
   async function runTracked(conversationId: string, content: string, onEvent: (ev: ChatEvent) => void, opts: TurnOptions = {}): Promise<void> {
     if (active.has(conversationId)) throw new HttpError(409, me('Sara is still working on this conversation. Wait for her or press Stop.'), { errorKey: 'Sara is still working on this conversation. Wait for her or press Stop.' });
@@ -479,6 +492,12 @@ export function createSaraServer(opts: ServerOptions): Server {
       app.healthHistory?.turn(firstToken || null, failed);
     } finally {
       active.delete(conversationId);
+      // Phase 116: the next queued message (or a note she got after her last step) runs now.
+      try {
+        pendOf(conversationId).drain(conversationId);
+      } catch (err) {
+        console.warn(`pending: ${(err as Error).message}`);
+      }
       // Phase 109 (CH3): the title check runs after the turn (never for off-the-record chats).
       if (shared && !opts.replay) void app.titles?.afterTurn(conversationId);
       // Phase 49: her testing browser closes with the turn.
@@ -1718,7 +1737,7 @@ export function createSaraServer(opts: ServerOptions): Server {
             currentSession: open,
             startSession: (prev) => (prev ? nextSession(app, prev, prev.channel === 'web' || !prev.channelKey ? { title: 'New conversation' } : {}) : app.store.createConversation()),
             stopTurn: (id) => app.stopTurn?.(id) ?? false,
-            clearQueue: () => 0,
+            clearQueue: (id) => pendOf(id).clear(id),
           };
           const r = await runCommand({ app, bridge: 'web', place: 'owner-dm', who: 'owner', lang: appLanguage(app.settings.get()), cmd, adapter });
           return send(res, 200, { reply: r.text, command: cmd.name, ...(r.opened ? { opened: r.opened } : {}), ...(r.choices ? { choices: r.choices } : {}), ...(r.approval ? { approvalId: r.approval.id } : {}), ...(r.refused ? { refused: true } : {}), ...(r.report ? { report: r.report } : {}) });
@@ -1761,7 +1780,7 @@ export function createSaraServer(opts: ServerOptions): Server {
           const { limit } = pageOpts();
           const page = limit ? cx.store.messagesPage(b, { limit }) : { messages: cx.store.messages(b), earlier: 0 };
           const ts = cx.store.titleState(b);
-          return send(res, 200, { ...conv, ...(offRecord ? { offRecord: true } : {}), ...titleView(cx, conv, ts), ...(offRecord ? { titleNever: 'off-record' } : {}), ...groupInfo(conv), messages: page.messages.map(view), earlier: page.earlier, pinned: pins(), activity: activityView(b), together: cx.together?.activity(b) ?? null });
+          return send(res, 200, { ...conv, ...(offRecord ? { offRecord: true } : {}), ...titleView(cx, conv, ts), ...(offRecord ? { titleNever: 'off-record' } : {}), ...groupInfo(conv), messages: page.messages.map(view), earlier: page.earlier, pinned: pins(), activity: activityView(b), together: cx.together?.activity(b) ?? null, pending: pendOf(b).list(b) });
         }
         if (c === 'messages' && !parts[3] && method === 'GET') {
           const { limit, before } = pageOpts();
@@ -1836,6 +1855,7 @@ export function createSaraServer(opts: ServerOptions): Server {
           }
           // What she learned from it stays unless the owner asks her to forget it too.
           const forgotten = new URL(req.url ?? '/', 'http://x').searchParams.get('forget') === '1' && cx.memory ? cx.memory.deleteForConversation(b) : 0;
+          pendOf(b).clear(b);
           cx.store.deleteConversation(b);
           // Documents read once in it go too (kept ones stay in her library).
           cx.library?.deleteForConversation(b);
@@ -1876,6 +1896,28 @@ export function createSaraServer(opts: ServerOptions): Server {
           return streamGroup(res, conv, content);
         }
         if ((c === 'retry' || c === 'continue') && method === 'POST' && isGroupChannel(conv.channel)) throw new HttpError(400, 'Regenerate, edit and continue aren’t available in group chats yet.');
+        // Phase 116 (BR2 §5.10): what waits while she works, and side questions.
+        if (c === 'pending' && !parts[3] && method === 'GET') return send(res, 200, { pending: pendOf(b).list(b), steerAt: pendOf(b).live(b) ? (active.get(b)?.status === 'waiting' ? 'approval' : active.get(b)?.status === 'running' ? 'step' : 'next') : null, detail: active.get(b)?.detail ?? '' });
+        if (c === 'pending' && parts[3] && !parts[4] && method === 'DELETE') {
+          if (!pendOf(b).cancel(b, parts[3])) throw new HttpError(404, 'That message is no longer waiting.');
+          return send(res, 200, { ok: true, pending: pendOf(b).list(b) });
+        }
+        if (c === 'pending' && parts[3] && parts[4] === 'now' && method === 'POST') {
+          const it = pendOf(b).promote(b, parts[3]);
+          if (!it) throw new HttpError(404, 'That message is no longer waiting.');
+          return send(res, 200, { item: it, pending: pendOf(b).list(b) });
+        }
+        if (c === 'btw' && !parts[3] && method === 'POST') {
+          requireDisclosure(req);
+          if (opts.demo) throw new HttpError(400, "Side questions aren't available in the demo.");
+          const body = await readJson(req);
+          const q = String(body.question ?? '').trim();
+          if (!q) throw new HttpError(400, 'Ask your side question after /btw.');
+          if (q.length > 4000) throw new HttpError(413, 'Message too long');
+          const r = await answerAside(cx, conv, q, { owner: !conv.partner });
+          if (!r.ok) throw new HttpError(r.status, r.key);
+          return send(res, 200, { text: r.text, model: r.model, local: r.local, ...(r.crisis ? { crisis: true } : {}) });
+        }
         if (c === 'messages' && method === 'POST') {
           requireDisclosure(req);
           // Photos are refused off the record and in the demo, so those never need the big limit.
@@ -1898,6 +1940,17 @@ export function createSaraServer(opts: ServerOptions): Server {
           const blockedAt = cx.store.lastSafetyEventAt('minor_sexual_block', b)?.getTime();
           const frameBuf = body.liveFrame === true && !(blockedAt !== undefined && app.now().getTime() - blockedAt < SAFETY_PAUSE_MS) ? videos.take(b, app.now().getTime()) : undefined;
           const liveFrame = frameBuf ? { liveFrame: { image: { mime: 'image/jpeg', data: frameBuf.toString('base64') }, ask: body.liveFrameAsk === true } } : body.videoCall === true ? { videoCall: true } : {};
+          // Phase 116 (BR2 §5.7): while she works, a client that sends `whileBusy` gets a 202 with the
+          // waiting item (a steer for the owner and members, or a queued turn); older clients keep the 409.
+          const pend = pendOf(b);
+          if ((active.has(b) || pend.busy(b)) && (body.whileBusy === 'steer' || body.whileBusy === 'queue')) {
+            const sender = conv.partner ? 'person' : opts.member ? 'member' : 'owner';
+            const cfg = whileBusySettings(cx);
+            const r = pend.add(b, { kind: body.whileBusy, content, sender, meta: { source: 'web', ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}) } }, undefined, { queueMax: cfg.queueMax });
+            if (!r.ok) throw new HttpError(429, r.reason === 'steers' ? PENDING_LINES.steers : PENDING_LINES.full, { params: { max: cfg.queueMax } });
+            return send(res, 202, { pending: { id: r.item.id, kind: r.item.kind, state: r.item.state }, waiting: r.waiting, items: pend.list(b) });
+          }
+          if (pend.busy(b) && !active.has(b)) throw new HttpError(409, me('Sara is still working on this conversation. Wait for her or press Stop.'), { errorKey: 'Sara is still working on this conversation. Wait for her or press Stop.' });
           // Phase 18: from a notification's Reply box or the share sheet, the phone doesn't wait.
           // The reply arrives like her other messages: as an event, so as a notification too.
           if (body.background === true) {

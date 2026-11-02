@@ -92,6 +92,8 @@ import { billingOf, findPrice, priceTable } from './usage.ts';
 import type { SecurityPass } from './security/pass.ts';
 import { declinedInstallOutput, type AdvisoryCard } from './security/advisories.ts';
 import { recordTurnFindings, type FindingStore } from './security/findings.ts';
+import { pendingFor } from './pending.ts';
+import { blockedOutput, LOOP_NOTE, LoopGuard, toolsPausedNote, type GuardHit } from './loop-guard.ts';
 
 export interface AppContext {
   store: Store;
@@ -195,6 +197,8 @@ export interface AppContext {
   vectors?: MemoryVectors;
   /** Set by the server: true while a turn runs in that conversation. */
   isBusy?: (conversationId: string) => boolean;
+  /** Phase 116 (BR2 B5): steers and queued messages of this app's conversations (src/pending.ts; made on first use). */
+  pending?: import('./pending.ts').PendingInputs;
   /** Set by the server: run a turn with activity tracking (used by chat bridges). */
   runTracked?: (conversationId: string, content: string, onEvent: (ev: ChatEvent) => void, opts?: TurnOptions) => Promise<void>;
   /** Web push notifications (Phase 6). */
@@ -336,6 +340,10 @@ export type ChatEvent =
   | (import('./hooks.ts').PluginEvent & { messageId?: number })
   /** Phase 107 (CH1): how full this turn's history is (characters used of the budget; `dropped` = older messages left out). */
   | { type: 'context'; used: number; budget: number; dropped: number }
+  /** Phase 116 (BR2 §5.4): a message sent while she worked was taken at the safe point after step `afterStep`. */
+  | { type: 'steer'; messageId: number; afterStep: number; text: string; pendingId: string; images?: string[] }
+  /** Phase 116 (BR2 §5.8): the loop guard refused a call (`paused`: tools are off for the rest of the turn). */
+  | { type: 'loop_guard'; id: string; name: string; kind: 'loop' | 'declined'; quote: string; count: number; paused?: boolean }
   | { type: 'done'; messageId: number }
   | { type: 'error'; message: string };
 
@@ -761,7 +769,7 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
       const auto = m.meta?.autoSkill as { name?: string; text?: string } | undefined;
       const skillNote = auto?.text ? `\n\n[Note from the app: a skill that fits this message was loaded for you; follow it where it fits:]\n${auto.text}` : '';
       if (auto?.text && auto.name && skillInUse.has(auto.name)) skillBody.set(out.length, auto.text);
-      out.push({ role: 'user', content: (group ? ownerLine(group.ownerName, m.content) : m.content) + note + docs + skillNote, ...(images.length ? { images } : {}) });
+      out.push({ role: 'user', content: (group ? ownerLine(group.ownerName, m.content) : m.content) + note + docs + skillNote, ...(images.length ? { images } : {}), ...(m.meta?.steer ? { steer: true } : {}) });
     }
     else if (m.role === 'assistant' && m.meta?.groupFrom && typeof m.meta.groupFrom === 'object') {
       // Phase 66: another companion's line in a group chat: hers to read, labelled, never as her own.
@@ -973,6 +981,8 @@ export interface TurnOptions {
    * model as labelled untrusted text. The safety layer runs exactly as on every turn.
    */
   outside?: OutsidePolicy;
+  /** Phase 116 (BR2 §5.3): this turn runs a queued message (its pending_inputs row gets the message id). */
+  pendingId?: string;
 }
 
 /** Phase 100: the outside-request policy of a turn (STAPLES §2.1.3). */
@@ -1122,6 +1132,8 @@ export interface AfterTool {
   sandbox?: SandboxRecord;
   /** Phase 87: step thumbnails (hashes in the run's thumbnail table) from her hands. */
   thumbs?: string[];
+  /** Phase 116: the loop guard refused this call. */
+  guard?: { kind: 'loop' | 'declined'; key: string; quote: string };
 }
 export interface AfterReply {
   step: number;
@@ -1212,7 +1224,7 @@ export function recorderHooks(app: AppContext, rec: RunRecorder): TurnHooks {
       rec.reply(c.messageId);
     },
     afterTool(c) {
-      rec.tool({ id: c.call.id, name: c.call.name, summary: c.summary, args: c.args, status: c.status, output: c.output, ms: c.ms, approval: c.approval, messageId: c.messageId, ...(c.snapshotId ? { snapshotId: c.snapshotId } : {}), ...(c.contradictions?.length ? { contradictions: c.contradictions } : {}), ...(c.sandbox ? { sandbox: c.sandbox } : {}), ...(c.thumbs?.length ? { thumbs: c.thumbs } : {}), files: [...new Set([...filesNamed(c.call.name, c.args), ...(c.sandbox?.applied ? [...c.sandbox.applied.written, ...c.sandbox.applied.removed] : [])])].slice(0, 200) });
+      rec.tool({ id: c.call.id, name: c.call.name, summary: c.summary, args: c.args, status: c.status, output: c.output, ms: c.ms, approval: c.approval, messageId: c.messageId, ...(c.snapshotId ? { snapshotId: c.snapshotId } : {}), ...(c.contradictions?.length ? { contradictions: c.contradictions } : {}), ...(c.sandbox ? { sandbox: c.sandbox } : {}), ...(c.thumbs?.length ? { thumbs: c.thumbs } : {}), ...(c.guard ? { guard: c.guard } : {}), files: [...new Set([...filesNamed(c.call.name, c.args), ...(c.sandbox?.applied ? [...c.sandbox.applied.written, ...c.sandbox.applied.removed] : [])])].slice(0, 200) });
       // §2.1: a sandbox try the owner discarded is why this step stopped short (the gate).
       if (c.sandbox?.decision === 'discarded') rec.stopped('gate');
       // §2.3: a stop the owner said no to is why this step stopped short.
@@ -1266,12 +1278,23 @@ export function neutralizeNote(text: string): string {
 /** Phase 74: chat turns running right now (a long document's background model calls wait for them). */
 export const chatTurns = { running: 0, onStart: new Set<() => void>() };
 
+/**
+ * Phase 116 (BR2 §6.3): the turn-start checks for text that doesn't start a turn (a steer at the
+ * safe point, a /btw question): the minors block and crisis detection, exactly as a message gets.
+ */
+export function preflight(text: string, who: import('./safety.ts').MinorCheckOptions = {}): { minor: { minor: string; sexual: string } | null; crisis: boolean } {
+  return { minor: minorSexualMatch(text, who), crisis: detectCrisis(text) };
+}
+
 export async function* runTurn(app: AppContext, conversationId: string, userText: string, signal: AbortSignal = new AbortController().signal, opts: TurnOptions = {}): AsyncGenerator<ChatEvent> {
   chatTurns.running++;
   for (const f of chatTurns.onStart) f();
   // Phase 78: the run recorder is made here and handed down explicitly (risk 1), never through
   // AsyncLocalStorage, so it sees every model call of the turn however the caller drives next().
   const rec = opts.recorder ?? openTurnRecorder(app, conversationId, userText);
+  // Phase 116 (BR2 §5.3): steers wait for this turn's safe points; the next queued turn starts after it.
+  const pend = opts.replay || opts.recorder || opts.group ? undefined : pendingFor(app);
+  pend?.turnStarted(conversationId);
   let status: 'ok' | 'error' | 'stopped' = 'stopped';
   let replyId = 0;
   // Phase 97 (ST2): what the skill learner needs to know about the turn (approvals, tools).
@@ -1330,6 +1353,11 @@ export async function* runTurn(app: AppContext, conversationId: string, userText
     }
   } finally {
     chatTurns.running--;
+    try {
+      pend?.turnEnded(conversationId);
+    } catch (err) {
+      console.warn(`pending: ${(err as Error).message}`);
+    }
     // Phase 91: the task ended: a password manager she used on a computer locks again there now.
     try {
       app.hands?.turnEnded(conversationId);
@@ -1378,7 +1406,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   }
 
   const isFirst = store.messages(conv.id).every((m) => m.role === 'notice');
-  const meta = { ...(opts.images?.length ? { images: opts.images } : {}), ...(opts.docs?.length ? { docs: opts.docs } : {}), ...(opts.via ? { via: opts.via } : {}), ...(opts.othersPhotos?.length ? { othersPhotos: opts.othersPhotos } : {}) };
+  const meta = { ...(opts.images?.length ? { images: opts.images } : {}), ...(opts.docs?.length ? { docs: opts.docs } : {}), ...(opts.via ? { via: opts.via } : {}), ...(opts.othersPhotos?.length ? { othersPhotos: opts.othersPhotos } : {}), ...(opts.pendingId ? { queued: true } : {}) };
   const userMsg = opts.resume || opts.group ? store.messages(conv.id).filter((m) => m.role === 'user').at(-1) : store.addMessage(conv.id, 'user', text, Object.keys(meta).length ? meta : undefined);
   // Phase 107: a line /reset cleared isn't answered again on Continue.
   if (!userMsg || (opts.resume && userMsg.meta?.skipped === true && !store.messages(conv.id).some((m) => m.id > userMsg.id && m.role === 'assistant'))) {
@@ -1386,6 +1414,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     return;
   }
   rec.setUserMessage(userMsg.id);
+  if (opts.pendingId && !opts.resume) app.pending?.stored(opts.pendingId, userMsg.id);
   // Phase 4: her inner state reacts to the message; time since the last one.
   const prevOwnerAt = store.lastOwnerMessageAt(userMsg.id);
   const gapHours = prevOwnerAt ? (now.getTime() - prevOwnerAt.getTime()) / 3_600_000 : null;
@@ -1912,7 +1941,63 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     }
   }
   const replaySystem = opts.replay ? opts.replay.system + (safetyNotes.some((n) => !opts.replay!.system.includes(n)) ? `\n\n## Important for this reply\n${safetyNotes.filter((n) => !opts.replay!.system.includes(n)).map((n) => `- ${n}`).join('\n')}` : '') : '';
+  // Phase 116 (BR2 §5.8): the tool-loop guard, per turn (a replay decides again from the recorded steps).
+  const guard = new LoopGuard((v) => app.redactor.redactValue(v));
+  if (opts.replay) {
+    guard.seed(
+      store
+        .messages(conv.id)
+        .filter((m) => m.id > userMsg.id && m.role === 'tool')
+        .filter((m) => !m.meta?.guard)
+        .map((m) => ({ name: String(m.meta?.name ?? ''), args: (m.meta?.args as Record<string, unknown> | undefined) ?? {}, status: String(m.meta?.status ?? 'ok'), output: m.content, ...(m.meta?.status === 'denied' && m.content.startsWith('The owner declined this action') ? { approval: 'denied' } : {}) })),
+    );
+  }
+  /** One-time notes for the next step (a block, tools paused). */
+  const guardNotes: string[] = [];
+  /** Tools as they were before the guard paused them (an owner steer brings them back). */
+  let toolsBeforePause: typeof tools | undefined;
+  let crisisSteer = false;
   for (let step = 0; step < maxSteps; step++) {
+    // Phase 116 (BR2 §5.4): the safe point. Every call of the previous step has its result stored and
+    // no approval waits: messages sent while she worked are taken now, stored as user messages (so the
+    // history built below includes them, after the tool results), checked like a turn's first
+    // message, and announced. A steer never approves anything: cards are answered by buttons only.
+    const steerNotes: string[] = [];
+    const steers = step > 0 && !opts.replay && !opts.group ? (app.pending?.takeSteers(conv.id) ?? []) : [];
+    for (const it of steers) {
+      const said = redactTypedPassword(it.content).text || '(photo)';
+      const sm = store.addMessage(conv.id, 'user', said, { steer: { afterStep: step, pendingId: it.id, ...(rec.on ? { runId: rec.id } : {}) }, ...(it.meta.images?.length ? { images: it.meta.images } : {}), ...(typeof it.meta.source === 'string' && it.meta.source !== 'web' ? { via: it.meta.source } : {}) });
+      app.pending?.stored(it.id, sm.id);
+      yield { type: 'steer', messageId: sm.id, afterStep: step, text: said, pendingId: it.id, ...(it.meta.images?.length ? { images: it.meta.images } : {}) };
+      const pf = preflight(said, it.sender === 'person' ? { others: true } : ownerApp ? { owner: true } : {});
+      if (pf.minor) {
+        store.recordSafetyEvent('minor_sexual_block', conv.id);
+        const msg = store.addMessage(conv.id, 'assistant', MINOR_BLOCK_REPLY, { blocked: 'minor_sexual_message', blockedBy: `words: ${pf.minor.minor} + ${pf.minor.sexual}` });
+        rec.stopped('minors');
+        yield { type: 'token', text: MINOR_BLOCK_REPLY };
+        yield { type: 'done', messageId: msg.id };
+        return;
+      }
+      if (pf.crisis) {
+        store.recordSafetyEvent('crisis_referral', conv.id);
+        store.addMessage(conv.id, 'notice', `crisis:${CRISIS_RESOURCES}`);
+        yield { type: 'notice', kind: 'crisis', text: CRISIS_RESOURCES };
+        if (!safetyNotes.includes(CRISIS_SYSTEM_NOTE)) safetyNotes.push(CRISIS_SYSTEM_NOTE);
+        // She answers the person now: no more tools in this turn.
+        tools = [];
+        crisisSteer = true;
+      }
+      // An owner steer may have changed the situation ("I started the database, try again").
+      if (it.sender !== 'person') {
+        guard.clear();
+        if (toolsBeforePause && !crisisSteer) tools = toolsBeforePause;
+        toolsBeforePause = undefined;
+      }
+    }
+    if (steers.length) {
+      const who = steers[0].sender === 'member' || opts.outside ? 'The person you are helping' : ownerWord === 'the owner' ? 'The owner' : ownerWord;
+      steerNotes.push(`[Note from the app: ${who} sent ${steers.length === 1 ? 'this' : 'these'} while you were working, after step ${step}. Take ${steers.length === 1 ? 'it' : 'them'} into account from here. Don't redo finished work unless asked to. ${steers.length === 1 ? "It doesn't" : "They don't"} answer any approval.]`);
+    }
     const system = opts.replay ? replaySystem : buildSystemPrompt(app.persona, {
       now,
       timeZone: s.timeZone,
@@ -2003,6 +2088,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     }
     // Phase 77: what the plan check found (flags she should mention).
     for (const n of contradictNotes.splice(0)) messages.push({ role: 'system', content: n });
+    // Phase 116: the steer note and the loop guard's one-time notes (never stored).
+    for (const n of steerNotes) messages.push({ role: 'system', content: n });
+    for (const n of guardNotes.splice(0)) messages.push({ role: 'system', content: n });
     // Phase 98: the plugins' notes for this turn (labelled, untrusted).
     for (const n of pluginNotes) messages.push({ role: 'system', content: n });
     // Phase 100: the skills the owner offered this agent, when it asked for one.
@@ -2241,9 +2329,13 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       let pluginCard: PluginCard | undefined;
 
       const set = tool ? app.tools.permission(call.name, s.toolPermissions) : 'never';
+      // Phase 116 (BR2 §5.8): the loop guard, before anything is prepared or asked.
+      const offeredNow = Boolean(tool) && !conv.partner && tools.some((t) => t.spec.name === call.name) && !(tool?.isAvailable && !tool.isAvailable());
+      const guardHit: GuardHit | undefined = offeredNow ? guard.check(call.name, call.arguments) : undefined;
+      let ranTool = false;
       // Count-first tools (gmail_organize): what the call would touch is worked out before any card,
       // only when the call may run at all (offered this turn, not off, not blocked by privacy).
-      const mayPrepare = Boolean(tool?.prepare) && set !== 'never' && !conv.partner && tools.some((t) => t.spec.name === call.name) && !(tool?.isAvailable && !tool.isAvailable()) && !((conv.private || privateLocalOn()) && OFFSERVER_TOOL(call.name));
+      const mayPrepare = !guardHit && Boolean(tool?.prepare) && set !== 'never' && !conv.partner && tools.some((t) => t.spec.name === call.name) && !(tool?.isAvailable && !tool.isAvailable()) && !((conv.private || privateLocalOn()) && OFFSERVER_TOOL(call.name));
       const prep = mayPrepare && tool ? await prepareCall(tool, call.arguments, signal, conv.id, Boolean(opts.replay)) : undefined;
       if (prep?.summary) summary = app.redactor.redact(prep.summary);
       const prepDetail = prep?.detail ? (app.redactor.redactValue(prep.detail) as ApprovalDetail) : undefined;
@@ -2267,6 +2359,18 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         // Only the tools offered this turn may run (partner chats have none), whatever the model says.
         status = 'denied';
         output = `The ${call.name} tool isn't available here.`;
+      } else if (guardHit) {
+        // Blocked for the rest of the turn: it never runs and no card is shown.
+        status = 'denied';
+        output = blockedOutput(guardHit, ownerWord);
+        const paused = guard.triedBlocked();
+        yield { type: 'loop_guard', id: call.id, name: call.name, kind: guardHit.kind, quote: app.redactor.redact(guardHit.quote), count: guardHit.count, ...(paused ? { paused: true } : {}) };
+        if (guard.blockedTries === 1 || (guardHit.kind === 'declined' && !guardNotes.includes(LOOP_NOTE))) guardNotes.push(LOOP_NOTE);
+        if (paused && tools.length) {
+          toolsBeforePause = tools;
+          tools = [];
+          guardNotes.push(toolsPausedNote(ownerWord));
+        }
       } else if (conv.private && OFFSERVER_TOOL(call.name)) {
         status = 'denied';
         output = 'This is a private conversation: tools that reach outside the server are off.';
@@ -2423,6 +2527,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
               snapshotNote = `\n[workspace snapshot skipped: ${(err as Error).message}]`;
             }
           }
+          ranTool = true;
           try {
             output = await tool.run(call.arguments, {
               workspaceDir: wsDir,
@@ -2468,6 +2573,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       if (status !== 'denied' && CHANGES_FILES(call.name) && !opts.replay) app.codemap?.touch(wsDir);
       // Scrub before it is stored, shown or sent back to the model.
       output = app.redactor.redact(output + snapshotNote);
+      // Phase 116: what the guard learns from a call that really ran (never one Stop cancelled), or a no on its card.
+      if (ranTool && !signal.aborted) guard.record(call.name, call.arguments, status, output);
+      else if (approval === 'denied' && !tried && !signal.aborted) guard.declined(call.name, call.arguments);
+      const guardRec = guardHit ? { kind: guardHit.kind, key: guardHit.key, quote: app.redactor.redact(guardHit.quote) } : undefined;
       const stored = clip(output, TOOL_RESULT_LIMIT);
       // Phase 75: a result card from the (scrubbed) result and arguments, kept with the message.
       const card = cardFor({ name: call.name, args: shownArgs, status, output, ...(thumbs.length ? { thumb: thumbs.at(-1)! } : {}) }) ?? (status === 'ok' ? pluginCard : undefined);
@@ -2476,10 +2585,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // Phase 96: a skill body she loaded is marked, so the history keeps it while the task runs.
       const loadedSkill = call.name === 'skill_use' && status === 'ok' ? /^<skill name="([^"]+)"/.exec(output)?.[1] : undefined;
       if (loadedSkill) turnSkills.add(loadedSkill);
-      const toolMsg = store.addMessage(conv.id, 'tool', stored, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status, ms, ...(loadedSkill ? { skill: loadedSkill } : {}), ...(snapshotId ? { snapshotId } : {}), ...(shown.length ? { images: shown } : {}), ...(card ? { card } : {}), ...(flagged?.length ? { contradiction: flagged[0] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(advisoryStop ? { advisory: { ...advisoryStop, ...(advisoryAnswer ? { answer: advisoryAnswer } : {}) } } : {}) });
+      const toolMsg = store.addMessage(conv.id, 'tool', stored, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status, ms, ...(loadedSkill ? { skill: loadedSkill } : {}), ...(snapshotId ? { snapshotId } : {}), ...(shown.length ? { images: shown } : {}), ...(card ? { card } : {}), ...(flagged?.length ? { contradiction: flagged[0] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(advisoryStop ? { advisory: { ...advisoryStop, ...(advisoryAnswer ? { answer: advisoryAnswer } : {}) } } : {}), ...(guardRec ? { guard: { kind: guardRec.kind, quote: guardRec.quote } } : {}) });
       receipts.push({ name: call.name, status, args: call.arguments, output });
       // Phase 78 seam 3: the call is done (the recorder keeps the scrubbed result).
-      await hooks.afterTool({ step, call, summary, args: shownArgs, status, output, ms, approval, messageId: toolMsg.id, ...(snapshotId ? { snapshotId } : {}), ...(flagged?.length ? { contradictions: flagged } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(thumbs.length ? { thumbs } : {}) });
+      await hooks.afterTool({ step, call, summary, args: shownArgs, status, output, ms, approval, messageId: toolMsg.id, ...(snapshotId ? { snapshotId } : {}), ...(flagged?.length ? { contradictions: flagged } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(thumbs.length ? { thumbs } : {}), ...(guardRec ? { guard: guardRec } : {}) });
       // Phase 98: tool.after (the scrubbed result; plugins may add a card under the step).
       if (pluginTurn) {
         const evs = await pluginTurn.afterTool({ id: call.id, name: call.name, status, output });

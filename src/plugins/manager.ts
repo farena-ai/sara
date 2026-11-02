@@ -1006,7 +1006,12 @@ export class PluginManager {
           currentSession: () => store.currentChannelConversation(channel, chatId, who),
           startSession: (prev) => (prev ? nextSession(a.app, prev) : make()),
           stopTurn: (id) => a.app.stopTurn?.(id) ?? false,
-          clearQueue: () => 0,
+          // Phase 116: the one queue (src/pending.ts); /steer and /queue with their text.
+          clearQueue: (id) => (a.app.pending?.clear(id) ?? 0),
+          take: async (kind, t) => {
+            await this.#bridgeTake(a, run, { bridge, chatId, conv: store.currentChannelConversation(channel, chatId, who) ?? make(), owner, content: t, extra: { via: channel }, lang: owner ? ownerLanguage(a.app) : 'en' }, kind);
+            return '';
+          },
           progressKey: { bridge: channel, key: chatId },
         },
       });
@@ -1018,7 +1023,7 @@ export class PluginManager {
       return { ok: true, command: cmd.name };
     }
     const conv = store.currentChannelConversation(channel, chatId, who) ?? make();
-    if (a.app.isBusy?.(conv.id)) return { ok: false, reason: 'busy' };
+    // Phase 116: a message while she works is no longer dropped: it steers or waits its turn (#bridgeTake).
     const runTracked = a.app.runTracked;
     if (!runTracked) return deny('turns are not available here');
     const media = await import('../bridges/media.ts');
@@ -1070,6 +1075,49 @@ export class PluginManager {
       if (!text && !extra.images && !extra.othersPhotos && !extra.docs) return { ok: true, conversation: conv.id, files: 0 };
     }
     const content = `${text || (extra.docs?.length ? `📄 ${extra.docs.map((d) => d.name).join(', ')}` : '(photo)')}${described}`;
+    return this.#bridgeTake(a, run, { bridge, chatId, conv, owner, content, extra, lang });
+  }
+
+  /**
+   * Phase 116 (BR2 §5.7): one plugin-bridge message: a turn now, or (while she works) a steer for
+   * the owner (`chats.whileBusy`, /steer) or a queued turn (everyone else; 2.48 dropped these).
+   */
+  async #bridgeTake(a: Attached, run: Running, m: { bridge: string; chatId: string; conv: import('../store.ts').Conversation; owner: boolean; content: string; extra: { images?: string[]; othersPhotos?: string[]; docs?: import('../library/intake.ts').SharedDoc[]; via: string }; lang: string }, explicit?: 'steer' | 'queue'): Promise<Record<string, unknown>> {
+    const { pendingFor, whileBusySettings, PENDING_LINES } = await import('../pending.ts');
+    const { say } = await import('../bridges/commands.ts');
+    const pend = pendingFor(a.app);
+    const runner = (item?: { id: string; kind: string }) => this.#bridgeTurn(a, run, m, item);
+    if (!pend.busy(m.conv.id)) {
+      await pend.run(m.conv.id, async () => void (await runner()));
+      return { ok: true, conversation: m.conv.id };
+    }
+    const cfg = whileBusySettings(a.app);
+    const kind = m.owner ? (explicit ?? cfg.whileBusy) : 'queue';
+    const r = pend.add(m.conv.id, { kind, content: m.content, sender: m.owner ? 'owner' : 'person', meta: { source: `plugin-${m.bridge}`, ...(m.extra.images?.length ? { images: m.extra.images } : {}), where: { chatId: m.chatId, bridge: m.bridge } } }, async (item) => void (await runner(item)), { queueMax: cfg.queueMax });
+    const sendLine = (t: string, p?: Record<string, unknown>) => run.proc.send({ v: 1, type: 'bridge.send', bridge: m.bridge, chatId: m.chatId, text: say(a.app, m.lang, t, p) });
+    if (!r.ok) {
+      sendLine(r.reason === 'steers' ? PENDING_LINES.steers : PENDING_LINES.full, { max: cfg.queueMax });
+      return { ok: true, conversation: m.conv.id, queued: false };
+    }
+    if (r.item.kind === 'steer' && r.item.state === 'waiting') sendLine(PENDING_LINES.steered);
+    else if (r.item.kind === 'queue') sendLine(PENDING_LINES.queued, { n: r.waiting });
+    this.store.log(run.row.id, a.id, 'call', `bridge ${m.bridge}: ${r.item.kind === 'steer' ? 'a steer' : 'a queued message'}`);
+    return { ok: true, conversation: m.conv.id, pending: { id: r.item.id, kind: r.item.kind, state: r.item.state } };
+  }
+
+  /** One turn of a plugin bridge (the reply, her pictures and files, the progress message). */
+  async #bridgeTurn(a: Attached, run: Running, m: { bridge: string; chatId: string; conv: import('../store.ts').Conversation; owner: boolean; content: string; extra: { images?: string[]; othersPhotos?: string[]; docs?: import('../library/intake.ts').SharedDoc[]; via: string }; lang: string }, item?: { id: string; kind: string }): Promise<void> {
+    const { bridge, chatId, conv, owner, content, lang } = m;
+    const channel = `plugin-${bridge}`;
+    const extra = { ...m.extra, ...(item ? { pendingId: item.id } : {}) };
+    const store = a.app.store;
+    const runTracked = a.app.runTracked;
+    if (!runTracked) return;
+    const media = await import('../bridges/media.ts');
+    const { say } = await import('../bridges/commands.ts');
+    const { PENDING_LINES } = await import('../pending.ts');
+    const sendLine = (t: string) => run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: say(a.app, lang, t) });
+    if (item?.kind === 'steer') sendLine(PENDING_LINES.moved);
     let reply = '';
     const notices: string[] = [];
     const out = new media.Outgoing();
@@ -1138,7 +1186,6 @@ export class PluginManager {
     if (text2) run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: text2 });
     await closing?.catch(() => undefined);
     this.store.log(run.row.id, a.id, 'call', `bridge ${bridge}: a ${owner ? 'owner' : 'partner'} turn`);
-    return { ok: true, conversation: conv.id };
   }
 
   /** A note or card from a plugin (not during a turn) in the owner's latest conversation, labelled. */

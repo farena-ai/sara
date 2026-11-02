@@ -14,7 +14,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1548%20passing-brightgreen" alt="1548 tests passing">
+  <img src="https://img.shields.io/badge/tests-1570%20passing-brightgreen" alt="1570 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -114,15 +114,16 @@ Einminütige Anleitungen, aufgenommen auf einem Testserver mit einem lokalen Mod
 
 ## Was ist neu
 
+- **2.49** · Mit ihr reden, während sie arbeitet: *Jetzt sagen* lenkt die Arbeit beim nächsten Schritt um, *Danach* wartet, bis es dran ist, `/btw` bringt eine kurze Antwort nebenbei; und sie wiederholt keinen Aufruf mehr, der immer wieder scheitert.
 - **2.48** · Chat-Apps holen auf: Fotos und Dateien in beide Richtungen bei Telegram und Discord (ihre Selfies kommen jetzt an) und eine Live-Fortschrittsnachricht mit Stopp-Knopf, während sie arbeitet.
 - **2.47.3** · Hier anfangen: ein Weg für Einsteiger und einer für Coder, neue Screenshots, ein *Wie mache ich…?*-Verzeichnis in der Hilfe und auf der Doku-Seite.
-- **2.47.2** · Ein Stil und Hilfe auf jeder Seite: ein *Wie mache ich…?*-Feld mit Schritt-für-Schritt-Antworten auf jeder Seite, und leere Seiten, die sagen, was dort hinkommt.
 
 <details>
 <summary><b>Versionsgeschichte</b>: was jede Version seit 2.4 gebracht hat</summary>
 
 | Version | Was du bekommst |
 |---|---|
+| **2.49** · Mit ihr reden, während sie arbeitet | **Kein Warten mehr, bis sie fertig ist.** Schreib, während sie arbeitet, und wähle: *Jetzt sagen* (sie liest es vor ihrem nächsten Schritt und ändert den Kurs; es kann nie etwas freigeben), *Danach* (es wartet und läuft als eigene Runde) oder *Nur kurz gefragt* (`/btw`: eine kurze Antwort nebenbei, nichts wird gespeichert, die Arbeit läuft weiter). Genauso in Telegram und Discord (`/queue`, `/btw`). Eine **Schleifensperre** stoppt sie nach drei gleichen fehlgeschlagenen Aufrufen und lässt sie den Weg ändern. |
 | **2.48** · Chat-Apps holen auf | **Fotos und Dateien in beide Richtungen bei Telegram und Discord:** Schick ihr ein Foto (mit Bildunterschrift, als Album oder als Datei) oder ein Dokument, und sie liest es; bitte um ein Selfie, ein Diagramm oder eine Datei, und es kommt an (`send_file`). Bilder anderer Leute in einem Raum bleiben aus, bis du sie einschaltest, und dann sieht sie nur eine Beschreibung. **Eine Fortschrittsnachricht** aktualisiert sich, während sie arbeitet, hat einen Stopp-Knopf und endet als eine Zusammenfassungszeile. Plugin-Brücken können auch Dateien tragen. |
 | **2.47.3** · Hier anfangen | **Zwei Einstiege:** [Hier anfangen](docs/START_HERE.md) für „Installiert – und jetzt?“ und [Für Coder](docs/FOR_CODERS.md), beide mit den Anleitungsvideos (auf Englisch). Neue Screenshots, die Funktionstour aufgeteilt in *Für Gesellschaft*, *Fürs Programmieren* und *Für beides*, alle *Wie mache ich…?*-Antworten in einem Verzeichnis (in der Hilfe und auf der Doku-Seite) und eine neu gegliederte Doku-Seite. |
 | **2.47.2** · Ein Stil und Hilfe auf jeder Seite | **Jede Seite hat jetzt ein *Wie geht…?*-Feld** mit Schritt-für-Schritt-Antworten (123, mit *Zeig es mir*), und leere Seiten sagen, was dort hinkommt, mit einem klaren nächsten Schritt. Ein Kartenstil, Symbole statt Emoji, einheitliche Abstände und Ecken, ein Einstellungsmenü, das eine Gruppe nach der anderen öffnet, ein aufgeräumtes Handy-Layout ohne seitliches Scrollen, ein klarerer erster Anmeldebildschirm, und die Coding-Einrichtung bevorzugt ein fähiges Modell auf deinem eigenen Rechner. |
@@ -202,7 +203,7 @@ Alle Versionen: [CHANGELOG.md](CHANGELOG.md) · [Releases](https://github.com/fa
 
 In Bau-Reihenfolge, je ein Release ([die ganze Liste](docs/ROADMAP.md)):
 
-- **Danach** (2.49–2.61): Fotos und Dateien in Chat-Apps, mit ihr reden, während sie arbeitet, Signal, E-Mail, WhatsApp, iMessage (BlueBubbles) und SMS, „mach weiter, bis es fertig ist“, Code-Prüfungen nach Änderungen, eine Routinen-Galerie und **der Sara Store** für Plugins, Skills und MCP-Server (ComfyUI, Blender, Playwright…) mit Installation per Klick und einem Weg, eigene einzureichen.
+- **Danach** (2.50–2.61): Fotos und Dateien in Chat-Apps, mit ihr reden, während sie arbeitet, Signal, E-Mail, WhatsApp, iMessage (BlueBubbles) und SMS, „mach weiter, bis es fertig ist“, Code-Prüfungen nach Änderungen, eine Routinen-Galerie und **der Sara Store** für Plugins, Skills und MCP-Server (ComfyUI, Blender, Playwright…) mit Installation per Klick und einem Weg, eigene einzureichen.
 - Die iPhone-App (wartet auf Apple) und deine Ideen in den [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Der ganze Plan: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -399,8 +400,8 @@ wurden. Was sie heute beiträgt, ist die Arbeitsweise (sie lässt die Tests lauf
 riskanten Schritten, zeigt, was gelaufen ist), nicht ein höheres Ergebnis bei diesen Sätzen.
 Details, Ergebnisse pro Aufgabe und wie man es wiederholt: [docs/RESULTS.md](docs/RESULTS.md).
 
-Dazu `npm run check`: eine Typprüfung und 1563 automatische Tests mit einem geskripteten
-Schein-Modell (ohne Netz, ohne GPU): 1548 laufen unter Windows durch, die anderen 8 sind
+Dazu `npm run check`: eine Typprüfung und 1585 automatische Tests mit einem geskripteten
+Schein-Modell (ohne Netz, ohne GPU): 1570 laufen unter Windows durch, die anderen 8 sind
 Linux-spezifische Sandbox-Tests, die auf einem Linux-Server laufen.
 
 ## Sara im Vergleich

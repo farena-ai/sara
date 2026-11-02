@@ -10,10 +10,29 @@ export interface ToolCall {
 
 export type ChatMessage =
   | { role: 'system'; content: string }
-  | { role: 'user'; content: string; images?: ImageData[] }
+  /** Phase 116: `steer` = a message the owner sent while she worked, right after tool results (adapters that can't take that shape fold it). */
+  | { role: 'user'; content: string; images?: ImageData[]; steer?: boolean }
   | { role: 'assistant'; content: string; toolCalls?: ToolCall[] }
   /** Phase 49: `images` are screenshots a tool took for the model to look at. */
   | { role: 'tool'; toolCallId: string; name: string; content: string; images?: ImageData[] };
+
+/**
+ * Phase 116 (BR2 risk 1): for APIs that refuse a user line straight after tool results (strict
+ * tool → assistant ordering), a steer is folded into the tool result before it, labelled, so
+ * nothing is lost. A steer with pictures stays its own line (a tool result can't carry them).
+ */
+export function foldSteers(messages: ChatMessage[]): ChatMessage[] {
+  const out: ChatMessage[] = [];
+  for (const m of messages) {
+    const prev = out.at(-1);
+    if (m.role === 'user' && m.steer && !m.images?.length && prev?.role === 'tool') {
+      out[out.length - 1] = { ...prev, content: `${prev.content}\n\n[Message from the person you are helping, sent while this step ran:]\n${m.content}` };
+      continue;
+    }
+    out.push(m);
+  }
+  return out;
+}
 
 /** A photo sent to a vision model (base64, no data: prefix). */
 export interface ImageData {

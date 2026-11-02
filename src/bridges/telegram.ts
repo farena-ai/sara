@@ -25,6 +25,7 @@ import { editLine, keepRoomByKey, leftRoom, logLine, maybeSummarize, noteHerLine
 import { roomTurn } from './now.ts';
 import { closeProgress, deliverOutgoing, FIRST_4_LINE, MAX_PHOTO_IN_BYTES, MAX_PHOTOS_IN, openProgress, othersPhotosOn, Outgoing, PHOTO_SIZE_LINE, PHOTOS_OFF_LINE, photoQuotaHit, progressOn, progressSettings, QUOTA_LINE, takeIncoming, takeLeftoverProgress, TELEGRAM_FILE_OUT, TELEGRAM_PHOTO_OUT, type IncomingFile, type MediaPort } from './media.ts';
 import { finalLine, ProgressMessage } from './progress.ts';
+import { PENDING_LINES, pendingFor, snippet, whileBusySettings, type PendingItem } from '../pending.ts';
 import { PRIO_FILE, PRIO_REPLY, RateLimited, realClock, SendQueue, type Clock } from './sendq.ts';
 import { readFileSync } from 'node:fs';
 import { adultModeOn } from '../settings.ts';
@@ -54,6 +55,8 @@ export interface TurnExtra {
   images?: string[];
   othersPhotos?: string[];
   via?: string;
+  /** Phase 116: the queued message this turn runs (src/pending.ts). */
+  pendingId?: string;
 }
 
 export const DEFAULT_TELEGRAM: TelegramSettings = { enabled: false, allowOthers: false, mirror: true, ownerUserIds: [], ownerWorkInGroups: false, nsfwChatIds: [], answerName: false, answerEveryone: false };
@@ -136,11 +139,8 @@ export class TelegramBridge {
   #link: { code: string; expires: number; misses: number } | undefined;
   #unsubscribe: (() => void) | undefined;
   readonly #toldNo = new Set<number>();
-  /** Telegram chats waiting for their turn (one turn per conversation at a time). */
-  readonly #queues = new Map<string, Promise<void>>();
-  /** Phase 107: turns waiting in each queue, and a counter /reset and /new bump to drop them. */
-  readonly #waiting = new Map<string, number>();
-  readonly #cleared = new Map<string, number>();
+  // Phase 116 (BR2 B5): one turn per conversation at a time, through the server's one queue
+  // (src/pending.ts), shared with the web app, Discord and plugin bridges.
   /** Phase 107: the bridge's own Stop for turns it runs without the server's tracking (tests, bare apps). */
   readonly #aborts = new Map<string, AbortController>();
   /** Phase 107: the last /model choices shown per session (the buttons carry their index). */
@@ -231,7 +231,8 @@ export class TelegramBridge {
     const app = this.#app;
     const cfg = telegramSettings(app);
     const owners = [...new Set([cfg.ownerChatId, ...(cfg.ownerUserIds ?? [])].filter((x): x is number => typeof x === 'number' && x > 0))];
-    const full: CommandName[] = ['new', 'reset', 'stop', 'status', 'help', 'model', 'remember', 'settings'];
+    // Phase 116: /steer, /queue and /btw in the owner's lists.
+    const full: CommandName[] = ['new', 'reset', 'stop', 'status', 'help', 'model', 'remember', 'settings', 'steer', 'queue', 'btw'];
     const groups = cfg.ownerWorkInGroups ? app.store.channelKeys('telegram-work').map(Number).filter((n) => Number.isFinite(n) && n < 0) : [];
     const scopes: { scope: Record<string, unknown>; names: CommandName[]; owner: boolean }[] = [
       { scope: { type: 'all_private_chats' }, names: cfg.allowOthers ? ['new', 'reset', 'stop', 'status', 'help'] : ['help'], owner: false },
@@ -277,6 +278,18 @@ export class TelegramBridge {
       return;
     }
     for (const r of rows) await this.#call('editMessageText', { chat_id: Number(r.chatId), message_id: Number(r.messageId), text: finalLine({ kind: 'restart' }, 0, 0, ownerLanguage(this.#app), true), reply_markup: { inline_keyboard: [] } }).catch(() => undefined);
+    // Phase 116 (BR2 §5.3): messages that waited when Sara restarted don't run by themselves; the owner hears once.
+    try {
+      const pend = pendingFor(this.#app);
+      for (const it of pend.untold('telegram')) {
+        pend.markTold(it.id);
+        const chatId = Number(it.meta.where?.chatId);
+        if (it.sender === 'person' || !Number.isFinite(chatId)) continue;
+        await this.send(chatId, say(this.#app, ownerLanguage(this.#app), PENDING_LINES.restarted, { text: snippet(it.content) })).catch(() => undefined);
+      }
+    } catch (err) {
+      console.warn(`telegram: ${(err as Error).message}`);
+    }
   }
 
   stop(): void {
@@ -532,24 +545,43 @@ export class TelegramBridge {
     const said = heard ? `🎤 ${heard}` : text || (docs.length ? `📄 ${docs[0].name}` : '');
     const content = isPrivate ? said.replace(/^\/start\b\s*/, '') || 'Hi!' : `[${from}]: ${said}`;
     const replyWithVoice = speechOf(this.#app).replyWithVoice(Boolean(heard));
-    await this.#enqueue(msg, conv, content, isOwner, replyWithVoice, docs, place, fromOwner, {}, o.queued === true);
+    const said2 = await this.#enqueue(msg, conv, content, isOwner, replyWithVoice, docs, place, fromOwner, {}, o.queued === true);
+    if (said2) await this.send(msg.chat.id, said2);
   }
 
-  /** One turn at a time per conversation, in order. Phase 107: /reset and /new drop waiting turns. */
-  async #enqueue(msg: TgMessage, conv: Conversation, content: string, isOwner: boolean, voice: boolean, docs: SharedDoc[], place: Place, fromOwner: boolean, extra: TurnExtra, queued: boolean): Promise<void> {
-    const prev = this.#queues.get(conv.id) ?? Promise.resolve();
-    const gen = this.#cleared.get(conv.id) ?? 0;
-    this.#waiting.set(conv.id, (this.#waiting.get(conv.id) ?? 0) + 1);
-    const where = { place, lang: fromOwner ? ownerLanguage(this.#app) : askerLanguage(msg.from?.language_code), ownerChat: msg.from!.id, msgId: String(msg.message_id), replyTo: msg.reply_to_message?.message_id !== undefined ? String(msg.reply_to_message.message_id) : null };
-    const next = prev
-      .then(() => {
-        if ((this.#cleared.get(conv.id) ?? 0) !== gen) return;
-        this.#waiting.set(conv.id, Math.max(0, (this.#waiting.get(conv.id) ?? 1) - 1));
-        return this.#turn(conv, msg.chat.id, content, isOwner, voice, docs, where, extra);
-      })
-      .catch((err: Error) => console.warn(`telegram turn: ${err.message}`));
-    this.#queues.set(conv.id, next);
-    if (!queued) await next;
+  /**
+   * One turn at a time per conversation, in order (Phase 116: the server's one queue). While she
+   * works, the owner's plain message is a steer or waits its turn (`chats.whileBusy`, or /steer and
+   * /queue); everyone else's always waits. /reset and /new drop what waits.
+   */
+  async #enqueue(msg: TgMessage, conv: Conversation, content: string, isOwner: boolean, voice: boolean, docs: SharedDoc[], place: Place, fromOwner: boolean, extra: TurnExtra, queued: boolean, explicit?: 'steer' | 'queue'): Promise<string> {
+    const app = this.#app;
+    const where = { place, lang: fromOwner ? ownerLanguage(app) : askerLanguage(msg.from?.language_code), ownerChat: msg.from!.id, msgId: String(msg.message_id), replyTo: msg.reply_to_message?.message_id !== undefined ? String(msg.reply_to_message.message_id) : null };
+    const pend = pendingFor(app);
+    const runner = async (item?: PendingItem) => {
+      // A note she got after her last step: answered now as its own turn.
+      if (item?.kind === 'steer') await this.send(msg.chat.id, say(app, where.lang, PENDING_LINES.moved)).catch(() => undefined);
+      await this.#turn(conv, msg.chat.id, content, isOwner, voice, docs, where, { ...extra, ...(item ? { pendingId: item.id } : {}) }).catch((err: Error) => console.warn(`telegram turn: ${err.message}`));
+    };
+    if (!pend.busy(conv.id)) {
+      const next = pend.run(conv.id, () => runner());
+      if (!queued) await next;
+      return '';
+    }
+    // She's working: a steer (the owner, when that's the default or he said /steer) or a queued turn.
+    const cfg = whileBusySettings(app);
+    const sender = isOwner ? 'owner' : 'person';
+    const kind = sender === 'person' ? 'queue' : (explicit ?? cfg.whileBusy);
+    const r = pend.add(conv.id, { kind, content, sender, meta: { source: 'telegram', ...(extra.images?.length ? { images: extra.images } : {}), ...(docs.length ? { docs } : {}), where: { chatId: msg.chat.id, msgId: msg.message_id, place, lang: where.lang } } }, (item) => runner(item), { queueMax: cfg.queueMax });
+    const line = (t: string, p?: Record<string, unknown>) => say(app, where.lang, t, p);
+    if (!r.ok) return line(r.reason === 'steers' ? PENDING_LINES.steers : PENDING_LINES.full, { max: cfg.queueMax });
+    if (r.item.kind === 'steer' && r.item.state === 'waiting') {
+      // 👀 on his message; a short line when the reaction can't be set.
+      const ok = await this.#call('setMessageReaction', { chat_id: msg.chat.id, message_id: msg.message_id, reaction: [{ type: 'emoji', emoji: '👀' }] }).then(() => true, () => false);
+      return ok ? '' : line(PENDING_LINES.steered);
+    }
+    if (r.item.kind === 'steer') return '';
+    return line(PENDING_LINES.queued, { n: r.waiting });
   }
 
   /**
@@ -589,7 +621,8 @@ export class TelegramBridge {
     const caption = (msgs.find((m) => m.caption?.trim())?.caption ?? '').trim();
     const said = `${caption || '(photo)'}${taken.described}`;
     const content = msg.chat.type === 'private' ? said : `[${from}]: ${said}`;
-    await this.#enqueue(msg, conv, content, c.isOwner, false, [], c.place, c.fromOwner, { ...(taken.images.length ? { images: taken.images } : {}), ...(taken.othersPhotos.length ? { othersPhotos: taken.othersPhotos } : {}), via: 'telegram' }, queued);
+    const said2 = await this.#enqueue(msg, conv, content, c.isOwner, false, [], c.place, c.fromOwner, { ...(taken.images.length ? { images: taken.images } : {}), ...(taken.othersPhotos.length ? { othersPhotos: taken.othersPhotos } : {}), via: 'telegram' }, queued);
+    if (said2) await this.send(chatId, said2);
   }
 
   #called(msg: TgMessage, text: string, cfg: TelegramSettings): boolean {
@@ -644,21 +677,30 @@ export class TelegramBridge {
       ...(ownerWork ? { roomSession: () => roomConversation(app, 'telegram', String(chatId)) } : {}),
       stopTurn: (id) => this.#stopTurn(id),
       clearQueue: (id) => this.#clearQueue(id),
+      // Phase 116: /steer and /queue (owner; /queue also for someone in their own DM).
+      take: async (kind, text) => {
+        const conv = this.#conversation(msg, isOwnerChat, ownerWork);
+        const from = msg.from?.first_name || msg.from?.username || 'someone';
+        const content = msg.chat.type === 'private' ? text : `[${from}]: ${text}`;
+        return this.#enqueue(msg, conv, content, isOwnerChat || ownerWork, false, [], place, fromOwner, {}, true, kind);
+      },
       settingsWhere: undefined,
       progressKey: { bridge: 'telegram', key: String(chatId) },
       // Phase 113: /bug and /idea link to the report sheet when the server knows its address.
       ...(accessInfo().url ? { appLink: accessInfo().url! } : {}),
     };
     const r = await runCommand({ app, bridge: 'telegram', place, who, lang, cmd, adapter });
-    await this.#deliver(chatId, msg.from!.id, place, r, lang);
+    await this.#deliver(chatId, msg.from!.id, place, r, lang, msg.message_id);
   }
 
   /** Sends a command reply where it belongs: buttons for picks and approvals; owner-only details privately. */
-  async #deliver(chatId: number, userId: number, place: Place, r: CommandReply, lang: string): Promise<void> {
+  async #deliver(chatId: number, userId: number, place: Place, r: CommandReply, lang: string, replyTo?: number): Promise<void> {
     if (!r.text && !r.choices?.length) return;
     const room = place === 'room' || place === 'work-room';
     const to = r.ownerOnly && room && !r.refused ? userId : chatId;
     const extra: Record<string, unknown> = {};
+    // Phase 116: a /btw answer replies to the question.
+    if (r.aside && to === chatId && replyTo !== undefined) extra.reply_parameters = { message_id: replyTo, allow_sending_without_reply: true };
     if (r.choices?.length && r.conversationId) {
       this.#picks.set(r.conversationId, r.choices);
       extra.reply_markup = { inline_keyboard: r.choices.slice(0, 20).map((m, i) => [{ text: `${m.model} · ${m.provider}`.slice(0, 60), callback_data: `md:${r.conversationId}:${i}` }]) };
@@ -701,10 +743,7 @@ export class TelegramBridge {
   }
 
   #clearQueue(conversationId: string): number {
-    const n = this.#waiting.get(conversationId) ?? 0;
-    this.#cleared.set(conversationId, (this.#cleared.get(conversationId) ?? 0) + 1);
-    this.#waiting.set(conversationId, 0);
-    return n;
+    return pendingFor(this.#app).clear(conversationId);
   }
 
   /** Downloads a file the owner sent (Telegram lets bots download up to 20 MB). */
@@ -747,8 +786,7 @@ export class TelegramBridge {
   async #turn(conv: Conversation, chatId: number, content: string, isOwner: boolean, voice = false, docs: SharedDoc[] = [], where?: { place: Place; lang: string; ownerChat: number; msgId?: string; replyTo?: string | null }, extra: TurnExtra = {}): Promise<void> {
     const app = this.#app;
     let fill: { used: number; budget: number; dropped: number } | undefined;
-    // Wait while a web turn runs in the same conversation.
-    for (let i = 0; i < 600 && app.isBusy?.(conv.id); i++) await new Promise((r) => setTimeout(r, 1000));
+    // Phase 116: a web turn in the same conversation shares the one queue (no more waiting here).
     const started = Date.now();
     // Phase 115 (BR1): her pictures and files (sent after the turn) and the live progress message.
     const out = new Outgoing();

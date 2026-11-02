@@ -76,6 +76,8 @@ export interface ToolStep {
   sandbox?: unknown;
   /** Phase 87: step thumbnails from her hands (hashes in run_thumbs; GET /api/computer/thumb/<hash>). */
   thumbs?: string[];
+  /** Phase 116 (BR2 §5.8): the loop guard refused this call (`kind` 'loop' or 'declined', its key and the error line). */
+  guard?: { kind: 'loop' | 'declined'; key: string; quote: string };
 }
 
 /** Coding mode: the light workspace manifest (risk 3): HEAD and the dirty files' hashes. */

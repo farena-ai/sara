@@ -27,10 +27,11 @@ import { closeProgress, deliverOutgoing, DISCORD_FILE_OUT, FIRST_4_LINE, MAX_PHO
 import { finalLine, ProgressMessage } from './progress.ts';
 import { PRIO_FILE, PRIO_REPLY, RateLimited, realClock, SendQueue, type Clock } from './sendq.ts';
 import type { TurnExtra } from './telegram.ts';
+import { PENDING_LINES, pendingFor, snippet, whileBusySettings, type PendingItem } from '../pending.ts';
 import { adultModeOn } from '../settings.ts';
 import { readFileSync } from 'node:fs';
 import { nameCalled } from './rules.ts';
-import { askerLanguage, chatsSettings, commandAllowed, DESCRIPTIONS, DISCORD_LOCALES, DISCORD_NAMES, isCommandName, MENU_COMMANDS, menuHash, modelChoices, nearlyFullOffer, nextSession, OTHER_LANGS, ownerLanguage, parseCommand, runCommand, say, setSessionModel, type Asker, type BridgeAdapter, type CommandReply, type ModelPick, type ParsedCommand, type Place } from './commands.ts';
+import { askerLanguage, BUSY_COMMANDS, chatsSettings, commandAllowed, DESCRIPTIONS, DISCORD_LOCALES, DISCORD_NAMES, isCommandName, MENU_COMMANDS, menuHash, modelChoices, nearlyFullOffer, nextSession, OTHER_LANGS, ownerLanguage, parseCommand, runCommand, say, setSessionModel, type Asker, type BridgeAdapter, type CommandReply, type ModelPick, type ParsedCommand, type Place } from './commands.ts';
 import { channelProjectId, discordRoomName, noteRoom, roomOf, roomStale } from './rooms.ts';
 import { deleteLine, editLine, keepRoomByKey, leftRoom, logLine, maybeSummarize, noteHerLine, reading, setSeesAll, type KeepRoom, type Who } from './keepup.ts';
 import { roomTurn } from './now.ts';
@@ -197,13 +198,10 @@ export class DiscordBridge {
   readonly #chanInfo = new Map<string, { name?: string; guildId?: string }>();
   readonly #guildNames = new Map<string, { name?: string; at: number }>();
   readonly #dmChannel = new Map<string, string>();
-  readonly #queues = new Map<string, Promise<void>>();
   /** Phase 47 loop guard per channel (in memory; kept across reconnects, reset on restart of Sara). */
   readonly #botGuard = new Map<string, { replies: number; told: boolean; times: number[] }>();
   /** Phase 107: the application id from READY (the command menu and interaction edits need it). */
   #appId: string | undefined;
-  readonly #waiting = new Map<string, number>();
-  readonly #cleared = new Map<string, number>();
   readonly #aborts = new Map<string, AbortController>();
   readonly #picks = new Map<string, ModelPick[]>();
   /** Phase 107: the command menu registration that is running (tests await it). */
@@ -254,7 +252,10 @@ export class DiscordBridge {
               ? [opt('text', en('What to remember'), 3, { required: true, max_length: 400 })]
               : [];
       return { type: 1, name: n, name_localizations: DISCORD_NAMES[n], description: say(app, 'en', description).slice(0, 100), description_localizations: loc(description), contexts: [0, 1], default_member_permissions: null, ...(options.length ? { options } : {}) };
-    });
+    }).concat(
+      // Phase 116 (BR2 §5.7): /steer, /queue and /btw, each with a required text.
+      BUSY_COMMANDS.map((n) => ({ type: 1, name: n, name_localizations: {}, description: say(app, 'en', DESCRIPTIONS[n]).slice(0, 100), description_localizations: loc(DESCRIPTIONS[n]), contexts: [0, 1], default_member_permissions: null, options: [opt('text', n === 'btw' ? en('Your side question') : en('What to tell her'), 3, { required: true, max_length: 2000 })] })) as never[],
+    );
   }
 
   /** One bulk overwrite of the global commands, skipped when the list hasn't changed; `force` = "Register menus now". */
@@ -333,6 +334,18 @@ export class DiscordBridge {
       return;
     }
     for (const r of rows) await this.#rest('PATCH', `/channels/${r.chatId}/messages/${r.messageId}`, { content: finalLine({ kind: 'restart' }, 0, 0, ownerLanguage(this.#app), true), components: [] }).catch(() => undefined);
+    // Phase 116 (BR2 §5.3): messages that waited when Sara restarted don't run by themselves; the owner hears once.
+    try {
+      const pend = pendingFor(this.#app);
+      for (const it of pend.untold('discord')) {
+        pend.markTold(it.id);
+        const chatId = String(it.meta.where?.chatId ?? '');
+        if (it.sender === 'person' || !chatId) continue;
+        await this.send(chatId, say(this.#app, ownerLanguage(this.#app), PENDING_LINES.restarted, { text: snippet(it.content) })).catch(() => undefined);
+      }
+    } catch (err) {
+      console.warn(`discord: ${(err as Error).message}`);
+    }
   }
 
   stop(): void {
@@ -425,11 +438,21 @@ export class DiscordBridge {
     return { place, fromOwner, ownerWork, reachable: isDm ? fromOwner : cfg.allowServers || ownerWork };
   }
 
-  #adapter(channelId: string, place: Place, nsfw: boolean): BridgeAdapter {
+  #adapter(channelId: string, place: Place, nsfw: boolean, asker?: { userId: string; name?: string; msgId?: string }): BridgeAdapter {
     const app = this.#app;
     const ownerSide = place === 'owner-dm' || place === 'work-room';
     const channel = place === 'work-room' ? (nsfw ? 'discord-work-nsfw' : 'discord-work') : nsfw ? 'discord-nsfw' : 'discord';
     return {
+      // Phase 116: /steer and /queue with their text (the turn's reply goes to the channel as usual).
+      ...(asker
+        ? {
+            take: (kind: 'steer' | 'queue', text: string) => {
+              const conv = app.store.currentChannelConversation(channel, channelId, ownerSide ? 'owner' : 'partner') ?? this.#newConversation(channel, channelId, place === 'owner-dm', place === 'work-room');
+              const content = place === 'owner-dm' ? text : `[${(asker.name ?? 'someone').replace(/[[\]]/g, '')}]: ${text}`;
+              return this.#enqueue(conv, channelId, content, ownerSide, false, [], { place, lang: ownerSide ? ownerLanguage(app) : 'en', userId: asker.userId, ...(asker.msgId ? { msgId: asker.msgId } : {}) }, {}, kind, false);
+            },
+          }
+        : {}),
       currentSession: () => app.store.currentChannelConversation(channel, channelId, ownerSide ? 'owner' : 'partner'),
       startSession: (prev) => (prev ? nextSession(app, prev) : this.#newConversation(channel, channelId, place === 'owner-dm', place === 'work-room')),
       ...(place === 'work-room' ? { roomSession: () => roomConversation(app, 'discord', channelId) } : {}),
@@ -454,19 +477,21 @@ export class DiscordBridge {
     const lang = at.fromOwner ? ownerLanguage(app) : askerLanguage(i.locale);
     const asker: Asker = who.bot ? 'bot' : at.fromOwner ? 'owner' : 'person';
     const opt = (n: string) => String(i.data?.options?.find((o) => o.name === n)?.value ?? '');
-    const cmd: ParsedCommand = { name, args: name === 'new' ? (opt('for') === 'room' ? 'room' : '') : name === 'model' ? opt('name') : name === 'remember' ? opt('text') : '', form: 'native' };
+    const cmd: ParsedCommand = { name, args: name === 'new' ? (opt('for') === 'room' ? 'room' : '') : name === 'model' ? opt('name') : name === 'remember' || name === 'steer' || name === 'queue' || name === 'btw' ? opt('text') : '', form: 'native' };
     if (!at.reachable || !commandAllowed(at.place, asker, name)) {
       const r = at.reachable ? await runCommand({ app, bridge: 'discord', place: at.place, who: asker, lang, cmd, adapter: this.#adapter(channelId, at.place, false) }) : { text: say(app, lang, en('Only the person who runs me can use that here.')) };
       return void (await callback({ type: 4, data: { content: r.text || '…', flags: 64, allowed_mentions: { parse: [] } } }));
     }
     // Private results (status, model, remember, help) only for the person who asked.
-    const ephemeral = name === 'status' || name === 'model' || name === 'remember' || name === 'help' || name === 'settings';
-    const deferred = name === 'status' || name === 'model' || name === 'new' || name === 'remember';
+    // Phase 116: /btw answers only the asker (deferred: the side call takes a moment); /steer and /queue say "Got it" to him alone.
+    const ephemeral = name === 'status' || name === 'model' || name === 'remember' || name === 'help' || name === 'settings' || name === 'btw' || name === 'steer' || name === 'queue';
+    const deferred = name === 'status' || name === 'model' || name === 'new' || name === 'remember' || name === 'btw';
     if (deferred) await callback({ type: 5, data: { flags: ephemeral ? 64 : 0 } });
     let r: CommandReply;
     try {
       const nsfw = Boolean(i.guild_id) && (await this.#isNsfw(channelId));
-      r = await runCommand({ app, bridge: 'discord', place: at.place, who: asker, lang, cmd, adapter: this.#adapter(channelId, at.place, nsfw) });
+      r = await runCommand({ app, bridge: 'discord', place: at.place, who: asker, lang, cmd, adapter: this.#adapter(channelId, at.place, nsfw, { userId: who.id, name: who.global_name || who.username }) });
+      if ((name === 'steer' || name === 'queue') && !r.text) r = { ...r, text: say(app, lang, en('Got it.')) };
     } catch (err) {
       r = { text: say(app, lang, en('(Something went wrong: {error})'), { error: (err as Error).message }) };
     }
@@ -513,7 +538,7 @@ export class DiscordBridge {
   async #typedCommand(msg: DMessage, cmd: ParsedCommand, place: Place, fromOwner: boolean, nsfw: boolean): Promise<void> {
     const app = this.#app;
     const lang = fromOwner ? ownerLanguage(app) : 'en';
-    const r = await runCommand({ app, bridge: 'discord', place, who: fromOwner ? 'owner' : 'person', lang, cmd, adapter: this.#adapter(msg.channel_id, place, nsfw) });
+    const r = await runCommand({ app, bridge: 'discord', place, who: fromOwner ? 'owner' : 'person', lang, cmd, adapter: this.#adapter(msg.channel_id, place, nsfw, { userId: msg.author.id, name: msg.author.global_name || msg.author.username, msgId: msg.id }) });
     if (!r.text && !r.choices?.length) return;
     const extra = this.#components(r, lang);
     const room = place === 'room' || place === 'work-room';
@@ -540,10 +565,7 @@ export class DiscordBridge {
   }
 
   #clearQueue(conversationId: string): number {
-    const n = this.#waiting.get(conversationId) ?? 0;
-    this.#cleared.set(conversationId, (this.#cleared.get(conversationId) ?? 0) + 1);
-    this.#waiting.set(conversationId, 0);
-    return n;
+    return pendingFor(this.#app).clear(conversationId);
   }
 
   /** Phase 61: her app lines to the owner in the owner's app language (partners get the English ones). */
@@ -862,20 +884,41 @@ export class DiscordBridge {
     const content = isDm ? said : `[${name}]: ${said.replace(new RegExp(`<@!?${this.#me?.id}>`, 'g'), `@${this.#app.persona.name}`)}`;
     const voice = speechOf(this.#app).replyWithVoice(Boolean(heard));
     if (isBot && !(await this.#takeBotTurn(msg.channel_id, cfg))) return;
-    const prev = this.#queues.get(conv.id) ?? Promise.resolve();
-    // Phase 107: /reset and /new drop the turns still waiting here.
-    const gen = this.#cleared.get(conv.id) ?? 0;
-    this.#waiting.set(conv.id, (this.#waiting.get(conv.id) ?? 0) + 1);
     const where = { place: (isOwnerDm ? 'owner-dm' : ownerWork ? 'work-room' : 'room') as Place, lang: isOwner ? ownerLanguage(this.#app) : 'en', userId: msg.author.id, msgId: msg.id, replyTo: msg.message_reference?.message_id ?? msg.referenced_message?.id ?? null };
-    const next = prev
-      .then(() => {
-        if ((this.#cleared.get(conv.id) ?? 0) !== gen) return;
-        this.#waiting.set(conv.id, Math.max(0, (this.#waiting.get(conv.id) ?? 1) - 1));
-        return this.#turn(conv, msg.channel_id, content, isOwner, voice, docs, where, extra);
-      })
-      .catch((err: Error) => console.warn(`discord turn: ${err.message}`));
-    this.#queues.set(conv.id, next);
-    await next;
+    const line = await this.#enqueue(conv, msg.channel_id, content, isOwner, voice, docs, where, extra, isBot ? 'queue' : undefined);
+    if (line) await this.send(msg.channel_id, line);
+  }
+
+  /**
+   * Phase 116 (BR2 B5): one turn per conversation at a time, through the server's one queue. While
+   * she works the owner's plain message is a steer or waits (`chats.whileBusy`, /steer, /queue);
+   * everyone else's (and bots') always waits. Returns the line to say ('' = nothing).
+   */
+  async #enqueue(conv: Conversation, channelId: string, content: string, isOwner: boolean, voice: boolean, docs: SharedDoc[], where: { place: Place; lang: string; userId: string; msgId?: string; replyTo?: string | null }, extra: TurnExtra, explicit?: 'steer' | 'queue', wait = true): Promise<string> {
+    const app = this.#app;
+    const pend = pendingFor(app);
+    const runner = async (item?: PendingItem) => {
+      if (item?.kind === 'steer') await this.send(channelId, say(app, where.lang, PENDING_LINES.moved)).catch(() => undefined);
+      await this.#turn(conv, channelId, content, isOwner, voice, docs, where, { ...extra, ...(item ? { pendingId: item.id } : {}) }).catch((err: Error) => console.warn(`discord turn: ${err.message}`));
+    };
+    if (!pend.busy(conv.id)) {
+      const next = pend.run(conv.id, () => runner());
+      if (wait) await next;
+      return '';
+    }
+    const cfg = whileBusySettings(app);
+    const sender = isOwner ? 'owner' : 'person';
+    const kind = sender === 'person' ? 'queue' : (explicit ?? cfg.whileBusy);
+    const r = pend.add(conv.id, { kind, content, sender, meta: { source: 'discord', ...(extra.images?.length ? { images: extra.images } : {}), ...(docs.length ? { docs } : {}), where: { chatId: channelId, msgId: where.msgId ?? null, place: where.place, lang: where.lang } } }, (item) => runner(item), { queueMax: cfg.queueMax });
+    const line = (t: string, p?: Record<string, unknown>) => say(app, where.lang, t, p);
+    if (!r.ok) return line(r.reason === 'steers' ? PENDING_LINES.steers : PENDING_LINES.full, { max: cfg.queueMax });
+    if (r.item.kind === 'steer' && r.item.state === 'waiting') {
+      if (!where.msgId) return line(PENDING_LINES.steered);
+      const ok = await this.#rest('PUT', `/channels/${channelId}/messages/${where.msgId}/reactions/${encodeURIComponent('👀')}/@me`).then(() => true, () => false);
+      return ok ? '' : line(PENDING_LINES.steered);
+    }
+    if (r.item.kind === 'steer') return '';
+    return line(PENDING_LINES.queued, { n: r.waiting });
   }
 
   /** Phase 47: a bot's message reaches her only when bots are on, it's allowed, in a server channel she's in, and she's called. */
@@ -973,7 +1016,6 @@ export class DiscordBridge {
   async #turn(conv: Conversation, channelId: string, content: string, isOwner: boolean, voice = false, docs: SharedDoc[] = [], where?: { place: Place; lang: string; userId: string; msgId?: string; replyTo?: string | null }, extra: TurnExtra = {}): Promise<void> {
     const app = this.#app;
     let fill: { used: number; budget: number; dropped: number } | undefined;
-    for (let i = 0; i < 600 && app.isBusy?.(conv.id); i++) await new Promise((r) => setTimeout(r, 1000));
     const started = Date.now();
     // Phase 115 (BR1): her pictures and files (sent after the turn) and the live progress message.
     const out = new Outgoing();

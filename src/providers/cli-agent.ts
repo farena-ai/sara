@@ -44,10 +44,12 @@ export function toCliPrompt(messages: ChatMessage[], owner = 'Owner'): { system:
   const sys = messages.filter((m) => m.role === 'system').map((m) => m.content);
   const rest = messages.filter((m) => m.role !== 'system');
   let lastUser = -1;
+  // Phase 116: a steer (sent while she worked) is part of this turn, never its prompt.
   rest.forEach((m, i) => {
-    if (m.role === 'user') lastUser = i;
+    if (m.role === 'user' && !m.steer) lastUser = i;
   });
   const fmt = (m: ChatMessage): string => {
+    if (m.role === 'user' && m.steer) return `${owner} (sent while you worked): ${m.content}`;
     if (m.role === 'user') return `${owner}: ${m.content}${m.images?.length ? ` [${m.images.length} photo(s) attached; you can't see photos in this setup, so say so if it matters]` : ''}`;
     if (m.role === 'assistant') return `You: ${m.content}${m.toolCalls?.length ? `\n[you used: ${m.toolCalls.map((c) => c.name).join(', ')}]` : ''}`;
     if (m.role === 'tool') return `[${m.name} result]: ${m.content.slice(0, 2000)}`;

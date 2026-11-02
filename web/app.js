@@ -38,6 +38,7 @@ import { initBottomBar } from './bottom-bar.js';
 import { startsOnToday } from './start-view.js';
 import { DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNote, updatesShown, versionChanged } from './update-check.js';
 import { initHousehold, joinFromLink, loadAccount, loadHousehold, showPaused } from './household.js';
+import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
 import { initNav, relabelNav, revealNav, setMore } from './nav.js';
 import { foldFirstRun, hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton, unfoldFirstRun } from './hub.js';
 import { createQueue, normPath, offerText, overlayCount, pathChoices, starterChips, tourFor } from './first-run.js';
@@ -179,6 +180,8 @@ async function boot() {
   initUpdates(session);
   startEvents();
   void api('/settings').then((s) => applyAdminHelp(s.admin), () => {});
+  // Phase 116: what a message does while she works (Settings → You → While she's working).
+  if (!session.demo) void api('/chats/while-busy').then((v) => setBusyDefault(v.settings.whileBusy), () => {});
   await Promise.all([loadConversations(), loadProviders()]);
   // 2.7.1: Today first, unless a link says where to go (web/start-view.js). Read before the
   // conversation link below is taken out of the address.
@@ -1027,6 +1030,9 @@ async function openConversation(id) {
   renderConversations();
   renderMessages(conv.messages, { busy: Boolean(conv.activity) });
   renderPins();
+  // Phase 116: what waits for her here (chips above the composer).
+  renderPending(conv.pending ?? []);
+  if (conv.pending?.length) void refreshPending();
   if (conv.activity && !state.streaming) watchConversation(conv);
   void loadJobs();
   void updateConvUsage();
@@ -1127,6 +1133,7 @@ function watchConversation(conv) {
     if (c.messages.length !== count) {
       count = c.messages.length;
       renderMessages(c.messages, { busy: Boolean(c.activity) });
+      void refreshPending();
     }
     if (c.activity) show(c);
     else {
@@ -1147,9 +1154,12 @@ function stopWatching() {
 }
 
 function setComposerBusy(busy) {
-  $('#send').hidden = busy;
+  // Phase 116 (BR2 §5.5): while she works Send stays, as the split button (busy.js), where it can.
+  setBusy(busy);
   $('#stop').hidden = !busy;
 }
+/** Phase 116: group chats keep "The group is still answering"; the demo has no queue. */
+const busySendAllowed = () => !isGroup(state.conv) && !document.body.classList.contains('demo');
 
 // ---------- activity indicator ----------
 const ACTIVITY_LABEL = { thinking: 'Sara is thinking', writing: 'Sara is writing', running: 'Working', waiting: 'Waiting for your OK', listening: 'Listening', hearing: 'Hearing you', answering: 'Answering' };
@@ -1733,6 +1743,8 @@ function renderMessages(messages, opts = {}) {
     if (m.role === 'tool' && m.meta?.sandbox?.decision) els.push(sandboxFlag({ ...m.meta.sandbox, callId: m.meta.toolCallId }));
     // Phase 81: an install the "Known vulnerability" card stopped, and your answer.
     if (m.role === 'tool' && m.meta?.advisory?.answer) els.push(advisoryFlag({ id: m.meta.toolCallId, state: m.meta.advisory.answer === 'override' ? 'override' : 'declined', packages: (m.meta.advisory.packages ?? []).map((p) => `${p.name} ${p.version}`) }));
+    // Phase 116 (§5.8): a refusal by the loop guard keeps its line after a reload.
+    if (m.role === 'tool' && m.meta?.guard?.kind) els.push(guardLine({ kind: m.meta.guard.kind, count: m.meta.guard.count ?? 3, paused: false }));
     if (m.role === 'tool') {
       addStep((turn.steps ??= newSteps()), { id: m.meta?.toolCallId, name: m.meta?.name, summary: m.meta?.summary ?? m.meta?.name, args: m.meta?.args, status: m.meta?.status ?? 'ok', output: m.content, ms: m.meta?.ms, snapshotId: m.meta?.snapshotId });
       const card = (m.meta?.status ?? 'ok') === 'ok' ? m.meta?.card : null;
@@ -1803,6 +1815,7 @@ function renderMessages(messages, opts = {}) {
       if (Array.isArray(m.meta?.proof) && m.meta.proof.length) b.append(proofStrip(m.meta.proof));
       // Phase 115: files she shared, and where a photo came from.
       if (m.role === 'assistant' && Array.isArray(m.meta?.files) && m.meta.files.length) b.append(fileChips(m.meta.files));
+      if (m.role === 'user' && m.meta?.steer) b.prepend(el('span', 'msg-from muted small steer-from', t('You, while she worked:')));
       if (m.role === 'user' && m.meta?.via && Array.isArray(m.meta?.images) && m.meta.images.length) b.prepend(el('span', 'msg-from muted small via-badge', t('Photo from {app}', { app: VIA_NAMES[m.meta.via] ?? String(m.meta.via).replace(/^plugin-/, '') })));
       if (m.meta?.team?.id) {
         const tb = el('button', 'ghost small team-link', `👥 ${t('Team task')} #${m.meta.team.id}`);
@@ -1980,6 +1993,13 @@ async function runChatCommand(text) {
 }
 
 async function send(text) {
+  // Phase 116: /btw is a side question (never a message); /steer and /queue with nothing running are a plain message.
+  const typed = state.editing ? undefined : typedBusy(text);
+  if (typed?.kind === 'btw') return askAside(typed.text);
+  if (typed) {
+    text = typed.text;
+    if (!text) return;
+  }
   // Phase 107: a command never goes to her as a message (photos and documents need a real one).
   if (CHAT_COMMAND.test(text.trim()) && !state.editing && !state.photos.length && !state.docs.length) return runChatCommand(text.trim());
   if (!state.currentId) {
@@ -2289,6 +2309,14 @@ async function runStream(path, body, userBubble) {
           const n = bubble('notice', ev.key ? serverText(ev, ev.text) : ev.text, ev.kind);
           if (ev.kind === 'disclosure' && userBubble) userBubble.before(n);
           else append(n);
+        } else if (ev.type === 'steer') {
+          // Phase 116 (§5.4): his message was taken at the safe point: shown inside the turn.
+          endReply();
+          place(steerBubble(ev));
+          void refreshPending();
+        } else if (ev.type === 'loop_guard') {
+          // Phase 116 (§5.8): the loop guard refused a repeat (or paused her tools).
+          place(guardLine(ev));
         } else if (ev.type === 'tool_progress') {
           setActivity('writing', ev.path ? `writing ${ev.path} · ${Math.round(ev.chars / 1024)} KB so far` : `preparing ${ev.name} · ${Math.round(ev.chars / 1024)} KB so far`);
         } else if (ev.type === 'tool_building') {
@@ -2473,7 +2501,12 @@ async function runStream(path, body, userBubble) {
         const errors = [...document.querySelectorAll('#messages .msg.error')];
         renderMessages(c.messages);
         for (const e of errors) append(e);
+      } else if (c.activity && !state.streaming && !state.watch) {
+        // Phase 116: a queued message (or a note she got after her last step) already runs: follow it.
+        renderMessages(c.messages, { busy: true });
+        watchConversation(c);
       }
+      renderPending(c.pending ?? []);
     } catch {
       /* keep what is shown */
     }
@@ -2489,8 +2522,20 @@ async function runStream(path, body, userBubble) {
 
 $('#composer').addEventListener('submit', (e) => {
   e.preventDefault();
+  const alt = state.altSend === true;
+  state.altSend = false;
   const text = $('#input').value.trim() || (state.photos.length ? '(photo)' : state.docs.length ? '(document)' : '');
-  if (!text || state.streaming || state.watch) return;
+  if (!text) return;
+  if (state.streaming || state.watch) {
+    // Phase 116 (BR2 §5.5): while she works: the default (Enter), the other one (Alt+Enter), or /steer /queue /btw.
+    if (!busySendAllowed() || state.docs.length) return;
+    $('#input').value = '';
+    autosize();
+    const images = state.photos.splice(0);
+    renderAttachments();
+    void sendBusy(text, { alt, images });
+    return;
+  }
   $('#input').value = '';
   autosize();
   send(text);
@@ -2499,6 +2544,7 @@ $('#composer').addEventListener('submit', (e) => {
 $('#input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
+    state.altSend = e.altKey;
     $('#composer').requestSubmit();
   }
 });
@@ -4825,6 +4871,31 @@ async function saveTitleSettings() {
   renderTitleSettings(await api('/chats/titles', { method: 'PUT', body: { auto: $('#ti-auto').checked, model: $('#ti-model').value, dailyCap: Number($('#ti-cap').value) } }));
 }
 $('#ti-cap').addEventListener('input', () => ($('#ti-cap-out').textContent = $('#ti-cap').value));
+
+// ---------- Phase 116 (BR2 §5.5): While she's working (Settings → You → About you) ----------
+let whileBusyOwner = false;
+function renderWhileBusy(v) {
+  whileBusyOwner = v.owner !== false;
+  $('#wb-mode').value = v.settings.whileBusy;
+  $('#wb-max').value = String(v.settings.queueMax);
+  $('#wb-model').value = v.settings.btw.model;
+  $('#wb-cap').value = String(v.settings.btw.dailyCap);
+  for (const id of ['#wb-mode', '#wb-max', '#wb-model', '#wb-cap']) $(id).disabled = !whileBusyOwner;
+  $('#wb-state').textContent = t('Side questions today: {n} of {cap}', { n: v.today?.btw ?? 0, cap: v.settings.btw.dailyCap });
+  setBusyDefault(v.settings.whileBusy);
+}
+async function loadWhileBusy() {
+  try {
+    $('#wb-card').hidden = false;
+    renderWhileBusy(await api('/chats/while-busy'));
+  } catch {
+    $('#wb-card').hidden = true; // not available (the demo)
+  }
+}
+async function saveWhileBusy() {
+  if ($('#wb-card').hidden || !whileBusyOwner) return;
+  renderWhileBusy(await api('/chats/while-busy', { method: 'PUT', body: { whileBusy: $('#wb-mode').value, queueMax: Number($('#wb-max').value), btwModel: $('#wb-model').value, btwCap: Number($('#wb-cap').value) } }));
+}
 $('#ti-all').addEventListener('click', async () => {
   $('#ti-all').disabled = true;
   $('#ti-state').textContent = t('Naming your recent chats…');
@@ -6122,6 +6193,13 @@ function startEvents() {
     const ev = JSON.parse(e.data);
     applyTitle(ev.conversationId, ev.title);
     if (ev.conversationId === state.currentId && state.conv) state.conv = { ...state.conv, titleSource: ev.source };
+  });
+  // Phase 116: a message waiting for her here changed (another device, a bridge, the turn took it).
+  es.addEventListener('pending', (e) => {
+    const ev = JSON.parse(e.data);
+    if (ev.conversationId !== state.currentId) return;
+    void refreshPending();
+    if (ev.line === 'moved' && ev.item?.kind === 'steer') append(bubble('notice', t("She'd already finished; she'll answer your note now."), 'pending-moved'));
   });
   es.addEventListener('turn', (e) => {
     const { conversationId } = JSON.parse(e.data);
@@ -7736,7 +7814,7 @@ async function loadSettingsPages() {
   // Phase 71: a household member's space answers only their own pages; the owner's are skipped.
   if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop()]));
   await loadTools();
-  await Promise.all([loadDevices().catch(() => {}), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets()]);
+  await Promise.all([loadDevices().catch(() => {}), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadWhileBusy(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets()]);
 }
 /**
  * M9: text drawn from data before a language change stays in the old language, so the open
@@ -7795,7 +7873,7 @@ async function saveCoreSettings() {
 // Each Settings page saves only its own part (H1): a change to the time zone no longer rewrites
 // tool permissions or reconnects the Discord/Telegram bots. Pages not listed save themselves.
 const SETTINGS_SAVERS = {
-  'you-about': [saveCoreSettings, saveTitleSettings],
+  'you-about': [saveCoreSettings, saveTitleSettings, saveWhileBusy],
   'you-briefing': [saveCoreSettings, saveBriefing, saveReview],
   'models-default': [saveCoreSettings],
   'you-leave-by': [saveLeaveBy],
@@ -8807,6 +8885,8 @@ function taskRow(tk) {
 initProjectMap(() => pageProject?.workspace ?? null);
 initSkills();
 initPlugins();
+// Phase 116: the split Send button, the waiting chips and the side question's card.
+initBusy({ api, state, append, bubble, el, canSteer: () => !state.conv?.partner, allowed: busySendAllowed, sendNow: (text) => void send(text) });
 initLearning();
 initBoard({ fmtDue: (iso) => fmtDue(iso, false), openConversation: (id) => openConversation(id), openPlanner: async (tab) => {
   if (!$('#planner').open) await openPlanner();

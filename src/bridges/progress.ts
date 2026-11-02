@@ -56,7 +56,8 @@ interface Step {
   name: string;
   now: string;
   done: string;
-  status: 'running' | 'waiting' | 'ok' | 'error' | 'denied';
+  /** Phase 116: 'note' = a steer taken, 'guard' = the loop guard stopped a repeat (lines, not steps). */
+  status: 'running' | 'waiting' | 'ok' | 'error' | 'denied' | 'note' | 'guard';
 }
 
 const MAX_LINES = 6;
@@ -71,12 +72,14 @@ export function clockTime(ms: number): string {
 }
 
 /** The final line of a progress message (also written at start-up for one a restart left open). */
-export function finalLine(o: Outcome, steps: number, elapsedMs: number, lang: string, owner: boolean): string {
+export function finalLine(o: Outcome, steps: number, elapsedMs: number, lang: string, owner: boolean, notes = 0): string {
   const t = (s: string, p?: Record<string, unknown>) => tr(s, lang, p);
+  // Phase 116: "· 1 note from you" when he steered.
+  const more = notes === 1 ? ` · ${t(en('1 note from you'))}` : notes > 1 ? ` · ${t(en('{n} notes from you'), { n: notes })}` : '';
   switch (o.kind) {
     case 'done':
-      if (steps === 0) return `✅ ${t(en('Done · {time}'), { time: clockTime(elapsedMs) })}`;
-      return `✅ ${steps === 1 ? t(en('Done · 1 step · {time}'), { time: clockTime(elapsedMs) }) : t(en('Done · {n} steps · {time}'), { n: steps, time: clockTime(elapsedMs) })}`;
+      if (steps === 0) return `✅ ${t(en('Done · {time}'), { time: clockTime(elapsedMs) })}${more}`;
+      return `✅ ${steps === 1 ? t(en('Done · 1 step · {time}'), { time: clockTime(elapsedMs) }) : t(en('Done · {n} steps · {time}'), { n: steps, time: clockTime(elapsedMs) })}${more}`;
     case 'stopped':
       return `⏹ ${steps === 1 ? t(en('Stopped after 1 step')) : t(en('Stopped after {n} steps'), { n: steps })}`;
     case 'budget':
@@ -108,6 +111,8 @@ export class ProgressMessage {
   #stopped = false;
   #error: string | undefined;
   #budget = false;
+  /** Phase 116: steers taken in this turn ("· 1 note from you" on the final line). */
+  #notes = 0;
   /** Every text sent (create and edits, in order), for tests and the run view. */
   readonly texts: string[] = [];
 
@@ -124,7 +129,7 @@ export class ProgressMessage {
     return this.#ref;
   }
   get steps(): number {
-    return this.#steps.length;
+    return this.#steps.filter((s) => s.status !== 'note').length;
   }
 
   /** Starts the wait (nothing is posted before `afterMs`). */
@@ -154,8 +159,17 @@ export class ProgressMessage {
       this.#header = 'running';
     } else if (ev.type === 'tool_result') {
       const s = this.#find(ev.id);
-      if (s) s.status = ev.status;
+      // Phase 116 (§5.8): the guard's refusal arrives as a denied result after loop_guard; its line stays.
+      if (s && s.status !== 'guard') s.status = ev.status;
       this.#header = 'thinking';
+    } else if (ev.type === 'steer') {
+      // Phase 116 (BR2 §5.4): his note was taken at the safe point.
+      this.#steps.push({ id: `steer-${ev.messageId}`, name: 'steer', now: '', done: '', status: 'note' });
+      this.#notes++;
+    } else if (ev.type === 'loop_guard') {
+      // Phase 116 (§5.8): the step it replaces is shown as the guard's line, once per block.
+      const s = this.#find(ev.id);
+      if (s) s.status = 'guard';
     } else if (ev.type === 'token') {
       changed = this.#header !== 'writing';
       this.#header = 'writing';
@@ -183,11 +197,13 @@ export class ProgressMessage {
     const groups: { s: Step; n: number }[] = [];
     for (const s of this.#steps) {
       const g = groups.at(-1);
-      if (g && g.s.status === 'ok' && s.status === 'ok' && g.s.done === s.done) g.n++;
+      if (g && ((g.s.status === 'ok' && s.status === 'ok' && g.s.done === s.done) || (g.s.status === 'guard' && s.status === 'guard'))) g.n++;
       else groups.push({ s, n: 1 });
     }
     const lineOf = ({ s, n }: { s: Step; n: number }): string => {
       const x = n > 1 ? ` ×${n}` : '';
+      if (s.status === 'note') return `📝 ${t(en('Got your note'))}`;
+      if (s.status === 'guard') return `🔁 ${t(en('Stopped repeating a step that kept failing'))}`;
       if (s.status === 'running') return `▸ ${s.now}`;
       if (s.status === 'waiting') return `⏸ ${t(en('Waiting for your OK (above)'))}`;
       if (s.status === 'error') return `⚠️ ${t(en("Didn't work: {what}"), { what: s.done })}${x}`;
@@ -221,7 +237,7 @@ export class ProgressMessage {
     await this.#editing;
     if (!this.#ref) return;
     const ref = this.#ref;
-    const text = finalLine(outcome, this.#steps.length, elapsed, this.#o.lang, this.#o.owner);
+    const text = finalLine(outcome, this.steps, elapsed, this.#o.lang, this.#o.owner, this.#notes);
     const wait = this.#lastEditAt + this.#o.intervalMs - this.#clock.now();
     if (wait > 0) await sleepOn(this.#clock, wait);
     try {

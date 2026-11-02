@@ -106,6 +106,7 @@ import { LibraryStore } from './library/store.ts';
 import { LibraryWorker } from './library/worker.ts';
 import { createSendFileTool } from './tools/send-file.ts';
 import { sweepShared } from './bridges/media.ts';
+import { PendingInputs } from './pending.ts';
 import { createLibraryTool } from './library/use.ts';
 import { CodeMaps } from './codemap/index.ts';
 import { createCodeTools } from './codemap/tools.ts';
@@ -616,6 +617,10 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   const tools = isMember ? new ToolRegistry([]) : main ? mainTools : new LinkedToolRegistry(mainTools);
   if (!isMember) tools.add(createWebSearchTool(() => searchConfig(settingsC, vault)));
   const store = new Store(join(dir, 'sara.db'));
+  // Phase 116 (BR2 §5.3): messages that waited when Sara stopped become 'stale': shown, never run by themselves.
+  const pending = new PendingInputs(store.db);
+  const stale = pending.markStale();
+  if (stale.length) console.log(`While she worked: ${stale.length} waiting message(s) from before the restart are kept for you to send again.`);
   const memory = new MemoryStore(store.db);
   // The planner: the first companion's, shared, unless the owner chose separate planners.
   const sharedPlanner = !main && space.settings.get().companionPlanner !== 'separate';
@@ -679,6 +684,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   }
   const app: AppContext = {
     store,
+    pending,
     log,
     uploads,
     settings: settingsC,
@@ -1197,7 +1203,13 @@ const mediaSweep = () => guard('media', () => {
   const r = sweepShared(ownerSpace.companions.main.app);
   if (r.photos || r.files || r.rows) console.log(`Chat apps: removed ${r.photos} picture(s) from other people, ${r.files} shared file copy(ies), ${r.rows} old row(s).`);
 });
-const mediaTimer = setInterval(mediaSweep, 3600_000);
+const mediaTimer = setInterval(() => {
+  mediaSweep();
+  // Phase 116: finished steers and queued messages go after 7 days (every companion; members' spaces too).
+  guard('pending', () => {
+    for (const sp of [ownerSpace, ...memberSpaces.values()]) for (const c of sp.companions.all()) c.app.pending?.prune();
+  });
+}, 3600_000);
 mediaTimer.unref();
 if (!isDemo) setTimeout(mediaSweep, 120_000).unref();
 if (!isDemo) setTimeout(() => guard('household', householdSweep), 60_000).unref();

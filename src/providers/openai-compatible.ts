@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { sseEvents } from '../sse.ts';
 import {
   failFromResponse,
+  foldSteers,
   reach,
   parseToolArguments,
   partialPath,
@@ -21,7 +22,11 @@ type WireMessage =
   | { role: 'assistant'; content: string | null; tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[] }
   | { role: 'tool'; tool_call_id: string; content: string };
 
-export function toOpenAIMessages(messages: ChatMessage[]): WireMessage[] {
+/** Phase 116: APIs known to refuse a user line straight after tool results (they fold steers). */
+export const strictToolOrder = (baseUrl: string): boolean => /api\.mistral\.ai/i.test(baseUrl);
+
+export function toOpenAIMessages(messages: ChatMessage[], opts: { strictToolOrder?: boolean } = {}): WireMessage[] {
+  if (opts.strictToolOrder) messages = foldSteers(messages);
   const wire = messages.map((m): WireMessage => {
     if (m.role === 'assistant') {
       return m.toolCalls?.length
@@ -100,7 +105,7 @@ export class OpenAICompatibleProvider implements Provider {
       signal: req.signal,
       body: JSON.stringify({
         model: req.model,
-        messages: toOpenAIMessages(req.messages),
+        messages: toOpenAIMessages(req.messages, { strictToolOrder: strictToolOrder(this.config.baseUrl) }),
         stream: true,
         // Phase 52: ask for the token counts at the end of the stream (servers that don't know
         // the option ignore it).

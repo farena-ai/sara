@@ -90,6 +90,41 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, view());
       }
     }
+    // Phase 116 (BR2 §5.5): Settings → You → While she's working (the default, the queue's size, side questions).
+    if (a === 'chats' && b === 'while-busy' && !c) {
+      if (opts.demo) throw new HttpError(404, 'Not here.');
+      const { whileBusySettings, QUEUE_MAX_CHOICES, BTW_CAP_CHOICES } = await import('../pending.ts');
+      const { ledgerOf } = await import('../cheap.ts');
+      const { LOOP_REPEATS } = await import('../loop-guard.ts');
+      const view = () => {
+        const w = whileBusySettings(app);
+        let used = 0;
+        try {
+          used = ledgerOf(app).get('btw').runs;
+        } catch {
+          /* no ledger yet */
+        }
+        return { settings: w, choices: { queueMax: QUEUE_MAX_CHOICES, btwCap: BTW_CAP_CHOICES }, today: { btw: used }, loopGuard: { repeats: LOOP_REPEATS }, owner: !opts.member };
+      };
+      if (method === 'GET') return send(res, 200, view());
+      if (method === 'PUT') {
+        if (opts.member) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+        const body = await readJson(req);
+        const cur = app.settings.get().chats ?? {};
+        const was = whileBusySettings(app);
+        const q = Number(body.queueMax);
+        const cap = Number(body.btwCap);
+        app.settings.update({
+          chats: {
+            ...cur,
+            whileBusy: body.whileBusy === 'queue' || body.whileBusy === 'steer' ? body.whileBusy : was.whileBusy,
+            queueMax: (QUEUE_MAX_CHOICES as readonly number[]).includes(q) ? q : was.queueMax,
+            btw: { model: body.btwModel === 'local' || body.btwModel === 'quick' ? body.btwModel : was.btw.model, dailyCap: (BTW_CAP_CHOICES as readonly number[]).includes(cap) ? cap : was.btw.dailyCap },
+          } as never,
+        });
+        return send(res, 200, view());
+      }
+    }
     // Phase 109 (CH3): titles that grow (Settings → You → Session titles): the switches, today's use, the model.
     if (a === 'chats' && b === 'titles') {
       if (opts.demo) throw new HttpError(404, 'Not here.');

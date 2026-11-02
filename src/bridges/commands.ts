@@ -16,7 +16,7 @@ import type { Conversation } from '../store.ts';
 import { nextPlaceholder } from '../titles.ts';
 import { turnBudgetFor, turnBudgetSettings } from '../budget.ts';
 
-export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea' | 'progress';
+export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea' | 'progress' | 'steer' | 'queue' | 'btw';
 /** Where the line was written: his DM, someone else's DM, a shared room, a room where he works with her. */
 export type Place = 'owner-dm' | 'partner-dm' | 'room' | 'work-room';
 /** Who wrote it (decided by the bridge from the platform user id, never by a name). */
@@ -26,7 +26,9 @@ export type Asker = 'owner' | 'person' | 'bot';
 export const MENU_COMMANDS = ['new', 'reset', 'stop', 'status', 'help', 'model', 'remember'] as const;
 // Phase 113: /bug and /idea (Report a problem, Suggest something) are typed, not in the menus.
 // Phase 115 (BR1): /progress on|off (the live progress message in this chat), typed, owner only.
-const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea', 'progress'];
+// Phase 116 (BR2 §5.7): /steer, /queue and /btw take text (owner only; /queue also for someone in their own DM).
+export const BUSY_COMMANDS = ['steer', 'queue', 'btw'] as const;
+const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea', 'progress', ...BUSY_COMMANDS];
 export const isCommandName = (s: string): s is CommandName => (ALL as readonly string[]).includes(s);
 
 /** One line per command (menus and /help). The owner's /status says more than the one others get. */
@@ -43,6 +45,9 @@ export const DESCRIPTIONS: Record<CommandName, string> = {
   bug: en('Report a problem to the people who make Sara'),
   idea: en('Suggest something to the people who make Sara'),
   progress: en('Show or hide her progress message in this chat (on / off)'),
+  steer: en('Tell her something now: she reads it before her next step'),
+  queue: en('Queue a message for when she has finished'),
+  btw: en('A quick side question while she works (not saved)'),
 };
 /** /status as others see it (no model, no budget). */
 export const PUBLIC_STATUS = en('How full this chat is');
@@ -95,7 +100,7 @@ export function commandAllowed(place: Place, who: Asker, name: CommandName): boo
   if (who === 'bot') return false;
   if (who === 'owner') return true;
   if (name === 'help' || name === 'status' || name === 'start') return true;
-  return place === 'partner-dm' && (name === 'new' || name === 'reset' || name === 'stop');
+  return place === 'partner-dm' && (name === 'new' || name === 'reset' || name === 'stop' || name === 'queue');
 }
 
 /** The command table per place (GET /api/chats/commands, the help page, tests). */
@@ -180,6 +185,11 @@ export interface BridgeAdapter {
   appLink?: string;
   /** Phase 115 (BR1): this chat's place for /progress (bridge and chat key; the choice lives on its room row). */
   progressKey?: { bridge: string; key: string };
+  /**
+   * Phase 116 (BR2 §5.7): /steer and /queue with their text (the bridge's own runner keeps its reply
+   * path). Returns the line to say ('' = nothing, e.g. a reaction was set instead).
+   */
+  take?(kind: 'steer' | 'queue', text: string): Promise<string> | string;
 }
 
 export interface ModelPick {
@@ -204,6 +214,8 @@ export interface CommandReply {
   opened?: Conversation;
   /** Phase 113: the web app opens the report sheet with this (from /bug or /idea). */
   report?: { kind: 'bug' | 'idea'; text: string };
+  /** Phase 116: a /btw answer (marked as a side note; never stored). */
+  aside?: boolean;
 }
 
 export interface CommandContext {
@@ -301,7 +313,38 @@ export async function runCommand(c: CommandContext): Promise<CommandReply> {
       return reportCommand(c, conv);
     case 'progress':
       return progressCommand(c);
+    case 'steer':
+    case 'queue':
+      return takeCommand(c);
+    case 'btw':
+      return btwCommand(c, conv);
   }
+}
+
+/** Phase 116 (BR2 §5.7): /steer and /queue. */
+async function takeCommand(c: CommandContext): Promise<CommandReply> {
+  const tr = (text: string, params?: Record<string, unknown>) => say(c.app, c.lang, text, params);
+  const text = c.cmd.args.trim();
+  if (!text) return { text: c.cmd.name === 'steer' ? tr('Tell me what to change after the command, like: /steer {example}', { example: 'use pnpm, not npm' }) : tr('Tell me what to do next after the command, like: /queue {example}', { example: 'then update the docs' }) };
+  if (!c.adapter.take) return { text: tr('That only works in a chat with her.') };
+  return { text: await c.adapter.take(c.cmd.name === 'steer' ? 'steer' : 'queue', text) };
+}
+
+/** Phase 116 (BR2 §5.6): /btw, a side question beside the work (nothing stored, no tools). */
+async function btwCommand(c: CommandContext, conv: Conversation | undefined): Promise<CommandReply> {
+  const tr = (text: string, params?: Record<string, unknown>) => say(c.app, c.lang, text, params);
+  const q = c.cmd.args.trim();
+  const { answerAside, BTW_LINES } = await import('../btw.ts');
+  if (!q) return { text: tr(BTW_LINES.empty), ownerOnly: true };
+  const session = conv ?? c.adapter.startSession(undefined);
+  const r = await answerAside(c.app, session, q, { owner: c.who === 'owner' });
+  return { text: r.ok ? `💬 ${r.text}` : `💬 ${tr(r.key)}`, ownerOnly: true, aside: true };
+}
+
+/** Phase 116: "Cleared." plus how many waiting messages went (for /reset and /new). */
+export function droppedLine(app: AppContext, lang: string, n: number): string {
+  if (n <= 0) return '';
+  return ` ${n === 1 ? say(app, lang, en('1 waiting message was dropped.')) : say(app, lang, en('{count} waiting messages were dropped.'), { count: n })}`;
 }
 
 /** Phase 115 (BR1): /progress on|off sets this chat's progress message; /progress alone says the state. */
@@ -327,6 +370,7 @@ function helpText(app: AppContext, c: CommandContext): string {
   if (c.who === 'owner' && c.place === 'work-room') lines.push(`/new room: ${tr('Also start a new conversation for the whole room')}`);
   if (c.who === 'owner') for (const n of ['bug', 'idea'] as const) lines.push(`/${n}: ${tr(DESCRIPTIONS[n])}`);
   if (c.who === 'owner' && (c.place === 'owner-dm' || c.place === 'work-room')) lines.push(`/progress: ${tr(DESCRIPTIONS.progress)}`);
+  if (c.who === 'owner') for (const n of BUSY_COMMANDS) lines.push(`/${n}: ${tr(DESCRIPTIONS[n])}`);
   const name = chatsSettings(app).namePrefix && c.bridge !== 'web' ? `\n${tr('You can also write just my name and the word, like "{example}".', { example: `${app.persona.name} ${c.lang === 'de' ? 'neu' : 'new'}` })}` : '';
   return `${tr('What you can do here:')}\n${lines.join('\n')}${name}`;
 }
@@ -349,9 +393,9 @@ async function newCommand(c: CommandContext, conv: Conversation | undefined): Pr
   // Nothing said yet in this session: no need to close it.
   if (!talked(app, conv)) return { text: tr('This session is already fresh.'), opened: conv };
   c.adapter.stopTurn(conv.id);
-  c.adapter.clearQueue(conv.id);
+  const dropped = c.adapter.clearQueue(conv.id);
   const fresh = c.adapter.startSession(conv);
-  return { text: tr('New session started. I kept the last one ("{title}").', { title: conv.title }), opened: fresh };
+  return { text: tr('New session started. I kept the last one ("{title}").', { title: conv.title }) + droppedLine(app, c.lang, dropped), opened: fresh };
 }
 
 /** Something was said in this session (a /new on an empty one changes nothing). */
@@ -365,7 +409,7 @@ async function resetCommand(c: CommandContext, conv: Conversation | undefined): 
   let denied = 0;
   for (const id of app.approvals.pendingFor(conv.id)) if (app.approvals.decide(id, false)) denied++;
   c.adapter.stopTurn(conv.id);
-  c.adapter.clearQueue(conv.id);
+  const dropped = c.adapter.clearQueue(conv.id);
   c.adapter.resetGuard?.();
   // Let a stopped turn save its partial reply first (at most a second; Discord must answer in 3).
   for (let i = 0; i < 20 && app.isBusy?.(conv.id); i++) await new Promise((r) => setTimeout(r, 50));
@@ -373,7 +417,7 @@ async function resetCommand(c: CommandContext, conv: Conversation | undefined): 
   if (last?.role === 'user' && last.meta?.skipped !== true) app.store.updateMessageMeta(last.id, { skipped: true });
   notice(app, conv, 'reset', denied ? { denied } : {});
   const more = denied === 1 ? ` ${tr('1 request was cancelled.')}` : denied > 1 ? ` ${tr('{count} requests were cancelled.', { count: denied })}` : '';
-  return { text: `${tr("Cleared. I'm listening.")}${more}` };
+  return { text: `${tr("Cleared. I'm listening.")}${more}${droppedLine(app, c.lang, dropped)}` };
 }
 
 /** \"12.3k\" */
