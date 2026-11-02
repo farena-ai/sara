@@ -32,6 +32,7 @@ import { createSaraServer } from '../src/server.ts';
 import type { Tool } from '../src/tools/types.ts';
 import { UsageStore } from '../src/usage.ts';
 import { call, listen, makeApp, ROOT, tempDir, text, type TestApp } from './helpers.ts';
+const SARA_PKG_VERSION: string = JSON.parse((await import('node:fs')).readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 
 const NOW = new Date('2026-11-01T15:00:00Z');
 
@@ -758,7 +759,7 @@ test('discord: /steer /queue /btw are in the bulk overwrite with a required text
 test('plugin bridge: a message while she is busy is queued and answered (2.48 dropped it with reason busy)', async (t) => {
   const s = setup(t);
   const EX = join(ROOT, 'examples', 'plugins');
-  const pm = new PluginManager({ db: s.app.store.db, dataDir: s.app.dataDir, vault: s.app.vault, sandbox: s.app.sandbox, events: s.app.events, scrub: (x) => s.app.redactor.redact(x), fence: 'node-only', saraVersion: '2.49.0' });
+  const pm = new PluginManager({ db: s.app.store.db, dataDir: s.app.dataDir, vault: s.app.vault, sandbox: s.app.sandbox, events: s.app.events, scrub: (x) => s.app.redactor.redact(x), fence: 'node-only', saraVersion: SARA_PKG_VERSION });
   s.app.companionId = 'main';
   s.app.pluginManager = pm;
   pm.attach('main', s.app);

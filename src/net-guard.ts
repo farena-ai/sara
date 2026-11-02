@@ -38,7 +38,17 @@ const blocked: { at: string; target: string }[] = [];
 
 /** Turns the guard on or off for the whole process (src/private-local.ts keeps the saved state). */
 export function setPrivateLocal(on: boolean): void {
+  const was = privateOn;
   privateOn = on;
+  if (was !== on) {
+    for (const fn of modeListeners) {
+      try {
+        fn(on);
+      } catch {
+        /* a listener's problem stays its own */
+      }
+    }
+  }
   // Belt and braces: code that reaches for the global fetch directly (a future module, a
   // dependency of a script) goes through the same check while the mode is on.
   if (on && globalThis.fetch !== (guardedGlobal as unknown)) {
@@ -51,6 +61,13 @@ export function setPrivateLocal(on: boolean): void {
 }
 
 export const privateLocalOn = (): boolean => privateOn;
+
+/** Phase 117: told when the mode changes (the plugin socket broker closes its sockets when it goes on). */
+const modeListeners = new Set<(on: boolean) => void>();
+export function onPrivateLocalChange(fn: (on: boolean) => void): () => void {
+  modeListeners.add(fn);
+  return () => modeListeners.delete(fn);
+}
 
 /** Tests: the function that really sends (a fake records what would have left). */
 export function setNetTransport(f?: typeof fetch): void {

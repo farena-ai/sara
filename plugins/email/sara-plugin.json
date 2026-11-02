@@ -1,0 +1,333 @@
+{
+  "manifest": 1,
+  "id": "email",
+  "name": "Email",
+  "version": "1.0.0",
+  "description": "Give her an email address of her own: write to her and she answers in the thread.",
+  "author": "The Sara team",
+  "license": "MIT",
+  "sara": ">=2.50.0",
+  "main": "main.mjs",
+  "permissions": {
+    "bridges": [
+      "email"
+    ],
+    "bridgeFiles": true,
+    "settings": true,
+    "connect": [
+      {
+        "id": "imap",
+        "host": "setting:imapHost",
+        "ports": [
+          993,
+          143
+        ],
+        "where": "public",
+        "tls": "required"
+      },
+      {
+        "id": "smtp",
+        "host": "setting:smtpHost",
+        "ports": [
+          465,
+          587
+        ],
+        "where": "public",
+        "tls": "required"
+      }
+    ],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    }
+  },
+  "settings": [
+    {
+      "key": "provider",
+      "type": "choice",
+      "label": "Mail provider",
+      "choices": [
+        "Gmail",
+        "iCloud",
+        "Fastmail",
+        "Other"
+      ],
+      "default": "Other",
+      "tip": "Fills in the server names for Gmail, iCloud or Fastmail and links to where you make an app password. Outlook.com needs a sign-in Sara doesn't do yet. Other: type them yourself."
+    },
+    {
+      "key": "address",
+      "type": "text",
+      "label": "Her email address",
+      "default": "",
+      "tip": "An address only she uses, like sara@yourdomain.com or a new account. Not your own address: she would answer everything in your inbox."
+    },
+    {
+      "key": "username",
+      "type": "text",
+      "label": "Sign-in name",
+      "default": "",
+      "tip": "The name the mail server wants when she signs in, usually the full address."
+    },
+    {
+      "key": "password",
+      "type": "secret",
+      "label": "App password",
+      "tip": "Make one in your mail provider's security settings (it needs two-step sign-in). It's kept encrypted in Sara's vault and is never shown again. Your normal password won't work."
+    },
+    {
+      "key": "imapHost",
+      "type": "text",
+      "label": "IMAP server",
+      "default": "",
+      "tip": "Where she reads her mail, e.g. imap.gmail.com. Sara only connects encrypted and checks the server's certificate."
+    },
+    {
+      "key": "imapPort",
+      "type": "choice",
+      "label": "IMAP port",
+      "choices": [
+        "993",
+        "143"
+      ],
+      "default": "993",
+      "tip": "993 is encrypted from the start (best). 143 is upgraded to encryption first; Sara refuses to send a password before that."
+    },
+    {
+      "key": "smtpHost",
+      "type": "text",
+      "label": "SMTP server",
+      "default": "",
+      "tip": "Where she sends her replies, e.g. smtp.gmail.com."
+    },
+    {
+      "key": "smtpPort",
+      "type": "choice",
+      "label": "SMTP port",
+      "choices": [
+        "465",
+        "587"
+      ],
+      "default": "465",
+      "tip": "465 is encrypted from the start; 587 is upgraded to encryption first (iCloud uses 587). Unencrypted sending is never used."
+    },
+    {
+      "key": "folder",
+      "type": "text",
+      "label": "Folder to watch",
+      "default": "INBOX",
+      "tip": "The mail folder she reads, usually INBOX. Mail that was already there when you set her up is never answered."
+    },
+    {
+      "key": "checkEvery",
+      "type": "choice",
+      "label": "Check for mail every",
+      "choices": [
+        "2",
+        "5",
+        "15"
+      ],
+      "default": "2",
+      "tip": "Used only when the server can't tell Sara about new mail at once (most can). In minutes."
+    },
+    {
+      "key": "markRead",
+      "type": "switch",
+      "label": "Mark handled mail as read",
+      "default": true,
+      "tip": "After she has dealt with an email it's marked as read in her mailbox, so you can see what she handled if you open it."
+    },
+    {
+      "key": "moveTo",
+      "type": "text",
+      "label": "Move handled mail to",
+      "default": "",
+      "tip": "A folder to move handled mail into, like Done. Empty: it stays where it is."
+    },
+    {
+      "key": "quote",
+      "type": "switch",
+      "label": "Quote the email she answers",
+      "default": true,
+      "tip": "Adds the start of your email under her reply, like most mail apps do."
+    },
+    {
+      "key": "dailyCap",
+      "type": "choice",
+      "label": "Most emails she sends a day",
+      "choices": [
+        "20",
+        "50",
+        "200"
+      ],
+      "default": "50",
+      "tip": "A cap so a mistake can't send a flood of mail from her address. Mail to you counts too. Your provider has its own, higher limit."
+    }
+  ],
+  "i18n": {
+    "es": {
+      "Give her an email address of her own: write to her and she answers in the thread.": "Dale una dirección de correo propia: escríbele y te responde en el mismo hilo.",
+      "Mail provider": "Proveedor de correo",
+      "Her email address": "Su dirección de correo",
+      "Sign-in name": "Nombre de inicio de sesión",
+      "App password": "Contraseña de aplicación",
+      "IMAP server": "Servidor IMAP",
+      "IMAP port": "Puerto IMAP",
+      "SMTP server": "Servidor SMTP",
+      "SMTP port": "Puerto SMTP",
+      "Folder to watch": "Carpeta que vigila",
+      "Check for mail every": "Buscar correo cada",
+      "Mark handled mail as read": "Marcar como leído el correo atendido",
+      "Move handled mail to": "Mover el correo atendido a",
+      "Quote the email she answers": "Citar el correo que responde",
+      "Most emails she sends a day": "Máximo de correos que envía al día",
+      "Other": "Otro",
+      "Fills in the server names for Gmail, iCloud or Fastmail and links to where you make an app password. Outlook.com needs a sign-in Sara doesn't do yet. Other: type them yourself.": "Rellena los servidores de Gmail, iCloud o Fastmail y enlaza a donde se crea una contraseña de aplicación. Outlook.com necesita un inicio de sesión que Sara aún no hace. Otro: escríbelos tú.",
+      "An address only she uses, like sara@yourdomain.com or a new account. Not your own address: she would answer everything in your inbox.": "Una dirección que solo usa ella, como sara@tudominio.com o una cuenta nueva. No tu propia dirección: respondería a todo tu buzón.",
+      "The name the mail server wants when she signs in, usually the full address.": "El nombre que pide el servidor de correo al iniciar sesión, normalmente la dirección completa.",
+      "Make one in your mail provider's security settings (it needs two-step sign-in). It's kept encrypted in Sara's vault and is never shown again. Your normal password won't work.": "Créala en los ajustes de seguridad de tu proveedor (necesita verificación en dos pasos). Se guarda cifrada en la bóveda de Sara y no se vuelve a mostrar. Tu contraseña normal no sirve.",
+      "Where she reads her mail, e.g. imap.gmail.com. Sara only connects encrypted and checks the server's certificate.": "Donde lee su correo, p. ej. imap.gmail.com. Sara solo se conecta cifrado y comprueba el certificado del servidor.",
+      "993 is encrypted from the start (best). 143 is upgraded to encryption first; Sara refuses to send a password before that.": "993 va cifrado desde el principio (lo mejor). 143 se cifra primero; Sara no envía ninguna contraseña antes de eso.",
+      "Where she sends her replies, e.g. smtp.gmail.com.": "Desde donde envía sus respuestas, p. ej. smtp.gmail.com.",
+      "465 is encrypted from the start; 587 is upgraded to encryption first (iCloud uses 587). Unencrypted sending is never used.": "465 va cifrado desde el principio; 587 se cifra primero (iCloud usa 587). Nunca se envía sin cifrar.",
+      "The mail folder she reads, usually INBOX. Mail that was already there when you set her up is never answered.": "La carpeta de correo que lee, normalmente INBOX. El correo que ya estaba al configurarla nunca se responde.",
+      "Used only when the server can't tell Sara about new mail at once (most can). In minutes.": "Solo se usa si el servidor no puede avisar a Sara del correo nuevo al momento (casi todos pueden). En minutos.",
+      "After she has dealt with an email it's marked as read in her mailbox, so you can see what she handled if you open it.": "Cuando ha atendido un correo se marca como leído en su buzón, así ves qué atendió si lo abres.",
+      "A folder to move handled mail into, like Done. Empty: it stays where it is.": "Una carpeta a la que mover el correo atendido, como Hecho. Vacío: se queda donde está.",
+      "Adds the start of your email under her reply, like most mail apps do.": "Añade el principio de tu correo bajo su respuesta, como hacen casi todas las apps de correo.",
+      "A cap so a mistake can't send a flood of mail from her address. Mail to you counts too. Your provider has its own, higher limit.": "Un límite para que un error no envíe una avalancha de correo desde su dirección. El correo a ti también cuenta. Tu proveedor tiene su propio límite, más alto."
+    },
+    "fr": {
+      "Give her an email address of her own: write to her and she answers in the thread.": "Donnez-lui sa propre adresse e-mail : écrivez-lui, elle répond dans le même fil.",
+      "Mail provider": "Fournisseur de messagerie",
+      "Her email address": "Son adresse e-mail",
+      "Sign-in name": "Identifiant de connexion",
+      "App password": "Mot de passe d'application",
+      "IMAP server": "Serveur IMAP",
+      "IMAP port": "Port IMAP",
+      "SMTP server": "Serveur SMTP",
+      "SMTP port": "Port SMTP",
+      "Folder to watch": "Dossier surveillé",
+      "Check for mail every": "Relever le courrier toutes les",
+      "Mark handled mail as read": "Marquer le courrier traité comme lu",
+      "Move handled mail to": "Déplacer le courrier traité vers",
+      "Quote the email she answers": "Citer l'e-mail auquel elle répond",
+      "Most emails she sends a day": "Nombre maximal d'e-mails par jour",
+      "Other": "Autre",
+      "Fills in the server names for Gmail, iCloud or Fastmail and links to where you make an app password. Outlook.com needs a sign-in Sara doesn't do yet. Other: type them yourself.": "Remplit les serveurs pour Gmail, iCloud ou Fastmail et renvoie vers la page du mot de passe d'application. Outlook.com demande une connexion que Sara ne fait pas encore. Autre : saisissez-les vous-même.",
+      "An address only she uses, like sara@yourdomain.com or a new account. Not your own address: she would answer everything in your inbox.": "Une adresse qu'elle seule utilise, comme sara@votredomaine.com ou un nouveau compte. Pas la vôtre : elle répondrait à toute votre boîte.",
+      "The name the mail server wants when she signs in, usually the full address.": "Le nom que le serveur de messagerie demande à la connexion, en général l'adresse complète.",
+      "Make one in your mail provider's security settings (it needs two-step sign-in). It's kept encrypted in Sara's vault and is never shown again. Your normal password won't work.": "Créez-le dans les réglages de sécurité de votre fournisseur (il faut la validation en deux étapes). Il est chiffré dans le coffre de Sara et n'est plus jamais affiché. Votre mot de passe habituel ne marche pas.",
+      "Where she reads her mail, e.g. imap.gmail.com. Sara only connects encrypted and checks the server's certificate.": "Là où elle lit son courrier, par ex. imap.gmail.com. Sara se connecte uniquement en chiffré et vérifie le certificat du serveur.",
+      "993 is encrypted from the start (best). 143 is upgraded to encryption first; Sara refuses to send a password before that.": "993 est chiffré dès le début (le mieux). 143 passe d'abord en chiffré ; Sara n'envoie aucun mot de passe avant.",
+      "Where she sends her replies, e.g. smtp.gmail.com.": "Là d'où elle envoie ses réponses, par ex. smtp.gmail.com.",
+      "465 is encrypted from the start; 587 is upgraded to encryption first (iCloud uses 587). Unencrypted sending is never used.": "465 est chiffré dès le début ; 587 passe d'abord en chiffré (iCloud utilise 587). Jamais d'envoi non chiffré.",
+      "The mail folder she reads, usually INBOX. Mail that was already there when you set her up is never answered.": "Le dossier qu'elle lit, en général INBOX. Le courrier déjà présent à la configuration ne reçoit jamais de réponse.",
+      "Used only when the server can't tell Sara about new mail at once (most can). In minutes.": "Utilisé seulement si le serveur ne peut pas prévenir Sara tout de suite (la plupart le peuvent). En minutes.",
+      "After she has dealt with an email it's marked as read in her mailbox, so you can see what she handled if you open it.": "Une fois traité, un e-mail est marqué comme lu dans sa boîte : vous voyez ce qu'elle a traité en l'ouvrant.",
+      "A folder to move handled mail into, like Done. Empty: it stays where it is.": "Un dossier où ranger le courrier traité, comme Fait. Vide : il reste où il est.",
+      "Adds the start of your email under her reply, like most mail apps do.": "Ajoute le début de votre e-mail sous sa réponse, comme la plupart des messageries.",
+      "A cap so a mistake can't send a flood of mail from her address. Mail to you counts too. Your provider has its own, higher limit.": "Une limite pour qu'une erreur n'envoie pas une avalanche de courrier depuis son adresse. Le courrier pour vous compte aussi. Votre fournisseur a sa propre limite, plus haute."
+    },
+    "de": {
+      "Give her an email address of her own: write to her and she answers in the thread.": "Gib ihr eine eigene E-Mail-Adresse: schreib ihr, und sie antwortet im selben Verlauf.",
+      "Mail provider": "Mail-Anbieter",
+      "Her email address": "Ihre E-Mail-Adresse",
+      "Sign-in name": "Anmeldename",
+      "App password": "App-Passwort",
+      "IMAP server": "IMAP-Server",
+      "IMAP port": "IMAP-Port",
+      "SMTP server": "SMTP-Server",
+      "SMTP port": "SMTP-Port",
+      "Folder to watch": "Beobachteter Ordner",
+      "Check for mail every": "Nach Mail sehen alle",
+      "Mark handled mail as read": "Erledigte Mail als gelesen markieren",
+      "Move handled mail to": "Erledigte Mail verschieben nach",
+      "Quote the email she answers": "Die beantwortete E-Mail zitieren",
+      "Most emails she sends a day": "Höchstens so viele E-Mails am Tag",
+      "Other": "Andere",
+      "Fills in the server names for Gmail, iCloud or Fastmail and links to where you make an app password. Outlook.com needs a sign-in Sara doesn't do yet. Other: type them yourself.": "Trägt die Server für Gmail, iCloud oder Fastmail ein und verlinkt die Seite für ein App-Passwort. Outlook.com braucht eine Anmeldung, die Sara noch nicht kann. Andere: selbst eintragen.",
+      "An address only she uses, like sara@yourdomain.com or a new account. Not your own address: she would answer everything in your inbox.": "Eine Adresse, die nur sie nutzt, etwa sara@deinedomain.de oder ein neues Konto. Nicht deine eigene: sie würde auf dein ganzes Postfach antworten.",
+      "The name the mail server wants when she signs in, usually the full address.": "Der Name, den der Mailserver bei der Anmeldung will, meist die ganze Adresse.",
+      "Make one in your mail provider's security settings (it needs two-step sign-in). It's kept encrypted in Sara's vault and is never shown again. Your normal password won't work.": "Erstelle es in den Sicherheitseinstellungen deines Anbieters (braucht Zwei-Faktor-Anmeldung). Es liegt verschlüsselt in Saras Tresor und wird nie wieder gezeigt. Dein normales Passwort geht nicht.",
+      "Where she reads her mail, e.g. imap.gmail.com. Sara only connects encrypted and checks the server's certificate.": "Wo sie ihre Mail liest, z. B. imap.gmail.com. Sara verbindet sich nur verschlüsselt und prüft das Zertifikat des Servers.",
+      "993 is encrypted from the start (best). 143 is upgraded to encryption first; Sara refuses to send a password before that.": "993 ist von Anfang an verschlüsselt (am besten). 143 wird erst verschlüsselt; Sara sendet vorher kein Passwort.",
+      "Where she sends her replies, e.g. smtp.gmail.com.": "Worüber sie ihre Antworten sendet, z. B. smtp.gmail.com.",
+      "465 is encrypted from the start; 587 is upgraded to encryption first (iCloud uses 587). Unencrypted sending is never used.": "465 ist von Anfang an verschlüsselt; 587 wird erst verschlüsselt (iCloud nutzt 587). Unverschlüsselt wird nie gesendet.",
+      "The mail folder she reads, usually INBOX. Mail that was already there when you set her up is never answered.": "Der Ordner, den sie liest, meist INBOX. Mail, die beim Einrichten schon da war, wird nie beantwortet.",
+      "Used only when the server can't tell Sara about new mail at once (most can). In minutes.": "Nur, wenn der Server Sara neue Mail nicht sofort melden kann (die meisten können es). In Minuten.",
+      "After she has dealt with an email it's marked as read in her mailbox, so you can see what she handled if you open it.": "Hat sie eine E-Mail erledigt, wird sie in ihrem Postfach als gelesen markiert; so siehst du beim Öffnen, was sie erledigt hat.",
+      "A folder to move handled mail into, like Done. Empty: it stays where it is.": "Ein Ordner für erledigte Mail, etwa Erledigt. Leer: sie bleibt, wo sie ist.",
+      "Adds the start of your email under her reply, like most mail apps do.": "Setzt den Anfang deiner E-Mail unter ihre Antwort, wie die meisten Mail-Apps.",
+      "A cap so a mistake can't send a flood of mail from her address. Mail to you counts too. Your provider has its own, higher limit.": "Eine Grenze, damit ein Fehler keine Flut von Mail von ihrer Adresse auslöst. Mail an dich zählt mit. Dein Anbieter hat eine eigene, höhere Grenze."
+    },
+    "pt-BR": {
+      "Give her an email address of her own: write to her and she answers in the thread.": "Dê a ela um endereço de e-mail próprio: escreva para ela e ela responde na mesma conversa.",
+      "Mail provider": "Provedor de e-mail",
+      "Her email address": "O endereço de e-mail dela",
+      "Sign-in name": "Nome de login",
+      "App password": "Senha de app",
+      "IMAP server": "Servidor IMAP",
+      "IMAP port": "Porta IMAP",
+      "SMTP server": "Servidor SMTP",
+      "SMTP port": "Porta SMTP",
+      "Folder to watch": "Pasta que ela lê",
+      "Check for mail every": "Ver e-mails a cada",
+      "Mark handled mail as read": "Marcar e-mail tratado como lido",
+      "Move handled mail to": "Mover e-mail tratado para",
+      "Quote the email she answers": "Citar o e-mail que ela responde",
+      "Most emails she sends a day": "Máximo de e-mails que ela envia por dia",
+      "Other": "Outro",
+      "Fills in the server names for Gmail, iCloud or Fastmail and links to where you make an app password. Outlook.com needs a sign-in Sara doesn't do yet. Other: type them yourself.": "Preenche os servidores do Gmail, iCloud ou Fastmail e leva à página da senha de app. O Outlook.com exige um login que a Sara ainda não faz. Outro: digite você mesmo.",
+      "An address only she uses, like sara@yourdomain.com or a new account. Not your own address: she would answer everything in your inbox.": "Um endereço que só ela usa, como sara@seudominio.com ou uma conta nova. Não o seu: ela responderia a tudo na sua caixa.",
+      "The name the mail server wants when she signs in, usually the full address.": "O nome que o servidor de e-mail pede no login, normalmente o endereço completo.",
+      "Make one in your mail provider's security settings (it needs two-step sign-in). It's kept encrypted in Sara's vault and is never shown again. Your normal password won't work.": "Crie nas configurações de segurança do seu provedor (precisa de verificação em duas etapas). Fica criptografada no cofre da Sara e nunca mais é mostrada. Sua senha normal não funciona.",
+      "Where she reads her mail, e.g. imap.gmail.com. Sara only connects encrypted and checks the server's certificate.": "Onde ela lê os e-mails, ex. imap.gmail.com. A Sara só conecta com criptografia e confere o certificado do servidor.",
+      "993 is encrypted from the start (best). 143 is upgraded to encryption first; Sara refuses to send a password before that.": "993 é criptografada desde o início (o melhor). 143 é criptografada primeiro; a Sara não envia senha antes disso.",
+      "Where she sends her replies, e.g. smtp.gmail.com.": "Por onde ela envia as respostas, ex. smtp.gmail.com.",
+      "465 is encrypted from the start; 587 is upgraded to encryption first (iCloud uses 587). Unencrypted sending is never used.": "465 é criptografada desde o início; 587 é criptografada primeiro (o iCloud usa 587). Nunca se envia sem criptografia.",
+      "The mail folder she reads, usually INBOX. Mail that was already there when you set her up is never answered.": "A pasta que ela lê, normalmente INBOX. E-mails que já estavam lá na configuração nunca são respondidos.",
+      "Used only when the server can't tell Sara about new mail at once (most can). In minutes.": "Só usado quando o servidor não avisa a Sara na hora sobre e-mails novos (a maioria avisa). Em minutos.",
+      "After she has dealt with an email it's marked as read in her mailbox, so you can see what she handled if you open it.": "Depois de tratado, o e-mail fica marcado como lido na caixa dela, assim você vê o que ela tratou ao abrir.",
+      "A folder to move handled mail into, like Done. Empty: it stays where it is.": "Uma pasta para onde mover os e-mails tratados, como Feito. Vazio: ficam onde estão.",
+      "Adds the start of your email under her reply, like most mail apps do.": "Coloca o começo do seu e-mail abaixo da resposta dela, como a maioria dos apps de e-mail.",
+      "A cap so a mistake can't send a flood of mail from her address. Mail to you counts too. Your provider has its own, higher limit.": "Um limite para um erro não mandar uma enxurrada de e-mails do endereço dela. E-mails para você também contam. Seu provedor tem um limite próprio, maior."
+    },
+    "it": {
+      "Give her an email address of her own: write to her and she answers in the thread.": "Dalle un indirizzo email tutto suo: scrivile e ti risponde nella stessa conversazione.",
+      "Mail provider": "Provider di posta",
+      "Her email address": "Il suo indirizzo email",
+      "Sign-in name": "Nome di accesso",
+      "App password": "Password per le app",
+      "IMAP server": "Server IMAP",
+      "IMAP port": "Porta IMAP",
+      "SMTP server": "Server SMTP",
+      "SMTP port": "Porta SMTP",
+      "Folder to watch": "Cartella da leggere",
+      "Check for mail every": "Controlla la posta ogni",
+      "Mark handled mail as read": "Segna come letta la posta gestita",
+      "Move handled mail to": "Sposta la posta gestita in",
+      "Quote the email she answers": "Cita l'email a cui risponde",
+      "Most emails she sends a day": "Massimo di email inviate al giorno",
+      "Other": "Altro",
+      "Fills in the server names for Gmail, iCloud or Fastmail and links to where you make an app password. Outlook.com needs a sign-in Sara doesn't do yet. Other: type them yourself.": "Compila i server per Gmail, iCloud o Fastmail e porta alla pagina per la password per le app. Outlook.com richiede un accesso che Sara non fa ancora. Altro: scrivili tu.",
+      "An address only she uses, like sara@yourdomain.com or a new account. Not your own address: she would answer everything in your inbox.": "Un indirizzo che usa solo lei, come sara@tuodominio.it o un account nuovo. Non il tuo: risponderebbe a tutta la tua casella.",
+      "The name the mail server wants when she signs in, usually the full address.": "Il nome che il server di posta chiede all'accesso, di solito l'indirizzo completo.",
+      "Make one in your mail provider's security settings (it needs two-step sign-in). It's kept encrypted in Sara's vault and is never shown again. Your normal password won't work.": "Creala nelle impostazioni di sicurezza del tuo provider (serve la verifica in due passaggi). Resta cifrata nella cassaforte di Sara e non viene più mostrata. La tua password normale non funziona.",
+      "Where she reads her mail, e.g. imap.gmail.com. Sara only connects encrypted and checks the server's certificate.": "Dove legge la sua posta, es. imap.gmail.com. Sara si collega solo cifrata e controlla il certificato del server.",
+      "993 is encrypted from the start (best). 143 is upgraded to encryption first; Sara refuses to send a password before that.": "993 è cifrata dall'inizio (la scelta migliore). 143 viene prima cifrata; Sara non invia password prima.",
+      "Where she sends her replies, e.g. smtp.gmail.com.": "Da dove invia le sue risposte, es. smtp.gmail.com.",
+      "465 is encrypted from the start; 587 is upgraded to encryption first (iCloud uses 587). Unencrypted sending is never used.": "465 è cifrata dall'inizio; 587 viene prima cifrata (iCloud usa 587). Non si invia mai senza cifratura.",
+      "The mail folder she reads, usually INBOX. Mail that was already there when you set her up is never answered.": "La cartella che legge, di solito INBOX. La posta già presente alla configurazione non riceve mai risposta.",
+      "Used only when the server can't tell Sara about new mail at once (most can). In minutes.": "Usato solo se il server non può avvisare subito Sara della posta nuova (quasi tutti possono). In minuti.",
+      "After she has dealt with an email it's marked as read in her mailbox, so you can see what she handled if you open it.": "Quando ha gestito un'email, viene segnata come letta nella sua casella: aprendola vedi cosa ha gestito.",
+      "A folder to move handled mail into, like Done. Empty: it stays where it is.": "Una cartella in cui spostare la posta gestita, come Fatto. Vuoto: resta dov'è.",
+      "Adds the start of your email under her reply, like most mail apps do.": "Aggiunge l'inizio della tua email sotto la sua risposta, come fanno quasi tutte le app di posta.",
+      "A cap so a mistake can't send a flood of mail from her address. Mail to you counts too. Your provider has its own, higher limit.": "Un limite perché un errore non mandi una valanga di email dal suo indirizzo. Conta anche la posta a te. Il tuo provider ha un suo limite, più alto."
+    }
+  }
+}

@@ -289,6 +289,111 @@ other people send* (off by default). Outbound, Sara sends `bridge.send` with
 the opt-in she sends one text line instead (*I kept that in the app …*). The SDK's
 `sara.sendFile({ bridge, chatId, from, text, name, mime, data })` does the chunking for you.
 
+### Long turns (2.50.0, every plugin bridge)
+
+A turn is no longer cut at 5 minutes. At 5 minutes a chat app gets one line (*Still working on it.
+I'll send the answer when it's done.*) unless the progress message is showing, and the **whole**
+reply is sent when the turn ends (its budget and `/stop` still end it). One-message bridges get
+nothing at 5 minutes. 2.49 sent a partial answer there and dropped the rest.
+
+### Contract v1.2 (2.50.0, opt-in)
+
+v1 and v1.1 plugins keep working exactly as before (apart from the long-turn fix above). `init`
+now says `bridgeApi: 3` and `bridgeFeatures` (`files`, `edit`, `places`, `typing`, `react`, `log`,
+`threads`, `oneMessage`, `link`, and `net` when the plugin has `connect`). A plugin opts in with
+more fields in `ready.bridge`:
+
+| Field | Meaning |
+|---|---|
+| `places: true` | `bridge.inbound` may say `chat: {kind: 'group', title, members?, ownerIn?}`: a group is a room. She answers there only when called (`addressed`, `replyToHer`, or her name with *Answer when her name is said*), only in groups he is in or switched on by hand; with *Owners can use her tools in groups* his calls are `work-room`. Group lines go in as `[name]: text`. |
+| `link: true` | Owner linking with a code (below). |
+| `typing: true` | Sara sends `{type:'bridge.typing', chatId, on}` around a turn. |
+| `react: true`, `ack: 'react' \| 'line' \| 'none'` | A steer or queued message is acknowledged with `{type:'bridge.react', chatId, messageId, emoji:'👀'}` instead of a line. |
+| `log: true` | The plugin may send group lines one way as `{type:'bridge.log', chatId, messageId, fromId, from, who, text, replyTo?, at?, edited?, deleted?}`; Sara keeps them only where *Keep up with this room* reads. |
+| `oneMessage: true` | Notices, lines, the reply and her files go out as **one** `bridge.send` (for email). |
+| `threads: true` | Reserved for email threads (part B). |
+| `editLimit`, `editEveryMs` | The progress message's budget: at most `editLimit − 2` live edits (the last says *… and more steps*), one spare, then the final line; edits at least `editEveryMs` apart (≥ 3 s). Signal says 9 and 15000. |
+| `textMax` | The longest message the platform takes (the plugin splits). |
+
+`bridge.inbound` grows: `messageId` (≤ 120), `fromId` (a stable sender id: Signal's ACI, a
+lower-cased address), `chat`, `addressed`, `replyToHer`, `replyTo`, `lang` (the sender's language),
+`identity` (the sender's safety number or key fingerprint, compared with the pinned one) and, for
+email, `auth: {result: 'aligned' | 'unaligned' | 'none', authserv}`. `bridge.send` grows `replyTo`
+(quote it), `thread` and `subject`. Other one-way plugin → Sara lines (their own budget, 600 a
+minute, no answer): `bridge.sent {ref?, messageId}`, `bridge.status {state: connecting | ok | paused
+| error, detail}` (the status chip) and `bridge.skip {reason, from}` (the *Ignored today* counts,
+ids only). Sara → plugin: `bridge.trust {chatId}` (the owner pressed *It's me*), `bridge.leave
+{chatId}` (*Leave this group*) and the request `bridge.test` (answer `{steps: [{label, ok, fix?}]}`,
+≤ 10, 30 s; *Test* on the settings page).
+
+**Owner linking.** *Link my …* on the plugin's settings gives a 6-digit code for 10 minutes (5 wrong
+tries and it's gone). The owner sends `/link 123456` (an email subject `Link 123456`) from his own
+account; Sara takes it before the pairing check, adds the chat to `ownerChats` and the sender to
+`ownerIds`, and pins `identity` when the plugin gave one. A later message from him with another
+identity pauses his owner powers on that bridge (partner turn, no tools, one line) until he presses
+*It's me* (or *Unlink*). With `auth` present the link and every owner turn need `aligned`. Typing
+chat ids by hand still works.
+
+**Strangers.** With *Let other people talk to her* off, a v1.2 plugin's stranger gets one line per
+private chat (*I only chat with the person who runs me here.*), then nothing; skips are counted.
+
+**Sender checks and threads (email, 2.50.0 part B).** A bridge whose messages carry `auth` is a
+sender-check bridge: `auth: {headers: [{authserv, result: 'aligned'|'unaligned'|'none', method}]}`
+lists every Authentication-Results reading, top first. Sara uses the topmost one carrying the
+provider id learned at linking (`bridge.authserv`; *Check my sender* re-learns it), so a header a
+sender wrote into the mail is ignored. On such a bridge the allow-list (`bridge.allow`: addresses
+and `@domains`) means nobody when empty, and partners must pass the check too. Before reading a
+message a plugin may ask `call op:'bridge.who' {bridge, chatId, fromId, auth, subject}` → `{who:
+'owner'|'partner'|'link'|'none', reason?}`; Sara counts the skip itself (the helper:
+`sara.bridgeWho(…)`). With `threads` in `ready`, `thread: {id, subject?}` on `bridge.inbound` makes
+one session per thread (`bridge_threads`), and her one-message reply carries `thread` and
+`replyTo` (the message she answers). `forwarded: '<text>'` on `bridge.inbound` is someone else's
+text: Sara fences it (`FORWARDED`), saves the message with `meta.untrusted`, and every tool that
+would run on its own asks first in that turn. An `email` bridge also refuses the owner's own
+mailbox in its settings (`address`/`username` equal to a linked address, the Google account or the
+email MCP server's address).
+
+### Sockets (`permissions.connect`, 2.50.0)
+
+A plugin never opens a socket (on a fenced host it can't). Sara holds it:
+
+```json
+"connect": [{ "id": "daemon", "host": "setting:daemon", "ports": "setting", "where": "local", "tls": "none" }]
+```
+
+- `host` is always `setting:<key>`, one of its own text settings: the owner types the address and
+  Sara reads it when the socket opens. A host the plugin names in `net.open` is ignored (logged).
+- `where: "local"`: loopback only; private addresses (RFC 1918, fc00::/7, a Docker network) only
+  when its `onOtherMachine` switch (which must start off) is on; public addresses never.
+  `where: "public"`: public addresses only. `tls: "none"` only with `local`.
+- `ports`: a list (≤ 6), or `"setting"` (local only: the port comes from the same setting).
+- `tls: "required"`: implicit TLS, or on 143 and 587 Sara does STARTTLS herself (IMAP `a0 STARTTLS`,
+  SMTP `EHLO` + `STARTTLS`) and hands over only the encrypted socket (`tls.starttls`, `greeting`).
+  Certificates are always checked against the host; nothing turns that off.
+- The name is resolved once and the socket pinned to the first address; every address must pass.
+- Calls: `net.open {endpoint, port?}` → `{socket, tls?, greeting?}`; `net.write {socket, data}`
+  (base64, ≤ 256 KB; its own budget of 600 writes and 16 MB a minute); `net.close {socket}`. Sara
+  sends `{type:'net.data', socket, data}` and `{type:'net.closed', socket, reason}`.
+- Caps: 4 sockets; reads pause while the plugin is more than 4 MB behind; idle sockets close after
+  35 minutes; every open and close is in its log. Private local mode refuses `net.open` and closes
+  open sockets. A plugin with `connect` runs for one companion at a time.
+- The card says *Connects to a program on this computer at the address (and port) you give it in …*
+  or *Connects to the server you give it in … (ports …, always encrypted)*; a new endpoint or port is
+  an addition (the full card).
+- The helper: `const s = await sara.net.open('daemon'); s.onData(fn); s.onClose(fn); await
+  s.write(bytes); await s.close()`.
+- Tests only: a loopback stand-in for a `public` mail endpoint needs `SARA_TEST_ALLOW_LOOPBACK_MAIL=1`
+  (or `netTestLoopback` under `node --test`); see docs/EMAIL_BRIDGE.md. Never on by default.
+
+### Plugins that come with Sara (origin `builtin`)
+
+`plugins/` at the top of Sara holds the first-party plugins (Signal and Email). `GET
+/api/plugins/builtin` lists them; `POST /api/plugins/install {builtin: 'signal'}` stages one and
+shows **the same review card** with *Comes with Sara · made by the Sara team*. Nothing installs or
+switches on by itself; on an unfenced host the trust tick is still required. When Sara ships a newer
+version, the shelf shows *Update available* and *Check for updates* re-reads the bundled folder.
+Their `sara-plugin.mjs` is the same file as `examples/plugins/sara-plugin.mjs`.
+
 ## 9. Testing your plugin
 
 - Run Sara with a scratch data folder, add your plugin from *A folder on this server*, read the

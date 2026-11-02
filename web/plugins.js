@@ -63,6 +63,10 @@ const PERM = {
   'Can show cards (text, a picture and buttons, never its own code)': () => t('Can show cards (text, a picture and buttons, never its own code)'),
   'Has its own settings: {names}': (p) => t('Has its own settings: {names}', p),
   'Keeps its own files in its own folder': () => t('Keeps its own files in its own folder'),
+  // Phase 117 (BRIDGES3 P1): sockets Sara holds for it.
+  'Connects to a program on this computer at the address and port you give it in {setting}': (p) => t('Connects to a program on this computer at the address and port you give it in {setting}', p),
+  'Connects to a program on this computer at the address you give it in {setting} (ports {ports})': (p) => t('Connects to a program on this computer at the address you give it in {setting} (ports {ports})', p),
+  'Connects to the server you give it in {setting} (ports {ports}, always encrypted)': (p) => t('Connects to the server you give it in {setting} (ports {ports}, always encrypted)', p),
 };
 export const permText = (l) => (PERM[l.key] ? PERM[l.key](l.params ?? {}) : l.key);
 const lines = (ls) => (ls ?? []).map((l) => ({ id: l.id, text: permText(l), risk: l.risk }));
@@ -109,6 +113,51 @@ export async function loadPlugins() {
   $('#plg-fence-note').hidden = state.fence !== 'node-only';
   renderWaiting();
   renderList();
+  await renderBuiltin();
+}
+
+// ---------- Phase 117 (P3): plugins that come with Sara ----------
+
+async function renderBuiltin() {
+  const box = $('#plg-builtin');
+  if (!box) return;
+  let list = [];
+  try {
+    ({ builtin: list } = await api('/plugins/builtin'));
+  } catch {
+    list = [];
+  }
+  $('#plg-builtin-head').hidden = !list.length;
+  box.replaceChildren(
+    ...list.map((b) => {
+      const card = el('article', 'skl-card plg-card');
+      const head = el('div', 'plg-head');
+      const title = el('div', 'plg-title');
+      title.append(el('strong', '', `${b.name} ${b.version}`), el('span', 'skl-desc', b.description));
+      head.append(title);
+      const row = el('div', 'add-row');
+      if (!b.installed) row.append(btn(t('Add {name}', { name: b.name }), '', () => addBuiltin(b.id)));
+      else if (b.updateAvailable) row.append(btn(t('Update available: {version}', { version: b.version }), '', () => addBuiltin(b.id)));
+      else row.append(el('span', 'muted small', t('Added ({version})', { version: b.installedVersion })));
+      card.append(head, row);
+      return card;
+    }),
+  );
+}
+
+/** Stages a plugin that comes with Sara and shows the normal review card (nothing is installed by this). */
+export async function addBuiltin(id) {
+  openAdd();
+  // It comes with Sara: no source to pick, straight to its card.
+  for (const sel of ['#pla-sources', '#pla-zip-row', '#pla-look-row']) if ($(sel)) $(sel).hidden = true;
+  $('#pla-status').textContent = t('Reading it…');
+  try {
+    pending = await api('/plugins/install', { method: 'POST', body: { builtin: id } });
+    $('#pla-status').textContent = '';
+    renderReview();
+  } catch (err) {
+    $('#pla-status').textContent = err.message;
+  }
 }
 
 function renderWaiting() {
@@ -189,7 +238,8 @@ function pluginCard(p) {
   chips.append(chip(FENCE[p.fenced]?.() ?? p.fenced, p.fenced === 'node-only' ? 'warn' : ''));
   if (p.status === 'crashed') chips.append(chip(t('Switched off: it kept crashing'), 'bad'));
   if (p.status === 'disabled' && p.statusNote === 'changed') chips.append(chip(t('Switched off: its files changed'), 'bad'));
-  if (p.author) chips.append(chip(t('By {who}', { who: p.author }), 'muted'));
+  if (p.origin === 'builtin') chips.append(chip(t('Comes with Sara'), 'muted'));
+  else if (p.author) chips.append(chip(t('By {who}', { who: p.author }), 'muted'));
   card.append(chips);
   const on = el('div', 'plg-companions');
   for (const c of p.companions) {
@@ -266,6 +316,7 @@ export function openAdd() {
   $('#pla-review').replaceChildren();
   $('#pla-status').textContent = '';
   $('#pla-cancel').hidden = false;
+  for (const sel of ['#pla-sources', '#pla-look-row']) if ($(sel)) $(sel).hidden = false;
   pickSource('zip');
   $('#plugin-add').showModal();
 }
@@ -317,7 +368,8 @@ export function reviewCard(r, opts = {}) {
   const title = r.kind === 'update' ? (r.short ? t('{name} {version}: same permissions', { name: m.name, version: m.version }) : t('{name} {version} asks for more', { name: m.name, version: m.version })) : t('Add {name} {version}?', { name: m.name, version: m.version });
   const chips = [{ text: FENCE[r.fence]?.() ?? r.fence, cls: r.fence === 'node-only' ? 'warn' : '' }, ...(m.license ? [{ text: m.license }] : []), ...(r.current ? [{ text: t('Now: {version}', { version: r.current.version }) }] : [])];
   const why = [own(i18n, m.description)];
-  if (m.author) why.push(t('By {who}', { who: m.author }));
+  if (r.builtin) why.push(t('Comes with Sara · made by the Sara team'));
+  else if (m.author) why.push(t('By {who}', { who: m.author }));
   const warn = [];
   if (r.fence === 'node-only') warn.push(t("This computer can't fence the plugin in. Only add plugins you trust."));
   for (const f of r.findings ?? []) warn.push(FINDING[f.kind] ? FINDING[f.kind](f) : f.text);
@@ -482,23 +534,320 @@ async function renderSettings() {
     oi.type = 'checkbox';
     oi.id = 'pls-bridge-others';
     oi.checked = v.bridge.others;
-    others.append(oi, el('span', '', t('Let other people talk to her there')), tipButton(t('Off: chats that are not yours are ignored. On: other people get her partner chat: no tools, no memory, the AI notice first.')));
+    const mailish = v.bridge.threads === true;
+    if (mailish) others.append(oi, el('span', '', t('Let other people email her')), tipButton(t('Off by default. When on, people you allow get her as an AI: no tools, nothing private, nothing sexual, the AI notice first. Everyone else is ignored.')));
+    else others.append(oi, el('span', '', t('Let other people talk to her there')), tipButton(t('Off: chats that are not yours are ignored. On: other people get her partner chat: no tools, no memory, the AI notice first.')));
     rows.push(chats, others);
+    // Phase 117 part B: who "other people" means (the allow-list; part A had it in the API only).
+    if (v.bridge.link || v.bridge.places) {
+      const al = el('label', 'plg-field');
+      const ta = document.createElement('textarea');
+      ta.id = 'pls-bridge-allow';
+      ta.rows = 3;
+      ta.value = (v.bridge.allow ?? []).join('\n');
+      ta.dataset.nodirty = '';
+      ta.spellcheck = false;
+      ta.placeholder = mailish ? t('kim@example.com or @example.com, one per line') : t('One id per line');
+      const ah = el('span', 'plg-field-name');
+      if (mailish) ah.append(el('span', '', t('People who may email her')), tipButton(t('One address or @domain per line. Their email must pass their provider\'s sender check. Mail from anyone else is never answered and never reaches her.')));
+      else ah.append(el('span', '', t('People who may talk to her')), tipButton(t('One id per line. Empty: anyone who writes to her gets her partner chat (when Let other people talk to her is on).')));
+      al.append(ah, ta);
+      rows.push(al);
+    }
+    // Phase 117 (contract v1.2): groups as rooms.
+    if (v.bridge.places) {
+      rows.push(switchRow('pls-bridge-work', v.bridge.workInGroups, t('Owners can use her tools in groups'), t('When you call her in a Signal group, she can use her tools there. Others in the group still only get chat. Files she shares there ask you first.')));
+      rows.push(switchRow('pls-bridge-names', v.bridge.nameCalls, t('Answer when her name is said in a group'), t("She answers when her name is said in a group, not only when she's mentioned or replied to.")));
+    }
   }
   if (!rows.length) rows.push(el('p', 'muted small', t('This plugin has no settings.')));
   box.replaceChildren(...rows);
   $('#pls-save').hidden = !v.settings.length && !v.bridge;
+  const more = $('#pls-bridge');
+  if (more) {
+    more.replaceChildren();
+    if (v.bridge && (v.bridge.link || v.bridge.places)) await renderBridgePanel(more, p, v);
+  }
+}
+
+function switchRow(id, on, label, tip) {
+  const row = el('label', 'row plg-field');
+  const i = document.createElement('input');
+  i.type = 'checkbox';
+  i.id = id;
+  i.checked = on === true;
+  i.dataset.nodirty = '';
+  row.append(i, el('span', '', label), tipButton(tip));
+  return row;
+}
+
+// ---------- Phase 117: linking, the status chip, Test, a changed safety number, groups ----------
+
+const BRIDGE_STATE = {
+  ok: () => t('Connected'),
+  connecting: () => t('Connecting'),
+  paused: () => t('Paused (Nothing leaves this computer)'),
+  error: () => t('Needs a look'),
+  off: () => t('Off'),
+  stopped: () => t('Off'),
+};
+
+/** The ✕ icon button (no "Close" text buttons). */
+function xButton(label, onClick) {
+  const b = el('button', 'ghost icon-x', '✕');
+  b.type = 'button';
+  b.setAttribute('aria-label', label);
+  b.title = label;
+  b.addEventListener('click', () => void onClick(b));
+  return b;
+}
+
+async function renderBridgePanel(box, p, v) {
+  const companion = $('#pls-companion').value;
+  let view;
+  try {
+    view = await api(`/plugins/${enc(p.id)}/bridge?companion=${enc(companion)}`);
+  } catch (err) {
+    box.replaceChildren(el('p', 'muted small', err.message));
+    return;
+  }
+  const head = el('div', 'card-head');
+  const chipEl = el('span', 'status-chip', BRIDGE_STATE[view.state]?.() ?? view.state);
+  chipEl.dataset.state = view.state === 'ok' ? 'ok' : view.state === 'error' || view.state === 'paused' ? 'warn' : '';
+  chipEl.setAttribute('role', 'status');
+  const h = el('h3', '', t('Connection'));
+  head.append(h, chipEl);
+  box.append(head);
+  if (view.detail) box.append(el('p', 'muted small', view.detail));
+  const today = view.today ?? { in: 0, out: 0, skipped: {} };
+  const ignored = Object.values(today.skipped ?? {}).reduce((n, x) => n + x, 0);
+  box.append(el('p', 'muted small', t('Today: {in} received, {out} sent, {ignored} ignored', { in: today.in, out: today.out, ignored })));
+  // A changed safety number: his owner powers there are paused until he says it's him.
+  for (const c of view.identityChanged ?? []) {
+    const warn = el('div', 'skl-warn small plg-identity');
+    warn.append(el('p', '', t('Your safety number changed. Until you confirm it, she treats messages from this chat like anyone else\'s: no tools, no memory.')), el('p', 'plg-sha', t('Before: {old}', { old: c.old })), el('p', 'plg-sha', t('Now: {new}', { new: c.new ?? '' })));
+    const row = el('div', 'add-row');
+    row.append(
+      btn(t("It's me"), '', async () => {
+        await api(`/plugins/${enc(p.id)}/identity`, { method: 'POST', body: { companion, chat: c.chat, action: 'confirm' } }).catch((err) => status(err.message));
+        await renderSettings();
+      }),
+      btn(t('Unlink'), 'ghost', async () => {
+        await api(`/plugins/${enc(p.id)}/identity`, { method: 'POST', body: { companion, chat: c.chat, action: 'unlink' } }).catch((err) => status(err.message));
+        await renderSettings();
+      }),
+    );
+    warn.append(row);
+    box.append(warn);
+  }
+  if (v.bridge.link) {
+    const lh = el('div', 'plg-field-name');
+    lh.append(el('h3', '', t('Your own chat')), tipButton(t("Gives a code for 10 minutes. Send it to her from your own Signal (or as the subject of an email from your own address). That's how she knows which chat is you.")));
+    box.append(lh);
+    const linked = el('ul', 'plg-linked');
+    for (const id of view.linked ?? []) {
+      const li = el('li', 'plg-linked-row');
+      li.append(el('code', 'plg-sha', id), xButton(t('Unlink {who}', { who: id }), async () => {
+        await api(`/plugins/${enc(p.id)}/link/${enc(id)}?companion=${enc(companion)}`, { method: 'DELETE' }).catch((err) => status(err.message));
+        await renderSettings();
+      }));
+      linked.append(li);
+    }
+    if (!(view.linked ?? []).length) linked.append(el('li', 'muted small', t('Not linked yet')));
+    const codeLine = el('p', 'plg-code', '');
+    codeLine.setAttribute('role', 'status');
+    const row = el('div', 'add-row');
+    row.append(
+      btn(t('Link my {app}', { app: p.name }), '', async (b) => {
+        b.disabled = true;
+        try {
+          const r = await api(`/plugins/${enc(p.id)}/link`, { method: 'POST', body: { companion } });
+          codeLine.textContent = v.bridge.threads ? t('Send her an email from your own address with the subject Link {code}. The code works for 10 minutes.', { code: r.code }) : t('Send /link {code} to her from your own {app}. The code works for 10 minutes.', { code: r.code, app: p.name });
+        } catch (err) {
+          codeLine.textContent = err.message;
+        } finally {
+          b.disabled = false;
+        }
+      }),
+      btn(t('Test'), 'ghost', async (b) => {
+        b.disabled = true;
+        steps.replaceChildren(el('li', 'muted small', t('Checking…')));
+        try {
+          const r = await api(`/plugins/${enc(p.id)}/test`, { method: 'POST', body: { companion } });
+          steps.replaceChildren(...r.steps.map((x) => el('li', x.ok ? 'plg-step ok' : 'plg-step bad', `${x.ok ? '✓' : '✗'} ${x.label}${x.fix ? ` · ${x.fix}` : ''}`)));
+        } catch (err) {
+          steps.replaceChildren(el('li', 'muted small', err.message));
+        } finally {
+          b.disabled = false;
+        }
+      }),
+    );
+    const steps = el('ul', 'plg-steps');
+    box.append(linked, row, codeLine, steps);
+  }
+  if (v.bridge.threads) renderSenderCheck(box, p, view, companion);
+  if (v.bridge.places && v.bridge.groups?.length) {
+    const gh = el('div', 'plg-field-name');
+    gh.append(el('h3', '', t('Groups')), tipButton(t("She answers in this group when she's called. Groups you're not in start off, so nobody can add her to a group and use her.")));
+    box.append(gh);
+    for (const g of v.bridge.groups) {
+      const row = el('div', 'plg-on');
+      const sw = el('span', 'skl-switch');
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = g.on;
+      input.setAttribute('aria-label', t('Answer here: {group}', { group: g.title }));
+      input.addEventListener('change', () => void api(`/plugins/${enc(p.id)}/group`, { method: 'POST', body: { companion, chat: g.key, on: input.checked } }).catch((err) => status(err.message)));
+      sw.append(input, el('span', 'skl-knob'));
+      row.append(sw, el('span', '', g.title), btn(t('Leave this group'), 'ghost small', async () => {
+        if (!confirm(t('Leave {group}? She stops reading and answering there.', { group: g.title }))) return;
+        await api(`/plugins/${enc(p.id)}/leave`, { method: 'POST', body: { companion, chat: g.key } }).catch((err) => status(err.message));
+        await renderSettings();
+      }));
+      box.append(row);
+    }
+  }
+}
+
+// ---------- Phase 117 part B: the email sender check ----------
+
+function renderSenderCheck(box, p, view, companion) {
+  if (view.ownerUnaligned) box.append(el('p', 'skl-warn small', t("Today an email from your address didn't pass your mail provider's sender check, so she didn't act on it. If it was you, press Check my sender.")));
+  const head = el('div', 'plg-field-name');
+  head.append(el('h3', '', t('Check my sender')), tipButton(t('Send her any email from your own address. Sara learns how your provider signs its checks, so a forged email from "you" can\'t use her tools.')));
+  box.append(head);
+  box.append(el('p', 'muted small', view.authserv ? t('Your mail provider signs its checks as {id} ✓', { id: view.authserv }) : t('Not learned yet: link your address first, or press Check my sender.')));
+  const out = el('div', 'plg-steps');
+  out.setAttribute('role', 'status');
+  const row = el('div', 'add-row');
+  row.append(btn(t('Check my sender'), 'ghost', async (b) => {
+    b.disabled = true;
+    out.replaceChildren(el('p', 'muted small', t('Send her any email from your own address now. Waiting up to 10 minutes…')));
+    try {
+      const r = await api(`/plugins/${enc(p.id)}/check-sender`, { method: 'POST', body: { companion } });
+      if (!r.got) out.replaceChildren(el('p', 'muted small', t('No email from your address arrived in 10 minutes.')));
+      else if (!r.headers.length) out.replaceChildren(el('p', 'skl-warn small', t("Your provider doesn't record sender checks, so emails from you can't be trusted for tools.")));
+      else
+        out.replaceChildren(
+          ...r.headers.map((h) => {
+            const line = el('div', 'add-row');
+            line.append(el('span', 'small', `${h.authserv}: ${h.result === 'aligned' ? t('passed') : t('did not pass')}`));
+            if (h.authserv && h.result === 'aligned')
+              line.append(btn(t('Use this'), '', async () => {
+                await api(`/plugins/${enc(p.id)}/check-sender`, { method: 'POST', body: { companion, use: h.authserv } }).catch((err) => status(err.message));
+                await renderSettings();
+              }));
+            return line;
+          }),
+        );
+    } catch (err) {
+      out.replaceChildren(el('p', 'muted small', err.message));
+    } finally {
+      b.disabled = false;
+    }
+  }));
+  box.append(row, out);
+}
+
+// ---------- Phase 117: Settings → Connections → Signal ----------
+
+export async function loadSignalPage() {
+  const box = $('#sig-box');
+  if (!box) return;
+  const chipEl = $('#sig-chip');
+  let builtin = [];
+  let plugins = [];
+  try {
+    [{ builtin }, { plugins }] = await Promise.all([api('/plugins/builtin'), api('/plugins')]);
+  } catch (err) {
+    box.replaceChildren(el('p', 'muted small', err.message));
+    return;
+  }
+  const b = builtin.find((x) => x.id === 'signal');
+  const p = plugins.find((x) => x.id === 'signal');
+  if (!p) {
+    chipEl.textContent = t('Not set up');
+    chipEl.dataset.state = '';
+    const ol = el('ol', 'plg-setup');
+    ol.append(
+      el('li', '', t("Run signal-cli for her own number on this computer: signal-cli -a +… daemon --tcp 127.0.0.1:7583 --receive-mode=manual")),
+      el('li', '', t('Add Signal: read its card and press Install, then switch it on for her.')),
+      el('li', '', t('Link: press Link my Signal and send the code to her from your own Signal.')),
+    );
+    box.replaceChildren(ol, el('p', 'muted small', t('Signal may limit accounts that act like bots; use a number you can lose.')), ...(b ? [btn(t('Add Signal'), '', () => addBuiltin('signal'))] : [el('p', 'muted small', t("Signal doesn't come with this copy of Sara."))]));
+    return;
+  }
+  const on = p.companions.find((c) => c.on);
+  let state = on ? 'connecting' : 'off';
+  try {
+    if (on) state = (await api(`/plugins/signal/bridge?companion=${enc(on.id)}`)).state;
+  } catch {
+    /* the chip stays */
+  }
+  chipEl.textContent = BRIDGE_STATE[state]?.() ?? state;
+  chipEl.dataset.state = state === 'ok' ? 'ok' : state === 'error' || state === 'paused' ? 'warn' : '';
+  box.replaceChildren(
+    el('p', 'muted small', on ? t('On for {name}.', { name: on.name }) : t('Added, but switched off. Switch it on for her in Settings → Plugins.')),
+    btn(t('Signal settings'), '', () => openSettings(p)),
+    ...(b?.updateAvailable ? [btn(t('Update available: {version}', { version: b.version }), 'ghost', () => addBuiltin('signal'))] : []),
+  );
+}
+
+// ---------- Phase 117 part B: Settings → Connections → Email ----------
+
+export async function loadEmailPage() {
+  const box = $('#em-box');
+  if (!box) return;
+  const chipEl = $('#em-chip');
+  let builtin = [];
+  let plugins = [];
+  try {
+    [{ builtin }, { plugins }] = await Promise.all([api('/plugins/builtin'), api('/plugins')]);
+  } catch (err) {
+    box.replaceChildren(el('p', 'muted small', err.message));
+    return;
+  }
+  const b = builtin.find((x) => x.id === 'email');
+  const p = plugins.find((x) => x.id === 'email');
+  if (!p) {
+    chipEl.textContent = t('Not set up');
+    chipEl.dataset.state = '';
+    const ol = el('ol', 'plg-setup');
+    ol.append(
+      el('li', '', t('Give her an address of her own (an alias on your domain or a new account) and make an app password for it.')),
+      el('li', '', t('Add email: read its card and press Install, then switch it on for her and type the address, the servers and the app password.')),
+      el('li', '', t('Link: press Link my email and send her an email from your own address with the code as the subject.')),
+    );
+    box.replaceChildren(ol, el('p', 'muted small', t('Outlook.com needs a sign-in Sara doesn\'t do yet; Gmail, iCloud, Fastmail and most hosts work with an app password.')), ...(b ? [btn(t('Add email'), '', () => addBuiltin('email'))] : [el('p', 'muted small', t("Email doesn't come with this copy of Sara."))]));
+    return;
+  }
+  const on = p.companions.find((c) => c.on);
+  let state = on ? 'connecting' : 'off';
+  try {
+    if (on) state = (await api(`/plugins/email/bridge?companion=${enc(on.id)}`)).state;
+  } catch {
+    /* the chip stays */
+  }
+  chipEl.textContent = BRIDGE_STATE[state]?.() ?? state;
+  chipEl.dataset.state = state === 'ok' ? 'ok' : state === 'error' || state === 'paused' ? 'warn' : '';
+  box.replaceChildren(
+    el('p', 'muted small', on ? t('On for {name}.', { name: on.name }) : t('Added, but switched off. Switch it on for her in Settings → Plugins.')),
+    btn(t('Email settings'), '', () => openSettings(p)),
+    ...(b?.updateAvailable ? [btn(t('Update available: {version}', { version: b.version }), 'ghost', () => addBuiltin('email'))] : []),
+  );
 }
 
 async function saveSettings(b) {
   const p = editing;
+  const extraBridge = $('#pls-bridge-work') ? { workInGroups: $('#pls-bridge-work').checked, nameCalls: $('#pls-bridge-names').checked } : {};
   const values = {};
   for (const i of document.querySelectorAll('#pls-fields [data-key]')) {
     const type = i.dataset.type;
     if (type === 'secret' && !i.value) continue;
     values[i.dataset.key] = type === 'switch' ? i.checked : type === 'number' ? Number(i.value) : i.value;
   }
-  const bridge = $('#pls-bridge-chats') ? { ownerChats: $('#pls-bridge-chats').value, others: $('#pls-bridge-others').checked } : undefined;
+  const allow = $('#pls-bridge-allow') ? { allow: $('#pls-bridge-allow').value.split(/[\s,]+/).filter(Boolean) } : {};
+  const bridge = $('#pls-bridge-chats') ? { ownerChats: $('#pls-bridge-chats').value, others: $('#pls-bridge-others').checked, ...extraBridge, ...allow } : undefined;
   b.disabled = true;
   try {
     await api(`/plugins/${enc(p.id)}/settings`, { method: 'PUT', body: { companion: $('#pls-companion').value, values, ...(bridge ? { bridge } : {}) } });

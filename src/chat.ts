@@ -306,7 +306,7 @@ export type ChatEvent =
   /** Phase 63: a tool call the model is still writing (throttled; see src/tool-stream.ts). Shown only, never run. */
   | ToolBuilding
   /** Phase 77: `contradiction` = the card's \"This goes against something you decided\" section (a stop). */
-  | { type: 'approval'; approvalId: string; id: string; name: string; summary: string; args: Record<string, unknown>; detail?: ApprovalDetail; computer?: import('./tools/types.ts').ComputerApproval; skill?: import('./tools/types.ts').SkillCard; contradiction?: ContradictionCard; budget?: BudgetState; sandbox?: SandboxCard; sandboxFirst?: { label: string; isolated: boolean }; advisory?: AdvisoryCard; redteam?: import('./redteam.ts').RedTeamGateCard; plugin?: { name: string; reason: string } }
+  | { type: 'approval'; approvalId: string; id: string; name: string; summary: string; args: Record<string, unknown>; detail?: ApprovalDetail; computer?: import('./tools/types.ts').ComputerApproval; skill?: import('./tools/types.ts').SkillCard; contradiction?: ContradictionCard; budget?: BudgetState; sandbox?: SandboxCard; sandboxFirst?: { label: string; isolated: boolean }; advisory?: AdvisoryCard; redteam?: import('./redteam.ts').RedTeamGateCard; plugin?: { name: string; reason: string }; untrusted?: boolean }
   /** Phase 81: the install check's outcome for a call (not checked offline, installed anyway, not installed). */
   | { type: 'advisory'; id: string; state: 'offline' | 'override' | 'declined'; packages: string[] }
   | { type: 'redteam'; id: string; runId: number; workspace: string }
@@ -894,6 +894,12 @@ export interface TurnOptions {
   othersPhotos?: string[];
   /** Phase 115: the private conversation's picture model isn't on this computer: the note goes with the message. */
   photoNote?: boolean;
+  /**
+   * Phase 117 part B (BRIDGES3 §5.10, §12 Q8): this message carries someone else's words (an email
+   * the owner forwarded). Saved as `meta.untrusted`; for this turn every tool that would run on its
+   * own asks first, and the card says why.
+   */
+  untrusted?: boolean;
   /** Phase 44: documents shared with this message (kept in her library or read once here). */
   docs?: import('./library/intake.ts').SharedDoc[];
   /**
@@ -1406,7 +1412,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   }
 
   const isFirst = store.messages(conv.id).every((m) => m.role === 'notice');
-  const meta = { ...(opts.images?.length ? { images: opts.images } : {}), ...(opts.docs?.length ? { docs: opts.docs } : {}), ...(opts.via ? { via: opts.via } : {}), ...(opts.othersPhotos?.length ? { othersPhotos: opts.othersPhotos } : {}), ...(opts.pendingId ? { queued: true } : {}) };
+  const meta = { ...(opts.images?.length ? { images: opts.images } : {}), ...(opts.docs?.length ? { docs: opts.docs } : {}), ...(opts.via ? { via: opts.via } : {}), ...(opts.othersPhotos?.length ? { othersPhotos: opts.othersPhotos } : {}), ...(opts.pendingId ? { queued: true } : {}), ...(opts.untrusted ? { untrusted: true } : {}) };
   const userMsg = opts.resume || opts.group ? store.messages(conv.id).filter((m) => m.role === 'user').at(-1) : store.addMessage(conv.id, 'user', text, Object.keys(meta).length ? meta : undefined);
   // Phase 107: a line /reset cleared isn't answered again on Continue.
   if (!userMsg || (opts.resume && userMsg.meta?.skipped === true && !store.messages(conv.id).some((m) => m.id > userMsg.id && m.role === 'assistant'))) {
@@ -2348,7 +2354,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // Phase 100: for an outside request, everything but the read-only tools its policy lets run asks
       // the owner (or is refused when its approvals are 'deny'); *Always allowed* never applies.
       const permission1 = opts.outside && permission0 !== 'never' && !(permission0 === 'auto' && opts.outside.auto?.includes(call.name)) ? (opts.outside.approvals === 'deny' ? 'never' : 'ask') : permission0;
-      const permission = peerAnswered && permission1 === 'auto' && !READ_AFTER_PEER.has(call.name) ? 'ask' : permission1;
+      const permission2 = peerAnswered && permission1 === 'auto' && !READ_AFTER_PEER.has(call.name) ? 'ask' : permission1;
+      // Phase 117 part B (§5.10): a turn that carries someone else's forwarded text: nothing runs on its own.
+      const untrustedAsk = Boolean(opts.untrusted) && permission2 === 'auto';
+      const permission = untrustedAsk ? 'ask' : permission2;
       let allowed = permission === 'auto';
       /** Phase 78: how the call got (or didn't get) to run, for the run record. */
       let approval: AfterTool['approval'] = 'refused';
@@ -2414,7 +2423,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         if (firstCard) {
           const { id, decision } = app.approvals.request(conv.id, signal);
           const stops = (turnContradictions.get(call.id) ?? []).filter((c) => c.act === 'stop');
-          yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(prepDetail ? { detail: prepDetail } : {}), ...(prepComputer ? { computer: prepComputer } : {}), ...(prepSkill ? { skill: prepSkill } : {}), ...(stopFor ? { contradiction: cardOf(stopFor, stops.filter((c) => c !== stopFor)) } : {}), ...(gate ? { sandboxFirst: { label: gate.isolation.label, isolated: gate.isolation.isolated } } : {}), ...(advisoryStop ? { advisory: advisoryStop } : {}), ...(redteamCard ? { redteam: redteamCard } : {}), ...(pluginAsk ? { plugin: { name: pluginAsk.name, reason: pluginAsk.reason } } : {}) };
+          yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(prepDetail ? { detail: prepDetail } : {}), ...(prepComputer ? { computer: prepComputer } : {}), ...(prepSkill ? { skill: prepSkill } : {}), ...(stopFor ? { contradiction: cardOf(stopFor, stops.filter((c) => c !== stopFor)) } : {}), ...(gate ? { sandboxFirst: { label: gate.isolation.label, isolated: gate.isolation.isolated } } : {}), ...(advisoryStop ? { advisory: advisoryStop } : {}), ...(redteamCard ? { redteam: redteamCard } : {}), ...(pluginAsk ? { plugin: { name: pluginAsk.name, reason: pluginAsk.reason } } : {}), ...(opts.untrusted ? { untrusted: true } : {}) };
           allowed = await decision;
           approval = allowed ? 'allowed' : 'denied';
           const how = app.approvals.takeHow(id);

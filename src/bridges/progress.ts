@@ -39,6 +39,12 @@ export interface ProgressOptions {
   afterMs: number;
   /** At most one edit per this many ms (3 s Telegram DM, 6 s Telegram group, 2.5 s Discord). */
   intervalMs: number;
+  /**
+   * Phase 117 (BRIDGES3 P5): edits the platform allows on one message (Signal: 9, its 10 minus a
+   * spare). One is kept for the final line and one spare, so at most `editLimit - 2` live edits;
+   * the last live one says "… and more steps" and then it stops updating. Unset: no limit.
+   */
+  editLimit?: number;
   final: 'summary' | 'delete';
   /** The reader's language (the owner's app language). */
   lang: string;
@@ -113,6 +119,8 @@ export class ProgressMessage {
   #budget = false;
   /** Phase 116: steers taken in this turn ("· 1 note from you" on the final line). */
   #notes = 0;
+  /** Phase 117: live edits sent (the final one is not counted). */
+  #edits = 0;
   /** Every text sent (create and edits, in order), for tests and the run view. */
   readonly texts: string[] = [];
 
@@ -215,6 +223,7 @@ export class ProgressMessage {
       const hidden = lines.length - (MAX_LINES - 1);
       lines = [`… ${t(en('and {n} earlier steps'), { n: hidden })}`, ...lines.slice(-(MAX_LINES - 1))];
     }
+    if (this.#lastLive()) lines.push(`… ${t(en('and more steps'))}`);
     const safe = lines.map((l) => this.#o.scrub(l)).filter((l) => !minorSexualMatch(l, { others: true }));
     return [head, ...safe].join('\n');
   }
@@ -263,6 +272,15 @@ export class ProgressMessage {
     }
   }
 
+  /** The next live edit is the last one the edit budget allows. */
+  #lastLive(): boolean {
+    const max = this.#liveMax();
+    return max !== undefined && this.#edits === max - 1;
+  }
+  #liveMax(): number | undefined {
+    return this.#o.editLimit ? Math.max(0, this.#o.editLimit - 2) : undefined;
+  }
+
   #find(id: string): Step | undefined {
     return this.#steps.find((s) => s.id === id) ?? this.#steps.findLast((s) => s.status === 'running' || s.status === 'waiting');
   }
@@ -307,6 +325,8 @@ export class ProgressMessage {
 
   async #flush(): Promise<void> {
     if (this.#state !== 'shown' || !this.#ref) return;
+    const max = this.#liveMax();
+    if (max !== undefined && this.#edits >= max) return;
     const body = this.#body();
     if (body === this.#lastBody) return;
     const text = this.render();
@@ -318,6 +338,7 @@ export class ProgressMessage {
       this.#lastBody = body;
       this.#lastEditAt = this.#clock.now();
       this.#failures = 0;
+      this.#edits++;
       this.texts.push(text);
       // More happened while the edit was on its way.
       if (this.#body() !== body) this.#dirty();

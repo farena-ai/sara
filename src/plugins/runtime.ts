@@ -154,8 +154,17 @@ export interface ProcessEvents {
   onLog(kind: 'log' | 'denied' | 'crash' | 'timeout', text: string): void;
   /** The plugin crashed too often and was stopped for good (the manager switches it off). */
   onGaveUp(reason: string): void;
-  /** Bridge events from the plugin aren't calls; this is the one-way `bridge.*` path. */
+  /**
+   * Phase 117 (contract v1.2): one-way bridge lines from the plugin (`bridge.log`, `bridge.sent`,
+   * `bridge.status`, `bridge.skip`). They aren't calls (no answer), have their own budget (600 a
+   * minute) and are ignored by a manager that doesn't handle them.
+   */
+  onOneWay?(msg: InMessage): void;
 }
+
+/** Phase 117: the one-way plugin → Sara line types (v1.2). */
+export const ONE_WAY_TYPES = new Set(['bridge.log', 'bridge.sent', 'bridge.status', 'bridge.skip']);
+export const ONE_WAY_PER_MINUTE = 600;
 
 export type ProcessState = 'starting' | 'ready' | 'stopped' | 'crashed' | 'waiting';
 
@@ -184,6 +193,7 @@ export class PluginProcess {
   #seq = 0;
   #inFlight = 0;
   #rate = new PerMinute(CALLS_PER_MINUTE);
+  #oneWay = new PerMinute(ONE_WAY_PER_MINUTE);
   #rateWarned = 0;
   #restartTimer: NodeJS.Timeout | undefined;
   #watchTimer: NodeJS.Timeout | undefined;
@@ -205,6 +215,11 @@ export class PluginProcess {
 
   get pid(): number | undefined {
     return this.#child?.pid;
+  }
+
+  /** Phase 117: bytes waiting on the plugin's stdin (the socket broker pauses reads above 4 MB). */
+  backlog(): number {
+    return this.#child?.stdin?.writableLength ?? 0;
   }
 
   start(init: Record<string, unknown>): void {
@@ -420,11 +435,30 @@ export class PluginProcess {
       this.events.onLog('log', `${String(msg.level ?? 'info')}: ${String(msg.text ?? '').slice(0, 1500)}`);
       return;
     }
+    if (ONE_WAY_TYPES.has(msg.type)) {
+      if (!this.events.onOneWay) return;
+      if (!this.#oneWay.take(this.now())) return;
+      try {
+        this.events.onOneWay(msg);
+      } catch (err) {
+        this.events.onLog('denied', `${msg.type}: ${String((err as Error).message ?? err).slice(0, 200)}`);
+      }
+      return;
+    }
     if (msg.type === 'call') {
       const id = typeof msg.id === 'string' && msg.id.length <= 64 ? msg.id : '';
       const op = String(msg.op ?? '');
       if (!id) {
         this.events.onLog('denied', 'a call without an id was dropped');
+        return;
+      }
+      // Phase 117 (P1): socket writes have their own budget in the broker (600 a minute, 16 MB),
+      // so a busy IMAP fetch doesn't eat the 100 calls a minute.
+      if (op === 'net.write') {
+        void this.events
+          .onCall(op, msg)
+          .then((r) => this.send({ v: 1, id, type: 'result', ...r }))
+          .catch((err: Error) => this.send({ v: 1, id, type: 'error', error: String(err.message ?? err).slice(0, 500) }));
         return;
       }
       if (!this.#rate.take(this.now())) {

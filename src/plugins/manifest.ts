@@ -48,7 +48,28 @@ export interface PluginPermissions {
   bridgeFiles: boolean;
   model: { callsPerDay: number; tokensPerDay: number };
   memory: 'none' | 'shared-notes';
+  /** Phase 117 (BRIDGES3 P1): sockets Sara opens and relays for it (src/plugins/net.ts); up to 4. */
+  connect: ConnectEndpoint[];
 }
+
+/**
+ * Phase 117 (P1): one endpoint of `permissions.connect`. The host always comes from one of its own
+ * text settings (`setting:<key>`), typed by the owner: the plugin can't pick another at run time.
+ * `where: 'local'` = this computer (or, with its `onOtherMachine` switch on, the home network);
+ * `'public'` = public addresses only. `tls: 'none'` only for local endpoints. `ports: 'setting'`
+ * (local only) takes the port from the same setting (`127.0.0.1:7583`).
+ */
+export interface ConnectEndpoint {
+  id: string;
+  host: string;
+  ports: number[] | 'setting';
+  where: 'local' | 'public';
+  tls: 'none' | 'required';
+}
+/** The switch a local endpoint reads to allow the home network (RFC 1918, a Docker network). */
+export const OTHER_MACHINE_SETTING = 'onOtherMachine';
+/** The ports on which Sara does STARTTLS itself before handing the socket over (IMAP, SMTP submission). */
+export const STARTTLS_PORTS: Readonly<Record<number, 'imap' | 'smtp'>> = { 143: 'imap', 587: 'smtp' };
 export interface PluginManifest {
   manifest: 1;
   id: string;
@@ -74,7 +95,7 @@ export class ManifestError extends Error {
 }
 
 const TOP_KEYS = new Set(['manifest', 'id', 'name', 'version', 'description', 'author', 'license', 'homepage', 'sara', 'main', 'permissions', 'schedules', 'settings', 'i18n', '$schema']);
-const PERMISSION_KEYS = new Set(['hooks', 'tools', 'callTools', 'network', 'files', 'settings', 'cards', 'bridges', 'bridgeFiles', 'model', 'memory']);
+const PERMISSION_KEYS = new Set(['hooks', 'tools', 'callTools', 'network', 'files', 'settings', 'cards', 'bridges', 'bridgeFiles', 'model', 'memory', 'connect']);
 export const ID_RE = /^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$/;
 const SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const TOOL_RE = /^[a-z][a-z0-9_]{0,39}$/;
@@ -240,7 +261,41 @@ function parsePermissions(v: unknown): PluginPermissions {
   if (memory !== 'none' && memory !== 'shared-notes') throw new ManifestError('permissions.memory may be none or shared-notes.');
   const bridgeFiles = bool('bridgeFiles');
   if (bridgeFiles && !bridges.length) throw new ManifestError('permissions.bridgeFiles needs a bridge in permissions.bridges.');
-  return { hooks, tools, callTools, network, files, settings: bool('settings'), cards: bool('cards'), bridges, bridgeFiles, model, memory };
+  const connect = parseConnect(p.connect);
+  return { hooks, tools, callTools, network, files, settings: bool('settings'), cards: bool('cards'), bridges, bridgeFiles, model, memory, connect };
+}
+
+function parseConnect(v: unknown): ConnectEndpoint[] {
+  const out: ConnectEndpoint[] = [];
+  for (const raw of list(v, 'permissions.connect', 4)) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new ManifestError('Each connect entry must be an object.');
+    const e = raw as Record<string, unknown>;
+    for (const k of Object.keys(e)) if (!['id', 'host', 'ports', 'where', 'tls'].includes(k)) throw new ManifestError(`Unknown field "connect.${k}".`);
+    const id = String(e.id ?? '');
+    if (!/^[a-z][a-z0-9-]{0,23}$/.test(id)) throw new ManifestError(`The connect id "${id.slice(0, 30)}" must be lower-case letters, digits and hyphens.`);
+    if (out.some((x) => x.id === id)) throw new ManifestError(`The connect id "${id}" is listed twice.`);
+    const host = String(e.host ?? '');
+    if (!/^setting:[a-zA-Z][a-zA-Z0-9_]{0,31}$/.test(host)) throw new ManifestError(`connect "${id}": host must be "setting:<key>" (the owner types the address in its settings; a plugin can't name one itself).`);
+    const where = e.where;
+    if (where !== 'local' && where !== 'public') throw new ManifestError(`connect "${id}": where must be "local" or "public".`);
+    const tls = e.tls;
+    if (tls !== 'none' && tls !== 'required') throw new ManifestError(`connect "${id}": tls must be "none" or "required".`);
+    if (tls === 'none' && where !== 'local') throw new ManifestError(`connect "${id}": an unencrypted connection is only allowed to a program on this computer (where: "local").`);
+    let ports: number[] | 'setting';
+    if (e.ports === 'setting') {
+      if (where !== 'local') throw new ManifestError(`connect "${id}": public endpoints must list their ports.`);
+      ports = 'setting';
+    } else {
+      const ps = list(e.ports, `connect "${id}" ports`, 6);
+      if (!ps.length) throw new ManifestError(`connect "${id}" lists no ports.`);
+      ports = [...new Set(ps.map((x) => {
+        if (!Number.isInteger(x) || (x as number) < 1 || (x as number) > 65535) throw new ManifestError(`connect "${id}": ${String(x)} isn't a port.`);
+        return x as number;
+      }))];
+    }
+    out.push({ id, host, ports, where, tls });
+  }
+  return out;
 }
 
 function parseSettings(v: unknown, allowed: boolean): PluginSetting[] {
@@ -355,6 +410,15 @@ export function parseManifest(raw: unknown, opts: { saraVersion: string; files?:
   const permissions = parsePermissions(m.permissions);
   const settings = parseSettings(m.settings, permissions.settings);
   const schedules = parseSchedules(m.schedules, permissions.hooks);
+  for (const c of permissions.connect) {
+    const key = c.host.slice('setting:'.length);
+    const s = settings.find((x) => x.key === key);
+    if (!s || s.type !== 'text') throw new ManifestError(`connect "${c.id}": its host setting "${key}" must be one of its text settings.`);
+    if (c.where === 'local') {
+      const other = settings.find((x) => x.key === OTHER_MACHINE_SETTING);
+      if (other && (other.type !== 'switch' || other.default === true)) throw new ManifestError(`The setting "${OTHER_MACHINE_SETTING}" must be a switch that starts off.`);
+    }
+  }
   const i18n = parseI18n(m.i18n);
   return { manifest: 1, id, name, version, description, ...(author ? { author } : {}), ...(license ? { license } : {}), ...(homepage ? { homepage } : {}), ...(sara ? { sara } : {}), main, permissions, schedules, settings, i18n };
 }
@@ -398,6 +462,7 @@ export function permissionLines(m: PluginManifest, toolLabel: (name: string) => 
   const p = m.permissions;
   const out: PermissionLine[] = [];
   for (const h of p.network) out.push({ id: `network:${h}`, key: 'Can reach {host}', params: { host: h }, risk: 'high' });
+  for (const c of p.connect) out.push(connectLine(m, c));
   for (const t of p.callTools) out.push({ id: `call:${t}`, key: 'Can ask her to use {tool} (asks you first)', params: { tool: toolLabel(t) }, risk: 'high' });
   if (p.model.callsPerDay > 0) out.push({ id: 'model', key: 'Can use her model up to {n} times a day (billed to you)', params: { n: p.model.callsPerDay, tokens: p.model.tokensPerDay }, risk: 'high' });
   if (p.files.read.includes('workspace')) out.push({ id: 'files:workspace', key: 'Can read your main workspace (read only)', risk: 'high' });
@@ -414,11 +479,25 @@ export function permissionLines(m: PluginManifest, toolLabel: (name: string) => 
   return out.sort((a, b) => order[a.risk] - order[b.risk]);
 }
 
+/** Phase 117: a connect endpoint's stable id (`connect:<id>:<where>:<ports>:<tls>`); a new port or endpoint is an addition. */
+export const connectId = (c: ConnectEndpoint): string => `connect:${c.id}:${c.where}:${c.ports === 'setting' ? 'setting' : c.ports.join(',')}:${c.tls}`;
+
+function connectLine(m: PluginManifest, c: ConnectEndpoint): PermissionLine {
+  const label = m.settings.find((s) => `setting:${s.key}` === c.host)?.label ?? c.host;
+  if (c.where === 'local') {
+    return c.ports === 'setting'
+      ? { id: connectId(c), key: 'Connects to a program on this computer at the address and port you give it in {setting}', params: { setting: label }, risk: 'high' }
+      : { id: connectId(c), key: 'Connects to a program on this computer at the address you give it in {setting} (ports {ports})', params: { setting: label, ports: c.ports.join(', ') }, risk: 'high' };
+  }
+  return { id: connectId(c), key: 'Connects to the server you give it in {setting} (ports {ports}, always encrypted)', params: { setting: label, ports: (c.ports as number[]).join(', ') }, risk: 'high' };
+}
+
 /** The stable permission ids (what an update is compared by). */
 export function permissionIds(m: PluginManifest): string[] {
   const p = m.permissions;
   const ids = [
     ...p.network.map((h) => `network:${h}`),
+    ...p.connect.map(connectId),
     ...p.callTools.map((t) => `call:${t}`),
     ...(p.model.callsPerDay > 0 ? [`model:${p.model.callsPerDay}:${p.model.tokensPerDay}`] : []),
     ...p.files.read.map((f) => `read:${f}`),

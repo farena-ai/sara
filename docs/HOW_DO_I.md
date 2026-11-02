@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 123 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 127 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -612,6 +612,32 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Under Other bots, keep replies to bots low.
 2. 1 means she answers a bot once, then waits for a person.
+
+### Signal
+
+**How do I get her on Signal?**
+
+1. Start signal-cli for her own number on this computer.
+2. Press Add Signal, read its card and install it.
+3. Press Link my Signal and send her the code.
+
+**Why did she stop using her tools on Signal?**
+
+1. Your safety number changed.
+2. Press It's me in Signal settings if it was you.
+
+### Email
+
+**How do I give her an email address?**
+
+1. Make an address for her and an app password for it.
+2. Press Add email, read its card and install it.
+3. Press Link my email and send her the code as the subject.
+
+**Why didn't she answer my email?**
+
+1. Your mail didn't pass your provider's sender check.
+2. Press Check my sender in Email settings and send her a mail.
 
 ### Other apps
 

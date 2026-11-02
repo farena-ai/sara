@@ -5,6 +5,32 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.50.0 (2026-11-01): Signal and email (Phase 117)
+
+- **Fixed:** a reply in a plugin chat app that took longer than 5 minutes was cut off and the rest
+  was lost. Now one "Still working on it" line goes out at 5 minutes (unless the progress message is
+  showing) and the whole answer when she's done.
+- **Signal** (a built-in plugin, installed from Settings through the usual review card): talks to
+  signal-cli's JSON-RPC daemon on this computer (or your home network if you tick it). Her own
+  number is recommended; *Note to Self* is a quick test. Link yourself with a 6-digit code; your
+  safety number is pinned, and if it changes her tools pause until you press *It's me*. Groups you're
+  in become rooms (she answers when called; keep-up works), 👀 when she takes your note, a progress
+  message with up to 7 edits, files up to 20 MB both ways, gentle pacing, and she never writes first
+  to anyone but you. Guide: [docs/SIGNAL.md](docs/SIGNAL.md).
+- **Email** (built-in plugin): her own mailbox over IMAP (IDLE or polling) and SMTP, with presets
+  for Gmail, iCloud and Fastmail (app passwords; Outlook.com needs OAuth and isn't supported yet).
+  Link yourself by mailing *Link 123456*; your mail counts as you only when your provider's sender
+  check passes. One session per thread, replies in the thread, plain text, never reply-all.
+  Strangers are never answered and never reach a model; an allow-list for others. Forwarded mail is
+  fenced and makes every tool ask first. Out-of-office replies, mailing lists and bounces are
+  skipped, and her mail is marked as automatic so loops can't start. Only the first 8,000
+  characters reach her; *keep this* saves the whole mail to the library. Guide:
+  [docs/EMAIL_BRIDGE.md](docs/EMAIL_BRIDGE.md).
+- **For plugin authors:** contract 1.2 (opt-in): Sara holds TCP/TLS connections for a plugin
+  (`permissions.connect`) only to addresses from the owner's settings, does STARTTLS itself and
+  pins the address; groups as rooms, message ids, reactions, typing, threads, sender checks and an
+  edit budget. Plugins that come with Sara live in `plugins/`. Guide: [docs/PLUGINS.md](docs/PLUGINS.md).
+
 ## 2.49.0 (2026-11-01): talk to her while she works (Phase 116)
 
 - **Send while she works and choose what happens:** *Tell her now* (the default for you: she reads it

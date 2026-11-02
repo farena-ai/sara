@@ -120,6 +120,7 @@ const ALLOWED: Record<string, string> = {
   'src/tools/builtin.ts': 'web_fetch: calls checkOutbound() before every hop',
   'src/apns.ts': "iPhone notifications over HTTP/2: calls checkOutbound() before connecting",
   'src/tunnel.ts': "Phase 89 dev tunnel: connects only to 127.0.0.1, to a port her own job listens on, after checkOutbound()",
+  'src/plugins/net.ts': "Phase 117 plugin socket broker: hosts only from the owner's plugin settings, refused in private local mode (assertOnline) and checked with checkOutbound() before connecting",
 };
 
 /** Lines of code that open a connection without the guard. */

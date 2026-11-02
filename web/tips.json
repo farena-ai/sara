@@ -1543,6 +1543,14 @@
       "Talk to her on Telegram too: same memories, same her.",
       "phone"
     ],
+    "co-signal": [
+      "Talk to her on Signal through your own signal-cli: link your chat with a code, groups when she's called.",
+      "signal"
+    ],
+    "co-email": [
+      "Give her a mailbox of her own: email her or forward her a mail and she answers in the same thread.",
+      "email"
+    ],
     "co-apps": [
       "Use her from other apps (SillyTavern, Open WebUI, Claude Code, Cursor, Claude Desktop) with an API key.",
       "clients"

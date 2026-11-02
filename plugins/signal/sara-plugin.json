@@ -1,0 +1,103 @@
+{
+  "manifest": 1,
+  "id": "signal",
+  "name": "Signal",
+  "version": "1.0.0",
+  "description": "Talk to her on Signal through your own signal-cli.",
+  "author": "The Sara team",
+  "license": "MIT",
+  "sara": ">=2.50.0",
+  "main": "main.mjs",
+  "permissions": {
+    "bridges": ["signal"],
+    "bridgeFiles": true,
+    "settings": true,
+    "connect": [{ "id": "daemon", "host": "setting:daemon", "ports": "setting", "where": "local", "tls": "none" }],
+    "files": { "read": ["plugin-data"], "write": ["plugin-data"] }
+  },
+  "settings": [
+    { "key": "daemon", "type": "text", "label": "signal-cli address", "default": "127.0.0.1:7583", "tip": "Where signal-cli's JSON-RPC daemon listens, usually 127.0.0.1:7583. Start it with daemon --tcp. Keep it on this computer: signal-cli has no password, so anyone who reaches it can send as her." },
+    { "key": "account", "type": "text", "label": "Her Signal number or account id", "default": "", "tip": "The Signal account signal-cli runs for her, in + form (+155****4567) or its account id. Give her a number of her own; your own number works only in Note to Self mode." },
+    { "key": "onOtherMachine", "type": "switch", "label": "signal-cli runs on another machine on my network", "default": false, "tip": "Lets Sara reach signal-cli on your home network or in another Docker container. Never use an address on the internet. Off: this computer only." },
+    { "key": "linkedMode", "type": "switch", "label": "It's linked to my own Signal (Note to Self only)", "default": false, "tip": "For a quick try: she answers in your Note to Self, marked as Sara. She can't talk to anyone else this way, because she would be writing as you." },
+    { "key": "readReceipts", "type": "switch", "label": "Send read receipts", "default": false, "tip": "When on, people see the moment she has read their message. Off by default. Delivery ticks work either way." },
+    { "key": "typing", "type": "switch", "label": "Show typing while she works", "default": true, "tip": "Shows the typing dots in the chat while she prepares an answer." }
+  ],
+  "i18n": {
+    "es": {
+      "Talk to her on Signal through your own signal-cli.": "Habla con ella en Signal a través de tu propio signal-cli.",
+      "signal-cli address": "Dirección de signal-cli",
+      "Her Signal number or account id": "Su número de Signal o id de cuenta",
+      "signal-cli runs on another machine on my network": "signal-cli funciona en otro equipo de mi red",
+      "It's linked to my own Signal (Note to Self only)": "Está vinculado a mi propio Signal (solo Notas personales)",
+      "Send read receipts": "Enviar confirmaciones de lectura",
+      "Show typing while she works": "Mostrar que escribe mientras trabaja",
+      "Where signal-cli's JSON-RPC daemon listens, usually 127.0.0.1:7583. Start it with daemon --tcp. Keep it on this computer: signal-cli has no password, so anyone who reaches it can send as her.": "Dónde escucha el daemon JSON-RPC de signal-cli, normalmente 127.0.0.1:7583. Inícialo con daemon --tcp. Mantenlo en este equipo: signal-cli no tiene contraseña y quien llegue a él puede enviar como ella.",
+      "The Signal account signal-cli runs for her, in + form (+155****4567) or its account id. Give her a number of her own; your own number works only in Note to Self mode.": "La cuenta de Signal que signal-cli usa para ella, con + (+155****4567) o su id de cuenta. Dale un número propio; el tuyo solo funciona en el modo Notas personales.",
+      "Lets Sara reach signal-cli on your home network or in another Docker container. Never use an address on the internet. Off: this computer only.": "Permite que Sara llegue a signal-cli en tu red de casa o en otro contenedor Docker. Nunca uses una dirección de internet. Desactivado: solo este equipo.",
+      "For a quick try: she answers in your Note to Self, marked as Sara. She can't talk to anyone else this way, because she would be writing as you.": "Para probar rápido: responde en tus Notas personales, marcada como Sara. Así no puede hablar con nadie más, porque escribiría como tú.",
+      "When on, people see the moment she has read their message. Off by default. Delivery ticks work either way.": "Si está activado, la gente ve en qué momento leyó su mensaje. Desactivado por defecto. Las marcas de entrega funcionan igual.",
+      "Shows the typing dots in the chat while she prepares an answer.": "Muestra los puntos de escritura en el chat mientras prepara una respuesta."
+    },
+    "fr": {
+      "Talk to her on Signal through your own signal-cli.": "Parlez-lui sur Signal via votre propre signal-cli.",
+      "signal-cli address": "Adresse de signal-cli",
+      "Her Signal number or account id": "Son numéro Signal ou identifiant de compte",
+      "signal-cli runs on another machine on my network": "signal-cli tourne sur une autre machine de mon réseau",
+      "It's linked to my own Signal (Note to Self only)": "Il est lié à mon propre Signal (Note à soi uniquement)",
+      "Send read receipts": "Envoyer les accusés de lecture",
+      "Show typing while she works": "Montrer qu'elle écrit pendant qu'elle travaille",
+      "Where signal-cli's JSON-RPC daemon listens, usually 127.0.0.1:7583. Start it with daemon --tcp. Keep it on this computer: signal-cli has no password, so anyone who reaches it can send as her.": "Où écoute le démon JSON-RPC de signal-cli, en général 127.0.0.1:7583. Lancez-le avec daemon --tcp. Gardez-le sur cet ordinateur : signal-cli n'a pas de mot de passe, qui l'atteint peut écrire en son nom.",
+      "The Signal account signal-cli runs for her, in + form (+155****4567) or its account id. Give her a number of her own; your own number works only in Note to Self mode.": "Le compte Signal que signal-cli utilise pour elle, au format + (+155****4567) ou son identifiant. Donnez-lui son propre numéro ; le vôtre ne marche qu'en mode Note à soi.",
+      "Lets Sara reach signal-cli on your home network or in another Docker container. Never use an address on the internet. Off: this computer only.": "Permet à Sara de joindre signal-cli sur votre réseau domestique ou dans un autre conteneur Docker. Jamais d'adresse sur internet. Désactivé : cet ordinateur seulement.",
+      "For a quick try: she answers in your Note to Self, marked as Sara. She can't talk to anyone else this way, because she would be writing as you.": "Pour un essai rapide : elle répond dans votre Note à soi, marquée Sara. Elle ne peut parler à personne d'autre ainsi, car elle écrirait en votre nom.",
+      "When on, people see the moment she has read their message. Off by default. Delivery ticks work either way.": "Activé, les gens voient le moment où elle a lu leur message. Désactivé par défaut. Les coches de remise marchent dans tous les cas.",
+      "Shows the typing dots in the chat while she prepares an answer.": "Affiche les points de saisie dans la discussion pendant qu'elle prépare une réponse."
+    },
+    "de": {
+      "Talk to her on Signal through your own signal-cli.": "Sprich mit ihr auf Signal über dein eigenes signal-cli.",
+      "signal-cli address": "Adresse von signal-cli",
+      "Her Signal number or account id": "Ihre Signal-Nummer oder Konto-ID",
+      "signal-cli runs on another machine on my network": "signal-cli läuft auf einem anderen Rechner in meinem Netz",
+      "It's linked to my own Signal (Note to Self only)": "Mit meinem eigenen Signal verknüpft (nur Notiz an mich)",
+      "Send read receipts": "Lesebestätigungen senden",
+      "Show typing while she works": "Tippen anzeigen, während sie arbeitet",
+      "Where signal-cli's JSON-RPC daemon listens, usually 127.0.0.1:7583. Start it with daemon --tcp. Keep it on this computer: signal-cli has no password, so anyone who reaches it can send as her.": "Wo der JSON-RPC-Daemon von signal-cli lauscht, meist 127.0.0.1:7583. Starte ihn mit daemon --tcp. Lass ihn auf diesem Rechner: signal-cli hat kein Passwort, wer ihn erreicht, kann als sie senden.",
+      "The Signal account signal-cli runs for her, in + form (+155****4567) or its account id. Give her a number of her own; your own number works only in Note to Self mode.": "Das Signal-Konto, das signal-cli für sie nutzt, mit + (+155****4567) oder seine Konto-ID. Gib ihr eine eigene Nummer; deine eigene geht nur im Modus Notiz an mich.",
+      "Lets Sara reach signal-cli on your home network or in another Docker container. Never use an address on the internet. Off: this computer only.": "Lässt Sara signal-cli in deinem Heimnetz oder in einem anderen Docker-Container erreichen. Nie eine Adresse im Internet. Aus: nur dieser Rechner.",
+      "For a quick try: she answers in your Note to Self, marked as Sara. She can't talk to anyone else this way, because she would be writing as you.": "Zum schnellen Ausprobieren: Sie antwortet in deiner Notiz an mich, als Sara markiert. So kann sie mit niemand anderem reden, weil sie als du schreiben würde.",
+      "When on, people see the moment she has read their message. Off by default. Delivery ticks work either way.": "Wenn an, sehen andere, wann sie ihre Nachricht gelesen hat. Standardmäßig aus. Zustellhäkchen gibt es so oder so.",
+      "Shows the typing dots in the chat while she prepares an answer.": "Zeigt im Chat die Tipp-Punkte, während sie eine Antwort vorbereitet."
+    },
+    "pt-BR": {
+      "Talk to her on Signal through your own signal-cli.": "Fale com ela no Signal pelo seu próprio signal-cli.",
+      "signal-cli address": "Endereço do signal-cli",
+      "Her Signal number or account id": "O número de Signal dela ou id da conta",
+      "signal-cli runs on another machine on my network": "O signal-cli roda em outra máquina da minha rede",
+      "It's linked to my own Signal (Note to Self only)": "Está vinculado ao meu próprio Signal (só Recado para mim)",
+      "Send read receipts": "Enviar confirmações de leitura",
+      "Show typing while she works": "Mostrar que está digitando enquanto trabalha",
+      "Where signal-cli's JSON-RPC daemon listens, usually 127.0.0.1:7583. Start it with daemon --tcp. Keep it on this computer: signal-cli has no password, so anyone who reaches it can send as her.": "Onde o daemon JSON-RPC do signal-cli escuta, normalmente 127.0.0.1:7583. Inicie com daemon --tcp. Mantenha neste computador: o signal-cli não tem senha, quem chegar nele pode enviar como ela.",
+      "The Signal account signal-cli runs for her, in + form (+155****4567) or its account id. Give her a number of her own; your own number works only in Note to Self mode.": "A conta de Signal que o signal-cli usa para ela, com + (+155****4567) ou o id da conta. Dê a ela um número próprio; o seu só funciona no modo Recado para mim.",
+      "Lets Sara reach signal-cli on your home network or in another Docker container. Never use an address on the internet. Off: this computer only.": "Deixa a Sara alcançar o signal-cli na sua rede de casa ou em outro contêiner Docker. Nunca use um endereço da internet. Desligado: só este computador.",
+      "For a quick try: she answers in your Note to Self, marked as Sara. She can't talk to anyone else this way, because she would be writing as you.": "Para um teste rápido: ela responde no seu Recado para mim, marcada como Sara. Assim ela não fala com mais ninguém, porque escreveria como você.",
+      "When on, people see the moment she has read their message. Off by default. Delivery ticks work either way.": "Ligado, as pessoas veem quando ela leu a mensagem. Desligado por padrão. Os sinais de entrega funcionam de qualquer jeito.",
+      "Shows the typing dots in the chat while she prepares an answer.": "Mostra os pontinhos de digitação no chat enquanto ela prepara uma resposta."
+    },
+    "it": {
+      "Talk to her on Signal through your own signal-cli.": "Parla con lei su Signal tramite il tuo signal-cli.",
+      "signal-cli address": "Indirizzo di signal-cli",
+      "Her Signal number or account id": "Il suo numero Signal o id dell'account",
+      "signal-cli runs on another machine on my network": "signal-cli gira su un altro computer della mia rete",
+      "It's linked to my own Signal (Note to Self only)": "È collegato al mio Signal (solo Note personali)",
+      "Send read receipts": "Invia conferme di lettura",
+      "Show typing while she works": "Mostra che scrive mentre lavora",
+      "Where signal-cli's JSON-RPC daemon listens, usually 127.0.0.1:7583. Start it with daemon --tcp. Keep it on this computer: signal-cli has no password, so anyone who reaches it can send as her.": "Dove ascolta il demone JSON-RPC di signal-cli, di solito 127.0.0.1:7583. Avvialo con daemon --tcp. Tienilo su questo computer: signal-cli non ha password, chi lo raggiunge può scrivere come lei.",
+      "The Signal account signal-cli runs for her, in + form (+155****4567) or its account id. Give her a number of her own; your own number works only in Note to Self mode.": "L'account Signal che signal-cli usa per lei, con + (+155****4567) o il suo id. Dalle un numero suo; il tuo funziona solo in modalità Note personali.",
+      "Lets Sara reach signal-cli on your home network or in another Docker container. Never use an address on the internet. Off: this computer only.": "Permette a Sara di raggiungere signal-cli nella rete di casa o in un altro container Docker. Mai un indirizzo su internet. Spento: solo questo computer.",
+      "For a quick try: she answers in your Note to Self, marked as Sara. She can't talk to anyone else this way, because she would be writing as you.": "Per una prova veloce: risponde nelle tue Note personali, segnata come Sara. Così non può parlare con nessun altro, perché scriverebbe come te.",
+      "When on, people see the moment she has read their message. Off by default. Delivery ticks work either way.": "Se acceso, le persone vedono quando ha letto il loro messaggio. Spento di default. Le spunte di consegna funzionano comunque.",
+      "Shows the typing dots in the chat while she prepares an answer.": "Mostra i puntini di scrittura nella chat mentre prepara una risposta."
+    }
+  }
+}

@@ -1783,7 +1783,7 @@
     <div id="pla-zip-row" class="add-row"><input id="pla-file" type="file" accept=".zip,application/zip"></div>
     <div id="pla-url-row" class="skl-form" hidden><label>Git address <button type="button" class="tip" data-tip="An https address of a git repository with sara-plugin.json at its top. Only the latest commit is fetched, without hooks or submodules. Updates come only when you press Check for updates.">?</button> <input id="pla-url" maxlength="500" placeholder="https://github.com/owner/my-plugin" autocomplete="off" data-nodirty></label></div>
     <div id="pla-folder-row" class="skl-form" hidden><label>Folder on the server <button type="button" class="tip" data-tip="The full path of a folder on this server that holds sara-plugin.json, for example one of the examples in examples/plugins. It is copied; later changes there need Check for updates.">?</button> <input id="pla-path" maxlength="1000" placeholder="/home/alex/plugins/weather-alerts" autocomplete="off" data-nodirty></label></div>
-    <div class="add-row"><button id="pla-look" type="button">Look at it</button></div>
+    <div id="pla-look-row" class="add-row"><button id="pla-look" type="button">Look at it</button></div>
     <p id="pla-status" class="muted small" role="status"></p>
     <div id="pla-review" class="skl-review-list"></div>
     <div class="add-row"><button id="pla-cancel" type="button" class="ghost">Cancel</button></div>
@@ -1794,6 +1794,7 @@
     <div id="pls-fields" class="skl-form"></div>
     <div class="add-row"><button id="pls-save" type="button">Save</button></div>
     <p id="pls-status" class="muted small" role="status"></p>
+    <div id="pls-bridge" class="kit-card plg-bridge"></div>
     <h3>What it did <button type="button" class="tip" data-tip="Every hook, tool, call and refusal of this plugin, scrubbed of secrets and kept for 30 days. Refused means Sara stopped something it tried.">?</button></h3>
     <ul id="pls-log" class="plg-log"></ul>
     <div class="add-row"><button id="pls-refresh" type="button" class="ghost">Refresh</button></div>
@@ -2670,6 +2671,8 @@
       <h3 id="plg-waiting-head" hidden>Waiting for you <button type="button" class="tip" data-tip="A plugin asked her to use one of her tools on its own (for example from its schedule). Nothing runs until you allow it here; the request goes away after 10 minutes.">?</button></h3>
       <div id="plg-waiting" class="skl-list"></div>
       <div id="plg-list" class="skl-list"></div>
+      <h3 id="plg-builtin-head" hidden>Comes with Sara <button type="button" class="tip" data-tip="Plugins made by the Sara team that ship inside Sara. They install through the same card as any plugin, nothing is switched on by itself, and a newer one shows Update available.">?</button></h3>
+      <div id="plg-builtin" class="skl-list"></div>
       <p id="plg-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="ab-home" data-group="Abilities" data-title="Home Assistant" data-owner-only hidden>
@@ -2964,6 +2967,20 @@
       <h3>Rooms <button type="button" class="tip" data-tip="The server channels she has talked in. Open one to let her keep up with it: she reads every message there, keeps a short summary and joins the current topic when she's called.">?</button></h3>
       <p class="muted small">Reading every message uses Discord's Message Content Intent, which Sara already needs. It's a switch in the Developer Portal for bots in fewer than 100 servers; bigger, verified bots need Discord's approval.</p>
       <div id="dc-rooms" class="room-list" data-nodirty></div>
+      </div>
+        </section>
+        <section class="settings-page" data-page="co-signal" data-group="Connections" data-title="Signal" data-owner-only hidden>
+      <p class="muted small page-lead">Text her on Signal through your own <strong>signal-cli</strong>, with a number of her own. Signal comes with Sara as a plugin: it installs through its review card and only Sara holds its connection. <a href="/help#signal" target="_blank" rel="noopener">How Signal works</a></p>
+      <div class="kit-card">
+      <div class="card-head"><h3>Signal</h3><span id="sig-chip" class="status-chip" role="status">Not set up</span></div>
+      <div id="sig-box" class="plg-signal"></div>
+      </div>
+        </section>
+        <section class="settings-page" data-page="co-email" data-group="Connections" data-title="Email" data-owner-only hidden>
+      <p class="muted small page-lead">Give her an email address of her own: write to her (or forward her a mail) and she answers in the same thread. Email comes with Sara as a plugin: it installs through its review card and only Sara holds its connections. This is her mailbox, not yours: reading your own inbox is Settings → Google or the Email MCP server. <a href="/help#email" target="_blank" rel="noopener">How email works</a></p>
+      <div class="kit-card">
+      <div class="card-head"><h3>Email</h3><span id="em-chip" class="status-chip" role="status">Not set up</span></div>
+      <div id="em-box" class="plg-signal"></div>
       </div>
         </section>
         <section class="settings-page" data-page="co-apps" data-group="Connections" data-title="Other apps" hidden>

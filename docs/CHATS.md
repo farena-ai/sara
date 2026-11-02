@@ -251,3 +251,28 @@ this computer); nothing starts until you confirm it.
   works. Telegram doesn't tell bots about deleted messages.
 - Try it in one busy channel and read *What she knows right now* after an hour; after day 8 open the
   room's archive in the Library and look at the proposed People cards.
+
+## Signal, and long jobs on chat plugins (2.50.0)
+
+Signal comes with Sara as a plugin (Settings → Connections → Signal): see [SIGNAL.md](SIGNAL.md). It
+uses the same commands, sessions, channel project (*Signal*), keep-up, pictures and files, steer and
+queue as Telegram, with these differences: you link your chat with `/link` and a code from the
+plugin's settings, your safety number is remembered (a changed one pauses her tools there until you
+press *It's me*), steers get a 👀, and the progress message is edited at most 7 times.
+
+On every chat plugin (Signal, the LINE example, any other) a job longer than 5 minutes now sends one
+*Still working on it* line and then **the whole answer** when it ends; 2.49 sent a partial answer at
+5 minutes and dropped the rest. Plugin authors: [PLUGINS.md](PLUGINS.md) §8 (contract v1.2).
+
+## Email (2.50.0)
+
+She can have **an email address of her own** (the Email plugin, Settings → Connections → Email;
+the full guide is [EMAIL_BRIDGE.md](EMAIL_BRIDGE.md)). Email her and she answers **in the same
+thread**; every email thread is one session in the *Email* project, and a reply in an older thread
+goes back to that thread's session. Commands work in the subject or the first line (`/status`,
+`/new`, `/stop`, `/btw …`). She sends **one plain-text mail per turn** (the AI notice, her reply and
+her files together), never progress mails; a steer or queued reply gets no "Got it" mail. Your mail
+counts as you only from your linked address **and** when it passes your provider's sender check;
+forwarded mail is fenced and makes every tool ask first; strangers are never answered and never
+reach her.
+

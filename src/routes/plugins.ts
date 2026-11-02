@@ -16,6 +16,18 @@
 //   POST   /api/plugins/:id/calls/:call          { approved } a Sara tool it asked to use
 //   POST   /api/plugins/:id/action               { companion, tool, args } a card button (the owner's click)
 //   GET    /api/plugins/:id/file?path=           a picture from its own folder (cards)
+// Phase 117 (BRIDGES3 §6.2):
+//   GET    /api/plugins/builtin                  the plugins that come with Sara (installed? update?)
+//   POST   /api/plugins/install                  { builtin: 'signal' } → the same review card (origin builtin)
+//   POST   /api/plugins/:id/link                 { companion } → { code, expires } (10 minutes)
+//   DELETE /api/plugins/:id/link/:chat?companion= unlink a chat (and its id and pinned identity)
+//   POST   /api/plugins/:id/test                 { companion } → { ok, steps } (sends nothing to anyone)
+//   GET    /api/plugins/:id/bridge?companion=    the status chip, Today, sockets, linked chats, a changed identity
+//   POST   /api/plugins/:id/identity             { companion, chat, action: confirm | unlink }
+//   POST   /api/plugins/:id/group                { companion, chat, on } (*Answer here*)
+//   POST   /api/plugins/:id/leave                { companion, chat } (*Leave this group*)
+//   POST   /api/plugins/:id/check-sender         { companion } → waits ≤ 10 min for his next mail: { got, from, headers };
+//                                                { companion, use } → that provider id counts (email)
 import { readFileSync } from 'node:fs';
 import { extname, join, resolve, sep } from 'node:path';
 import { HttpError, readJson, readRaw, SECURITY_HEADERS, send } from '../http.ts';
@@ -50,12 +62,14 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
       return send(res, 200, { plugins: pm.list(), fence: pm.fence, waiting: pm.waiting(), companions: (app.companions?.all() ?? []).map((x) => ({ id: x.id, name: x.app.persona.name })), version: pm.version });
     }
 
+    if (b === 'builtin' && !c && method === 'GET') return send(res, 200, { builtin: pm.builtinList() });
     if (b === 'install') {
       if (!c && method === 'POST') {
         const type = String(req.headers['content-type'] ?? '');
         try {
           if (type.startsWith('application/json')) {
             const body = await readJson(req);
+            if (typeof body.builtin === 'string' && body.builtin.trim()) return send(res, 200, pm.stageBuiltin(body.builtin.trim()));
             if (typeof body.path === 'string' && body.path.trim()) {
               const dir = checkServerFolder(body.path);
               return send(res, 200, pm.stage(fromFolder(dir, PLUGIN_LIMITS), { kind: 'folder', where: dir }));
@@ -132,7 +146,7 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
       if (method === 'PUT') {
         const body = await readJson(req);
         try {
-          await pm.putSettings(id, companion(body.companion), body.values && typeof body.values === 'object' ? (body.values as Record<string, unknown>) : {}, body.bridge && typeof body.bridge === 'object' ? (body.bridge as { ownerChats?: unknown; others?: unknown }) : undefined);
+          await pm.putSettings(id, companion(body.companion), body.values && typeof body.values === 'object' ? (body.values as Record<string, unknown>) : {}, body.bridge && typeof body.bridge === 'object' ? (body.bridge as { ownerChats?: unknown; others?: unknown; allow?: unknown; workInGroups?: unknown; nameCalls?: unknown }) : undefined);
         } catch (err) {
           return asHttp(err);
         }
@@ -157,6 +171,50 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
       return send(res, 200, pm.view(pm.store.get(id)!));
     }
     if (c === 'log' && method === 'GET') return send(res, 200, { log: pm.store.logs(id, 200) });
+    // Phase 117: linking, the Test button, the status chip, identities, groups.
+    const q = () => new URL(req.url ?? '/', 'http://x').searchParams;
+    try {
+      if (c === 'link' && !d && method === 'POST') {
+        const body = await readJson(req);
+        return send(res, 200, pm.linkCode(id, companion(body.companion)));
+      }
+      if (c === 'link' && d && method === 'DELETE') {
+        pm.unlink(id, companion(q().get('companion') ?? undefined), decodeURIComponent(d));
+        return send(res, 200, pm.bridgeView(id, companion(q().get('companion') ?? undefined)));
+      }
+      if (c === 'test' && method === 'POST') {
+        const body = await readJson(req);
+        return send(res, 200, await pm.testBridge(id, companion(body.companion)));
+      }
+      if (c === 'bridge' && method === 'GET') return send(res, 200, pm.bridgeView(id, companion(q().get('companion') ?? undefined)));
+      if (c === 'identity' && method === 'POST') {
+        const body = await readJson(req);
+        const action = body.action === 'unlink' ? 'unlink' : body.action === 'confirm' ? 'confirm' : undefined;
+        if (!action || typeof body.chat !== 'string') throw new HttpError(400, 'Say which chat, and confirm or unlink.');
+        if (!pm.identityAction(id, companion(body.companion), body.chat, action)) throw new HttpError(404, 'That safety number is no longer waiting for you.');
+        return send(res, 200, pm.bridgeView(id, companion(body.companion)));
+      }
+      if ((c === 'group' || c === 'leave') && method === 'POST') {
+        const body = await readJson(req);
+        if (typeof body.chat !== 'string' || !body.chat) throw new HttpError(400, 'Say which group.');
+        if (c === 'group') pm.setGroup(id, companion(body.companion), body.chat, body.on === true);
+        else pm.leaveGroup(id, companion(body.companion), body.chat);
+        return send(res, 200, pm.settingsView(id, companion(body.companion)));
+      }
+      // Phase 117 part B (email): *Check my sender* waits up to 10 minutes for his next mail;
+      // `{use}` makes one of the provider ids it carried the one that counts.
+      if (c === 'check-sender' && method === 'POST') {
+        const body = await readJson(req);
+        if (typeof body.use === 'string') {
+          pm.useAuthserv(id, companion(body.companion), body.use);
+          return send(res, 200, pm.bridgeView(id, companion(body.companion)));
+        }
+        const r = await pm.checkSender(id, companion(body.companion));
+        return send(res, 200, r ? { got: true, from: r.from, headers: r.headers } : { got: false });
+      }
+    } catch (err) {
+      return asHttp(err);
+    }
     if (c === 'calls' && d && method === 'POST') {
       const body = await readJson(req);
       if (!pm.decideCall(d, body.approved === true)) throw new HttpError(404, 'That request is no longer waiting.');

@@ -260,6 +260,12 @@
 <h4 id="howto-co-discord">Discord</h4>
 <details class="howto-q" id="howto-co-discord-connect"><summary>How do I get her on Discord?</summary><ol><li>Make an app and bot in the Discord Developer Portal.</li><li>Paste its token in Bot token.</li><li>Press Link my Discord.</li></ol></details>
 <details class="howto-q" id="howto-co-discord-bots"><summary>How do I stop bot loops?</summary><ol><li>Under Other bots, keep replies to bots low.</li><li>1 means she answers a bot once, then waits for a person.</li></ol></details>
+<h4 id="howto-co-signal">Signal</h4>
+<details class="howto-q" id="howto-co-signal-connect"><summary>How do I get her on Signal?</summary><ol><li>Start signal-cli for her own number on this computer.</li><li>Press Add Signal, read its card and install it.</li><li>Press Link my Signal and send her the code.</li></ol></details>
+<details class="howto-q" id="howto-co-signal-safety"><summary>Why did she stop using her tools on Signal?</summary><ol><li>Your safety number changed.</li><li>Press It's me in Signal settings if it was you.</li></ol></details>
+<h4 id="howto-co-email">Email</h4>
+<details class="howto-q" id="howto-co-email-connect"><summary>How do I give her an email address?</summary><ol><li>Make an address for her and an app password for it.</li><li>Press Add email, read its card and install it.</li><li>Press Link my email and send her the code as the subject.</li></ol></details>
+<details class="howto-q" id="howto-co-email-sender"><summary>Why didn't she answer my email?</summary><ol><li>Your mail didn't pass your provider's sender check.</li><li>Press Check my sender in Email settings and send her a mail.</li></ol></details>
 <h4 id="howto-co-apps">Other apps</h4>
 <details class="howto-q" id="howto-co-apps-editor"><summary>How do I use her from my editor?</summary><ol><li>Press Create an API key for another app.</li><li>Copy her address and the key into your editor or tool.</li><li>Pick Sara as the model there.</li></ol></details>
 <details class="howto-q" id="howto-co-apps-alexa"><summary>How do I talk to her through Alexa?</summary><ol><li>Follow Talk to her through Alexa.</li><li>Press Make a link code and say it to Alexa.</li></ol></details>
@@ -404,6 +410,25 @@
   <li><strong>Titles that grow:</strong> a session starts with a placeholder (your first message, or <em>Telegram · Oct 31</em> for a new session of a chat). After a few messages she names it from what it actually covered, again when the topic clearly changes, and at <code>/new</code>, using a small model on this computer. A title you type is never changed. <em>This conversation</em> (the conversation's info) shows its earlier titles: <em>Use this title</em> or <em>Keep this title</em> makes it yours, <em>Let her name it again</em> gives it back. <em>Settings → You → About you → Session titles</em> turns this off, picks the model and sets the daily cap (60). Private chats only use this computer; off-the-record, imported, group and other apps' chats keep their titles.</li>
   <li><strong>Keep up with a room:</strong> open a group or server channel under <em>Rooms</em> (in <em>Settings → Telegram</em> or <em>Discord</em>, or on the channel's project page) and switch on <em>Keep up with this room</em>. A plan card shows the model, how often she summarises and the cost first. Then she reads every message there (not only the ones that call her), so when she's called she joins the current topic and sees when her old one has moved on. Reading never starts a tool. Lines are kept 7 days; each night older weeks go into a room memory (topics, short notes about people, proposed People cards) and a read-only weekly <em>Archive</em> in her Library that you can search. <em>Forget this room</em> deletes all of it. Telegram: turn the bot's privacy mode off.</li>
   <li>With other people she's always openly an AI, and the safety rules are the same everywhere.</li>
+</ul>
+
+<h2 id="signal">Signal</h2>
+<ul>
+  <li><strong>What it is:</strong> Signal comes with Sara as a plugin. She talks to your own <em>signal-cli</em> (a free program that runs a Signal account on a computer), and only Sara holds the connection to it. Give her a number of her own, like a spare SIM, and keep signal-cli up to date.</li>
+  <li><strong>Set it up:</strong> start signal-cli for her number with <code>daemon --tcp 127.0.0.1:7583 --receive-mode=manual</code>. Then <em>Settings → Connections → Signal → Add Signal</em>, read its card, press <em>Install</em> and switch it on for her. Type the address and her number, press <em>Test</em>, then <em>Link my Signal</em> and send her <code>/link</code> and the code from your own Signal.</li>
+  <li><strong>Your safety number:</strong> Sara remembers it when you link. If it changes (a new phone, or someone else), she stops using her tools for that chat until you press <em>It's me</em> in the plugin's settings.</li>
+  <li><strong>Groups:</strong> she answers in a group when she's mentioned or replied to, only in groups you're in (others start off). <em>Keep up with this room</em> works as on Telegram. Others never get her tools.</li>
+  <li><strong>While she works:</strong> typing dots, one progress message that is edited at most 7 times (Signal allows 10 edits), and a 👀 on a message she'll use at the next step. A long job sends one <em>Still working</em> line and the whole answer at the end.</li>
+  <li><strong>Pace:</strong> at most one message a second, 60 an hour and 400 a day, and she never writes first to anyone. Signal may limit accounts that act like bots; use a number you can lose. In private local mode Signal pauses.</li>
+</ul>
+
+<h2 id="email">Email</h2>
+<ul>
+  <li><strong>What it is:</strong> Email comes with Sara as a plugin and gives her a mailbox of her own. Email her or forward her a mail and she answers in the same thread. It's her mailbox, not yours: reading your own inbox is <em>Settings → Google</em>.</li>
+  <li><strong>Set it up:</strong> make an address only she uses and an app password for it (Gmail, iCloud and Fastmail: in your account's security settings). Then <em>Settings → Connections → Email → Add email</em>, read its card, press <em>Install</em>, type the address and the app password, then <em>Link my email</em> and send her the code as the subject.</li>
+  <li><strong>Your sender check:</strong> your mail counts as you only when it passes your provider's sender check. If it doesn't, she does nothing and tells you once a day; press <em>Check my sender</em> to see what your provider records.</li>
+  <li><strong>Forwarded mail and strangers:</strong> forwarded text is someone else's words, so every step asks you first. Strangers are never answered and their mail never reaches her; automatic replies, mailing lists and bounces are skipped.</li>
+  <li><strong>Threads and files:</strong> every thread is one session. She sends one plain-text mail per turn, with files attached. The first 8,000 characters of a mail reach her; write <em>keep this</em> to keep the whole mail in her library.</li>
 </ul>
 
 <h2 id="voice">Voice and calls</h2>

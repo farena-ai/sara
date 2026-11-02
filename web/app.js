@@ -15,7 +15,7 @@ import { initRooms, loadRoomList, openRoom } from './rooms.js';
 import { initProjectMap, resetProjectMap } from './codemap.js';
 import { initSkills, loadSkills, skillApproval } from './skills.js';
 import { initLearning, learnCard, loadLearning } from './learned-skills.js';
-import { initPlugins, loadPlugins, pluginAskLine, pluginNotice, pluginResultCard, pluginStepWords } from './plugins.js';
+import { initPlugins, loadEmailPage, loadPlugins, loadSignalPage, pluginAskLine, pluginNotice, pluginResultCard, pluginStepWords } from './plugins.js';
 import { initAgents, loadAgents } from './agents.js';
 import { hookNotice, initHooks, loadHooks } from './hooks.js';
 import { initMoveIn, loadMoveIn, moveInEvent } from './movein.js';
@@ -2829,6 +2829,8 @@ function approvalCard(ev, block) {
   }
   // Phase 98: a plugin asked to check this (normally automatic) step with the owner.
   if (ev.plugin) title.after(pluginAskLine(ev.plugin));
+  // Phase 117 part B (§5.10): a turn that carries someone else's forwarded mail: every tool asks.
+  const untrustedNote = ev.untrusted ? Object.assign(document.createElement('p'), { className: 'muted small', textContent: t("This email had someone else's text in it, so every step asks you first.") }) : null;
   // Phase 81: "Known vulnerability": installing a known-vulnerable version needs an explicit override.
   const adv = ev.advisory;
   if (adv && !c) {
@@ -2879,7 +2881,7 @@ function approvalCard(ev, block) {
     what.hidden = true;
     card.classList.add('approval-gmail');
   }
-  card.append(title, ...(c ? [contradictionSection(c)] : []), ...(adv ? [advisorySection(adv)] : []), ...(rtg && !c && !adv ? [redteamGateSection(rtg)] : []), ...(ev.budget ? [budgetMeter(ev.budget)] : []), ...(gm ? [gm] : []), what, ...(ev.sandboxFirst ? [sandboxFirstNote(ev.sandboxFirst)] : []), row);
+  card.append(title, ...(untrustedNote ? [untrustedNote] : []), ...(c ? [contradictionSection(c)] : []), ...(adv ? [advisorySection(adv)] : []), ...(rtg && !c && !adv ? [redteamGateSection(rtg)] : []), ...(ev.budget ? [budgetMeter(ev.budget)] : []), ...(gm ? [gm] : []), what, ...(ev.sandboxFirst ? [sandboxFirstNote(ev.sandboxFirst)] : []), row);
   if (card.classList.contains('approval-tidy')) {
     if (TOOL_WORDS[ev.name]) title.after(el('p', 'approval-about muted small', t(TOOL_WORDS[ev.name])));
     row.append(el('span', 'tool-raw approval-raw', ev.name));
@@ -6142,6 +6144,8 @@ function startEvents() {
   // Phase 98: a plugin was added, switched, crashed or asks to use a tool: the Plugins page refreshes.
   es.addEventListener('plugins', () => {
     if (document.querySelector('[data-page="ab-plugins"]:not([hidden])')) void loadPlugins();
+    if (document.querySelector('[data-page="co-signal"]:not([hidden])')) void loadSignalPage();
+    if (document.querySelector('[data-page="co-email"]:not([hidden])')) void loadEmailPage();
   });
   // Phase 102: a webhook got a delivery or changed: the Webhooks page refreshes.
   es.addEventListener('hooks', () => {
@@ -7550,7 +7554,7 @@ const SETTINGS_ORDER = [
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
   'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
   'ab-projects', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-recipes',
-  'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-apps', 'co-agents', 'co-hooks',
+  'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-apps', 'co-agents', 'co-hooks',
   'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
   'household', 'account',
 ];
@@ -7696,6 +7700,8 @@ function showSettingsTab(page, opts = {}) {
     void loadLearning();
   }
   if (pick === 'ab-plugins') void loadPlugins();
+  if (pick === 'co-signal') void loadSignalPage();
+  if (pick === 'co-email') void loadEmailPage();
   if (pick === 'ab-budgets') void loadBudgets();
   if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam(), loadProjectDials()]);
   if (pick === 'ab-ssh') void loadSsh();

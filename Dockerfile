@@ -45,6 +45,8 @@ COPY web ./web
 COPY persona ./persona
 COPY templates ./templates
 COPY skills ./skills
+# Phase 117: the plugins that come with Sara (Signal); installed only through their review card.
+COPY plugins ./plugins
 # Phase 87: the shared page agent her testing browser reads pages with (also in the desktop apps).
 COPY desktop/shared/page-agent.js ./desktop/shared/page-agent.js
 # Phase 104: the move-in collector Sara serves (Settings → Data & health → Move in from another agent).

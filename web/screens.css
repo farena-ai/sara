@@ -307,3 +307,22 @@ dialog .saved-tag { color: var(--success); }
   .a2a-recent { grid-template-columns: minmax(0, 1fr) auto; }
   .a2a-recent > .muted { grid-column: 1 / -1; order: 3; }
 }
+
+/* Phase 117 (BRIDGES3 §6.3): a chat-app plugin's connection card, linking, Test, groups; the Signal page. */
+.plg-bridge:empty { display: none; }
+.plg-bridge { display: grid; gap: var(--s-2, 8px); }
+.plg-linked, .plg-steps, .plg-setup { margin: 0; padding: 0 0 0 var(--s-4, 16px); display: grid; gap: var(--s-1, 4px); }
+.plg-linked, .plg-steps { list-style: none; padding: 0; }
+.plg-linked-row { display: flex; align-items: center; gap: var(--s-2, 8px); min-height: 44px; min-width: 0; }
+.plg-linked-row code { flex: 1; min-width: 0; }
+.icon-x { min-width: 44px; min-height: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.plg-step { font-size: var(--fs-small, 13px); overflow-wrap: anywhere; }
+.plg-step.ok { color: var(--ok, var(--accent-text)); }
+.plg-step.bad { color: var(--warn); }
+.plg-code { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.plg-code:empty { display: none; }
+.plg-identity { display: grid; gap: var(--s-1, 4px); }
+.plg-identity p { margin: 0; }
+.plg-signal { display: grid; gap: var(--s-2, 8px); justify-items: start; }
+.plg-signal > button { min-height: 44px; }
+.plg-bridge .card-head { padding-right: 52px; }

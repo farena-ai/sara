@@ -11,7 +11,7 @@ Windows, Mac and phones.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1570%20passing-brightgreen" alt="1570 tests passing">
+  <img src="https://img.shields.io/badge/tests-1588%20passing-brightgreen" alt="1588 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -107,15 +107,16 @@ One-minute walkthroughs, recorded on a throwaway test server with a local model.
 
 ## What's new
 
+- **2.50** · Signal and email: she can have her own Signal number and her own mailbox, set up from Settings with the same rules as Telegram and Discord.
 - **2.49** · Talk to her while she works: *Tell her now* steers the work at her next step, *After this* waits its turn, `/btw` gets a quick side answer; and she stops repeating a call that keeps failing.
 - **2.48** · Chat apps catch up: photos and files both ways in Telegram and Discord (her selfies now arrive), and one live progress message with a Stop button while she works.
-- **2.47.3** · Start here: a beginner path and a coder path, fresh screenshots, a *How do I…?* index in the guide and on the docs site.
 
 <details>
 <summary><b>Release history</b>: what each release from 2.4 brought</summary>
 
 | Release | What you get |
 |---|---|
+| **2.50** · Signal and email | **Two more ways to reach her, both built in.** *Signal* through signal-cli on your own computer: groups as rooms with keep-up, 👀 when she takes your note, a live progress message, files both ways, and your safety number pinned so a changed key pauses her tools until you confirm. *Email* in her own mailbox: one session per thread, replies in the thread, your mail counts as you only when your provider's sender check passes, strangers are never answered, forwarded mail makes every tool ask first, and auto-replies, newsletters and bounces never start a loop. Sara holds the connections for these plugins, only to the addresses you entered. Also fixed: a plugin chat-app reply that took over 5 minutes was cut off. |
 | **2.49** · Talk to her while she works | **No more waiting for her to finish.** Send while she works and choose: *Tell her now* (she reads it before her next step and changes course; it can never approve anything), *After this* (it waits and runs as its own turn), or *Just asking* (`/btw`: a quick side answer, nothing saved, the work carries on). The same in Telegram and Discord (`/queue`, `/btw`). A **loop guard** stops her after three identical failing calls and makes her change approach. |
 | **2.48** · Chat apps catch up | **Photos and files both ways in Telegram and Discord:** send her a photo (with a caption, an album, or as a file) or a document and she reads it; ask for a selfie, a chart or a file and it arrives (`send_file`). Pictures from other people in a room stay off until you switch them on, and then she only sees a description. **One progress message** updates in place while she works ("✅ Read a file ×3 · ▸ Editing a file…"), has a Stop button, and ends as one summary line. Plugin bridges can carry files too. |
 | **2.47.3** · Start here | **Two ways in:** [Start here](docs/START_HERE.md) for "I just installed it, now what?" and [For coders](docs/FOR_CODERS.md), both with the how-to videos. Fresh screenshots, the README's feature tour split into *For company*, *For coding* and *For both*, every *How do I…?* answer in one index (in the guide and on the docs site), and a regrouped docs site. |
@@ -196,7 +197,7 @@ Every release: [CHANGELOG.md](CHANGELOG.md) · [releases](https://github.com/far
 
 In build order, one release each ([the full list](docs/ROADMAP.md)):
 
-- **Next** (2.50–2.61): photos and files in chat apps, talking to her while she works, Signal, email, WhatsApp, iMessage (BlueBubbles) and SMS, "keep going until it's done", coding checks after edits, a routines gallery, and **the Sara Store** for plugins, skills and MCP servers (ComfyUI, Blender, Playwright…) with one-click installs and a way to submit your own.
+- **Next** (2.51–2.61): photos and files in chat apps, talking to her while she works, Signal, email, WhatsApp, iMessage (BlueBubbles) and SMS, "keep going until it's done", coding checks after edits, a routines gallery, and **the Sara Store** for plugins, skills and MCP servers (ComfyUI, Blender, Playwright…) with one-click installs and a way to submit your own.
 - The iPhone app (waiting on Apple), and your ideas in [Discussions](https://github.com/farena-ai/sara/discussions).
 
 The full plan: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -383,8 +384,8 @@ README or SPEC that no test checked. What she adds today is the way of working (
 asks before risky steps, shows what ran), not a higher score on these sets. Details, per-task
 results and how to re-run: [docs/RESULTS.md](docs/RESULTS.md).
 
-Plus `npm run check`: a typecheck and 1585 automated tests with a scripted fake model (no network,
-no GPU): 1570 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
+Plus `npm run check`: a typecheck and 1603 automated tests with a scripted fake model (no network,
+no GPU): 1588 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
 
 ## How Sara compares
 
