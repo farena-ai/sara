@@ -5,6 +5,27 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.52.1 (2026-11-02): connecting a server is easy now; photos fixed
+
+- **Fixed (owner report: "the process right now seems like a brick wall"):** letting Sara work on
+  your server over SSH. Settings → Servers over SSH → *Connect a server* asks for two things, the
+  address and the user name (a pasted `ssh -p …` command or cPanel link works too). Sara makes her own
+  key, finds the SSH port, checks which sign-in methods the server allows and whether it's cPanel,
+  then offers the easiest way in: **a cPanel token** (she installs and authorizes her key, then
+  deletes the token herself; it's never saved), **your password once** (only when the server takes
+  passwords; never saved unless you insist, after a warning), or **one line to paste** with
+  click-by-click steps for common hosts. The server's ID card (host key) is explained in plain words,
+  and a changed one still stops everything. Every failure says what's wrong and what to do (wrong
+  port, passwords off, key not authorized, no shell access, DNS, two-step…), right under the button
+  you pressed. Edit the port or user without starting over; replace her key; clean up old Sara keys.
+  Tested live on a real cPanel server. Guide: [docs/SSH.md](docs/SSH.md).
+- **Fixed (owner report: "I sent Sara a picture and she told me she could not see it"):** when the
+  Photos (Vision) or Screen job was set to a subscription app (Claude or Grok through their own
+  programs, which get text only), the photo never reached a model: she was told one was attached and
+  said she couldn't see it, even with a seeing backup set. A picture now skips models that can't see,
+  for the job's next model or else the talking model, and Settings → Which model does what says so
+  when you pick one for Photos or Screen.
+
 ## 2.52.0 (2026-11-02): when it comes up (Phase 119)
 
 - **"When it comes up" reminders:** "when Dan comes up, remind me he owes me $20", "next time I

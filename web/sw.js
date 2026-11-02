@@ -115,12 +115,14 @@ self.addEventListener('install', (event) => {
   //   and repeat chips, their cards, Planner → Repeats). Phase 117 part B had caches.open('sara-shell-v54').
   // v56 (Phase 119): when it comes up and picking a chat up in another app (recall-when.js, pickup.js
   //   and recall.css: the ⏰ chip, the card, the pickup banner and chip). Phase 118 had caches.open('sara-shell-v55').
-  event.waitUntil(caches.open('sara-shell-v56').then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  //   2.52.1 (SSH easy): Settings → Servers over SSH rebuilt around Connect a server (ssh.js, style.css).
+  //   Phase 119 had caches.open('sara-shell-v56').
+  event.waitUntil(caches.open('sara-shell-v57').then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
   // Every older cache goes (sara-shell-v55 from Phase 118, sara-shell-v54 from Phase 117 part B, sara-shell-v53 from Phase 117 part A, sara-shell-v52 from Phase 116, sara-shell-v51 from Phase 115, sara-shell-v50 from PL1c, sara-shell-v49 from PL1b, sara-shell-v48 from PL1a, sara-shell-v47 from Phase 113, sara-shell-v46 from Phase 112, sara-shell-v45 from Phase 111, sara-shell-v44 from Phase 110, sara-shell-v43 from Phase 109, sara-shell-v42 from Phase 108, sara-shell-v41 from Phase 107, sara-shell-v40 from Phase 106, sara-shell-v39 from Phase 105, sara-shell-v38 from Phase 104, sara-shell-v37 from Phase 103, sara-shell-v36 from Phase 102, sara-shell-v35 from Phase 101, sara-shell-v34 from Phase 100, sara-shell-v33 from Phase 99, sara-shell-v32 from Phase 98, sara-shell-v31 from Phase 97, sara-shell-v30 from Phase 96, sara-shell-v29 from Phase 95, sara-shell-v28 from Phase 94, sara-shell-v27 from Phase 93, sara-shell-v26 from Phase 92, sara-shell-v25 from Phase 91, sara-shell-v24 from Phase 90, sara-shell-v23 from Phase 89, sara-shell-v22 from Phase 88, sara-shell-v21 from Phase 87, sara-shell-v20 from Phase 86, sara-shell-v19 from 2.18, sara-shell-v18 from Phase 85, sara-shell-v17 from Phase 84, sara-shell-v16 from Phase 83, sara-shell-v15 from Phase 82, sara-shell-v14 from Phase 81, sara-shell-v13 from Phase 80, sara-shell-v12 from Phase 79, sara-shell-v11 from Phase 78, sara-shell-v10 from Phase 77 and before).
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== 'sara-shell-v56').map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== 'sara-shell-v57').map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
 self.addEventListener('fetch', (event) => {

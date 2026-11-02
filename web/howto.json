@@ -665,13 +665,30 @@
  "ab-ssh": [
   {
    "id": "add",
-   "q": "How do I add a server?",
+   "q": "How do I connect a server?",
    "steps": [
-    "Fill in the name, address, port and user under Add a server.",
-    "Press Check the host key.",
-    "Sign in once with a password or a key."
+    "Type the server address and your user name under Connect a server.",
+    "Press Connect and wait while Sara looks at it.",
+    "Say yes to its ID card, then follow the way in she picks."
    ],
-   "show": "#ssh-add-go"
+   "show": "#ssh-connect-go"
+  },
+  {
+   "id": "cpanel",
+   "q": "How do I connect a cPanel server?",
+   "steps": [
+    "In cPanel, make an API token called sara that expires tomorrow.",
+    "Copy it and paste it into the cPanel token box.",
+    "Press Install my key: Sara installs her key and deletes the token."
+   ]
+  },
+  {
+   "id": "fail",
+   "q": "What if it doesn't work?",
+   "steps": [
+    "Read the box under the button you pressed.",
+    "Press the button it offers, like Find the port or Check now."
+   ]
   },
   {
    "id": "safe",

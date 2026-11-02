@@ -1109,28 +1109,16 @@
       "Each kind of event (home, leaving, bedtime, morning) makes her speak at most once in this time, so a phone jumping in and out of home doesn't repeat it.",
       "home"
     ],
-    "ssh-name": [
-      "Your own name for the server, used in chat (\"run the backup on web box\"). Example: web box, NAS, game server.",
-      "ssh"
-    ],
     "ssh-host": [
-      "The server's name or IP address as you'd type it after ssh. Example: server.example.com or 192.168.1.20.",
+      "What you'd type after ssh, or paste what your host gave you: example.com, alex@example.com:2222, the line ssh -p 2222 alex@example.com, or your cPanel link. Sara takes the user and port from it.",
       "ssh"
     ],
     "ssh-port": [
-      "The SSH port on that server. Almost always 22; change it only if the server uses another one.",
+      "Leave it to Sara: she tries 22, 2222, 21098, 18765, 65002 and 7822, one at a time. Set it only if your host told you a port (it's in their welcome email or help pages).",
       "ssh"
     ],
     "ssh-user": [
-      "The user she signs in as. A normal user with sudo is safer than root. Example: deploy.",
-      "ssh"
-    ],
-    "ssh-auth-pw": [
-      "You type the password once. She signs in, makes her own key for this server, installs it, and from then on uses the key. The password is not kept unless you ask.",
-      "ssh"
-    ],
-    "ssh-auth-key": [
-      "Give her a private key the server already accepts: paste it, or the path of a key file on the Sara server. Keys with a passphrase can't be used.",
+      "The user name you sign in with. On cPanel it's your cPanel user name (top right in cPanel). On your own server, a normal user with sudo is safer than root. Example: deploy.",
       "ssh"
     ],
     "ssh-pw": [
@@ -1151,6 +1139,30 @@
     ],
     "ssh-key-path": [
       "Or the full path of a key file on the computer Sara runs on (not your phone or laptop). She copies it into her data folder.",
+      "ssh"
+    ],
+    "ssh-token": [
+      "A cPanel API token (32 letters and digits) from cPanel → Security → Manage API Tokens. Sara uses it once to install her own key, then deletes it. It is never saved, logged or put in the chat.",
+      "ssh"
+    ],
+    "ssh-revoke-token": [
+      "On: when her key is in, Sara deletes the token called sara herself, so there is nothing left to clean up. Off: you delete it in Manage API Tokens (it also expires on the date you set).",
+      "ssh"
+    ],
+    "ssh-paste-host": [
+      "Pick where the server lives and Sara shows the clicks for it. cPanel needs the extra Authorize step; a server with a terminal or web console takes one pasted line.",
+      "ssh"
+    ],
+    "ssh-edit-name": [
+      "Your own name for the server, used in chat (\"run the backup on web box\"). Example: web box, NAS, my site.",
+      "ssh"
+    ],
+    "ssh-edit-user": [
+      "Changing the user means her key has to go into that user's account: Sara asks you to connect again.",
+      "ssh"
+    ],
+    "ssh-edit-port": [
+      "A new port keeps the server's ID card only if the server shows the same one there; otherwise Sara stops and asks.",
       "ssh"
     ],
     "bud-coding-on": [
@@ -1520,7 +1532,7 @@
       "home"
     ],
     "ab-ssh": [
-      "Let her work on your other servers over SSH. She checks each server's host key, makes her own key after one password sign-in, and every command asks you first.",
+      "Connect your other servers so she can work on them over SSH. She makes her own key and finds the easiest way to install it (a cPanel token, the password once, or one pasted line). Every command there asks you first.",
       "ssh"
     ],
     "ab-github": [

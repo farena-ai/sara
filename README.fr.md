@@ -14,7 +14,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1637%20passing-brightgreen" alt="1637 tests passing">
+  <img src="https://img.shields.io/badge/tests-1656%20passing-brightgreen" alt="1656 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -123,6 +123,7 @@ Des tutoriels d'une minute, enregistrés sur un serveur de test avec un modèle 
 
 | Version | Ce que vous y gagnez |
 |---|---|
+| **2.52.1** · Connecter un serveur, simplement ; photos réparées | *Connecter un serveur* ne demande que l'adresse et l'utilisateur ; Sara crée sa clé, trouve le port et le moyen le plus simple d'entrer (un jeton cPanel qu'elle supprime elle-même, votre mot de passe une fois, ou une ligne à coller) et explique chaque échec en mots simples. Les photos arrivent toujours à un modèle qui les voit. |
 | **2.52** · Quand ça revient | **Des rappels qui attendent une personne ou un sujet :** « quand on parle de Dan, rappelle-moi qu'il me doit 20 $ » ou « la prochaine fois que je parle du potager, demande pour les tomates ». Elle le glisse une fois dans sa réponse, avec *Fait*, *Encore la prochaine fois* ou *Oublier*. La détection passe par vos fiches de personnes et des mots simples, sans appel à une IA, et elle ne devine jamais entre deux Dan. Ils ne se déclenchent que sur vos propres messages dans vos propres discussions, jamais là où Dan pourrait lire, et tout ce qu'elle enverrait à quelqu'un d'autre en contenant un demande d'abord. **Reprendre une discussion dans une autre appli :** commencez sur Telegram, ouvrez l'appli, et *Continuer ici* ramène la discussion (`/continue` partout), avec *Voir* et *Annuler* ; rien n'est copié. |
 | **2.51** · Continuer jusqu'au bout | **Des objectifs avec preuve :** « fais passer les tests, fini quand `npm test` est vert » : elle travaille tour après tour dans des limites (tours, minutes, jetons, dollars) et c'est Sara qui lance votre vérification, pas elle, donc *fini* veut dire que ça a vraiment passé. Un vert obtenu seulement après avoir modifié les tests finit en *fini, à revoir* ; le même échec deux fois la met en pause comme *bloquée*. **`/loop every 10m: check the deploy`** : silencieux tant que rien ne change, un message quand ça change, s'arrête sur *until* (avec preuve), après deux échecs, à son heure de fin ou à une limite par jour, et ne demande jamais d'approbation sans vous. Les cartes du tableau peuvent porter une vérification *Fini quand*. Après un redémarrage, tout revient en pause. Corrigé aussi : modifier des fichiers aux fins de ligne Windows échouait. |
 | **2.50** · Signal et e-mail | **Deux autres façons de la joindre, intégrées.** *Signal* via signal-cli sur votre ordinateur : groupes comme salons avec suivi, 👀 quand elle prend votre note, un message de progression en direct, des fichiers dans les deux sens, et votre numéro de sécurité épinglé : une clé changée met ses outils en pause jusqu'à votre confirmation. *E-mail* dans sa propre boîte : une session par fil, des réponses dans le fil, vos mails ne comptent comme vous que si la vérification d'expéditeur de votre fournisseur passe, les inconnus ne reçoivent jamais de réponse, un mail transféré fait demander chaque outil d'abord, et réponses automatiques, newsletters et retours ne déclenchent jamais de boucle. Sara tient les connexions de ces plugins, uniquement vers les adresses saisies. Corrigé aussi : une réponse de discussion par plugin de plus de 5 minutes était coupée. |
@@ -408,8 +409,8 @@ qu'aucun test ne vérifiait. Ce qu'elle apporte aujourd'hui, c'est la manière d
 lance les tests, demande avant les étapes risquées, montre ce qui a tourné), pas un meilleur score
 sur ces jeux. Détails, résultats par tâche et comment relancer : [docs/RESULTS.md](docs/RESULTS.md).
 
-En plus, `npm run check` : une vérification des types et 1652 tests automatiques avec un faux modèle
-scripté (sans réseau, sans GPU) : 1637 passent sous Windows, et les 8 autres sont des tests
+En plus, `npm run check` : une vérification des types et 1671 tests automatiques avec un faux modèle
+scripté (sans réseau, sans GPU) : 1656 passent sous Windows, et les 8 autres sont des tests
 d'isolation propres à Linux, exécutés sur un serveur Linux.
 
 ## Comparaison

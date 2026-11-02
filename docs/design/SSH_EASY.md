@@ -1,6 +1,6 @@
 # Connect a server, the easy way: Sara connects herself over SSH (design, bug fix before the next phase)
 
-Status: design and audit, 2026-11-01. Nothing here is built. It is a read-only study of the SSH
+Status: design and audit, 2026-11-01; built in 2.52.1 (see *As built* below). It is a read-only study of the SSH
 feature as shipped in Phase 73 (2.2) and still current at 2.51.x: `src/ssh.ts` (the manager),
 `src/tools/ssh.ts` (her tools), the `/api/ssh/*` routes in `src/routes/coding.ts`, `web/ssh.js`
 and the `ab-ssh` page in `web/index.html`, `docs/SSH.md`, the `ab-ssh` entries in
@@ -27,6 +27,21 @@ eyes. The process right now seems like a brick wall and could be better."
 **The standing rule (owner, DECISIONS):** *she creates her own key and saves the key, not the
 user/pass, unless the user explicitly asks and is warned.* Using a password or a cPanel token
 **once** to install her key and then forgetting it is fine, and the page says so in plain words.
+
+**As built (2.52.1):** shipped as designed with the Q1–Q5 defaults (the port list, Sara revokes the
+token named `sara`, no WHM path, her private key stays a file, Connect in Settings plus the chat deep
+link `/#view=settings:ab-ssh&server=<id>`). Code: `src/ssh-easy.ts` (parsing, greeting read, cPanel
+TLS look and allow-listed calls, `DIAG` codes) and the new `SshManager` methods in `src/ssh.ts`;
+tests `test/ssh-easy.test.ts` (the 13 items of §10) with the shared fake in `test/ssh-fake.ts`;
+user guide `docs/SSH.md`. Differences from the text below: the greeting read nudges a silent port
+with an SSH identification line after 1.5 s so a web server answers (`NOT_SSH`); the methods check
+also switches off GSSAPI and host-based sign-in; `diagnose` lives in `src/ssh-easy.ts`
+(`diagnoseRun`) with a thin `SshManager.diagnose` wrapper; the not-SSH, DNS and timeout cases of
+the probe are stored on `probe.code` and shown as the fix-it box; extra codes `CERT_NAME`,
+`CERT_BAD`, `NO_CPANEL`, `BAD_TOKEN`, `CPANEL_FAILED` cover the token path; editing the user marks
+the key as not installed (it lives in the old user's `authorized_keys`); the probe's raw sockets
+call `checkOutbound()` and `src/ssh-easy.ts` is on the private-local source-scan allowlist.
+`SARA_CPANEL_PORT` overrides 2083. Not live-tested against a real cPanel yet (owner to-do §12).
 
 ---
 

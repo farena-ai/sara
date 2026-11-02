@@ -9,7 +9,7 @@ import { redactTypedPassword } from './ssh.ts';
 import { isSshTool } from './tools/ssh.ts';
 import { appLanguage, en, fill, languageLine, talkLanguage } from './i18n.ts';
 import { createProvider } from './providers/registry.ts';
-import { isToolsUnsupported, type ChatMessage, type ImageData, type Provider, type ProviderConfig, type ToolCall } from './providers/types.ts';
+import { isToolsUnsupported, seesPictures, type ChatMessage, type ImageData, type Provider, type ProviderConfig, type ToolCall } from './providers/types.ts';
 import type { UploadStore } from './uploads.ts';
 import type { BriefingWorker } from './briefing.ts';
 import type { Scrapbook } from './scrapbook.ts';
@@ -423,7 +423,7 @@ export interface ModelChoice {
  * then that model's fallbacks. Private conversations only ever use local providers.
  */
 export function resolveChain(app: AppContext, conv: Conversation, job: Job, adult = false): ModelChoice[] {
-  const chain = resolveChainAll(app, conv, job, adult);
+  const chain = pictureChain(app, conv, job, resolveChainAll(app, conv, job, adult), adult);
   if (!privateLocalOn()) return chain;
   // Phase 67: "Nothing leaves this computer": only models on this computer (loopback, not Ollama
   // Cloud, not a subscription program). The network guard would block the rest anyway; this keeps
@@ -437,6 +437,25 @@ export function resolveChain(app: AppContext, conv: Conversation, job: Job, adul
     return [{ ...r, from: 'private' }];
   }
   throw new Error(`${chain[0]?.provider.config.label ?? 'This model'} is paused in private local mode: it isn't on this computer. Pick a model on this computer in Settings → Models → On this computer, or turn "Nothing leaves this computer" off.`);
+}
+
+/**
+ * 2.52.1 fix (owner report: "I sent Sara a picture and she told me she could not see it"): a picture
+ * job (vision, screen) never goes to a model that can't see. Subscription command-line agents get text
+ * only, so they're skipped for the job's next model; with none left, the talking model takes the
+ * picture if it can see. Only if nothing in reach can see does the blind model answer (and it says so).
+ */
+function pictureChain(app: AppContext, conv: Conversation, job: Job, chain: ModelChoice[], adult: boolean): ModelChoice[] {
+  if ((job !== 'vision' && job !== 'screen') || conv.providerId) return chain;
+  const seeing = chain.filter((c) => seesPictures(c.provider.config));
+  if (seeing.length) return seeing;
+  try {
+    const talking = resolveChainAll(app, conv, 'turn', adult).filter((c) => seesPictures(c.provider.config));
+    if (talking.length) return talking;
+  } catch {
+    /* no talking model either: keep the picture chain */
+  }
+  return chain;
 }
 
 function resolveChainAll(app: AppContext, conv: Conversation, job: Job, adult: boolean): ModelChoice[] {
@@ -1554,7 +1573,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // With a vision model set, other models get a note instead of the photos (they may not see).
   const sees = (p: Provider, m: string) => !visionSet || job === 'vision' || (p.config.id === jobRoutes.vision!.providerId && m === jobRoutes.vision!.model);
   // Phase 49: screenshots from her tools: subscription command-line agents can't look at pictures.
-  const seesShots = (p: Provider, m: string) => p.config.kind !== 'claude-code' && p.config.kind !== 'grok-cli' && sees(p, m);
+  const seesShots = (p: Provider, m: string) => seesPictures(p.config) && sees(p, m);
   // Phase 49: a screenshot the talking model can't see is described by the picture (vision) model.
   const describeImage = visionSet
     ? async (img: ImageData): Promise<string | undefined> => {

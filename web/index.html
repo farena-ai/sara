@@ -2810,43 +2810,110 @@
       </div>
         </section>
         <section class="settings-page" data-page="ab-ssh" data-group="Abilities" data-title="Servers over SSH" data-owner-only hidden>
-      <p class="muted small page-lead">Let her work on your other servers over SSH, with a password or a key. Every command she runs there asks you first (you can change that in Tools and approvals), and risky ones always ask. After you sign in once with a password she makes her own key for that server and stops using the password.</p>
+      <!-- 2.52.1 (docs/design/SSH_EASY.md): one "Connect a server" flow: address + user → Sara looks → the easiest way in. -->
+      <p class="muted small page-lead">Give Sara the address of a server and the user name. She makes her own key, looks at the server, and picks the easiest way in. She keeps only her key: a password or a cPanel token is used once to install it and then forgotten. Every command she runs there asks you first.</p>
       <p id="ssh-off" class="muted small" role="status" hidden></p>
-      <div id="ssh-list" class="ssh-list"></div>
-      <div id="ssh-signin" class="ssh-form" data-nodirty data-noauto hidden>
-        <h3 id="ssh-signin-head">Sign in</h3>
-        <div id="ssh-fp-box" class="ssh-fp" hidden>
-          <p id="ssh-fp-line" class="small"></p>
-          <p class="muted small">Compare it with the fingerprint the server shows for itself (on the server: ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub, or ask its hosting company). Trust it only if they match.</p>
-          <div class="add-row"><button id="ssh-trust" type="button">It matches: trust this host key</button><button id="ssh-rescan" type="button" class="ghost">Read it again</button></div>
+      <h3>Connect a server <button type="button" class="tip" data-tip="Type the address and the user name you sign in with. Sara finds the SSH port, reads the server's ID card, sees how it lets people in and makes her own key. Nothing secret is sent while she looks.">?</button></h3>
+      <div id="ssh-connect" class="ssh-form" data-nodirty data-noauto>
+        <label>Server address <input id="ssh-host" maxlength="300" placeholder="example.com" autocomplete="off" spellcheck="false" autocapitalize="off"></label>
+        <label>User name <input id="ssh-user" maxlength="64" placeholder="e.g. your cPanel user name" autocomplete="off" spellcheck="false" autocapitalize="off"></label>
+        <p id="ssh-parsed" class="muted small" role="status"></p>
+        <p class="small ssh-port-line"><span id="ssh-port-auto" class="muted">Port: Sara finds it.</span> <button id="ssh-port-show" type="button" class="linkish ssh-link">Set the port myself</button></p>
+        <label id="ssh-port-row" hidden>Port <input id="ssh-port" type="number" min="1" max="65535" inputmode="numeric" placeholder="22"></label>
+        <div class="add-row"><button id="ssh-connect-go" type="button">Connect</button></div>
+        <div id="ssh-connect-status" class="ssh-status small" role="status" aria-live="polite"></div>
+      </div>
+      <!-- /ssh-connect -->
+      <div id="ssh-flow" class="ssh-flow" data-nodirty data-noauto hidden>
+        <div class="ssh-flow-head"><h3 id="ssh-flow-head">Connect</h3><button id="ssh-flow-close" type="button" class="ghost ssh-x" aria-label="Done with this server for now">✕</button></div>
+        <p id="ssh-step-line" class="muted small"></p>
+        <ul id="ssh-checklist" class="ssh-checklist"></ul>
+        <div id="ssh-notfound" class="ssh-box" hidden>
+          <div id="ssh-notfound-diag" class="ssh-status small" role="status"></div>
+          <p class="muted small">Shared hosting? SSH is often off until you switch it on: cPanel → Security → SSH Access, or ask your host.</p>
         </div>
-        <div id="ssh-pw-box" hidden>
-          <label>Password <input id="ssh-pw" type="password" autocomplete="off" maxlength="1024"></label>
-          <label class="row"><input id="ssh-save-pw" type="checkbox"> <span>Save the password for future sessions</span></label>
-          <p id="ssh-save-warn" class="ssh-warn small" hidden></p>
-          <label id="ssh-confirm-row" class="row" hidden><input id="ssh-confirm-risk" type="checkbox"> <span>I understand the risk. Keep the password anyway.</span></label>
-          <div class="add-row"><button id="ssh-login" type="button">Sign in and make her key</button><button id="ssh-cancel" type="button" class="ghost">Cancel</button></div>
+        <div id="ssh-hk" class="ssh-fp" hidden>
+          <strong id="ssh-hk-title">Is this really your server?</strong>
+          <p id="ssh-hk-text" class="small">Every server has an ID card (its host key). Sara will remember this one and refuse to talk to the server if it ever changes, so nobody can pretend to be it later.</p>
+          <p class="small ssh-row"><span class="muted">ID</span> <code id="ssh-hk-fp"></code></p>
+          <details class="small ssh-details"><summary>How can I check it?</summary><p>If you can, compare it with what your host shows. cPanel's SSH Access page doesn't show it, so ask your host's support for the SSH host key fingerprint (SHA256), or run this on the server: <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>. Most people skip this for a server they just set up: the main protection is that Sara remembers it from now on.</p></details>
+          <div class="add-row"><button id="ssh-trust" type="button">Yes, remember it and continue</button><button id="ssh-leave" type="button" class="ghost" hidden>Leave it stopped</button></div>
+          <div id="ssh-hk-status" class="ssh-status small" role="status"></div>
         </div>
-        <div id="ssh-key-box" hidden>
-          <label>Private key <textarea id="ssh-key-text" rows="5" autocomplete="off" spellcheck="false" placeholder="-----BEGIN OPENSSH …"></textarea></label>
-          <label>Or the path of a key file on the Sara server <input id="ssh-key-path" autocomplete="off" spellcheck="false" placeholder="/home/alex/.ssh/id_ed25519"></label>
-          <div class="add-row"><button id="ssh-key-go" type="button">Use this key</button><button id="ssh-key-cancel" type="button" class="ghost">Cancel</button></div>
+        <div id="ssh-paths" hidden>
+          <p class="ssh-secret small">Sara keeps only her own key. The password or token is used once to install it, then forgotten. Nothing is saved unless you ask, and you'll be warned first.</p>
+          <div id="ssh-path-cpanel" class="ssh-path" hidden>
+            <h4>Let Sara install her key through cPanel</h4>
+            <ol class="ssh-steps small">
+              <li>In cPanel: Security → Manage API Tokens → Create.</li>
+              <li>Name it <code>sara</code>, choose Specify an expiration date, pick tomorrow and press Create.</li>
+              <li>Press Copy, come back here, paste it below and press Install my key.</li>
+            </ol>
+            <div class="add-row"><a id="ssh-open-cpanel" class="button-link ghost" target="_blank" rel="noopener noreferrer" href="#">Open cPanel</a></div>
+            <label>cPanel token <input id="ssh-token" type="password" autocomplete="off" spellcheck="false" maxlength="64"></label>
+            <label class="row"><input id="ssh-revoke-token" type="checkbox" checked> <span>Delete the token for me when I'm done</span></label>
+            <div class="add-row"><button id="ssh-cpanel-go" type="button">Install my key</button></div>
+            <div id="ssh-cpanel-status" class="ssh-status small" role="status" aria-live="polite"></div>
+          </div>
+          <div id="ssh-path-pw" class="ssh-path" hidden>
+            <h4>Type the password once</h4>
+            <label>Password <input id="ssh-pw" type="password" autocomplete="off" maxlength="1024"></label>
+            <p class="muted small">Used once to install Sara's key, then forgotten.</p>
+            <details id="ssh-pw-adv" class="small ssh-details"><summary>Advanced</summary>
+              <label class="row"><input id="ssh-save-pw" type="checkbox"> <span>Save the password for future sessions</span></label>
+              <p id="ssh-save-warn" class="ssh-warn small" hidden></p>
+              <label id="ssh-confirm-row" class="row" hidden><input id="ssh-confirm-risk" type="checkbox"> <span>I understand the risk. Keep the password anyway.</span></label>
+            </details>
+            <div class="add-row"><button id="ssh-login" type="button">Install my key</button></div>
+            <div id="ssh-pw-status" class="ssh-status small" role="status" aria-live="polite"></div>
+          </div>
+          <div id="ssh-path-paste" class="ssh-path" hidden>
+            <h4>Add Sara's key yourself</h4>
+            <label>Where is the server? <select id="ssh-paste-host">
+              <option value="cpanel">cPanel (any host)</option>
+              <option value="siteground">SiteGround (Site Tools)</option>
+              <option value="hostinger">Hostinger (hPanel)</option>
+              <option value="console">A server with a web console</option>
+              <option value="home">A computer at home</option>
+            </select></label>
+            <ol id="ssh-paste-steps" class="ssh-steps small"></ol>
+            <p id="ssh-paste-what" class="muted small">Her public key (safe to share):</p>
+            <code id="ssh-pubkey" class="ssh-code" data-raw></code>
+            <div class="add-row"><button id="ssh-copy-key" type="button" class="ghost">Copy the key</button></div>
+            <p id="ssh-oneline-what" class="muted small">The one line to paste in a terminal on the server (it adds her public key):</p>
+            <code id="ssh-oneline" class="ssh-code" data-raw></code>
+            <div class="add-row"><button id="ssh-copy-line" type="button" class="ghost">Copy the line</button></div>
+            <div class="add-row"><button id="ssh-check-go" type="button">I've added it: check now</button></div>
+            <div id="ssh-check-status" class="ssh-status small" role="status" aria-live="polite"></div>
+          </div>
+          <div id="ssh-path-key" class="ssh-path" hidden>
+            <h4>Use a key I already have</h4>
+            <p class="muted small">A key cPanel generated with a passphrase can't be used here; use the cPanel token or copy and paste instead.</p>
+            <label>Private key <textarea id="ssh-key-text" rows="5" autocomplete="off" spellcheck="false" placeholder="-----BEGIN OPENSSH …"></textarea></label>
+            <label>Or the path of a key file on the Sara server <input id="ssh-key-path" autocomplete="off" spellcheck="false" placeholder="/home/alex/.ssh/id_ed25519"></label>
+            <div class="add-row"><button id="ssh-key-go" type="button">Use this key</button></div>
+            <div id="ssh-key-status" class="ssh-status small" role="status" aria-live="polite"></div>
+          </div>
+          <div id="ssh-other" class="ssh-other small"><span class="muted">Other ways:</span>
+            <button id="ssh-other-cpanel" type="button" class="linkish ssh-link">Use a cPanel token</button>
+            <button id="ssh-other-pw" type="button" class="linkish ssh-link">Type the password once</button>
+            <button id="ssh-other-paste" type="button" class="linkish ssh-link">Add Sara's key yourself</button>
+            <button id="ssh-other-key" type="button" class="linkish ssh-link">Use a key I already have</button>
+          </div>
         </div>
+        <div id="ssh-done" class="ssh-status small" role="status" aria-live="polite"></div>
       </div>
       <p id="ssh-announce" class="ssh-announce small" role="status" hidden></p>
-      <p id="ssh-status" class="muted small" role="status"></p>
-      <h3>Add a server <button type="button" class="tip" data-tip="Give it a name, its address and the user to sign in as. She first reads the server's host key and shows you its fingerprint to check; nothing is sent to the server until you trust it.">?</button></h3>
-      <div id="ssh-add" class="ssh-form" data-nodirty data-noauto>
-        <label>Name <input id="ssh-name" maxlength="60" placeholder="e.g. web box" autocomplete="off"></label>
-        <label>Server address <input id="ssh-host" maxlength="253" placeholder="server.example.com or 192.168.1.20" autocomplete="off" spellcheck="false"></label>
-        <label>Port <input id="ssh-port" type="number" min="1" max="65535" value="22"></label>
-        <label>User <input id="ssh-user" maxlength="64" placeholder="e.g. deploy" autocomplete="off" spellcheck="false"></label>
-        <div class="ssh-auth" role="radiogroup" aria-label="How you sign in the first time">
-          <label class="ssh-auth-card"><input id="ssh-auth-pw" type="radio" name="ssh-auth" value="password" checked> <span><strong>With a password</strong><span class="muted small">Type it once; she makes her own key and forgets the password.</span></span></label>
-          <label class="ssh-auth-card"><input id="ssh-auth-key" type="radio" name="ssh-auth" value="key"> <span><strong>With a key</strong><span class="muted small">Paste a private key, or give the path of a key file on the Sara server.</span></span></label>
-        </div>
-        <div class="add-row"><button id="ssh-add-go" type="button">Check the host key</button></div>
+      <h3 id="ssh-list-head" hidden>Your servers</h3>
+      <div id="ssh-list" class="ssh-list"></div>
+      <div id="ssh-edit" class="ssh-form ssh-edit" data-nodirty data-noauto hidden>
+        <label>Name <input id="ssh-edit-name" maxlength="60" autocomplete="off"></label>
+        <label>User name <input id="ssh-edit-user" maxlength="64" autocomplete="off" spellcheck="false" autocapitalize="off"></label>
+        <label>Port <input id="ssh-edit-port" type="number" min="1" max="65535" inputmode="numeric"></label>
+        <div class="add-row"><button id="ssh-edit-save" type="button">Save</button><button id="ssh-edit-cancel" type="button" class="ghost">Cancel</button></div>
+        <div id="ssh-edit-status" class="ssh-status small" role="status"></div>
       </div>
+      <p id="ssh-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="ab-search" data-group="Abilities" data-title="Web search" data-owner-only hidden>
       <label>Search service

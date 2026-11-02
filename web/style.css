@@ -1457,14 +1457,45 @@ body:not(.member) [data-member-only] { display: none !important; }
 .ssh-badge.bad { background: var(--danger-soft); color: var(--danger); }
 .ssh-actions { flex-wrap: wrap; margin-top: 6px; }
 .ssh-form { display: grid; gap: 8px; min-width: 0; }
-.ssh-auth { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
-.settings-body label.ssh-auth-card, .ssh-auth-card { display: flex; flex-direction: row; gap: 10px; align-items: flex-start; text-align: left; background: var(--panel-2); border-radius: 10px; padding: 10px 12px; cursor: pointer; border: 1px solid transparent; }
-.ssh-auth-card:has(input:checked) { border-color: var(--accent); }
-.settings-body .ssh-auth-card input, .ssh-auth-card input { width: auto; flex: none; accent-color: var(--accent); margin-top: 3px; }
-.ssh-auth-card > span { display: grid; gap: 2px; }
 .ssh-fp { display: grid; gap: 4px; background: var(--panel-2); border-radius: 10px; padding: 10px 12px; overflow-wrap: anywhere; }
 .ssh-warn { margin: 0; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--warn); background: var(--warn-soft); }
 .ssh-announce { margin: 8px 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--accent); background: var(--panel-2); overflow-wrap: anywhere; }
+/* 2.52.1 (SSH_EASY): the Connect flow, the checklist, the paths and the diagnosis box under its button. */
+.ssh-flow { display: grid; gap: 10px; margin: 10px 0; padding: 12px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--hairline); min-width: 0; }
+.ssh-flow-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ssh-flow-head h3 { margin: 0; overflow-wrap: anywhere; }
+.ssh-x { min-width: 44px; min-height: 44px; padding: 0; }
+.ssh-checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.ssh-step { display: grid; grid-template-columns: 22px 1fr; gap: 2px 8px; align-items: baseline; min-width: 0; }
+.ssh-step-mark { font-weight: 700; text-align: center; color: var(--text-3, var(--muted)); }
+.ssh-step.ok .ssh-step-mark { color: var(--success); }
+.ssh-step.bad .ssh-step-mark { color: var(--danger); }
+.ssh-step.skip .ssh-step-text { color: var(--muted); }
+.ssh-step-note { grid-column: 2; font-size: 13px; overflow-wrap: anywhere; }
+.ssh-box, .ssh-path { display: grid; gap: 8px; min-width: 0; }
+.ssh-path h4 { margin: 4px 0 0; }
+.ssh-steps { margin: 0; padding-left: 22px; display: grid; gap: 4px; }
+.ssh-steps code, .ssh-fp code { overflow-wrap: anywhere; word-break: break-all; }
+.ssh-code { display: block; padding: 8px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--hairline); font-size: 12px; overflow-wrap: anywhere; word-break: break-all; white-space: pre-wrap; user-select: all; }
+.ssh-secret { margin: 0; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--accent); background: var(--panel); }
+.ssh-other { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.ssh-link { min-height: 44px; }
+.ssh-status:empty { display: none; }
+.ssh-status { min-width: 0; overflow-wrap: anywhere; }
+.ssh-status > p { margin: 4px 0; }
+.ssh-diag { display: grid; gap: 4px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--warn); background: var(--warn-soft); }
+.ssh-diag.ok { border-color: var(--success); background: var(--success-soft); }
+.ssh-diag.bad, .ssh-fp.bad { border: 1px solid var(--danger); background: var(--danger-soft); }
+.ssh-diag p { margin: 0; }
+.ssh-details summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.ssh-pre { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.ssh-more { position: relative; }
+.ssh-more > summary { list-style: none; cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: 10px; border: 1px solid var(--hairline-strong); }
+.ssh-more > summary::-webkit-details-marker { display: none; }
+.ssh-menu { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.ssh-edit { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--hairline); }
+#ssh-parsed:empty { display: none; }
+.ssh-port-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0; }
 
 /* Phase 87: computer use: the live view above the composer, the computers list, the explainer and cards. */
 .cu-badge { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 8px; padding: 6px 6px 6px 12px; border: 1px solid var(--accent); border-radius: 999px; background: var(--surface-2); }

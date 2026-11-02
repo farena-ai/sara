@@ -14,7 +14,7 @@ em um só app para a web, Windows, Mac e celular.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1637%20passing-brightgreen" alt="1637 tests passing">
+  <img src="https://img.shields.io/badge/tests-1656%20passing-brightgreen" alt="1656 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -122,6 +122,7 @@ Guias de um minuto, gravados num servidor de teste com um modelo local (em ingl�
 
 | Versão | O que você ganha |
 |---|---|
+| **2.52.1** · Conectar um servidor ficou fácil, fotos corrigidas | *Conectar um servidor* pede só o endereço e o usuário; a Sara cria a chave dela, acha a porta e o jeito mais fácil de entrar (um token do cPanel que ela mesma apaga, sua senha uma vez ou uma linha para colar) e explica cada falha em palavras simples. As fotos agora sempre chegam a um modelo que consegue vê-las. |
 | **2.52** · Quando o assunto surgir | **Lembretes que esperam uma pessoa ou um assunto:** "quando o Dan aparecer, me lembre que ele me deve 20 $" ou "na próxima vez que eu falar da horta, pergunte dos tomates". Ela traz isso uma vez, dentro da resposta, com *Feito*, *De novo na próxima* ou *Esquecer*. A detecção usa seus cartões de pessoas e palavras simples, sem chamar nenhuma IA, e ela nunca chuta entre dois Dans. Só disparam com suas próprias mensagens nas suas próprias conversas, nunca onde o Dan possa ler, e o que ela fosse mandar para outra pessoa contendo um pergunta antes. **Retomar uma conversa em outro app:** comece no Telegram, abra o app e *Continuar aqui* traz a conversa (`/continue` em qualquer lugar), com *Mostrar* e *Desfazer*; nada é copiado. |
 | **2.51** · Continue até terminar | **Objetivos com prova:** "faça os testes passarem, pronto quando `npm test` estiver verde": ela trabalha rodada a rodada dentro de limites (rodadas, minutos, tokens, dólares) e a Sara roda a sua checagem, não ela, então *pronto* quer dizer que passou de verdade. Um verde que só veio depois de mexer nos testes termina como *pronto, revisar*; a mesma falha duas vezes a pausa como *travada*. **`/loop every 10m: check the deploy`**: quieto enquanto nada muda, uma mensagem quando muda, para no *until* (com prova), depois de duas falhas, na hora de fim ou num limite diário, e nunca pede aprovação sem você. Cartões do quadro podem ter uma checagem *Pronto quando*. Depois de reiniciar, tudo volta pausado. Corrigido também: editar arquivos com fim de linha do Windows falhava. |
 | **2.50** · Signal e e-mail | **Mais dois jeitos de falar com ela, já embutidos.** *Signal* pelo signal-cli no seu computador: grupos como salas com acompanhamento, 👀 quando ela pega seu recado, uma mensagem de progresso ao vivo, arquivos nos dois sentidos e seu número de segurança fixado, então uma chave trocada pausa as ferramentas dela até você confirmar. *E-mail* na caixa dela: uma sessão por conversa, respostas na conversa, seu e-mail só conta como você se passar na verificação de remetente do seu provedor, estranhos nunca recebem resposta, e-mail encaminhado faz cada ferramenta perguntar antes, e respostas automáticas, newsletters e devoluções nunca criam um ciclo. A Sara mantém as conexões desses plugins, só para os endereços que você informou. Corrigido também: uma resposta de chat por plugin que passava de 5 minutos era cortada. |
@@ -400,8 +401,8 @@ verificava. O que ela acrescenta hoje é o jeito de trabalhar (roda os testes, p
 de passos arriscados, mostra o que foi executado), não uma nota maior nesses conjuntos. Detalhes,
 resultados por tarefa e como rodar de novo: [docs/RESULTS.md](docs/RESULTS.md).
 
-E também `npm run check`: uma checagem de tipos e 1652 testes automáticos com um modelo falso
-roteirizado (sem rede, sem GPU): 1637 passam no Windows e os outros 8 são testes de isolamento só
+E também `npm run check`: uma checagem de tipos e 1671 testes automáticos com um modelo falso
+roteirizado (sem rede, sem GPU): 1656 passam no Windows e os outros 8 são testes de isolamento só
 para Linux, executados em um servidor Linux.
 
 ## Como a Sara se compara

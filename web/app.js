@@ -24,7 +24,7 @@ import { agendaEvent, agendaNotice, agendaWhy, initAgenda, loadAgenda, openHerPl
 import { initPeople, peopleEvent, peopleOnOpen, showPerson } from './people.js';
 import { initOtherApps, keyUse, loadOtherApps } from './other-apps.js';
 import { initAlexa, loadAlexa } from './alexa.js';
-import { initSsh, loadSsh } from './ssh.js';
+import { focusSshServer, initSsh, loadSsh } from './ssh.js';
 import { initPresence, loadPresence } from './home-presence.js';
 import { initCards } from './cards.js';
 import { initImport, loadImport } from './import.js';
@@ -3852,6 +3852,9 @@ function jobRow(job, cur, opts = {}) {
     r.el.classList.toggle('job-own', Boolean(pick.sel.value));
     const line = $('#jobs-default-line');
     if (line) line.textContent = state.defaultModel ? t('Everything uses {model} unless you change a row.', { model: state.defaultModel }) : '';
+    const kind = state.providers.providers.find((x) => x.id === pick.sel.value)?.kind;
+    // 2.52.1: subscription command-line agents get text only, so a photo never reaches them.
+    if ((job.id === 'vision' || job.id === 'screen') && ['claude-code', 'grok-cli'].includes(kind)) return jobHint(r, t("This one can't see pictures (subscription apps get text only), so photos go to the next model that can. Pick an API, ChatGPT or local model here."), true);
     jobHint(r, pick.sel.value ? costFor(pick.sel.value, pick.chooser.value()) : '');
   };
   pick.sel.addEventListener('change', showCost);
@@ -8363,8 +8366,11 @@ const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), mem
 function openViewFromHash() {
   const v = /#view=([\w:-]+)/.exec(location.hash)?.[1];
   if (!v || !$('#main') || $('#main').hidden) return false;
+  // 2.52.1: her ssh_connect link opens one server's step 3 (/#view=settings:ab-ssh&server=<id>).
+  const sshServer = /[#&]server=([a-z0-9]{10})\b/.exec(location.hash)?.[1];
   history.replaceState(null, '', '/');
-  if (v.startsWith('settings')) void openSettings(v.split(':')[1]);
+  if (v === 'settings:ab-ssh' && sshServer) void openSettings('ab-ssh').then(() => focusSshServer(sshServer));
+  else if (v.startsWith('settings')) void openSettings(v.split(':')[1]);
   // Phase 74: her citations open a document at a page (/#view=library:<id>:<page>).
   else if (/^library:\d+/.test(v)) {
     const [, id, page] = v.split(':');

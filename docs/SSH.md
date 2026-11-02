@@ -1,8 +1,10 @@
-# Your other servers over SSH (2.2)
+# Your other servers over SSH (2.2, easy Connect in 2.52.1)
 
 Sara can work on servers you name over SSH: check a disk, read a log, restart a service, pull and
-deploy a project. She signs in with a password once or with a key you give her, and from then on
-uses **her own key for that server**. Every command still goes through her approval rules.
+deploy a project. You give her the address and your user name; she makes **her own key for that
+server**, looks at it, and picks the easiest way to put her key there. She keeps only her key: a
+password or a cPanel token is used once to install it and then forgotten. Every command still goes
+through her approval rules.
 
 Settings → Abilities → **Servers over SSH** (owner only).
 
@@ -28,16 +30,99 @@ The command you approve is passed to the server as one argument and run by the s
 with `ssh server 'command'`. Output is shown with the exit code (long output keeps its start and
 end, about 16,000 characters).
 
-## Adding a server
+## Connect a server (2.52.1)
 
-1. **Name, address, port, user.** In Settings, or ask her ("add my web box, deploy@203.0.113.5");
-   she then sends you the link to the settings page.
-2. **The host key.** She reads the server's host key with `ssh-keyscan` and shows its **SHA256
-   fingerprint**. Compare it with the one the server shows for itself: on the server run
-   `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` (or ask the hosting company). Only when you
-   press *It matches: trust this host key* is it written to her known_hosts file for that server.
-   Nothing is sent to the server before that.
-3. **Sign in once**, with a password or a key (below).
+1. **Address and user name.** Type them under *Connect a server*, or paste what your host gave you:
+   `example.com`, `alex@example.com:2222`, `ssh -p 2222 alex@example.com`, or your cPanel link
+   (`https://example.com:2083`). The port is optional: *Port: Sara finds it*. Or ask her in chat
+   ("connect my server example.com, user alex"): she looks at it and sends you **one link** to that
+   server's last step.
+2. **Sara looks** (a short checklist, nothing secret is sent):
+   - finds the name (DNS);
+   - finds the SSH port: the one you gave, else **22, 2222, 21098, 18765, 65002, 7822**, one short
+     connect each (at most 7), reading only the server's first line (`SSH-2.0-…`). A web server on
+     that port is reported as "it answers, but it isn't SSH";
+   - reads the server's **ID card** (host key) with `ssh-keyscan`; it waits for your yes;
+   - asks which sign-in methods it allows: one `ssh` run with every method switched off, so the
+     server answers `Permission denied (publickey,password)` with its list. No password, no key;
+   - looks for **cPanel** on port 2083 (an anonymous HTTPS look at the certificate and the
+     `Server: cpsrvd` header);
+   - makes **her own key** (ed25519) now, so every path has her public line. It is made once and
+     kept until you press *Replace Sara's key*; a failed try never deletes it.
+3. **The ID card, then the way in.** *Is this really your server?* Sara remembers the host key and
+   refuses the server if it ever changes (trust on first use, as OpenSSH does; *How can I check it?*
+   says how to compare it if you can). Then the recommended way as a big card, the others under
+   *Other ways*:
+
+| Sara found | Recommended | Also offered |
+|---|---|---|
+| cPanel on 2083 | **Use a cPanel token** | copy and paste; the password if the server takes one |
+| No cPanel, passwords allowed | **Type the password once** | copy and paste |
+| No cPanel, keys only | **Add Sara's key yourself** | a cPanel token |
+| No SSH port | the fix-it box: the ports tried, *Find the port*, *Set the port* | — |
+
+### (a) A cPanel token
+
+In cPanel: **Security → Manage API Tokens → Create**, name it `sara`, set the expiry to tomorrow,
+**Create**, **Copy**, paste it into the *cPanel token* box and press **Install my key**. Sara then
+calls exactly four cPanel functions over HTTPS on port 2083, with the token only in the
+`Authorization: cpanel <user>:<token>` header (never in a URL): `Tokens::list` (is the token for
+this user?), `SSH::importkey` (her public line as `sara-<id>`), `SSH::authkey` with
+`action=authorize` (the step that's easy to miss by hand), and, unless you untick it,
+`Tokens::revoke` for the token called `sara`. Any other function is refused in code before a
+request. The certificate must be valid **for the name**; if it is for another name (common on
+shared servers: `server123.host.com`), no token is sent and Sara offers that name instead. The token
+is never written to disk, the vault, a log, the chat or an error text. There is no WHM / root path.
+
+`SARA_CPANEL_PORT` changes cPanel's port (default 2083) for a host that moved it.
+
+### (b) The password once
+
+Only offered when the server lists `password` or `keyboard-interactive`. One try per press (cPHulk
+and CSF block an address after repeated failures). See *The password rule* below.
+
+### (c) Add Sara's key yourself
+
+Her public key with a **Copy** button and the clicks for your host: cPanel (*SSH Access → Manage
+SSH Keys → Import Key*, then **Manage → Authorize**), SiteGround (*Devs → SSH Keys Manager*, port
+18765), Hostinger (*Advanced → SSH Access*, port 65002), or one line for a terminal or web console:
+
+```sh
+mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo 'ssh-ed25519 AAAA… sara@home-20261101' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
+```
+
+Then **I've added it: check now**.
+
+## When something fails
+
+Every failure shows a plain-language box under the button you pressed, with the buttons that fix
+it; the raw `ssh` text is behind *Details* (passwords and tokens scrubbed). Her tools say the same
+words.
+
+| Code | What Sara says |
+|---|---|
+| `DNS` | I can't find that name |
+| `PORT_CLOSED` / `TIMEOUT` | Nothing answers SSH / it didn't answer (the ports tried; try another port, or wait if your host blocked this computer) |
+| `NOT_SSH` | The port answers, but it isn't SSH |
+| `HOSTKEY_CHANGED` | Stop: a different ID card (a hard stop until you trust the new one) |
+| `PASSWORD_OFF` | This server doesn't accept passwords at all |
+| `WRONG_PASSWORD` | The server said no to that password |
+| `KEY_NOT_ACCEPTED` | The server doesn't accept Sara's key yet (on cPanel: **Authorize**) |
+| `WRONG_USER` | No cPanel user by that name, or the token isn't for it |
+| `NO_SHELL` | The key works, but shell access is off (WHM → Manage Shell Access) |
+| `JAILED` | Connected, with a limited shell (a note, not a failure) |
+| `TWO_STEP` | The server wants a code after the key |
+| `TOO_MANY` | The server cut the connection; wait a few minutes |
+| `CERT_NAME` / `CERT_BAD` / `NO_CPANEL` / `BAD_TOKEN` / `CPANEL_FAILED` | The cPanel path's own answers |
+
+## The card
+
+*Test connection* (a checklist: name, port, same ID card, her key, a command runs, jailed or not),
+*Reconnect*, and under **More**: *Edit* (name, user, port without removing; a new port keeps the ID
+card only if the server shows the same one there), *Replace Sara's key* (a new key installed with
+the current one, checked, then the old line removed: no password needed), *Clean up old Sara keys*
+(when the test finds more than one `sara@<instance>-` line: removes only her stale lines and
+cPanel's matching `sara-*.pub` files), *Forget the password*, *Remove Sara's key*, *Remove server*.
 
 ## The password rule
 
@@ -49,7 +134,7 @@ end, about 16,000 characters).
   prints the password from a `0600` file and deletes it as it reads it; the folder is removed right
   after. It is never on a command line, never in an environment variable, never in a log. The
   server's error text is scrubbed of it.
-- Right after that first sign-in she **makes her own key** for the server (ed25519, no
+- She uses **her own key** for the server, made when you pressed Connect (ed25519, no
   passphrase, comment `sara@<instance>-<date>`), at `<data>/ssh/keys/<id>_ed25519` (`0600`; on
   Windows the file's inherited permissions are removed), and **installs it** in
   `~/.ssh/authorized_keys` on the server: `~/.ssh` is made `700` and the file `600`, a missing last
@@ -71,8 +156,8 @@ end, about 16,000 characters).
 Paste a private key the server already accepts (the text file that starts with `-----BEGIN OPENSSH`), or give
 the full path of a key file **on the computer Sara runs on**. She copies it to
 `<data>/ssh/keys/<id>_imported` (`0600`) and signs in with it to check. Keys protected by a
-passphrase can't be used (she would have to keep the passphrase); sign in with the password once
-instead and she makes her own.
+passphrase can't be used (she would have to keep the passphrase): that includes keys cPanel's
+*Generate a New Key* made; use the cPanel token or copy and paste instead.
 
 ## Every command asks first
 
@@ -132,7 +217,7 @@ The data folder is in her backups, so her keys are too (like her API keys). Data
 | Tool | Default | What it does |
 |---|---|---|
 | `ssh_servers` | runs on its own | Lists the servers with fingerprint, key and password status |
-| `ssh_connect` | asks | Adds a server and reads its host key; you approve it and sign in in Settings |
+| `ssh_connect` | asks | Looks at a server (port, ID card, sign-in methods, cPanel, her key) and gives you one link to finish on the Connect page; it never takes a password or token |
 | `ssh_run` | asks (risky commands always ask) | Runs one command, shows output and exit code |
 | `ssh_forget_password` | asks | Forgets a saved password |
 | `ssh_revoke_key` | asks | Removes her line from the server, deletes the key here |
@@ -152,4 +237,6 @@ Copying files up and down (scp/sftp) is not part of 2.2.
   for the few things that need it over `root`.
 
 Code: `src/ssh.ts` (the manager), `src/tools/ssh.ts` (her tools and the ask-first list),
-`web/ssh.js` (the settings page), tests in `test/phase73.test.ts`.
+`src/ssh-easy.ts` (address parsing, the port greeting, cPanel calls, diagnoses), `web/ssh.js` (the
+settings page), tests in `test/phase73.test.ts` and `test/ssh-easy.test.ts` (the fake OpenSSH in
+`test/ssh-fake.ts`). Design: [design/SSH_EASY.md](design/SSH_EASY.md).

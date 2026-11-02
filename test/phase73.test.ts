@@ -8,7 +8,6 @@
 // under a POSIX shell when one is on this machine.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
@@ -20,13 +19,13 @@ import { describeTools } from '../src/mcp-server.ts';
 import { setPrivateLocal } from '../src/net-guard.ts';
 import { checkClaims } from '../src/receipts.ts';
 import { createSaraServer } from '../src/server.ts';
-import { installScript, keyComment, redactTypedPassword, revokeScript, spawnRunner, SshManager, vaultKeyOf, type CommandRunner, type RunOptions } from '../src/ssh.ts';
+import { installScript, keyComment, redactTypedPassword, revokeScript, spawnRunner, SshManager, vaultKeyOf } from '../src/ssh.ts';
 import { createSshTools, isRiskyCommand } from '../src/tools/ssh.ts';
 import { Vault } from '../src/vault.ts';
 import { makeApp, ROOT, tempDir, text, type TestApp } from './helpers.ts';
+// 2.52.1: the fake OpenSSH moved to test/ssh-fake.ts (shared with test/ssh-easy.test.ts).
+import { FakeSsh, fpOf, HOSTKEY_A, HOSTKEY_B, PASSWORD, pem } from './ssh-fake.ts';
 
-/** A PEM block, built from parts so the release scan doesn't take the test for a leaked key. */
-const pem = (body: string, nl = false) => `-----BEGIN OPENSSH ${['PRIVATE', 'KEY'].join(' ')}-----\n${body}\n-----END OPENSSH ${['PRIVATE', 'KEY'].join(' ')}-----${nl ? '\n' : ''}`;
 const closers: (() => void)[] = [];
 after(() => {
   setPrivateLocal(false);
@@ -38,112 +37,9 @@ function scratch(): string {
   return t.dir;
 }
 const clock = { now: new Date('2026-10-29T15:00:00Z') };
-const PASSWORD = 'Corr3ct-Horse!Battery';
-const HOSTKEY_A = 'AAAAC3NzaC1lZDI1NTE5AAAAIHostKeyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
-const HOSTKEY_B = 'AAAAC3NzaC1lZDI1NTE5AAAAIHostKeyBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB';
-const fpOf = (key: string) => `SHA256:${createHash('sha256').update(key).digest('base64').replace(/=+$/, '')}`;
-
-interface Call {
-  cmd: string;
-  args: string[];
-  env: Record<string, string>;
-}
-
-/** A fake OpenSSH and one server behind it. */
-class FakeSsh {
-  calls: Call[] = [];
-  hostKey = HOSTKEY_A;
-  password = PASSWORD;
-  authorized: string[] = ['ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOwnersOwnKeyStaysHere0000000000000000000 alex@laptop'];
-  passwordsSeen: string[] = [];
-  remoteCommands: string[] = [];
-  pubkeyAuth = true;
-
-  run: CommandRunner = async (cmd: string, args: string[], opts: RunOptions) => {
-    this.calls.push({ cmd, args: [...args], env: { ...opts.env } });
-    if (cmd === 'ssh-keyscan') return { code: 0, stdout: `# 127.0.0.1:22 SSH-2.0-OpenSSH_9.6\n${args.at(-1)} ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCrsa\n${args.at(-1)} ssh-ed25519 ${this.hostKey}\n`, stderr: '' };
-    if (cmd === 'ssh-keygen') return this.#keygen(args);
-    if (cmd === 'ssh') return this.#ssh(args, opts);
-    if (cmd === 'icacls') return { code: 0, stdout: '', stderr: '' };
-    return { code: 127, stdout: '', stderr: `${cmd}: not found` };
-  };
-
-  #keygen(args: string[]) {
-    if (args[0] === '-l') {
-      const f = args[args.indexOf('-f') + 1];
-      const key = readFileSync(f, 'utf8').trim().split(/\s+/)[2];
-      return { code: 0, stdout: `256 ${fpOf(key)} sara-x (ED25519)\n`, stderr: '' };
-    }
-    if (args.includes('-y')) {
-      const f = args[args.indexOf('-f') + 1];
-      const body = readFileSync(f, 'utf8');
-      if (/ENCRYPTED/.test(body)) return { code: 1, stdout: '', stderr: 'incorrect passphrase supplied to decrypt private key' };
-      return { code: 0, stdout: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIImportedKey00000000000000000000000000000\n', stderr: '' };
-    }
-    // -q -t ed25519 -N '' -C comment -f path
-    const f = args[args.indexOf('-f') + 1];
-    const comment = args[args.indexOf('-C') + 1];
-    assert.equal(args[args.indexOf('-N') + 1], '', 'no passphrase on her key');
-    assert.deepEqual(args.slice(args.indexOf('-t'), args.indexOf('-t') + 2), ['-t', 'ed25519']);
-    writeFileSync(f, pem('fake', true), { mode: 0o644 });
-    writeFileSync(`${f}.pub`, `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI${Buffer.from(f).toString('base64').replace(/[^A-Za-z0-9]/g, '').slice(0, 40)} ${comment}\n`);
-    return { code: 0, stdout: '', stderr: '' };
-  }
-
-  async #ssh(args: string[], opts: RunOptions) {
-    if (args[0] === '-V') return { code: 0, stdout: '', stderr: 'OpenSSH_9.6p1' };
-    const opt = (k: string) => args.find((a) => a.startsWith(`${k}=`))?.slice(k.length + 1);
-    // Host key check, the way StrictHostKeyChecking=yes does it.
-    const known = existsSync(opt('UserKnownHostsFile')!) ? readFileSync(opt('UserKnownHostsFile')!, 'utf8') : '';
-    const alias = opt('HostKeyAlias')!;
-    if (!known.split('\n').some((l) => l.startsWith(`${alias} `) && l.includes(this.hostKey))) {
-      return { code: 255, stdout: '', stderr: known.includes(alias) ? '@@@ WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED! @@@\nHost key verification failed.' : 'No ED25519 host key is known for x and you have requested strict checking.\nHost key verification failed.' };
-    }
-    const command = args.at(-1)!;
-    const i = args.indexOf('-i');
-    if (i >= 0) {
-      const pub = readFileSync(`${args[i + 1]}.pub`, 'utf8').trim();
-      if (!this.pubkeyAuth || !this.authorized.includes(pub)) return { code: 255, stdout: '', stderr: 'user@host: Permission denied (publickey).' };
-    } else {
-      // Password: ssh runs SSH_ASKPASS (here: read the file the helper prints).
-      const helper = opts.env.SSH_ASKPASS;
-      assert.equal(opts.env.SSH_ASKPASS_REQUIRE, 'force');
-      const script = readFileSync(helper, 'utf8');
-      const file = /["']([^"']+[\\/]p)["']/.exec(script)![1];
-      const given = readFileSync(file, 'utf8');
-      this.passwordsSeen.push(given);
-      if (given !== this.password) return { code: 255, stdout: '', stderr: 'user@host: Permission denied (password,keyboard-interactive).' };
-    }
-    this.remoteCommands.push(command);
-    return this.#remote(command);
-  }
-
-  /** What the remote shell would do with her scripts. */
-  #remote(command: string) {
-    const line = /echo ('[^']+') >>/.exec(command)?.[1] ?? /grep -vxF ('[^']+')/.exec(command)?.[1];
-    const lineText = line?.slice(1, -1);
-    if (command.includes('sara-key-added') && lineText) {
-      if (this.authorized.includes(lineText)) return { code: 0, stdout: 'sara-key-present\n', stderr: '' };
-      this.authorized.push(lineText);
-      return { code: 0, stdout: 'sara-key-added\n', stderr: '' };
-    }
-    if (command.includes('sara-key-removed') && lineText) {
-      const had = this.authorized.includes(lineText);
-      this.authorized = this.authorized.filter((l) => l !== lineText);
-      return { code: 0, stdout: had ? 'sara-key-removed\n' : 'sara-key-gone\n', stderr: '' };
-    }
-    if (/^echo sara-(key-)?ok$/.test(command)) return { code: 0, stdout: `${command.slice(5)}\n`, stderr: '' };
-    return { code: 0, stdout: `ran: ${command}\n`, stderr: '' };
-  }
-
-  sshCalls(): Call[] {
-    return this.calls.filter((c) => c.cmd === 'ssh' && c.args[0] !== '-V');
-  }
-}
-
 function manager(dir = scratch(), fake = new FakeSsh(), extra: Partial<ConstructorParameters<typeof SshManager>[0]> = {}) {
   const vault = new Vault(dir);
-  const m = new SshManager({ dir, vault, run: fake.run, now: () => clock.now, instance: 'home', platform: 'linux', privateLocal: () => false, ...extra });
+  const m = new SshManager({ dir, vault, run: fake.run, greet: fake.greet, lookup: fake.lookup, now: () => clock.now, instance: 'home', platform: 'linux', privateLocal: () => false, ...extra });
   return { m, fake, vault, dir };
 }
 
@@ -277,11 +173,15 @@ test('password sign-in: she makes her own key (0600), installs it, announces the
   assert.equal(o.fake.authorized.filter((l) => / sara@home-/.test(l)).length, 1);
 });
 
-test('a wrong password: nothing kept, no key left behind, the password never in the error', async () => {
+// 2.52.1 (SSH_EASY §2.2 step 6, "made once"): a failed try keeps her key (not installed), so the
+// next try installs the same line; before, a wrong password deleted the fresh key each time.
+test('a wrong password: nothing kept, her key kept but not installed, the password never in the error', async () => {
   const o = await readyServer();
-  await assert.rejects(o.m.loginWithPassword(o.id, 'Wr0ng-Password!'), (e: Error & { code?: string }) => e.code === 'AUTH' && !e.message.includes('Wr0ng'));
-  assert.equal(o.m.get(o.id).key, undefined);
-  assert.equal(existsSync(o.m.keyFile(o.id)), false);
+  await assert.rejects(o.m.loginWithPassword(o.id, 'Wr0ng-Password!'), (e: Error & { code?: string }) => e.code === 'WRONG_PASSWORD' && !e.message.includes('Wr0ng'));
+  assert.equal(o.m.get(o.id).key?.installedAt, undefined);
+  assert.equal(o.m.view(o.m.get(o.id)).ready, false);
+  assert.equal(existsSync(o.m.keyFile(o.id)), true, 'made once, kept');
+  assert.equal(o.fake.authorized.length, 1, 'nothing installed');
   assert.equal(o.vault.has(vaultKeyOf(o.id)), false);
 });
 
@@ -416,7 +316,7 @@ function setupApp(dir: string, withSsh = true): TestApp & { fake: FakeSsh } {
   closers.push(() => app.store.close());
   app.fake = new FakeSsh();
   if (withSsh) {
-    app.ssh = new SshManager({ dir, vault: app.vault, run: app.fake.run, now: () => clock.now, instance: 'home', platform: 'linux', privateLocal: () => false });
+    app.ssh = new SshManager({ dir, vault: app.vault, run: app.fake.run, greet: app.fake.greet, lookup: app.fake.lookup, now: () => clock.now, instance: 'home', platform: 'linux', privateLocal: () => false });
     for (const t of createSshTools(() => app.ssh)) app.tools.add(t);
   }
   return app;

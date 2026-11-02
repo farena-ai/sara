@@ -81,6 +81,9 @@ export type StreamEvent =
  */
 export type ProviderKind = 'openai-compatible' | 'anthropic' | 'chatgpt' | 'claude-code' | 'grok-cli';
 export const SUBSCRIPTION_KINDS: readonly ProviderKind[] = ['chatgpt', 'claude-code', 'grok-cli'];
+/** Subscription command-line agents get text only: a photo never reaches them (2.52.1). */
+export const BLIND_KINDS: readonly ProviderKind[] = ['claude-code', 'grok-cli'];
+export const seesPictures = (config: { kind: ProviderKind }): boolean => !BLIND_KINDS.includes(config.kind);
 
 /** Stored provider settings. API keys are never stored here; they live in the encrypted vault. */
 export interface ProviderConfig {

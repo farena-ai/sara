@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 133 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 135 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -565,11 +565,22 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 ### Servers over SSH
 
-**How do I add a server?**
+**How do I connect a server?**
 
-1. Fill in the name, address, port and user under Add a server.
-2. Press Check the host key.
-3. Sign in once with a password or a key.
+1. Type the server address and your user name under Connect a server.
+2. Press Connect and wait while Sara looks at it.
+3. Say yes to its ID card, then follow the way in she picks.
+
+**How do I connect a cPanel server?**
+
+1. In cPanel, make an API token called sara that expires tomorrow.
+2. Copy it and paste it into the cPanel token box.
+3. Press Install my key: Sara installs her key and deletes the token.
+
+**What if it doesn't work?**
+
+1. Read the box under the button you pressed.
+2. Press the button it offers, like Find the port or Check now.
 
 **Does she ask before running commands there?**
 

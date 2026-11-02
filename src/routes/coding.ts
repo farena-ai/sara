@@ -802,7 +802,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
       const ssh = app.ssh;
       if (opts.demo || opts.member || !ssh) throw new HttpError(403, 'Servers over SSH are only for the owner of this server.');
       const fail = (err: unknown): never => {
-        if (err instanceof SshError) throw new HttpError(err.code === 'NOT_FOUND' ? 404 : err.code === 'PRIVATE_LOCAL' ? 403 : 400, err.message);
+        if (err instanceof SshError) throw new HttpError(err.code === 'NOT_FOUND' ? 404 : err.code === 'PRIVATE_LOCAL' ? 403 : 400, err.message, { code: err.code, ...(err.diagnosis ? { diagnosis: err.diagnosis } : {}) });
         throw err;
       };
       const view = async () => ({ servers: ssh.views(), available: await ssh.available(), privateLocal: privateLocalOn(), warning: SAVE_PASSWORD_WARNING, dir: ssh.dir });
@@ -810,7 +810,10 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
       if (b === 'servers' && !c && method === 'POST') {
         const body = await readJson(req);
         try {
-          const srv = await ssh.add({ name: body.name, host: body.host, port: body.port, user: body.user, auth: body.auth });
+          // 2.52.1: "Connect a server" sends { address, user, port? } and Sara looks at it at once.
+          const srv = body.address !== undefined
+            ? await ssh.connectServer({ address: body.address, user: body.user, port: body.port, name: body.name })
+            : await ssh.add({ name: body.name, host: body.host, port: body.port, user: body.user, auth: body.auth });
           return send(res, 200, { server: ssh.view(srv), ...(await view()) });
         } catch (err) {
           return fail(err);
@@ -829,9 +832,46 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
             const body = await readJson(req).catch(() => ({}) as Record<string, unknown>);
             let message = '';
             const srv = ssh.get(id);
-            if (body.revoke === true && srv.key?.source === 'made') message = (await ssh.revokeKey(id)).message;
+            if (body.revoke === true && srv.key?.source === 'made' && srv.key.installedAt) message = (await ssh.revokeKey(id)).message;
             ssh.remove(id);
             return send(res, 200, { message, ...(await view()) });
+          }
+          // 2.52.1 (docs/design/SSH_EASY.md §9): edit, look again, cPanel token, check, replace, clean up.
+          if (!d && method === 'PATCH') {
+            const body = await readJson(req);
+            await ssh.updateServer(id, { name: body.name, user: body.user, port: body.port });
+            return send(res, 200, { server: ssh.view(ssh.get(id)), ...(await view()) });
+          }
+          if (d === 'probe' && method === 'POST') {
+            const body = await readJson(req).catch(() => ({}) as Record<string, unknown>);
+            await ssh.probe(id, { findPort: body.findPort === true });
+            return send(res, 200, { server: ssh.view(ssh.get(id)), ...(await view()) });
+          }
+          if (d === 'cpanel' && method === 'POST') {
+            // The token arrives here once (a password-type box in Settings), is used for four
+            // allow-listed calls and is never stored, logged or sent back.
+            const body = await readJson(req);
+            const token = Buffer.from(typeof body.token === 'string' ? body.token.trim() : '', 'utf8');
+            body.token = undefined;
+            const r = await ssh.installViaCpanel(id, token, { ...(typeof body.apiHost === 'string' && body.apiHost ? { apiHost: body.apiHost } : {}), revokeToken: body.revokeToken !== false });
+            token.fill(0);
+            return send(res, 200, { ok: r.test.ok, tokenRevoked: r.tokenRevoked, test: r.test, server: ssh.view(r.server), ...(await view()) });
+          }
+          if (d === 'check' && method === 'POST') {
+            const t = await ssh.checkKey(id);
+            return send(res, 200, { ...t, server: ssh.view(ssh.get(id)), ...(await view()) });
+          }
+          if (d === 'replace-key' && method === 'POST') {
+            const r = await ssh.replaceKey(id);
+            return send(res, 200, { message: r.message, reconnect: r.reconnect === true, ...(r.diagnosis ? { diagnosis: r.diagnosis } : {}), server: ssh.view(r.server), ...(await view()) });
+          }
+          if (d === 'cleanup' && method === 'GET') {
+            const r = await ssh.listOwnLines(id);
+            return send(res, 200, { lines: r.lines.map((l) => ({ comment: l.split(' ')[2] ?? '', current: l === r.current })) });
+          }
+          if (d === 'cleanup' && method === 'POST') {
+            const r = await ssh.cleanupOwnLines(id);
+            return send(res, 200, { removed: r.removed, comments: r.comments, server: ssh.view(r.server), ...(await view()) });
           }
           if (d === 'scan' && method === 'POST') {
             await ssh.scan(id);
