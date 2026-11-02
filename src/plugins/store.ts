@@ -119,6 +119,10 @@ export class PluginStore {
     const r = this.db.prepare('SELECT value FROM plugin_kv WHERE plugin = ? AND companion = ? AND key = ?').get(plugin, companion, key) as { value: string } | undefined;
     return r?.value;
   }
+  /** Phase 122: the keys with a prefix (muted partners). */
+  kvKeys(plugin: string, companion: string, prefix: string): string[] {
+    return (this.db.prepare('SELECT key FROM plugin_kv WHERE plugin = ? AND companion = ? AND substr(key, 1, ?) = ? ORDER BY key LIMIT 200').all(plugin, companion, prefix.length, prefix) as { key: string }[]).map((r) => r.key);
+  }
   kvSet(plugin: string, companion: string, key: string, value: string | undefined): void {
     if (value === undefined) {
       this.db.prepare('DELETE FROM plugin_kv WHERE plugin = ? AND companion = ? AND key = ?').run(plugin, companion, key);

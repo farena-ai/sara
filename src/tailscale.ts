@@ -102,3 +102,36 @@ export function tailscaleStatus(o: FindOptions & { run?: (cli: string, args: str
   return { installed: true, cli, running: false, state: null, dnsName: null, url: null, ips: [], error: `Tailscale didn't answer (${why.slice(0, 200)}). Is it running?` };
 }
 
+
+// ------------------------------------------------------------------ Phase 122: the /hook/ door (WHATSAPP §3.1 W2)
+
+/** Funnel publishes only on these ports; the default instance's app is on 443, so the door takes 8443 (10000 for others). */
+export const DOOR_PORTS = [8443, 10000] as const;
+
+/** The exact command that opens the door: Funnel for `/hook` only, nothing that exposes `/`. */
+export function doorArgs(port: number, doorPort: number = DOOR_PORTS[0]): string[] {
+  return ['funnel', '--bg', `--https=${doorPort}`, '--set-path=/hook', `http://127.0.0.1:${port}/hook`];
+}
+export function doorOffArgs(doorPort: number = DOOR_PORTS[0]): string[] {
+  return ['funnel', `--https=${doorPort}`, '--set-path=/hook', 'off'];
+}
+export const doorCommand = (port: number, doorPort: number = DOOR_PORTS[0]): string => `tailscale ${doorArgs(port, doorPort).join(' ')}`;
+
+/** Runs the door command once (desktop apps and installs where Sara may run the CLI); the output is shown as it is. */
+export function runDoor(action: 'open' | 'close', port: number, o: FindOptions & { doorPort?: number; run?: (cli: string, args: string[]) => { status: number | null; stdout: string; stderr: string; error?: Error } } = {}): { ok: boolean; output: string; url?: string } {
+  const cli = findTailscale(o);
+  if (!cli) return { ok: false, output: 'Tailscale is not installed on this computer.' };
+  const run =
+    o.run ??
+    ((c: string, args: string[]) => {
+      const r = spawnSync(c, args, { encoding: 'utf8', timeout: 90_000, windowsHide: true });
+      return { status: r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? '', ...(r.error ? { error: r.error } : {}) };
+    });
+  const dp = o.doorPort ?? DOOR_PORTS[0];
+  const r = run(cli, action === 'open' ? doorArgs(port, dp) : doorOffArgs(dp));
+  const output = `${r.stdout}${r.stderr}`.trim().slice(0, 2000) || (r.error?.message ?? '');
+  if (r.status !== 0) return { ok: false, output };
+  if (action === 'close') return { ok: true, output };
+  const st = tailscaleStatus({ ...o, ...(o.run ? { run: o.run } : {}) });
+  return { ok: true, output, ...(st.dnsName ? { url: `https://${st.dnsName}:${dp}` } : {}) };
+}

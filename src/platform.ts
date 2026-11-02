@@ -121,6 +121,12 @@ export interface AccessInfo {
   url: string | null;
   /** A plain warning when the way in isn't private (home network without HTTPS). */
   warning?: string;
+  /**
+   * Phase 122 (WHATSAPP §3.1 W2): the public https address Meta (or any webhook sender) calls:
+   * `SARA_HOOK_URL` (the `/hook/` door: Funnel, a tunnel), else `SARA_PUBLIC_URL` when it is https
+   * and the mode is `domain`; null otherwise (Tailscale without the door, home network, this computer).
+   */
+  hookUrl: string | null;
 }
 
 /** Reads SARA_ACCESS and SARA_PUBLIC_URL. Read-only: changed by the installer or `sara access`. */
@@ -137,7 +143,18 @@ export function accessInfo(env: NodeJS.ProcessEnv = process.env): AccessInfo {
       url = null;
     }
   }
-  const info: AccessInfo = { mode, label: mode ? ACCESS_LABEL[mode] : en('Not set up by an installer'), url };
+  let hookUrl: string | null = null;
+  const h = String(env.SARA_HOOK_URL ?? '').trim();
+  if (h) {
+    try {
+      const p = new URL(h);
+      if (p.protocol === 'https:' && !p.username && !p.password) hookUrl = p.origin;
+    } catch {
+      hookUrl = null;
+    }
+  }
+  if (!hookUrl && url?.startsWith('https:') && mode === 'domain') hookUrl = new URL(url).origin;
+  const info: AccessInfo = { mode, label: mode ? ACCESS_LABEL[mode] : en('Not set up by an installer'), url, hookUrl };
   if (url?.startsWith('http:') && mode !== 'local') info.warning = en('This address has no HTTPS: anyone on the same network could read what you send. Fine at home on a network you trust; use Tailscale for anywhere else.');
   return info;
 }

@@ -26,6 +26,8 @@
 //   POST   /api/plugins/:id/identity             { companion, chat, action: confirm | unlink }
 //   POST   /api/plugins/:id/group                { companion, chat, on } (*Answer here*)
 //   POST   /api/plugins/:id/leave                { companion, chat } (*Leave this group*)
+// Phase 122 (WHATSAPP §6.2): GET /api/plugins/whatsapp/setup and POST …/{terms,webhook,door-url,check,fix,
+//   register,send-test,unmute} (src/plugins/whatsapp-setup.ts); removing a plugin removes its bridge hook.
 //   POST   /api/plugins/:id/check-sender         { companion } → waits ≤ 10 min for his next mail: { got, from, headers };
 //                                                { companion, use } → that provider id counts (email)
 import { readFileSync } from 'node:fs';
@@ -36,6 +38,8 @@ import { fromFolder, fromGit, fromZip, PackageError } from '../packages.ts';
 import { ManifestError } from '../plugins/manifest.ts';
 import { PLUGIN_LIMITS } from '../plugins/manager.ts';
 import { checkServerFolder } from '../skill-store.ts';
+import { hookBase, runCheck, setupState, WA } from '../plugins/whatsapp-setup.ts';
+import { bridgeWindowOpen } from '../plugins/bridge-db.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 const IMAGE_TYPES: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' };
@@ -100,6 +104,71 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
       throw new HttpError(405, 'Method not allowed');
     }
 
+    // Phase 122: the WhatsApp setup card (works before the plugin is installed: the card shows the terms box).
+    const WA_ROUTES = ['setup', 'terms', 'webhook', 'door-url', 'check', 'fix', 'register', 'send-test', 'unmute'];
+    if (b === WA && c && WA_ROUTES.includes(c) && !d) {
+      const q = new URL(req.url ?? '/', 'http://x').searchParams;
+      if (c === 'setup' && method === 'GET') return send(res, 200, setupState(app, pm, companion(q.get('companion'))));
+      if (method !== 'POST') throw new HttpError(405, 'Method not allowed');
+      const body = await readJson(req);
+      const co = companion(body.companion);
+      const installed = Boolean(pm.store.get(WA));
+      if (c === 'terms') {
+        // Stored once the plugin exists; before that the card keeps the tick until Install.
+        if (installed) pm.store.kvSet(WA, co, '__terms', app.now().toISOString());
+        return send(res, 200, { ok: true });
+      }
+      if (!installed) throw new HttpError(400, 'Add WhatsApp first (step 1).');
+      if (c === 'webhook') {
+        const hooks = app.hooks;
+        if (!hooks) throw new HttpError(400, 'Webhooks are not available here.');
+        const secret = typeof body.appSecret === 'string' ? body.appSecret.trim() : '';
+        if (secret && !/^[0-9a-f]{32}$/i.test(secret)) throw new HttpError(400, 'The App secret is 32 letters and digits (0–9, a–f). Copy it again from App settings → Basic → Show.');
+        const r = hooks.ensureBridgeHook(WA, co, secret || undefined);
+        const verifyToken = body.newVerifyToken === true ? hooks.newVerifyToken(r.hook.id) : r.verifyToken;
+        const base = hookBase(pm, co);
+        return send(res, 200, { callbackUrl: base ? `${base}${r.path}` : null, path: r.path, verifyToken, secretSet: hooks.hasSenderSecret(r.hook.id) });
+      }
+      if (c === 'door-url') {
+        const raw = String(body.url ?? '').trim();
+        if (!raw) {
+          pm.store.kvSet(WA, co, '__door', undefined);
+          return send(res, 200, { ok: true, hookUrl: hookBase(pm, co) });
+        }
+        let u: URL;
+        try {
+          u = new URL(raw);
+        } catch {
+          throw new HttpError(400, 'Paste the whole address, starting with https://');
+        }
+        if (u.protocol !== 'https:' || u.username || u.password) throw new HttpError(400, 'Meta only calls https addresses.');
+        pm.store.kvSet(WA, co, '__door', u.origin);
+        return send(res, 200, { ok: true, hookUrl: u.origin });
+      }
+      if (c === 'check') return send(res, 200, await runCheck(app, pm, co, String(body.step ?? '')));
+      if (c === 'fix') {
+        const fix = body.fix === 'subscribe' ? 'fix-subscribe' : body.fix === 'identity-check' ? 'fix-identity' : '';
+        if (!fix) throw new HttpError(400, 'No such fix.');
+        return send(res, 200, await pm.bridgeCheck(WA, co, { step: fix }));
+      }
+      if (c === 'register') {
+        // The PIN is passed once to the plugin and forgotten: never stored, logged or echoed.
+        const pin = String(body.pin ?? '');
+        if (!/^\d{6}$/.test(pin)) throw new HttpError(400, 'The two-step PIN is 6 digits.');
+        return send(res, 200, await pm.bridgeCheck(WA, co, { step: 'register', pin, phoneNumberId: String(body.phoneNumberId ?? '').trim() }));
+      }
+      if (c === 'send-test') {
+        const chat = (pm.settingsView(WA, co).bridge?.ownerChats ?? [])[0];
+        if (!chat) throw new HttpError(400, 'Link your WhatsApp first (step 9).');
+        if (!bridgeWindowOpen(app, chat)) return send(res, 200, { ok: false, diagnosis: { code: 'WINDOW_CLOSED' } });
+        return send(res, 200, await pm.bridgeCheck(WA, co, { step: 'send-test', chatId: chat, text: 'Test from Sara: WhatsApp works.' }));
+      }
+      if (c === 'unmute') {
+        pm.unmute(WA, co, String(body.who ?? ''));
+        return send(res, 200, { ok: true });
+      }
+    }
+
     const id = b;
     // Install (or update) what the owner reviewed: the plugin may not exist yet.
     if (c === 'approve' && method === 'POST') {
@@ -121,6 +190,8 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
     if (!c && method === 'DELETE') {
       try {
         await pm.remove(id);
+        // Phase 122: a plugin's bridge hooks (and their vault entries) go with it.
+        app.hooks?.removeForPlugin(id);
       } catch (err) {
         return asHttp(err);
       }

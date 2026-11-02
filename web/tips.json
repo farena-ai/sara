@@ -1591,6 +1591,10 @@
       "Give her a mailbox of her own: email her or forward her a mail and she answers in the same thread.",
       "email"
     ],
+    "co-whatsapp": [
+      "Text her on WhatsApp through your own Meta WhatsApp Business account: a guided setup that checks each step, then she answers like on Telegram.",
+      "whatsapp"
+    ],
     "co-apps": [
       "Use her from other apps (SillyTavern, Open WebUI, Claude Code, Cursor, Claude Desktop) with an API key.",
       "clients"

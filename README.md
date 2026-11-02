@@ -11,7 +11,7 @@ Windows, Mac and phones.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1705%20passing-brightgreen" alt="1705 tests passing">
+  <img src="https://img.shields.io/badge/tests-1717%20passing-brightgreen" alt="1717 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -107,15 +107,16 @@ One-minute walkthroughs, recorded on a throwaway test server with a local model.
 
 ## What's new
 
+- **2.55** · WhatsApp: text her from WhatsApp through Meta's official service on your own account, with a 10-step guided setup that checks each step.
 - **2.54** · Routines and a safety check-up: ten ready-made routines (morning briefing, watch my CI, price watch…) with the cost shown before you turn one on, and a page that says in plain words how safe your setup is, with one-click fixes that only tighten.
 - **2.53** · Coding precision: after each edit she runs your project's own type checker or linter and fixes what she broke in the same reply; point her at things with `@file`, `@diff`, `@url` and more.
-- **2.52** · When it comes up: "when Dan comes up, remind me he owes me $20" waits for the name, not a time; and `/continue` picks up a chat from Telegram or Discord in the app, or the other way round.
 
 <details>
 <summary><b>Release history</b>: what each release from 2.4 brought</summary>
 
 | Release | What you get |
 |---|---|
+| **2.55** · WhatsApp | **WhatsApp** (Settings → Connections → WhatsApp, an optional plugin): text her through Meta's official WhatsApp Cloud API on a Meta account and number you own. A 10-step guided card names the exact Meta screens, checks each step with a ✓ and turns every error into one plain sentence with a fix. Photos and files both ways, typing dots and one *Working on it* line with Stop on long jobs, only you unless you list other numbers, and her own first messages only inside WhatsApp's 24-hour window. Meta's terms limit general AI assistants on WhatsApp, so it's off until you install it and tick that you've read them. |
 | **2.54** · Routines and a safety check-up | **Routines gallery** (Planner → Routines): morning briefing, weekly review, stretch and bedtime reminders, leave on time, watch my repo's CI, new issues, backup check, inbox triage and price watch. Each card says what it does, what it needs and what it costs, worked out in code (most are free), shows a preview without calling a model, and has an Off switch; paid ones end on a date you pick. Tools keep your approval settings. **Safety check-up** (Settings → Data & health): 17 read-only checks, a verdict in words (*Looks safe*, *Mostly safe*, *Fix these first*), and one-click fixes that can only make things safer, each saying whether it can be undone. Changes to how Sara is reached are guided, never one click. Also `sara doctor --safety`. |
 | **2.53** · Coding precision | **Checks after her edits:** when she changes code, Sara runs the project's own checker (tsc, pyright or mypy, cargo check, go vet, eslint), already installed, never `npx`, never installs anything, and hands her only the new errors in the same turn, including files her change broke elsewhere. She fixes them before answering (at most two nudges), and the reply shows *✓ types clean (tsc)* or what's left. One OK per project. **@-references:** type `@` in the chat box for `@file` (with lines), `@folder`, `@diff`, `@branch`, `@problem` or `@url`; chips show what she'll get and its size, and it works as typed text in Telegram, Discord and the other apps. Secret files are refused, and private chats never open web pages. |
 | **2.52.1** · Easy server connect, photos fixed | *Connect a server* asks only for the address and user name; Sara makes her key, finds the port and the easiest way in (a cPanel token she deletes herself, your password once, or one line to paste) and explains every failure in plain words. Photos now always reach a model that can see them. |
@@ -202,7 +203,7 @@ Every release: [CHANGELOG.md](CHANGELOG.md) · [releases](https://github.com/far
 
 In build order, one release each ([the full list](docs/ROADMAP.md)):
 
-- **Next** (2.55–2.61): photos and files in chat apps, talking to her while she works, Signal, email, WhatsApp, iMessage (BlueBubbles) and SMS, "keep going until it's done", coding checks after edits, a routines gallery, and **the Sara Store** for plugins, skills and MCP servers (ComfyUI, Blender, Playwright…) with one-click installs and a way to submit your own.
+- **Next** (2.56–2.61): photos and files in chat apps, talking to her while she works, Signal, email, WhatsApp, iMessage (BlueBubbles) and SMS, "keep going until it's done", coding checks after edits, a routines gallery, and **the Sara Store** for plugins, skills and MCP servers (ComfyUI, Blender, Playwright…) with one-click installs and a way to submit your own.
 - The iPhone app (waiting on Apple), and your ideas in [Discussions](https://github.com/farena-ai/sara/discussions).
 
 The full plan: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -389,8 +390,8 @@ README or SPEC that no test checked. What she adds today is the way of working (
 asks before risky steps, shows what ran), not a higher score on these sets. Details, per-task
 results and how to re-run: [docs/RESULTS.md](docs/RESULTS.md).
 
-Plus `npm run check`: a typecheck and 1720 automated tests with a scripted fake model (no network,
-no GPU): 1705 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
+Plus `npm run check`: a typecheck and 1732 automated tests with a scripted fake model (no network,
+no GPU): 1717 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
 
 ## How Sara compares
 

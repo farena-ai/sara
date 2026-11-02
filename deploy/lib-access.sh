@@ -195,6 +195,35 @@ sa_ts_serve_off() {
     timeout 60 tailscale serve "https:$hp" / off </dev/null >/dev/null 2>&1 || true
   fi
 }
+# Phase 122 (docs/design/WHATSAPP.md §3.1 W2): the public door for /hook/ only. Tailscale Funnel
+# publishes only on 443, 8443 and 10000; the default instance's app is on 443 (tailnet-only), so the
+# door uses 8443, and 10000 for any other instance. Only the /hook path is published: the app, /api
+# and everything else stay on the tailnet. SARA_HOOK_URL tells Sara (and the WhatsApp card) the address.
+sa_door_port() {
+  local p
+  p="$(sa_env_get SARA_DOOR_PORT)"
+  if [[ $p =~ ^(443|8443|10000)$ ]]; then echo "$p"; return; fi
+  if [[ $SI_NAME == sara ]]; then echo 8443; else echo 10000; fi
+}
+sa_door_on() {
+  local port=${1:-7860} dp out
+  dp="$(sa_door_port)"
+  sa_ts_installed || { sa_say "Tailscale isn't installed here: the door needs it (or use your own domain, or a tunnel)."; return 1; }
+  out="$(timeout 90 tailscale funnel --bg --https="$dp" --set-path=/hook "http://127.0.0.1:$port/hook" </dev/null 2>&1)" || {
+    printf '%s\n' "$out" >&2
+    sa_say "Funnel may need to be allowed for this computer in the Tailscale admin console (Access controls → funnel)."
+    return 1
+  }
+  sa_env_set SARA_HOOK_URL "$(sa_ts_url "$dp")"
+  sa_say "The door is open: $(sa_ts_url "$dp")/hook/… is public; the app stays private."
+}
+sa_door_off() {
+  local dp
+  dp="$(sa_door_port)"
+  sa_ts_installed && { timeout 60 tailscale funnel --https="$dp" --set-path=/hook off </dev/null >/dev/null 2>&1 || true; }
+  sa_env_set SARA_HOOK_URL ""
+  sa_say "The door is closed."
+}
 sa_ts_explain_certs() {
   sa_say ""
   sa_say "  Your Tailscale network hasn't turned on HTTPS certificates yet. It's one switch:"

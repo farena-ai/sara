@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 141 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 144 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -710,6 +710,26 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Your mail didn't pass your provider's sender check.
 2. Press Check my sender in Email settings and send her a mail.
+
+### WhatsApp
+
+**How do I text her on WhatsApp?**
+
+1. Tick the box about Meta's rules and press Start.
+2. Follow the ten steps: each turns ✓ when Sara has checked it.
+3. Press Link my WhatsApp and send her the code from your phone.
+
+**Why didn't her reminder come to WhatsApp?**
+
+1. Meta only lets her write first within 24 hours of your last message.
+2. Write to her on WhatsApp to open the window again.
+3. Until then her messages stay in the app.
+
+**A step stays red. What now?**
+
+1. Read the line under the step: it says what to fix.
+2. Press This screen looks different if Meta's page doesn't match.
+3. Press Test to see the first step that fails.
 
 ### Other apps
 

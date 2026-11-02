@@ -27,6 +27,8 @@ export interface PluginSetting {
   choices?: string[];
   min?: number;
   max?: number;
+  /** Phase 122: folded under *Advanced* in the settings window (any plugin may use it). */
+  advanced?: boolean;
 }
 export interface PluginSchedule {
   id: string;
@@ -50,6 +52,11 @@ export interface PluginPermissions {
   memory: 'none' | 'shared-notes';
   /** Phase 117 (BRIDGES3 P1): sockets Sara opens and relays for it (src/plugins/net.ts); up to 4. */
   connect: ConnectEndpoint[];
+  /**
+   * Phase 122 (WHATSAPP §3.1 W1): `'bridge'` = it may own one bridge hook per companion; Sara
+   * checks the signature and hands it the raw body (`bridge.webhook`). It never sees the hook's secret.
+   */
+  webhooks: 'none' | 'bridge';
 }
 
 /**
@@ -95,7 +102,7 @@ export class ManifestError extends Error {
 }
 
 const TOP_KEYS = new Set(['manifest', 'id', 'name', 'version', 'description', 'author', 'license', 'homepage', 'sara', 'main', 'permissions', 'schedules', 'settings', 'i18n', '$schema']);
-const PERMISSION_KEYS = new Set(['hooks', 'tools', 'callTools', 'network', 'files', 'settings', 'cards', 'bridges', 'bridgeFiles', 'model', 'memory', 'connect']);
+const PERMISSION_KEYS = new Set(['hooks', 'tools', 'callTools', 'network', 'files', 'settings', 'cards', 'bridges', 'bridgeFiles', 'model', 'memory', 'connect', 'webhooks']);
 export const ID_RE = /^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$/;
 const SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const TOOL_RE = /^[a-z][a-z0-9_]{0,39}$/;
@@ -262,7 +269,10 @@ function parsePermissions(v: unknown): PluginPermissions {
   const bridgeFiles = bool('bridgeFiles');
   if (bridgeFiles && !bridges.length) throw new ManifestError('permissions.bridgeFiles needs a bridge in permissions.bridges.');
   const connect = parseConnect(p.connect);
-  return { hooks, tools, callTools, network, files, settings: bool('settings'), cards: bool('cards'), bridges, bridgeFiles, model, memory, connect };
+  const webhooks = p.webhooks === undefined || p.webhooks === 'none' ? 'none' : p.webhooks;
+  if (webhooks !== 'none' && webhooks !== 'bridge') throw new ManifestError('permissions.webhooks may be none or bridge.');
+  if (webhooks === 'bridge' && !bridges.length) throw new ManifestError('permissions.webhooks "bridge" needs a bridge in permissions.bridges.');
+  return { hooks, tools, callTools, network, files, settings: bool('settings'), cards: bool('cards'), bridges, bridgeFiles, model, memory, connect, webhooks };
 }
 
 function parseConnect(v: unknown): ConnectEndpoint[] {
@@ -314,6 +324,10 @@ function parseSettings(v: unknown, allowed: boolean): PluginSetting[] {
     if (typeof s.tip !== 'string' || s.tip.trim().length < 10) throw new ManifestError(`The setting "${key}" has no tip: every setting needs a ? tip that says what it does.`);
     const tip = str(s.tip, `The tip of setting "${key}"`, 260);
     const one: PluginSetting = { key, type, label, tip };
+    if (s.advanced !== undefined) {
+      if (typeof s.advanced !== 'boolean') throw new ManifestError(`The setting "${key}" has advanced that isn't true or false.`);
+      if (s.advanced) one.advanced = true;
+    }
     if (type === 'choice') {
       const choices = list(s.choices, `The choices of "${key}"`, 20).map((c) => str(c, `A choice of "${key}"`, 60));
       if (!choices.length) throw new ManifestError(`The choice setting "${key}" lists no choices.`);
@@ -469,6 +483,7 @@ export function permissionLines(m: PluginManifest, toolLabel: (name: string) => 
   if (p.memory === 'shared-notes') out.push({ id: 'memory', key: 'Can read the notes about you that other apps may see (read only)', risk: 'high' });
   for (const b of p.bridges) out.push({ id: `bridge:${b}`, key: 'Carries chats with her for {bridge}', params: { bridge: b }, risk: 'high' });
   if (p.bridgeFiles) out.push({ id: 'bridgeFiles', key: 'Can send and receive pictures and files in its chats', risk: 'high' });
+  if (p.webhooks === 'bridge') out.push({ id: 'webhooks:bridge', key: 'Receives messages from Meta at a public web address Sara gives it', risk: 'high' });
   for (const h of p.hooks) if (HOOK_WORDS[h]) out.push({ id: `hook:${h}`, key: HOOK_WORDS[h], risk: h === 'turn.before' || h === 'reply.after' || h === 'tool.after' ? 'medium' : 'low' });
   for (const s of m.schedules) out.push(scheduleWords(s));
   for (const t of p.tools) out.push({ id: `tool:${t}`, key: 'Adds a tool: {tool} (asks you first)', params: { tool: t }, risk: 'low' });
@@ -505,6 +520,7 @@ export function permissionIds(m: PluginManifest): string[] {
     ...(p.memory !== 'none' ? [`memory:${p.memory}`] : []),
     ...p.bridges.map((b) => `bridge:${b}`),
     ...(p.bridgeFiles ? ['bridgeFiles'] : []),
+    ...(p.webhooks === 'bridge' ? ['webhooks:bridge'] : []),
     ...p.hooks.map((h) => `hook:${h}`),
     ...m.schedules.map((s) => `schedule:${s.id}:${s.every}:${s.at ?? ''}`),
     ...p.tools.map((t) => `tool:${t}`),

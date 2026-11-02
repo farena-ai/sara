@@ -1,0 +1,248 @@
+{
+  "manifest": 1,
+  "id": "whatsapp",
+  "name": "WhatsApp",
+  "version": "1.0.0",
+  "description": "Talk to her on WhatsApp through your own WhatsApp Business account (Meta's Cloud API).",
+  "author": "The Sara team",
+  "license": "MIT",
+  "sara": ">=2.55.0",
+  "main": "main.mjs",
+  "permissions": {
+    "bridges": [
+      "whatsapp"
+    ],
+    "bridgeFiles": true,
+    "settings": true,
+    "webhooks": "bridge",
+    "connect": [
+      {
+        "id": "graph",
+        "host": "setting:graphHost",
+        "ports": [
+          443
+        ],
+        "where": "public",
+        "tls": "required"
+      },
+      {
+        "id": "media",
+        "host": "setting:mediaHost",
+        "ports": [
+          443
+        ],
+        "where": "public",
+        "tls": "required"
+      }
+    ],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    }
+  },
+  "settings": [
+    {
+      "key": "phoneNumberId",
+      "type": "text",
+      "label": "Phone number ID",
+      "tip": "A long number from Meta's API Setup page, next to her phone number (not the phone number itself). Sara uses it to send as that number."
+    },
+    {
+      "key": "wabaId",
+      "type": "text",
+      "label": "WhatsApp account ID",
+      "tip": "Also on API Setup (Meta may call it Messaging account ID or WhatsApp Business Account ID). Sara uses it to check the setup."
+    },
+    {
+      "key": "token",
+      "type": "secret",
+      "label": "Access token",
+      "tip": "The key from Business Settings → System users → Generate token, with expiry Never. Kept encrypted in Sara's vault and never shown again. Anyone with it can send as this number."
+    },
+    {
+      "key": "typing",
+      "type": "switch",
+      "label": "Show typing (also shows blue ticks)",
+      "default": true,
+      "tip": "Shows the typing dots while she works. WhatsApp only allows this together with marking your message as read, so you'll see blue ticks too."
+    },
+    {
+      "key": "readReceipts",
+      "type": "switch",
+      "label": "Send read receipts",
+      "default": false,
+      "tip": "Blue ticks as soon as she has your message, even when typing is off. Off by default."
+    },
+    {
+      "key": "mirror",
+      "type": "switch",
+      "label": "Send reminders and messages she starts to my WhatsApp too",
+      "default": false,
+      "tip": "Her reminders and messages she starts also come here, but only within 24 hours of your last WhatsApp message (Meta's rule). Free."
+    },
+    {
+      "key": "nudge",
+      "type": "switch",
+      "label": "Nudge me with a paid template when the 24 hours are over",
+      "default": false,
+      "tip": "After 24 hours of quiet, Meta only allows pre-approved templates, which cost a few cents. At most one a day, only to you. Off by default."
+    },
+    {
+      "key": "nudgeTemplate",
+      "type": "text",
+      "label": "Template name",
+      "default": "",
+      "tip": "The name of the utility template you made in WhatsApp Manager for the nudge. Sara shows the exact text to submit."
+    },
+    {
+      "key": "graphVersion",
+      "type": "text",
+      "label": "Graph API version",
+      "default": "v26.0",
+      "advanced": true,
+      "tip": "The version of Meta's API Sara talks to. Leave it unless a Sara update or the Test button tells you to change it."
+    },
+    {
+      "key": "graphHost",
+      "type": "text",
+      "label": "Graph host",
+      "default": "graph.facebook.com",
+      "advanced": true,
+      "tip": "Where Meta's API and its files live. Leave these as they are; Sara only connects there, encrypted, and checks the certificate."
+    },
+    {
+      "key": "mediaHost",
+      "type": "text",
+      "label": "Media host",
+      "default": "lookaside.fbsbx.com",
+      "advanced": true,
+      "tip": "Where Meta's API and its files live. Leave these as they are; Sara only connects there, encrypted, and checks the certificate."
+    }
+  ],
+  "i18n": {
+    "es": {
+      "Talk to her on WhatsApp through your own WhatsApp Business account (Meta's Cloud API).": "Habla con ella en WhatsApp a través de tu propia cuenta de WhatsApp Business (la Cloud API de Meta).",
+      "Phone number ID": "ID del número de teléfono",
+      "WhatsApp account ID": "ID de la cuenta de WhatsApp",
+      "Access token": "Token de acceso",
+      "Show typing (also shows blue ticks)": "Mostrar «escribiendo» (también muestra los ticks azules)",
+      "Send read receipts": "Enviar confirmaciones de lectura",
+      "Send reminders and messages she starts to my WhatsApp too": "Enviar también a mi WhatsApp los recordatorios y los mensajes que ella inicia",
+      "Nudge me with a paid template when the 24 hours are over": "Avisarme con una plantilla de pago cuando pasen las 24 horas",
+      "Template name": "Nombre de la plantilla",
+      "Graph API version": "Versión de la Graph API",
+      "Graph host": "Host de Graph",
+      "Media host": "Host de archivos",
+      "A long number from Meta's API Setup page, next to her phone number (not the phone number itself). Sara uses it to send as that number.": "Un número largo de la página API Setup de Meta, junto a su número de teléfono (no el número en sí). Sara lo usa para enviar como ese número.",
+      "Also on API Setup (Meta may call it Messaging account ID or WhatsApp Business Account ID). Sara uses it to check the setup.": "También en API Setup (Meta puede llamarlo ID de la cuenta de mensajería o ID de la cuenta de WhatsApp Business). Sara lo usa para comprobar la configuración.",
+      "The key from Business Settings → System users → Generate token, with expiry Never. Kept encrypted in Sara's vault and never shown again. Anyone with it can send as this number.": "La clave de Configuración del negocio → Usuarios del sistema → Generar token, con caducidad Nunca. Se guarda cifrada en la bóveda de Sara y no se vuelve a mostrar. Quien la tenga puede enviar como este número.",
+      "Shows the typing dots while she works. WhatsApp only allows this together with marking your message as read, so you'll see blue ticks too.": "Muestra los puntos de «escribiendo» mientras trabaja. WhatsApp solo lo permite marcando tu mensaje como leído, así que también verás los ticks azules.",
+      "Blue ticks as soon as she has your message, even when typing is off. Off by default.": "Ticks azules en cuanto ella tiene tu mensaje, aunque «escribiendo» esté apagado. Apagado por defecto.",
+      "Her reminders and messages she starts also come here, but only within 24 hours of your last WhatsApp message (Meta's rule). Free.": "Sus recordatorios y los mensajes que inicia también llegan aquí, pero solo dentro de las 24 horas desde tu último mensaje de WhatsApp (regla de Meta). Gratis.",
+      "After 24 hours of quiet, Meta only allows pre-approved templates, which cost a few cents. At most one a day, only to you. Off by default.": "Tras 24 horas de silencio, Meta solo permite plantillas aprobadas, que cuestan unos céntimos. Como mucho una al día, solo a ti. Apagado por defecto.",
+      "The name of the utility template you made in WhatsApp Manager for the nudge. Sara shows the exact text to submit.": "El nombre de la plantilla de utilidad que creaste en WhatsApp Manager para el aviso. Sara muestra el texto exacto que debes enviar.",
+      "The version of Meta's API Sara talks to. Leave it unless a Sara update or the Test button tells you to change it.": "La versión de la API de Meta con la que habla Sara. Déjala salvo que una actualización de Sara o el botón Probar te digan que la cambies.",
+      "Where Meta's API and its files live. Leave these as they are; Sara only connects there, encrypted, and checks the certificate.": "Donde están la API de Meta y sus archivos. Déjalos como están; Sara solo se conecta ahí, cifrado, y comprueba el certificado."
+    },
+    "fr": {
+      "Talk to her on WhatsApp through your own WhatsApp Business account (Meta's Cloud API).": "Parlez-lui sur WhatsApp avec votre propre compte WhatsApp Business (la Cloud API de Meta).",
+      "Phone number ID": "ID du numéro de téléphone",
+      "WhatsApp account ID": "ID du compte WhatsApp",
+      "Access token": "Jeton d'accès",
+      "Show typing (also shows blue ticks)": "Afficher « en train d'écrire » (affiche aussi les coches bleues)",
+      "Send read receipts": "Envoyer les confirmations de lecture",
+      "Send reminders and messages she starts to my WhatsApp too": "Envoyer aussi sur mon WhatsApp les rappels et les messages qu'elle commence",
+      "Nudge me with a paid template when the 24 hours are over": "Me prévenir avec un modèle payant après 24 heures",
+      "Template name": "Nom du modèle",
+      "Graph API version": "Version de la Graph API",
+      "Graph host": "Hôte Graph",
+      "Media host": "Hôte des fichiers",
+      "A long number from Meta's API Setup page, next to her phone number (not the phone number itself). Sara uses it to send as that number.": "Un long numéro de la page API Setup de Meta, à côté de son numéro de téléphone (pas le numéro lui-même). Sara s'en sert pour envoyer depuis ce numéro.",
+      "Also on API Setup (Meta may call it Messaging account ID or WhatsApp Business Account ID). Sara uses it to check the setup.": "Aussi sur API Setup (Meta peut l'appeler ID du compte de messagerie ou ID du compte WhatsApp Business). Sara s'en sert pour vérifier la configuration.",
+      "The key from Business Settings → System users → Generate token, with expiry Never. Kept encrypted in Sara's vault and never shown again. Anyone with it can send as this number.": "La clé de Paramètres d'entreprise → Utilisateurs système → Générer un jeton, avec l'expiration Jamais. Chiffrée dans le coffre de Sara et plus jamais affichée. Qui l'a peut envoyer depuis ce numéro.",
+      "Shows the typing dots while she works. WhatsApp only allows this together with marking your message as read, so you'll see blue ticks too.": "Affiche les points « en train d'écrire » pendant qu'elle travaille. WhatsApp ne le permet qu'en marquant votre message comme lu : vous verrez aussi les coches bleues.",
+      "Blue ticks as soon as she has your message, even when typing is off. Off by default.": "Des coches bleues dès qu'elle a votre message, même sans « en train d'écrire ». Désactivé par défaut.",
+      "Her reminders and messages she starts also come here, but only within 24 hours of your last WhatsApp message (Meta's rule). Free.": "Ses rappels et les messages qu'elle commence arrivent aussi ici, mais seulement dans les 24 heures après votre dernier message WhatsApp (règle de Meta). Gratuit.",
+      "After 24 hours of quiet, Meta only allows pre-approved templates, which cost a few cents. At most one a day, only to you. Off by default.": "Après 24 heures de silence, Meta n'autorise que des modèles approuvés, qui coûtent quelques centimes. Au plus un par jour, seulement à vous. Désactivé par défaut.",
+      "The name of the utility template you made in WhatsApp Manager for the nudge. Sara shows the exact text to submit.": "Le nom du modèle utilitaire créé dans WhatsApp Manager pour le rappel. Sara affiche le texte exact à soumettre.",
+      "The version of Meta's API Sara talks to. Leave it unless a Sara update or the Test button tells you to change it.": "La version de l'API de Meta avec laquelle Sara parle. Ne la changez que si une mise à jour de Sara ou le bouton Tester vous le demande.",
+      "Where Meta's API and its files live. Leave these as they are; Sara only connects there, encrypted, and checks the certificate.": "Là où se trouvent l'API de Meta et ses fichiers. Laissez-les tels quels ; Sara ne se connecte que là, en chiffré, et vérifie le certificat."
+    },
+    "de": {
+      "Talk to her on WhatsApp through your own WhatsApp Business account (Meta's Cloud API).": "Schreib ihr auf WhatsApp über dein eigenes WhatsApp-Business-Konto (Metas Cloud API).",
+      "Phone number ID": "Telefonnummer-ID",
+      "WhatsApp account ID": "WhatsApp-Konto-ID",
+      "Access token": "Zugriffstoken",
+      "Show typing (also shows blue ticks)": "Tippen anzeigen (zeigt auch blaue Haken)",
+      "Send read receipts": "Lesebestätigungen senden",
+      "Send reminders and messages she starts to my WhatsApp too": "Erinnerungen und Nachrichten, die sie beginnt, auch an mein WhatsApp senden",
+      "Nudge me with a paid template when the 24 hours are over": "Nach 24 Stunden mit einer kostenpflichtigen Vorlage erinnern",
+      "Template name": "Name der Vorlage",
+      "Graph API version": "Graph-API-Version",
+      "Graph host": "Graph-Host",
+      "Media host": "Medien-Host",
+      "A long number from Meta's API Setup page, next to her phone number (not the phone number itself). Sara uses it to send as that number.": "Eine lange Nummer von Metas Seite API Setup, neben ihrer Telefonnummer (nicht die Telefonnummer selbst). Sara sendet damit als diese Nummer.",
+      "Also on API Setup (Meta may call it Messaging account ID or WhatsApp Business Account ID). Sara uses it to check the setup.": "Auch auf API Setup (Meta nennt es vielleicht Messaging-Konto-ID oder WhatsApp-Business-Konto-ID). Sara prüft damit die Einrichtung.",
+      "The key from Business Settings → System users → Generate token, with expiry Never. Kept encrypted in Sara's vault and never shown again. Anyone with it can send as this number.": "Der Schlüssel aus Unternehmenseinstellungen → Systemnutzer → Token generieren, Ablauf Nie. Liegt verschlüsselt in Saras Tresor und wird nie wieder gezeigt. Wer ihn hat, kann als diese Nummer senden.",
+      "Shows the typing dots while she works. WhatsApp only allows this together with marking your message as read, so you'll see blue ticks too.": "Zeigt die Tipp-Punkte, während sie arbeitet. WhatsApp erlaubt das nur zusammen mit dem Lesen deiner Nachricht, also siehst du auch blaue Haken.",
+      "Blue ticks as soon as she has your message, even when typing is off. Off by default.": "Blaue Haken, sobald sie deine Nachricht hat, auch wenn Tippen aus ist. Standardmäßig aus.",
+      "Her reminders and messages she starts also come here, but only within 24 hours of your last WhatsApp message (Meta's rule). Free.": "Ihre Erinnerungen und Nachrichten, die sie beginnt, kommen auch hierher, aber nur innerhalb von 24 Stunden nach deiner letzten WhatsApp-Nachricht (Metas Regel). Kostenlos.",
+      "After 24 hours of quiet, Meta only allows pre-approved templates, which cost a few cents. At most one a day, only to you. Off by default.": "Nach 24 Stunden Ruhe erlaubt Meta nur genehmigte Vorlagen, die ein paar Cent kosten. Höchstens eine am Tag, nur an dich. Standardmäßig aus.",
+      "The name of the utility template you made in WhatsApp Manager for the nudge. Sara shows the exact text to submit.": "Der Name der Utility-Vorlage, die du im WhatsApp Manager für die Erinnerung erstellt hast. Sara zeigt den genauen Text zum Einreichen.",
+      "The version of Meta's API Sara talks to. Leave it unless a Sara update or the Test button tells you to change it.": "Die Version von Metas API, mit der Sara spricht. Lass sie, außer ein Sara-Update oder der Test-Knopf sagt, dass du sie ändern sollst.",
+      "Where Meta's API and its files live. Leave these as they are; Sara only connects there, encrypted, and checks the certificate.": "Wo Metas API und ihre Dateien liegen. Lass sie so; Sara verbindet sich nur dorthin, verschlüsselt, und prüft das Zertifikat."
+    },
+    "pt-BR": {
+      "Talk to her on WhatsApp through your own WhatsApp Business account (Meta's Cloud API).": "Fale com ela no WhatsApp pela sua própria conta do WhatsApp Business (a Cloud API da Meta).",
+      "Phone number ID": "ID do número de telefone",
+      "WhatsApp account ID": "ID da conta do WhatsApp",
+      "Access token": "Token de acesso",
+      "Show typing (also shows blue ticks)": "Mostrar «digitando» (também mostra os tiques azuis)",
+      "Send read receipts": "Enviar confirmações de leitura",
+      "Send reminders and messages she starts to my WhatsApp too": "Enviar também para o meu WhatsApp os lembretes e as mensagens que ela começa",
+      "Nudge me with a paid template when the 24 hours are over": "Me avisar com um modelo pago depois de 24 horas",
+      "Template name": "Nome do modelo",
+      "Graph API version": "Versão da Graph API",
+      "Graph host": "Host do Graph",
+      "Media host": "Host de arquivos",
+      "A long number from Meta's API Setup page, next to her phone number (not the phone number itself). Sara uses it to send as that number.": "Um número longo da página API Setup da Meta, ao lado do número de telefone dela (não o número em si). A Sara usa para enviar como esse número.",
+      "Also on API Setup (Meta may call it Messaging account ID or WhatsApp Business Account ID). Sara uses it to check the setup.": "Também em API Setup (a Meta pode chamar de ID da conta de mensagens ou ID da conta do WhatsApp Business). A Sara usa para conferir a configuração.",
+      "The key from Business Settings → System users → Generate token, with expiry Never. Kept encrypted in Sara's vault and never shown again. Anyone with it can send as this number.": "A chave de Configurações do negócio → Usuários do sistema → Gerar token, com validade Nunca. Fica criptografada no cofre da Sara e nunca mais é mostrada. Quem tiver a chave pode enviar como este número.",
+      "Shows the typing dots while she works. WhatsApp only allows this together with marking your message as read, so you'll see blue ticks too.": "Mostra os pontinhos de «digitando» enquanto ela trabalha. O WhatsApp só permite isso marcando sua mensagem como lida, então você também verá os tiques azuis.",
+      "Blue ticks as soon as she has your message, even when typing is off. Off by default.": "Tiques azuis assim que ela recebe sua mensagem, mesmo com «digitando» desligado. Desligado por padrão.",
+      "Her reminders and messages she starts also come here, but only within 24 hours of your last WhatsApp message (Meta's rule). Free.": "Os lembretes dela e as mensagens que ela começa também chegam aqui, mas só dentro de 24 horas da sua última mensagem no WhatsApp (regra da Meta). Grátis.",
+      "After 24 hours of quiet, Meta only allows pre-approved templates, which cost a few cents. At most one a day, only to you. Off by default.": "Depois de 24 horas sem conversa, a Meta só permite modelos aprovados, que custam alguns centavos. No máximo um por dia, só para você. Desligado por padrão.",
+      "The name of the utility template you made in WhatsApp Manager for the nudge. Sara shows the exact text to submit.": "O nome do modelo de utilidade que você criou no WhatsApp Manager para o aviso. A Sara mostra o texto exato para enviar.",
+      "The version of Meta's API Sara talks to. Leave it unless a Sara update or the Test button tells you to change it.": "A versão da API da Meta com que a Sara fala. Deixe como está, a não ser que uma atualização da Sara ou o botão Testar peça para mudar.",
+      "Where Meta's API and its files live. Leave these as they are; Sara only connects there, encrypted, and checks the certificate.": "Onde ficam a API da Meta e os arquivos dela. Deixe como estão; a Sara só se conecta ali, com criptografia, e confere o certificado."
+    },
+    "it": {
+      "Talk to her on WhatsApp through your own WhatsApp Business account (Meta's Cloud API).": "Parlale su WhatsApp con il tuo account WhatsApp Business (la Cloud API di Meta).",
+      "Phone number ID": "ID del numero di telefono",
+      "WhatsApp account ID": "ID dell'account WhatsApp",
+      "Access token": "Token di accesso",
+      "Show typing (also shows blue ticks)": "Mostra «sta scrivendo» (mostra anche le spunte blu)",
+      "Send read receipts": "Invia le conferme di lettura",
+      "Send reminders and messages she starts to my WhatsApp too": "Manda anche al mio WhatsApp i promemoria e i messaggi che inizia lei",
+      "Nudge me with a paid template when the 24 hours are over": "Avvisami con un modello a pagamento dopo 24 ore",
+      "Template name": "Nome del modello",
+      "Graph API version": "Versione della Graph API",
+      "Graph host": "Host Graph",
+      "Media host": "Host dei file",
+      "A long number from Meta's API Setup page, next to her phone number (not the phone number itself). Sara uses it to send as that number.": "Un numero lungo dalla pagina API Setup di Meta, accanto al suo numero di telefono (non il numero stesso). Sara lo usa per inviare come quel numero.",
+      "Also on API Setup (Meta may call it Messaging account ID or WhatsApp Business Account ID). Sara uses it to check the setup.": "Anche in API Setup (Meta può chiamarlo ID dell'account di messaggistica o ID dell'account WhatsApp Business). Sara lo usa per controllare la configurazione.",
+      "The key from Business Settings → System users → Generate token, with expiry Never. Kept encrypted in Sara's vault and never shown again. Anyone with it can send as this number.": "La chiave da Impostazioni aziendali → Utenti di sistema → Genera token, con scadenza Mai. Resta cifrata nella cassaforte di Sara e non viene più mostrata. Chi la ha può inviare come questo numero.",
+      "Shows the typing dots while she works. WhatsApp only allows this together with marking your message as read, so you'll see blue ticks too.": "Mostra i puntini «sta scrivendo» mentre lavora. WhatsApp lo consente solo segnando il tuo messaggio come letto, quindi vedrai anche le spunte blu.",
+      "Blue ticks as soon as she has your message, even when typing is off. Off by default.": "Spunte blu appena ha il tuo messaggio, anche senza «sta scrivendo». Disattivato di base.",
+      "Her reminders and messages she starts also come here, but only within 24 hours of your last WhatsApp message (Meta's rule). Free.": "I suoi promemoria e i messaggi che inizia arrivano anche qui, ma solo entro 24 ore dal tuo ultimo messaggio WhatsApp (regola di Meta). Gratis.",
+      "After 24 hours of quiet, Meta only allows pre-approved templates, which cost a few cents. At most one a day, only to you. Off by default.": "Dopo 24 ore di silenzio Meta consente solo modelli approvati, che costano pochi centesimi. Al massimo uno al giorno, solo a te. Disattivato di base.",
+      "The name of the utility template you made in WhatsApp Manager for the nudge. Sara shows the exact text to submit.": "Il nome del modello di utilità creato in WhatsApp Manager per l'avviso. Sara mostra il testo esatto da inviare.",
+      "The version of Meta's API Sara talks to. Leave it unless a Sara update or the Test button tells you to change it.": "La versione dell'API di Meta con cui parla Sara. Lasciala com'è, a meno che un aggiornamento di Sara o il pulsante Prova non ti dica di cambiarla.",
+      "Where Meta's API and its files live. Leave these as they are; Sara only connects there, encrypted, and checks the certificate.": "Dove stanno l'API di Meta e i suoi file. Lasciali così; Sara si collega solo lì, cifrata, e controlla il certificato."
+    }
+  }
+}

@@ -14,7 +14,7 @@ per il web, Windows, Mac e telefono.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1705%20passing-brightgreen" alt="1705 tests passing">
+  <img src="https://img.shields.io/badge/tests-1717%20passing-brightgreen" alt="1717 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -113,15 +113,16 @@ Guide di un minuto, registrate su un server di prova con un modello locale (in i
 
 ## Novità
 
+- **2.55** · WhatsApp: scrivile da WhatsApp con il servizio ufficiale di Meta sul tuo account, con una configurazione guidata in 10 passi che li controlla uno per uno.
 - **2.54** · Routine e un controllo di sicurezza: dieci routine pronte (briefing del mattino, controlla la mia CI, avviso prezzo…) con il costo mostrato prima di attivarle, e una pagina che dice con parole semplici quanto è sicura la tua installazione, con correzioni in un clic che rafforzano soltanto.
 - **2.53** · Precisione nel codice: dopo ogni modifica esegue il controllo dei tipi o il linter del tuo progetto e sistema quello che ha rotto nella stessa risposta; indicale le cose con `@file`, `@diff`, `@url` e altro.
-- **2.52** · Quando se ne parla: «quando salta fuori Dan, ricordami che mi deve 20 $» aspetta il nome, non un'ora; e `/continue` riprende nell'app una chat di Telegram o Discord, o viceversa.
 
 <details>
 <summary><b>Cronologia delle versioni</b>: cosa ha portato ogni versione dalla 2.4</summary>
 
 | Versione | Cosa ottieni |
 |---|---|
+| **2.55** · WhatsApp | **WhatsApp** (Impostazioni → Collegamenti → WhatsApp, un plugin facoltativo): scrivile tramite l'API WhatsApp Cloud ufficiale di Meta, con un account e un numero Meta tuoi. Una scheda guidata in 10 passi indica le schermate esatte di Meta, controlla ogni passo con un ✓ e trasforma ogni errore in una frase semplice con la soluzione. Foto e file in entrambe le direzioni, puntini di scrittura e una riga *Ci sto lavorando* con Ferma per i lavori lunghi, solo tu a meno che aggiunga altri numeri, e i suoi primi messaggi solo nella finestra di 24 ore di WhatsApp. Le condizioni di Meta limitano gli assistenti IA generici su WhatsApp, quindi resta spento finché non lo installi e confermi di averle lette. |
 | **2.54** · Routine e un controllo di sicurezza | **Galleria di routine** (Agenda → Routine): briefing del mattino, resoconto settimanale, promemoria per sgranchirsi e per andare a letto, uscire in tempo, controllare la CI di un repo, nuove issue, controllo dei backup, smistare la posta e avviso prezzo. Ogni scheda dice cosa fa, cosa le serve e quanto costa, calcolato nel codice (quasi tutte gratis), mostra un'anteprima senza chiamare modelli e ha un interruttore; quelle a pagamento finiscono alla data che scegli. Gli strumenti mantengono le tue impostazioni di approvazione. **Controllo di sicurezza** (Impostazioni → Dati e salute): 17 controlli in sola lettura, un verdetto a parole (*Sembra sicuro*, *Quasi tutto sicuro*, *Sistema prima questi*) e correzioni in un clic che possono solo rendere tutto più sicuro, ognuna dicendo se si può annullare. I cambiamenti su come si raggiunge Sara sono guidati, mai in un clic. Anche `sara doctor --safety`. |
 | **2.53** · Precisione nel codice | **Controlli dopo le sue modifiche:** quando cambia il codice, Sara esegue il controllo del progetto (tsc, pyright o mypy, cargo check, go vet, eslint), già installato, mai `npx`, senza installare niente, e le passa solo gli errori nuovi nello stesso turno, compresi i file che la modifica ha rotto altrove. Li sistema prima di rispondere (al massimo due solleciti) e la risposta mostra *✓ types clean (tsc)* o cosa resta. Un OK per progetto. **Riferimenti @:** scrivi `@` nella chat per `@file` (con righe), `@folder`, `@diff`, `@branch`, `@problem` o `@url`; le etichette mostrano cosa riceverà e quanto pesa, e funziona come testo in Telegram, Discord e le altre app. I file segreti vengono rifiutati e le chat private non aprono mai pagine web. |
 | **2.52.1** · Collegare un server è facile, foto sistemate | *Collega un server* chiede solo indirizzo e utente; Sara crea la sua chiave, trova la porta e il modo più semplice per entrare (un token cPanel che cancella lei, la tua password una volta o una riga da incollare) e spiega ogni errore con parole semplici. Le foto arrivano sempre a un modello che le vede. |
@@ -208,7 +209,7 @@ Tutte le versioni: [CHANGELOG.md](CHANGELOG.md) · [versioni](https://github.com
 
 In ordine di costruzione, una versione ciascuna ([l'elenco completo](docs/ROADMAP.md)):
 
-- **Poi** (2.55–2.61): foto e file nelle app di chat, parlarle mentre lavora, Signal, email, WhatsApp, iMessage (BlueBubbles) e SMS, «continua finché è fatto», controlli del codice dopo ogni modifica, una galleria di routine e **il Sara Store** per plugin, abilità e server MCP (ComfyUI, Blender, Playwright…) con installazione in un clic e un modo per inviare i tuoi.
+- **Poi** (2.56–2.61): foto e file nelle app di chat, parlarle mentre lavora, Signal, email, WhatsApp, iMessage (BlueBubbles) e SMS, «continua finché è fatto», controlli del codice dopo ogni modifica, una galleria di routine e **il Sara Store** per plugin, abilità e server MCP (ComfyUI, Blender, Playwright…) con installazione in un clic e un modo per inviare i tuoi.
 - L'app per iPhone (in attesa di Apple) e le tue idee nelle [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Il piano completo: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -403,8 +404,8 @@ uno SPEC che nessun test controllava. Quello che aggiunge oggi è il modo di lav
 chiede prima dei passi rischiosi, mostra cosa è stato eseguito), non un punteggio più alto su questi
 insiemi. Dettagli, risultati per compito e come rieseguirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-In più, `npm run check`: un controllo dei tipi e 1720 test automatici con un finto modello guidato
-da script (senza rete, senza GPU): 1705 passano su Windows e gli altri 8 sono test dell'isolamento
+In più, `npm run check`: un controllo dei tipi e 1732 test automatici con un finto modello guidato
+da script (senza rete, senza GPU): 1717 passano su Windows e gli altri 8 sono test dell'isolamento
 solo per Linux, eseguiti su un server Linux.
 
 ## Il confronto

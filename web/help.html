@@ -281,6 +281,10 @@
 <h4 id="howto-co-email">Email</h4>
 <details class="howto-q" id="howto-co-email-connect"><summary>How do I give her an email address?</summary><ol><li>Make an address for her and an app password for it.</li><li>Press Add email, read its card and install it.</li><li>Press Link my email and send her the code as the subject.</li></ol></details>
 <details class="howto-q" id="howto-co-email-sender"><summary>Why didn't she answer my email?</summary><ol><li>Your mail didn't pass your provider's sender check.</li><li>Press Check my sender in Email settings and send her a mail.</li></ol></details>
+<h4 id="howto-co-whatsapp">WhatsApp</h4>
+<details class="howto-q" id="howto-co-whatsapp-connect"><summary>How do I text her on WhatsApp?</summary><ol><li>Tick the box about Meta's rules and press Start.</li><li>Follow the ten steps: each turns ✓ when Sara has checked it.</li><li>Press Link my WhatsApp and send her the code from your phone.</li></ol></details>
+<details class="howto-q" id="howto-co-whatsapp-window"><summary>Why didn't her reminder come to WhatsApp?</summary><ol><li>Meta only lets her write first within 24 hours of your last message.</li><li>Write to her on WhatsApp to open the window again.</li><li>Until then her messages stay in the app.</li></ol></details>
+<details class="howto-q" id="howto-co-whatsapp-stuck"><summary>A step stays red. What now?</summary><ol><li>Read the line under the step: it says what to fix.</li><li>Press This screen looks different if Meta's page doesn't match.</li><li>Press Test to see the first step that fails.</li></ol></details>
 <h4 id="howto-co-apps">Other apps</h4>
 <details class="howto-q" id="howto-co-apps-editor"><summary>How do I use her from my editor?</summary><ol><li>Press Create an API key for another app.</li><li>Copy her address and the key into your editor or tool.</li><li>Pick Sara as the model there.</li></ol></details>
 <details class="howto-q" id="howto-co-apps-alexa"><summary>How do I talk to her through Alexa?</summary><ol><li>Follow Talk to her through Alexa.</li><li>Press Make a link code and say it to Alexa.</li></ol></details>
@@ -448,6 +452,16 @@
   <li><strong>Your sender check:</strong> your mail counts as you only when it passes your provider's sender check. If it doesn't, she does nothing and tells you once a day; press <em>Check my sender</em> to see what your provider records.</li>
   <li><strong>Forwarded mail and strangers:</strong> forwarded text is someone else's words, so every step asks you first. Strangers are never answered and their mail never reaches her; automatic replies, mailing lists and bounces are skipped.</li>
   <li><strong>Threads and files:</strong> every thread is one session. She sends one plain-text mail per turn, with files attached. The first 8,000 characters of a mail reach her; write <em>keep this</em> to keep the whole mail in her library.</li>
+</ul>
+
+<h2 id="whatsapp">WhatsApp</h2>
+<ul>
+  <li><strong>What it is:</strong> WhatsApp comes with Sara as a plugin and stays off until you add it. It uses Meta's official WhatsApp Business service with a Meta account and a number you own; Meta calls your Sara directly. Unofficial WhatsApp Web plugins are refused, because Meta bans their numbers.</li>
+  <li><strong>Meta's rules:</strong> Meta's terms forbid offering a general-purpose AI assistant on WhatsApp as a product, and Meta can restrict an account or number. Tick the box on the page only if you accept that, and use a number you can afford to lose.</li>
+  <li><strong>Set it up:</strong> <em>Settings → Connections → WhatsApp</em>, then ten steps that each turn ✓ when Sara has checked them: add the plugin, make a Meta app, copy two IDs, list your phone on Meta's free test number, make a key that never expires, copy the app secret, give Meta a public address, connect Meta to Sara, send her <code>/link</code> and the code, and <em>Test</em>. A red step says what to fix.</li>
+  <li><strong>The public address:</strong> <em>Open the public door</em> uses Tailscale Funnel for <code>/hook/</code> only; the app itself stays private. A tunnel or your own domain works too.</li>
+  <li><strong>The 24-hour window:</strong> chats you start are free. She can only write first within 24 hours of your last message; otherwise her message stays in the app until you write to her.</li>
+  <li><strong>While she works:</strong> typing, and for a long job one <em>Working on it</em> line with a Stop button, then her answer. Only you can reach her unless you list other numbers; no groups or voice replies. If your WhatsApp identity changes, her tools there pause until you press <em>It's me</em>.</li>
 </ul>
 
 <h2 id="voice">Voice and calls</h2>

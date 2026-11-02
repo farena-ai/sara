@@ -255,6 +255,18 @@ export function cleanThread(v: unknown): { id: string; subject?: string } | unde
 export const STRANGER_LINE = en("Hi! I'm {name}, an AI companion. I only chat with the person who runs me here.");
 /** Phase 117 (§4.4): his identity changed on a bridge (Signal: a new safety number). */
 export const IDENTITY_CHANGED_LINE = en("Your {app} safety number changed. Confirm it's you in Settings before I use my tools here again.");
+/** Phase 122 (WHATSAPP §4.4): the same pause on WhatsApp (Meta's identity change check). */
+export const WA_IDENTITY_LINE = en("Your WhatsApp identity changed (a new phone, or someone else using your number). Confirm it's you in Settings → WhatsApp before I use my tools here again.");
+/** Phase 122 (§4.8): the one working line (a Stop button under it) on platforms that can't edit. */
+export const WORKING_LINE = en('Working on it: {step}');
+export const WORKING_LINE_MS = 20_000;
+/** Phase 122 (§4.5): a partner's "stop" is honoured. */
+export const PARTNER_STOP_LINE = en("OK, I won't write again.");
+/** Phase 122 (§4.12): a reply WhatsApp didn't deliver stays in the app with this note. */
+export const NOT_DELIVERED_NOTE = en("WhatsApp didn't deliver this: {title}. It's here instead.");
+/** Phase 122 (§4.3): messages that arrive this late are filed, not answered; older than 6 h get an apology. */
+export const LATE_FILE_MS = 24 * 3600_000;
+export const LATE_SORRY_MS = 6 * 3600_000;
 
 interface InFile {
   bridge: string;
@@ -293,10 +305,14 @@ export interface BridgeFeatures {
   editEveryMs: number;
   textMax: number;
   ack: 'react' | 'line' | 'none';
+  /** Phase 122 (W4): hours after his last message during which the platform takes her free-form messages (0 = no window). */
+  window: number;
+  /** Phase 122 (W5): reply buttons a message may carry (0 = none; WhatsApp 3). */
+  buttons: number;
 }
 
 /** Phase 117: the v1.2 bridge features Sara offers in `init.bridgeFeatures`. */
-export const BRIDGE_FEATURES_V12 = ['files', 'edit', 'places', 'typing', 'react', 'log', 'threads', 'net', 'oneMessage', 'link'] as const;
+export const BRIDGE_FEATURES_V12 = ['files', 'edit', 'places', 'typing', 'react', 'log', 'threads', 'net', 'oneMessage', 'link', 'window', 'buttons'] as const;
 
 /** Phase 115 (BR1 §4.9): chunk and file caps of the plugin bridge contract v1.1. */
 const PLUGIN_CHUNK_BYTES = 512 * 1024;
@@ -383,6 +399,8 @@ export function readyBridge(b: Record<string, unknown>, files: boolean): BridgeF
     editEveryMs: int(b.editEveryMs, 3000, 120_000, 3000),
     textMax: int(b.textMax, 200, 100_000, 0),
     ack: b.ack === 'react' || b.ack === 'none' ? b.ack : 'line',
+    window: b.window && typeof b.window === 'object' ? int((b.window as { hours?: unknown }).hours, 0, 168, 0) : 0,
+    buttons: int(b.buttons, 0, 3, 0),
   };
 }
 
@@ -1262,6 +1280,10 @@ export class PluginManager {
     const auth = pickAuth(msg.auth, cfg?.authserv);
     const { askerLanguage, chatsSettings, nextSession, ownerLanguage, parseCommand, runCommand, say } = await import('../bridges/commands.ts');
     this.#count(run, 'in');
+    // Phase 122 (W4): his message opens the platform's reply window (by its own timestamp, not arrival).
+    const sentAt = typeof msg.at === 'string' && !Number.isNaN(Date.parse(msg.at)) ? new Date(Math.min(Date.parse(msg.at), this.#now().getTime())).toISOString() : undefined;
+    if (feats?.window && sentAt && !group) bridgeDbModule.noteWindow(store.db, channel, chatId, sentAt, feats.window);
+    const age = sentAt ? this.#now().getTime() - Date.parse(sentAt) : 0;
     // Phase 117 (P4): a link code, before the pairing check (the chat isn't his yet).
     const link = /^\/?link\s+(\d{6})$/i.exec(text);
     if (link && !fileIds.length) {
@@ -1292,7 +1314,10 @@ export class PluginManager {
       this.#unaligned(a, run, bridge, channel, chatId, fromId);
       return { ok: false, reason: 'sender check' };
     }
-    const allowed = (id: string | undefined) => allowListed(cfg, id, chatId, Boolean(auth));
+    // Phase 122 (§13 Q6): on a platform with a reply window (WhatsApp) an empty list means nobody, as for
+    // email; a listed number in + form matches the sender's phone number (the plugin's `phone`).
+    const phone = typeof msg.phone === 'string' && /^\d{6,20}$/.test(msg.phone) ? msg.phone : undefined;
+    const allowed = (id: string | undefined) => allowListed(cfg, id, chatId, Boolean(auth) || Boolean(feats?.window)) || Boolean(phone && (cfg?.allow ?? []).some((x) => x.replace(/^\+/, '') === phone));
     // A private chat that isn't his: only with *Let other people talk to her* (and the allow-list).
     // Groups have their own rule below (a group he is in, or one switched on by hand).
     if (!owner && !paused && !group && (cfg?.others !== true || !allowed(fromId ?? chatId))) {
@@ -1341,7 +1366,25 @@ export class PluginManager {
     }
     const who = owner ? 'owner' : 'partner';
     const lang = owner ? ownerLanguage(a.app) : askerLanguage(msg.lang);
-    if (paused) run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: say(a.app, lang, IDENTITY_CHANGED_LINE, { app: run.manifest.name }) });
+    if (paused) run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: say(a.app, lang, bridge === 'whatsapp' ? WA_IDENTITY_LINE : IDENTITY_CHANGED_LINE, { app: run.manifest.name }) });
+    // Phase 122 (§4.5): a partner who says "stop" is muted until the owner unmutes them (Meta's opt-out rule).
+    if (!owner && feats?.window) {
+      const muteKey = `__muted:${(fromId ?? chatId).toLowerCase()}`;
+      if (this.store.kvGet(run.row.id, a.id, muteKey)) {
+        this.#skip(a, run, channel, 'muted', fromId ?? chatId);
+        return { ok: false, reason: 'muted' };
+      }
+      if (/^\s*stop\s*$/i.test(text) && !fileIds.length) {
+        this.store.kvSet(run.row.id, a.id, muteKey, this.#now().toISOString());
+        run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: say(a.app, lang, PARTNER_STOP_LINE) });
+        return { ok: true, muted: true };
+      }
+    }
+    // Phase 122 (§4.3): Meta kept it while Sara was down. Older than 24 h: filed, not answered (the window is closed).
+    if (feats?.window && age > LATE_FILE_MS) {
+      this.#skip(a, run, channel, 'old', fromId ?? chatId);
+      return { ok: false, reason: 'old' };
+    }
     if (action === 'stop') {
       // The Stop on its progress message: owner chats only (checked here, whatever the plugin says).
       if (!owner) {
@@ -1436,6 +1479,22 @@ export class PluginManager {
         return f?.done && f.chatId === chatId ? { name: f.name, mime: f.mime, bytes: Buffer.concat(f.parts) } : undefined;
       });
       if (got.some((g) => !g)) this.store.log(run.row.id, a.id, 'denied', 'a message named a file that was not complete');
+      // Phase 122 (§4.6): a voice note (the plugin says `voice: true`) is heard, like Telegram's; its words are the message.
+      if (msg.voice === true && got[0]) {
+        const { speechOf } = await import('../speech.ts');
+        const heard = await speechOf(a.app).transcribe(got[0].bytes).catch((err: Error) => {
+          this.store.log(run.row.id, a.id, 'log', `a voice note couldn't be heard: ${err.message}`);
+          sendLine(en("I couldn't hear that voice note. Voice notes need speech-to-text in Settings → Voice."));
+          return '';
+        });
+        if (!heard) return { ok: true, conversation: conv.id, voice: false };
+        const { minorSexualMatch, MINOR_BLOCK_REPLY } = await import('../safety.ts');
+        if (minorSexualMatch(heard)) {
+          run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: MINOR_BLOCK_REPLY });
+          return { ok: true, blocked: 'minor' };
+        }
+        return this.#bridgeTake(a, run, { bridge, chatId, conv, owner, content: `🎤 ${heard}`, extra, lang, place, ...(messageId ? { messageId } : {}) });
+      }
       const isPic = (b: Buffer) => (b[0] === 0xff && b[1] === 0xd8) || b.subarray(0, 4).toString('latin1') === '\x89PNG' || b.subarray(0, 4).toString('latin1') === 'GIF8' || b.subarray(8, 12).toString('latin1') === 'WEBP';
       const pics = got.filter((g): g is NonNullable<typeof g> => Boolean(g && isPic(g.bytes)));
       const docs = got.filter((g): g is NonNullable<typeof g> => Boolean(g && !isPic(g.bytes)));
@@ -1474,7 +1533,8 @@ export class PluginManager {
     const forwarded = typeof msg.forwarded === 'string' ? msg.forwarded.trim().slice(0, 8000) : '';
     const fwdBlock = forwarded ? `\n\n${FORWARDED_NOTE}\n${(await import('../cheap.ts')).fenceLines(forwarded.split(/\r?\n/).filter((l) => l.trim()).slice(0, 400), 'FORWARDED')}` : '';
     if (forwarded || msg.untrusted === true) extra.untrusted = true;
-    const content = roomLine(`${text || (extra.docs?.length ? `📄 ${extra.docs.map((d) => d.name).join(', ')}` : forwarded ? '(forwarded)' : '(photo)')}${described}${fwdBlock}`);
+    const late = feats?.window && age > LATE_SORRY_MS ? `[This message was sent ${Math.round(age / 3600_000)} hours ago while I was offline; start the answer with "Sorry, I was offline."]\n` : '';
+    const content = roomLine(`${late}${text || (extra.docs?.length ? `📄 ${extra.docs.map((d) => d.name).join(', ')}` : forwarded ? '(forwarded)' : '(photo)')}${described}${fwdBlock}`);
     const replyTo = typeof msg.replyTo === 'string' && msg.replyTo.length <= 120 ? msg.replyTo : undefined;
     return this.#bridgeTake(a, run, { bridge, chatId, conv, owner, content, extra, lang, place, ...(messageId ? { messageId } : {}), ...(replyTo ? { replyTo } : {}), ...(thread ? { thread } : {}) });
   }
@@ -1581,16 +1641,49 @@ export class PluginManager {
         scrub: (t) => this.opts.scrub(t),
       }).start();
     }
+    // Phase 122 (WHATSAPP §4.8): a platform that can't edit (WhatsApp) gets, in his chat, one working
+    // line with a Stop button at 20 s instead of a live progress message; nothing more until the reply.
+    let finished = false;
+    let workingShown = false;
+    let workingTimer: unknown;
+    let lastStep = '';
+    const stepWords = feats && !feats.edit && feats.buttons > 0 ? (await import('../../web/step-words.js')).stepWordsWith : undefined;
+    if (stepWords && owner && !room && !one && media.progressOn(a.app, channel, chatId, 'owner-dm')) {
+      const fire = () => {
+        if (finished) return;
+        const ref = `p-${(run.refSeq = (run.refSeq ?? 0) + 1)}`;
+        (run.refs ??= new Map()).set(ref, conv.id);
+        workingShown = true;
+        const step = cut(lastStep || say(a.app, lang, en('Working…')), 180);
+        run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, ref, text: say(a.app, lang, WORKING_LINE, { step }), buttons: [{ id: `st:${ref}`, label: say(a.app, lang, en('⏹ Stop')) }] });
+      };
+      workingTimer = this.opts.clock ? this.opts.clock.setTimeout(fire, WORKING_LINE_MS) : setTimeout(fire, WORKING_LINE_MS);
+      if (!this.opts.clock) (workingTimer as NodeJS.Timeout).unref?.();
+    }
     const done = new Promise<void>((resolveTurn) => {
       void runTracked(conv.id, content, (ev: ChatEvent) => {
         progress?.event(ev);
+        if (stepWords && ev.type === 'tool_call') {
+          try {
+            lastStep = String(stepWords((x: string, p?: Record<string, unknown>) => say(a.app, lang, x, p), ev.name, ev.args ?? {}, '')[0] ?? '');
+          } catch {
+            lastStep = '';
+          }
+        }
         if (owner) out.onEvent(ev);
         if (ev.type === 'token') reply += ev.text;
         else if (ev.type === 'replace') reply = ev.text;
         else if (ev.type === 'notice' && (ev.kind === 'disclosure' || ev.kind === 'crisis')) notices.push(ev.text);
       }, { ...extra })
         .catch(() => undefined)
-        .finally(resolveTurn);
+        .finally(() => {
+          finished = true;
+          if (workingTimer !== undefined) {
+            if (this.opts.clock) this.opts.clock.clearTimeout(workingTimer);
+            else clearTimeout(workingTimer as NodeJS.Timeout);
+          }
+          resolveTurn();
+        });
     });
     // Phase 117 (BRIDGES3 P6): 2.49 raced the turn against 5 minutes and sent whatever text existed,
     // so a long job's answer was cut off and the rest never sent. Now, at 5 minutes, a chat app gets
@@ -1609,7 +1702,7 @@ export class PluginManager {
     if (clock) clock.clearTimeout(timer);
     else clearTimeout(timer as NodeJS.Timeout);
     if (late) {
-      if (!one && progress?.state !== 'shown') run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: say(a.app, lang, STILL_WORKING_LINE) });
+      if (!one && progress?.state !== 'shown' && !workingShown) run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: say(a.app, lang, STILL_WORKING_LINE) });
       this.store.log(run.row.id, a.id, 'call', `bridge ${bridge}: a turn is taking longer than 5 minutes; the reply comes when it ends`);
       await done;
     }
@@ -1718,7 +1811,8 @@ export class PluginManager {
       }
       return { who: 'owner' };
     }
-    if (cfg?.others === true && allowListed(cfg, fromId, chatId, Boolean(auth))) {
+    const phone = typeof msg.phone === 'string' && /^\d{6,20}$/.test(msg.phone) ? msg.phone : undefined;
+    if (cfg?.others === true && (allowListed(cfg, fromId, chatId, Boolean(auth) || Boolean(run.bridge?.window)) || Boolean(phone && (cfg.allow ?? []).some((x) => x.replace(/^\+/, '') === phone)))) {
       if (auth && auth.result !== 'aligned') {
         this.#skip(a, run, channel, 'unaligned', fromId);
         return { who: 'none', reason: 'unaligned' };
@@ -1804,10 +1898,119 @@ export class PluginManager {
       this.#count(run, 'out');
       return;
     }
+    if (msg.type === 'bridge.failed') {
+      void this.#failed(a, run, channel, msg);
+      return;
+    }
     if (msg.type === 'bridge.log') {
       if (!run.bridge?.log || !run.bridge.places) return;
       void this.#roomLog(a, run, channel, msg);
     }
+  }
+
+  /**
+   * Phase 122 (WHATSAPP §4.12): `bridge.failed {chatId, code, title, text?}`: a send the platform
+   * refused. `131047` closes the reply window at once; `137000` (Meta's identity check) pauses his
+   * owner powers there as a changed identity does. A reply that wasn't delivered stays in the app
+   * with a quiet note in its conversation.
+   */
+  async #failed(a: Attached, run: Running, channel: string, msg: InMessage): Promise<void> {
+    const chatId = String(msg.chatId ?? '').trim();
+    if (!ID_RE.test(chatId)) return;
+    const code = cut(String(msg.code ?? ''), 20).replace(/[^\w-]/g, '');
+    const title = cut(this.opts.scrub(String(msg.title ?? '').replace(/[\r\n]+/g, ' ').trim()), 160) || code;
+    const store = a.app.store;
+    if (code === '131047') bridgeDbModule.closeWindow(store.db, channel, chatId, code, this.#now());
+    if (code === '137000') {
+      bridgeDbModule.checkIdentity(store.db, channel, chatId.toLowerCase(), 'refused 137000', this.#now().toISOString());
+      this.#changed();
+    }
+    this.store.log(run.row.id, a.id, 'log', `a send was refused (${code}): ${title}`);
+    const conv = store.currentChannelConversation(channel, chatId, 'owner');
+    if (conv && msg.reply === true) {
+      const { ownerLanguage, say } = await import('../bridges/commands.ts');
+      const meta = { plugin: { id: run.row.id, name: run.manifest.name, note: say(a.app, ownerLanguage(a.app), NOT_DELIVERED_NOTE, { title }), code } };
+      const m = store.addMessage(conv.id, 'notice', `plugin:${meta.plugin.note}`, meta);
+      a.app.events?.publish({ type: 'message', conversationId: conv.id, message: { id: m.id, role: m.role, content: m.content, createdAt: m.createdAt, meta }, reason: 'proactive' });
+    }
+    this.#changed();
+  }
+
+  /**
+   * Phase 122 (W4, §4.10): reminders and messages she starts go to his WhatsApp only with *Send
+   * reminders … too*, only to his own chat, only while his window is open. Closed: they stay in the
+   * app; with *Nudge me* and a template name, one template a day. Never to a partner.
+   */
+  #mirror(a: Attached, ev: Extract<HubEvent, { type: 'message' }>): void {
+    const conv = a.app.store.getConversation(ev.conversationId);
+    if (!conv || conv.partner || conv.private) return;
+    for (const run of a.procs.values()) {
+      if (!run.bridge?.window || run.proc.state !== 'ready') continue;
+      const bridge = run.manifest.permissions.bridges[0];
+      const channel = `plugin-${bridge}`;
+      // Her own replies in that very chat are already there.
+      if (conv.channel === channel && ev.reason === 'reply') continue;
+      const set = this.#settingsOf(a.id, run.row.id, run.manifest);
+      if (set.mirror !== true) continue;
+      const chatId = (this.companionSettings(a.id)[run.row.id]?.bridge?.ownerChats ?? [])[0];
+      if (!chatId) continue;
+      const now = this.#now();
+      if (bridgeDbModule.windowOpen(a.app.store.db, channel, chatId, now)) {
+        run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: ev.reason === 'reminder' ? `⏰ ${ev.message.content}` : ev.message.content, started: true });
+        continue;
+      }
+      const tpl = String(set.nudgeTemplate ?? '').trim();
+      const day = localDate(now.toISOString(), a.app.settings.get().timeZone);
+      if (set.nudge === true && /^[a-z0-9_]{1,512}$/.test(tpl) && this.store.kvGet(run.row.id, a.id, '__nudged') !== day) {
+        this.store.kvSet(run.row.id, a.id, '__nudged', day);
+        run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: '', template: tpl, started: true });
+        this.store.log(run.row.id, a.id, 'log', `the reply window was closed: one nudge template (${tpl}) was sent`);
+      } else this.store.log(run.row.id, a.id, 'log', 'the reply window was closed: her message stays in the app');
+    }
+  }
+
+  /**
+   * Phase 122 (W1, delivery mode `bridge`): a signed webhook body for the plugin that owns the hook,
+   * as one `bridge.webhook` line. True once it accepted (≤ `ms`); false while it isn't running for
+   * that companion, private local mode is on, or it didn't answer in time (Meta retries later).
+   */
+  async deliverBridgeWebhook(pluginId: string, companionId: string, hook: string, raw: Buffer, ms = 5_000): Promise<{ ok: boolean; why?: string }> {
+    const run = this.#attached.get(companionId)?.procs.get(pluginId);
+    if (!run || run.proc.state !== 'ready') return { ok: false, why: 'the plugin is not running for this companion' };
+    if (run.manifest.permissions.webhooks !== 'bridge') return { ok: false, why: 'the plugin has no webhooks permission' };
+    if (privateLocalOn()) return { ok: false, why: 'private local mode is on' };
+    const r = await run.proc.request('bridge.webhook', { hook, body: raw.toString('utf8') }, ms);
+    if (!r || r.type === 'error') return { ok: false, why: r ? cut(String(r.error ?? 'error'), 200) : 'no answer in time' };
+    return { ok: true };
+  }
+
+  /** Phase 122 (W6): one setup step's check or fix, run by the plugin (read-only Graph calls, except the fixes). */
+  async bridgeCheck(pluginId: string, companionId: string, body: Record<string, unknown>, ms = 20_000): Promise<Record<string, unknown>> {
+    const run = this.#attached.get(companionId)?.procs.get(pluginId);
+    if (!run || run.proc.state !== 'ready') return { ok: false, diagnosis: { code: 'NOT_RUNNING' } };
+    const r = await run.proc.request('bridge.check', body, ms);
+    if (!r || r.type === 'error') return { ok: false, diagnosis: { code: 'UNKNOWN', detail: r ? cut(this.opts.scrub(String(r.error ?? '')), 300) : 'no answer in time' } };
+    const { v: _v, id: _id, type: _t, ...rest } = r as Record<string, unknown>;
+    return JSON.parse(this.opts.scrub(JSON.stringify(rest))) as Record<string, unknown>;
+  }
+
+  /** Phase 122: the reply window of the owner's chat (the card and the session panel). */
+  windowView(pluginId: string, companionId: string): { openUntil: string | null; open: boolean; closedBy: string | null } {
+    const a = this.#attached.get(companionId);
+    const row = this.store.get(pluginId);
+    if (!a || !row) return { openUntil: null, open: false, closedBy: null };
+    const channel = `plugin-${this.manifestOf(row).permissions.bridges[0]}`;
+    const chat = (this.companionSettings(companionId)[pluginId]?.bridge?.ownerChats ?? [])[0];
+    const w = chat ? bridgeDbModule.windowOf(a.app.store.db, channel, chat) : undefined;
+    return { openUntil: w?.openUntil ?? null, open: Boolean(chat && bridgeDbModule.windowOpen(a.app.store.db, channel, chat, this.#now())), closedBy: w?.closedBy ?? null };
+  }
+
+  /** Phase 122 (§4.5): partners who said stop, and *Unmute*. */
+  muted(pluginId: string, companionId: string): string[] {
+    return this.store.kvKeys(pluginId, companionId, '__muted:').map((k) => k.slice('__muted:'.length));
+  }
+  unmute(pluginId: string, companionId: string, who: string): void {
+    this.store.kvSet(pluginId, companionId, `__muted:${who.toLowerCase()}`, undefined);
   }
 
   async #roomLog(a: Attached, run: Running, channel: string, msg: InMessage): Promise<void> {
@@ -1907,6 +2110,8 @@ export class PluginManager {
     const fp = bridgeDbModule.cleanFingerprint(l.identity);
     if (fp) bridgeDbModule.pinIdentity(a.app.store.db, `plugin-${l.bridge}`, l.fromId ?? l.chatId.toLowerCase(), fp, this.#now().toISOString());
     this.store.log(run.row.id, a.id, 'log', `linked the owner's chat ${cut(l.chatId, 40)}${fp ? ' (identity pinned)' : ''}`);
+    // Phase 122 (§4.4): WhatsApp switches on Meta's identity change check at linking.
+    if (run.bridge?.window && run.manifest.permissions.webhooks === 'bridge') void run.proc.request('bridge.check', { step: 'fix-identity' }, 20_000).catch(() => undefined);
     this.#changed();
     return { ok: true, line: en("Linked. It's me, {name}, your AI companion.") };
   }
@@ -1985,6 +2190,7 @@ export class PluginManager {
       linked: [...new Set([...(cfg?.ownerChats ?? []), ...(cfg?.ownerIds ?? [])])],
       identityChanged: changed,
       link: run?.bridge?.link === true,
+      ...(run?.bridge?.window ? { window: this.windowView(id, companionId), muted: this.muted(id, companionId) } : {}),
       // Phase 117 part B (email): his provider's id, and whether a mail from his address failed the check today.
       ...(run?.bridge?.threads ? { threads: true, authserv: cfg?.authserv ?? null, ownerUnaligned: run.ownerUnalignedDay === day } : {}),
     };
@@ -2066,6 +2272,7 @@ export class PluginManager {
   }
 
   #onEvent(a: Attached, ev: HubEvent): void {
+    if (ev.type === 'message' && ev.message.role !== 'notice' && ev.reason !== 'reply') this.#mirror(a, ev);
     let type: string | undefined;
     let data: Record<string, unknown> = {};
     if (ev.type === 'planner') {

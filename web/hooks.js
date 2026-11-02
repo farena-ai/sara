@@ -104,6 +104,7 @@ const KINDS = {
   standard: () => t('Standard Webhooks signature'),
   header: () => t('A token in a header (weaker)'),
   url: () => t('The address only (weaker)'),
+  meta: () => t('Meta signature'),
 };
 const ACTIONS = {
   tell: () => t('Tell me'),
@@ -229,7 +230,8 @@ function hookCard(h) {
   card.dataset.hook = h.id;
   const head = el('div', 'hk-head');
   const title = el('div', 'hk-title');
-  title.append(el('strong', '', h.name), el('span', 'skl-desc', doesText(h)));
+  // Phase 122: a chat plugin's bridge hook is locked (made and changed on that plugin's page).
+  title.append(el('strong', '', h.name), el('span', 'skl-desc', h.ownerPlugin ? t('Made by the {name} plugin: it carries your chats with her there. Change it on its page.', { name: h.ownerPluginName }) : doesText(h)));
   const sw = document.createElement('input');
   sw.type = 'checkbox';
   sw.checked = h.enabled;
@@ -250,10 +252,10 @@ function hookCard(h) {
   const menu = el('div', 'tidy-items');
   menu.hidden = true;
   menu.append(
-    btn(t('Change it'), 'ghost', () => openForm(h)),
+    ...(h.ownerPlugin ? [] : [btn(t('Change it'), 'ghost', () => openForm(h))]),
     btn(t('New address (rotate)'), 'ghost', () => rotate(h, false)),
+    ...(h.ownerPlugin ? [] : [btn(t('Remove'), 'ghost danger-text', () => remove(h))]),
     ...(h.verify === 'github' || h.verify === 'standard' || h.verify === 'header' ? [btn(t('New address and secret'), 'ghost', () => rotate(h, true))] : []),
-    btn(t('Remove'), 'ghost danger-text', () => remove(h)),
   );
   overflowMenu(more, menu);
   head.append(title, sw, more, menu);

@@ -33,6 +33,7 @@ import {
   fillTemplate,
   filterWords,
   memoOf,
+  metaDeliveryIds,
   newHexSecret,
   newStandardSecret,
   newUrlSecret,
@@ -65,6 +66,12 @@ export const DEDUPE_MS = 24 * 3600_000;
 export const QUEUE_MAX = 5;
 export const KEEP_DAYS = 14;
 export const MAX_HOOKS = 50;
+/** Phase 122 (WHATSAPP §3.1 W1): a chat plugin's bridge hook: each of her messages brings up to three statuses. */
+export const BRIDGE_LIMITS: HookLimits = { perMin: 300, perDay: 20_000, runsPerDay: 0, budget: 0 };
+/** Phase 122: bridge hooks count against their own server-wide minute budget, not the automations' 120. */
+export const BRIDGE_GLOBAL_PER_MIN = 600;
+/** Phase 122: how long Sara waits for the plugin to accept a bridge delivery before answering 503. */
+export const BRIDGE_ACCEPT_MS = 5_000;
 /** The body every unknown, disabled or wrong-secret hook gets (no oracle). */
 export const NOT_FOUND = { error: 'Not found' };
 
@@ -128,6 +135,10 @@ export interface Hook {
   lastAt: string | null;
   counts: HookCounts;
   memo: Record<string, string>;
+  /** Phase 122: made and locked by this plugin (delivery mode `bridge`: the raw body goes to it). */
+  ownerPlugin: string | null;
+  /** Phase 122: the last successful GET handshake (kind `meta`). */
+  verifiedAt: string | null;
 }
 
 export type DeliveryVerdict = 'accepted' | 'filtered' | 'bad-signature' | 'duplicate' | 'rate-limited' | 'too-big' | 'error';
@@ -177,6 +188,9 @@ const EXTRA_COLUMNS: [string, string][] = [
   ['memo', "TEXT NOT NULL DEFAULT '{}'"],
   ['memory', "TEXT NOT NULL DEFAULT 'none'"],
   ['forward', 'TEXT'],
+  // Phase 122 (WHATSAPP §6.1): a plugin's bridge hook and its last handshake.
+  ['owner_plugin', 'TEXT'],
+  ['verified_at', 'TEXT'],
 ];
 
 type Row = Record<string, unknown>;
@@ -269,7 +283,7 @@ export class HookStore {
       action: cleanAction(json(r.action, {})),
       tools: cleanTools(json(r.tools, []), []),
       companion: String(r.companion ?? 'main'),
-      limits: cleanLimits(json(r.limits, {})),
+      limits: r.owner_plugin ? BRIDGE_LIMITS : cleanLimits(json(r.limits, {})),
       memory: r.memory === 'shared' ? 'shared' : 'none',
       forward: r.forward ? String(r.forward) : null,
       enabled: Number(r.enabled) === 1,
@@ -277,6 +291,8 @@ export class HookStore {
       lastAt: r.last_at ? String(r.last_at) : null,
       counts: counts.day === today ? counts : { day: today, accepted: 0, filtered: 0, rejected: 0 },
       memo: json<Record<string, string>>(r.memo, {}),
+      ownerPlugin: r.owner_plugin ? String(r.owner_plugin) : null,
+      verifiedAt: r.verified_at ? String(r.verified_at) : null,
     };
   }
   all(): Hook[] {
@@ -290,13 +306,14 @@ export class HookStore {
     const r = this.db.prepare('SELECT secret_hash FROM hooks WHERE id = ?').get(id) as Row | undefined;
     return r ? String(r.secret_hash) : undefined;
   }
-  add(h: Omit<Hook, 'createdAt' | 'lastAt' | 'counts' | 'memo' | 'enabled'> & { secretHash: string }): Hook {
+  add(h: Omit<Hook, 'createdAt' | 'lastAt' | 'counts' | 'memo' | 'enabled' | 'ownerPlugin' | 'verifiedAt'> & { secretHash: string; ownerPlugin?: string }): Hook {
     this.db
       .prepare('INSERT INTO hooks (id, name, secret_hash, verify, filters, action, tools, companion, limits, enabled, created_at, counts, sender, preset, memo, memory, forward) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)')
       .run(h.id, h.name, h.secretHash, h.verify, JSON.stringify(h.filters), JSON.stringify(h.action), JSON.stringify(h.tools), h.companion, JSON.stringify(h.limits), this.#ts(), '{}', h.sender, h.preset, '{}', h.memory, h.forward);
+    if (h.ownerPlugin) this.db.prepare('UPDATE hooks SET owner_plugin = ? WHERE id = ?').run(h.ownerPlugin, h.id);
     return this.get(h.id)!;
   }
-  update(id: string, patch: Partial<Pick<Hook, 'name' | 'verify' | 'sender' | 'preset' | 'filters' | 'action' | 'tools' | 'companion' | 'limits' | 'memory' | 'forward' | 'enabled' | 'memo' | 'counts' | 'lastAt'>> & { secretHash?: string }): Hook | undefined {
+  update(id: string, patch: Partial<Pick<Hook, 'name' | 'verify' | 'sender' | 'preset' | 'filters' | 'action' | 'tools' | 'companion' | 'limits' | 'memory' | 'forward' | 'enabled' | 'memo' | 'counts' | 'lastAt' | 'verifiedAt'>> & { secretHash?: string }): Hook | undefined {
     const map: Record<string, [string, unknown]> = {
       name: ['name', patch.name],
       verify: ['verify', patch.verify],
@@ -313,6 +330,7 @@ export class HookStore {
       memo: ['memo', patch.memo && JSON.stringify(patch.memo)],
       counts: ['counts', patch.counts && JSON.stringify(patch.counts)],
       lastAt: ['last_at', patch.lastAt],
+      verifiedAt: ['verified_at', patch.verifiedAt],
       secretHash: ['secret_hash', patch.secretHash],
     };
     const sets: string[] = [];
@@ -431,6 +449,8 @@ export interface ManagerOptions {
   allowLocalTargets?: boolean;
   /** Days of delivery log to keep (Settings → Webhooks). */
   keepDays?: () => number;
+  /** Phase 122: called after a bridge hook's handshake or accepted delivery (the setup card refreshes). */
+  onBridge?: (h: Hook) => void;
 }
 
 /** What a delivery would do or did (the test button and the log). */
@@ -457,6 +477,11 @@ interface Incoming {
 }
 
 const vaultKey = (id: string) => `webhook:${id}`;
+/** Phase 122: a bridge hook's verify token (Meta's handshake) and its URL secret (the setup card shows the address again). */
+const verifyKey = (id: string) => `webhook:${id}:verify`;
+const urlKey = (id: string) => `webhook:${id}:url`;
+/** The plugin's name on the locked row (Settings → Webhooks). */
+const PLUGIN_HOOK_NAMES: Record<string, string> = { whatsapp: 'WhatsApp' };
 const outKey = (id: string) => `webhook-out:${id}`;
 
 export class HookManager {
@@ -513,7 +538,7 @@ export class HookManager {
     const name = cleanName(input.name);
     if (!name) throw new HttpError(400, 'Name the webhook (for example "GitHub CI").');
     const sender = (['github', 'stripe', 'home-assistant', 'other'] as const).find((s) => s === input.sender) ?? 'other';
-    const verifyKind = (VERIFY_KINDS as readonly string[]).includes(String(input.verify)) ? (input.verify as VerifyKind) : sender === 'github' ? 'github' : sender === 'stripe' ? 'stripe' : sender === 'home-assistant' ? 'header' : 'standard';
+    const verifyKind = (VERIFY_KINDS as readonly string[]).includes(String(input.verify)) && input.verify !== 'meta' ? (input.verify as VerifyKind) : sender === 'github' ? 'github' : sender === 'stripe' ? 'stripe' : sender === 'home-assistant' ? 'header' : 'standard';
     const preset = typeof input.preset === 'string' ? presetById(input.preset) : undefined;
     const action = cleanAction(input.action ?? { kind: 'tell', ...(preset ? { template: preset.template } : {}) });
     this.#checkAction(verifyKind, action, input.allowRuns === true);
@@ -561,6 +586,7 @@ export class HookManager {
   change(id: string, input: Record<string, unknown>): { hook: Hook; outSecret?: string } {
     const h = this.store.get(id);
     if (!h) throw new HttpError(404, 'No such webhook.');
+    if (h.ownerPlugin) throw new HttpError(400, `This webhook was made by the ${PLUGIN_HOOK_NAMES[h.ownerPlugin] ?? h.ownerPlugin} plugin: change it on that plugin's page.`);
     const patch: Parameters<HookStore['update']>[1] = {};
     if (input.name !== undefined) {
       const n = cleanName(input.name);
@@ -598,8 +624,9 @@ export class HookManager {
     if (!h) throw new HttpError(404, 'No such webhook.');
     const secret = newUrlSecret();
     this.store.update(id, { secretHash: sha256Hex(secret) });
+    if (h.ownerPlugin) this.opts.vault.set(urlKey(id), secret);
     let senderSecret: string | undefined;
-    if (sender && (h.verify === 'github' || h.verify === 'standard' || h.verify === 'header')) {
+    if (sender && !h.ownerPlugin && (h.verify === 'github' || h.verify === 'standard' || h.verify === 'header')) {
       senderSecret = h.verify === 'standard' ? newStandardSecret() : newHexSecret();
       this.opts.vault.set(vaultKey(id), senderSecret);
     }
@@ -610,6 +637,101 @@ export class HookManager {
     this.store.remove(id);
     this.opts.vault.delete(vaultKey(id));
     this.opts.vault.delete(outKey(id));
+    this.opts.vault.delete(verifyKey(id));
+    this.opts.vault.delete(urlKey(id));
+  }
+
+  // ------------------------------------------------------------------------------------------
+  // Phase 122 (WHATSAPP §3.1 W1): a chat plugin's bridge hook
+  // ------------------------------------------------------------------------------------------
+
+  /** The bridge hook a plugin made for one companion. */
+  bridgeHookFor(plugin: string, companion: string): Hook | undefined {
+    return this.store.all().find((h) => h.ownerPlugin === plugin && h.companion === companion);
+  }
+
+  /**
+   * Makes (or returns) the plugin's bridge hook: kind `meta`, mode `bridge`, locked. The App Secret
+   * goes to the hook's vault entry (only Sara's signature check reads it; the plugin never has it);
+   * Sara makes the verify token (128 bits). A second call with `appSecret` replaces the secret only.
+   */
+  ensureBridgeHook(plugin: string, companion: string, appSecret?: string): { hook: Hook; path: string; verifyToken: string; created: boolean } {
+    let h = this.bridgeHookFor(plugin, companion);
+    let created = false;
+    if (!h) {
+      if (this.store.all().length >= MAX_HOOKS) throw new HttpError(400, 'You have the most webhooks this server keeps (50). Remove one first.');
+      const id = `h${randomBytes(6).toString('hex')}`;
+      const secret = newUrlSecret();
+      h = this.store.add({ id, name: PLUGIN_HOOK_NAMES[plugin] ?? plugin, secretHash: sha256Hex(secret), verify: 'meta', sender: 'other', preset: null, filters: [], action: { kind: 'plugin', plugin }, tools: [], companion: this.#apps.has(companion) ? companion : 'main', limits: BRIDGE_LIMITS, memory: 'none', forward: null, ownerPlugin: plugin });
+      this.opts.vault.set(urlKey(id), secret);
+      this.opts.vault.set(verifyKey(id), randomBytes(16).toString('base64url'));
+      created = true;
+    }
+    if (appSecret !== undefined && appSecret.trim()) this.opts.vault.set(vaultKey(h.id), appSecret.trim().slice(0, 200));
+    return { hook: h, path: this.bridgePath(h.id), verifyToken: this.opts.vault.get(verifyKey(h.id)) ?? '', created };
+  }
+
+  /** *Make a new one*: a new verify token (Meta must be given it again). */
+  newVerifyToken(id: string): string {
+    const v = randomBytes(16).toString('base64url');
+    this.opts.vault.set(verifyKey(id), v);
+    this.store.update(id, { verifiedAt: null });
+    return v;
+  }
+
+  bridgePath(id: string): string {
+    return `/hook/${id}.${this.opts.vault.get(urlKey(id)) ?? ''}`;
+  }
+
+  /** Removing a plugin removes its hooks and their vault entries. */
+  removeForPlugin(plugin: string): number {
+    const mine = this.store.all().filter((h) => h.ownerPlugin === plugin);
+    for (const h of mine) this.remove(h.id);
+    return mine.length;
+  }
+
+  /** The handshake and delivery state the setup card reads (never a body). */
+  bridgeState(id: string): { verifiedAt: string | null; lastVerdict: string | null; lastAt: string | null; badSignatures: number; wrongToken: string | null; lastAccepted: string | null } {
+    const h = this.store.get(id);
+    const rows = this.store.deliveries(id, 20);
+    let bad = 0;
+    for (const r of rows) {
+      if (r.verdict === 'bad-signature') bad++;
+      else if (r.verdict === 'accepted') break;
+    }
+    return {
+      verifiedAt: h?.verifiedAt ?? null,
+      lastVerdict: rows[0]?.verdict ?? null,
+      lastAt: rows[0]?.at ?? null,
+      badSignatures: bad,
+      wrongToken: rows.find((r) => r.result.handshake === 'wrong-token')?.at ?? null,
+      lastAccepted: rows.find((r) => r.verdict === 'accepted')?.at ?? null,
+    };
+  }
+
+  #text(res: ServerResponse, status: number, body: string): void {
+    res.writeHead(status, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', ...SECURITY_HEADERS });
+    res.end(body);
+  }
+
+  /** Meta's GET verify handshake, for a `meta` hook only: `200 text/plain <challenge>` or `403`. */
+  #handshake(req: IncomingMessage, res: ServerResponse, hook: Hook, ip: string): void {
+    const q = new URL(req.url ?? '/', 'http://x').searchParams;
+    const mode = q.get('hub.mode');
+    const token = q.get('hub.verify_token') ?? '';
+    const challenge = q.get('hub.challenge') ?? '';
+    const want = this.opts.vault.get(verifyKey(hook.id)) ?? '';
+    const ok = mode === 'subscribe' && want !== '' && safeEqual(token, want) && /^\d{1,64}$/.test(challenge);
+    if (!ok) {
+      const why = mode !== 'subscribe' ? 'a verify request without hub.mode=subscribe' : !/^\d{1,64}$/.test(challenge) ? 'a verify request without a numeric hub.challenge' : 'Meta tried to verify with a different verify token';
+      this.store.log({ hookId: hook.id, verdict: 'error', deliveryId: null, sender: ip, event: 'verify', size: 0, body: null, result: { error: why, handshake: mode === 'subscribe' && /^\d{1,64}$/.test(challenge) ? 'wrong-token' : 'bad-request' } });
+      this.store.count(hook.id, 'rejected');
+      return this.#text(res, 403, 'Forbidden');
+    }
+    this.store.update(hook.id, { verifiedAt: this.#now().toISOString() });
+    this.store.log({ hookId: hook.id, verdict: 'accepted', deliveryId: null, sender: ip, event: 'verify', size: 0, body: null, result: { handshake: 'ok' } });
+    this.opts.onBridge?.(hook);
+    return this.#text(res, 200, challenge);
   }
 
   hasSenderSecret(id: string): boolean {
@@ -663,6 +785,14 @@ export class HookManager {
 
   /** `POST /hook/<token>`. Never reads a cookie or a session: the URL and the signature are the only keys. */
   async receive(req: IncomingMessage, res: ServerResponse, token: string, ip: string): Promise<void> {
+    // Phase 122: a `meta` hook answers Meta's GET verify handshake; every other kind still says 405.
+    if (req.method === 'GET') {
+      const h = this.lookup(token);
+      await this.#drain(req);
+      if (h?.verify === 'meta') return this.#handshake(req, res, h, ip);
+      if (!h && /^h[0-9a-f]{12}\.[A-Za-z0-9_-]{16,64}$/.test(token) && new URL(req.url ?? '/', 'http://x').searchParams.has('hub.mode')) return this.#answer(res, 404, NOT_FOUND);
+      return this.#answer(res, 405, { error: 'Only POST' });
+    }
     if (req.method !== 'POST') {
       await this.#drain(req);
       return this.#answer(res, 405, { error: 'Only POST' });
@@ -704,7 +834,7 @@ export class HookManager {
       await this.#drain(req);
       return limited('This hook is paused for sending too much', paused - nowMs);
     }
-    if (this.#minute.hit('*', nowMs, 60_000) > GLOBAL_PER_MIN) {
+    if (hook.ownerPlugin ? this.#minute.hit('*bridge', nowMs, 60_000) > BRIDGE_GLOBAL_PER_MIN : this.#minute.hit('*', nowMs, 60_000) > GLOBAL_PER_MIN) {
       await this.#drain(req);
       return limited('Too many deliveries on this server right now', 60_000 - (nowMs - (this.#minute.oldest('*', nowMs, 60_000) ?? nowMs)));
     }
@@ -737,6 +867,7 @@ export class HookManager {
       if (this.#sigFails.hit(ip, nowMs, 60_000) >= SIG_FAILS) this.#pausedIp.set(ip, nowMs + PAUSE_MS);
       return this.#answer(res, 401, { error: 'Bad signature' });
     }
+    if (hook.ownerPlugin) return this.#bridgeDelivery(res, hook, raw, type, ip);
     const { body, text } = parseBody(raw, type);
     const deliveryId = v.deliveryId ?? (hook.verify === 'stripe' ? stripeEventId(body) : undefined) ?? null;
     const event = eventOf(req.headers, body);
@@ -758,6 +889,43 @@ export class HookManager {
     this.store.count(hook.id, 'accepted');
     this.#answer(res, 202, { ok: true });
     this.#track(this.#act(inc, rowId));
+  }
+
+  /**
+   * Phase 122 (W1, delivery mode `bridge`): the raw body goes to the plugin that made the hook as one
+   * `bridge.webhook` line. `200 {"ok":true}` once it accepted (≤ 5 s); `503` while it isn't running,
+   * private local mode is on, or it didn't accept in time, so Meta keeps the delivery and retries for
+   * up to 7 days. The log keeps time, verdict, size and the ids' count, never the body (someone's
+   * private messages); filters, templates and copies don't apply.
+   */
+  async #bridgeDelivery(res: ServerResponse, hook: Hook, raw: Buffer, type: string, ip: string): Promise<void> {
+    let ids: string[] = [];
+    if (type === 'application/json') {
+      try {
+        ids = metaDeliveryIds(JSON.parse(raw.toString('utf8')) as unknown);
+      } catch {
+        ids = [];
+      }
+    }
+    const deliveryId = ids.length ? sha256Hex(ids.join(',')).slice(0, 40) : null;
+    if (deliveryId && this.store.seen(hook.id, deliveryId)) {
+      this.store.log({ hookId: hook.id, verdict: 'duplicate', deliveryId, sender: ip, event: 'messages', size: raw.length, body: null, result: { ids: ids.length } });
+      return this.#answer(res, 200, { ok: true });
+    }
+    const unavailable = (why: string) => {
+      this.store.log({ hookId: hook.id, verdict: 'error', deliveryId: null, sender: ip, event: 'messages', size: raw.length, body: null, result: { error: why, ids: ids.length } });
+      res.writeHead(503, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'retry-after': '60', ...SECURITY_HEADERS });
+      res.end(JSON.stringify({ error: 'Not now: Meta will send it again later' }));
+    };
+    if (privateLocalOn()) return unavailable('private local mode is on');
+    const pm = this.appFor(hook)?.pluginManager;
+    if (!pm || !hook.ownerPlugin) return unavailable('plugins are not available here');
+    const r = await pm.deliverBridgeWebhook(hook.ownerPlugin, hook.companion, hook.id, raw, BRIDGE_ACCEPT_MS);
+    if (!r.ok) return unavailable(r.why ?? 'the plugin did not accept it');
+    this.store.log({ hookId: hook.id, verdict: 'accepted', deliveryId, sender: ip, event: 'messages', size: raw.length, body: null, result: { ids: ids.length, action: 'bridge' } });
+    this.store.count(hook.id, 'accepted');
+    this.opts.onBridge?.(hook);
+    return this.#answer(res, 200, { ok: true });
   }
 
   #track(p: Promise<unknown>): void {
@@ -1137,6 +1305,9 @@ export class HookManager {
       runsToday: this.store.ledger(`webhook:${h.id}`).runs,
       tokensToday: this.store.ledger(`webhook:${h.id}`).tokens,
       hasSecret: this.hasSenderSecret(h.id),
+      ownerPlugin: h.ownerPlugin,
+      ownerPluginName: h.ownerPlugin ? (PLUGIN_HOOK_NAMES[h.ownerPlugin] ?? h.ownerPlugin) : null,
+      verifiedAt: h.verifiedAt,
       paused: (this.#pausedHook.get(h.id) ?? 0) > this.#now().getTime(),
       does: this.describe(h, this.appFor(h)),
     };

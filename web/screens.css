@@ -326,3 +326,38 @@ dialog .saved-tag { color: var(--success); }
 .plg-signal { display: grid; gap: var(--s-2, 8px); justify-items: start; }
 .plg-signal > button { min-height: 44px; }
 .plg-bridge .card-head { padding-right: 52px; }
+
+/* Phase 122 (WHATSAPP §6.3): the WhatsApp setup card. Two columns at 1440 (stepper ≈ 560, the Meta
+   screen ≈ 420), one at 390 with the step's help above its fields. */
+.wa-box { display: grid; gap: var(--s-3, 12px); }
+.wa-grid { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 420px); gap: var(--s-4, 16px); align-items: start; }
+.wa-side { display: grid; gap: var(--s-3, 12px); }
+.wa-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-1, 4px); }
+.wa-step-head { min-height: 44px; width: 100%; text-align: start; background: none; border: 0; color: var(--text-1); font: inherit; padding: var(--s-1, 4px) 0; cursor: pointer; }
+.wa-step.done .wa-step-head { color: var(--success); }
+.wa-step.open .wa-step-head { font-weight: 600; }
+.wa-step-body { display: grid; gap: var(--s-2, 8px); padding: 0 0 var(--s-3, 12px) var(--s-4, 16px); justify-items: start; }
+.wa-step-body > button, .wa-nav > button, .wa-copy > button, .wa-box .add-row > button { min-height: 44px; }
+.wa-path { margin: 0; padding-inline-start: 1.4em; display: grid; gap: 2px; overflow-wrap: anywhere; }
+.wa-path li::marker { color: var(--text-2); }
+.wa-step-body { min-width: 0; }
+.wa-diag { display: grid; gap: var(--s-1, 4px); justify-self: stretch; min-width: 0; max-width: 100%; box-sizing: border-box; overflow-wrap: anywhere; padding: var(--s-2, 8px) var(--s-3, 12px); border-radius: 8px; background: var(--surface-2); }
+.wa-diag > span { display: block; }
+.wa-diag:empty { display: none; }
+.wa-diag[data-state="warn"] { border-inline-start: 3px solid var(--warn); }
+.wa-diag[data-state="ok"] { border-inline-start: 3px solid var(--success); }
+.wa-copy { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-1, 4px) var(--s-2, 8px); align-items: center; width: 100%; }
+.wa-copy .plg-field-name { grid-column: 1 / -1; }
+.wa-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; white-space: pre-wrap; }
+.wa-nav { display: flex; gap: var(--s-2, 8px); flex-wrap: wrap; }
+.wa-terms .row { align-items: center; min-height: 44px; }
+.wa-test { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-1, 4px); }
+.wa-test .grey { color: var(--text-3); }
+.wa-test .bad { font-weight: 600; }
+.wa-details code { overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .wa-grid { grid-template-columns: minmax(0, 1fr); }
+  .wa-side { order: -1; }
+  .wa-step-body { padding-inline-start: 0; }
+  .wa-nav { padding: var(--s-2, 8px) 0 var(--safe-b); }
+}

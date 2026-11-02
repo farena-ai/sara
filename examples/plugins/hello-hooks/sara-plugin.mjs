@@ -21,6 +21,11 @@
 // sara.bridgeSent({ ref, messageId }), sara.status(state, detail), sara.skip(reason, from).
 // sara.bridgeWho({ bridge, chatId, fromId, auth, subject }) asks Sara who a sender is before a
 // message is read ('owner', 'partner', 'link' or 'none'; the email plugin uses it on headers alone).
+// Phase 122 (opt in): `bridge.window: { hours }` (the platform's reply window), `bridge.buttons: n`
+// (reply buttons; `send` then gets `buttons: [{ id, label }]`, a tap comes back as an inbound
+// `action`), and with permissions.webhooks 'bridge' a bridge may handle webhook({ hook, body })
+// (Meta's raw, already signature-checked body) and check({ step, … }) (the setup card).
+// sara.failed({ chatId, code, title, reply }) tells Sara a send was refused.
 //
 // `sara` has: settings, secrets, lang, plugin, companion, fetch(url), tool(name, args), notify(text),
 // card(card), model(prompt, { maxTokens }), kv.get(key) / kv.set(key, value), notes(),
@@ -80,6 +85,7 @@ export function plugin(def = {}) {
     bridgeSent: (m) => write({ type: 'bridge.sent', ...m }),
     status: (state, detail = '') => write({ type: 'bridge.status', state, detail: String(detail).slice(0, 200) }),
     skip: (reason, from = '') => write({ type: 'bridge.skip', reason, from: String(from).slice(0, 120) }),
+    failed: (m) => write({ type: 'bridge.failed', ...m }),
     net: {
       open: async (endpoint, o = {}) => {
         const r = await call('net.open', { endpoint, ...(o.port ? { port: o.port } : {}) });
@@ -139,6 +145,9 @@ export function plugin(def = {}) {
         for (const k of ['places', 'typing', 'react', 'log', 'threads', 'oneMessage', 'link']) if (def.bridge[k] === true && feats.has(k)) bridge[k] = true;
         for (const k of ['editLimit', 'editEveryMs', 'textMax']) if (Number.isInteger(def.bridge[k])) bridge[k] = def.bridge[k];
         if (def.bridge.ack) bridge.ack = def.bridge.ack;
+        // Phase 122: the reply window and reply buttons (only when Sara offers them).
+        if (def.bridge.window && feats.has('window')) bridge.window = def.bridge.window;
+        if (Number.isInteger(def.bridge.buttons) && feats.has('buttons')) bridge.buttons = def.bridge.buttons;
       }
       write({ type: 'ready', tools: (def.tools ?? []).map((t) => ({ name: t.name, description: t.description ?? '', parameters: t.parameters ?? { type: 'object', properties: {} }, permission: t.permission ?? 'ask' })), ...(bridge ? { bridge } : {}) });
       return;
@@ -158,7 +167,8 @@ export function plugin(def = {}) {
       try {
         // Phase 115: `ref` (a progress message to edit later) and `files` (chunks follow as bridge.file).
         // Phase 117: replyTo (a message to quote), thread and subject (email).
-        await def.bridges?.[msg.bridge]?.send?.({ chatId: msg.chatId, text: msg.text, ...(msg.ref ? { ref: msg.ref } : {}), ...(msg.files ? { files: msg.files } : {}), ...(msg.replyTo ? { replyTo: msg.replyTo } : {}), ...(msg.thread ? { thread: msg.thread } : {}), ...(msg.subject ? { subject: msg.subject } : {}) }, sara);
+        // Phase 122: buttons, a template (the paid nudge) and `started` (a message she starts, not a reply).
+        await def.bridges?.[msg.bridge]?.send?.({ chatId: msg.chatId, text: msg.text, ...(msg.ref ? { ref: msg.ref } : {}), ...(msg.files ? { files: msg.files } : {}), ...(msg.replyTo ? { replyTo: msg.replyTo } : {}), ...(msg.thread ? { thread: msg.thread } : {}), ...(msg.subject ? { subject: msg.subject } : {}), ...(msg.buttons ? { buttons: msg.buttons } : {}), ...(msg.template ? { template: msg.template } : {}), ...(msg.started ? { started: true } : {}) }, sara);
       } catch (err) {
         sara.log(`bridge.send failed: ${err?.message ?? err}`, 'error');
       }
@@ -180,6 +190,16 @@ export function plugin(def = {}) {
         sara.log(`${type} failed: ${err?.message ?? err}`, 'error');
       }
       return;
+    }
+    // Phase 122: a signed webhook body (Sara checked the signature) and the setup card's checks.
+    if (msg.type === 'bridge.webhook' || msg.type === 'bridge.check') {
+      const fn = msg.type === 'bridge.webhook' ? 'webhook' : 'check';
+      const b = Object.values(def.bridges ?? {}).find((x) => x?.[fn]);
+      const { v, id, type: _t, ...rest } = msg;
+      return answer(id, async () => {
+        if (!b) throw new Error(`no ${fn} handler`);
+        return (await b[fn](rest, sara)) ?? { ok: true };
+      });
     }
     if (msg.type === 'bridge.test') {
       const b = Object.values(def.bridges ?? {}).find((x) => x?.test);

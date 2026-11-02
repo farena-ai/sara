@@ -5,6 +5,9 @@
 // - bridge_identities: the owner's pinned identity on a bridge (Signal: his safety number). A
 //   changed one pauses his owner powers there until he confirms it in the app (§4.4).
 // - bridge_skips: daily counts of what a bridge ignored and why (only an id or address, never text).
+// - bridge_windows (Phase 122, WHATSAPP §3.1 W4): each chat's reply window on a platform that refuses
+//   her free-form messages after his last message is N hours old (WhatsApp: 24). Meta's own
+//   timestamp of his message counts, not its arrival.
 // - bridge_threads: a mail thread → its conversation (written by the email plugin's turns, part B;
 //   the table and its helpers are here so part B only uses them).
 import type { DatabaseSync } from 'node:sqlite';
@@ -39,6 +42,14 @@ CREATE TABLE IF NOT EXISTS bridge_skips (
   count INTEGER NOT NULL DEFAULT 0,
   last_at TEXT, last_from TEXT,
   PRIMARY KEY (bridge, day, reason)
+);
+CREATE TABLE IF NOT EXISTS bridge_windows (
+  bridge TEXT NOT NULL,
+  chat_key TEXT NOT NULL,
+  last_in_at TEXT NOT NULL,
+  open_until TEXT NOT NULL,
+  closed_by TEXT,
+  PRIMARY KEY (bridge, chat_key)
 );`);
   ready.add(db);
   return db;
@@ -100,7 +111,7 @@ export function forgetIdentity(db: DatabaseSync, bridge: string, chatKey?: strin
   else bridgeDb(db).prepare('DELETE FROM bridge_identities WHERE bridge = ?').run(bridge);
 }
 
-export const SKIP_REASONS = ['stranger', 'unaligned', 'list', 'auto', 'bounce', 'self', 'rate', 'loop', 'size', 'not-to-her', 'group-off', 'linked-mode', 'duplicate', 'other'] as const;
+export const SKIP_REASONS = ['stranger', 'unaligned', 'list', 'auto', 'bounce', 'self', 'rate', 'loop', 'size', 'not-to-her', 'group-off', 'linked-mode', 'duplicate', 'group', 'old', 'muted', 'status-unknown', 'other'] as const;
 
 /** Counts one ignored message (the id or address only). */
 export function countSkip(db: DatabaseSync, bridge: string, day: string, reason: string, from: string, at: string): void {
@@ -144,4 +155,44 @@ export function forgetBridge(db: DatabaseSync, bridge: string): void {
   d.prepare('DELETE FROM bridge_threads WHERE bridge = ?').run(bridge);
   d.prepare('DELETE FROM bridge_identities WHERE bridge = ?').run(bridge);
   d.prepare('DELETE FROM bridge_skips WHERE bridge = ?').run(bridge);
+  d.prepare('DELETE FROM bridge_windows WHERE bridge = ?').run(bridge);
+}
+
+// ------------------------------------------------------------------ Phase 122: the reply window (W4)
+
+export interface BridgeWindow {
+  lastInAt: string;
+  openUntil: string;
+  closedBy: string | null;
+}
+
+/** His message at `at` (the platform's timestamp) opens the window for `hours` (only ever moves it forward). */
+export function noteWindow(db: DatabaseSync, bridge: string, chatKey: string, at: string, hours: number): void {
+  bridgeDb(db);
+  const until = new Date(Date.parse(at) + hours * 3600_000).toISOString();
+  db.prepare(`INSERT INTO bridge_windows (bridge, chat_key, last_in_at, open_until, closed_by) VALUES (?, ?, ?, ?, NULL)
+    ON CONFLICT(bridge, chat_key) DO UPDATE SET last_in_at = excluded.last_in_at, open_until = excluded.open_until, closed_by = NULL WHERE excluded.last_in_at > bridge_windows.last_in_at`).run(bridge, chatKey.toLowerCase(), at, until);
+}
+
+export function windowOf(db: DatabaseSync, bridge: string, chatKey: string): BridgeWindow | undefined {
+  bridgeDb(db);
+  const r = db.prepare('SELECT * FROM bridge_windows WHERE bridge = ? AND chat_key = ?').get(bridge, chatKey.toLowerCase()) as Row | undefined;
+  return r ? { lastInAt: String(r.last_in_at), openUntil: String(r.open_until), closedBy: (r.closed_by as string | null) ?? null } : undefined;
+}
+
+/** Whether she may still send a free-form message to that chat at `now`. */
+export function windowOpen(db: DatabaseSync, bridge: string, chatKey: string, now: Date): boolean {
+  const w = windowOf(db, bridge, chatKey);
+  return Boolean(w && !w.closedBy && Date.parse(w.openUntil) > now.getTime());
+}
+
+/** A send proved it closed early (WhatsApp `131047`). */
+export function closeWindow(db: DatabaseSync, bridge: string, chatKey: string, by: string, now: Date): void {
+  bridgeDb(db);
+  db.prepare('UPDATE bridge_windows SET closed_by = ?, open_until = ? WHERE bridge = ? AND chat_key = ?').run(by.slice(0, 20), now.toISOString(), bridge, chatKey.toLowerCase());
+}
+
+/** The owner's WhatsApp chat window in this companion's store (the routes' *Send me a test message*). */
+export function bridgeWindowOpen(app: { store: { db: DatabaseSync }; now?: () => Date }, chat: string, bridge = 'plugin-whatsapp'): boolean {
+  return windowOpen(app.store.db, bridge, chat, app.now?.() ?? new Date());
 }

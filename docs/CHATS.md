@@ -299,3 +299,12 @@ counts as you only from your linked address **and** when it passes your provider
 forwarded mail is fenced and makes every tool ask first; strangers are never answered and never
 reach her.
 
+## WhatsApp (2.55.0)
+
+WhatsApp comes with Sara as a plugin (Settings → Connections → WhatsApp), off until you add it: see
+[WHATSAPP.md](WHATSAPP.md). It uses Meta's official WhatsApp Business service with your own Meta
+account and number, through a guided ten-step setup that checks each step. It uses the same
+commands, sessions and `/link` as Signal, with these differences: Meta only lets her write first
+within 24 hours of your last message (otherwise it stays in the app); WhatsApp can't edit messages,
+so a long job gets typing and one *Working on it* line with ⏹ Stop; only you can reach her unless
+you list other numbers; no groups or voice replies.

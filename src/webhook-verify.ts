@@ -8,8 +8,8 @@
 // equal-length buffers); the raw body bytes are verified *before* anything parses them.
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-export type VerifyKind = 'github' | 'stripe' | 'standard' | 'header' | 'url';
-export const VERIFY_KINDS: readonly VerifyKind[] = ['github', 'stripe', 'standard', 'header', 'url'];
+export type VerifyKind = 'github' | 'stripe' | 'standard' | 'header' | 'url' | 'meta';
+export const VERIFY_KINDS: readonly VerifyKind[] = ['github', 'stripe', 'standard', 'header', 'url', 'meta'];
 /** Seconds a timestamped signature (Stripe, Standard Webhooks) may be off from now. */
 export const TOLERANCE_S = 300;
 /** The prefix of a Standard Webhooks secret (followed by base64). Built in pieces so key scanners don't flag the code. */
@@ -68,6 +68,37 @@ export function verifyGithub(raw: Buffer, h: Headers, secret: string): Verdict {
   if (!sig.startsWith('sha256=')) return { ok: false, why: 'the signature is not sha256=…' };
   const want = `sha256=${hmacHex(secret, raw)}`;
   return safeEqual(sig.trim(), want) ? { ok: true, ...(deliveryId ? { deliveryId } : {}) } : { ok: false, why: 'the signature does not match' };
+}
+
+/**
+ * Phase 122 (docs/design/WHATSAPP.md §3.1 W1): Meta signs its webhooks the GitHub way
+ * (`X-Hub-Signature-256: sha256=<hex>`, HMAC-SHA256 of the raw bytes with the App Secret), with
+ * Meta's wording when it fails. Meta sends no delivery-id header: the ids come from the body
+ * (`metaDeliveryIds`) after the signature passed.
+ */
+export function verifyMeta(raw: Buffer, h: Headers, appSecret: string): Verdict {
+  const sig = header(h, 'x-hub-signature-256');
+  if (!sig) return { ok: false, why: 'no X-Hub-Signature-256 header: is the App Secret right?' };
+  if (!sig.startsWith('sha256=')) return { ok: false, why: 'the signature is not sha256=…' };
+  return safeEqual(sig.trim(), `sha256=${hmacHex(appSecret, raw)}`) ? { ok: true } : { ok: false, why: "the signature doesn't match the App Secret Sara has" };
+}
+
+/** The message and status ids of a Meta delivery (`wamid…`, `wamid…:read`), for the 24-hour dedupe. Only read after the signature passed. */
+export function metaDeliveryIds(body: unknown): string[] {
+  const out: string[] = [];
+  const entries = (body as { entry?: unknown })?.entry;
+  for (const e of Array.isArray(entries) ? entries.slice(0, 100) : []) {
+    const changes = (e as { changes?: unknown })?.changes;
+    for (const c of Array.isArray(changes) ? changes.slice(0, 100) : []) {
+      const v = (c as { value?: { messages?: unknown; statuses?: unknown } })?.value;
+      for (const m of Array.isArray(v?.messages) ? v.messages.slice(0, 1000) : []) if (typeof (m as { id?: unknown })?.id === 'string') out.push(String((m as { id: string }).id).slice(0, 200));
+      for (const st of Array.isArray(v?.statuses) ? v.statuses.slice(0, 1000) : []) {
+        const x = st as { id?: unknown; status?: unknown };
+        if (typeof x?.id === 'string') out.push(`${x.id.slice(0, 200)}:${String(x.status ?? '').slice(0, 20)}`);
+      }
+    }
+  }
+  return out;
 }
 
 /** Stripe (§3.3 [S6]): `Stripe-Signature: t=<unix>,v1=<hex>[,v1=…]` over `t + "." + body`, |now − t| ≤ 300 s. */
@@ -132,6 +163,7 @@ export function verify(kind: VerifyKind, raw: Buffer, h: Headers, secret: string
   if (kind === 'url') return { ok: true };
   if (!secret) return { ok: false, why: 'this hook has no sender secret yet (paste it on the hook)' };
   if (kind === 'github') return verifyGithub(raw, h, secret);
+  if (kind === 'meta') return verifyMeta(raw, h, secret);
   if (kind === 'stripe') return verifyStripe(raw, h, secret, nowS);
   if (kind === 'standard') return verifyStandard(raw, h, secret, nowS);
   return verifyHeader(h, secret);

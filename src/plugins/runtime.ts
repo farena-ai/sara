@@ -163,7 +163,7 @@ export interface ProcessEvents {
 }
 
 /** Phase 117: the one-way plugin → Sara line types (v1.2). */
-export const ONE_WAY_TYPES = new Set(['bridge.log', 'bridge.sent', 'bridge.status', 'bridge.skip']);
+export const ONE_WAY_TYPES = new Set(['bridge.log', 'bridge.sent', 'bridge.status', 'bridge.skip', 'bridge.failed']);
 export const ONE_WAY_PER_MINUTE = 600;
 
 export type ProcessState = 'starting' | 'ready' | 'stopped' | 'crashed' | 'waiting';

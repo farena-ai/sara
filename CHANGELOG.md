@@ -5,6 +5,24 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.55.0 (2026-11-02): WhatsApp (Phase 122, part 1)
+
+- **WhatsApp** through Meta's official WhatsApp Cloud API, on a Meta account and number you own, as
+  an optional first-party plugin (Settings → Connections → WhatsApp). Off until you install it and
+  tick that you've read Meta's terms, which since January 2026 limit general-purpose AI assistants on
+  WhatsApp (Meta can restrict an account or number). Starts with Meta's free test number.
+- **Guided setup:** 10 steps, each naming the exact Meta screens as a short list and checked with a
+  ✓: make the app, copy two IDs, list your phone, a key that never expires, the App secret (kept in
+  the vault, never given to the plugin), a public door for `/hook/` only (Tailscale Funnel on 8443, or
+  your tunnel or domain), connect Meta, `/link` from your phone, Test. About 20 problems turn into one
+  plain sentence with a fix (expired key, IDs swapped, not subscribed, development mode…).
+- **In chats:** text, photos and files both ways; typing dots and one *Working on it* line with Stop
+  on long jobs; at most 3 messages per reply, paced to Meta's limits. Only you, unless you list other
+  numbers. Her own first messages go only inside WhatsApp's 24-hour window, else they wait in the
+  app. If your WhatsApp identity changes, her tools there pause until you confirm. No groups or voice
+  replies yet. Webhooks gain Meta signatures, the verify handshake and a bridge mode.
+  Guide: [docs/WHATSAPP.md](docs/WHATSAPP.md).
+
 ## 2.54.0 (2026-11-02): routines and a safety check-up (Phase 121)
 
 - **Routines gallery** (Planner → Routines; also on an empty Today and at the end of the wizard): ten

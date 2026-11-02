@@ -871,6 +871,36 @@
    ]
   }
  ],
+ "co-whatsapp": [
+  {
+   "id": "connect",
+   "q": "How do I text her on WhatsApp?",
+   "steps": [
+    "Tick the box about Meta's rules and press Start.",
+    "Follow the ten steps: each turns ✓ when Sara has checked it.",
+    "Press Link my WhatsApp and send her the code from your phone."
+   ],
+   "show": "#wa-chip"
+  },
+  {
+   "id": "window",
+   "q": "Why didn't her reminder come to WhatsApp?",
+   "steps": [
+    "Meta only lets her write first within 24 hours of your last message.",
+    "Write to her on WhatsApp to open the window again.",
+    "Until then her messages stay in the app."
+   ]
+  },
+  {
+   "id": "stuck",
+   "q": "A step stays red. What now?",
+   "steps": [
+    "Read the line under the step: it says what to fix.",
+    "Press This screen looks different if Meta's page doesn't match.",
+    "Press Test to see the first step that fails."
+   ]
+  }
+ ],
  "co-apps": [
   {
    "id": "editor",

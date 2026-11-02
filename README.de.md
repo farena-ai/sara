@@ -14,7 +14,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1705%20passing-brightgreen" alt="1705 tests passing">
+  <img src="https://img.shields.io/badge/tests-1717%20passing-brightgreen" alt="1717 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -114,15 +114,16 @@ Einminütige Anleitungen, aufgenommen auf einem Testserver mit einem lokalen Mod
 
 ## Was ist neu
 
+- **2.55** · WhatsApp: Schreib ihr über WhatsApp, über Metas offiziellen Dienst mit deinem eigenen Konto, mit einer geführten Einrichtung in 10 Schritten, die jeden Schritt prüft.
 - **2.54** · Routinen und ein Sicherheits-Check: zehn fertige Routinen (Morgenbriefing, CI beobachten, Preisalarm…) mit den Kosten, bevor du eine einschaltest, und eine Seite, die in einfachen Worten sagt, wie sicher dein Setup ist, mit Ein-Klick-Korrekturen, die nur verschärfen.
 - **2.53** · Präzises Programmieren: Nach jeder Änderung führt sie den Typprüfer oder Linter deines Projekts aus und behebt, was sie kaputt gemacht hat, in derselben Antwort; zeig ihr Dinge mit `@file`, `@diff`, `@url` und mehr.
-- **2.52** · Wenn es zur Sprache kommt: „Wenn Dan erwähnt wird, erinnere mich, dass er mir 20 $ schuldet“ wartet auf den Namen, nicht auf eine Uhrzeit; und `/continue` holt einen Chat aus Telegram oder Discord in die App, oder umgekehrt.
 
 <details>
 <summary><b>Versionsgeschichte</b>: was jede Version seit 2.4 gebracht hat</summary>
 
 | Version | Was du bekommst |
 |---|---|
+| **2.55** · WhatsApp | **WhatsApp** (Einstellungen → Verbindungen → WhatsApp, ein optionales Plugin): Schreib ihr über Metas offizielle WhatsApp Cloud API mit einem Meta-Konto und einer Nummer, die dir gehören. Eine geführte Karte in 10 Schritten nennt die genauen Meta-Seiten, prüft jeden Schritt mit einem ✓ und macht aus jedem Fehler einen einfachen Satz mit Lösung. Fotos und Dateien in beide Richtungen, Tipp-Punkte und eine *Bin dran*-Zeile mit Stopp bei langen Aufgaben, nur du, außer du trägst weitere Nummern ein, und eigene erste Nachrichten nur im 24-Stunden-Fenster von WhatsApp. Metas Bedingungen schränken allgemeine KI-Assistenten auf WhatsApp ein, daher ist es aus, bis du es installierst und bestätigst, dass du sie gelesen hast. |
 | **2.54** · Routinen und ein Sicherheits-Check | **Routinen-Galerie** (Planer → Routinen): Morgenbriefing, Wochenrückblick, Dehn- und Schlafenszeit-Erinnerungen, pünktlich losgehen, CI eines Repos beobachten, neue Issues, Backup-Check, Posteingang sortieren und Preisalarm. Jede Karte sagt, was sie tut, was sie braucht und was sie kostet, im Code berechnet (die meisten sind kostenlos), zeigt eine Vorschau ohne Modellaufruf und hat einen Aus-Schalter; bezahlte enden an einem Datum deiner Wahl. Werkzeuge behalten deine Freigabe-Einstellungen. **Sicherheits-Check** (Einstellungen → Daten & Zustand): 17 reine Leseprüfungen, ein Urteil in Worten (*Sieht sicher aus*, *Größtenteils sicher*, *Zuerst beheben*) und Ein-Klick-Korrekturen, die nur sicherer machen und sagen, ob sie sich rückgängig machen lassen. Änderungen daran, wie Sara erreichbar ist, werden angeleitet, nie per Klick. Dazu `sara doctor --safety`. |
 | **2.53** · Präzises Programmieren | **Prüfungen nach ihren Änderungen:** Wenn sie Code ändert, führt Sara den Prüfer des Projekts aus (tsc, pyright oder mypy, cargo check, go vet, eslint), sofern schon installiert, nie `npx`, nie installiert sie etwas, und gibt ihr nur die neuen Fehler in derselben Runde, auch Dateien, die ihre Änderung anderswo kaputt gemacht hat. Sie behebt sie vor der Antwort (höchstens zwei Anstöße), und die Antwort zeigt *✓ types clean (tsc)* oder was übrig ist. Ein OK pro Projekt. **@-Verweise:** Tippe `@` im Chatfeld für `@file` (mit Zeilen), `@folder`, `@diff`, `@branch`, `@problem` oder `@url`; Chips zeigen, was sie bekommt und wie groß es ist, und es funktioniert als getippter Text in Telegram, Discord und den anderen Apps. Geheime Dateien werden abgelehnt, und private Chats öffnen nie Webseiten. |
 | **2.52.1** · Server leicht verbinden, Fotos repariert | *Server verbinden* fragt nur nach Adresse und Benutzername; Sara macht ihren Schlüssel, findet den Port und den einfachsten Weg hinein (ein cPanel-Token, das sie selbst löscht, einmal dein Passwort oder eine Zeile zum Einfügen) und erklärt jeden Fehler in einfachen Worten. Fotos erreichen jetzt immer ein Modell, das sie sehen kann. |
@@ -209,7 +210,7 @@ Alle Versionen: [CHANGELOG.md](CHANGELOG.md) · [Releases](https://github.com/fa
 
 In Bau-Reihenfolge, je ein Release ([die ganze Liste](docs/ROADMAP.md)):
 
-- **Danach** (2.55–2.61): Fotos und Dateien in Chat-Apps, mit ihr reden, während sie arbeitet, Signal, E-Mail, WhatsApp, iMessage (BlueBubbles) und SMS, „mach weiter, bis es fertig ist“, Code-Prüfungen nach Änderungen, eine Routinen-Galerie und **der Sara Store** für Plugins, Skills und MCP-Server (ComfyUI, Blender, Playwright…) mit Installation per Klick und einem Weg, eigene einzureichen.
+- **Danach** (2.56–2.61): Fotos und Dateien in Chat-Apps, mit ihr reden, während sie arbeitet, Signal, E-Mail, WhatsApp, iMessage (BlueBubbles) und SMS, „mach weiter, bis es fertig ist“, Code-Prüfungen nach Änderungen, eine Routinen-Galerie und **der Sara Store** für Plugins, Skills und MCP-Server (ComfyUI, Blender, Playwright…) mit Installation per Klick und einem Weg, eigene einzureichen.
 - Die iPhone-App (wartet auf Apple) und deine Ideen in den [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Der ganze Plan: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -406,8 +407,8 @@ wurden. Was sie heute beiträgt, ist die Arbeitsweise (sie lässt die Tests lauf
 riskanten Schritten, zeigt, was gelaufen ist), nicht ein höheres Ergebnis bei diesen Sätzen.
 Details, Ergebnisse pro Aufgabe und wie man es wiederholt: [docs/RESULTS.md](docs/RESULTS.md).
 
-Dazu `npm run check`: eine Typprüfung und 1720 automatische Tests mit einem geskripteten
-Schein-Modell (ohne Netz, ohne GPU): 1705 laufen unter Windows durch, die anderen 8 sind
+Dazu `npm run check`: eine Typprüfung und 1732 automatische Tests mit einem geskripteten
+Schein-Modell (ohne Netz, ohne GPU): 1717 laufen unter Windows durch, die anderen 8 sind
 Linux-spezifische Sandbox-Tests, die auf einem Linux-Server laufen.
 
 ## Sara im Vergleich

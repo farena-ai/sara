@@ -93,6 +93,17 @@ load_access() {
   . "$lib"
 }
 access_cmd() {
+  # Phase 122: `sara access door on|off` (Funnel for /hook/ only; WHATSAPP §3.1 W2).
+  if [[ ${1:-} == door ]]; then
+    [[ -f "$ENV_FILE" ]] || die "Sara isn't installed here ($ENV_FILE is missing)."
+    load_access
+    case "${2:-}" in
+      on) sa_door_on "$PORT" || die "The door didn't open." ;;
+      off) sa_door_off ;;
+      *) die "Use: $NAME access door on | off" ;;
+    esac
+    return 0
+  fi
   local mode="" yes=0 port=""
   while [[ $# -gt 0 ]]; do
     case "$1" in

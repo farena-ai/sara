@@ -467,6 +467,29 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       const acc = accessInfo();
       return send(res, 200, { ...acc, system: systemName(), ...(acc.url ? { qr: `data:image/svg+xml;base64,${Buffer.from(qrSvg(acc.url)).toString('base64')}` } : {}) });
     }
+    // Phase 122 (WHATSAPP §3.1 W2): the public door for /hook/ only. On a tap Sara runs the Tailscale
+    // CLI once (desktop apps, installs where it may) and shows its output; otherwise the command to copy.
+    if (a === 'access' && b === 'door' && method === 'POST') {
+      const body = await readJson(req);
+      if (opts.demo) throw new HttpError(403, 'Not in the demo.');
+      const { doorCommand, runDoor } = await import('../tailscale.ts');
+      const port = Number(process.env.SARA_PORT ?? 7860);
+      const action = body.action === 'close' ? 'close' : body.action === 'check' ? 'check' : 'open';
+      if (action === 'check') {
+        const acc = accessInfo();
+        if (!acc.hookUrl) return send(res, 200, { ok: false, code: 'NO_DOOR' });
+        // *Check from outside* (the ST7 rule: only when he presses it): Sara fetches its own door.
+        const { netFetch } = await import('../net-guard.ts');
+        const r = await netFetch(`${acc.hookUrl}/hook/ping`, { signal: AbortSignal.timeout(15_000) }).catch((err: Error) => ({ status: 0, err: err.message }));
+        const status = (r as { status: number }).status;
+        return send(res, 200, { ok: status === 404 || status === 405, status, code: status === 404 || status === 405 ? undefined : 'DOOR_CLOSED' });
+      }
+      if (process.env.SARA_DOOR_RUN === '0') return send(res, 200, { ok: false, command: doorCommand(port) });
+      const r = runDoor(action, port);
+      if (r.ok && action === 'open' && r.url) process.env.SARA_HOOK_URL = r.url;
+      if (r.ok && action === 'close') delete process.env.SARA_HOOK_URL;
+      return send(res, 200, { ...r, command: doorCommand(port), access: accessInfo() });
+    }
     // Phase 23: updates from Settings (native installs; the root updater does the work).
     if (a === 'update' && !b) {
       const view = () => ({ available: updater.available && !opts.demo, how: updater.how, version: info.version, revision: info.revision, status: updater.status(app.now()) });

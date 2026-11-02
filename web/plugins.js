@@ -67,6 +67,8 @@ const PERM = {
   'Connects to a program on this computer at the address and port you give it in {setting}': (p) => t('Connects to a program on this computer at the address and port you give it in {setting}', p),
   'Connects to a program on this computer at the address you give it in {setting} (ports {ports})': (p) => t('Connects to a program on this computer at the address you give it in {setting} (ports {ports})', p),
   'Connects to the server you give it in {setting} (ports {ports}, always encrypted)': (p) => t('Connects to the server you give it in {setting} (ports {ports}, always encrypted)', p),
+  // Phase 122 (WHATSAPP §4.13): a bridge hook Sara checks and hands over.
+  'Receives messages from Meta at a public web address Sara gives it': () => t('Receives messages from Meta at a public web address Sara gives it'),
 };
 export const permText = (l) => (PERM[l.key] ? PERM[l.key](l.params ?? {}) : l.key);
 const lines = (ls) => (ls ?? []).map((l) => ({ id: l.id, text: permText(l), risk: l.risk }));
@@ -520,6 +522,14 @@ async function renderSettings() {
     }
     return label;
   });
+  // Phase 122: settings marked `advanced` fold under *Advanced* (any plugin may use it).
+  const adv = v.settings.map((s, i) => (s.advanced ? rows[i] : null)).filter(Boolean);
+  if (adv.length) {
+    const det = el('details', 'plg-advanced');
+    det.append(el('summary', '', t('Advanced')), ...adv);
+    for (const a of adv) rows.splice(rows.indexOf(a), 1);
+    rows.push(det);
+  }
   if (v.bridge) {
     const chats = el('label', 'plg-field');
     const ci = document.createElement('input');
