@@ -28,7 +28,8 @@ import { readTextInside } from './codemap/safe-read.ts';
 import { zipStored } from './zip-write.ts';
 
 export type SkillSource = 'made' | 'recipe' | 'imported' | 'learned' | 'plugin' | 'builtin';
-export type SkillStatus = 'ready' | 'needs-review' | 'trial' | 'broken';
+/** Phase 124 (#16): 'archived' = out of her list, kept on disk and in the index (*Bring back*). */
+export type SkillStatus = 'ready' | 'needs-review' | 'trial' | 'broken' | 'archived';
 
 /** §4.5: small sets go whole (up to 24 skills or ~1,600 tokens); bigger ones go ranked. */
 export const CATALOG_WHOLE_MAX = 24;
@@ -497,6 +498,8 @@ export class SkillStore {
     let status: SkillStatus = !meta || broken ? 'broken' : 'ready';
     if (status === 'ready' && source === 'imported' && reviewed && sha !== reviewed) status = 'needs-review';
     if (status === 'ready' && cur && String(cur.status) === 'trial') status = 'trial';
+    // Phase 124: archived stays archived until Bring back (a rescan doesn't undo it).
+    if (cur && String(cur.status) === 'archived' && status !== 'broken') status = 'archived';
     const vals = {
       description: meta?.description ?? '',
       dir,
@@ -854,6 +857,47 @@ export class SkillStore {
     if (s.enabled !== undefined) this.db.prepare('UPDATE skills SET enabled = ? WHERE scope = ? AND name = ?').run(s.enabled ? 1 : 0, scope, name);
     if (s.pinned !== undefined) this.db.prepare('UPDATE skills SET pinned = ? WHERE scope = ? AND name = ?').run(s.pinned ? 1 : 0, scope, name);
     if (s.scriptsAuto !== undefined) this.db.prepare('UPDATE skills SET scripts_auto = ? WHERE scope = ? AND name = ?').run(s.scriptsAuto ? 1 : 0, scope, name);
+    return this.get(scope, name)!;
+  }
+
+  /** Phase 124 (#16): the last time she used it (skill_uses), or undefined. */
+  lastUse(scope: string, name: string): string | undefined {
+    const r = this.db.prepare('SELECT MAX(at) AS at FROM skill_uses WHERE scope = ? AND name = ?').get(scope, name) as { at: string | null } | undefined;
+    return r?.at ?? undefined;
+  }
+  /** Phase 124: the stored meaning vectors ("scope|name" → vector), for spotting near-duplicates. */
+  storedVectors(): Map<string, Float32Array> {
+    const rows = this.db.prepare('SELECT scope, name, vec FROM skill_vectors').all() as { scope: string; name: string; vec: Uint8Array }[];
+    return new Map(rows.map((r) => [`${r.scope}|${r.name}`, new Float32Array(r.vec.buffer.slice(r.vec.byteOffset, r.vec.byteOffset + r.vec.byteLength))]));
+  }
+  /** Phase 124: keeps the current SKILL.md as a version (before a merge archives it). */
+  snapshot(scope: string, name: string, why: string): void {
+    const v = this.get(scope, name);
+    if (v) this.#keepVersion(scope, name, v.dir, why);
+  }
+  /** Phase 124 (#16): Archived is a status, not a delete: out of her list, kept on disk. */
+  archive(scope: string, name: string, why = 'archived by the owner'): SkillView {
+    const v = this.get(scope, name);
+    if (!v) throw new Error('That skill is gone.');
+    if (v.status === 'archived') return v;
+    if (v.status === 'broken') throw new Error("A broken skill can't be archived: fix or delete it.");
+    this.kvSet(`archivedFrom:${scope}/${name}`, JSON.stringify({ status: v.status, why, at: this.#now().toISOString() }));
+    this.db.prepare("UPDATE skills SET status = 'archived' WHERE scope = ? AND name = ?").run(scope, name);
+    return this.get(scope, name)!;
+  }
+  /** Phase 124: *Bring back*: the status it had before (a learned skill on trial stays on trial). */
+  bringBack(scope: string, name: string): SkillView {
+    const v = this.get(scope, name);
+    if (!v) throw new Error('That skill is gone.');
+    if (v.status !== 'archived') return v;
+    let was = 'ready';
+    try {
+      was = (JSON.parse(this.kvGet(`archivedFrom:${scope}/${name}`) ?? '{}') as { status?: string }).status ?? 'ready';
+    } catch {
+      /* ready */
+    }
+    this.db.prepare('UPDATE skills SET status = ? WHERE scope = ? AND name = ?').run(was === 'trial' || was === 'needs-review' ? was : 'ready', scope, name);
+    this.#index(scope, name, v.dir, true);
     return this.get(scope, name)!;
   }
 

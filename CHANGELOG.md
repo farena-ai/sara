@@ -5,6 +5,25 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.57.0 (2026-11-02): the Sara Store opens (Phase 124)
+
+- **A signed shelf at [backstagecoding.com/sara/store](https://backstagecoding.com/sara/store/)**, live
+  today with 12 first-party add-ons: the plugins Weather alerts, Focus, Home scenes, GitHub digest,
+  Reading list and Webhook notes, and tool servers for ComfyUI, Blender, a browser (Playwright),
+  GitHub, files on this computer and docs (Context7), each pinned to an exact version.
+- **Checked before it's shown:** an Ed25519 signature over the exact list (Sara ships the public keys),
+  sha256 pins for every entry, picture and package, a sequence number and an expiry date, and key
+  withdrawal. A damaged, older or withdrawn list is refused and the last good one kept; offline,
+  Sara shows the cached shelf marked *offline*. Browsing sends no id, cookie or query, never in the
+  demo, in "Nothing leaves this computer" mode or for household members. Settings → Privacy → *Sara
+  Store* (on, with *Check now*).
+- **Installing stays safe:** store add-ons go through the usual plugin review card with a *From the
+  Sara Store* strip, and nothing switches on just by installing. An add-on pulled from the store is
+  switched off with a *Pulled from the Sara Store* chip, never deleted. Plugins, Skills and Tool
+  servers link to the store.
+- **Skill tidy-up:** unused skills can be archived and brought back (Skills → *Tidy up*).
+- Browse-and-install inside Sara and submitting your own add-ons come in 2.58. Guide: [docs/STORE.md](docs/STORE.md).
+
 ## 2.56.0 (2026-11-02): lean and tidy (Phase 123)
 
 - **A short tool list per step.** Every step used to send every tool she may use (67 on a fresh

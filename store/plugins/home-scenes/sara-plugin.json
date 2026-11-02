@@ -1,0 +1,28 @@
+{
+  "manifest": 1,
+  "id": "home-scenes",
+  "name": "Home scenes",
+  "version": "1.0.0",
+  "description": "Save the way your lights and switches should be as a named scene, then say \"movie night\" and she sets them through your Home Assistant. Each change asks you first.",
+  "author": "The Sara team",
+  "license": "MIT",
+  "homepage": "https://backstagecoding.com/sara/store/items/home-scenes/",
+  "sara": ">=2.57.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "scene"
+    ],
+    "callTools": [
+      "home_control"
+    ],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    }
+  }
+}

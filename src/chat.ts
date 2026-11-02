@@ -300,6 +300,10 @@ export interface AppContext {
   hands?: import('./hands.ts').HandsHub;
   /** Phase 113: the hub (check-in settings for the owner; Report a problem and My reports for everyone; src/hub.ts). */
   hub?: import('./hub.ts').HubSpace;
+  /** Phase 124: the Sara Store's reader (the owner's server only; src/store/client.ts). */
+  storeClient?: import('./store/client.ts').StoreClient;
+  /** Phase 124: what came from the Sara Store (the owner's sara.db; src/store/installs.ts). */
+  storeInstalls?: import('./store/installs.ts').StoreInstalls;
   /**
    * Phase 71: set in a household member's space: the models the owner allowed them and their daily
    * limits, checked before every model call (src/household.ts). Unset for the owner.

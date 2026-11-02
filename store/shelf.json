@@ -1,0 +1,118 @@
+{
+  "about": "Phase 124: the first shelf. Which first-party items are listed, in this order (the order of *Popular with beginners*).",
+  "author": {
+    "name": "The Sara team",
+    "key": "ed25519:b6c85b3bc5d0bd6770f868338737fa4f64946483f9a27cc081d7bf36451fdab1",
+    "since": "2026-11-02",
+    "contact": "https://backstagecoding.com/sara/#support"
+  },
+  "items": [
+    {
+      "id": "weather-alerts",
+      "kind": "plugin",
+      "category": "everyday",
+      "tags": [
+        "weather",
+        "planner"
+      ],
+      "summary": "Warns you the evening before a storm on a day you might be outside."
+    },
+    {
+      "id": "focus",
+      "kind": "plugin",
+      "category": "everyday",
+      "tags": [
+        "pomodoro",
+        "focus",
+        "timer"
+      ],
+      "summary": "25 minutes on, 5 off: she keeps quiet while you focus and tells you when to stretch."
+    },
+    {
+      "id": "comfyui",
+      "kind": "mcp",
+      "category": "creative"
+    },
+    {
+      "id": "home-scenes",
+      "kind": "plugin",
+      "category": "home",
+      "tags": [
+        "home assistant",
+        "lights",
+        "scenes"
+      ],
+      "summary": "Say “movie night” and she sets the lights the way you saved it in Home Assistant."
+    },
+    {
+      "id": "github-digest",
+      "kind": "plugin",
+      "category": "coding",
+      "tags": [
+        "github",
+        "digest"
+      ],
+      "summary": "Every morning: new issues, reviews waiting for you and failed checks on your repos."
+    },
+    {
+      "id": "reading-list",
+      "kind": "plugin",
+      "category": "knowledge",
+      "tags": [
+        "reading",
+        "rss",
+        "links"
+      ],
+      "summary": "Send her links or feeds: she keeps a reading list and gives you a weekly pick."
+    },
+    {
+      "id": "webhook-notes",
+      "kind": "plugin",
+      "category": "everyday",
+      "tags": [
+        "webhooks",
+        "notes"
+      ],
+      "summary": "When one of your webhooks fires, she keeps a tidy note and tells you if it matters."
+    },
+    {
+      "id": "blender",
+      "kind": "mcp",
+      "category": "creative"
+    },
+    {
+      "id": "playwright",
+      "kind": "mcp",
+      "category": "coding"
+    },
+    {
+      "id": "github",
+      "kind": "mcp",
+      "category": "coding"
+    },
+    {
+      "id": "filesystem",
+      "kind": "mcp",
+      "category": "coding"
+    },
+    {
+      "id": "context7",
+      "kind": "mcp",
+      "category": "coding"
+    }
+  ],
+  "reservedIds": [
+    "sara",
+    "official",
+    "admin",
+    "telegram",
+    "discord",
+    "whatsapp",
+    "signal",
+    "email",
+    "matrix",
+    "imessage",
+    "store",
+    "sara-team"
+  ]
+}

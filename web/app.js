@@ -48,6 +48,7 @@ import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-chec
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
 import { initNav, relabelNav, revealNav, setMore } from './nav.js';
+import { initStore, loadStorePrivacy } from './store.js';
 import { foldFirstRun, hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton, unfoldFirstRun } from './hub.js';
 import { createQueue, normPath, offerText, overlayCount, pathChoices, starterChips, tourFor } from './first-run.js';
 import { emptyState, initTidy, overflowMenu } from './tidy.js';
@@ -231,6 +232,7 @@ async function boot() {
   if (!hubReady) {
     hubReady = true;
     initHub({ demo: Boolean(session.demo), openSettings, queue: firstRun });
+    initStore({ demo: Boolean(session.demo) });
   }
   reportFromHash();
   initVoice();
@@ -7800,7 +7802,11 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'models-local') void loadLocalModels();
   if (pick === 'household') void loadHousehold();
   if (pick === 'account') void loadAccount();
-  if (pick === 'dh-privacy') void loadPrivacy();
+  if (pick === 'dh-privacy') {
+    void loadPrivacy();
+    // Phase 124: the Sara Store row.
+    void loadStorePrivacy();
+  }
   $('#settings-empty').hidden = true;
   $('#settings').classList.add('page-open'); // phone: show the page instead of the list
   $('.settings-pages').scrollTop = 0;

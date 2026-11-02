@@ -29,11 +29,17 @@
 //   GET    /api/skills/learning/fixes/:id      one proposed fix (the diff card)
 //   POST   /api/skills/learning/fixes/:id      { action: apply | dismiss, body? }
 //   POST   /api/skills/:scope/:name/check      { anyway? } the M9 skill check (or "Use it anyway")
+// Phase 124 (SARA_STORE.md §6.7, #16): the skill tidy-up (each person's own skills):
+//   GET    /api/skills/tidy                    this month's card (learned skills unused for 60 days; one near-duplicate)
+//   POST   /api/skills/tidy                    { action: archive | keep | later | merge | not-same | merge-later }
+//   POST   /api/skills/:scope/:name/archive    archive one by hand (any skill but a broken one)
+//   POST   /api/skills/:scope/:name/bring-back out of Archived
 import { join } from 'node:path';
 import { HttpError, readJson, readRaw, SECURITY_HEADERS, send } from '../http.ts';
 import { isPrivateLocalError } from '../net-guard.ts';
 import { fromFolder, fromGit, fromZip, PackageError, SKILL_LIMITS } from '../packages.ts';
 import { checkServerFolder, isScope, type SkillStore, type SkillView } from '../skill-store.ts';
+import { tidyAnswer, tidyCard, type TidyAction } from '../skill-tidy.ts';
 import { LOOKBACK_CHOICES, PER_DAY_CHOICES, type SkillLearner, TIMES_CHOICES } from '../skill-learning.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
@@ -214,6 +220,21 @@ export function createSkillRoutes(ctx: RouteCtx): RouteHandler {
       throw new HttpError(404, 'Not found');
     }
 
+    if (a === 'skills' && b === 'tidy' && !c) {
+      if (method === 'GET') return send(res, 200, { card: tidyCard(skills, app.now()) ?? null });
+      if (method !== 'POST') throw new HttpError(405, 'Method not allowed');
+      const body = await readJson(req);
+      const action = String(body.action ?? '') as TidyAction;
+      if (!['archive', 'keep', 'later', 'merge', 'not-same', 'merge-later'].includes(action)) throw new HttpError(400, 'Unknown action.');
+      try {
+        const r = tidyAnswer(skills, action, app.now());
+        publish();
+        return send(res, 200, { ...r, card: tidyCard(skills, app.now()) ?? null });
+      } catch (err) {
+        return asHttp(err);
+      }
+    }
+
     if (a === 'skills' && b === 'learning') {
       const learner = app.learning;
       if (!learner) {
@@ -316,6 +337,16 @@ export function createSkillRoutes(ctx: RouteCtx): RouteHandler {
           const r = await app.learning.check(b, c, { anyway: body.anyway === true });
           publish();
           return send(res, 200, { ...r, skill: skills.get(b, c) ? brief(skills.get(b, c)!) : null });
+        } catch (err) {
+          return asHttp(err);
+        }
+      }
+      if (method === 'POST' && (e === 'archive' || e === 'bring-back')) {
+        await readJson(req).catch(() => ({}));
+        try {
+          const v = e === 'archive' ? skills.archive(b, c) : skills.bringBack(b, c);
+          publish();
+          return send(res, 200, brief(v));
         } catch (err) {
           return asHttp(err);
         }

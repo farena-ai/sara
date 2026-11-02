@@ -1,0 +1,80 @@
+{
+  "manifest": 1,
+  "id": "focus",
+  "name": "Focus",
+  "version": "1.0.0",
+  "description": "A Pomodoro timer: 25 minutes on, 5 off. She keeps quiet about the timer while you focus and tells you when to stretch.",
+  "author": "The Sara team",
+  "license": "MIT",
+  "homepage": "https://backstagecoding.com/sara/store/items/focus/",
+  "sara": ">=2.57.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "start",
+      "stop"
+    ],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    },
+    "settings": true,
+    "cards": true
+  },
+  "settings": [
+    {
+      "key": "work",
+      "type": "number",
+      "label": "Minutes of focus",
+      "tip": "How long one focus block lasts. 25 is the classic Pomodoro; try 50 for deep work.",
+      "default": 25,
+      "min": 5,
+      "max": 120
+    },
+    {
+      "key": "rest",
+      "type": "number",
+      "label": "Minutes of break",
+      "tip": "How long the break after each block lasts. Stand up, stretch, look away from the screen.",
+      "default": 5,
+      "min": 1,
+      "max": 30
+    }
+  ],
+  "i18n": {
+    "es": {
+      "Minutes of focus": "Minutos de concentración",
+      "Minutes of break": "Minutos de pausa",
+      "How long one focus block lasts. 25 is the classic Pomodoro; try 50 for deep work.": "Cuánto dura un bloque de concentración. 25 es el Pomodoro clásico; prueba 50 para trabajo profundo.",
+      "How long the break after each block lasts. Stand up, stretch, look away from the screen.": "Cuánto dura la pausa después de cada bloque. Levántate, estírate, aparta la vista de la pantalla."
+    },
+    "fr": {
+      "Minutes of focus": "Minutes de concentration",
+      "Minutes of break": "Minutes de pause",
+      "How long one focus block lasts. 25 is the classic Pomodoro; try 50 for deep work.": "Durée d'un bloc de concentration. 25 est le Pomodoro classique ; essayez 50 pour un travail de fond.",
+      "How long the break after each block lasts. Stand up, stretch, look away from the screen.": "Durée de la pause après chaque bloc. Levez-vous, étirez-vous, quittez l'écran des yeux."
+    },
+    "de": {
+      "Minutes of focus": "Minuten Fokus",
+      "Minutes of break": "Minuten Pause",
+      "How long one focus block lasts. 25 is the classic Pomodoro; try 50 for deep work.": "Wie lange ein Fokusblock dauert. 25 ist der klassische Pomodoro; probier 50 für tiefe Arbeit.",
+      "How long the break after each block lasts. Stand up, stretch, look away from the screen.": "Wie lange die Pause nach jedem Block dauert. Steh auf, streck dich, schau weg vom Bildschirm."
+    },
+    "pt-BR": {
+      "Minutes of focus": "Minutos de foco",
+      "Minutes of break": "Minutos de pausa",
+      "How long one focus block lasts. 25 is the classic Pomodoro; try 50 for deep work.": "Quanto dura um bloco de foco. 25 é o Pomodoro clássico; tente 50 para trabalho profundo.",
+      "How long the break after each block lasts. Stand up, stretch, look away from the screen.": "Quanto dura a pausa depois de cada bloco. Levante, alongue-se, tire os olhos da tela."
+    },
+    "it": {
+      "Minutes of focus": "Minuti di concentrazione",
+      "Minutes of break": "Minuti di pausa",
+      "How long one focus block lasts. 25 is the classic Pomodoro; try 50 for deep work.": "Quanto dura un blocco di concentrazione. 25 è il Pomodoro classico; prova 50 per il lavoro profondo.",
+      "How long the break after each block lasts. Stand up, stretch, look away from the screen.": "Quanto dura la pausa dopo ogni blocco. Alzati, allungati, distogli lo sguardo dallo schermo."
+    }
+  }
+}

@@ -140,6 +140,9 @@ import { cookieValue, HouseholdStore, MEMBER_TOKEN_PREFIX, MemberPolicy, MemberS
 import type { Vault as VaultT } from './vault.ts';
 import { AlexaService } from './alexa.ts';
 import { PresenceWorker } from './presence.ts';
+import { applyIndex, localStore, storeBase, storeBlocked, StoreClient } from './store/client.ts';
+import { StoreInstalls } from './store/installs.ts';
+import { storeSettings } from './routes/store.ts';
 import { detectChannel, hubArch, hubBase, type HubOs, hubOs, HubPinger, HubState, modelKind, pingBlocked, scrubText, TicketStore, type HubFacts, type HubSpace } from './hub.ts';
 import { appLanguage } from './i18n.ts';
 import { homedir } from 'node:os';
@@ -378,6 +381,30 @@ const pluginManager = isDemo
       pdb.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;');
       return new PluginManager({ db: pdb, dataDir, vault, sandbox, events, scrub: (s) => redactor.redact(s) });
     })();
+
+// Phase 124 (docs/store/SARA_STORE.md §6.2): the Sara Store's reader (the owner's server only; never
+// the demo or a member's space). It downloads the one public list once a day through the network
+// guard; SARA_STORE_URL points it at a local fake (tests, local checks), and only with such a local
+// address may SARA_STORE_TEST_KEYS name a JSON file of test public keys (never in production).
+const storeUrl = storeBase(process.env);
+let storeOn: () => boolean = () => true;
+const storeTestKeys = ((): Record<string, string> | undefined => {
+  const f = process.env.SARA_STORE_TEST_KEYS;
+  if (!f || !localStore(storeUrl)) return undefined;
+  try {
+    return JSON.parse(readFileSync(f, 'utf8')) as Record<string, string>;
+  } catch {
+    return undefined;
+  }
+})();
+const storeClient = isDemo ? undefined : new StoreClient({ dataDir, base: storeUrl, blocked: () => storeBlocked({ demo: isDemo, on: storeOn(), base: storeUrl }), ...(storeTestKeys ? { keys: storeTestKeys } : {}), log: (l) => console.warn(l) });
+const storeInstalls = pluginManager ? new StoreInstalls(pluginManager.store.db) : undefined;
+if (storeClient) {
+  storeClient.onIndex = async (index) => {
+    await applyIndex(index, { client: storeClient, ...(storeInstalls ? { installs: storeInstalls } : {}), ...(pluginManager ? { plugins: pluginManager } : {}) });
+  };
+  if (pluginManager) pluginManager.storeMatch = (sha) => storeClient.match(sha);
+}
 
 // Phase 100 (ST5, docs/A2A.md): A2A, the owner's only (never a member's space, never the demo). One
 // server and one client for the owner's companions, on their own connection to the owner's sara.db;
@@ -1001,6 +1028,12 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.pluginManager = pluginManager;
     pluginManager.attach(id, app);
   }
+  // Phase 124: the Sara Store (the owner's; its switch is in the main companion's owner settings).
+  if (!isMember && storeClient) {
+    app.storeClient = storeClient;
+    if (storeInstalls) app.storeInstalls = storeInstalls;
+    if (id === 'main') storeOn = () => storeSettings(app.settings.get() as never).on;
+  }
   // Phase 100: A2A for the owner's companions (the main one answers peers; her tools on each).
   if (!isMember && a2aDb) {
     if (!a2aServer && main) {
@@ -1346,6 +1379,13 @@ server.listen(port, host, () => {
   if (!isDemo) healthHistory?.start();
   // Phase 113: the anonymous daily check-in (10–60 minutes after start, then about daily).
   hubPinger?.start();
+  // Phase 124: blocks known from the cached store list apply at start; then the daily look.
+  if (storeClient) {
+    const cached = storeClient.current();
+    if (cached) void storeClient.onIndex?.(cached.index);
+    const first = Number(process.env.SARA_STORE_FIRST_MS);
+    storeClient.startDaily(Number.isFinite(first) && first > 0 && localStore(storeUrl) ? { firstMs: first } : {});
+  }
   void bridges?.discord?.restart().then(() => {
     const st = bridges!.discord!.status();
     if (st.running || st.error) console.log(`Discord: ${st.running ? `${st.bot} ${st.linked ? '(linked)' : '(not linked yet)'}` : `not running (${st.error})`}`);
@@ -1382,6 +1422,7 @@ async function shutdown(): Promise<void> {
   bridges?.telegram?.stop();
   bridges?.discord?.stop();
   mcp.stopAll();
+  storeClient?.stop();
   await pluginManager?.stopAll().catch(() => {});
   server.close(() => {
     for (const c of companions.all()) c.app.store.close();

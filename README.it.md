@@ -14,7 +14,7 @@ per il web, Windows, Mac e telefono.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1751%20passing-brightgreen" alt="1751 tests passing">
+  <img src="https://img.shields.io/badge/tests-1768%20passing-brightgreen" alt="1768 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -113,15 +113,16 @@ Guide di un minuto, registrate su un server di prova con un modello locale (in i
 
 ## Novità
 
+- **2.57** · Apre il Sara Store: uno scaffale firmato di componenti su backstagecoding.com/sara/store (sei piccoli plugin e sei server di strumenti, tra cui ComfyUI e Blender), che ogni Sara controlla prima di mostrarlo.
 - **2.56** · Leggera e ordinata: a ogni passo le vengono offerti solo gli strumenti adatti (dal 54 al 77 % di token in meno per passo, misurato), il resto lo cerca lei, e `/compact` riassume una chat lunga in un riassunto che puoi vedere e annullare.
 - **2.55** · WhatsApp: scrivile da WhatsApp con il servizio ufficiale di Meta sul tuo account, con una configurazione guidata in 10 passi che li controlla uno per uno.
-- **2.54** · Routine e un controllo di sicurezza: dieci routine pronte (briefing del mattino, controlla la mia CI, avviso prezzo…) con il costo mostrato prima di attivarle, e una pagina che dice con parole semplici quanto è sicura la tua installazione, con correzioni in un clic che rafforzano soltanto.
 
 <details>
 <summary><b>Cronologia delle versioni</b>: cosa ha portato ogni versione dalla 2.4</summary>
 
 | Versione | Cosa ottieni |
 |---|---|
+| **2.57** · Apre il Sara Store | **Uno scaffale firmato** su [backstagecoding.com/sara/store](https://backstagecoding.com/sara/store/): Avvisi meteo, Concentrazione, Scene di casa, Riepilogo GitHub, Lista di lettura e Note webhook, più server di strumenti per ComfyUI, Blender, un browser (Playwright), GitHub, i file di questo computer e la documentazione (Context7), ognuno con una versione esatta fissata. Sara controlla la firma della lista, l'impronta di ogni file e la scadenza prima di mostrare qualcosa; una lista danneggiata, vecchia o ritirata viene rifiutata e si tiene l'ultima buona. Sfogliare non invia identificativi né cookie. Le installazioni passano sempre dalla solita scheda di revisione e niente si accende da solo; ciò che viene ritirato dal negozio si spegne, non si cancella mai. **Riordino delle skill:** quelle inutilizzate si possono archiviare e riprendere. Prossimamente: installare da Sara e inviare le tue. |
 | **2.56** · Leggera e ordinata | **Una lista corta di strumenti per passo:** scelta nel codice (senza chiamare modelli) in base a cosa stai facendo: la modalità, le tue parole, i riferimenti `@`, l'uso recente, una skill caricata, i giri precedenti di un obiettivo, più gli strumenti sempre tenuti per sicurezza. Il resto lo trova lei con *find tools*, e ogni chiamata è sempre controllata contro tutto ciò che le è permesso. Misurato: un'installazione nuova passa da 11.871 a 5.471 token per passo (−54 %); con quattro server MCP, da 23.476 a 5.438 (−77 %). `/tools` mostra cosa viene offerto. **`/compact`:** riassume la parte vecchia di una chat lunga, scritto prima su questo computer (le chat private non lo lasciano mai). I tuoi messaggi restano nel filo, con *Mostra riassunto* e *Annulla*; parte anche da solo vicino al limite e i messaggi di crisi restano parola per parola. Funziona in ogni app di chat. |
 | **2.55.3** · MCP su Windows | Corretto: su Windows i server MCP avviati con `npx` (compresi i modelli integrati) non partivano. |
 | **2.55.2** · iMessage | **iMessage tramite BlueBubbles** (Impostazioni → Collegamenti → iMessage, un plugin facoltativo): scrivile da Messaggi sul tuo iPhone. Serve un Mac con BlueBubbles e un ID Apple tutto suo (Sara si rifiuta di usare il tuo, vedrebbe tutte le tue chat). Otto passi guidati controllati con un ✓, soluzioni semplici, testo, foto e file, e recupera ciò che è arrivato mentre era offline. Puntini di scrittura e tapback solo se la Private API di BlueBubbles è già attiva; Sara non ti chiede mai di abbassare la sicurezza del Mac per questo. |
@@ -213,7 +214,7 @@ Tutte le versioni: [CHANGELOG.md](CHANGELOG.md) · [versioni](https://github.com
 
 In ordine di costruzione, una versione ciascuna ([l'elenco completo](docs/ROADMAP.md)):
 
-- **Poi** (2.57–2.61): foto e file nelle app di chat, parlarle mentre lavora, Signal, email, WhatsApp, iMessage (BlueBubbles) e SMS, «continua finché è fatto», controlli del codice dopo ogni modifica, una galleria di routine e **il Sara Store** per plugin, abilità e server MCP (ComfyUI, Blender, Playwright…) con installazione in un clic e un modo per inviare i tuoi.
+- **Poi** (2.58–2.61): foto e file nelle app di chat, parlarle mentre lavora, Signal, email, WhatsApp, iMessage (BlueBubbles) e SMS, «continua finché è fatto», controlli del codice dopo ogni modifica, una galleria di routine e **il Sara Store** per plugin, abilità e server MCP (ComfyUI, Blender, Playwright…) con installazione in un clic e un modo per inviare i tuoi.
 - L'app per iPhone (in attesa di Apple) e le tue idee nelle [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Il piano completo: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -408,8 +409,8 @@ uno SPEC che nessun test controllava. Quello che aggiunge oggi è il modo di lav
 chiede prima dei passi rischiosi, mostra cosa è stato eseguito), non un punteggio più alto su questi
 insiemi. Dettagli, risultati per compito e come rieseguirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-In più, `npm run check`: un controllo dei tipi e 1766 test automatici con un finto modello guidato
-da script (senza rete, senza GPU): 1751 passano su Windows e gli altri 8 sono test dell'isolamento
+In più, `npm run check`: un controllo dei tipi e 1783 test automatici con un finto modello guidato
+da script (senza rete, senza GPU): 1768 passano su Windows e gli altri 8 sono test dell'isolamento
 solo per Linux, eseguiti su un server Linux.
 
 ## Il confronto

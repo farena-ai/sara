@@ -241,6 +241,8 @@ function pluginCard(p) {
   chips.append(chip(FENCE[p.fenced]?.() ?? p.fenced, p.fenced === 'node-only' ? 'warn' : ''));
   if (p.status === 'crashed') chips.append(chip(t('Switched off: it kept crashing'), 'bad'));
   if (p.status === 'disabled' && p.statusNote === 'changed') chips.append(chip(t('Switched off: its files changed'), 'bad'));
+  // Phase 124: the Sara Store pulled it (the store's reason, shown as plain text).
+  if (p.status === 'disabled' && String(p.statusNote ?? '').startsWith(STORE_PULLED)) chips.append(chip(t('Pulled from the Sara Store: {reason}', { reason: p.statusNote.slice(STORE_PULLED.length) }), 'bad'));
   if (p.origin === 'builtin') chips.append(chip(t('Comes with Sara'), 'muted'));
   else if (p.author) chips.append(chip(t('By {who}', { who: p.author }), 'muted'));
   card.append(chips);
@@ -364,6 +366,15 @@ function kb(n) {
   return n < 1024 ? t('{n} bytes', { n }) : t('{n} KB', { n: Math.round(n / 102.4) / 10 });
 }
 
+/** Phase 124: the store strip on a review card, by trust level. */
+const STORE_STRIP = {
+  'first-party': () => t('From the Sara Store · Made by the Sara team'),
+  reviewed: () => t('From the Sara Store · Reviewed by the Sara team'),
+  community: () => t('From the Sara Store · Not reviewed by people yet'),
+};
+/** Phase 124: how a plugin's note starts when the store switched it off (src/store/client.ts PULLED_NOTE). */
+const STORE_PULLED = 'The Sara Store pulled this: ';
+
 /** The review card for the staged plugin (install, or an update: short when nothing new is asked). */
 export function reviewCard(r, opts = {}) {
   const m = r.manifest;
@@ -371,11 +382,14 @@ export function reviewCard(r, opts = {}) {
   const title = r.kind === 'update' ? (r.short ? t('{name} {version}: same permissions', { name: m.name, version: m.version }) : t('{name} {version} asks for more', { name: m.name, version: m.version })) : t('Add {name} {version}?', { name: m.name, version: m.version });
   const chips = [{ text: FENCE[r.fence]?.() ?? r.fence, cls: r.fence === 'node-only' ? 'warn' : '' }, ...(m.license ? [{ text: m.license }] : []), ...(r.current ? [{ text: t('Now: {version}', { version: r.current.version }) }] : [])];
   const why = [own(i18n, m.description)];
+  // Phase 124 (SARA_STORE.md §6.1): the files match a version in the verified Sara Store list.
+  if (r.store) why.push(STORE_STRIP[r.store.trust]?.() ?? STORE_STRIP.community());
   if (r.builtin) why.push(t('Comes with Sara · made by the Sara team'));
   else if (m.author) why.push(t('By {who}', { who: m.author }));
   const warn = [];
   if (r.fence === 'node-only') warn.push(t("This computer can't fence the plugin in. Only add plugins you trust."));
   for (const f of r.findings ?? []) warn.push(FINDING[f.kind] ? FINDING[f.kind](f) : f.text);
+  if (r.store?.yanked) warn.push(t('This version was pulled from the store: {reason}', { reason: r.store.yanked }));
   if (r.unknownCallTools?.length) warn.push(t('It asks for tools this server does not have: {names}', { names: r.unknownCallTools.join(', ') }));
   const body = [];
   if (!r.short) {

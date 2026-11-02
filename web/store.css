@@ -1,0 +1,23 @@
+/* Phase 124 (docs/store/SARA_STORE.md §6.1, §11.1): the Sara Store row in Settings → Privacy and the
+   *More in the Sara Store* links. Theme tokens only; 44 px targets. */
+.store-privacy { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+.store-privacy button:not(.tip) { min-height: 44px; }
+.store-notices { display: flex; flex-direction: column; gap: 6px; }
+.store-notice span { flex: 1 1 14rem; min-width: 0; overflow-wrap: anywhere; }
+.store-more { margin: 4px 0 8px; }
+.store-more a { display: inline-flex; align-items: center; min-height: 44px; }
+
+/* Phase 124 (#16): the skill tidy-up card and the Archived fold on Settings → Abilities → Skills. */
+.skl-tidy { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+.skl-tidy-card { flex-direction: column; align-items: stretch; }
+.skl-tidy-card p { margin: 0; overflow-wrap: anywhere; }
+.skl-tidy-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.skl-tidy-acts button { min-height: 44px; }
+.skl-diff { max-height: 40vh; overflow: auto; white-space: pre-wrap; font-size: 0.85em; }
+.skl-archived { margin: 12px 0; }
+.skl-archived summary { min-height: 44px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.skl-archived-list { display: flex; flex-direction: column; gap: 6px; }
+.skl-archived-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.skl-archived-name { font-weight: 600; }
+.skl-archived-row .muted { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
+.skl-archived-row button { min-height: 44px; }

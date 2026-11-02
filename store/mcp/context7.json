@@ -1,0 +1,73 @@
+{
+  "id": "context7",
+  "version": "1.0.0",
+  "name": "Docs (Context7)",
+  "category": "coding",
+  "tags": [
+    "docs",
+    "libraries",
+    "coding"
+  ],
+  "summary": "Look up current documentation for the libraries you code with.",
+  "description": "Lets her look up current, version-specific documentation for the libraries you code with, so her code uses today's APIs. Read only.",
+  "about": [
+    "Context7 serves up-to-date documentation and code examples for thousands of libraries. She asks it when she writes code with a library.",
+    "It works without a key; a free key from context7.com raises its limits. Its code comes from npm (@upstash/context7-mcp, version 4.4.4); we tested that version."
+  ],
+  "license": "MIT",
+  "source": "https://github.com/upstash/context7",
+  "needs": [
+    "node"
+  ],
+  "works": [
+    "windows",
+    "macos",
+    "linux"
+  ],
+  "mcp": {
+    "registry": "npm:@upstash/context7-mcp",
+    "transport": "stdio",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@upstash/context7-mcp@4.4.4"
+    ],
+    "name": "context7",
+    "fields": [],
+    "secrets": [
+      {
+        "key": "CONTEXT7_API_KEY",
+        "kind": "secret",
+        "label": "Context7 key (optional)",
+        "optional": true,
+        "tip": "Optional. A free key from context7.com raises how many lookups you can do. Leave it empty to use it without one."
+      }
+    ],
+    "reaches": [
+      "context7.com"
+    ],
+    "tools": {
+      "readOnly": [
+        "resolve-library-id",
+        "query-docs"
+      ],
+      "ask": []
+    },
+    "needs": [
+      "node"
+    ],
+    "guide": [
+      "Add this tool server, then press Test."
+    ]
+  },
+  "changes": [
+    "First listing."
+  ],
+  "tested": [
+    {
+      "os": "windows",
+      "sara": "2.57.0"
+    }
+  ],
+  "reviewNotes": "Started on Windows 11 with Sara 2.57.0: initialize and tools/list answered with 2 tools."
+}

@@ -33,6 +33,7 @@
   <link rel="stylesheet" href="/busy.css">
   <link rel="stylesheet" href="/persist.css">
   <link rel="stylesheet" href="/lean.css">
+  <link rel="stylesheet" href="/store.css">
   <link rel="stylesheet" href="/begin.css">
   <link rel="stylesheet" href="/refs.css">
   <link rel="stylesheet" href="/recall.css">
@@ -2873,6 +2874,7 @@
       <p class="muted small page-lead">Skills are how-tos she follows for kinds of tasks: a code review, a changelog entry, a weekly review, a trip. She sees the list in every chat with you and opens the one that fits. They are folders in the open Agent Skills format, so you can bring them from other apps and take them along.</p>
       <p id="skl-migrated" class="skl-note" hidden></p>
       <div class="add-row skl-top"><button id="skl-new" type="button">New skill</button><button id="skl-add" type="button" class="ghost">Add a skill</button><button id="skl-export-all" type="button" class="ghost">Export all</button></div>
+      <p class="muted small store-more"><a class="store-link" href="https://backstagecoding.com/sara/store/" target="_blank" rel="noopener noreferrer">More in the Sara Store</a></p>
       <div id="skl-recipe-row" class="add-row" hidden><label>From a recipe <select id="skl-recipe"></select></label><button id="skl-recipe-go" type="button" class="ghost">Make it a skill</button></div>
       <h3>How she uses them <button type="button" class="tip" data-tip="She sees the name and description of every skill that is on: all of them up to 24, or the 12 that fit best (plus the ones you pin) from a longer list. She opens a skill's steps only when a request fits.">?</button></h3>
       <ul class="skl-how muted small">
@@ -2901,7 +2903,12 @@
       <label class="skl-filter">Show <select id="skl-show"><option value="all">All skills</option><option value="on">Switched on</option><option value="mine">Mine</option><option value="builtin">Built in</option></select></label>
       <h3 id="skl-projects-head" hidden>Project skills <button type="button" class="tip" data-tip="A workspace can carry its own skills in .agents/skills. A cloned project could use them to steer her, so they are left out until you trust that workspace here. Stop trusting removes them again.">?</button></h3>
       <div id="skl-projects" class="skl-projects" hidden></div>
+      <div id="skl-tidy" class="skl-tidy" hidden></div>
       <div id="skl-list" class="skl-list"></div>
+      <details id="skl-archived" class="skl-archived" hidden>
+        <summary>Archived <span id="skl-archived-n" class="muted small">0</span> <button type="button" class="tip" data-tip="Skills she doesn't use any more. They stay on this computer and out of her list. Bring one back any time; nothing here is deleted.">?</button></summary>
+        <div id="skl-archived-list" class="skl-archived-list"></div>
+      </details>
       <p id="skl-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="ab-plugins" data-group="Abilities" data-title="Plugins" data-owner-only hidden>
@@ -2909,6 +2916,7 @@
       <p id="plg-off" class="skl-note" hidden></p>
       <p id="plg-fence-note" class="skl-warn small" hidden>This computer can't fence plugins in (Windows, or Linux without bubblewrap): they run with Node's permission limits only. Add only plugins whose author you trust.</p>
       <div class="add-row skl-top"><button id="plg-add" type="button">Add a plugin</button></div>
+      <p class="muted small store-more"><a class="store-link" href="https://backstagecoding.com/sara/store/" target="_blank" rel="noopener noreferrer">More in the Sara Store</a></p>
       <h3 id="plg-waiting-head" hidden>Waiting for you <button type="button" class="tip" data-tip="A plugin asked her to use one of her tools on its own (for example from its schedule). Nothing runs until you allow it here; the request goes away after 10 minutes.">?</button></h3>
       <div id="plg-waiting" class="skl-list"></div>
       <div id="plg-list" class="skl-list"></div>
@@ -3101,6 +3109,7 @@
         </section>
         <section class="settings-page" data-page="ab-mcp" data-group="Abilities" data-title="Other programs (MCP)" data-owner-only hidden>
       <p class="muted small page-lead">Plug-in tool servers (Model Context Protocol), such as your email or calendar. Their tools appear above: ones the server marks as read-only run on their own, everything that sends, changes or deletes asks you first.</p>
+      <p class="muted small store-more"><a class="store-link" href="https://backstagecoding.com/sara/store/" target="_blank" rel="noopener noreferrer">More in the Sara Store</a></p>
       <div id="mcp-list"></div>
       <details id="mcp-add" data-noauto>
         <summary>Add or update an MCP server</summary>
@@ -3767,6 +3776,12 @@
         <pre id="hub-preview" class="hub-preview" data-raw hidden></pre>
         <div class="add-row"><button id="hub-reset" type="button" class="ghost">Reset the install ID</button> <button type="button" class="tip" data-tip="Makes a new random ID, so later check-ins can't be linked to earlier ones. Reports you sent stay in My reports.">?</button></div>
         <p class="muted small">Reports you send from Help go only when you press Send, with only the parts you ticked. <a href="/help#support" target="_blank" rel="noopener">Guide</a></p>
+      </div>
+      <div class="store-privacy" data-noauto data-nodirty>
+        <label class="row"><input id="store-on" type="checkbox"> <span>Sara Store</span> <button type="button" class="tip" data-tip="Once a day Sara downloads the store's public list to show add-ons and updates. The list is the same for everyone and nothing about you is sent. Off: no store, your add-ons keep working.">?</button></label>
+        <p id="store-status" class="muted small" role="status"></p>
+        <div id="store-notices" class="store-notices"></div>
+        <div class="add-row"><button id="store-check" type="button" class="ghost">Check now</button> <button type="button" class="tip" data-tip="Downloads the store's list now and checks its signature, so you see new add-ons and updates. Nothing about you is sent with it.">?</button></div>
       </div>
         </section>
         <section class="settings-page" data-page="dh-reports" data-group="Data & health" data-title="Reports" hidden>

@@ -1,0 +1,73 @@
+{
+  "manifest": 1,
+  "id": "weather-alerts",
+  "name": "Weather alerts",
+  "version": "2.0.0",
+  "description": "Warns you the evening before a storm, heavy rain or snow, so plans outside don't catch you out. Uses Open-Meteo (free for personal use, no key).",
+  "author": "The Sara team",
+  "license": "MIT",
+  "homepage": "https://backstagecoding.com/sara/store/items/weather-alerts/",
+  "sara": ">=2.57.0",
+  "main": "main.mjs",
+  "permissions": {
+    "hooks": [
+      "schedule",
+      "event:planner"
+    ],
+    "tools": [
+      "check"
+    ],
+    "network": [
+      "api.open-meteo.com",
+      "geocoding-api.open-meteo.com"
+    ],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    },
+    "settings": true,
+    "cards": true
+  },
+  "schedules": [
+    {
+      "id": "evening",
+      "every": "1d",
+      "at": "18:00"
+    }
+  ],
+  "settings": [
+    {
+      "key": "city",
+      "type": "text",
+      "label": "Your city",
+      "tip": "The city to watch, for example Austin or Lyon. Leave it empty and it stays quiet.",
+      "default": ""
+    }
+  ],
+  "i18n": {
+    "es": {
+      "Your city": "Tu ciudad",
+      "The city to watch, for example Austin or Lyon. Leave it empty and it stays quiet.": "La ciudad que vigila, por ejemplo Austin o Lyon. Si la dejas vacía, no dice nada."
+    },
+    "fr": {
+      "Your city": "Votre ville",
+      "The city to watch, for example Austin or Lyon. Leave it empty and it stays quiet.": "La ville à surveiller, par exemple Austin ou Lyon. Laissez vide et il reste silencieux."
+    },
+    "de": {
+      "Your city": "Deine Stadt",
+      "The city to watch, for example Austin or Lyon. Leave it empty and it stays quiet.": "Die Stadt, die es beobachtet, zum Beispiel Austin oder Lyon. Leer gelassen bleibt es still."
+    },
+    "pt-BR": {
+      "Your city": "Sua cidade",
+      "The city to watch, for example Austin or Lyon. Leave it empty and it stays quiet.": "A cidade a acompanhar, por exemplo Austin ou Lyon. Deixe vazio e ele fica quieto."
+    },
+    "it": {
+      "Your city": "La tua città",
+      "The city to watch, for example Austin or Lyon. Leave it empty and it stays quiet.": "La città da tenere d'occhio, per esempio Austin o Lione. Se la lasci vuota resta in silenzio."
+    }
+  }
+}

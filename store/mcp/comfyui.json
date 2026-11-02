@@ -1,0 +1,94 @@
+{
+  "id": "comfyui",
+  "version": "1.0.0",
+  "name": "ComfyUI (image workflows)",
+  "category": "creative",
+  "tags": [
+    "images",
+    "comfyui",
+    "art"
+  ],
+  "summary": "Run your ComfyUI workflows to make and change pictures on your own computer.",
+  "description": "Lets her run your ComfyUI workflows to make and edit pictures on your own computer. ComfyUI must be running.",
+  "about": [
+    "ComfyUI is a free program that makes pictures with AI models on your own computer. With this tool server she can list your workflows, run one with your words, and show you what came out.",
+    "It talks to the ComfyUI address you give it; a few of its tools can download models or custom nodes, and those ask you first. Its code comes from npm (the comfyui-mcp package, version 0.52.206); we tested that version."
+  ],
+  "license": "MIT",
+  "source": "https://github.com/artokun/comfyui-mcp",
+  "needs": [
+    "node",
+    "app:ComfyUI running"
+  ],
+  "works": [
+    "windows",
+    "macos",
+    "linux"
+  ],
+  "mcp": {
+    "registry": "npm:comfyui-mcp",
+    "transport": "stdio",
+    "command": "npx",
+    "args": [
+      "-y",
+      "comfyui-mcp@0.52.206"
+    ],
+    "name": "comfyui",
+    "fields": [
+      {
+        "key": "COMFYUI_URL",
+        "kind": "url",
+        "label": "ComfyUI address",
+        "default": "http://127.0.0.1:8188",
+        "where": "local",
+        "tip": "Where ComfyUI is running. On the same computer as Sara it's usually http://127.0.0.1:8188."
+      }
+    ],
+    "secrets": [],
+    "reaches": [
+      "the ComfyUI address you give it",
+      "the internet, when you let a tool download a model or a custom node (those ask you first)"
+    ],
+    "tools": {
+      "readOnly": [
+        "get_system_stats",
+        "get_history",
+        "list_local_models",
+        "get_workflow",
+        "get_image",
+        "get_defaults",
+        "list_packs",
+        "visualize_workflow"
+      ],
+      "ask": [
+        "enqueue_workflow",
+        "generate_image",
+        "upload_image",
+        "install_custom_node",
+        "download_model",
+        "restart_comfyui",
+        "install_comfyui",
+        "report_issue",
+        "runpod"
+      ]
+    },
+    "needs": [
+      "node",
+      "app:ComfyUI running"
+    ],
+    "guide": [
+      "Start ComfyUI.",
+      "Add this tool server, then press Test."
+    ]
+  },
+  "changes": [
+    "First listing."
+  ],
+  "tested": [
+    {
+      "os": "windows",
+      "sara": "2.57.0"
+    }
+  ],
+  "reviewNotes": "Started on Windows 11 with Sara 2.57.0: initialize and tools/list answered with 41 tools. Running a workflow needs ComfyUI running."
+}

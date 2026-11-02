@@ -1,0 +1,40 @@
+{
+  "manifest": 1,
+  "id": "reading-list",
+  "name": "Reading list",
+  "version": "1.0.0",
+  "description": "Send her links or RSS feeds: she keeps a reading list and gives you a short weekly pick. Feeds are read only when you ask, and each read asks you first.",
+  "author": "The Sara team",
+  "license": "MIT",
+  "homepage": "https://backstagecoding.com/sara/store/items/reading-list/",
+  "sara": ">=2.57.0",
+  "main": "main.mjs",
+  "permissions": {
+    "hooks": [
+      "schedule"
+    ],
+    "tools": [
+      "add",
+      "list"
+    ],
+    "callTools": [
+      "web_fetch"
+    ],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    },
+    "cards": true
+  },
+  "schedules": [
+    {
+      "id": "weekly",
+      "every": "7d",
+      "at": "09:00"
+    }
+  ]
+}

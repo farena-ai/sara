@@ -1,0 +1,78 @@
+{
+  "id": "playwright",
+  "version": "1.0.0",
+  "name": "Browser (Playwright)",
+  "category": "coding",
+  "tags": [
+    "browser",
+    "testing",
+    "web"
+  ],
+  "summary": "Open web pages in a real browser, click and fill forms, and show you what it sees.",
+  "description": "Lets her open web pages in a real browser, click, fill forms and read what she sees, using Microsoft's Playwright. Sara has her own browser tools; this one is for coders who want Playwright's.",
+  "about": [
+    "Playwright's tool server drives a browser on this computer. It reads pages through their accessibility tree, so it is quick and needs no pictures.",
+    "Looking at a page runs on its own; clicking, typing and running scripts ask you first. Its code comes from npm (@playwright/mcp, version 0.0.84); we tested that version."
+  ],
+  "license": "Apache-2.0",
+  "source": "https://github.com/microsoft/playwright-mcp",
+  "needs": [
+    "node"
+  ],
+  "works": [
+    "windows",
+    "macos",
+    "linux"
+  ],
+  "mcp": {
+    "registry": "npm:@playwright/mcp",
+    "transport": "stdio",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@playwright/mcp@0.0.84"
+    ],
+    "name": "playwright",
+    "fields": [],
+    "secrets": [],
+    "reaches": [
+      "the web pages she opens"
+    ],
+    "tools": {
+      "readOnly": [
+        "browser_console_messages",
+        "browser_find",
+        "browser_network_requests",
+        "browser_network_request",
+        "browser_take_screenshot",
+        "browser_snapshot",
+        "browser_wait_for"
+      ],
+      "ask": [
+        "browser_navigate",
+        "browser_click",
+        "browser_type",
+        "browser_fill_form",
+        "browser_evaluate",
+        "browser_file_upload",
+        "browser_run_code_unsafe"
+      ]
+    },
+    "needs": [
+      "node"
+    ],
+    "guide": [
+      "Add this tool server, then press Test. The first start downloads the browser it needs."
+    ]
+  },
+  "changes": [
+    "First listing."
+  ],
+  "tested": [
+    {
+      "os": "windows",
+      "sara": "2.57.0"
+    }
+  ],
+  "reviewNotes": "Started on Windows 11 with Sara 2.57.0: initialize and tools/list answered with 25 tools."
+}

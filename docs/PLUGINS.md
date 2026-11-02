@@ -116,6 +116,12 @@ a bad host, bad semver or a `sara` range this server doesn't satisfy, each with 
 Household members never see plugins: every `/api/plugins` route is owner-only. The demo server has
 plugins off.
 
+**From the Sara Store (2.57).** When a .zip's files are exactly the ones of a version in the Sara
+Store's signed list, the review card adds one line: *From the Sara Store · Made by the Sara team* (or
+*Reviewed by the Sara team* / *Not reviewed by people yet*). Any other file gets no line. If the store
+later pulls that version, the plugin is switched off on every companion with the chip *Pulled from the
+Sara Store: …* and nothing is deleted. See [STORE.md](STORE.md).
+
 ## 4. Hook points
 
 Sara's own hooks (budget, plan check, sandbox gate, security, recall, the run recorder) run first;

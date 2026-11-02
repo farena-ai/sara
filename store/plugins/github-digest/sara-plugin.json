@@ -1,0 +1,85 @@
+{
+  "manifest": 1,
+  "id": "github-digest",
+  "name": "GitHub digest",
+  "version": "1.0.0",
+  "description": "Every morning: new issues and pull requests on the public repositories you follow, the ones waiting for your review, and failed checks.",
+  "author": "The Sara team",
+  "license": "MIT",
+  "homepage": "https://backstagecoding.com/sara/store/items/github-digest/",
+  "sara": ">=2.57.0",
+  "main": "main.mjs",
+  "permissions": {
+    "hooks": [
+      "schedule"
+    ],
+    "network": [
+      "api.github.com"
+    ],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    },
+    "settings": true,
+    "cards": true
+  },
+  "schedules": [
+    {
+      "id": "morning",
+      "every": "1d",
+      "at": "07:30"
+    }
+  ],
+  "settings": [
+    {
+      "key": "repos",
+      "type": "text",
+      "label": "Repositories",
+      "tip": "Public repositories to follow, as owner/name separated by commas, for example nodejs/node, farena-ai/sara. At most 10.",
+      "default": ""
+    },
+    {
+      "key": "user",
+      "type": "text",
+      "label": "Your GitHub name",
+      "tip": "Your GitHub user name, to find pull requests waiting for your review. Leave it empty to skip that part.",
+      "default": ""
+    }
+  ],
+  "i18n": {
+    "es": {
+      "Repositories": "Repositorios",
+      "Your GitHub name": "Tu nombre en GitHub",
+      "Public repositories to follow, as owner/name separated by commas, for example nodejs/node, farena-ai/sara. At most 10.": "Repositorios públicos a seguir, como dueño/nombre separados por comas, por ejemplo nodejs/node, farena-ai/sara. Como máximo 10.",
+      "Your GitHub user name, to find pull requests waiting for your review. Leave it empty to skip that part.": "Tu nombre de usuario de GitHub, para encontrar pull requests que esperan tu revisión. Déjalo vacío para saltar esa parte."
+    },
+    "fr": {
+      "Repositories": "Dépôts",
+      "Your GitHub name": "Votre nom GitHub",
+      "Public repositories to follow, as owner/name separated by commas, for example nodejs/node, farena-ai/sara. At most 10.": "Dépôts publics à suivre, en propriétaire/nom séparés par des virgules, par exemple nodejs/node, farena-ai/sara. 10 au plus.",
+      "Your GitHub user name, to find pull requests waiting for your review. Leave it empty to skip that part.": "Votre nom d'utilisateur GitHub, pour trouver les pull requests qui attendent votre relecture. Laissez vide pour passer cette partie."
+    },
+    "de": {
+      "Repositories": "Repositorys",
+      "Your GitHub name": "Dein GitHub-Name",
+      "Public repositories to follow, as owner/name separated by commas, for example nodejs/node, farena-ai/sara. At most 10.": "Öffentliche Repositorys zum Folgen, als besitzer/name durch Kommas getrennt, zum Beispiel nodejs/node, farena-ai/sara. Höchstens 10.",
+      "Your GitHub user name, to find pull requests waiting for your review. Leave it empty to skip that part.": "Dein GitHub-Benutzername, um Pull Requests zu finden, die auf deine Prüfung warten. Leer lassen, um diesen Teil zu überspringen."
+    },
+    "pt-BR": {
+      "Repositories": "Repositórios",
+      "Your GitHub name": "Seu nome no GitHub",
+      "Public repositories to follow, as owner/name separated by commas, for example nodejs/node, farena-ai/sara. At most 10.": "Repositórios públicos a acompanhar, como dono/nome separados por vírgulas, por exemplo nodejs/node, farena-ai/sara. No máximo 10.",
+      "Your GitHub user name, to find pull requests waiting for your review. Leave it empty to skip that part.": "Seu nome de usuário no GitHub, para achar pull requests esperando sua revisão. Deixe vazio para pular essa parte."
+    },
+    "it": {
+      "Repositories": "Repository",
+      "Your GitHub name": "Il tuo nome GitHub",
+      "Public repositories to follow, as owner/name separated by commas, for example nodejs/node, farena-ai/sara. At most 10.": "Repository pubblici da seguire, come proprietario/nome separati da virgole, per esempio nodejs/node, farena-ai/sara. Al massimo 10.",
+      "Your GitHub user name, to find pull requests waiting for your review. Leave it empty to skip that part.": "Il tuo nome utente GitHub, per trovare le pull request in attesa della tua revisione. Lascialo vuoto per saltare questa parte."
+    }
+  }
+}

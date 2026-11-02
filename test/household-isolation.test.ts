@@ -277,6 +277,8 @@ const OWNER_ONLY = ['lean', 'pickup', 'backups', 'update', 'doctor', 'logs', 'st
   'precise',
   // Phase 121: the safety check-up (report, fixes, Undo, accept) is the owner's, covering the whole server.
   'safety-check',
+  // Phase 124: the Sara Store's reader (the list, Check now, its settings) is the owner's.
+  'store',
   // Phase 87: computer use. Member routes in src/household.ts, but answered 403 ownerOnly while the
   // owner's "Let household members use computer use" is off (the default, as here).
   'hands', 'computer'];

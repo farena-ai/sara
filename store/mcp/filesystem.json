@@ -1,0 +1,85 @@
+{
+  "id": "filesystem",
+  "version": "1.0.0",
+  "name": "Files on this computer",
+  "category": "coding",
+  "tags": [
+    "files",
+    "folders"
+  ],
+  "summary": "Read and edit files in the one folder you pick.",
+  "description": "Lets her read and edit files in the one folder you pick on this computer, and nowhere else. Writing and moving files asks you first.",
+  "about": [
+    "The reference filesystem server from the Model Context Protocol project. It only sees the folder you give it.",
+    "Sara refuses a folder that is her own data folder or a whole disk. Its code comes from npm (@modelcontextprotocol/server-filesystem, version 2.1.0); we tested that version."
+  ],
+  "license": "MIT",
+  "source": "https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem",
+  "needs": [
+    "node"
+  ],
+  "works": [
+    "windows",
+    "macos",
+    "linux"
+  ],
+  "mcp": {
+    "registry": "npm:@modelcontextprotocol/server-filesystem",
+    "transport": "stdio",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@modelcontextprotocol/server-filesystem@2.1.0",
+      "${setting:FOLDER}"
+    ],
+    "name": "files",
+    "fields": [
+      {
+        "key": "FOLDER",
+        "kind": "folder",
+        "label": "The folder",
+        "tip": "The one folder she may read and change, for example your Documents\\Notes folder. Pick a folder of its own, not a whole disk."
+      }
+    ],
+    "secrets": [],
+    "reaches": [
+      "only the folder you pick"
+    ],
+    "tools": {
+      "readOnly": [
+        "read_file",
+        "read_text_file",
+        "read_media_file",
+        "read_multiple_files",
+        "list_directory",
+        "list_directory_with_sizes",
+        "directory_tree",
+        "search_files",
+        "get_file_info",
+        "list_allowed_directories"
+      ],
+      "ask": [
+        "write_file",
+        "edit_file",
+        "create_directory",
+        "move_file"
+      ]
+    },
+    "needs": [
+      "node"
+    ],
+    "guide": [
+      "Pick the folder, add this tool server, then press Test."
+    ]
+  },
+  "changes": [
+    "First listing."
+  ],
+  "tested": [
+    {
+      "os": "windows",
+      "sara": "2.57.0"
+    }
+  ],
+  "reviewNotes": "Started on Windows 11 with Sara 2.57.0: initialize and tools/list answered with 14 tools."
+}

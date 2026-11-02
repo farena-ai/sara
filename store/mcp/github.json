@@ -1,0 +1,85 @@
+{
+  "id": "github",
+  "version": "1.0.0",
+  "name": "GitHub",
+  "category": "coding",
+  "tags": [
+    "github",
+    "issues",
+    "code"
+  ],
+  "summary": "Read and work on issues, pull requests and code in your repositories.",
+  "description": "Lets her read and work on issues, pull requests and code in your GitHub repositories, with a token you make. Every change asks you first.",
+  "about": [
+    "GitHub's official tool server, run in Docker from the image GitHub publishes, pinned by its digest (version 0.20.1).",
+    "Make a fine-grained token on GitHub (Settings → Developer settings) with only the repositories and permissions you want her to have. It goes into Sara's vault and is never shown again."
+  ],
+  "license": "MIT",
+  "source": "https://github.com/github/github-mcp-server",
+  "needs": [
+    "docker"
+  ],
+  "works": [
+    "windows",
+    "macos",
+    "linux"
+  ],
+  "mcp": {
+    "registry": "io.github.github/github-mcp-server",
+    "transport": "stdio",
+    "command": "docker",
+    "args": [
+      "run",
+      "--rm",
+      "-i",
+      "-e",
+      "GITHUB_PERSONAL_ACCESS_TOKEN",
+      "ghcr.io/github/github-mcp-server@sha256:d909564772c4afc7ed08831c1fce367c051d82f8602abc4c1f033cdfc4a89e68"
+    ],
+    "name": "github",
+    "fields": [],
+    "secrets": [
+      {
+        "key": "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "kind": "secret",
+        "label": "GitHub token",
+        "tip": "A fine-grained personal access token from GitHub → Settings → Developer settings. Give it only the repositories and permissions she needs."
+      }
+    ],
+    "reaches": [
+      "api.github.com"
+    ],
+    "tools": {
+      "readOnly": [
+        "get_me",
+        "list_issues",
+        "get_issue",
+        "list_pull_requests",
+        "get_pull_request",
+        "search_code",
+        "get_file_contents"
+      ],
+      "ask": [
+        "create_issue",
+        "add_issue_comment",
+        "create_pull_request",
+        "merge_pull_request",
+        "create_or_update_file",
+        "push_files"
+      ]
+    },
+    "needs": [
+      "docker"
+    ],
+    "guide": [
+      "Install Docker Desktop (or Docker on Linux) and start it.",
+      "Make a fine-grained token on GitHub.",
+      "Add this tool server with the token, then press Test."
+    ]
+  },
+  "changes": [
+    "First listing."
+  ],
+  "tested": [],
+  "reviewNotes": "Recipe checked (image pinned by digest, v0.20.1). Not yet started by us: the test computer has no Docker."
+}

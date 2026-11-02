@@ -116,6 +116,52 @@ export async function loadSkills() {
   renderProjects();
   renderRecipes();
   renderList();
+  // Phase 124 (#16): the monthly tidy-up card (each person's own skills).
+  try {
+    renderTidy((await api('/skills/tidy')).card);
+  } catch {
+    renderTidy(null);
+  }
+}
+
+/** Phase 124 (SARA_STORE.md §6.7): "3 skills she learned haven't been used in two months: archive them?" and one merge offer. */
+function renderTidy(card) {
+  const box = $('#skl-tidy');
+  if (!box) return;
+  box.hidden = !card;
+  box.replaceChildren();
+  if (!card) return;
+  const answer = async (action, b) => {
+    b.disabled = true;
+    try {
+      const r = await api('/skills/tidy', { method: 'POST', body: { action } });
+      if (r.archived?.length) status(r.archived.length === 1 ? t('Archived 1 skill. Bring it back any time from Archived.') : t('Archived {n} skills. Bring them back any time from Archived.', { n: r.archived.length }));
+      await loadSkills();
+    } catch (err) {
+      status(err.message);
+      b.disabled = false;
+    }
+  };
+  if (card.archive) {
+    const n = card.archive.names.length;
+    const row = el('div', 'skl-note skl-tidy-card');
+    row.append(el('p', '', n === 1 ? t('1 skill she learned hasn’t been used in two months: archive it? {names}', { names: card.archive.names.join(', ') }) : t('{n} skills she learned haven’t been used in two months: archive them? {names}', { n, names: card.archive.names.join(', ') })));
+    const acts = el('div', 'skl-tidy-acts');
+    acts.append(btn(n === 1 ? t('Archive it') : t('Archive them'), '', (b) => answer('archive', b)), btn(n === 1 ? t('Keep it') : t('Keep them'), 'ghost', (b) => answer('keep', b)), btn(t('Ask again next month'), 'ghost', (b) => answer('later', b)));
+    row.append(acts);
+    box.append(row);
+  }
+  if (card.merge) {
+    const m = card.merge;
+    const row = el('div', 'skl-note skl-tidy-card');
+    row.append(el('p', '', t('{a} and {b} do the same job. Keep them as one skill, {a}? {b} goes to Archived.', { a: m.keep, b: m.older })));
+    const d = el('details', 'skl-body-box');
+    d.append(el('summary', '', t('Show the change')), el('pre', 'skl-diff', m.diff));
+    const acts = el('div', 'skl-tidy-acts');
+    acts.append(btn(t('Use this'), '', (b) => answer('merge', b)), btn(t('They’re different'), 'ghost', (b) => answer('not-same', b)), btn(t('Ask again next month'), 'ghost', (b) => answer('merge-later', b)));
+    row.append(d, acts);
+    box.append(row);
+  }
 }
 
 function renderMigration() {
@@ -186,7 +232,29 @@ function renderRecipes() {
 function renderList() {
   const box = $('#skl-list');
   const show = $('#skl-show').value;
-  const list = state.skills.filter((s) => (show === 'on' ? s.enabled : show === 'mine' ? s.scope === 'companion' || s.scope === 'shared' : show === 'builtin' ? s.scope === 'builtin' : true));
+  // Phase 124: archived skills live in their own fold, with Bring back.
+  const archived = state.skills.filter((s) => s.status === 'archived');
+  const fold = $('#skl-archived');
+  if (fold) {
+    fold.hidden = !archived.length;
+    $('#skl-archived-n').textContent = String(archived.length);
+    $('#skl-archived-list').replaceChildren(...archived.map((s) => {
+      const r = el('div', 'skl-archived-row');
+      r.append(el('span', 'skl-archived-name', s.name), el('span', 'muted small', s.description), btn(t('Bring back'), 'ghost', async (b) => {
+        b.disabled = true;
+        try {
+          await api(`/skills/${enc(s.scope)}/${enc(s.name)}/bring-back`, { method: 'POST', body: {} });
+          status(t('{name} is back.', { name: s.name }));
+          await loadSkills();
+        } catch (err) {
+          status(err.message);
+          b.disabled = false;
+        }
+      }));
+      return r;
+    }));
+  }
+  const list = state.skills.filter((s) => s.status !== 'archived').filter((s) => (show === 'on' ? s.enabled : show === 'mine' ? s.scope === 'companion' || s.scope === 'shared' : show === 'builtin' ? s.scope === 'builtin' : true));
   if (!list.length) {
     box.replaceChildren(state.skills.length ? emptyState({ icon: 'search', text: t('No skills match.') }) : emptyState({ icon: 'sparkle', text: t('No skills yet. Make one with New skill, or add one from a zip, a git address or a folder.'), howto: true }));
     return;
@@ -238,6 +306,15 @@ function card(s) {
   if (s.scope === 'companion' && state.scopes.includes('shared')) actions.append(btn(t('Copy to all my companions'), '', () => copy(s, 'shared')));
   // Phase 97 (§5.6): the skill check on any skill ("Check this skill").
   if (!state.member && s.status !== 'broken' && s.status !== 'needs-review') actions.append(btn(t('Check this skill'), '', () => checkSkill(s, false)));
+  if (s.status !== 'broken' && s.status !== 'archived') actions.append(btn(t('Archive'), '', async () => {
+    try {
+      await api(`/skills/${enc(s.scope)}/${enc(s.name)}/archive`, { method: 'POST', body: {} });
+      status(t('{name} is archived. Bring it back any time from Archived.', { name: s.name }));
+      await loadSkills();
+    } catch (err) {
+      status(err.message);
+    }
+  }));
   if (s.scope === 'companion' || s.scope === 'shared') actions.append(btn(t('Delete'), 'danger-text', () => remove(s)));
   overflowMenu(more, actions);
   head.append(ic, title, sw, more, actions);

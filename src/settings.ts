@@ -241,6 +241,12 @@ export interface Settings {
    */
   /** Phase 123 (LEAN §3.3): the short tool list and tidying long chats (src/lean.ts normLean). */
   lean?: Partial<import('./lean.ts').LeanSettings>;
+  /**
+   * Phase 124 (SARA_STORE.md §6.2, §11.1, owner-only): the Sara Store. `on` (default true): once a
+   * day Sara downloads the store's public list; off: no store reads at all. `community` (default
+   * false): show add-ons nobody at Sara has reviewed yet (the *Get more* switch, Phase 125).
+   */
+  store?: { on?: boolean; community?: boolean };
   safetyCheck?: { weekly?: boolean; last?: { at: string; statuses: Record<string, 'green' | 'amber' | 'red' | 'skip'> }; accepted?: Record<string, string> };
   /**
    * Phase 72: her Alexa skill (server-wide, the owner's): the skill id from the Alexa developer

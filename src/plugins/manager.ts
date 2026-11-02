@@ -92,8 +92,18 @@ export interface BridgeSettings {
 const ID_RE = /^[\w@.:+=/-]{1,120}$/;
 
 export interface Origin {
-  kind: 'zip' | 'git' | 'folder' | 'builtin';
+  /** Phase 124: 'store' (`where: '<id>@<version>'`) for an add-on from the Sara Store (installs: Phase 125). */
+  kind: 'zip' | 'git' | 'folder' | 'builtin' | 'store';
   where: string;
+}
+
+/** Phase 124 (SARA_STORE.md §6.1, §8.3): the strip on a review card whose files match a store entry. */
+export interface StoreStrip {
+  item: string;
+  version: string;
+  name: string;
+  trust: 'first-party' | 'reviewed' | 'community';
+  yanked?: string;
 }
 
 export interface Review {
@@ -118,6 +128,8 @@ export interface Review {
   unknownCallTools: string[];
   /** Phase 117 (P3): it comes with Sara (the card says "Comes with Sara · made by the Sara team"). */
   builtin?: boolean;
+  /** Phase 124: the files match a version in the verified Sara Store list (the card shows the strip). */
+  store?: StoreStrip;
   /** §2.1.1: the shared proposal card's shape. */
   proposal: { kind: 'proposal'; source: string; what: { key: string; params: Record<string, string> }; can: PermissionLine[]; buttons: string[] };
 }
@@ -422,6 +434,8 @@ export function readyBridge(b: Record<string, unknown>, files: boolean): BridgeF
 }
 
 export class PluginManager {
+  /** Phase 124: looks a content hash up in the verified Sara Store list (set by main.ts). */
+  storeMatch?: (contentSha: string) => StoreStrip | undefined;
   readonly store: PluginStore;
   readonly opts: ManagerOptions;
   readonly fence: Fence;
@@ -497,6 +511,10 @@ export class PluginManager {
       origin,
       ...(existing ? { current: { version: existing.version } } : {}),
       ...(origin.kind === 'builtin' ? { builtin: true } : {}),
+      ...((): { store?: StoreStrip } => {
+        const strip = this.storeMatch?.(sha);
+        return strip && strip.item === manifest.id ? { store: strip } : {};
+      })(),
       unknownCallTools,
       proposal: { kind: 'proposal', source: 'plugin', what: { key: existing ? (added.length ? '{name} {version} asks for more' : '{name} {version}: same permissions') : 'Add {name} {version}?', params: { name: manifest.name, version: manifest.version } }, can: permissionLines(manifest), buttons: ['use', 'cancel'] },
     };
@@ -623,6 +641,20 @@ export class PluginManager {
   bridgeLabel(bridge: string): string | undefined {
     for (const row of this.store.all()) if (this.manifestOf(row).permissions.bridges.includes(bridge)) return this.manifestOf(row).name;
     return undefined;
+  }
+
+  /**
+   * Phase 124 (SARA_STORE.md §10.3): the Sara Store blocked this add-on. Switched off on every
+   * companion with the store's reason as its note; nothing is deleted, and the owner may switch it
+   * back on from its card.
+   */
+  async storeBlock(id: string, note: string): Promise<void> {
+    const row = this.store.get(id);
+    if (!row) return;
+    this.store.setStatus(id, 'disabled', note.slice(0, 400));
+    this.store.log(id, null, 'denied', note.slice(0, 400));
+    await this.#stopEverywhere(id);
+    this.#changed();
   }
 
   /** Recomputes the folder's hash: false (and the plugin switched off) when it changed on disk. */

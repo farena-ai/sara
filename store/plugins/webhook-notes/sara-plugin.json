@@ -1,0 +1,66 @@
+{
+  "manifest": 1,
+  "id": "webhook-notes",
+  "name": "Webhook notes",
+  "version": "2.0.0",
+  "description": "Keeps a tidy note of your webhooks: the events that matter are told at once, the rest go in a short morning digest. The last 50 are kept.",
+  "author": "The Sara team",
+  "license": "MIT",
+  "homepage": "https://backstagecoding.com/sara/store/items/webhook-notes/",
+  "sara": ">=2.57.0",
+  "main": "main.mjs",
+  "permissions": {
+    "hooks": [
+      "event:webhook",
+      "schedule"
+    ],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    },
+    "settings": true,
+    "cards": true
+  },
+  "schedules": [
+    {
+      "id": "digest",
+      "every": "1d",
+      "at": "08:00"
+    }
+  ],
+  "settings": [
+    {
+      "key": "matters",
+      "type": "text",
+      "label": "Events that matter",
+      "tip": "Event names to tell you about at once, separated by commas, for example deploy.failed, payment. A * at the end matches the start of a name. Everything else waits for the digest.",
+      "default": "*.failed, *.error"
+    }
+  ],
+  "i18n": {
+    "es": {
+      "Events that matter": "Eventos importantes",
+      "Event names to tell you about at once, separated by commas, for example deploy.failed, payment. A * at the end matches the start of a name. Everything else waits for the digest.": "Nombres de eventos que te avisa al momento, separados por comas, por ejemplo deploy.failed, payment. Un * al final coincide con el comienzo de un nombre. El resto espera al resumen."
+    },
+    "fr": {
+      "Events that matter": "Événements importants",
+      "Event names to tell you about at once, separated by commas, for example deploy.failed, payment. A * at the end matches the start of a name. Everything else waits for the digest.": "Noms d'événements signalés tout de suite, séparés par des virgules, par exemple deploy.failed, payment. Un * à la fin correspond au début d'un nom. Le reste attend le résumé."
+    },
+    "de": {
+      "Events that matter": "Wichtige Ereignisse",
+      "Event names to tell you about at once, separated by commas, for example deploy.failed, payment. A * at the end matches the start of a name. Everything else waits for the digest.": "Ereignisnamen, die es dir sofort meldet, durch Kommas getrennt, zum Beispiel deploy.failed, payment. Ein * am Ende passt auf den Anfang eines Namens. Alles andere wartet auf die Übersicht."
+    },
+    "pt-BR": {
+      "Events that matter": "Eventos importantes",
+      "Event names to tell you about at once, separated by commas, for example deploy.failed, payment. A * at the end matches the start of a name. Everything else waits for the digest.": "Nomes de eventos avisados na hora, separados por vírgulas, por exemplo deploy.failed, payment. Um * no fim combina com o início de um nome. O resto espera o resumo."
+    },
+    "it": {
+      "Events that matter": "Eventi importanti",
+      "Event names to tell you about at once, separated by commas, for example deploy.failed, payment. A * at the end matches the start of a name. Everything else waits for the digest.": "Nomi di eventi da segnalarti subito, separati da virgole, per esempio deploy.failed, payment. Un * alla fine corrisponde all'inizio di un nome. Il resto aspetta il riepilogo."
+    }
+  }
+}

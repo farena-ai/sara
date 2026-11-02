@@ -238,6 +238,13 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
       } catch (err) {
         return asHttp(err);
       }
+      // Phase 124 (SARA_STORE.md §6.1): a file whose content hash matches a store entry is recorded as
+      // that store add-on, so the store's yanks and blocks reach it.
+      if (r.store && app.storeInstalls) {
+        const at = app.now().toISOString();
+        const hit = app.storeClient?.version(r.store.item, r.store.version);
+        app.storeInstalls.upsert({ item: r.store.item, kind: 'plugin', version: r.store.version, trust: r.store.trust, local_ref: id, content_sha: r.sha, entry_sha: hit?.v.entrySha ?? '', installed_at: at, updated_at: at, ...(r.store.yanked ? { state: 'yanked' as const, state_note: r.store.yanked } : {}) });
+      }
       return send(res, 200, pm.view(pm.store.get(id)!));
     }
     const row = pm.store.get(id);

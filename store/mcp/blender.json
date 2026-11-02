@@ -1,0 +1,65 @@
+{
+  "id": "blender",
+  "version": "1.0.0",
+  "name": "Blender",
+  "category": "creative",
+  "tags": [
+    "3d",
+    "blender"
+  ],
+  "summary": "Build and change 3D scenes in Blender while you watch.",
+  "description": "Lets her build and change 3D scenes in Blender while you watch: add objects, set materials, move the camera. Blender and its add-on must be running.",
+  "about": [
+    "Blender is the free 3D program. This tool server talks to a small add-on inside Blender, so she can look at your scene and change it step by step.",
+    "Install the add-on from the project's page (Edit → Preferences → Add-ons → Install from disk), switch it on, and press Connect in Blender's side panel. The server runs with uv (uvx), version 2.2.6 of mcp-for-blender."
+  ],
+  "license": "MIT",
+  "source": "https://github.com/ahujasid/blender-mcp",
+  "needs": [
+    "uv",
+    "app:Blender with the add-on running"
+  ],
+  "works": [
+    "windows",
+    "macos",
+    "linux"
+  ],
+  "mcp": {
+    "registry": "pypi:mcp-for-blender",
+    "transport": "stdio",
+    "command": "uvx",
+    "args": [
+      "mcp-for-blender==2.2.6"
+    ],
+    "name": "blender",
+    "fields": [],
+    "secrets": [],
+    "reaches": [
+      "Blender on this computer (its add-on's local port)"
+    ],
+    "tools": {
+      "readOnly": [
+        "get_scene_info",
+        "get_object_info",
+        "get_viewport_screenshot"
+      ],
+      "ask": [
+        "execute_blender_code"
+      ]
+    },
+    "needs": [
+      "uv",
+      "app:Blender with the add-on running"
+    ],
+    "guide": [
+      "Install uv (https://docs.astral.sh/uv/).",
+      "In Blender, install and switch on the add-on, then press Connect.",
+      "Add this tool server, then press Test."
+    ]
+  },
+  "changes": [
+    "First listing."
+  ],
+  "tested": [],
+  "reviewNotes": "Recipe checked (pinned uvx version). Not yet started by us: it waits for Blender's add-on, so its Test needs Blender running."
+}
