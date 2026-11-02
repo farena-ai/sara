@@ -257,7 +257,8 @@ test('128b.7 N16 Share her on the row and the Store link; N25 Tidy this chat fro
   assert.match(coding, /sel: '#input', title: t\('Type \/ for commands'\)/);
   assert.match(html, /<textarea id="input"/);
   const sw = web('sw.js');
-  assert.match(sw, /caches\.open\('sara-shell-v70'\)/);
+  // PL2c (2.61.2) moved the cache on to v71; the PL2b history line stays.
+  assert.ok(Number(/event\.waitUntil\(caches\.open\('sara-shell-v(\d+)'\)/.exec(sw)?.[1]) >= 70);
   assert.match(sw, /v70 \(PL2b, 2\.61\.1\)/);
   assert.match(sw, /sara-shell-v69 from 2\.61\.0/);
 });

@@ -234,3 +234,20 @@ test('messages, composer and header: ids, actions, disclosure and touch rules ke
   // The tour still finds the composer and the conversation settings.
   for (const sel of ['#input', '#conv-settings-btn', '#new-chat']) assert.match(app, new RegExp(`sel: '${sel}'`), sel);
 });
+
+test('PL2c N32: disabled buttons pass 3:1 against their card in both themes (text and border)', () => {
+  const night = block(theme, ':root,\n:root[data-theme="dark"]');
+  const day = block(theme, ':root[data-theme="light"]');
+  for (const [name, th] of [['Night', night], ['Day', day]] as const) {
+    for (const card of ['surface-1', 'surface-2']) {
+      assert.ok(contrast(th['btn-off-text'], th[card]) >= 3, `${name}: disabled text on --${card}: ${contrast(th['btn-off-text'], th[card]).toFixed(2)}`);
+      assert.ok(contrast(th['btn-off-line'], th[card]) >= 3, `${name}: disabled border on --${card}: ${contrast(th['btn-off-line'], th[card]).toFixed(2)}`);
+    }
+    // Readable on its own fill too.
+    assert.ok(contrast(th['btn-off-text'], th['btn-off-fill']) >= 3, `${name}: text on the disabled fill`);
+  }
+  // The rule uses the tokens (no opacity fade, no gradient) for every gradient-style button.
+  const screens = web('screens.css');
+  assert.match(screens, /button:disabled:not\(\.ghost, \.tip, \.linkish, \.icon, \.tab\), button:disabled:not\(\.ghost, \.tip, \.linkish, \.icon, \.tab\):hover \{\s*background: var\(--btn-off-fill\);\s*color: var\(--btn-off-text\);\s*border: 1px solid var\(--btn-off-line\);\s*box-shadow: none;\s*opacity: 1;/);
+  assert.match(screens, /button\.ghost:disabled, button\.ghost:disabled:hover \{ color: var\(--btn-off-text\); border-color: var\(--btn-off-line\); opacity: 1;/);
+});

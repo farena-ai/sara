@@ -85,3 +85,25 @@
   .store-panel { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
   .stp-head { flex-direction: column; }
 }
+
+/* Phase 128 PL2c (POLISH2.md N9–N12): a real segmented control Browse · My add-ons · Submit, each item
+   once per screen in a wrapping grid of 3 (1 on phones) with See all, a line icon per kind on every
+   card, and the author key under Details. */
+.sto-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; margin: 8px 0 12px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); max-width: 100%; }
+.sto-seg button { min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; color: var(--text-2); box-shadow: none; font-weight: 600; }
+.sto-seg button[aria-selected="true"] { background: var(--surface-0); color: var(--text-1); box-shadow: inset 0 0 0 1px var(--accent-solid); }
+.sto-seg button:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 2px; }
+.sto-view { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.sto-shelf-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.sto-shelf-head h3 { margin: 0; }
+.sto-shelf-head .sto-all { min-height: 44px; }
+.sto-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; overflow: visible; padding-bottom: 0; }
+.sto-row .sto-card { flex: none; }
+.sto-glyph .ic { width: 22px; height: 22px; color: var(--accent-text); }
+.sto-kind { display: inline-flex; align-items: center; gap: 4px; }
+.sto-kind .ic { width: 14px; height: 14px; }
+.stp-details summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.stp-key { overflow-wrap: anywhere; }
+.plg-calm { margin: 0; }
+@media (max-width: 900px) { .sto-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .sto-row { grid-template-columns: minmax(0, 1fr); } .sto-seg { display: flex; } .sto-seg button { flex: 1 1 0; padding: 0 8px; } }

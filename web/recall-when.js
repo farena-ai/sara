@@ -24,6 +24,18 @@ export function initWhen(c) {
   ctx = c;
   $('#wm-add')?.addEventListener('click', () => void addOne());
   for (const id of ['wm-topic', 'wm-person']) $(`#${id}`)?.addEventListener('change', () => void preview());
+  // PL2c (N22): Words or A person; the other one is cleared so only one is sent.
+  for (const b of document.querySelectorAll('.wm-by [data-by]')) {
+    b.addEventListener('click', () => {
+      const person = b.dataset.by === 'person';
+      for (const x of document.querySelectorAll('.wm-by [data-by]')) x.setAttribute('aria-checked', x === b ? 'true' : 'false');
+      $('#wm-topic').hidden = person;
+      $('#wm-person').hidden = !person;
+      if (person) $('#wm-topic').value = '';
+      else $('#wm-person').value = '';
+      void preview();
+    });
+  }
   $('#wm-topic')?.addEventListener('input', () => {
     clearTimeout(previewTimer);
     previewTimer = setTimeout(() => void preview(), 400);
@@ -161,6 +173,8 @@ export async function loadWhenList() {
     } catch {
       /* no People here: words only */
     }
+    const by = document.querySelector('.wm-by');
+    if (by) by.hidden = pick.options.length <= 1;
   }
 }
 

@@ -98,3 +98,12 @@
   .sc-fix > button:not(.tip) { flex: 1 1 100%; }
   .sc-token-dlg { max-width: none; width: 100%; height: 100%; margin: 0; }
 }
+
+/* Phase 128 PL2c (POLISH2.md N23, N31): line icons on routine cards and Today's Add a routine; a card
+   that needs setup shows an enabled-looking Set up first (opens the first missing need). */
+.rt-icon { display: inline-flex; align-items: center; vertical-align: -3px; color: var(--accent-text); }
+.rt-ic { width: 18px; height: 18px; }
+.rt-mini-name { display: inline-flex; align-items: center; gap: 6px; }
+.rt-mini-name .rt-ic { color: var(--accent-text); }
+button.rt-setup-first { background: var(--surface-1); color: var(--accent-text); border: 1px solid var(--accent-solid); box-shadow: none; font-weight: 600; }
+button.rt-setup-first:hover { background: var(--accent-soft); filter: none; }

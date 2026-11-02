@@ -57,6 +57,10 @@ html.ios-short-view { --safe-b: 0px; }
   --success: #4fd1a5;
   --warn: #f5b452;
   --danger: #ff6b7d;
+  /* PL2c (N32): a disabled button: grey text and a border, both ≥ 3:1 on the cards (ui-look.test). */
+  --btn-off-fill: #1e1a29;
+  --btn-off-text: #a39bb3;
+  --btn-off-line: #7a7090;
   --success-soft: rgb(79 209 165 / .13);
   --warn-soft: rgb(245 180 82 / .13);
   --danger-soft: rgb(255 107 125 / .13);
@@ -126,6 +130,9 @@ html.ios-short-view { --safe-b: 0px; }
   --success: #17805d;
   --warn: #92600c;
   --danger: #c0303a;
+  --btn-off-fill: #f4eef1;
+  --btn-off-text: #6e6479;
+  --btn-off-line: #857a90;
   --success-soft: rgb(23 128 93 / .10);
   --warn-soft: rgb(146 96 12 / .10);
   --danger-soft: rgb(192 48 58 / .09);

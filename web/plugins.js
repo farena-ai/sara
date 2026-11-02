@@ -9,6 +9,7 @@ import { serverText, t } from './naming.js';
 import { icon } from './icons.js';
 import { overflowMenu, emptyState } from './tidy.js';
 import { proposalCard } from './proposal-card.js';
+import { reviewNotices } from './plugin-notice.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -113,7 +114,9 @@ export async function loadPlugins() {
   }
   $('#plg-off').hidden = true;
   $('#plg-add').hidden = false;
-  $('#plg-fence-note').hidden = state.fence !== 'node-only';
+  // PL2c (N14): the page no longer opens on the amber box; each review card says it (N13). The note
+  // stays for plugins added from outside Sara (a .zip, git or a folder), which no one at Sara checked.
+  $('#plg-fence-note').hidden = state.fence !== 'node-only' || !(state.plugins ?? []).some((p) => p.origin && p.origin !== 'builtin' && p.origin !== 'store');
   renderWaiting();
   renderList();
   await renderBuiltin();
@@ -121,6 +124,7 @@ export async function loadPlugins() {
 
 // ---------- Phase 117 (P3): plugins that come with Sara ----------
 
+const CHAT_APP_PAGE = { email: 'co-email', signal: 'co-signal', whatsapp: 'co-whatsapp', matrix: 'co-matrix', imessage: 'co-imessage' };
 async function renderBuiltin() {
   const box = $('#plg-builtin');
   if (!box) return;
@@ -139,7 +143,14 @@ async function renderBuiltin() {
       title.append(el('strong', '', `${b.name} ${b.version}`), el('span', 'skl-desc', b.description));
       head.append(title);
       const row = el('div', 'add-row');
-      if (!b.installed) row.append(btn(t('Add {name}', { name: b.name }), '', () => addBuiltin(b.id)));
+      // PL2c (N14): a chat app that comes with Sara is set up on its own page, not here (one door).
+      if (CHAT_APP_PAGE[b.id] && !b.updateAvailable) {
+        const go = btn(t('Set up in Chat apps → {name}', { name: b.name }), 'ghost', () => {
+          location.hash = `#view=settings:${CHAT_APP_PAGE[b.id]}`;
+        });
+        if (b.installed) row.append(el('span', 'muted small', t('Added ({version})', { version: b.installedVersion })), ' ');
+        row.append(go);
+      } else if (!b.installed) row.append(btn(t('Add {name}', { name: b.name }), '', () => addBuiltin(b.id)));
       else if (b.updateAvailable) row.append(btn(t('Update available: {version}', { version: b.version }), '', () => addBuiltin(b.id)));
       else row.append(el('span', 'muted small', t('Added ({version})', { version: b.installedVersion })));
       card.append(head, row);
@@ -355,13 +366,6 @@ async function lookAtIt(b) {
   }
 }
 
-const FINDING = {
-  injection: (f) => t('In {file}: “{text}” looks like an attempt to change her instructions.', { file: f.file, text: f.text }),
-  egress: (f) => t('In {file}: sends data to {host}.', { file: f.file, host: f.host ?? '?' }),
-  secret: (f) => t('In {file}: contains what looks like a key or password.', { file: f.file }),
-  binary: (f) => t('{file} is not a text file.', { file: f.file }),
-};
-
 function kb(n) {
   return n < 1024 ? t('{n} bytes', { n }) : t('{n} KB', { n: Math.round(n / 102.4) / 10 });
 }
@@ -380,18 +384,17 @@ export function reviewCard(r, opts = {}) {
   const m = r.manifest;
   const i18n = m.i18n;
   const title = r.kind === 'update' ? (r.short ? t('{name} {version}: same permissions', { name: m.name, version: m.version }) : t('{name} {version} asks for more', { name: m.name, version: m.version })) : t('Add {name} {version}?', { name: m.name, version: m.version });
-  const chips = [{ text: FENCE[r.fence]?.() ?? r.fence, cls: r.fence === 'node-only' ? 'warn' : '' }, ...(m.license ? [{ text: m.license }] : []), ...(r.current ? [{ text: t('Now: {version}', { version: r.current.version }) }] : [])];
+  // PL2c (N13): Sara's own plugins get one calm line instead of the amber boxes (plugin-notice.js).
+  const notes = reviewNotices(r);
+  const chips = [{ text: notes.calm ? t('No sandbox here') : FENCE[r.fence]?.() ?? r.fence, cls: notes.amberChip ? 'warn' : '' }, ...(m.license ? [{ text: m.license }] : []), ...(r.current ? [{ text: t('Now: {version}', { version: r.current.version }) }] : [])];
   const why = [own(i18n, m.description)];
   // Phase 124 (SARA_STORE.md §6.1): the files match a version in the verified Sara Store list.
   if (r.store) why.push(STORE_STRIP[r.store.trust]?.() ?? STORE_STRIP.community());
   if (r.builtin) why.push(t('Comes with Sara · made by the Sara team'));
   else if (m.author) why.push(t('By {who}', { who: m.author }));
-  const warn = [];
-  if (r.fence === 'node-only') warn.push(t("This computer can't fence the plugin in. Only add plugins you trust."));
-  for (const f of r.findings ?? []) warn.push(FINDING[f.kind] ? FINDING[f.kind](f) : f.text);
-  if (r.store?.yanked) warn.push(t('This version was pulled from the store: {reason}', { reason: r.store.yanked }));
-  if (r.unknownCallTools?.length) warn.push(t('It asks for tools this server does not have: {names}', { names: r.unknownCallTools.join(', ') }));
+  const warn = notes.warn;
   const body = [];
+  if (notes.calm) body.push(el('p', 'muted small plg-calm', notes.calm));
   if (!r.short) {
     const files = el('details', 'skl-body-box');
     files.append(el('summary', '', t('{n} files, {size}', { n: r.files.length, size: kb(r.size) })));

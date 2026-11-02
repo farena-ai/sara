@@ -7,7 +7,8 @@ on Today, or *Turn on a routine* in Getting started).
 Every card says the same four things before anything happens:
 
 1. **When** it runs, in words ("Weekdays at 08:00, until 2 December").
-2. **What it needs**, each ticked ✓ or ✗ with *Set it up* (a GitHub token, Gmail, a brain…).
+2. **What it needs**, each ticked ✓ or ✗ with *Set it up* (a GitHub token, Gmail, a brain…). While
+   something is missing the card's button reads **Set up first** and opens the first missing thing.
 3. **What it costs**, computed by Sara from your model and the schedule, never from the card itself:
    *Free · no model calls*, or "About 1 model call a day … At most 1 a day", or for a routine that runs
    a model on a schedule the turns a day, the daily cap Sara enforces and the end date.

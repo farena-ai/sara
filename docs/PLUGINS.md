@@ -174,7 +174,12 @@ network permission). So the fence is layered:
 - **macOS**: inside a generated Seatbelt profile that denies the network and every file but its own.
 - **Windows, or Linux without bubblewrap**: Node permissions only, so the plugin is not fenced in. The review card and the Plugins
   page say **Not fenced in**, and installing needs the *I trust this plugin's author* tick. (A real
-  Windows fence is a BACKLOG research item.)
+  Windows fence is a BACKLOG research item.) From 2.61.2 Sara's **own** plugins (the server proves it:
+  `Review.firstParty`, and the fingerprint is checked at install as always) show one plain line
+  instead: "Runs with Node's permission limits; no sandbox on Windows. Made and checked by the Sara
+  team." Every other plugin, an update that asks for more, a pulled version or a scan finding the
+  manifest doesn't declare keeps the amber lines (`web/plugin-notice.js`). The Plugins page itself
+  shows the amber note only once a plugin from a .zip, git or a folder is installed.
 - **Network only through Sara**: `sara.fetch(url)` goes over the channel; Sara checks the manifest's
   host list (exact match or one `*.` level), https on port 443 only, public addresses only (the
   name is resolved once and the connection pinned to it), every redirect re-checked, a 1 MB answer
@@ -405,6 +410,8 @@ A plugin never opens a socket (on a fenced host it can't). Sara holds it:
 shows **the same review card** with *Comes with Sara · made by the Sara team*. Nothing installs or
 switches on by itself; on an unfenced host the trust tick is still required. When Sara ships a newer
 version, the shelf shows *Update available* and *Check for updates* re-reads the bundled folder.
+The chat-app plugins (Email, Signal, WhatsApp, Matrix, iMessage) are set up on their own page, so their
+rows say *Set up in Chat apps → …* and open it.
 Their `sara-plugin.mjs` is the same file as `examples/plugins/sara-plugin.mjs`.
 
 ## 9. Testing your plugin

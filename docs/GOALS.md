@@ -9,7 +9,26 @@ yours only, both start only when you press **Start**, and after a restart both c
 | How it ends | The check passes, she's stuck, a cap, or you stop it | Its end time, its check limit, *Stop when*, failures, or you |
 | Start it | `+ → Keep going until it's done…` or `/goal make the tests pass` | `+ → Repeat this…` or `/loop every 10m for 2h: check the deploy` |
 | See them | The strip above the chat box | The strip, and Planner → **Repeats** |
-| Settings | Settings → Abilities → **Keep going and repeats** | the same page |
+| Settings | Settings → Coding → **Keep going and repeats** | the same page |
+
+### How far she may go (Sara 2.61.2)
+
+The settings page offers three choices instead of a wall of numbers. Each card says its limits in words.
+
+| | Careful | Normal (the default) | Long jobs |
+|---|---|---|---|
+| A goal stops after | 3 rounds or 30 minutes | 5 rounds or an hour | 20 rounds or 4 hours |
+| Tokens per goal | 200,000 | 1,000,000 | 2,000,000 |
+| Dollars per goal | at most $0.25 | no dollar cap | no dollar cap |
+| Repeats check at most every | 15 min | 5 min | 5 min |
+| Repeats at once | 1 | 3 | 5 |
+| Tokens a day, all repeats | 100,000 | 300,000 | 1,000,000 |
+| Dollars a day, all repeats | at most $0.1 | at most $0.5 | at most $2 |
+
+**Normal** is exactly what Sara used before 2.61.2, so nobody's limits changed. Every number is still
+there under **Fine-tune**; change one and the page shows **Custom**. Limits you set by hand in an older
+version load unchanged and show as Custom. The two on/off switches, the reviewer model and *At night*
+are not part of a choice.
 
 ## Goals
 

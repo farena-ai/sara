@@ -340,7 +340,8 @@ export async function loadPreciseSettings() {
   for (const [id, key] of Object.entries(CHOICE)) {
     const s = $(`#${id}`);
     if (!s || s.options.length) continue;
-    for (const n of v.choices[key]) s.append(new Option(key === 'perRefChars' ? n.toLocaleString() : String(n), String(n)));
+    // PL2c (N18): "Wait up to 20 s" as the option text.
+    for (const n of v.choices[key]) s.append(new Option(key === 'perRefChars' ? n.toLocaleString() : key === 'waitS' ? t('Wait up to {n} s', { n }) : String(n), String(n)));
   }
   for (const [id, [part, key]] of Object.entries(IDS)) {
     const c = $(`#${id}`);

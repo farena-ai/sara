@@ -1423,6 +1423,72 @@
    "show": "#review-now"
   }
  ],
+ "planner-reminders": [
+  {
+   "id": "time",
+   "q": "How do I set a reminder for a time?",
+   "steps": [
+    "Type what and when at the top of Reminders, then press Add.",
+    "Or tell her in chat: \"remind me at 5 to call Ana\"."
+   ],
+   "show": "#rem-text"
+  },
+  {
+   "id": "comes-up",
+   "q": "How do I get reminded when something comes up?",
+   "steps": [
+    "Under When it comes up, type what to remind you of.",
+    "Pick a person, or type a few words to listen for.",
+    "Press Add. She tells you when they come up in a chat."
+   ],
+   "show": "#wm-text"
+  }
+ ],
+ "planner-repeats": [
+  {
+   "id": "repeat",
+   "q": "How do I make her check something on a timer?",
+   "steps": [
+    "In a chat, press + and pick Repeat this….",
+    "Pick how often and until when, then press Start.",
+    "Or type /loop every 10m: what to check."
+   ]
+  },
+  {
+   "id": "stop",
+   "q": "How do I pause or stop a repeat?",
+   "steps": [
+    "Find it in this list.",
+    "Press Pause, or Stop to end it."
+   ]
+  },
+  {
+   "id": "limits",
+   "q": "How do I change how much repeats may spend?",
+   "steps": [
+    "Open Settings → Coding → Keep going and repeats.",
+    "Pick Careful, Normal or Long jobs."
+   ]
+  }
+ ],
+ "planner-routines": [
+  {
+   "id": "start",
+   "q": "How do I turn on a routine?",
+   "steps": [
+    "Pick a card under Add a routine.",
+    "If it says Set up first, press it and connect what it needs.",
+    "Answer its questions, look at the preview, then press Turn on."
+   ]
+  },
+  {
+   "id": "off",
+   "q": "How do I switch a routine off?",
+   "steps": [
+    "Under My routines, switch it off. It stops at once."
+   ]
+  }
+ ],
  "memory": [
   {
    "id": "add",

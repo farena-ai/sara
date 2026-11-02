@@ -147,6 +147,12 @@ function mineRow(x) {
   return row;
 }
 
+// PL2c (N31): line icons for the routines (web/icons.js); emoji stay in her messages.
+export const ROUTINE_ICON = { 'backup-check': 'archive', bedtime: 'moon', 'ci-watch': 'flask', 'inbox-triage': 'mail', 'leave-on-time': 'car', 'morning-brief': 'sun', 'new-issues': 'branch', 'price-watch': 'flag', stretch: 'heart', 'weekly-review': 'calendar' };
+export function routineIcon(id) {
+  const s = icon(ROUTINE_ICON[id] ?? 'sparkle', 'rt-ic');
+  return s ?? document.createElement('span');
+}
 const CATS = [['everyday', () => t('Everyday')], ['work', () => t('Work')], ['coding', () => t('Coding')], ['safety', () => t('Safety')]];
 function paintGallery(answers) {
   const out = [];
@@ -171,7 +177,9 @@ function card(r, answers) {
   const c = el('article', `rt-card${r.id === open ? ' rt-open' : ''}`);
   c.dataset.routine = r.id;
   const h = el('h5', 'rt-card-title');
-  h.append(el('span', 'rt-icon', r.icon || '•'), ' ', r.title);
+  const ic = el('span', 'rt-icon');
+  ic.append(routineIcon(r.id));
+  h.append(ic, ' ', r.title);
   c.append(h, el('p', 'rt-pitch small', r.pitch), el('p', 'rt-when small', r.when));
   const needs = el('ul', 'rt-needs');
   for (const n of r.needs) {
@@ -189,12 +197,15 @@ function card(r, answers) {
   }
   const blocked = r.needs.some((n) => !n.ok && !n.better);
   if (r.id !== open) {
-    const go = btn(t('Turn on'), 'primary', () => {
-      open = r.id;
-      paintGallery();
-      document.querySelector(`[data-routine="${CSS.escape(r.id)}"] input, [data-routine="${CSS.escape(r.id)}"] select`)?.focus();
-    });
-    go.disabled = blocked;
+    // PL2c (N23): a card that needs setup says Set up first and opens the first missing need.
+    const first = r.needs.find((n) => !n.ok && !n.better);
+    const go = blocked
+      ? btn(t('Set up first'), 'rt-setup-first', () => ctx.openSettings(first.open.replace('settings:', '')))
+      : btn(t('Turn on'), 'primary', () => {
+          open = r.id;
+          paintGallery();
+          document.querySelector(`[data-routine="${CSS.escape(r.id)}"] input, [data-routine="${CSS.escape(r.id)}"] select`)?.focus();
+        });
     c.append(el('div', 'rt-actions', ''));
     c.lastChild.append(go);
     return c;
@@ -295,7 +306,9 @@ export async function todayRoutineCards(path) {
     const r = d.catalog.find((x) => x.id === id);
     if (!r) continue;
     const b = btn('', 'rt-mini', () => void openRoutinesAt(id));
-    b.append(el('strong', '', `${r.icon || ''} ${r.title}`), el('span', 'small', r.pitch), el('span', 'small muted', r.cost.free ? t('Free') : r.cost.words.split('(')[0].trim()));
+    const name = el('strong', 'rt-mini-name');
+    name.append(routineIcon(r.id), ' ', r.title);
+    b.append(name, el('span', 'small', r.pitch), el('span', 'small muted', r.cost.free ? t('Free') : r.cost.words.split('(')[0].trim()));
     row.append(b);
   }
   row.append(btn(t('See all routines'), 'ghost', () => void openRoutinesAt('')));

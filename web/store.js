@@ -10,6 +10,7 @@ import { reviewCard as pluginCard, permText } from './plugins.js';
 import { showStoreImport } from './skills.js';
 import { proposalCard } from './proposal-card.js';
 import { openCard } from './packs.js';
+import { icon as lineIcon } from './icons.js';
 
 const $ = (sel) => document.querySelector(sel);
 async function api(path, opts = {}) {
@@ -116,7 +117,7 @@ export function initStore(o = {}) {
 // the store is set with textContent; the permission lines are the ones Sara computed.
 // ---------------------------------------------------------------------------------------------
 
-const g = { shelf: null, q: '', back: [], mcp: null, plugin: null, pack: null, item: null };
+const g = { shelf: null, q: '', back: [], mcp: null, plugin: null, pack: null, item: null, seg: 'browse', all: new Set() };
 const el = (tag, cls, text) => {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -138,7 +139,15 @@ const tipBtn = (text) => {
 };
 const enc = encodeURIComponent;
 const KIND = { plugin: () => t('Plugin'), skill: () => t('Skill'), mcp: () => t('Tool server'), companion: () => t('Companion') };
-const GLYPH = { plugin: '▣', skill: '✎', mcp: '⚙', companion: '☺' };
+// PL2c (N10, N31): a line icon per kind (web/icons.js), on every card, instead of one generic square.
+export const KIND_ICON = { plugin: 'plug', skill: 'book', mcp: 'tool', companion: 'heart' };
+const kindGlyph = (kind) => {
+  const s = el('span', 'sto-icon sto-glyph');
+  s.dataset.kind = kind;
+  const svg = lineIcon(KIND_ICON[kind] ?? 'package');
+  if (svg) s.append(svg);
+  return s;
+};
 export const TRUST = {
   'first-party': () => t('Made by the Sara team'),
   reviewed: () => t('Reviewed by the Sara team'),
@@ -163,6 +172,24 @@ const lineText = (l) => {
   const own = permText(l);
   return own === l.key ? pathOf(l) : own;
 };
+
+/** PL2c (N10): the shelves of the first screen; every item id in exactly one shelf (Popular first). */
+export function shelfGroups(items, q = '') {
+  const groups = new Map();
+  const seen = new Set();
+  if (!q) {
+    const pop = items.filter((i) => i.trust === 'first-party' && i.kind !== 'companion').slice(0, 3);
+    groups.set('popular', pop);
+    for (const i of pop) seen.add(i.id);
+  }
+  for (const i of items) {
+    if (seen.has(i.id)) continue;
+    seen.add(i.id);
+    const k = shelfOf(i);
+    groups.set(k, [...(groups.get(k) ?? []), i]);
+  }
+  return groups;
+}
 
 /** The state lines of Get more (§8.2): off, private local mode, offline, no list yet. */
 export function stateLine(s) {
@@ -200,10 +227,19 @@ function icon(i) {
     img.width = 40;
     img.height = 40;
     img.src = `/api/store/shots/${enc(i.icon)}`;
-    img.addEventListener('error', () => img.replaceWith(el('span', 'sto-icon sto-glyph', GLYPH[i.kind] ?? '?')), { once: true });
+    img.addEventListener('error', () => img.replaceWith(kindGlyph(i.kind)), { once: true });
     return img;
   }
-  return el('span', 'sto-icon sto-glyph', GLYPH[i.kind] ?? '?');
+  return kindGlyph(i.kind);
+}
+/** The kind line on a card: its line icon and the word (Plugin, Skill, Tool server, Companion). */
+function kindTag(kind) {
+  const s = el('span', 'sto-kind muted small');
+  s.dataset.kind = kind;
+  const svg = lineIcon(KIND_ICON[kind] ?? 'package');
+  if (svg) s.append(svg);
+  s.append(el('span', '', KIND[kind]?.() ?? kind));
+  return s;
 }
 
 function card(i) {
@@ -212,7 +248,8 @@ function card(i) {
   open.setAttribute('aria-label', t('Open {name}', { name: i.name }));
   const head = el('div', 'sto-card-head');
   head.append(icon(i), el('strong', 'sto-name', i.name));
-  open.append(head, el('span', 'sto-summary small', i.summary), el('span', `sto-badge small trust-${i.trust}`, TRUST[i.trust]?.() ?? i.trust));
+  c.dataset.item = i.id;
+  open.append(head, el('span', 'sto-summary small', i.summary), kindTag(i.kind), el('span', `sto-badge small trust-${i.trust}`, TRUST[i.trust]?.() ?? i.trust));
   const a = actionFor(i);
   const act = btn(a.label, a.go === 'get' ? '' : 'ghost', (b) => (a.go === 'update' ? void update(i.id, b) : void get(i.id, b)));
   act.disabled = Boolean(a.off) || !g.shelf?.installAllowed;
@@ -234,13 +271,9 @@ function renderShelves() {
   $('#sto-community').checked = Boolean(s.community);
   const items = (s.items ?? []).filter((i) => matches(i, g.q));
   if (g.q && !items.length) box.append(el('p', 'muted', t('Nothing in the store matches that.')));
-  const groups = new Map();
-  if (!g.q) groups.set('popular', items.filter((i) => i.trust === 'first-party' && i.kind !== 'companion').slice(0, 5));
-  for (const i of items) {
-    const k = shelfOf(i);
-    if (!groups.has(k) || k === 'popular') groups.set(k, groups.get(k) ?? []);
-    if (k !== 'popular') groups.get(k).push(i);
-  }
+  // PL2c (N10, N11): every item once on the screen (Popular takes it out of its own shelf), and each
+  // shelf a wrapping grid of 3 (1 on phones) with See all instead of a sideways scroller.
+  const groups = shelfGroups(items, g.q);
   for (const [k, label] of SHELVES) {
     const list = groups.get(k) ?? [];
     if (k === 'skills' && !list.length && !g.q) {
@@ -251,13 +284,47 @@ function renderShelves() {
     }
     if (!list.length) continue;
     const sec = el('section', 'sto-shelf');
+    sec.dataset.shelf = k;
     const row = el('div', 'sto-row');
-    row.append(...list.map(card));
-    sec.append(el('h3', '', label()), row);
+    const open = g.q || g.all.has(k);
+    row.append(...(open ? list : list.slice(0, 3)).map(card));
+    const head = el('div', 'sto-shelf-head');
+    head.append(el('h3', '', label()));
+    if (list.length > 3 && !g.q) {
+      head.append(btn(open ? t('Show fewer') : t('See all {n}', { n: list.length }), 'ghost small sto-all', () => {
+        if (open) g.all.delete(k);
+        else g.all.add(k);
+        renderShelves();
+      }));
+    }
+    sec.append(head, row);
     box.append(sec);
   }
   const mine = $('#sto-mine-open');
   if (mine) mine.textContent = s.updates ? (s.updates === 1 ? t('My add-ons (1 update)') : t('My add-ons ({n} updates)', { n: s.updates })) : t('My add-ons');
+}
+
+/** PL2c (N9): the segmented control Browse · My add-ons · Submit; exactly one is selected. */
+function setSeg(seg) {
+  g.seg = seg;
+  for (const b of document.querySelectorAll('.sto-seg [data-seg]')) {
+    const on = b.dataset.seg === seg;
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+    b.tabIndex = on ? 0 : -1;
+  }
+  if ($('#sto-browse')) $('#sto-browse').hidden = seg !== 'browse';
+  if ($('#sto-view')) {
+    $('#sto-view').hidden = seg === 'browse';
+    $('#sto-view').setAttribute('aria-labelledby', seg === 'mine' ? 'sto-mine-open' : 'sto-submit-open');
+    if (seg === 'browse') $('#sto-view').replaceChildren();
+  }
+}
+/** My add-ons and Submit open in the page (under the control); everything after them in the panel. */
+function show(title, nodes, o = {}) {
+  if (g.seg === 'browse' || $('#store-panel')?.open || o.panel) return panel(title, nodes, o);
+  const v = $('#sto-view');
+  v.replaceChildren(...nodes);
+  g.viewRedo = o.redo ?? null;
 }
 
 export async function loadGetMore() {
@@ -290,7 +357,8 @@ function panel(title, nodes, o = {}) {
   $('#stp-body').scrollTop = 0;
 }
 const say = (text) => {
-  $('#stp-status').textContent = text;
+  if (!$('#store-panel')?.open && g.seg !== 'browse' && $('#sto-status')) $('#sto-status').textContent = text;
+  else $('#stp-status').textContent = text;
 };
 const section = (head, ...nodes) => {
   const s = el('section', 'stp-sec');
@@ -314,7 +382,7 @@ export async function openItem(id, o = {}) {
   const head = el('div', 'stp-head');
   head.append(icon(i));
   const who = el('div', 'stp-who');
-  who.append(el('strong', '', i.name), el('span', 'muted small', t('{kind} · version {version} · {license}', { kind: KIND[i.kind]?.() ?? i.kind, version: r.version, license: r.entry.license ?? '' })), el('span', `sto-badge small trust-${i.trust}`, TRUST[i.trust]?.() ?? ''), el('span', 'muted small', t('By {name} · author key {key}', { name: i.author.name, key: i.author.key })));
+  who.append(el('strong', '', i.name), el('span', 'muted small', t('{kind} · version {version} · {license}', { kind: KIND[i.kind]?.() ?? i.kind, version: r.version, license: r.entry.license ?? '' })), el('span', `sto-badge small trust-${i.trust}`, TRUST[i.trust]?.() ?? ''), el('span', 'muted small', t('By {name}', { name: i.author.name })));
   head.append(who);
   nodes.push(head);
   if (r.held) nodes.push(el('p', 'skl-warn', t('Being checked by the Sara team')));
@@ -357,6 +425,10 @@ export async function openItem(id, o = {}) {
     vers.append(li);
   }
   nodes.push(section(t('Versions'), vers));
+  // PL2c (N12): the author key is for people who check signatures, under Details.
+  const det = el('details', 'stp-details small');
+  det.append(el('summary', '', t('Details')), el('p', 'muted small stp-key', t('Author key: {key}', { key: i.author.key })));
+  nodes.push(det);
   if (r.entry.source) {
     const a = el('a', 'small', t('Its source'));
     a.href = r.entry.source;
@@ -408,7 +480,8 @@ function showPlugin(r) {
       { label: t('Cancel'), cls: 'ghost', onClick: () => cancelPanel() },
     ],
   });
-  panel(r.kind === 'update' ? t('Update') : t('Get'), [cardEl]);
+  // PL2c (N12): the window says what it adds, not just "Get".
+  panel(r.kind === 'update' ? t('Update {name}', { name: r.manifest.name }) : t('Add {name}', { name: r.manifest.name }), [cardEl], { panel: true });
 }
 async function approvePlugin(b) {
   const r = g.plugin;
@@ -594,7 +667,7 @@ export async function openMine(o = {}) {
     row.append(acts);
     nodes.push(row);
   }
-  panel(t('My add-ons'), nodes, { push: o.push, redo: () => openMine({ push: false }) });
+  show(t('My add-ons'), nodes, { push: o.push, redo: () => openMine({ push: false }) });
 }
 async function storeAct(what, item, b, extra = {}) {
   b.disabled = true;
@@ -726,7 +799,12 @@ export async function openSubmit() {
       b.disabled = false;
     }
   });
-  panel(t('Submit yours'), [section(t('1 What is it?'), kinds), section(t('2 Where is it?'), pl, fl, check), out]);
+  // PL2c (N9): My submissions lives inside Submit.
+  const subs = btn(t('My submissions'), 'ghost', () => void openSubs({ panel: true }));
+  subs.id = 'sto-subs-open';
+  const subsRow = el('div', 'prop-buttons sto-subs-row');
+  subsRow.append(subs);
+  show(t('Submit yours'), [section(t('1 What is it?'), kinds), section(t('2 Where is it?'), pl, fl, check), out, subsRow]);
 }
 
 /** Phase 127: *Send to the Sara Store* from Share her: the companion pack, checked, into Submit yours. */
@@ -816,7 +894,7 @@ export async function openSubs(o = {}) {
     row.append(head, btn(t('Open'), 'ghost', () => void openSub(s.submission)));
     nodes.push(row);
   }
-  panel(t('My submissions'), nodes, { push: o.push, redo: () => openSubs({ push: false }) });
+  panel(t('My submissions'), nodes, { push: o.push, redo: () => openSubs({ push: false, panel: true }) });
 }
 const STATE_WORDS = {
   uploading: () => t('Sending'),
@@ -871,6 +949,7 @@ export function initGetMore() {
   document.addEventListener('sara:submit-pack', (e) => void openSubmitPack(e.detail));
   $('#sto-q')?.addEventListener('input', () => {
     g.q = $('#sto-q').value;
+    if (g.seg !== 'browse') setSeg('browse');
     renderShelves();
   });
   $('#sto-check')?.addEventListener('click', async () => {
@@ -895,9 +974,24 @@ export function initGetMore() {
       $('#sto-status').textContent = err.message;
     }
   });
-  $('#sto-mine-open')?.addEventListener('click', () => void openMine());
-  $('#sto-submit-open')?.addEventListener('click', () => void openSubmit());
-  $('#sto-subs-open')?.addEventListener('click', () => void openSubs());
+  $('#sto-browse-open')?.addEventListener('click', () => setSeg('browse'));
+  $('#sto-mine-open')?.addEventListener('click', () => {
+    setSeg('mine');
+    void openMine();
+  });
+  $('#sto-submit-open')?.addEventListener('click', () => {
+    setSeg('submit');
+    void openSubmit();
+  });
+  // ← → between the three (a tab list).
+  document.querySelector('.sto-seg')?.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    const tabs = [...document.querySelectorAll('.sto-seg [data-seg]')];
+    const i = tabs.findIndex((b) => b.dataset.seg === g.seg);
+    const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+    next.focus();
+    next.click();
+  });
   $('#stp-close')?.addEventListener('click', () => cancelPanel());
   $('#stp-back')?.addEventListener('click', () => {
     const prev = g.back.pop();

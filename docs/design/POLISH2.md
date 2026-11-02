@@ -339,6 +339,34 @@ names); only the generated index follows the new groups. Screenshots: `outputs/u
 - [ ] `test/ui-look.test.ts`: disabled buttons pass 3:1 against their card in both themes.
 - [ ] Phase 121, 124, 125, 127 tests green unchanged.
 
+**As built (PL2c, 2.61.2).** N17: `PERSIST_PRESETS` in `src/persist.ts`, *Normal* equal to
+`DEFAULT_PERSIST` (Q4); *Careful* = goals 3 rounds / 30 min / 200,000 tokens / $0.25, repeats every 15
+min at most, 1 at once, 100,000 tokens and $0.1 a day; *Long jobs* = 20 rounds / 4 h / 2,000,000 tokens /
+no dollar cap, repeats every 5 min, 5 at once, 1,000,000 tokens and $2 a day (the other numbers in the
+table). The cards say rounds, time, tokens and dollars in words (`web/persist-presets.js`); the 19 old
+fields keep their ids under *Fine-tune*; *Custom* appears only when the numbers are your own (2.60
+settings load unchanged). `GET /api/persist` returns `presets` and `preset`; `PUT {preset}` also works.
+One intro: the page's lead paragraph went (the description already says it). Store: N9 *Browse · My
+add-ons · Submit* (a tab list; My add-ons and Submit open in the page, *My submissions* inside
+Submit); N10 `shelfGroups` (each id once, Popular takes it out of its shelf) and a line icon per kind
+on every card; N11 grids of 3 (2 under 900 px, 1 on phones) with *See all*; N12 the key under
+*Details*, the window titled "Add Weather alerts". N13 (`web/plugin-notice.js`): **deviation**: the
+calm line is for Sara's own plugins only (`Review.firstParty`, the 2.61.0 rule), not for every
+store-reviewed one, so third-party plugins keep every amber line; an update that asks for more, a
+pulled version or a scan finding to an undeclared host is amber again. The line names Windows from
+the new `Review.os`. N14: the Plugins page shows the amber note only once a plugin from a .zip, git
+or a folder is installed; the chat-app rows say *Set up in Chat apps → …*. N15: dials ticked ("she
+uses the defaults" when none are set), routine chips from the gallery (up to 5, sent as `{ id }`:
+the old text box sent plain strings, which the pack format refuses), *Save the file: check it
+first*. N18 the language-server sentence gone, "Wait up to 20 s"; N21 a *How do I…?* on Planner →
+Reminders, Repeats and Routines (`VIEW_HOWTO` `planner-*`) and the Repeats empty state with *Repeat
+something in a chat* (types `/loop ` in the box); N22 *When it comes up* as a small card with a
+full-width field and a *Words / A person* switch; N23 *Set up first*; N24 "She gets the tools that fit
+each step (saves about N%)", the token numbers under the `?`; N31 line icons for the routines and
+Today's *Add a routine*; N32 `--btn-off-fill/-text/-line` (≥ 3:1 on the cards in both themes); N33
+the tile headings that repeat their section name are `aria-hidden`. Screenshots:
+`outputs/ui-review/pl2c/` (before, after, `presets-live.json`).
+
 ### PL2d (2.61.3): docs, README, and the code debt
 
 - N35 README first screen and status line; N36 FOR_CODERS; N37 START_HERE; N38 guide sections and

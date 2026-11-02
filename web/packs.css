@@ -60,3 +60,8 @@
   .pkp-facts { grid-template-columns: 1fr; }
   .pkp-acts > button { flex: 1 1 8rem; }
 }
+
+/* Phase 128 PL2c (POLISH2.md N15): routine chips on Share her (picked from the gallery, up to 5). */
+.pkp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pkp-chip { min-height: 44px; border-radius: 999px; }
+.pkp-chip[aria-pressed="true"] { border-color: var(--accent-solid); background: var(--accent-soft); color: var(--text-1); }

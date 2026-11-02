@@ -26,7 +26,7 @@ and you switch it on yourself, one companion at a time.
 
 ## Adding something (Sara 2.58)
 
-Open **Settings → Abilities → Get more**. Search or pick an add-on on a shelf, read its page (what it
+Open **Settings → Add-ons → Get more**. Search or pick an add-on on a shelf, read its page (what it
 does, what it can do in Sara's own words, pictures, versions, the checks it passed), then press **Get**:
 
 - **A plugin** shows the same review card as **Add a plugin**, with **From the Sara Store** on it.
@@ -35,6 +35,15 @@ does, what it can do in Sara's own words, pictures, versions, the checks it pass
 - **A tool server** shows its own card: the exact program it runs (and its Windows form), where its
   code comes from, what it needs, whether it runs fenced in, and the fields to fill in. Keys go to the
   vault. Nothing starts until you press **Add and start**; then Sara runs **Test**.
+
+The page has three parts: **Browse** (the shelves), **My add-ons** and **Submit** (with *My
+submissions* inside it). Each add-on shows once on the first screen; a shelf shows three and **See all**
+for the rest; every card has a line icon for its kind (plugin, skill, tool server, companion). The
+author's key is under **Details** on the add-on's page.
+
+On Windows (and Linux without bubblewrap) no plugin can be fenced in. Sara's own plugins (made and
+signed by the Sara team, checked by fingerprint at install) show one plain line about that; every other
+plugin, and any update that asks for more, keeps the amber warnings (Sara 2.61.2).
 
 **My add-ons** lists everything you added from outside, with updates. An update is never applied on its
 own: it shows what changed, and if it asks for more (a new web address, a new permission) you see

@@ -102,6 +102,10 @@ export function howtoBlock(id, { t = (s) => s, open = '', doc = document, about 
 export const VIEW_HOWTO = {
   today: '#today .td-hero',
   planner: '#planner',
+  // PL2c (N21): a How do I…? per Planner tab that had none.
+  'planner-reminders': '#planner .tab-panel[data-panel="reminders"]',
+  'planner-repeats': '#planner .tab-panel[data-panel="repeats"]',
+  'planner-routines': '#planner .tab-panel[data-panel="routines"]',
   memory: '#memory',
   library: '#lib-home',
   scrapbook: '#scrapbook',

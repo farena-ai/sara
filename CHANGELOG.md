@@ -5,6 +5,22 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.61.2 (2026-11-02): choices, not forms (Phase 128, polish PL2c)
+
+- **Keep going and repeats** is now three choices, *Careful*, *Normal* and *Long jobs*, each stating its
+  limits in words; *Normal* is exactly the old numbers, and the 19 fields fold under *Fine-tune*
+  (settings you changed before show as *Custom*).
+- **The Store page:** a real Browse · My add-ons · Submit switch, each item shown once, a line icon for
+  each kind (plugin, skill, tool server, companion), shelves as tidy grids with *See all*, and the author
+  key under Details. Sara's own plugins show one calm line instead of amber warnings; plugins from anyone
+  else keep every warning.
+- **Icons and buttons:** line icons on routines, presets and empty states instead of emoji; disabled
+  buttons are readable in both themes (at least 3:1), and routines that need setup say *Set up first*.
+- **Planner:** *When it comes up* has its own card; Reminders, Repeats and Routines each have a
+  *How do I…?*; an empty Repeats list offers `/loop`.
+- **Fixed:** sharing a companion with suggested routines failed (the routines were sent in the wrong
+  form); they're now picked from the gallery.
+
 ## 2.61.1 (2026-11-02): find it (Phase 128, polish PL2b)
 
 - **Settings in 8 groups:** Her, You, Models, Chat apps, Add-ons, Coding, Connections, Data & health (and

@@ -106,7 +106,8 @@ export async function openShare(companion) {
     goes.append(c.row);
   };
   add('character', t('Her character: name, age, personality, how she talks'), t('Her name, age, personality, background, how she talks and her boundaries. Your name becomes “you” so it fits whoever adds her. Your own notes about the two of you and your hard limits stay here.'), true, { locked: true, size: sec.character.size });
-  add('dials', sec.dials.count === 1 ? t('Her personality dials (1 set)') : t('Her personality dials ({n} set)', { n: sec.dials.count }), t('Her personality sliders (warmth, teasing and the rest) go as numbers, so she feels the same to someone else.'), sec.dials.count > 0, { off: !sec.dials.count });
+  // PL2c (N15): ticked by default; with none set she simply uses the defaults on the other side too.
+  add('dials', !sec.dials.count ? t('Her personality dials (she uses the defaults)') : sec.dials.count === 1 ? t('Her personality dials (1 set)') : t('Her personality dials ({n} set)', { n: sec.dials.count }), t('Her personality sliders (warmth, teasing and the rest) go as numbers, so she feels the same to someone else.'), true);
   add('look', sec.look.custom ? t('Her look: {n} pictures', { n: sec.look.count }) : t('Her look: the default pictures (not shared)'), t('The pictures the app shows of her: her face, her expressions and the frames that make her blink and talk. Pictures she sent you are never included.'), sec.look.custom, { off: !sec.look.custom, size: sec.look.custom ? sec.look.size : '' });
   const closetBox = el('div', 'pkp-sub');
   for (const l of sec.closet.looks.slice(0, 30)) {
@@ -129,15 +130,30 @@ export async function openShare(companion) {
     skillBox.append(c.row);
   }
   goes.append(section(t('Skills'), t('Skills from the Sara Store go as a name; the new owner installs them through the usual review. Skills you made go inside the pack and are reviewed too.'), skillBox.childNodes.length ? skillBox : el('p', 'muted small', t('She has no skills of her own yet.'))));
-  const routines = el('input');
+  // PL2c (N15): routines are chips picked from the gallery (up to 5), not ids typed by hand.
+  const picked = new Set();
+  const routines = el('div', 'pkp-chips');
   routines.id = 'pkp-routines';
-  routines.placeholder = 'bedtime, weekly-review';
-  routines.autocomplete = 'off';
-  const rl = el('label', 'pkp-field');
+  routines.setAttribute('role', 'group');
+  const rl = el('div', 'pkp-field');
   const rh = el('span', '', t('Routines she suggests'));
   rh.append(' ', tipBtn(t('Routines she’ll suggest after she’s added, like a bedtime nudge. Nothing is switched on until the new owner says so.')));
+  routines.setAttribute('aria-label', t('Routines she suggests'));
   rl.append(rh, routines);
   goes.append(rl);
+  void api('/routines').then((r) => {
+    for (const x of (r.catalog ?? []).filter((c) => !c.blocked)) {
+      const chip = btn(x.title, 'ghost small pkp-chip', () => {
+        if (picked.has(x.id)) picked.delete(x.id);
+        else if (picked.size < 5) picked.add(x.id);
+        chip.setAttribute('aria-pressed', picked.has(x.id) ? 'true' : 'false');
+      });
+      chip.dataset.routine = x.id;
+      chip.setAttribute('aria-pressed', 'false');
+      routines.append(chip);
+    }
+    if (!routines.childElementCount) routines.append(el('p', 'muted small', t('No routines to suggest here.')));
+  }).catch(() => routines.append(el('p', 'muted small', t('No routines to suggest here.'))));
   const L = m.locked;
   const locks = el('ul', 'pkp-locks');
   const lock = (text) => locks.append(el('li', 'muted small', `🔒 ${text}`));
@@ -191,7 +207,7 @@ export async function openShare(companion) {
       voice: ticks.voice.checked,
       greeting: ticks.greeting.checked,
       skills: [...skillBox.querySelectorAll('input:checked')].map((i) => i.dataset.skill),
-      routines: routines.value.split(/[\s,]+/).filter(Boolean).slice(0, 5),
+      routines: routinePicks(picked),
     },
     rating: rating.value,
     romance: romance.input.checked,
@@ -211,8 +227,7 @@ export async function openShare(companion) {
     a.click();
     a.remove();
     built = null;
-    saveB.disabled = true;
-    sendB.disabled = true;
+    waitCheck(false);
     say(t('Saved. Check it again to save another copy.'));
   });
   const sendB = btn(t('Send to the Sara Store'), 'ghost', async (b) => {
@@ -233,8 +248,14 @@ export async function openShare(companion) {
       b.disabled = false;
     }
   });
-  saveB.disabled = true;
-  sendB.disabled = true;
+  // PL2c (N15): a disabled button says why: "Check it first" until the checks have run.
+  const waitCheck = (ready) => {
+    saveB.disabled = !ready;
+    sendB.disabled = !ready;
+    saveB.textContent = ready ? t('Save the file') : t('Save the file: check it first');
+    for (const b of [saveB, sendB]) b.title = ready ? '' : t('Check it first');
+  };
+  waitCheck(false);
   const checkB = btn(t('Check it'), '', async (b) => {
     if (!made.input.checked) return say(t('Tick “I made her, or I have the right to share everything in this pack” first.'));
     b.disabled = true;
@@ -242,8 +263,7 @@ export async function openShare(companion) {
     try {
       built = await api(`/packs/build/${enc(companion)}`, { method: 'POST', body: body() });
       out.replaceChildren(reportEl(built.report), ...built.notes.map((n) => el('p', 'muted small', n)), el('p', 'muted small', t('Pack size: {size}', { size: kb(built.size) })));
-      saveB.disabled = !built.report.ready;
-      sendB.disabled = !built.report.ready;
+      waitCheck(Boolean(built.report.ready));
       say(built.report.ready ? t('All checks passed.') : t('Fix the ✗ lines, then check it again.'));
     } catch (err) {
       say(err.message);
@@ -254,6 +274,9 @@ export async function openShare(companion) {
   acts.append(checkB, saveB, sendB);
   panel(t('Share {name}', { name: m.name }), [section(t('What goes in the pack'), '', goes), lockSec, about, out, acts], { redo: () => openShare(companion) });
 }
+
+/** PL2c (N15): the picked routine chips as the pack format's entries (docs/PACKS.md: `{ id }`, at most 5). */
+export const routinePicks = (ids) => [...ids].filter((id) => /^[a-z0-9][a-z0-9-]{0,47}$/.test(id)).slice(0, 5).map((id) => ({ id }));
 
 const MARK = (r) => (r.ok ? (r.warnings?.length ? '⚠' : '✓') : '✗');
 export function reportEl(report) {

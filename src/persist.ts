@@ -81,6 +81,35 @@ export const DEFAULT_PERSIST: PersistSettings = {
   loops: { on: true, minEvery: 5, defaultFor: 4, maxFor: 24, maxTicks: 48, tick: { tokens: 50_000, steps: 10 }, dailyTokens: 300_000, dailyUsd: 0.5, quiet: 'pause', stuckAfter: 6, failAfter: 2, maxActive: 3 },
 };
 
+// Phase 128 PL2c (POLISH2.md N17, Q4): three presets instead of 16 raw numbers. *Normal* is exactly
+// DEFAULT_PERSIST, so nobody's limits change; every number is one of the offered choices. The on/off
+// switches, the reviewer model and At night are not part of a preset. Anything else shows as Custom.
+type PresetNumbers = { goals: Omit<GoalSettings, 'on' | 'reviewer'>; loops: Omit<LoopSettings, 'on' | 'quiet'> };
+const numbersOf = (s: PersistSettings): PresetNumbers => {
+  const { on: _g, reviewer: _r, ...goals } = s.goals;
+  const { on: _l, quiet: _q, ...loops } = s.loops;
+  return { goals, loops: { ...loops, tick: { ...loops.tick } } };
+};
+export type PresetId = 'careful' | 'normal' | 'long';
+export const PRESET_IDS: readonly PresetId[] = ['careful', 'normal', 'long'];
+export const PERSIST_PRESETS: Record<PresetId, PresetNumbers> = {
+  careful: {
+    goals: { rounds: 3, minutes: 30, tokens: 200_000, usd: 0.25, stuckAfter: 2, checkMinutes: 5 },
+    loops: { minEvery: 15, defaultFor: 2, maxFor: 8, maxTicks: 12, tick: { tokens: 20_000, steps: 5 }, dailyTokens: 100_000, dailyUsd: 0.1, stuckAfter: 3, failAfter: 1, maxActive: 1 },
+  },
+  normal: numbersOf(DEFAULT_PERSIST),
+  long: {
+    goals: { rounds: 20, minutes: 240, tokens: 2_000_000, usd: 0, stuckAfter: 3, checkMinutes: 30 },
+    loops: { minEvery: 5, defaultFor: 8, maxFor: 72, maxTicks: 96, tick: { tokens: 100_000, steps: 20 }, dailyTokens: 1_000_000, dailyUsd: 2, stuckAfter: 12, failAfter: 3, maxActive: 5 },
+  },
+};
+
+/** Which preset these settings are, or 'custom' (any number differs: set by hand, or saved by 2.60 that way). */
+export function presetOf(s: PersistSettings): PresetId | 'custom' {
+  const mine = JSON.stringify(numbersOf(s));
+  return PRESET_IDS.find((id) => JSON.stringify(PERSIST_PRESETS[id]) === mine) ?? 'custom';
+}
+
 const pick = (v: unknown, list: readonly number[], dflt: number): number => {
   const n = Number(v);
   return Number.isFinite(n) && list.includes(n) ? n : dflt;
@@ -125,6 +154,12 @@ export function persistSettings(app: AppContext): PersistSettings {
 /** PUT /api/persist: the body's values, each kept only when it is one of the offered choices. */
 export function mergePersist(app: AppContext, body: Record<string, unknown>): PersistSettings {
   const cur = persistSettings(app);
+  // PL2c: { preset: 'careful' | 'normal' | 'long' } sets every number of that preset (switches kept).
+  const preset = PRESET_IDS.find((id) => id === body.preset);
+  if (preset) {
+    const P = PERSIST_PRESETS[preset];
+    body = { goals: { ...(body.goals as object), ...P.goals }, loops: { ...(body.loops as object), ...P.loops, tick: { ...P.loops.tick } } };
+  }
   const g = (body.goals ?? {}) as Record<string, unknown>;
   const l = (body.loops ?? {}) as Record<string, unknown>;
   const tick = (l.tick ?? {}) as Record<string, unknown>;

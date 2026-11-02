@@ -18,7 +18,7 @@
 import { goalsFor } from '../goals.ts';
 import { HttpError, readJson, send } from '../http.ts';
 import { loopsFor, parseLoopCommand } from '../loops.ts';
-import { checkOptions, defaultChecks, mergePersist, persistRefusal, persistSettings, GOAL_CHOICES, LOOP_CHOICES } from '../persist.ts';
+import { checkOptions, defaultChecks, mergePersist, persistRefusal, persistSettings, GOAL_CHOICES, LOOP_CHOICES, PERSIST_PRESETS, presetOf } from '../persist.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 export function createPersistRoutes(ctx: RouteCtx): RouteHandler {
@@ -42,7 +42,8 @@ export function createPersistRoutes(ctx: RouteCtx): RouteHandler {
     if (a === 'persist' && !b) {
       if (method === 'PUT') mergePersist(app, await readJson(req));
       else if (method !== 'GET') throw new HttpError(405, 'Method not allowed');
-      return send(res, 200, { settings: persistSettings(app), choices: { goals: GOAL_CHOICES, loops: LOOP_CHOICES }, today: { loops: loops.ledger.get('loops') } });
+      const settings = persistSettings(app);
+      return send(res, 200, { settings, choices: { goals: GOAL_CHOICES, loops: LOOP_CHOICES }, presets: PERSIST_PRESETS, preset: presetOf(settings), today: { loops: loops.ledger.get('loops') } });
     }
     if (a === 'goals' && !b && method === 'GET') return send(res, 200, { goals: goals.list().map((g) => ({ ...goals.view(g), conversationTitle: app.store.getConversation(g.conversationId)?.title ?? null })) });
     if (a === 'loops' && !b && method === 'GET') {

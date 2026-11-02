@@ -417,7 +417,7 @@
             <section class="td-sec" id="td-sec-day" data-sec="day" aria-labelledby="td-sec-day-h">
               <h2 class="td-sec-h" id="td-sec-day-h">Your day</h2>
               <div class="td-grid">
-                <section class="today-card td-tile" id="td-calendar" tabindex="0" aria-labelledby="td-calendar-h"><div class="td-tile-head"><h3 id="td-calendar-h">Your day</h3></div><div class="today-list"></div></section>
+                <section class="today-card td-tile" id="td-calendar" tabindex="0" aria-labelledby="td-calendar-h"><div class="td-tile-head"><h3 id="td-calendar-h" aria-hidden="true">Your day</h3></div><div class="today-list"></div></section>
                 <section class="today-card td-tile" id="td-weather" hidden tabindex="0" aria-labelledby="td-weather-h"><div class="td-tile-head"><h3 id="td-weather-h">Weather</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-dates" hidden tabindex="0" aria-labelledby="td-dates-h"><div class="td-tile-head"><h3 id="td-dates-h">Coming up</h3></div><div class="today-list"></div></section>
               </div>
@@ -425,7 +425,7 @@
             <section class="td-sec" id="td-sec-needs" data-sec="needs" aria-labelledby="td-sec-needs-h">
               <h2 class="td-sec-h" id="td-sec-needs-h">Needs you</h2>
               <div class="td-grid">
-                <section class="today-card td-tile td-needs-tile" id="td-needs" hidden tabindex="0" aria-labelledby="td-needs-h"><div class="td-tile-head"><h3 id="td-needs-h">Needs you</h3></div><div class="td-body"></div></section>
+                <section class="today-card td-tile td-needs-tile" id="td-needs" hidden tabindex="0" aria-labelledby="td-needs-h"><div class="td-tile-head"><h3 id="td-needs-h" aria-hidden="true">Needs you</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-mail" hidden tabindex="0" aria-labelledby="td-mail-h"><div class="td-tile-head"><h3 id="td-mail-h">Mail</h3></div><div class="td-body"></div></section>
               </div>
             </section>
@@ -1114,12 +1114,17 @@
         <label class="row small"><input id="rem-notify" type="checkbox"> Show a desktop notification when a reminder arrives</label>
         <div id="rem-list"></div>
         <!-- Phase 119 (RECALL §4.8): the third kind (web/recall-when.js). -->
-        <section id="wm-section" class="when-section" hidden>
+        <!-- PL2c (N22): its own small card: a full-width Remind me… field, then words or a person. -->
+        <section id="wm-section" class="when-section kit-card" hidden>
           <h3 class="small">When it comes up</h3>
+          <input id="wm-text" class="wm-full" placeholder="Remind me…" maxlength="500" aria-label="What to remind you about">
+          <div class="seg wm-by" role="radiogroup" aria-label="Listen for">
+            <button type="button" role="radio" aria-checked="true" data-by="words">Words</button>
+            <button type="button" role="radio" aria-checked="false" data-by="person">A person</button>
+          </div>
           <div class="add-row">
-            <input id="wm-text" placeholder="Remind me…" maxlength="500" aria-label="What to remind you about">
-            <input id="wm-topic" placeholder="When these words come up…" maxlength="120" aria-label="Words to listen for">
-            <select id="wm-person" aria-label="Or a person"><option value="">Or a person…</option></select>
+            <input id="wm-topic" placeholder="Words to listen for" maxlength="120" aria-label="Words to listen for">
+            <select id="wm-person" aria-label="A person" hidden><option value="">Pick a person…</option></select>
             <select id="wm-each" aria-label="How often"><option value="once">Once</option><option value="each">Every time</option></select>
             <button id="wm-add" type="button">Add</button>
             <button type="button" class="tip" data-tip="Pick a person (their nicknames count too) or type a few words; all the words have to be in one of your messages. She can add other ways you say it when you ask her in chat.">?</button>
@@ -2722,13 +2727,16 @@
         <label class="sto-search">Search add-ons <button type="button" class="tip" data-tip="Searches the store's list that Sara keeps on this server: names, what they do and their tags. Nothing is sent while you type.">?</button><input id="sto-q" type="search" placeholder="Weather, GitHub, pictures…" autocomplete="off"></label>
         <div class="sto-fresh-row"><p id="sto-fresh" class="muted small" role="status"></p><button id="sto-check" type="button" class="ghost">Check now</button></div>
       </div>
-      <div class="sto-links">
-        <button id="sto-mine-open" type="button">My add-ons</button>
-        <button id="sto-submit-open" type="button" class="ghost">Submit yours</button>
-        <button id="sto-subs-open" type="button" class="ghost">My submissions</button>
+      <div class="sto-seg" role="tablist" aria-label="Get more">
+        <button id="sto-browse-open" type="button" role="tab" aria-selected="true" aria-controls="sto-browse" data-seg="browse">Browse</button>
+        <button id="sto-mine-open" type="button" role="tab" aria-selected="false" aria-controls="sto-view" data-seg="mine">My add-ons</button>
+        <button id="sto-submit-open" type="button" role="tab" aria-selected="false" aria-controls="sto-view" data-seg="submit">Submit</button>
       </div>
+      <div id="sto-browse" role="tabpanel" aria-labelledby="sto-browse-open">
       <div id="sto-shelves" class="sto-shelves"></div>
       <label class="row sto-community"><input id="sto-community" type="checkbox"> <span>Show add-ons nobody has reviewed yet <button type="button" class="tip" data-tip="These passed our automatic checks, but no person at Sara has read them. Only switch this on if you can judge code yourself. Each one still shows its full review card.">?</button></span></label>
+      </div>
+      <div id="sto-view" class="sto-view" role="tabpanel" hidden></div>
       <p id="sto-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="ab-tools" data-group="Coding" data-title="Tools and approvals" data-owner-only hidden>
@@ -2738,7 +2746,7 @@
         <h3>Short tool list <button type="button" class="tip" data-tip="With many tools (MCP servers, plugins), sending every one with every message fills a small model's memory. She gets the ones this message needs and looks up the rest. Nothing is switched off: your approvals work the same.">?</button></h3>
         <label>Send her
           <select id="lean-mode">
-            <option value="auto">Automatic: a short list when there are many tools</option>
+            <option value="auto">Automatic (fits each step)</option>
             <option value="always">Always the short list</option>
             <option value="off">Every tool, every message</option>
           </select>
@@ -2918,7 +2926,7 @@
       <h3>Check her edits</h3>
       <label class="row"><input id="pc-on" type="checkbox"> Check her edits <button type="button" class="tip" data-tip="After Sara changes a file, your project's own type checker or linter looks at it and she sees the errors before she answers. Nothing is installed; only tools your project already has are used.">?</button></label>
       <div class="bud-grid">
-        <label>Her next step waits up to (seconds) <button type="button" class="tip" data-tip="How long her next step waits for a check. A slower check keeps going and its result comes with her next step.">?</button> <select id="pc-wait"></select></label>
+        <label>Her next step waits <button type="button" class="tip" data-tip="How long her next step waits for a check. A slower check keeps going and its result comes with her next step.">?</button> <select id="pc-wait"></select></label>
         <label>A check is stopped after (seconds) <button type="button" class="tip" data-tip="A check that runs longer than this is stopped and she is told once. Switch a slow checker off for its project below.">?</button> <select id="pc-timeout"></select></label>
         <label>Errors written out <button type="button" class="tip" data-tip="The most errors she reads after one edit, only in the files she changed. Everything else is a count.">?</button> <select id="pc-shown"></select></label>
         <label>Remind her to fix what she broke <button type="button" class="tip" data-tip="She fixes the errors her own edits caused, up to twice per reply, inside the reply's budget. Anything left is listed here, never hidden.">?</button> <select id="pc-nudges"></select></label>
@@ -2927,7 +2935,7 @@
       <h3>Projects <button type="button" class="tip" data-tip="Some checkers run code from your project (an ESLint config, mypy plugins, Rust build scripts). That's why each project asks once. Off any time here.">?</button></h3>
       <div class="add-row"><label>Workspace <button type="button" class="tip" data-tip="The workspace whose projects are listed below, with the checkers found in each, their exact commands and the last result.">?</button> <select id="pc-ws"></select></label></div>
       <div id="pc-projects" class="pc-projects"></div>
-      <p class="muted small">Language servers (typescript-language-server, pyright-langserver) are not used in this version: the project's own command runs instead. Sara never downloads or installs a checker.</p>
+      <p class="muted small">Sara never downloads or installs a checker.</p>
       <h3>Attach with @</h3>
       <label class="row"><input id="pref-on" type="checkbox"> Read @-references in my messages <button type="button" class="tip" data-tip="Type @ to attach a file, a few lines, your changes, this branch, the current errors or a web page. She gets the text with your message, so she doesn't have to go looking.">?</button></label>
       <div class="bud-grid">
@@ -2940,9 +2948,18 @@
         </section>
 <section class="settings-page" data-page="ab-persist" data-group="Coding" data-title="Keep going and repeats" data-owner-only hidden>
       <div id="ps-form">
-      <p class="muted small page-lead">Keep going until it’s done: she works in rounds until a check you pick passes. Repeats: she checks something in a chat on a timer. Nothing starts until you press Start, and after a restart both wait for you.</p>
-      <h3>Keep going until it’s done</h3>
       <label class="row"><input id="ps-g-on" type="checkbox"> Let her keep going until it’s done <button type="button" class="tip" data-tip="She works in rounds. After each one Sara runs the check you picked; if it fails she gets the real error and goes again, until it passes, she’s stuck, or a cap is reached.">?</button></label>
+      <label class="row"><input id="ps-l-on" type="checkbox"> Let her repeat things in a chat <button type="button" class="tip" data-tip="She does it again on a timer, in this chat, with its context. She only tells you when something changes. Each check is one short reply within its own small budget.">?</button></label>
+      <h3>How far she may go <button type="button" class="tip" data-tip="Pick one and every limit below follows it. Normal is what Sara always used. Careful stops sooner and spends less; Long jobs lets a goal run for hours. Your own numbers show as Custom.">?</button></h3>
+      <div id="ps-presets" class="ps-presets" role="radiogroup" aria-label="How far she may go">
+        <label class="ps-preset" data-preset="careful"><input type="radio" name="ps-preset" value="careful"><i data-icon="shield"></i><span class="ps-preset-text"><strong>Careful</strong><span class="ps-preset-sum muted small"></span></span></label>
+        <label class="ps-preset" data-preset="normal"><input type="radio" name="ps-preset" value="normal"><i data-icon="gauge"></i><span class="ps-preset-text"><strong>Normal</strong><span class="ps-preset-sum muted small"></span></span></label>
+        <label class="ps-preset" data-preset="long"><input type="radio" name="ps-preset" value="long"><i data-icon="job"></i><span class="ps-preset-text"><strong>Long jobs</strong><span class="ps-preset-sum muted small"></span></span></label>
+        <label class="ps-preset" data-preset="custom"><input type="radio" name="ps-preset" value="custom"><i data-icon="sliders"></i><span class="ps-preset-text"><strong>Custom</strong><span class="ps-preset-sum muted small">Your own numbers, under Fine-tune.</span></span></label>
+      </div>
+      <details id="ps-fine" class="ps-fine">
+        <summary>Fine-tune <button type="button" class="tip" data-tip="Every limit as a number. Change one and the choice above shows Custom. Pick Careful, Normal or Long jobs again to put all of them back.">?</button></summary>
+      <h4>Keep going until it’s done</h4>
       <div class="bud-grid">
         <label>Rounds per goal <button type="button" class="tip" data-tip="The most replies she gets for one goal. Each round is one reply within your usual budget per reply.">?</button> <select id="ps-g-rounds"></select></label>
         <label>Time per goal (minutes) <button type="button" class="tip" data-tip="Wall time from Start. Time waiting for your OK and paused time don’t count.">?</button> <select id="ps-g-minutes"></select></label>
@@ -2952,9 +2969,7 @@
         <label>Check time limit (minutes) <button type="button" class="tip" data-tip="A check that runs longer than this counts as failed.">?</button> <select id="ps-g-check"></select></label>
         <label>Reviewer check uses <button type="button" class="tip" data-tip="The model for the A reviewer model check. Reviewing is the model you set for second looks; Quick is cheaper.">?</button> <select id="ps-g-reviewer"><option value="reviewing">The Reviewing model</option><option value="quick">The quick model</option></select></label>
       </div>
-      <p class="muted small">Her plans (Planner) are things she keeps at over days, if you let her. Keep going until… is your goal for this chat, now, and ends when its check passes.</p>
-      <h3>Repeats</h3>
-      <label class="row"><input id="ps-l-on" type="checkbox"> Let her repeat things in a chat <button type="button" class="tip" data-tip="She does it again on a timer, in this chat, with its context. She only tells you when something changes. Each check is one short reply within its own small budget.">?</button></label>
+      <h4>Repeats</h4>
       <div class="bud-grid">
         <label>Shortest interval (minutes) <button type="button" class="tip" data-tip="How often a repeat may check at most. Shorter means more replies and more cost.">?</button> <select id="ps-l-min"></select></label>
         <label>End when none is given (hours) <button type="button" class="tip" data-tip="Every repeat has an end. Without one it stops after this many hours.">?</button> <select id="ps-l-default"></select></label>
@@ -2969,6 +2984,8 @@
         <label>Stop when nothing changes <button type="button" class="tip" data-tip="For repeats with Stop when: if nothing changes for this many checks in a row, it stops. Repeats that only watch go on until their end.">?</button> <select id="ps-l-stuck"></select></label>
         <label>Repeats at once <button type="button" class="tip" data-tip="The most repeats running across all your chats.">?</button> <select id="ps-l-active"></select></label>
       </div>
+      </details>
+      <p class="muted small">Her plans (Planner) are things she keeps at over days, if you let her. Keep going until… is your goal for this chat, now, and ends when its check passes.</p>
       <p id="ps-spend" class="muted small" role="status"></p>
       </div>
         </section>

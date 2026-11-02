@@ -21,3 +21,11 @@
   #messages > .when-card { margin-left: 0; max-width: 100%; }
   .pickup-banner .pickup-text { white-space: normal; }
 }
+
+/* Phase 128 PL2c (POLISH2.md N22): When it comes up as its own small card; the text field full width. */
+.when-section.kit-card { gap: 8px; }
+.when-section h3 { display: flex; align-items: center; gap: 6px; margin: 0; }
+.when-section .wm-full { width: 100%; min-height: 44px; box-sizing: border-box; }
+.when-section .wm-by[hidden] { display: none; }
+.when-section .add-row select[hidden], .when-section .add-row input[hidden] { display: none; }
+.when-section.kit-card[hidden] { display: none; }

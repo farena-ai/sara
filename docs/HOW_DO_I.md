@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 158 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 165 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -52,6 +52,49 @@ them in one place. In the app, open the box and press **Show me** to see the con
 **How do I review my week?**
 
 1. Press Review my week.
+
+### Planner → Reminders
+
+**How do I set a reminder for a time?**
+
+1. Type what and when at the top of Reminders, then press Add.
+2. Or tell her in chat: "remind me at 5 to call Ana".
+
+**How do I get reminded when something comes up?**
+
+1. Under When it comes up, type what to remind you of.
+2. Pick a person, or type a few words to listen for.
+3. Press Add. She tells you when they come up in a chat.
+
+### Planner → Repeats
+
+**How do I make her check something on a timer?**
+
+1. In a chat, press + and pick Repeat this….
+2. Pick how often and until when, then press Start.
+3. Or type /loop every 10m: what to check.
+
+**How do I pause or stop a repeat?**
+
+1. Find it in this list.
+2. Press Pause, or Stop to end it.
+
+**How do I change how much repeats may spend?**
+
+1. Open Settings → Coding → Keep going and repeats.
+2. Pick Careful, Normal or Long jobs.
+
+### Planner → Routines
+
+**How do I turn on a routine?**
+
+1. Pick a card under Add a routine.
+2. If it says Set up first, press it and connect what it needs.
+3. Answer its questions, look at the preview, then press Turn on.
+
+**How do I switch a routine off?**
+
+1. Under My routines, switch it off. It stops at once.
 
 ### Memory
 

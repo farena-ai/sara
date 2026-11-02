@@ -398,3 +398,16 @@ dialog .saved-tag { color: var(--success); }
 .se-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; justify-content: flex-start; min-height: 44px; text-align: start; white-space: normal; }
 .se-label { font-weight: 600; }
 .se-detail { flex: 1 1 14em; min-width: 0; overflow-wrap: anywhere; }
+
+/* ---------- Phase 128 PL2c (POLISH2.md N32): disabled buttons ---------- */
+/* A disabled gradient button was pale pink on near-white in Day. Now: its own fill, grey text and a
+   border, all from theme tokens (≥ 3:1 against the card in both themes; checked in ui-look.test). */
+button:disabled:not(.ghost, .tip, .linkish, .icon, .tab), button:disabled:not(.ghost, .tip, .linkish, .icon, .tab):hover {
+  background: var(--btn-off-fill);
+  color: var(--btn-off-text);
+  border: 1px solid var(--btn-off-line);
+  box-shadow: none;
+  opacity: 1;
+  cursor: not-allowed;
+}
+button.ghost:disabled, button.ghost:disabled:hover { color: var(--btn-off-text); border-color: var(--btn-off-line); opacity: 1; cursor: not-allowed; }

@@ -120,6 +120,8 @@ export interface Review {
   size: number;
   sha: string;
   fence: Fence;
+  /** PL2c (N13): the server's OS, so the calm line for Sara's own plugins can say "no sandbox on Windows". */
+  os?: string;
   /** No OS fence here: the owner must tick "I trust this plugin's author". */
   needsTrust: boolean;
   origin: Origin;
@@ -514,6 +516,7 @@ export class PluginManager {
       size: inner.reduce((n, f) => n + f.data.length, 0),
       sha,
       fence: this.fence,
+      os: process.platform,
       needsTrust: this.fence === 'node-only',
       origin,
       ...(existing ? { current: { version: existing.version } } : {}),

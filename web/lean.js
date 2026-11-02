@@ -174,7 +174,15 @@ export async function loadLean() {
   set('compact-crisis', settings.compact.crisisKeepHours);
   const m = await ctx.api('/lean/measure').catch(() => null);
   const line = $('#lean-measure');
-  if (line && m) line.textContent = t('Right now: {n} tools ≈ {tokens} tokens each step; short list ≈ {short}.', { n: m.chat.tools, tokens: k(m.chat.tokens), short: k(m.chat.offeredTokens) });
+  // PL2c (N24): in words first; the token numbers go under the ?.
+  if (line && m) {
+    const saves = m.chat.tokens > 0 ? Math.max(0, Math.round((1 - m.chat.offeredTokens / m.chat.tokens) * 100)) : 0;
+    line.textContent = saves >= 5 ? t('She gets the tools that fit each step (saves about {pct}%).', { pct: saves }) : t('She gets all her tools each step.');
+    const q = el('button', 'tip', '?');
+    q.type = 'button';
+    q.dataset.tip = t('Right now: {n} tools ≈ {tokens} tokens each step; short list ≈ {short}.', { n: m.chat.tools, tokens: k(m.chat.tokens), short: k(m.chat.offeredTokens) });
+    line.append(' ', q);
+  }
 }
 
 async function saveLean() {

@@ -8,7 +8,9 @@
 // → Keep going and repeats holds the limits. Every button has a text label; the strip is a status
 // region and announces state changes once.
 import { t } from './naming.js';
-import { icon } from './icons.js';
+import { icon, paintIcons } from './icons.js';
+import { presetSummary, whichPreset } from './persist-presets.js';
+import { emptyState } from './tidy.js';
 
 const $ = (s) => document.querySelector(s);
 /** @type {{ api: (path: string, o?: object) => Promise<any>, state: any, el: (tag: string, cls?: string, text?: string) => HTMLElement, openConversation: (id: string) => void, openSettings: (page: string) => void } | null} */
@@ -360,7 +362,10 @@ export async function loadRepeats() {
     return;
   }
   host.replaceChildren();
-  if (!r.loops.length) host.append(el('p', 'muted small', t('No repeats yet. In a chat, use + → Repeat this…, or type /loop every 10m: what to check.')));
+  // PL2c (N21): the one empty state (icon, one line, one button), like Reminders.
+  if (!r.loops.length) {
+    host.append(emptyState({ icon: 'update', text: t('No repeats yet.'), why: t('She can check something on a timer in a chat and tell you when it changes.'), action: { label: t('Repeat something in a chat'), run: () => startRepeatFromPlanner() } }));
+  }
   for (const l of r.loops) {
     const row = el('div', `ps-row ps-${l.state}`);
     const main = el('div', 'ps-row-main');
@@ -378,6 +383,17 @@ export async function loadRepeats() {
   if (s) s.textContent = t('Repeats today: {tokens} of {cap} tokens.', { tokens: fmtN(r.today.tokens), cap: fmtN(r.settings.dailyTokens) });
 }
 
+/** From Planner → Repeats: back to the chat with /loop typed, so the / menu and the repeat card take over. */
+function startRepeatFromPlanner() {
+  const d = $('#planner');
+  if (d?.open) d.close();
+  const box = $('#input');
+  if (!box) return;
+  box.value = '/loop ';
+  box.focus();
+  box.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 // ------------------------------------------------------------------ Settings → Abilities → Keep going and repeats
 
 const IDS = {
@@ -386,6 +402,55 @@ const IDS = {
 };
 const CHOICE = { 'ps-g-rounds': ['goals', 'rounds'], 'ps-g-minutes': ['goals', 'minutes'], 'ps-g-tokens': ['goals', 'tokens'], 'ps-g-usd': ['goals', 'usd'], 'ps-g-stuck': ['goals', 'stuckAfter'], 'ps-g-check': ['goals', 'checkMinutes'], 'ps-l-min': ['loops', 'minEvery'], 'ps-l-default': ['loops', 'defaultFor'], 'ps-l-max': ['loops', 'maxFor'], 'ps-l-ticks': ['loops', 'maxTicks'], 'ps-l-tick-tokens': ['loops', 'tickTokens'], 'ps-l-tick-steps': ['loops', 'tickSteps'], 'ps-l-daily': ['loops', 'dailyTokens'], 'ps-l-usd': ['loops', 'dailyUsd'], 'ps-l-stuck': ['loops', 'stuckAfter'], 'ps-l-fail': ['loops', 'failAfter'], 'ps-l-active': ['loops', 'maxActive'] };
 const get = (o, path) => path.reduce((x, k) => x?.[k], o);
+let presets = null;
+
+/** The numbers in the Fine-tune fields, in the settings' shape. */
+function fieldNumbers() {
+  const out = { goals: {}, loops: { tick: {} } };
+  for (const [id, path] of Object.entries(IDS)) {
+    const c = $(`#${id}`);
+    if (!c || c.type === 'checkbox' || c.tagName !== 'SELECT' || /^(ps-g-reviewer|ps-l-quiet)$/.test(id)) continue;
+    let o = out;
+    for (const k of path.slice(0, -1)) o = o[k] ??= {};
+    o[path.at(-1)] = Number(c.value);
+  }
+  return out;
+}
+/** PL2c (N17): ticks the preset card the Fine-tune numbers match (Custom when none does). */
+function showPreset() {
+  const id = presets ? whichPreset(presets, fieldNumbers()) : 'custom';
+  for (const r of document.querySelectorAll('#ps-presets input[name="ps-preset"]')) r.checked = r.value === id;
+  for (const l of document.querySelectorAll('#ps-presets .ps-preset')) l.classList.toggle('on', l.dataset.preset === id);
+  const custom = document.querySelector('#ps-presets [data-preset="custom"]');
+  if (custom) custom.hidden = id !== 'custom';
+  return id;
+}
+/** Puts a preset's numbers into the Fine-tune fields (the page saves them as it saves any change). */
+function applyPreset(id) {
+  const p = presets?.[id];
+  if (!p) return;
+  for (const [cid, path] of Object.entries(IDS)) {
+    const c = $(`#${cid}`);
+    const v = get(p, path);
+    if (!c || v === undefined || c.tagName !== 'SELECT') continue;
+    c.value = String(v);
+  }
+}
+let presetsWired = false;
+function wirePresets() {
+  if (presetsWired) return;
+  presetsWired = true;
+  $('#ps-presets')?.addEventListener('change', (e) => {
+    const v = e.target?.value;
+    if (v === 'custom') {
+      if ($('#ps-fine')) $('#ps-fine').open = true;
+      return;
+    }
+    applyPreset(v);
+    showPreset();
+  });
+  $('#ps-fine')?.addEventListener('change', () => void showPreset());
+}
 
 export async function loadPersistSettings() {
   const form = $('#ps-form');
@@ -422,6 +487,19 @@ export async function loadPersistSettings() {
       c.value = String(val);
     }
   }
+  // PL2c (N17): the preset cards say their numbers in words; the raw numbers fold under Fine-tune.
+  presets = v.presets ?? null;
+  for (const l of document.querySelectorAll('#ps-presets .ps-preset')) {
+    const p = presets?.[l.dataset.preset];
+    const sum = l.querySelector('.ps-preset-sum');
+    if (p && sum) {
+      const w = presetSummary(p);
+      sum.replaceChildren(el('span', 'ps-sum-line', w.goal), el('span', 'ps-sum-line', w.repeats));
+    }
+  }
+  paintIcons($('#ps-presets') ?? document.createElement('div'));
+  wirePresets();
+  if (showPreset() === 'custom' && $('#ps-fine')) $('#ps-fine').open = true;
   const sp = $('#ps-spend');
   if (sp) sp.textContent = t('Repeats today: {tokens} of {cap} tokens.', { tokens: fmtN(v.today.loops.tokens), cap: fmtN(v.settings.loops.dailyTokens) });
   form.dataset.loaded = '1';

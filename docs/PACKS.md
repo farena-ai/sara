@@ -10,17 +10,21 @@ her about, no keys, no vault, no pictures she sent you, no cloned voice, your na
 
 ## Share her
 
-Open **Settings → Her → Companions**, press **⋯** on her row and pick **Share her**.
+Open **Settings → Her → Companions** and press **Share her** on her row.
 
-- Tick what goes in. Her character is always in. Her look, closet, face reference, voice, first message
-  and her own skills are your choice. The list shows each part's size.
+- Tick what goes in. Her character is always in. Her personality dials are ticked too (with none set,
+  she simply uses the defaults on the other side). Her look, closet, face reference, voice, first
+  message and her own skills are your choice. The list shows each part's size.
+- **Routines she suggests**: tap up to five routines from the gallery (they go in as `{ "id": … }`
+  entries). Nothing switches on for the new owner until they say so.
 - The **Never in a pack** rows only show how many there are (memories, chats, people, pictures she sent
   you). Sara never opens them to build a pack.
 - Your name becomes `{{user}}`, so it fits whoever adds her. Your notes about the two of you, your hard
   limits and your stop word stay here.
 - Pick the rating (For everyone, Mature themes, Explicit 18+), whether she is romantic, a licence and
   your name on it (a nickname is fine).
-- Press **Check it**. Every check runs on your own Sara. Then **Save the file**, or **Send to the Sara
+- Press **Check it**. Every check runs on your own Sara (until then the button reads *Save the file:
+  check it first*). Then **Save the file**, or **Send to the Sara
   Store** (the store asks for a little more: a square cover picture and a rights row for every picture).
 
 ## Add one

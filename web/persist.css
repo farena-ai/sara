@@ -47,3 +47,19 @@
   .ps-chip .ps-meta { flex-basis: 100%; order: 3; }
   .ps-chip button { order: 4; padding-inline: 10px; }
 }
+
+/* Phase 128 PL2c (POLISH2.md N17): Settings → Keep going and repeats as three choice cards (Careful,
+   Normal, Long jobs; Custom only when the numbers are your own), the raw numbers under Fine-tune. */
+.ps-presets { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 10px; margin: 6px 0 12px; }
+.ps-preset { position: relative; display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-1); color: var(--text-1); cursor: pointer; min-width: 0; }
+.ps-preset[hidden] { display: none; }
+.ps-preset input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.ps-preset .ic { flex: none; width: 22px; height: 22px; margin-top: 2px; color: var(--text-2); }
+.ps-preset-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.ps-sum-line { display: block; }
+.ps-preset.on { border-color: var(--accent-solid); background: var(--accent-soft); }
+.ps-preset.on .ic { color: var(--accent-text); }
+.ps-preset:focus-within { outline: 2px solid var(--accent-solid); outline-offset: 2px; }
+.ps-fine { margin: 4px 0 10px; }
+.ps-fine > summary { display: flex; align-items: center; gap: 6px; min-height: 44px; cursor: pointer; font-weight: 600; }
+.ps-fine h4 { margin: 10px 0 6px; }
