@@ -39,6 +39,7 @@ import { startsOnToday } from './start-view.js';
 import { DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNote, updatesShown, versionChanged } from './update-check.js';
 import { initHousehold, joinFromLink, loadAccount, loadHousehold, showPaused } from './household.js';
 import { initPersist, loadPersistSettings, loadRepeats, persistEvent, persistMessage, persistOpen, savePersistSettings } from './persist.js';
+import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
 import { initNav, relabelNav, revealNav, setMore } from './nav.js';
 import { foldFirstRun, hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton, unfoldFirstRun } from './hub.js';
@@ -1754,6 +1755,8 @@ function renderMessages(messages, opts = {}) {
     if (m.role === 'tool' && m.meta?.advisory?.answer) els.push(advisoryFlag({ id: m.meta.toolCallId, state: m.meta.advisory.answer === 'override' ? 'override' : 'declined', packages: (m.meta.advisory.packages ?? []).map((p) => `${p.name} ${p.version}`) }));
     // Phase 116 (§5.8): a refusal by the loop guard keeps its line after a reload.
     if (m.role === 'tool' && m.meta?.guard?.kind) els.push(guardLine({ kind: m.meta.guard.kind, count: m.meta.guard.count ?? 3, paused: false }));
+    // Phase 120: the first-time card of a project (Check her edits here / Not now / Never).
+    if (m.role === 'tool' && m.meta?.checksCard) els.push(checksCard(m.meta.checksCard, state.currentId));
     if (m.role === 'tool') {
       addStep((turn.steps ??= newSteps()), { id: m.meta?.toolCallId, name: m.meta?.name, summary: m.meta?.summary ?? m.meta?.name, args: m.meta?.args, status: m.meta?.status ?? 'ok', output: m.content, ms: m.meta?.ms, snapshotId: m.meta?.snapshotId });
       const card = (m.meta?.status ?? 'ok') === 'ok' ? m.meta?.card : null;
@@ -1824,6 +1827,9 @@ function renderMessages(messages, opts = {}) {
       // Phase 66: who said it, in a group chat (her face, name and colour).
       if (m.role === 'assistant' && m.meta?.speaker) speakerHeader(b, m.meta.speaker);
       if (m.meta?.unverified) flagClaims(b, m.meta.unverified);
+      // Phase 120: what his @-references attached, and the checks chip under her reply.
+      if (m.role === 'user' && Array.isArray(m.meta?.refs) && m.meta.refs.length) b.append(refChipsSent(m.meta.refs, m.id));
+      if (m.role === 'assistant' && m.meta?.checks?.state) b.append(checksChip(m.meta.checks));
       // Phase 79: a reply that ran on extra budget the owner gave says so.
       const extra = m.role === 'assistant' ? overrideNote(m.meta?.budget) : null;
       if (extra) b.append(extra);
@@ -2045,6 +2051,11 @@ async function send(text) {
   const photos = state.photos.splice(0);
   const pending = state.docs.splice(0);
   renderAttachments();
+  const refRow = $('#ref-chips');
+  if (refRow) {
+    refRow.hidden = true;
+    refRow.replaceChildren();
+  }
   // Phase 44: documents go up first (kept in her library, or for this chat only), then she reads
   // them, then the message goes with them.
   const docs = [];
@@ -2393,6 +2404,17 @@ async function runStream(path, body, userBubble) {
           if (ev.card) place(pluginResultCard(ev.card));
           else if (ev.what === 'followup') place(pluginNotice({ content: '', meta: { plugin: { name: ev.name, note: ev.text } } }));
           else pluginStep(ensureSteps(), pluginStepWords(ev), ev.what);
+        } else if (ev.type === 'refs') {
+          // Phase 120: what his @-references attached (under his message).
+          const mine = userBubble?.isConnected ? userBubble : [...document.querySelectorAll('#messages .msg.user')].at(-1);
+          mine?.querySelector('.ref-sent')?.remove();
+          mine?.append(refChipsSent(ev.items ?? [], ev.messageId));
+        } else if (ev.type === 'checks_card') {
+          place(checksCard(ev.card, state.currentId));
+        } else if (ev.type === 'checks') {
+          const target = document.querySelector(`#messages .msg.assistant[data-id="${ev.messageId}"]`) ?? reply;
+          if (target) target.append(checksChip(ev.chip));
+          else place(checksChip(ev.chip));
         } else if (ev.type === 'mentions') {
           // Phase 119: reminders that came up in this reply (the ⏰ chip).
           for (const it of ev.items ?? []) place(whenChip(it));
@@ -7587,7 +7609,7 @@ const SETTINGS_ORDER = [
   'you-about', 'you-briefing', 'you-leave-by', 'you-adult',
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
   'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
-  'ab-projects', 'ab-budgets', 'ab-persist', 'ab-when', 'ab-github', 'ab-ssh', 'ab-recipes',
+  'ab-projects', 'ab-precise', 'ab-budgets', 'ab-persist', 'ab-when', 'ab-github', 'ab-ssh', 'ab-recipes',
   'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-pickup', 'co-apps', 'co-agents', 'co-hooks',
   'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
   'household', 'account',
@@ -7738,6 +7760,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'co-email') void loadEmailPage();
   if (pick === 'ab-budgets') void loadBudgets();
   if (pick === 'ab-persist') void loadPersistSettings();
+  if (pick === 'ab-precise') void loadPreciseSettings();
   if (pick === 'ab-when') void loadWhenSettings();
   if (pick === 'co-pickup') void loadPickupSettings();
   if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam(), loadProjectDials()]);
@@ -7935,6 +7958,7 @@ const SETTINGS_SAVERS = {
   'dh-health': [saveRuns],
   'ab-budgets': [saveBudgets],
   'ab-persist': [savePersistSettings],
+  'ab-precise': [savePreciseSettings],
   'ab-when': [saveWhenSettings],
   'co-pickup': [savePickupSettings],
   'ab-projects': [saveSandboxGate, saveSecPass, saveThreatModel, saveRedTeam],
@@ -8938,6 +8962,16 @@ initPlugins();
 initBusy({ api, state, append, bubble, el, canSteer: () => !state.conv?.partner, allowed: busySendAllowed, sendNow: (text) => void send(text) });
 // Phase 118: this chat's goal and repeats (web/persist.js).
 initPersist({ api, state, el, openConversation: (id) => void openConversation(id), openSettings: (page) => void openSettings(page) });
+// Phase 120: the @ menu and chips; who may use references here is decided again by the server.
+initRefs({
+  api, state, el, openSettings: (page) => void openSettings(page),
+  place: () => {
+    const conv = state.conv;
+    if (isMember() || document.body.classList.contains('demo') || !conv || conv.partner || isGroup(conv)) return null;
+    if (conv.offRecord) return { workspace: false, url: !conv.private };
+    return { workspace: true, url: !conv.private };
+  },
+});
 initWhen({ api, el });
 initPickup({ api, el, state, reload: (id) => void openConversation(id) });
 initLearning();

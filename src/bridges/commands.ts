@@ -21,7 +21,7 @@ import { checkOptions, defaultChecks } from '../persist.ts';
 import { answerFire, idFromList, mentionLines, mentionSettings, mergeMentionSettings, ownChat, parseWhenCommand, rememberList, setMention } from '../mentions.ts';
 import { pickupsFor, placeName } from '../pickup.ts';
 
-export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea' | 'progress' | 'steer' | 'queue' | 'btw' | 'goal' | 'loop' | 'when' | 'continue';
+export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea' | 'progress' | 'steer' | 'queue' | 'btw' | 'goal' | 'loop' | 'when' | 'continue' | 'problems';
 /** Where the line was written: his DM, someone else's DM, a shared room, a room where he works with her. */
 export type Place = 'owner-dm' | 'partner-dm' | 'room' | 'work-room';
 /** Who wrote it (decided by the bridge from the platform user id, never by a name). */
@@ -37,8 +37,8 @@ export const BUSY_COMMANDS = ['steer', 'queue', 'btw'] as const;
 // Phase 118 (PERSIST §4.10, §5.8): /goal and /loop, typed, owner only, never in someone else's chat.
 export const PERSIST_COMMANDS = ['goal', 'loop'] as const;
 /** Phase 119: owner-only commands that don't exist for anyone else (their line stays a normal message). */
-export const OWNER_ONLY_COMMANDS: ReadonlySet<CommandName> = new Set(['when', 'continue']);
-const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea', 'progress', ...BUSY_COMMANDS, ...PERSIST_COMMANDS, 'when'];
+export const OWNER_ONLY_COMMANDS: ReadonlySet<CommandName> = new Set(['when', 'continue', 'problems']);
+const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea', 'progress', ...BUSY_COMMANDS, ...PERSIST_COMMANDS, 'when', 'problems'];
 export const isCommandName = (s: string): s is CommandName => (ALL as readonly string[]).includes(s);
 
 /** One line per command (menus and /help). The owner's /status says more than the one others get. */
@@ -62,6 +62,7 @@ export const DESCRIPTIONS: Record<CommandName, string> = {
   loop: en('Repeat something in this chat on a timer, until a time or a condition'),
   when: en('Reminders for when a person or topic comes up (list, add, forget)'),
   continue: en('Pick up our chat from your other app here'),
+  problems: en('The latest type errors in this chat’s project (check, on, off)'),
 };
 /** /status as others see it (no model, no budget). */
 export const PUBLIC_STATUS = en('How full this chat is');
@@ -300,6 +301,8 @@ export async function runCommand(c: CommandContext): Promise<CommandReply> {
   switch (cmd.name) {
     case 'help':
     case 'start':
+      // Phase 120 (PRECISE §5.8): /help refs lists the @-references typed in a chat.
+      if (cmd.name === 'help' && /^(refs?|references?|@)$/i.test(cmd.args.trim()) && who === 'owner') return { text: refsHelp(app, c) };
       return { text: helpText(app, c) };
     case 'settings':
       return { text: c.adapter.settingsWhere ? tr('Her settings: {where}', { where: c.adapter.settingsWhere }) : tr('Open Sara, then Settings → {bridge}.', { bridge: bridgeName(c.bridge) }), ownerOnly: true };
@@ -346,7 +349,57 @@ export async function runCommand(c: CommandContext): Promise<CommandReply> {
       return whenCommand(c, conv);
     case 'continue':
       return continueCommand(c, conv);
+    case 'problems':
+      return problemsCommand(c, conv);
   }
+}
+
+/** Phase 120 (PRECISE §5.8): the six reference forms, in his language. */
+function refsHelp(app: AppContext, c: CommandContext): string {
+  const tr = (text: string, params?: Record<string, unknown>) => say(app, c.lang, text, params);
+  return [
+    tr('Attach with @ (type it in your message):'),
+    `@file:src/app.ts · @file:src/app.ts:10-25: ${tr('a file, or some of its lines')}`,
+    `@folder:src: ${tr('a folder’s file list')}`,
+    `@diff · @diff:staged: ${tr('your uncommitted changes')}`,
+    `@branch: ${tr('this branch compared with the default branch')}`,
+    `@problem: ${tr('the latest type errors')}`,
+    `@url:https://…: ${tr('a web page')}`,
+  ].join('\n');
+}
+
+/** Phase 120 (PRECISE §4.13): /problems · /problems check · /problems on · /problems off (owner only). */
+async function problemsCommand(c: CommandContext, conv: Conversation | undefined): Promise<CommandReply> {
+  const { app } = c;
+  const tr = (text: string, params?: Record<string, unknown>) => say(app, c.lang, text, params);
+  if (c.place === 'partner-dm' || c.place === 'room') return { text: tr('Only the person who runs me can use that here.'), refused: true };
+  if (!conv) return { text: tr('No project in this chat.'), ownerOnly: true };
+  const { checksDb, fullCheck, latestProblems, projectsOf, diagLine } = await import('../diagnostics.ts');
+  const { wsOf } = await import('../persist.ts');
+  let ws: string;
+  try {
+    ws = wsOf(app, conv);
+  } catch {
+    return { text: tr('No project in this chat.'), ownerOnly: true };
+  }
+  const project = projectsOf(ws)[0];
+  if (!project) return { text: tr('No project in this chat.'), ownerOnly: true };
+  const workspace = conv.workspace || 'main';
+  const arg = fold(c.cmd.args.trim());
+  const db = checksDb(app);
+  if (arg === 'off' || arg === 'on') {
+    const cur = db.choice(workspace, project.path);
+    const { detectCheckers } = await import('../diagnostics.ts');
+    db.setChoice({ ...cur, state: arg, checkers: cur.checkers.length ? cur.checkers : detectCheckers(project.dir).filter((k) => k.installed).map((k) => k.id), decidedAt: app.now().toISOString() });
+    return { text: arg === 'off' ? tr('Checks after her edits are off in this project.') : tr('Checks after her edits are on in this project.'), ownerOnly: c.place === 'work-room' };
+  }
+  if (arg === 'check') await fullCheck(app, workspace, ws, project, AbortSignal.timeout(300_000));
+  const p = latestProblems(app, workspace, project.path);
+  if (!p.checked) return { text: tr('No checks have run in this project yet. Send /problems check to run one.'), ownerOnly: c.place === 'work-room' };
+  const errs = p.diags.filter((d) => d.severity === 'error');
+  if (!errs.length) return { text: tr('No type errors in this project.'), ownerOnly: c.place === 'work-room' };
+  const lines = errs.slice(0, 10).map(diagLine);
+  return { text: `${tr('{n} type errors:', { n: errs.length })}\n${lines.join('\n')}${errs.length > 10 ? `\n${tr('and {n} more', { n: errs.length - 10 })}` : ''}`, ownerOnly: c.place === 'work-room' };
 }
 
 /** Phase 119 (RECALL §4.2, §4.7): /when · /when Dan: he owes me $20 · /when forget 2 · again 2 · keep 2 · off · on. */
@@ -623,6 +676,7 @@ function helpText(app: AppContext, c: CommandContext): string {
   if (c.who === 'owner' && (c.place === 'owner-dm' || c.place === 'work-room')) lines.push(`/progress: ${tr(DESCRIPTIONS.progress)}`);
   if (c.who === 'owner') for (const n of BUSY_COMMANDS) lines.push(`/${n}: ${tr(DESCRIPTIONS[n])}`);
   if (c.who === 'owner' && c.place === 'owner-dm') lines.push(`/when: ${tr(DESCRIPTIONS.when)}`);
+  if (c.who === 'owner' && (c.place === 'owner-dm' || c.place === 'work-room')) lines.push(`/problems: ${tr(DESCRIPTIONS.problems)}`, `/help refs: ${tr('Attach a file, your changes or a web page with @')}`);
   const name = chatsSettings(app).namePrefix && c.bridge !== 'web' ? `\n${tr('You can also write just my name and the word, like "{example}".', { example: `${app.persona.name} ${c.lang === 'de' ? 'neu' : 'new'}` })}` : '';
   return `${tr('What you can do here:')}\n${lines.join('\n')}${name}`;
 }
@@ -863,9 +917,21 @@ export function menuList(app: AppContext, names: readonly CommandName[], lang: s
  */
 export function afterTurnExtras(app: AppContext, conversationId: string, place: Place, o: { plain?: boolean } = {}): { before?: string; rows: { text: string; buttons: { label: string; data: string }[] }[] } {
   const out: { before?: string; rows: { text: string; buttons: { label: string; data: string }[] }[] } = { rows: [] };
-  if (place !== 'owner-dm' || app.member) return out;
+  if ((place !== 'owner-dm' && place !== 'work-room') || app.member) return out;
   const lang = ownerLanguage(app);
   const tr = (text: string, params?: Record<string, unknown>) => say(app, lang, text, params);
+  // Phase 120 (PRECISE §5.8, §4.13): a reference that couldn't be attached (one line before her
+  // reply), and the type errors her edits left (one plain line after it).
+  {
+    const page = app.store.messagesPage(conversationId, { limit: 30 }).messages;
+    const lastUser = page.findLast((m) => m.role === 'user');
+    const refused = Array.isArray(lastUser?.meta?.refs) ? (lastUser!.meta!.refs as { token: string; ok: boolean; why?: string }[]).filter((r) => !r.ok) : [];
+    if (refused.length) out.before = refused.map((r) => tr("(I couldn't attach {token}: {why})", { token: r.token, why: tr(r.why ?? 'Not attached') })).join('\n');
+    const lastHer = page.findLast((m) => m.role === 'assistant');
+    const chk = lastHer && lastHer.id > (lastUser?.id ?? 0) ? (lastHer.meta?.checks as { state?: string; left?: number; checker?: string; files?: string[] } | undefined) : undefined;
+    if (chk?.state === 'left' && chk.left) out.rows.push({ text: tr('⚠ {n} type errors left in {file} ({checker}).', { n: chk.left, file: chk.files?.[0] ?? '', checker: chk.checker ?? '' }), buttons: [] });
+  }
+  if (place !== 'owner-dm') return out;
   const pk = pickupsFor(app);
   if (pk?.autoMarked.delete(conversationId)) {
     const p = pk.active(conversationId);

@@ -9,6 +9,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { extname, join, relative, sep } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
+import { checksDb, detectCheckers } from './diagnostics.ts';
 import { GIT_SAFE } from './tools/coding.ts';
 import { repoFromRemote } from './tools/github.ts';
 import { ToolError, type Tool } from './tools/types.ts';
@@ -28,6 +29,8 @@ export interface ProjectFacts {
   rules?: string;
   readme?: string;
   recentCommits: string[];
+  /** Phase 120 (PRECISE §4.2): the project's own type checkers and linters, found from files only. */
+  checkers?: { id: string; label: string; installed: boolean; runsProjectCode: boolean }[];
 }
 
 export interface ProjectNote {
@@ -40,6 +43,8 @@ export interface ProjectNote {
 export interface ProjectKnowledge {
   workspace: string;
   path: string;
+  /** Phase 120: the owner's choice for checks after her edits here. */
+  checks?: 'ask' | 'on' | 'off';
   facts: ProjectFacts;
   notes: ProjectNote[];
   updatedAt: string;
@@ -178,7 +183,13 @@ export function scanProject(ws: string, dir: string): ProjectFacts {
   const head = gitOut(dir, ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD']).replace(/^origin\//, '');
   const defaultBranch = head || gitOut(dir, ['rev-parse', '--abbrev-ref', 'HEAD']) || undefined;
   const recentCommits = gitOut(dir, ['log', '-5', '--format=%s']).split('\n').filter(Boolean);
-  return { path: rel, name, ...(repo ? { repo } : {}), ...(defaultBranch && defaultBranch !== 'HEAD' ? { defaultBranch } : {}), languages, layout, commands, conventions, ...(rules ? { rules } : {}), ...(readme ? { readme } : {}), recentCommits };
+  let checkers: ProjectFacts['checkers'];
+  try {
+    checkers = detectCheckers(dir).map((c) => ({ id: c.id, label: c.label, installed: c.installed, runsProjectCode: c.runsProjectCode }));
+  } catch {
+    /* never breaks the scan */
+  }
+  return { ...(checkers?.length ? { checkers } : {}), path: rel, name, ...(repo ? { repo } : {}), ...(defaultBranch && defaultBranch !== 'HEAD' ? { defaultBranch } : {}), languages, layout, commands, conventions, ...(rules ? { rules } : {}), ...(readme ? { readme } : {}), recentCommits };
 }
 
 const FRESH_MS = 3600_000;
@@ -232,6 +243,13 @@ CREATE TABLE IF NOT EXISTS project_notes (
       facts: JSON.parse(r.facts) as ProjectFacts,
       notes: this.notes(workspace, r.path),
       updatedAt: r.updated_at,
+      checks: (() => {
+        try {
+          return checksDb(this.#app).choice(workspace, r.path).state;
+        } catch {
+          return undefined;
+        }
+      })(),
     }));
   }
 
@@ -266,6 +284,8 @@ export function projectSection(list: ProjectKnowledge[]): string | undefined {
       `${f.name}${k.path !== '.' ? ` (folder ${k.path})` : ''}${f.repo ? `, GitHub ${f.repo}` : ''}${f.defaultBranch ? `, default branch ${f.defaultBranch}` : ''}`,
       f.languages.length ? `Languages: ${f.languages.join(', ')}` : '',
       cmds ? `Commands: ${cmds}` : '',
+      // Phase 120: one line for the type check (the turn's checks run it after her edits when allowed).
+      f.checkers?.some((c) => c.installed) ? `Type check: ${f.checkers.filter((c) => c.installed).map((c) => c.label).join(', ')}${k.checks === 'on' ? ' (Sara checks your edits)' : ''}` : '',
       f.layout.length ? `Layout: ${f.layout.join(' ')}` : '',
       f.conventions.length ? `Conventions: ${f.conventions.join('; ')}` : '',
       f.rules ? `The project's own rules (follow them):\n${f.rules.slice(0, 900)}` : '',

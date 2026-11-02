@@ -123,16 +123,16 @@ version's details are in the [changelog](../CHANGELOG.md).
 | 117 | Signal and email | 2.50 |
 | 118 | Keep going until it's done, and repeating loops | 2.51 |
 | 119 | "When it comes up" reminders; pick up a chat in another app | 2.52 |
+| 120 | Coding precision: language-server checks after edits, @-references | 2.53 |
 
 ## Coming next
 
-In build order; one release per phase. The computer use track is complete (2.20–2.28); the agent staples are complete (2.29–2.36); moving in from other agents is complete (2.37–2.39); chats and sessions are complete (2.40–2.43); Today, rethought, is out (2.44–2.45); reporting a problem from inside Sara (2.46) and the polish pass (2.47) are out; chat apps caught up (2.48) and you can talk to her while she works (2.49), Signal and email (2.50), keep going until it's done (2.51), "when it comes up" reminders (2.52); next, coding precision.
+In build order; one release per phase. The computer use track is complete (2.20–2.28); the agent staples are complete (2.29–2.36); moving in from other agents is complete (2.37–2.39); chats and sessions are complete (2.40–2.43); Today, rethought, is out (2.44–2.45); reporting a problem from inside Sara (2.46) and the polish pass (2.47) are out; chat apps caught up (2.48) and you can talk to her while she works (2.49), Signal and email (2.50), keep going until it's done (2.51), "when it comes up" reminders (2.52), coding precision (2.53); next, a routines gallery and a one-click safety check-up.
 
 | Phase | Plan | Version |
 |---|---|---|
 | 60 | Phones: locked-screen calls on iPhone (CallKit), one-tap pairing on iPhone, the iPhone app in the App Store (when Apple approves it) | after Apple's approval |
 | 64 | Be found: app stores, NAS catalogs, Home Assistant's store and directories | ongoing |
-| 120 | Coding precision: language-server checks after edits, @-references | 2.53 |
 | 121 | Beginner setup: a routines gallery and a one-click safety check-up | 2.54 |
 | 122 | WhatsApp (official API), iMessage via BlueBubbles, SMS via AgentText, Matrix | 2.55 |
 | 123 | Big tool sets: a lean tool list, /compact | 2.56 |

@@ -16,7 +16,7 @@ export interface Receipt {
  * 'send': sent, emailed or replied to a message (Phase 62); 'schedule': put something in a
  * calendar (Phase 62); 'action': found by the optional local judge (any kind of action).
  */
-export type ClaimKind = 'write' | 'run' | 'tests_pass' | 'commit' | 'web' | 'remind' | 'planner' | 'browser' | 'send' | 'schedule' | 'action';
+export type ClaimKind = 'write' | 'run' | 'tests_pass' | 'types_clean' | 'commit' | 'web' | 'remind' | 'planner' | 'browser' | 'send' | 'schedule' | 'action';
 
 export interface Claim {
   kind: ClaimKind;
@@ -40,6 +40,12 @@ const PLANNER = /\b(?:I(?:'ve| have)?|I just)\s+(?:also\s+)?(?:added|put|saved|w
  */
 const BROWSER = /\b(?:I(?:'ve| have)?|I just)\s+(?:also\s+)?(?:(?:tested|checked|tried|opened|viewed|looked at|clicked (?:through|around)|went through|previewed)\b[^.!?]{0,80}\b(?:in (?:the |a |my )?(?:testing )?browser|in the preview|(?:at|on) (?:a |the )?(?:phone|mobile|desktop)(?: width| size| screen)?|phone width|mobile width|on (?:a )?(?:small|narrow) screens?)|(?:took|taken|grabbed) (?:a |some )?screenshots?|clicked (?:through|around)(?: (?:it|the app|the page))?)\b/i;
 const SCREENSHOT = /\b(?:I(?:'ve| have)?|I just)\s+(?:also\s+)?(?:took|taken|grabbed) (?:a |some |two |both )?screenshots?\b|\b(?:the |my )?screenshots? (?:show|shows|showed|confirm|confirms)\b/i;
+
+/**
+ * Phase 120 (PRECISE §4.11): "it compiles", "no type errors", "the types check", in the six
+ * languages: checked against the turn's last check of her edits (a `diagnostics` receipt).
+ */
+const TYPES_CLEAN = /\b(?:it|everything|the code|this|that|the project)\s+(?:now\s+)?(?:compiles|type-?checks|builds without (?:type )?errors)\b|\bno (?:more )?type errors\b|\bthe types (?:now )?(?:check|pass)\b|\btypes? (?:are|is) (?:now )?clean\b|\b(?:ya )?compila\b|\bsin errores de tipos?\b|\bça compile\b|\bplus d'erreurs? de type\b|\bkompiliert (?:jetzt|wieder)?\b|\bkeine typfehler\b|\bsem erros de tipo\b|\bnessun errore di tipo\b|\bcompila (?:ora|adesso)\b/i;
 
 /** Past-turn references are allowed: those receipts live in earlier turns. */
 const EARLIER = /\b(earlier|before|previously|last time|yesterday|already|this morning|the other day|in our last)\b/i;
@@ -316,6 +322,7 @@ function backing(receipts: Receipt[]) {
     hasSchedule: mcp || ok.some((r) => r.name === 'calendar_add' || (r.name === 'remind' && String(r.args.action) === 'set')),
     // Anything that did something (not just reading) backs the judge's generic "action".
     hasAny: ok.some((r) => !READ_ONLY.test(r.name)),
+    typeChecks: receipts.filter((r) => r.name === 'diagnostics'),
     testRuns: shells.filter((r) => /\b(test|jest|vitest|pytest|mocha|go test|cargo test|npm t\b|node --test|make check|npm run check)\b/i.test(cmd(r))),
   };
 }
@@ -346,6 +353,8 @@ export function checkClaims(reply: string, receipts: Receipt[], prior: Receipt[]
       if (!b.testRuns.length && !b.hasRun) add('tests_pass', s, 'missing');
       else if (b.testRuns.length && exitCode(b.testRuns.at(-1)!.output) !== 0) add('tests_pass', s, 'contradicted');
     }
+    // Phase 120: "it compiles now" while the last check of her edits had errors left.
+    if (b.typeChecks.length && TYPES_CLEAN.test(s) && !NEGATED.test(s) && b.typeChecks.at(-1)!.status === 'error') add('types_clean', s, 'contradicted');
     if (!b.hasCommit && claimed(s, [COMMIT, I18N.commit, ...MORE.commit!])) add('commit', s, 'missing');
     if (!b.hasWeb && claimed(s, [WEB, I18N.web, ...MORE.web!])) add('web', s, 'missing');
     const remind = claimed(s, [REMIND, I18N.remind, ...MORE.remind!]);
@@ -383,6 +392,7 @@ function isBacked(sentence: string, kind: ClaimKind, receipts: Receipt[], prior:
     write: shell || mcp || ok.some((r) => WRITE_TOOLS.has(r.name) || SSH_CHANGE.has(r.name)) || priorSupports(sentence, prior, (r) => WRITE_TOOLS.has(r.name) || r.name === 'shell'),
     run: shell || mcp,
     tests_pass: shell || mcp,
+    types_clean: receipts.some((r) => r.name === 'diagnostics' && r.status === 'ok'),
     commit: mcp || ok.some((r) => r.name === 'git_push' || r.name === 'git_commit' || (r.name === 'shell' && /\bgit\b[\s\S]*\b(commit|push|merge|tag)\b/.test(String(r.args.command ?? '')))),
     web: mcp || ok.some((r) => r.name === 'web_search' || r.name === 'web_fetch'),
     remind: ok.some((r) => r.name === 'remind'),

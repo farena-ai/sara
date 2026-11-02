@@ -741,7 +741,8 @@ test('discord: /steer /queue /btw are in the bulk overwrite with a required text
   s.gate.latch = latch();
   s.app.script.push([call('w1', 'wait_tool', {})], text('Side: it is fine.'), text('Done.'));
   const DOWNER = { id: '100', username: 'alex', global_name: 'Alex' };
-  void bridge.handleMessage({ id: '5001', channel_id: 'dm1', author: DOWNER, content: 'run the tests' } as never);
+  // Kept and awaited at the end: the turn still writes after its last message, before teardown closes the store.
+  const firstTurn = bridge.handleMessage({ id: '5001', channel_id: 'dm1', author: DOWNER, content: 'run the tests' } as never);
   await until(() => s.ran.wait_tool === 1);
   gateway({ op: 0, t: 'INTERACTION_CREATE', s: 2, d: { id: 'i-1', token: 'tok', type: 2, application_id: 'app1', channel_id: 'dm1', user: DOWNER, data: { name: 'btw', options: [{ name: 'text', value: 'is that warning bad?' }] } } });
   await until(() => sent.some((x) => x.method === 'PATCH' && x.path.endsWith('/messages/@original')));
@@ -754,6 +755,7 @@ test('discord: /steer /queue /btw are in the bulk overwrite with a required text
   assert.ok(sent.some((x) => x.method === 'PUT' && x.path === `/channels/dm1/messages/5002/reactions/${encodeURIComponent('👀')}/@me`));
   s.gate.latch.open();
   await until(() => sent.some((x) => x.method === 'POST' && x.path === '/channels/dm1/messages' && x.body.content === 'Done.'));
+  await firstTurn;
 });
 
 test('plugin bridge: a message while she is busy is queued and answered (2.48 dropped it with reason busy)', async (t) => {

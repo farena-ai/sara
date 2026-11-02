@@ -1547,6 +1547,10 @@
       "Ceilings for each of her replies (tokens, steps, dollars, time), for coding and everyday chats, and what she does near and at the limit.",
       "budgets"
     ],
+    "ab-precise": [
+      "Checks after her edits (your project's own type checker or linter, asked once per project) and @-references: attach a file, lines, your changes, the branch, the errors or a web page.",
+      "coding"
+    ],
     "ab-persist": [
       "Keep going until it’s done (goals on a chat, ended only by a check you pick) and repeats (checks on a timer in a chat): their caps, quiet hours and daily budgets.",
       "persist"

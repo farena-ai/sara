@@ -273,6 +273,8 @@ const OWNER_ONLY = ['pickup', 'backups', 'update', 'doctor', 'logs', 'status', '
   'goals',
   'loops',
   'persist',
+  // Phase 120: checks after her edits (settings) are the owner's; workspaces (checks, problems) already are.
+  'precise',
   // Phase 87: computer use. Member routes in src/household.ts, but answered 403 ownerOnly while the
   // owner's "Let household members use computer use" is off (the default, as here).
   'hands', 'computer'];

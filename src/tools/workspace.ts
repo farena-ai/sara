@@ -68,3 +68,18 @@ export function assertWritable(root: string, file: string): void {
 export function displayPath(root: string, abs: string): string {
   return relative(root, abs).split(sep).join('/') || '.';
 }
+
+/**
+ * Phase 120 (PRECISE §5.4): names that hold keys or secrets, or git's and Sara's own internals. One
+ * list for send_file, @-references and the file viewer. Compared the way the file system sees them
+ * (any case, Windows' trailing dots and spaces, `GIT~1` for `.git`).
+ */
+const SECRET_PART = /^(\.secrets|\.ssh|\.gnupg|\.git|git~\d+)$/;
+const SECRET_LEAF = /^(\.env(\..*)?|id_[a-z0-9]+(\.pub)?|.*\.(pem|key|p12|pfx|keystore|jks)|vault|vault\.json|vault\.enc|sara\.db|store\.db|\.netrc|_netrc|\.npmrc|\.pypirc|\.pgpass|\.gitconfig|\.git-credentials|\.sara-task-.*)$/;
+export function isSecretPath(rel: string): boolean {
+  const parts = rel.split(/[\\/]/).filter(Boolean).map((p) => p.replace(/[. ]+$/, '').toLowerCase() || p.toLowerCase());
+  if (parts.slice(0, -1).some((p) => SECRET_PART.test(p))) return true;
+  const leaf = rel.split(/[\\/]/).filter(Boolean).at(-1)?.toLowerCase().replace(/[ ]+$/, '') ?? '';
+  const leafNoDots = leaf.replace(/[. ]+$/, '');
+  return SECRET_PART.test(leafNoDots) || SECRET_LEAF.test(leaf) || SECRET_LEAF.test(leafNoDots);
+}

@@ -51,6 +51,13 @@ Wrote a file ×2 · +4 more*) opens to every command and its output.
 *Settings → Abilities → Coding projects* sets how chatty she is while working (with a sample line for
 each step), *Quiet when I'm focused*, and what she knows about each project.
 
+## Checks after her edits, and @-references (2.53.0)
+
+After she changes a file, your project's own `tsc`, pyright, mypy, `cargo check`, `go vet` or ESLint
+looks at it and she reads the new errors in the same reply (each project asks once; nothing is
+installed). Type `@` to hand her a file or a few lines, your changes (`@diff`), the branch, the current
+problems or a web page. Full guide: [CHECKS.md](CHECKS.md).
+
 ## The harness, in one list
 
 | | Where | More |

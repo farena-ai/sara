@@ -5,6 +5,24 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.53.0 (2026-11-02): coding precision (Phase 120)
+
+- **Checks after her edits:** after she writes or edits a file, Sara runs the project's own checker
+  (tsc, pyright or mypy, `cargo check --offline`, `go vet`, eslint), only when it's already in the
+  project or on the PATH, never through `npx` or `pip`, and adds the result to the same tool result:
+  new errors in the files she touched (up to 20), the files her change broke elsewhere (up to 3), and
+  a count of what was already there. If she'd stop with her own errors left she gets up to two
+  nudges; the reply shows *✓ types clean (tsc) · fixed N* or what's left. One OK per project (a card
+  lists the exact commands and which run project code); off per project or everywhere in Settings →
+  Abilities → *Check her edits*. Also a `types` goal check and `/problems` in the chat apps.
+  Guide: [docs/CHECKS.md](docs/CHECKS.md).
+- **@-references:** type `@` in the chat box: `@file` (`@file:src/a.ts:7-11`), `@folder`, `@diff`
+  (`@diff:staged`), `@branch`, `@problem`, `@url`. An autocomplete menu, chips with sizes and a ✕, and
+  *What she got* on sent messages. Typed text works in Telegram, Discord, Signal, email and plugin
+  apps. Read once and stored; workspace-bound, secret files (`.env`, keys) refused, `@url` through the
+  network guard and never in private chats. Owner only.
+- The optional language-server engine from the design is not in this release.
+
 ## 2.52.1 (2026-11-02): connecting a server is easy now; photos fixed
 
 - **Fixed (owner report: "the process right now seems like a brick wall"):** letting Sara work on

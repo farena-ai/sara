@@ -1,0 +1,41 @@
+/* Phase 120 (docs/design/PRECISE.md §4.11, §5.7): the @ menu, reference chips, the checks card and
+   chip, and Settings → Abilities → Check her edits. Theme tokens only; 44 px targets. */
+#composer { position: relative; }
+.ref-menu { position: absolute; left: 12px; right: 12px; bottom: calc(100% + 6px); max-height: min(50vh, 360px); overflow: auto; margin: 0; padding: 4px; list-style: none; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-2); z-index: 30; }
+.ref-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+.ref-item.active, .ref-item:hover { background: var(--accent-soft); }
+.ref-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ref-detail { flex: 0 0 auto; }
+.ref-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 16px 0; }
+.ref-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 2px 4px 2px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel-2); font-size: var(--fs-small, 13px); max-width: 100%; }
+.ref-chip .ref-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: min(60vw, 420px); }
+.ref-chip.refused { border-color: var(--danger); background: var(--danger-soft); }
+.ref-chip.large { border-color: var(--warn); background: var(--warn-soft); }
+.ref-chip-why { color: var(--muted, inherit); }
+.ref-chip .ref-x { min-width: 44px; min-height: 44px; margin: -8px -4px -8px 0; }
+.ref-sent { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: center; }
+.ref-sent .ref-chip { padding-right: 10px; }
+.ref-got summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.ref-got-text, .checks-list { max-height: 320px; overflow: auto; white-space: pre-wrap; font-size: 12px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin: 4px 0 0; }
+.checks-chip { margin-top: 6px; }
+.checks-chip summary { cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; padding: 0 10px; border-radius: 999px; border: 1px solid var(--border); }
+.checks-chip.clean summary { border-color: var(--ok, var(--border)); }
+.checks-chip.left summary { border-color: var(--warn); background: var(--warn-soft); }
+.checks-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin: 8px 0; background: var(--panel); }
+.checks-card-head { margin: 0 0 6px; font-weight: 600; }
+.checks-card-list { margin: 0 0 6px; padding-left: 18px; }
+.checks-card-list code { word-break: break-all; }
+.checks-card-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.checks-card-buttons button { min-height: 44px; }
+.pc-project { border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; margin: 8px 0; }
+.pc-project h4 { margin: 0 0 6px; }
+.pc-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; }
+.pc-row select, .pc-row button, .pc-problems summary { min-height: 44px; }
+.pc-checker { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 6px 0; min-height: 44px; overflow-wrap: anywhere; }
+.pc-checker input { width: 20px; height: 20px; flex: 0 0 auto; margin: 0; }
+.pc-checker code { overflow-wrap: anywhere; }
+.pc-problems summary { cursor: pointer; display: inline-flex; align-items: center; }
+@media (max-width: 600px) {
+  .ref-menu { left: 4px; right: 4px; }
+  .ref-chip .ref-chip-text { max-width: 52vw; }
+}

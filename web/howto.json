@@ -598,6 +598,38 @@
    "show": "#ps-l-on"
   }
  ],
+ "ab-precise": [
+  {
+   "id": "checks-on",
+   "q": "How do I let her check her edits with my project's own type checker?",
+   "steps": [
+    "Keep Check her edits on at the top of this page.",
+    "Under Projects, pick the workspace and set the project to On (or press Check her edits here on the card the first time she changes a file there).",
+    "From then on she sees the errors her edit caused in the same reply and fixes them."
+   ],
+   "show": "#pc-on"
+  },
+  {
+   "id": "checks-off",
+   "q": "How do I switch checks off for one project?",
+   "steps": [
+    "Under Projects, pick the workspace.",
+    "Set that project to Off.",
+    "In a chat app you can also send /problems off."
+   ],
+   "show": "#pc-ws"
+  },
+  {
+   "id": "refs",
+   "q": "How do I attach a file or my changes to a message?",
+   "steps": [
+    "In the message box, type @ and pick A file, My changes, This branch, Problems or A web page.",
+    "Type a few letters to find a file; add :10-25 for just those lines.",
+    "Send. The chips under your message show what she got."
+   ],
+   "show": "#pref-on"
+  }
+ ],
  "ab-when": [
   {
    "id": "set",

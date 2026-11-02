@@ -32,6 +32,7 @@
   <link rel="stylesheet" href="/kit.css">
   <link rel="stylesheet" href="/busy.css">
   <link rel="stylesheet" href="/persist.css">
+  <link rel="stylesheet" href="/refs.css">
   <link rel="stylesheet" href="/recall.css">
   <script type="module" src="/app.js"></script>
 </head>
@@ -294,6 +295,8 @@
       </div>
       <div id="together-bar" class="offrecord-bar" hidden><span id="together-now"></span> <button id="together-end" type="button" class="ghost small">End</button></div>
       <div id="attachments" class="attachments" hidden></div>
+      <!-- Phase 120 (PRECISE §5.7): @-references in the box (web/refs.js). -->
+      <div id="ref-chips" class="ref-chips" role="list" aria-label="Attached with @" hidden></div>
       <!-- Phase 116 (BR2 §5.5): what waits while she works (chips) and the side question's card. -->
       <!-- Phase 118 (PERSIST §4.11, §5.9): this chat's goal and repeats (web/persist.js). -->
       <div id="persist-strip" class="persist-strip" aria-label="This chat’s goal and repeats" hidden></div>
@@ -314,6 +317,7 @@
         <div id="aside-a" class="aside-a" data-raw></div>
       </div>
       <form id="composer">
+        <ul id="ref-menu" class="ref-menu" role="listbox" aria-label="Attach with @" hidden></ul>
         <textarea id="input" rows="1" placeholder="Message Sara…" autocomplete="off" aria-label="Message Sara…"></textarea>
         <div class="plus-wrap">
           <button id="composer-plus" class="ghost icon" type="button" aria-label="Add: a file, a photo or something to do together" aria-haspopup="menu" aria-expanded="false" aria-controls="composer-menu"><i class="ic" data-icon="plus"></i></button>
@@ -2692,6 +2696,33 @@
       </div>
       <label class="row"><input id="wm-calls" type="checkbox"> Also in calls with her in the app <button type="button" class="tip" data-tip="Also in calls with her in the app (she says it; you see it in the call's transcript). Never on Alexa or Home Assistant speakers, which others can hear.">?</button></label>
       <p class="muted small">The list is in Planner → Reminders → When it comes up. In any of your chats you can also type /when.</p>
+      </div>
+        </section>
+        <!-- Phase 120 (PRECISE §4.14, §5.10): checks after her edits and @-references (web/refs.js). -->
+        <section class="settings-page" data-page="ab-precise" data-group="Abilities" data-title="Check her edits" data-owner-only hidden>
+      <div id="pc-form">
+      <p class="muted small page-lead">After Sara changes a file, your project's own type checker or linter looks at it and she sees the errors before she answers. And in any chat, type @ to attach a file, a few lines, your changes, this branch, the current errors or a web page.</p>
+      <h3>Check her edits</h3>
+      <label class="row"><input id="pc-on" type="checkbox"> Check her edits <button type="button" class="tip" data-tip="After Sara changes a file, your project's own type checker or linter looks at it and she sees the errors before she answers. Nothing is installed; only tools your project already has are used.">?</button></label>
+      <div class="bud-grid">
+        <label>Her next step waits up to (seconds) <button type="button" class="tip" data-tip="How long her next step waits for a check. A slower check keeps going and its result comes with her next step.">?</button> <select id="pc-wait"></select></label>
+        <label>A check is stopped after (seconds) <button type="button" class="tip" data-tip="A check that runs longer than this is stopped and she is told once. Switch a slow checker off for its project below.">?</button> <select id="pc-timeout"></select></label>
+        <label>Errors written out <button type="button" class="tip" data-tip="The most errors she reads after one edit, only in the files she changed. Everything else is a count.">?</button> <select id="pc-shown"></select></label>
+        <label>Remind her to fix what she broke <button type="button" class="tip" data-tip="She fixes the errors her own edits caused, up to twice per reply, inside the reply's budget. Anything left is listed here, never hidden.">?</button> <select id="pc-nudges"></select></label>
+      </div>
+      <label class="row"><input id="pc-warnings" type="checkbox"> Also show warnings <button type="button" class="tip" data-tip="Off: only errors are written out and warnings are counted in one line. On: ESLint and pyright warnings are written out too.">?</button></label>
+      <h3>Projects <button type="button" class="tip" data-tip="Some checkers run code from your project (an ESLint config, mypy plugins, Rust build scripts). That's why each project asks once. Off any time here.">?</button></h3>
+      <div class="add-row"><label>Workspace <button type="button" class="tip" data-tip="The workspace whose projects are listed below, with the checkers found in each, their exact commands and the last result.">?</button> <select id="pc-ws"></select></label></div>
+      <div id="pc-projects" class="pc-projects"></div>
+      <p class="muted small">Language servers (typescript-language-server, pyright-langserver) are not used in this version: the project's own command runs instead. Sara never downloads or installs a checker.</p>
+      <h3>Attach with @</h3>
+      <label class="row"><input id="pref-on" type="checkbox"> Read @-references in my messages <button type="button" class="tip" data-tip="Type @ to attach a file, a few lines, your changes, this branch, the current errors or a web page. She gets the text with your message, so she doesn't have to go looking.">?</button></label>
+      <div class="bud-grid">
+        <label>Largest reference (characters) <button type="button" class="tip" data-tip="A whole file is cut at this size. Ask for lines (@file:a.ts:100-180) to keep her focus and your tokens.">?</button> <select id="pref-chars"></select></label>
+        <label>In older messages <button type="button" class="tip" data-tip="One line: older messages keep a one-line note of what was attached, so old files aren't sent again with every step. Whole text: always the full text.">?</button> <select id="pref-older"><option value="stub">One line</option><option value="full">The whole text</option></select></label>
+      </div>
+      <label class="row"><input id="pref-urls" type="checkbox"> Web pages with @url: <button type="button" class="tip" data-tip="Only files in this chat's project, never secrets like .env or keys, never in chats with other people. Web pages go through the same guard as her web tool and never open in private chats.">?</button></label>
+      <p class="muted small">In Telegram or Discord, type @file:src/app.ts:10-25, @diff, @branch, @problem or @url:https://… and she reads it the same way. /help refs lists them.</p>
       </div>
         </section>
 <section class="settings-page" data-page="ab-persist" data-group="Abilities" data-title="Keep going and repeats" data-owner-only hidden>

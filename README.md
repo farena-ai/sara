@@ -11,7 +11,7 @@ Windows, Mac and phones.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1656%20passing-brightgreen" alt="1656 tests passing">
+  <img src="https://img.shields.io/badge/tests-1678%20passing-brightgreen" alt="1678 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -107,15 +107,16 @@ One-minute walkthroughs, recorded on a throwaway test server with a local model.
 
 ## What's new
 
+- **2.53** · Coding precision: after each edit she runs your project's own type checker or linter and fixes what she broke in the same reply; point her at things with `@file`, `@diff`, `@url` and more.
 - **2.52** · When it comes up: "when Dan comes up, remind me he owes me $20" waits for the name, not a time; and `/continue` picks up a chat from Telegram or Discord in the app, or the other way round.
 - **2.51** · Keep going until it's done: give her a goal and the check that proves it (tests, a build, a command or you), and she works round by round until it really passes; `/loop` repeats a check and only speaks up when something changes.
-- **2.50** · Signal and email: she can have her own Signal number and her own mailbox, set up from Settings with the same rules as Telegram and Discord.
 
 <details>
 <summary><b>Release history</b>: what each release from 2.4 brought</summary>
 
 | Release | What you get |
 |---|---|
+| **2.53** · Coding precision | **Checks after her edits:** when she changes code, Sara runs the project's own checker (tsc, pyright or mypy, cargo check, go vet, eslint), already installed, never `npx`, never installs anything, and hands her only the new errors in the same turn, including files her change broke elsewhere. She fixes them before answering (at most two nudges), and the reply shows *✓ types clean (tsc)* or what's left. One OK per project. **@-references:** type `@` in the chat box for `@file` (with lines), `@folder`, `@diff`, `@branch`, `@problem` or `@url`; chips show what she'll get and its size, and it works as typed text in Telegram, Discord and the other apps. Secret files are refused, and private chats never open web pages. |
 | **2.52.1** · Easy server connect, photos fixed | *Connect a server* asks only for the address and user name; Sara makes her key, finds the port and the easiest way in (a cPanel token she deletes herself, your password once, or one line to paste) and explains every failure in plain words. Photos now always reach a model that can see them. |
 | **2.52** · When it comes up | **Reminders that wait for a person or a topic:** "when Dan comes up, remind me he owes me $20" or "next time I mention the garden, ask about the tomatoes". She brings it up once, inside her reply, with *Done*, *Again next time* or *Forget*. Matching uses your People cards and plain words, with no AI call, and she never guesses between two Dans. They fire only on your own messages in your own chats, never where Dan could read them, and anything she'd send to someone else that contains one asks first. **Pick up a chat in another app:** start on Telegram, open the app, and *Continue here* brings that chat along (`/continue` anywhere), with *Show* and *Undo*; nothing is copied. |
 | **2.51** · Keep going until it's done | **Goals with proof:** "make the tests pass, done when `npm test` is green": she works round by round within caps (rounds, minutes, tokens, dollars) and Sara runs your check, not her, so *done* means it really passed. A green that only came after she edited the tests ends as *done, review*; the same failure twice pauses her as *stuck*. **`/loop every 10m: check the deploy`**: quiet while nothing changes, one message when it does, stops on *until* (with proof), after two failures, at its end time or a daily cap, and never asks for approval unattended. Board cards can carry a *Done when* check. Everything comes back paused after a restart. Also fixed: editing files with Windows line endings failed, and your reminders no longer reach her instructions in shared work rooms. |
@@ -200,7 +201,7 @@ Every release: [CHANGELOG.md](CHANGELOG.md) · [releases](https://github.com/far
 
 In build order, one release each ([the full list](docs/ROADMAP.md)):
 
-- **Next** (2.53–2.61): photos and files in chat apps, talking to her while she works, Signal, email, WhatsApp, iMessage (BlueBubbles) and SMS, "keep going until it's done", coding checks after edits, a routines gallery, and **the Sara Store** for plugins, skills and MCP servers (ComfyUI, Blender, Playwright…) with one-click installs and a way to submit your own.
+- **Next** (2.54–2.61): photos and files in chat apps, talking to her while she works, Signal, email, WhatsApp, iMessage (BlueBubbles) and SMS, "keep going until it's done", coding checks after edits, a routines gallery, and **the Sara Store** for plugins, skills and MCP servers (ComfyUI, Blender, Playwright…) with one-click installs and a way to submit your own.
 - The iPhone app (waiting on Apple), and your ideas in [Discussions](https://github.com/farena-ai/sara/discussions).
 
 The full plan: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -387,8 +388,8 @@ README or SPEC that no test checked. What she adds today is the way of working (
 asks before risky steps, shows what ran), not a higher score on these sets. Details, per-task
 results and how to re-run: [docs/RESULTS.md](docs/RESULTS.md).
 
-Plus `npm run check`: a typecheck and 1671 automated tests with a scripted fake model (no network,
-no GPU): 1656 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
+Plus `npm run check`: a typecheck and 1693 automated tests with a scripted fake model (no network,
+no GPU): 1678 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
 
 ## How Sara compares
 

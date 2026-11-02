@@ -49,6 +49,8 @@ import { recipesSection } from './recipes.ts';
 import { loadedSkills, SKILL_KEEP_MESSAGES, skillsSection } from './skill-tools.ts';
 import { RECALL_MARK, recallHooks, recallMode } from './triggers.ts';
 import { CHANGES_FILES } from './codemap/tools.ts';
+import { checksAllowed, TurnChecks, type ChecksCard, type ChecksChip } from './diagnostics.ts';
+import { expandRefs, refsBlock, refsPlace, refStore, type RefChip } from './refs.ts';
 import { ToolStreamTracker, type ToolBuilding } from './tool-stream.ts';
 import { docsNote, type SharedDoc } from './library/intake.ts';
 import { importedName, importedOther, movedFrom, type Conversation, type StoredMessage, type Store } from './store.ts';
@@ -355,6 +357,12 @@ export type ChatEvent =
   | { type: 'unattended'; id: string; name: string; summary: string; key: string }
   /** Phase 119 (RECALL §4.5): reminders that came up in this reply (the ⏰ chip). */
   | { type: 'mentions'; messageId: number; items: import('./mentions.ts').ChipItem[] }
+  /** Phase 120 (PRECISE §4.3): the first-time card of a project (Check her edits here / Not now / Never). */
+  | { type: 'checks_card'; card: ChecksCard }
+  /** Phase 120 (§4.11): the reply chip (types clean, or errors left). */
+  | { type: 'checks'; messageId: number; chip: ChecksChip }
+  /** Phase 120 (§5.6): what his message's @-references attached (the chips under it). */
+  | { type: 'refs'; messageId: number; items: RefChip[] }
   | { type: 'done'; messageId: number }
   | { type: 'error'; message: string };
 
@@ -767,8 +775,11 @@ export function stripOwnTag(text: string, name: string): string {
   return out.trim() ? out : text;
 }
 
-export function buildHistory(messages: StoredMessage[], budgetChars = Number.POSITIVE_INFINITY, loadImage?: (id: string) => ImageData | undefined, group?: { ownerName: string }): { messages: ChatMessage[]; firstKeptId: number; dropped: number } {
+export function buildHistory(messages: StoredMessage[], budgetChars = Number.POSITIVE_INFINITY, loadImage?: (id: string) => ImageData | undefined, group?: { ownerName: string }, refsText?: (messageId: number, full: boolean) => string): { messages: ChatMessage[]; firstKeptId: number; dropped: number } {
   const out: ChatMessage[] = [];
+  // Phase 120 (PRECISE §5.6): only the newest owner message with @-references carries their full
+  // block; older ones carry a one-line stub each (refsText decides, with the owner's olderAs choice).
+  const newestRefs = refsText ? messages.findLast((m) => m.role === 'user' && Array.isArray(m.meta?.refs) && (m.meta.refs as unknown[]).length && !isForgotten(m))?.id : undefined;
   const ids: number[] = [];
   // Photos are sent for the two most recent owner messages that have them; older ones are named only.
   const withPhotos = messages.filter((m) => m.role === 'user' && Array.isArray(m.meta?.images) && (m.meta.images as unknown[]).length).slice(-2).map((m) => m.id);
@@ -799,7 +810,8 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
       const auto = m.meta?.autoSkill as { name?: string; text?: string } | undefined;
       const skillNote = auto?.text ? `\n\n[Note from the app: a skill that fits this message was loaded for you; follow it where it fits:]\n${auto.text}` : '';
       if (auto?.text && auto.name && skillInUse.has(auto.name)) skillBody.set(out.length, auto.text);
-      out.push({ role: 'user', content: (group ? ownerLine(group.ownerName, m.content) : m.content) + note + docs + skillNote, ...(images.length ? { images } : {}), ...(m.meta?.steer ? { steer: true } : {}) });
+      const refs = refsText && Array.isArray(m.meta?.refs) && (m.meta.refs as unknown[]).length ? refsText(m.id, m.id === newestRefs) : '';
+      out.push({ role: 'user', content: (group ? ownerLine(group.ownerName, m.content) : m.content) + note + docs + (refs ? `\n\n${refs}` : '') + skillNote, ...(images.length ? { images } : {}), ...(m.meta?.steer ? { steer: true } : {}) });
     }
     else if (m.role === 'assistant' && m.meta?.groupFrom && typeof m.meta.groupFrom === 'object') {
       // Phase 66: another companion's line in a group chat: hers to read, labelled, never as her own.
@@ -900,10 +912,22 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
  */
 export function contextFill(app: AppContext, conv: Conversation): { used: number; budget: number; dropped: number; percent: number } {
   const budget = app.settings.get().historyBudgetChars ?? HISTORY_BUDGET_CHARS;
-  const hist = buildHistory(app.store.messages(conv.id), budget);
+  const hist = buildHistory(app.store.messages(conv.id), budget, undefined, undefined, refsTextFor(app));
   const used = historySize(hist.messages);
   // Older parts already left out: the chat is full, whatever the kept part measures.
   return { used, budget, dropped: hist.dropped, percent: hist.dropped > 0 ? 100 : fillPercent(used, budget) };
+}
+
+/** Phase 120: the @-reference text for buildHistory (full for the newest, stubs for older, or always full). */
+export function refsTextFor(app: AppContext): (messageId: number, full: boolean) => string {
+  let olderFull = false;
+  try {
+    olderFull = ((app.settings.get() as { precise?: { refs?: { olderAs?: string } } }).precise?.refs?.olderAs ?? 'stub') === 'full';
+  } catch {
+    /* default */
+  }
+  const owner = app.settings.get().ownerName?.trim() || 'the owner';
+  return (id, full) => refsBlock(app, id, full || olderFull, owner);
 }
 
 /** Characters a history takes (the same measure buildHistory keeps under the budget). */
@@ -1019,6 +1043,11 @@ export interface TurnOptions {
   outside?: OutsidePolicy;
   /** Phase 116 (BR2 §5.3): this turn runs a queued message (its pending_inputs row gets the message id). */
   pendingId?: string;
+  /**
+   * Phase 120 (PRECISE §5.8): the raw text to read @-references from when a bridge changed the text
+   * before the turn (Discord turns `<@id>` into `@Name`, so a user called "diff" never becomes @diff).
+   */
+  refsFrom?: string;
   /**
    * Phase 118 (docs/design/PERSIST.md): this turn is a round of a chat goal or a tick of a loop. The
    * app's note goes in at step 0 (never stored as his message), the run gets `{goalId, round}` /
@@ -1512,6 +1541,25 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     yield { type: 'token', text: MINOR_BLOCK_REPLY };
     yield { type: 'done', messageId: msg.id };
     return;
+  }
+
+  // Phase 120 (PRECISE §5.4, §5.6): his @-references are read once, now, when the message is saved
+  // (a Continue uses the stored rows; Regenerate and edit save the message again and read again).
+  // Only the owner's own words in his own chats and work rooms; anything else stays plain text.
+  if (!opts.resume && !opts.group && !opts.replay && userMsg && text.includes('@')) {
+    const sharedRoom = Boolean(opts.roomNote || opts.roomNow) && !isWorkChannel(conv.channel);
+    const place = sharedRoom ? undefined : refsPlace(app, conv, { owner: ownerApp && !opts.outside && !opts.clientHistory, external, group: Boolean(opts.group), untrusted: Boolean(opts.untrusted) });
+    if (place) {
+      try {
+        const r = await expandRefs(app, conv, userMsg.id, opts.refsFrom ?? text, place, { signal, budgetChars: app.settings.get().historyBudgetChars ?? HISTORY_BUDGET_CHARS });
+        if (r.chips.length) {
+          store.updateMessageMeta(userMsg.id, { refs: r.chips, ...(r.more ? { refsMore: r.more } : {}) });
+          yield { type: 'refs', messageId: userMsg.id, items: r.chips };
+        }
+      } catch (err) {
+        console.warn(`refs: ${(err as Error).message}`);
+      }
+    }
   }
 
   const safetyNotes: string[] = [];
@@ -2070,6 +2118,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   }
   /** One-time notes for the next step (a block, tools paused). */
   const guardNotes: string[] = [];
+  // Phase 120 (PRECISE §4.4): the project's own checks after her edits, for this turn.
+  const refsText = refsTextFor(app);
+  const checks = checksAllowed(app, conv, { replay: Boolean(opts.replay), external: external || Boolean(opts.externalApp) || Boolean(opts.outside), group: Boolean(opts.group), tools: tools.length }) && !opts.noTools ? new TurnChecks(app, conv, wsDir, sandbox) : undefined;
+  /** Phase 120 (§4.7): the nudge's note for the next step (never stored). */
+  let checkNote: string | undefined;
   /** Tools as they were before the guard paused them (an owner steer brings them back). */
   let toolsBeforePause: typeof tools | undefined;
   let crisisSteer = false;
@@ -2085,6 +2138,17 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const sm = store.addMessage(conv.id, 'user', said, { steer: { afterStep: step, pendingId: it.id, ...(rec.on ? { runId: rec.id } : {}) }, ...(it.meta.images?.length ? { images: it.meta.images } : {}), ...(typeof it.meta.source === 'string' && it.meta.source !== 'web' ? { via: it.meta.source } : {}) });
       app.pending?.stored(it.id, sm.id);
       yield { type: 'steer', messageId: sm.id, afterStep: step, text: said, pendingId: it.id, ...(it.meta.images?.length ? { images: it.meta.images } : {}) };
+      // Phase 120 (§5.7): references in a steer are read when it is taken (the text at this moment).
+      if (it.sender === 'owner' && said.includes('@') && !minorSexualMatch(said, { owner: true })) {
+        const place = refsPlace(app, conv, { owner: ownerApp, external, group: false, untrusted: Boolean(opts.untrusted) });
+        if (place) {
+          const r = await expandRefs(app, conv, sm.id, said, place, { signal, budgetChars: budget }).catch(() => undefined);
+          if (r?.chips.length) {
+            store.updateMessageMeta(sm.id, { refs: r.chips });
+            yield { type: 'refs', messageId: sm.id, items: r.chips };
+          }
+        }
+      }
       const pf = preflight(said, it.sender === 'person' ? { others: true } : ownerApp ? { owner: true } : {});
       if (pf.minor) {
         store.recordSafetyEvent('minor_sexual_block', conv.id);
@@ -2163,7 +2227,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // Phase 57: with the app's own history, only this turn's lines come from here (the message, her tool steps).
     const hist = opts.clientHistory
       ? (() => {
-          const own = buildHistory(store.messages(conv.id).filter((m) => m.id >= userMsg.id), budget).messages;
+          const own = buildHistory(store.messages(conv.id).filter((m) => m.id >= userMsg.id), budget, undefined, undefined, refsText).messages;
           let room = budget - own.reduce((n, m) => n + m.content.length, 0);
           const earlier: ChatMessage[] = [];
           for (const m of [...opts.clientHistory].reverse()) {
@@ -2172,7 +2236,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           }
           return { messages: [...earlier, ...own], firstKeptId: userMsg.id, dropped: 0 };
         })()
-      : buildHistory(store.messages(conv.id), budget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined);
+      : buildHistory(store.messages(conv.id), budget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined, opts.group ? undefined : refsText);
     const messages: ChatMessage[] = [{ role: 'system', content: (opts.clientNote?.text.trim() ? system + clientNoteSection(opts.clientNote) : system) + (opts.roomNow?.trim() ? (conv.partner ? roomNowSection(opts.roomNow) : roomNoteSection(opts.roomNow, undefined, true)) : opts.roomNote?.trim() ? roomNoteSection(opts.roomNote) : '') }];
     yield { type: 'context', used: historySize(hist.messages), budget, dropped: hist.dropped };
     if (hist.dropped) {
@@ -2213,6 +2277,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // Phase 116: the steer note and the loop guard's one-time notes (never stored).
     for (const n of steerNotes) messages.push({ role: 'system', content: n });
     for (const n of guardNotes.splice(0)) messages.push({ role: 'system', content: n });
+    if (checkNote) {
+      messages.push({ role: 'user', content: checkNote });
+      checkNote = undefined;
+    }
     // Phase 98: the plugins' notes for this turn (labelled, untrusted).
     for (const n of pluginNotes) messages.push({ role: 'system', content: n });
     // Phase 100: the skills the owner offered this agent, when it asked for one.
@@ -2402,10 +2470,22 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       break;
     }
     if (!calls.length) {
-      let claims = checkClaims(reply, receipts, priorReceipts);
+      // Phase 120 (PRECISE §4.4): a check still running is waited for once before her reply counts.
+      if (checks) await checks.settle();
+      const claimReceipts = checks ? [...receipts, ...checks.receipts()] : receipts;
+      let claims = checkClaims(reply, claimReceipts, priorReceipts);
       if (!claims.length) claims = await judgeUnsure(app, reply, receipts, priorReceipts, { private: Boolean(conv.private) }, rec);
       if (!claims.length) claims = await judgeClaims(app, reply, receipts, priorReceipts, rec);
-      if (!claims.length) break;
+      if (!claims.length) {
+        // Phase 120 (§4.7): her own new errors are left: one more step with the app's note (≤ nudges a turn).
+        const stage = meter?.state().stage;
+        const nudge = checks?.nudge({ ownerText: text, ownerName: ownerWord, canStep: step < maxSteps - 1 && !meter?.final && stage !== 'summarize-stop' && stage !== 'reached', goalOrLoop: Boolean(opts.persist), hasTools: tools.length > 0 });
+        if (nudge) {
+          checkNote = nudge;
+          continue;
+        }
+        break;
+      }
       store.recordSafetyEvent('unverified_claim', conv.id);
       store.updateMessageMeta(saved.id, { unverified: claims });
       // Phase 79: after the budget's summary the claims are still checked and flagged (no new call).
@@ -2423,7 +2503,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // before this step's tools can change files, so it is the state after that step (time-travel
     // restores branches from it). A few ms per step, coding conversations only.
     if (rec.workspaceDir) await rec.settled();
-    for (const call of calls) {
+    // Phase 120 (§4.4): the step's last file-changing call is known before the loop (one check per step).
+    const lastChangeIdx = calls.findLastIndex((c) => CHANGES_FILES(c.name));
+    for (const [callIdx, call] of calls.entries()) {
       const tool = app.tools.get(call.name);
       let summary = app.redactor.redact(tool?.summarize(call.arguments) ?? call.name);
       const shownArgs = app.redactor.redactValue(call.arguments);
@@ -2670,6 +2752,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
             }
           }
           ranTool = true;
+          checks?.before(call.name, call.arguments);
           try {
             output = await tool.run(call.arguments, {
               workspaceDir: wsDir,
@@ -2713,6 +2796,24 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const ms = Date.now() - started;
       // Phase 50: files may have changed: the code map looks again (in the background).
       if (status !== 'denied' && CHANGES_FILES(call.name) && !opts.replay) app.codemap?.touch(wsDir);
+      // Phase 120 (PRECISE §4.4, §4.6): after the step's last file-changing call, the project's own
+      // checker; its block is part of this result (scrubbed and stored with it, so replays and the run
+      // record see the same). A first edit in a project still at Ask gets the card instead.
+      let checkBlock = '';
+      let checksCard: ChecksCard | undefined;
+      if (checks && !signal.aborted) {
+        checks.after(call.name, call.arguments, ranTool ? status : 'denied');
+        try {
+          checkBlock = await checks.stepEnd(callIdx === lastChangeIdx, signal);
+        } catch (err) {
+          console.warn(`checks: ${(err as Error).message}`);
+        }
+        for (const ev of checks.events.splice(0)) {
+          if (ev.type === 'checks_card') checksCard = ev.card;
+          yield ev;
+        }
+        if (checkBlock) output = `${output}\n\n${checkBlock}`;
+      }
       // Scrub before it is stored, shown or sent back to the model.
       output = app.redactor.redact(output + snapshotNote);
       // Phase 116: what the guard learns from a call that really ran (never one Stop cancelled), or a no on its card.
@@ -2727,8 +2828,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // Phase 96: a skill body she loaded is marked, so the history keeps it while the task runs.
       const loadedSkill = call.name === 'skill_use' && status === 'ok' ? /^<skill name="([^"]+)"/.exec(output)?.[1] : undefined;
       if (loadedSkill) turnSkills.add(loadedSkill);
-      const toolMsg = store.addMessage(conv.id, 'tool', stored, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status, ms, ...(loadedSkill ? { skill: loadedSkill } : {}), ...(snapshotId ? { snapshotId } : {}), ...(shown.length ? { images: shown } : {}), ...(card ? { card } : {}), ...(flagged?.length ? { contradiction: flagged[0] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(advisoryStop ? { advisory: { ...advisoryStop, ...(advisoryAnswer ? { answer: advisoryAnswer } : {}) } } : {}), ...(guardRec ? { guard: { kind: guardRec.kind, quote: guardRec.quote } } : {}) });
+      const toolMsg = store.addMessage(conv.id, 'tool', stored, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status, ms, ...(loadedSkill ? { skill: loadedSkill } : {}), ...(snapshotId ? { snapshotId } : {}), ...(shown.length ? { images: shown } : {}), ...(card ? { card } : {}), ...(flagged?.length ? { contradiction: flagged[0] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(advisoryStop ? { advisory: { ...advisoryStop, ...(advisoryAnswer ? { answer: advisoryAnswer } : {}) } } : {}), ...(guardRec ? { guard: { kind: guardRec.kind, quote: guardRec.quote } } : {}), ...(checksCard ? { checksCard } : {}), ...(checkBlock ? { checked: true } : {}) });
       receipts.push({ name: call.name, status, args: call.arguments, output });
+      if (checkBlock && rec.on) rec.tool({ id: `${call.id}-diagnostics`, name: 'diagnostics', summary: 'Checked her edits', args: { files: [...(checks?.touched ?? [])] }, status: 'ok', output: app.redactor.redact(checkBlock), ms: 0, messageId: toolMsg.id });
       // Phase 78 seam 3: the call is done (the recorder keeps the scrubbed result).
       await hooks.afterTool({ step, call, summary, args: shownArgs, status, output, ms, approval, messageId: toolMsg.id, ...(snapshotId ? { snapshotId } : {}), ...(flagged?.length ? { contradictions: flagged } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(thumbs.length ? { thumbs } : {}), ...(guardRec ? { guard: guardRec } : {}) });
       // Phase 98: tool.after (the scrubbed result; plugins may add a card under the step).
@@ -2806,5 +2908,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   }
   // Phase 98: "Weather alerts added a note" on the step line after a reload too.
   if (pluginSteps.length && lastAssistantId) store.updateMessageMeta(lastAssistantId, { plugins: pluginSteps.map((e) => ({ plugin: e.plugin, name: e.name, what: e.what, hook: e.hook, ...(e.text ? { text: e.text } : {}) })) });
+  // Phase 120 (§4.11): the reply chip (types clean, or what is left), after a reload too.
+  const chip = checks && !signal.aborted ? checks.chip() : undefined;
+  if (chip && lastAssistantId) {
+    store.updateMessageMeta(lastAssistantId, { checks: chip });
+    yield { type: 'checks', messageId: lastAssistantId, chip };
+  }
   yield { type: 'done', messageId: lastAssistantId };
 }

@@ -8,6 +8,7 @@
 // guard and the safety layer all apply unchanged. After a restart everything is paused.
 //
 // Tables (additive, the conversation's own store.db): chat_goals, goal_checks (§4.15).
+import { runTypesCheck } from './diagnostics.ts';
 import type { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -262,6 +263,7 @@ export function checkFromWords(w: string): unknown {
   if (/^(the )?tests?( pass)?$/.test(f)) return 'tests';
   if (/^(it )?builds?$/.test(f)) return 'build';
   if (/^lint/.test(f)) return 'lint';
+  if (/^(the )?types?( check)?$|^it (type-?)?checks$/.test(f)) return 'types';
   if (/^(a )?review(er)?/.test(f)) return 'reviewer';
   if (/^(i say|i'll say|me)$/.test(f)) return 'owner';
   return { kind: 'command', command: t };
@@ -771,6 +773,8 @@ export class Goals {
             }
           }) : [];
           r = await runReviewerCheck(app, conv, cur.text, changedText, ac.signal, persistSettings(app).goals.reviewer);
+        } else if (dir && c.kind === 'types') {
+          r = await runTypesCheck(app, conv.workspace || 'main', dir, ac.signal);
         } else if (dir && c.command) {
           r = await runCommandCheck(app, dir, c.kind, c.command, ac.signal, persistSettings(app).goals.checkMinutes * 60_000);
         } else r = { kind: c.kind, ok: false, exitCode: null, timedOut: false, key: `${c.kind}|missing`, quote: en('The check has no command.'), tail: '', ms: 0, broken: en('The check has no command.') };

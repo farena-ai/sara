@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 135 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 138 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -535,6 +535,26 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. In the chat, press + and pick Repeat this… (or type /loop every 10m: what to check).
 2. Pick how often and until when, then press Start.
 3. She only tells you when something changes; Planner → Repeats lists them all.
+
+### Check her edits
+
+**How do I let her check her edits with my project's own type checker?**
+
+1. Keep Check her edits on at the top of this page.
+2. Under Projects, pick the workspace and set the project to On (or press Check her edits here on the card the first time she changes a file there).
+3. From then on she sees the errors her edit caused in the same reply and fixes them.
+
+**How do I switch checks off for one project?**
+
+1. Under Projects, pick the workspace.
+2. Set that project to Off.
+3. In a chat app you can also send /problems off.
+
+**How do I attach a file or my changes to a message?**
+
+1. In the message box, type @ and pick A file, My changes, This branch, Problems or A web page.
+2. Type a few letters to find a file; add :10-25 for just those lines.
+3. Send. The chips under your message show what she got.
 
 ### When it comes up
 

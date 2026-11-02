@@ -57,6 +57,7 @@ import { createPluginRoutes } from './routes/plugins.ts';
 import { createAgentRoutes } from './routes/agents.ts';
 import { createHookRoutes } from './routes/hooks.ts';
 import { createPersistRoutes } from './routes/persist.ts';
+import { createPreciseRoutes } from './routes/precise.ts';
 import { createRecallRoutes } from './routes/recall.ts';
 import { pickupsFor } from './pickup.ts';
 import { createAgendaRoutes } from './routes/agenda.ts';
@@ -854,6 +855,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const agendaRoutes = createAgendaRoutes(ctx);
   // Phase 118: keep going until it's done, and repeats (src/routes/persist.ts).
   const persistRoutes = createPersistRoutes(ctx);
+  // Phase 120: checks after her edits and @-references (src/routes/precise.ts).
+  const preciseRoutes = createPreciseRoutes(ctx);
   // Phase 119: when it comes up, and picking a chat up in another app (src/routes/recall.ts).
   const recallRoutes = createRecallRoutes(ctx);
   // Phase 100: her address on the Agent Card is the one the peer used (https behind a trusted proxy).
@@ -1212,6 +1215,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await hookRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await agendaRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await persistRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await preciseRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await recallRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 87: computer use: the computers, the live view, step thumbnails (src/routes/hands.ts).
     if ((await handsRoutes(req, res, method, parts)) !== NEXT) return;

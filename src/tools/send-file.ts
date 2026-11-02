@@ -17,7 +17,7 @@ import { KEY_SHAPED, vaultSecretValues } from '../redact.ts';
 import { minorSexualMatch } from '../safety.ts';
 import { fileQuotaHit, recordShared, SEND_FILE_ASK_BYTES, sha256, sharedDir, TELEGRAM_FILE_OUT } from '../bridges/media.ts';
 import { ToolError, type Prepared, type Tool } from './types.ts';
-import { resolveInside, workspaceDir } from './workspace.ts';
+import { isSecretPath, resolveInside, workspaceDir } from './workspace.ts';
 
 const MAX_SEND_BYTES = TELEGRAM_FILE_OUT;
 const SCAN_BYTES = 1024 * 1024;

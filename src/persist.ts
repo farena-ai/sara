@@ -21,6 +21,7 @@ import { ROLES } from './team.ts';
 import { runCommand } from './tools/sandbox.ts';
 import { workspaceDir } from './tools/workspace.ts';
 import { isGroupChannel } from './group.ts';
+import { detectCheckers, projectsOf } from './diagnostics.ts';
 
 // ------------------------------------------------------------------ settings (§3.3)
 
@@ -172,8 +173,8 @@ export function persistRefusal(app: AppContext, conv: Conversation | undefined, 
 
 // ------------------------------------------------------------------ checks (§4.3)
 
-export type CheckKind = 'tests' | 'build' | 'lint' | 'command' | 'reviewer' | 'owner';
-export const CHECK_KINDS: readonly CheckKind[] = ['tests', 'build', 'lint', 'command', 'reviewer', 'owner'];
+export type CheckKind = 'tests' | 'build' | 'lint' | 'types' | 'command' | 'reviewer' | 'owner';
+export const CHECK_KINDS: readonly CheckKind[] = ['tests', 'build', 'lint', 'types', 'command', 'reviewer', 'owner'];
 export interface GoalCheck {
   kind: CheckKind;
   command?: string;
@@ -185,6 +186,7 @@ const CHECK_WORDS: Record<CheckKind, string> = {
   tests: 'Tests pass',
   build: 'It builds',
   lint: 'Lint is clean',
+  types: 'Types check',
   command: 'This passes',
   reviewer: 'A reviewer model approves the change',
   owner: "I'll say when it's done",
@@ -215,6 +217,13 @@ export function checkOptions(app: AppContext, conv: Conversation): GoalCheck[] {
   if (test) out.push({ kind: 'tests', command: test, words: checkWords({ kind: 'tests', command: test }) });
   if (cmds.build) out.push({ kind: 'build', command: cmds.build, words: checkWords({ kind: 'build', command: cmds.build }) });
   if (cmds.lint) out.push({ kind: 'lint', command: cmds.lint, words: checkWords({ kind: 'lint', command: cmds.lint }) });
+  // Phase 120 (PRECISE §4.11): the project's own type checker as a goal check (the P3 driver runs it).
+  try {
+    const types = projectsOf(dir).flatMap((p) => detectCheckers(p.dir).filter((c) => c.installed && (c.id === 'tsc' || c.id === 'pyright' || c.id === 'mypy' || c.id === 'cargo' || c.id === 'govet')).map((c) => c.label));
+    if (types.length) out.push({ kind: 'types', command: [...new Set(types)].join(', '), words: checkWords({ kind: 'types', command: [...new Set(types)].join(', ') }) });
+  } catch {
+    /* not a project */
+  }
   out.push({ kind: 'command', words: CHECK_WORDS.command }, { kind: 'reviewer', words: CHECK_WORDS.reviewer }, { kind: 'owner', words: CHECK_WORDS.owner });
   return out;
 }
@@ -268,11 +277,11 @@ export function cleanChecks(raw: unknown, options: GoalCheck[], dir?: string): {
     if (kind === 'command') {
       command = String((x as { command?: unknown }).command ?? '').trim().slice(0, 400);
       if (!command) return { error: en('Type the command that has to pass.') };
-    } else if (kind === 'tests' || kind === 'build' || kind === 'lint') {
+    } else if (kind === 'tests' || kind === 'build' || kind === 'lint' || kind === 'types') {
       command = options.find((c) => c.kind === kind)?.command;
       if (!command) return { error: en("This project has no command for that. Type one with A command… instead.") };
     }
-    if (command) {
+    if (command && kind !== 'types') {
       const no = refuseCheck(command, dir);
       if (no) return { error: no.text };
     }
@@ -305,19 +314,34 @@ export interface CheckResult {
 
 const TAIL = 4000;
 
+/**
+ * Phase 120 (PRECISE §3.1 P2): one command in the workspace sandbox with network off, the same
+ * refusal table as checks (installs, deletes, system changes and network are refused before it runs),
+ * scrubbed, and the FULL capped output (≤ maxBytes) so a parser can read every line.
+ */
+export async function runProjectCommand(app: AppContext, dir: string, command: string, o: { signal: AbortSignal; timeoutMs: number; maxBytes?: number; env?: Record<string, string>; sandbox?: AppContext['sandbox'] }): Promise<{ exitCode: number | null; timedOut: boolean; out: string; ms: number; refused?: string; error?: string }> {
+  const t0 = Date.now();
+  const no = refuseCheck(command, dir);
+  if (no) return { exitCode: null, timedOut: false, out: '', ms: 0, refused: no.text };
+  try {
+    const r = await runCommand(command, dir, { ...(o.sandbox ?? app.sandbox), network: false }, { timeoutMs: o.timeoutMs, signal: o.signal, maxBytes: o.maxBytes ?? 400_000, ...(o.env ? { env: o.env } : {}) });
+    return { exitCode: r.exitCode, timedOut: r.timedOut, out: app.redactor.redact(r.output), ms: Date.now() - t0 };
+  } catch (err) {
+    const msg = app.redactor.redact((err as Error).message).slice(0, 300);
+    return { exitCode: null, timedOut: false, out: '', ms: Date.now() - t0, error: msg };
+  }
+}
+
 /** Runs one command check in the workspace sandbox (§4.4): scrubbed, time-limited, read like a test card. */
 export async function runCommandCheck(app: AppContext, dir: string, kind: CheckKind, command: string, signal: AbortSignal, timeoutMs: number): Promise<CheckResult> {
   const t0 = Date.now();
-  const no = refuseCheck(command, dir);
-  if (no) return { kind, command, ok: false, exitCode: null, timedOut: false, key: `check|refused|${no.reason}`, quote: no.text, tail: '', ms: 0, broken: no.text };
-  let r;
-  try {
-    r = await runCommand(command, dir, { ...app.sandbox, network: false }, { timeoutMs, signal, maxBytes: 400_000 });
-  } catch (err) {
-    const msg = app.redactor.redact((err as Error).message).slice(0, 300);
-    return { kind, command, ok: false, exitCode: null, timedOut: false, key: `check|error|${msg}`, quote: msg, tail: '', ms: Date.now() - t0, broken: msg };
+  const r = await runProjectCommand(app, dir, command, { signal, timeoutMs, maxBytes: 400_000 });
+  if (r.refused) {
+    const no = refuseCheck(command, dir)!;
+    return { kind, command, ok: false, exitCode: null, timedOut: false, key: `check|refused|${no.reason}`, quote: no.text, tail: '', ms: 0, broken: no.text };
   }
-  const out = app.redactor.redact(r.output);
+  if (r.error !== undefined) return { kind, command, ok: false, exitCode: null, timedOut: false, key: `check|error|${r.error}`, quote: r.error, tail: '', ms: Date.now() - t0, broken: r.error };
+  const out = r.out;
   const counts = testCounts(out);
   const exitOk = r.exitCode === 0 && !r.timedOut;
   const countsOk = counts.passed === undefined ? true : (counts.failed ?? 0) === 0 && counts.passed > 0;

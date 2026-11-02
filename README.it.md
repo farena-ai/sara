@@ -14,7 +14,7 @@ per il web, Windows, Mac e telefono.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1656%20passing-brightgreen" alt="1656 tests passing">
+  <img src="https://img.shields.io/badge/tests-1678%20passing-brightgreen" alt="1678 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -113,15 +113,16 @@ Guide di un minuto, registrate su un server di prova con un modello locale (in i
 
 ## Novità
 
+- **2.53** · Precisione nel codice: dopo ogni modifica esegue il controllo dei tipi o il linter del tuo progetto e sistema quello che ha rotto nella stessa risposta; indicale le cose con `@file`, `@diff`, `@url` e altro.
 - **2.52** · Quando se ne parla: «quando salta fuori Dan, ricordami che mi deve 20 $» aspetta il nome, non un'ora; e `/continue` riprende nell'app una chat di Telegram o Discord, o viceversa.
 - **2.51** · Continua finché è fatto: dalle un obiettivo e il controllo che lo dimostra (test, una build, un comando o tu) e lavora un giro dopo l'altro finché passa davvero; `/loop` ripete un controllo e parla solo quando qualcosa cambia.
-- **2.50** · Signal ed email: può avere un suo numero Signal e una sua casella, configurati dalle Impostazioni con le stesse regole di Telegram e Discord.
 
 <details>
 <summary><b>Cronologia delle versioni</b>: cosa ha portato ogni versione dalla 2.4</summary>
 
 | Versione | Cosa ottieni |
 |---|---|
+| **2.53** · Precisione nel codice | **Controlli dopo le sue modifiche:** quando cambia il codice, Sara esegue il controllo del progetto (tsc, pyright o mypy, cargo check, go vet, eslint), già installato, mai `npx`, senza installare niente, e le passa solo gli errori nuovi nello stesso turno, compresi i file che la modifica ha rotto altrove. Li sistema prima di rispondere (al massimo due solleciti) e la risposta mostra *✓ types clean (tsc)* o cosa resta. Un OK per progetto. **Riferimenti @:** scrivi `@` nella chat per `@file` (con righe), `@folder`, `@diff`, `@branch`, `@problem` o `@url`; le etichette mostrano cosa riceverà e quanto pesa, e funziona come testo in Telegram, Discord e le altre app. I file segreti vengono rifiutati e le chat private non aprono mai pagine web. |
 | **2.52.1** · Collegare un server è facile, foto sistemate | *Collega un server* chiede solo indirizzo e utente; Sara crea la sua chiave, trova la porta e il modo più semplice per entrare (un token cPanel che cancella lei, la tua password una volta o una riga da incollare) e spiega ogni errore con parole semplici. Le foto arrivano sempre a un modello che le vede. |
 | **2.52** · Quando se ne parla | **Promemoria che aspettano una persona o un argomento:** «quando salta fuori Dan, ricordami che mi deve 20 $» o «la prossima volta che parlo dell'orto, chiedi dei pomodori». Lo tira fuori una volta, nella sua risposta, con *Fatto*, *Ancora la prossima volta* o *Dimentica*. Il riconoscimento usa le tue schede persona e parole semplici, senza chiamare nessuna IA, e tra due Dan non tira mai a indovinare. Scattano solo sui tuoi messaggi nelle tue chat, mai dove Dan potrebbe leggere, e ciò che invierebbe a qualcun altro contenendone uno chiede prima. **Riprendere una chat in un'altra app:** inizia su Telegram, apri l'app e *Continua qui* porta con sé quella chat (`/continue` ovunque), con *Mostra* e *Annulla*; non si copia niente. |
 | **2.51** · Continua finché è fatto | **Obiettivi con prova:** «fai passare i test, fatto quando `npm test` è verde»: lavora un giro dopo l'altro entro dei limiti (giri, minuti, token, dollari) e Sara esegue il tuo controllo, non lei, quindi *fatto* vuol dire che è passato davvero. Un verde arrivato solo dopo aver modificato i test finisce come *fatto, da rivedere*; lo stesso errore due volte la mette in pausa come *bloccata*. **`/loop every 10m: check the deploy`**: in silenzio finché non cambia niente, un messaggio quando cambia, si ferma con *until* (con prova), dopo due errori, all'ora di fine o a un limite giornaliero, e non chiede mai approvazioni senza di te. Le schede della bacheca possono avere un controllo *Fatto quando*. Dopo un riavvio tutto torna in pausa. Sistemato anche: modificare file con fine riga Windows falliva. |
@@ -206,7 +207,7 @@ Tutte le versioni: [CHANGELOG.md](CHANGELOG.md) · [versioni](https://github.com
 
 In ordine di costruzione, una versione ciascuna ([l'elenco completo](docs/ROADMAP.md)):
 
-- **Poi** (2.53–2.61): foto e file nelle app di chat, parlarle mentre lavora, Signal, email, WhatsApp, iMessage (BlueBubbles) e SMS, «continua finché è fatto», controlli del codice dopo ogni modifica, una galleria di routine e **il Sara Store** per plugin, abilità e server MCP (ComfyUI, Blender, Playwright…) con installazione in un clic e un modo per inviare i tuoi.
+- **Poi** (2.54–2.61): foto e file nelle app di chat, parlarle mentre lavora, Signal, email, WhatsApp, iMessage (BlueBubbles) e SMS, «continua finché è fatto», controlli del codice dopo ogni modifica, una galleria di routine e **il Sara Store** per plugin, abilità e server MCP (ComfyUI, Blender, Playwright…) con installazione in un clic e un modo per inviare i tuoi.
 - L'app per iPhone (in attesa di Apple) e le tue idee nelle [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Il piano completo: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -401,8 +402,8 @@ uno SPEC che nessun test controllava. Quello che aggiunge oggi è il modo di lav
 chiede prima dei passi rischiosi, mostra cosa è stato eseguito), non un punteggio più alto su questi
 insiemi. Dettagli, risultati per compito e come rieseguirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-In più, `npm run check`: un controllo dei tipi e 1671 test automatici con un finto modello guidato
-da script (senza rete, senza GPU): 1656 passano su Windows e gli altri 8 sono test dell'isolamento
+In più, `npm run check`: un controllo dei tipi e 1693 test automatici con un finto modello guidato
+da script (senza rete, senza GPU): 1678 passano su Windows e gli altri 8 sono test dell'isolamento
 solo per Linux, eseguiti su un server Linux.
 
 ## Il confronto
