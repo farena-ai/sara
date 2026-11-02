@@ -102,12 +102,17 @@ async function rig(t: TestContext, o: { login?: boolean; link?: boolean; history
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   t.after(async () => {
     const { pendingFor } = await import('../src/pending.ts');
-    await until(() => !app.store.listConversations().some((c) => pendingFor(app).busy(c.id)), 10_000);
-    for (let seen = -1, i = 0; seen !== app.requests.length && i < 10; i++) {
-      seen = app.requests.length;
-      await pause(300);
-    }
+    const settle = async () => {
+      await until(() => !app.store.listConversations().some((c) => pendingFor(app).busy(c.id)), 10_000);
+      for (let seen = -1, i = 0; seen !== app.requests.length && i < 10; i++) {
+        seen = app.requests.length;
+        await pause(300);
+      }
+    };
+    await settle();
     await pm.stopAll();
+    // Stopping can still deliver a last event (a turn or a note): let it finish before the store closes.
+    await settle();
     server.closeAllConnections?.();
     await new Promise<void>((r) => server.close(() => r()));
     await hs.stop();

@@ -481,7 +481,7 @@ const vaultKey = (id: string) => `webhook:${id}`;
 const verifyKey = (id: string) => `webhook:${id}:verify`;
 const urlKey = (id: string) => `webhook:${id}:url`;
 /** The plugin's name on the locked row (Settings → Webhooks). */
-const PLUGIN_HOOK_NAMES: Record<string, string> = { whatsapp: 'WhatsApp' };
+const PLUGIN_HOOK_NAMES: Record<string, string> = { whatsapp: 'WhatsApp', imessage: 'iMessage' };
 const outKey = (id: string) => `webhook-out:${id}`;
 
 export class HookManager {
@@ -655,14 +655,19 @@ export class HookManager {
    * goes to the hook's vault entry (only Sara's signature check reads it; the plugin never has it);
    * Sara makes the verify token (128 bits). A second call with `appSecret` replaces the secret only.
    */
-  ensureBridgeHook(plugin: string, companion: string, appSecret?: string): { hook: Hook; path: string; verifyToken: string; created: boolean } {
+  ensureBridgeHook(plugin: string, companion: string, appSecret?: string, kind: 'meta' | 'url' = 'meta'): { hook: Hook; path: string; verifyToken: string; created: boolean } {
     let h = this.bridgeHookFor(plugin, companion);
+    // Phase 122 part 3 (BRIDGES4 B1): a hook of the other kind is made again (its old URL stops working).
+    if (h && h.verify !== kind) {
+      this.remove(h.id);
+      h = undefined;
+    }
     let created = false;
     if (!h) {
       if (this.store.all().length >= MAX_HOOKS) throw new HttpError(400, 'You have the most webhooks this server keeps (50). Remove one first.');
       const id = `h${randomBytes(6).toString('hex')}`;
       const secret = newUrlSecret();
-      h = this.store.add({ id, name: PLUGIN_HOOK_NAMES[plugin] ?? plugin, secretHash: sha256Hex(secret), verify: 'meta', sender: 'other', preset: null, filters: [], action: { kind: 'plugin', plugin }, tools: [], companion: this.#apps.has(companion) ? companion : 'main', limits: BRIDGE_LIMITS, memory: 'none', forward: null, ownerPlugin: plugin });
+      h = this.store.add({ id, name: PLUGIN_HOOK_NAMES[plugin] ?? plugin, secretHash: sha256Hex(secret), verify: kind, sender: 'other', preset: null, filters: [], action: { kind: 'plugin', plugin }, tools: [], companion: this.#apps.has(companion) ? companion : 'main', limits: BRIDGE_LIMITS, memory: 'none', forward: null, ownerPlugin: plugin });
       this.opts.vault.set(urlKey(id), secret);
       this.opts.vault.set(verifyKey(id), randomBytes(16).toString('base64url'));
       created = true;
@@ -899,6 +904,7 @@ export class HookManager {
    * private messages); filters, templates and copies don't apply.
    */
   async #bridgeDelivery(res: ServerResponse, hook: Hook, raw: Buffer, type: string, ip: string): Promise<void> {
+    if (hook.verify === 'url') return this.#doorbell(res, hook, raw, type, ip);
     let ids: string[] = [];
     if (type === 'application/json') {
       try {
@@ -923,6 +929,35 @@ export class HookManager {
     const r = await pm.deliverBridgeWebhook(hook.ownerPlugin, hook.companion, hook.id, raw, BRIDGE_ACCEPT_MS);
     if (!r.ok) return unavailable(r.why ?? 'the plugin did not accept it');
     this.store.log({ hookId: hook.id, verdict: 'accepted', deliveryId, sender: ip, event: 'messages', size: raw.length, body: null, result: { ids: ids.length, action: 'bridge' } });
+    this.store.count(hook.id, 'accepted');
+    this.opts.onBridge?.(hook);
+    return this.#answer(res, 200, { ok: true });
+  }
+
+  /**
+   * Phase 122 part 3 (BRIDGES4 §3.1 B2, the doorbell rule): an unsigned bridge hook (kind `url`,
+   * BlueBubbles) may wake its plugin, never feed it. Only the event name and up to 20 ids of a
+   * checked shape leave this function (`{event, ids}`); the plugin fetches each id from the
+   * platform's own authenticated API before anything reaches her. The body is never logged or kept.
+   */
+  async #doorbell(res: ServerResponse, hook: Hook, raw: Buffer, type: string, ip: string): Promise<void> {
+    const ping = doorbellPing(type === 'application/json' ? raw : Buffer.alloc(0));
+    const unavailable = (why: string) => {
+      this.store.log({ hookId: hook.id, verdict: 'error', deliveryId: null, sender: ip, event: ping.event || null, size: raw.length, body: null, result: { error: why, ids: ping.ids.length } });
+      res.writeHead(503, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'retry-after': '60', ...SECURITY_HEADERS });
+      res.end(JSON.stringify({ error: 'Not now' }));
+    };
+    if (!ping.event) {
+      this.store.log({ hookId: hook.id, verdict: 'filtered', deliveryId: null, sender: ip, event: null, size: raw.length, body: null, result: { error: 'not a doorbell ({type, data})' } });
+      this.store.count(hook.id, 'filtered');
+      return this.#answer(res, 200, { ok: true });
+    }
+    if (privateLocalOn()) return unavailable('private local mode is on');
+    const pm = this.appFor(hook)?.pluginManager;
+    if (!pm || !hook.ownerPlugin) return unavailable('plugins are not available here');
+    const r = await pm.deliverBridgeWebhook(hook.ownerPlugin, hook.companion, hook.id, raw, BRIDGE_ACCEPT_MS, ping);
+    if (!r.ok) return unavailable(r.why ?? 'the plugin did not accept it');
+    this.store.log({ hookId: hook.id, verdict: 'accepted', deliveryId: null, sender: ip, event: ping.event, size: raw.length, body: null, result: { ids: ping.ids.length, action: 'doorbell' } });
     this.store.count(hook.id, 'accepted');
     this.opts.onBridge?.(hook);
     return this.#answer(res, 200, { ok: true });
@@ -1327,4 +1362,28 @@ export class HookManager {
   localDay(app: AppContext, iso: string): string {
     return localDate(iso, app.settings.get().timeZone);
   }
+}
+
+/** Phase 122 part 3 (B2): a doorbell's event and ids (≤ 20, ≤ 120 characters, a plain id shape); never its text. */
+export const DOORBELL_ID = /^[A-Za-z0-9][\w:;./+@=-]{0,119}$/;
+export function doorbellPing(raw: Buffer): { event: string; ids: string[] } {
+  let body: unknown;
+  try {
+    body = raw.length ? JSON.parse(raw.toString('utf8')) : undefined;
+  } catch {
+    body = undefined;
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return { event: '', ids: [] };
+  const b = body as { type?: unknown; data?: unknown };
+  const event = typeof b.type === 'string' && /^[a-z][a-z0-9-]{0,39}$/.test(b.type) ? b.type : '';
+  const ids: string[] = [];
+  const take = (v: unknown) => {
+    if (typeof v === 'string' && DOORBELL_ID.test(v) && !ids.includes(v) && ids.length < 20) ids.push(v);
+  };
+  const one = (d: unknown) => {
+    if (d && typeof d === 'object' && !Array.isArray(d)) take((d as { guid?: unknown }).guid);
+  };
+  if (Array.isArray(b.data)) b.data.slice(0, 20).forEach(one);
+  else one(b.data);
+  return { event, ids };
 }

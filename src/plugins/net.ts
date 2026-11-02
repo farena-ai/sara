@@ -364,8 +364,12 @@ export class PluginSockets {
     h.closed = true;
     if (h.idle !== undefined) this.#clock.clearTimeout(h.idle);
     this.#held.delete(h.id);
-    this.#d.log('call', `closed ${h.host}:${h.port} (${reason})`);
-    this.#d.send({ v: 1, type: 'net.closed', socket: h.id, reason });
+    try {
+      this.#d.log('call', `closed ${h.host}:${h.port} (${reason})`);
+      this.#d.send({ v: 1, type: 'net.closed', socket: h.id, reason });
+    } catch {
+      /* the plugin (or Sara) is already gone: a closing socket must not throw from its event */
+    }
   }
 }
 

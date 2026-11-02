@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 147 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 150 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -749,6 +749,24 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Press Send as message: she gets it as a command.
 2. Or put her name first: Sara new, Sara help.
+
+### iMessage
+
+**How do I text her from my iPhone?**
+
+1. You need a Mac that stays on. Tick the box about Apple and BlueBubbles and press Start.
+2. Give her an Apple ID and a user on the Mac, sign her in to Messages and install BlueBubbles.
+3. Paste the BlueBubbles password, press Ring, then send the code from Link my iMessage to her address.
+
+**Why won't she run on my own Apple ID?**
+
+1. On your Apple ID she would see all your chats and her answers would go out as you.
+2. Make a separate Apple ID for her and sign it in to Messages as a separate user on the Mac.
+
+**Why do her iMessage answers take a few seconds?**
+
+1. BlueBubbles can't ring Sara, so she checks for messages every few seconds instead.
+2. Put the Mac and Sara on Tailscale, then press Ring on the iMessage card.
 
 ### Other apps
 

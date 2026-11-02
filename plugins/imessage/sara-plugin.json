@@ -1,0 +1,180 @@
+{
+  "manifest": 1,
+  "id": "imessage",
+  "name": "iMessage",
+  "version": "1.0.0",
+  "description": "Talk to her in Messages through BlueBubbles on your own Mac.",
+  "author": "The Sara team",
+  "license": "MIT",
+  "sara": ">=2.55.2",
+  "main": "main.mjs",
+  "permissions": {
+    "bridges": [
+      "imessage"
+    ],
+    "bridgeFiles": true,
+    "settings": true,
+    "webhooks": {
+      "bridge": [
+        "url"
+      ],
+      "doorbell": true
+    },
+    "connect": [
+      {
+        "id": "bb",
+        "host": "setting:server",
+        "ports": "setting",
+        "where": "local",
+        "tls": "optional"
+      }
+    ],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    }
+  },
+  "settings": [
+    {
+      "key": "server",
+      "type": "text",
+      "label": "BlueBubbles address",
+      "default": "127.0.0.1:1234",
+      "tip": "Where BlueBubbles runs, with its port. 127.0.0.1:1234 if Sara runs on the same Mac; otherwise the Mac's address on your home network or its Tailscale name, like 192.168.1.20:1234."
+    },
+    {
+      "key": "onOtherMachine",
+      "type": "switch",
+      "label": "BlueBubbles runs on another computer on my network",
+      "default": false,
+      "tip": "Lets Sara talk to BlueBubbles on another computer at home or on your Tailscale network. Never anything on the internet."
+    },
+    {
+      "key": "password",
+      "type": "secret",
+      "label": "BlueBubbles server password",
+      "tip": "The password you saved in BlueBubbles' Connection step. Kept encrypted in Sara's vault. Anyone with it can read and send her messages."
+    },
+    {
+      "key": "readReceipts",
+      "type": "switch",
+      "label": "Send read receipts (Private API only)",
+      "default": false,
+      "tip": "Shows 'Read' under your messages when she has them. Only works if BlueBubbles' Private API is on."
+    },
+    {
+      "key": "mirror",
+      "type": "switch",
+      "label": "Send reminders and messages she starts to my iMessage too",
+      "default": false,
+      "tip": "Her reminders and messages she starts also come to Messages on your iPhone. Only to you."
+    },
+    {
+      "key": "pollSeconds",
+      "type": "number",
+      "label": "Check for messages every (seconds, when not woken)",
+      "default": 5,
+      "advanced": true,
+      "tip": "Only used when BlueBubbles can't ring Sara. Lower is faster but asks the Mac more often."
+    },
+    {
+      "key": "https",
+      "type": "switch",
+      "label": "BlueBubbles uses HTTPS",
+      "default": false,
+      "advanced": true,
+      "tip": "Turn on only if you gave BlueBubbles a certificate for the address above. Without it the password travels unencrypted on your home network; Tailscale or the same Mac avoids that."
+    }
+  ],
+  "i18n": {
+    "es": {
+      "Talk to her in Messages through BlueBubbles on your own Mac.": "Habla con ella en Mensajes a través de BlueBubbles en tu propio Mac.",
+      "BlueBubbles address": "Dirección de BlueBubbles",
+      "Where BlueBubbles runs, with its port. 127.0.0.1:1234 if Sara runs on the same Mac; otherwise the Mac's address on your home network or its Tailscale name, like 192.168.1.20:1234.": "Dónde funciona BlueBubbles, con su puerto. 127.0.0.1:1234 si Sara funciona en el mismo Mac; si no, la dirección del Mac en tu red de casa o su nombre de Tailscale, como 192.168.1.20:1234.",
+      "BlueBubbles runs on another computer on my network": "BlueBubbles funciona en otro ordenador de mi red",
+      "Lets Sara talk to BlueBubbles on another computer at home or on your Tailscale network. Never anything on the internet.": "Deja que Sara hable con BlueBubbles en otro ordenador de tu casa o de tu red de Tailscale. Nunca nada en internet.",
+      "BlueBubbles server password": "Contraseña del servidor BlueBubbles",
+      "The password you saved in BlueBubbles' Connection step. Kept encrypted in Sara's vault. Anyone with it can read and send her messages.": "La contraseña que guardaste en el paso Connection de BlueBubbles. Se guarda cifrada en la bóveda de Sara. Quien la tenga puede leer y enviar sus mensajes.",
+      "Send read receipts (Private API only)": "Enviar confirmaciones de lectura (solo con la Private API)",
+      "Shows 'Read' under your messages when she has them. Only works if BlueBubbles' Private API is on.": "Muestra 'Leído' bajo tus mensajes cuando ella los tiene. Solo funciona si la Private API de BlueBubbles está activada.",
+      "Send reminders and messages she starts to my iMessage too": "Enviar también a mi iMessage los recordatorios y mensajes que ella inicia",
+      "Her reminders and messages she starts also come to Messages on your iPhone. Only to you.": "Sus recordatorios y los mensajes que ella inicia también llegan a Mensajes en tu iPhone. Solo a ti.",
+      "Check for messages every (seconds, when not woken)": "Buscar mensajes cada (segundos, si no la avisan)",
+      "Only used when BlueBubbles can't ring Sara. Lower is faster but asks the Mac more often.": "Solo se usa cuando BlueBubbles no puede avisar a Sara. Menos es más rápido, pero pregunta al Mac más a menudo.",
+      "BlueBubbles uses HTTPS": "BlueBubbles usa HTTPS",
+      "Turn on only if you gave BlueBubbles a certificate for the address above. Without it the password travels unencrypted on your home network; Tailscale or the same Mac avoids that.": "Actívalo solo si diste a BlueBubbles un certificado para la dirección de arriba. Sin él, la contraseña viaja sin cifrar por tu red de casa; Tailscale o el mismo Mac lo evitan."
+    },
+    "fr": {
+      "Talk to her in Messages through BlueBubbles on your own Mac.": "Parlez-lui dans Messages grâce à BlueBubbles sur votre propre Mac.",
+      "BlueBubbles address": "Adresse de BlueBubbles",
+      "Where BlueBubbles runs, with its port. 127.0.0.1:1234 if Sara runs on the same Mac; otherwise the Mac's address on your home network or its Tailscale name, like 192.168.1.20:1234.": "Où tourne BlueBubbles, avec son port. 127.0.0.1:1234 si Sara tourne sur le même Mac ; sinon l'adresse du Mac sur votre réseau domestique ou son nom Tailscale, comme 192.168.1.20:1234.",
+      "BlueBubbles runs on another computer on my network": "BlueBubbles tourne sur un autre ordinateur de mon réseau",
+      "Lets Sara talk to BlueBubbles on another computer at home or on your Tailscale network. Never anything on the internet.": "Permet à Sara de parler à BlueBubbles sur un autre ordinateur chez vous ou sur votre réseau Tailscale. Jamais rien sur internet.",
+      "BlueBubbles server password": "Mot de passe du serveur BlueBubbles",
+      "The password you saved in BlueBubbles' Connection step. Kept encrypted in Sara's vault. Anyone with it can read and send her messages.": "Le mot de passe enregistré à l'étape Connection de BlueBubbles. Gardé chiffré dans le coffre de Sara. Qui l'a peut lire et envoyer ses messages.",
+      "Send read receipts (Private API only)": "Envoyer des accusés de lecture (Private API seulement)",
+      "Shows 'Read' under your messages when she has them. Only works if BlueBubbles' Private API is on.": "Affiche « Lu » sous vos messages quand elle les a. Ne marche que si la Private API de BlueBubbles est activée.",
+      "Send reminders and messages she starts to my iMessage too": "Envoyer aussi sur mon iMessage les rappels et les messages qu'elle commence",
+      "Her reminders and messages she starts also come to Messages on your iPhone. Only to you.": "Ses rappels et les messages qu'elle commence arrivent aussi dans Messages sur votre iPhone. Seulement à vous.",
+      "Check for messages every (seconds, when not woken)": "Chercher les messages toutes les (secondes, sans réveil)",
+      "Only used when BlueBubbles can't ring Sara. Lower is faster but asks the Mac more often.": "Sert seulement quand BlueBubbles ne peut pas prévenir Sara. Plus bas est plus rapide mais interroge le Mac plus souvent.",
+      "BlueBubbles uses HTTPS": "BlueBubbles utilise HTTPS",
+      "Turn on only if you gave BlueBubbles a certificate for the address above. Without it the password travels unencrypted on your home network; Tailscale or the same Mac avoids that.": "À activer seulement si vous avez donné à BlueBubbles un certificat pour l'adresse ci-dessus. Sans lui, le mot de passe circule en clair sur votre réseau ; Tailscale ou le même Mac l'évitent."
+    },
+    "de": {
+      "Talk to her in Messages through BlueBubbles on your own Mac.": "Sprich mit ihr in Nachrichten über BlueBubbles auf deinem eigenen Mac.",
+      "BlueBubbles address": "BlueBubbles-Adresse",
+      "Where BlueBubbles runs, with its port. 127.0.0.1:1234 if Sara runs on the same Mac; otherwise the Mac's address on your home network or its Tailscale name, like 192.168.1.20:1234.": "Wo BlueBubbles läuft, mit Port. 127.0.0.1:1234, wenn Sara auf demselben Mac läuft; sonst die Adresse des Macs in deinem Heimnetz oder sein Tailscale-Name, etwa 192.168.1.20:1234.",
+      "BlueBubbles runs on another computer on my network": "BlueBubbles läuft auf einem anderen Computer in meinem Netzwerk",
+      "Lets Sara talk to BlueBubbles on another computer at home or on your Tailscale network. Never anything on the internet.": "Lässt Sara mit BlueBubbles auf einem anderen Computer zu Hause oder in deinem Tailscale-Netz sprechen. Nie etwas im Internet.",
+      "BlueBubbles server password": "BlueBubbles-Serverpasswort",
+      "The password you saved in BlueBubbles' Connection step. Kept encrypted in Sara's vault. Anyone with it can read and send her messages.": "Das Passwort, das du im Schritt Connection von BlueBubbles gespeichert hast. Verschlüsselt in Saras Tresor. Wer es hat, kann ihre Nachrichten lesen und senden.",
+      "Send read receipts (Private API only)": "Lesebestätigungen senden (nur mit Private API)",
+      "Shows 'Read' under your messages when she has them. Only works if BlueBubbles' Private API is on.": "Zeigt „Gelesen“ unter deinen Nachrichten, wenn sie sie hat. Geht nur, wenn die Private API von BlueBubbles an ist.",
+      "Send reminders and messages she starts to my iMessage too": "Erinnerungen und Nachrichten, die sie beginnt, auch an mein iMessage senden",
+      "Her reminders and messages she starts also come to Messages on your iPhone. Only to you.": "Ihre Erinnerungen und Nachrichten, die sie beginnt, kommen auch in Nachrichten auf deinem iPhone an. Nur an dich.",
+      "Check for messages every (seconds, when not woken)": "Nach Nachrichten sehen alle (Sekunden, ohne Weckruf)",
+      "Only used when BlueBubbles can't ring Sara. Lower is faster but asks the Mac more often.": "Nur, wenn BlueBubbles Sara nicht wecken kann. Weniger ist schneller, fragt den Mac aber öfter.",
+      "BlueBubbles uses HTTPS": "BlueBubbles nutzt HTTPS",
+      "Turn on only if you gave BlueBubbles a certificate for the address above. Without it the password travels unencrypted on your home network; Tailscale or the same Mac avoids that.": "Nur einschalten, wenn BlueBubbles ein Zertifikat für die Adresse oben hat. Ohne geht das Passwort unverschlüsselt durch dein Heimnetz; Tailscale oder derselbe Mac vermeiden das."
+    },
+    "pt-BR": {
+      "Talk to her in Messages through BlueBubbles on your own Mac.": "Converse com ela no Mensagens pelo BlueBubbles no seu próprio Mac.",
+      "BlueBubbles address": "Endereço do BlueBubbles",
+      "Where BlueBubbles runs, with its port. 127.0.0.1:1234 if Sara runs on the same Mac; otherwise the Mac's address on your home network or its Tailscale name, like 192.168.1.20:1234.": "Onde o BlueBubbles roda, com a porta. 127.0.0.1:1234 se a Sara roda no mesmo Mac; senão, o endereço do Mac na sua rede de casa ou o nome dele no Tailscale, como 192.168.1.20:1234.",
+      "BlueBubbles runs on another computer on my network": "O BlueBubbles roda em outro computador da minha rede",
+      "Lets Sara talk to BlueBubbles on another computer at home or on your Tailscale network. Never anything on the internet.": "Deixa a Sara falar com o BlueBubbles em outro computador da sua casa ou da sua rede Tailscale. Nunca nada na internet.",
+      "BlueBubbles server password": "Senha do servidor BlueBubbles",
+      "The password you saved in BlueBubbles' Connection step. Kept encrypted in Sara's vault. Anyone with it can read and send her messages.": "A senha que você salvou na etapa Connection do BlueBubbles. Fica criptografada no cofre da Sara. Quem a tiver pode ler e enviar as mensagens dela.",
+      "Send read receipts (Private API only)": "Enviar confirmações de leitura (só com a Private API)",
+      "Shows 'Read' under your messages when she has them. Only works if BlueBubbles' Private API is on.": "Mostra 'Lida' sob suas mensagens quando ela as recebe. Só funciona se a Private API do BlueBubbles estiver ligada.",
+      "Send reminders and messages she starts to my iMessage too": "Enviar também ao meu iMessage os lembretes e mensagens que ela começa",
+      "Her reminders and messages she starts also come to Messages on your iPhone. Only to you.": "Os lembretes dela e as mensagens que ela começa também chegam ao Mensagens no seu iPhone. Só para você.",
+      "Check for messages every (seconds, when not woken)": "Procurar mensagens a cada (segundos, sem aviso)",
+      "Only used when BlueBubbles can't ring Sara. Lower is faster but asks the Mac more often.": "Só é usado quando o BlueBubbles não consegue avisar a Sara. Menos é mais rápido, mas consulta o Mac com mais frequência.",
+      "BlueBubbles uses HTTPS": "O BlueBubbles usa HTTPS",
+      "Turn on only if you gave BlueBubbles a certificate for the address above. Without it the password travels unencrypted on your home network; Tailscale or the same Mac avoids that.": "Ligue só se você deu ao BlueBubbles um certificado para o endereço acima. Sem ele, a senha viaja sem criptografia na sua rede de casa; Tailscale ou o mesmo Mac evitam isso."
+    },
+    "it": {
+      "Talk to her in Messages through BlueBubbles on your own Mac.": "Parla con lei in Messaggi tramite BlueBubbles sul tuo Mac.",
+      "BlueBubbles address": "Indirizzo di BlueBubbles",
+      "Where BlueBubbles runs, with its port. 127.0.0.1:1234 if Sara runs on the same Mac; otherwise the Mac's address on your home network or its Tailscale name, like 192.168.1.20:1234.": "Dove gira BlueBubbles, con la porta. 127.0.0.1:1234 se Sara gira sullo stesso Mac; altrimenti l'indirizzo del Mac sulla rete di casa o il suo nome Tailscale, come 192.168.1.20:1234.",
+      "BlueBubbles runs on another computer on my network": "BlueBubbles gira su un altro computer della mia rete",
+      "Lets Sara talk to BlueBubbles on another computer at home or on your Tailscale network. Never anything on the internet.": "Permette a Sara di parlare con BlueBubbles su un altro computer di casa o sulla tua rete Tailscale. Mai nulla su internet.",
+      "BlueBubbles server password": "Password del server BlueBubbles",
+      "The password you saved in BlueBubbles' Connection step. Kept encrypted in Sara's vault. Anyone with it can read and send her messages.": "La password salvata nel passo Connection di BlueBubbles. Custodita cifrata nella cassaforte di Sara. Chi ce l'ha può leggere e inviare i suoi messaggi.",
+      "Send read receipts (Private API only)": "Invia conferme di lettura (solo con la Private API)",
+      "Shows 'Read' under your messages when she has them. Only works if BlueBubbles' Private API is on.": "Mostra 'Letto' sotto i tuoi messaggi quando li ha ricevuti. Funziona solo se la Private API di BlueBubbles è attiva.",
+      "Send reminders and messages she starts to my iMessage too": "Invia anche al mio iMessage i promemoria e i messaggi che inizia lei",
+      "Her reminders and messages she starts also come to Messages on your iPhone. Only to you.": "I suoi promemoria e i messaggi che inizia arrivano anche in Messaggi sul tuo iPhone. Solo a te.",
+      "Check for messages every (seconds, when not woken)": "Controlla i messaggi ogni (secondi, senza avviso)",
+      "Only used when BlueBubbles can't ring Sara. Lower is faster but asks the Mac more often.": "Usato solo quando BlueBubbles non riesce ad avvisare Sara. Meno è più veloce, ma interroga il Mac più spesso.",
+      "BlueBubbles uses HTTPS": "BlueBubbles usa HTTPS",
+      "Turn on only if you gave BlueBubbles a certificate for the address above. Without it the password travels unencrypted on your home network; Tailscale or the same Mac avoids that.": "Attivalo solo se hai dato a BlueBubbles un certificato per l'indirizzo sopra. Senza, la password viaggia in chiaro sulla rete di casa; Tailscale o lo stesso Mac lo evitano."
+    }
+  }
+}

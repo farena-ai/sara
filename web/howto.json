@@ -931,6 +931,35 @@
    ]
   }
  ],
+ "co-imessage": [
+  {
+   "id": "connect",
+   "q": "How do I text her from my iPhone?",
+   "steps": [
+    "You need a Mac that stays on. Tick the box about Apple and BlueBubbles and press Start.",
+    "Give her an Apple ID and a user on the Mac, sign her in to Messages and install BlueBubbles.",
+    "Paste the BlueBubbles password, press Ring, then send the code from Link my iMessage to her address."
+   ],
+   "show": "#im-chip"
+  },
+  {
+   "id": "own",
+   "q": "Why won't she run on my own Apple ID?",
+   "steps": [
+    "On your Apple ID she would see all your chats and her answers would go out as you.",
+    "Make a separate Apple ID for her and sign it in to Messages as a separate user on the Mac."
+   ]
+  },
+  {
+   "id": "slow",
+   "q": "Why do her iMessage answers take a few seconds?",
+   "steps": [
+    "BlueBubbles can't ring Sara, so she checks for messages every few seconds instead.",
+    "Put the Mac and Sara on Tailscale, then press Ring on the iMessage card."
+   ],
+   "show": "#im-box"
+  }
+ ],
  "co-apps": [
   {
    "id": "editor",

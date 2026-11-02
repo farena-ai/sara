@@ -27,6 +27,9 @@ const PATTERNS: [RegExp, Replacement][] = [
   // Phase 122 part 2 (BRIDGES4 §9.1): Matrix access tokens (Synapse `syt_…`, MAS `mct_…`/`mat_…`).
   [/\b(?:syt|mct|mat)_[A-Za-z0-9_-]{20,}/g, '[REDACTED]'],
   [/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{20,}/g, '$1 [REDACTED]'],
+  // Phase 122 part 3 (BRIDGES4 §9.1): BlueBubbles takes its password in the URL (`?guid=`, `password=`,
+  // `token=`); any such query value is cut, whatever its length (a function, so not in KEY_SHAPED).
+  [/([?&](?:guid|password|token)=)([^&\s"'#<>]+)/gi, (_m: string, k: string) => `${k}[REDACTED]`],
   // NAME=value / "name": "value" where the name says it's secret.
   [
     /\b([A-Za-z0-9_.-]*(?:api[_-]?key|secret|token|passw(?:or)?d|private[_-]?key|access[_-]?key|auth)[A-Za-z0-9_.-]*)(["']?\s*[:=]\s*["']?)([^\s"',;]{8,})/gi,

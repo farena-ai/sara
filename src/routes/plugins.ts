@@ -30,6 +30,8 @@
 //   register,send-test,unmute} (src/plugins/whatsapp-setup.ts); removing a plugin removes its bridge hook.
 // Phase 122 part 2 (BRIDGES4 §8.2): GET /api/plugins/matrix/setup and POST …/{terms,login,token,check,fix}
 //   (src/plugins/matrix-setup.ts); her password is passed once to the plugin and never stored or logged.
+// Phase 122 part 3 (BRIDGES4 §8.2): GET /api/plugins/imessage/setup and POST …/{terms,address,password,check,fix}
+//   (src/plugins/imessage-setup.ts); the BlueBubbles password goes to the vault and is never sent back.
 //   POST   /api/plugins/:id/check-sender         { companion } → waits ≤ 10 min for his next mail: { got, from, headers };
 //                                                { companion, use } → that provider id counts (email)
 import { readFileSync } from 'node:fs';
@@ -42,6 +44,7 @@ import { PLUGIN_LIMITS } from '../plugins/manager.ts';
 import { checkServerFolder } from '../skill-store.ts';
 import { hookBase, runCheck, setupState, WA } from '../plugins/whatsapp-setup.ts';
 import * as matrix from '../plugins/matrix-setup.ts';
+import * as imessage from '../plugins/imessage-setup.ts';
 import { bridgeWindowOpen } from '../plugins/bridge-db.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
@@ -195,6 +198,30 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
         }
         if (c === 'check') return send(res, 200, await matrix.runCheck(app, pm, co, String(body.step ?? '')));
         return send(res, 200, await matrix.runFix(app, pm, co, String(body.fix ?? ''), body.room));
+      } catch (err) {
+        return asHttp(err);
+      }
+    }
+
+    // Phase 122 part 3: the iMessage setup card (works before the plugin is installed: the terms box).
+    const IM_ROUTES = ['setup', 'terms', 'address', 'password', 'check', 'fix'];
+    if (b === imessage.IM && c && IM_ROUTES.includes(c) && !d) {
+      const q = new URL(req.url ?? '/', 'http://x').searchParams;
+      if (c === 'setup' && method === 'GET') return send(res, 200, await imessage.setupState(app, pm, companion(q.get('companion'))));
+      if (method !== 'POST') throw new HttpError(405, 'Method not allowed');
+      const body = await readJson(req);
+      const co = companion(body.companion);
+      const installed = Boolean(pm.store.get(imessage.IM));
+      if (c === 'terms') {
+        if (installed) pm.store.kvSet(imessage.IM, co, '__terms', app.now().toISOString());
+        return send(res, 200, { ok: true });
+      }
+      if (!installed) throw new HttpError(400, 'Add iMessage first.');
+      try {
+        if (c === 'address') return send(res, 200, await imessage.setAddress(app, pm, co, body));
+        if (c === 'password') return send(res, 200, await imessage.setPassword(app, pm, co, body.password));
+        if (c === 'check') return send(res, 200, await imessage.runCheck(app, pm, co, String(body.step ?? '')));
+        return send(res, 200, await imessage.runFix(app, pm, co, String(body.fix ?? ''), body));
       } catch (err) {
         return asHttp(err);
       }

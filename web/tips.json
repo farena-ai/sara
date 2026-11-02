@@ -1599,6 +1599,10 @@
       "Talk to her in Element or any Matrix app through a Matrix account of her own: a guided setup that checks each step, for rooms without end-to-end encryption.",
       "matrix"
     ],
+    "co-imessage": [
+      "Text her from Messages on your iPhone through BlueBubbles on your own Mac, with an Apple ID of her own: a guided setup that checks each step. Needs a Mac.",
+      "imessage"
+    ],
     "co-apps": [
       "Use her from other apps (SillyTavern, Open WebUI, Claude Code, Cursor, Claude Desktop) with an API key.",
       "clients"

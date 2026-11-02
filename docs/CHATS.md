@@ -319,3 +319,14 @@ name first (`Sara new`, because Element eats unknown `/commands`); long jobs get
 she edits (react ⏹ to stop her); she joins only your invites, and in rooms with other people answers
 when mentioned. Sessions file into the *Matrix* project.
 
+## iMessage (2.55.2)
+
+iMessage comes with Sara as a plugin (Settings → Connections → iMessage), off until you add it: see
+[IMESSAGE.md](IMESSAGE.md). It needs **a Mac of yours** running BlueBubbles, signed in to Messages with
+**an Apple ID of her own** (Sara refuses to run on your own Apple ID). BlueBubbles rings Sara when a
+message comes (an unsigned "doorbell" that only carries ids; the plugin fetches each message itself),
+or she checks every few seconds; after downtime she catches up. Basic mode answers with text, pictures
+and files and one *Working on it* line on long jobs; the Private API's typing, tapbacks and edits are
+used only if you already turned it on (Sara never asks you to turn SIP off). Strangers get one line;
+groups are answered when a message starts with her name. Sessions file into the *iMessage* project.
+

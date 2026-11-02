@@ -679,6 +679,38 @@ can decide (§14 Q4):
   its own slice after 2.55.3** with its own design note, using this plugin's `source: 'mac-app'`
   setting so nothing above changes.
 
+### 4.14 As built (2.55.2)
+
+Built as designed, with these differences:
+
+- **Address:** one setting *BlueBubbles address* with its port (`127.0.0.1:1234`), because the broker's
+  `ports: "setting"` reads the port from the host setting (as Matrix's `hs-local`); no separate *port*
+  setting. TLS is an advanced switch *BlueBubbles uses HTTPS* rather than inferred.
+- **Doorbell:** `ensureBridgeHook(plugin, companion, secret?, 'url')`; a hook of the other kind is made
+  again. `doorbellPing()` takes `{type, data}` and hands the plugin `{event, ids}` only (`data.guid`, or
+  each `guid` of a list; ≤ 20 ids of a plain id shape). Bodies that aren't `{type, data}` are logged as
+  filtered and answered `200`. The plugin registers `hello-world` with the other three events; *Ring*
+  waits ≤ 8 s for any accepted ring. A ring for an `isFromMe` message is skipped as `from-me`.
+- **Catch-up:** `message/query {after: last seen}` at start, every 60 s with a working doorbell, else
+  every *Check for messages every* seconds (5) while a chat with him was active in the last 10 minutes
+  and six times that idle. The first start ever answers nothing from before. Messages > 24 h old are
+  skipped as `old`; > 6 h get the "Sorry, I was offline" note (`caughtUp` in `bridge.inbound`).
+- **Own Apple ID:** the setup check compares `icloud/account` (`apple_id`, `vetted_aliases`) and
+  `server/info`'s account with his linked handles; the plugin asks `bridge.who {quiet}` for each address
+  at start and refuses to run (status *error*, skip `own-apple-id`, no polling). No override (§14 Q5).
+- **Basic mode:** `ack: 'line'`; the core's working line for link-capable plugins without edits or
+  buttons ends "Send /stop to stop." (`WORKING_STOP_LINE`). Private API mode: `edit`, `typing`,
+  `react` (BR2's 👀 → the `emphasize` ‼ tapback), `editLimit: 4`, `editEveryMs: 20000`, no edits after
+  15 minutes; a change of the Private API in BlueBubbles restarts the plugin within 5 minutes.
+- **Mirror:** built for every plugin bridge without a reply window (so Matrix's existing *mirror*
+  switch now works too), only to his first linked chat.
+- **HEIC:** an unconverted HEIC picture is not filed as a document; the turn gets the `[HEIC photo]`
+  mark and the HEIC line is sent once per chat.
+- **Not built:** *Reply yes/no* approvals by text (§4.8), *Leave this group* with the Private API, the
+  group list's *Answer here* for iMessage groups on the card, the 390-px sticky Back · Next bar, step
+  pictures (the owner's run, §12), a test-CA HTTPS stand-in (plain HTTP only), the Sara Mac app route
+  (§4.13, a later slice). Lines from the plugin (HEIC, working-state notices) are English.
+
 ---
 
 ## 5. TX · SMS through AgentText (`plugins/sms`, bridge `sms`, channel `plugin-sms`)

@@ -272,6 +272,8 @@ export const IDENTITY_CHANGED_LINE = en("Your {app} safety number changed. Confi
 export const WA_IDENTITY_LINE = en("Your WhatsApp identity changed (a new phone, or someone else using your number). Confirm it's you in Settings → WhatsApp before I use my tools here again.");
 /** Phase 122 (§4.8): the one working line (a Stop button under it) on platforms that can't edit. */
 export const WORKING_LINE = en('Working on it: {step}');
+/** Phase 122 part 3 (BRIDGES4 §4.7): the same line where there are no buttons (iMessage without the Private API). */
+export const WORKING_STOP_LINE = en('Working on it: {step} Send /stop to stop.');
 export const WORKING_LINE_MS = 20_000;
 /** Phase 122 (§4.5): a partner's "stop" is honoured. */
 export const PARTNER_STOP_LINE = en("OK, I won't write again.");
@@ -827,7 +829,15 @@ export class PluginManager {
         settings: () => this.#settingsOf(a.id, row.id, m),
         send: (msg) => run.proc.send(msg),
         backlog: () => run.proc.backlog(),
-        log: (kind, text) => this.store.log(row.id, a.id, kind, this.opts.scrub(text)),
+        // A socket can close after the plugin stopped (or during shutdown, after the store closed):
+        // its log line must never throw out of a socket event and take Sara down.
+        log: (kind, text) => {
+          try {
+            this.store.log(row.id, a.id, kind, this.opts.scrub(text));
+          } catch {
+            /* the store is gone: nothing to record */
+          }
+        },
         ...(this.opts.lookup ? { lookup: this.opts.lookup } : {}),
         ...(this.opts.netCa ? { ca: this.opts.netCa } : {}),
         ...(this.opts.clock ? { clock: this.opts.clock } : {}),
@@ -1549,7 +1559,8 @@ export class PluginManager {
     const forwarded = typeof msg.forwarded === 'string' ? msg.forwarded.trim().slice(0, 8000) : '';
     const fwdBlock = forwarded ? `\n\n${FORWARDED_NOTE}\n${(await import('../cheap.ts')).fenceLines(forwarded.split(/\r?\n/).filter((l) => l.trim()).slice(0, 400), 'FORWARDED')}` : '';
     if (forwarded || msg.untrusted === true) extra.untrusted = true;
-    const late = feats?.window && age > LATE_SORRY_MS ? `[This message was sent ${Math.round(age / 3600_000)} hours ago while I was offline; start the answer with "Sorry, I was offline."]\n` : '';
+    // Phase 122 part 3 (BRIDGES4 §4.3): a message the plugin caught up on after downtime (`caughtUp`, iMessage) too.
+    const late = (feats?.window || msg.caughtUp === true) && age > LATE_SORRY_MS ? `[This message was sent ${Math.round(age / 3600_000)} hours ago while I was offline; start the answer with "Sorry, I was offline."]\n` : '';
     const content = roomLine(`${late}${text || (extra.docs?.length ? `📄 ${extra.docs.map((d) => d.name).join(', ')}` : forwarded ? '(forwarded)' : '(photo)')}${described}${fwdBlock}`);
     const replyTo = typeof msg.replyTo === 'string' && msg.replyTo.length <= 120 ? msg.replyTo : undefined;
     return this.#bridgeTake(a, run, { bridge, chatId, conv, owner, content, extra, lang, place, ...(messageId ? { messageId } : {}), ...(replyTo ? { replyTo } : {}), ...(thread ? { thread } : {}) });
@@ -1663,7 +1674,10 @@ export class PluginManager {
     let workingShown = false;
     let workingTimer: unknown;
     let lastStep = '';
-    const stepWords = feats && !feats.edit && feats.buttons > 0 ? (await import('../../web/step-words.js')).stepWordsWith : undefined;
+    // Phase 122 part 3: a linked chat app that can neither edit nor show buttons (iMessage in basic mode,
+    // which asks for `ack: 'line'`) gets the same line, ending "Send /stop to stop."
+    const lineOnly = Boolean(feats && !feats.edit && !feats.buttons && feats.link && feats.ack === 'line' && !feats.oneMessage);
+    const stepWords = feats && !feats.edit && (feats.buttons > 0 || lineOnly) ? (await import('../../web/step-words.js')).stepWordsWith : undefined;
     if (stepWords && owner && !room && !one && media.progressOn(a.app, channel, chatId, 'owner-dm')) {
       const fire = () => {
         if (finished) return;
@@ -1671,7 +1685,8 @@ export class PluginManager {
         (run.refs ??= new Map()).set(ref, conv.id);
         workingShown = true;
         const step = cut(lastStep || say(a.app, lang, en('Working…')), 180);
-        run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, ref, text: say(a.app, lang, WORKING_LINE, { step }), buttons: [{ id: `st:${ref}`, label: say(a.app, lang, en('⏹ Stop')) }] });
+        if (lineOnly) run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: say(a.app, lang, WORKING_STOP_LINE, { step: /[.!?…]$/.test(step) ? step : `${step}.` }) });
+        else run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, ref, text: say(a.app, lang, WORKING_LINE, { step }), buttons: [{ id: `st:${ref}`, label: say(a.app, lang, en('⏹ Stop')) }] });
       };
       workingTimer = this.opts.clock ? this.opts.clock.setTimeout(fire, WORKING_LINE_MS) : setTimeout(fire, WORKING_LINE_MS);
       if (!this.opts.clock) (workingTimer as NodeJS.Timeout).unref?.();
@@ -1972,7 +1987,7 @@ export class PluginManager {
     const conv = a.app.store.getConversation(ev.conversationId);
     if (!conv || conv.partner || conv.private) return;
     for (const run of a.procs.values()) {
-      if (!run.bridge?.window || run.proc.state !== 'ready') continue;
+      if (!run.bridge || run.proc.state !== 'ready') continue;
       const bridge = run.manifest.permissions.bridges[0];
       const channel = `plugin-${bridge}`;
       // Her own replies in that very chat are already there.
@@ -1981,6 +1996,12 @@ export class PluginManager {
       if (set.mirror !== true) continue;
       const chatId = (this.companionSettings(a.id)[run.row.id]?.bridge?.ownerChats ?? [])[0];
       if (!chatId) continue;
+      // Phase 122 part 3 (BRIDGES4 §4.9): a platform without a reply window (iMessage) takes them any
+      // time, still only to his own linked chat, never to a partner or a group.
+      if (!run.bridge.window) {
+        run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: ev.reason === 'reminder' ? `⏰ ${ev.message.content}` : ev.message.content, started: true });
+        continue;
+      }
       const now = this.#now();
       if (bridgeDbModule.windowOpen(a.app.store.db, channel, chatId, now)) {
         run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: ev.reason === 'reminder' ? `⏰ ${ev.message.content}` : ev.message.content, started: true });
@@ -2001,12 +2022,14 @@ export class PluginManager {
    * as one `bridge.webhook` line. True once it accepted (≤ `ms`); false while it isn't running for
    * that companion, private local mode is on, or it didn't answer in time (Meta retries later).
    */
-  async deliverBridgeWebhook(pluginId: string, companionId: string, hook: string, raw: Buffer, ms = 5_000): Promise<{ ok: boolean; why?: string }> {
+  async deliverBridgeWebhook(pluginId: string, companionId: string, hook: string, raw: Buffer, ms = 5_000, ping?: { event: string; ids: string[] }): Promise<{ ok: boolean; why?: string }> {
     const run = this.#attached.get(companionId)?.procs.get(pluginId);
     if (!run || run.proc.state !== 'ready') return { ok: false, why: 'the plugin is not running for this companion' };
     if (run.manifest.permissions.webhooks !== 'bridge') return { ok: false, why: 'the plugin has no webhooks permission' };
     if (privateLocalOn()) return { ok: false, why: 'private local mode is on' };
-    const r = await run.proc.request('bridge.webhook', { hook, body: raw.toString('utf8') }, ms);
+    // Phase 122 part 3 (BRIDGES4 B2): a doorbell plugin is woken with the event and ids only, never a body.
+    if (Boolean(ping) !== run.manifest.permissions.doorbell) return { ok: false, why: ping ? 'the plugin takes signed bodies, not doorbells' : 'a doorbell plugin never gets a body' };
+    const r = await run.proc.request('bridge.webhook', ping ? { hook, ping: { event: ping.event, ids: ping.ids.slice(0, 20) } } : { hook, body: raw.toString('utf8') }, ms);
     if (!r || r.type === 'error') return { ok: false, why: r ? cut(String(r.error ?? 'error'), 200) : 'no answer in time' };
     return { ok: true };
   }

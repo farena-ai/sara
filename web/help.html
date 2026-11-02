@@ -289,6 +289,10 @@
 <details class="howto-q" id="howto-co-matrix-connect"><summary>How do I talk to her on Matrix?</summary><ol><li>Tick the box about Matrix and press Start.</li><li>Make her a Matrix account, then log her in to Sara with it.</li><li>Make a room without encryption in Element, invite her and send the code from Link my Matrix.</li></ol></details>
 <details class="howto-q" id="howto-co-matrix-encrypted"><summary>Why doesn't she answer in my Matrix room?</summary><ol><li>She can't read encrypted rooms, and Element encrypts new rooms and direct messages by default.</li><li>Make a new room with Enable end-to-end encryption switched off and invite her.</li><li>Rooms she can't read are listed on the Matrix card.</li></ol></details>
 <details class="howto-q" id="howto-co-matrix-slash"><summary>Element says Unknown command when I type /new. What now?</summary><ol><li>Press Send as message: she gets it as a command.</li><li>Or put her name first: Sara new, Sara help.</li></ol></details>
+<h4 id="howto-co-imessage">iMessage</h4>
+<details class="howto-q" id="howto-co-imessage-connect"><summary>How do I text her from my iPhone?</summary><ol><li>You need a Mac that stays on. Tick the box about Apple and BlueBubbles and press Start.</li><li>Give her an Apple ID and a user on the Mac, sign her in to Messages and install BlueBubbles.</li><li>Paste the BlueBubbles password, press Ring, then send the code from Link my iMessage to her address.</li></ol></details>
+<details class="howto-q" id="howto-co-imessage-own"><summary>Why won't she run on my own Apple ID?</summary><ol><li>On your Apple ID she would see all your chats and her answers would go out as you.</li><li>Make a separate Apple ID for her and sign it in to Messages as a separate user on the Mac.</li></ol></details>
+<details class="howto-q" id="howto-co-imessage-slow"><summary>Why do her iMessage answers take a few seconds?</summary><ol><li>BlueBubbles can't ring Sara, so she checks for messages every few seconds instead.</li><li>Put the Mac and Sara on Tailscale, then press Ring on the iMessage card.</li></ol></details>
 <h4 id="howto-co-apps">Other apps</h4>
 <details class="howto-q" id="howto-co-apps-editor"><summary>How do I use her from my editor?</summary><ol><li>Press Create an API key for another app.</li><li>Copy her address and the key into your editor or tool.</li><li>Pick Sara as the model there.</li></ol></details>
 <details class="howto-q" id="howto-co-apps-alexa"><summary>How do I talk to her through Alexa?</summary><ol><li>Follow Talk to her through Alexa.</li><li>Press Make a link code and say it to Alexa.</li></ol></details>
@@ -485,6 +489,28 @@
   <li><strong>While she works:</strong> typing in your room, one progress message she edits as she goes (react ⏹ on it to stop her), then her answer as a new message. A message you send while she works steers her (she reacts 👀).</li>
   <li><strong>Rooms and other people:</strong> she only joins your invites. In a room with others she answers when mentioned or replied to, never with tools for them. With <em>Let other people talk to her</em> you can list Matrix IDs or whole servers (<code>@family.example</code>). Invites from anyone else are declined.</li>
   <li><strong>Your own homeserver:</strong> switch on <em>My homeserver runs on my network</em> and type its address with the port (also on your Tailscale network).</li>
+</ul>
+
+<h2 id="imessage">iMessage</h2>
+<ul>
+  <li><strong>What it is:</strong> text her from Messages on your iPhone, iPad or Mac, in blue bubbles, to an Apple ID of her own. It works through BlueBubbles, a free app on a Mac of yours that is not made or approved by Apple. iMessage comes with Sara as a plugin and stays off until you add it. <strong>No Mac, no iMessage:</strong> try Signal or Telegram instead.</li>
+  <li><strong>Never on your own Apple ID:</strong> she would see all your chats and answer as you, so Sara refuses to run on it.</li>
+  <li><strong>Set it up:</strong> <em>Settings → Connections → iMessage</em>, tick the box and press <em>Start</em>. Eight steps follow, each ✓ when Sara has checked it.</li>
+</ul>
+<ol>
+  <li>Give her an Apple ID at account.apple.com, with a new email address for her.</li>
+  <li>On your own Mac, add a standard user called Sara and log in as her (skip this on a spare Mac).</li>
+  <li>Sign her in to Messages and stop the Mac from sleeping.</li>
+  <li>Install BlueBubbles, give it Full Disk Access, set a server password, and paste it into the card.</li>
+  <li>Tell Sara where BlueBubbles is: <code>127.0.0.1:1234</code> on the same Mac, else the Mac's address at home or on Tailscale.</li>
+  <li>Press <em>Ring</em>: BlueBubbles rings Sara whenever a message comes. If it can't, she checks every few seconds instead.</li>
+  <li>Press <em>Link my iMessage</em> and send <code>/link</code> and the code to her address from your iPhone.</li>
+  <li>Press <em>Test</em>.</li>
+</ol>
+<ul>
+  <li><strong>While she works:</strong> a long job gets one <em>Working on it</em> line; send <code>/stop</code> to stop her. If BlueBubbles' Private API is already on, you get typing dots, a tapback when you steer her and one progress message she edits. Sara never asks you to turn off your Mac's security (SIP) for it.</li>
+  <li><strong>Pictures and files:</strong> both ways. iPhone HEIC photos may need <em>Settings → Camera → Formats → Most Compatible</em>.</li>
+  <li><strong>After the Mac was off:</strong> she catches up on what you sent; anything older than a day is filed, not answered.</li>
 </ul>
 
 <h2 id="voice">Voice and calls</h2>

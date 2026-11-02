@@ -111,7 +111,7 @@ export function forgetIdentity(db: DatabaseSync, bridge: string, chatKey?: strin
   else bridgeDb(db).prepare('DELETE FROM bridge_identities WHERE bridge = ?').run(bridge);
 }
 
-export const SKIP_REASONS = ['stranger', 'unaligned', 'list', 'auto', 'bounce', 'self', 'rate', 'loop', 'size', 'not-to-her', 'group-off', 'linked-mode', 'duplicate', 'group', 'old', 'muted', 'status-unknown', 'stranger-invite', 'encrypted', 'other'] as const;
+export const SKIP_REASONS = ['stranger', 'unaligned', 'list', 'auto', 'bounce', 'self', 'rate', 'loop', 'size', 'not-to-her', 'group-off', 'linked-mode', 'duplicate', 'group', 'old', 'muted', 'status-unknown', 'stranger-invite', 'encrypted', 'unknown-id', 'from-me', 'own-apple-id', 'other'] as const;
 
 /** Counts one ignored message (the id or address only). */
 export function countSkip(db: DatabaseSync, bridge: string, day: string, reason: string, from: string, at: string): void {

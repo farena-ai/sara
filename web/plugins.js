@@ -69,6 +69,7 @@ const PERM = {
   'Connects to the server you give it in {setting} (ports {ports}, always encrypted)': (p) => t('Connects to the server you give it in {setting} (ports {ports}, always encrypted)', p),
   // Phase 122 (WHATSAPP §4.13): a bridge hook Sara checks and hands over.
   'Receives messages from Meta at a public web address Sara gives it': () => t('Receives messages from Meta at a public web address Sara gives it'),
+  'Is woken by its app on your network; checks every message with that app before reading it': () => t('Is woken by its app on your network; checks every message with that app before reading it'),
 };
 export const permText = (l) => (PERM[l.key] ? PERM[l.key](l.params ?? {}) : l.key);
 const lines = (ls) => (ls ?? []).map((l) => ({ id: l.id, text: permText(l), risk: l.risk }));

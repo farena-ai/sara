@@ -14,7 +14,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1727%20passing-brightgreen" alt="1727 tests passing">
+  <img src="https://img.shields.io/badge/tests-1736%20passing-brightgreen" alt="1736 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -123,6 +123,7 @@ Einminütige Anleitungen, aufgenommen auf einem Testserver mit einem lokalen Mod
 
 | Version | Was du bekommst |
 |---|---|
+| **2.55.2** · iMessage | **iMessage über BlueBubbles** (Einstellungen → Verbindungen → iMessage, ein optionales Plugin): Schreib ihr aus Nachrichten auf deinem iPhone. Braucht einen Mac mit BlueBubbles und einer eigenen Apple-ID für sie (mit deiner läuft Sara nicht, sonst sähe sie all deine Chats). Acht geführte Schritte mit ✓, einfache Lösungen, Text, Fotos und Dateien, und sie holt nach, was geschickt wurde, während sie offline war. Tipp-Punkte und Tapbacks nur, wenn die Private API von BlueBubbles schon an ist; Sara bittet dich nie, dafür die Sicherheit deines Macs zu senken. |
 | **2.55.1** · Matrix | **Matrix** (Einstellungen → Verbindungen → Matrix, ein optionales Plugin): Sprich mit ihr in Element oder jeder Matrix-App über ein eigenes Matrix-Konto. Fünf geführte Schritte, jeder mit einem ✓ geprüft, und einfache Lösungen für jeden Fehler. Text, Fotos und Sprachnachrichten; nur du, außer du erlaubst andere (auch ganze Server); Einladungen von Fremden werden abgelehnt. Nur Räume ohne Ende-zu-Ende-Verschlüsselung: In einem verschlüsselten Raum erklärt sie, warum sie ihn nicht lesen kann, und geht. |
 | **2.55** · WhatsApp | **WhatsApp** (Einstellungen → Verbindungen → WhatsApp, ein optionales Plugin): Schreib ihr über Metas offizielle WhatsApp Cloud API mit einem Meta-Konto und einer Nummer, die dir gehören. Eine geführte Karte in 10 Schritten nennt die genauen Meta-Seiten, prüft jeden Schritt mit einem ✓ und macht aus jedem Fehler einen einfachen Satz mit Lösung. Fotos und Dateien in beide Richtungen, Tipp-Punkte und eine *Bin dran*-Zeile mit Stopp bei langen Aufgaben, nur du, außer du trägst weitere Nummern ein, und eigene erste Nachrichten nur im 24-Stunden-Fenster von WhatsApp. Metas Bedingungen schränken allgemeine KI-Assistenten auf WhatsApp ein, daher ist es aus, bis du es installierst und bestätigst, dass du sie gelesen hast. |
 | **2.54** · Routinen und ein Sicherheits-Check | **Routinen-Galerie** (Planer → Routinen): Morgenbriefing, Wochenrückblick, Dehn- und Schlafenszeit-Erinnerungen, pünktlich losgehen, CI eines Repos beobachten, neue Issues, Backup-Check, Posteingang sortieren und Preisalarm. Jede Karte sagt, was sie tut, was sie braucht und was sie kostet, im Code berechnet (die meisten sind kostenlos), zeigt eine Vorschau ohne Modellaufruf und hat einen Aus-Schalter; bezahlte enden an einem Datum deiner Wahl. Werkzeuge behalten deine Freigabe-Einstellungen. **Sicherheits-Check** (Einstellungen → Daten & Zustand): 17 reine Leseprüfungen, ein Urteil in Worten (*Sieht sicher aus*, *Größtenteils sicher*, *Zuerst beheben*) und Ein-Klick-Korrekturen, die nur sicherer machen und sagen, ob sie sich rückgängig machen lassen. Änderungen daran, wie Sara erreichbar ist, werden angeleitet, nie per Klick. Dazu `sara doctor --safety`. |
@@ -408,8 +409,8 @@ wurden. Was sie heute beiträgt, ist die Arbeitsweise (sie lässt die Tests lauf
 riskanten Schritten, zeigt, was gelaufen ist), nicht ein höheres Ergebnis bei diesen Sätzen.
 Details, Ergebnisse pro Aufgabe und wie man es wiederholt: [docs/RESULTS.md](docs/RESULTS.md).
 
-Dazu `npm run check`: eine Typprüfung und 1742 automatische Tests mit einem geskripteten
-Schein-Modell (ohne Netz, ohne GPU): 1727 laufen unter Windows durch, die anderen 8 sind
+Dazu `npm run check`: eine Typprüfung und 1751 automatische Tests mit einem geskripteten
+Schein-Modell (ohne Netz, ohne GPU): 1736 laufen unter Windows durch, die anderen 8 sind
 Linux-spezifische Sandbox-Tests, die auf einem Linux-Server laufen.
 
 ## Sara im Vergleich

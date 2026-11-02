@@ -116,6 +116,9 @@ async function rig(t: TestContext, o: { link?: boolean; door?: boolean; clock?: 
     }
     await hm.settle();
     await pm.stopAll();
+    // Stopping can still deliver a last event: let it finish before the store closes.
+    await until(() => !app.store.listConversations().some((c) => pendingFor(app).busy(c.id)), 10_000);
+    await pause(300);
     hm.stop();
     server.closeAllConnections?.();
     await new Promise<void>((r) => server.close(() => r()));

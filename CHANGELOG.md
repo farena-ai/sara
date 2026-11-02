@@ -5,6 +5,25 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.55.2 (2026-11-02): iMessage through BlueBubbles (Phase 122, part 3)
+
+- **iMessage** as an optional first-party plugin (Settings → Connections → iMessage): text her from
+  Messages on your iPhone through BlueBubbles on a Mac, with an Apple ID and macOS user of her own.
+  If the Mac is signed in with your own Apple ID she refuses to run (she'd see all your chats). Eight
+  guided steps checked with a ✓ and plain-language fixes (BlueBubbles unreachable, wrong password,
+  Messages signed out, Mac asleep, not an iMessage number…).
+- BlueBubbles' webhook is treated as a doorbell: it carries only message ids, and the plugin fetches
+  each message with the password; she catches up on anything sent while she was offline (very old
+  messages are filed, not answered). The password is kept in the vault and cut from every log.
+- Text, photos and files both ways; voice notes. Typing dots, tapbacks and edits only when the
+  Private API is already on; Sara never gives instructions to turn off System Integrity Protection.
+  Otherwise one *Working on it… send /stop* line on long jobs. Guide: [docs/IMESSAGE.md](docs/IMESSAGE.md).
+- **Fixed:** a plugin's network connection that closed after the plugin stopped (or while Sara shut
+  down) wrote a log line into a closed database from inside a socket event, an error nothing caught,
+  which could stop Sara. Closing connections can no longer throw.
+- SMS through AgentText (planned as 2.55.3) is on hold: AgentText's documented API still answered
+  404 on 2026-11-02.
+
 ## 2.55.1 (2026-11-02): Matrix (Phase 122, part 2)
 
 - **Matrix** as an optional first-party plugin (Settings → Connections → Matrix): talk to her in

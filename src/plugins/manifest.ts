@@ -57,6 +57,13 @@ export interface PluginPermissions {
    * checks the signature and hands it the raw body (`bridge.webhook`). It never sees the hook's secret.
    */
   webhooks: 'none' | 'bridge';
+  /**
+   * Phase 122 part 3 (BRIDGES4 §3.1 B1): the kinds its bridge hook may be (`"bridge"` alone = `['meta']`;
+   * `{"bridge": ["url"], "doorbell": true}` for a platform that can't sign: BlueBubbles).
+   */
+  webhookKinds: ('meta' | 'url')[];
+  /** B2: an unsigned (`url`) bridge hook only wakes the plugin with the event and ids, never the body. */
+  doorbell: boolean;
 }
 
 /**
@@ -103,7 +110,7 @@ export class ManifestError extends Error {
 }
 
 const TOP_KEYS = new Set(['manifest', 'id', 'name', 'version', 'description', 'author', 'license', 'homepage', 'sara', 'main', 'permissions', 'schedules', 'settings', 'i18n', '$schema']);
-const PERMISSION_KEYS = new Set(['hooks', 'tools', 'callTools', 'network', 'files', 'settings', 'cards', 'bridges', 'bridgeFiles', 'model', 'memory', 'connect', 'webhooks']);
+const PERMISSION_KEYS = new Set(['hooks', 'tools', 'callTools', 'network', 'files', 'settings', 'cards', 'bridges', 'bridgeFiles', 'model', 'memory', 'connect', 'webhooks', 'webhookKinds', 'doorbell']);
 export const ID_RE = /^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$/;
 const SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const TOOL_RE = /^[a-z][a-z0-9_]{0,39}$/;
@@ -270,10 +277,29 @@ function parsePermissions(v: unknown): PluginPermissions {
   const bridgeFiles = bool('bridgeFiles');
   if (bridgeFiles && !bridges.length) throw new ManifestError('permissions.bridgeFiles needs a bridge in permissions.bridges.');
   const connect = parseConnect(p.connect);
-  const webhooks = p.webhooks === undefined || p.webhooks === 'none' ? 'none' : p.webhooks;
+  // Phase 122 part 3 (B1): `{"bridge": ["url"], "doorbell": true}` names the kinds; an unsigned `url`
+  // hook needs `doorbell` (the plugin is woken with ids only and fetches each message itself).
+  let webhookKinds: ('meta' | 'url')[] = [];
+  let doorbell = false;
+  let webhooks: unknown = p.webhooks === undefined || p.webhooks === 'none' ? 'none' : p.webhooks;
+  if (webhooks && typeof webhooks === 'object' && !Array.isArray(webhooks)) {
+    const w = webhooks as { bridge?: unknown; doorbell?: unknown };
+    const kinds = Array.isArray(w.bridge) ? w.bridge : [];
+    if (!kinds.length || kinds.some((k) => k !== 'meta' && k !== 'url') || Object.keys(w).some((k) => k !== 'bridge' && k !== 'doorbell')) throw new ManifestError('permissions.webhooks.bridge must list "meta" or "url".');
+    webhookKinds = [...new Set(kinds as ('meta' | 'url')[])];
+    doorbell = w.doorbell === true;
+    if (webhookKinds.includes('url') && !doorbell) throw new ManifestError('permissions.webhooks: an unsigned "url" bridge hook needs "doorbell": true.');
+    webhooks = 'bridge';
+  } else if (webhooks === 'bridge') {
+    // The parsed form read back (`webhooks: "bridge"` with its `webhookKinds` and `doorbell`) means the same.
+    const back = Array.isArray(p.webhookKinds) ? (p.webhookKinds as unknown[]) : [];
+    webhookKinds = back.length && back.every((k) => k === 'meta' || k === 'url') ? [...new Set(back as ('meta' | 'url')[])] : ['meta'];
+    doorbell = p.doorbell === true;
+    if (webhookKinds.includes('url') && !doorbell) throw new ManifestError('permissions.webhooks: an unsigned "url" bridge hook needs "doorbell": true.');
+  }
   if (webhooks !== 'none' && webhooks !== 'bridge') throw new ManifestError('permissions.webhooks may be none or bridge.');
   if (webhooks === 'bridge' && !bridges.length) throw new ManifestError('permissions.webhooks "bridge" needs a bridge in permissions.bridges.');
-  return { hooks, tools, callTools, network, files, settings: bool('settings'), cards: bool('cards'), bridges, bridgeFiles, model, memory, connect, webhooks };
+  return { hooks, tools, callTools, network, files, settings: bool('settings'), cards: bool('cards'), bridges, bridgeFiles, model, memory, connect, webhooks: webhooks as 'none' | 'bridge', webhookKinds, doorbell };
 }
 
 function parseConnect(v: unknown): ConnectEndpoint[] {
@@ -484,7 +510,8 @@ export function permissionLines(m: PluginManifest, toolLabel: (name: string) => 
   if (p.memory === 'shared-notes') out.push({ id: 'memory', key: 'Can read the notes about you that other apps may see (read only)', risk: 'high' });
   for (const b of p.bridges) out.push({ id: `bridge:${b}`, key: 'Carries chats with her for {bridge}', params: { bridge: b }, risk: 'high' });
   if (p.bridgeFiles) out.push({ id: 'bridgeFiles', key: 'Can send and receive pictures and files in its chats', risk: 'high' });
-  if (p.webhooks === 'bridge') out.push({ id: 'webhooks:bridge', key: 'Receives messages from Meta at a public web address Sara gives it', risk: 'high' });
+  if (p.webhooks === 'bridge' && p.doorbell) out.push({ id: 'webhooks:doorbell', key: 'Is woken by its app on your network; checks every message with that app before reading it', risk: 'high' });
+  else if (p.webhooks === 'bridge') out.push({ id: 'webhooks:bridge', key: 'Receives messages from Meta at a public web address Sara gives it', risk: 'high' });
   for (const h of p.hooks) if (HOOK_WORDS[h]) out.push({ id: `hook:${h}`, key: HOOK_WORDS[h], risk: h === 'turn.before' || h === 'reply.after' || h === 'tool.after' ? 'medium' : 'low' });
   for (const s of m.schedules) out.push(scheduleWords(s));
   for (const t of p.tools) out.push({ id: `tool:${t}`, key: 'Adds a tool: {tool} (asks you first)', params: { tool: t }, risk: 'low' });
@@ -521,7 +548,7 @@ export function permissionIds(m: PluginManifest): string[] {
     ...(p.memory !== 'none' ? [`memory:${p.memory}`] : []),
     ...p.bridges.map((b) => `bridge:${b}`),
     ...(p.bridgeFiles ? ['bridgeFiles'] : []),
-    ...(p.webhooks === 'bridge' ? ['webhooks:bridge'] : []),
+    ...(p.webhooks === 'bridge' ? [p.doorbell ? 'webhooks:doorbell' : 'webhooks:bridge'] : []),
     ...p.hooks.map((h) => `hook:${h}`),
     ...m.schedules.map((s) => `schedule:${s.id}:${s.every}:${s.at ?? ''}`),
     ...p.tools.map((t) => `tool:${t}`),
