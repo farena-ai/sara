@@ -133,6 +133,12 @@ export interface SshServer {
   auth: 'password' | 'key';
   /** The owner asked (in chat, after the warning) to keep the password: the form starts ticked. */
   askedToSavePassword?: boolean;
+  /**
+   * PL2a (POLISH2 N7): added by *Connect* and not reached yet. It is not listed under Your servers
+   * until Sara reached its SSH port (it shows *Not connected yet · Remove* from then on); a draft that
+   * never got there is dropped by the next Connect to the same address or by *Cancel*.
+   */
+  draft?: boolean;
   /** Where to tell the owner about her new key (the conversation that added the server). */
   conversationId?: string;
   lastUsedAt?: string;
@@ -181,6 +187,9 @@ export interface ServerView extends Omit<SshServer, 'pending' | 'key'> {
   pasteCommand?: string;
   ready: boolean;
 }
+
+/** PL2a (N7): a Connect that never reached the server's SSH port (not listed; Cancel removes it). */
+const unreached = (s: SshServer): boolean => s.draft === true && !s.fingerprint && !s.pending;
 
 export class SshError extends Error {
   readonly code: string;
@@ -396,7 +405,7 @@ export class SshManager {
     };
   }
   views(): ServerView[] {
-    return this.#servers.map((s) => this.view(s));
+    return this.#servers.filter((s) => !unreached(s)).map((s) => this.view(s));
   }
 
   /** A server by id or by the owner's name for it (case-insensitive), or host / user@host. */
@@ -833,8 +842,12 @@ export class SshManager {
     const parsed = parseAddress(input.address);
     const user = String(input.user ?? '').trim() || parsed.user;
     const port = input.port !== undefined && input.port !== null && input.port !== '' ? input.port : parsed.port;
+    // PL2a (N7): an earlier try at this address that never reached it goes first (no second draft).
+    for (const old of this.#servers.filter((x) => unreached(x) && x.host === cleanHost(parsed.host))) this.remove(old.id);
     const s = await this.add({ name: input.name, host: parsed.host, user, port, scan: false, ...(input.conversationId ? { conversationId: input.conversationId } : {}), ...(input.askedToSavePassword ? { askedToSavePassword: true } : {}) });
-    return this.probe(s.id, { cpanelHint: parsed.cpanel === true });
+    this.#update(s.id, { draft: true });
+    const out = await this.probe(s.id, { cpanelHint: parsed.cpanel === true });
+    return out.probe && !out.probe.code ? this.#update(s.id, { draft: undefined }) : out;
   }
 
   /**

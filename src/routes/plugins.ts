@@ -32,6 +32,10 @@
 //   (src/plugins/matrix-setup.ts); her password is passed once to the plugin and never stored or logged.
 // Phase 122 part 3 (BRIDGES4 §8.2): GET /api/plugins/imessage/setup and POST …/{terms,address,password,check,fix}
 //   (src/plugins/imessage-setup.ts); the BlueBubbles password goes to the vault and is never sent back.
+// PL2a (POLISH2 N3): POST /api/plugins/signal/probe { address, onOtherMachine? } → { ok, version | code }
+//   (one `version` call to signal-cli, this computer or the home network only) and POST
+//   /api/plugins/signal/qr { link } → { qr } (the `sgnl://linkdevice` address as a picture). Both
+//   work before Signal is added (src/plugins/signal-setup.ts).
 //   POST   /api/plugins/:id/check-sender         { companion } → waits ≤ 10 min for his next mail: { got, from, headers };
 //                                                { companion, use } → that provider id counts (email)
 import { readFileSync } from 'node:fs';
@@ -45,6 +49,7 @@ import { checkServerFolder } from '../skill-store.ts';
 import { hookBase, runCheck, setupState, WA } from '../plugins/whatsapp-setup.ts';
 import * as matrix from '../plugins/matrix-setup.ts';
 import * as imessage from '../plugins/imessage-setup.ts';
+import { linkQr, probeDaemon, SIGNAL } from '../plugins/signal-setup.ts';
 import { bridgeWindowOpen } from '../plugins/bridge-db.ts';
 import { en } from '../i18n.ts';
 import { InstallError, StoreInstaller } from '../store/install.ts';
@@ -120,6 +125,15 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
       throw new HttpError(405, 'Method not allowed');
     }
 
+    // PL2a (N3): the Signal setup's checks (before or after it is added).
+    if (b === SIGNAL && (c === 'probe' || c === 'qr') && !d) {
+      if (method !== 'POST') throw new HttpError(405, 'Method not allowed');
+      const body = await readJson(req);
+      if (c === 'probe') return send(res, 200, await probeDaemon(body.address, { onOtherMachine: body.onOtherMachine === true }));
+      const qr = linkQr(body.link);
+      if (!qr) throw new HttpError(400, en('Paste the whole sgnl://linkdevice address that signal-cli printed.'));
+      return send(res, 200, { qr });
+    }
     // Phase 122: the WhatsApp setup card (works before the plugin is installed: the card shows the terms box).
     const WA_ROUTES = ['setup', 'terms', 'webhook', 'door-url', 'check', 'fix', 'register', 'send-test', 'unmute'];
     if (b === WA && c && WA_ROUTES.includes(c) && !d) {
@@ -244,7 +258,9 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
       const r = pm.review(String(body.review ?? ''));
       if (!r || r.manifest.id !== id) throw new HttpError(404, 'That review has expired. Add the plugin again.');
       try {
-        await pm.approve(r.id, { trust: body.trust === true });
+        // PL2a (N2): Sara's own plugins install from the short consent step (`consent`); the manager
+        // honours it only for a review it marked first-party itself, never for anything the page says.
+        await pm.approve(r.id, { trust: body.trust === true, consent: body.consent === true });
       } catch (err) {
         return asHttp(err);
       }

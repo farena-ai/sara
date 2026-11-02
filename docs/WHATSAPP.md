@@ -32,7 +32,9 @@ you need.
 Settings → Connections → **WhatsApp**. Each step turns ✓ when Sara has checked it; the right column
 shows the Meta screen you need and *This screen looks different?* if Meta has moved things.
 
-1. **Add WhatsApp to Sara**: read its card, press Install, turn it on for her.
+1. **Add WhatsApp to Sara**: tick the box about Meta's rules and press **Start**, then **Add WhatsApp**
+   in the short step ("It can reach graph.facebook.com and your number's messages; nothing else.").
+   Sara adds it and switches it on for her. The full plugin card is under *Details*.
 2. **Make a Meta app**: developers.facebook.com/apps → Create app → *Connect with customers through
    WhatsApp* → pick or create a business portfolio → Create app.
 3. **Copy two numbers**: API Setup → the *Phone number ID* and the *WhatsApp Business Account ID*.

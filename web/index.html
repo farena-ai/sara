@@ -330,6 +330,9 @@
         <p id="aside-q" class="aside-q muted small" data-raw></p>
         <div id="aside-a" class="aside-a" data-raw></div>
       </div>
+      <!-- PL2a (POLISH2 N26): the check-in's first-run note sits here, in the page flow above the
+           message box (never over it); on Today it sits in #td-checkin instead (web/hub.js). -->
+      <div id="chat-checkin" class="checkin-slot"></div>
       <form id="composer">
         <ul id="ref-menu" class="ref-menu" role="listbox" aria-label="Attach with @" hidden></ul>
         <textarea id="input" rows="1" placeholder="Message Sara…" autocomplete="off" aria-label="Message Sara…"></textarea>
@@ -366,6 +369,7 @@
         <div class="td-scroll">
           <!-- Phase 112 (TD2): pull to refresh (web/today.js pullTracker): the one gesture in browsers and both phone apps. -->
           <div id="td-pull" class="td-pull" aria-hidden="true"><span class="td-pull-spin"></span></div>
+          <div id="td-checkin" class="checkin-slot td-checkin"></div>
           <header class="td-hero">
             <div class="td-hello">
               <!-- Phase 114 (PL1c, V4): "← Chat" left of the date line, clear of her portrait. -->
@@ -3059,7 +3063,7 @@
       </div>
       <!-- /ssh-connect -->
       <div id="ssh-flow" class="ssh-flow" data-nodirty data-noauto hidden>
-        <div class="ssh-flow-head"><h3 id="ssh-flow-head">Connect</h3><button id="ssh-flow-close" type="button" class="ghost ssh-x" aria-label="Done with this server for now">✕</button></div>
+        <div class="ssh-flow-head"><h3 id="ssh-flow-head">Connect</h3><button id="ssh-flow-close" type="button" class="ghost small" title="Done with this server for now">Cancel</button></div>
         <p id="ssh-step-line" class="muted small"></p>
         <ul id="ssh-checklist" class="ssh-checklist"></ul>
         <div id="ssh-notfound" class="ssh-box" hidden>
@@ -3262,7 +3266,12 @@
       <p id="install-row" class="small" hidden><button id="install-app" type="button" class="ghost">Install Sara as an app</button></p>
         </section>
         <section class="settings-page" data-page="co-telegram" data-group="Connections" data-title="Telegram" data-owner-only hidden>
-      <p class="muted small page-lead">Text Sara from your phone. In Telegram, message <strong>@BotFather</strong>, send <code>/newbot</code>, pick a name, and paste the token it gives you here. Then press <em>Link my Telegram</em>.</p>
+      <p class="muted small page-lead">Text Sara from your phone: you make her a bot in Telegram, and the steps below check each part with you.</p>
+      <!-- PL2a (POLISH2 N5): the shared setup card and its steps (web/telegram-setup.js); every option
+           below keeps its id and folds under More until Telegram works. -->
+      <div id="tg-setup" class="setup-host" data-nodirty></div>
+      <details id="tg-more" class="setup-more">
+      <summary>More</summary>
       <!-- Phase 114 (PL1c, S11): a status chip in the head, the settings in titled cards. -->
       <div class="kit-card">
       <div class="card-head"><h3>Connection</h3><span id="tg-chip" class="status-chip" role="status">Not set up</span></div>
@@ -3312,6 +3321,7 @@
       <p class="muted small">To read every message, turn privacy mode off in @BotFather (/setprivacy → Disable), then remove her from the group and add her again — or make her a group admin.</p>
       <div id="tg-rooms" class="room-list" data-nodirty></div>
       </div>
+      </details>
         </section>
         <section class="settings-page" data-page="co-discord" data-group="Connections" data-title="Discord" data-owner-only hidden>
       <p class="muted small page-lead">At <strong>discord.com/developers</strong>: New Application → Bot → Reset Token (paste it here) and turn on <em>Message Content Intent</em>. Invite it with OAuth2 → URL Generator (scope <code>bot</code>; Send Messages, Read Message History). Then link yourself.</p>
@@ -3376,14 +3386,14 @@
       </div>
         </section>
         <section class="settings-page" data-page="co-signal" data-group="Connections" data-title="Signal" data-owner-only hidden>
-      <p class="muted small page-lead">Text her on Signal through your own <strong>signal-cli</strong>, with a number of her own. Signal comes with Sara as a plugin: it installs through its review card and only Sara holds its connection. <a href="/help#signal" target="_blank" rel="noopener">How Signal works</a></p>
+      <p class="muted small page-lead">Text her on Signal through your own <strong>signal-cli</strong>, with a number of her own. It comes with Sara as a plugin, is off until you add it, and the card checks each step with you. <a href="/help#signal" target="_blank" rel="noopener">How Signal works</a></p>
       <div class="kit-card">
       <div class="card-head"><h3>Signal</h3><span id="sig-chip" class="status-chip" role="status">Not set up</span></div>
       <div id="sig-box" class="plg-signal"></div>
       </div>
         </section>
         <section class="settings-page" data-page="co-email" data-group="Connections" data-title="Email" data-owner-only hidden>
-      <p class="muted small page-lead">Give her an email address of her own: write to her (or forward her a mail) and she answers in the same thread. Email comes with Sara as a plugin: it installs through its review card and only Sara holds its connections. This is her mailbox, not yours: reading your own inbox is Settings → Google or the Email MCP server. <a href="/help#email" target="_blank" rel="noopener">How email works</a></p>
+      <p class="muted small page-lead">Give her an email address of her own: write to her (or forward her a mail) and she answers in the same thread. It comes with Sara as a plugin, is off until you add it, and the card checks each step with you. This is her mailbox, not yours: reading your own inbox is Settings → Google or the Email MCP server. <a href="/help#email" target="_blank" rel="noopener">How email works</a></p>
       <div class="kit-card">
       <div class="card-head"><h3>Email</h3><span id="em-chip" class="status-chip" role="status">Not set up</span></div>
       <div id="em-box" class="plg-signal"></div>

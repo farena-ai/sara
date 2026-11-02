@@ -627,3 +627,27 @@ test('13. the Connect page: two fields, the checklist, path cards, status under 
   const js = readFileSync(join(ROOT, 'web', 'ssh.js'), 'utf8');
   assert.match(js, /diagBox/);
 });
+
+// PL2a (docs/design/POLISH2.md N7): a Connect that never reached the server leaves no row in Your
+// servers; trying the same address again keeps one; Cancel removes it; one that reached SSH is listed.
+test('14. a failed first connect leaves no server row; Cancel removes the draft; the step card has Cancel, not a second ✕', async () => {
+  const fake = new FakeSsh();
+  fake.badNames.add('nonexistent.invalid');
+  const { m } = manager({ fake });
+  const s = await m.connectServer({ address: 'nonexistent.invalid', user: 'alex' });
+  assert.equal(s.probe?.code, 'DNS');
+  assert.equal(m.views().length, 0, 'not listed under Your servers');
+  assert.equal(m.view(m.get(s.id)).draft, true, 'the flow card still has it (Edit address, Try again)');
+  const again = await m.connectServer({ address: 'nonexistent.invalid', user: 'alex' });
+  assert.equal(m.list().length, 1, 'the earlier try went; no second draft');
+  assert.notEqual(again.id, s.id);
+  m.remove(again.id);
+  assert.equal(m.list().length, 0);
+  // One that reaches SSH is listed at once (Not connected yet · Remove), with no draft flag.
+  const ok = await m.connectServer({ address: 'example.com', user: 'alex' });
+  assert.deepEqual(m.views().map((v) => v.id), [ok.id]);
+  assert.equal(m.get(ok.id).draft, undefined);
+  const html = readFileSync(join(ROOT, 'web', 'index.html'), 'utf8');
+  assert.match(html, /<button id="ssh-flow-close" type="button" class="ghost small" title="Done with this server for now">Cancel<\/button>/);
+  assert.match(readFileSync(join(ROOT, 'web', 'ssh.js'), 'utf8'), /if \(s\?\.draft && !s\.ready && !s\.fingerprint && !s\.pendingFingerprint\) void api\(`\/ssh\/servers\/\$\{s\.id\}`, \{ method: 'DELETE'/);
+});

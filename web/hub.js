@@ -79,8 +79,34 @@ function later(id, fn) {
   else whenClear(fn);
 }
 
+/**
+ * PL2a (POLISH2 N26): the note is never drawn over the page. It sits in the page flow: as a card at
+ * the top of Today when Today is open, otherwise right above the message box (#chat-checkin), so the
+ * composer and the + menu stay free at every width. It follows Today opening and closing.
+ */
+function placeFirst() {
+  const note = $('#hub-first');
+  if (!note || st.folded) return;
+  const today = $('#today');
+  const host = today?.open ? $('#td-checkin') : $('#chat-checkin');
+  if (!host) return;
+  note.classList.add('hub-note-inline');
+  if (note.parentNode !== host) host.append(note);
+}
+let followsToday = false;
+function followToday() {
+  const today = $('#today');
+  if (followsToday || !today || typeof MutationObserver === 'undefined') return;
+  followsToday = true;
+  new MutationObserver(() => {
+    if (!$('#hub-first').hidden) placeFirst();
+  }).observe(today, { attributes: true, attributeFilter: ['open'] });
+}
+
 function showFirst() {
   if (!st.firstPending || st.folded) return;
+  placeFirst();
+  followToday();
   $('#hub-first').hidden = false;
   // The first check-in waits until this was shown (src/routes/hub.ts).
   void api('/hub/first-run', { method: 'POST', body: { action: 'shown' } }).catch(() => {});

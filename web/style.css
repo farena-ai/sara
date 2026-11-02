@@ -1465,6 +1465,7 @@ body:not(.member) [data-member-only] { display: none !important; }
 .ssh-flow-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ssh-flow-head h3 { margin: 0; overflow-wrap: anywhere; }
 .ssh-x { min-width: 44px; min-height: 44px; padding: 0; }
+#ssh-flow-close { min-height: 44px; }
 .ssh-checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .ssh-step { display: grid; grid-template-columns: 22px 1fr; gap: 2px 8px; align-items: baseline; min-width: 0; }
 .ssh-step-mark { font-weight: 700; text-align: center; color: var(--text-3, var(--muted)); }

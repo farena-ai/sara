@@ -6,35 +6,11 @@
 // Connected: a summary (basic or Private API, doorbell or polling), Test, who can reach her. The
 // BlueBubbles password goes to the vault and is never shown again; Sara never gives SIP instructions.
 import { t } from './naming.js';
-import { addBuiltin } from './plugins.js';
+import { addBuiltin, reviewCard } from './plugins.js';
+import { api, btn, checking, copyRow, diagLine as diagWith, el, enc, field, foldedLine, link, okLine, pathList, setupCard, startFirstParty, stepNav, stepper, testList, tick, tip, useTranslator } from './setup-card.js';
 
+useTranslator(t);
 const $ = (sel) => document.querySelector(sel);
-function el(tag, cls, text) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text !== undefined) e.textContent = text;
-  return e;
-}
-function btn(label, cls, onClick) {
-  const b = el('button', cls, label);
-  b.type = 'button';
-  b.addEventListener('click', () => void onClick(b));
-  return b;
-}
-function tip(text) {
-  const b = el('button', 'tip', '?');
-  b.type = 'button';
-  b.dataset.tip = text;
-  b.setAttribute('aria-label', text);
-  return b;
-}
-async function api(path, opts = {}) {
-  const res = await fetch(`/api${path}`, { method: opts.method ?? 'GET', headers: opts.body !== undefined ? { 'content-type': 'application/json' } : {}, body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-  return data;
-}
-const enc = encodeURIComponent;
 const APPLE = 'https://account.apple.com';
 const RELEASES = 'https://github.com/BlueBubblesApp/bluebubbles-server/releases/latest';
 
@@ -75,67 +51,12 @@ let open = '';
 let companion = 'main';
 let code = '';
 
-function diagLine(d) {
-  const box = el('div', 'wa-diag');
-  box.setAttribute('role', 'status');
-  if (!d) return box;
-  const [title, fix] = (DIAG[d.code] ?? DIAG.UNKNOWN)();
-  box.dataset.state = 'warn';
-  box.append(el('strong', '', title), el('span', '', fix));
-  if (d.detail) {
-    const det = el('details', 'wa-details');
-    det.append(el('summary', '', t('Details')), el('code', '', `${d.code} ${d.detail}`.trim()));
-    box.append(det);
-  }
-  return box;
-}
-function okLine(text) {
-  const box = el('div', 'wa-diag');
-  box.setAttribute('role', 'status');
-  box.dataset.state = 'ok';
-  box.textContent = `✓ ${text}`;
-  return box;
-}
-function field(id, label, tipText, o = {}) {
-  const row = el('label', 'plg-field');
-  const head = el('span', 'plg-field-name');
-  head.append(el('span', '', label), tip(tipText));
-  const input = document.createElement('input');
-  input.id = id;
-  input.type = o.type ?? 'text';
-  input.autocomplete = o.type === 'password' ? 'new-password' : 'off';
-  input.spellcheck = false;
-  input.dataset.nodirty = '';
-  if (o.value) input.value = o.value;
-  if (o.placeholder) input.placeholder = o.placeholder;
-  row.append(head, input);
-  return row;
-}
-function tick(id, label, tipText, on) {
-  const row = el('label', 'row');
-  const cb = document.createElement('input');
-  cb.type = 'checkbox';
-  cb.id = id;
-  cb.checked = Boolean(on);
-  cb.dataset.nodirty = '';
-  row.append(cb, el('span', '', label), tip(tipText));
-  return row;
-}
-function copyRow(label, value, tipText) {
-  const row = el('div', 'wa-copy');
-  const head = el('span', 'plg-field-name');
-  head.append(el('span', '', label), tip(tipText));
-  row.append(head, el('code', 'wa-mono', value || '—'), btn(t('Copy'), 'ghost', async (b) => {
-    await navigator.clipboard?.writeText(value).catch(() => undefined);
-    b.textContent = t('Copied');
-  }));
-  return row;
-}
+const diagLine = (d) => diagWith(d, DIAG);
 
 const serverLine = (s) => t('BlueBubbles {version} on macOS {os}, signed in as {account}', { version: s.version || '?', os: s.os || '?', account: s.account || '?' }) + (s.privateApi ? ` · ${t('Private API on')}` : ` · ${t("Private API off (that's fine)")}`);
 
 async function post(path, body, out) {
-  out.replaceChildren(el('span', 'muted small', t('Checking…')));
+  checking(out);
   try {
     const r = await api(`/plugins/imessage/${path}`, { method: 'POST', body: { companion, ...body } });
     out.replaceChildren(r.ok ? okLine(r.version ? serverLine(r) : t('Checked')) : diagLine(r.diagnosis));
@@ -158,10 +79,7 @@ function stepBody(id) {
   const out = el('div', 'wa-check');
   const st = view.steps.find((s) => s.id === id);
   const [, path] = STEPS[id]();
-  const clicks = String(path).split(' → ').map((x) => x.trim()).filter(Boolean);
-  const list = el('ol', 'wa-path');
-  for (const c of clicks) list.append(el('li', '', c));
-  body.append(clicks.length > 1 ? list : el('p', 'wa-path', path));
+  body.append(pathList(path));
   if (id === 'appleid') body.append(el('p', 'muted small', t('A separate Apple ID for her, never your own: on your own Apple ID she would see all your chats and answer as you. Sara checks this in step 5.')));
   if (id === 'install') {
     body.append(
@@ -224,27 +142,15 @@ function stepBody(id) {
   }
   if (st?.diagnosis && !out.childNodes.length) out.append(diagLine(st.diagnosis));
   body.append(out);
-  const nav = el('div', 'wa-nav');
   const ids = view.steps.map((s) => s.id);
-  const i = ids.indexOf(id);
-  if (i > 0) nav.append(btn(`← ${t('Back')}`, 'ghost', () => ((open = ids[i - 1]), render())));
-  if (i < ids.length - 1) nav.append(btn(t('Next'), st?.ok || i < 3 ? '' : 'ghost', () => ((open = ids[i + 1]), render())));
-  body.append(nav);
+  body.append(stepNav(ids, id, { primary: st?.ok || ids.indexOf(id) < 3 }, (to) => ((open = to), render())));
   return body;
 }
 
 async function test(out) {
-  out.replaceChildren(el('span', 'muted small', t('Checking…')));
+  checking(out);
   const r = await api('/plugins/imessage/check', { method: 'POST', body: { companion, step: 'test' } }).catch((err) => ({ ok: false, steps: [{ label: err.message, ok: false }] }));
-  const ul = el('ul', 'wa-test');
-  let first = true;
-  for (const s of r.steps ?? []) {
-    const li = el('li', s.ok ? 'ok' : first ? 'bad' : 'grey', `${s.ok ? '✓' : '✕'} ${s.label}`);
-    if (!s.ok && first && s.fix) li.append(el('span', 'muted small', ` ${s.fix}`));
-    if (!s.ok) first = false;
-    ul.append(li);
-  }
-  out.replaceChildren(ul);
+  out.replaceChildren(testList(r));
   if (r.ok) await load(true);
 }
 
@@ -263,51 +169,25 @@ function side() {
   const card = el('div', 'kit-card');
   const [, path, url] = STEPS[open]?.() ?? [];
   card.append(el('h3', '', t('The screen you need')), el('p', 'small', path ?? ''));
-  if (url) {
-    const a = el('a', 'button-link', url === APPLE ? t('Open account.apple.com ↗') : t('Open the download page ↗'));
-    a.href = url;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    card.append(a);
-  }
-  const diff = el('a', 'small', t('This screen looks different?'));
-  diff.href = '/help#imessage';
-  diff.target = '_blank';
-  card.append(diff);
+  if (url) card.append(link(url === APPLE ? t('Open account.apple.com ↗') : t('Open the download page ↗'), url, 'button-link'));
+  card.append(link(t('This screen looks different?'), '/help#imessage'));
   col.append(card, goodToKnow());
   return col;
 }
 
-function termsBox(onTick) {
-  const box = el('div', 'kit-card wa-terms');
-  box.append(el('h3', '', t('About Apple and BlueBubbles')), el('p', 'small', t("iMessage has no official way for apps like Sara to use it. BlueBubbles is a free, open-source app that is not made or approved by Apple; it works the Messages app on your Mac for you. Use it on your own Mac, with a separate Apple ID for her, and keep her to you and people you choose. Apple's software licence forbids using it to spam or harass anyone, and Apple can lock an Apple ID that misbehaves. Sara never asks you to turn off your Mac's security (SIP).")));
-  const row = el('label', 'row');
-  const cb = document.createElement('input');
-  cb.type = 'checkbox';
-  cb.id = 'im-terms-tick';
-  cb.dataset.nodirty = '';
-  cb.addEventListener('change', () => onTick(cb.checked));
-  row.append(cb, el('span', '', t('I understand and want to continue.')));
-  box.append(row);
-  return box;
-}
-
+// PL2a (N1, N2): the shared setup card; Start → the short consent step (Sara's own plugin).
 function intro(box, builtin) {
-  const card = el('div', 'kit-card');
-  card.append(el('h3', '', t('Set up iMessage')), el('p', '', t('Text her from Messages on your iPhone, through BlueBubbles on a Mac. Free, about 40 minutes at the Mac, once.')), el('p', 'small', t('No Mac? iMessage only works through a Mac. Try Signal or Telegram instead.')));
-  const ul = el('ul', 'plg-setup');
-  for (const x of [t('A Mac that can stay on (macOS 11 or newer is easiest)'), t('An email address for her new Apple ID'), t('About 40 minutes at that Mac')]) ul.append(el('li', '', x));
-  card.append(el('h4', '', t('What you need')), ul);
   const mail = el('a', 'small', t('Send these steps to my email'));
   mail.href = `mailto:?subject=${enc(t('Set up iMessage'))}&body=${enc(Object.values(STEPS).map((f, i) => `${i + 1}. ${f()[0]}: ${f()[1]}`).join('\n\n'))}`;
-  card.append(mail);
-  const start = btn(t('Start'), '', async () => {
-    localStorage.setItem('im-terms', new Date().toISOString());
-    await addBuiltin('imessage');
-  });
-  start.disabled = true;
-  if (!builtin) start.hidden = true;
-  box.replaceChildren(card, termsBox((on) => (start.disabled = !on)), start, ...(builtin ? [] : [el('p', 'muted small', t("iMessage doesn't come with this copy of Sara."))]));
+  box.replaceChildren(setupCard('imessage', {
+    builtin,
+    extra: [mail],
+    missing: t("iMessage doesn't come with this copy of Sara."),
+    onStart: async () => {
+      localStorage.setItem('im-terms', new Date().toISOString());
+      await startFirstParty('imessage', box, { name: 'iMessage', reach: t("It can reach BlueBubbles on your Mac, and only on your own network; nothing else."), reviewCard, full: addBuiltin, done: load });
+    },
+  }));
 }
 
 function summary() {
@@ -319,13 +199,13 @@ function summary() {
   basic.append(' ', tip(t('A BlueBubbles add-on for typing dots, tapbacks and edits. It needs a Mac security feature (SIP) turned off. Sara works without it and never asks you to turn SIP off.')));
   const out = el('div', 'wa-check');
   const row = el('div', 'add-row');
-  row.append(btn(t('Test'), '', () => test(out)), btn(t('Set up again'), 'ghost', () => ((open = 'appleid'), (view.forceSteps = true), render())));
+  row.append(btn(t('Test'), '', () => test(out)));
   card.append(basic, row, out);
   if (view.sentToday) card.append(el('p', 'muted small', view.sentToday === 1 ? t('1 message sent today') : t('{n} messages sent today', { n: view.sentToday })));
   const who = el('div', 'kit-card');
   who.append(el('h3', '', t('Who can reach her')), el('p', 'small', view.others ? t('You and the people on your list, as partners: no tools, nothing private, the AI notice first.') : t('Only you. Anyone else gets one line saying she only chats with you, then nothing.')));
   const terms = el('p', 'muted small', t('BlueBubbles is not made or approved by Apple. Use your own Mac and a separate Apple ID for her.'));
-  return [card, who, terms];
+  return [foldedLine(t('iMessage: working'), () => ((open = 'appleid'), (view.forceSteps = true), render())), card, who, terms];
 }
 
 function render() {
@@ -338,19 +218,7 @@ function render() {
   if (!view.installed) return;
   if (all && !view.forceSteps) return void box.replaceChildren(...summary());
   if (!open || !view.steps.some((s) => s.id === open)) open = (view.steps.find((s) => !s.ok) ?? view.steps[0]).id;
-  const list = el('ol', 'wa-steps');
-  for (const [i, s] of view.steps.entries()) {
-    const [title] = STEPS[s.id]();
-    const li = el('li', `wa-step${s.ok ? ' done' : ''}${s.id === open ? ' open' : ''}`);
-    const head = btn(`${s.ok ? '✓' : s.id === open ? '●' : '○'} ${i + 1} ${title}`, 'wa-step-head', () => ((open = s.id), render()));
-    head.setAttribute('aria-expanded', String(s.id === open));
-    li.append(head);
-    if (s.id === open) li.append(stepBody(s.id));
-    list.append(li);
-  }
-  const left = el('div', 'kit-card wa-stepper');
-  left.append(el('div', 'card-head', ''), el('p', 'muted small', t('Do this at the Mac.')), list);
-  left.firstChild.append(el('h3', '', t('Set up iMessage')), el('span', 'muted small', t('{n} of {total}', { n: view.done, total: view.steps.length })));
+  const left = stepper({ title: t('Set up iMessage'), note: t('Do this at the Mac.'), steps: view.steps, open, titleOf: (id) => STEPS[id]()[0], bodyOf: stepBody, onOpen: (id) => ((open = id), render()) });
   const grid = el('div', 'wa-grid');
   grid.append(left, side());
   box.replaceChildren(grid);

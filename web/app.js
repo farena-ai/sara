@@ -18,7 +18,10 @@ import { initLearning, learnCard, loadLearning } from './learned-skills.js';
 import { loadWhatsAppPage } from './whatsapp.js';
 import { loadMatrixPage } from './matrix.js';
 import { loadIMessagePage } from './imessage.js';
-import { initPlugins, loadEmailPage, loadPlugins, loadSignalPage, pluginAskLine, pluginNotice, pluginResultCard, pluginStepWords } from './plugins.js';
+import { initPlugins, loadPlugins, pluginAskLine, pluginNotice, pluginResultCard, pluginStepWords } from './plugins.js';
+import { loadSignalPage } from './signal.js';
+import { loadEmailPage } from './email.js';
+import { renderTelegramSetup } from './telegram-setup.js';
 import { initAgents, loadAgents } from './agents.js';
 import { hookNotice, initHooks, loadHooks } from './hooks.js';
 import { initMoveIn, loadMoveIn, moveInEvent } from './movein.js';
@@ -4698,6 +4701,8 @@ function renderTelegram(tg) {
   $('#tg-everyone').checked = Boolean(tg.answerEveryone);
   $('#tg-nsfw').closest('label').hidden = !tg.nsfwChatIds;
   $('#tg-nsfw').value = (tg.nsfwChatIds ?? []).join(', ');
+  // PL2a (N5): the setup card and its steps above the options.
+  renderTelegramSetup(tg, { reload: loadTelegram });
 }
 async function loadTelegram() {
   try {

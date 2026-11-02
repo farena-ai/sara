@@ -5,6 +5,25 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.61.0 (2026-11-02): no more brick walls (Phase 128, polish PL2a)
+
+- **One setup card for every chat app.** WhatsApp, Matrix, iMessage, Signal, Email and Telegram now share
+  one guided card: what you need, how long it takes and what it costs, the service's rules with a tick where
+  they matter (WhatsApp, iMessage, Matrix), then numbered steps that turn ✓ only when Sara has checked them,
+  with a plain fix under any step that fails.
+- **Sara's own plugins need one OK.** Starting a chat app that comes with Sara shows a short *Add WhatsApp
+  to Sara* step instead of the developer plugin card with its amber warnings; the full card is under Details.
+  Only plugins Sara staged herself or whose files match a first-party entry in the signed Store list qualify;
+  a copy claiming to be ours from a zip, git address or folder gets the full card, and the files are
+  re-hashed at every approval.
+- **Signal, guided:** get signal-cli (Windows, macOS, Linux or Docker, with copy rows), register a number or
+  link your phone with a QR Sara draws, start it, and one Check proves all three. **Email:** pick your
+  provider, get an app password from its page, and the server names fill themselves. **Telegram:**
+  BotFather in four checked steps.
+- **Fixed:** after setup, the check-in note could cover the message box (about 40% of a phone screen); it
+  now sits in the page above it. A server connect that never reached the server no longer leaves a row
+  behind, and Cancel removes it. Phone layouts lost a level of nested cards.
+
 ## 2.60.0 (2026-11-02): companion packs (Phase 127)
 
 - **Share her.** Settings → Her → ⋯ → *Share her* builds a `.sara-companion.zip` of exactly what you

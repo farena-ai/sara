@@ -482,6 +482,9 @@ function clearSecrets() {
 }
 
 function closeFlow() {
+  // PL2a (POLISH2 N7): Cancel on a Connect that never reached the server leaves no row behind.
+  const s = current;
+  if (s?.draft && !s.ready && !s.fingerprint && !s.pendingFingerprint) void api(`/ssh/servers/${s.id}`, { method: 'DELETE', body: {} }).catch(() => undefined);
   current = null;
   shownPath = '';
   clearSecrets();

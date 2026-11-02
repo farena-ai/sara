@@ -774,92 +774,12 @@ function renderSenderCheck(box, p, view, companion) {
   box.append(row, out);
 }
 
-// ---------- Phase 117: Settings → Connections → Signal ----------
-
-export async function loadSignalPage() {
-  const box = $('#sig-box');
-  if (!box) return;
-  const chipEl = $('#sig-chip');
-  let builtin = [];
-  let plugins = [];
-  try {
-    [{ builtin }, { plugins }] = await Promise.all([api('/plugins/builtin'), api('/plugins')]);
-  } catch (err) {
-    box.replaceChildren(el('p', 'muted small', err.message));
-    return;
-  }
-  const b = builtin.find((x) => x.id === 'signal');
-  const p = plugins.find((x) => x.id === 'signal');
-  if (!p) {
-    chipEl.textContent = t('Not set up');
-    chipEl.dataset.state = '';
-    const ol = el('ol', 'plg-setup');
-    ol.append(
-      el('li', '', t("Run signal-cli for her own number on this computer: signal-cli -a +… daemon --tcp 127.0.0.1:7583 --receive-mode=manual")),
-      el('li', '', t('Add Signal: read its card and press Install, then switch it on for her.')),
-      el('li', '', t('Link: press Link my Signal and send the code to her from your own Signal.')),
-    );
-    box.replaceChildren(ol, el('p', 'muted small', t('Signal may limit accounts that act like bots; use a number you can lose.')), ...(b ? [btn(t('Add Signal'), '', () => addBuiltin('signal'))] : [el('p', 'muted small', t("Signal doesn't come with this copy of Sara."))]));
-    return;
-  }
-  const on = p.companions.find((c) => c.on);
-  let state = on ? 'connecting' : 'off';
-  try {
-    if (on) state = (await api(`/plugins/signal/bridge?companion=${enc(on.id)}`)).state;
-  } catch {
-    /* the chip stays */
-  }
-  chipEl.textContent = BRIDGE_STATE[state]?.() ?? state;
-  chipEl.dataset.state = state === 'ok' ? 'ok' : state === 'error' || state === 'paused' ? 'warn' : '';
-  box.replaceChildren(
-    el('p', 'muted small', on ? t('On for {name}.', { name: on.name }) : t('Added, but switched off. Switch it on for her in Settings → Plugins.')),
-    btn(t('Signal settings'), '', () => openSettings(p)),
-    ...(b?.updateAvailable ? [btn(t('Update available: {version}', { version: b.version }), 'ghost', () => addBuiltin('signal'))] : []),
-  );
-}
-
-// ---------- Phase 117 part B: Settings → Connections → Email ----------
-
-export async function loadEmailPage() {
-  const box = $('#em-box');
-  if (!box) return;
-  const chipEl = $('#em-chip');
-  let builtin = [];
-  let plugins = [];
-  try {
-    [{ builtin }, { plugins }] = await Promise.all([api('/plugins/builtin'), api('/plugins')]);
-  } catch (err) {
-    box.replaceChildren(el('p', 'muted small', err.message));
-    return;
-  }
-  const b = builtin.find((x) => x.id === 'email');
-  const p = plugins.find((x) => x.id === 'email');
-  if (!p) {
-    chipEl.textContent = t('Not set up');
-    chipEl.dataset.state = '';
-    const ol = el('ol', 'plg-setup');
-    ol.append(
-      el('li', '', t('Give her an address of her own (an alias on your domain or a new account) and make an app password for it.')),
-      el('li', '', t('Add email: read its card and press Install, then switch it on for her and type the address, the servers and the app password.')),
-      el('li', '', t('Link: press Link my email and send her an email from your own address with the code as the subject.')),
-    );
-    box.replaceChildren(ol, el('p', 'muted small', t('Outlook.com needs a sign-in Sara doesn\'t do yet; Gmail, iCloud, Fastmail and most hosts work with an app password.')), ...(b ? [btn(t('Add email'), '', () => addBuiltin('email'))] : [el('p', 'muted small', t("Email doesn't come with this copy of Sara."))]));
-    return;
-  }
-  const on = p.companions.find((c) => c.on);
-  let state = on ? 'connecting' : 'off';
-  try {
-    if (on) state = (await api(`/plugins/email/bridge?companion=${enc(on.id)}`)).state;
-  } catch {
-    /* the chip stays */
-  }
-  chipEl.textContent = BRIDGE_STATE[state]?.() ?? state;
-  chipEl.dataset.state = state === 'ok' ? 'ok' : state === 'error' || state === 'paused' ? 'warn' : '';
-  box.replaceChildren(
-    el('p', 'muted small', on ? t('On for {name}.', { name: on.name }) : t('Added, but switched off. Switch it on for her in Settings → Plugins.')),
-    btn(t('Email settings'), '', () => openSettings(p)),
-    ...(b?.updateAvailable ? [btn(t('Update available: {version}', { version: b.version }), 'ghost', () => addBuiltin('email'))] : []),
-  );
+// Phase 117 / PL2a: Settings → Connections → Signal and Email are guided setup cards now (web/signal.js,
+// web/email.js); their settings button opens the same window as here.
+/** The plugin's settings and log window, for the Signal and Email pages. */
+export async function openPluginSettings(p) {
+  if (!state.companions.length) state = await api('/plugins').catch(() => state);
+  await openSettings(p);
 }
 
 async function saveSettings(b) {

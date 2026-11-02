@@ -113,6 +113,7 @@ test('every outside service Sara talks to is refused while the mode is on', asyn
 
 const ALLOWED: Record<string, string> = {
   'src/net-guard.ts': 'the guard itself (the one real fetch and WebSocket)',
+  'src/plugins/signal-setup.ts': "PL2a Signal setup: one version call to signal-cli on loopback (or the home network with the switch), after outboundAllowed()",
   'src/mcp-bridge.ts': "the stdio bridge that runs on the owner's other computer (handed out as sara-mcp.ts); not part of the server",
   'src/preview.ts': "the preview proxy: connects only to 127.0.0.1, to ports her own jobs listen on",
   'src/browser-guard.ts': "the testing browser's proxy: checks outboundAllowed() before connecting",

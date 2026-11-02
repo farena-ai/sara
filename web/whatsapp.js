@@ -5,37 +5,12 @@
 // with the fix (DIAG, the same codes as plugins/whatsapp/diagnose.mjs). Connected: a summary card,
 // Test, *Send me a test message*, the 24-hour window in words, and who else may talk to her.
 import { t } from './naming.js';
-import { addBuiltin } from './plugins.js';
+import { addBuiltin, reviewCard } from './plugins.js';
+import { api, btn, checking, copyRow, diagLine as diagWith, el, enc, field, foldedLine, link, okLine, pathList, setupCard, startFirstParty, stepNav, stepper, testList, tip, useTranslator } from './setup-card.js';
 
+useTranslator(t);
 const $ = (sel) => document.querySelector(sel);
-function el(tag, cls, text) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text !== undefined) e.textContent = text;
-  return e;
-}
-function btn(label, cls, onClick) {
-  const b = el('button', cls, label);
-  b.type = 'button';
-  b.addEventListener('click', () => void onClick(b));
-  return b;
-}
-function tip(text) {
-  const b = el('button', 'tip', '?');
-  b.type = 'button';
-  b.dataset.tip = text;
-  b.setAttribute('aria-label', text);
-  return b;
-}
-async function api(path, opts = {}) {
-  const res = await fetch(`/api${path}`, { method: opts.method ?? 'GET', headers: opts.body !== undefined ? { 'content-type': 'application/json' } : {}, body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-  return data;
-}
-const enc = encodeURIComponent;
 const META = 'https://developers.facebook.com/apps';
-const TERMS = 'https://www.whatsapp.com/legal/business-solution-terms';
 
 /** Every diagnosis code (§5.3): the title, then the fix. */
 export const DIAG = {
@@ -69,7 +44,7 @@ export const DIAG = {
 
 /** The ten steps (§5.1): title, exactly where in Meta, the Meta page to open. */
 const STEPS = {
-  add: () => [t('Add WhatsApp to Sara'), t('Read its card, press Install, then switch it on for her.'), null],
+  add: () => [t('Add WhatsApp to Sara'), t('Sara adds it when you press Start and switches it on for her.'), null],
   app: () => [t('Make a Meta app'), t('developers.facebook.com/apps → Create app → name it → Connect with customers through WhatsApp → Next → pick or create a business portfolio → Create app.'), META],
   ids: () => [t('Copy two numbers'), t('Your app → Quickstart → Start using the API → API Setup: copy Phone number ID and WhatsApp Business Account ID (or Messaging account ID).'), META],
   phone: () => [t('Let your phone talk to the test number'), t('Same API Setup page → To → Manage phone number list → Add phone number → your number → the code WhatsApp sends you → Verify.'), META],
@@ -85,59 +60,11 @@ let view = null;
 let open = '';
 let companion = 'main';
 
-function diagLine(d, extra = []) {
-  const box = el('div', 'wa-diag');
-  box.setAttribute('role', 'status');
-  if (!d) return box;
-  const [title, fix] = (DIAG[d.code] ?? DIAG.UNKNOWN)();
-  box.dataset.state = 'warn';
-  box.append(el('strong', '', title), el('span', '', fix), ...extra);
-  if (d.detail) {
-    const det = el('details', 'wa-details');
-    det.append(el('summary', '', t('Details')), el('code', '', `${d.params?.code ?? ''} ${d.detail}`.trim()));
-    box.append(det);
-  }
-  return box;
-}
-function okLine(text) {
-  const box = el('div', 'wa-diag');
-  box.setAttribute('role', 'status');
-  box.dataset.state = 'ok';
-  box.textContent = `✓ ${text}`;
-  return box;
-}
+const diagLine = (d, extra = []) => diagWith(d, DIAG, extra);
 const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
 
-function field(id, label, tipText, o = {}) {
-  const row = el('label', 'plg-field');
-  const head = el('span', 'plg-field-name');
-  head.append(el('span', '', label), tip(tipText));
-  const input = document.createElement('input');
-  input.id = id;
-  input.type = o.type ?? 'text';
-  input.autocomplete = 'off';
-  input.spellcheck = false;
-  input.dataset.nodirty = '';
-  if (o.value) input.value = o.value;
-  if (o.placeholder) input.placeholder = o.placeholder;
-  if (o.mode) input.inputMode = o.mode;
-  row.append(head, input);
-  return row;
-}
-function copyRow(label, value, tipText) {
-  const row = el('div', 'wa-copy');
-  const head = el('span', 'plg-field-name');
-  head.append(el('span', '', label), tip(tipText));
-  const code = el('code', 'wa-mono', value || '—');
-  row.append(head, code, btn(t('Copy'), 'ghost', async (b) => {
-    await navigator.clipboard?.writeText(value).catch(() => undefined);
-    b.textContent = t('Copied');
-  }));
-  return row;
-}
-
 async function check(step, out) {
-  out.replaceChildren(el('span', 'muted small', t('Checking…')));
+  checking(out);
   try {
     const r = await api('/plugins/whatsapp/check', { method: 'POST', body: { companion, step } });
     if (r.ok && step === 'test') return void (await load());
@@ -154,10 +81,7 @@ function stepBody(id) {
   const st = view.steps.find((s) => s.id === id);
   const [, path] = STEPS[id]();
   // The Meta screens as a short numbered list (one click per line), not one long arrow chain.
-  const clicks = String(path).split(' → ').map((x) => x.trim()).filter(Boolean);
-  const list = el('ol', 'wa-path');
-  for (const c of clicks) list.append(el('li', '', c));
-  body.append(clicks.length > 1 ? list : el('p', 'wa-path', path));
+  body.append(pathList(path));
   if (id === 'add') {
     body.append(el('p', 'muted small', view.on ? t('Added and on for her.') : t('Added, but switched off. Switch it on for her in Settings → Plugins.')));
   }
@@ -272,27 +196,15 @@ function stepBody(id) {
   }
   if (st?.diagnosis && !out.childNodes.length) out.append(diagLine(st.diagnosis));
   body.append(out);
-  const nav = el('div', 'wa-nav');
-  const ids = view.steps.map((s) => s.id);
-  const i = ids.indexOf(id);
-  if (i > 0) nav.append(btn(`← ${t('Back')}`, 'ghost', () => ((open = ids[i - 1]), render())));
-  if (i < ids.length - 1) nav.append(btn(st?.ok ? t('Next') : id === 'phone' || id === 'door' ? t('Skip for now') : t('Next'), st?.ok || id === 'phone' || id === 'door' ? '' : 'ghost', () => ((open = ids[i + 1]), render())));
-  body.append(nav);
+  const skip = !st?.ok && (id === 'phone' || id === 'door');
+  body.append(stepNav(view.steps.map((s) => s.id), id, { label: skip ? t('Skip for now') : t('Next'), primary: st?.ok || skip }, (to) => ((open = to), render())));
   return body;
 }
 
 async function test(out) {
-  out.replaceChildren(el('span', 'muted small', t('Checking…')));
+  checking(out);
   const r = await api('/plugins/whatsapp/check', { method: 'POST', body: { companion, step: 'test' } }).catch((err) => ({ ok: false, steps: [{ label: err.message, ok: false }] }));
-  const ul = el('ul', 'wa-test');
-  let first = true;
-  for (const s of r.steps ?? []) {
-    const li = el('li', s.ok ? 'ok' : first ? 'bad' : 'grey', `${s.ok ? '✓' : '✕'} ${s.label}`);
-    if (!s.ok && first && s.fix) li.append(el('span', 'muted small', ` ${s.fix}`));
-    if (!s.ok) first = false;
-    ul.append(li);
-  }
-  out.replaceChildren(ul);
+  out.replaceChildren(testList(r));
 }
 
 function windowWords() {
@@ -307,54 +219,24 @@ function side() {
   const card = el('div', 'kit-card');
   const [, , url] = STEPS[open]?.() ?? [];
   card.append(el('h3', '', t('The screen you need')), el('p', 'small', STEPS[open]?.()[1] ?? ''));
-  if (url) {
-    const a = el('a', 'button-link', t('Open Meta ↗'));
-    a.href = url;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    card.append(a);
-  }
-  const diff = el('a', 'small', t('This screen looks different?'));
-  diff.href = '/help#whatsapp';
-  diff.target = '_blank';
-  card.append(el('p', 'muted small', t('Easier on a computer: Meta\'s console is hard to use on a phone.')), diff);
+  if (url) card.append(link(t('Open Meta ↗'), url, 'button-link'));
+  card.append(el('p', 'muted small', t('Easier on a computer: Meta\'s console is hard to use on a phone.')), link(t('This screen looks different?'), '/help#whatsapp'));
   const good = el('div', 'kit-card');
   good.append(el('h3', '', t('Good to know')), el('p', 'small', t('Chats you start are free. She can only write first within 24 hours of your last message.')), el('p', 'small', t('WhatsApp chats pass through Meta, unlike Signal\'s end-to-end path.')));
   col.append(card, good);
   return col;
 }
 
-function termsBox(onTick) {
-  const box = el('div', 'kit-card wa-terms');
-  box.append(el('h3', '', t("About Meta's rules")), el('p', 'small', t('This uses the WhatsApp Business service with a Meta account and number that you own, under Meta\'s WhatsApp Business terms. Since January 2026 those terms forbid offering a general-purpose AI assistant on WhatsApp as a product. Sara is your own companion on your own account, but Meta decides how its terms apply and can restrict an account or number. Use a number you can afford to lose, keep her to you and people you choose, and read the terms.')));
-  const a = el('a', 'small', t('WhatsApp Business Solution Terms ↗'));
-  a.href = TERMS;
-  a.target = '_blank';
-  a.rel = 'noopener';
-  const row = el('label', 'row');
-  const cb = document.createElement('input');
-  cb.type = 'checkbox';
-  cb.id = 'wa-terms-tick';
-  cb.dataset.nodirty = '';
-  cb.addEventListener('change', () => onTick(cb.checked));
-  row.append(cb, el('span', '', t('I understand and want to continue.')));
-  box.append(a, row);
-  return box;
-}
-
+// PL2a (N1, N2, N6): the shared setup card; Start → the short consent step (Sara's own plugin).
 function intro(box, builtin) {
-  const card = el('div', 'kit-card');
-  card.append(el('h3', '', t('Set up WhatsApp')), el('p', '', t("Text her on WhatsApp. Uses Meta's official WhatsApp Business service with an account you own. About 30 minutes, once.")));
-  const ul = el('ul', 'plg-setup');
-  for (const x of [t('A Facebook account (a personal one is fine)'), t('Your phone with WhatsApp'), t('About 30 minutes at a computer'), t('A public https address for Sara (step 7 helps)')]) ul.append(el('li', '', x));
-  card.append(el('h4', '', t('What you need')), ul);
-  const start = btn(t('Start'), '', async () => {
-    localStorage.setItem('wa-terms', new Date().toISOString());
-    await addBuiltin('whatsapp');
-  });
-  start.disabled = true;
-  if (!builtin) start.hidden = true;
-  box.replaceChildren(card, termsBox((on) => (start.disabled = !on)), start, ...(builtin ? [] : [el('p', 'muted small', t("WhatsApp doesn't come with this copy of Sara."))]));
+  box.replaceChildren(setupCard('whatsapp', {
+    builtin,
+    missing: t("WhatsApp doesn't come with this copy of Sara."),
+    onStart: async () => {
+      localStorage.setItem('wa-terms', new Date().toISOString());
+      await startFirstParty('whatsapp', box, { name: 'WhatsApp', reach: t("It can reach graph.facebook.com and your number's messages; nothing else."), reviewCard, full: addBuiltin, done: load });
+    },
+  }));
 }
 
 function summary() {
@@ -369,7 +251,6 @@ function summary() {
       const r = await api('/plugins/whatsapp/send-test', { method: 'POST', body: { companion } }).catch((err) => ({ ok: false, diagnosis: { code: 'UNKNOWN', detail: err.message } }));
       out.replaceChildren(r.ok ? okLine(t('Sent.')) : diagLine(r.diagnosis));
     }),
-    btn(t('Set up again'), 'ghost', () => ((open = 'add'), (view.forceSteps = true), render())),
   );
   card.append(row, out);
   const who = el('div', 'kit-card');
@@ -380,7 +261,7 @@ function summary() {
   }));
   const works = el('div', 'kit-card');
   works.append(el('h3', '', t('While she works')), el('p', 'small', t("WhatsApp can't edit messages, so long jobs get one Working on it line with a Stop button, and then her answer.")), el('pre', 'prog-preview', `${t('Working on it: {step}', { step: t('Working…') })}\n[${t('⏹ Stop')}]`));
-  return [card, who, works];
+  return [foldedLine(t('WhatsApp: working'), () => ((open = 'add'), (view.forceSteps = true), render())), card, who, works];
 }
 
 // Phase 122 (§4.9): a changed WhatsApp identity pauses her tools there until he says it's him.
@@ -408,19 +289,7 @@ function render() {
   if (!view.installed) return;
   if (view.done === view.steps.length && !view.forceSteps) return void box.replaceChildren(...identityCards(), ...summary());
   if (!open || !view.steps.some((s) => s.id === open)) open = (view.steps.find((s) => !s.ok) ?? view.steps[0]).id;
-  const list = el('ol', 'wa-steps');
-  for (const [i, s] of view.steps.entries()) {
-    const [title] = STEPS[s.id]();
-    const li = el('li', `wa-step${s.ok ? ' done' : ''}${s.id === open ? ' open' : ''}`);
-    const head = btn(`${s.ok ? '✓' : s.id === open ? '●' : '○'} ${i + 1} ${title}`, 'wa-step-head', () => ((open = s.id), render()));
-    head.setAttribute('aria-expanded', String(s.id === open));
-    li.append(head);
-    if (s.id === open) li.append(stepBody(s.id));
-    list.append(li);
-  }
-  const left = el('div', 'kit-card wa-stepper');
-  left.append(el('div', 'card-head', ''), list);
-  left.firstChild.append(el('h3', '', t('Set up WhatsApp')), el('span', 'muted small', t('{n} of {total}', { n: view.done, total: view.steps.length })));
+  const left = stepper({ title: t('Set up WhatsApp'), steps: view.steps, open, titleOf: (id) => STEPS[id]()[0], bodyOf: stepBody, onOpen: (id) => ((open = id), render()) });
   const grid = el('div', 'wa-grid');
   grid.append(left, side());
   box.replaceChildren(...identityCards(), grid);

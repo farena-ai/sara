@@ -30,16 +30,20 @@ Your normal password won't work. The app password goes **only into Sara's encryp
 
 ## Setting it up
 
-1. **Settings → Connections → Email → Add email.** Read the card (it connects only to the two
-   servers you type, always encrypted) and press **Install**. On Windows the card says *Not fenced
-   in* and you tick *I trust this plugin's author* (the same rule as every plugin).
-2. **Email settings**: pick the *Mail provider* (it fills in the servers), type *Her email address*,
-   the *Sign-in name* (usually the same address) and the *App password*. **Save**, then switch it
-   on for her in Settings → Plugins. The chip turns *Connected*.
-3. **Test** checks the sign-in to both servers and sends nothing to anyone.
-4. **Link my email**: you get a 6-digit code for 10 minutes. Send her an email **from your own
+Since 2.61.0 the page is a guided setup card: *Settings → Connections → Email → Start*. Each step
+turns ✓ only when Sara has checked it.
+
+1. **Pick her mail provider** (Gmail, iCloud, Fastmail or Other). The card shows where that
+   provider makes an app password, with the link.
+2. **Add Email to Sara**: it comes with Sara, so this is one short step ("It can reach her mail
+   servers (IMAP and SMTP, always encrypted); nothing else.") and *Add email*. The full plugin card
+   is under *Details*; the fingerprint check is the same as for every plugin.
+3. **Her address and app password**: type both and press *Save and check*. The server names fill
+   themselves from the provider (Other: type them in *Email settings*). ✓ when she has signed in.
+4. **Link your address**: you get a 6-digit code for 10 minutes. Send her an email **from your own
    address** with the subject `Link 123456`. She answers "Linked." That mail must pass your
    provider's sender check (below); Sara learns your provider's id from it.
+5. **Test** checks the sign-in to both servers and sends nothing to anyone.
 
 Mail that was already in her mailbox when you set her up is never answered.
 

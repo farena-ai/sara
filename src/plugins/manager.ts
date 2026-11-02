@@ -128,6 +128,13 @@ export interface Review {
   unknownCallTools: string[];
   /** Phase 117 (P3): it comes with Sara (the card says "Comes with Sara · made by the Sara team"). */
   builtin?: boolean;
+  /**
+   * PL2a (POLISH2 N2, Q3): Sara's own plugin, proven by where Sara read it, never by what it says:
+   * staged from the plugins folder that ships with Sara (origin `builtin`, folder name = manifest id),
+   * or its files' hash is a `first-party` entry in the signature-checked Sara Store list. Only then
+   * may the page show the short consent step and approve with `consent` instead of the trust tick.
+   */
+  firstParty?: boolean;
   /** Phase 124: the files match a version in the verified Sara Store list (the card shows the strip). */
   store?: StoreStrip;
   /** §2.1.1: the shared proposal card's shape. */
@@ -515,11 +522,27 @@ export class PluginManager {
         const strip = this.storeMatch?.(sha);
         return strip && strip.item === manifest.id ? { store: strip } : {};
       })(),
+      ...(this.#firstParty(origin, manifest, sha) ? { firstParty: true } : {}),
       unknownCallTools,
       proposal: { kind: 'proposal', source: 'plugin', what: { key: existing ? (added.length ? '{name} {version} asks for more' : '{name} {version}: same permissions') : 'Add {name} {version}?', params: { name: manifest.name, version: manifest.version } }, can: permissionLines(manifest), buttons: ['use', 'cancel'] },
     };
     this.#staged.set(id, { review, files: inner, expires: Date.now() + REVIEW_MS });
     return review;
+  }
+
+  /** PL2a (N2): see Review.firstParty. A zip, a git address or a server folder never is, whatever its manifest claims. */
+  #firstParty(origin: Origin, manifest: PluginManifest, sha: string): boolean {
+    if (origin.kind === 'builtin') return origin.where === manifest.id && /^[a-z0-9][a-z0-9-]{0,46}$/.test(origin.where);
+    const strip = this.storeMatch?.(sha);
+    return Boolean(strip && strip.trust === 'first-party' && strip.item === manifest.id && !strip.yanked);
+  }
+
+  /**
+   * The fingerprint check: the files about to be written are the files that were reviewed (same
+   * sha256 over every path and byte). Runs for every install and update, first-party or not.
+   */
+  checkFingerprint(files: PackageFile[], sha: string): void {
+    if (hashFiles(files) !== sha) throw new ManifestError("The plugin's files changed after you looked at them. Add it again.");
   }
 
   review(id: string): Review | undefined {
@@ -531,11 +554,14 @@ export class PluginManager {
   }
 
   /** The owner pressed Install (or Update) on the review card. */
-  async approve(reviewId: string, o: { trust?: boolean } = {}): Promise<PluginRow> {
+  async approve(reviewId: string, o: { trust?: boolean; consent?: boolean } = {}): Promise<PluginRow> {
     const s = this.#staged.get(reviewId);
     if (!s || s.expires < Date.now()) throw new ManifestError('That review has expired. Add the plugin again.');
     const { review, files } = s;
-    if (review.needsTrust && o.trust !== true) throw new ManifestError("This computer can't fence the plugin in. Tick \"I trust this plugin's author\" to add it.");
+    // PL2a (N2): the short consent step counts as the trust tick only for Sara's own plugins.
+    const trusted = o.trust === true || (o.consent === true && review.firstParty === true);
+    if (review.needsTrust && !trusted) throw new ManifestError("This computer can't fence the plugin in. Tick \"I trust this plugin's author\" to add it.");
+    this.checkFingerprint(files, review.sha);
     const m = review.manifest;
     const existing = this.store.get(m.id);
     const dest = join(this.pluginsDir, `${m.id}@${m.version}`);

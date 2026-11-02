@@ -29,13 +29,29 @@ the connection to it. Design: [design/BRIDGES3.md](design/BRIDGES3.md) §4.
 
 ## In Sara
 
-1. *Settings → Connections → Signal → Add Signal*. Read the card (*Comes with Sara*; it connects to a
-   program on this computer at the address you give it), press *Install* (on Windows tick *I trust
-   this plugin's author*), and switch it on for her (Settings → Plugins). It runs for one companion.
-2. *Signal settings*: the address (default `127.0.0.1:7583`) and her number. Press *Test*: each step
-   gets a ✓ or the fix. Nothing is sent to anyone.
-3. *Link my Signal* gives a 6-digit code for 10 minutes. Send `/link 123456` to her number from your
+Since 2.61.0 the page is a guided setup card, like WhatsApp's: *Settings → Connections → Signal →
+Start*. Six steps, each turning ✓ only when Sara has checked it:
+
+1. **Get signal-cli**: pick your computer (Windows, macOS, Linux or Docker) for the exact way, each
+   line with *Copy* (Windows: Java 25 with `winget`, then the release download; macOS: `brew install
+   signal-cli`; Linux: the native release; Docker: publish the port to `127.0.0.1` only).
+2. **Register her number, or link to your phone**: type her number and copy the `register` and
+   `verify` lines (the captcha page is linked), or run `signal-cli link -n Sara` and paste what it
+   prints: Sara draws it as a QR code to scan in Signal → *Linked devices* (nothing is kept).
+3. **Start it**: the exact `daemon --tcp 127.0.0.1:7583 --receive-mode=manual` command for this
+   computer, with *Copy*. *Check* asks signal-cli for its version (one call, this computer only)
+   and steps 1–3 turn ✓. If it can't: "Sara can't reach signal-cli at …" with the fix, and under
+   *It won't start?* the three usual messages (no Java, address already in use, not registered).
+4. **Add Signal to Sara**: it comes with Sara, so this is one short step ("It can reach signal-cli
+   on this computer, at the address in step 3; nothing else.") and *Add Signal*. The full plugin
+   card is under *Details*. Sara proves it is her own plugin herself (it comes from the plugins
+   folder that ships with Sara); the files' fingerprint is checked as for every plugin.
+5. **Link your Signal**: a 6-digit code for 10 minutes. Send `/link 123456` to her number from your
    own Signal. She answers *Linked*. Your Signal account id and your safety number are remembered.
+6. **Test**: each part gets a ✓ or the fix. Nothing is sent to anyone.
+
+*Signal settings* (below the card) keeps every option: the address, her number, the home-network
+switch, read receipts and typing.
 
 ## What she does there
 

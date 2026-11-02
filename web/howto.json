@@ -880,11 +880,11 @@
    "id": "connect",
    "q": "How do I get her on Telegram?",
    "steps": [
-    "Make a bot with @BotFather and copy its token.",
-    "Paste it in Bot token.",
+    "Press Start and open @BotFather.",
+    "Send /newbot and paste the key it gives you.",
     "Press Link my Telegram and send the bot the code."
    ],
-   "show": "#tg-link"
+   "show": "#tg-setup"
   },
   {
    "id": "groups",
@@ -920,8 +920,8 @@
    "id": "connect",
    "q": "How do I get her on Signal?",
    "steps": [
-    "Start signal-cli for her own number on this computer.",
-    "Press Add Signal, read its card and install it.",
+    "Press Start and follow the six steps: each turns ✓ when Sara has checked it.",
+    "Step 3 gives the exact signal-cli command for this computer.",
     "Press Link my Signal and send her the code."
    ],
    "show": "#sig-chip"
@@ -940,8 +940,8 @@
    "id": "connect",
    "q": "How do I give her an email address?",
    "steps": [
-    "Make an address for her and an app password for it.",
-    "Press Add email, read its card and install it.",
+    "Press Start and pick her mail provider.",
+    "Press Add email, then type her address and the app password.",
     "Press Link my email and send her the code as the subject."
    ],
    "show": "#em-chip"

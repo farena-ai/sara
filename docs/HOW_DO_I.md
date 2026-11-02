@@ -715,8 +715,8 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 **How do I get her on Telegram?**
 
-1. Make a bot with @BotFather and copy its token.
-2. Paste it in Bot token.
+1. Press Start and open @BotFather.
+2. Send /newbot and paste the key it gives you.
 3. Press Link my Telegram and send the bot the code.
 
 **How do I add her to a group?**
@@ -741,8 +741,8 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 **How do I get her on Signal?**
 
-1. Start signal-cli for her own number on this computer.
-2. Press Add Signal, read its card and install it.
+1. Press Start and follow the six steps: each turns ✓ when Sara has checked it.
+2. Step 3 gives the exact signal-cli command for this computer.
 3. Press Link my Signal and send her the code.
 
 **Why did she stop using her tools on Signal?**
@@ -754,8 +754,8 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 **How do I give her an email address?**
 
-1. Make an address for her and an app password for it.
-2. Press Add email, read its card and install it.
+1. Press Start and pick her mail provider.
+2. Press Add email, then type her address and the app password.
 3. Press Link my email and send her the code as the subject.
 
 **Why didn't she answer my email?**

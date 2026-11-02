@@ -25,8 +25,8 @@ switched off later. That's why step 3 makes a fresh room with encryption off.
 
 ## The five steps
 
-*Settings → Connections → Matrix*, tick the box, press **Start** and read the plugin's card, then
-**Install**. Each step turns ✓ only when Sara has checked it.
+*Settings → Connections → Matrix*, tick the box and press **Start**. It comes with Sara, so after **Start** there is one short step: what it can reach, and **Add Matrix** (the full plugin card is under *Details*; Sara proves it is her own plugin herself, and the files' fingerprint is checked as for every plugin). Each step
+turns ✓ only when Sara has checked it.
 
 1. **Make her a Matrix account.**
    1. Open app.element.io in a private browser window.

@@ -1,6 +1,10 @@
 /* Phase 113: the check-in notice, the hub's notices, Settings → Privacy, the report sheet and My reports (web/hub.js). Theme tokens only. */
 .hub-note { position: fixed; z-index: 61; left: 50%; bottom: calc(16px + var(--safe-b)); transform: translateX(-50%); width: min(620px, calc(100vw - 24px)); padding: 12px 14px; background: var(--glass-strong, var(--surface-2)); backdrop-filter: var(--glass-filter); color: var(--text-1); border: 1px solid var(--hairline-strong); border-radius: 16px; box-shadow: var(--shadow-2); font-size: 14px; line-height: 1.45; }
 .hub-note[hidden] { display: none; }
+/* PL2a (POLISH2 N26): the check-in note in the page flow (Today's top, or right above the message box), never over it. */
+.hub-note.hub-note-inline { position: static; z-index: auto; transform: none; left: auto; bottom: auto; width: auto; margin: 0 0 var(--s-3, 12px); box-shadow: none; backdrop-filter: none; background: var(--surface-1); }
+#chat-checkin .hub-note.hub-note-inline { width: min(860px, calc(100% - 24px)); margin: 4px auto; box-sizing: border-box; }
+.checkin-slot:empty { display: none; }
 .hub-note p { margin: 0 0 10px; }
 .hub-note-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .hub-note-actions button { min-height: 44px; }

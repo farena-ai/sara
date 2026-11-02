@@ -14,7 +14,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1842%20passing-brightgreen" alt="1842 tests passing">
+  <img src="https://img.shields.io/badge/tests-1851%20passing-brightgreen" alt="1851 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -114,9 +114,9 @@ Des tutoriels d'une minute, enregistrés sur un serveur de test avec un modèle 
 
 ## Quoi de neuf
 
+- **2.61** · Configuration des applis de chat simplifiée : une carte guidée pour WhatsApp, Matrix, iMessage, Signal, e-mail et Telegram, chaque étape vérifiée, avec des solutions claires ; les plugins de Sara n'ont besoin que d'un OK, sans avertissement développeur.
 - **2.60** · Packs de compagnes : partagez le caractère, l'apparence, la voix et les compétences de départ d'une compagne en fichier ou sur la Sara Store, sans jamais partager vos souvenirs ni vos discussions ; les cartes de personnage s'importent aussi.
 - **2.59** · « Hey Sara » : dites son nom pour parler mains libres dans l'appli Windows (un petit modèle sur votre ordinateur n'écoute que ça), un raccourci Parler partout, et l'écoute et les voix locales sous Windows.
-- **2.58** · En obtenir plus : parcourez la Sara Store dans Sara, installez en un clic via la carte de vérification habituelle, voyez exactement ce que change une mise à jour et proposez vos propres modules avec `sara pack` et `sara submit`, sans GitHub.
 
 <details>
 <summary><b>Historique des versions</b> : ce que chaque version depuis la 2.4 a apporté</summary>
@@ -420,8 +420,8 @@ qu'aucun test ne vérifiait. Ce qu'elle apporte aujourd'hui, c'est la manière d
 lance les tests, demande avant les étapes risquées, montre ce qui a tourné), pas un meilleur score
 sur ces jeux. Détails, résultats par tâche et comment relancer : [docs/RESULTS.md](docs/RESULTS.md).
 
-En plus, `npm run check` : une vérification des types et 1857 tests automatiques avec un faux modèle
-scripté (sans réseau, sans GPU) : 1842 passent sous Windows, et les 8 autres sont des tests
+En plus, `npm run check` : une vérification des types et 1866 tests automatiques avec un faux modèle
+scripté (sans réseau, sans GPU) : 1851 passent sous Windows, et les 8 autres sont des tests
 d'isolation propres à Linux, exécutés sur un serveur Linux.
 
 ## Comparaison

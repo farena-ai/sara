@@ -14,7 +14,7 @@ para la web, Windows, Mac y el móvil.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1842%20passing-brightgreen" alt="1842 tests passing">
+  <img src="https://img.shields.io/badge/tests-1851%20passing-brightgreen" alt="1851 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -114,9 +114,9 @@ Guías de un minuto, grabadas en un servidor de prueba con un modelo local (en i
 
 ## Novedades
 
+- **2.61** · Configurar apps de chat es más fácil: una tarjeta guiada para WhatsApp, Matrix, iMessage, Signal, correo y Telegram, cada paso comprobado y con soluciones claras; los plugins propios de Sara solo necesitan un OK, no un aviso para desarrolladores.
 - **2.60** · Paquetes de compañeras: comparte el carácter, el aspecto, la voz y las habilidades de inicio de una compañera como archivo o en la Sara Store, sin compartir nunca tus recuerdos ni tus chats; también se importan tarjetas de personaje.
 - **2.59** · «Hey Sara»: di su nombre para hablar sin manos en la app de Windows (un pequeño modelo en tu ordenador solo escucha eso), un atajo para hablar en todas partes, y oído y voces locales en Windows.
-- **2.58** · Conseguir más: explora la Sara Store dentro de Sara, instala con un clic a través de la tarjeta de revisión de siempre, mira exactamente qué cambia una actualización y envía tus propios complementos con `sara pack` y `sara submit`; sin GitHub.
 
 <details>
 <summary><b>Historial de versiones</b>: lo que trajo cada versión desde la 2.4</summary>
@@ -415,8 +415,8 @@ prueba comprobaba. Lo que aporta hoy es la forma de trabajar (ejecuta las prueba
 antes de pasos arriesgados, muestra lo que se ejecutó), no una puntuación más alta en estos
 conjuntos. Detalles, resultados por tarea y cómo repetirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-Además, `npm run check`: una comprobación de tipos y 1857 pruebas automáticas con un modelo falso
-programado (sin red, sin GPU): 1842 pasan en Windows y las otras 8 son pruebas del aislamiento solo
+Además, `npm run check`: una comprobación de tipos y 1866 pruebas automáticas con un modelo falso
+programado (sin red, sin GPU): 1851 pasan en Windows y las otras 8 son pruebas del aislamiento solo
 para Linux, que se ejecutan en un servidor Linux.
 
 ## Cómo se compara Sara

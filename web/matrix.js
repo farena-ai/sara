@@ -6,35 +6,11 @@
 // summary, Test, her rooms (Answer here, Leave; encrypted ones under *Rooms she can't read*), Log
 // her out. Her password is typed once for *Log her in*, sent once and forgotten.
 import { t } from './naming.js';
-import { addBuiltin } from './plugins.js';
+import { addBuiltin, reviewCard } from './plugins.js';
+import { api, btn, checking, copyRow, diagLine as diagWith, el, enc, field, foldedLine, link, okLine, pathList, setupCard, startFirstParty, stepNav, stepper, testList, tick, tip, useTranslator } from './setup-card.js';
 
+useTranslator(t);
 const $ = (sel) => document.querySelector(sel);
-function el(tag, cls, text) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text !== undefined) e.textContent = text;
-  return e;
-}
-function btn(label, cls, onClick) {
-  const b = el('button', cls, label);
-  b.type = 'button';
-  b.addEventListener('click', () => void onClick(b));
-  return b;
-}
-function tip(text) {
-  const b = el('button', 'tip', '?');
-  b.type = 'button';
-  b.dataset.tip = text;
-  b.setAttribute('aria-label', text);
-  return b;
-}
-async function api(path, opts = {}) {
-  const res = await fetch(`/api${path}`, { method: opts.method ?? 'GET', headers: opts.body !== undefined ? { 'content-type': 'application/json' } : {}, body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-  return data;
-}
-const enc = encodeURIComponent;
 const ELEMENT = 'https://app.element.io';
 
 /** Every diagnosis code (§7.4): the title, then the fix. */
@@ -69,55 +45,10 @@ let open = '';
 let companion = 'main';
 let code = '';
 
-function diagLine(d) {
-  const box = el('div', 'wa-diag');
-  box.setAttribute('role', 'status');
-  if (!d) return box;
-  const [title, fix] = (DIAG[d.code] ?? DIAG.UNKNOWN)();
-  box.dataset.state = 'warn';
-  box.append(el('strong', '', title), el('span', '', fix));
-  if (d.detail) {
-    const det = el('details', 'wa-details');
-    det.append(el('summary', '', t('Details')), el('code', '', `${d.code} ${d.detail}`.trim()));
-    box.append(det);
-  }
-  return box;
-}
-function okLine(text) {
-  const box = el('div', 'wa-diag');
-  box.setAttribute('role', 'status');
-  box.dataset.state = 'ok';
-  box.textContent = `✓ ${text}`;
-  return box;
-}
-function field(id, label, tipText, o = {}) {
-  const row = el('label', 'plg-field');
-  const head = el('span', 'plg-field-name');
-  head.append(el('span', '', label), tip(tipText));
-  const input = document.createElement('input');
-  input.id = id;
-  input.type = o.type ?? 'text';
-  input.autocomplete = o.type === 'password' ? 'new-password' : 'off';
-  input.spellcheck = false;
-  input.dataset.nodirty = '';
-  if (o.value) input.value = o.value;
-  if (o.placeholder) input.placeholder = o.placeholder;
-  row.append(head, input);
-  return row;
-}
-function copyRow(label, value, tipText) {
-  const row = el('div', 'wa-copy');
-  const head = el('span', 'plg-field-name');
-  head.append(el('span', '', label), tip(tipText));
-  row.append(head, el('code', 'wa-mono', value || '—'), btn(t('Copy'), 'ghost', async (b) => {
-    await navigator.clipboard?.writeText(value).catch(() => undefined);
-    b.textContent = t('Copied');
-  }));
-  return row;
-}
+const diagLine = (d) => diagWith(d, DIAG);
 
 async function check(step, out) {
-  out.replaceChildren(el('span', 'muted small', t('Checking…')));
+  checking(out);
   try {
     const r = await api('/plugins/matrix/check', { method: 'POST', body: { companion, step } });
     out.replaceChildren(r.ok ? okLine(t('Checked')) : diagLine(r.diagnosis));
@@ -138,10 +69,7 @@ function stepBody(id) {
   const out = el('div', 'wa-check');
   const st = view.steps.find((s) => s.id === id);
   const [, path] = STEPS[id]();
-  const clicks = String(path).split(' → ').map((x) => x.trim()).filter(Boolean);
-  const list = el('ol', 'wa-path');
-  for (const c of clicks) list.append(el('li', '', c));
-  body.append(clicks.length > 1 ? list : el('p', 'wa-path', path));
+  body.append(pathList(path));
   if (id === 'account') body.append(el('p', 'muted small', t('Use a separate account for her, not your own.')));
   if (id === 'login') {
     if (view.me) body.append(okLine(t('Logged in as {mxid} (device {device})', { mxid: view.me, device: 'Sara (bot)' })));
@@ -149,7 +77,7 @@ function stepBody(id) {
       field('mx-id', t('Her Matrix ID'), t('Her own account, like @sara-frank:matrix.org. Make a separate account for her, not your own.'), { value: view.mxid, placeholder: '@sara-frank:matrix.org' }),
       field('mx-pass', t('Her password'), t("Typed once to log her in. Sara sends it to her server once and doesn't keep it anywhere."), { type: 'password' }),
       btn(t('Log her in'), '', async () => {
-        out.replaceChildren(el('span', 'muted small', t('Checking…')));
+        checking(out);
         const pass = $('#mx-pass');
         try {
           const r = await api('/plugins/matrix/login', { method: 'POST', body: { companion, mxid: $('#mx-id').value.trim(), password: pass.value } });
@@ -203,27 +131,14 @@ function stepBody(id) {
   }
   if (st?.diagnosis && !out.childNodes.length) out.append(diagLine(st.diagnosis));
   body.append(out);
-  const nav = el('div', 'wa-nav');
-  const ids = view.steps.map((s) => s.id);
-  const i = ids.indexOf(id);
-  if (i > 0) nav.append(btn(`← ${t('Back')}`, 'ghost', () => ((open = ids[i - 1]), render())));
-  if (i < ids.length - 1) nav.append(btn(t('Next'), st?.ok || id === 'account' ? '' : 'ghost', () => ((open = ids[i + 1]), render())));
-  body.append(nav);
+  body.append(stepNav(view.steps.map((s) => s.id), id, { primary: st?.ok || id === 'account' }, (to) => ((open = to), render())));
   return body;
 }
 
 async function test(out) {
-  out.replaceChildren(el('span', 'muted small', t('Checking…')));
+  checking(out);
   const r = await api('/plugins/matrix/check', { method: 'POST', body: { companion, step: 'test' } }).catch((err) => ({ ok: false, steps: [{ label: err.message, ok: false }] }));
-  const ul = el('ul', 'wa-test');
-  let first = true;
-  for (const s of r.steps ?? []) {
-    const li = el('li', s.ok ? 'ok' : first ? 'bad' : 'grey', `${s.ok ? '✓' : '✕'} ${s.label}`);
-    if (!s.ok && first && s.fix) li.append(el('span', 'muted small', ` ${s.fix}`));
-    if (!s.ok) first = false;
-    ul.append(li);
-  }
-  out.replaceChildren(ul);
+  out.replaceChildren(testList(r));
   if (r.ok) await load();
 }
 
@@ -232,50 +147,24 @@ function side() {
   const card = el('div', 'kit-card');
   const [, path, url] = STEPS[open]?.() ?? [];
   card.append(el('h3', '', t('The screen you need')), el('p', 'small', path ?? ''));
-  if (url) {
-    const a = el('a', 'button-link', t('Open Element ↗'));
-    a.href = url;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    card.append(a);
-  }
-  const diff = el('a', 'small', t('This screen looks different?'));
-  diff.href = '/help#matrix';
-  diff.target = '_blank';
-  card.append(diff);
+  if (url) card.append(link(t('Open Element ↗'), url, 'button-link'));
+  card.append(link(t('This screen looks different?'), '/help#matrix'));
   const good = el('div', 'kit-card');
   good.append(el('h3', '', t('Good to know')), el('p', 'small', t('Rooms with her are not end-to-end encrypted: whoever runs the servers can read them. For private chats use Signal.')), el('p', 'small', t('Commands work with her name first too: Sara help, Sara new.')));
   col.append(card, good);
   return col;
 }
 
-function termsBox(onTick) {
-  const box = el('div', 'kit-card wa-terms');
-  box.append(el('h3', '', t('About Matrix')), el('p', 'small', t("Her room with you is not end-to-end encrypted, so whoever runs the servers (matrix.org, or yours) can read it. Use a separate account for her, and follow your server's rules.")));
-  const row = el('label', 'row');
-  const cb = document.createElement('input');
-  cb.type = 'checkbox';
-  cb.id = 'mx-terms-tick';
-  cb.dataset.nodirty = '';
-  cb.addEventListener('change', () => onTick(cb.checked));
-  row.append(cb, el('span', '', t('I understand and want to continue.')));
-  box.append(row);
-  return box;
-}
-
+// PL2a (N1, N2): the shared setup card; Start → the short consent step (Sara's own plugin).
 function intro(box, builtin) {
-  const card = el('div', 'kit-card');
-  card.append(el('h3', '', t('Set up Matrix')), el('p', '', t('Talk to her in Element or any Matrix app, through a Matrix account of her own. Free, about 15 minutes, once.')));
-  const ul = el('ul', 'plg-setup');
-  for (const x of [t('An email address for her new account (matrix.org asks for one)'), t('Your own Matrix account, in Element'), t('About 15 minutes at a computer')]) ul.append(el('li', '', x));
-  card.append(el('h4', '', t('What you need')), ul);
-  const start = btn(t('Start'), '', async () => {
-    localStorage.setItem('mx-terms', new Date().toISOString());
-    await addBuiltin('matrix');
-  });
-  start.disabled = true;
-  if (!builtin) start.hidden = true;
-  box.replaceChildren(card, termsBox((on) => (start.disabled = !on)), start, ...(builtin ? [] : [el('p', 'muted small', t("Matrix doesn't come with this copy of Sara."))]));
+  box.replaceChildren(setupCard('matrix', {
+    builtin,
+    missing: t("Matrix doesn't come with this copy of Sara."),
+    onStart: async () => {
+      localStorage.setItem('mx-terms', new Date().toISOString());
+      await startFirstParty('matrix', box, { name: 'Matrix', reach: t("It can reach her Matrix server and the rooms she is invited to; nothing else."), reviewCard, full: addBuiltin, done: load });
+    },
+  }));
 }
 
 const placeWord = (p) => ({ 'owner-dm': t('your room with her'), dm: t('a private room'), room: t('a group room'), encrypted: t('encrypted') })[p] ?? p;
@@ -317,7 +206,6 @@ function summary() {
   const row = el('div', 'add-row');
   row.append(
     btn(t('Test'), '', () => test(out)),
-    btn(t('Set up again'), 'ghost', () => ((open = 'account'), (view.forceSteps = true), render())),
     btn(t('Log her out'), 'ghost', async (b) => {
       if (!confirm(t('Log her out of Matrix? Her login key is ended at her server and removed from Sara.'))) return;
       b.disabled = true;
@@ -328,7 +216,7 @@ function summary() {
   card.append(row, out, el('p', 'muted small', t('Rooms with her are not end-to-end encrypted: whoever runs the servers can read them. For private chats use Signal.')));
   const who = el('div', 'kit-card');
   who.append(el('h3', '', t('Who can reach her')), el('p', 'small', view.others ? t('You and the Matrix IDs or servers on your list, as partners: no tools, nothing private, the AI notice first.') : t('Only you. Invites from anyone else are declined.')));
-  return [card, roomsCard(), who];
+  return [foldedLine(t('Matrix: working'), () => ((open = 'account'), (view.forceSteps = true), render())), card, roomsCard(), who];
 }
 
 function render() {
@@ -341,19 +229,7 @@ function render() {
   if (!view.installed) return;
   if (all && !view.forceSteps) return void box.replaceChildren(...summary());
   if (!open || !view.steps.some((s) => s.id === open)) open = (view.steps.find((s) => !s.ok) ?? view.steps[0]).id;
-  const list = el('ol', 'wa-steps');
-  for (const [i, s] of view.steps.entries()) {
-    const [title] = STEPS[s.id]();
-    const li = el('li', `wa-step${s.ok ? ' done' : ''}${s.id === open ? ' open' : ''}`);
-    const head = btn(`${s.ok ? '✓' : s.id === open ? '●' : '○'} ${i + 1} ${title}`, 'wa-step-head', () => ((open = s.id), render()));
-    head.setAttribute('aria-expanded', String(s.id === open));
-    li.append(head);
-    if (s.id === open) li.append(stepBody(s.id));
-    list.append(li);
-  }
-  const left = el('div', 'kit-card wa-stepper');
-  left.append(el('div', 'card-head', ''), list);
-  left.firstChild.append(el('h3', '', t('Set up Matrix')), el('span', 'muted small', t('{n} of {total}', { n: view.done, total: view.steps.length })));
+  const left = stepper({ title: t('Set up Matrix'), steps: view.steps, open, titleOf: (id) => STEPS[id]()[0], bodyOf: stepBody, onOpen: (id) => ((open = id), render()) });
   const grid = el('div', 'wa-grid');
   grid.append(left, side());
   box.replaceChildren(grid);

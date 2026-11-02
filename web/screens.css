@@ -361,3 +361,31 @@ dialog .saved-tag { color: var(--success); }
   .wa-step-body { padding-inline-start: 0; }
   .wa-nav { padding: var(--s-2, 8px) 0 var(--safe-b); }
 }
+
+/* PL2a (POLISH2 §4.1, N1, N2, N8): the one setup card (web/setup-card.js) for every chat app. */
+.setup-card { display: grid; gap: var(--s-2, 8px); justify-items: start; }
+.setup-card > h3, .setup-card > p, .setup-card > h4 { margin: 0; }
+.setup-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s-1, 4px) var(--s-3, 12px); margin: 0; }
+.setup-facts dt { color: var(--text-2); }
+.setup-facts dd { margin: 0; overflow-wrap: anywhere; }
+.setup-rules { display: grid; gap: var(--s-1, 4px); justify-self: stretch; padding: var(--s-2, 8px) var(--s-3, 12px); border-radius: 8px; border-inline-start: 3px solid var(--warn); background: var(--surface-1); }
+.setup-rules h4, .setup-rules ul { margin: 0; }
+.setup-rules ul { padding-inline-start: 1.2em; display: grid; gap: 2px; }
+.setup-card > button, .setup-consent button, .setup-folded > button, .setup-os > button { min-height: 44px; }
+.setup-consent { display: grid; gap: var(--s-2, 8px); justify-items: start; }
+.setup-consent > h3, .setup-consent > p { margin: 0; }
+.setup-consent-details { justify-self: stretch; }
+.setup-folded { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2, 8px); color: var(--success); }
+.setup-folded > span { overflow-wrap: anywhere; min-width: 0; }
+.setup-os { display: flex; flex-wrap: wrap; gap: var(--s-1, 4px); }
+.setup-qr { width: min(240px, 100%); height: auto; border-radius: 8px; }
+.setup-host:empty { display: none; }
+.setup-host { margin-bottom: var(--s-3, 12px); }
+.setup-more > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+.setup-more[open] > summary { margin-bottom: var(--s-2, 8px); }
+/* N8: one card level on phones: the cards inside a page's card lose their own frame. */
+@media (max-width: 480px) {
+  .wa-box .kit-card, .plg-signal .kit-card, .setup-host .kit-card { border: 0; background: none; box-shadow: none; padding-inline: 0; }
+  .wa-grid { gap: var(--s-2, 8px); }
+}
+
