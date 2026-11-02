@@ -1678,6 +1678,10 @@
     "ab-store": [
       "Add-ons from the Sara Store: plugins, skills and tool servers checked by the Sara team. Each shows what it can do before you add it, and nothing switches on by itself.",
       "plugins"
+    ],
+    "her-hey": [
+      "Say “Hey Sara” and talk, hands-free, in the Windows app (on Android, use the Talk button for now). A small model on the device listens only for her words; nothing is sent until then. Off until you switch it on, per device.",
+      "voice"
     ]
   }
 }

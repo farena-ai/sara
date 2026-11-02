@@ -172,7 +172,7 @@ class Semaphore {
 
 export class LocalVoiceEngine {
   readonly dir: string;
-  readonly manifest: VoiceManifest | undefined;
+  manifest: VoiceManifest | undefined;
   readonly #tmp: string;
   readonly #run: Runner;
   readonly #jobs: Semaphore;
@@ -189,6 +189,12 @@ export class LocalVoiceEngine {
     this.#threads = opts.threads ?? Math.min(4, Math.max(2, Math.floor(availableParallelism() / 4)));
   }
 
+  /** Phase 126 part C: reads voice.json again (after `sara voice install` or the Settings button). */
+  reload(): void {
+    const file = join(this.dir, 'voice.json');
+    this.manifest = existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as VoiceManifest) : undefined;
+  }
+
   get available(): { stt: boolean; tts: boolean } {
     return { stt: Boolean(this.manifest?.stt), tts: Boolean(this.manifest?.voices.length) };
   }
@@ -199,8 +205,16 @@ export class LocalVoiceEngine {
   }
 
   #abs = (p: string) => (p.startsWith('/') || /^[A-Za-z]:/.test(p) ? p : join(this.dir, p));
-  #bin = (name: string) => join(this.#abs(this.manifest!.sherpa), 'bin', name);
-  #env = (): NodeJS.ProcessEnv => ({ PATH: process.env.PATH ?? '/usr/bin:/bin', LD_LIBRARY_PATH: join(this.#abs(this.manifest!.sherpa), 'lib'), HOME: this.#tmp });
+  // Phase 126 part C: on Windows the tools are .exe files with their DLLs beside them (bin/); on a Mac the libraries are in lib/.
+  #bin = (name: string) => {
+    const plain = join(this.#abs(this.manifest!.sherpa), 'bin', name);
+    return process.platform === 'win32' && existsSync(`${plain}.exe`) ? `${plain}.exe` : plain;
+  };
+  #env = (): NodeJS.ProcessEnv => {
+    const lib = join(this.#abs(this.manifest!.sherpa), 'lib');
+    if (process.platform === 'win32') return { PATH: `${join(this.#abs(this.manifest!.sherpa), 'bin')};${process.env.PATH ?? ''}`, SystemRoot: process.env.SystemRoot ?? 'C:\\Windows', TEMP: this.#tmp, TMP: this.#tmp, USERPROFILE: this.#tmp };
+    return { PATH: process.env.PATH ?? '/usr/bin:/bin', LD_LIBRARY_PATH: lib, ...(process.platform === 'darwin' ? { DYLD_LIBRARY_PATH: lib } : {}), HOME: this.#tmp };
+  };
 
   #tmpFile(ext: string): string {
     mkdirSync(this.#tmp, { recursive: true, mode: 0o700 });

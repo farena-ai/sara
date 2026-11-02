@@ -985,6 +985,13 @@ public class MainActivity extends Activity {
             intent.setAction(null);
             return true;
         }
+        // Phase 126: the Talk to Sara tile and the "turn it back on" notification (a visible screen starts the service).
+        if (WakeService.ACTION_TALK.equals(intent.getAction()) || WakeService.ACTION_RESUME.equals(intent.getAction())) {
+            if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO}, 126);
+            else WakeService.start(this, intent.getAction());
+            intent.setAction(null);
+            return false;
+        }
         // Phase 72: opened as the phone's assistant: straight into a voice turn (or the text box).
         if (Intent.ACTION_ASSIST.equals(intent.getAction())) {
             pendingRing = "window.saraAssist&&window.saraAssist()";
@@ -1207,6 +1214,41 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void look(String theme, String top, String bottom, boolean cover) {
             runOnUiThread(() -> pageLook(theme, top, bottom, cover));
+        }
+
+        /**
+         * Phase 126: Settings → Hey Sara on this phone. op state | set (key on/chime/personal/onlyCharging)
+         * | try | remove. The switch starts the service here, while the page is on screen.
+         */
+        @JavascriptInterface
+        public String wake(String op, String json) {
+            android.content.SharedPreferences p = WakeService.prefs(MainActivity.this);
+            try {
+                org.json.JSONObject a = new org.json.JSONObject(json == null || json.isEmpty() ? "{}" : json);
+                if ("set".equals(op)) {
+                    String key = a.optString("key"), v = a.optString("value");
+                    if ("on".equals(key)) {
+                        if ("1".equals(v)) {
+                            if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) runOnUiThread(() -> requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO}, 126));
+                            else runOnUiThread(() -> WakeService.start(MainActivity.this, WakeService.ACTION_START));
+                            p.edit().putBoolean("on", true).apply();
+                        } else {
+                            p.edit().putBoolean("on", false).apply();
+                            runOnUiThread(() -> WakeService.start(MainActivity.this, WakeService.ACTION_STOP));
+                        }
+                    } else if ("chime".equals(key) || "personal".equals(key) || "onlyCharging".equals(key)) p.edit().putBoolean(key, "1".equals(v)).apply();
+                    else if ("sensitivity".equals(key)) p.edit().putString("sensitivity", v).apply();
+                }
+                org.json.JSONObject s = new org.json.JSONObject();
+                s.put("available", true).put("on", p.getBoolean("on", false)).put("state", WakeService.state).put("label", android.os.Build.MODEL).put("platform", "android");
+                // The keyword model comes with a later 2.59.x app: Talk and the tile work without it.
+                s.put("pack", new org.json.JSONObject().put("installed", false).put("mb", 5));
+                s.put("sensitivity", p.getString("sensitivity", "normal")).put("chime", p.getBoolean("chime", true)).put("personal", p.getBoolean("personal", true)).put("onlyCharging", p.getBoolean("onlyCharging", false));
+                if ("try".equals(op)) return new org.json.JSONObject().put("hits", new org.json.JSONArray()).toString();
+                return s.toString();
+            } catch (org.json.JSONException e) {
+                return "null";
+            }
         }
 
         /** Asks the home screen to place her widget; false if this launcher can't (then: by hand). */

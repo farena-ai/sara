@@ -5,6 +5,25 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.59.0 (2026-11-02): "Hey Sara" (Phase 126)
+
+- **Say her name and talk, in the Windows app.** A 5 MB keyword model (sherpa-onnx, Apache-2.0) runs on
+  your computer and listens only for "Hey Sara" (default: "Hey" and her own name), or up to 4 phrases of
+  your own, each for one companion. Nothing is sent until the phrase; recording starts after it with no
+  buffer from before, the clip is transcribed in memory and never kept, and the tray icon's dot shows
+  when she's listening. "Stop" cuts her off. Off by default; only a device can switch itself on, any
+  device or the owner can switch it off; it pauses while the screen is locked; when several devices hear
+  you, the first to claim it answers. Each exchange is an ordinary turn in her "Hey Sara" conversation:
+  the AI notice is spoken first, crisis resources are read in full, the minors block applies, and a
+  desktop counts as a shared room unless you mark it *Just mine*. Settings → Her → *Hey Sara*.
+- **Talk to Sara without the wake word:** Ctrl+Alt+Space or the tray item on Windows; on Android a
+  microphone notification with Talk, Pause and Stop, and a Quick Settings tile. (Android's always-on
+  detector and the Mac and Linux apps come in a later 2.59.x.)
+- **Local hearing and voices on Windows:** `sara voice install` (or Settings → Voice → *Install*) now
+  works on Windows, about 650 MB of optional downloads, each checked against a SHA-256 pinned in Sara, and
+  refused in "Nothing leaves this computer" mode. Before, local voice was Linux only.
+  Guide: [docs/HEY_SARA.md](docs/HEY_SARA.md).
+
 ## 2.58.0 (2026-11-02): get more, and submit your own (Phase 125)
 
 - **Settings → Abilities → Get more:** browse and search the Sara Store, an item page with screenshots,

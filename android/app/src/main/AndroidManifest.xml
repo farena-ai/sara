@@ -95,6 +95,21 @@
             android:name=".CallService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+        <!-- Phase 126: Hey Sara (a microphone service started only from a visible screen) and the Talk to Sara tile -->
+        <service
+            android:name=".WakeService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+        <service
+            android:name=".WakeTile"
+            android:exported="true"
+            android:icon="@drawable/ic_notify"
+            android:label="@string/hey_tile"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
 
         <receiver android:name=".WidgetProvider" android:exported="false" android:label="@string/widget_name">
             <intent-filter>

@@ -312,7 +312,7 @@ export const VOICE_ROOM_CHANNELS: ReadonlySet<string> = new Set(['alexa', 'home-
 export const isVoiceRoomChannel = (channel: string) => VOICE_ROOM_CHANNELS.has(channel);
 
 export function voiceRoomNote(owner: string, channel: string): string {
-  const where = channel === 'alexa' ? 'an Alexa speaker' : 'a Home Assistant voice assistant or speaker';
+  const where = channel === 'alexa' ? 'an Alexa speaker' : channel === 'wake' ? "a computer's speakers (Hey Sara, hands-free)" : 'a Home Assistant voice assistant or speaker';
   return `${owner} is talking to you through ${where}: your reply is read aloud in a room where other people, including children, may hear it. Keep it strictly non-sexual whatever is asked, and keep ${owner}'s private matters out unless ${owner} brings them up here. Answer in short spoken sentences (two to four, unless asked for more), with no lists, markdown, emoji or links. If anyone sincerely asks whether you're an AI, say plainly that you are an AI companion.`;
 }
 export function workNote(owner: string, channel: string, adultMode = true): string {

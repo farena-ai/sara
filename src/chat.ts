@@ -981,6 +981,12 @@ export interface TurnOptions {
   /** Phase 72: answer with the quick model (Alexa allows about 8 seconds for a reply). */
   quickModel?: boolean;
   /**
+   * Phase 126 (WAKE.md §5.6): a Hey Sara turn from a device whose speakers are a room (desktops by
+   * default): the voice-room rule applies as for Alexa (never explicit, private matters only if he
+   * raises them), whatever the conversation's channel is.
+   */
+  voiceRoom?: boolean;
+  /**
    * Hardening M3: a turn from another app (/v1, MCP ask_sara, Home Assistant). Her notes, summaries,
    * dates, "last time" and recall leave out private, imported and adult-channel conversations (the
    * same rule as the MCP read tools), and "lately in your other conversations" is left out.
@@ -1585,7 +1591,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // Phase 66: in a group chat, adult content only when every companion in the room has Adult mode on.
   // Phase 72: voice assistants speak in a room (Alexa, Home Assistant): never explicit, whatever Adult mode says.
   // Phase 100: never with another agent (its output may reach anyone).
-  const adultOn = adultModeOn(app.settings.get()) && (!opts.group || opts.group.adult) && !isVoiceRoomChannel(conv.channel) && !opts.outside && conv.channel !== 'a2a';
+  const voiceRoom = isVoiceRoomChannel(conv.channel) || Boolean(opts.voiceRoom);
+  const adultOn = adultModeOn(app.settings.get()) && (!opts.group || opts.group.adult) && !voiceRoom && !opts.outside && conv.channel !== 'a2a';
   if (conv.partner) {
     // Phase 47: bots in the chat (recently, or this message) get one more sentence.
     const bots = isBotLine(text) || store.messagesPage(conv.id, { limit: 30 }).messages.some((m) => m.role === 'user' && isBotLine(m.content));
@@ -1593,7 +1600,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   }
   else {
     if (isWorkChannel(conv.channel)) safetyNotes.push(workNote(app.settings.get().ownerName?.trim() || 'the owner', conv.channel, adultOn));
-    if (isVoiceRoomChannel(conv.channel)) safetyNotes.push(voiceRoomNote(app.settings.get().ownerName?.trim() || 'the owner', conv.channel));
+    if (voiceRoom) safetyNotes.push(voiceRoomNote(app.settings.get().ownerName?.trim() || 'the owner', isVoiceRoomChannel(conv.channel) ? conv.channel : 'wake'));
     if (!adultOn) safetyNotes.push(ADULT_OFF_NOTE);
   }
   if (opts.group) safetyNotes.push(opts.group.note);

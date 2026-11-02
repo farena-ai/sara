@@ -14,7 +14,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1782%20passing-brightgreen" alt="1782 tests passing">
+  <img src="https://img.shields.io/badge/tests-1825%20passing-brightgreen" alt="1825 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -114,15 +114,16 @@ Des tutoriels d'une minute, enregistrés sur un serveur de test avec un modèle 
 
 ## Quoi de neuf
 
+- **2.59** · « Hey Sara » : dites son nom pour parler mains libres dans l'appli Windows (un petit modèle sur votre ordinateur n'écoute que ça), un raccourci Parler partout, et l'écoute et les voix locales sous Windows.
 - **2.58** · En obtenir plus : parcourez la Sara Store dans Sara, installez en un clic via la carte de vérification habituelle, voyez exactement ce que change une mise à jour et proposez vos propres modules avec `sara pack` et `sara submit`, sans GitHub.
 - **2.57** · La Sara Store ouvre : une étagère signée de modules sur backstagecoding.com/sara/store (six petits plugins et six serveurs d'outils, dont ComfyUI et Blender), vérifiée par chaque Sara avant de l'afficher.
-- **2.56** · Léger et rangé : à chaque étape, seuls les outils utiles lui sont proposés (54 à 77 % de jetons en moins par étape, mesuré), elle cherche le reste elle-même, et `/compact` résume une longue discussion en un résumé que vous pouvez voir et annuler.
 
 <details>
 <summary><b>Historique des versions</b> : ce que chaque version depuis la 2.4 a apporté</summary>
 
 | Version | Ce que vous y gagnez |
 |---|---|
+| **2.59** · « Hey Sara » | **Dites son nom et parlez** dans l'appli Windows : un modèle de 5 Mo sur votre ordinateur n'écoute que « Hey Sara » (ou vos propres mots pour chaque compagne), et rien n'est envoyé avant que vous les disiez ; l'enregistrement commence après la phrase, l'audio n'est jamais gardé, et un point sur l'icône de la barre montre quand elle écoute. Éteint jusqu'à ce que vous l'activiez, sur chaque appareil ; en pause écran verrouillé ; si deux appareils vous entendent, un seul répond. **Parler à Sara** avec Ctrl+Alt+Espace ou la barre, et sur Android avec un bouton Parler dans la notification et une tuile de réglages rapides. L'avis d'IA est dit d'abord et l'aide en cas de crise lue en entier. **Écoute et voix locales sous Windows :** `sara voice install` (environ 650 Mo, chaque fichier vérifié), auparavant Linux seulement. Mac, Linux et le détecteur Android toujours à l'écoute arrivent ensuite. |
 | **2.58** · En obtenir plus | **Réglages → Capacités → En obtenir plus :** parcourez et cherchez dans la Sara Store, ouvrez un élément et installez-le en un clic via la carte de vérification habituelle (rien ne s'allume tout seul). Les serveurs d'outils ont une carte avec la commande exacte (et sa forme Windows), ce qu'il leur faut, ce qu'ils peuvent joindre et s'ils sont isolés ; les clés vont dans le coffre. **Les mises à jour** montrent exactement ce qui change, les nouvelles permissions marquées, et vous pouvez revenir en arrière. **Mes modules** liste tout avec sa provenance. **Proposez les vôtres :** `sara pack` vérifie un plugin, une compétence ou un serveur d'outils sur votre ordinateur (manifeste, permissions, recherche de secrets, petit test isolé, captures), puis *Proposer* dans les réglages ou `sara submit` l'envoie, signé avec votre propre clé d'auteur. L'équipe Sara le vérifie avant de le publier, et *Mes propositions* permet de suivre et de répondre. Signalements et retraits éteignent un module, sans jamais le supprimer. |
 | **2.57** · La Sara Store ouvre | **Une étagère signée** sur [backstagecoding.com/sara/store](https://backstagecoding.com/sara/store/) : Alertes météo, Concentration, Scènes maison, Résumé GitHub, Liste de lecture et Notes de webhooks, plus des serveurs d'outils pour ComfyUI, Blender, un navigateur (Playwright), GitHub, les fichiers de cet ordinateur et la doc (Context7), chacun à une version exacte. Sara vérifie la signature de la liste, l'empreinte de chaque fichier et sa date d'expiration avant d'afficher quoi que ce soit ; une liste abîmée, ancienne ou retirée est refusée et la dernière bonne gardée. Parcourir n'envoie ni identifiant ni cookie. Les installations passent toujours par la carte de vérification habituelle et rien ne s'allume tout seul ; ce qui est retiré de la boutique est éteint, jamais supprimé. **Ranger les compétences :** celles qui ne servent pas peuvent être archivées puis ramenées. Ensuite : installer depuis Sara et proposer les vôtres. |
 | **2.56** · Léger et rangé | **Une courte liste d'outils par étape :** choisie dans le code (sans appel de modèle) selon ce que vous faites : le mode, vos mots, les références `@`, l'usage récent, une compétence chargée, les tours précédents d'un objectif, plus les outils toujours gardés pour la sécurité. Elle trouve le reste avec *find tools*, et chaque appel est toujours vérifié contre tout ce qu'elle a le droit de faire. Mesuré : une installation neuve passe de 11 871 à 5 471 jetons par étape (−54 %) ; avec quatre serveurs MCP, de 23 476 à 5 438 (−77 %). `/tools` montre ce qui est proposé. **`/compact` :** résume la partie ancienne d'une longue discussion, écrit d'abord sur cet ordinateur (les discussions privées ne le quittent jamais). Vos messages restent dans le fil, avec *Voir le résumé* et *Annuler* ; ça se fait aussi tout seul près de la limite, et les messages de crise restent mot pour mot. Marche dans toutes les applis de discussion. |
@@ -216,7 +217,7 @@ Toutes les versions : [CHANGELOG.md](CHANGELOG.md) · [versions](https://github.
 
 Dans l'ordre de construction, une version chacune ([la liste complète](docs/ROADMAP.md)) :
 
-- **Ensuite** (2.59–2.61) : photos et fichiers dans les applis de discussion, lui parler pendant qu'elle travaille, Signal, e-mail, WhatsApp, iMessage (BlueBubbles) et SMS, « continue jusqu'au bout », vérifications du code après chaque modification, une galerie de routines et **le Sara Store** pour plugins, compétences et serveurs MCP (ComfyUI, Blender, Playwright…) avec installation en un clic et un moyen de soumettre les vôtres.
+- **Ensuite** (2.60–2.61) : photos et fichiers dans les applis de discussion, lui parler pendant qu'elle travaille, Signal, e-mail, WhatsApp, iMessage (BlueBubbles) et SMS, « continue jusqu'au bout », vérifications du code après chaque modification, une galerie de routines et **le Sara Store** pour plugins, compétences et serveurs MCP (ComfyUI, Blender, Playwright…) avec installation en un clic et un moyen de soumettre les vôtres.
 - L'app iPhone (en attente d'Apple), et vos idées dans les [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Le plan complet : [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -418,8 +419,8 @@ qu'aucun test ne vérifiait. Ce qu'elle apporte aujourd'hui, c'est la manière d
 lance les tests, demande avant les étapes risquées, montre ce qui a tourné), pas un meilleur score
 sur ces jeux. Détails, résultats par tâche et comment relancer : [docs/RESULTS.md](docs/RESULTS.md).
 
-En plus, `npm run check` : une vérification des types et 1797 tests automatiques avec un faux modèle
-scripté (sans réseau, sans GPU) : 1782 passent sous Windows, et les 8 autres sont des tests
+En plus, `npm run check` : une vérification des types et 1840 tests automatiques avec un faux modèle
+scripté (sans réseau, sans GPU) : 1825 passent sous Windows, et les 8 autres sont des tests
 d'isolation propres à Linux, exécutés sur un serveur Linux.
 
 ## Comparaison

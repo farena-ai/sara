@@ -308,7 +308,7 @@ export function memberDirs(dataDir: string, h: HouseholdStore): { member: Member
  * Settings only the owner has (server, accounts, bridges, tools, imports). A member's settings never
  * contain them, and a member's change never writes them.
  */
-export const OWNER_SETTINGS: readonly (keyof Settings)[] = ['providers', 'prices', 'mcpServers', 'search', 'offsite', 'backup', 'discord', 'telegram', 'chats', 'home', 'githubWatch', 'helpers', 'teamLimits', 'jobBudget', 'turnBudgets', 'sandboxGate', 'securityPass', 'threatModel', 'redteam', 'computerUse', 'evalSchedule', 'shellNetwork', 'modelLists', 'modelAutoSwitch', 'safetyClassifier', 'claimJudge', 'toolPermissions', 'alexa', 'presence', 'libraryLimits', 'plugins', 'a2a', 'hooks', 'safetyCheck', 'lean', 'store'];
+export const OWNER_SETTINGS: readonly (keyof Settings)[] = ['providers', 'prices', 'mcpServers', 'search', 'offsite', 'backup', 'discord', 'telegram', 'chats', 'home', 'githubWatch', 'helpers', 'teamLimits', 'jobBudget', 'turnBudgets', 'sandboxGate', 'securityPass', 'threatModel', 'redteam', 'computerUse', 'evalSchedule', 'shellNetwork', 'modelLists', 'modelAutoSwitch', 'safetyClassifier', 'claimJudge', 'toolPermissions', 'alexa', 'presence', 'libraryLimits', 'plugins', 'a2a', 'hooks', 'safetyCheck', 'lean', 'store', 'wakeServer'];
 
 /**
  * A member's settings: their own file, with the owner's providers (for the server code that runs
@@ -331,7 +331,7 @@ export class MemberSettings extends SettingsStore {
     const o = this.#owner.get();
     const allowed = this.#limits().models;
     const ok = (p?: { providerId: string; model: string }) => Boolean(p && allowed.some((a) => a.providerId === p.providerId && a.model === p.model));
-    const out = { ...own, providers: o.providers, ...(o.prices ? { prices: o.prices } : {}), ...(o.libraryLimits ? { libraryLimits: o.libraryLimits } : {}), toolPermissions: {}, otherApps: { ...((own.otherApps as Settings['otherApps']) ?? {}), tools: false, changes: false } } as Settings;
+    const out = { ...own, providers: o.providers, ...(o.prices ? { prices: o.prices } : {}), ...(o.libraryLimits ? { libraryLimits: o.libraryLimits } : {}), ...(o.wakeServer ? { wakeServer: o.wakeServer } : {}), toolPermissions: {}, otherApps: { ...((own.otherApps as Settings['otherApps']) ?? {}), tools: false, changes: false } } as Settings;
     const first = allowed[0];
     if (!ok(out.defaultProviderId && out.defaultModel ? { providerId: out.defaultProviderId, model: out.defaultModel } : undefined)) {
       out.defaultProviderId = first?.providerId;
@@ -497,7 +497,7 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   // their own sign-in, devices and apps
   'security', 'passkey', 'two-step', 'owner-token', 'devices', 'device', 'pair',
   // talking
-  'conversations', 'live', 'events', 'approvals', 'uploads', 'video', 'calls', 'voice', 'tags', 'find', 'reports',
+  'conversations', 'live', 'events', 'approvals', 'uploads', 'video', 'calls', 'voice', 'wake', 'tags', 'find', 'reports',
   // Phase 123: Undo on a tidy divider in their own chats
   'compactions',
   // Phase 78: the run view of their own turns (their space's own database)
@@ -556,7 +556,7 @@ export function memberRouteCheck(rec: MemberRecord | undefined, method: string, 
   // Phase 96: trusting project skills is the owner's (members have no workspaces of their own).
   if (a === 'skills' && b === 'trust-project') return { status: 403, message: en('Only the owner of this server can use this.'), ownerOnly: true };
   const l = rec.limits;
-  if (!l.voice && (a === 'live' || a === 'calls' || (a === 'voice' && method !== 'GET') || a === 'video')) return { status: 403, message: en('Voice is switched off for you on this server. Ask the owner.') };
+  if (!l.voice && (a === 'live' || a === 'calls' || (a === 'voice' && method !== 'GET') || a === 'video' || (a === 'wake' && (method !== 'GET' || b !== undefined)))) return { status: 403, message: en('Voice is switched off for you on this server. Ask the owner.') };
   if (!l.pictures && ((a === 'look' && method !== 'GET') || a === 'photos')) return { status: 403, message: en('Pictures from her are switched off for you on this server. Ask the owner.') };
   return undefined;
 }

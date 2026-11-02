@@ -2,6 +2,7 @@
 // how to name the system, which admin command to suggest, whether local voice exists, and the
 // "how you reach her" block the installers set through environment variables.
 import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { en } from './i18n.ts';
 
 /** A friendly name for the operating system ("Windows", "macOS", "Linux"). */
@@ -84,15 +85,31 @@ export function adminHelp(o: HintEnv = {}): AdminHelp {
   };
 }
 
-/** Local voice (piper/whisper via sherpa-onnx) is installed by deploy/install-voice.sh: Linux only. */
-export function localVoiceSupported(platform: NodeJS.Platform = process.platform): boolean {
-  return platform === 'linux';
+/**
+ * Local voice (sherpa-onnx tools and models). Linux: deploy/install-voice.sh. Phase 126 part C
+ * (WAKE.md §7): Windows and macOS too, once `sara voice install` (or Settings → Voice → Install
+ * hearing and voices on this computer) has put voice.json in the voice folder.
+ */
+let localVoiceDir: string | undefined;
+/** Set once at start-up (src/main.ts): the voice folder on Windows and macOS (`<data>/voice`). */
+export function setLocalVoiceDir(dir: string | undefined): void {
+  localVoiceDir = dir;
 }
+export function localVoiceSupported(platform: NodeJS.Platform = process.platform, opts: { dir?: string; exists?: (p: string) => boolean } = {}): boolean {
+  if (platform === 'linux') return true;
+  if (platform !== 'win32' && platform !== 'darwin') return false;
+  const dir = opts.dir ?? localVoiceDir;
+  return Boolean(dir && (opts.exists ?? existsSync)(join(dir, 'voice.json')));
+}
+/** Windows and macOS can install it (x64, arm64). */
+export const localVoiceInstallable = (platform: NodeJS.Platform = process.platform, arch: string = process.arch): boolean => (platform === 'win32' || platform === 'darwin') && (arch === 'x64' || arch === 'arm64');
 
 /** What to say when local voice isn't there. */
-export function localVoiceMissing(platform: NodeJS.Platform = process.platform): string {
-  if (!localVoiceSupported(platform)) return `Local voice isn't available on ${systemName(platform)} yet: use Grok or OpenAI voice`;
-  return 'not installed (deploy/install-voice.sh)';
+export function localVoiceMissing(platform: NodeJS.Platform = process.platform, opts: { dir?: string; exists?: (p: string) => boolean } = {}): string {
+  if (platform === 'linux') return 'not installed (deploy/install-voice.sh)';
+  if (localVoiceInstallable(platform) && !localVoiceSupported(platform, opts)) return 'not installed yet (Settings → Voice → Install hearing and voices on this computer, about 650 MB)';
+  if (!localVoiceSupported(platform, opts)) return `Local voice isn't available on ${systemName(platform)} yet: use Grok or OpenAI voice`;
+  return 'not installed (Settings → Voice → Install hearing and voices on this computer)';
 }
 
 /** How to install Claude Code / Grok Build for her (deploy/install-agents.sh is Linux only). */

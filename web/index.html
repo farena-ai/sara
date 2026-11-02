@@ -33,6 +33,7 @@
   <link rel="stylesheet" href="/busy.css">
   <link rel="stylesheet" href="/persist.css">
   <link rel="stylesheet" href="/lean.css">
+  <link rel="stylesheet" href="/wake.css">
   <link rel="stylesheet" href="/store.css">
   <link rel="stylesheet" href="/begin.css">
   <link rel="stylesheet" href="/refs.css">
@@ -2254,6 +2255,7 @@
         <button id="v-preview" type="button" class="ghost">Preview</button>
       </div>
       <p id="v-local" class="muted small"></p>
+      <p id="v-install-row" class="small" hidden><button id="v-install" type="button" class="ghost">Install hearing and voices on this computer</button> <button type="button" class="tip" data-tip="Downloads her own hearing and voices (about 650 MB) so they work without the internet, and with “Nothing leaves this computer” on. Checked before use.">?</button> <span id="v-install-status" class="muted small" role="status"></span></p>
       <div class="add-row">
         <label>Expressive voice <button type="button" class="tip" data-tip="With Grok voice she laughs, sighs, breathes and whispers where it fits: when she writes &quot;haha&quot; or *sighs*, and on live calls. Subtle keeps it occasional; Lively lets more through. The sounds are only in her voice: never in the chat text or captions. Other voices read the words without the stage directions.">?</button> <select id="v-expressive"><option value="subtle">Subtle</option><option value="lively">Lively</option><option value="off">Off</option></select></label>
         <label>Tone <button type="button" class="tip" data-tip="How her voice sounds overall. Grok voice and the speech API follow it (warm and calm speak softer, bright a little quicker); other voices change speed only. Pitch can't be changed with these voices.">?</button> <select id="v-tone"><option value="natural">Natural</option><option value="warm">Warm and soft</option><option value="calm">Calm and slow</option><option value="bright">Bright</option></select></label>
@@ -2303,6 +2305,66 @@
         </div>
         <label>ElevenLabs key <input id="v-el-key" type="password" autocomplete="off" placeholder="leave empty to keep"></label>
       </details>
+        </section>
+        <section class="settings-page" data-page="her-hey" data-group="Her" data-title="Hey Sara" hidden>
+      <p class="muted small page-lead">Say “Hey Sara” and talk, without touching anything. Off until you turn it on, on each device. <button type="button" class="tip" data-tip="Say her name and talk, hands-free. A small model on the device listens only for the words; nothing is sent until you say them. Off until you turn it on, separately on each device.">?</button></p>
+      <div id="wk-this" class="sub-card wk-block">
+        <strong class="wk-head">This device <span id="wk-this-name" class="muted small"></span></strong>
+        <p id="wk-no-app" class="muted small">This browser can’t listen for Hey Sara: use the Windows or Android app.</p>
+        <div id="wk-app" class="wk-app" hidden>
+          <label class="row wk-switch"><input id="wk-on" type="checkbox"> <span id="wk-on-label">Listen for “Hey Sara” on this computer</span> <button type="button" class="tip" data-tip="Opens the microphone and listens for “Hey Sara” on this device only. A dot on her icon shows when the mic is open. Switch it off here, in the tray or notification, or from any of your devices.">?</button></label>
+          <p class="wk-dots muted small"><span class="wk-dot" aria-hidden="true"></span> dim dot = waiting · <span class="wk-dot wk-bright" aria-hidden="true"></span> bright = hearing</p>
+          <p class="muted small"><span id="wk-pack">Needs a download (speech model and engine, from the sherpa-onnx project).</span> <button type="button" class="tip" data-tip="A 5 MB speech model (and on Windows a 20 MB engine) from the sherpa-onnx project, Apache-2.0. Sara checks every file before using it. Remove it any time.">?</button></p>
+          <p id="wk-state" class="wk-state small" role="status"></p>
+          <div class="wk-row">
+            <label>Microphone <button type="button" class="tip" data-tip="Which microphone to listen with. If she never wakes, pick your microphone by name: some PCs default to one that hears nothing.">?</button> <select id="wk-mic"><option value="">System default</option></select></label>
+            <label>How easily she wakes <button type="button" class="tip" data-tip="“Wakes easily” wakes on a quieter or less clear “Hey Sara”, but more often by mistake. Strict needs a clear phrase. Use Try it to see what she hears.">?</button> <select id="wk-sens"><option value="relaxed">Wakes easily</option><option value="normal">Normal</option><option value="strict">Strict</option></select></label>
+            <label>Talk shortcut <button type="button" class="tip" data-tip="Press it to talk without saying her name, even with Hey Sara off. Press again to send, or just stop talking.">?</button> <select id="wk-shortcut"></select></label>
+          </div>
+          <label class="row"><input id="wk-chime" type="checkbox" checked> Chime when she starts and stops listening <button type="button" class="tip" data-tip="Two soft notes when she starts listening and when she stops, so you know without looking.">?</button></label>
+          <label class="row"><input id="wk-personal" type="checkbox"> <span id="wk-personal-label">This computer is just mine</span> <button type="button" class="tip" data-tip="Off: she treats this like a speaker in a room (never explicit, your private things only if you raise them). On: a normal private chat with her, for headphones or your own room.">?</button></label>
+          <label class="row" id="wk-locked-row"><input id="wk-locked" type="checkbox" checked> Pause while the screen is locked <button type="button" class="tip" data-tip="Stops listening when you lock the computer, and starts again when you unlock it.">?</button></label>
+          <label class="row" id="wk-charging-row" hidden><input id="wk-charging" type="checkbox"> Only while charging <button type="button" class="tip" data-tip="Listens only while the phone charges, for bedside or desk use. Saves battery.">?</button></label>
+          <p id="wk-today" class="muted small"></p>
+          <p id="wk-hint" class="wk-hint small" hidden></p>
+          <div class="wk-actions">
+            <button id="wk-try" type="button" class="ghost">Try it</button> <button type="button" class="tip" data-tip="Listens for 20 seconds and shows when it hears your words, without asking her anything. Good for choosing how easily she wakes.">?</button>
+            <button id="wk-remove" type="button" class="ghost">Remove from this device</button>
+          </div>
+          <p id="wk-try-out" class="muted small" role="status"></p>
+        </div>
+      </div>
+      <div class="sub-card wk-block">
+        <strong class="wk-head">Words that wake her <button id="wk-words" type="button" class="tip" data-tip="Up to 4 phrases, each for one of your companions: “Hey Mira” wakes Mira. Use two or more words, English words only for now. “Hey Sara” always works.">?</button></strong>
+        <div id="wk-phrases" class="wk-phrases"></div>
+        <div class="wk-row">
+          <label class="wk-grow">New words <button type="button" class="tip" data-tip="Two to four English words, then which companion they wake. Sara checks them first: words that are too short, another assistant’s name or unknown words are refused.">?</button> <input id="wk-new" type="text" maxlength="64" placeholder="Hey Mira" autocomplete="off"></label>
+          <label>For <button type="button" class="tip" data-tip="The companion these words wake. She answers in her own Hey Sara conversation.">?</button> <select id="wk-new-for"></select></label>
+          <button id="wk-add" type="button">Add words</button>
+        </div>
+        <p id="wk-new-why" class="muted small" role="status"></p>
+        <p id="wk-lex-row" class="muted small"><span id="wk-lex-note">Other words need a 3 MB English word list on your server.</span> <button id="wk-lexicon" type="button" class="ghost small">Download</button> <button type="button" class="tip" data-tip="Other words need a 3 MB English word list on your server so Sara can work out how they sound. Downloaded once, checked, kept on your server.">?</button></p>
+      </div>
+      <div class="sub-card wk-block">
+        <strong class="wk-head">When she wakes</strong>
+        <div class="wk-row">
+          <label>She answers in <button type="button" class="tip" data-tip="Her “Hey Sara” conversation keeps all your spoken questions together. Or use the one open on this device, or a new one each time.">?</button> <select id="wk-talks"><option value="own">Her “Hey Sara” conversation</option><option value="open">The conversation open on the device</option><option value="new">A new conversation each time</option></select></label>
+          <label>The phrase starts <button type="button" class="tip" data-tip="One question: you ask, she answers, she goes back to listening. A live call: a full voice call starts, until you hang up (needs live calls).">?</button> <select id="wk-starts"><option value="question">One question</option><option value="call">A live call</option></select></label>
+          <label>Keep listening after her answer <button type="button" class="tip" data-tip="Listens a few seconds more for a follow-up without her name. The dot stays bright while it does. Off by default.">?</button> <select id="wk-follow"><option value="0">Off</option><option value="5">5 seconds</option><option value="8">8 seconds</option></select></label>
+        </div>
+      </div>
+      <div class="sub-card wk-block">
+        <strong class="wk-head">Your devices <button type="button" class="tip" data-tip="Turns Hey Sara off on that device within a minute. Only the device itself can turn it back on.">?</button></strong>
+        <div id="wk-devices" class="wk-devices"></div>
+        <p><button id="wk-off-all" type="button" class="ghost">Turn off everywhere</button> <button type="button" class="tip" data-tip="Turns Hey Sara off on all your devices (owner: on everyone’s). Each device has to be switched on again by hand.">?</button></p>
+      </div>
+      <div id="wk-server" class="sub-card wk-block" data-owner-only>
+        <label class="row"><input id="wk-allow" type="checkbox" checked> Allow Hey Sara on this server <button type="button" class="tip" data-tip="Off: no device signed in to this server can use Hey Sara. Push-to-talk still works.">?</button></label>
+        <label class="row"><input id="wk-members" type="checkbox" checked> Members may use Hey Sara on their own devices <button type="button" class="tip" data-tip="Lets the people in your household switch it on for their own devices. Their companions answer them; you never hear their questions.">?</button></label>
+      </div>
+      <p id="wk-iphone" class="muted small">On iPhone, say “Hey Siri, ask Sara”: Apple doesn’t let apps listen for their own name. <button type="button" class="tip" data-tip="iPhone apps can’t listen for their own name. Say “Hey Siri, ask Sara”, or put Ask Sara on the Action button.">?</button></p>
+      <p id="wk-browser" class="muted small">In a browser, use the 🎙 button: a web page can’t listen when it’s closed. <button type="button" class="tip" data-tip="Web pages can only listen while they’re open. Use the 🎙 button here, or the Windows or Android app for Hey Sara.">?</button></p>
+      <p id="wk-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="her-calls" data-group="Her" data-title="Calls from her" hidden>
       <p class="muted small page-lead">She can ring you, like a phone call, in the Sara app on your phone or in this browser. Answer and she tells you why she called. Miss it and she sends it as a message instead.</p>

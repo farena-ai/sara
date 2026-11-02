@@ -81,6 +81,7 @@ import { createHandsRoutes, createHandsUpgrade } from './routes/hands.ts';
 import { createMoveInPublic, createMoveInRoutes, serveCollector } from './routes/movein.ts';
 import { createHubRoutes } from './routes/hub.ts';
 import { createStoreRoutes } from './routes/store.ts';
+import { createWakeRoutes } from './routes/wake.ts';
 
 // Kept exported from here for main.ts and the tests.
 export { clientIp, fromPhoneApp, fromSaraApp, proxyTrust } from './http.ts';
@@ -894,6 +895,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const hubRoutes = createHubRoutes(ctx);
   // Phase 124: the Sara Store's reader (src/routes/store.ts).
   const storeRoutes = createStoreRoutes(ctx);
+  // Phase 126: Hey Sara (src/routes/wake.ts).
+  const wakeRoutes = createWakeRoutes(ctx);
   app.hands?.onStop((conversationId) => active.get(conversationId)?.controller.abort());
 
   async function api(req: IncomingMessage, res: ServerResponse, method: string, parts: string[]): Promise<void> {
@@ -1156,6 +1159,8 @@ export function createSaraServer(opts: ServerOptions): Server {
     // Phase 104: the collector's `send` (a move-in code, the upload routes only) comes before sign-in.
     if (a === 'movein' && !isAuthed(req) && (await moveInPublic(req, res, method, parts)) !== NEXT) return;
     if (!isAuthed(req)) throw new HttpError(401, 'Sign in first.');
+    // Phase 126: Hey Sara isn't on the demo server (WAKE.md §11).
+    if (opts.demo && a === 'wake') throw new HttpError(404, 'Not found');
     // Phase 71: a household member's space answers only the member routes (src/household.ts).
     if (opts.member) {
       const chk = memberRouteCheck(opts.member.record(), method, parts);
@@ -1243,6 +1248,8 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await herRoutes(req, res, method, parts)) !== NEXT) return;
 
     // Voice: voice settings and notes, calls (ringing), video frames, push notifications, live-call status: src/routes/voice.ts.
+    // Phase 126: Hey Sara: phrases, devices, the claim and the wake turn: src/routes/wake.ts.
+    if ((await wakeRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await voiceRoutes(req, res, method, parts)) !== NEXT) return;
 
     // Planner: tasks, projects, places, reminders, notes, Today, briefing, review, leave-by, story: src/routes/planner.ts.

@@ -12,7 +12,8 @@ import { as400, cookies, HttpError, readJson, readRaw, safeDecode, SECURITY_HEAD
 import { trOwner } from '../i18n.ts';
 import { OPENAI_LIVE_MODELS, OPENAI_LIVE_VOICES } from '../live.ts';
 import { privateLocalOn } from '../net-guard.ts';
-import { localVoiceMissing, localVoiceSupported } from '../platform.ts';
+import { localVoiceInstallable, localVoiceMissing, localVoiceSupported } from '../platform.ts';
+import { cancelInstall, engineAfterInstall, INSTALL_MB, installJob, startInstall } from '../voice-install.ts';
 import type { Conversation as VideoConv } from '../store.ts';
 import { cameraState, type CameraTarget, checkFrame, FRAME_MAX_BYTES, modelSees, parseVideoSettings, VideoError, videoSettings } from '../video.ts';
 import { DEFAULT_VOICE, openaiSpeak, speechText, VOICE_VAULT, VoiceError, type VoiceSettings, xaiSpeak, xaiVoices } from '../voice.ts';
@@ -146,7 +147,28 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
           // Phase 48: live calls with Grok or OpenAI.
           live: liveView(),
           openaiLive: { voices: OPENAI_LIVE_VOICES, models: OPENAI_LIVE_MODELS },
+          // Phase 126 part C: her own hearing and voices on a Windows or Mac server (owner only).
+          install: { installable: !opts.member && localVoiceInstallable() && !(app.voice?.available.stt && app.voice?.available.tts), mb: INSTALL_MB, job: installJob() },
         });
+      }
+      // Phase 126 part C (WAKE.md §7): Install hearing and voices on this computer (≈ 650 MB, checked before use).
+      if (b === 'install' && method === 'POST') {
+        if (opts.member) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+        if (c === 'cancel') {
+          cancelInstall();
+          return send(res, 200, { job: installJob() });
+        }
+        if (!localVoiceInstallable()) throw new HttpError(400, process.platform === 'linux' ? 'Use: sudo ./deploy/install-voice.sh' : 'Local voice can’t be installed on this computer.');
+        if (privateLocalOn()) throw new HttpError(409, 'Nothing leaves this computer is on, so nothing is downloaded. Switch it off for the download (Settings → Privacy).');
+        if (!app.voice) throw new HttpError(503, 'Voice isn’t ready yet.');
+        const voiceEngine = app.voice;
+        const j = startInstall(voiceEngine.dir, () => {
+          voiceEngine.reload();
+          const v = cfg();
+          const patch = engineAfterInstall(v);
+          if (Object.keys(patch).length) app.settings.update({ voice: { ...(app.settings.get().voice ?? {}), ...patch } as VoiceSettings });
+        });
+        return send(res, 202, { job: j });
       }
       if (!b && method === 'PUT') {
         const body = await readJson(req);

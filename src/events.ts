@@ -36,6 +36,8 @@ export type HubEvent = (
   | { type: 'movein'; id: string; state: string; line: string }
   /** Phase 52: device-code sign-in requests waiting for the owner. */
   | { type: 'device'; pending: number }
+  /** Phase 126: a Hey Sara device of this person switched on, off or paused (never text or audio). */
+  | { type: 'wake'; device: string; state: 'on' | 'off' | 'paused'; reason?: string }
   /** Phase 39: a team task changed (plan, a helper's progress, the end). */
   | { type: 'team'; task: { id: number; status: string; conversationId: string; approvals?: number } }
   /** A turn started or ended in a conversation (any device, Telegram or Discord): the other open

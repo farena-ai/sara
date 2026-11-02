@@ -236,7 +236,7 @@ test('quick ask: talking instead of typing, through the server\'s own hearing', 
   assert.match(p, /fetch\('\/api\/voice\/transcribe', \{ method: 'POST', credentials: 'same-origin', headers: \{ 'content-type': 'audio\/wav' \}/);
   assert.match(p, /st\.stt === 'openai' \|\| \(st\.stt === 'local' && local\.stt\)/, 'shown only when her hearing is set up');
   assert.match(p, /setTimeout\(\(\) => stopMic\(true\), 120000\)/, 'at most 2 minutes');
-  assert.match(p, /hidden\(\) \{ stopMic\(false\); return true; \}/, 'hiding the window stops a recording');
+  assert.match(p, /hidden\(\) \{ stopMic\(false\);/, 'hiding the window stops a recording (2.59: and ends a wake)');
   assert.doesNotMatch(p, /\sstyle=["']/);
   // The microphone for the quick-ask page only (Windows) / its server origin only (Mac).
   const c = cpp();

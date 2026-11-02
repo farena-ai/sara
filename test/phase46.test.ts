@@ -331,8 +331,9 @@ test('platform: admin hints and voice words for each system', () => {
   assert.match(adminHint('stop', { platform: 'darwin', env: { SARA_INSTALLED: '1' } }), /^sara stop/);
   assert.equal(adminHint('reset-token', { platform: 'win32', env: {} }), 'node src/main.ts --reset-token');
   assert.equal(adminHint('reset-token', { platform: 'linux', env: { SARA_DATA: '/data' }, exists: () => false }), 'docker compose exec sara node src/main.ts --reset-token');
-  assert.equal(localVoiceMissing('win32'), "Local voice isn't available on Windows yet: use Grok or OpenAI voice");
-  assert.equal(localVoiceMissing('darwin'), "Local voice isn't available on macOS yet: use Grok or OpenAI voice");
+  // 2.59 (Phase 126 part C): local voice installs on Windows from Settings.
+  assert.match(localVoiceMissing('win32'), /not installed yet \(Settings → Voice → Install/);
+  assert.match(localVoiceMissing('darwin'), /not installed yet \(Settings → Voice → Install/);
   assert.match(localVoiceMissing('linux'), /install-voice\.sh/);
   assert.match(agentInstallHint('win32'), /PATH/);
 });
@@ -381,14 +382,14 @@ test('doctor: honest about no sandbox and about local voice on Windows/macOS', a
   const sb = win.find((c) => c.name === 'Tool sandbox')!;
   assert.deepEqual([sb.status, sb.detail], ['ok', 'No sandbox on Windows: she asks before every command.']);
   const voice = win.find((c) => c.name === 'Voice (optional)')!;
-  assert.equal(voice.detail, "Local voice isn't available on Windows yet: use Grok or OpenAI voice.");
+  assert.match(voice.detail, /not installed yet \(Settings → Voice → Install/);
   assert.doesNotMatch(voice.detail, /install-voice/);
   app.settings.update({ toolPermissions: { shell: 'auto' } });
   const risky = (await runDoctor({ dataDir: dir, settings: app.settings, vault: app.vault, sandbox, tools, platform: 'win32' })).find((c) => c.name === 'Tool sandbox')!;
   assert.equal(risky.status, 'warn');
   assert.match(risky.detail, /No sandbox on Windows, and you set shell to run without asking/);
   const mac = (await runDoctor({ dataDir: dir, settings: app.settings, vault: app.vault, sandbox: { mode: 'seatbelt', network: true, detail: 'macOS sandbox' }, tools, platform: 'darwin' })).find((c) => c.name === 'Voice (optional)')!;
-  assert.match(mac.detail, /isn't available on macOS yet/);
+  assert.match(mac.detail, /not installed yet \(Settings → Voice → Install/);
 });
 
 test('runCommand: a program left running in the background (holding the output open) does not hang the tool', async () => {

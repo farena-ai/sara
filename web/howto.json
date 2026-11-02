@@ -95,6 +95,38 @@
    ]
   }
  ],
+ "her-hey": [
+  {
+   "id": "on",
+   "q": "How do I turn on Hey Sara?",
+   "steps": [
+    "Open this page in the Sara app on your Windows PC or Android phone.",
+    "Switch on Listen for “Hey Sara”, read what it does, and allow the download and the microphone.",
+    "Say “Hey Sara” and ask; the dot on her icon turns bright while she hears you."
+   ],
+   "show": "#wk-on"
+  },
+  {
+   "id": "talk",
+   "q": "How do I talk to her without saying her name?",
+   "steps": [
+    "On Windows, press the talk shortcut (Ctrl+Alt+Space) or choose Talk to Sara in the tray.",
+    "On Android, use the Talk to Sara tile in Quick Settings.",
+    "It works even with Hey Sara off: nothing listens until you press it."
+   ],
+   "show": "#wk-shortcut"
+  },
+  {
+   "id": "off",
+   "q": "How do I stop her listening on a device?",
+   "steps": [
+    "Press Stop listening next to it under Your devices, from any of your devices.",
+    "Or Turn off everywhere for all of them.",
+    "Only the device itself can switch it on again."
+   ],
+   "show": "#wk-off-all"
+  }
+ ],
  "her-calls": [
   {
    "id": "when",

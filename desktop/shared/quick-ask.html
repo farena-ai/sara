@@ -515,6 +515,119 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
     }
   };
 
+
+  // ---------- Phase 126: Hey Sara and the talk shortcut (docs/design/WAKE.md §4.5, §4.8) ----------
+  // The native side wakes this page: saraQuick.talk() for the talk shortcut (this page records, as the
+  // mic button does, and stops after 0.8 s of quiet, 15 s, or a second press); saraQuick.woken({label,
+  // companion}) when the detector heard the phrase (the claim goes first: one device answers), then
+  // saraQuick.heard(wavBase64) with the recording the app made after the phrase. Either way the
+  // recording goes to /api/wake/turn and her pieces are spoken in order (the AI notice first, crisis
+  // resources in full, then her reply) through /api/voice/speak. "stop" (the app's detector) or Esc
+  // cuts her off; the crisis text stays on screen. Page → native: {m:'qa', a:'wake', what}.
+  let wake = null;
+  const wakePost = (what, extra = {}) => post(Object.assign({ a: 'wake', what }, extra));
+  const b64ToBlob = (b64) => {
+    const bin = atob(b64), u = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    return new Blob([u], { type: 'audio/wav' });
+  };
+  const claimWake = async (label) => {
+    const res = await fetch('/api/wake/claim', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ label }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+    return data;
+  };
+  const playPiece = (blob) => new Promise((resolve) => {
+    const a = new Audio(URL.createObjectURL(blob));
+    wake.audio = a;
+    a.onended = a.onerror = () => resolve();
+    a.play().catch(() => resolve());
+  });
+  const wakeTurn = async (blob) => {
+    const w = wake;
+    if (!w) return;
+    document.body.dataset.state = 'thinking';
+    add('step', esc('Thinking…'));
+    const headers = { 'content-type': 'audio/wav', 'X-Sara-Wake-Claim': w.claim, 'X-Sara-Wake-Label': w.label };
+    if (w.companion) headers['X-Sara-Companion'] = w.companion;
+    let data = {};
+    try {
+      const res = await fetch('/api/wake/turn', { method: 'POST', credentials: 'same-origin', headers, body: blob });
+      data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+    } catch (err) {
+      add('err', esc(err.message));
+      return endWake('error');
+    }
+    if (data.ended === 'nothing') { add('step', esc('I didn’t catch that.')); return endWake('nothing'); }
+    if (data.ended === 'stop') return endWake('stop');
+    if (data.heard) add('q', esc(data.heard));
+    if (data.conversationId) conv = { id: data.conversationId };
+    wakePost('speaking');
+    document.body.dataset.state = 'speaking';
+    for (const piece of data.spoken || []) {
+      if (!wake || wake.stopped) break;
+      add(piece.kind === 'reply' ? 'a' : 'notice ' + piece.kind, esc(piece.text));
+      try {
+        const res = await fetch('/api/voice/speak', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: piece.text }) });
+        if (res.ok) await playPiece(await res.blob());
+      } catch (e) { /* her text stays on screen */ }
+    }
+    if (data.open || data.more) add('step', esc(data.needsOk ? 'She needs your OK in Sara.' : 'The rest is in Sara.'));
+    endWake(data.open ? 'open' : 'answered');
+  };
+  const endWake = (why) => {
+    if (wake && wake.audio) { try { wake.audio.pause(); } catch (e) { /* gone */ } }
+    wake = null;
+    document.body.dataset.state = '';
+    wakePost('done', { why });
+  };
+  // Records here (the talk shortcut): stops after 0.8 s of quiet once speech started, at 15 s, or on a second press.
+  const recordTalk = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    const ctx = new AudioContext();
+    const src = ctx.createMediaStreamSource(stream);
+    const node = ctx.createScriptProcessor(4096, 1, 1);
+    const chunks = [];
+    let floor = 0.006, spoke = false, quietMs = 0, total = 0;
+    return await new Promise((resolve) => {
+      const finish = () => {
+        try { node.disconnect(); src.disconnect(); } catch (e) { /* already */ }
+        stream.getTracks().forEach((t) => t.stop());
+        const rate = ctx.sampleRate;
+        ctx.close().catch(() => {});
+        resolve(spoke ? wav(chunks, rate) : null);
+      };
+      wake.finish = finish;
+      node.onaudioprocess = (e) => {
+        const d = new Float32Array(e.inputBuffer.getChannelData(0));
+        chunks.push(d);
+        let sum = 0;
+        for (const x of d) sum += x * x;
+        const rms = Math.sqrt(sum / d.length), ms = (d.length / ctx.sampleRate) * 1000;
+        total += ms;
+        if (rms > floor * 3) { spoke = true; quietMs = 0; } else { floor = floor * 0.98 + rms * 0.02; if (spoke) quietMs += ms; }
+        if ((spoke && quietMs > 800) || total > 15000 || (!spoke && total > 5000)) finish();
+      };
+      src.connect(node);
+      node.connect(ctx.destination);
+    });
+  };
+  // The app's Hey Sara gets its keyword lines and the server's word from here (every 60 s): the lines
+  // (her phrases and the stop lines), which companion each label wakes, a remote off. No text, no audio.
+  const wakeSync = async () => {
+    if (blocked()) return;
+    try {
+      const res = await fetch('/api/wake/config?platform=windows&arch=x64', { credentials: 'same-origin' });
+      if (!res.ok) return;
+      const c = await res.json();
+      const lines = [...(c.phrases || []).flatMap((p) => p.lines), ...(c.stop || [])].join('\n');
+      const map = (c.phrases || []).map((p) => p.label + '=' + p.companionId).join(';');
+      wakePost('config', { lines, map, on: c.on ? '1' : '0', known: c.offBy ? '1' : '0', paused: c.paused || '', server: c.paused === 'server-off' || c.paused === 'members-off' ? 'off' : 'on' });
+    } catch (e) { /* the server is away: the app pauses after a while */ }
+  };
+  setTimeout(wakeSync, 1500);
+  setInterval(wakeSync, 60000);
   window.saraQuick = {
     show(o = {}) {
       document.documentElement.classList.toggle('day', o.theme === 'day');
@@ -543,7 +656,48 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
       await api('/reminders', { method: 'POST', body: Object.assign({ text: t, when: 'in 10 minutes' }, conv ? { conversationId: String(conv) } : {}) });
       return true;
     },
-    hidden() { stopMic(false); return true; },
+    hidden() { stopMic(false); if (wake) { wake.stopped = true; endWake('cancel'); } return true; },
+    /** Phase 126: the talk shortcut (no phrase, no download): record here, then the wake turn. A second press sends. */
+    async talk() {
+      if (wake && wake.finish) { wake.finish(); return true; }
+      if (wake || blocked() || busy) return false;
+      wake = { label: 'TALK' };
+      document.body.dataset.state = 'listening';
+      add('step', esc('Listening… press the shortcut again or stop talking to send.'));
+      try {
+        wake.claim = (await claimWake('TALK')).claim;
+        if (!wake.claim) throw new Error('Another device answered.');
+        const blob = await recordTalk();
+        if (!blob) { add('step', esc('I didn’t catch that.')); return endWake('nothing'); }
+        await wakeTurn(blob);
+      } catch (err) {
+        add('err', esc(err.message));
+        endWake('error');
+      }
+      return true;
+    },
+    /** Phase 126: the app heard her phrase. Claim it (one device answers); the app records next. */
+    async woken(o = {}) {
+      if (wake || blocked()) return 'busy';
+      wake = { label: String(o.label || 'W1'), companion: String(o.companion || '') };
+      document.body.dataset.state = 'listening';
+      add('step', esc('Listening…'));
+      try {
+        const c = await claimWake(wake.label);
+        if (!c.ok) { add('step', esc('Answered on ' + c.by + '.')); endWake('lost'); return 'lost'; }
+        wake.claim = c.claim;
+        wakePost('claimed');
+        return 'claimed';
+      } catch (err) {
+        add('err', esc(err.message));
+        endWake('error');
+        return 'error';
+      }
+    },
+    /** Phase 126: the recording the app made after the phrase (base64 WAV, 16 kHz mono, ≤ 15 s). */
+    heard(b64) { if (wake && wake.claim) void wakeTurn(b64ToBlob(String(b64 || ''))); return true; },
+    /** Phase 126: "stop" heard while she speaks (or Esc): she stops at once; the text stays. */
+    stopSpeaking() { if (wake) { wake.stopped = true; if (wake.audio) wake.audio.pause(); } return true; },
     state() { return { state: document.body.dataset.state || '', conv: conv ? conv.id : '', text: out.innerText.slice(0, 2000) }; },
   };
   fit();

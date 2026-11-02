@@ -49,6 +49,7 @@ import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, sa
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
 import { initNav, relabelNav, revealNav, setMore } from './nav.js';
 import { initGetMore, initStore, loadGetMore, loadStorePrivacy } from './store.js';
+import { loadWakePage, renderVoiceInstall, wakeEvent } from './wake.js';
 import { foldFirstRun, hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton, unfoldFirstRun } from './hub.js';
 import { createQueue, normPath, offerText, overlayCount, pathChoices, starterChips, tourFor } from './first-run.js';
 import { emptyState, initTidy, overflowMenu } from './tidy.js';
@@ -4498,6 +4499,8 @@ async function loadVoice() {
       })
       .catch(() => {});
   renderVoicePicker(d);
+  // Phase 126 part C: Install hearing and voices on this computer (Windows and Mac servers).
+  renderVoiceInstall(d);
   $('#v-local').textContent = d.local.stt || d.local.tts
     ? `${d.local.stt ? t('On this server: hearing installed, voices: {n}.', { n: d.voices.length }) : t('On this server: hearing not installed, voices: {n}.', { n: d.voices.length })} ${t('Nothing leaves your server.')}`
     : d.localSupported === false
@@ -6257,6 +6260,8 @@ function startEvents() {
   });
   // Phase 101 (ST6): people cards changed (her memory worker, another tab): the open People page follows.
   es.addEventListener('people', () => peopleEvent());
+  // Phase 126: a Hey Sara device switched on, off or paused (no text): the open Hey Sara page follows.
+  es.addEventListener('wake', () => wakeEvent());
   // Phase 118: a goal or a repeat changed (the chip, Planner → Repeats).
   es.addEventListener('goal', (e) => persistEvent('goal', JSON.parse(e.data)));
   es.addEventListener('loop', (e) => persistEvent('loop', JSON.parse(e.data)));
@@ -7627,7 +7632,7 @@ const SETTINGS_GROUPS = [
 // The order of the pages inside each group. Page ids and group names stay the same: links, tips,
 // tours and the guide's "Settings → Abilities → …" paths use them.
 const SETTINGS_ORDER = [
-  'her-character', 'her-relationship', 'her-look', 'her-pictures', 'her-voice', 'her-calls', 'her-companions', 'her-import',
+  'her-character', 'her-relationship', 'her-look', 'her-pictures', 'her-voice', 'her-hey', 'her-calls', 'her-companions', 'her-import',
   'you-about', 'you-briefing', 'you-leave-by', 'you-adult',
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
   'ab-store', 'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
@@ -7781,6 +7786,8 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'ab-plugins') void loadPlugins();
   // Phase 125: Settings → Abilities → Get more (the Sara Store).
   if (pick === 'ab-store') void loadGetMore();
+  // Phase 126: Settings → Her → Hey Sara.
+  if (pick === 'her-hey') void loadWakePage();
   if (pick === 'co-signal') void loadSignalPage();
   if (pick === 'co-email') void loadEmailPage();
   if (pick === 'co-whatsapp') void loadWhatsAppPage();

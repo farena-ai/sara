@@ -12,6 +12,8 @@ public class BootReceiver extends BroadcastReceiver {
             LiveInbox.sync(c.getApplicationContext());
             // Proximity alerts don't survive a restart: set them again.
             Places.syncAsync(c);
+            // Phase 126: Hey Sara never starts by itself after a restart (Android 14+ forbids it): it asks.
+            WakeService.afterBoot(c);
         }
     }
 }

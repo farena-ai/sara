@@ -98,4 +98,22 @@
     <string name="picture_saved">Guardada en Imágenes/Sara.</string>
     <string name="picture_failed">No se pudo guardar la imagen.</string>
     <string name="picture_needs_android10">Para guardar imágenes necesitas Android 10 o posterior.</string>
+    <!-- Phase 126: Hey Sara -->
+    <string name="channel_hey">Hey Sara</string>
+    <string name="channel_hey_heard">Hey Sara: lo que oyó</string>
+    <string name="hey_listening">Escuchando «Hey Sara»</string>
+    <string name="hey_listening_text">Toca Hablar y habla. Antes no se oye nada.</string>
+    <string name="hey_paused">Hey Sara está en pausa</string>
+    <string name="hey_paused_text">El micrófono está cerrado. Reanuda cuando quieras.</string>
+    <string name="hey_talk">Hablar</string>
+    <string name="hey_pause">Pausa 1 h</string>
+    <string name="hey_resume">Reanudar</string>
+    <string name="hey_stop">Detener</string>
+    <string name="hey_listening_now">Escuchando…</string>
+    <string name="hey_say">Di lo que quieres preguntar.</string>
+    <string name="hey_no_mic">Sara no puede usar el micrófono. Permítelo en los ajustes del teléfono.</string>
+    <string name="hey_nothing">No te he entendido.</string>
+    <string name="hey_after_boot">Hey Sara está apagado desde que se reinició el teléfono. Toca para volver a encenderlo.</string>
+    <string name="hey_no_server">Abre Sara e inicia sesión en tu servidor primero.</string>
+    <string name="hey_tile">Hablar con Sara</string>
 </resources>

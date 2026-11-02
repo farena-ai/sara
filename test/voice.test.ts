@@ -62,8 +62,11 @@ test('local engine: runs sherpa tools with safe argv, parses the transcript, cle
   assert.equal(await e.transcribe(wav()), 'Hey Sara, "quote" test.');
   const stt = calls[0];
   assert.equal(stt.cmd, join(vdir, 'sherpa', 'bin', 'sherpa-onnx-offline'));
-  assert.equal(stt.env.LD_LIBRARY_PATH, join(vdir, 'sherpa', 'lib'));
-  assert.ok(!('SARA_MASTER_KEY' in stt.env) && Object.keys(stt.env).length === 3, 'minimal environment');
+  // 2.59: on Windows the DLLs sit beside the tools in bin/ and are found through PATH.
+  if (process.platform === 'win32') assert.ok(String(stt.env.PATH).startsWith(join(vdir, 'sherpa', 'bin')));
+  else assert.equal(stt.env.LD_LIBRARY_PATH, join(vdir, 'sherpa', 'lib'));
+  // Linux: PATH, LD_LIBRARY_PATH, HOME. Windows: PATH, SystemRoot, TEMP, TMP, USERPROFILE (no secrets either way).
+  assert.ok(!('SARA_MASTER_KEY' in stt.env) && Object.keys(stt.env).length === (process.platform === 'win32' ? 5 : 3), 'minimal environment');
   await assert.rejects(e.transcribe(Buffer.from('not audio')), /Expected a WAV/);
 
   const evil = '"; rm -rf / #$(whoami)';

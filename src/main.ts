@@ -77,13 +77,14 @@ import { FixBranches, sweepFixDirs } from './security/fix.ts';
 import { ThreatPass } from './security/threats.ts';
 import { RedTeam } from './redteam.ts';
 import { detectIsolation, SandboxGate, sandboxGateSettings, sweepSandboxRuns, type Isolation, type SandboxGateSettings } from './sandbox-run.ts';
-import { accessInfo, adminHint, localVoiceMissing, localVoiceSupported } from './platform.ts';
+import { accessInfo, adminHint, localVoiceMissing, setLocalVoiceDir } from './platform.ts';
 import { statusReport } from './status.ts';
 import { tailscaleStatus } from './tailscale.ts';
 import { createWebSearchTool } from './tools/search.ts';
 import { mcpSecrets, searchConfig } from './integrations.ts';
 import { loadPersona } from './persona.ts';
 import { createSaraServer, proxyTrust } from './server.ts';
+import { setWakeLexiconDir } from './routes/wake.ts';
 import { HandsHub } from './hands.ts';
 import { createComputerTools } from './tools/computer.ts';
 import { UploadStore } from './uploads.ts';
@@ -323,6 +324,22 @@ if (process.argv.includes('--doctor')) {
 }
 // Phase 125 (SARA_STORE.md §9.4): `sara submit <folder>` (deploy/sara runs it as the sara user, for
 // the vault's author key). Private local mode refuses it; nothing is sent without "y".
+// Phase 126 part C (WAKE.md §7): `sara voice install`: her own hearing and voices on Windows and macOS.
+if (process.argv[2] === 'voice') {
+  const { PrivateLocalStore: PL } = await import('./private-local.ts');
+  new PL(dataDir);
+  const { runVoiceCli, engineAfterInstall } = await import('./voice-install.ts');
+  const dir = resolve(process.env.SARA_VOICE_DIR ?? (process.platform === 'linux' ? '/opt/sara-voice' : join(dataDir, 'voice')));
+  const code = await runVoiceCli(process.argv.slice(3), {
+    voiceDir: dir,
+    afterInstall: () => {
+      const v = settings.get().voice;
+      const patch = engineAfterInstall({ stt: v?.stt ?? 'off', tts: v?.tts ?? 'off' });
+      if (Object.keys(patch).length) settings.update({ voice: { ...(v ?? {}), ...patch } as never });
+    },
+  });
+  process.exit(code);
+}
 if (process.argv[2] === 'submit') {
   const { PrivateLocalStore: PL } = await import('./private-local.ts');
   new PL(dataDir);
@@ -387,7 +404,12 @@ const subscriptions = new Subscriptions(vault, dataDir);
 const googleBase = googleApiBase();
 const google = new GoogleAccount(vault, googleBase ? { apiBase: googleBase } : {});
 // Local voice tools are Linux only for now (deploy/install-voice.sh).
-const voice = new LocalVoiceEngine(resolve(process.env.SARA_VOICE_DIR ?? (localVoiceSupported() ? '/opt/sara-voice' : join(dataDir, 'voice'))), dataDir);
+// Phase 126 part C: on Windows and macOS her voice lives in <data>/voice (`sara voice install`).
+const voiceDir = resolve(process.env.SARA_VOICE_DIR ?? (process.platform === 'linux' ? '/opt/sara-voice' : join(dataDir, 'voice')));
+setLocalVoiceDir(voiceDir);
+// Phase 126: the English word list for custom Hey Sara phrases (one copy for every space on this server).
+setWakeLexiconDir(join(dataDir, 'voice', 'wake-lexicon'));
+const voice = new LocalVoiceEngine(voiceDir, dataDir);
 const companions = new CompanionManager(dataDir);
 // Phase 98 (ST3, docs/PLUGINS.md): the owner's plugins (one manager for the server; enabled per
 // companion; never in household members' spaces, never on the demo). Its tables live in the owner's

@@ -1,0 +1,27 @@
+/* Phase 126 (docs/design/WAKE.md §8): Settings → Her → Hey Sara. Theme tokens only; 44 px targets;
+   every row wraps so nothing scrolls sideways at 390 px. */
+.wk-block { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; }
+.wk-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.wk-app { display: flex; flex-direction: column; gap: 8px; }
+.wk-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; }
+.wk-row label { flex: 1 1 12rem; min-width: 0; }
+.wk-row .wk-grow { flex: 2 1 14rem; }
+.wk-row select, .wk-row input, .wk-block button:not(.tip), .wk-block select { min-height: 44px; max-width: 100%; }
+.wk-switch { font-weight: 600; }
+.wk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.wk-dots { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.wk-dot { display: inline-block; width: 10px; height: 10px; border-radius: var(--r-pill); background: var(--accent-soft); border: 1px solid var(--hairline-strong); }
+.wk-dot.wk-bright { background: var(--accent-solid); }
+.wk-dot.wk-grey { background: var(--surface-2); }
+.wk-state { color: var(--text-2); overflow-wrap: anywhere; }
+.wk-hint { padding: 6px 10px; border-radius: var(--r-control); background: var(--warn-soft); color: var(--text-1); }
+.wk-phrases, .wk-devices { display: flex; flex-direction: column; gap: 4px; }
+.wk-item { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.wk-item-main { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
+.wk-item button:not(.tip) { min-height: 44px; min-width: 44px; }
+
+@media (max-width: 480px) {
+  .wk-row label, .wk-row .wk-grow { flex: 1 1 100%; }
+  .wk-item button { flex: 1 1 40%; }
+  .wk-actions button { flex: 1 1 40%; }
+}

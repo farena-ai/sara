@@ -247,6 +247,10 @@ export interface Settings {
    * false): show add-ons nobody at Sara has reviewed yet (the *Get more* switch, Phase 125).
    */
   store?: { on?: boolean; community?: boolean };
+  /** Phase 126 (WAKE.md §3.3): Hey Sara for this person: their phrases, where turns go, follow-up, sensitivity for new devices. */
+  wake?: import('./wake.ts').WakeSettings;
+  /** Phase 126: owner only (OWNER_SETTINGS): may devices on this server listen at all, and members too. */
+  wakeServer?: { allowed?: boolean; members?: boolean };
   safetyCheck?: { weekly?: boolean; last?: { at: string; statuses: Record<string, 'green' | 'amber' | 'red' | 'skip'> }; accepted?: Record<string, string> };
   /**
    * Phase 72: her Alexa skill (server-wide, the owner's): the skill id from the Alexa developer

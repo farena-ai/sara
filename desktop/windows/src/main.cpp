@@ -53,6 +53,10 @@
 #include "resource.h"
 #include "page-logo.h"
 #include "toast.h"
+#include "wake.h"
+#include <wtsapi32.h>
+#include <memory>
+#include <thread>
 #include "hands.h"
 #include <propkey.h>
 #include <propvarutil.h>
@@ -1417,6 +1421,7 @@ static void decideFromTray(const std::wstring& approvalId, bool ok) {
 }
 static void openConversation(const std::wstring& conv);
 
+static void onQuickWake(std::map<std::wstring, std::wstring>& m);  // Phase 126 (below)
 static void onQuickMessage(const std::wstring& json, const std::wstring& source) {
   // Only the quick-ask page this app served for the server in use.
   if (g_qaServer.empty() || g_qaServer != g_server || source.rfind(g_qaServer + kQuickPath, 0) != 0) return;
@@ -1447,6 +1452,8 @@ static void onQuickMessage(const std::wstring& json, const std::wstring& source)
     takeNow(m);
   } else if (a == L"reminder") {
     notifyReminder(m);  // Phase 75 stage 3: a reminder went off (the page's /api/events)
+  } else if (a == L"wake") {
+    onQuickWake(m);  // Phase 126: Hey Sara and the talk shortcut
   }
 }
 
@@ -1974,6 +1981,331 @@ static void themeMenus() {
 /** The tray menu, the same order as the Mac's menu bar menu:
  *    her face · mood | Ask Sara… | Now (jobs, approvals) |
  *    Open Sara · Settings… | Your Saras ▸ | Start with Windows · Quick ask shortcut ▸ · Help | Quit Sara */
+static void reply(const std::wstring& id, const std::wstring& resultJson, const std::wstring& error = L"");
+static void openView(const wchar_t* view);
+
+// ---------- Phase 126: Hey Sara (docs/design/WAKE.md §4, §6.1) ----------
+// The detector (wake.cpp) runs in this tray app only, for the signed-in Windows user; the quick-ask
+// page does every server call (claim, turn, her voice) with the sign-in it already has, so this side
+// never holds the cookie. States: off → asleep (dim dot) → woken/hearing/thinking/speaking (bright)
+// → asleep; paused (grey) with a reason. Prefs in desktop.ini: wakeOn, wakeSens, wakeChime,
+// wakePersonal, wakeLocked, wakeMic, talkShortcut. Off by default; only this device switches it on.
+static const int kTalkHotkeyId = 2;
+static const UINT WM_APP_WAKE = WM_APP + 20;
+static const UINT_PTR kWakeTryTimer = 21, kWakePauseTimer = 22;
+enum : UINT { ID_WAKE_TALK = 4000, ID_WAKE_ON, ID_WAKE_PAUSE, ID_WAKE_RESUME, ID_WAKE_SETTINGS };
+struct WakeMsg {
+  int kind;  // 1 detected, 2 recorded, 3 failed, 4 installed
+  std::string label;
+  std::vector<short> samples;
+  std::wstring text;
+  std::wstring replyId;
+  bool ok = false;
+};
+static std::wstring g_wakeState = L"off", g_wakeReason;
+static std::string g_wakeLines;               // the keyword lines from /api/wake/config (with the stop lines)
+static std::map<std::string, std::wstring> g_wakeCompanion;  // W1 → companion id
+static bool g_wakeServerOn = true, g_wakeLocked = false, g_wakeInstalling = false, g_wakeTalking = false;
+static std::wstring g_wakeServerPause;
+static ULONGLONG g_wakePauseUntil = 0;
+static std::vector<std::string> g_wakeTryHits;
+static std::wstring g_wakeTryReply;
+static HICON g_iconDim = nullptr, g_iconBright = nullptr, g_iconGrey = nullptr, g_iconPlain = nullptr;
+
+static bool wakePref(const wchar_t* k, bool def) { std::wstring v = getPref(k, def ? L"1" : L"0"); return v == L"1"; }
+static const Shortcut* talkShortcut() {
+  std::wstring id = getPref(L"talkShortcut", L"ctrl+alt+space");
+  for (auto& sc : kShortcuts)
+    if (id == sc.id && id != shortcutId()) return &sc;
+  return nullptr;
+}
+static void registerTalkShortcut() {
+  if (!g_wnd) return;
+  UnregisterHotKey(g_wnd, kTalkHotkeyId);
+  const Shortcut* sc = talkShortcut();
+  if (sc && !RegisterHotKey(g_wnd, kTalkHotkeyId, sc->mods | MOD_NOREPEAT, sc->vk)) logLine(std::wstring(L"talk shortcut: ") + sc->label + L" is used by another app");
+}
+/** The tray icon with a dot in its corner: a second icon made at start (dim, bright, grey). */
+static HICON dotIcon(COLORREF c) {
+  int cx = GetSystemMetrics(SM_CXSMICON), cy = GetSystemMetrics(SM_CYSMICON);
+  HICON base = (HICON)LoadImageW(g_inst, MAKEINTRESOURCEW(IDI_SARA), IMAGE_ICON, cx, cy, 0);
+  BITMAPV5HEADER bi{};
+  bi.bV5Size = sizeof(bi);
+  bi.bV5Width = cx;
+  bi.bV5Height = -cy;
+  bi.bV5Planes = 1;
+  bi.bV5BitCount = 32;
+  bi.bV5Compression = BI_BITFIELDS;
+  bi.bV5RedMask = 0x00FF0000;
+  bi.bV5GreenMask = 0x0000FF00;
+  bi.bV5BlueMask = 0x000000FF;
+  bi.bV5AlphaMask = 0xFF000000;
+  void* bits = nullptr;
+  HDC dc = GetDC(nullptr);
+  HBITMAP color = CreateDIBSection(dc, reinterpret_cast<BITMAPINFO*>(&bi), DIB_RGB_COLORS, &bits, nullptr, 0);
+  ReleaseDC(nullptr, dc);
+  HDC mem = CreateCompatibleDC(nullptr);
+  HGDIOBJ old = SelectObject(mem, color);
+  memset(bits, 0, (size_t)cx * cy * 4);
+  DrawIconEx(mem, 0, 0, base, cx, cy, 0, nullptr, DI_NORMAL);
+  SelectObject(mem, old);
+  DeleteDC(mem);
+  auto* px = static_cast<DWORD*>(bits);
+  int r = std::max(3, cx * 3 / 10), ox = cx - r - 1, oy = cy - r - 1;
+  for (int y = 0; y < cy; y++)
+    for (int x = 0; x < cx; x++) {
+      int dx = x - ox, dy = y - oy, d2 = dx * dx + dy * dy;
+      if (d2 <= r * r) px[y * cx + x] = 0xFF000000 | (GetRValue(c) << 16) | (GetGValue(c) << 8) | GetBValue(c);
+      else if (d2 <= (r + 1) * (r + 1)) px[y * cx + x] = 0xFF202020;
+    }
+  HBITMAP mask = CreateBitmap(cx, cy, 1, 1, nullptr);
+  ICONINFO ii{TRUE, 0, 0, mask, color};
+  HICON out = CreateIconIndirect(&ii);
+  DeleteObject(mask);
+  DeleteObject(color);
+  DestroyIcon(base);
+  return out;
+}
+static void wakeTray() {
+  if (!g_iconPlain) {
+    g_iconPlain = g_tray.hIcon;
+    g_iconDim = dotIcon(RGB(120, 110, 170));
+    g_iconBright = dotIcon(RGB(255, 196, 64));
+    g_iconGrey = dotIcon(RGB(140, 140, 140));
+  }
+  const std::wstring& st = g_wakeState;
+  g_tray.hIcon = st == L"off" ? g_iconPlain : st == L"asleep" ? g_iconDim : st == L"paused" ? g_iconGrey : g_iconBright;
+  g_tray.uFlags = NIF_ICON | NIF_TIP;
+  std::wstring tip = st == L"off" ? L"Sara" : st == L"paused" ? L"Hey Sara is paused" + (g_wakeReason.empty() ? L"" : L" (" + g_wakeReason + L")") : st == L"asleep" ? L"Listening for \u201CHey Sara\u201D \u00B7 Pause from this menu" : L"Sara is listening\u2026";
+  wcsncpy_s(g_tray.szTip, tip.c_str(), _TRUNCATE);
+  Shell_NotifyIconW(NIM_MODIFY, &g_tray);
+  logLine(L"hey sara: " + st + (g_wakeReason.empty() ? L"" : L" (" + g_wakeReason + L")"));
+}
+static void wakeSetState(const std::wstring& st, const std::wstring& reason = L"") {
+  if (st == g_wakeState && reason == g_wakeReason) return;
+  g_wakeState = st;
+  g_wakeReason = reason;
+  wakeTray();
+}
+static sarawake::Events wakeEvents() {
+  sarawake::Events ev;
+  ev.detected = [](const std::string& label) { PostMessageW(g_wnd, WM_APP_WAKE, 0, (LPARAM) new WakeMsg{1, label}); };
+  ev.recorded = [](std::vector<short> samples) {
+    auto* m = new WakeMsg{2};
+    m->samples = std::move(samples);
+    PostMessageW(g_wnd, WM_APP_WAKE, 0, (LPARAM)m);
+  };
+  ev.failed = [](const std::wstring& why) {
+    auto* m = new WakeMsg{3};
+    m->text = why;
+    PostMessageW(g_wnd, WM_APP_WAKE, 0, (LPARAM)m);
+  };
+  return ev;
+}
+/** Starts or stops listening so it matches the switch, the pauses and the server's word. */
+static void wakeApply() {
+  std::wstring pause;
+  if (!wakePref(L"wakeOn", false)) {
+    sarawake::stop();
+    return wakeSetState(L"off");
+  }
+  if (!g_wakeServerOn) pause = L"off on the server";
+  else if (!g_wakeServerPause.empty()) pause = g_wakeServerPause;
+  else if (g_wakeLocked && wakePref(L"wakeLocked", true)) pause = L"locked";
+  else if (g_wakePauseUntil && GetTickCount64() < g_wakePauseUntil) pause = L"hour";
+  else if (g_wakeLines.empty()) pause = L"offline";
+  if (!pause.empty() && g_wakeTryHits.empty() && g_wakeTryReply.empty()) {
+    sarawake::stop();  // paused means the microphone is closed, not muted
+    return wakeSetState(L"paused", pause);
+  }
+  if (sarawake::running()) {
+    if (g_wakeState == L"off" || g_wakeState == L"paused") wakeSetState(L"asleep");
+    return;
+  }
+  std::wstring err;
+  if (!sarawake::start(sarawake::packDir(), g_wakeLines, getPref(L"wakeMic"), wakeEvents(), err)) {
+    logLine(L"hey sara: " + err);
+    return wakeSetState(L"paused", L"pack");
+  }
+  wakeSetState(L"asleep");
+}
+static std::wstring wakeStateJson() {
+  std::wstring mics = L"[";
+  for (auto& m : sarawake::microphones()) mics += (mics.size() > 1 ? L"," : L"") + std::wstring(L"{\"id\":\"") + jsonEscape(m.first) + L"\",\"name\":\"" + jsonEscape(m.second) + L"\"}";
+  mics += L"]";
+  std::wstring keys = L"[";
+  for (auto& sc : kShortcuts)
+    if (shortcutId() != sc.id) keys += (keys.size() > 1 ? L"," : L"") + std::wstring(L"{\"id\":\"") + sc.id + L"\",\"label\":\"" + sc.label + L"\"}";
+  keys += L",{\"id\":\"off\",\"label\":\"Off\"}]";
+  wchar_t host[MAX_COMPUTERNAME_LENGTH + 1];
+  DWORD n = MAX_COMPUTERNAME_LENGTH + 1;
+  if (!GetComputerNameW(host, &n)) wcscpy_s(host, L"Windows PC");
+  bool ready = sarawake::packReady(sarawake::packDir());
+  std::wstring st = g_wakeInstalling ? L"paused" : g_wakeState;
+  return L"{\"available\":true,\"on\":" + std::wstring(wakePref(L"wakeOn", false) ? L"true" : L"false") + L",\"state\":\"" + st + L"\",\"reason\":\"" + jsonEscape(g_wakeInstalling ? L"pack" : g_wakeReason) +
+         L"\",\"pack\":{\"installed\":" + (ready ? L"true" : L"false") + L",\"mb\":" + std::to_wstring(sarawake::packDownloadBytes() / 1000000) + L"},\"mics\":" + mics + L",\"mic\":\"" + jsonEscape(getPref(L"wakeMic")) + L"\",\"sensitivity\":\"" +
+         jsonEscape(getPref(L"wakeSens", L"normal")) + L"\",\"chime\":" + (wakePref(L"wakeChime", true) ? L"true" : L"false") + L",\"personal\":" + (wakePref(L"wakePersonal", false) ? L"true" : L"false") + L",\"locked\":" +
+         (wakePref(L"wakeLocked", true) ? L"true" : L"false") + L",\"shortcut\":\"" + jsonEscape(getPref(L"talkShortcut", L"ctrl+alt+space")) + L"\",\"shortcuts\":" + keys + L",\"label\":\"" + jsonEscape(host) + L"\",\"platform\":\"windows\"}";
+}
+static void quickJs(const std::wstring& js) {
+  if (g_qaReady && g_qaWeb) g_qaWeb->ExecuteScript(js.c_str(), nullptr);
+}
+static void wakeBackToSleep(bool chimeNow) {
+  g_wakeTalking = false;
+  if (!sarawake::running()) return wakeApply();
+  if (chimeNow && wakePref(L"wakeChime", true)) sarawake::chime(false);
+  sarawake::setMode(sarawake::Mode::Asleep);
+  wakeSetState(L"asleep");
+}
+/** Talk to Sara (the shortcut or the tray): no phrase, no download; the page records. */
+static void wakeTalk() {
+  if (g_server.empty()) return showWindow();
+  if (wakePref(L"wakeChime", true)) sarawake::chime(true);
+  g_wakeTalking = true;
+  if (sarawake::running()) sarawake::setMode(sarawake::Mode::Off);
+  wakeSetState(L"hearing");
+  showQuickAsk();
+  quickJs(L"window.saraQuick&&saraQuick.talk&&saraQuick.talk()");
+}
+static void onWakeMsg(WakeMsg* m) {
+  std::unique_ptr<WakeMsg> own(m);
+  if (m->kind == 1) {
+    if (!g_wakeTryReply.empty()) {
+      g_wakeTryHits.push_back(m->label);
+      return;
+    }
+    if (m->label == "STOP") return quickJs(L"window.saraQuick&&saraQuick.stopSpeaking&&saraQuick.stopSpeaking()");
+    if (g_wakeState != L"asleep") return;
+    sarawake::setMode(sarawake::Mode::Off);  // nothing is fed until the page has the claim
+    if (wakePref(L"wakeChime", true)) sarawake::chime(true);
+    wakeSetState(L"woken");
+    showQuickAsk();
+    std::wstring label(m->label.begin(), m->label.end());
+    quickJs(L"window.saraQuick&&saraQuick.woken&&saraQuick.woken({label:\"" + jsonEscape(label) + L"\",companion:\"" + jsonEscape(g_wakeCompanion[m->label]) + L"\"})");
+  } else if (m->kind == 2) {
+    if (m->samples.empty()) {
+      quickJs(L"window.saraQuick&&saraQuick.hidden()");
+      return wakeBackToSleep(true);
+    }
+    wakeSetState(L"thinking");
+    std::string wav = sarawake::wavBytes(m->samples);
+    DWORD len = 0;
+    CryptBinaryToStringA(reinterpret_cast<const BYTE*>(wav.data()), (DWORD)wav.size(), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, nullptr, &len);
+    std::string b64(len, '\0');
+    CryptBinaryToStringA(reinterpret_cast<const BYTE*>(wav.data()), (DWORD)wav.size(), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, b64.data(), &len);
+    b64.resize(len);
+    quickJs(L"window.saraQuick&&saraQuick.heard(\"" + std::wstring(b64.begin(), b64.end()) + L"\")");
+  } else if (m->kind == 3) {
+    wakeSetState(L"paused", m->text);
+    if (m->text == L"mic") notifyPlain(L"Hey Sara can't use the microphone", L"Windows is blocking the microphone for desktop apps: Settings \u2192 Privacy & security \u2192 Microphone.");
+  } else if (m->kind == 4) {
+    g_wakeInstalling = false;
+    if (!m->ok) {
+      setPref(L"wakeOn", L"0");
+      reply(m->replyId, L"", m->text);
+    } else {
+      setPref(L"wakeOn", L"1");
+      wakeApply();
+      reply(m->replyId, wakeStateJson());
+    }
+    wakeTray();
+  }
+}
+/** From the quick-ask page: {a:'wake', what: claimed | speaking | done | config}. */
+static void onQuickWake(std::map<std::wstring, std::wstring>& m) {
+  const std::wstring& what = m[L"what"];
+  if (what == L"claimed") {
+    if (g_wakeTalking) return;
+    wakeSetState(L"hearing");
+    sarawake::setMode(sarawake::Mode::Recording);
+  } else if (what == L"speaking") {
+    wakeSetState(L"speaking");
+    if (sarawake::running()) sarawake::setMode(sarawake::Mode::Speaking);  // only "stop" is listened for
+  } else if (what == L"done") {
+    wakeBackToSleep(m[L"why"] != L"lost");
+  } else if (what == L"config") {
+    // The page's poll of /api/wake/config (every 60 s): the lines, the server's word, a remote off.
+    std::wstring lines = m[L"lines"];
+    int n = WideCharToMultiByte(CP_UTF8, 0, lines.c_str(), (int)lines.size(), nullptr, 0, nullptr, nullptr);
+    std::string u8(n, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, lines.c_str(), (int)lines.size(), u8.data(), n, nullptr, nullptr);
+    bool changed = u8 != g_wakeLines;
+    g_wakeLines = u8;
+    g_wakeCompanion.clear();
+    std::wstring map = m[L"map"];  // "W1=main;W2=mira"
+    for (size_t a = 0; a < map.size();) {
+      size_t b = map.find(L';', a);
+      std::wstring kv = map.substr(a, b == std::wstring::npos ? std::wstring::npos : b - a);
+      size_t eq = kv.find(L'=');
+      if (eq != std::wstring::npos) g_wakeCompanion[std::string(kv.begin(), kv.begin() + eq)] = kv.substr(eq + 1);
+      if (b == std::wstring::npos) break;
+      a = b + 1;
+    }
+    g_wakeServerOn = m[L"server"] != L"off";
+    g_wakeServerPause = m[L"paused"];
+    if (m[L"on"] == L"0" && wakePref(L"wakeOn", false) && m[L"known"] == L"1") {
+      setPref(L"wakeOn", L"0");  // switched off from another of his devices (or everywhere)
+      notifyPlain(L"Hey Sara is off on this computer", L"It was switched off from another of your devices. Switch it on again in Sara's Settings \u2192 Hey Sara.");
+    }
+    if (changed && sarawake::running()) sarawake::setKeywords(g_wakeLines);
+    wakeApply();
+  }
+}
+/** From Settings → Hey Sara in the main window: SaraDesktop.call('wake', {op, key, value}). */
+static void onWakeCall(const std::wstring& id, std::map<std::wstring, std::wstring>& m) {
+  const std::wstring& op = m[L"op"];
+  if (op == L"state") return reply(id, wakeStateJson());
+  if (op == L"try") {
+    g_wakeTryHits.clear();
+    g_wakeTryReply = id;
+    if (!sarawake::running()) {
+      std::wstring err;
+      std::string lines = g_wakeLines.empty() ? std::string("HH EY1 S EH1 R AH0 :1.5 #0.25 @W1\nHH EY1 S AA1 R AH0 :1.5 #0.25 @W1") : g_wakeLines;
+      if (!sarawake::start(sarawake::packDir(), lines, getPref(L"wakeMic"), wakeEvents(), err)) {
+        g_wakeTryReply.clear();
+        return reply(id, L"", err);
+      }
+    }
+    SetTimer(g_wnd, kWakeTryTimer, 20000, nullptr);
+    return;
+  }
+  if (op != L"set") return reply(id, L"", L"unknown");
+  const std::wstring& key = m[L"key"];
+  const std::wstring& v = m[L"value"];
+  if (key == L"on") {
+    if (v == L"1" && !sarawake::packReady(sarawake::packDir())) {
+      if (g_wakeInstalling) return reply(id, wakeStateJson());
+      g_wakeInstalling = true;
+      wakeTray();
+      std::wstring rid = id;
+      std::thread([rid] {
+        std::wstring err;
+        bool ok = sarawake::installPack(err, [](int) {});
+        auto* msg = new WakeMsg{4};
+        msg->ok = ok;
+        msg->text = err;
+        msg->replyId = rid;
+        PostMessageW(g_wnd, WM_APP_WAKE, 0, (LPARAM)msg);
+      }).detach();
+      return;
+    }
+    setPref(L"wakeOn", v == L"1" ? L"1" : L"0");
+  } else if (key == L"remove") {
+    sarawake::removePack();
+    setPref(L"wakeOn", L"0");
+  } else if (key == L"shortcut") {
+    setPref(L"talkShortcut", v);
+    registerTalkShortcut();
+  } else if (key == L"mic" || key == L"sensitivity") {
+    setPref(key == L"mic" ? L"wakeMic" : L"wakeSens", v);
+    sarawake::stop();
+  } else if (key == L"chime" || key == L"personal" || key == L"locked") {
+    setPref(key == L"chime" ? L"wakeChime" : key == L"personal" ? L"wakePersonal" : L"wakeLocked", v == L"1" ? L"1" : L"0");
+  }
+  wakeApply();
+  reply(id, wakeStateJson());
+}
+
 static void trayMenu() {
   HMENU m = CreatePopupMenu();
   UINT needsServer = g_server.empty() ? MF_GRAYED : 0;
@@ -1991,6 +2323,15 @@ static void trayMenu() {
     // Quick ask: off on the demo (read-only) and until she's signed in.
     std::wstring ask = L"Ask " + menuText(g_now.name) + L"…" + (shortcutLabel().empty() || g_shortcutTaken ? L"" : L"\t" + shortcutLabel());
     AppendMenuW(m, MF_STRING | (g_now.demo || !g_now.signedIn ? MF_GRAYED : 0), ID_ASK, ask.c_str());
+    // Phase 126: Talk to Sara (no phrase, no download) and the Hey Sara switch for this computer.
+    {
+      const Shortcut* ts = talkShortcut();
+      std::wstring talk = std::wstring(L"Talk to Sara") + (ts ? std::wstring(L"\t") + ts->label : L"");
+      AppendMenuW(m, MF_STRING | (g_now.demo || !g_now.signedIn ? MF_GRAYED : 0), ID_WAKE_TALK, talk.c_str());
+      AppendMenuW(m, MF_STRING | (wakePref(L"wakeOn", false) ? MF_CHECKED : 0) | (g_now.demo || !g_now.signedIn ? MF_GRAYED : 0), ID_WAKE_ON, L"Listen for \u201CHey Sara\u201D");
+      if (wakePref(L"wakeOn", false)) AppendMenuW(m, MF_STRING, g_wakePauseUntil ? ID_WAKE_RESUME : ID_WAKE_PAUSE, g_wakePauseUntil ? L"Resume Hey Sara" : L"Pause Hey Sara for 1 hour");
+      AppendMenuW(m, MF_STRING, ID_WAKE_SETTINGS, L"Hey Sara settings\u2026");
+    }
     if (g_now.signedIn && !g_now.demo) {
       // "Now": background jobs still running and approvals waiting (refreshed every 45 s).
       AppendMenuW(m, MF_SEPARATOR, 0, nullptr);
@@ -2317,7 +2658,7 @@ static const wchar_t* kShim = LR"JS(
 })();
 )JS";
 
-static void reply(const std::wstring& id, const std::wstring& resultJson, const std::wstring& error = L"") {
+static void reply(const std::wstring& id, const std::wstring& resultJson, const std::wstring& error) {
   if (id.empty() || !g_web) return;
   std::wstring msg = L"{\"id\":" + id + (error.empty() ? L",\"result\":" + resultJson : L",\"error\":\"" + jsonEscape(error) + L"\"") + L"}";
   g_web->PostWebMessageAsJson(msg.c_str());
@@ -2400,6 +2741,7 @@ static std::wstring prefsJson() {
          L",\"quickAskShortcuts\":" + shortcutsJson() + L",\"sendTo\":" + (sendToOn() ? L"true" : L"false") + L",\"toasts\":" + (g_toastOk ? L"true" : L"false") + handsPrefsJson() + L"}";
 }
 
+
 static void onMessage(const std::wstring& json, const std::wstring& source) {
   auto m = parseFlatJson(json);
   const std::wstring& kind = m[L"m"];
@@ -2429,6 +2771,8 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
     return postSwitch(profileFor(o));
   }
   if (!fromServer) return;  // everything else only from the owner's own server
+  // Phase 126: Settings → Hey Sara (this device's switch, the pack, the microphone).
+  if (kind == L"wake") return onWakeCall(id, m);
   // Phase 75: the page's theme (Night / Day / follow the system): the title bar, Mica and the
   // background before the next page paints follow it. {type:'theme', theme} or SaraDesktop.call('theme', {theme}).
   if (m[L"type"] == L"theme" || kind == L"theme") {
@@ -2956,9 +3300,13 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_HOTKEY:
       // Phase 75 stage 2: the quick-ask shortcut, from any app.
       if (wp == kHotkeyId) toggleQuickAsk();
+      if (wp == kTalkHotkeyId) wakeTalk();  // Phase 126: Talk to Sara
       return 0;
     case WM_DESTROY:
       UnregisterHotKey(h, kHotkeyId);
+      UnregisterHotKey(h, kTalkHotkeyId);
+      sarawake::stop();  // Phase 126: the microphone closes with the app
+      WTSUnRegisterSessionNotification(h);
       sarahands::stop();  // Phase 87: the connection and the Sara browser close with the app
       saratoast::unregisterActivator();
       KillTimer(h, kNowTimer);
@@ -2987,6 +3335,16 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_APP_TOAST:
       runToastQueue();  // Phase 75 stage 3: clicks on her toasts
       return 0;
+    case WM_APP_WAKE:
+      onWakeMsg(reinterpret_cast<WakeMsg*>(lp));  // Phase 126: from the detector's thread
+      return 0;
+    case WM_WTSSESSION_CHANGE:
+      // Phase 126: Pause while the screen is locked (on by default).
+      if (wp == WTS_SESSION_LOCK || wp == WTS_SESSION_UNLOCK) {
+        g_wakeLocked = wp == WTS_SESSION_LOCK;
+        wakeApply();
+      }
+      return 0;
     case WM_COPYDATA: {
       // Phase 75 stage 3: a second start (Send To, Sara.exe <files>) hands its files over.
       auto* cd = reinterpret_cast<const COPYDATASTRUCT*>(lp);
@@ -3002,6 +3360,24 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_TIMER:
       if (wp == kRemoveTimer) finishRemove();
       if (wp == kNowTimer) refreshNow();
+      if (wp == kWakeTryTimer) {
+        // Phase 126: Try it: 20 seconds of listening, the labels heard, nothing asked.
+        KillTimer(h, kWakeTryTimer);
+        std::wstring list = L"[";
+        for (auto& x : g_wakeTryHits) list += (list.size() > 1 ? L"," : L"") + std::wstring(L"\"") + std::wstring(x.begin(), x.end()) + L"\"";
+        list += L"]";
+        std::wstring rid = g_wakeTryReply;
+        g_wakeTryReply.clear();
+        g_wakeTryHits.clear();
+        if (!wakePref(L"wakeOn", false)) sarawake::stop();
+        reply(rid, L"{\"hits\":" + list + L"}");
+        wakeApply();
+      }
+      if (wp == kWakePauseTimer) {
+        KillTimer(h, kWakePauseTimer);
+        g_wakePauseUntil = 0;
+        wakeApply();
+      }
       return 0;
     case WM_APP_TRAY:
       switch (LOWORD(lp)) {
@@ -3030,6 +3406,28 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         case ID_CHANGE: changeServerFromMenu(); break;
         case ID_HEADER: showWindow(); break;
         case ID_ASK: showQuickAsk(); break;
+        case ID_WAKE_TALK: wakeTalk(); break;
+        case ID_WAKE_ON:
+          // Switching on needs the consent card and the download: that's on Settings → Hey Sara.
+          if (wakePref(L"wakeOn", false)) {
+            setPref(L"wakeOn", L"0");
+            wakeApply();
+          } else if (sarawake::packReady(sarawake::packDir())) {
+            setPref(L"wakeOn", L"1");
+            wakeApply();
+          } else openView(L"settings");
+          break;
+        case ID_WAKE_PAUSE:
+          g_wakePauseUntil = GetTickCount64() + 3600000;
+          SetTimer(g_wnd, kWakePauseTimer, 3600000, nullptr);
+          wakeApply();
+          break;
+        case ID_WAKE_RESUME:
+          g_wakePauseUntil = 0;
+          KillTimer(g_wnd, kWakePauseTimer);
+          wakeApply();
+          break;
+        case ID_WAKE_SETTINGS: openView(L"settings"); break;
         case ID_SHORTCUT_OFF: setShortcut(L"off"); break;
         case ID_SENDTO: setSendTo(!sendToOn()); break;
         case ID_HANDS_STOP: sarahands::pressStop(); break;
@@ -3106,6 +3504,14 @@ static HWND sharedWindow() {
 
 int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR cmd, int show) {
   g_inst = inst;
+  // Phase 126: Sara.exe --test-wake <pack folder> <wav> [keywords file]: the native check (WAKE.md §12).
+  if (wcsstr(cmd, L"--test-wake")) {
+    int argc = 0;
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    int code = argc >= 4 ? sarawake::testWake(argv[2], argv[3], argc >= 5 ? argv[4] : L"") : 64;
+    if (argv) LocalFree(argv);
+    return code;
+  }
   bool background = wcsstr(cmd, L"--background") != nullptr;
   bool portable = wcsstr(cmd, L"--portable") != nullptr;
   // Phase 75 stage 3: who she is to Windows (toasts, taskbar); started by a click on a toast
@@ -3236,6 +3642,10 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR cmd, int show) {
   // Phase 75 stage 2: the quick-ask shortcut (a clash is said once per start), "Now" every 45 s.
   registerShortcut(true);
   SetTimer(g_wnd, kNowTimer, 45000, nullptr);
+  // Phase 126: the talk shortcut, the screen-lock pause and Hey Sara as it was left (off by default).
+  registerTalkShortcut();
+  WTSRegisterSessionNotification(g_wnd, NOTIFY_FOR_THIS_SESSION);
+  wakeApply();
   if (!background || !files.empty()) ShowWindow(g_wnd, maximized ? SW_SHOWMAXIMIZED : show);
   createWebView();
   if (!files.empty()) takeFiles(files);  // attached once her page has loaded

@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 153 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 156 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -209,6 +209,26 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Choose how she hears you under Hearing you.
 2. Then press the microphone in the chat box and speak.
+
+### Hey Sara
+
+**How do I turn on Hey Sara?**
+
+1. Open this page in the Sara app on your Windows PC or Android phone.
+2. Switch on Listen for “Hey Sara”, read what it does, and allow the download and the microphone.
+3. Say “Hey Sara” and ask; the dot on her icon turns bright while she hears you.
+
+**How do I talk to her without saying her name?**
+
+1. On Windows, press the talk shortcut (Ctrl+Alt+Space) or choose Talk to Sara in the tray.
+2. On Android, use the Talk to Sara tile in Quick Settings.
+3. It works even with Hey Sara off: nothing listens until you press it.
+
+**How do I stop her listening on a device?**
+
+1. Press Stop listening next to it under Your devices, from any of your devices.
+2. Or Turn off everywhere for all of them.
+3. Only the device itself can switch it on again.
 
 ### Calls from her
 
