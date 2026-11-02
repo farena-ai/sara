@@ -1,0 +1,58 @@
+{
+  "id": "price-watch",
+  "version": 1,
+  "title": "Price watch",
+  "icon": "🏷",
+  "category": "work",
+  "engine": "loop",
+  "pitch": "Checks a product page and tells you when the price drops below your target.",
+  "fields": [
+    {
+      "key": "url",
+      "kind": "url",
+      "label": "The product page",
+      "tip": "rt-url"
+    },
+    {
+      "key": "target",
+      "kind": "number",
+      "label": "Tell me when it's under",
+      "tip": "rt-target"
+    },
+    {
+      "key": "every",
+      "kind": "pick",
+      "label": "How often?",
+      "default": "12",
+      "choices": [
+        {
+          "value": "6",
+          "label": "Every 6 hours"
+        },
+        {
+          "value": "12",
+          "label": "Every 12 hours"
+        },
+        {
+          "value": "24",
+          "label": "Once a day"
+        }
+      ],
+      "tip": "rt-every"
+    }
+  ],
+  "needs": [
+    "brain",
+    "online"
+  ],
+  "tools": [
+    "web_fetch"
+  ],
+  "defaults": {
+    "days": 30
+  },
+  "words": {
+    "prompt": "Look at {url}. What is the price now, in the page's currency? If it is below {target}, say so with the exact price; if not, say the price.",
+    "until": "the price is below {target}"
+  }
+}

@@ -5,6 +5,25 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.54.0 (2026-11-02): routines and a safety check-up (Phase 121)
+
+- **Routines gallery** (Planner → Routines; also on an empty Today and at the end of the wizard): ten
+  ready-made routines built on what Sara already runs: morning briefing, weekly review, stretch and
+  bedtime reminders, leave on time, watch my repo's CI (new), new issues, backup check, inbox triage
+  and price watch. Each card says what it does, what it needs (with a link to set it up) and what it
+  costs, computed in code; a preview makes no model call; *Turn on* and an Off switch on each in *My
+  routines*, which also lists schedules set up elsewhere. Paid routines are loops with a clock time
+  and an end date (7–90 days), a daily token share and quiet-hour skips; after a restart they stay on
+  and skip missed runs. Tools keep your approval settings: one on *Ask* pauses the routine and tells
+  you. Guide: [docs/ROUTINES.md](docs/ROUTINES.md).
+- **Safety check-up** (Settings → Data & health): 17 read-only checks (who can reach her, sign-in,
+  owner token age, old devices, backups, tools that run without asking, sandbox, adult-mode lock,
+  chat apps open to strangers, webhooks, agents and the hub, secrets in her notes, updates, the data
+  folder), a verdict in words, and one-click fixes that can only tighten (a gate in code refuses any
+  loosening), each labelled *Undo any time*, *Undo for 30 days* or *Can't be undone*. Reachability
+  changes are guided, never one click. A weekly quiet check, a Today line only when something is red,
+  and `sara doctor --safety`. Owner only. Guide: [docs/SAFETY_CHECKUP.md](docs/SAFETY_CHECKUP.md).
+
 ## 2.53.0 (2026-11-02): coding precision (Phase 120)
 
 - **Checks after her edits:** after she writes or edits a file, Sara runs the project's own checker

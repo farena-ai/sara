@@ -159,6 +159,21 @@ export function fromHowto(json: string): string[] {
   return Object.values(j).flatMap((list) => list.flatMap((x) => [x.q, ...x.steps])).map(norm).filter(Boolean);
 }
 
+/** Phase 121: the built-in routine cards (templates/routines/*.json: title, pitch, questions, choices); the server translates them. */
+export function fromRoutines(dir = join(ROOT, 'templates', 'routines')): string[] {
+  if (!existsSync(dir)) return [];
+  const out: string[] = [];
+  for (const f of readdirSync(dir).filter((x) => x.endsWith('.json'))) {
+    const j = JSON.parse(readFileSync(join(dir, f), 'utf8')) as { title: string; pitch: string; fields?: { label: string; default?: unknown; kind: string; choices?: { label: string }[] }[] };
+    out.push(j.title, j.pitch);
+    for (const x of j.fields ?? []) {
+      out.push(x.label, ...(x.choices ?? []).map((c) => c.label));
+      if (x.kind === 'text' && typeof x.default === 'string') out.push(x.default);
+    }
+  }
+  return out.map(norm).filter((x) => x && wanted(x));
+}
+
 /** Tip texts and page summaries from tips.json. */
 export function fromTips(json: string): string[] {
   const j = JSON.parse(json) as { tips?: Record<string, [string, string]>; pages?: Record<string, [string, string]> };
@@ -177,6 +192,7 @@ export function allKeys(): Map<string, string> {
   for (const f of webJsFiles()) add(fromJs(readFileSync(f, 'utf8')), f.slice(ROOT.length + 1).replace(/\\/g, '/'));
   add(fromTips(readFileSync(join(ROOT, 'web', 'tips.json'), 'utf8')), 'tips.json');
   add(fromHowto(readFileSync(join(ROOT, 'web', 'howto.json'), 'utf8')), 'howto.json');
+  add(fromRoutines(), 'templates/routines');
   add(fromHelp(readFileSync(join(ROOT, 'web', 'help.html'), 'utf8')), 'help.html');
   for (const f of serverFiles()) add(fromServer(readFileSync(f, 'utf8')), f.slice(ROOT.length + 1).replace(/\\/g, '/'));
   // Extra keys a module asks for by list (see web/i18n/_extra.json): words built from data, e.g. memory kinds.

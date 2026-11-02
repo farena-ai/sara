@@ -1,0 +1,36 @@
+{
+  "id": "leave-on-time",
+  "version": 1,
+  "title": "Leave on time",
+  "icon": "🚗",
+  "category": "everyday",
+  "engine": "leaveBy",
+  "pitch": "When a meeting has an address, she tells you when to leave.",
+  "fields": [
+    {
+      "key": "mode",
+      "kind": "pick",
+      "label": "How do you travel?",
+      "default": "car",
+      "choices": [
+        {
+          "value": "car",
+          "label": "By car"
+        },
+        {
+          "value": "bike",
+          "label": "By bike"
+        },
+        {
+          "value": "foot",
+          "label": "On foot"
+        }
+      ],
+      "tip": "rt-mode"
+    }
+  ],
+  "needs": [
+    "calendar",
+    "home"
+  ]
+}

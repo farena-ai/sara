@@ -55,6 +55,8 @@ interface OwnerFile {
    * so browser setup never reopens on a server that already has an owner.
    */
   setupPending?: true;
+  /** Phase 121: when the owner token was made (set by every new token from 2.54 on; older files have none, and none is invented). */
+  tokenAt?: string;
 }
 
 export interface DeviceView {
@@ -120,7 +122,7 @@ export class OwnerAuth {
       // Damaged with no good copy, during a token reset: a new owner file that is NOT a new server
       // (no browser setup opens); the reset that follows prints the new token.
       const { owner, token } = OwnerAuth.#generate(this.#prefix);
-      this.#owner = owner;
+      this.#owner = { ...owner, tokenAt: this.#now().toISOString() };
       this.newToken = token;
       this.#save();
     } else if (loaded) {
@@ -132,7 +134,7 @@ export class OwnerAuth {
       }
     } else {
       const { owner, token } = OwnerAuth.#generate(this.#prefix);
-      this.#owner = owner;
+      this.#owner = { ...owner, tokenAt: this.#now().toISOString() };
       this.newToken = token;
       this.#fresh = true;
       this.#save();
@@ -165,6 +167,11 @@ export class OwnerAuth {
       writeFileAtomic(path, JSON.stringify(good, null, 2) + '\n', 0o600);
       return good;
     }
+  }
+
+  /** Phase 121: when the owner token was made, or undefined when the owner file is older than 2.54 (never guessed). */
+  get tokenAt(): string | undefined {
+    return this.#owner.tokenAt;
   }
 
   /** Phase 59: a new server nobody has signed in to yet (browser setup may be open, src/claim.ts). */
@@ -202,6 +209,7 @@ export class OwnerAuth {
    */
   resetToken(opts: { clearSecurity?: boolean } = {}): string {
     const { owner, token } = OwnerAuth.#generate(this.#prefix);
+    owner.tokenAt = this.#now().toISOString();
     if (!opts.clearSecurity) {
       if (this.#owner.passkeys) owner.passkeys = this.#owner.passkeys;
       if (this.#owner.totp) owner.totp = this.#owner.totp;

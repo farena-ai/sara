@@ -933,6 +933,37 @@
    ]
   }
  ],
+ "dh-safety": [
+  {
+   "id": "check",
+   "q": "How do I check that my setup is safe?",
+   "steps": [
+    "Open Settings and pick Safety check-up (the first page under its group).",
+    "Read the top line: Looks safe, Mostly safe or Fix these first.",
+    "Each row says what's true now; the ? says why it matters."
+   ],
+   "show": "#sc-again"
+  },
+  {
+   "id": "fix",
+   "q": "How do I fix something it found?",
+   "steps": [
+    "Press the fix button on that row (for example Ask me first again).",
+    "Read what it changes and whether it can be undone, then press Do it.",
+    "Changed your mind? Press Undo under Recent fixes."
+   ],
+   "show": "#sc-list"
+  },
+  {
+   "id": "cli",
+   "q": "How do I run the check-up from the command line?",
+   "steps": [
+    "On the server, run: sara doctor --safety",
+    "It prints the same rows, the fix for each, and exits 0 (safe), 1 (tighten) or 2 (fix first).",
+    "The command line never changes anything; fixes are on this page."
+   ]
+  }
+ ],
  "dh-health": [
   {
    "id": "check",

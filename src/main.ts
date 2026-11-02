@@ -19,6 +19,8 @@ import { WeeklyWorker } from './weekly.ts';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { copyOffsite, offsiteTestDue, testOffsite } from './offsite-run.ts';
 import { formatDoctor, runDoctor } from './doctor.ts';
+import { createSafetyReportTool, sweepUndo, weeklySafetyTick, type SafetyDeps } from './safety-check.ts';
+import { createSuggestRoutineTool } from './routines.ts';
 import { decryptBackup, isEncrypted } from './offsite.ts';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -278,6 +280,8 @@ const settings = new SettingsStore(dataDir);
   if (!settings.get().adultMode) settings.update({ adultMode: settings.get().disclosureAcceptedAt ? { on: false, ask: true } : { on: false } });
 }
 const vault = new Vault(dataDir, process.env.SARA_MASTER_KEY);
+// Phase 121: `sara doctor [--safety]` and `node src/main.ts doctor --safety` mean --doctor.
+if (process.argv[2] === 'doctor' && !process.argv.includes('--doctor')) process.argv.push('--doctor');
 if (process.argv.includes('--doctor')) {
   let sb: SandboxInfo;
   try {
@@ -287,11 +291,28 @@ if (process.argv.includes('--doctor')) {
   }
   const tools = new ToolRegistry();
   tools.unsandboxed = sb.mode === 'none';
+  // Phase 121: the safety check-up (read-only here: nothing is fixed or written from the CLI).
+  // The CLI has no live tool list, so the owner's own approval choices stand in for it.
+  for (const [name, perm] of Object.entries(settings.get().toolPermissions ?? {})) if (perm === 'auto' && !tools.list().some((t) => t.spec.name === name)) tools.add({ spec: { name, description: name, parameters: { type: 'object', properties: {} } }, defaultPermission: 'ask', ...(/shell|command|job|ssh|terminal|exec|run_/.test(name) ? { runsCommands: true } : {}), summarize: () => name, run: async () => '' });
+  const { runSafetyCheck, formatSafety, verdictLine, exitCodeOf } = await import('./safety-check.ts');
+  const { Store } = await import('./store.ts');
+  const { HookStore } = await import('./webhooks.ts');
+  const { loadPersona } = await import('./persona.ts');
+  const dbFile = join(dataDir, 'sara.db');
+  const cliStore = existsSync(dbFile) ? new Store(dbFile) : undefined;
+  const cliApp = { settings, vault, tools, sandbox: sb, now: () => new Date(), store: cliStore ?? { db: new DatabaseSync(':memory:') }, persona: loadPersona(join(root, 'persona', 'sara.json')), ...(cliStore ? { hooks: { store: new HookStore(cliStore.db) } } : {}) } as unknown as AppContext;
+  const safety = await runSafetyCheck({ app: cliApp, auth, dataDir, sandbox: sb, version: appInfo(root).version }, 'cli', { log: false });
+  if (process.argv.includes('--safety')) {
+    console.log(formatSafety(safety, { fixes: true }));
+    console.log(`\n${verdictLine(safety)}`);
+    process.exit(exitCodeOf(safety.verdict));
+  }
   const checks = await runDoctor({ dataDir, settings, vault, subscriptions: new Subscriptions(vault, dataDir), sandbox: sb, tools });
   console.log(formatDoctor(checks));
   const fails = checks.filter((c) => c.status === 'fail').length;
   const warns = checks.filter((c) => c.status === 'warn').length;
   console.log(`\n${fails ? `${fails} problem(s)` : 'No problems'}${warns ? `, ${warns} thing(s) to look at` : ''}.`);
+  console.log(`\nSafety\n${formatSafety(safety)}\n\n${verdictLine(safety)}`);
   process.exit(fails ? 1 : 0);
 }
 // Phase 67: "Nothing leaves this computer" is applied before anything can reach out (the saved
@@ -946,6 +967,11 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   app.projects = new ProjectKnowledgeStore(app, store.db);
   if (!isMember) tools.add(createProjectNoteTool(() => app));
   tools.add(createSettingsGuideTool());
+  // Phase 121: her read-only safety report and the routine card (she can't fix or turn on anything).
+  if (!isMember && !isDemo) {
+    tools.add(createSafetyReportTool(() => (app as AppContext & { safetyDeps?: () => SafetyDeps }).safetyDeps?.() ?? { app, auth, dataDir, sandbox: app.sandbox, version: info.version }));
+    tools.add(createSuggestRoutineTool(() => app));
+  }
   if (!isMember) for (const t of createReviewTools(() => app)) tools.add(t);
   if (!isMember) tools.add(createIssueTool(() => app));
   const issueWatcher = isMember ? undefined : new IssueWatcher(app);
@@ -1183,6 +1209,11 @@ function backupTick(): void {
   if (offsiteTestDue(mainApp)) {
     void testOffsite(mainApp).then((r) => (r.ok ? console.log(`Off-server test restore: ok (${r.name}: ${r.detail})`) : console.warn(`Off-server test restore failed: ${r.error}`)));
   }
+  // Phase 121: hidden secrets' 30-day originals expire; the weekly quiet safety check (Backup check
+  // routine) runs here, on this same hourly timer (no new timer), and speaks only when a check got worse.
+  sweepUndo(mainApp);
+  const deps = (mainApp as AppContext & { safetyDeps?: () => SafetyDeps }).safetyDeps?.();
+  if (deps) void weeklySafetyTick(deps).catch((err: Error) => console.warn(`Weekly safety check failed: ${err.message}`));
 }
 // Checked hourly (and 2 minutes after start); a backup is made when the last one is a day old.
 const backupTimer = setInterval(() => guard('backup', backupTick), 3600_000);

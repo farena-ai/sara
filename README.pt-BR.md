@@ -14,7 +14,7 @@ em um só app para a web, Windows, Mac e celular.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1678%20passing-brightgreen" alt="1678 tests passing">
+  <img src="https://img.shields.io/badge/tests-1705%20passing-brightgreen" alt="1705 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -113,15 +113,16 @@ Guias de um minuto, gravados num servidor de teste com um modelo local (em ingl�
 
 ## Novidades
 
+- **2.54** · Rotinas e uma checagem de segurança: dez rotinas prontas (resumo da manhã, vigiar meu CI, alerta de preço…) com o custo mostrado antes de ligar, e uma página que diz em palavras simples o quão seguro está seu sistema, com correções de um clique que só reforçam.
 - **2.53** · Precisão no código: depois de cada edição ela roda o verificador de tipos ou o linter do seu projeto e conserta o que quebrou na mesma resposta; aponte coisas com `@file`, `@diff`, `@url` e mais.
 - **2.52** · Quando o assunto surgir: "quando o Dan aparecer, me lembre que ele me deve 20 $" espera o nome, não um horário; e `/continue` traz para o app uma conversa do Telegram ou do Discord, ou o contrário.
-- **2.51** · Continue até terminar: dê a ela um objetivo e a checagem que o prova (testes, um build, um comando ou você) e ela trabalha rodada a rodada até passar de verdade; `/loop` repete uma checagem e só fala quando algo muda.
 
 <details>
 <summary><b>Histórico de versões</b>: o que cada versão desde a 2.4 trouxe</summary>
 
 | Versão | O que você ganha |
 |---|---|
+| **2.54** · Rotinas e uma checagem de segurança | **Galeria de rotinas** (Planejador → Rotinas): resumo da manhã, revisão da semana, lembretes de alongar e de dormir, sair na hora, vigiar o CI de um repositório, novas issues, checar backups, organizar o e-mail e alerta de preço. Cada cartão diz o que faz, do que precisa e quanto custa, calculado no código (quase todas são grátis), mostra uma prévia sem chamar modelo e tem um botão de desligar; as pagas terminam na data que você escolher. As ferramentas mantêm suas configurações de aprovação. **Checagem de segurança** (Configurações → Dados e saúde): 17 checagens só de leitura, um veredito em palavras (*Parece seguro*, *Quase tudo seguro*, *Corrija isto primeiro*) e correções de um clique que só podem deixar mais seguro, cada uma dizendo se dá para desfazer. Mudanças em como se chega à Sara são guiadas, nunca em um clique. Também `sara doctor --safety`. |
 | **2.53** · Precisão no código | **Checagens depois das edições:** quando ela muda o código, a Sara roda o verificador do próprio projeto (tsc, pyright ou mypy, cargo check, go vet, eslint), já instalado, nunca `npx`, sem instalar nada, e passa só os erros novos no mesmo turno, inclusive arquivos que a mudança quebrou em outro lugar. Ela conserta antes de responder (no máximo dois avisos) e a resposta mostra *✓ types clean (tsc)* ou o que sobrou. Um OK por projeto. **Referências com @:** digite `@` no chat para `@file` (com linhas), `@folder`, `@diff`, `@branch`, `@problem` ou `@url`; selos mostram o que ela vai receber e o tamanho, e funciona como texto no Telegram, Discord e nos outros apps. Arquivos secretos são recusados e conversas privadas nunca abrem páginas web. |
 | **2.52.1** · Conectar um servidor ficou fácil, fotos corrigidas | *Conectar um servidor* pede só o endereço e o usuário; a Sara cria a chave dela, acha a porta e o jeito mais fácil de entrar (um token do cPanel que ela mesma apaga, sua senha uma vez ou uma linha para colar) e explica cada falha em palavras simples. As fotos agora sempre chegam a um modelo que consegue vê-las. |
 | **2.52** · Quando o assunto surgir | **Lembretes que esperam uma pessoa ou um assunto:** "quando o Dan aparecer, me lembre que ele me deve 20 $" ou "na próxima vez que eu falar da horta, pergunte dos tomates". Ela traz isso uma vez, dentro da resposta, com *Feito*, *De novo na próxima* ou *Esquecer*. A detecção usa seus cartões de pessoas e palavras simples, sem chamar nenhuma IA, e ela nunca chuta entre dois Dans. Só disparam com suas próprias mensagens nas suas próprias conversas, nunca onde o Dan possa ler, e o que ela fosse mandar para outra pessoa contendo um pergunta antes. **Retomar uma conversa em outro app:** comece no Telegram, abra o app e *Continuar aqui* traz a conversa (`/continue` em qualquer lugar), com *Mostrar* e *Desfazer*; nada é copiado. |
@@ -207,7 +208,7 @@ Todas as versões: [CHANGELOG.md](CHANGELOG.md) · [versões](https://github.com
 
 Na ordem de construção, uma versão cada ([a lista completa](docs/ROADMAP.md)):
 
-- **Depois** (2.54–2.61): fotos e arquivos nos apps de chat, falar com ela enquanto trabalha, Signal, e-mail, WhatsApp, iMessage (BlueBubbles) e SMS, "continue até terminar", checagens de código após cada edição, uma galeria de rotinas e **a Sara Store** para plugins, habilidades e servidores MCP (ComfyUI, Blender, Playwright…) com instalação em um clique e um jeito de enviar os seus.
+- **Depois** (2.55–2.61): fotos e arquivos nos apps de chat, falar com ela enquanto trabalha, Signal, e-mail, WhatsApp, iMessage (BlueBubbles) e SMS, "continue até terminar", checagens de código após cada edição, uma galeria de rotinas e **a Sara Store** para plugins, habilidades e servidores MCP (ComfyUI, Blender, Playwright…) com instalação em um clique e um jeito de enviar os seus.
 - O app de iPhone (aguardando a Apple) e suas ideias nas [Discussions](https://github.com/farena-ai/sara/discussions).
 
 O plano completo: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -402,8 +403,8 @@ verificava. O que ela acrescenta hoje é o jeito de trabalhar (roda os testes, p
 de passos arriscados, mostra o que foi executado), não uma nota maior nesses conjuntos. Detalhes,
 resultados por tarefa e como rodar de novo: [docs/RESULTS.md](docs/RESULTS.md).
 
-E também `npm run check`: uma checagem de tipos e 1693 testes automáticos com um modelo falso
-roteirizado (sem rede, sem GPU): 1678 passam no Windows e os outros 8 são testes de isolamento só
+E também `npm run check`: uma checagem de tipos e 1720 testes automáticos com um modelo falso
+roteirizado (sem rede, sem GPU): 1705 passam no Windows e os outros 8 são testes de isolamento só
 para Linux, executados em um servidor Linux.
 
 ## Como a Sara se compara

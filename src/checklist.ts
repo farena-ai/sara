@@ -6,6 +6,16 @@ import { usePathOf, type UsePath } from './settings.ts';
 import { NOT_IMPORTED } from './store.ts';
 import { GITHUB_VAULT } from './tools/coding.ts';
 import { DEFAULT_VOICE, VOICE_VAULT } from './voice.ts';
+import { routinesFor, ROUTINES_DIR } from './routines.ts';
+
+/** Phase 121: any routine on (read from the engines: a briefing, a review, a repeating reminder, a watched repo, a repeat). */
+function anyRoutineOn(app: AppContext): boolean {
+  try {
+    return routinesFor(app, ROUTINES_DIR).anyOn();
+  } catch {
+    return false;
+  }
+}
 
 export interface ChecklistItem {
   id: string;
@@ -62,8 +72,9 @@ export function checklist(app: AppContext, input: ChecklistInput): { hidden: boo
     { id: 'yours', label: 'Make Sara your own', hint: 'Her name, personality and look.', done: input.personaCustom || Boolean(app.look?.custom), open: 'settings:her-character' },
     { id: 'phone', label: 'Put her on your phone', hint: 'Install the app or add her to your home screen, and get notifications.', done: input.pushDevices > 0 || input.devices.some((d) => /Sara app|iPhone|Android/i.test(d)), open: 'settings:co-phone' },
     { id: 'voice', label: 'Pick her voice', hint: 'For voice notes, read-aloud and calls.', done: voiceWorks(app), open: 'settings:her-voice' },
-    { id: 'morning', label: 'Get a morning briefing', hint: 'Weather, your list and calendar, once a day.', done: Boolean(s.briefing?.enabled), open: 'settings:you-briefing' },
-    { id: 'backup', label: 'Keep a copy somewhere else', hint: 'An encrypted backup off this server, in case the server is lost.', done: Boolean(s.offsite?.kind && s.offsite.kind !== 'off'), open: 'settings:dh-backups' },
+    // Phase 121 (BEGIN §4.9): the morning step became *Turn on a routine* (id kept; a briefing still ticks it).
+    { id: 'morning', label: 'Turn on a routine', hint: 'A morning briefing, a weekly review, a reminder…', done: Boolean(s.briefing?.enabled) || anyRoutineOn(app), open: 'routines' },
+    { id: 'backup', label: 'Keep a copy somewhere else', hint: 'An encrypted backup off this server, in case the server is lost, or run the safety check-up.', done: Boolean(s.offsite?.kind && s.offsite.kind !== 'off'), open: 'settings:dh-backups' },
     // Phase 114 (PL1b): the coder path's steps.
     { id: 'project', label: 'Open a project', hint: 'Point a conversation at a project folder and switch it to coding.', done: coded, open: 'settings:ab-projects' },
     { id: 'tools', label: 'Choose how she runs code', hint: 'Tools and approvals: a sandbox for commands, and what she must ask you first.', done: Object.keys(s.toolPermissions ?? {}).length > 0 || s.sandboxGate !== undefined, open: 'settings:ab-tools' },

@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 138 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 141 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -750,6 +750,26 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Look at its deliveries.
 
 ## Settings → Data & health
+
+### Safety check-up
+
+**How do I check that my setup is safe?**
+
+1. Open Settings and pick Safety check-up (the first page under its group).
+2. Read the top line: Looks safe, Mostly safe or Fix these first.
+3. Each row says what's true now; the ? says why it matters.
+
+**How do I fix something it found?**
+
+1. Press the fix button on that row (for example Ask me first again).
+2. Read what it changes and whether it can be undone, then press Do it.
+3. Changed your mind? Press Undo under Recent fixes.
+
+**How do I run the check-up from the command line?**
+
+1. On the server, run: sara doctor --safety
+2. It prints the same rows, the fix for each, and exits 0 (safe), 1 (tighten) or 2 (fix first).
+3. The command line never changes anything; fixes are on this page.
 
 ### Health
 

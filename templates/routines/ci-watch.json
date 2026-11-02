@@ -1,0 +1,27 @@
+{
+  "id": "ci-watch",
+  "version": 1,
+  "title": "Watch my repo's CI",
+  "icon": "🔴",
+  "category": "coding",
+  "engine": "ciWatch",
+  "pitch": "Tells you when a GitHub Actions run fails on your main branch, and when it's green again.",
+  "fields": [
+    {
+      "key": "repo",
+      "kind": "repo",
+      "label": "Repository (owner/name)",
+      "tip": "rt-repo"
+    },
+    {
+      "key": "branch",
+      "kind": "text",
+      "label": "Branch",
+      "default": "main",
+      "tip": "rt-branch"
+    }
+  ],
+  "needs": [
+    "github"
+  ]
+}

@@ -1611,6 +1611,10 @@
       "Let her use web pages on this computer in her own browser window: look, read, click and type. Off until you turn it on, and you can stop her any time.",
       "computer"
     ],
+    "dh-safety": [
+      "Read-only checks of how Sara is set up (who can reach her, sign-in, backups, tools that run without asking, chat apps, webhooks, secrets in her notes), with one-click fixes that only make things safer.",
+      "security"
+    ],
     "dh-health": [
       "How you reach her (the address to open on your phone, with a QR code), and is everything working? Checks the database, every model, backups and more, and says what to do when something’s wrong.",
       "trouble"

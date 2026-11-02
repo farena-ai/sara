@@ -1,0 +1,43 @@
+{
+  "id": "stretch",
+  "version": 1,
+  "title": "Remind me to stretch",
+  "icon": "🧘",
+  "category": "everyday",
+  "engine": "reminder",
+  "pitch": "A nudge in your words at the time you pick.",
+  "fields": [
+    {
+      "key": "text",
+      "kind": "text",
+      "label": "What should it say?",
+      "default": "Stand up and stretch",
+      "tip": "rt-text"
+    },
+    {
+      "key": "time",
+      "kind": "time",
+      "label": "What time?",
+      "default": "11:00",
+      "tip": "rt-time"
+    },
+    {
+      "key": "repeat",
+      "kind": "pick",
+      "label": "Which days?",
+      "default": "weekdays",
+      "choices": [
+        {
+          "value": "weekdays",
+          "label": "Weekdays"
+        },
+        {
+          "value": "daily",
+          "label": "Every day"
+        }
+      ],
+      "tip": "rt-repeat"
+    }
+  ],
+  "needs": []
+}

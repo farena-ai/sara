@@ -21,6 +21,17 @@ export interface GitHubWatch {
   /** The newest issue number seen per repository (new ones are above it). */
   seen?: Record<string, number>;
   lastCheck?: string;
+  /**
+   * Phase 121 (BEGIN §4.6): *Watch my repo's CI*: repositories whose GitHub Actions runs are watched
+   * on the same timer with the same token (no model call, no CI minutes, no public address). Kept
+   * apart from `repos` so watching CI doesn't also turn every issue into a task.
+   */
+  ciRepos?: string[];
+  /** The branch per repository (default "main"). */
+  ciBranch?: Record<string, string>;
+  /** The newest workflow run id seen per repository, and whether its last completed run failed. */
+  ciSeen?: Record<string, number>;
+  ciFailing?: Record<string, boolean>;
 }
 
 export interface OpenIssue {
@@ -71,7 +82,12 @@ export async function openIssues(app: AppContext, repos = watchSettings(app).rep
 /** Looks for new issues; each new one goes on the planner and she says so. Returns the new ones. */
 export async function checkIssues(app: AppContext): Promise<OpenIssue[]> {
   const w = watchSettings(app);
-  if (!w.repos.length || !app.vault.get(GITHUB_VAULT)) return [];
+  if ((!w.repos.length && !w.ciRepos?.length) || !app.vault.get(GITHUB_VAULT)) return [];
+  if (w.ciRepos?.length) await checkCi(app);
+  if (!w.repos.length) {
+    app.settings.update({ githubWatch: { ...watchSettings(app), lastCheck: app.now().toISOString() } });
+    return [];
+  }
   const seen = { ...(w.seen ?? {}) };
   const fresh: OpenIssue[] = [];
   for (const repo of w.repos) {
@@ -87,7 +103,7 @@ export async function checkIssues(app: AppContext): Promise<OpenIssue[]> {
     if (seen[repo] !== undefined) fresh.push(...list.filter((i) => i.number > seen[repo]));
     seen[repo] = Math.max(seen[repo] ?? 0, max);
   }
-  app.settings.update({ githubWatch: { ...w, seen, lastCheck: app.now().toISOString() } });
+  app.settings.update({ githubWatch: { ...watchSettings(app), seen, lastCheck: app.now().toISOString() } });
   for (const i of fresh.reverse()) {
     app.planner?.addTask({ title: `GitHub ${i.repo}#${i.number}: ${clip(i.title, 120)}`, notes: `${i.url}\n(Open Team → From an issue to have the team work on it.)`, project: 'GitHub' });
   }
@@ -98,6 +114,55 @@ export async function checkIssues(app: AppContext): Promise<OpenIssue[]> {
     app.events?.publish({ type: 'message', conversationId: conv.id, message: msg, reason: 'job' });
   }
   return fresh;
+}
+
+/**
+ * Phase 121: the CI watch. For each CI repository: the newest 5 completed Actions runs on its
+ * branch; a failure newer than the last seen run posts one notice (and a push); the first success
+ * after a failure says it's green again; success after success is silent. The first look only
+ * notes where things stand. No model call.
+ */
+export async function checkCi(app: AppContext): Promise<string[]> {
+  const w = watchSettings(app);
+  const seen = { ...(w.ciSeen ?? {}) };
+  const failing = { ...(w.ciFailing ?? {}) };
+  const said: string[] = [];
+  for (const repo of w.ciRepos ?? []) {
+    const branch = w.ciBranch?.[repo] || 'main';
+    let runs: { id: number; name: string; conclusion: string | null; html_url: string; run_number: number }[];
+    try {
+      runs = (await gh<{ workflow_runs: typeof runs }>(app, `/repos/${repo}/actions/runs?branch=${encodeURIComponent(branch)}&status=completed&per_page=5`)).workflow_runs ?? [];
+    } catch (err) {
+      console.warn(`ci: ${repo}: ${(err as Error).message}`);
+      continue;
+    }
+    const fresh = runs.filter((r) => seen[repo] === undefined || r.id > seen[repo]).sort((a, b) => a.id - b.id);
+    const first = seen[repo] === undefined;
+    if (runs.length) seen[repo] = Math.max(seen[repo] ?? 0, ...runs.map((r) => r.id));
+    if (first) {
+      const newest = [...runs].sort((a, b) => b.id - a.id)[0];
+      if (newest) failing[repo] = newest.conclusion === 'failure';
+      continue;
+    }
+    for (const r of fresh) {
+      if (r.conclusion === 'failure') {
+        said.push(`${repo}: ${clip(r.name, 60)} failed on ${branch} (run ${r.run_number}). ${r.html_url}`);
+        failing[repo] = true;
+      } else if (r.conclusion === 'success' && failing[repo]) {
+        said.push(`${repo}: ${branch} is green again (run ${r.run_number}).`);
+        failing[repo] = false;
+      } else if (r.conclusion === 'success') failing[repo] = false;
+    }
+  }
+  app.settings.update({ githubWatch: { ...watchSettings(app), ciSeen: seen, ciFailing: failing } });
+  if (said.length) {
+    const conv = issuesConversation(app);
+    const text = said.join('\n');
+    const msg = app.store.addMessage(conv.id, 'assistant', app.redactor.redact(text), { ci: true, app: true });
+    app.events?.publish({ type: 'message', conversationId: conv.id, message: msg, reason: 'job' });
+    await app.push?.notifyOwner('GitHub', said[0], conv.id, 'ci').catch(() => {});
+  }
+  return said;
 }
 
 function issuesConversation(app: AppContext) {
@@ -122,7 +187,7 @@ export class IssueWatcher {
   }
   async tick(): Promise<void> {
     const w = watchSettings(this.#app);
-    if (!w.everyMinutes || !w.repos.length || this.#busy) return;
+    if (!w.everyMinutes || (!w.repos.length && !w.ciRepos?.length) || this.#busy) return;
     if (w.lastCheck && this.#app.now().getTime() - Date.parse(w.lastCheck) < w.everyMinutes * 60_000) return;
     this.#busy = true;
     try {

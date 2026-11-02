@@ -232,6 +232,14 @@ export interface Settings {
   a2a?: { enabled?: boolean; showName?: boolean; operator?: string; lanInPrivate?: boolean };
   /** Phase 102 (ST7): webhooks (server-wide, the owner's): days the delivery log is kept (3/7/14/30/90; default 14). */
   hooks?: { keepDays?: number };
+  /** Phase 121 (BEGIN §3.3): show *Add a routine* on Today's empty state and the wizard's last step (default true; per space). */
+  routines?: { suggest?: boolean };
+  /**
+   * Phase 121 (BEGIN §3.3, owner-only): the safety check-up. `weekly`: the quiet weekly check (the
+   * *Backup check* routine turns it on); `last`: the last weekly run's statuses (only a change posts);
+   * `accepted`: ambers the owner marked "I know, don't warn me" (red can't be hidden).
+   */
+  safetyCheck?: { weekly?: boolean; last?: { at: string; statuses: Record<string, 'green' | 'amber' | 'red' | 'skip'> }; accepted?: Record<string, string> };
   /**
    * Phase 72: her Alexa skill (server-wide, the owner's): the skill id from the Alexa developer
    * console (requests for any other skill are refused) and whether her Alexa replies use the quick

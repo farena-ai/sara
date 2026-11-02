@@ -1,0 +1,100 @@
+/* Phase 121 (docs/design/BEGIN.md §4.12, §5.10): Planner → Routines, Today's routine cards and
+   Settings → Data & health → Safety check-up. Theme tokens only; 44 px targets; no inline styles. */
+
+/* ---------- Routines ---------- */
+#planner.rt-wide { width: min(1320px, 96vw); }
+.rt-seg { display: none; gap: 6px; margin: 6px 0; }
+.rt-seg button { flex: 1 1 0; min-height: 44px; }
+.rt-seg button[aria-pressed="false"] { background: var(--surface-2); color: var(--text-1); border: 1px solid var(--line); }
+.rt-wrap { display: grid; grid-template-columns: minmax(16rem, 1fr) 2.4fr; gap: 16px; align-items: start; }
+.rt-mine-col, .rt-add-col { min-width: 0; }
+.rt-row { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-1); padding: 8px 10px; margin: 0 0 8px; display: flex; flex-direction: column; gap: 4px; }
+.rt-row.rt-off { opacity: 0.7; }
+.rt-row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rt-title { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+#planner .rt-switch { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; white-space: nowrap; flex: none; }
+.rt-switch input { width: 22px; height: 22px; margin: 0; }
+.rt-status { color: var(--text-2); }
+.rt-more summary { list-style: none; cursor: pointer; min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.rt-more-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.rt-more-acts button:not(.tip) { min-height: 44px; }
+.rt-sub, .rt-cat { margin: 12px 0 6px; font-size: 0.8em; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
+.rt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 10px; }
+.rt-card { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-1); color: var(--text-1); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.rt-card.rt-open { grid-column: 1 / -1; border-color: var(--accent-solid); }
+.rt-card-title { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 1em; }
+.rt-card-title .rt-x { min-width: 44px; min-height: 44px; margin-inline-start: -8px; font-size: 1.2em; }
+.rt-pitch, .rt-when, .rt-cost, .rt-asks { margin: 0; }
+.rt-cost { overflow-wrap: anywhere; }
+.rt-free strong { color: var(--success); }
+.rt-asks { color: var(--text-2); }
+.rt-needs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rt-needs li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rt-needs li.ok { color: var(--success); }
+.rt-needs li.missing { color: var(--danger); }
+.rt-needs li button:not(.tip) { min-height: 44px; }
+.rt-form { display: flex; flex-direction: column; gap: 8px; }
+#planner .rt-field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#planner .rt-field > span:first-child { min-width: 11rem; }
+#planner .rt-field input, #planner .rt-field select { flex: 1 1 12rem; min-height: 44px; width: auto; }
+.rt-preview { border-top: 1px solid var(--line); padding-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.rt-preview p { margin: 0; }
+.rt-creates { font-weight: 600; }
+.rt-sample { color: var(--text-2); }
+.rt-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.rt-actions button:not(.tip) { min-height: 44px; }
+.rt-today { margin: 8px 0; }
+.rt-today-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.rt-mini { flex: 0 0 13rem; min-height: 44px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: start; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-1); color: var(--text-1); }
+
+@media (max-width: 700px) {
+  #planner.rt-wide { width: 100vw; max-width: 100vw; }
+  .rt-seg { display: flex; }
+  .rt-wrap { display: block; }
+  .rt-wrap[data-seg="mine"] .rt-add-col, .rt-wrap[data-seg="add"] .rt-mine-col { display: none; }
+  .rt-grid { grid-template-columns: 1fr; }
+  #planner .rt-field > span:first-child { min-width: 0; flex: 1 1 100%; }
+  .rt-sticky { position: sticky; bottom: 0; background: var(--surface-1); padding: 8px 0; border-top: 1px solid var(--line); }
+  .rt-sticky button { flex: 1 1 auto; }
+}
+
+/* ---------- Safety check-up ---------- */
+.sc-verdict { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-2); padding: 10px 12px; margin: 8px 0 12px; }
+.sc-verdict p { margin: 0 0 4px; }
+.sc-verdict .sc-title { font-weight: 700; font-size: 1.05em; }
+.sc-verdict[data-verdict="safe"] { border-color: var(--success); }
+.sc-verdict[data-verdict="tighten"] { border-color: var(--warn); }
+.sc-verdict[data-verdict="fix-first"] { border-color: var(--danger); }
+.sc-bar { display: flex; gap: 2px; height: 6px; border-radius: var(--r-control); overflow: hidden; }
+.sc-seg { flex: 1 1 0; }
+.sc-seg.sc-green { background: var(--success); }
+.sc-seg.sc-amber { background: var(--warn); }
+.sc-seg.sc-red { background: var(--danger); }
+.sc-head { margin: 12px 0 6px; font-size: 0.8em; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
+.sc-red-head { color: var(--danger); }
+.sc-row { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-1); padding: 8px 12px; margin: 0 0 8px; }
+.sc-row.sc-red { border-color: var(--danger); }
+.sc-row.sc-amber { border-color: var(--warn); }
+.sc-row p { margin: 0 0 4px; }
+.sc-row-title { font-weight: 600; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.sc-dot.sc-red { color: var(--danger); }
+.sc-dot.sc-amber { color: var(--warn); }
+.sc-dot.sc-green, .sc-dot.sc-skip { color: var(--success); }
+.sc-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sc-fix { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sc-fix > .tip, .sc-acts > .tip { align-self: center; flex: 0 0 auto; }
+.sc-fix button:not(.tip), .sc-acts button:not(.tip) { min-height: 44px; }
+.sc-cmd { display: block; font-family: var(--font-mono); font-size: 0.9em; padding: 6px 8px; border-radius: var(--r-control); background: var(--surface-2); overflow-wrap: anywhere; flex: 1 1 100%; }
+.sc-confirm { flex: 1 1 100%; border: 1px dashed var(--line); border-radius: var(--r-card); padding: 6px 10px; }
+.sc-more summary { list-style: none; cursor: pointer; min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.sc-fine summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+.sc-token-dlg { max-width: 34rem; }
+.sc-token-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sc-token-head button { min-width: 44px; min-height: 44px; }
+.sc-token-dlg input { width: 100%; min-height: 44px; }
+
+@media (max-width: 700px) {
+  .sc-verdict { position: sticky; top: 0; z-index: 1; }
+  .sc-fix > button:not(.tip) { flex: 1 1 100%; }
+  .sc-token-dlg { max-width: none; width: 100%; height: 100%; margin: 0; }
+}

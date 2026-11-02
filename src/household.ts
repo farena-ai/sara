@@ -308,7 +308,7 @@ export function memberDirs(dataDir: string, h: HouseholdStore): { member: Member
  * Settings only the owner has (server, accounts, bridges, tools, imports). A member's settings never
  * contain them, and a member's change never writes them.
  */
-export const OWNER_SETTINGS: readonly (keyof Settings)[] = ['providers', 'prices', 'mcpServers', 'search', 'offsite', 'backup', 'discord', 'telegram', 'chats', 'home', 'githubWatch', 'helpers', 'teamLimits', 'jobBudget', 'turnBudgets', 'sandboxGate', 'securityPass', 'threatModel', 'redteam', 'computerUse', 'evalSchedule', 'shellNetwork', 'modelLists', 'modelAutoSwitch', 'safetyClassifier', 'claimJudge', 'toolPermissions', 'alexa', 'presence', 'libraryLimits', 'plugins', 'a2a', 'hooks'];
+export const OWNER_SETTINGS: readonly (keyof Settings)[] = ['providers', 'prices', 'mcpServers', 'search', 'offsite', 'backup', 'discord', 'telegram', 'chats', 'home', 'githubWatch', 'helpers', 'teamLimits', 'jobBudget', 'turnBudgets', 'sandboxGate', 'securityPass', 'threatModel', 'redteam', 'computerUse', 'evalSchedule', 'shellNetwork', 'modelLists', 'modelAutoSwitch', 'safetyClassifier', 'claimJudge', 'toolPermissions', 'alexa', 'presence', 'libraryLimits', 'plugins', 'a2a', 'hooks', 'safetyCheck'];
 
 /**
  * A member's settings: their own file, with the owner's providers (for the server code that runs
@@ -510,6 +510,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'agenda',
   // planner and days
   'projects', 'tasks', 'notes', 'reminders', 'mentions', 'planner', 'places', 'today', 'briefing', 'review', 'leave-by', 'checklist', 'setup',
+  // Phase 121: their own routines (briefing, review, reminders and leave-by in their own space; the rest answers 403)
+  'routines',
   // Phase 99 (ST4): their own boards, and shared boards they are a member of (src/routes/board.ts)
   'boards', 'columns',
   // library

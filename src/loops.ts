@@ -21,6 +21,7 @@ import { pendingFor, type PendingItem } from './pending.ts';
 import { oneLine, ownerWord, persistRefusal, persistSettings, refuseCheck, runCommandCheck, runPersistTurn, wsOf, type CheckResult } from './persist.ts';
 import { zonedParts } from './planner.ts';
 import { preflight } from './chat.ts';
+import { privateLocalOn } from './net-guard.ts';
 import { normalizeMessage } from './triggers.ts';
 
 export type LoopState = 'draft' | 'active' | 'ticking' | 'paused' | 'done' | 'ended' | 'stopped';
@@ -44,6 +45,14 @@ export interface LoopMeta {
   pausedAt?: string;
   /** The last tick's spend (the projection for the daily caps). */
   last?: number;
+  /** Phase 121: a routine loop's "ends on …" line was posted (once, a week before). */
+  endsNoted?: boolean;
+}
+/** Phase 121 (BEGIN §4.5): a routine loop's clock schedule (the owner's time zone). */
+export interface LoopSchedule {
+  at: string;
+  repeat: 'daily' | 'weekdays' | 'weekly';
+  day?: number;
 }
 export interface Loop {
   id: number;
@@ -72,6 +81,9 @@ export interface Loop {
   startedAt: string | null;
   updatedAt: string;
   endedAt: string | null;
+  /** Phase 121: set for loops made by a routine (routines.id); a typed /loop has none. */
+  routineId: number | null;
+  schedule: LoopSchedule | null;
 }
 export type LoopView = Loop & { conversationTitle?: string | null; todayTokens: number };
 export interface TickRow {
@@ -99,6 +111,7 @@ export const LOOP_LINES = {
   approval: en('🔁 Paused: this repeat needed an OK for “{summary}”, and nobody is watching. Allow it once and resume, or stop it.'),
   capDay: en('🔁 Paused until tomorrow: today’s budget for repeats is used.'),
   restart: en('🔁 Sara restarted, so this repeat is paused: {prompt}. Resume it when you want.'),
+  endsSoon: en('This routine ends on {date}. To keep it, open Planner → Routines and tap Keep it for 30 more days.'),
   crisis: en('🔁 Repeats in this chat are paused for now.'),
   slept: en('While you slept: {text}'),
   unattended: en('This is a repeat and {owner} isn’t watching: anything that needs an OK pauses it.'),
@@ -175,7 +188,23 @@ const toLoop = (r: Row): Loop => ({
   startedAt: (r.started_at as string | null) ?? null,
   updatedAt: String(r.updated_at),
   endedAt: (r.ended_at as string | null) ?? null,
+  routineId: r.routine_id === null || r.routine_id === undefined ? null : Number(r.routine_id),
+  schedule: parse<LoopSchedule | null>(r.schedule, null),
 });
+
+/** Phase 121: the next slot of a clock schedule strictly after `after` (the owner's zone). */
+export function nextScheduled(sc: LoopSchedule, after: Date, tz?: string): Date {
+  let t = atLocal(sc.at, after, tz);
+  for (let i = 0; i < 9; i++) {
+    const wd = zonedParts(t, tz).wd;
+    if (sc.repeat === 'daily' || (sc.repeat === 'weekdays' && wd >= 1 && wd <= 5) || (sc.repeat === 'weekly' && wd === (sc.day ?? 1))) return t;
+    t = atLocal(sc.at, new Date(t.getTime() + 60_000), tz);
+  }
+  return t;
+}
+/** Phase 121: routine loops (BEGIN §4.5): the longest a routine may run, and the shortest interval. */
+export const ROUTINE_MAX_DAYS = [7, 14, 30, 90] as const;
+export const ROUTINE_MIN_EVERY_H = 6;
 
 // ------------------------------------------------------------------ the command (§5.3)
 
@@ -261,6 +290,10 @@ export class Loops {
     this.#app = app;
     this.#db = db;
     db.exec(SQL);
+    // Phase 121 (additive): routine loops' clock schedule and their routine.
+    const cols = new Set((db.prepare('PRAGMA table_info(chat_loops)').all() as Row[]).map((r) => String(r.name)));
+    if (!cols.has('schedule')) db.exec('ALTER TABLE chat_loops ADD COLUMN schedule TEXT');
+    if (!cols.has('routine_id')) db.exec('ALTER TABLE chat_loops ADD COLUMN routine_id INTEGER');
     this.ledger = new DailyLedger(db, () => localDate(app.now(), app.settings.get().timeZone));
   }
 
@@ -350,6 +383,42 @@ export class Loops {
     return { loop: this.get(id)! };
   }
 
+  /**
+   * Phase 121 (BEGIN §4.5): a loop made by a routine's Turn on (the owner's tap on a card that showed
+   * the cost line): a clock schedule or an interval of at least 6 hours, an end date up to 90 days
+   * (the card offers 7 / 14 / 30 / 90; 30 by default), the per-loop daily share, and every Phase 118
+   * guard. Tools keep the owner's approval settings: anything that would ask pauses it.
+   */
+  createRoutine(conversationId: string, spec: { prompt: string; everyMin?: number; schedule?: LoopSchedule; days: number; untilText?: string; routineId: number; source?: string }): { loop: Loop } | { status: number; error: string } {
+    const app = this.#app;
+    const set = persistSettings(app).loops;
+    if (!set.on) return { status: 400, error: en('Repeats are switched off in Settings → Abilities.') };
+    if (!(ROUTINE_MAX_DAYS as readonly number[]).includes(spec.days)) return { status: 400, error: en('Pick 7, 14, 30 or 90 days.') };
+    const tz = app.settings.get().timeZone;
+    const now = app.now();
+    const ends = now.getTime() + spec.days * 86_400_000;
+    let every = Number(spec.everyMin ?? 0);
+    let maxTicks = 0;
+    if (spec.schedule) {
+      every = spec.schedule.repeat === 'weekly' ? 7 * 1440 : 1440;
+      for (let t = nextScheduled(spec.schedule, now, tz); t.getTime() <= ends && maxTicks < 400; t = nextScheduled(spec.schedule, t, tz)) maxTicks++;
+    } else {
+      if (!(every >= ROUTINE_MIN_EVERY_H * 60)) return { status: 400, error: trOwner('A routine checks every {h} hours at most.', app.settings.get(), { h: ROUTINE_MIN_EVERY_H }) };
+      maxTicks = Math.floor((ends - now.getTime()) / (every * 60_000));
+    }
+    if (this.#activeCount() >= set.maxActive) return { status: 409, error: trOwner('{n} repeats are already running. Stop one first.', app.settings.get(), { n: set.maxActive }) };
+    const pf = preflight(spec.prompt, { owner: true });
+    if (pf.minor || pf.crisis) return { status: 400, error: en('I can’t do that.') };
+    const iso = now.toISOString();
+    const next = spec.schedule ? nextScheduled(spec.schedule, now, tz) : new Date(now.getTime() + every * 60_000);
+    const r = this.#db
+      .prepare('INSERT INTO chat_loops (conversation_id, prompt, every_min, until_text, until_check, ends_at, max_ticks, quiet, tick_budget, day_tokens, state, meta, created_at, updated_at, started_at, next_at, schedule, routine_id) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(conversationId, spec.prompt.slice(0, 1000), every, spec.untilText ?? null, new Date(ends).toISOString(), Math.max(1, maxTicks), 'pause', JSON.stringify(set.tick), Math.max(1, Math.floor(set.dailyTokens / set.maxActive)), 'active', JSON.stringify({ source: spec.source ?? 'routine' }), iso, iso, iso, next.toISOString(), spec.schedule ? JSON.stringify(spec.schedule) : null, spec.routineId);
+    const id = Number(r.lastInsertRowid);
+    this.#emit(id);
+    return { loop: this.get(id)! };
+  }
+
   /** The owner's tap (Rule 7: Start is the OK for the spend the card showed). */
   start(id: number): { loop: Loop } | { status: number; error: string } {
     const app = this.#app;
@@ -395,7 +464,7 @@ export class Loops {
     const meta: LoopMeta = { ...l.meta, ...(o.allowOnce && l.meta.ask ? { allowOnce: [l.meta.ask.key] } : {}) };
     delete meta.ask;
     delete meta.pausedAt;
-    this.#set(id, { state: 'active', reason: null, fail_count: 0, next_at: new Date(now.getTime() + l.everyMin * 60_000).toISOString(), meta: JSON.stringify(meta) });
+    this.#set(id, { state: 'active', reason: null, fail_count: 0, next_at: l.routineId !== null ? this.#nextSlot({ ...l, nextAt: null }, now) : new Date(now.getTime() + l.everyMin * 60_000).toISOString(), meta: JSON.stringify(meta) });
     this.#emit(id);
     return { loop: this.get(id)! };
   }
@@ -457,12 +526,20 @@ export class Loops {
   /** Start-up: active loops come back paused (restart), next tick cleared, one line each. */
   startupSweep(): number {
     const rows = (this.#db.prepare("SELECT * FROM chat_loops WHERE state IN ('active','ticking')").all() as Row[]).map(toLoop);
-    for (const l of rows) {
+    const now = this.#app.now();
+    // Phase 121 (BEGIN §4.5.3): a routine loop stays on across a restart: the next slot, missed
+    // slots skipped (one row), never run as a backlog. A typed /loop still comes back paused.
+    for (const l of rows.filter((x) => x.routineId !== null)) {
+      const missed = l.state === 'ticking' || !l.nextAt || Date.parse(l.nextAt) <= now.getTime();
+      if (missed) this.#skip(l, 'restart');
+      this.#set(l.id, { state: 'active', ...(l.state === 'ticking' ? { ticks: Math.max(0, l.ticks - 1) } : {}), next_at: missed ? this.#nextSlot({ ...l, nextAt: null }, now) : l.nextAt });
+    }
+    for (const l of rows.filter((x) => x.routineId === null)) {
       this.#set(l.id, { state: 'paused', reason: 'restart', next_at: null, meta: JSON.stringify({ ...l.meta, pausedAt: this.#app.now().toISOString() }) });
       this.#dropQueued(l);
       this.#line(l, trOwner(LOOP_LINES.restart, this.#app.settings.get(), { prompt: oneLine(l.prompt, 80).replace(/[.!?…]+$/u, '') }), false);
     }
-    return rows.length;
+    return rows.filter((x) => x.routineId === null).length;
   }
 
   /** A crisis line from the owner in a chat pauses its loops for 48 hours (like her plans). */
@@ -535,6 +612,18 @@ export class Loops {
         this.#emit(l.id);
       }
     }
+    // Phase 121: routine loops pause in private local mode (they read the web or the mailbox), and
+    // post one "ends on …" line a week before their end.
+    for (const l of this.all().filter((x) => x.routineId !== null && x.state === 'active')) {
+      if (privateLocalOn()) {
+        this.pause(l.id, 'private-local');
+        continue;
+      }
+      if (!l.meta.endsNoted && Date.parse(l.endsAt) - now.getTime() <= 7 * 86_400_000) {
+        this.#set(l.id, { meta: JSON.stringify({ ...l.meta, endsNoted: true }) });
+        this.#line(l, trOwner(LOOP_LINES.endsSoon, app.settings.get(), { date: new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', ...(app.settings.get().timeZone ? { timeZone: app.settings.get().timeZone } : {}) }).format(new Date(l.endsAt)) }), true, { endsSoon: true, routine: l.routineId });
+      }
+    }
     const rows = (this.#db.prepare("SELECT * FROM chat_loops WHERE state IN ('active','ticking') AND next_at IS NOT NULL AND next_at <= ? ORDER BY next_at").all(now.toISOString()) as Row[]).map(toLoop);
     for (const l of rows) {
       // In code and in this order (§3.1 P4): active; before ends_at; ticks left; quiet; caps.
@@ -547,6 +636,13 @@ export class Loops {
       if (l.state === 'ticking') {
         this.#skip(l, 'still running');
         this.#set(l.id, { next_at: next });
+        continue;
+      }
+      if (quiet && l.quiet === 'pause' && l.routineId !== null) {
+        // A routine's slot in quiet hours is skipped to its next slot (no catch-up in the morning).
+        this.#skip(l, 'quiet');
+        this.#set(l.id, { next_at: next });
+        this.#emit(l.id);
         continue;
       }
       if (quiet && l.quiet === 'pause') {
@@ -575,6 +671,7 @@ export class Loops {
 
   /** The next slot after now (missed slots are not made up). */
   #nextSlot(l: Loop, now: Date): string {
+    if (l.schedule) return nextScheduled(l.schedule, now, this.#app.settings.get().timeZone).toISOString();
     const step = l.everyMin * 60_000;
     const base = l.nextAt ? Date.parse(l.nextAt) : now.getTime();
     let t = base + step;
@@ -613,7 +710,7 @@ export class Loops {
     const hasOwnerMsg = app.store.messages(l.conversationId).some((m) => m.role === 'user');
     const tickMsg = app.store.addMessage(l.conversationId, 'notice', `loop:${label}`, { loop: { id, tick: n } });
     const owner = ownerWord(app);
-    const end = hhmm(new Date(l.endsAt), tz);
+    const end = l.routineId !== null ? new Date(l.endsAt).toISOString().slice(0, 10) : hhmm(new Date(l.endsAt), tz);
     const note = `[Note from the app, not from ${owner}: this is a repeat ${owner} set in this chat (${fmtEvery(l.everyMin)}, until ${end}). Do this now: "${l.prompt}".${l.untilText ? ` The repeat ends when this is true: "${l.untilText}".` : ''}${l.lastLine ? ` Last time (at ${l.lastAt ? hhmm(new Date(l.lastAt), tz) : '?'}) you found: "${oneLine(l.lastLine, 300)}".` : ''}\nUse your tools to look at the real state now; don't guess from earlier messages.\nEnd your reply with one line, exactly one of: [[loop: same]] [[loop: changed]] [[loop: met]].]`;
     const persist: PersistTurn = { kind: 'loop', id, n, note, unattended: trOwner(LOOP_LINES.unattended, s, { owner }), ...(l.meta.allowOnce?.length ? { allowOnce: l.meta.allowOnce } : {}) };
     if (l.meta.allowOnce?.length) this.#set(id, { meta: JSON.stringify({ ...l.meta, allowOnce: [] }) });

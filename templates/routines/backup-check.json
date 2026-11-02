@@ -1,0 +1,11 @@
+{
+  "id": "backup-check",
+  "version": 1,
+  "title": "Backup check",
+  "icon": "💾",
+  "category": "safety",
+  "engine": "safetyWeekly",
+  "pitch": "Once a week she checks that backups are being made and the off-computer copy works, and only speaks up if not.",
+  "fields": [],
+  "needs": []
+}

@@ -1,0 +1,28 @@
+{
+  "id": "weekly-review",
+  "version": 1,
+  "title": "Weekly review",
+  "icon": "🗓",
+  "category": "everyday",
+  "engine": "review",
+  "pitch": "Once a week: what got done, what's stuck, what's next, and a short plan.",
+  "fields": [
+    {
+      "key": "day",
+      "kind": "day",
+      "label": "Which day?",
+      "default": 0,
+      "tip": "rt-day"
+    },
+    {
+      "key": "time",
+      "kind": "time",
+      "label": "What time?",
+      "default": "18:00",
+      "tip": "rt-time"
+    }
+  ],
+  "needs": [
+    "brain"
+  ]
+}

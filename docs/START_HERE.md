@@ -63,6 +63,11 @@ the app's guide (Help → *Shaping your companion*).
 your phone ([Your phone](PHONE.md)), a morning briefing and a backup off this server. Each card opens the
 right page with its answer ready.
 
+Want her to do something on a schedule? **Planner → Routines** has ready-made ones (a morning
+briefing, a reminder to stretch, a weekly review, a price watch…), each with what it costs before you
+turn it on ([Routines](ROUTINES.md)). And once you're set up, *Settings → Data & health → Safety
+check-up* tells you in plain words if anything could let someone in ([Safety check-up](SAFETY_CHECKUP.md)).
+
 ## When you're stuck
 
 <img src="screenshots/howto.webp" alt="The How do I…? box at the top of a Settings page, open: questions such as How do I change her name? with numbered steps and a Show me button" width="760">

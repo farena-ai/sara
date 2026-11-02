@@ -1,0 +1,32 @@
+{
+  "id": "morning-brief",
+  "version": 1,
+  "title": "Morning briefing",
+  "icon": "☀",
+  "category": "everyday",
+  "engine": "briefing",
+  "pitch": "Every morning: the weather, your to-dos and reminders, your first meetings and important mail, in her words.",
+  "fields": [
+    {
+      "key": "time",
+      "kind": "time",
+      "label": "What time?",
+      "default": "07:30",
+      "tip": "rt-time"
+    },
+    {
+      "key": "place",
+      "kind": "place",
+      "label": "Where are you? (for the weather)",
+      "optional": true,
+      "tip": "rt-place"
+    }
+  ],
+  "needs": [
+    "brain"
+  ],
+  "better": [
+    "calendar",
+    "gmail"
+  ]
+}

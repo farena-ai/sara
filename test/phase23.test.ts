@@ -47,7 +47,8 @@ test('getting started: ticks itself off; can be hidden', async () => {
   const now = await (await call('/api/checklist')).json();
   const done = Object.fromEntries(now.items.map((i: { id: string; done: boolean }) => [i.id, i.done]));
   assert.deepEqual(done, { brain: true, talk: true, yours: true, phone: false, voice: false, morning: true, backup: false });
-  assert.ok(now.items.every((i: { open: string }) => /^(chat|settings:[a-z-]+)$/.test(i.open)));
+  // Phase 121: the morning step (now *Turn on a routine*) opens Planner → Routines.
+  assert.ok(now.items.every((i: { open: string }) => /^(chat|routines|settings:[a-z-]+)$/.test(i.open)));
   const hidden = await (await call('/api/checklist', { hidden: true }, 'PUT')).json();
   assert.equal(hidden.hidden, true);
 });

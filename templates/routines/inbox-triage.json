@@ -1,0 +1,74 @@
+{
+  "id": "inbox-triage",
+  "version": 1,
+  "title": "Inbox triage",
+  "icon": "📬",
+  "category": "work",
+  "engine": "loop",
+  "pitch": "Weekday mornings she reads your new mail and tells you what needs you today. She never moves or deletes anything by herself.",
+  "fields": [
+    {
+      "key": "at",
+      "kind": "time",
+      "label": "What time?",
+      "default": "08:00",
+      "tip": "rt-time"
+    },
+    {
+      "key": "repeat",
+      "kind": "pick",
+      "label": "Which days?",
+      "default": "weekdays",
+      "choices": [
+        {
+          "value": "weekdays",
+          "label": "Weekdays"
+        },
+        {
+          "value": "daily",
+          "label": "Every day"
+        }
+      ],
+      "tip": "rt-repeat"
+    },
+    {
+      "key": "days",
+      "kind": "pick",
+      "label": "For how long?",
+      "default": "30",
+      "choices": [
+        {
+          "value": "7",
+          "label": "7 days"
+        },
+        {
+          "value": "14",
+          "label": "14 days"
+        },
+        {
+          "value": "30",
+          "label": "30 days"
+        },
+        {
+          "value": "90",
+          "label": "90 days"
+        }
+      ],
+      "tip": "rt-days"
+    }
+  ],
+  "needs": [
+    "brain",
+    "gmail",
+    "online"
+  ],
+  "tools": [
+    "gmail_search",
+    "gmail_read",
+    "gmail_thread",
+    "gmail_needs_answer"
+  ],
+  "words": {
+    "prompt": "Look at the new mail in my inbox since yesterday. List what needs me today, most important first, one line each. Don't change anything in the mailbox; offer to tidy the rest when I'm here."
+  }
+}

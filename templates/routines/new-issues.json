@@ -1,0 +1,27 @@
+{
+  "id": "new-issues",
+  "version": 1,
+  "title": "New issues on my repo",
+  "icon": "🐙",
+  "category": "coding",
+  "engine": "githubWatch",
+  "pitch": "New issues become to-dos, and she tells you.",
+  "fields": [
+    {
+      "key": "repo",
+      "kind": "repo",
+      "label": "Repository (owner/name)",
+      "tip": "rt-repo"
+    },
+    {
+      "key": "label",
+      "kind": "text",
+      "label": "Only with this label (optional)",
+      "optional": true,
+      "tip": "rt-label"
+    }
+  ],
+  "needs": [
+    "github"
+  ]
+}

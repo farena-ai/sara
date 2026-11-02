@@ -32,6 +32,7 @@
   <link rel="stylesheet" href="/kit.css">
   <link rel="stylesheet" href="/busy.css">
   <link rel="stylesheet" href="/persist.css">
+  <link rel="stylesheet" href="/begin.css">
   <link rel="stylesheet" href="/refs.css">
   <link rel="stylesheet" href="/recall.css">
   <script type="module" src="/app.js"></script>
@@ -378,6 +379,8 @@
             <div class="today-start-head"><h3>Getting started</h3><span id="td-start-count" class="muted small"></span><button id="td-start-hide" type="button" class="ghost small">Hide</button></div>
             <div id="td-start-list" class="today-start-list"></div>
           </section>
+          <!-- Phase 121 (BEGIN §4.9, §5.9): a red safety line and, while nothing runs, three routine cards. -->
+          <div id="td-begin" class="td-begin" hidden></div>
           <div id="td-away" class="td-away" hidden>
             <p id="td-away-text" class="td-away-text"></p>
             <button id="td-away-x" type="button" class="ghost icon td-away-x" aria-label="Dismiss the note"><i class="ic" data-icon="close"></i></button>
@@ -803,6 +806,7 @@
         <!-- Phase 114 (PL1b, F2/F13): starter chips that send a real first message, and the check-in notice folded in. -->
         <p id="su-starters-note" class="muted">Pick one to start, or press Start talking and say anything.</p>
         <div id="su-starters" class="chips su-starters"></div>
+        <p class="small"><button id="su-routine" type="button" class="linkish">Or turn on a routine →</button></p>
         <div id="su-checkin" class="su-checkin"></div>
         <ul class="setup-tips">
           <li>Just type to talk; 📎 sends a photo or a document. Talking out loud (🎙) and calls (📞) appear once her voice is set up in Settings → Voice.</li>
@@ -987,6 +991,7 @@
         <button type="button" class="tab" data-tab="notes">Notes</button>
         <button type="button" class="tab" data-tab="agenda">Her plans</button>
         <button type="button" class="tab" data-tab="repeats">Repeats</button>
+        <button type="button" class="tab" data-tab="routines">Routines</button>
       </div>
 
       <div class="tab-panel" data-panel="tasks">
@@ -1129,6 +1134,25 @@
       </div>
 
       <!-- Phase 103 (ST8, docs/AGENDA.md): her own plans (web/agenda.js). Off by default; everything she does on her own is listed here. -->
+      <!-- Phase 121 (BEGIN §4.7, §4.12): My routines and the gallery (web/routines.js). -->
+      <div class="tab-panel" data-panel="routines" hidden>
+        <p class="muted small">Ready-made things she does on a schedule. Each card says when it runs, what it needs and what it costs. Nothing starts until you tap Turn on, and Off stops it at once. <button type="button" class="tip" data-tip="Ready-made things she does on a schedule. Each card says when it runs, what it needs and what it costs. Nothing starts until you tap Turn on, and Off stops it at once.">?</button></p>
+        <div id="rt-seg" class="rt-seg" role="group" aria-label="Routines">
+          <button type="button" data-seg="mine" aria-pressed="true">My routines (<span id="rt-mine-count">0</span>)</button>
+          <button type="button" data-seg="add" aria-pressed="false">Add</button>
+        </div>
+        <div id="rt-wrap" class="rt-wrap" data-seg="mine">
+          <section class="rt-mine-col" aria-labelledby="rt-mine-h">
+            <h3 id="rt-mine-h">My routines</h3>
+            <div id="rt-mine"></div>
+            <p class="muted small">Everything here runs on a schedule. Off stops it at once.</p>
+          </section>
+          <section class="rt-add-col" aria-labelledby="rt-add-h">
+            <h3 id="rt-add-h">Add a routine</h3>
+            <div id="rt-gallery"></div>
+          </section>
+        </div>
+      </div>
       <!-- Phase 118 (PERSIST §5.9): every repeat in his chats (web/persist.js loadRepeats). -->
       <div class="tab-panel" data-panel="repeats" hidden>
         <p class="muted small">Repeats are yours: things you asked her to check on a timer in a chat. Her plans are hers.</p>
@@ -3329,6 +3353,32 @@
       <div id="hk-list" class="skl-list"></div>
       <div class="hk-keep" data-nodirty data-noauto><label><span>Keep the delivery log <button type="button" class="tip" data-tip="How long each webhook's log of deliveries is kept. Bodies are stored with secrets hidden and cut to 16 KB; older entries are deleted.">?</button></span> <select id="hk-keep"><option value="3">for 3 days</option><option value="7">for 7 days</option><option value="14" selected>for 14 days</option><option value="30">for 30 days</option><option value="90">for 90 days</option></select></label></div>
       <p id="hk-status" class="muted small" role="status"></p>
+        </section>
+        <!-- Phase 121 (BEGIN §5.10): the safety check-up (web/safety-check.js). Read-only until a fix is tapped. -->
+        <section class="settings-page" data-page="dh-safety" data-group="Data & health" data-title="Safety check-up" data-owner-only hidden>
+      <div class="sc-page" data-noauto data-nodirty>
+        <p class="muted small page-lead">Sara looks at how she's set up and says what could let someone in or lose your data. It only reads. Fixes happen when you tap one, and they can only make things safer. <button type="button" class="tip" data-tip="Sara looks at how she's set up and says what could let someone in or lose your data. It only reads. Fixes happen when you tap one, and they can only make things safer.">?</button></p>
+        <div class="add-row"><button id="sc-again" type="button" class="ghost">Check again</button> <button type="button" class="tip" data-tip="Runs every check again now. It reads only: no model call, nothing sent anywhere, nothing changed.">?</button> <span id="sc-status" class="muted small" role="status"></span></div>
+        <div id="sc-verdict" class="sc-verdict" role="status"></div>
+        <div id="sc-list"></div>
+        <div id="sc-fine"></div>
+        <div id="sc-recent"></div>
+        <p class="muted small">Report from the command line: <code>sara doctor --safety</code></p>
+      </div>
+      <dialog id="sc-token-dlg" class="sc-token-dlg" aria-labelledby="sc-token-h">
+        <div class="sc-token-head"><h3 id="sc-token-h">Make a new owner token</h3><button id="sc-token-x" type="button" class="ghost icon" aria-label="Cancel"></button></div>
+        <div id="sc-token-form">
+          <p id="sc-token-why" class="small"></p>
+          <label>Your current owner token <button type="button" class="tip" data-tip="The token you sign in with now, from your password manager. A new one is only made when this one is right.">?</button> <input id="sc-token-cur" type="password" autocomplete="current-password"></label>
+          <p id="sc-token-err" class="error" role="alert"></p>
+          <div class="add-row"><button id="sc-token-go" type="button" class="primary">Make a new token</button></div>
+        </div>
+        <div id="sc-token-new" hidden>
+          <p class="small">Your new owner token. It is shown once: save it in your password manager now.</p>
+          <code id="sc-token-value" class="sc-cmd"></code>
+          <div class="add-row"><button id="sc-token-copy" type="button" class="ghost">Copy</button> <button id="sc-token-done" type="button" class="primary">Sign in again</button></div>
+        </div>
+      </dialog>
         </section>
         <section class="settings-page" data-page="dh-health" data-group="Data & health" data-title="Health" data-owner-only hidden>
       <div id="access-box" class="access-box">

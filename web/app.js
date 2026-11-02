@@ -39,6 +39,8 @@ import { startsOnToday } from './start-view.js';
 import { DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNote, updatesShown, versionChanged } from './update-check.js';
 import { initHousehold, joinFromLink, loadAccount, loadHousehold, showPaused } from './household.js';
 import { initPersist, loadPersistSettings, loadRepeats, persistEvent, persistMessage, persistOpen, savePersistSettings } from './persist.js';
+import { initRoutines, loadRoutines, openRoutinesAt, setRoutinesOpener, todayRoutineCards } from './routines.js';
+import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-check.js';
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
 import { initNav, relabelNav, revealNav, setMore } from './nav.js';
@@ -6550,9 +6552,13 @@ for (const t of document.querySelectorAll('#planner .tab')) {
     // Phase 99: the Board tab widens the window; To-do or Board is remembered as the planner's view.
     rememberView(t.dataset.tab);
     if (t.dataset.tab !== 'board') $('#planner').classList.remove('bd-wide');
+    // Phase 121: Routines is two columns (My routines | the gallery) and gets the wide window too.
+    $('#planner').classList.toggle('rt-wide', t.dataset.tab === 'routines');
     // Phase 103: Her plans loads when its tab opens.
     if (t.dataset.tab === 'agenda') void loadAgenda();
     if (t.dataset.tab === 'repeats') void loadRepeats();
+    // Phase 121: My routines and the gallery load when their tab opens.
+    if (t.dataset.tab === 'routines') void loadRoutines();
   });
 }
 
@@ -7611,7 +7617,7 @@ const SETTINGS_ORDER = [
   'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
   'ab-projects', 'ab-precise', 'ab-budgets', 'ab-persist', 'ab-when', 'ab-github', 'ab-ssh', 'ab-recipes',
   'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-pickup', 'co-apps', 'co-agents', 'co-hooks',
-  'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
+  'dh-safety', 'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
   'household', 'account',
 ];
 // A small heading inside a group, before the first of these pages.
@@ -7751,6 +7757,7 @@ function showSettingsTab(page, opts = {}) {
   $('.settings-actions').toggleAttribute('data-quiet', !sec.querySelector('input:not([type=hidden]):not([type=file]), select, textarea'));
   openGroupOf(pick);
   if (pick === 'dh-updates') void loadUpdates();
+  if (pick === 'dh-safety') void loadSafetyCheck();
   if (pick === 'ab-skills') {
     void loadSkills();
     void loadLearning();
@@ -8962,6 +8969,9 @@ initPlugins();
 initBusy({ api, state, append, bubble, el, canSteer: () => !state.conv?.partner, allowed: busySendAllowed, sendNow: (text) => void send(text) });
 // Phase 118: this chat's goal and repeats (web/persist.js).
 initPersist({ api, state, el, openConversation: (id) => void openConversation(id), openSettings: (page) => void openSettings(page) });
+// Phase 121: routines (Planner → Routines) and the safety check-up (Settings → Data & health).
+initRoutines({ api, el, openConversation: (id) => { $('#planner').close(); void openConversation(id); }, openSettings: (page) => { $('#planner').close(); void openSettings(page); } });
+initSafetyCheck({ api, el, openSettings: (page) => void openSettings(page) });
 // Phase 120: the @ menu and chips; who may use references here is decided again by the server.
 initRefs({
   api, state, el, openSettings: (page) => void openSettings(page),
@@ -9512,8 +9522,38 @@ $('#update-note-reload').addEventListener('click', () => location.reload());
 $('#update-note-close').addEventListener('click', () => ($('#update-note').hidden = true));
 
 // "Getting started" on the Today page (Phase 23).
+/** Phase 121: Planner → Routines (the checklist step, Today's cards and the wizard's link open it). */
+async function openRoutines(id = '') {
+  await openRoutinesAt(id);
+}
+setRoutinesOpener(async () => {
+  if (!$('#planner').open) await openPlanner();
+  document.querySelector('#planner .tab[data-tab="routines"]')?.click();
+});
+
+/** Phase 121: Today's *Needs you* safety line (red only) and, while nothing runs, three routine cards. */
+async function paintBegin(path) {
+  const box = $('#td-begin');
+  if (!box) return;
+  const parts = [];
+  if (!isMember()) {
+    const line = await todaySafetyLine();
+    if (line) {
+      const b = el('button', 'ghost td-safety-line', `● ${line.line}`);
+      b.type = 'button';
+      b.addEventListener('click', () => void openSettings('dh-safety'));
+      parts.push(b);
+    }
+  }
+  const cards = await todayRoutineCards(path);
+  if (cards) parts.push(cards);
+  box.replaceChildren(...parts);
+  box.hidden = !parts.length;
+}
+
 async function loadChecklist() {
   const c = await api('/checklist').catch(() => null);
+  void paintBegin(c?.path ?? 'both');
   const left = c ? c.items.filter((i) => !i.done) : [];
   $('#td-start').hidden = !c || c.hidden || !left.length;
   if ($('#td-start').hidden) return;
@@ -9534,6 +9574,8 @@ async function loadChecklist() {
       b.addEventListener('click', async () => {
         $('#today').close();
         if (i.open === 'chat') return void $('#input').focus();
+        // Phase 121: the routines gallery (Planner → Routines).
+        if (i.open === 'routines') return void openRoutines();
         // Phase 114 (PL1c, §5.2 step 6): the page opens its "How do I…?" with this step's question expanded.
         if (i.open.startsWith('settings:')) await openSettings(i.open.split(':')[1], { howto: (await loadHowto(), howtoForStep(i.id))?.q ?? '' });
       });
@@ -11449,6 +11491,12 @@ function suStepFour() {
     return suFinish();
   })));
   $('#su-starters-note').hidden = !chips.length;
+  // Phase 121 (BEGIN §4.9): one quiet link under the chips; the gallery opens after the wizard closes.
+  const rt = $('#su-routine');
+  if (rt) rt.onclick = async () => {
+    await suFinish();
+    void openRoutines(su.path === 'coding' ? 'ci-watch' : 'morning-brief');
+  };
   foldFirstRun($('#su-checkin'));
 }
 

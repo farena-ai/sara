@@ -1684,6 +1684,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // offered there.
   const pluginTurn = app.plugins && pluginTurnAllowed(conv, { group: Boolean(opts.group), external: external || Boolean(opts.externalApp), replay: Boolean(opts.replay), eval: Boolean(opts.recorder) }) ? new PluginTurn(app.plugins, conv, app.now) : undefined;
   if (!pluginTurn) tools = tools.filter((t) => !t.source?.startsWith('Plugin: '));
+  // Phase 121: the safety report and the routine card are the owner's own chats' only (never other apps, agents, groups, partner chats).
+  if (opts.externalApp || external || opts.group || opts.outside || conv.partner) tools = tools.filter((t) => t.spec.name !== 'safety_report' && t.spec.name !== 'suggest_routine');
   // Phase 66: group chats get read-only tools only, and only those that run without asking (no approvals mid-round).
   if (opts.group) tools = tools.filter((t) => GROUP_TOOLS.has(t.spec.name) && app.tools.permission(t.spec.name, s.toolPermissions) === 'auto');
   // Private conversations: commands get no network either (nothing leaves the server).

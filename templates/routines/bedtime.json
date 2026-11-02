@@ -1,0 +1,29 @@
+{
+  "id": "bedtime",
+  "version": 1,
+  "title": "Bedtime wind-down",
+  "icon": "🌙",
+  "category": "everyday",
+  "engine": "reminder",
+  "pitch": "In the evening: a reminder in your words to put the screens away.",
+  "fields": [
+    {
+      "key": "text",
+      "kind": "text",
+      "label": "What should it say?",
+      "default": "Time to wind down",
+      "tip": "rt-text"
+    },
+    {
+      "key": "time",
+      "kind": "time",
+      "label": "What time?",
+      "default": "22:00",
+      "tip": "rt-time"
+    }
+  ],
+  "needs": [],
+  "defaults": {
+    "repeat": "daily"
+  }
+}

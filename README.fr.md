@@ -14,7 +14,7 @@ vous choisissez, dans une seule app pour le web, Windows, Mac et le téléphone.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1678%20passing-brightgreen" alt="1678 tests passing">
+  <img src="https://img.shields.io/badge/tests-1705%20passing-brightgreen" alt="1705 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -114,15 +114,16 @@ Des tutoriels d'une minute, enregistrés sur un serveur de test avec un modèle 
 
 ## Quoi de neuf
 
+- **2.54** · Routines et bilan de sécurité : dix routines prêtes (briefing du matin, surveiller ma CI, alerte prix…) avec le coût affiché avant de les activer, et une page qui dit en mots simples à quel point votre installation est sûre, avec des corrections en un clic qui ne font que renforcer.
 - **2.53** · Coder avec précision : après chaque modification, elle lance le vérificateur de types ou le linter de votre projet et corrige ce qu'elle a cassé dans la même réponse ; montrez-lui des choses avec `@file`, `@diff`, `@url` et plus.
 - **2.52** · Quand ça revient : « quand on parle de Dan, rappelle-moi qu'il me doit 20 $ » attend le nom, pas une heure ; et `/continue` reprend dans l'appli une discussion Telegram ou Discord, ou l'inverse.
-- **2.51** · Continuer jusqu'au bout : donnez-lui un objectif et la vérification qui le prouve (tests, build, commande ou vous), et elle travaille tour après tour jusqu'à ce que ça passe vraiment ; `/loop` répète une vérification et ne parle que si quelque chose change.
 
 <details>
 <summary><b>Historique des versions</b> : ce que chaque version depuis la 2.4 a apporté</summary>
 
 | Version | Ce que vous y gagnez |
 |---|---|
+| **2.54** · Routines et bilan de sécurité | **Galerie de routines** (Planning → Routines) : briefing du matin, bilan de la semaine, rappels pour s'étirer et pour se coucher, partir à l'heure, surveiller la CI d'un dépôt, nouveaux tickets, vérifier les sauvegardes, trier la boîte mail et alerte prix. Chaque carte dit ce qu'elle fait, ce qu'il lui faut et ce qu'elle coûte, calculé dans le code (la plupart sont gratuites), montre un aperçu sans appeler de modèle et a un interrupteur ; les payantes s'arrêtent à la date choisie. Les outils gardent vos réglages d'approbation. **Bilan de sécurité** (Réglages → Données et santé) : 17 vérifications en lecture seule, un verdict en mots (*Ça a l'air sûr*, *Plutôt sûr*, *À corriger d'abord*) et des corrections en un clic qui ne peuvent que renforcer, chacune indiquant si elle peut être annulée. Les changements sur la façon de joindre Sara sont guidés, jamais en un clic. Aussi `sara doctor --safety`. |
 | **2.53** · Coder avec précision | **Vérifications après ses modifications :** quand elle change du code, Sara lance le vérificateur du projet (tsc, pyright ou mypy, cargo check, go vet, eslint), déjà installé, jamais `npx`, sans rien installer, et ne lui donne que les nouvelles erreurs dans le même tour, y compris les fichiers que sa modification a cassés ailleurs. Elle les corrige avant de répondre (deux relances au plus), et la réponse affiche *✓ types clean (tsc)* ou ce qui reste. Un OK par projet. **Références @ :** tapez `@` dans le chat pour `@file` (avec lignes), `@folder`, `@diff`, `@branch`, `@problem` ou `@url` ; des étiquettes montrent ce qu'elle recevra et sa taille, et ça marche aussi en texte dans Telegram, Discord et les autres applis. Les fichiers secrets sont refusés et les discussions privées n'ouvrent jamais de pages web. |
 | **2.52.1** · Connecter un serveur, simplement ; photos réparées | *Connecter un serveur* ne demande que l'adresse et l'utilisateur ; Sara crée sa clé, trouve le port et le moyen le plus simple d'entrer (un jeton cPanel qu'elle supprime elle-même, votre mot de passe une fois, ou une ligne à coller) et explique chaque échec en mots simples. Les photos arrivent toujours à un modèle qui les voit. |
 | **2.52** · Quand ça revient | **Des rappels qui attendent une personne ou un sujet :** « quand on parle de Dan, rappelle-moi qu'il me doit 20 $ » ou « la prochaine fois que je parle du potager, demande pour les tomates ». Elle le glisse une fois dans sa réponse, avec *Fait*, *Encore la prochaine fois* ou *Oublier*. La détection passe par vos fiches de personnes et des mots simples, sans appel à une IA, et elle ne devine jamais entre deux Dan. Ils ne se déclenchent que sur vos propres messages dans vos propres discussions, jamais là où Dan pourrait lire, et tout ce qu'elle enverrait à quelqu'un d'autre en contenant un demande d'abord. **Reprendre une discussion dans une autre appli :** commencez sur Telegram, ouvrez l'appli, et *Continuer ici* ramène la discussion (`/continue` partout), avec *Voir* et *Annuler* ; rien n'est copié. |
@@ -208,7 +209,7 @@ Toutes les versions : [CHANGELOG.md](CHANGELOG.md) · [versions](https://github.
 
 Dans l'ordre de construction, une version chacune ([la liste complète](docs/ROADMAP.md)) :
 
-- **Ensuite** (2.54–2.61) : photos et fichiers dans les applis de discussion, lui parler pendant qu'elle travaille, Signal, e-mail, WhatsApp, iMessage (BlueBubbles) et SMS, « continue jusqu'au bout », vérifications du code après chaque modification, une galerie de routines et **le Sara Store** pour plugins, compétences et serveurs MCP (ComfyUI, Blender, Playwright…) avec installation en un clic et un moyen de soumettre les vôtres.
+- **Ensuite** (2.55–2.61) : photos et fichiers dans les applis de discussion, lui parler pendant qu'elle travaille, Signal, e-mail, WhatsApp, iMessage (BlueBubbles) et SMS, « continue jusqu'au bout », vérifications du code après chaque modification, une galerie de routines et **le Sara Store** pour plugins, compétences et serveurs MCP (ComfyUI, Blender, Playwright…) avec installation en un clic et un moyen de soumettre les vôtres.
 - L'app iPhone (en attente d'Apple), et vos idées dans les [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Le plan complet : [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -410,8 +411,8 @@ qu'aucun test ne vérifiait. Ce qu'elle apporte aujourd'hui, c'est la manière d
 lance les tests, demande avant les étapes risquées, montre ce qui a tourné), pas un meilleur score
 sur ces jeux. Détails, résultats par tâche et comment relancer : [docs/RESULTS.md](docs/RESULTS.md).
 
-En plus, `npm run check` : une vérification des types et 1693 tests automatiques avec un faux modèle
-scripté (sans réseau, sans GPU) : 1678 passent sous Windows, et les 8 autres sont des tests
+En plus, `npm run check` : une vérification des types et 1720 tests automatiques avec un faux modèle
+scripté (sans réseau, sans GPU) : 1705 passent sous Windows, et les 8 autres sont des tests
 d'isolation propres à Linux, exécutés sur un serveur Linux.
 
 ## Comparaison
