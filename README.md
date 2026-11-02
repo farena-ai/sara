@@ -11,7 +11,7 @@ Windows, Mac and phones.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1768%20passing-brightgreen" alt="1768 tests passing">
+  <img src="https://img.shields.io/badge/tests-1782%20passing-brightgreen" alt="1782 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -107,15 +107,16 @@ One-minute walkthroughs, recorded on a throwaway test server with a local model.
 
 ## What's new
 
+- **2.58** · Get more: browse the Sara Store inside Sara, install with one click through the usual review card, see exactly what an update changes, and submit your own add-ons with `sara pack` and `sara submit`; no GitHub needed.
 - **2.57** · The Sara Store opens: a signed shelf of add-ons at backstagecoding.com/sara/store (six small plugins and six tool servers, ComfyUI and Blender among them), checked by every Sara before she shows it.
 - **2.56** · Lean and tidy: each step offers her only the tools that fit (54–77% fewer tokens per step, measured), she can look up the rest herself, and `/compact` tidies a long chat into a summary you can see and undo.
-- **2.55** · WhatsApp, Matrix and iMessage: text her from WhatsApp through Meta's official service on your own account, with a 10-step guided setup that checks each step.
 
 <details>
 <summary><b>Release history</b>: what each release from 2.4 brought</summary>
 
 | Release | What you get |
 |---|---|
+| **2.58** · Get more | **Settings → Abilities → Get more:** browse and search the Sara Store, open an item, and install with one click through the usual review card (nothing switches on by itself). Tool servers get a card with the exact command (and its Windows form), what it needs, what it can reach and whether it's fenced; keys go to the vault. **Updates** show exactly what changed, with any new permission marked, and you can go back. **My add-ons** lists everything with where it came from. **Submit your own:** `sara pack` checks a plugin, skill or tool server on your computer (manifest, permissions, a secret scan, a fenced smoke test, screenshots), then *Submit* in Settings or `sara submit` sends it, signed with your own author key. The Sara team reviews it before it's listed, and you can follow and answer from *My submissions*. Reports and takedowns switch an add-on off, never delete it. |
 | **2.57** · The Sara Store opens | **A signed shelf** at [backstagecoding.com/sara/store](https://backstagecoding.com/sara/store/): Weather alerts, Focus, Home scenes, GitHub digest, Reading list and Webhook notes, plus tool servers for ComfyUI, Blender, a browser (Playwright), GitHub, files on this computer and docs (Context7), each with an exact pinned version. Sara checks the list's signature, every file's fingerprint and its expiry before showing anything; a damaged, old or withdrawn list is refused and the last good one kept. Browsing sends no id or cookie. Installs still go through the usual review card and nothing switches on by itself; add-ons pulled from the store are switched off, never deleted. **Skill tidy-up:** unused skills can be archived and brought back. Installing from inside Sara and submitting your own come next. |
 | **2.56** · Lean and tidy | **A short tool list per step:** chosen in code (no model call) from what you're doing: the mode, the words you use, `@`-references, recent use, a loaded skill, a goal's earlier rounds, plus tools that are always kept for safety. She can look up the rest with *find tools*, and every call is still checked against everything she's allowed. Measured: a fresh install goes from 11,871 to 5,471 tokens a step (−54%); with four MCP servers, from 23,476 to 5,438 (−77%). `/tools` shows what's offered. **`/compact`:** folds the older part of a long chat into a summary written on this computer first (private chats never leave it). Your messages stay in the thread, with *Show summary* and *Undo*; it also runs by itself near the limit, and crisis messages stay word for word. Works in every chat app. |
 | **2.55.3** · MCP on Windows | Fixed: on Windows, MCP servers started with `npx` (including the built-in presets) failed to start. |
@@ -208,7 +209,7 @@ Every release: [CHANGELOG.md](CHANGELOG.md) · [releases](https://github.com/far
 
 In build order, one release each ([the full list](docs/ROADMAP.md)):
 
-- **Next** (2.58–2.61): photos and files in chat apps, talking to her while she works, Signal, email, WhatsApp, iMessage (BlueBubbles) and SMS, "keep going until it's done", coding checks after edits, a routines gallery, and **the Sara Store** for plugins, skills and MCP servers (ComfyUI, Blender, Playwright…) with one-click installs and a way to submit your own.
+- **Next** (2.59–2.61): photos and files in chat apps, talking to her while she works, Signal, email, WhatsApp, iMessage (BlueBubbles) and SMS, "keep going until it's done", coding checks after edits, a routines gallery, and **the Sara Store** for plugins, skills and MCP servers (ComfyUI, Blender, Playwright…) with one-click installs and a way to submit your own.
 - The iPhone app (waiting on Apple), and your ideas in [Discussions](https://github.com/farena-ai/sara/discussions).
 
 The full plan: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -395,8 +396,8 @@ README or SPEC that no test checked. What she adds today is the way of working (
 asks before risky steps, shows what ran), not a higher score on these sets. Details, per-task
 results and how to re-run: [docs/RESULTS.md](docs/RESULTS.md).
 
-Plus `npm run check`: a typecheck and 1783 automated tests with a scripted fake model (no network,
-no GPU): 1768 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
+Plus `npm run check`: a typecheck and 1797 automated tests with a scripted fake model (no network,
+no GPU): 1782 pass on Windows and the other 8 are Linux-only sandbox tests, run on a Linux server.
 
 ## How Sara compares
 

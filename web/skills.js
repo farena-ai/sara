@@ -537,6 +537,21 @@ async function switchOn(field, value) {
 
 let pending = null;
 
+/**
+ * Phase 125 (SARA_STORE.md §8.3): a skill from the Sara Store, already downloaded and checked by the
+ * server: the same import review (every file and script), with the store strip and no sources to pick.
+ */
+export function showStoreImport(p, onDone) {
+  openImport();
+  for (const sel of ['#ski-sources', '#ski-zip-row', '#ski-url-row', '#ski-folder-row']) if ($(sel)) $(sel).hidden = true;
+  pending = p;
+  storeDone = onDone ?? null;
+  renderReview();
+  const strip = { 'first-party': t('From the Sara Store · Made by the Sara team'), reviewed: t('From the Sara Store · Reviewed by the Sara team'), community: t('From the Sara Store · Not reviewed by people yet') }[p.store?.trust] ?? '';
+  if (strip) $('#ski-review').prepend(el('p', 'skl-note small', strip));
+}
+let storeDone = null;
+
 export function openImport() {
   pending = null;
   $('#ski-url').value = '';
@@ -654,6 +669,8 @@ async function acceptImport(b) {
     pending = null;
     $('#skill-import').close();
     status(t('Added: {names}.', { names: r.skills.map((s) => s.name).join(', ') }));
+    storeDone?.();
+    storeDone = null;
     await loadSkills();
   } catch (err) {
     $('#ski-status').textContent = err.message;

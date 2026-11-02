@@ -1674,6 +1674,10 @@
     "account": [
       "Your member account here: what the owner allowed you, today’s use, your sign-in, downloading your data and deleting your account.",
       "household"
+    ],
+    "ab-store": [
+      "Add-ons from the Sara Store: plugins, skills and tool servers checked by the Sara team. Each shows what it can do before you add it, and nothing switches on by itself.",
+      "plugins"
     ]
   }
 }

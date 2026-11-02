@@ -11,7 +11,7 @@ import { BODY_TOKENS_ADVISED, estimateTokens, parseSkill, SKILL_NAME_RE } from '
 import { windowsCommand } from '../tools/mcp.ts';
 import { parseRecipe, type McpRecipe, type StoreIndex, type StoreKind } from './format.ts';
 
-export type CheckId = 'limits' | 'manifest' | 'id' | 'permissions' | 'secrets' | 'scan' | 'shots' | 'listing';
+export type CheckId = 'limits' | 'manifest' | 'id' | 'permissions' | 'secrets' | 'scan' | 'smoke' | 'shots' | 'listing';
 export interface CheckResult {
   id: CheckId;
   ok: boolean;

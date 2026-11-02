@@ -122,6 +122,13 @@ Store's signed list, the review card adds one line: *From the Sara Store · Made
 later pulls that version, the plugin is switched off on every companion with the chip *Pulled from the
 Sara Store: …* and nothing is deleted. See [STORE.md](STORE.md).
 
+**Getting it from the store and sending yours (2.58).** **Settings → Abilities → Get more** installs a
+store plugin through this same review card (origin *Sara Store*); updates show the permission diff and
+are never applied on their own. To offer yours, run `sara pack <folder>`: the manifest and permission
+checks, a key scan, the fenced smoke test (no network, fake keys, every tool must answer `ready`), the
+screenshots and `CHANGES.md`. Then `sara submit <folder>` or **Submit yours** in Get more. See
+[STORE.md](STORE.md).
+
 ## 4. Hook points
 
 Sara's own hooks (budget, plan check, sandbox gate, security, recall, the run recorder) run first;

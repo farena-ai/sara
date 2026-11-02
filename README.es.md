@@ -14,7 +14,7 @@ para la web, Windows, Mac y el móvil.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1768%20passing-brightgreen" alt="1768 tests passing">
+  <img src="https://img.shields.io/badge/tests-1782%20passing-brightgreen" alt="1782 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -114,15 +114,16 @@ Guías de un minuto, grabadas en un servidor de prueba con un modelo local (en i
 
 ## Novedades
 
+- **2.58** · Conseguir más: explora la Sara Store dentro de Sara, instala con un clic a través de la tarjeta de revisión de siempre, mira exactamente qué cambia una actualización y envía tus propios complementos con `sara pack` y `sara submit`; sin GitHub.
 - **2.57** · Abre la Sara Store: una estantería firmada de complementos en backstagecoding.com/sara/store (seis plugins pequeños y seis servidores de herramientas, entre ellos ComfyUI y Blender), que cada Sara comprueba antes de mostrarla.
 - **2.56** · Ligera y ordenada: en cada paso solo le ofrece las herramientas que encajan (entre un 54 y un 77 % menos de tokens por paso, medido), el resto lo busca ella, y `/compact` resume un chat largo en un resumen que puedes ver y deshacer.
-- **2.55** · WhatsApp: escríbele desde WhatsApp con el servicio oficial de Meta en tu propia cuenta, con una configuración guiada de 10 pasos que comprueba cada uno.
 
 <details>
 <summary><b>Historial de versiones</b>: lo que trajo cada versión desde la 2.4</summary>
 
 | Versión | Qué te trae |
 |---|---|
+| **2.58** · Conseguir más | **Ajustes → Habilidades → Conseguir más:** explora y busca en la Sara Store, abre un elemento e instálalo con un clic a través de la tarjeta de revisión de siempre (nada se activa solo). Los servidores de herramientas tienen una tarjeta con el comando exacto (y su forma en Windows), lo que necesita, a qué puede llegar y si va aislado; las claves van a la bóveda. **Las actualizaciones** muestran exactamente qué cambia, con los permisos nuevos marcados, y puedes volver atrás. **Mis complementos** lo lista todo con su origen. **Envía los tuyos:** `sara pack` revisa un plugin, una habilidad o un servidor de herramientas en tu ordenador (manifiesto, permisos, búsqueda de secretos, prueba rápida aislada, capturas) y luego *Enviar* en Ajustes o `sara submit` lo manda, firmado con tu propia clave de autor. El equipo de Sara lo revisa antes de publicarlo, y en *Mis envíos* puedes seguirlo y responder. Las denuncias y retiradas apagan un complemento, nunca lo borran. |
 | **2.57** · Abre la Sara Store | **Una estantería firmada** en [backstagecoding.com/sara/store](https://backstagecoding.com/sara/store/): Alertas del tiempo, Concentración, Escenas de casa, Resumen de GitHub, Lista de lectura y Notas de webhooks, más servidores de herramientas para ComfyUI, Blender, un navegador (Playwright), GitHub, archivos de este ordenador y documentación (Context7), cada uno con una versión exacta fijada. Sara comprueba la firma de la lista, la huella de cada archivo y la caducidad antes de mostrar nada; una lista dañada, vieja o retirada se rechaza y se conserva la última buena. Al mirar no se envía ningún identificador ni cookie. Las instalaciones siguen pasando por la tarjeta de revisión de siempre y nada se activa solo; lo retirado de la tienda se apaga, nunca se borra. **Ordenar habilidades:** las que no se usan se pueden archivar y recuperar. Lo siguiente: instalar desde Sara y enviar las tuyas. |
 | **2.56** · Ligera y ordenada | **Una lista corta de herramientas por paso:** elegida en código (sin llamar a ningún modelo) según lo que haces: el modo, tus palabras, las referencias con `@`, el uso reciente, una habilidad cargada, las rondas anteriores de un objetivo y las que siempre se mantienen por seguridad. El resto lo busca ella con *find tools*, y cada llamada se sigue comprobando contra todo lo que tiene permitido. Medido: una instalación nueva pasa de 11.871 a 5.471 tokens por paso (−54 %); con cuatro servidores MCP, de 23.476 a 5.438 (−77 %). `/tools` muestra lo que se ofrece. **`/compact`:** resume la parte antigua de un chat largo, escrito primero en este ordenador (los chats privados nunca salen de él). Tus mensajes siguen en el hilo, con *Ver resumen* y *Deshacer*; también se hace solo cerca del límite y los mensajes de crisis se mantienen palabra por palabra. Funciona en todas las apps de chat. |
 | **2.55.3** · MCP en Windows | Arreglado: en Windows, los servidores MCP que se inician con `npx` (incluidas las plantillas incorporadas) no arrancaban. |
@@ -215,7 +216,7 @@ Todas las versiones: [CHANGELOG.md](CHANGELOG.md) · [versiones](https://github.
 
 En orden de construcción, una versión cada una ([la lista completa](docs/ROADMAP.md)):
 
-- **Después** (2.58–2.61): fotos y archivos en las apps de chat, hablarle mientras trabaja, Signal, correo, WhatsApp, iMessage (BlueBubbles) y SMS, «sigue hasta terminar», comprobaciones de código tras cada cambio, una galería de rutinas y **la Sara Store** de plugins, habilidades y servidores MCP (ComfyUI, Blender, Playwright…) con instalación en un clic y una forma de enviar los tuyos.
+- **Después** (2.59–2.61): fotos y archivos en las apps de chat, hablarle mientras trabaja, Signal, correo, WhatsApp, iMessage (BlueBubbles) y SMS, «sigue hasta terminar», comprobaciones de código tras cada cambio, una galería de rutinas y **la Sara Store** de plugins, habilidades y servidores MCP (ComfyUI, Blender, Playwright…) con instalación en un clic y una forma de enviar los tuyos.
 - La app de iPhone (esperando a Apple) y tus ideas en [Discussions](https://github.com/farena-ai/sara/discussions).
 
 El plan completo: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -412,8 +413,8 @@ prueba comprobaba. Lo que aporta hoy es la forma de trabajar (ejecuta las prueba
 antes de pasos arriesgados, muestra lo que se ejecutó), no una puntuación más alta en estos
 conjuntos. Detalles, resultados por tarea y cómo repetirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-Además, `npm run check`: una comprobación de tipos y 1783 pruebas automáticas con un modelo falso
-programado (sin red, sin GPU): 1768 pasan en Windows y las otras 8 son pruebas del aislamiento solo
+Además, `npm run check`: una comprobación de tipos y 1797 pruebas automáticas con un modelo falso
+programado (sin red, sin GPU): 1782 pasan en Windows y las otras 8 son pruebas del aislamiento solo
 para Linux, que se ejecutan en un servidor Linux.
 
 ## Cómo se compara Sara

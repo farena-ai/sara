@@ -4,6 +4,10 @@
 #   (every command except help and version needs root: sudo sara …)
 #   sara status              is Sara running, data size, last backup
 #   sara doctor              deeper checks: database, every model provider, backups, off-server copy
+#   sara pack <folder>       check a plugin, skill or tool-server recipe for the Sara Store
+#                            (no sudo needed; sends nothing; writes <folder>.sarapack.zip and .json)
+#   sara submit <folder> --name "Shown name" [--contact you@example.com]
+#                            check it, show what is sent, and send it to the Sara team for review
 #   sara hands --server URL  Linux browser hands in your desktop session (without sudo)
 #   sara update              back up, pull the latest code, reinstall, restart, check health
 #                            (goes back to the previous version by itself if the check fails)
@@ -319,6 +323,18 @@ case "${1:-help}" in
   # status and logs read root-only places (the journal, Sara's data folder); doctor runs as sara.
   status) need_root status; status ;;
   doctor) need_root doctor; as_sara --doctor ;;
+  # Phase 125: pack runs as whoever asks (their own folder, nothing sent); submit runs as sara (the
+  # vault holds the author key) on a private copy of the folder (links stay links, so the checks refuse them).
+  pack)
+    shift; [[ $# -ge 1 ]] || die "Usage: $NAME pack <folder>"
+    [[ -x "$NODE_BIN" ]] || die "Can't find Sara's Node.js. Re-run deploy/install.sh."
+    "$NODE_BIN" --disable-warning=ExperimentalWarning "$APP_DIR/src/store/pack-cli.ts" pack "$@" ;;
+  submit)
+    need_root submit; shift; [[ $# -ge 1 && -d "$1" ]] || die "Usage: sudo $NAME submit <folder> --name \"Shown name\" [--contact you@example.com]"
+    d="$(root_tmpdir)"; name="$(basename "$(realpath -m "$1")")"
+    cp -R --no-dereference "$1" "$d/$name" && chown -R "$NAME":"$NAME" "$d" && chmod 700 "$d"
+    shift; as_sara submit "$d/$name" "$@" || true
+    rm -rf "$d" ;;
   version) echo "Sara $(app_version)$([[ $NAME == sara ]] || echo " ($NAME)")" ;;
   instances) instances ;;
   backup)

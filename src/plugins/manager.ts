@@ -594,6 +594,7 @@ export class PluginManager {
     if (origin.kind === 'git') files = await fromGit(origin.where, join(this.opts.dataDir, 'cache', 'plugin-imports'), PLUGIN_LIMITS);
     else if (origin.kind === 'folder') files = fromFolder(origin.where, PLUGIN_LIMITS);
     else if (origin.kind === 'builtin') files = fromFolder(this.#builtinFolder(origin.where), PLUGIN_LIMITS);
+    else if (origin.kind === 'store') throw new ManifestError('It came from the Sara Store: its updates show in Get more → My add-ons.');
     else throw new ManifestError('It was added from a .zip: add the new .zip with Add a plugin to update it.');
     const { files: inner } = stripTop(files);
     if (hashFiles(inner) === row.approved_sha) return { upToDate: true, version: row.version };

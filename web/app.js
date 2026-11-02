@@ -48,7 +48,7 @@ import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-chec
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
 import { initNav, relabelNav, revealNav, setMore } from './nav.js';
-import { initStore, loadStorePrivacy } from './store.js';
+import { initGetMore, initStore, loadGetMore, loadStorePrivacy } from './store.js';
 import { foldFirstRun, hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton, unfoldFirstRun } from './hub.js';
 import { createQueue, normPath, offerText, overlayCount, pathChoices, starterChips, tourFor } from './first-run.js';
 import { emptyState, initTidy, overflowMenu } from './tidy.js';
@@ -233,6 +233,7 @@ async function boot() {
     hubReady = true;
     initHub({ demo: Boolean(session.demo), openSettings, queue: firstRun });
     initStore({ demo: Boolean(session.demo) });
+    initGetMore();
   }
   reportFromHash();
   initVoice();
@@ -7629,7 +7630,7 @@ const SETTINGS_ORDER = [
   'her-character', 'her-relationship', 'her-look', 'her-pictures', 'her-voice', 'her-calls', 'her-companions', 'her-import',
   'you-about', 'you-briefing', 'you-leave-by', 'you-adult',
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
-  'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
+  'ab-store', 'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
   'ab-projects', 'ab-precise', 'ab-budgets', 'ab-persist', 'ab-when', 'ab-github', 'ab-ssh', 'ab-recipes',
   'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-pickup', 'co-apps', 'co-agents', 'co-hooks',
   'dh-safety', 'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
@@ -7778,6 +7779,8 @@ function showSettingsTab(page, opts = {}) {
     void loadLearning();
   }
   if (pick === 'ab-plugins') void loadPlugins();
+  // Phase 125: Settings → Abilities → Get more (the Sara Store).
+  if (pick === 'ab-store') void loadGetMore();
   if (pick === 'co-signal') void loadSignalPage();
   if (pick === 'co-email') void loadEmailPage();
   if (pick === 'co-whatsapp') void loadWhatsAppPage();

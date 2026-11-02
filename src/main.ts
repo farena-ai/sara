@@ -142,8 +142,10 @@ import { AlexaService } from './alexa.ts';
 import { PresenceWorker } from './presence.ts';
 import { applyIndex, localStore, storeBase, storeBlocked, StoreClient } from './store/client.ts';
 import { StoreInstalls } from './store/installs.ts';
+import { StoreInstaller } from './store/install.ts';
+import { fetchHeld } from './store/submit.ts';
 import { storeSettings } from './routes/store.ts';
-import { detectChannel, hubArch, hubBase, type HubOs, hubOs, HubPinger, HubState, modelKind, pingBlocked, scrubText, TicketStore, type HubFacts, type HubSpace } from './hub.ts';
+import { detectChannel, hubArch, hubBase, type HubOs, hubOs, HubPinger, HubState, localHub, modelKind, pingBlocked, scrubText, TicketStore, type HubFacts, type HubSpace } from './hub.ts';
 import { appLanguage } from './i18n.ts';
 import { homedir } from 'node:os';
 
@@ -319,6 +321,22 @@ if (process.argv.includes('--doctor')) {
   console.log(`\nSafety\n${formatSafety(safety)}\n\n${verdictLine(safety)}`);
   process.exit(fails ? 1 : 0);
 }
+// Phase 125 (SARA_STORE.md §9.4): `sara submit <folder>` (deploy/sara runs it as the sara user, for
+// the vault's author key). Private local mode refuses it; nothing is sent without "y".
+if (process.argv[2] === 'submit') {
+  const { PrivateLocalStore: PL } = await import('./private-local.ts');
+  new PL(dataDir);
+  const { privateLocalOn } = await import('./net-guard.ts');
+  if (privateLocalOn()) {
+    console.log('Private local mode is on, so nothing is sent. Switch it off first (Settings → Privacy).');
+    process.exit(1);
+  }
+  const { runSubmit } = await import('./store/pack-cli.ts');
+  const db = new DatabaseSync(join(dataDir, 'sara.db'));
+  const code = await runSubmit(process.argv.slice(3), { saraVersion: appInfo(root).version, dataDir, vault, hubBase: hubBase(process.env), installId: new HubState(dataDir).get().id, db, os: hubOs() });
+  db.close();
+  process.exit(code);
+}
 // Phase 67: "Nothing leaves this computer" is applied before anything can reach out (the saved
 // switch, or SARA_PRIVATE_LOCAL=1 / start). The guard itself is src/net-guard.ts.
 const privateLocal = new PrivateLocalStore(dataDir);
@@ -397,11 +415,24 @@ const storeTestKeys = ((): Record<string, string> | undefined => {
     return undefined;
   }
 })();
-const storeClient = isDemo ? undefined : new StoreClient({ dataDir, base: storeUrl, blocked: () => storeBlocked({ demo: isDemo, on: storeOn(), base: storeUrl }), ...(storeTestKeys ? { keys: storeTestKeys } : {}), log: (l) => console.warn(l) });
+// Phase 125 (§10.2): the hub's held list rides along with each check (an anonymous GET, no id; in
+// tests only from a local hub).
+const storeHub = hubBase(process.env);
+const storeHeld = () => ((process.env.NODE_TEST_CONTEXT || process.env.SARA_TESTING === '1') && !localHub(storeHub) ? Promise.resolve([]) : fetchHeld(storeHub));
+const storeClient = isDemo ? undefined : new StoreClient({ dataDir, base: storeUrl, blocked: () => storeBlocked({ demo: isDemo, on: storeOn(), base: storeUrl }), ...(storeTestKeys ? { keys: storeTestKeys } : {}), held: storeHeld, log: (l) => console.warn(l) });
+/** Phase 125: the owner's main companion, for blocks on skills and tool servers (set once it exists). */
+let storeOwnerApp: AppContext | undefined;
 const storeInstalls = pluginManager ? new StoreInstalls(pluginManager.store.db) : undefined;
 if (storeClient) {
   storeClient.onIndex = async (index) => {
-    await applyIndex(index, { client: storeClient, ...(storeInstalls ? { installs: storeInstalls } : {}), ...(pluginManager ? { plugins: pluginManager } : {}) });
+    await applyIndex(index, {
+      client: storeClient,
+      ...(storeInstalls ? { installs: storeInstalls } : {}),
+      ...(pluginManager ? { plugins: pluginManager } : {}),
+      others: async (row, reason) => {
+        if (storeOwnerApp && storeInstalls) await new StoreInstaller({ app: storeOwnerApp, client: storeClient, installs: storeInstalls, ...(pluginManager ? { plugins: pluginManager } : {}) }).blockOther(row, reason);
+      },
+    });
   };
   if (pluginManager) pluginManager.storeMatch = (sha) => storeClient.match(sha);
 }
@@ -1032,6 +1063,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isMember && storeClient) {
     app.storeClient = storeClient;
     if (storeInstalls) app.storeInstalls = storeInstalls;
+    storeOwnerApp ??= app;
     if (id === 'main') storeOn = () => storeSettings(app.settings.get() as never).on;
   }
   // Phase 100: A2A for the owner's companions (the main one answers peers; her tools on each).

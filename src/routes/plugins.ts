@@ -46,6 +46,8 @@ import { hookBase, runCheck, setupState, WA } from '../plugins/whatsapp-setup.ts
 import * as matrix from '../plugins/matrix-setup.ts';
 import * as imessage from '../plugins/imessage-setup.ts';
 import { bridgeWindowOpen } from '../plugins/bridge-db.ts';
+import { en } from '../i18n.ts';
+import { InstallError, StoreInstaller } from '../store/install.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 const IMAGE_TYPES: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' };
@@ -80,6 +82,13 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
           if (type.startsWith('application/json')) {
             const body = await readJson(req);
             if (typeof body.builtin === 'string' && body.builtin.trim()) return send(res, 200, pm.stageBuiltin(body.builtin.trim()));
+            // Phase 125 (§12.2): `{store: id}` is the store install (download, verify, the same card).
+            if (typeof body.store === 'string' && body.store.trim()) {
+              if (!app.storeClient || !app.storeInstalls) throw new HttpError(404, en('The Sara Store is not available here.'));
+              const out = await new StoreInstaller({ app, client: app.storeClient, installs: app.storeInstalls, plugins: pm }).install(body.store.trim());
+              if (out.kind !== 'plugin') throw new HttpError(400, 'That is not a plugin.');
+              return send(res, 200, out.review);
+            }
             if (typeof body.path === 'string' && body.path.trim()) {
               const dir = checkServerFolder(body.path);
               return send(res, 200, pm.stage(fromFolder(dir, PLUGIN_LIMITS), { kind: 'folder', where: dir }));
@@ -95,6 +104,7 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
           return send(res, 200, pm.stage(fromZip(buf, PLUGIN_LIMITS), { kind: 'zip', where: name.slice(0, 200) }));
         } catch (err) {
           if (err instanceof HttpError && err.status === 413) throw new HttpError(413, 'The zip is larger than 10 MB.');
+          if (err instanceof InstallError) throw new HttpError(err.status, err.message, { code: err.code });
           return asHttp(err);
         }
       }

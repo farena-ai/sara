@@ -1863,6 +1863,11 @@
     <div id="ski-review-row" class="add-row" hidden><label>Add it to <select id="ski-scope" data-nodirty></select></label><button id="ski-accept" type="button">Add it</button></div>
     <div class="add-row"><button id="ski-cancel" type="button" class="ghost">Cancel</button></div>
   </dialog>
+  <dialog id="store-panel" class="skill-editor store-panel" aria-labelledby="stp-title">
+    <div class="stp-bar"><button id="stp-back" type="button" class="ghost" hidden>← Back</button><h2 id="stp-title">Get more</h2><button id="stp-close" type="button" class="ghost stp-x" aria-label="Close">✕</button></div>
+    <div id="stp-body" class="stp-body"></div>
+    <p id="stp-status" class="muted small" role="status"></p>
+  </dialog>
   <dialog id="plugin-add" class="skill-editor" aria-labelledby="pla-heading">
     <h2 id="pla-heading">Add a plugin</h2>
     <p class="muted small">Nothing is installed until you have read its card: what it can do in plain words, its files and its fingerprint. Installing switches nothing on.</p>
@@ -2625,6 +2630,22 @@
       <p id="adult-app-note" class="muted small" hidden>Adult mode can only be turned on in a web browser, not in the phone apps.</p>
         </section>
 
+        <section class="settings-page" data-page="ab-store" data-group="Abilities" data-title="Get more" data-owner-only hidden>
+      <p class="muted small page-lead">Add-ons from the Sara Store: plugins, skills and tool servers, each one checked and signed by the Sara team. Nothing switches on by itself: every add-on shows you what it can do before you add it, and keys go to the vault. <a href="/help#plugins" target="_blank" rel="noopener">How add-ons work</a></p>
+      <p id="sto-state" class="skl-note" hidden></p>
+      <div class="sto-top">
+        <label class="sto-search">Search add-ons <button type="button" class="tip" data-tip="Searches the store's list that Sara keeps on this server: names, what they do and their tags. Nothing is sent while you type.">?</button><input id="sto-q" type="search" placeholder="Weather, GitHub, pictures…" autocomplete="off"></label>
+        <div class="sto-fresh-row"><p id="sto-fresh" class="muted small" role="status"></p><button id="sto-check" type="button" class="ghost">Check now</button></div>
+      </div>
+      <div class="sto-links">
+        <button id="sto-mine-open" type="button">My add-ons</button>
+        <button id="sto-submit-open" type="button" class="ghost">Submit yours</button>
+        <button id="sto-subs-open" type="button" class="ghost">My submissions</button>
+      </div>
+      <div id="sto-shelves" class="sto-shelves"></div>
+      <label class="row sto-community"><input id="sto-community" type="checkbox"> <span>Show add-ons nobody has reviewed yet <button type="button" class="tip" data-tip="These passed our automatic checks, but no person at Sara has read them. Only switch this on if you can judge code yourself. Each one still shows its full review card.">?</button></span></label>
+      <p id="sto-status" class="muted small" role="status"></p>
+        </section>
         <section class="settings-page" data-page="ab-tools" data-group="Abilities" data-title="Tools and approvals" data-owner-only hidden>
       <p id="sandbox-status" class="muted"></p>
       <p id="sandbox-note" class="small" hidden></p>

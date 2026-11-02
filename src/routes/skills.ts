@@ -210,7 +210,15 @@ export function createSkillRoutes(ctx: RouteCtx): RouteHandler {
         const body = await readJson(req);
         const scope = body.scope === 'shared' ? 'shared' : 'companion';
         try {
+          const staged = skills.pending(c);
           const out = skills.accept(c, scope, Array.isArray(body.names) ? (body.names as unknown[]).map(String) : undefined);
+          // Phase 125 (SARA_STORE.md §6.6): a skill from the Sara Store is recorded as that add-on (yanks and blocks reach it).
+          const sm = /^store:([a-z0-9-]{1,48})@(\S+)$/.exec(staged?.origin ?? '');
+          if (sm && app.storeInstalls && out[0]) {
+            const hit = app.storeClient?.version(sm[1], sm[2]);
+            const at = app.now().toISOString();
+            app.storeInstalls.upsert({ item: sm[1], kind: 'skill', version: sm[2], trust: hit?.item.trust ?? 'reviewed', local_ref: `${out[0].scope}/${out[0].name}`, content_sha: hit?.v.contentSha ?? null, entry_sha: hit?.v.entrySha ?? '', installed_at: at, updated_at: at });
+          }
           publish();
           return send(res, 200, { skills: out.map(brief) });
         } catch (err) {

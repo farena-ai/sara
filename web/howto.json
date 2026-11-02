@@ -363,6 +363,38 @@
    ]
   }
  ],
+ "ab-store": [
+  {
+   "id": "get",
+   "q": "How do I add something from the store?",
+   "steps": [
+    "Search or pick it on a shelf, then open it.",
+    "Read what it can do, then press Get.",
+    "Read its card and press Install: it stays off until you switch it on."
+   ],
+   "show": "#sto-q"
+  },
+  {
+   "id": "update",
+   "q": "How do I update an add-on?",
+   "steps": [
+    "Open My add-ons.",
+    "Press Update next to it and read what changed.",
+    "Nothing updates by itself."
+   ],
+   "show": "#sto-mine-open"
+  },
+  {
+   "id": "submit",
+   "q": "How do I send the Sara team my plugin?",
+   "steps": [
+    "Press Submit yours.",
+    "Give the folder, then press Check it.",
+    "Fix what it finds, then send it: the team reviews it before it is listed."
+   ],
+   "show": "#sto-submit-open"
+  }
+ ],
  "ab-tools": [
   {
    "id": "ask",

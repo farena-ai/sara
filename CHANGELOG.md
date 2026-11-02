@@ -5,6 +5,26 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.58.0 (2026-11-02): get more, and submit your own (Phase 125)
+
+- **Settings → Abilities → Get more:** browse and search the Sara Store, an item page with screenshots,
+  checks and permissions, and one-click install through the existing review cards. Plugins and skills
+  use their usual review with the store strip; nothing switches on by installing.
+- **Tool servers get their own card** before anything starts: the exact command and arguments, the
+  Windows form, where the code comes from, what it needs (found or not on this computer), what it can
+  reach, whether it runs fenced, its fields, and keys that go only to the vault. *Add and start*, then
+  an automatic Test.
+- **Updates** show exactly what changed (new permissions marked; a tool server's changed command or
+  version), never apply without your OK, and can be undone. **My add-ons** lists every add-on with where
+  it came from. Getting a tool server you already have on that version says so.
+- **Submit your own, no GitHub needed:** `sara pack` checks a plugin, skill or tool-server recipe on
+  your computer (size limits, manifest, permissions, a secret scan, a fenced smoke test, screenshots,
+  listing); *Submit* in Settings or `sara submit` sends it in chunks, signed with an author key Sara
+  keeps in the vault. The same checks run again on our side, then the Sara team reviews it; follow and
+  answer under *My submissions*. Listed items show *Reviewed* and their checks.
+- **Reports and takedowns:** *Report* on any item; a pulled add-on is switched off with the reason
+  shown, never deleted, and switching it back on needs a confirm.
+
 ## 2.57.0 (2026-11-02): the Sara Store opens (Phase 124)
 
 - **A signed shelf at [backstagecoding.com/sara/store](https://backstagecoding.com/sara/store/)**, live

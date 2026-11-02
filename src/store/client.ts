@@ -87,6 +87,8 @@ export interface StoreState {
   /** Blocks already applied ("<plugin>:<contentSha>" → when), so switching one back on sticks. */
   applied: Record<string, string>;
   notices: StoreNotice[];
+  /** Phase 125 (§10.2): the hub's unsigned held list, read with each check. It can only hide. */
+  held?: { id: string; since: string }[];
 }
 const EMPTY_STATE = (): StoreState => ({ seq: 0, revokedKeys: [], failures: 0, applied: {}, notices: [] });
 
@@ -107,6 +109,8 @@ export interface StoreClientOptions {
   send?: StoreSend;
   now?: () => Date;
   log?: (line: string) => void;
+  /** Phase 125: the held list (an anonymous GET to the hub with no id; see submit.ts fetchHeld). */
+  held?: () => Promise<{ id: string; since: string }[]>;
 }
 
 export interface StripInfo {
@@ -249,6 +253,7 @@ export class StoreClient {
       const r = await this.#get('index.json', INDEX_CAP, had && st.etag ? { 'If-None-Match': st.etag } : {});
       if (r.status === 304) {
         this.#save({ checkedAt: now, failures: 0, lastError: undefined });
+        await this.#readHeld();
         if (had) await this.onIndex?.(had.index);
         return { ok: true, changed: false };
       }
@@ -260,6 +265,7 @@ export class StoreClient {
       const changed = acc.sha !== st.sha;
       this.#save({ seq: acc.index.seq, sha: acc.sha, etag: r.etag, fetchedAt: now, checkedAt: now, revokedKeys: acc.revokedKeys, failures: 0, lastError: undefined });
       this.#cache = { index: acc.index, skipped: acc.skipped };
+      await this.#readHeld();
       await this.onIndex?.(acc.index);
       return { ok: true, changed };
     } catch (err) {
@@ -269,6 +275,19 @@ export class StoreClient {
       this.#o.log?.(`store: ${refused ? "the store's list didn't check out, so Sara kept the last good one" : "couldn't reach the store"} (${(err as Error).message})`);
       return { ok: false, reason: refused ? 'refused' : 'unreachable', message };
     }
+  }
+
+  async #readHeld(): Promise<void> {
+    if (!this.#o.held) return;
+    try {
+      this.#save({ held: (await this.#o.held()).slice(0, 200) });
+    } catch {
+      /* the hub is down: the last held list stays (it can only hide) */
+    }
+  }
+  /** Held ids (§10.2): no Get or Update for them; never switches anything off. */
+  held(): { id: string; since: string }[] {
+    return this.state().held ?? [];
   }
 
   /** The version of an item in the verified list. */
@@ -404,7 +423,7 @@ const blockedVersion = (b: StoreBlock, version: string): boolean => b.versions =
  * noted (`warn`); yanked and removed versions are marked on their store_installs rows. Nothing is
  * deleted. Each block is applied once per plugin and content hash.
  */
-export async function applyIndex(index: StoreIndex, o: { client: StoreClient; installs?: StoreInstalls; plugins?: BlockTarget; now?: Date }): Promise<{ disabled: string[]; warned: string[] }> {
+export async function applyIndex(index: StoreIndex, o: { client: StoreClient; installs?: StoreInstalls; plugins?: BlockTarget; now?: Date; others?: (row: import('./installs.ts').StoreInstallRow, reason: string) => Promise<void> }): Promise<{ disabled: string[]; warned: string[] }> {
   const at = (o.now ?? new Date()).toISOString();
   const disabled: string[] = [];
   const warned: string[] = [];
@@ -417,6 +436,16 @@ export async function applyIndex(index: StoreIndex, o: { client: StoreClient; in
       if (shas.has(p.approved_sha) || hits.has(p.id)) hits.set(p.id, { id: p.id, name: p.name, sha: p.approved_sha });
     }
     for (const r of rows) if (r.item === b.id && blockedVersion(b, r.version)) o.installs?.setState(r.item, 'blocked', b.reason, at);
+    // Phase 125 (§10.3): skills and tool servers from the store are switched off too (never deleted).
+    for (const r of rows) {
+      if (r.item !== b.id || !blockedVersion(b, r.version) || r.kind === 'plugin') continue;
+      if (!o.client.markApplied(`${r.kind}:${r.local_ref}:${b.action}`)) continue;
+      o.client.addNotice({ at, item: b.id, name: r.local_ref, action: b.action, reason: b.reason });
+      if (b.action === 'disable') {
+        await o.others?.(r, `${PULLED_NOTE}${b.reason}`);
+        disabled.push(r.local_ref);
+      } else warned.push(r.local_ref);
+    }
     for (const h of hits.values()) {
       if (!o.client.markApplied(`${h.id}:${h.sha}:${b.action}`)) continue;
       o.client.addNotice({ at, item: b.id, name: h.name, action: b.action, reason: b.reason });
@@ -461,6 +490,9 @@ export interface ShelfItem {
   installed: boolean;
   installedVersion?: string;
   updateAvailable: boolean;
+  /** Phase 125: being checked by the Sara team (no Get or Update). */
+  held?: boolean;
+  icon?: string;
   yankedHere?: string;
   blockedHere?: string;
 }
@@ -474,6 +506,7 @@ export function shelfView(client: StoreClient, o: { saraVersion: string; platfor
   const plat = platformOf(o.platform);
   const rows = new Map((o.installs?.all() ?? []).map((r) => [r.item, r]));
   const items: ShelfItem[] = [];
+  const heldIds = new Set(client.held().map((h) => h.id));
   for (const it of cur?.index.items ?? []) {
     if (it.trust === 'community' && !o.community) continue;
     const listed = it.versions.filter((v) => !v.yanked);
@@ -483,6 +516,7 @@ export function shelfView(client: StoreClient, o: { saraVersion: string; platfor
     if (!satisfies(o.saraVersion, v.sara)) why = { code: 'sara', text: 'Needs Sara {version}', params: { version: rangeFloor(v.sara) ?? v.sara } };
     else if (it.works && (plat === 'other' || !it.works.includes(plat))) why = { code: 'platform', text: 'Not for this computer' };
     const row = rows.get(it.id);
+    const held = heldIds.has(it.id);
     items.push({
       id: it.id,
       kind: it.kind,
@@ -498,7 +532,9 @@ export function shelfView(client: StoreClient, o: { saraVersion: string; platfor
       ...(why ? { why } : {}),
       installed: Boolean(row),
       ...(row ? { installedVersion: row.version } : {}),
-      updateAvailable: Boolean(row && row.state !== 'blocked' && compareSemver(v.version, row.version) > 0 && !why),
+      updateAvailable: Boolean(row && row.state !== 'blocked' && compareSemver(v.version, row.version) > 0 && !why && !held),
+      ...(held ? { held: true } : {}),
+      ...(it.icon && it.iconSha ? { icon: it.iconSha } : {}),
       ...(row?.state === 'yanked' ? { yankedHere: row.state_note ?? '' } : {}),
       ...(row?.state === 'blocked' ? { blockedHere: row.state_note ?? '' } : {}),
     });
@@ -521,7 +557,7 @@ export function shelfView(client: StoreClient, o: { saraVersion: string; platfor
     minSara: cur?.index.minSara ?? null,
     tooOld: cur ? compareSemver(o.saraVersion, cur.index.minSara) < 0 : false,
     items,
-    held: [],
+    held: client.held(),
     notices: st.notices,
     url: `${client.base}/`,
     stale: !st.checkedAt || now - Date.parse(st.checkedAt) > STALE_MS,

@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 150 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 153 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -386,6 +386,26 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Ollama deletes its files.
 
 ## Settings → Abilities
+
+### Get more
+
+**How do I add something from the store?**
+
+1. Search or pick it on a shelf, then open it.
+2. Read what it can do, then press Get.
+3. Read its card and press Install: it stays off until you switch it on.
+
+**How do I update an add-on?**
+
+1. Open My add-ons.
+2. Press Update next to it and read what changed.
+3. Nothing updates by itself.
+
+**How do I send the Sara team my plugin?**
+
+1. Press Submit yours.
+2. Give the folder, then press Check it.
+3. Fix what it finds, then send it: the team reviews it before it is listed.
 
 ### Tools and approvals
 

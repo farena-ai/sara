@@ -21,3 +21,67 @@
 .skl-archived-name { font-weight: 600; }
 .skl-archived-row .muted { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
 .skl-archived-row button { min-height: 44px; }
+
+/* Phase 125 (docs/store/SARA_STORE.md §8.2, §12.3): Settings → Abilities → Get more and its panel
+   (item page, the tool-server card, My add-ons, Submit yours, My submissions, Report this). Theme
+   tokens only; 44 px targets; one column at 390. */
+.sto-top { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin: 8px 0; }
+.sto-search { flex: 1 1 14rem; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sto-search input { min-height: 44px; }
+.sto-fresh-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sto-fresh-row p { margin: 0; overflow-wrap: anywhere; }
+.sto-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+.sto-links button, .sto-top button:not(.tip), .sto-card > button, .stp-body button:not(.tip), .stp-bar button { min-height: 44px; }
+.sto-shelves { display: flex; flex-direction: column; gap: 16px; min-width: 0; max-width: 100%; }
+.sto-shelf { min-width: 0; max-width: 100%; }
+.settings-page[data-page="ab-store"], .settings-page[data-page="ab-store"] > * { min-width: 0; }
+.sto-shelf h3 { margin: 0 0 8px; }
+.sto-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
+.sto-card { flex: 0 0 13.5rem; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--panel); scroll-snap-align: start; min-width: 0; }
+.sto-card.community { border-color: var(--warn); }
+.sto-open { all: unset; display: flex; flex-direction: column; gap: 6px; cursor: pointer; min-height: 44px; border-radius: 8px; }
+.sto-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sto-card-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sto-name { overflow-wrap: anywhere; }
+.sto-summary { color: var(--muted); overflow-wrap: anywhere; }
+.sto-icon { width: 40px; height: 40px; border-radius: 10px; flex: 0 0 40px; object-fit: cover; }
+.sto-glyph { display: inline-flex; align-items: center; justify-content: center; background: var(--panel-2); font-size: 1.2rem; }
+.sto-badge { color: var(--muted); }
+.sto-badge.trust-community { color: var(--warn); }
+.sto-why { overflow-wrap: anywhere; }
+.sto-community { margin: 12px 0 4px; }
+.store-panel { width: min(860px, calc(100vw - 32px)); }
+.stp-bar { display: flex; align-items: center; gap: 8px; }
+.stp-bar h2 { flex: 1; margin: 0; padding-right: 0; overflow-wrap: anywhere; min-width: 0; }
+.stp-x { min-width: 44px; }
+.stp-body { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.stp-head { display: flex; gap: 12px; align-items: flex-start; }
+.stp-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.stp-sec h4 { margin: 0 0 4px; }
+.stp-sec p { margin: 0 0 4px; overflow-wrap: anywhere; }
+.stp-shots { display: flex; gap: 8px; overflow-x: auto; }
+.stp-shot { max-height: 220px; max-width: 100%; border-radius: 10px; border: 1px solid var(--line); }
+.stp-checks { list-style: none; padding: 0; margin: 0; }
+.stp-checks li, .stp-report li { overflow-wrap: anywhere; }
+.stp-checks .bad, .stp-report .bad strong { color: var(--danger); }
+.stp-report .warn strong { color: var(--warn); }
+.stp-report { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.stp-report li { display: flex; flex-direction: column; gap: 2px; }
+.stp-yanked { text-decoration: line-through; color: var(--muted); }
+.stp-cmd { display: block; padding: 8px 10px; border-radius: 8px; background: var(--panel-2); overflow-wrap: anywhere; white-space: pre-wrap; }
+.stp-fields { display: flex; flex-direction: column; gap: 10px; }
+.stp-field { display: flex; flex-direction: column; gap: 4px; }
+.stp-field input, .stp-field select, .stp-field textarea { min-height: 44px; }
+.stp-addon { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.stp-addon-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.stp-addon-head span, .stp-addon p { overflow-wrap: anywhere; margin: 0; }
+.stp-addon-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.stp-log { max-height: 30vh; overflow: auto; white-space: pre-wrap; font-size: 0.85em; }
+.stp-msg { padding: 8px 10px; border-radius: 10px; background: var(--panel-2); }
+.stp-msg p { margin: 4px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+@media (max-width: 600px) {
+  .sto-row { flex-direction: column; overflow-x: visible; }
+  .sto-card { flex: 1 1 auto; }
+  .store-panel { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
+  .stp-head { flex-direction: column; }
+}

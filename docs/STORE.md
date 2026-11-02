@@ -7,7 +7,7 @@ makes, checks and signs everything on it. You can see it at
 Nothing from the store switches on by itself. Every add-on shows you what it can do before you add it,
 and you switch it on yourself, one companion at a time.
 
-## What's on the shelf (Sara 2.57)
+## What's on the shelf
 
 | Add-on | What it is | What it does |
 | --- | --- | --- |
@@ -24,17 +24,25 @@ and you switch it on yourself, one companion at a time.
 | Files | tool server | Reads and writes files in one folder you choose. |
 | Docs (Context7) | tool server | Looks up current documentation for programming libraries. |
 
-## Adding something in Sara 2.57
+## Adding something (Sara 2.58)
 
-- **A plugin:** download its `.zip` from its store page, then in Sara go to **Settings → Abilities →
-  Plugins → Add a plugin** and pick the file. The review card says **From the Sara Store · Made by the
-  Sara team** when the file is exactly the one on the shelf. Read the card, then press Install. It is
-  installed switched off; switch it on for a companion on its card.
-- **A tool server:** its store page shows the command and the settings to fill in. Add it in
-  **Settings → Abilities → Other programs (MCP)**, then press Test.
+Open **Settings → Abilities → Get more**. Search or pick an add-on on a shelf, read its page (what it
+does, what it can do in Sara's own words, pictures, versions, the checks it passed), then press **Get**:
 
-From Sara 2.58 the store opens inside Sara (**Settings → Abilities → Get more**), so you can add things
-there in one step.
+- **A plugin** shows the same review card as **Add a plugin**, with **From the Sara Store** on it.
+  Press Install. It is installed switched off; switch it on for a companion on its card.
+- **A skill** shows the skills import review (every file and script). Scripts never run on their own.
+- **A tool server** shows its own card: the exact program it runs (and its Windows form), where its
+  code comes from, what it needs, whether it runs fenced in, and the fields to fill in. Keys go to the
+  vault. Nothing starts until you press **Add and start**; then Sara runs **Test**.
+
+**My add-ons** lists everything you added from outside, with updates. An update is never applied on its
+own: it shows what changed, and if it asks for more (a new web address, a new permission) you see
+exactly that before you say yes. **Go back** returns to the version you had.
+
+If a new add-on is being checked by the Sara team, it says **Being checked** and can't be installed for
+now. Add-ons nobody has reviewed yet are hidden unless you switch on **Show add-ons nobody has reviewed
+yet**, and each still shows its full card.
 
 ## Privacy
 
@@ -59,7 +67,23 @@ Without internet Sara shows the list she last checked and says when it was from.
 than a day past its end date, you can still look but installs from the store wait until Sara can check
 again. Everything you already added keeps working.
 
-## Making your own
+## Reporting a problem
 
-Plugins: see [PLUGINS.md](PLUGINS.md). Tool servers: see [OTHER_APPS.md](OTHER_APPS.md). Submitting to
-the store opens with Sara 2.58; submissions are reviewed by the Sara team.
+On an add-on's page or in My add-ons, press **Report this**, pick what's wrong and say what happened.
+Only what you write is sent (keys and passwords are taken out), plus its own log lines if you tick that
+box and have read them. The Sara team reads every report.
+
+## Making your own and sending it to us
+
+Plugins: see [PLUGINS.md](PLUGINS.md). Tool servers: see [OTHER_APPS.md](OTHER_APPS.md).
+
+1. Check it: `sara pack <folder>` on a server (or **Get more → Submit yours → Check it** in the app).
+   It checks the manifest and permissions, looks for keys left in the files, runs a fenced smoke test
+   with no network, and checks the screenshots and `CHANGES.md`. Nothing is sent.
+2. Send it: `sudo sara submit <folder> --name "Your name"` (or **Send to the Sara team** in the app).
+   Sara shows exactly what is sent (the package, its report, the name you chose, an email if you add
+   one, your author key's public half, and this Sara's install id, version and system) and asks first.
+3. Your **author key** signs what you send, so only you can send updates to your add-ons. It is made
+   once and kept in this Sara's vault and backups.
+4. **My submissions** shows where it is and the Sara team's replies. Submissions are reviewed by the
+   Sara team before anything is listed.
