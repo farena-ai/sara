@@ -1,6 +1,18 @@
 {
   "_about": "Phase 41: the ? tips for settings that have none written into index.html. Each entry: id of the control → [tip text, guide section in /help]. Plain words, how to tune it, an example. app.js adds a ? next to each control; the server's settings_guide tool reads this file and every data-tip in index.html.",
   "tips": {
+    "wm-text": [
+      "What she reminds you of when it comes up, in your words: “he owes me $20”, “ask about the rollback plan”.",
+      "when"
+    ],
+    "wm-topic": [
+      "A few words to listen for. All of them have to be in one of your messages (“Henderson project”); one very common word (“work”) is refused.",
+      "when"
+    ],
+    "wm-person": [
+      "Or a person from People: their nicknames count too. If two cards share a name, she only reacts when it's clear which one you mean.",
+      "when"
+    ],
     "cd-due": [
       "When it's due, in your time zone. Past the date the card shows it in red. She can set it too when she adds a card (\"friday 5pm\").",
       "board"
@@ -1526,6 +1538,14 @@
     "ab-persist": [
       "Keep going until it’s done (goals on a chat, ended only by a check you pick) and repeats (checks on a timer in a chat): their caps, quiet hours and daily budgets.",
       "persist"
+    ],
+    "ab-when": [
+      "Reminders that wait for a person or a topic to come up in your own messages (“when Dan comes up, remind me he owes me $20”): how often, how many a day, and when they end.",
+      "when"
+    ],
+    "co-pickup": [
+      "Carry our last conversation between your apps: start on Telegram, open the app, and pick it up with Continue here or /continue. Nothing is copied or merged.",
+      "when"
     ],
     "ab-library": [
       "How big her documents may be and how she reads long ones: size limits, scanned pages, background speed.",

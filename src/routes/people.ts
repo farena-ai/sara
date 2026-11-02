@@ -4,6 +4,7 @@
 import type { IncomingMessage } from 'node:http';
 import { HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
 import { forgetMemory } from '../memory-worker.ts';
+import { endForPerson } from '../mentions.ts';
 import { backfillDone, startBackfill } from '../people-backfill.ts';
 import { CIRCLES, FACT_CATEGORIES, type FactCategory, type Person, type PersonFact, validBirthday } from '../people.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
@@ -166,6 +167,8 @@ export function createPeopleRoutes(ctx: RouteCtx): RouteHandler {
       // memories they came from (forgotten the usual way: their messages hidden, vectors dropped).
       const body = await bodyOf(req);
       const withMemories = body.memories === true || new URL(req.url ?? '/', 'http://x').searchParams.get('memories') === '1';
+      // Phase 119: his "when it comes up" reminders about this person end too (listed under Done).
+      const reminders = endForPerson(app, p.id);
       const r = people.forget(p.id);
       let forgotten = 0;
       if (r && withMemories) {
@@ -179,7 +182,7 @@ export function createPeopleRoutes(ctx: RouteCtx): RouteHandler {
         people.purgeIndexes();
       }
       changed('forgotten');
-      return send(res, 200, { ok: true, memories: forgotten });
+      return send(res, 200, { ok: true, memories: forgotten, reminders });
     }
     if (c === 'accept' && method === 'POST') {
       const done = people.accept(p.id);

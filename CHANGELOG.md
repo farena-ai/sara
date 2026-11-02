@@ -5,6 +5,25 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.52.0 (2026-11-02): when it comes up (Phase 119)
+
+- **"When it comes up" reminders:** "when Dan comes up, remind me he owes me $20", "next time I
+  mention the garden, ask about the tomatoes". A third kind of reminder that waits for a person (your
+  People cards, nicknames included; with two Dans she asks which) or for all the words of a topic,
+  matched in code with no model call. She brings it up once, inside her reply (the app adds one line
+  if she forgets), with a ⏰ chip: *Done*, *Again next time*, *Forget*. At most 1 per reply and 5 a
+  day; they end after 180 days. Planner → Reminders → *When it comes up*, `/when` in chat apps.
+  Guide: [docs/WHEN.md](docs/WHEN.md).
+- **Private by design:** they fire only on your own messages in your own chats (the app and your
+  DMs), never in rooms, work rooms, partner or group chats, private or off-the-record chats, other
+  apps or agents. They never appear in Today, the briefing or other apps, and anything she'd send to
+  someone else that contains one asks you first.
+- **Pick up a chat in another app:** when you switch (Telegram → the app, or back), she offers to
+  *Continue here*, or type `/continue` (also in the Telegram and Discord menus). A chip shows where it
+  came from, with *Show* (exactly what she has) and *Undo*. It's a pointer, not a copy: the note is
+  rebuilt from the other chat each reply, for 12 messages or 24 hours. Only between your own linked
+  chats. Settings → Connections → *Pick up a chat*.
+
 ## 2.51.0 (2026-11-01): keep going until it's done (Phase 118)
 
 - **Fixed:** `edit_file` couldn't edit files with Windows (CRLF) line endings, because models write

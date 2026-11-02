@@ -324,7 +324,8 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean; parts
     .sort((a, b) => (a.dueAt ?? '9').localeCompare(b.dueAt ?? '9'))
     .slice(0, 12)
     .map((t) => ({ id: t.id, title: t.title, dueAt: t.dueAt, overdue: Boolean(t.dueAt && Date.parse(t.dueAt) < now.getTime()), project: t.project }));
-  const reminders = (app.planner?.reminders({ status: 'pending' }) ?? [])
+  // Phase 119: "when it comes up" reminders have no time and never show on Today (or MCP get_today).
+  const reminders = (app.planner?.reminders({ status: 'pending', kind: 'timed' }) ?? [])
     .filter((r) => Date.parse(r.dueAt) < now.getTime() + 86_400_000)
     .slice(0, 8)
     .map((r) => ({ id: r.id, text: r.text, dueAt: r.dueAt }));

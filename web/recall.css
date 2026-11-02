@@ -1,0 +1,23 @@
+/* Phase 119 (docs/design/RECALL.md §4.8, §5.9): when it comes up, and picking a chat up in another app. */
+.when-chip .recall-icon { font-size: 1.1em; }
+.when-chip .recall-actions button, .when-card button, .pickup-banner button, .pickup-chip button { min-height: 44px; min-width: 44px; }
+.when-card { align-self: flex-start; display: flex; flex-direction: column; gap: 4px; max-width: min(640px, 85%); padding: 8px 12px; border-radius: var(--r-card); border: 1px solid var(--line); background: var(--surface-2); color: var(--text-1); font-size: 13px; }
+#messages > .when-card { margin-left: 60px; max-width: min(640px, calc(100% - 60px)); }
+.when-card-head { display: flex; gap: 6px; align-items: center; }
+.when-card-what { font-weight: 600; }
+.when-card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.when-section { margin: 12px 0; }
+.when-section .add-row input { flex: 1 1 10rem; min-width: 0; }
+.when-item .sub { color: var(--text-2); }
+.pickup-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 6px; padding: 6px 10px; border: 1px solid color-mix(in srgb, var(--accent-solid) 40%, var(--line)); border-radius: var(--r-card); background: var(--accent-soft); color: var(--text-1); }
+.pickup-banner[hidden] { display: none; }
+.pickup-banner .pickup-text { flex: 1 1 14rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pickup-ic { font-size: 1.1em; color: var(--accent-solid); }
+.pickup-chip { align-self: center; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; max-width: min(640px, 100%); margin: 4px auto; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text-1); font-size: 13px; }
+.pickup-chip.pickup-undone { opacity: .65; border-style: dashed; }
+.pickup-actions { display: inline-flex; gap: 4px; }
+.pickup-note { white-space: pre-wrap; max-height: 60vh; overflow: auto; padding: 10px; border-radius: var(--r-card); background: var(--surface-2); color: var(--text-1); font-size: 13px; }
+@media (max-width: 640px) {
+  #messages > .when-card { margin-left: 0; max-width: 100%; }
+  .pickup-banner .pickup-text { white-space: normal; }
+}

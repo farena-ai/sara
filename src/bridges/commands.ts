@@ -18,22 +18,27 @@ import { turnBudgetFor, turnBudgetSettings } from '../budget.ts';
 import { checkFromWords, goalsFor, parseGoalCommand } from '../goals.ts';
 import { fmtEvery, loopsFor, parseLoopCommand } from '../loops.ts';
 import { checkOptions, defaultChecks } from '../persist.ts';
+import { answerFire, idFromList, mentionLines, mentionSettings, mergeMentionSettings, ownChat, parseWhenCommand, rememberList, setMention } from '../mentions.ts';
+import { pickupsFor, placeName } from '../pickup.ts';
 
-export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea' | 'progress' | 'steer' | 'queue' | 'btw' | 'goal' | 'loop';
+export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea' | 'progress' | 'steer' | 'queue' | 'btw' | 'goal' | 'loop' | 'when' | 'continue';
 /** Where the line was written: his DM, someone else's DM, a shared room, a room where he works with her. */
 export type Place = 'owner-dm' | 'partner-dm' | 'room' | 'work-room';
 /** Who wrote it (decided by the bridge from the platform user id, never by a name). */
 export type Asker = 'owner' | 'person' | 'bot';
 
 /** The commands in the platforms' menus, in menu order. */
-export const MENU_COMMANDS = ['new', 'reset', 'stop', 'status', 'help', 'model', 'remember'] as const;
+// Phase 119 (RECALL §5.4, §11 Q14): /continue is in the menus; /when is typed (and in /help).
+export const MENU_COMMANDS = ['new', 'reset', 'stop', 'status', 'help', 'model', 'remember', 'continue'] as const;
 // Phase 113: /bug and /idea (Report a problem, Suggest something) are typed, not in the menus.
 // Phase 115 (BR1): /progress on|off (the live progress message in this chat), typed, owner only.
 // Phase 116 (BR2 §5.7): /steer, /queue and /btw take text (owner only; /queue also for someone in their own DM).
 export const BUSY_COMMANDS = ['steer', 'queue', 'btw'] as const;
 // Phase 118 (PERSIST §4.10, §5.8): /goal and /loop, typed, owner only, never in someone else's chat.
 export const PERSIST_COMMANDS = ['goal', 'loop'] as const;
-const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea', 'progress', ...BUSY_COMMANDS, ...PERSIST_COMMANDS];
+/** Phase 119: owner-only commands that don't exist for anyone else (their line stays a normal message). */
+export const OWNER_ONLY_COMMANDS: ReadonlySet<CommandName> = new Set(['when', 'continue']);
+const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea', 'progress', ...BUSY_COMMANDS, ...PERSIST_COMMANDS, 'when'];
 export const isCommandName = (s: string): s is CommandName => (ALL as readonly string[]).includes(s);
 
 /** One line per command (menus and /help). The owner's /status says more than the one others get. */
@@ -55,6 +60,8 @@ export const DESCRIPTIONS: Record<CommandName, string> = {
   btw: en('A quick side question while she works (not saved)'),
   goal: en('Keep going until it’s done: a goal for this chat that only a check you pick can end'),
   loop: en('Repeat something in this chat on a timer, until a time or a condition'),
+  when: en('Reminders for when a person or topic comes up (list, add, forget)'),
+  continue: en('Pick up our chat from your other app here'),
 };
 /** /status as others see it (no model, no budget). */
 export const PUBLIC_STATUS = en('How full this chat is');
@@ -80,6 +87,7 @@ export const DISCORD_NAMES: Readonly<Record<(typeof MENU_COMMANDS)[number], Reco
   help: { 'es-ES': 'ayuda', fr: 'aide', de: 'hilfe', 'pt-BR': 'ajuda', it: 'aiuto' },
   model: { 'es-ES': 'modelo', fr: 'modèle', de: 'modell', 'pt-BR': 'modelo', it: 'modello' },
   remember: { 'es-ES': 'recordar', fr: 'retenir', de: 'merken', 'pt-BR': 'lembrar', it: 'ricorda' },
+  continue: { 'es-ES': 'continuar', fr: 'continuer', de: 'fortsetzen', 'pt-BR': 'continuar', it: 'continua' },
 };
 /** Sara's languages → Discord locales and Telegram language codes (two letters; pt-BR is `pt`). */
 export const DISCORD_LOCALES: Readonly<Record<string, string>> = { es: 'es-ES', fr: 'fr', de: 'de', 'pt-BR': 'pt-BR', it: 'it' };
@@ -106,6 +114,7 @@ export function chatsSettings(app: AppContext): { native: boolean; namePrefix: b
 export function commandAllowed(place: Place, who: Asker, name: CommandName): boolean {
   if (who === 'bot') return false;
   if (who === 'owner') return true;
+  if (OWNER_ONLY_COMMANDS.has(name)) return false;
   if (name === 'help' || name === 'status' || name === 'start') return true;
   return place === 'partner-dm' && (name === 'new' || name === 'reset' || name === 'stop' || name === 'queue');
 }
@@ -333,7 +342,118 @@ export async function runCommand(c: CommandContext): Promise<CommandReply> {
       return goalCommand(c, conv);
     case 'loop':
       return loopCommand(c, conv);
+    case 'when':
+      return whenCommand(c, conv);
+    case 'continue':
+      return continueCommand(c, conv);
   }
+}
+
+/** Phase 119 (RECALL §4.2, §4.7): /when · /when Dan: he owes me $20 · /when forget 2 · again 2 · keep 2 · off · on. */
+function whenCommand(c: CommandContext, conv: Conversation | undefined): CommandReply {
+  const { app } = c;
+  const tr = (text: string, params?: Record<string, unknown>) => say(app, c.lang, text, params);
+  // In a work room it answers him privately (ephemeral / his DM); in someone else's chat or a room: one line.
+  if (c.place === 'partner-dm' || c.place === 'room') return { text: tr('I keep those for our own chats.'), refused: true };
+  const work = c.place === 'work-room';
+  const p = parseWhenCommand(c.cmd.args);
+  const key = `${c.bridge}:${conv?.id ?? ''}`;
+  const pl = app.planner;
+  if (!pl) return { text: tr('The planner is not available here.'), ownerOnly: true };
+  switch (p.sub) {
+    case 'list': {
+      if (work) return { text: tr('Say /when in our own chat: I keep those for our own chats.'), ownerOnly: true };
+      const lines = mentionLines(app);
+      rememberList(key, lines.map((l) => l.id));
+      return { text: lines.length ? `${tr('When it comes up:')}\n${lines.map((l, i) => `${i + 1}. ${l.line}`).join('\n')}` : tr('Nothing is waiting to come up. Add one like this: /when {example}', { example: 'Dan: he owes me $20' }) };
+    }
+    case 'help':
+      return { text: tr('Add one like this: /when {example}', { example: 'Dan: he owes me $20' }), ownerOnly: work };
+    case 'off':
+    case 'on':
+      mergeMentionSettings(app, { on: p.sub === 'on' });
+      return { text: p.sub === 'off' ? tr('Paused. Say /when on to turn them back on.') : tr('On again. Reminders you asked for come up when you mention them.'), ownerOnly: work };
+    case 'forget':
+    case 'again':
+    case 'keep': {
+      const id = idFromList(key, p.n);
+      const r = pl.reminder(id);
+      if (!r || r.trigger !== 'mention') return { text: tr('No reminder #{n}. Send /when for the list.', { n: p.n }), ownerOnly: work };
+      if (p.sub === 'forget') pl.cancelReminder(id);
+      else pl.rearmMention(id, app.now());
+      app.events?.publish({ type: 'planner', what: 'reminders' });
+      return { text: p.sub === 'forget' ? tr('Forgot #{id}: “{text}”.', { id, text: r.text }) : tr('#{id} will come up again next time: “{text}”.', { id, text: r.text }), ownerOnly: work };
+    }
+    case 'set': {
+      if (work || !ownChat(app, conv ?? c.adapter.currentSession())) return { text: tr('Say it to me in our own chat: I keep those for our own chats.'), ownerOnly: true };
+      const cv = conv ?? c.adapter.startSession(undefined);
+      // A name ("Dan") is a person key when it's a card; other words are a topic.
+      const isName = /^\p{Lu}[\p{L}'’-]*$/u.test(p.topic);
+      const r = setMention(app, { text: p.text, ...(isName ? { person: p.topic } : { topic: p.topic }), each: p.each, conversationId: cv.id });
+      if (!r.ok) return { text: tr(r.message) };
+      const st = mentionSettings(app);
+      return { text: [tr('⏰ When {what} comes up: “{text}”', { what: r.card.what, text: r.reminder.text }), r.reminder.each ? tr('Every time ({n} times at most)', { n: st.each.fires }) : tr('Once'), tr('#{id} · /when forget {id} to undo', { id: r.reminder.id })].join('\n'), conversationId: cv.id };
+    }
+  }
+}
+
+/** Phase 119 (RECALL §5.4): /continue · here · 2 · telegram|discord|app|signal… · off. */
+function continueCommand(c: CommandContext, conv: Conversation | undefined): CommandReply {
+  const { app } = c;
+  const tr = (text: string, params?: Record<string, unknown>) => say(app, c.lang, text, params);
+  if (c.place !== 'owner-dm' || app.member) return { text: tr('Not in a shared room: I pick up our own chats only.'), refused: true, ownerOnly: true };
+  const pk = pickupsFor(app);
+  const cv = conv ?? c.adapter.startSession(undefined);
+  if (!pk || !pk.takesPart(cv)) return { text: tr('Not in a shared room: I pick up our own chats only.'), refused: true };
+  const arg = fold(c.cmd.args.trim()).replace(/^here\b\s*/, '');
+  if (/^(off|undo|stop|no)$/.test(arg)) {
+    const was = pk.undo(cv.id);
+    return { text: was ? tr('Undone: I let go of our chat from {place}. Nothing was copied.', { place: tr(placeName(was.sourceChannel)) }) : tr('Nothing is picked up here.'), conversationId: cv.id };
+  }
+  let list = pk.candidates(cv.id);
+  if (!list.length) return { text: tr("There's nothing recent in your other chats to pick up."), conversationId: cv.id };
+  const n = /^\d$/.test(arg) ? Number(arg) : 0;
+  if (arg && !n) {
+    const want = arg === 'app' || arg === 'web' ? 'web' : arg;
+    list = list.filter((x) => x.from === want || x.from === `plugin-${want}` || x.from.startsWith(want));
+    if (!list.length) return { text: tr("There's nothing recent in your other chats to pick up."), conversationId: cv.id };
+  }
+  if (!n && !arg && list.length > 1) {
+    return { text: [tr('Which one?'), ...list.map((x, i) => `${i + 1}. ${tr(x.place)} · ${x.place === 'the app' && x.title && !x.preview.startsWith(x.title.replace(/…$/, '').slice(0, 40)) ? `“${x.title}” · ` : ''}${x.ago} · “${x.preview}”`), tr('Send /continue 2 for the second.')].join('\n'), conversationId: cv.id };
+  }
+  const pick = n ? list[n - 1] : list[0];
+  if (!pick) return { text: tr('Send /continue 2 for the second.'), conversationId: cv.id };
+  const r = pk.make(cv.id, pick.sourceId, 'command');
+  if ('error' in r) return { text: tr(r.error), conversationId: cv.id };
+  notice(app, cv, 'continue', { pickup: r.pickup.id });
+  const folder = r.pickup.carried?.workspace ? ` ${tr('and the folder {folder}', { folder: r.pickup.carried.workspace })}` : '';
+  return { text: `${tr('↪ Picking up from {place} ({ago}): “{preview}”', { place: tr(pick.place), ago: pick.ago, preview: pick.preview })}${folder}`, conversationId: cv.id };
+}
+
+/** Phase 119: a ⏰ button or a pickup button in a chat app (owner checked by the bridge). */
+export function chatButton(app: AppContext, data: string): { text: string; edit?: string } | undefined {
+  const lang = ownerLanguage(app);
+  const tr = (text: string, params?: Record<string, unknown>) => say(app, lang, text, params);
+  const wm = /^wm:(\d+):(done|again|forget)$/.exec(data);
+  if (wm) {
+    const r = answerFire(app, Number(wm[1]), wm[2] as 'done' | 'again' | 'forget');
+    if (!r.ok) return { text: tr('No longer waiting') };
+    return { text: wm[2] === 'done' ? tr('Done') : wm[2] === 'again' ? tr('It will come up again next time.') : tr('Forgotten.') };
+  }
+  const pk = /^pk:([0-9a-f]{16}):([01])$/.exec(data);
+  if (pk) {
+    const pks = pickupsFor(app);
+    const row = pks?.get(pk[1]);
+    if (!pks || !row || row.state !== 'offered') return { text: tr('No longer waiting') };
+    if (pk[2] === '0') {
+      pks.decline(row.id);
+      return { text: tr('Okay, not now.'), edit: '' };
+    }
+    const r = pks.make(row.targetId, row.sourceId, 'offer', row.id);
+    if ('error' in r) return { text: tr(r.error) };
+    return { text: tr('↪ Continued from {place}', { place: tr(placeName(row.sourceChannel)) }), edit: tr('↪ Continued from {place}', { place: tr(placeName(row.sourceChannel)) }) };
+  }
+  return undefined;
 }
 
 /** Phase 118 (§4.10): /goal <text> [done when …] · start · pause · resume · stop · check … · status. */
@@ -502,6 +622,7 @@ function helpText(app: AppContext, c: CommandContext): string {
   if (c.who === 'owner') for (const n of ['bug', 'idea'] as const) lines.push(`/${n}: ${tr(DESCRIPTIONS[n])}`);
   if (c.who === 'owner' && (c.place === 'owner-dm' || c.place === 'work-room')) lines.push(`/progress: ${tr(DESCRIPTIONS.progress)}`);
   if (c.who === 'owner') for (const n of BUSY_COMMANDS) lines.push(`/${n}: ${tr(DESCRIPTIONS[n])}`);
+  if (c.who === 'owner' && c.place === 'owner-dm') lines.push(`/when: ${tr(DESCRIPTIONS.when)}`);
   const name = chatsSettings(app).namePrefix && c.bridge !== 'web' ? `\n${tr('You can also write just my name and the word, like "{example}".', { example: `${app.persona.name} ${c.lang === 'de' ? 'neu' : 'new'}` })}` : '';
   return `${tr('What you can do here:')}\n${lines.join('\n')}${name}`;
 }
@@ -595,6 +716,9 @@ async function statusCommand(c: CommandContext, conv: Conversation | undefined):
   const g = conv ? app.goals?.current(conv.id) : undefined;
   if (g && g.state !== 'draft') lines.push(app.goals!.statusLine(g));
   if (conv && app.loops) lines.push(...app.loops.listLines(conv.id));
+  // Phase 119: while a pickup carries here.
+  const pk = conv ? pickupsFor(app)?.statusLine(conv.id) : undefined;
+  if (pk) lines.push(pk);
   return { text: lines.join('\n'), ownerOnly: true };
 }
 
@@ -730,4 +854,39 @@ export const menuHash = (v: unknown): string => createHash('sha256').update(JSON
 /** One command list for a menu, in one language. */
 export function menuList(app: AppContext, names: readonly CommandName[], lang: string, owner: boolean): { command: string; description: string }[] {
   return names.map((n) => ({ command: n, description: say(app, lang, n === 'status' && !owner ? PUBLIC_STATUS : DESCRIPTIONS[n]).slice(0, 100) }));
+}
+
+/**
+ * Phase 119: what a chat app adds after her reply in his own DM: the auto pickup's first-line marker
+ * (once), the ⏰ buttons for reminders that came up in it, and the pickup offer (once per switch).
+ * `plain`: plugin bridges without buttons get one text line each instead.
+ */
+export function afterTurnExtras(app: AppContext, conversationId: string, place: Place, o: { plain?: boolean } = {}): { before?: string; rows: { text: string; buttons: { label: string; data: string }[] }[] } {
+  const out: { before?: string; rows: { text: string; buttons: { label: string; data: string }[] }[] } = { rows: [] };
+  if (place !== 'owner-dm' || app.member) return out;
+  const lang = ownerLanguage(app);
+  const tr = (text: string, params?: Record<string, unknown>) => say(app, lang, text, params);
+  const pk = pickupsFor(app);
+  if (pk?.autoMarked.delete(conversationId)) {
+    const p = pk.active(conversationId);
+    if (p) out.before = tr('↪ continued from {place} · /continue off to undo', { place: tr(placeName(p.sourceChannel)) });
+  }
+  const last = app.store.messagesPage(conversationId, { limit: 6 }).messages.findLast((m) => m.role === 'assistant');
+  const chips = Array.isArray(last?.meta?.mentions) ? (last!.meta!.mentions as { fireId: number; reminderId: number; what: string; text: string; answer?: string | null }[]) : [];
+  for (const ch of chips.filter((x) => !x.answer)) {
+    out.rows.push(
+      o.plain
+        ? { text: tr('⏰ {what} came up. Send /when again {id} to keep it for next time.', { what: ch.what, id: ch.reminderId }), buttons: [] }
+        : { text: `⏰ ${tr('{what} came up', { what: ch.what })}: “${ch.text}”`, buttons: [{ label: tr('Done'), data: `wm:${ch.fireId}:done` }, { label: tr('Again next time'), data: `wm:${ch.fireId}:again` }, { label: tr('Forget'), data: `wm:${ch.fireId}:forget` }] },
+    );
+  }
+  const offer = pk && !pk.active(conversationId) ? pk.offer(conversationId) : undefined;
+  if (offer) {
+    out.rows.push(
+      o.plain
+        ? { text: tr('(Say /continue to pick up where we left off in {place}.)', { place: tr(offer.place) }), buttons: [] }
+        : { text: tr('↪ Pick up our chat from {place}?', { place: tr(offer.place) }), buttons: [{ label: tr('Continue here'), data: `pk:${offer.id}:1` }, { label: tr('No'), data: `pk:${offer.id}:0` }] },
+    );
+  }
+  return out;
 }

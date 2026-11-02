@@ -1177,8 +1177,11 @@ export class PeopleStore {
   privateTexts(limit = 3000): string[] {
     const facts = (this.db.prepare("SELECT f.content FROM person_facts f JOIN people p ON p.id = f.person_id WHERE p.status IN ('proposed','active') ORDER BY f.id DESC LIMIT ?").all(limit) as Row[]).map((r) => String(r.content));
     const notes = this.all().map((p) => p.notes).filter(Boolean);
-    return [...facts, ...notes];
+    // Phase 119 (RECALL §4.4 path 4): his "when it comes up" reminders' texts count as private too.
+    return [...facts, ...notes, ...(this.extraPrivate?.() ?? [])];
   }
+  /** Phase 119: more private texts (set by src/mentions.ts wirePeople). */
+  extraPrivate?: () => string[];
 
   // ---------------------------------------------------------------- the backfill (STAPLES §9.3)
 

@@ -31,7 +31,7 @@ import { PENDING_LINES, pendingFor, snippet, whileBusySettings, type PendingItem
 import { adultModeOn } from '../settings.ts';
 import { readFileSync } from 'node:fs';
 import { nameCalled } from './rules.ts';
-import { askerLanguage, BUSY_COMMANDS, chatsSettings, commandAllowed, DESCRIPTIONS, DISCORD_LOCALES, DISCORD_NAMES, isCommandName, MENU_COMMANDS, menuHash, modelChoices, nearlyFullOffer, nextSession, OTHER_LANGS, ownerLanguage, parseCommand, runCommand, say, setSessionModel, type Asker, type BridgeAdapter, type CommandReply, type ModelPick, type ParsedCommand, type Place } from './commands.ts';
+import { afterTurnExtras, askerLanguage, BUSY_COMMANDS, chatButton, chatsSettings, OWNER_ONLY_COMMANDS, commandAllowed, DESCRIPTIONS, DISCORD_LOCALES, DISCORD_NAMES, isCommandName, MENU_COMMANDS, menuHash, modelChoices, nearlyFullOffer, nextSession, OTHER_LANGS, ownerLanguage, parseCommand, runCommand, say, setSessionModel, type Asker, type BridgeAdapter, type CommandReply, type ModelPick, type ParsedCommand, type Place } from './commands.ts';
 import { channelProjectId, discordRoomName, noteRoom, roomOf, roomStale } from './rooms.ts';
 import { deleteLine, editLine, keepRoomByKey, leftRoom, logLine, maybeSummarize, noteHerLine, reading, setSeesAll, type KeepRoom, type Who } from './keepup.ts';
 import { roomTurn } from './now.ts';
@@ -250,7 +250,9 @@ export class DiscordBridge {
             ? [opt('name', en('Model name (leave empty for the list)'), 3, { required: false, autocomplete: true })]
             : n === 'remember'
               ? [opt('text', en('What to remember'), 3, { required: true, max_length: 400 })]
-              : [];
+              : n === 'continue'
+                ? [opt('which', en('Which chat: telegram, app, a number, or off'), 3, { required: false, max_length: 20 })]
+                : [];
       return { type: 1, name: n, name_localizations: DISCORD_NAMES[n], description: say(app, 'en', description).slice(0, 100), description_localizations: loc(description), contexts: [0, 1], default_member_permissions: null, ...(options.length ? { options } : {}) };
     }).concat(
       // Phase 116 (BR2 §5.7): /steer, /queue and /btw, each with a required text.
@@ -420,6 +422,12 @@ export class DiscordBridge {
       const content = !owner ? say(this.#app, askerLanguage(i.locale), en('Only the person who runs me can stop this.')) : this.#tr(this.#stopTurn(st[1]) ? en('Stopping.') : en('Nothing to stop.'));
       return void (await this.#rest('POST', `/interactions/${i.id}/${i.token}/callback`, { type: 4, data: { content, flags: 64 } }));
     }
+    // Phase 119: the ⏰ buttons and the pickup offer (owner only, checked here); the row is updated in place.
+    if (i.data?.custom_id && /^(wm|pk):/.test(i.data.custom_id)) {
+      if (!who || !isDiscordOwner(discordSettings(this.#app), who.id)) return void (await this.#rest('POST', `/interactions/${i.id}/${i.token}/callback`, { type: 4, data: { content: say(this.#app, askerLanguage(i.locale), en('Only the owner can answer that.')), flags: 64 } }));
+      const r = chatButton(this.#app, i.data.custom_id);
+      return void (await this.#rest('POST', `/interactions/${i.id}/${i.token}/callback`, { type: 7, data: { ...(r?.edit ? { content: r.edit } : {}), components: [] } }));
+    }
     const m = i.data?.custom_id?.match(/^ap:([\w-]+):([01])$/);
     let reply = 'Only the owner can answer that.';
     if (m && who && isDiscordOwner(discordSettings(this.#app), who.id)) reply = this.#app.approvals.decide(m[1], m[2] === '1') ? this.#tr(m[2] === '1' ? en('Allowed.') : en('Denied.')) : this.#tr('That request is no longer waiting.');
@@ -477,7 +485,7 @@ export class DiscordBridge {
     const lang = at.fromOwner ? ownerLanguage(app) : askerLanguage(i.locale);
     const asker: Asker = who.bot ? 'bot' : at.fromOwner ? 'owner' : 'person';
     const opt = (n: string) => String(i.data?.options?.find((o) => o.name === n)?.value ?? '');
-    const cmd: ParsedCommand = { name, args: name === 'new' ? (opt('for') === 'room' ? 'room' : '') : name === 'model' ? opt('name') : name === 'remember' || name === 'steer' || name === 'queue' || name === 'btw' ? opt('text') : '', form: 'native' };
+    const cmd: ParsedCommand = { name, args: name === 'new' ? (opt('for') === 'room' ? 'room' : '') : name === 'model' ? opt('name') : name === 'remember' || name === 'steer' || name === 'queue' || name === 'btw' ? opt('text') : name === 'continue' ? opt('which') : '', form: 'native' };
     if (!at.reachable || !commandAllowed(at.place, asker, name)) {
       const r = at.reachable ? await runCommand({ app, bridge: 'discord', place: at.place, who: asker, lang, cmd, adapter: this.#adapter(channelId, at.place, false) }) : { text: say(app, lang, en('Only the person who runs me can use that here.')) };
       return void (await callback({ type: 4, data: { content: r.text || '…', flags: 64, allowed_mentions: { parse: [] } } }));
@@ -788,7 +796,8 @@ export class DiscordBridge {
       const bare = me ? text.replace(me, '') : text;
       const mentioned = bare !== text;
       const cmd = parseCommand(bare, { herName: this.#app.persona.name, namePrefix: chatsSettings(this.#app).namePrefix, addressed: mentioned });
-      if (cmd && (isDm || mentioned || cmd.form === 'name')) {
+      // Phase 119: /when and /continue don't exist for anyone else (their line stays a message).
+      if (cmd && (isDm || mentioned || cmd.form === 'name') && !(OWNER_ONLY_COMMANDS.has(cmd.name) && !fromOwner)) {
         const place: Place = isOwnerDm ? 'owner-dm' : ownerWork ? 'work-room' : 'room';
         return this.#typedCommand(msg, cmd, place, fromOwner, !isDm && (await this.#isNsfw(msg.channel_id)));
       }
@@ -1093,6 +1102,9 @@ export class DiscordBridge {
       if (sent.captionUsed) outgoing.splice(0, 1);
       outgoing.push(...sent.lines);
     }
+    // Phase 119: the auto pickup's marker first; the ⏰ buttons and the pickup offer after her reply.
+    const extras = where && isOwner ? afterTurnExtras(app, conv.id, where.place) : undefined;
+    if (extras?.before) outgoing.unshift(extras.before);
     let since = started;
     for (const t of outgoing) {
       if (voice && t.length <= 1200 && !t.includes('```') && (await this.sendVoice(channelId, t))) continue;
@@ -1101,6 +1113,7 @@ export class DiscordBridge {
       since = Date.now();
     }
     await closing?.catch(() => undefined);
+    for (const row of extras?.rows ?? []) await this.send(channelId, row.text, row.buttons.length ? { components: [{ type: 1, components: row.buttons.map((b, n) => ({ type: 2, style: n === 0 ? 1 : 2, label: b.label.slice(0, 80), custom_id: b.data })) }] } : {}).catch(() => undefined);
     // Phase 107 (§4.7): nearly full: she offers /new once (in a channel he works in, in his DMs).
     if (where) {
       const line = nearlyFullOffer(app, app.store.getConversation(conv.id) ?? conv, fill, where.lang, where.place);

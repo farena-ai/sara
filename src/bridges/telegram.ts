@@ -19,7 +19,7 @@ import { identityOf } from '../persona.ts';
 import type { Conversation } from '../store.ts';
 import { takeChatDocument, type SharedDoc } from '../library/intake.ts';
 import { everyoneCalled, nameCalled } from './rules.ts';
-import { askerLanguage, chatsSettings, menuHash, menuList, nearlyFullOffer, nextSession, OTHER_LANGS, ownerLanguage, parseCommand, runCommand, say, setSessionModel, TELEGRAM_LANGS, type Asker, type BridgeAdapter, type CommandName, type CommandReply, type ModelPick, type ParsedCommand, type Place } from './commands.ts';
+import { afterTurnExtras, askerLanguage, chatButton, chatsSettings, menuHash, OWNER_ONLY_COMMANDS, menuList, nearlyFullOffer, nextSession, OTHER_LANGS, ownerLanguage, parseCommand, runCommand, say, setSessionModel, TELEGRAM_LANGS, type Asker, type BridgeAdapter, type CommandName, type CommandReply, type ModelPick, type ParsedCommand, type Place } from './commands.ts';
 import { channelProjectId, noteRoom } from './rooms.ts';
 import { editLine, keepRoomByKey, leftRoom, logLine, maybeSummarize, noteHerLine, reading, setSeesAll, type KeepRoom, type Who } from './keepup.ts';
 import { roomTurn } from './now.ts';
@@ -232,7 +232,7 @@ export class TelegramBridge {
     const cfg = telegramSettings(app);
     const owners = [...new Set([cfg.ownerChatId, ...(cfg.ownerUserIds ?? [])].filter((x): x is number => typeof x === 'number' && x > 0))];
     // Phase 116: /steer, /queue and /btw in the owner's lists.
-    const full: CommandName[] = ['new', 'reset', 'stop', 'status', 'help', 'model', 'remember', 'settings', 'steer', 'queue', 'btw'];
+    const full: CommandName[] = ['new', 'reset', 'stop', 'status', 'help', 'model', 'remember', 'continue', 'settings', 'steer', 'queue', 'btw'];
     const groups = cfg.ownerWorkInGroups ? app.store.channelKeys('telegram-work').map(Number).filter((n) => Number.isFinite(n) && n < 0) : [];
     const scopes: { scope: Record<string, unknown>; names: CommandName[]; owner: boolean }[] = [
       { scope: { type: 'all_private_chats' }, names: cfg.allowOthers ? ['new', 'reset', 'stop', 'status', 'help'] : ['help'], owner: false },
@@ -422,6 +422,17 @@ export class TelegramBridge {
         const stopped = this.#stopTurn(st[1]);
         return void (await this.#call('answerCallbackQuery', { callback_query_id: q.id, text: this.#tr(stopped ? en('Stopping.') : en('Nothing to stop.')) }).catch(() => undefined));
       }
+      // Phase 119: the ⏰ buttons and the pickup offer (owner only, checked here).
+      if (q.data && /^(wm|pk):/.test(q.data)) {
+        if (!isTelegramOwner(cfg, q.from.id)) return void (await this.#call('answerCallbackQuery', { callback_query_id: q.id, text: say(this.#app, askerLanguage(q.from.language_code), en('Only the owner can answer that.')) }).catch(() => undefined));
+        const r = chatButton(this.#app, q.data);
+        await this.#call('answerCallbackQuery', { callback_query_id: q.id, text: (r?.text ?? '').slice(0, 190) }).catch(() => undefined);
+        if (q.message) {
+          if (r?.edit) await this.#call('editMessageText', { chat_id: q.message.chat.id, message_id: q.message.message_id, text: r.edit, reply_markup: { inline_keyboard: [] } }).catch(() => undefined);
+          else await this.#call('editMessageReplyMarkup', { chat_id: q.message.chat.id, message_id: q.message.message_id, reply_markup: { inline_keyboard: [] } }).catch(() => undefined);
+        }
+        return;
+      }
       const m = q.data?.match(/^ap:([\w-]+):([01])$/);
       if (m && isTelegramOwner(cfg, q.from.id)) {
         const ok = this.#app.approvals.decide(m[1], m[2] === '1');
@@ -476,7 +487,8 @@ export class TelegramBridge {
     // Phase 107: commands come first (before the queue, so /stop and /reset work while she answers).
     // Others' plain /start keeps today's hello; a chat she doesn't talk in gets no commands either.
     const cmd = text && !msg.document ? parseCommand(text, { herName: this.#app.persona.name, botUsername: this.#bot?.username, namePrefix: chatsSettings(this.#app).namePrefix }) : undefined;
-    if (cmd && !(cmd.name === 'start' && !fromOwner) && (isOwnerChat || ownerWork || cfg.allowOthers)) return this.#command(msg, cmd, place, fromOwner);
+    // Phase 119: /when and /continue don't exist for anyone else (their line stays a message).
+    if (cmd && !(cmd.name === 'start' && !fromOwner) && !(OWNER_ONLY_COMMANDS.has(cmd.name) && !fromOwner) && (isOwnerChat || ownerWork || cfg.allowOthers)) return this.#command(msg, cmd, place, fromOwner);
     if (!isOwnerChat) {
       if (!cfg.allowOthers && !ownerWork) {
         if (isPrivate && !this.#toldNo.has(msg.chat.id)) {
@@ -869,6 +881,9 @@ export class TelegramBridge {
       if (sent.captionUsed) outgoing.splice(0, 1);
       outgoing.push(...sent.lines);
     }
+    // Phase 119: the auto pickup's marker first; the ⏰ buttons and the pickup offer after her reply.
+    const extras = where && isOwner ? afterTurnExtras(app, conv.id, where.place) : undefined;
+    if (extras?.before) outgoing.unshift(extras.before);
     let since = started;
     for (const t of outgoing) {
       // Spoken replies: short ones as a voice note (with code or long text, as text).
@@ -881,6 +896,7 @@ export class TelegramBridge {
       since = Date.now();
     }
     await closing?.catch(() => undefined);
+    for (const row of extras?.rows ?? []) await this.send(chatId, row.text, row.buttons.length ? { reply_markup: { inline_keyboard: [row.buttons.map((b) => ({ text: b.label, callback_data: b.data }))] } } : {}).catch(() => undefined);
     // Phase 107 (§4.7): nearly full: she offers /new once (in a room he works in, privately to him).
     if (where) {
       const fresh = app.store.getConversation(conv.id) ?? conv;

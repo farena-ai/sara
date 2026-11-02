@@ -18,6 +18,8 @@ when a chat is long or stuck, stop her, and see what she is using, without leavi
 | `/remember text` | Saves a note in her memory, in your own words. It follows the permission for her `remember_fact` tool (allowed by default; set it to *ask* and you get Allow/Deny first). | Only you. Never in other people's chats ("I don't keep memories in this chat."). |
 | `/start` | Telegram: `/start CODE` links you (as before); a plain `/start` from you is `/help`. | — |
 | `/settings` | Telegram: where her settings are. | Only you. |
+| `/when` | (2.52.0) "When it comes up" reminders. `/when Dan: he owes me $20` sets one (a single capitalised word is a person on your People cards; anything else is words to watch for; `, every time` at the end makes it repeat). `/when` lists them with numbers; `/when forget 1`, `/when again 1`, `/when off`, `/when on`. Typed only (not in the `/` menu). In a work room the answer comes privately. Full guide: [WHEN.md](WHEN.md). | Only you, in your own chats. For anyone else it stays a normal message. Never reaches a model. |
+| `/continue` | (2.52.0) Picks up your latest conversation from another of your own chats (the app, Telegram, Discord): `/continue` takes the newest (or lists them when there are several), `/continue 2` takes one from the list, `/continue telegram` / `/continue app` by app, `/continue off` undoes it. Nothing is copied: she is given that chat's summary and last few exchanges for each reply here. In the `/` menu. | Only you, in your own private chats. Never in shared rooms or other people's chats. Never reaches a model. |
 
 **Ways to write them**
 
@@ -37,6 +39,26 @@ when a chat is long or stuck, stop her, and see what she is using, without leavi
 **Who is who is checked by Sara every time.** The menus only decide what people see: Telegram and
 Discord let anyone send any command, so Sara refuses owner-only commands from anyone who isn't you
 (one short line, in their own language) and does nothing else. Bots never run commands.
+
+## Picking a chat up in another app (2.52.0)
+
+Start on Telegram on the bus, open the app at home, and she knows what you were just talking about.
+Nothing is copied or merged: a small pointer says "this chat continues that one", and for each reply
+she is given that chat's summary and its last exchanges (10 by default), rebuilt from the real
+messages every turn. It ends by itself after 12 messages here or 24 hours.
+
+- **In the app:** a new chat (or opening one) right after a conversation elsewhere shows a banner:
+  *On Telegram 12 min ago: "…"* with **Continue here** / **Not now**. After you continue, a chip
+  *↪ Continued from Telegram* sits at the top with **Show** (exactly what she is given) and **Undo**.
+- **In Telegram and Discord:** under her first reply after you switch, a row asks *↪ Pick up our chat
+  from the app?* with **Continue here** / **No**. Or type `/continue`.
+- **Settings → Connections → Pick up across apps:** *Offer to pick up* (default), *Pick up on her own,
+  with Undo* (a first line "↪ continued from Telegram · /continue off to undo"), or *Only when I type
+  /continue*; how recent (3 h); how many exchanges; whether a fresh coding chat takes the folder along;
+  which of your chats take part.
+- Only between your own chats, checked at both ends every turn: never shared rooms, work channels,
+  other people's chats, private or off-the-record chats, other apps (API, MCP, A2A) or household
+  members. Forgetting a message or deleting the other chat wins at once.
 
 ## When a chat gets long
 

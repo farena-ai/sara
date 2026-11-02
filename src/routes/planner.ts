@@ -11,6 +11,7 @@ import { parseWhen, PLACE_DUE, type PlannerStore, type Priority, type Project, t
 import { channelName, channelOfBuiltin, channelOn, filedCount, roomChip, roomOfConversation, roomsByKey, unfileChannelChats } from '../bridges/rooms.ts';
 import type { Conversation } from '../store.ts';
 import { ReminderScheduler } from '../reminders.ts';
+import { setMention } from '../mentions.ts';
 import { reviewSettings } from '../review.ts';
 import { adultModeOn } from '../settings.ts';
 import { gatherStory, lookbacks, STORY_FILTERS, type StoryFilter } from '../story.ts';
@@ -216,7 +217,7 @@ export function createPlannerRoutes(ctx: RouteCtx): RouteHandler {
 
     if (a === 'planner' && !b && method === 'GET') {
       const pl = needPlanner();
-      return send(res, 200, { projects: pl.projects(true), tasks: pl.tasks({ status: 'all' }), reminders: pl.reminders({ status: 'pending' }), recentReminders: pl.reminders({ status: 'sent', limit: 20 }), places: pl.places(), timeZone: app.settings.get().timeZone ?? null });
+      return send(res, 200, { projects: pl.projects(true), tasks: pl.tasks({ status: 'all' }), reminders: pl.reminders({ status: 'pending', kind: 'timed' }), recentReminders: pl.reminders({ status: 'sent', limit: 20, kind: 'timed' }), places: pl.places(), timeZone: app.settings.get().timeZone ?? null });
     }
     if (a === 'tasks') {
       const pl = needPlanner();
@@ -397,6 +398,14 @@ export function createPlannerRoutes(ctx: RouteCtx): RouteHandler {
         const body = await readJson(req);
         const text = String(body.text ?? '').trim();
         if (!text || text.length > 500) throw new HttpError(400, 'Reminder text must be 1-500 characters');
+        // Phase 119 (RECALL §4.12): the third kind, "when it comes up" (from Planner: no conversation).
+        if (body.mention && typeof body.mention === 'object') {
+          const m = body.mention as Record<string, unknown>;
+          const convId = body.conversationId ? String(body.conversationId) : null;
+          const r = setMention(app, { text, ...(m.topic ? { topic: String(m.topic) } : {}), ...(m.personId !== undefined && m.personId !== null && m.personId !== '' ? { personId: Number(m.personId) } : {}), also: Array.isArray(m.also) ? m.also.map(String) : [], each: m.each === true, ...(m.expiresDays !== undefined ? { expiresDays: Number(m.expiresDays) } : {}), conversationId: convId });
+          if (!r.ok) throw new HttpError(400, r.message, { reason: r.reason });
+          return send(res, 201, { ...r.reminder, card: r.card });
+        }
         const byPlace = body.placeId !== undefined && body.placeId !== null && body.placeId !== '';
         const due = byPlace ? PLACE_DUE : whenOrNull(body.when);
         if (!due) throw new HttpError(400, 'When should the reminder go off?');

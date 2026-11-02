@@ -38,6 +38,8 @@ import {
   ADULT_OFF_NOTE,
 } from './safety.ts';
 import { elsewhereNote } from './elsewhere.ts';
+import { pickupForTurn } from './pickup.ts';
+import { afterReply as mentionAfterReply, matchMentions, mentionNote, mentionSettings, outgoingHolds, ownChat, roomMentionToDm, takeCards, wirePeople, type MentionHit } from './mentions.ts';
 import { adultModeOn, type RoutePurpose, type SettingsStore } from './settings.ts';
 import { embedTarget, type MemoryVectors } from './embeddings.ts';
 import { isCloudModelName } from './model-names.ts';
@@ -226,6 +228,8 @@ export interface AppContext {
   rootDir?: string;
   /** Phase 31: which companion this is ('main' for the first) and all of them. */
   companionId?: string;
+  /** Phase 119: set on the off-the-record view of the app (src/server.ts): nothing here is his own chat. */
+  offRecord?: boolean;
   companions?: import('./companions.ts').CompanionManager;
   /** Phase 30: samples for the health history chart. */
   healthHistory?: import('./health-history.ts').HealthHistory;
@@ -349,6 +353,8 @@ export type ChatEvent =
   | { type: 'loop_guard'; id: string; name: string; kind: 'loop' | 'declined'; quote: string; count: number; paused?: boolean }
   /** Phase 118 (PERSIST §5.4): a loop tick refused a call that would ask (nobody is watching); `key` is its call key. */
   | { type: 'unattended'; id: string; name: string; summary: string; key: string }
+  /** Phase 119 (RECALL §4.5): reminders that came up in this reply (the ⏰ chip). */
+  | { type: 'mentions'; messageId: number; items: import('./mentions.ts').ChipItem[] }
   | { type: 'done'; messageId: number }
   | { type: 'error'; message: string };
 
@@ -1633,6 +1639,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   let recalled: string | undefined;
   /** Phase 101 (ST6): the People section (who the message names, with dated facts). */
   let peopleText: string | undefined;
+  /** Phase 119: who People found in his message (no guess), for "when it comes up". */
+  let peopleFound: import('./people.ts').Person[] | undefined;
   /** Phase 85: the meaning matches of the message (reused by the recall triggers' task match). */
   let relatedNotes: Awaited<ReturnType<MemoryVectors['related']>> = [];
   const memCfg = memorySettings(app);
@@ -1677,7 +1685,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // her "which Jeff?"); the People section for the people it names comes out of the same budget.
     if (app.people && !peopleGate) {
       try {
-        if (!opts.resume && userMsg) app.people.noteMessage(conv.id, userMsg.id, text, now.toISOString(), { work: isWorkChannel(conv.channel) });
+        if (!opts.resume && userMsg) peopleFound = app.people.noteMessage(conv.id, userMsg.id, text, now.toISOString(), { work: isWorkChannel(conv.channel) }).found;
         const sec = app.people.section(text, { conversationId: conv.id, work: isWorkChannel(conv.channel), owner: s.ownerName?.trim() || 'the owner', private: Boolean(conv.private), maxChars: Math.floor(memCfg.injectBudgetChars * 0.4), today: localDate(now.toISOString(), s.timeZone), ...(opts.roomId !== undefined ? { roomId: opts.roomId } : {}) });
         if (sec.text) peopleText = sec.text;
       } catch (err) {
@@ -1712,6 +1720,48 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // Phase 101: anything naming a person stays out of turns that may leave her space.
     if (peopleGate && !peopleGate.text(lastTime)) lastTime = undefined;
     if (peopleGate && !peopleGate.text(recalled)) recalled = undefined;
+  }
+
+  // Phase 119 part A (docs/design/RECALL.md §4.5): "when it comes up". Only his own message of an
+  // ordinary turn (never a resume, replay, eval, goal round, loop tick, group round, another app's or
+  // an outside turn), only in his own chats (R3), and a crisis holds every reminder. Code only.
+  let mentionHits: MentionHit[] = [];
+  let mentionText: string | undefined;
+  const crisisNow = detectCrisis(text) || label === 'CRISIS';
+  if (app.planner && userMsg && !opts.resume && !opts.replay && !opts.recorder && !opts.group && !opts.externalApp && !opts.outside && !opts.persist && !crisisNow && !conv.partner) {
+    try {
+      const mset = mentionSettings(app);
+      const spokenTurn = Boolean(opts.videoCall || opts.liveFrame);
+      if (mset.on && (!spokenTurn || mset.calls)) {
+        if (app.people) wirePeople(app);
+        const found = peopleFound ?? (app.people ? app.people.find(text, { conversationId: conv.id, beforeMessageId: userMsg.id, work: isWorkChannel(conv.channel) }).found : []);
+        const own = ownChat(app, conv) && (!conv.channel.endsWith('-nsfw') || adultOn);
+        if (own) {
+          mentionHits = matchMentions(app, { conversation: conv, messageId: userMsg.id, text, found: found.filter((p) => p.status === 'active') }, now);
+          if (mentionHits.length) mentionText = mentionNote(app, mentionHits, text, { owner: s.ownerName?.trim() || 'the owner', spoken: spokenTurn });
+        } else if (isWorkChannel(conv.channel) && mset.rooms === 'dm') {
+          // §4.4: his own line in a work room: nothing in the room; one line in his own DM instead.
+          roomMentionToDm(app, conv, { messageId: userMsg.id, text, found: found.filter((p) => p.status === 'active') }, now);
+        }
+      }
+    } catch (err) {
+      console.warn(`when it comes up: ${(err as Error).message}`);
+    }
+  }
+  // Phase 119 part B (RECALL §5.3): a chat he picked up here from another of his own chats: a note
+  // rebuilt from that chat's real messages (never stored here); its source stays out of "lately
+  // elsewhere" and "last time" while it carries.
+  let pickupNote: string | undefined;
+  let pickupSource: string | undefined;
+  if (!opts.replay && !opts.recorder && !opts.group && !opts.externalApp && !opts.outside && !opts.persist && !conv.partner) {
+    try {
+      const pk = pickupForTurn(app, conv, s.ownerName?.trim() || 'the owner');
+      pickupNote = pk.note;
+      pickupSource = pk.sourceId;
+      if (pickupNote) lastTime = undefined;
+    } catch (err) {
+      console.warn(`pickup: ${(err as Error).message}`);
+    }
   }
 
   let lastAssistantId = 0;
@@ -2084,7 +2134,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       followUps: !conv.partner && !opts.outside && app.memory && memCfg.enabled ? followUpsNote(followUps(app.memory, localDate(now.toISOString(), s.timeZone), (day) => store.ownerMessagesSince(dayStartUtc(day, s.timeZone).toISOString())).filter((f) => !appSafe || appSafe(f.memory)), s.ownerName?.trim() || 'the owner') : undefined,
       // Phase 37: an activity you're doing together in this conversation (games, journaling…).
       together: conv.partner || opts.outside ? undefined : activityNote(app.together?.activity(conv.id), s.ownerName?.trim() || 'the owner'),
-      elsewhere: conv.partner || opts.externalApp || opts.outside || opts.group ? undefined : elsewhereNote(app, conv, now, s.ownerName?.trim() || 'the owner'),
+      elsewhere: conv.partner || opts.externalApp || opts.outside || opts.group ? undefined : elsewhereNote(app, conv, now, s.ownerName?.trim() || 'the owner', pickupSource),
+      pickup: pickupNote,
+      // Phase 119: a reminder he asked for that came up in this message (his own chats only).
+      mentions: mentionText,
       // Phase 53: her reply language (the owner's pick, or the language they write in). Not for other people's chats.
       language: conv.partner ? undefined : languageLine(talkLanguage(s, text)),
     });
@@ -2403,7 +2456,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const permission2 = peerAnswered && permission1 === 'auto' && !READ_AFTER_PEER.has(call.name) ? 'ask' : permission1;
       // Phase 117 part B (§5.10): a turn that carries someone else's forwarded text: nothing runs on its own.
       const untrustedAsk = Boolean(opts.untrusted) && permission2 === 'auto';
-      const permission3 = untrustedAsk ? 'ask' : permission2;
+      // Phase 119 (RECALL §4.4 path 3): in a turn where a reminder came up, a call sending text that
+      // holds it to someone else asks first (it can only add an ask, never skip one).
+      const mentionHeld = permission2 === 'auto' ? outgoingHolds(mentionHits, call.name, call.arguments) : undefined;
+      if (mentionHeld) summary = `${personalize(`This mentions your reminder: \"${mentionHeld.reminder.text}\". Send it anyway?`, identityOf(app.persona))} ${summary}`;
+      const permission3 = untrustedAsk || mentionHeld ? 'ask' : permission2;
       // Phase 118 (PERSIST §5.4): in a loop tick nobody is watching: what would ask is refused (unless allowed once ahead).
       // The sandbox gate's card counts as an ask too (a risky command would wait for a card nobody sees).
       const gateWouldAsk = Boolean(opts.persist?.unattended && tool && permission3 === 'auto' && app.sandboxGate && conv.mode === 'coding' && !opts.group && !conv.partner && app.sandboxGate.plan({ tool: call.name, args: call.arguments, coding: true, permission: 'auto', workspaceDir: wsDir, network: sandbox.network }));
@@ -2716,6 +2773,18 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   }
   // Phase 96: the step line under the reply says "Used skill: …" after a reload too.
   if (autoSkill && lastAssistantId) store.updateMessageMeta(lastAssistantId, { autoSkill });
+  // Phase 119: the reminders she set in this turn get their card under her reply; the ones that came
+  // up are marked raised now (after her reply is saved), with the app's line when her words left it out.
+  const setCards = takeCards(conv.id);
+  if (setCards.length && lastAssistantId) store.updateMessageMeta(lastAssistantId, { reminderCard: setCards });
+  if (mentionHits.length && lastAssistantId && !signal.aborted && userMsg) {
+    const fin = store.messageById(lastAssistantId);
+    if (fin?.role === 'assistant' && !fin.meta?.blocked) {
+      const r = mentionAfterReply(app, mentionHits, { conversationId: conv.id, messageId: userMsg.id, replyId: fin.id, reply: fin.content, now: app.now() });
+      if (r.text !== undefined) yield { type: 'replace', messageId: fin.id, text: r.text };
+      yield { type: 'mentions', messageId: fin.id, items: r.chips };
+    }
+  }
   // Phase 98: "Weather alerts added a note" on the step line after a reload too.
   if (pluginSteps.length && lastAssistantId) store.updateMessageMeta(lastAssistantId, { plugins: pluginSteps.map((e) => ({ plugin: e.plugin, name: e.name, what: e.what, hook: e.hook, ...(e.text ? { text: e.text } : {}) })) });
   yield { type: 'done', messageId: lastAssistantId };

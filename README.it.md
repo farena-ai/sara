@@ -14,7 +14,7 @@ per il web, Windows, Mac e telefono.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1612%20passing-brightgreen" alt="1612 tests passing">
+  <img src="https://img.shields.io/badge/tests-1637%20passing-brightgreen" alt="1637 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -113,15 +113,16 @@ Guide di un minuto, registrate su un server di prova con un modello locale (in i
 
 ## Novità
 
+- **2.52** · Quando se ne parla: «quando salta fuori Dan, ricordami che mi deve 20 $» aspetta il nome, non un'ora; e `/continue` riprende nell'app una chat di Telegram o Discord, o viceversa.
 - **2.51** · Continua finché è fatto: dalle un obiettivo e il controllo che lo dimostra (test, una build, un comando o tu) e lavora un giro dopo l'altro finché passa davvero; `/loop` ripete un controllo e parla solo quando qualcosa cambia.
 - **2.50** · Signal ed email: può avere un suo numero Signal e una sua casella, configurati dalle Impostazioni con le stesse regole di Telegram e Discord.
-- **2.49** · Parlarle mentre lavora: *Diglielo ora* cambia rotta al passo successivo, *Dopo* aspetta il suo turno, `/btw` dà una risposta veloce a parte; e smette di ripetere una chiamata che continua a fallire.
 
 <details>
 <summary><b>Cronologia delle versioni</b>: cosa ha portato ogni versione dalla 2.4</summary>
 
 | Versione | Cosa ottieni |
 |---|---|
+| **2.52** · Quando se ne parla | **Promemoria che aspettano una persona o un argomento:** «quando salta fuori Dan, ricordami che mi deve 20 $» o «la prossima volta che parlo dell'orto, chiedi dei pomodori». Lo tira fuori una volta, nella sua risposta, con *Fatto*, *Ancora la prossima volta* o *Dimentica*. Il riconoscimento usa le tue schede persona e parole semplici, senza chiamare nessuna IA, e tra due Dan non tira mai a indovinare. Scattano solo sui tuoi messaggi nelle tue chat, mai dove Dan potrebbe leggere, e ciò che invierebbe a qualcun altro contenendone uno chiede prima. **Riprendere una chat in un'altra app:** inizia su Telegram, apri l'app e *Continua qui* porta con sé quella chat (`/continue` ovunque), con *Mostra* e *Annulla*; non si copia niente. |
 | **2.51** · Continua finché è fatto | **Obiettivi con prova:** «fai passare i test, fatto quando `npm test` è verde»: lavora un giro dopo l'altro entro dei limiti (giri, minuti, token, dollari) e Sara esegue il tuo controllo, non lei, quindi *fatto* vuol dire che è passato davvero. Un verde arrivato solo dopo aver modificato i test finisce come *fatto, da rivedere*; lo stesso errore due volte la mette in pausa come *bloccata*. **`/loop every 10m: check the deploy`**: in silenzio finché non cambia niente, un messaggio quando cambia, si ferma con *until* (con prova), dopo due errori, all'ora di fine o a un limite giornaliero, e non chiede mai approvazioni senza di te. Le schede della bacheca possono avere un controllo *Fatto quando*. Dopo un riavvio tutto torna in pausa. Sistemato anche: modificare file con fine riga Windows falliva. |
 | **2.50** · Signal ed email | **Altri due modi per raggiungerla, già inclusi.** *Signal* tramite signal-cli sul tuo computer: gruppi come stanze con aggiornamento, 👀 quando prende la tua nota, un messaggio di avanzamento dal vivo, file nei due sensi e il tuo numero di sicurezza fissato, così una chiave cambiata mette in pausa i suoi strumenti finché non confermi. *Email* nella sua casella: una sessione per conversazione, risposte nella conversazione, la tua posta conta come tua solo se supera il controllo del mittente del tuo provider, agli sconosciuti non risponde mai, la posta inoltrata fa chiedere prima ogni strumento e risposte automatiche, newsletter e rimbalzi non creano mai cicli. Sara tiene le connessioni di questi plugin, solo verso gli indirizzi che hai inserito. Sistemato anche: una risposta di una chat via plugin oltre i 5 minuti veniva tagliata. |
 | **2.49** · Parlarle mentre lavora | **Niente più attese finché non ha finito.** Scrivi mentre lavora e scegli: *Diglielo ora* (lo legge prima del passo successivo e cambia rotta; non può mai approvare niente), *Dopo* (aspetta e parte come turno a sé) o *Solo una domanda* (`/btw`: una risposta veloce a parte, non si salva nulla, il lavoro continua). Lo stesso su Telegram e Discord (`/queue`, `/btw`). Un **blocco dei cicli** la ferma dopo tre chiamate identiche fallite e la costringe a cambiare approccio. |
@@ -204,7 +205,7 @@ Tutte le versioni: [CHANGELOG.md](CHANGELOG.md) · [versioni](https://github.com
 
 In ordine di costruzione, una versione ciascuna ([l'elenco completo](docs/ROADMAP.md)):
 
-- **Poi** (2.52–2.61): foto e file nelle app di chat, parlarle mentre lavora, Signal, email, WhatsApp, iMessage (BlueBubbles) e SMS, «continua finché è fatto», controlli del codice dopo ogni modifica, una galleria di routine e **il Sara Store** per plugin, abilità e server MCP (ComfyUI, Blender, Playwright…) con installazione in un clic e un modo per inviare i tuoi.
+- **Poi** (2.53–2.61): foto e file nelle app di chat, parlarle mentre lavora, Signal, email, WhatsApp, iMessage (BlueBubbles) e SMS, «continua finché è fatto», controlli del codice dopo ogni modifica, una galleria di routine e **il Sara Store** per plugin, abilità e server MCP (ComfyUI, Blender, Playwright…) con installazione in un clic e un modo per inviare i tuoi.
 - L'app per iPhone (in attesa di Apple) e le tue idee nelle [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Il piano completo: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -399,8 +400,8 @@ uno SPEC che nessun test controllava. Quello che aggiunge oggi è il modo di lav
 chiede prima dei passi rischiosi, mostra cosa è stato eseguito), non un punteggio più alto su questi
 insiemi. Dettagli, risultati per compito e come rieseguirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-In più, `npm run check`: un controllo dei tipi e 1627 test automatici con un finto modello guidato
-da script (senza rete, senza GPU): 1612 passano su Windows e gli altri 8 sono test dell'isolamento
+In più, `npm run check`: un controllo dei tipi e 1652 test automatici con un finto modello guidato
+da script (senza rete, senza GPU): 1637 passano su Windows e gli altri 8 sono test dell'isolamento
 solo per Linux, eseguiti su un server Linux.
 
 ## Il confronto

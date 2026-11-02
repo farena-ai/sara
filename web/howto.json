@@ -598,6 +598,48 @@
    "show": "#ps-l-on"
   }
  ],
+ "ab-when": [
+  {
+   "id": "set",
+   "q": "How do I have her remind me when someone comes up?",
+   "steps": [
+    "In any of your chats, say “when Dan comes up, remind me he owes me $20” (or type /when Dan: he owes me $20).",
+    "A card under her reply shows it, with Undo.",
+    "The next time you mention Dan in one of your own chats, she brings it up once."
+   ],
+   "show": "#wm-on"
+  },
+  {
+   "id": "forget",
+   "q": "How do I see or forget what she is waiting to bring up?",
+   "steps": [
+    "Open Planner → Reminders → When it comes up.",
+    "Press Forget next to one; Done lists the ones that already came up.",
+    "Or type /when for the list and /when forget 1."
+   ]
+  }
+ ],
+ "co-pickup": [
+  {
+   "id": "continue",
+   "q": "How do I pick up a chat from Telegram in the app?",
+   "steps": [
+    "Open the app after talking on Telegram: a banner offers to pick it up.",
+    "Press Continue here (or type /continue in any of your chats).",
+    "The chip at the top says where it came from; Undo takes it away."
+   ],
+   "show": "#pk-mode"
+  },
+  {
+   "id": "off",
+   "q": "How do I stop the pick-up offers?",
+   "steps": [
+    "Under When I switch apps, choose Only when I type /continue.",
+    "To end one pickup, press Undo on its chip (or type /continue off)."
+   ],
+   "show": "#pk-mode"
+  }
+ ],
  "ab-github": [
   {
    "id": "token",

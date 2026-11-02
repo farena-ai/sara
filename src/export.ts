@@ -30,6 +30,8 @@ export interface ExportFile {
   tasks: Row[];
   notes: Row[];
   reminders: Row[];
+  /** Phase 119: each time a "when it comes up" reminder came up (older files don't have it). */
+  reminderFires?: Row[];
   /** Saved places, so place reminders keep working (older files don't have it). */
   places?: Row[];
   /** Phase 37: your shared playlist, reading list and watch list (older files don't have it). */
@@ -73,6 +75,7 @@ export function exportAll(app: AppContext, opts: { runs?: boolean } = {}): Expor
     tasks: all(app, 'SELECT * FROM tasks ORDER BY id'),
     notes: all(app, 'SELECT * FROM notes ORDER BY id'),
     reminders: all(app, 'SELECT * FROM reminders ORDER BY id'),
+    ...(has(app, 'reminder_fires') ? { reminderFires: all(app, 'SELECT * FROM reminder_fires ORDER BY id') } : {}),
     places: all(app, 'SELECT * FROM places ORDER BY id'),
     sharedItems: all(app, 'SELECT * FROM shared_items ORDER BY id'),
     library: app.library?.exportDocs() ?? [],
@@ -346,6 +349,20 @@ export function importAll(app: AppContext, data: unknown): ImportResult {
         }
         const created = v(rem.created_at) ?? now;
         if (db.prepare("SELECT 1 FROM reminders WHERE status = 'pending' AND text = ? AND due_at = ? AND created_at = ? AND place_id IS ?").get(text, due, created, placeId)) continue;
+        // Phase 119: a "when it comes up" reminder keeps its keys, once/every time, end date and its fires.
+        if (rem.trigger === 'mention') {
+          const id = Number(
+            db
+              .prepare("INSERT INTO reminders (text, due_at, repeat, conversation_id, status, created_at, fired, trigger, mention, each, expires_at, armed_at) VALUES (?, ?, 'none', ?, 'pending', ?, ?, 'mention', ?, ?, ?, ?)")
+              .run(text, due, conv(rem.conversation_id), created, Number(rem.fired ?? 0), typeof rem.mention === 'string' ? rem.mention : null, Number(rem.each ?? 0) ? 1 : 0, v(rem.expires_at), v(rem.armed_at)).lastInsertRowid,
+          );
+          for (const fr of (f.reminderFires ?? []).filter((x) => Number(x.reminder_id) === Number(rem.id))) {
+            const cid = conv(fr.conversation_id);
+            if (cid) db.prepare('INSERT INTO reminder_fires (reminder_id, conversation_id, message_id, reply_id, why, raised, answer, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(id, cid, Number(fr.message_id ?? 0), null, String(fr.why ?? ''), fr.raised === 'app' ? 'app' : 'her', v(fr.answer), v(fr.at) ?? now);
+          }
+          r.reminders++;
+          continue;
+        }
         db.prepare('INSERT INTO reminders (text, due_at, repeat, conversation_id, status, created_at, fired, call, place_id, place_event, anchor_day) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
           text,
           due,

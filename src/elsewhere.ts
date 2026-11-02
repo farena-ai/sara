@@ -7,6 +7,17 @@ import { adultModeOn } from './settings.ts';
 import { isWorkChannel } from './safety.ts';
 import type { AppContext } from './chat.ts';
 import type { Conversation } from './store.ts';
+import { mentionOf, ownChat } from './mentions.ts';
+
+/** Phase 119: the messages that set a pending "when it comes up" reminder. */
+function reminderLines(app: AppContext): Set<number> {
+  const out = new Set<number>();
+  for (const r of app.planner?.mentionReminders({ status: 'all' }) ?? []) {
+    const id = mentionOf(r)?.messageId;
+    if (id) out.add(id);
+  }
+  return out;
+}
 
 const WITHIN_MS = 24 * 3600_000;
 const MAX_CONVERSATIONS = 5;
@@ -31,14 +42,16 @@ function ago(ms: number): string {
 }
 
 /** A few lines from each of her other recent conversations, newest first, for her instructions. */
-export function elsewhereNote(app: AppContext, current: Conversation, now: Date, ownerName: string): string | undefined {
+export function elsewhereNote(app: AppContext, current: Conversation, now: Date, ownerName: string, skip?: string): string | undefined {
   if (current.partner) return undefined; // other people never hear about the owner's other chats
   const s = app.settings.get();
+  const own = ownChat(app, current);
   // Adult channels only reach her own chats with the owner, and only with Adult mode on.
   const adultOk = adultModeOn(s) && !isWorkChannel(current.channel) && !current.private;
   const others = app.store
     .listConversations()
-    .filter((c) => c.id !== current.id && !c.archivedAt && !c.private && now.getTime() - Date.parse(c.updatedAt) < WITHIN_MS)
+    // Phase 119: a chat picked up here is carried by its own note, not repeated here.
+    .filter((c) => c.id !== current.id && c.id !== skip && !c.archivedAt && !c.private && now.getTime() - Date.parse(c.updatedAt) < WITHIN_MS)
     .filter((c) => adultOk || !c.channel.endsWith('-nsfw'))
     // Phase 100: conversations with other agents (A2A) are untrusted text: never quoted into her chats.
     .filter((c) => c.channel !== 'a2a')
@@ -53,9 +66,12 @@ export function elsewhereNote(app: AppContext, current: Conversation, now: Date,
     // Something was forgotten in this conversation: its other lines may still echo it in words the
     // forget couldn't match (her "the beagle who howls" with no name), so it stays out entirely.
     if (app.store.messages(c.id).some((m) => isForgotten(m))) continue;
+    // Phase 119: outside his own chats (a work room others read), lines that carry one of his
+    // "when it comes up" reminders (her reply that raised or set one, his line that set it) stay out.
+    const hide = own ? new Set<number>() : reminderLines(app);
     const lines = app.store
       .messagesPage(c.id, { limit: 20 })
-      .messages.filter((m) => (m.role === 'user' || m.role === 'assistant') && !isForgotten(m) && m.content.trim())
+      .messages.filter((m) => (m.role === 'user' || m.role === 'assistant') && !isForgotten(m) && m.content.trim() && !hide.has(m.id) && !(!own && (m.meta?.mentions || m.meta?.reminderCard || m.meta?.fromRoom)))
       .slice(-LINES_EACH)
       .map((m) => {
         const text = m.content.replace(/\s+/g, ' ').trim();

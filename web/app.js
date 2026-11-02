@@ -52,6 +52,8 @@ import { sandboxButtons, sandboxFirstNote, sandboxFlag, sandboxSection, teamSand
 import { advisoryFlag, advisorySection, initFindings, openFindings, openRedTeam, redteamFlag, redteamGateSection, refreshFindings, securityCard, threatCard } from './findings-view.js';
 import { openRunView } from './run-view.js';
 import { recallChip, recallKindWords } from './recall-view.js';
+import { initWhen, loadWhenList, loadWhenSettings, saveWhenSettings, whenChip, whenFor } from './recall-when.js';
+import { initPickup, loadPickupSettings, pickupAfterReply, pickupNotice, pickupOpen, savePickupSettings } from './pickup.js';
 import { initEvals, onEvalEvent, openEvals } from './evals-view.js';
 import { renderCard, renderCards } from './result-cards.js';
 import { gmailApproval, gmailQuestion } from './gmail-view.js';
@@ -913,6 +915,8 @@ async function newConversation(projectId = null, offRecord = false) {
   $('#chat-title').textContent = conv.title;
   renderConversations();
   renderMessages([]);
+  // Phase 119: a new chat right after another app's conversation gets the pickup banner.
+  void pickupOpen(conv.id);
   $('#input').focus();
 }
 
@@ -1036,6 +1040,8 @@ async function openConversation(id) {
   if (conv.pending?.length) void refreshPending();
   // Phase 118: the goal and repeat chips (and whether the + menu offers them here).
   void persistOpen(conv.id);
+  // Phase 119: was he just talking in another of his chats? (the pickup banner)
+  void pickupOpen(conv.id);
   if (conv.activity && !state.streaming) watchConversation(conv);
   void loadJobs();
   void updateConvUsage();
@@ -1768,6 +1774,9 @@ function renderMessages(messages, opts = {}) {
     } else if (persistMessage(m)) {
       // Phase 118: a goal round / repeat line, or a folded "no change" tick.
       els.push(persistMessage(m));
+    } else if (m.role === 'notice' && m.kind === 'pickup') {
+      // Phase 119: "↪ Continued from Telegram" with Show and Undo (web/pickup.js).
+      els.push(pickupNotice(m));
     } else if (m.role === 'notice' && m.kind === 'job') {
       els.push(jobCard(m.content, m.meta?.status, m.meta));
       // A background Gmail change: its result card (done, Undo) rides on the job's notice.
@@ -1848,6 +1857,8 @@ function renderMessages(messages, opts = {}) {
       b._msg = m;
       // The reply that ends a turn (no tool calls after it) carries the turn's step line.
       if (m.role === 'assistant' && !m.meta?.toolCalls?.length) flush();
+      // Phase 119: the ⏰ chip (a reminder that came up) and the card of one she set (web/recall-when.js).
+      if (m.role === 'assistant') els.push(...whenFor(m));
       // Phase 81: her security pass over the files this turn changed (when it has finished).
       // Phase 86: "Red-team this" on the after-turn card (the threat card when there is one, else this one).
       const rtWs = (state.conversations ?? []).find((c) => c.id === state.currentId)?.workspace;
@@ -1954,7 +1965,7 @@ function commandNotice(m) {
 
 /** Phase 107: her commands typed in the app: /new, /reset, /stop, /status, /help, /model, /remember. */
 // Phase 113: /bug and /idea open the report sheet (the server answers with what to fill in).
-const CHAT_COMMAND = /^\/(new|reset|stop|status|help|model|remember|bug|idea)(?:\s[\s\S]*)?$/i;
+const CHAT_COMMAND = /^\/(new|reset|stop|status|help|model|remember|bug|idea|when|continue)(?:\s[\s\S]*)?$/i;
 async function runChatCommand(text) {
   if (!state.currentId) {
     const conv = await api('/conversations', { method: 'POST', body: {} });
@@ -1974,6 +1985,11 @@ async function runChatCommand(text) {
       await openConversation(r.opened.id);
     }
     if (r.report) openHubReport({ kind: r.report.kind, text: r.report.text });
+    // Phase 119: /continue made a pickup here: its chip at the top of the thread.
+    if (/^\/continue\b/i.test(text)) {
+      await openConversation(state.currentId);
+      $('#pickup-banner').hidden = true;
+    }
     const lines = (r.choices ?? []).map((m, i) => `${i + 1}. ${m.model} (${m.provider})`);
     const reply = bubble('notice', [r.reply, ...lines, ...(lines.length ? [t('Send /model and the number to pick one.')] : [])].filter(Boolean).join('\n'), 'command-reply');
     if (r.approvalId) {
@@ -2377,6 +2393,10 @@ async function runStream(path, body, userBubble) {
           if (ev.card) place(pluginResultCard(ev.card));
           else if (ev.what === 'followup') place(pluginNotice({ content: '', meta: { plugin: { name: ev.name, note: ev.text } } }));
           else pluginStep(ensureSteps(), pluginStepWords(ev), ev.what);
+        } else if (ev.type === 'mentions') {
+          // Phase 119: reminders that came up in this reply (the ⏰ chip).
+          for (const it of ev.items ?? []) place(whenChip(it));
+          pickupAfterReply();
         } else if (ev.type === 'recall') {
           // Phase 85: a note she remembered on her own went into her next step.
           recallStep(ensureSteps(), recallKindWords(ev.item.kind));
@@ -6517,6 +6537,7 @@ async function loadPlanner() {
   renderTasks(data.tasks);
   renderPlaces(data.places ?? []);
   renderReminders(data.reminders, data.recentReminders);
+  void loadWhenList();
   renderNotes(notes);
 }
 
@@ -7563,8 +7584,8 @@ const SETTINGS_ORDER = [
   'you-about', 'you-briefing', 'you-leave-by', 'you-adult',
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
   'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
-  'ab-projects', 'ab-budgets', 'ab-persist', 'ab-github', 'ab-ssh', 'ab-recipes',
-  'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-apps', 'co-agents', 'co-hooks',
+  'ab-projects', 'ab-budgets', 'ab-persist', 'ab-when', 'ab-github', 'ab-ssh', 'ab-recipes',
+  'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-pickup', 'co-apps', 'co-agents', 'co-hooks',
   'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
   'household', 'account',
 ];
@@ -7714,6 +7735,8 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'co-email') void loadEmailPage();
   if (pick === 'ab-budgets') void loadBudgets();
   if (pick === 'ab-persist') void loadPersistSettings();
+  if (pick === 'ab-when') void loadWhenSettings();
+  if (pick === 'co-pickup') void loadPickupSettings();
   if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam(), loadProjectDials()]);
   if (pick === 'ab-ssh') void loadSsh();
   if (pick === 'ab-library') void loadLibrarySettings();
@@ -7909,6 +7932,8 @@ const SETTINGS_SAVERS = {
   'dh-health': [saveRuns],
   'ab-budgets': [saveBudgets],
   'ab-persist': [savePersistSettings],
+  'ab-when': [saveWhenSettings],
+  'co-pickup': [savePickupSettings],
   'ab-projects': [saveSandboxGate, saveSecPass, saveThreatModel, saveRedTeam],
 };
 const settingsChanged = new Set();
@@ -8907,6 +8932,8 @@ initPlugins();
 initBusy({ api, state, append, bubble, el, canSteer: () => !state.conv?.partner, allowed: busySendAllowed, sendNow: (text) => void send(text) });
 // Phase 118: this chat's goal and repeats (web/persist.js).
 initPersist({ api, state, el, openConversation: (id) => void openConversation(id), openSettings: (page) => void openSettings(page) });
+initWhen({ api, el });
+initPickup({ api, el, state, reload: (id) => void openConversation(id) });
 initLearning();
 initBoard({ fmtDue: (iso) => fmtDue(iso, false), openConversation: (id) => openConversation(id), openPlanner: async (tab) => {
   if (!$('#planner').open) await openPlanner();

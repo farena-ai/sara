@@ -78,6 +78,30 @@ export interface Reminder {
   placeEvent: 'arrive' | 'leave' | null;
   /** The day of the month a monthly reminder is for (the 31st stays the 31st after February). */
   anchorDay: number | null;
+  /** Phase 119 (RECALL §4.11): 'mention' = a "when it comes up" reminder (no time, no place); null = time or place. */
+  trigger: 'mention' | null;
+  /** Its keys as JSON (src/mentions.ts MentionData). */
+  mention: string | null;
+  /** Every time (with a gap) instead of once. */
+  each: boolean;
+  expiresAt: string | null;
+  /** Why it ended: 'raised' | 'expired' | 'forgot'. */
+  ended: string | null;
+  /** When it may come up again ('every time': after the gap; 'ask': null until Keep it). */
+  armedAt: string | null;
+}
+
+/** Phase 119: one time a "when it comes up" reminder came up (RECALL §4.11). */
+export interface ReminderFire {
+  id: number;
+  reminderId: number;
+  conversationId: string;
+  messageId: number;
+  replyId: number | null;
+  why: string;
+  raised: 'her' | 'app';
+  answer: 'done' | 'again' | 'forget' | null;
+  at: string;
 }
 
 /** Phase 29: a place the owner saved (from the phone's location, or an address). */
@@ -306,6 +330,21 @@ export class PlannerStore {
     if (!rcols.has('place_id')) db.exec('ALTER TABLE reminders ADD COLUMN place_id INTEGER');
     if (!rcols.has('place_event')) db.exec('ALTER TABLE reminders ADD COLUMN place_event TEXT');
     if (!rcols.has('anchor_day')) db.exec('ALTER TABLE reminders ADD COLUMN anchor_day INTEGER');
+    // Phase 119 (RECALL §4.11): "when it comes up" reminders on the same row, and each time one came up.
+    for (const [c, type] of [['trigger', 'TEXT'], ['mention', 'TEXT'], ['each', 'INTEGER NOT NULL DEFAULT 0'], ['expires_at', 'TEXT'], ['ended', 'TEXT'], ['armed_at', 'TEXT']] as const) if (!rcols.has(c)) db.exec(`ALTER TABLE reminders ADD COLUMN ${c} ${type}`);
+    db.exec(`CREATE INDEX IF NOT EXISTS reminders_mention ON reminders(trigger, status) WHERE trigger IS NOT NULL;
+CREATE TABLE IF NOT EXISTS reminder_fires (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  reminder_id INTEGER NOT NULL,
+  conversation_id TEXT NOT NULL,
+  message_id INTEGER NOT NULL,
+  reply_id INTEGER,
+  why TEXT NOT NULL,
+  raised TEXT NOT NULL,
+  answer TEXT,
+  at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS reminder_fires_r ON reminder_fires(reminder_id, at);`);
     // Phase 99 (ST4): repeating to-dos (the board's other columns are added by src/board.ts).
     const tcols = new Set((db.prepare('PRAGMA table_info(tasks)').all() as Row[]).map((r) => String(r.name)));
     if (!tcols.has('repeat')) db.exec("ALTER TABLE tasks ADD COLUMN repeat TEXT NOT NULL DEFAULT 'none'");
@@ -538,14 +577,23 @@ export class PlannerStore {
       placeId: r.place_id === null || r.place_id === undefined ? null : Number(r.place_id),
       placeEvent: r.place_event === 'arrive' || r.place_event === 'leave' ? r.place_event : null,
       anchorDay: r.anchor_day === null || r.anchor_day === undefined ? null : Number(r.anchor_day),
+      trigger: r.trigger === 'mention' ? 'mention' : null,
+      mention: s(r.mention),
+      each: Number(r.each ?? 0) === 1,
+      expiresAt: s(r.expires_at),
+      ended: s(r.ended),
+      armedAt: s(r.armed_at),
     };
   }
 
-  reminders(opts: { status?: Reminder['status'] | 'all'; limit?: number } = {}): Reminder[] {
+  reminders(opts: { status?: Reminder['status'] | 'all'; limit?: number; kind?: 'mention' | 'timed' | 'all' } = {}): Reminder[] {
     const st = opts.status ?? 'pending';
+    // Phase 119: `kind` 'timed' = time and place reminders only (her prompt, Today, other apps); 'mention' = the third kind.
+    const kind = opts.kind === 'mention' ? "trigger = 'mention'" : opts.kind === 'timed' ? 'trigger IS NULL' : '';
+    const where = [st === 'all' ? '' : 'status = ?', kind].filter(Boolean).join(' AND ');
     return (
       this.db
-        .prepare(`SELECT * FROM reminders ${st === 'all' ? '' : 'WHERE status = ?'} ORDER BY ${st === 'pending' ? 'due_at' : 'COALESCE(sent_at, due_at) DESC'} LIMIT ?`)
+        .prepare(`SELECT * FROM reminders ${where ? `WHERE ${where}` : ''} ORDER BY ${st === 'pending' ? 'due_at, id' : 'COALESCE(sent_at, due_at) DESC'} LIMIT ?`)
         .all(...(st === 'all' ? [opts.limit ?? 200] : [st, opts.limit ?? 200])) as Row[]
     ).map((r) => this.#reminder(r));
   }
@@ -614,11 +662,83 @@ export class PlannerStore {
   }
 
   cancelReminder(id: number): boolean {
-    return Number(this.db.prepare("UPDATE reminders SET status = 'cancelled' WHERE id = ? AND status = 'pending'").run(id).changes) > 0;
+    return Number(this.db.prepare("UPDATE reminders SET status = 'cancelled', ended = CASE WHEN trigger = 'mention' THEN 'forgot' ELSE ended END WHERE id = ? AND status = 'pending'").run(id).changes) > 0;
+  }
+
+  // ---------- Phase 119 (RECALL §4): "when it comes up" reminders ----------
+  /** A new one: armed now (or not until Keep it, with `armed: false`). */
+  addMention(r: { text: string; mention: string; conversationId?: string | null; each?: boolean; expiresAt?: string | null; armed?: boolean }): Reminder {
+    const ts = this.#ts();
+    const id = this.db
+      .prepare("INSERT INTO reminders (text, due_at, repeat, conversation_id, created_at, trigger, mention, each, expires_at, armed_at) VALUES (?, ?, 'none', ?, ?, 'mention', ?, ?, ?, ?)")
+      .run(r.text.trim(), PLACE_DUE, r.conversationId ?? null, ts, r.mention, r.each ? 1 : 0, r.expiresAt ?? null, r.armed === false ? null : ts).lastInsertRowid;
+    return this.reminder(Number(id))!;
+  }
+  /** Every mention reminder (newest first), or only the pending ones. */
+  mentionReminders(o: { armedOnly?: boolean; status?: 'pending' | 'all' } = {}): Reminder[] {
+    const rows = this.db.prepare(`SELECT * FROM reminders WHERE trigger = 'mention' ${o.status === 'all' ? '' : "AND status = 'pending'"} ${o.armedOnly ? 'AND armed_at IS NOT NULL' : ''} ORDER BY id`).all() as Row[];
+    return rows.map((r) => this.#reminder(r));
+  }
+  /** Armed now (not resting after a fire, not waiting for Keep it, not expired), oldest set first. */
+  armedMentions(now: Date): Reminder[] {
+    const t = now.toISOString();
+    return (this.db.prepare("SELECT * FROM reminders WHERE trigger = 'mention' AND status = 'pending' AND armed_at IS NOT NULL AND armed_at <= ? AND (expires_at IS NULL OR expires_at > ?) ORDER BY id").all(t, t) as Row[]).map((r) => this.#reminder(r));
+  }
+  countArmed(): number {
+    return Number((this.db.prepare("SELECT COUNT(*) AS n FROM reminders WHERE trigger = 'mention' AND status = 'pending'").get() as Row).n);
+  }
+  /** Ones nobody mentioned before their end date end quietly. */
+  expireMentions(now: Date): number {
+    return Number(this.db.prepare("UPDATE reminders SET status = 'cancelled', ended = 'expired', sent_at = ? WHERE trigger = 'mention' AND status = 'pending' AND expires_at IS NOT NULL AND expires_at <= ?").run(now.toISOString(), now.toISOString()).changes);
+  }
+  endMention(id: number, why: 'raised' | 'expired' | 'forgot'): boolean {
+    return Number(this.db.prepare(`UPDATE reminders SET status = ?, ended = ?, sent_at = COALESCE(sent_at, ?) WHERE id = ? AND trigger = 'mention' AND status = 'pending'`).run(why === 'raised' ? 'sent' : 'cancelled', why, this.#ts(), id).changes) > 0;
+  }
+  updateMention(id: number, p: { text?: string; mention?: string; each?: boolean; expiresAt?: string | null }): Reminder | undefined {
+    const cur = this.reminder(id);
+    if (!cur || cur.trigger !== 'mention') return undefined;
+    this.db.prepare('UPDATE reminders SET text = ?, mention = ?, each = ?, expires_at = ? WHERE id = ?').run((p.text ?? cur.text).trim(), p.mention ?? cur.mention, (p.each ?? cur.each) ? 1 : 0, p.expiresAt === undefined ? cur.expiresAt : p.expiresAt, id);
+    return this.reminder(id);
+  }
+  /** It came up: once → done; every time → resting until `nextArmed` (null = that was the last). */
+  markMentionRaised(id: number, nextArmed: Date | null, now: Date): void {
+    if (nextArmed) this.db.prepare('UPDATE reminders SET fired = fired + 1, sent_at = ?, armed_at = ? WHERE id = ?').run(now.toISOString(), nextArmed.toISOString(), id);
+    else this.db.prepare("UPDATE reminders SET fired = fired + 1, sent_at = ?, status = 'sent', ended = 'raised' WHERE id = ?").run(now.toISOString(), id);
+  }
+  /** *Again next time* and *Keep it*: armed now (a done or forgotten one comes back). */
+  rearmMention(id: number, now: Date): Reminder | undefined {
+    this.db.prepare("UPDATE reminders SET status = 'pending', ended = NULL, armed_at = ?, fired = CASE WHEN each = 1 THEN 0 ELSE fired END WHERE id = ? AND trigger = 'mention'").run(now.toISOString(), id);
+    return this.reminder(id);
+  }
+  #fire(r: Row): ReminderFire {
+    return { id: Number(r.id), reminderId: Number(r.reminder_id), conversationId: String(r.conversation_id), messageId: Number(r.message_id), replyId: r.reply_id === null ? null : Number(r.reply_id), why: String(r.why), raised: r.raised === 'app' ? 'app' : 'her', answer: (['done', 'again', 'forget'].includes(String(r.answer)) ? r.answer : null) as ReminderFire['answer'], at: String(r.at) };
+  }
+  addFire(f: { reminderId: number; conversationId: string; messageId: number; replyId: number | null; why: string; raised: 'her' | 'app'; at: string }): number {
+    return Number(this.db.prepare('INSERT INTO reminder_fires (reminder_id, conversation_id, message_id, reply_id, why, raised, at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(f.reminderId, f.conversationId, f.messageId, f.replyId, f.why, f.raised, f.at).lastInsertRowid);
+  }
+  fire(id: number): ReminderFire | undefined {
+    const r = this.db.prepare('SELECT * FROM reminder_fires WHERE id = ?').get(id) as Row | undefined;
+    return r ? this.#fire(r) : undefined;
+  }
+  fires(reminderId: number): ReminderFire[] {
+    return (this.db.prepare('SELECT * FROM reminder_fires WHERE reminder_id = ? ORDER BY id').all(reminderId) as Row[]).map((r) => this.#fire(r));
+  }
+  setFireAnswer(id: number, answer: 'done' | 'again' | 'forget'): void {
+    this.db.prepare('UPDATE reminder_fires SET answer = ? WHERE id = ?').run(answer, id);
+  }
+  /** How many came up since `iso` (the per-day cap). */
+  firesSince(iso: string): number {
+    return Number((this.db.prepare('SELECT COUNT(*) AS n FROM reminder_fires WHERE at >= ?').get(iso) as Row).n);
+  }
+  /** *Forget this conversation*: the reminders set there and their fires go. */
+  forgetMentionsOf(conversationId: string): number {
+    this.db.prepare('DELETE FROM reminder_fires WHERE conversation_id = ?').run(conversationId);
+    return Number(this.db.prepare("UPDATE reminders SET status = 'cancelled', ended = 'forgot' WHERE trigger = 'mention' AND status = 'pending' AND conversation_id = ?").run(conversationId).changes);
   }
 
   dueReminders(now: Date): Reminder[] {
-    return (this.db.prepare("SELECT * FROM reminders WHERE status = 'pending' AND due_at <= ? ORDER BY due_at").all(now.toISOString()) as Row[]).map((r) => this.#reminder(r));
+    // Phase 119: "when it comes up" reminders are never due (they ride in her reply instead).
+    return (this.db.prepare("SELECT * FROM reminders WHERE status = 'pending' AND trigger IS NULL AND due_at <= ? ORDER BY due_at").all(now.toISOString()) as Row[]).map((r) => this.#reminder(r));
   }
 
   /** Marks a reminder delivered; repeating ones move to their next time. */
@@ -643,7 +763,8 @@ export class PlannerStore {
     }
     const rest = open.length - due.length;
     if (rest > 0) lines.push(`- ${rest} other open task${rest === 1 ? '' : 's'} (use the todo tool to list them)`);
-    for (const r of this.reminders({ status: 'pending', limit: 3 })) {
+    // Phase 119 (RECALL §4.4 path 1): "when it comes up" reminders never go in here (it reaches every turn with tools).
+    for (const r of this.reminders({ status: 'pending', limit: 3, kind: 'timed' })) {
       const pl = r.placeId ? this.place(r.placeId) : undefined;
       lines.push(`- reminder #${r.id} "${r.text}" ${r.placeId ? `when ${r.placeEvent === 'leave' ? 'leaving' : 'arriving at'} ${pl?.name ?? 'a place'}` : `at ${formatLocal(r.dueAt, timeZone)}`}${r.repeat !== 'none' ? ` (${r.repeat})` : ''}`);
     }
@@ -659,6 +780,8 @@ export interface PlannerToolDeps {
   timeZone: () => string | undefined;
   /** Phase 26: are calls from her switched on? */
   callsOn?: () => boolean;
+  /** Phase 119: "when it comes up" reminders (src/mentions.ts mentionToolDeps; needs People and the chats). */
+  mentions?: () => import('./mentions.ts').MentionToolDeps | undefined;
 }
 
 const idArg = (args: Record<string, unknown>): number => {
@@ -820,13 +943,17 @@ export function createPlannerTools(deps: PlannerToolDeps): Tool[] {
     spec: {
       name: 'remind',
       description:
-        "Reminders that pop up in this chat at a set time, or when the owner arrives at or leaves a saved place. Actions: set (text, and either when or place; optional repeat none|daily|weekdays|weekly|monthly for timed ones; optional call=true when the owner asks you to CALL them then, e.g. \"call me at 5\"), list, cancel (id), places (the saved places). \"when\" is the owner's local time: \"2026-10-25 09:00\", \"tomorrow 9am\", \"friday 3pm\", \"in 20 minutes\". For \"when I get to the store\" use place (a saved place's name) and on=arrive (or on=leave for \"when I leave work\"). Only say a reminder is set after this tool confirms it.",
+        "Reminders that pop up in this chat at a set time, or when the owner arrives at or leaves a saved place. Actions: set (text, and either when or place; optional repeat none|daily|weekdays|weekly|monthly for timed ones; optional call=true when the owner asks you to CALL them then, e.g. \"call me at 5\"), list, cancel (id), places (the saved places). \"when\" is the owner's local time: \"2026-10-25 09:00\", \"tomorrow 9am\", \"friday 3pm\", \"in 20 minutes\". For \"when I get to the store\" use place (a saved place's name) and on=arrive (or on=leave for \"when I leave work\"). For 'next time I mention X' or 'when Dan comes up', use on=mention with person (someone he knows) or topic (a few words), and text; never guess a trigger he didn't say. Only say a reminder is set after this tool confirms it.",
       parameters: {
         type: 'object',
         properties: {
           action: { type: 'string', enum: ['set', 'list', 'cancel', 'places'] },
           place: { type: 'string', description: 'A saved place name (see action=places), for "when I get to…"' },
-          on: { type: 'string', enum: ['arrive', 'leave'], description: 'With place: arriving (default) or leaving' },
+          on: { type: 'string', enum: ['arrive', 'leave', 'mention'], description: 'With place: arriving (default) or leaving. mention: when a person or topic comes up in what the owner says' },
+          person: { type: 'string', description: 'With on=mention: the person (a name he uses)' },
+          topic: { type: 'string', description: 'With on=mention: a few words for the topic, e.g. "Jeff\'s wedding"' },
+          also: { type: 'array', items: { type: 'string' }, description: 'With on=mention: up to 5 other ways he says it' },
+          each: { type: 'boolean', description: 'With on=mention: every time it comes up (default: only the next time)' },
           text: { type: 'string', description: 'What to remind about, e.g. "call the accountant"' },
           when: { type: 'string' },
           repeat: { type: 'string', enum: [...REPEATS] },
@@ -852,6 +979,16 @@ export function createPlannerTools(deps: PlannerToolDeps): Tool[] {
       if (action === 'set') {
         const text = str(args, 'text').trim();
         if (text.length > 500) throw new ToolError('Reminder text is too long (max 500).');
+        // Phase 119: "when it comes up" (a person or a topic in his own message, in his own chats).
+        if (str(args, 'on', false) === 'mention') {
+          const m = deps.mentions?.();
+          if (!m) throw new ToolError('When-it-comes-up reminders are not available here.');
+          try {
+            return m.set(args, ctx.conversationId);
+          } catch (err) {
+            throw new ToolError((err as Error).message);
+          }
+        }
         const placeName = str(args, 'place', false);
         if (placeName) {
           const place = planner.placeByName(placeName);
@@ -871,12 +1008,16 @@ export function createPlannerTools(deps: PlannerToolDeps): Tool[] {
         return `Reminder #${r.id} set for ${formatLocal(r.dueAt, tz)}${repeat !== 'none' ? `, repeating ${repeat}` : ''}: "${r.text}". ${how}`;
       }
       if (action === 'list') {
-        const list = planner.reminders({ status: 'pending' });
+        const list = planner.reminders({ status: 'pending', kind: 'timed' });
+        // Phase 119 (RECALL §4.4 path 2): "when it comes up" ones only in his own chats.
+        const ml = deps.mentions?.()?.list(ctx.conversationId) ?? { lines: [], hidden: 0 };
+        const more = [...(ml.lines.length ? ['When it comes up:', ...ml.lines.map((l) => `  ${l}`)] : []), ...(ml.hidden ? [`And ${ml.hidden} "when it comes up" reminder${ml.hidden === 1 ? '' : 's'}, which I keep for our own chats.`] : [])].join('\n');
         const where = (r: Reminder) => {
           const pl = r.placeId ? planner.place(r.placeId) : undefined;
           return `when ${r.placeEvent === 'leave' ? 'leaving' : 'arriving at'} ${pl?.name ?? 'a deleted place'}`;
         };
-        return list.length ? list.map((r) => `#${r.id} ${r.placeId ? where(r) : formatLocal(r.dueAt, tz)}${r.repeat !== 'none' ? ` (${r.repeat})` : ''}${r.call ? ' (call)' : ''}: ${r.text}`).join('\n') : 'No upcoming reminders.';
+        const timed = list.length ? list.map((r) => `#${r.id} ${r.placeId ? where(r) : formatLocal(r.dueAt, tz)}${r.repeat !== 'none' ? ` (${r.repeat})` : ''}${r.call ? ' (call)' : ''}: ${r.text}`).join('\n') : more ? '' : 'No upcoming reminders.';
+        return [timed, more].filter(Boolean).join('\n');
       }
       if (action === 'cancel') {
         const id = idArg(args);

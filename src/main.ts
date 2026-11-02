@@ -32,6 +32,7 @@ import { Redactor, vaultSecretValues } from './redact.ts';
 import { SnapshotStore } from './snapshots.ts';
 import { MemoryStore } from './memory.ts';
 import { PeopleStore } from './people.ts';
+import { mentionToolDeps, wirePeople } from './mentions.ts';
 import { createPeopleTools } from './people-tools.ts';
 import { localDate, memorySettings, MemoryWorker } from './memory-worker.ts';
 import { HistoryImporter } from './history-import/index.ts';
@@ -627,7 +628,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   // The planner: the first companion's, shared, unless the owner chose separate planners.
   const sharedPlanner = !main && space.settings.get().companionPlanner !== 'separate';
   const planner = sharedPlanner ? space.companions.main.app.planner! : new PlannerStore(store.db);
-  for (const t of createPlannerTools({ planner, now: () => new Date(), timeZone: () => settingsC.get().timeZone, callsOn: () => settingsC.get().calls?.enabled === true })) tools.add(t);
+  for (const t of createPlannerTools({ planner, now: () => new Date(), timeZone: () => settingsC.get().timeZone, callsOn: () => settingsC.get().calls?.enabled === true, mentions: () => mentionToolDeps(app) })) tools.add(t);
   const uploads = new UploadStore(dir);
   const xaiProviderKeyOf = () => {
     const p = settingsC.get().providers.find((x) => /api\.x\.ai/.test(x.baseUrl));
@@ -742,6 +743,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   // Phase 101 (ST6): people cards from her memory (this companion's database; each person's own space; never the demo).
   if (!isDemo) {
     app.people = new PeopleStore(store.db, { photoDir: join(dir, 'people'), ownWords: () => [settingsC.get().ownerName ?? '', app.persona.name] });
+    // Phase 119: his "when it comes up" reminders count as private texts for her outside gate.
+    wirePeople(app);
     for (const t of createPeopleTools(() => app)) tools.add(t);
   }
   // Phase 103 (ST8): her own agenda (per companion, in each person's own space; off by default; never the demo).

@@ -1129,3 +1129,20 @@ Public feature pages, read 2026-11-01 (features only; no code, prompt or wording
   `src/bridges/room.ts`, `src/bridges/rooms.ts`, `src/pending.ts`, `src/store.ts`, `src/chat.ts`,
   `src/household.ts`, `src/main.ts`), and the design files it builds on: CHATS.md (CH1–CH4),
   STAPLES.md (§9 People, §11 her plans), HARNESS_TRACK.md (M1, M2, M10), BRIDGES2.md, PERSIST.md.
+
+## As built (2.52.0)
+
+Phase 119 built §4 (when it comes up) and §5 (picking a chat up in another app) with the §11 defaults.
+Code: `src/mentions.ts`, `src/pickup.ts`, `src/routes/recall.ts`, `web/recall-when.js`, `web/pickup.js`,
+`web/recall.css`; tests `test/phase119.test.ts` (the §5.13 list). User guides: [../WHEN.md](../WHEN.md)
+and [../CHATS.md](../CHATS.md). Differences from the text above:
+
+- The set card shows *once / every time* as text with **Undo** (or **Keep it / No**); switching
+  once ↔ every time is in the Planner list, not on the card.
+- `/when NAME: text` treats a single capitalised word as a person and anything else as words.
+- The outgoing "ask first" applies in the turn a reminder fired (to tools whose permission is
+  *auto*); at any other time the reminder text is covered by the outside gate's private texts
+  (`PeopleStore.extraPrivate`), as §4.4 path 4 says.
+- In the app, `/when` and `/continue` are chat-app commands; the app uses the banner, chip and
+  Planner list instead.
+

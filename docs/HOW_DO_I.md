@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 129 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 133 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -536,6 +536,20 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Pick how often and until when, then press Start.
 3. She only tells you when something changes; Planner → Repeats lists them all.
 
+### When it comes up
+
+**How do I have her remind me when someone comes up?**
+
+1. In any of your chats, say “when Dan comes up, remind me he owes me $20” (or type /when Dan: he owes me $20).
+2. A card under her reply shows it, with Undo.
+3. The next time you mention Dan in one of your own chats, she brings it up once.
+
+**How do I see or forget what she is waiting to bring up?**
+
+1. Open Planner → Reminders → When it comes up.
+2. Press Forget next to one; Done lists the ones that already came up.
+3. Or type /when for the list and /when forget 1.
+
 ### GitHub
 
 **How do I add a GitHub token?**
@@ -563,6 +577,19 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Change it in Tools and approvals.
 
 ## Settings → Connections
+
+### Pick up across apps
+
+**How do I pick up a chat from Telegram in the app?**
+
+1. Open the app after talking on Telegram: a banner offers to pick it up.
+2. Press Continue here (or type /continue in any of your chats).
+3. The chip at the top says where it came from; Undo takes it away.
+
+**How do I stop the pick-up offers?**
+
+1. Under When I switch apps, choose Only when I type /continue.
+2. To end one pickup, press Undo on its chip (or type /continue off).
 
 ### Phone and notifications
 

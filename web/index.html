@@ -32,6 +32,7 @@
   <link rel="stylesheet" href="/kit.css">
   <link rel="stylesheet" href="/busy.css">
   <link rel="stylesheet" href="/persist.css">
+  <link rel="stylesheet" href="/recall.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -299,6 +300,14 @@
       <p id="persist-live" class="ps-live" role="status" aria-live="polite"></p>
       <div id="persist-card" class="persist-card" hidden></div>
       <div id="pending-chips" class="pending-chips" role="list" aria-label="Messages waiting for her" hidden></div>
+      <!-- Phase 119 (RECALL §5.5): he was just talking in another of his chats (web/pickup.js). -->
+      <div id="pickup-banner" class="pickup-banner" role="region" aria-label="Pick up from your other app" hidden>
+        <span class="pickup-ic" aria-hidden="true">↪</span>
+        <span id="pk-text" class="pickup-text" data-raw></span>
+        <button id="pk-continue" type="button" class="small">Continue here</button>
+        <button id="pk-not-now" type="button" class="ghost small">Not now</button>
+        <button type="button" class="tip" data-tip="You were just talking on another app. Continue here gives her that conversation; nothing is copied or merged, and Undo takes it away.">?</button>
+      </div>
       <div id="aside-card" class="aside-card" role="status" hidden>
         <div class="aside-head"><span aria-hidden="true">💬</span> <strong>Side question</strong> <span class="aside-note muted small">Not added to the chat</span> <button id="aside-close" type="button" class="ghost icon" aria-label="Close"><i class="ic" data-icon="close"></i></button></div>
         <p id="aside-q" class="aside-q muted small" data-raw></p>
@@ -573,6 +582,14 @@
     </div>
   </dialog>
 
+  <!-- Phase 119 (RECALL §5.9): Show: exactly the lines she is given from the other chat (web/pickup.js). -->
+  <dialog id="pickup-dialog" class="small-dialog" aria-labelledby="pickup-title">
+    <div class="settings-body">
+      <h2 id="pickup-title">What she has from the other chat</h2>
+      <p class="muted small">Rebuilt from that chat for each reply here; nothing is copied into this one.</p>
+      <pre id="pickup-note" class="pickup-note" data-raw></pre>
+    </div>
+  </dialog>
   <!-- Phase 38: find the best model for a job (side by side, blind) -->
   <dialog id="run-view" class="run-view" aria-label="The run">
     <div class="settings-body run-body"></div>
@@ -1058,6 +1075,25 @@
         <label id="rem-call-row" class="row small" hidden><input id="rem-call" type="checkbox"> 📞 Call me instead of sending a message</label>
         <label class="row small"><input id="rem-notify" type="checkbox"> Show a desktop notification when a reminder arrives</label>
         <div id="rem-list"></div>
+        <!-- Phase 119 (RECALL §4.8): the third kind (web/recall-when.js). -->
+        <section id="wm-section" class="when-section" hidden>
+          <h3 class="small">When it comes up</h3>
+          <div class="add-row">
+            <input id="wm-text" placeholder="Remind me…" maxlength="500" aria-label="What to remind you about">
+            <input id="wm-topic" placeholder="When these words come up…" maxlength="120" aria-label="Words to listen for">
+            <select id="wm-person" aria-label="Or a person"><option value="">Or a person…</option></select>
+            <select id="wm-each" aria-label="How often"><option value="once">Once</option><option value="each">Every time</option></select>
+            <button id="wm-add" type="button">Add</button>
+            <button type="button" class="tip" data-tip="Pick a person (their nicknames count too) or type a few words; all the words have to be in one of your messages. She can add other ways you say it when you ask her in chat.">?</button>
+          </div>
+          <p id="wm-preview" class="muted small" role="status"></p>
+          <p id="wm-status" class="muted small" role="status"></p>
+          <div id="wm-list"></div>
+          <details id="wm-done" class="places" data-noauto>
+            <summary>Done <span id="wm-done-count" class="muted small"></span></summary>
+            <div id="wm-done-list"></div>
+          </details>
+        </section>
         <details id="places" class="places" data-noauto>
           <summary>Places <span id="places-count" class="muted small"></span></summary>
           <p class="muted small">For "remind me when I get to…". Your phone (the Sara app, with place reminders on in Settings → Phone and notifications) watches these places and only tells your server "arrived at Store". Where you are never leaves the phone.</p>
@@ -2640,7 +2676,25 @@
       <p class="muted small">On a subscription (a ChatGPT, Claude or Grok sign-in) a spending limit can't be counted: you don't pay per token there. Tokens, steps and time still apply.</p>
       </div>
         </section>
-        <section class="settings-page" data-page="ab-persist" data-group="Abilities" data-title="Keep going and repeats" data-owner-only hidden>
+                <!-- Phase 119 (RECALL §3.3, §4.10): when it comes up (web/recall-when.js). -->
+        <section class="settings-page" data-page="ab-when" data-group="Abilities" data-title="When it comes up" hidden>
+      <div id="wm-form">
+      <p class="muted small page-lead">Reminders that wait for a person or a topic instead of a time: “when Dan comes up, remind me he owes me $20”. Only your own messages in your own chats set them off, and she brings it up once, inside her reply.</p>
+      <label class="row"><input id="wm-on" type="checkbox"> Keep “when it comes up” reminders <button type="button" class="tip" data-tip="Lets her keep reminders that wait for a person or a topic instead of a time: 'when Dan comes up, remind me he owes me $20'. She only keeps the ones you ask for, and only your own messages in your own chats set them off.">?</button></label>
+      <div class="bud-grid">
+        <label>When you ask for one <button type="button" class="tip" data-tip="Undo: she sets it when you ask and shows a card with Undo. Ask: the card asks Keep it / No first, and nothing is kept until you tap.">?</button> <select id="wm-confirm"><option value="undo">Set it, with Undo</option><option value="ask">Ask Keep it / No first</option></select></label>
+        <label>In one reply <button type="button" class="tip" data-tip="How many of these she brings up in one reply. 1 keeps replies short; the others wait until they come up again.">?</button> <select id="wm-per-reply"></select></label>
+        <label>In a day <button type="button" class="tip" data-tip="The most she brings up in a day, all together. A busy day of talking about Dan won't turn into a list of errands.">?</button> <select id="wm-per-day"></select></label>
+        <label>Ends after <button type="button" class="tip" data-tip="A reminder nobody mentioned for this long ends by itself and shows under Done for a month. Never keeps it until it comes up.">?</button> <select id="wm-expires"></select></label>
+        <label>Every time: at most once in <button type="button" class="tip" data-tip="For 'every time' reminders: the shortest gap between two (24 hours: once a day at most) and how many times before it's done.">?</button> <select id="wm-gap"></select></label>
+        <label>Every time: how many times <button type="button" class="tip" data-tip="For 'every time' reminders: the shortest gap between two (24 hours: once a day at most) and how many times before it's done.">?</button> <select id="wm-fires"></select></label>
+        <label>Your lines in shared rooms <button type="button" class="tip" data-tip="Off: your own lines in shared rooms never set one off. To your DM: if you mention it in a shared room, she tells you in your own chat, never in the room.">?</button> <select id="wm-rooms"><option value="off">Off</option><option value="dm">Tell me in my own chat</option></select></label>
+      </div>
+      <label class="row"><input id="wm-calls" type="checkbox"> Also in calls with her in the app <button type="button" class="tip" data-tip="Also in calls with her in the app (she says it; you see it in the call's transcript). Never on Alexa or Home Assistant speakers, which others can hear.">?</button></label>
+      <p class="muted small">The list is in Planner → Reminders → When it comes up. In any of your chats you can also type /when.</p>
+      </div>
+        </section>
+<section class="settings-page" data-page="ab-persist" data-group="Abilities" data-title="Keep going and repeats" data-owner-only hidden>
       <div id="ps-form">
       <p class="muted small page-lead">Keep going until it’s done: she works in rounds until a check you pick passes. Repeats: she checks something in a chat on a timer. Nothing starts until you press Start, and after a restart both wait for you.</p>
       <h3>Keep going until it’s done</h3>
@@ -3033,7 +3087,22 @@
       <div id="em-box" class="plg-signal"></div>
       </div>
         </section>
-        <section class="settings-page" data-page="co-apps" data-group="Connections" data-title="Other apps" hidden>
+                <!-- Phase 119 (RECALL §3.3, §5.10): pick a chat up in another app (web/pickup.js). -->
+        <section class="settings-page" data-page="co-pickup" data-group="Connections" data-title="Pick up across apps" data-owner-only hidden>
+      <div id="pk-form">
+      <p class="muted small page-lead">Carry our last conversation between apps: start on Telegram on the bus, open the app at home, and she knows what you were just talking about. Nothing is copied or merged; a chip shows it with Undo.</p>
+      <div class="bud-grid">
+        <label>When I switch apps <button type="button" class="tip" data-tip="Offer: when you move from one of your chats to another (Telegram to the app), she offers to pick up where you left off. Auto: she just does it, with Undo. Off: only when you type /continue.">?</button> <select id="pk-mode"><option value="offer">Offer to pick up</option><option value="auto">Pick up by itself, with Undo</option><option value="off">Only when I type /continue</option></select></label>
+        <label>How recent <button type="button" class="tip" data-tip="How recent the other chat must be for her to offer. 3 hours: the bus ride home counts, last week doesn't. /continue reaches back 7 days.">?</button> <select id="pk-within"></select></label>
+        <label>Back-and-forths carried <button type="button" class="tip" data-tip="How much of the other chat she brings along (its summary plus this many back-and-forths). More is smoother and uses more of her context.">?</button> <select id="pk-lines"></select></label>
+      </div>
+      <label class="row"><input id="pk-folder" type="checkbox"> A fresh chat takes the coding folder along <button type="button" class="tip" data-tip="When you pick up a coding chat in a fresh session, the project folder and coding mode come along. An existing session keeps its own.">?</button></label>
+      <h3>Your chats that take part <button type="button" class="tip" data-tip="Which of your own chats take part. Shared rooms, other people's chats, private and off-the-record chats never do.">?</button></h3>
+      <div id="pk-apps"></div>
+      <p class="muted small">The app is always in. In any of your chats you can type /continue.</p>
+      </div>
+        </section>
+<section class="settings-page" data-page="co-apps" data-group="Connections" data-title="Other apps" hidden>
       <p class="muted small page-lead">Talk to her from other apps, with her own memory and personality: chat apps like SillyTavern and Open WebUI (they speak the OpenAI way), and MCP apps like Claude Code, Cursor and Claude Desktop (they can use her memory, planner, library and notes). Give each app its own API key. Her safety rules and the AI notice always apply.</p>
       <h3>Her addresses <button type="button" class="tip" data-tip="Paste these into the other app. The first is for chat apps that work with OpenAI (pick the model sara). The second is for MCP apps. If you reach her another way (Tailscale, your own web address), use that address instead.">?</button></h3>
       <p class="small">For chat apps (OpenAI-compatible): <code id="oa-v1"></code> <button id="oa-v1-copy" type="button" class="ghost small">Copy</button></p>

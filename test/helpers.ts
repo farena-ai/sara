@@ -21,6 +21,7 @@ import { createPlannerTools, PlannerStore } from '../src/planner.ts';
 import { EventHub } from '../src/events.ts';
 import { InnerStore } from '../src/inner.ts';
 import { LifeStore } from '../src/life.ts';
+import { mentionToolDeps } from '../src/mentions.ts';
 
 export const ROOT = resolve(import.meta.dirname, '..');
 
@@ -112,7 +113,8 @@ export function makeApp(dir: string, clock: { now: Date }): TestApp {
   app.inner = new InnerStore(app.store.db, () => clock.now);
   app.life = new LifeStore(app.store.db);
   app.scrapbook = new Scrapbook(app.store.db);
-  for (const t of createPlannerTools({ planner: app.planner, now: () => clock.now, timeZone: () => app.settings.get().timeZone })) app.tools.add(t);
+  // Phase 119: the remind tool's "when it comes up" kind reads People and the chats through the app.
+  for (const t of createPlannerTools({ planner: app.planner, now: () => clock.now, timeZone: () => app.settings.get().timeZone, mentions: () => mentionToolDeps(app) })) app.tools.add(t);
   return app;
 }
 

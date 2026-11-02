@@ -187,6 +187,10 @@ export interface PromptContext {
   followUps?: string;
   /** The last lines of her other recent conversations (other chats, Telegram, Discord). */
   elsewhere?: string;
+  /** Phase 119 (RECALL §4.5): reminders he asked for that came up in this message. */
+  mentions?: string;
+  /** Phase 119 (RECALL §5.3): the conversation he picked up here from another of his chats. */
+  pickup?: string;
   /** Phase 51: the owner is sending short commands in a coding conversation (for "Quiet when I'm focused"). */
   focused?: boolean;
   /** Phase 51: a work conversation that isn't in coding mode (a bridge's shared work channel): work dials apply. */
@@ -335,12 +339,15 @@ Never say you tested, clicked through or looked at something in a browser, or at
   if (ctx.tools?.includes('settings_guide')) parts.push(`## Questions about this app\nWhen ${owner} asks how this app works, what one of your settings or dials does, where to find something, which model to use, how to set something up, or wants to be shown around: look it up with settings_guide first, answer briefly in your own words, and give the link it returns as a markdown link, copied exactly (e.g. [Open Relationship](/#view=settings:her-relationship)). Don't invent settings that aren't in the guide.`);
   if (ctx.coding && ctx.project?.trim()) parts.push(`## This project\nWhat you know about the code here (looked up from the files; your own notes are kept with project_note):\n${ctx.project.trim()}`);
 
+  // Phase 119 (RECALL §5.3): first among the context notes, above "lately in your other conversations".
+  if (ctx.pickup?.trim() && !ctx.partner) parts.push(ctx.pickup.trim());
   if (ctx.followUps?.trim() && !ctx.partner) parts.push(`## Ask how it went\n${ctx.followUps.trim()}`);
   if (ctx.together?.trim() && !ctx.partner) parts.push(`## Doing something together\n${ctx.together.trim()}`);
   if (ctx.elsewhere?.trim() && !ctx.partner)
     parts.push(
       `## Lately in your other conversations\nYou are one person in all of these places, so you remember them. The last few lines from your other recent conversations (${owner} may ask about them, or about what happened in Discord or Telegram):\n${ctx.elsewhere.trim()}\nBring them up only when it fits. Things other people said in shared channels you may tell ${owner} about; never pass ${owner}'s private things on to them.`,
     );
+  if (ctx.mentions?.trim() && !ctx.partner) parts.push(`## He asked you to bring this up\n${ctx.mentions.trim()}`);
   if (ctx.stayYourself?.trim()) parts.push(`## Be yourself\nYour last reply drifted from who you are (${ctx.stayYourself.trim()}). Sound like yourself again, naturally, without mentioning it.`);
   if (ctx.language?.trim()) parts.push(`## Language\n${ctx.language.trim()}`);
   if (ctx.safetyNotes?.length) parts.push(`## Important for this reply\n${list(ctx.safetyNotes)}`);
