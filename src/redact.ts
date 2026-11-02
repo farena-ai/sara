@@ -24,6 +24,8 @@ const PATTERNS: [RegExp, Replacement][] = [
   [/\bhf_[A-Za-z0-9]{30,}/g, '[REDACTED]'],
   // Phase 122 (WHATSAPP §7.1): Meta access tokens (System User and user tokens start EAA).
   [/\bEAA[A-Za-z0-9]{20,}/g, '[REDACTED]'],
+  // Phase 122 part 2 (BRIDGES4 §9.1): Matrix access tokens (Synapse `syt_…`, MAS `mct_…`/`mat_…`).
+  [/\b(?:syt|mct|mat)_[A-Za-z0-9_-]{20,}/g, '[REDACTED]'],
   [/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{20,}/g, '$1 [REDACTED]'],
   // NAME=value / "name": "value" where the name says it's secret.
   [

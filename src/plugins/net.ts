@@ -27,12 +27,19 @@
 //   in the host setting (`localhost:7891`) is the one connected to (the manifest port still decides
 //   implicit TLS or STARTTLS), and `SARA_TEST_MAIL_CA` (a PEM file) is trusted for TLS. Certificates
 //   are still checked against the host name. Every such connection is logged as a test override.
+// - Phase 122 part 2 (docs/design/BRIDGES4.md §3.1 B3): "my network" includes my tailnet. With the
+//   `onOtherMachine` switch on, a `local` endpoint may also reach Tailscale's ranges (100.64.0.0/10,
+//   fd7a:115c:a1e0::/48), but only while this computer is on a tailnet (src/tailscale.ts); otherwise
+//   they stay refused (100.64/10 is also carriers' shared address space). `tls: 'optional'` (local
+//   endpoints only): plain TCP unless the plugin asks for TLS in `net.open {tls: true}`; then the
+//   certificate is checked exactly as for `required`.
 import { readFileSync } from 'node:fs';
 import { isIP, Socket } from 'node:net';
 import { connect as tlsConnect, type TLSSocket } from 'node:tls';
 import { assertOnline, checkOutbound, onPrivateLocalChange, privateLocalOn } from '../net-guard.ts';
 import { isPrivateAddress } from '../tools/builtin.ts';
 import { realClock, type Clock } from '../bridges/sendq.ts';
+import { tailscaleStatus } from '../tailscale.ts';
 import { OTHER_MACHINE_SETTING, STARTTLS_PORTS, type ConnectEndpoint } from './manifest.ts';
 
 export const MAX_SOCKETS = 4;
@@ -67,6 +74,8 @@ export interface NetDeps {
   ehloName?: string;
   /** Tests only: allow a loopback stand-in mail server (honoured only under `node --test`). */
   testLoopback?: boolean;
+  /** B3: whether this computer is on a tailnet now (default: `tailscale status`; tests fake it). */
+  tailnet?: () => boolean;
 }
 
 /** The test-only loopback override (see the top of this file): never on by default. */
@@ -136,12 +145,40 @@ export function isHomeNetworkAddress(ip: string): boolean {
   return isIP(ip) === 6 && /^f[cd][0-9a-f]{2}:/i.test(ip);
 }
 
-/** Whether an address may be used for an endpoint (`otherMachine`: the owner's switch). */
-export function addressAllowed(ip: string, where: 'local' | 'public', otherMachine: boolean): string | undefined {
-  if (where === 'public') return isPrivateAddress(ip) ? 'it is a private or local address, and this connection may only go to a public server' : undefined;
+/** B3: Tailscale's addresses (100.64.0.0/10, the shared address space, and fd7a:115c:a1e0::/48). */
+export function isTailnetAddress(ip: string): boolean {
+  const q = v4(ip);
+  if (q) return q[0] === 100 && q[1] >= 64 && q[1] <= 127;
+  return isIP(ip) === 6 && /^fd7a:115c:a1e0:/i.test(ip);
+}
+
+/** The refusal when a tailnet address is used while this computer isn't on Tailscale (`TAILNET_OFF`). */
+export const TAILNET_OFF = "it is a Tailscale address, but this computer isn't on Tailscale (TAILNET_OFF)";
+
+/** Whether an address may be used for an endpoint (`otherMachine`: the owner's switch; `tailnet`: this computer is on one). */
+export function addressAllowed(ip: string, where: 'local' | 'public', otherMachine: boolean, tailnet = false): string | undefined {
+  if (where === 'public') return isPrivateAddress(ip) || isTailnetAddress(ip) ? 'it is a private or local address, and this connection may only go to a public server' : undefined;
   if (isLoopbackAddress(ip)) return undefined;
-  if (isHomeNetworkAddress(ip)) return otherMachine ? undefined : 'it is on your home network; switch on "runs on another machine on my network" to allow that';
+  if (isHomeNetworkAddress(ip) && !isTailnetAddress(ip)) return otherMachine ? undefined : 'it is on your home network; switch on "runs on another machine on my network" to allow that';
+  if (isTailnetAddress(ip)) {
+    if (!otherMachine) return 'it is on your Tailscale network; switch on "runs on another machine on my network" to allow that';
+    return tailnet ? undefined : TAILNET_OFF;
+  }
   return 'it is not on this computer, and this connection may only go to a program on this computer or your home network';
+}
+
+let tailnetCache: { at: number; on: boolean } | undefined;
+/** Whether this computer is on a tailnet (checked at most once a minute). */
+function onTailnet(): boolean {
+  if (tailnetCache && Date.now() - tailnetCache.at < 60_000) return tailnetCache.on;
+  let on = false;
+  try {
+    on = tailscaleStatus().running;
+  } catch {
+    on = false;
+  }
+  tailnetCache = { at: Date.now(), on };
+  return on;
 }
 
 /** The sockets of one plugin process. */
@@ -175,7 +212,7 @@ export class PluginSockets {
     throw new NetDenied(why);
   }
 
-  /** `net.open {endpoint, port?}` → `{socket, tls?}`. */
+  /** `net.open {endpoint, port?, tls?}` → `{socket, tls?}` (`tls` only for `tls: 'optional'` endpoints). */
   async open(msg: Record<string, unknown>): Promise<Record<string, unknown>> {
     const ep = this.#d.endpoints.find((e) => e.id === String(msg.endpoint ?? ''));
     if (!ep) return this.#deny(`"${String(msg.endpoint ?? '').slice(0, 30)}" isn't one of the connections in its manifest`);
@@ -210,9 +247,10 @@ export class PluginSockets {
     const addrs = isIP(addr.host) ? [addr.host] : await lookup(addr.host).catch(() => [] as string[]);
     if (!addrs.length) return this.#deny(`${addr.host} couldn't be found`);
     // Every address the name has must be allowed (a name can't mix a public and a private answer).
+    const tailnet = ep.where === 'local' && other && addrs.some(isTailnetAddress) ? (this.#d.tailnet ?? onTailnet)() : false;
     for (const ip of addrs) {
       if (ep.where === 'public' && isLoopbackAddress(ip) && loopbackMailOverride(this.#d.testLoopback)) continue;
-      const bad = addressAllowed(ip, ep.where, other);
+      const bad = addressAllowed(ip, ep.where, other, tailnet);
       if (bad) return this.#deny(`${addr.host} (${ip}): ${bad}`);
     }
     const ip = addrs[0];
@@ -226,8 +264,9 @@ export class PluginSockets {
     let greeting: string | undefined;
     try {
       const plain = await connectTcp(ip, connectPort);
-      if (ep.tls === 'required') {
-        const kind = STARTTLS_PORTS[port];
+      const wantTls = ep.tls === 'required' || (ep.tls === 'optional' && msg.tls === true);
+      if (wantTls) {
+        const kind = ep.tls === 'required' ? STARTTLS_PORTS[port] : undefined;
         if (kind) greeting = await startTls(plain, kind, this.#d.ehloName ?? 'sara.localdomain');
         sock = await upgrade(plain, addr.host, ca);
         const t = sock as TLSSocket;

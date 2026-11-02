@@ -376,12 +376,23 @@ test('setup: ten steps, each checked; the diagnoses; register forgets the PIN; T
   r.fake.errors.push({ match: /^GET \/\d+$/, code: 133010, once: true });
   assert.equal((await check('token')).diagnosis.code, 'NOT_REGISTERED');
   // ids swapped → IDS_SWAPPED
+  // A settings change restarts the plugin: wait until it answers again (a fixed pause flaked under load).
+  const running = async () => {
+    for (let i = 0; i < 200; i++) {
+      const c = await check('ids');
+      if (c.diagnosis?.code !== 'NOT_RUNNING') return;
+      await pause(100);
+    }
+    assert.fail('the plugin did not come back after its settings changed');
+  };
   await r.pm.putSettings('whatsapp', 'main', { phoneNumberId: WABA_ID, wabaId: PHONE_ID });
   await pause(300);
+  await running();
   const sw = await check('token');
   assert.equal(sw.diagnosis.code, 'IDS_SWAPPED', JSON.stringify(sw));
   await r.pm.putSettings('whatsapp', 'main', { phoneNumberId: PHONE_ID, wabaId: WABA_ID });
   await pause(300);
+  await running();
   // subscribed_apps empty → NOT_SUBSCRIBED; fix subscribe posts it.
   assert.equal((await check('subscribed')).diagnosis.code, 'NOT_SUBSCRIBED');
   assert.equal((await r.api('POST', '/api/plugins/whatsapp/fix', { companion: 'main', fix: 'subscribe' })).json.ok, true);

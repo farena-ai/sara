@@ -71,7 +71,8 @@ export interface ConnectEndpoint {
   host: string;
   ports: number[] | 'setting';
   where: 'local' | 'public';
-  tls: 'none' | 'required';
+  /** Phase 122 part 2 (BRIDGES4 B4): `optional` (local only) = plain unless the plugin asks for TLS at open. */
+  tls: 'none' | 'required' | 'optional';
 }
 /** The switch a local endpoint reads to allow the home network (RFC 1918, a Docker network). */
 export const OTHER_MACHINE_SETTING = 'onOtherMachine';
@@ -289,8 +290,8 @@ function parseConnect(v: unknown): ConnectEndpoint[] {
     const where = e.where;
     if (where !== 'local' && where !== 'public') throw new ManifestError(`connect "${id}": where must be "local" or "public".`);
     const tls = e.tls;
-    if (tls !== 'none' && tls !== 'required') throw new ManifestError(`connect "${id}": tls must be "none" or "required".`);
-    if (tls === 'none' && where !== 'local') throw new ManifestError(`connect "${id}": an unencrypted connection is only allowed to a program on this computer (where: "local").`);
+    if (tls !== 'none' && tls !== 'required' && tls !== 'optional') throw new ManifestError(`connect "${id}": tls must be "none", "required" or "optional".`);
+    if ((tls === 'none' || tls === 'optional') && where !== 'local') throw new ManifestError(`connect "${id}": an unencrypted connection is only allowed to a program on this computer (where: "local").`);
     let ports: number[] | 'setting';
     if (e.ports === 'setting') {
       if (where !== 'local') throw new ManifestError(`connect "${id}": public endpoints must list their ports.`);

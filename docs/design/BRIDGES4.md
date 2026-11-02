@@ -1041,6 +1041,28 @@ and the progress message's last edit becomes the *Done · 6 steps · 1:12* summa
 - Sara **never hosts** a homeserver or registers accounts for him (registration needs CAPTCHA and
   terms acceptance, which are his to do).
 
+
+### 6.13 As built (2.55.1)
+
+Built as designed, with these differences:
+
+- **Login:** password once and pasted tokens; the OAuth device flow (§6.2 way 2) is not built (§14 Q18
+  default). `NO_PASSWORD_LOGIN` points to *Paste a token*. A pasted token that fails `whoami` is not kept.
+- **Discovery:** a new Matrix ID sets *Her homeserver* to its server part; `.well-known` moving her is
+  applied to the setting at *Log her in* (the card shows the host) rather than asked as a separate tick.
+- **Endpoints:** `hs` (public, TLS, 443/8448) and `hs-local` (connect ids are lower-case with hyphens;
+  local, `tls: optional`: TLS on 443/8448, plain otherwise). `net.open {tls}` carries the choice.
+- **Chat ids:** Sara's ids can't hold `!`, so a room `!abc:server` is the chat `abc:server` (the plugin
+  adds the `!` back).
+- **Setup invite:** before anything is linked, step 3 makes the link code; while it waits, his invite is
+  the setup's own (`bridge.who {invite: true}` → `setup`) and she joins it.
+- **Buttons as reactions** (§6.9 approvals and the `/continue` ✅) are not built: only ⏹/❌ on the
+  progress message (= Stop) and BR2's 👀. `/btw` answers in his room are not quoted.
+- **Typing/receipts:** on in his two-person room only; the look-ups behind them don't count as skips.
+- **Pictures for the steps** (the owner's run, §12) are not in the card yet: each step shows its exact
+  path as a numbered list and a link to Element.
+- **Line texts from the plugin** (the encrypted-room line) are English.
+
 ---
 
 ## 7. The guided setup cards (the exact screens) and plain-language diagnostics

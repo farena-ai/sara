@@ -5,6 +5,20 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.55.1 (2026-11-02): Matrix (Phase 122, part 2)
+
+- **Matrix** as an optional first-party plugin (Settings → Connections → Matrix): talk to her in
+  Element or any Matrix app through a Matrix account of her own (display name "Sara (AI)"). Five
+  guided steps checked with a ✓ (make her account, log her in once (the password is never stored),
+  make a room without encryption, say hello, Test), and plain-language fixes (server not found,
+  password login off, login ended, encrypted room, rate limits, file too big…).
+- Text, photos both ways and voice notes; typing and read receipts in your own room. Only you unless
+  you allow others (whole servers too, `@family.example`); strangers' invites are declined; listed
+  partners get the AI notice and no tools. Rooms without end-to-end encryption only: in an encrypted
+  room she says why in one line and leaves. `/link 123456` (or "Sara link 123456") links you.
+- Tailscale addresses count as "my network" only when this computer is on Tailscale. Matrix tokens
+  are masked in logs and refused in ordinary settings. Guide: [docs/MATRIX.md](docs/MATRIX.md).
+
 ## 2.55.0 (2026-11-02): WhatsApp (Phase 122, part 1)
 
 - **WhatsApp** through Meta's official WhatsApp Cloud API, on a Meta account and number you own, as

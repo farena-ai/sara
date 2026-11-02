@@ -88,7 +88,8 @@ export function plugin(def = {}) {
     failed: (m) => write({ type: 'bridge.failed', ...m }),
     net: {
       open: async (endpoint, o = {}) => {
-        const r = await call('net.open', { endpoint, ...(o.port ? { port: o.port } : {}) });
+        // Phase 122 part 2: `tls` only matters for a `tls: 'optional'` endpoint (plain unless asked).
+        const r = await call('net.open', { endpoint, ...(o.port ? { port: o.port } : {}), ...(typeof o.tls === 'boolean' ? { tls: o.tls } : {}) });
         // Bytes (or a close) can arrive just before the answer to net.open: keep them.
         const s = sockets.get(r.socket) ?? { data: [], closed: null };
         Object.assign(s, { id: r.socket, tls: r.tls ?? null, greeting: r.greeting ?? null, onData: null, onClose: null, opened: true });

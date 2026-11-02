@@ -1,0 +1,180 @@
+{
+  "manifest": 1,
+  "id": "matrix",
+  "name": "Matrix",
+  "version": "1.0.0",
+  "description": "Talk to her in Element or any Matrix app through her own Matrix account.",
+  "author": "The Sara team",
+  "license": "MIT",
+  "sara": ">=2.55.1",
+  "main": "main.mjs",
+  "permissions": {
+    "bridges": [
+      "matrix"
+    ],
+    "bridgeFiles": true,
+    "settings": true,
+    "connect": [
+      {
+        "id": "hs",
+        "host": "setting:homeserver",
+        "ports": [
+          443,
+          8448
+        ],
+        "where": "public",
+        "tls": "required"
+      },
+      {
+        "id": "hs-local",
+        "host": "setting:homeserver",
+        "ports": "setting",
+        "where": "local",
+        "tls": "optional"
+      }
+    ],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    }
+  },
+  "settings": [
+    {
+      "key": "mxid",
+      "type": "text",
+      "label": "Her Matrix ID",
+      "tip": "Her own account, like @sara-frank:matrix.org. Make a separate account for her, not your own."
+    },
+    {
+      "key": "homeserver",
+      "type": "text",
+      "label": "Her homeserver",
+      "tip": "The server her account lives on. Sara finds it from her Matrix ID; change it only if your server uses a different address for apps."
+    },
+    {
+      "key": "onOtherMachine",
+      "type": "switch",
+      "label": "My homeserver runs on my network",
+      "default": false,
+      "tip": "Turn on if her account is on a Matrix server in your home or on your Tailscale network, not on the internet. Then type its address with the port, like 192.168.1.20:8008."
+    },
+    {
+      "key": "token",
+      "type": "secret",
+      "label": "Access token",
+      "tip": "Her login key, made when you pressed Log her in (her password isn't kept). Kept encrypted in Sara's vault."
+    },
+    {
+      "key": "typing",
+      "type": "switch",
+      "label": "Show typing",
+      "default": true,
+      "tip": "Shows '<her name> is typing…' in your room while she works. Only in your room with her."
+    },
+    {
+      "key": "readReceipts",
+      "type": "switch",
+      "label": "Send read receipts",
+      "default": true,
+      "tip": "Shows that she has read your message. Only in your room with her."
+    },
+    {
+      "key": "mirror",
+      "type": "switch",
+      "label": "Send reminders and messages she starts to my Matrix room too",
+      "default": false,
+      "tip": "Her reminders also come to your room with her. Never to other rooms."
+    }
+  ],
+  "i18n": {
+    "es": {
+      "Talk to her in Element or any Matrix app through her own Matrix account.": "Habla con ella en Element o cualquier app de Matrix a través de su propia cuenta de Matrix.",
+      "Her Matrix ID": "Su ID de Matrix",
+      "Her own account, like @sara-frank:matrix.org. Make a separate account for her, not your own.": "Su propia cuenta, como @sara-frank:matrix.org. Crea una cuenta aparte para ella, no la tuya.",
+      "Her homeserver": "Su servidor",
+      "The server her account lives on. Sara finds it from her Matrix ID; change it only if your server uses a different address for apps.": "El servidor donde está su cuenta. Sara lo encuentra a partir de su ID de Matrix; cámbialo solo si tu servidor usa otra dirección para las apps.",
+      "My homeserver runs on my network": "Mi servidor está en mi red",
+      "Turn on if her account is on a Matrix server in your home or on your Tailscale network, not on the internet. Then type its address with the port, like 192.168.1.20:8008.": "Actívalo si su cuenta está en un servidor de Matrix en tu casa o en tu red de Tailscale, no en internet. Luego escribe su dirección con el puerto, como 192.168.1.20:8008.",
+      "Access token": "Token de acceso",
+      "Her login key, made when you pressed Log her in (her password isn't kept). Kept encrypted in Sara's vault.": "Su clave de acceso, creada al pulsar Iniciar su sesión (su contraseña no se guarda). Se guarda cifrada en la bóveda de Sara.",
+      "Show typing": "Mostrar que escribe",
+      "Shows '<her name> is typing…' in your room while she works. Only in your room with her.": "Muestra '<su nombre> está escribiendo…' en tu sala mientras trabaja. Solo en tu sala con ella.",
+      "Send read receipts": "Enviar confirmaciones de lectura",
+      "Shows that she has read your message. Only in your room with her.": "Muestra que ha leído tu mensaje. Solo en tu sala con ella.",
+      "Send reminders and messages she starts to my Matrix room too": "Enviar también a mi sala de Matrix los recordatorios y mensajes que ella inicia",
+      "Her reminders also come to your room with her. Never to other rooms.": "Sus recordatorios también llegan a tu sala con ella. Nunca a otras salas."
+    },
+    "fr": {
+      "Talk to her in Element or any Matrix app through her own Matrix account.": "Parlez-lui dans Element ou toute app Matrix, avec son propre compte Matrix.",
+      "Her Matrix ID": "Son identifiant Matrix",
+      "Her own account, like @sara-frank:matrix.org. Make a separate account for her, not your own.": "Son propre compte, comme @sara-frank:matrix.org. Créez-lui un compte à part, pas le vôtre.",
+      "Her homeserver": "Son serveur",
+      "The server her account lives on. Sara finds it from her Matrix ID; change it only if your server uses a different address for apps.": "Le serveur de son compte. Sara le trouve à partir de son identifiant Matrix ; changez-le seulement si votre serveur utilise une autre adresse pour les apps.",
+      "My homeserver runs on my network": "Mon serveur est sur mon réseau",
+      "Turn on if her account is on a Matrix server in your home or on your Tailscale network, not on the internet. Then type its address with the port, like 192.168.1.20:8008.": "Activez-le si son compte est sur un serveur Matrix chez vous ou sur votre réseau Tailscale, pas sur internet. Puis tapez son adresse avec le port, comme 192.168.1.20:8008.",
+      "Access token": "Jeton d'accès",
+      "Her login key, made when you pressed Log her in (her password isn't kept). Kept encrypted in Sara's vault.": "Sa clé de connexion, créée quand vous avez appuyé sur Connecter son compte (son mot de passe n'est pas gardé). Gardée chiffrée dans le coffre de Sara.",
+      "Show typing": "Montrer qu'elle écrit",
+      "Shows '<her name> is typing…' in your room while she works. Only in your room with her.": "Affiche « <son nom> est en train d'écrire… » dans votre salon pendant qu'elle travaille. Seulement dans votre salon avec elle.",
+      "Send read receipts": "Envoyer des accusés de lecture",
+      "Shows that she has read your message. Only in your room with her.": "Montre qu'elle a lu votre message. Seulement dans votre salon avec elle.",
+      "Send reminders and messages she starts to my Matrix room too": "Envoyer aussi dans mon salon Matrix les rappels et les messages qu'elle commence",
+      "Her reminders also come to your room with her. Never to other rooms.": "Ses rappels arrivent aussi dans votre salon avec elle. Jamais dans d'autres salons."
+    },
+    "de": {
+      "Talk to her in Element or any Matrix app through her own Matrix account.": "Sprich mit ihr in Element oder jeder Matrix-App über ihr eigenes Matrix-Konto.",
+      "Her Matrix ID": "Ihre Matrix-ID",
+      "Her own account, like @sara-frank:matrix.org. Make a separate account for her, not your own.": "Ihr eigenes Konto, etwa @sara-frank:matrix.org. Lege ein eigenes Konto für sie an, nicht deins.",
+      "Her homeserver": "Ihr Homeserver",
+      "The server her account lives on. Sara finds it from her Matrix ID; change it only if your server uses a different address for apps.": "Der Server, auf dem ihr Konto liegt. Sara findet ihn über ihre Matrix-ID; ändere ihn nur, wenn dein Server für Apps eine andere Adresse nutzt.",
+      "My homeserver runs on my network": "Mein Homeserver läuft in meinem Netzwerk",
+      "Turn on if her account is on a Matrix server in your home or on your Tailscale network, not on the internet. Then type its address with the port, like 192.168.1.20:8008.": "Schalte das ein, wenn ihr Konto auf einem Matrix-Server bei dir zu Hause oder in deinem Tailscale-Netz liegt, nicht im Internet. Gib dann seine Adresse mit Port ein, etwa 192.168.1.20:8008.",
+      "Access token": "Zugriffstoken",
+      "Her login key, made when you pressed Log her in (her password isn't kept). Kept encrypted in Sara's vault.": "Ihr Anmeldeschlüssel, erstellt bei Sie anmelden (ihr Passwort wird nicht gespeichert). Verschlüsselt in Saras Tresor.",
+      "Show typing": "Tippen anzeigen",
+      "Shows '<her name> is typing…' in your room while she works. Only in your room with her.": "Zeigt „<ihr Name> schreibt…“ in deinem Raum, während sie arbeitet. Nur in deinem Raum mit ihr.",
+      "Send read receipts": "Lesebestätigungen senden",
+      "Shows that she has read your message. Only in your room with her.": "Zeigt, dass sie deine Nachricht gelesen hat. Nur in deinem Raum mit ihr.",
+      "Send reminders and messages she starts to my Matrix room too": "Erinnerungen und Nachrichten, die sie beginnt, auch in meinen Matrix-Raum senden",
+      "Her reminders also come to your room with her. Never to other rooms.": "Ihre Erinnerungen kommen auch in deinen Raum mit ihr. Nie in andere Räume."
+    },
+    "pt-BR": {
+      "Talk to her in Element or any Matrix app through her own Matrix account.": "Converse com ela no Element ou em qualquer app do Matrix pela própria conta Matrix dela.",
+      "Her Matrix ID": "ID do Matrix dela",
+      "Her own account, like @sara-frank:matrix.org. Make a separate account for her, not your own.": "A conta dela, como @sara-frank:matrix.org. Crie uma conta separada para ela, não a sua.",
+      "Her homeserver": "Servidor dela",
+      "The server her account lives on. Sara finds it from her Matrix ID; change it only if your server uses a different address for apps.": "O servidor onde fica a conta dela. A Sara o encontra pelo ID do Matrix; mude só se o seu servidor usar outro endereço para apps.",
+      "My homeserver runs on my network": "Meu servidor roda na minha rede",
+      "Turn on if her account is on a Matrix server in your home or on your Tailscale network, not on the internet. Then type its address with the port, like 192.168.1.20:8008.": "Ative se a conta dela estiver num servidor Matrix na sua casa ou na sua rede Tailscale, não na internet. Depois digite o endereço com a porta, como 192.168.1.20:8008.",
+      "Access token": "Token de acesso",
+      "Her login key, made when you pressed Log her in (her password isn't kept). Kept encrypted in Sara's vault.": "A chave de login dela, criada quando você tocou em Entrar com ela (a senha dela não é guardada). Fica criptografada no cofre da Sara.",
+      "Show typing": "Mostrar digitando",
+      "Shows '<her name> is typing…' in your room while she works. Only in your room with her.": "Mostra '<nome dela> está digitando…' na sua sala enquanto ela trabalha. Só na sua sala com ela.",
+      "Send read receipts": "Enviar confirmações de leitura",
+      "Shows that she has read your message. Only in your room with her.": "Mostra que ela leu sua mensagem. Só na sua sala com ela.",
+      "Send reminders and messages she starts to my Matrix room too": "Enviar também para minha sala do Matrix os lembretes e mensagens que ela começa",
+      "Her reminders also come to your room with her. Never to other rooms.": "Os lembretes dela também chegam à sua sala com ela. Nunca a outras salas."
+    },
+    "it": {
+      "Talk to her in Element or any Matrix app through her own Matrix account.": "Parla con lei in Element o in qualsiasi app Matrix tramite il suo account Matrix.",
+      "Her Matrix ID": "Il suo ID Matrix",
+      "Her own account, like @sara-frank:matrix.org. Make a separate account for her, not your own.": "Il suo account, come @sara-frank:matrix.org. Crea un account a parte per lei, non il tuo.",
+      "Her homeserver": "Il suo server",
+      "The server her account lives on. Sara finds it from her Matrix ID; change it only if your server uses a different address for apps.": "Il server del suo account. Sara lo trova dal suo ID Matrix; cambialo solo se il tuo server usa un altro indirizzo per le app.",
+      "My homeserver runs on my network": "Il mio server è sulla mia rete",
+      "Turn on if her account is on a Matrix server in your home or on your Tailscale network, not on the internet. Then type its address with the port, like 192.168.1.20:8008.": "Attivalo se il suo account è su un server Matrix a casa tua o sulla tua rete Tailscale, non su internet. Poi scrivi l'indirizzo con la porta, come 192.168.1.20:8008.",
+      "Access token": "Token di accesso",
+      "Her login key, made when you pressed Log her in (her password isn't kept). Kept encrypted in Sara's vault.": "La sua chiave di accesso, creata quando hai premuto Fai il suo accesso (la sua password non viene conservata). Custodita cifrata nella cassaforte di Sara.",
+      "Show typing": "Mostra che sta scrivendo",
+      "Shows '<her name> is typing…' in your room while she works. Only in your room with her.": "Mostra '<il suo nome> sta scrivendo…' nella tua stanza mentre lavora. Solo nella tua stanza con lei.",
+      "Send read receipts": "Invia conferme di lettura",
+      "Shows that she has read your message. Only in your room with her.": "Mostra che ha letto il tuo messaggio. Solo nella tua stanza con lei.",
+      "Send reminders and messages she starts to my Matrix room too": "Invia anche nella mia stanza Matrix i promemoria e i messaggi che inizia lei",
+      "Her reminders also come to your room with her. Never to other rooms.": "I suoi promemoria arrivano anche nella tua stanza con lei. Mai in altre stanze."
+    }
+  }
+}

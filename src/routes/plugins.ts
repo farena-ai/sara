@@ -28,6 +28,8 @@
 //   POST   /api/plugins/:id/leave                { companion, chat } (*Leave this group*)
 // Phase 122 (WHATSAPP §6.2): GET /api/plugins/whatsapp/setup and POST …/{terms,webhook,door-url,check,fix,
 //   register,send-test,unmute} (src/plugins/whatsapp-setup.ts); removing a plugin removes its bridge hook.
+// Phase 122 part 2 (BRIDGES4 §8.2): GET /api/plugins/matrix/setup and POST …/{terms,login,token,check,fix}
+//   (src/plugins/matrix-setup.ts); her password is passed once to the plugin and never stored or logged.
 //   POST   /api/plugins/:id/check-sender         { companion } → waits ≤ 10 min for his next mail: { got, from, headers };
 //                                                { companion, use } → that provider id counts (email)
 import { readFileSync } from 'node:fs';
@@ -39,6 +41,7 @@ import { ManifestError } from '../plugins/manifest.ts';
 import { PLUGIN_LIMITS } from '../plugins/manager.ts';
 import { checkServerFolder } from '../skill-store.ts';
 import { hookBase, runCheck, setupState, WA } from '../plugins/whatsapp-setup.ts';
+import * as matrix from '../plugins/matrix-setup.ts';
 import { bridgeWindowOpen } from '../plugins/bridge-db.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
@@ -166,6 +169,34 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
       if (c === 'unmute') {
         pm.unmute(WA, co, String(body.who ?? ''));
         return send(res, 200, { ok: true });
+      }
+    }
+
+    // Phase 122 part 2: the Matrix setup card (works before the plugin is installed: the terms box).
+    const MX_ROUTES = ['setup', 'terms', 'login', 'token', 'check', 'fix'];
+    if (b === matrix.MX && c && MX_ROUTES.includes(c) && !d) {
+      const q = new URL(req.url ?? '/', 'http://x').searchParams;
+      if (c === 'setup' && method === 'GET') return send(res, 200, await matrix.setupState(app, pm, companion(q.get('companion'))));
+      if (method !== 'POST') throw new HttpError(405, 'Method not allowed');
+      const body = await readJson(req);
+      const co = companion(body.companion);
+      const installed = Boolean(pm.store.get(matrix.MX));
+      if (c === 'terms') {
+        if (installed) pm.store.kvSet(matrix.MX, co, '__terms', app.now().toISOString());
+        return send(res, 200, { ok: true });
+      }
+      if (!installed) throw new HttpError(400, 'Add Matrix first.');
+      try {
+        if (c === 'login') return send(res, 200, await matrix.login(app, pm, co, body.mxid, body.password));
+        if (c === 'token') {
+          const token = String(body.token ?? '').trim();
+          if (!/^[\x21-\x7e]{8,1000}$/.test(token)) throw new HttpError(400, 'Paste the whole access token.');
+          return send(res, 200, await matrix.useToken(app, pm, co, String(body.mxid ?? '').trim(), token));
+        }
+        if (c === 'check') return send(res, 200, await matrix.runCheck(app, pm, co, String(body.step ?? '')));
+        return send(res, 200, await matrix.runFix(app, pm, co, String(body.fix ?? ''), body.room));
+      } catch (err) {
+        return asHttp(err);
       }
     }
 

@@ -234,11 +234,24 @@ export function pickAuth(raw: unknown, learned?: string): AuthReading | undefine
  * Who "other people" means (BRIDGES3 §3.3): addresses, ids and `@domains`. Empty = anyone, except
  * on a bridge with sender checks (email), where empty = nobody (§12 Q7).
  */
+/**
+ * Phase 117 (P4) + Phase 122 part 2: a link line, "/link 123456" or "link 123456", or her name first
+ * ("Sara link 123456", "Sara, link 123456") where an app eats unknown slash commands (Element).
+ */
+export function linkLine(text: string, herName: string): RegExpExecArray | null {
+  const t = text.trim();
+  const plain = /^\/?link\s+(\d{6})$/i.exec(t);
+  if (plain || !herName) return plain;
+  const name = herName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`^@?${name}[,:]?\\s+\\/?link\\s+(\\d{6})$`, 'i').exec(t);
+}
+
 export function allowListed(cfg: BridgeSettings | undefined, id: string | undefined, chatId: string, checked: boolean): boolean {
   const list = cfg?.allow ?? [];
   if (!list.length) return !checked;
   const k = (id ?? chatId).toLowerCase();
-  return list.some((x) => x === k || x === chatId.toLowerCase() || (x.startsWith('@') && (k.endsWith(x) || k.endsWith(`.${x.slice(1)}`))));
+  // Phase 122 part 2: `@server.name` also matches every Matrix ID on that server (`@alex:server.name`).
+  return list.some((x) => x === k || x === chatId.toLowerCase() || (x.startsWith('@') && (k.endsWith(x) || k.endsWith(`.${x.slice(1)}`) || (!x.includes(':') && k.startsWith('@') && k.endsWith(`:${x.slice(1)}`)))));
 }
 
 /** A mail thread from the plugin: `{id, subject?}` (the root Message-ID, ≤ 300; the subject ≤ 200). */
@@ -353,6 +366,8 @@ export interface ManagerOptions {
    * under `node --test` (src/plugins/net.ts `loopbackMailOverride`); never on in the app.
    */
   netTestLoopback?: boolean;
+  /** Phase 122 part 2 (B3), tests: whether this computer is on a tailnet (default: `tailscale status`). */
+  netTailnet?: () => boolean;
 }
 
 /** Phase 117 (P3): plugins that come with Sara live in plugins/ at the top of the repo and of every package. */
@@ -817,6 +832,7 @@ export class PluginManager {
         ...(this.opts.netCa ? { ca: this.opts.netCa } : {}),
         ...(this.opts.clock ? { clock: this.opts.clock } : {}),
         ...(this.opts.netTestLoopback ? { testLoopback: true } : {}),
+        ...(this.opts.netTailnet ? { tailnet: this.opts.netTailnet } : {}),
       });
     }
     a.procs.set(row.id, run);
@@ -1285,7 +1301,7 @@ export class PluginManager {
     if (feats?.window && sentAt && !group) bridgeDbModule.noteWindow(store.db, channel, chatId, sentAt, feats.window);
     const age = sentAt ? this.#now().getTime() - Date.parse(sentAt) : 0;
     // Phase 117 (P4): a link code, before the pairing check (the chat isn't his yet).
-    const link = /^\/?link\s+(\d{6})$/i.exec(text);
+    const link = linkLine(text, a.app.persona.name);
     if (link && !fileIds.length) {
       const r = this.#tryLink(a, run, { bridge, chatId, fromId, code: link[1], group, identity: msg.identity, auth });
       if (r) {
@@ -1802,7 +1818,17 @@ export class PluginManager {
     }
     const subject = String(msg.subject ?? msg.text ?? '').trim();
     const link = this.#links.get(key);
-    if (link && link.expires > Date.now() && /^\/?link\s+\d{6}$/i.test(subject)) return { who: 'link' };
+    if (link && link.expires > Date.now() && linkLine(subject, a.app.persona.name)) return { who: 'link' };
+    // Phase 122 part 2 (BRIDGES4 §6.3, §7.3): an invite to a room (Matrix). His invites are joined; while
+    // nobody is linked yet and he has a link code waiting (the setup card's step 3), the invite is the
+    // setup's own and is joined too; a listed partner's only with *Let other people talk to her*.
+    if (msg.invite === true) {
+      if (isOwner) return { who: 'owner' };
+      if (link && link.expires > Date.now() && !(cfg?.ownerIds ?? []).length) return { who: 'setup' };
+      if (cfg?.others === true && allowListed(cfg, fromId, chatId, false)) return { who: 'partner' };
+      this.#skip(a, run, channel, 'stranger-invite', fromId);
+      return { who: 'none', reason: 'stranger-invite' };
+    }
     const auth = pickAuth(msg.auth, cfg?.authserv);
     if (isOwner) {
       if (auth && auth.result !== 'aligned') {
@@ -1819,7 +1845,8 @@ export class PluginManager {
       }
       return { who: 'partner' };
     }
-    this.#skip(a, run, channel, 'stranger', fromId);
+    // `quiet`: a look-up for a read receipt or typing (Matrix), not a message: nothing is counted.
+    if (msg.quiet !== true) this.#skip(a, run, channel, 'stranger', fromId);
     return { who: 'none', reason: 'stranger' };
   }
 
@@ -1985,13 +2012,18 @@ export class PluginManager {
   }
 
   /** Phase 122 (W6): one setup step's check or fix, run by the plugin (read-only Graph calls, except the fixes). */
-  async bridgeCheck(pluginId: string, companionId: string, body: Record<string, unknown>, ms = 20_000): Promise<Record<string, unknown>> {
+  async bridgeCheck(pluginId: string, companionId: string, body: Record<string, unknown>, ms = 20_000, o: { secret?: string } = {}): Promise<Record<string, unknown>> {
     const run = this.#attached.get(companionId)?.procs.get(pluginId);
     if (!run || run.proc.state !== 'ready') return { ok: false, diagnosis: { code: 'NOT_RUNNING' } };
     const r = await run.proc.request('bridge.check', body, ms);
     if (!r || r.type === 'error') return { ok: false, diagnosis: { code: 'UNKNOWN', detail: r ? cut(this.opts.scrub(String(r.error ?? '')), 300) : 'no answer in time' } };
     const { v: _v, id: _id, type: _t, ...rest } = r as Record<string, unknown>;
-    return JSON.parse(this.opts.scrub(JSON.stringify(rest))) as Record<string, unknown>;
+    // Phase 122 part 2: one named field (Matrix's new access token, on its way to the vault) is kept
+    // as it is; everything else is scrubbed as before.
+    const kept = o.secret && typeof rest[o.secret] === 'string' ? (rest[o.secret] as string) : undefined;
+    if (o.secret) delete rest[o.secret];
+    const out = JSON.parse(this.opts.scrub(JSON.stringify(rest))) as Record<string, unknown>;
+    return kept !== undefined ? { ...out, [o.secret!]: kept } : out;
   }
 
   /** Phase 122: the reply window of the owner's chat (the card and the session panel). */

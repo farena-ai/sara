@@ -901,6 +901,36 @@
    ]
   }
  ],
+ "co-matrix": [
+  {
+   "id": "connect",
+   "q": "How do I talk to her on Matrix?",
+   "steps": [
+    "Tick the box about Matrix and press Start.",
+    "Make her a Matrix account, then log her in to Sara with it.",
+    "Make a room without encryption in Element, invite her and send the code from Link my Matrix."
+   ],
+   "show": "#mx-chip"
+  },
+  {
+   "id": "encrypted",
+   "q": "Why doesn't she answer in my Matrix room?",
+   "steps": [
+    "She can't read encrypted rooms, and Element encrypts new rooms and direct messages by default.",
+    "Make a new room with Enable end-to-end encryption switched off and invite her.",
+    "Rooms she can't read are listed on the Matrix card."
+   ],
+   "show": "#mx-box"
+  },
+  {
+   "id": "slash",
+   "q": "Element says Unknown command when I type /new. What now?",
+   "steps": [
+    "Press Send as message: she gets it as a command.",
+    "Or put her name first: Sara new, Sara help."
+   ]
+  }
+ ],
  "co-apps": [
   {
    "id": "editor",

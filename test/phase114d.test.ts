@@ -65,7 +65,7 @@ test('PL1d: the guide index needs no new translations (titles and questions are 
   for (const m of index.matchAll(/<(h3|h4|summary|li)\b[^>]*>([^<]*)<\/\1>/g)) keys.add(m[2].replace(/&amp;/g, '&'));
   for (const lang of ['es', 'fr', 'de', 'it', 'pt-BR']) {
     const dict = JSON.parse(read(`web/i18n/${lang}.json`)) as Record<string, string>;
-    const missing = [...keys].filter((k) => !dict[k] && !['Chat', 'GitHub', 'Telegram', 'Discord', 'Signal', 'WhatsApp', 'Email', 'Webhooks', 'Home Assistant'].includes(k));
+    const missing = [...keys].filter((k) => !dict[k] && !['Chat', 'GitHub', 'Telegram', 'Discord', 'Signal', 'WhatsApp', 'Matrix', 'Email', 'Webhooks', 'Home Assistant'].includes(k));
     assert.deepEqual(missing.slice(0, 5), [], `${lang}: ${missing.length} index lines untranslated`);
   }
   // help-i18n.js translates the index's page titles and questions by their text.

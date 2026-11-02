@@ -16,6 +16,7 @@ import { initProjectMap, resetProjectMap } from './codemap.js';
 import { initSkills, loadSkills, skillApproval } from './skills.js';
 import { initLearning, learnCard, loadLearning } from './learned-skills.js';
 import { loadWhatsAppPage } from './whatsapp.js';
+import { loadMatrixPage } from './matrix.js';
 import { initPlugins, loadEmailPage, loadPlugins, loadSignalPage, pluginAskLine, pluginNotice, pluginResultCard, pluginStepWords } from './plugins.js';
 import { initAgents, loadAgents } from './agents.js';
 import { hookNotice, initHooks, loadHooks } from './hooks.js';
@@ -6201,6 +6202,7 @@ function startEvents() {
     if (document.querySelector('[data-page="co-signal"]:not([hidden])')) void loadSignalPage();
     if (document.querySelector('[data-page="co-email"]:not([hidden])')) void loadEmailPage();
     if (document.querySelector('[data-page="co-whatsapp"]:not([hidden])')) void loadWhatsAppPage();
+    if (document.querySelector('[data-page="co-matrix"]:not([hidden])')) void loadMatrixPage();
   });
   // Phase 102: a webhook got a delivery or changed: the Webhooks page refreshes.
   es.addEventListener('hooks', () => {
@@ -7618,7 +7620,7 @@ const SETTINGS_ORDER = [
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
   'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
   'ab-projects', 'ab-precise', 'ab-budgets', 'ab-persist', 'ab-when', 'ab-github', 'ab-ssh', 'ab-recipes',
-  'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-pickup', 'co-apps', 'co-agents', 'co-hooks',
+  'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-pickup', 'co-apps', 'co-agents', 'co-hooks',
   'dh-safety', 'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
   'household', 'account',
 ];
@@ -7768,6 +7770,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'co-signal') void loadSignalPage();
   if (pick === 'co-email') void loadEmailPage();
   if (pick === 'co-whatsapp') void loadWhatsAppPage();
+  if (pick === 'co-matrix') void loadMatrixPage();
   if (pick === 'ab-budgets') void loadBudgets();
   if (pick === 'ab-persist') void loadPersistSettings();
   if (pick === 'ab-precise') void loadPreciseSettings();

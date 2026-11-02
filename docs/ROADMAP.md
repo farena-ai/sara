@@ -128,7 +128,7 @@ version's details are in the [changelog](../CHANGELOG.md).
 
 ## Coming next
 
-In build order; one release per phase. The computer use track is complete (2.20–2.28); the agent staples are complete (2.29–2.36); moving in from other agents is complete (2.37–2.39); chats and sessions are complete (2.40–2.43); Today, rethought, is out (2.44–2.45); reporting a problem from inside Sara (2.46) and the polish pass (2.47) are out; chat apps caught up (2.48) and you can talk to her while she works (2.49), Signal and email (2.50), keep going until it's done (2.51), "when it comes up" reminders (2.52), coding precision (2.53), routines and a safety check-up (2.54), WhatsApp (2.55); next, Matrix, iMessage and SMS.
+In build order; one release per phase. The computer use track is complete (2.20–2.28); the agent staples are complete (2.29–2.36); moving in from other agents is complete (2.37–2.39); chats and sessions are complete (2.40–2.43); Today, rethought, is out (2.44–2.45); reporting a problem from inside Sara (2.46) and the polish pass (2.47) are out; chat apps caught up (2.48) and you can talk to her while she works (2.49), Signal and email (2.50), keep going until it's done (2.51), "when it comes up" reminders (2.52), coding precision (2.53), routines and a safety check-up (2.54), WhatsApp and Matrix (2.55); next, iMessage and SMS.
 
 | Phase | Plan | Version |
 |---|---|---|

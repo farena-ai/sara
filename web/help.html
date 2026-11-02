@@ -285,6 +285,10 @@
 <details class="howto-q" id="howto-co-whatsapp-connect"><summary>How do I text her on WhatsApp?</summary><ol><li>Tick the box about Meta's rules and press Start.</li><li>Follow the ten steps: each turns ✓ when Sara has checked it.</li><li>Press Link my WhatsApp and send her the code from your phone.</li></ol></details>
 <details class="howto-q" id="howto-co-whatsapp-window"><summary>Why didn't her reminder come to WhatsApp?</summary><ol><li>Meta only lets her write first within 24 hours of your last message.</li><li>Write to her on WhatsApp to open the window again.</li><li>Until then her messages stay in the app.</li></ol></details>
 <details class="howto-q" id="howto-co-whatsapp-stuck"><summary>A step stays red. What now?</summary><ol><li>Read the line under the step: it says what to fix.</li><li>Press This screen looks different if Meta's page doesn't match.</li><li>Press Test to see the first step that fails.</li></ol></details>
+<h4 id="howto-co-matrix">Matrix</h4>
+<details class="howto-q" id="howto-co-matrix-connect"><summary>How do I talk to her on Matrix?</summary><ol><li>Tick the box about Matrix and press Start.</li><li>Make her a Matrix account, then log her in to Sara with it.</li><li>Make a room without encryption in Element, invite her and send the code from Link my Matrix.</li></ol></details>
+<details class="howto-q" id="howto-co-matrix-encrypted"><summary>Why doesn't she answer in my Matrix room?</summary><ol><li>She can't read encrypted rooms, and Element encrypts new rooms and direct messages by default.</li><li>Make a new room with Enable end-to-end encryption switched off and invite her.</li><li>Rooms she can't read are listed on the Matrix card.</li></ol></details>
+<details class="howto-q" id="howto-co-matrix-slash"><summary>Element says Unknown command when I type /new. What now?</summary><ol><li>Press Send as message: she gets it as a command.</li><li>Or put her name first: Sara new, Sara help.</li></ol></details>
 <h4 id="howto-co-apps">Other apps</h4>
 <details class="howto-q" id="howto-co-apps-editor"><summary>How do I use her from my editor?</summary><ol><li>Press Create an API key for another app.</li><li>Copy her address and the key into your editor or tool.</li><li>Pick Sara as the model there.</li></ol></details>
 <details class="howto-q" id="howto-co-apps-alexa"><summary>How do I talk to her through Alexa?</summary><ol><li>Follow Talk to her through Alexa.</li><li>Press Make a link code and say it to Alexa.</li></ol></details>
@@ -462,6 +466,25 @@
   <li><strong>The public address:</strong> <em>Open the public door</em> uses Tailscale Funnel for <code>/hook/</code> only; the app itself stays private. A tunnel or your own domain works too.</li>
   <li><strong>The 24-hour window:</strong> chats you start are free. She can only write first within 24 hours of your last message; otherwise her message stays in the app until you write to her.</li>
   <li><strong>While she works:</strong> typing, and for a long job one <em>Working on it</em> line with a Stop button, then her answer. Only you can reach her unless you list other numbers; no groups or voice replies. If your WhatsApp identity changes, her tools there pause until you press <em>It's me</em>.</li>
+</ul>
+
+<h2 id="matrix">Matrix</h2>
+<ul>
+  <li><strong>What it is:</strong> talk to her in Element or any Matrix app, through a Matrix account of her own (for example <code>@sara-frank:matrix.org</code>). Matrix comes with Sara as a plugin and stays off until you add it. It's free.</li>
+  <li><strong>Not end-to-end encrypted:</strong> she can only read rooms with encryption off, so whoever runs the servers (matrix.org, or yours) can read your room with her. For private chats use Signal. In an encrypted room she says once that she can't read it, and the Matrix card lists it under <em>Rooms she can't read</em>.</li>
+  <li><strong>Set it up:</strong> <em>Settings → Connections → Matrix</em>, tick the box and press <em>Start</em>. Five steps follow, each ✓ when Sara has checked it.</li>
+</ul>
+<ol>
+  <li>Make her a Matrix account at app.element.io (a private browser window, then sign out).</li>
+  <li>Type her Matrix ID and password and press <em>Log her in</em>. The password is used once and not kept.</li>
+  <li>In Element on a computer, as yourself: <em>+ → New room</em>, switch <em>Enable end-to-end encryption</em> off, create it and invite her Matrix ID. She joins by herself.</li>
+  <li>Send <code>/link</code> and the code in that room. If Element says <em>Unknown command</em>, press <em>Send as message</em>, or type <code>Sara link</code> and the code.</li>
+  <li>Press <em>Test</em>.</li>
+</ol>
+<ul>
+  <li><strong>While she works:</strong> typing in your room, one progress message she edits as she goes (react ⏹ on it to stop her), then her answer as a new message. A message you send while she works steers her (she reacts 👀).</li>
+  <li><strong>Rooms and other people:</strong> she only joins your invites. In a room with others she answers when mentioned or replied to, never with tools for them. With <em>Let other people talk to her</em> you can list Matrix IDs or whole servers (<code>@family.example</code>). Invites from anyone else are declined.</li>
+  <li><strong>Your own homeserver:</strong> switch on <em>My homeserver runs on my network</em> and type its address with the port (also on your Tailscale network).</li>
 </ul>
 
 <h2 id="voice">Voice and calls</h2>

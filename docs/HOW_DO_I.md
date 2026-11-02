@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 144 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 147 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -730,6 +730,25 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Read the line under the step: it says what to fix.
 2. Press This screen looks different if Meta's page doesn't match.
 3. Press Test to see the first step that fails.
+
+### Matrix
+
+**How do I talk to her on Matrix?**
+
+1. Tick the box about Matrix and press Start.
+2. Make her a Matrix account, then log her in to Sara with it.
+3. Make a room without encryption in Element, invite her and send the code from Link my Matrix.
+
+**Why doesn't she answer in my Matrix room?**
+
+1. She can't read encrypted rooms, and Element encrypts new rooms and direct messages by default.
+2. Make a new room with Enable end-to-end encryption switched off and invite her.
+3. Rooms she can't read are listed on the Matrix card.
+
+**Element says Unknown command when I type /new. What now?**
+
+1. Press Send as message: she gets it as a command.
+2. Or put her name first: Sara new, Sara help.
 
 ### Other apps
 

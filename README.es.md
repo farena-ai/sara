@@ -14,7 +14,7 @@ para la web, Windows, Mac y el móvil.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1717%20passing-brightgreen" alt="1717 tests passing">
+  <img src="https://img.shields.io/badge/tests-1727%20passing-brightgreen" alt="1727 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -123,6 +123,7 @@ Guías de un minuto, grabadas en un servidor de prueba con un modelo local (en i
 
 | Versión | Qué te trae |
 |---|---|
+| **2.55.1** · Matrix | **Matrix** (Ajustes → Conexiones → Matrix, un plugin opcional): habla con ella en Element o cualquier app de Matrix con una cuenta de Matrix propia. Cinco pasos guiados, cada uno comprobado con un ✓, y soluciones sencillas para cada error. Texto, fotos y notas de voz; solo tú salvo que permitas a otros (también servidores enteros); las invitaciones de desconocidos se rechazan. Solo salas sin cifrado de extremo a extremo: en una sala cifrada explica por qué no puede leerla y se va. |
 | **2.55** · WhatsApp | **WhatsApp** (Ajustes → Conexiones → WhatsApp, un plugin opcional): escríbele con la API oficial WhatsApp Cloud de Meta en una cuenta y un número de Meta que son tuyos. Una tarjeta guiada de 10 pasos nombra las pantallas exactas de Meta, comprueba cada paso con un ✓ y convierte cada error en una frase sencilla con su solución. Fotos y archivos en los dos sentidos, puntos de escritura y una línea *Estoy en ello* con Detener en tareas largas, solo tú salvo que añadas otros números, y sus primeros mensajes solo dentro de la ventana de 24 horas de WhatsApp. Las condiciones de Meta limitan los asistentes de IA generales en WhatsApp, así que está apagado hasta que lo instales y marques que las has leído. |
 | **2.54** · Rutinas y una revisión de seguridad | **Galería de rutinas** (Planificador → Rutinas): resumen matutino, repaso semanal, recordatorios para estirarte y para dormir, salir a tiempo, vigilar el CI de un repo, nuevas incidencias, comprobar copias, ordenar el correo y alerta de precio. Cada tarjeta dice qué hace, qué necesita y cuánto cuesta, calculado en código (casi todas son gratis), muestra una vista previa sin llamar a ningún modelo y tiene un interruptor de apagado; las de pago terminan en la fecha que elijas. Las herramientas mantienen tus ajustes de aprobación. **Revisión de seguridad** (Ajustes → Datos y estado): 17 comprobaciones de solo lectura, un veredicto en palabras (*Parece seguro*, *Casi todo seguro*, *Arregla esto primero*) y arreglos de un clic que solo pueden hacerlo más seguro, cada uno diciendo si se puede deshacer. Los cambios en cómo se llega a Sara se guían, nunca con un clic. También `sara doctor --safety`. |
 | **2.53** · Precisión al programar | **Comprobaciones tras sus cambios:** cuando cambia código, Sara ejecuta el comprobador del propio proyecto (tsc, pyright o mypy, cargo check, go vet, eslint), ya instalado, nunca `npx`, nunca instala nada, y le pasa solo los errores nuevos en el mismo turno, incluidos archivos que su cambio rompió en otro sitio. Los arregla antes de responder (como mucho dos avisos) y la respuesta muestra *✓ types clean (tsc)* o lo que queda. Un OK por proyecto. **Referencias con @:** escribe `@` en el chat para `@file` (con líneas), `@folder`, `@diff`, `@branch`, `@problem` o `@url`; las etiquetas muestran lo que recibirá y su tamaño, y funciona como texto en Telegram, Discord y las demás apps. Los archivos secretos se rechazan y los chats privados nunca abren páginas web. |
@@ -407,8 +408,8 @@ prueba comprobaba. Lo que aporta hoy es la forma de trabajar (ejecuta las prueba
 antes de pasos arriesgados, muestra lo que se ejecutó), no una puntuación más alta en estos
 conjuntos. Detalles, resultados por tarea y cómo repetirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-Además, `npm run check`: una comprobación de tipos y 1732 pruebas automáticas con un modelo falso
-programado (sin red, sin GPU): 1717 pasan en Windows y las otras 8 son pruebas del aislamiento solo
+Además, `npm run check`: una comprobación de tipos y 1742 pruebas automáticas con un modelo falso
+programado (sin red, sin GPU): 1727 pasan en Windows y las otras 8 son pruebas del aislamiento solo
 para Linux, que se ejecutan en un servidor Linux.
 
 ## Cómo se compara Sara

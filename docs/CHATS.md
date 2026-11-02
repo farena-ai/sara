@@ -308,3 +308,14 @@ commands, sessions and `/link` as Signal, with these differences: Meta only lets
 within 24 hours of your last message (otherwise it stays in the app); WhatsApp can't edit messages,
 so a long job gets typing and one *Working on it* line with ⏹ Stop; only you can reach her unless
 you list other numbers; no groups or voice replies.
+
+## Matrix (2.55.1)
+
+Matrix comes with Sara as a plugin (Settings → Connections → Matrix), off until you add it: see
+[MATRIX.md](MATRIX.md). She has a Matrix account of her own and talks with you in a room **without
+end-to-end encryption** from Element or any Matrix app; in an encrypted room she says once that she
+can't read it. Her password is used once to log her in and never kept. Commands work typed or with her
+name first (`Sara new`, because Element eats unknown `/commands`); long jobs get one progress message
+she edits (react ⏹ to stop her); she joins only your invites, and in rooms with other people answers
+when mentioned. Sessions file into the *Matrix* project.
+
