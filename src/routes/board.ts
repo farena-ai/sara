@@ -337,7 +337,7 @@ export function createBoardRoutes(ctx: RouteCtx): RouteHandler {
           }
           const w = app.cardWork;
           if (!w) throw new HttpError(404, 'Card work is not available here.');
-          w.assign(ref, to, 'me');
+          w.assign(ref, to, 'me', body.checks);
           return send(res, 200, sid ? store!.card(me, sid) : withRef(board.card(id!)!));
         }
         if (c === 'work' && d === 'stop') {

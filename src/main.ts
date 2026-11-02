@@ -48,6 +48,8 @@ import { createReviewTools } from './codereview.ts';
 import { createIssueTool, IssueWatcher } from './issues.ts';
 import { createPlannerTools, PlannerStore, type Reminder } from './planner.ts';
 import { fileChannelChats } from './bridges/rooms.ts';
+import { Goals } from './goals.ts';
+import { Loops } from './loops.ts';
 import { ReminderScheduler } from './reminders.ts';
 import { CompanionHub, EventHub } from './events.ts';
 import { InnerStore } from './inner.ts';
@@ -747,6 +749,15 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.agenda = new Agenda(app, store.db);
     for (const t of createAgendaTools(() => app)) tools.add(t);
   }
+  // Phase 118 (PERSIST): chat goals and repeats, the owner's companions only (members get neither);
+  // what was running before the restart comes back paused, one line each, nothing starts by itself.
+  if (!isDemo && !isMember) {
+    app.goals = new Goals(app, store.db);
+    app.loops = new Loops(app, store.db);
+    const g = app.goals.startupSweep();
+    const l = app.loops.startupSweep();
+    if (g || l) console.log(`Keep going and repeats: ${g} goal(s) and ${l} repeat(s) from before the restart are paused.`);
+  }
   // The health history is the server's (the owner's); notifications are per space (each person's devices).
   if (!isMember) {
     healthHistory ??= new HealthHistory(store.db, { problems: () => log.problems, dataDir });
@@ -1208,6 +1219,11 @@ const mediaTimer = setInterval(() => {
   // Phase 116: finished steers and queued messages go after 7 days (every companion; members' spaces too).
   guard('pending', () => {
     for (const sp of [ownerSpace, ...memberSpaces.values()]) for (const c of sp.companions.all()) c.app.pending?.prune();
+    // Phase 118: final goals after 90 days, ended repeats after 30.
+    for (const c of ownerSpace.companions.all()) {
+      c.app.goals?.prune();
+      c.app.loops?.prune();
+    }
   });
 }, 3600_000);
 mediaTimer.unref();

@@ -238,6 +238,9 @@
 <h4 id="howto-ab-budgets">Budgets</h4>
 <details class="howto-q" id="howto-ab-budgets-set"><summary>How do I limit what a coding reply may use?</summary><ol><li>Under Coding chats, set Tokens, Steps or a Spending limit.</li><li>She stops and asks when a reply reaches it.</li></ol></details>
 <details class="howto-q" id="howto-ab-budgets-near"><summary>What happens near the limit?</summary><ol><li>Choose under Near the limit whether she asks or stops.</li><li>Usage and costs shows what was used.</li></ol></details>
+<h4 id="howto-ab-persist">Keep going and repeats</h4>
+<details class="howto-q" id="howto-ab-persist-goal"><summary>How do I make her keep going until the tests pass?</summary><ol><li>In the chat, press + and pick Keep going until it’s done….</li><li>Under Done when, pick the check (the project’s tests are offered first).</li><li>Press Start. She works in rounds; Sara runs the check after each one.</li></ol></details>
+<details class="howto-q" id="howto-ab-persist-repeat"><summary>How do I have her check something every few minutes?</summary><ol><li>In the chat, press + and pick Repeat this… (or type /loop every 10m: what to check).</li><li>Pick how often and until when, then press Start.</li><li>She only tells you when something changes; Planner → Repeats lists them all.</li></ol></details>
 <h4 id="howto-ab-github">GitHub</h4>
 <details class="howto-q" id="howto-ab-github-token"><summary>How do I add a GitHub token?</summary><ol><li>Make a token on GitHub (Settings → Developer settings).</li><li>Paste it in GitHub token.</li><li>Press Save.</li></ol></details>
 <details class="howto-q" id="howto-ab-github-issues"><summary>How do I turn issues into tasks?</summary><ol><li>Under Issues become tasks, set a label.</li><li>Press Look now to fetch them.</li></ol></details>
@@ -869,6 +872,14 @@
   <li>A budget never skips a safety check or an approval: tools that ask first still ask, and her summary is checked like any reply. Background jobs and team tasks keep their own budgets (above).</li>
 </ul>
 
+<h2 id="persist">Keep going until it's done, and repeats</h2>
+<ul>
+  <li><strong>Keep going until it's done:</strong> in a chat, press <em>+ → Keep going until it’s done…</em> (or type <code>/goal make the tests pass</code>). Pick what has to pass under <em>Done when</em>: the project's tests, its build or lint, a command you type, a reviewer model, or <em>I'll say</em>. Press <em>Start</em>.</li>
+  <li>She works in rounds. After each round <strong>Sara runs the check</strong>, not she; if it fails, the next round gets the real failure. It ends <strong>done</strong> (the check's output is the proof), <strong>done, review it</strong> (green, but she changed test files: look first), <strong>stuck</strong> (the same failure again, or a round that changed nothing) or <strong>paused</strong> at a cap. Her own words never end a goal.</li>
+  <li>Each round is one ordinary reply inside your usual budget. A round that reaches its budget pauses the goal on that reply's <em>Continue with more</em>.</li>
+  <li><strong>Repeats:</strong> <em>+ → Repeat this…</em> or <code>/loop every 10m for 2h: check the deploy and tell me if it's red</code>. She checks on a timer, stays quiet while nothing changes, and tells you when it does. Every repeat has an end time, a cap on checks and a daily budget; quiet hours skip checks; anything that needs your OK pauses it.</li>
+  <li>Planner → <em>Repeats</em> lists them all; <em>Settings → Abilities → Keep going and repeats</em> holds the limits. After a restart goals and repeats come back paused. Full guide: <code>docs/GOALS.md</code>.</li>
+</ul>
 <h2 id="sandbox">Commands tried in a sandbox first</h2>
 <ul>
   <li>In coding conversations (and for her team's helpers), a command that could change your project first runs in a <strong>throwaway copy</strong> of the workspace. Read-only commands such as <code>ls</code>, <code>cat</code> or <code>git status</code> pass straight through; commands that write, install, delete, use the network or run a script are tried first.</li>

@@ -56,6 +56,7 @@ import { createSkillRoutes } from './routes/skills.ts';
 import { createPluginRoutes } from './routes/plugins.ts';
 import { createAgentRoutes } from './routes/agents.ts';
 import { createHookRoutes } from './routes/hooks.ts';
+import { createPersistRoutes } from './routes/persist.ts';
 import { createAgendaRoutes } from './routes/agenda.ts';
 import { createPlannerRoutes } from './routes/planner.ts';
 import { createBoardRoutes, DEMO_CARD_ACTIONS } from './routes/board.ts';
@@ -456,7 +457,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   for (const [cx, p] of [[app, pendingFor(app)], [offApp, offPending]] as const) {
     p.externalBusy = (id) => active.has(id) && ctxOf(id) === cx;
     if (cx === app) p.publish ??= (ev) => app.events?.publish(ev);
-    p.defaultRunner = (convId) => (item) => runBackground(convId, item.content, { ...(item.meta.images?.length ? { images: item.meta.images } : {}), ...(Array.isArray(item.meta.docs) && item.meta.docs.length ? { docs: item.meta.docs as never } : {}), pendingId: item.id });
+    // Phase 118 (PERSIST §4.9): an owner message between a goal's rounds runs as the next round.
+    p.defaultRunner = (convId) => (item) => (cx === app ? app.goals?.adopt(convId, item) : undefined)?.() ?? runBackground(convId, item.content, { ...(item.meta.images?.length ? { images: item.meta.images } : {}), ...(Array.isArray(item.meta.docs) && item.meta.docs.length ? { docs: item.meta.docs as never } : {}), pendingId: item.id });
   }
   const pendOf = (id: string) => (ctxOf(id) === app ? pendingFor(app) : offPending);
 
@@ -488,7 +490,7 @@ export function createSaraServer(opts: ServerOptions): Server {
       }
       // A long job finished while the owner may be away.
       const secs = (app.now().getTime() - Date.parse(turn.startedAt)) / 1000;
-      if (!partner && !failed && !controller.signal.aborted && secs >= 60) void app.push?.notifyOwner(trOwner('Sara finished', app.settings.get(), undefined, identityOf(app.persona)), lastText.trim() || trOwner('Done.', app.settings.get()), conversationId, `done-${conversationId}`).catch(() => {});
+      if (!partner && !failed && !controller.signal.aborted && secs >= 60 && !opts.persist) void app.push?.notifyOwner(trOwner('Sara finished', app.settings.get(), undefined, identityOf(app.persona)), lastText.trim() || trOwner('Done.', app.settings.get()), conversationId, `done-${conversationId}`).catch(() => {});
       app.healthHistory?.turn(firstToken || null, failed);
     } finally {
       active.delete(conversationId);
@@ -515,6 +517,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   };
   // Planned shutdown (restart, update): stop running turns so they save what they have.
   app.stopAllTurns = async () => {
+    app.goals?.abortChecks();
     for (const t of active.values()) t.controller.abort(new Error('restart'));
     for (let i = 0; i < 40 && active.size; i++) await new Promise((r) => setTimeout(r, 50));
   };
@@ -587,7 +590,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     app.events?.publish({ type: 'message', conversationId, message: { id: msg.id, role: msg.role, content: msg.content, createdAt: msg.createdAt, meta: { ...(msg.meta ?? {}), background: true } }, reason: 'reply' });
   }
 
-  async function streamChat(req: IncomingMessage, res: ServerResponse, conversationId: string, content: string, opts: TurnOptions = {}): Promise<void> {
+  async function streamChat(req: IncomingMessage, res: ServerResponse, conversationId: string, content: string, opts: TurnOptions = {}, tap?: (ev: ChatEvent) => void): Promise<void> {
     if (active.has(conversationId)) throw new HttpError(409, me('Sara is still working on this conversation. Wait for her or press Stop.'), { errorKey: 'Sara is still working on this conversation. Wait for her or press Stop.' });
     res.writeHead(200, {
       'content-type': 'text/event-stream; charset=utf-8',
@@ -602,7 +605,10 @@ export function createSaraServer(opts: ServerOptions): Server {
     // Heartbeat keeps proxies from timing out during long tool runs.
     const heartbeat = setInterval(() => write(': ping\n\n'), 15_000);
     try {
-      await runTracked(conversationId, content, (ev) => write(`event: ${ev.type}\ndata: ${JSON.stringify(ev)}\n\n`), opts);
+      await runTracked(conversationId, content, (ev) => {
+        tap?.(ev);
+        write(`event: ${ev.type}\ndata: ${JSON.stringify(ev)}\n\n`);
+      }, opts);
     } finally {
       clearInterval(heartbeat);
       if (!res.writableEnded) res.end();
@@ -844,6 +850,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const hookRoutes = createHookRoutes(ctx);
   // Phase 103 (ST8): her own agenda (src/routes/agenda.ts).
   const agendaRoutes = createAgendaRoutes(ctx);
+  // Phase 118: keep going until it's done, and repeats (src/routes/persist.ts).
+  const persistRoutes = createPersistRoutes(ctx);
   // Phase 100: her address on the Agent Card is the one the peer used (https behind a trusted proxy).
   if (app.a2a) app.a2a.baseOf = (req) => `${isHttps(req) ? 'https' : 'http'}://${String(req.headers.host ?? 'localhost')}`;
   const plannerRoutes = createPlannerRoutes(ctx);
@@ -1199,6 +1207,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await agentRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await hookRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await agendaRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await persistRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 87: computer use: the computers, the live view, step thumbnails (src/routes/hands.ts).
     if ((await handsRoutes(req, res, method, parts)) !== NEXT) return;
 
@@ -1730,7 +1739,7 @@ export function createSaraServer(opts: ServerOptions): Server {
           const body = await readJson(req);
           const cmd = c === 'new' ? { name: 'new' as const, args: '', form: 'native' as const } : parseCommand(String(body.text ?? ''), { herName: app.persona.name, namePrefix: false });
           if (!cmd) throw new HttpError(400, 'That is not one of her commands. Send /help to see them.');
-          if (opts.member && (cmd.name === 'model' || cmd.name === 'remember')) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+          if (opts.member && (cmd.name === 'model' || cmd.name === 'remember' || cmd.name === 'goal' || cmd.name === 'loop')) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
           // An ended bridge session: the command acts on the chat's open one.
           const open = () => (conv.endedAt && conv.channelKey ? (app.store.currentChannelConversation(conv.channel, conv.channelKey, conv.partner ? 'partner' : 'owner') ?? conv) : app.store.getConversation(b));
           const adapter: BridgeAdapter = {
@@ -1856,6 +1865,14 @@ export function createSaraServer(opts: ServerOptions): Server {
           // What she learned from it stays unless the owner asks her to forget it too.
           const forgotten = new URL(req.url ?? '/', 'http://x').searchParams.get('forget') === '1' && cx.memory ? cx.memory.deleteForConversation(b) : 0;
           pendOf(b).clear(b);
+          // Phase 118: its goal stops and its repeats go with it.
+          if (cx === app) {
+            const g = app.goals?.standing(b);
+            if (g) app.goals!.stop(g.id);
+            for (const l of app.loops?.standing(b) ?? []) app.loops!.stop(l.id, 'owner', false);
+            app.goals?.forget(b);
+            app.loops?.forget(b);
+          }
           cx.store.deleteConversation(b);
           // Documents read once in it go too (kept ones stay in her library).
           cx.library?.deleteForConversation(b);
@@ -1990,6 +2007,13 @@ export function createSaraServer(opts: ServerOptions): Server {
             const stoppedAt = cx.store.messages(b).filter((m) => m.role === 'assistant' && m.id > lastUser.id).findLast((m) => (m.meta?.budget as { stage?: string } | undefined)?.stage === 'reached');
             if (!stoppedAt) throw new HttpError(400, 'The last reply didn\'t stop at its budget, so there is nothing to continue with more.');
             cx.store.updateMessageMeta(stoppedAt.id, { budget: { ...(stoppedAt.meta!.budget as object), continued: { more, at: app.now().toISOString() } } });
+            // Phase 118 (PERSIST §4.7): a goal paused at this round's budget goes on with it; the check runs after.
+            const goalOn = cx === app ? app.goals?.continuing(b) : undefined;
+            if (goalOn) {
+              await streamChat(req, res, b, lastUser.content, { resume: true, budgetMore: more, ...goalOn.opts }, goalOn.tap);
+              await goalOn.finish();
+              return;
+            }
             return streamChat(req, res, b, lastUser.content, { resume: true, budgetMore: more });
           }
           return streamChat(req, res, b, lastUser.content, { resume: true });

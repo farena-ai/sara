@@ -15,8 +15,11 @@ import { localDate } from '../memory-worker.ts';
 import type { Conversation } from '../store.ts';
 import { nextPlaceholder } from '../titles.ts';
 import { turnBudgetFor, turnBudgetSettings } from '../budget.ts';
+import { checkFromWords, goalsFor, parseGoalCommand } from '../goals.ts';
+import { fmtEvery, loopsFor, parseLoopCommand } from '../loops.ts';
+import { checkOptions, defaultChecks } from '../persist.ts';
 
-export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea' | 'progress' | 'steer' | 'queue' | 'btw';
+export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea' | 'progress' | 'steer' | 'queue' | 'btw' | 'goal' | 'loop';
 /** Where the line was written: his DM, someone else's DM, a shared room, a room where he works with her. */
 export type Place = 'owner-dm' | 'partner-dm' | 'room' | 'work-room';
 /** Who wrote it (decided by the bridge from the platform user id, never by a name). */
@@ -28,7 +31,9 @@ export const MENU_COMMANDS = ['new', 'reset', 'stop', 'status', 'help', 'model',
 // Phase 115 (BR1): /progress on|off (the live progress message in this chat), typed, owner only.
 // Phase 116 (BR2 §5.7): /steer, /queue and /btw take text (owner only; /queue also for someone in their own DM).
 export const BUSY_COMMANDS = ['steer', 'queue', 'btw'] as const;
-const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea', 'progress', ...BUSY_COMMANDS];
+// Phase 118 (PERSIST §4.10, §5.8): /goal and /loop, typed, owner only, never in someone else's chat.
+export const PERSIST_COMMANDS = ['goal', 'loop'] as const;
+const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea', 'progress', ...BUSY_COMMANDS, ...PERSIST_COMMANDS];
 export const isCommandName = (s: string): s is CommandName => (ALL as readonly string[]).includes(s);
 
 /** One line per command (menus and /help). The owner's /status says more than the one others get. */
@@ -48,6 +53,8 @@ export const DESCRIPTIONS: Record<CommandName, string> = {
   steer: en('Tell her something now: she reads it before her next step'),
   queue: en('Queue a message for when she has finished'),
   btw: en('A quick side question while she works (not saved)'),
+  goal: en('Keep going until it’s done: a goal for this chat that only a check you pick can end'),
+  loop: en('Repeat something in this chat on a timer, until a time or a condition'),
 };
 /** /status as others see it (no model, no budget). */
 export const PUBLIC_STATUS = en('How full this chat is');
@@ -292,7 +299,11 @@ export async function runCommand(c: CommandContext): Promise<CommandReply> {
     case 'reset':
       return resetCommand(c, conv);
     case 'stop': {
+      // Phase 118: /stop stops the turn and pauses the chat's goal (a loop's tick stops; the loop stays).
+      const goalWas = conv ? app.goals?.standing(conv.id) : undefined;
+      if (conv && who === 'owner') app.goals?.onStopCommand(conv.id);
       let stopped = conv ? c.adapter.stopTurn(conv.id) : false;
+      if (goalWas && (goalWas.state === 'running' || goalWas.state === 'checking')) stopped = true;
       // In a room he works in, his /stop also stops her reply to the room.
       if (place === 'work-room' && c.adapter.roomSession) {
         const room = c.adapter.roomSession();
@@ -318,6 +329,126 @@ export async function runCommand(c: CommandContext): Promise<CommandReply> {
       return takeCommand(c);
     case 'btw':
       return btwCommand(c, conv);
+    case 'goal':
+      return goalCommand(c, conv);
+    case 'loop':
+      return loopCommand(c, conv);
+  }
+}
+
+/** Phase 118 (§4.10): /goal <text> [done when …] · start · pause · resume · stop · check … · status. */
+function goalCommand(c: CommandContext, conv: Conversation | undefined): CommandReply {
+  const { app } = c;
+  const tr = (text: string, params?: Record<string, unknown>) => say(app, c.lang, text, params);
+  if (c.place === 'partner-dm' || c.place === 'room' || app.member) return { text: tr('Goals and repeats only work in your own chats with her.'), refused: true };
+  const goals = goalsFor(app);
+  const cv = conv ?? c.adapter.startSession(undefined);
+  const p = parseGoalCommand(c.cmd.args);
+  const g = goals.current(cv.id);
+  const err = (r: { status: number; error: string }) => ({ text: tr(r.error) });
+  switch (p.sub) {
+    case 'status':
+      return { text: g ? goals.statusLine(g) : tr('No goal in this chat. Say /goal and what she should keep going at.') };
+    case 'start': {
+      if (!g || g.state !== 'draft') return { text: tr('There is no goal waiting to start here.') };
+      const r = goals.start(g.id);
+      return 'error' in r ? err(r) : { text: goals.statusLine(r.goal) };
+    }
+    case 'pause':
+      return { text: g ? goals.statusLine(goals.pause(g.id) ?? g) : tr('No goal in this chat. Say /goal and what she should keep going at.') };
+    case 'resume': {
+      if (!g) return { text: tr('No goal in this chat. Say /goal and what she should keep going at.') };
+      const more = g.reason?.startsWith('cap:') ? { rounds: g.reason === 'cap:rounds' ? 2 : 0, minutes: g.reason === 'cap:minutes' ? 30 : 0, tokens: g.reason === 'cap:tokens' ? 500_000 : 0 } : {};
+      const r = goals.resume(g.id, more);
+      return 'error' in r ? err(r) : { text: goals.statusLine(r.goal) };
+    }
+    case 'stop':
+      return { text: g ? goals.statusLine(goals.stop(g.id) ?? g) : tr('No goal in this chat. Say /goal and what she should keep going at.') };
+    case 'retry': {
+      if (!g) return { text: tr('No goal in this chat. Say /goal and what she should keep going at.') };
+      const r = goals.retry(g.id);
+      return 'error' in r ? err(r) : { text: goals.statusLine(r.goal) };
+    }
+    case 'check': {
+      if (!g) return { text: tr('No goal in this chat. Say /goal and what she should keep going at.') };
+      const r = goals.setChecks(g.id, [checkFromWords(p.check)]);
+      return 'error' in r ? err(r) : { text: goals.statusLine(r.goal) };
+    }
+    case 'set': {
+      const checks = p.check ? [checkFromWords(p.check)] : defaultChecks(checkOptions(app, cv));
+      if (!checks.length) return { text: tr('Say what has to pass, like: /goal {example}', { example: 'make it green done when `npm test`' }) };
+      const r = goals.create(cv.id, { text: p.text, checks, source: c.bridge, replace: g?.state === 'draft' });
+      if ('error' in r) return err(r);
+      const x = r.goal;
+      return {
+        text: [
+          tr('🎯 Keep going until it’s done: {text}', { text: x.text }),
+          tr('Done when: {check}', { check: x.checks.map((k) => k.words).join(' + ') }),
+          tr('Up to {rounds} rounds · {minutes} min · {tokens} tokens', { rounds: x.caps.rounds, minutes: x.caps.minutes, tokens: x.caps.tokens.toLocaleString('en-US') }),
+          tr('Send /goal start to begin.'),
+        ].join('\n'),
+        conversationId: cv.id,
+      };
+    }
+  }
+}
+
+/** Phase 118 (§5.8): /loop every 10m[ for 1h | until 14:30 | 12 times][ until …]: … · start · list · pause/resume/stop [n|all]. */
+function loopCommand(c: CommandContext, conv: Conversation | undefined): CommandReply {
+  const { app } = c;
+  const tr = (text: string, params?: Record<string, unknown>) => say(app, c.lang, text, params);
+  if (c.place === 'partner-dm' || c.place === 'room' || app.member) return { text: tr('Goals and repeats only work in your own chats with her.'), refused: true };
+  const loops = loopsFor(app);
+  const cv = conv ?? c.adapter.startSession(undefined);
+  const p = parseLoopCommand(c.cmd.args);
+  const err = (r: { status: number; error: string }) => ({ text: tr(r.error) });
+  const live = loops.forConversation(cv.id).filter((l) => !['done', 'ended', 'stopped', 'draft'].includes(l.state));
+  switch (p.sub) {
+    case 'error':
+      return { text: tr(p.error) };
+    case 'list': {
+      const lines = loops.listLines(cv.id);
+      return { text: lines.length ? lines.join('\n') : tr('No repeats in this chat.') };
+    }
+    case 'start': {
+      const d = loops.forConversation(cv.id).filter((l) => l.state === 'draft').at(-1);
+      if (!d) return { text: tr('There is no repeat waiting to start here.') };
+      const r = loops.start(d.id);
+      return 'error' in r ? err(r) : { text: loops.listLines(cv.id).join('\n') };
+    }
+    case 'pause':
+    case 'resume':
+    case 'stop': {
+      const targets = p.all ? live : p.n ? live.slice(p.n - 1, p.n) : live.length === 1 ? live : [];
+      if (!targets.length) return { text: live.length ? loops.listLines(cv.id).join('\n') : tr('No repeats in this chat.') };
+      for (const l of targets) {
+        if (p.sub === 'pause') loops.pause(l.id);
+        else if (p.sub === 'stop') loops.stop(l.id);
+        else {
+          const r = loops.resume(l.id);
+          if ('error' in r) return err(r);
+        }
+      }
+      return { text: loops.listLines(cv.id).join('\n') || tr('No repeats in this chat.') };
+    }
+    case 'set': {
+      const r = loops.create(cv.id, { ...p.spec, source: c.bridge });
+      if ('error' in r) return err(r);
+      const l = r.loop;
+      const card = loops.plan(p.spec);
+      const ticks = card.ok ? card.card.ticks : l.maxTicks;
+      const quiet = card.ok ? card.card.quietHours : '';
+      return {
+        text: [
+          tr('🔁 Repeat in this chat: {prompt}', { prompt: l.prompt }),
+          tr('{every} · for {hours} h · at most {n} times', { every: fmtEvery(l.everyMin), hours: Math.round(((card.ok ? card.card.forMin : 0) / 60) * 10) / 10, n: l.maxTicks }),
+          tr('Quiet hours {hours}: no checks then. She tells you only when something changes.', { hours: quiet }),
+          tr('About {n} replies, up to {tokens} tokens each.', { n: ticks, tokens: l.tickBudget.tokens.toLocaleString('en-US') }),
+          tr('Send /loop start to begin.'),
+        ].join('\n'),
+        conversationId: cv.id,
+      };
+    }
   }
 }
 
@@ -408,6 +539,12 @@ async function resetCommand(c: CommandContext, conv: Conversation | undefined): 
   // Waiting approvals are denied first (counted), then the turn is stopped and the queue emptied.
   let denied = 0;
   for (const id of app.approvals.pendingFor(conv.id)) if (app.approvals.decide(id, false)) denied++;
+  // Phase 118: /reset stops the chat's goal and pauses its repeats.
+  let paused = 0;
+  if (c.who === 'owner') {
+    app.goals?.onResetCommand(conv.id);
+    paused = app.loops?.pauseAll(conv.id) ?? 0;
+  }
   c.adapter.stopTurn(conv.id);
   const dropped = c.adapter.clearQueue(conv.id);
   c.adapter.resetGuard?.();
@@ -417,7 +554,8 @@ async function resetCommand(c: CommandContext, conv: Conversation | undefined): 
   if (last?.role === 'user' && last.meta?.skipped !== true) app.store.updateMessageMeta(last.id, { skipped: true });
   notice(app, conv, 'reset', denied ? { denied } : {});
   const more = denied === 1 ? ` ${tr('1 request was cancelled.')}` : denied > 1 ? ` ${tr('{count} requests were cancelled.', { count: denied })}` : '';
-  return { text: `${tr("Cleared. I'm listening.")}${more}${droppedLine(app, c.lang, dropped)}` };
+  const reps = paused ? ` ${tr('{n} repeat(s) paused.', { n: paused })}` : '';
+  return { text: `${tr("Cleared. I'm listening.")}${more}${droppedLine(app, c.lang, dropped)}${reps}` };
 }
 
 /** \"12.3k\" */
@@ -453,6 +591,10 @@ async function statusCommand(c: CommandContext, conv: Conversation | undefined):
   lines.push(budget?.tokens ? tr('Budget per reply: {tokens} tokens', { tokens: k(budget.tokens) }) : tr('Budget per reply: off'));
   const job = app.settings.get().jobBudget;
   if (job?.tokens || job?.usd) lines.push(tr('Budget per job: {limit}', { limit: [job.tokens ? `${k(job.tokens)} tokens` : '', job.usd ? `$${job.usd}` : ''].filter(Boolean).join(' · ') }));
+  // Phase 118: one line for this chat's goal, one per repeat.
+  const g = conv ? app.goals?.current(conv.id) : undefined;
+  if (g && g.state !== 'draft') lines.push(app.goals!.statusLine(g));
+  if (conv && app.loops) lines.push(...app.loops.listLines(conv.id));
   return { text: lines.join('\n'), ownerOnly: true };
 }
 

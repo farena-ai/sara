@@ -67,7 +67,10 @@ export interface CardWork {
   /** The live line (the current step). */
   line?: string;
   /** Why it waits on you, and how to answer. */
-  ask?: { kind: 'approval' | 'question' | 'budget' | 'failed' | 'unproven' | 'interrupted' | 'team'; text: string; approvalId?: string; tool?: string; more?: Record<string, number> };
+  /** Phase 118 (PERSIST §4.12): the goal check this card's work must pass, and the goal driving it. */
+  checks?: string[];
+  goalId?: number;
+  ask?: { kind: 'approval' | 'question' | 'budget' | 'failed' | 'unproven' | 'interrupted' | 'team' | 'goal'; text: string; approvalId?: string; tool?: string; more?: Record<string, number> };
   /** Receipts: what really happened (tool, a short line, ok/error). Titles only on shared boards. */
   receipts?: { tool: string; summary: string; status: string }[];
   used?: { tokens: number; steps: number };

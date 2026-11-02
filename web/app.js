@@ -38,6 +38,7 @@ import { initBottomBar } from './bottom-bar.js';
 import { startsOnToday } from './start-view.js';
 import { DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNote, updatesShown, versionChanged } from './update-check.js';
 import { initHousehold, joinFromLink, loadAccount, loadHousehold, showPaused } from './household.js';
+import { initPersist, loadPersistSettings, loadRepeats, persistEvent, persistMessage, persistOpen, savePersistSettings } from './persist.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
 import { initNav, relabelNav, revealNav, setMore } from './nav.js';
 import { foldFirstRun, hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton, unfoldFirstRun } from './hub.js';
@@ -1033,6 +1034,8 @@ async function openConversation(id) {
   // Phase 116: what waits for her here (chips above the composer).
   renderPending(conv.pending ?? []);
   if (conv.pending?.length) void refreshPending();
+  // Phase 118: the goal and repeat chips (and whether the + menu offers them here).
+  void persistOpen(conv.id);
   if (conv.activity && !state.streaming) watchConversation(conv);
   void loadJobs();
   void updateConvUsage();
@@ -1762,6 +1765,9 @@ function renderMessages(messages, opts = {}) {
         const pc = previewCard(m.content);
         if (pc) els.push(pc);
       }
+    } else if (persistMessage(m)) {
+      // Phase 118: a goal round / repeat line, or a folded "no change" tick.
+      els.push(persistMessage(m));
     } else if (m.role === 'notice' && m.kind === 'job') {
       els.push(jobCard(m.content, m.meta?.status, m.meta));
       // A background Gmail change: its result card (done, Undo) rides on the job's notice.
@@ -6188,6 +6194,9 @@ function startEvents() {
   });
   // Phase 101 (ST6): people cards changed (her memory worker, another tab): the open People page follows.
   es.addEventListener('people', () => peopleEvent());
+  // Phase 118: a goal or a repeat changed (the chip, Planner → Repeats).
+  es.addEventListener('goal', (e) => persistEvent('goal', JSON.parse(e.data)));
+  es.addEventListener('loop', (e) => persistEvent('loop', JSON.parse(e.data)));
   es.addEventListener('ring', (e) => onRing(JSON.parse(e.data).ring));
   // Phase 87: her hands on a computer: live-view frames, Stop pressed there, computers coming and going.
   es.addEventListener('computer', (e) => onComputerEvent(JSON.parse(e.data)));
@@ -6498,6 +6507,7 @@ for (const t of document.querySelectorAll('#planner .tab')) {
     if (t.dataset.tab !== 'board') $('#planner').classList.remove('bd-wide');
     // Phase 103: Her plans loads when its tab opens.
     if (t.dataset.tab === 'agenda') void loadAgenda();
+    if (t.dataset.tab === 'repeats') void loadRepeats();
   });
 }
 
@@ -7553,7 +7563,7 @@ const SETTINGS_ORDER = [
   'you-about', 'you-briefing', 'you-leave-by', 'you-adult',
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
   'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
-  'ab-projects', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-recipes',
+  'ab-projects', 'ab-budgets', 'ab-persist', 'ab-github', 'ab-ssh', 'ab-recipes',
   'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-apps', 'co-agents', 'co-hooks',
   'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
   'household', 'account',
@@ -7703,6 +7713,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'co-signal') void loadSignalPage();
   if (pick === 'co-email') void loadEmailPage();
   if (pick === 'ab-budgets') void loadBudgets();
+  if (pick === 'ab-persist') void loadPersistSettings();
   if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam(), loadProjectDials()]);
   if (pick === 'ab-ssh') void loadSsh();
   if (pick === 'ab-library') void loadLibrarySettings();
@@ -7897,6 +7908,7 @@ const SETTINGS_SAVERS = {
   'dh-usage': [saveUsage],
   'dh-health': [saveRuns],
   'ab-budgets': [saveBudgets],
+  'ab-persist': [savePersistSettings],
   'ab-projects': [saveSandboxGate, saveSecPass, saveThreatModel, saveRedTeam],
 };
 const settingsChanged = new Set();
@@ -8893,6 +8905,8 @@ initSkills();
 initPlugins();
 // Phase 116: the split Send button, the waiting chips and the side question's card.
 initBusy({ api, state, append, bubble, el, canSteer: () => !state.conv?.partner, allowed: busySendAllowed, sendNow: (text) => void send(text) });
+// Phase 118: this chat's goal and repeats (web/persist.js).
+initPersist({ api, state, el, openConversation: (id) => void openConversation(id), openSettings: (page) => void openSettings(page) });
 initLearning();
 initBoard({ fmtDue: (iso) => fmtDue(iso, false), openConversation: (id) => openConversation(id), openPlanner: async (tab) => {
   if (!$('#planner').open) await openPlanner();

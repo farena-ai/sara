@@ -822,6 +822,11 @@ function fillDetail(c, fresh) {
   sel.replaceChildren(...opts);
   sel.value = c.assignee ?? '';
   sel.disabled = c.work?.state === 'running' || c.work?.state === 'queued';
+  const dw = $('#cd-done-when');
+  if (dw) {
+    dw.value = c.work?.checks?.[0] ?? '';
+    dw.disabled = sel.disabled;
+  }
   const l = c.limits ?? {};
   $('#cd-lim-minutes').value = l.minutes && [10, 30, 60, 120].includes(l.minutes) ? String(l.minutes) : '';
   $('#cd-lim-tokens').value = l.tokens && [50000, 100000, 400000, 1000000].includes(l.tokens) ? String(l.tokens) : '';
@@ -888,7 +893,9 @@ function renderWork(c) {
 
 async function assign(c, to) {
   try {
-    await api(`/tasks/${encodeURIComponent(c.ref)}/assign`, { method: 'POST', body: { assignee: to || null } });
+    // Phase 118 (PERSIST §4.12): Done when (tests, build, lint) makes her card work a goal.
+    const done = to === 'sara' ? ($('#cd-done-when')?.value ?? '') : '';
+    await api(`/tasks/${encodeURIComponent(c.ref)}/assign`, { method: 'POST', body: { assignee: to || null, ...(done ? { checks: [done] } : {}) } });
     if (to === 'sara' || to?.startsWith('helper:') || to === 'team') announce(t('She starts on {title}.', { title: c.title }));
     await loadBoard();
   } catch (err) {

@@ -189,6 +189,9 @@ export interface AppContext {
   hooks?: import('./webhooks.ts').HookManager;
   /** Phase 103 (ST8): her own agenda (goals and follow-ups; off by default). None in the demo. */
   agenda?: import('./agenda.ts').Agenda;
+  /** Phase 118 (PERSIST): this companion's chat goals and loops (owner space only; src/goals.ts, src/loops.ts). */
+  goals?: import('./goals.ts').Goals;
+  loops?: import('./loops.ts').Loops;
   /** Phase 99: shared household boards (src/shared-boards.ts) and who this space is. Never on the demo. */
   sharedBoards?: import('./shared-boards.ts').SharedBoardsAccess;
   /** Set by the server: stops the turn running in a conversation (a card's Stop). */
@@ -344,6 +347,8 @@ export type ChatEvent =
   | { type: 'steer'; messageId: number; afterStep: number; text: string; pendingId: string; images?: string[] }
   /** Phase 116 (BR2 §5.8): the loop guard refused a call (`paused`: tools are off for the rest of the turn). */
   | { type: 'loop_guard'; id: string; name: string; kind: 'loop' | 'declined'; quote: string; count: number; paused?: boolean }
+  /** Phase 118 (PERSIST §5.4): a loop tick refused a call that would ask (nobody is watching); `key` is its call key. */
+  | { type: 'unattended'; id: string; name: string; summary: string; key: string }
   | { type: 'done'; messageId: number }
   | { type: 'error'; message: string };
 
@@ -989,6 +994,33 @@ export interface TurnOptions {
   outside?: OutsidePolicy;
   /** Phase 116 (BR2 §5.3): this turn runs a queued message (its pending_inputs row gets the message id). */
   pendingId?: string;
+  /**
+   * Phase 118 (docs/design/PERSIST.md): this turn is a round of a chat goal or a tick of a loop. The
+   * app's note goes in at step 0 (never stored as his message), the run gets `{goalId, round}` /
+   * `{loopId, tick}` in its policy, the loop guard starts with `blocked` (a goal's earlier rounds),
+   * and with `unattended` every call that would ask is refused with that line instead (a loop tick:
+   * nobody is watching). The turn writes back what the guard blocked and whether he steered.
+   */
+  persist?: PersistTurn;
+}
+
+/** Phase 118: a goal round or a loop tick (src/goals.ts, src/loops.ts). */
+export interface PersistTurn {
+  kind: 'goal' | 'loop';
+  id: number;
+  n: number;
+  /** The app's note for step 0 ("[Note from the app, not from …]"). */
+  note?: string;
+  /** Calls blocked in earlier rounds (call keys and their error lines). */
+  blocked?: { key: string; quote: string }[];
+  /** Refuse anything that would ask, with this line (loop ticks). */
+  unattended?: string;
+  /** Call keys the owner allowed once ahead (*Allow once and resume*). */
+  allowOnce?: string[];
+  /** Written by the turn: what the guard has blocked now. */
+  blockedOut?: { key: string; quote: string }[];
+  /** Written by the turn: the owner steered (the cross-round guard memory is cleared). */
+  steered?: boolean;
 }
 
 /** Phase 100: the outside-request policy of a turn (STAPLES §2.1.3). */
@@ -1298,6 +1330,8 @@ export async function* runTurn(app: AppContext, conversationId: string, userText
   // Phase 78: the run recorder is made here and handed down explicitly (risk 1), never through
   // AsyncLocalStorage, so it sees every model call of the turn however the caller drives next().
   const rec = opts.recorder ?? openTurnRecorder(app, conversationId, userText);
+  // Phase 118 (PERSIST §3.2): a goal round / loop tick is a normal `turn` run with a tag in its policy.
+  if (opts.persist && rec.on) app.runs?.patchRun(rec.id, { policy: opts.persist.kind === 'goal' ? { goalId: opts.persist.id, round: opts.persist.n } : { loopId: opts.persist.id, tick: opts.persist.n } });
   // Phase 116 (BR2 §5.3): steers wait for this turn's safe points; the next queued turn starts after it.
   const pend = opts.replay || opts.recorder || opts.group ? undefined : pendingFor(app);
   pend?.turnStarted(conversationId);
@@ -1741,7 +1775,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         budget: turnBudget,
         ...(rec.on ? { spent: () => rec.totals() } : {}),
         quick: quickFor,
-        onLimit: budgetSet.onLimit,
+        // Phase 118: a loop tick has nobody to ask (PERSIST §5.7).
+        onLimit: opts.persist?.unattended ? 'wrap' : budgetSet.onLimit,
         ownerName: s.ownerName?.trim() || 'the owner',
         ...(opts.budgetMore ? { override: opts.budgetMore } : {}),
       })
@@ -1887,7 +1922,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const hooks = joinHooks([budgetHook, planHook, sandboxHook, securityHook, shipHook, recallHook, recorderHooks(app, rec), findingsHook, opts.hooks]);
   // Phase 78: what the run is made of (M9 compares runs by these).
   const memPolicy = decayPolicy(memCfg).id;
-  rec.setPolicy({ memoryPolicy: memPolicy, model: `${provider.config.id}/${model}`, tools: toolSetHash(tools.map((t) => t.spec.name)), mode: conv.mode, ...(conv.private ? { private: true } : {}) });
+  rec.setPolicy({ memoryPolicy: memPolicy, model: `${provider.config.id}/${model}`, tools: toolSetHash(tools.map((t) => t.spec.name)), mode: conv.mode, ...(conv.private ? { private: true } : {}), ...(opts.persist ? (opts.persist.kind === 'goal' ? { goalId: opts.persist.id, round: opts.persist.n } : { loopId: opts.persist.id, tick: opts.persist.n }) : {}) });
   // Phase 12: a date that's today is in her prompt now, so she won't text about it separately later.
   if (!conv.partner && app.memory && memCfg.enabled && !opts.replay) {
     const today = localDate(now.toISOString(), s.timeZone);
@@ -1949,6 +1984,12 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const replaySystem = opts.replay ? opts.replay.system + (safetyNotes.some((n) => !opts.replay!.system.includes(n)) ? `\n\n## Important for this reply\n${safetyNotes.filter((n) => !opts.replay!.system.includes(n)).map((n) => `- ${n}`).join('\n')}` : '') : '';
   // Phase 116 (BR2 §5.8): the tool-loop guard, per turn (a replay decides again from the recorded steps).
   const guard = new LoopGuard((v) => app.redactor.redactValue(v));
+  // Phase 118 (PERSIST §4.6): a goal round keeps what its earlier rounds blocked.
+  if (opts.persist?.blocked?.length) guard.seedBlocked(opts.persist.blocked);
+  const guardOut = () => {
+    if (opts.persist) opts.persist.blockedOut = guard.blockedList();
+  };
+  guardOut();
   if (opts.replay) {
     guard.seed(
       store
@@ -1996,6 +2037,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // An owner steer may have changed the situation ("I started the database, try again").
       if (it.sender !== 'person') {
         guard.clear();
+        if (opts.persist) opts.persist.steered = true;
+        guardOut();
         if (toolsBeforePause && !crisisSteer) tools = toolsBeforePause;
         toolsBeforePause = undefined;
       }
@@ -2028,7 +2071,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       library: libraryText,
       day: innerState ? app.life?.get(localDate(now.toISOString(), s.timeZone)) : undefined,
       inner: innerState ? describeInner(innerState, now, s.timeZone, s.ownerName?.trim() || 'the owner', { gapHours, daysKnown: daysKnown(store, now, s.timeZone), away: awayLine(app.persona.away), conflict: app.persona.conflict ? CONFLICT[app.persona.conflict]?.line : undefined }) : undefined,
-      agenda: !opts.outside && app.planner && tools.some((t) => t.spec.name === 'todo' || t.spec.name === 'remind') ? app.planner.agenda(now, s.timeZone) : undefined,
+      // His upcoming reminders stay out of work rooms (others read her replies there) and private/partner turns.
+      agenda: !opts.outside && !isWorkChannel(conv.channel) && !conv.partner && app.planner && tools.some((t) => t.spec.name === 'todo' || t.spec.name === 'remind') ? app.planner.agenda(now, s.timeZone) : undefined,
       // Phase 12: dates that matter to the owner (never in chats with other people) and her own threads.
       dates: !conv.partner && !opts.outside && app.memory && memCfg.enabled ? joinNotes(datesNote(app.memory, localDate(now.toISOString(), s.timeZone), undefined, appSafe), peopleGate ? undefined : birthdaysNote(app.people, localDate(now.toISOString(), s.timeZone))) : undefined,
       threads: innerState ? threadsNote(app.life) : undefined,
@@ -2109,7 +2153,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // Phase 85: recorded recall notes are not replayed: the triggers decide again (an eval's "off" stays off).
       for (const x of opts.replay.extra) if (!have.has(x) && !x.startsWith(RECALL_MARK)) messages.push(x.startsWith('[Note from the app') ? { role: 'user', content: x } : { role: 'system', content: x });
     }
-    if (opts.resume && !opts.replay && !opts.budgetMore && step === 0 && hist.messages.at(-1)?.role === 'assistant') {
+    // Phase 118: a goal round's or a loop tick's note from the app (step 0 only; never stored as his message).
+    if (opts.persist?.note && step === 0) messages.push({ role: 'user', content: opts.persist.note });
+    if (opts.resume && !opts.persist && !opts.replay && !opts.budgetMore && step === 0 && hist.messages.at(-1)?.role === 'assistant') {
       messages.push({ role: 'user', content: '[Note from the app: your last reply was cut off (stopped, an error, or a restart). Continue from exactly where it stopped. Do not repeat what you already wrote and do not apologize; just carry on.]' });
     }
     // Phase 78 seam 1: right before the model call (the recorder opens its step here).
@@ -2357,7 +2403,14 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const permission2 = peerAnswered && permission1 === 'auto' && !READ_AFTER_PEER.has(call.name) ? 'ask' : permission1;
       // Phase 117 part B (§5.10): a turn that carries someone else's forwarded text: nothing runs on its own.
       const untrustedAsk = Boolean(opts.untrusted) && permission2 === 'auto';
-      const permission = untrustedAsk ? 'ask' : permission2;
+      const permission3 = untrustedAsk ? 'ask' : permission2;
+      // Phase 118 (PERSIST §5.4): in a loop tick nobody is watching: what would ask is refused (unless allowed once ahead).
+      // The sandbox gate's card counts as an ask too (a risky command would wait for a card nobody sees).
+      const gateWouldAsk = Boolean(opts.persist?.unattended && tool && permission3 === 'auto' && app.sandboxGate && conv.mode === 'coding' && !opts.group && !conv.partner && app.sandboxGate.plan({ tool: call.name, args: call.arguments, coding: true, permission: 'auto', workspaceDir: wsDir, network: sandbox.network }));
+      const unattendedKey = opts.persist?.unattended && (permission3 === 'ask' || gateWouldAsk) && tool ? guard.keyOf(call.name, call.arguments) : undefined;
+      const allowedAhead = Boolean(unattendedKey && opts.persist?.allowOnce?.includes(unattendedKey));
+      const unattendedNo = Boolean(unattendedKey) && !allowedAhead;
+      const permission = allowedAhead ? 'auto' : permission3;
       let allowed = permission === 'auto';
       /** Phase 78: how the call got (or didn't get) to run, for the run record. */
       let approval: AfterTool['approval'] = 'refused';
@@ -2368,6 +2421,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         // Only the tools offered this turn may run (partner chats have none), whatever the model says.
         status = 'denied';
         output = `The ${call.name} tool isn't available here.`;
+      } else if (unattendedNo) {
+        status = 'denied';
+        output = opts.persist!.unattended!;
+        yield { type: 'unattended', id: call.id, name: call.name, summary, key: unattendedKey! };
       } else if (guardHit) {
         // Blocked for the rest of the turn: it never runs and no card is shown.
         status = 'denied';
@@ -2583,7 +2640,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // Scrub before it is stored, shown or sent back to the model.
       output = app.redactor.redact(output + snapshotNote);
       // Phase 116: what the guard learns from a call that really ran (never one Stop cancelled), or a no on its card.
-      if (ranTool && !signal.aborted) guard.record(call.name, call.arguments, status, output);
+      if (ranTool && !signal.aborted && guard.record(call.name, call.arguments, status, output)) guardOut();
       else if (approval === 'denied' && !tried && !signal.aborted) guard.declined(call.name, call.arguments);
       const guardRec = guardHit ? { kind: guardHit.kind, key: guardHit.key, quote: app.redactor.redact(guardHit.quote) } : undefined;
       const stored = clip(output, TOOL_RESULT_LIMIT);

@@ -5,6 +5,29 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.51.0 (2026-11-01): keep going until it's done (Phase 118)
+
+- **Fixed:** `edit_file` couldn't edit files with Windows (CRLF) line endings, because models write
+  plain line breaks; it now matches and writes in the file's own line endings.
+- **Privacy fix:** your next reminders were placed in her instructions even in a work room (a shared
+  Discord channel or Telegram group where you work with her), where others read her replies. They're
+  now left out of work rooms and partner chats.
+- **Goals on a chat** (`/goal … done when tests|build|lint|\`cmd\`|reviewer|me`, or the + menu): she
+  works round by round toward it, and **Sara runs the check you picked**, so *done* means it really
+  passed. Her own words never end a goal. A green that came only after she edited the tests ends as
+  *done, review* with the files listed. *Stuck* is decided in code (the same failure twice, a round
+  that changed nothing, the loop guard), caps are rounds, minutes, tokens and dollars (5 / 60 / 1M /
+  none by default), and Stop always wins. Checks that install, delete, change the system or use the
+  network are refused.
+- **Repeat-in-chat loops** (`/loop every 10m [for 2h] [until …]: …`): ticks on the reminder clock,
+  at least 5 minutes apart, ending after 4 hours by default (24 at most), 48 ticks, per-tick and daily
+  budgets, 3 at once. Unchanged results stay quiet; a change is one message. *until* counts only when
+  a tool really ran. Two failures in a row stop it; anything that would need your approval pauses it;
+  quiet hours skip or hold.
+- Planner → *Repeats*; the board's *Done when* check; Settings → Abilities → *Keep going and repeats*.
+  Owner only; household members get neither. Everything comes back paused after a restart. Guide:
+  [docs/GOALS.md](docs/GOALS.md).
+
 ## 2.50.0 (2026-11-01): Signal and email (Phase 117)
 
 - **Fixed:** a reply in a plugin chat app that took longer than 5 minutes was cut off and the rest

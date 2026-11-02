@@ -34,6 +34,16 @@ test('workspace: paths cannot escape, including via symlinks/junctions', (t) => 
   assert.throws(() => workspaceDir(dir, '../evil'), /Invalid workspace/);
 });
 
+test('edit_file: a CRLF file matches plain \\n text and keeps its CRLF line endings', async (t) => {
+  const { dir, cleanup } = tempDir();
+  t.after(cleanup);
+  const ctx = ctxFor(dir);
+  await writeFileTool.run({ path: 'calc.js', content: 'function add(a, b) {\r\n  return a - b;\r\n}\r\n' }, ctx);
+  await editFileTool.run({ path: 'calc.js', old_string: 'function add(a, b) {\n  return a - b;', new_string: 'function add(a, b) {\n  return a + b;' }, ctx);
+  assert.equal(readFileSync(join(ctx.workspaceDir, 'calc.js'), 'utf8'), 'function add(a, b) {\r\n  return a + b;\r\n}\r\n');
+  await assert.rejects(editFileTool.run({ path: 'calc.js', old_string: 'nope\nnope', new_string: 'x' }, ctx), /not found/);
+});
+
 test('file tools: write, read, edit, list, search', async (t) => {
   const { dir, cleanup } = tempDir();
   t.after(cleanup);

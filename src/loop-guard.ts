@@ -123,6 +123,19 @@ export class LoopGuard {
   get blockedKeys(): number {
     return this.#blocked.size;
   }
+
+  /**
+   * Phase 118 (PERSIST §3.1 P3): a goal round starts with the calls blocked in its earlier rounds
+   * still blocked (`key` is a call key from `keyOf`, `quote` the error line).
+   */
+  seedBlocked(list: { key: string; quote: string }[]): void {
+    for (const b of list) if (b.key) this.#blocked.set(b.key, { quote: b.quote, count: LOOP_REPEATS });
+  }
+
+  /** Phase 118: what is blocked now (kept on the goal row between rounds). */
+  blockedList(): { key: string; quote: string }[] {
+    return [...this.#blocked].map(([key, v]) => ({ key, quote: v.quote }));
+  }
 }
 
 /** What a blocked call gets back (status `denied`). */

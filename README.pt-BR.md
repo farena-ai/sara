@@ -14,7 +14,7 @@ em um só app para a web, Windows, Mac e celular.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1588%20passing-brightgreen" alt="1588 tests passing">
+  <img src="https://img.shields.io/badge/tests-1612%20passing-brightgreen" alt="1612 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -113,15 +113,16 @@ Guias de um minuto, gravados num servidor de teste com um modelo local (em ingl�
 
 ## Novidades
 
+- **2.51** · Continue até terminar: dê a ela um objetivo e a checagem que o prova (testes, um build, um comando ou você) e ela trabalha rodada a rodada até passar de verdade; `/loop` repete uma checagem e só fala quando algo muda.
 - **2.50** · Signal e e-mail: ela pode ter o próprio número no Signal e a própria caixa de e-mail, configurados nas Configurações com as mesmas regras do Telegram e do Discord.
 - **2.49** · Fale com ela enquanto trabalha: *Diga agora* muda o rumo no próximo passo, *Depois disso* espera a vez, `/btw` traz uma resposta rápida de lado; e ela para de repetir uma chamada que falha sem parar.
-- **2.48** · Os apps de chat se atualizam: fotos e arquivos nos dois sentidos no Telegram e no Discord (as selfies dela agora chegam) e uma mensagem de progresso ao vivo com botão Parar enquanto ela trabalha.
 
 <details>
 <summary><b>Histórico de versões</b>: o que cada versão desde a 2.4 trouxe</summary>
 
 | Versão | O que você ganha |
 |---|---|
+| **2.51** · Continue até terminar | **Objetivos com prova:** "faça os testes passarem, pronto quando `npm test` estiver verde": ela trabalha rodada a rodada dentro de limites (rodadas, minutos, tokens, dólares) e a Sara roda a sua checagem, não ela, então *pronto* quer dizer que passou de verdade. Um verde que só veio depois de mexer nos testes termina como *pronto, revisar*; a mesma falha duas vezes a pausa como *travada*. **`/loop every 10m: check the deploy`**: quieto enquanto nada muda, uma mensagem quando muda, para no *until* (com prova), depois de duas falhas, na hora de fim ou num limite diário, e nunca pede aprovação sem você. Cartões do quadro podem ter uma checagem *Pronto quando*. Depois de reiniciar, tudo volta pausado. Corrigido também: editar arquivos com fim de linha do Windows falhava. |
 | **2.50** · Signal e e-mail | **Mais dois jeitos de falar com ela, já embutidos.** *Signal* pelo signal-cli no seu computador: grupos como salas com acompanhamento, 👀 quando ela pega seu recado, uma mensagem de progresso ao vivo, arquivos nos dois sentidos e seu número de segurança fixado, então uma chave trocada pausa as ferramentas dela até você confirmar. *E-mail* na caixa dela: uma sessão por conversa, respostas na conversa, seu e-mail só conta como você se passar na verificação de remetente do seu provedor, estranhos nunca recebem resposta, e-mail encaminhado faz cada ferramenta perguntar antes, e respostas automáticas, newsletters e devoluções nunca criam um ciclo. A Sara mantém as conexões desses plugins, só para os endereços que você informou. Corrigido também: uma resposta de chat por plugin que passava de 5 minutos era cortada. |
 | **2.49** · Fale com ela enquanto trabalha | **Nada de esperar ela terminar.** Escreva enquanto ela trabalha e escolha: *Diga agora* (ela lê antes do próximo passo e muda o rumo; nunca pode aprovar nada), *Depois disso* (espera e roda como um turno próprio) ou *Só uma pergunta* (`/btw`: uma resposta rápida de lado, nada é salvo, o trabalho continua). O mesmo no Telegram e no Discord (`/queue`, `/btw`). Uma **trava de repetição** a para depois de três chamadas idênticas que falham e a faz mudar de abordagem. |
 | **2.48** · Os apps de chat se atualizam | **Fotos e arquivos nos dois sentidos no Telegram e no Discord:** mande uma foto (com legenda, em álbum ou como arquivo) ou um documento e ela lê; peça uma selfie, um gráfico ou um arquivo e ele chega (`send_file`). Fotos de outras pessoas numa sala ficam desligadas até você ligar, e aí ela só vê uma descrição. **Uma mensagem de progresso** se atualiza enquanto ela trabalha, tem um botão Parar e termina como uma linha de resumo. Pontes de plugins também levam arquivos. |
@@ -203,7 +204,7 @@ Todas as versões: [CHANGELOG.md](CHANGELOG.md) · [versões](https://github.com
 
 Na ordem de construção, uma versão cada ([a lista completa](docs/ROADMAP.md)):
 
-- **Depois** (2.51–2.61): fotos e arquivos nos apps de chat, falar com ela enquanto trabalha, Signal, e-mail, WhatsApp, iMessage (BlueBubbles) e SMS, "continue até terminar", checagens de código após cada edição, uma galeria de rotinas e **a Sara Store** para plugins, habilidades e servidores MCP (ComfyUI, Blender, Playwright…) com instalação em um clique e um jeito de enviar os seus.
+- **Depois** (2.52–2.61): fotos e arquivos nos apps de chat, falar com ela enquanto trabalha, Signal, e-mail, WhatsApp, iMessage (BlueBubbles) e SMS, "continue até terminar", checagens de código após cada edição, uma galeria de rotinas e **a Sara Store** para plugins, habilidades e servidores MCP (ComfyUI, Blender, Playwright…) com instalação em um clique e um jeito de enviar os seus.
 - O app de iPhone (aguardando a Apple) e suas ideias nas [Discussions](https://github.com/farena-ai/sara/discussions).
 
 O plano completo: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -398,8 +399,8 @@ verificava. O que ela acrescenta hoje é o jeito de trabalhar (roda os testes, p
 de passos arriscados, mostra o que foi executado), não uma nota maior nesses conjuntos. Detalhes,
 resultados por tarefa e como rodar de novo: [docs/RESULTS.md](docs/RESULTS.md).
 
-E também `npm run check`: uma checagem de tipos e 1603 testes automáticos com um modelo falso
-roteirizado (sem rede, sem GPU): 1588 passam no Windows e os outros 8 são testes de isolamento só
+E também `npm run check`: uma checagem de tipos e 1627 testes automáticos com um modelo falso
+roteirizado (sem rede, sem GPU): 1612 passam no Windows e os outros 8 são testes de isolamento só
 para Linux, executados em um servidor Linux.
 
 ## Como a Sara se compara

@@ -576,6 +576,28 @@
    ]
   }
  ],
+ "ab-persist": [
+  {
+   "id": "goal",
+   "q": "How do I make her keep going until the tests pass?",
+   "steps": [
+    "In the chat, press + and pick Keep going until it’s done….",
+    "Under Done when, pick the check (the project’s tests are offered first).",
+    "Press Start. She works in rounds; Sara runs the check after each one."
+   ],
+   "show": "#ps-g-on"
+  },
+  {
+   "id": "repeat",
+   "q": "How do I have her check something every few minutes?",
+   "steps": [
+    "In the chat, press + and pick Repeat this… (or type /loop every 10m: what to check).",
+    "Pick how often and until when, then press Start.",
+    "She only tells you when something changes; Planner → Repeats lists them all."
+   ],
+   "show": "#ps-l-on"
+  }
+ ],
  "ab-github": [
   {
    "id": "token",

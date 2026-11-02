@@ -39,6 +39,18 @@ export function proactiveSettings(app: AppContext): ProactiveSettings {
   return { ...DEFAULT_PROACTIVE, ...app.settings.get().proactive };
 }
 
+/** Phase 118 (PERSIST §3.1 P6): is `h` (a local hour) inside quiet hours start–end (wraps midnight)? */
+export function inQuiet(h: number, start: number, end: number): boolean {
+  if (start === end) return false;
+  return start > end ? h >= start || h < end : h >= start && h < end;
+}
+
+/** Phase 118 (P6): the owner's quiet hours for her messages, now, in his time zone (loops use it). */
+export function quietNow(app: AppContext, now: Date = app.now()): boolean {
+  const p = proactiveSettings(app);
+  return inQuiet(zonedParts(now, app.settings.get().timeZone).h, p.quietStart, p.quietEnd);
+}
+
 const DAY_MAX_TOKENS = 350;
 const MSG_MAX_TOKENS = 220;
 const CALL_TIMEOUT_MS = 90_000;

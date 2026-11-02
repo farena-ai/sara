@@ -14,7 +14,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1588%20passing-brightgreen" alt="1588 tests passing">
+  <img src="https://img.shields.io/badge/tests-1612%20passing-brightgreen" alt="1612 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -114,15 +114,16 @@ Einminütige Anleitungen, aufgenommen auf einem Testserver mit einem lokalen Mod
 
 ## Was ist neu
 
+- **2.51** · Weitermachen, bis es fertig ist: Gib ihr ein Ziel und die Prüfung, die es belegt (Tests, ein Build, ein Befehl oder du), und sie arbeitet Runde für Runde, bis es wirklich besteht; `/loop` wiederholt eine Prüfung und meldet sich nur, wenn sich etwas ändert.
 - **2.50** · Signal und E-Mail: Sie kann eine eigene Signal-Nummer und ein eigenes Postfach haben, eingerichtet in den Einstellungen mit denselben Regeln wie Telegram und Discord.
 - **2.49** · Mit ihr reden, während sie arbeitet: *Jetzt sagen* lenkt die Arbeit beim nächsten Schritt um, *Danach* wartet, bis es dran ist, `/btw` bringt eine kurze Antwort nebenbei; und sie wiederholt keinen Aufruf mehr, der immer wieder scheitert.
-- **2.48** · Chat-Apps holen auf: Fotos und Dateien in beide Richtungen bei Telegram und Discord (ihre Selfies kommen jetzt an) und eine Live-Fortschrittsnachricht mit Stopp-Knopf, während sie arbeitet.
 
 <details>
 <summary><b>Versionsgeschichte</b>: was jede Version seit 2.4 gebracht hat</summary>
 
 | Version | Was du bekommst |
 |---|---|
+| **2.51** · Weitermachen, bis es fertig ist | **Ziele mit Beleg:** „Bring die Tests zum Laufen, fertig wenn `npm test` grün ist“: Sie arbeitet Runde für Runde innerhalb von Grenzen (Runden, Minuten, Tokens, Dollar), und Sara führt deine Prüfung aus, nicht sie, also heißt *fertig*, dass es wirklich bestanden hat. Ein Grün, das erst nach dem Ändern der Tests kam, endet als *fertig, prüfen*; derselbe Fehler zweimal pausiert sie als *festgefahren*. **`/loop every 10m: check the deploy`**: still, solange sich nichts ändert, eine Nachricht, wenn doch, stoppt bei *until* (mit Beleg), nach zwei Fehlern, zur Endzeit oder an einer Tagesgrenze und fragt unbeaufsichtigt nie nach Freigaben. Board-Karten können eine *Fertig wenn*-Prüfung tragen. Nach einem Neustart ist alles pausiert. Außerdem behoben: Dateien mit Windows-Zeilenenden ließen sich nicht bearbeiten. |
 | **2.50** · Signal und E-Mail | **Zwei weitere Wege zu ihr, beide eingebaut.** *Signal* über signal-cli auf deinem eigenen Rechner: Gruppen als Räume mit Mitlesen, 👀 wenn sie deine Notiz annimmt, eine Live-Fortschrittsnachricht, Dateien in beide Richtungen, und deine Sicherheitsnummer ist festgehalten, sodass ein geänderter Schlüssel ihre Werkzeuge pausiert, bis du bestätigst. *E-Mail* in ihrem eigenen Postfach: eine Sitzung pro Verlauf, Antworten im Verlauf, deine Mails zählen nur als du, wenn die Absenderprüfung deines Anbieters besteht, Fremden wird nie geantwortet, weitergeleitete Mails lassen jedes Werkzeug erst fragen, und Abwesenheitsnotizen, Newsletter und Rückläufer lösen nie eine Schleife aus. Sara hält die Verbindungen für diese Plugins, nur zu den Adressen, die du eingetragen hast. Außerdem behoben: Eine Plugin-Chat-Antwort, die länger als 5 Minuten dauerte, wurde abgeschnitten. |
 | **2.49** · Mit ihr reden, während sie arbeitet | **Kein Warten mehr, bis sie fertig ist.** Schreib, während sie arbeitet, und wähle: *Jetzt sagen* (sie liest es vor ihrem nächsten Schritt und ändert den Kurs; es kann nie etwas freigeben), *Danach* (es wartet und läuft als eigene Runde) oder *Nur kurz gefragt* (`/btw`: eine kurze Antwort nebenbei, nichts wird gespeichert, die Arbeit läuft weiter). Genauso in Telegram und Discord (`/queue`, `/btw`). Eine **Schleifensperre** stoppt sie nach drei gleichen fehlgeschlagenen Aufrufen und lässt sie den Weg ändern. |
 | **2.48** · Chat-Apps holen auf | **Fotos und Dateien in beide Richtungen bei Telegram und Discord:** Schick ihr ein Foto (mit Bildunterschrift, als Album oder als Datei) oder ein Dokument, und sie liest es; bitte um ein Selfie, ein Diagramm oder eine Datei, und es kommt an (`send_file`). Bilder anderer Leute in einem Raum bleiben aus, bis du sie einschaltest, und dann sieht sie nur eine Beschreibung. **Eine Fortschrittsnachricht** aktualisiert sich, während sie arbeitet, hat einen Stopp-Knopf und endet als eine Zusammenfassungszeile. Plugin-Brücken können auch Dateien tragen. |
@@ -204,7 +205,7 @@ Alle Versionen: [CHANGELOG.md](CHANGELOG.md) · [Releases](https://github.com/fa
 
 In Bau-Reihenfolge, je ein Release ([die ganze Liste](docs/ROADMAP.md)):
 
-- **Danach** (2.51–2.61): Fotos und Dateien in Chat-Apps, mit ihr reden, während sie arbeitet, Signal, E-Mail, WhatsApp, iMessage (BlueBubbles) und SMS, „mach weiter, bis es fertig ist“, Code-Prüfungen nach Änderungen, eine Routinen-Galerie und **der Sara Store** für Plugins, Skills und MCP-Server (ComfyUI, Blender, Playwright…) mit Installation per Klick und einem Weg, eigene einzureichen.
+- **Danach** (2.52–2.61): Fotos und Dateien in Chat-Apps, mit ihr reden, während sie arbeitet, Signal, E-Mail, WhatsApp, iMessage (BlueBubbles) und SMS, „mach weiter, bis es fertig ist“, Code-Prüfungen nach Änderungen, eine Routinen-Galerie und **der Sara Store** für Plugins, Skills und MCP-Server (ComfyUI, Blender, Playwright…) mit Installation per Klick und einem Weg, eigene einzureichen.
 - Die iPhone-App (wartet auf Apple) und deine Ideen in den [Discussions](https://github.com/farena-ai/sara/discussions).
 
 Der ganze Plan: [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -401,8 +402,8 @@ wurden. Was sie heute beiträgt, ist die Arbeitsweise (sie lässt die Tests lauf
 riskanten Schritten, zeigt, was gelaufen ist), nicht ein höheres Ergebnis bei diesen Sätzen.
 Details, Ergebnisse pro Aufgabe und wie man es wiederholt: [docs/RESULTS.md](docs/RESULTS.md).
 
-Dazu `npm run check`: eine Typprüfung und 1603 automatische Tests mit einem geskripteten
-Schein-Modell (ohne Netz, ohne GPU): 1588 laufen unter Windows durch, die anderen 8 sind
+Dazu `npm run check`: eine Typprüfung und 1627 automatische Tests mit einem geskripteten
+Schein-Modell (ohne Netz, ohne GPU): 1612 laufen unter Windows durch, die anderen 8 sind
 Linux-spezifische Sandbox-Tests, die auf einem Linux-Server laufen.
 
 ## Sara im Vergleich

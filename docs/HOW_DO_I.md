@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 127 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 129 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -521,6 +521,20 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Choose under Near the limit whether she asks or stops.
 2. Usage and costs shows what was used.
+
+### Keep going and repeats
+
+**How do I make her keep going until the tests pass?**
+
+1. In the chat, press + and pick Keep going until it’s done….
+2. Under Done when, pick the check (the project’s tests are offered first).
+3. Press Start. She works in rounds; Sara runs the check after each one.
+
+**How do I have her check something every few minutes?**
+
+1. In the chat, press + and pick Repeat this… (or type /loop every 10m: what to check).
+2. Pick how often and until when, then press Start.
+3. She only tells you when something changes; Planner → Repeats lists them all.
 
 ### GitHub
 

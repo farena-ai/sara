@@ -31,6 +31,7 @@
   <link rel="stylesheet" href="/first-run.css">
   <link rel="stylesheet" href="/kit.css">
   <link rel="stylesheet" href="/busy.css">
+  <link rel="stylesheet" href="/persist.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -293,6 +294,10 @@
       <div id="together-bar" class="offrecord-bar" hidden><span id="together-now"></span> <button id="together-end" type="button" class="ghost small">End</button></div>
       <div id="attachments" class="attachments" hidden></div>
       <!-- Phase 116 (BR2 §5.5): what waits while she works (chips) and the side question's card. -->
+      <!-- Phase 118 (PERSIST §4.11, §5.9): this chat's goal and repeats (web/persist.js). -->
+      <div id="persist-strip" class="persist-strip" aria-label="This chat’s goal and repeats" hidden></div>
+      <p id="persist-live" class="ps-live" role="status" aria-live="polite"></p>
+      <div id="persist-card" class="persist-card" hidden></div>
       <div id="pending-chips" class="pending-chips" role="list" aria-label="Messages waiting for her" hidden></div>
       <div id="aside-card" class="aside-card" role="status" hidden>
         <div class="aside-head"><span aria-hidden="true">💬</span> <strong>Side question</strong> <span class="aside-note muted small">Not added to the chat</span> <button id="aside-close" type="button" class="ghost icon" aria-label="Close"><i class="ic" data-icon="close"></i></button></div>
@@ -308,6 +313,8 @@
             <button id="attach-photo" class="pop-item" type="button" role="menuitem" title="Send a photo from this device"><i class="ic" data-icon="image"></i> Photo</button>
             <button id="show-screen" class="pop-item" type="button" role="menuitem" title="Pick a window or your screen in your browser's own prompt: one picture of it is added to your message" hidden><i class="ic" data-icon="monitor"></i> Show Sara my screen</button>
             <button id="together" class="pop-item" type="button" role="menuitem" title="Do something together: games, journaling, watching along, your shared lists"><i class="ic" data-icon="dice"></i> Something together</button>
+            <button id="persist-goal" class="pop-item" type="button" role="menuitem" title="She works in rounds until a check you pick passes" hidden><i class="ic" data-icon="target"></i> Keep going until it’s done…</button>
+            <button id="persist-loop" class="pop-item" type="button" role="menuitem" title="She checks again on a timer and tells you when something changes" hidden><i class="ic" data-icon="update"></i> Repeat this…</button>
           </div>
         </div>
         <input id="attach-file" type="file" multiple hidden>
@@ -958,6 +965,7 @@
         <button type="button" class="tab" data-tab="reminders">Reminders</button>
         <button type="button" class="tab" data-tab="notes">Notes</button>
         <button type="button" class="tab" data-tab="agenda">Her plans</button>
+        <button type="button" class="tab" data-tab="repeats">Repeats</button>
       </div>
 
       <div class="tab-panel" data-panel="tasks">
@@ -1022,6 +1030,8 @@
             </div>
             <div id="cd-labels" class="cd-labels" role="group" aria-label="Labels"></div>
             <label>Who works on it <select id="cd-assignee"></select></label>
+            <!-- Phase 118 (PERSIST §4.12): a card can carry a goal check; Done then needs the check and her receipts. -->
+            <label>Done when <button type="button" class="tip" data-tip="What has to pass before the card can move to Done. Her receipts is today’s rule; with tests, build or lint she works in rounds and Sara runs the check after each one.">?</button> <select id="cd-done-when"><option value="">Her receipts</option><option value="tests">Tests pass</option><option value="build">It builds</option><option value="lint">Lint is clean</option></select></label>
             <h3>Limits <button type="button" class="tip" data-tip="How far she may go on this card on her own: minutes, tokens (about 4 characters each), steps. At a limit she sums up and waits on you with Continue. Default: the team limits.">?</button></h3>
             <div class="cd-row">
               <label>Minutes <select id="cd-lim-minutes"><option value="">Default</option><option value="10">10</option><option value="30">30</option><option value="60">60</option><option value="120">120</option></select></label>
@@ -1079,6 +1089,12 @@
       </div>
 
       <!-- Phase 103 (ST8, docs/AGENDA.md): her own plans (web/agenda.js). Off by default; everything she does on her own is listed here. -->
+      <!-- Phase 118 (PERSIST §5.9): every repeat in his chats (web/persist.js loadRepeats). -->
+      <div class="tab-panel" data-panel="repeats" hidden>
+        <p class="muted small">Repeats are yours: things you asked her to check on a timer in a chat. Her plans are hers.</p>
+        <p id="repeats-spend" class="muted small" role="status"></p>
+        <div id="repeats-list"></div>
+      </div>
       <div class="tab-panel ag-panel" id="ag-panel" data-panel="agenda" hidden>
         <section class="ag-hero" aria-labelledby="ag-title">
           <div class="ag-hero-text">
@@ -2622,6 +2638,40 @@
       <p id="bud-quick-note" class="muted small"></p>
       <label>At the limit <select id="bud-on-limit"><option value="wrap">Wrap up and tell me what's left</option><option value="ask">Ask me before going on</option></select></label>
       <p class="muted small">On a subscription (a ChatGPT, Claude or Grok sign-in) a spending limit can't be counted: you don't pay per token there. Tokens, steps and time still apply.</p>
+      </div>
+        </section>
+        <section class="settings-page" data-page="ab-persist" data-group="Abilities" data-title="Keep going and repeats" data-owner-only hidden>
+      <div id="ps-form">
+      <p class="muted small page-lead">Keep going until it’s done: she works in rounds until a check you pick passes. Repeats: she checks something in a chat on a timer. Nothing starts until you press Start, and after a restart both wait for you.</p>
+      <h3>Keep going until it’s done</h3>
+      <label class="row"><input id="ps-g-on" type="checkbox"> Let her keep going until it’s done <button type="button" class="tip" data-tip="She works in rounds. After each one Sara runs the check you picked; if it fails she gets the real error and goes again, until it passes, she’s stuck, or a cap is reached.">?</button></label>
+      <div class="bud-grid">
+        <label>Rounds per goal <button type="button" class="tip" data-tip="The most replies she gets for one goal. Each round is one reply within your usual budget per reply.">?</button> <select id="ps-g-rounds"></select></label>
+        <label>Time per goal (minutes) <button type="button" class="tip" data-tip="Wall time from Start. Time waiting for your OK and paused time don’t count.">?</button> <select id="ps-g-minutes"></select></label>
+        <label>Tokens per goal <button type="button" class="tip" data-tip="All rounds together, counted from the run record. She stops before a round that would go past it, and you can add more.">?</button> <select id="ps-g-tokens"></select></label>
+        <label>Dollars per goal <button type="button" class="tip" data-tip="All rounds together, for paid models only. On a subscription or a local model this can’t be counted.">?</button> <select id="ps-g-usd"></select></label>
+        <label>Stuck after <button type="button" class="tip" data-tip="If the check fails the same way this many rounds in a row, or a round changes nothing, she stops and tells you what she tried.">?</button> <select id="ps-g-stuck"></select></label>
+        <label>Check time limit (minutes) <button type="button" class="tip" data-tip="A check that runs longer than this counts as failed.">?</button> <select id="ps-g-check"></select></label>
+        <label>Reviewer check uses <button type="button" class="tip" data-tip="The model for the A reviewer model check. Reviewing is the model you set for second looks; Quick is cheaper.">?</button> <select id="ps-g-reviewer"><option value="reviewing">The Reviewing model</option><option value="quick">The quick model</option></select></label>
+      </div>
+      <p class="muted small">Her plans (Planner) are things she keeps at over days, if you let her. Keep going until… is your goal for this chat, now, and ends when its check passes.</p>
+      <h3>Repeats</h3>
+      <label class="row"><input id="ps-l-on" type="checkbox"> Let her repeat things in a chat <button type="button" class="tip" data-tip="She does it again on a timer, in this chat, with its context. She only tells you when something changes. Each check is one short reply within its own small budget.">?</button></label>
+      <div class="bud-grid">
+        <label>Shortest interval (minutes) <button type="button" class="tip" data-tip="How often a repeat may check at most. Shorter means more replies and more cost.">?</button> <select id="ps-l-min"></select></label>
+        <label>End when none is given (hours) <button type="button" class="tip" data-tip="Every repeat has an end. Without one it stops after this many hours.">?</button> <select id="ps-l-default"></select></label>
+        <label>Longest repeat (hours) <button type="button" class="tip" data-tip="No repeat runs longer than this, whatever you type.">?</button> <select id="ps-l-max"></select></label>
+        <label>Checks per repeat <button type="button" class="tip" data-tip="The most times one repeat checks before it ends.">?</button> <select id="ps-l-ticks"></select></label>
+        <label>Tokens per check <button type="button" class="tip" data-tip="One check’s limit. A check that reaches it counts as failed.">?</button> <select id="ps-l-tick-tokens"></select></label>
+        <label>Steps per check <button type="button" class="tip" data-tip="One check’s step limit. A check that reaches it counts as failed.">?</button> <select id="ps-l-tick-steps"></select></label>
+        <label>Tokens per day, all repeats <button type="button" class="tip" data-tip="All repeats together. When today’s share is used, they wait for tomorrow.">?</button> <select id="ps-l-daily"></select></label>
+        <label>Dollars per day, all repeats <button type="button" class="tip" data-tip="All repeats together, for paid models only. When it is used, they wait for tomorrow.">?</button> <select id="ps-l-usd"></select></label>
+        <label>At night <button type="button" class="tip" data-tip="Your quiet hours from Messages from her. Don’t check costs nothing at night; Keep checking tells you in the morning.">?</button> <select id="ps-l-quiet"><option value="pause">Don’t check</option><option value="hold">Keep checking, tell me in the morning</option></select></label>
+        <label>Stop after failures <button type="button" class="tip" data-tip="If her check fails this many times in a row (an error, the budget, a stuck step), the repeat stops and tells you why.">?</button> <select id="ps-l-fail"></select></label>
+        <label>Stop when nothing changes <button type="button" class="tip" data-tip="For repeats with Stop when: if nothing changes for this many checks in a row, it stops. Repeats that only watch go on until their end.">?</button> <select id="ps-l-stuck"></select></label>
+        <label>Repeats at once <button type="button" class="tip" data-tip="The most repeats running across all your chats.">?</button> <select id="ps-l-active"></select></label>
+      </div>
+      <p id="ps-spend" class="muted small" role="status"></p>
       </div>
         </section>
         <section class="settings-page" data-page="ab-recipes" data-group="Abilities" data-title="Recipes" data-owner-only hidden>

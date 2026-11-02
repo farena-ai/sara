@@ -1523,6 +1523,10 @@
       "Ceilings for each of her replies (tokens, steps, dollars, time), for coding and everyday chats, and what she does near and at the limit.",
       "budgets"
     ],
+    "ab-persist": [
+      "Keep going until it’s done (goals on a chat, ended only by a check you pick) and repeats (checks on a timer in a chat): their caps, quiet hours and daily budgets.",
+      "persist"
+    ],
     "ab-library": [
       "How big her documents may be and how she reads long ones: size limits, scanned pages, background speed.",
       "library"

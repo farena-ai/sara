@@ -123,10 +123,18 @@ export const editFileTool: Tool = {
     const text = await readFile(file, 'utf8').catch(() => {
       throw new ToolError(`File not found: ${str(args, 'path')}`);
     });
-    const count = text.split(oldS).length - 1;
+    let find = oldS;
+    let put = newS;
+    let count = text.split(find).length - 1;
+    // Windows files often use CRLF while models write plain \n: match (and write) in the file's own line endings.
+    if (count === 0 && text.includes('\r\n') && oldS.includes('\n') && !oldS.includes('\r\n')) {
+      find = oldS.replace(/\n/g, '\r\n');
+      put = newS.replace(/\r?\n/g, '\r\n');
+      count = text.split(find).length - 1;
+    }
     if (count === 0) throw new ToolError('old_string was not found in the file. Read the file again and copy the text exactly.');
     if (count > 1 && args.replace_all !== true) throw new ToolError(`old_string matches ${count} places. Add more context or set replace_all.`);
-    const updated = args.replace_all === true ? text.split(oldS).join(newS) : text.replace(oldS, () => newS);
+    const updated = args.replace_all === true ? text.split(find).join(put) : text.replace(find, () => put);
     await writeFile(file, updated);
     return `Edited ${displayPath(ctx.workspaceDir, file)} (${args.replace_all === true ? count : 1} replacement${count > 1 && args.replace_all === true ? 's' : ''}).`;
   },

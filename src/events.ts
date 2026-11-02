@@ -57,6 +57,12 @@ export type HubEvent = (
   | { type: 'eval'; id: number; status: string; progress?: unknown }
   /** Phase 87: Sara's hands on a computer: online/offline, a new live-view frame, Stop pressed there. */
   | { type: 'computer'; deviceId: string; state?: 'online' | 'offline'; frame?: number; conversationId?: string; stopped?: boolean; by?: string; ev?: string }
+  /** Phase 118 (PERSIST §4.16): a chat goal changed state (the chip, Today, the board). */
+  | { type: 'goal'; conversationId: string; goal: import('./goals.ts').GoalView | null }
+  /** Phase 118: a goal's check finished (the step line, the progress message). */
+  | { type: 'goal_check'; conversationId: string; goalId: number; round: number; ok: boolean; passed?: number; failed?: number; quote?: string }
+  /** Phase 118 (§5.13): a loop changed state or its next tick moved. */
+  | { type: 'loop'; conversationId: string; loop: import('./loops.ts').LoopView | null }
 ) & {
   /** Phase 31: which companion it came from (set by her CompanionHub). */
   companion?: string;

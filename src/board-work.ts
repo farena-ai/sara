@@ -10,6 +10,7 @@
 // prove: …". An approval card, a question (card_ask), a budget ceiling or a failure moves the card
 // to Waiting on you; answering on the card answers the same ApprovalBroker entry / the same run.
 import type { AppContext, ChatEvent } from './chat.ts';
+import { goalsFor } from './goals.ts';
 import { boardFor, type BoardStore, type CardWork, type ColumnRole, type Who } from './board.ts';
 import type { SharedBoardsAccess } from './shared-boards.ts';
 import { receiptLines, teamBudget, cleanLimits, teamHelpers, type TeamLimits, type TeamTask } from './team.ts';
@@ -178,7 +179,7 @@ export class CardWorker {
   }
 
   /** Assigns a card. 'sara', 'helper:<id>' and 'team' start background work (queued if busy); others just set it. */
-  assign(ref: string, assignee: string | null, who: Who): WorkCard {
+  assign(ref: string, assignee: string | null, who: Who, checks?: unknown): WorkCard {
     const s = this.#src(ref);
     const c = s?.src.get(s.id);
     if (!s || !c) throw new Error('Task not found');
@@ -199,7 +200,9 @@ export class CardWorker {
       return s.src.get(s.id)!;
     }
     if (works) {
-      s.src.setWork(s.id, { kind: a === 'sara' ? 'turn' : 'team', conversationId: '', startedAt: this.app.now().toISOString(), state: 'queued', by: this.person });
+      // Phase 118 (PERSIST §4.12): Done when (tests, build, lint) turns Sara's card work into a goal.
+      const kinds = a === 'sara' && !this.app.member && Array.isArray(checks) ? checks.map(String).filter((k) => ['tests', 'build', 'lint'].includes(k)).slice(0, 3) : [];
+      s.src.setWork(s.id, { kind: a === 'sara' ? 'turn' : 'team', conversationId: '', startedAt: this.app.now().toISOString(), state: 'queued', by: this.person, ...(kinds.length ? { checks: kinds } : {}) });
       void this.#pump();
     } else if (c.work && c.work.state !== 'done') s.src.setWork(s.id, null);
     return s.src.get(s.id)!;
@@ -273,6 +276,7 @@ export class CardWorker {
       return;
     }
     const conversationId = this.#conversation(src, id, c);
+    if (c.work?.checks?.length && !this.app.member && !resume) return this.#goal(src, id, c, conversationId);
     const live: Live = { key, src, id, conversationId, stop: () => void this.app.stopTurn?.(conversationId) };
     this.#live.set(key, live);
     const limits = c.limits ?? cleanLimits(this.app.settings.get().teamLimits);
@@ -357,6 +361,71 @@ export class CardWorker {
       this.#set(src, id, { ...ended, state: 'done', line: clip(reply.trim().split('\n')[0] ?? '', 160) || undefined, ask: undefined });
       src.log(id, 'sara', 'receipt', { receipts: receipts.filter((r) => r.status === 'ok').map((r) => `${r.tool}: ${r.summary}`).slice(0, 20) });
       src.toRole(id, 'done', 'sara');
+    }
+    void this.#pump();
+  }
+
+  /**
+   * Phase 118 (PERSIST §4.12): a card with Done when works as a goal in the card's conversation.
+   * The card is Doing while rounds run and moves to Done only when the goal is done and the last
+   * claim check was clean (a done-review goal waits on you, like stuck, paused or an approval).
+   */
+  async #goal(src: CardSource, id: number, c: WorkCard, conversationId: string): Promise<void> {
+    const key = this.#key(src, id);
+    const goals = goalsFor(this.app);
+    const limits = c.limits ?? cleanLimits(this.app.settings.get().teamLimits);
+    const made = goals.create(conversationId, { text: [c.title, c.notes.trim()].filter(Boolean).join('\n\n').slice(0, 2000), checks: c.work!.checks!.map((kind) => ({ kind })), caps: { ...(limits.tokens ? { tokens: limits.tokens } : {}), ...(limits.minutes ? { minutes: limits.minutes } : {}) }, start: true, replace: true, source: 'board', card: c.ref });
+    if ('error' in made) {
+      this.#set(src, id, { state: 'waiting', ask: { kind: 'failed', text: clip(made.error, 300) } });
+      src.toRole(id, 'waiting', 'sara');
+      src.log(id, 'sara', 'failed', { error: clip(made.error, 300) });
+      return;
+    }
+    const goalId = made.goal.id;
+    const live: Live = { key, src, id, conversationId, stop: () => void goals.stop(goalId) };
+    this.#live.set(key, live);
+    this.#set(src, id, { kind: 'turn', conversationId, state: 'running', goalId, startedAt: this.app.now().toISOString(), line: 'Round 1', ask: undefined, by: this.person, endedAt: undefined });
+    src.toRole(id, 'doing', 'sara');
+    src.log(id, 'sara', 'started', { goal: goalId, checks: c.work!.checks, conversationId: src.prefix === 'l' ? conversationId : undefined });
+    let seen = '';
+    try {
+      for (;;) {
+        const g = goals.get(goalId);
+        if (!g) break;
+        const mark = `${g.state}:${g.round}`;
+        if (mark !== seen) {
+          seen = mark;
+          const last = goals.lastCheck(goalId);
+          if (g.state === 'running' || g.state === 'checking') {
+            this.#set(src, id, { line: g.state === 'checking' ? `Round ${g.round} · checking` : `Round ${g.round}` });
+            if (last && last.round === g.round - 1) src.log(id, 'sara', 'receipt', { goal: goalId, round: last.round, check: last.ok ? 'passed' : 'failed', quote: clip(last.quote ?? '', 200) });
+          }
+        }
+        if (live.stopped || ['done', 'stuck', 'stopped', 'paused'].includes(g.state) || g.meta.asking) break;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    } finally {
+      this.#live.delete(key);
+    }
+    const g = goals.get(goalId);
+    const ended = { endedAt: this.app.now().toISOString() };
+    const quote = clip(goals.lastCheck(goalId)?.quote ?? '', 300);
+    if (live.stopped || !g || g.state === 'stopped') {
+      this.#set(src, id, { ...ended, state: 'stopped', line: undefined, ask: undefined });
+      src.toRole(id, 'todo', 'me');
+    } else if (g.state === 'done' && g.reason !== 'review') {
+      this.#set(src, id, { ...ended, state: 'done', line: `Done: the check passed after ${g.round} round(s)`, ask: undefined });
+      src.log(id, 'sara', 'done', { goal: goalId, rounds: g.round });
+      src.toRole(id, 'done', 'sara');
+    } else {
+      const text = g.state === 'done'
+        ? `Green, but she changed tests: ${(g.meta.tampered ?? []).join(', ') || 'look before you trust it'}`
+        : g.state === 'stuck' ? `Stuck after round ${g.round}. The check still says: ${quote}`
+          : g.meta.asking ? `Round ${g.round} is over. Is it done? Answer in the card's chat.`
+            : `Paused (${g.reason ?? 'paused'}). The check still says: ${quote}`;
+      this.#set(src, id, { ...ended, state: 'waiting', line: undefined, ask: { kind: 'goal', text: clip(text, 600) } });
+      src.toRole(id, 'waiting', 'sara');
+      src.log(id, 'sara', 'asked', { goal: goalId, state: g.state, reason: g.reason });
     }
     void this.#pump();
   }

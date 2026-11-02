@@ -1,0 +1,49 @@
+/* Phase 118 (docs/design/PERSIST.md §4.11, §5.9): the goal and repeat chips above the composer,
+   their cards, folded "no change" ticks, Planner → Repeats. Theme tokens only; 44 px targets. */
+.persist-strip { display: flex; flex-direction: column; gap: 6px; margin: 0 0 6px; }
+.ps-chip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-2); color: var(--text-1); }
+.ps-chip .ps-text { font-weight: 600; flex: 1 1 12rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-chip .ps-icon { font-size: 1.1em; }
+.ps-chip button { min-height: 44px; min-width: 44px; }
+.ps-chip.ps-paused { border-color: var(--warn); }
+.ps-chip.ps-done { border-color: var(--success); }
+.ps-chip.ps-done.ps-review, .ps-chip.ps-stuck { border-color: var(--warn); }
+.ps-ring { --ps-f: 0%; width: 22px; height: 22px; border-radius: 50%; flex: none; background: conic-gradient(var(--accent-solid) var(--ps-f), var(--line) 0); }
+.ps-ring-0 { --ps-f: 0%; } .ps-ring-1 { --ps-f: 10%; } .ps-ring-2 { --ps-f: 20%; } .ps-ring-3 { --ps-f: 30%; }
+.ps-ring-4 { --ps-f: 40%; } .ps-ring-5 { --ps-f: 50%; } .ps-ring-6 { --ps-f: 60%; } .ps-ring-7 { --ps-f: 70%; }
+.ps-ring-8 { --ps-f: 80%; } .ps-ring-9 { --ps-f: 90%; } .ps-ring-10 { --ps-f: 100%; }
+.persist-card { margin: 0 0 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-1); color: var(--text-1); }
+.ps-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ps-card-head .ps-x { min-width: 44px; min-height: 44px; }
+.ps-card-body { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.ps-field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ps-field > span:first-child { min-width: 9rem; }
+.ps-field textarea, .ps-field input, .ps-field select { flex: 1 1 14rem; min-height: 44px; }
+.ps-checks { border: 1px solid var(--line); border-radius: var(--r-card); padding: 6px 10px; display: flex; flex-direction: column; gap: 4px; }
+.ps-radio { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 8px; min-height: 44px; text-align: start; }
+.ps-radio input[type=radio] { width: auto; flex: 0 0 auto; margin: 0; min-height: 0; }
+.ps-radio input:not([type=radio]) { flex: 1 1 200px; width: auto; }
+.ps-checks legend { display: flex; align-items: center; gap: 6px; }
+.ps-mono { font-family: var(--font-mono); font-size: 0.9em; padding: 1px 6px; border-radius: var(--r-control); background: var(--surface-2); }
+.ps-cmd { flex: 1 1 14rem; min-height: 44px; }
+.ps-caps { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 6px 12px; align-items: end; }
+.ps-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ps-actions button { min-height: 44px; }
+.ps-err { color: var(--danger); min-height: 1em; }
+.ps-line { text-align: center; margin: 4px 0; }
+.ps-fold { margin: 2px 0 2px 12px; }
+.ps-fold summary { cursor: pointer; min-height: 32px; }
+.ps-fold-body { padding: 4px 0 4px 12px; color: var(--text-2); }
+.ps-rounds { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 4px; }
+.ps-row { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.ps-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 18rem; }
+.ps-row-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.ps-row-acts button { min-height: 44px; }
+.ps-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 600px) {
+  .ps-field > span:first-child { min-width: 0; flex-basis: 100%; }
+  .ps-chip { gap: 4px 6px; padding: 4px 8px; }
+  .ps-chip .ps-text { flex: 1 1 0; white-space: nowrap; }
+  .ps-chip .ps-meta { flex-basis: 100%; order: 3; }
+  .ps-chip button { order: 4; padding-inline: 10px; }
+}

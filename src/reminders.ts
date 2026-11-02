@@ -56,6 +56,9 @@ export class ReminderScheduler {
       delivered++;
     }
     if (delivered) this.#app.events?.publish({ type: 'planner', what: 'reminders' });
+    // Phase 118 (PERSIST §3.1 P4): the loops' clock is this tick (no new timer); goals' approval waits too.
+    this.#app.loops?.due(now);
+    this.#app.goals?.tick(now.getTime());
     return delivered;
   }
 
