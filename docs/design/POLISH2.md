@@ -296,6 +296,28 @@ numbers above come from the screenshot run (`outputs/ui-review/pl2a/`).
 - [ ] Tour tests: the coding tour's new stop resolves its selector.
 - [ ] The guide's Settings paths come from the group table (generated; existing drift test).
 
+**As built (PL2b, 2.61.1).** Settings: 8 groups (+ Household) by `data-group` in `index.html`, ids
+unchanged, the tour step and `OLD_TABS` untouched; `GROUP_ORDER` (guide index, HOW_DO_I.md) equals
+`SETTINGS_GROUPS`. `desktop-app` sits in Connections (6 with it, 5 outside the desktop app); the retired
+Recipes page in Add-ons (hidden). Search: `web/settings-search.js`, shared with Ctrl+K: keywords and
+synonyms per page, the *How do I…?* questions, ranked name → question → label, single `@` and `/` kept
+as words, *Elsewhere* (Planner → Routines / Repeats / Reminders / To-dos and the `/` commands), and for
+one release the old group names (*Abilities*, *Connections*) still find their pages with a "Some …
+pages moved" line. The `/` menu: `web/slash.js` + `APP_MENU` in `src/bridges/commands.ts` (19
+commands, the Telegram/Discord lines), `GET /api/chat-menu` (also in a member's space, filtered);
+`/goal` and `/loop` open their cards; `/problems` runs in the app too; the table in `docs/CHATS.md` is
+generated. **N20 reproduced** with Edge and real key events: on fresh data with no conversation yet,
+`@` showed nothing (`place()` returned null without a conversation); fixed: a new chat counts as an
+everyday chat in the main folder and the conversation is made when a reference needs it; partner and
+private off-the-record chats get one hint line. *Next steps* (`web/next-steps.js`): company and both →
+chat apps, the Store, Hey Sara; coding → `/` commands, Store tool servers, chat apps; one coding-tour
+stop on `#input`. *Share her* is a button on each companion row (owner only), *Get a companion from
+the Store* beside *From a file…*; her panel offers *Tidy this chat* from 70%. Also fixed: Today's
+*Runs today* link asked for a page `dh-runs` that never existed (now an `OLD_TABS` alias of Health).
+Deviations: the guide's prose paths ("Settings → Abilities → …" in `help.html` and the UI strings)
+stay as they were for this release (each is a translated block in six languages; search maps the old
+names); only the generated index follows the new groups. Screenshots: `outputs/ui-review/pl2b/`.
+
 ### PL2c (2.61.2): forms into choices, the Store and packs
 
 - N17 Keep going presets; N18 Check her edits wording; N24 Tools wording; N21 Planner how-tos and

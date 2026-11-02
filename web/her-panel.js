@@ -650,7 +650,21 @@ function renderRing() {
   const words = [$('#ctx-full')?.textContent, $('#ctx-how')?.textContent, $('#conv-usage')?.hidden ? '' : $('#conv-usage')?.textContent].filter(Boolean);
   const p = $('#hp-ctx-text');
   p.replaceChildren(...words.map((w, i) => el('span', i ? 'hp-ctx-more' : 'hp-ctx-main', w)));
+  // Phase 128 (PL2b, N25): from 70% full, Tidy this chat right on the panel line (the same call as
+  // /compact and the ring's own button; Show summary and Undo are on the divider afterwards).
+  const tidy = $('#hp-ctx-tidy');
+  const src = $('#ctx-tidy');
+  if (tidy && src) {
+    tidy.hidden = !tidyOffered(pct) || src.hidden;
+    tidy.disabled = src.disabled;
+    if (!tidy.dataset.wired) {
+      tidy.dataset.wired = '1';
+      tidy.addEventListener('click', () => src.click());
+    }
+  }
 }
+/** Phase 128 (PL2b, N25): the panel offers Tidy this chat from 70% full. */
+export const tidyOffered = (pct) => Number(String(pct).replace('%', '')) >= 70;
 
 // ---------- her face, mood, group chats ----------
 const MOOD_OF = { happy: 'happy', caring: 'caring', sleepy: 'sleepy', hurt: 'hurt', playful: 'playful' };

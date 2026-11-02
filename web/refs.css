@@ -35,6 +35,18 @@
 .pc-checker input { width: 20px; height: 20px; flex: 0 0 auto; margin: 0; }
 .pc-checker code { overflow-wrap: anywhere; }
 .pc-problems summary { cursor: pointer; display: inline-flex; align-items: center; }
+/* Phase 128 (PL2b, N20): the one-line hint where @ can't be used. */
+.ref-note { padding: 10px 12px; overflow-wrap: anywhere; }
+/* Phase 128 (PL2b, N19): the / menu: the @ menu's box, a small head with its ?, then the commands. */
+.slash-menu { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.slash-menu[hidden] { display: none; }
+.slash-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 2px 14px; font-size: var(--fs-small, 13px); color: var(--text-2); }
+.slash-title { flex: 1; font-weight: 600; letter-spacing: 0.02em; }
+.slash-list { list-style: none; margin: 0; padding: 0 4px 4px; overflow: auto; max-height: min(42vh, 320px); }
+.slash-item { justify-content: flex-start; align-items: baseline; flex-wrap: wrap; gap: 2px 12px; }
+.slash-name { font-family: var(--font-mono, ui-monospace, monospace); font-weight: 600; flex: 0 0 auto; }
+.slash-line { flex: 1 1 14em; min-width: 0; overflow-wrap: anywhere; }
+.slash-note { margin: 0; padding: 8px 14px 12px; }
 @media (max-width: 600px) {
   .ref-menu { left: 4px; right: 4px; }
   .ref-chip .ref-chip-text { max-width: 52vw; }

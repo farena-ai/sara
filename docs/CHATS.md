@@ -34,10 +34,44 @@ when a chat is long or stuck, stop her, and see what she is using, without leavi
   `Sara, stop`, `@Sara status`. Only a message with nothing else in it counts, so "Sara, new idea for
   the garden…" is a normal message, and "Sara, status?" (a question) too. The words work in her six
   languages (`neu`, `nouveau`, `nuevo`, `novo`, `nuovo`, …). `/remember` and `/model` need the slash.
-- In the **app** you can type `/new`, `/status`, `/help`, `/stop`, `/reset`, `/model` and `/remember`
-  in the message box too; they never go to her as a message. On a Telegram or Discord session, the
+- In the **app** you can type them in the message box too; they never go to her as a message. Since
+  2.61.1 typing `/` at the start of the box opens the **`/` menu** (see *The `/` menu in the app* below). On a Telegram or Discord session, the
   conversation's settings (⚙) also have *Start a new session from here*, *Context used* and
   *Earlier sessions of this chat*.
+
+## The `/` menu in the app (2.61.1)
+
+Type `/` as the first character of the message box: a small list opens above it with every command you
+may use in that chat and one line on what it does. ↑ ↓ move, Enter or Tab puts the command in the box
+(with a space when it takes words), Enter again sends it, Escape closes the list; on a phone, tap a row.
+Group chats, chats with someone else and off-the-record chats only list what works there; a household
+member sees their own short list. `/goal` and `/loop` open the same cards as **+ → Keep going until it's
+done…** and **+ → Repeat this…**. The table is generated from the same list the menu uses
+(`APP_MENU` in `src/bridges/commands.ts`), so it can't drift:
+
+<!-- appmenu:start -->
+| Command | What it does | Who sees it in the app |
+|---|---|---|
+| `/goal` | Keep going until it’s done: a goal for this chat that only a check you pick can end | You, in your own chats |
+| `/loop` | Repeat something in this chat on a timer, until a time or a condition | You, in your own chats |
+| `/compact` | Tidy the older part of this chat into a summary (undo, show) | You, in your own chats |
+| `/tools` | Which tools she has in this chat (all, lean, +name, -name) | You, in your own chats |
+| `/when` | Reminders for when a person or topic comes up (list, add, forget) | You, in your own chats |
+| `/continue` | Pick up our chat from your other app here | You, in your own chats |
+| `/btw` | A quick side question while she works (not saved) | You and household members |
+| `/queue` | Queue a message for when she has finished | You and household members |
+| `/steer` | Tell her something now: she reads it before her next step | You and household members |
+| `/stop` | Stop her current reply | You and household members |
+| `/new` | Start a fresh session (the last one is kept) | You and household members |
+| `/reset` | Clear a stuck reply and listen again | You and household members |
+| `/status` | Model, how full this chat is, and budget | You and household members |
+| `/model` | Pick the model for this session | You, in your own chats |
+| `/remember` | Save a note in her memory | You, in your own chats |
+| `/problems` | The latest type errors in this chat’s project (check, on, off) | You, in your own chats |
+| `/help` | What you can do here | You and household members |
+| `/bug` | Report a problem to the people who make Sara | You and household members |
+| `/idea` | Suggest something to the people who make Sara | You and household members |
+<!-- appmenu:end -->
 
 **Who is who is checked by Sara every time.** The menus only decide what people see: Telegram and
 Discord let anyone send any command, so Sara refuses owner-only commands from anyone who isn't you

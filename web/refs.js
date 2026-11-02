@@ -46,6 +46,7 @@ export function initRefs(c) {
   });
   input.addEventListener('keydown', (e) => {
     if (menu.hidden || !items.length) return;
+    if (items[0].note) return void (e.key === 'Escape' && close());
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       active = (active + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length;
@@ -75,7 +76,13 @@ function current() {
 async function onType() {
   const place = ctx.place();
   token = current();
-  if (!place || !token || (!place.workspace && !place.url)) return close();
+  if (token && (!place || (!place.workspace && !place.url))) {
+    // Phase 128 (PL2b, N20): where @ can't be used, one line says so (instead of nothing).
+    const why = token.text === '@' ? ctx.hint?.() : '';
+    if (!why) return close();
+    return open([{ insert: '', label: why, detail: '', note: true }]);
+  }
+  if (!place || !token) return close();
   const raw = token.text.slice(1);
   const m = /^(file|folder|branch):(.*)$/i.exec(raw);
   if (m) {
@@ -114,6 +121,8 @@ async function problemsCount(list) {
 }
 
 async function complete(kind, q) {
+  // Phase 128 (PL2b, N20): a new chat gets its conversation when a reference needs one.
+  if (!ctx.state.currentId && ctx.ensure) await ctx.ensure().catch(() => null);
   if (inflight || !ctx.state.currentId) return;
   inflight = true;
   const id = ++reqId;
@@ -148,6 +157,11 @@ function close() {
 function paint() {
   const menu = $('#ref-menu');
   menu.replaceChildren(...items.map((it, i) => {
+    if (it.note) {
+      const note = ctx.el('li', 'ref-note muted small', it.label);
+      note.setAttribute('role', 'presentation');
+      return note;
+    }
     const li = ctx.el('li', `ref-item${i === active ? ' active' : ''}`);
     li.id = `ref-opt-${i}`;
     li.setAttribute('role', 'option');
@@ -159,7 +173,8 @@ function paint() {
     });
     return li;
   }));
-  $('#input').setAttribute('aria-activedescendant', `ref-opt-${active}`);
+  if (items[active]?.note) $('#input').removeAttribute('aria-activedescendant');
+  else $('#input').setAttribute('aria-activedescendant', `ref-opt-${active}`);
 }
 
 function replaceToken(text, keepOpen) {
@@ -174,7 +189,7 @@ function replaceToken(text, keepOpen) {
 }
 
 function pick(it) {
-  if (!it) return;
+  if (!it || it.note) return void (it?.note && close());
   // A kind that takes a value keeps the menu going (@file: lists files; a folder goes into it).
   const isFolder = /^@folder:/.test(it.insert) && it.more;
   replaceToken(isFolder ? it.insert.trimEnd() + '/' : it.insert, it.more);

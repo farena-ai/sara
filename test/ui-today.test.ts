@@ -475,3 +475,32 @@ test('GET /api/today/weather: from the briefing place, structured, cached, hones
   // The plain Today route is unchanged.
   assert.equal((await get('/today')).status, 200);
 });
+
+// Phase 128 (PL2b, docs/design/POLISH2.md N27, Q6): Next steps on Today.
+test('Today: Next steps shows exactly three cards per use path once Getting started is complete, never while it isn’t', async () => {
+  const ns = await import(pathToFileURL(join(ROOT, 'web', 'next-steps.js')).href);
+  const items = (done: boolean[]) => done.map((d, i) => ({ id: `s${i}`, label: 'x', hint: '', done: d, open: 'chat' }));
+  const pages = new Set([...html.matchAll(/data-page="([\w-]+)"/g)].map((m) => m[1]));
+  for (const path of ['company', 'coding', 'both']) {
+    const cards = ns.nextSteps({ path, hidden: false, items: items([true, true, true, true, true, true, true]) });
+    assert.equal(cards.length, 3, path);
+    assert.equal(new Set(cards.map((c: { id: string }) => c.id)).size, 3, `${path}: three different cards`);
+    for (const c of cards) {
+      assert.ok(c.title && c.text && c.icon, `${path}/${c.id}`);
+      assert.ok(c.open === 'slash' || pages.has(c.open.replace(/^settings:/, '')), `${path}/${c.id}: ${c.open}`);
+    }
+    // Never while a step is left, never when hidden on this device, never without the list.
+    assert.deepEqual(ns.nextSteps({ path, hidden: false, items: items([true, true, false, true, true, true, true]) }), [], `${path}: a step left`);
+    assert.deepEqual(ns.nextSteps({ path, items: items([true, true, true, true, true, true, true]) }, true), [], `${path}: hidden`);
+  }
+  assert.deepEqual(ns.nextSteps(null), []);
+  // Company and both point at the chat apps, the Store and Hey Sara; coding at /, tool servers, chat apps.
+  const opens = (path: string) => ns.nextSteps({ path, items: items([true]) }).map((c: { open: string }) => c.open);
+  assert.deepEqual(opens('company'), ['settings:co-telegram', 'settings:ab-store', 'settings:her-hey']);
+  assert.deepEqual(opens('coding'), ['slash', 'settings:ab-store', 'settings:co-telegram']);
+  assert.deepEqual(opens('anything else'), opens('both'));
+  // The card sits where Getting started is, with its ? and Hide; Getting started still opens the same steps.
+  assert.match(html, /<section id="td-next" class="today-start today-next" aria-labelledby="td-next-title" hidden>/);
+  assert.match(html, /<button id="td-next-hide" type="button" class="ghost small">Hide<\/button>/);
+  assert.match(app, /paintNextSteps\(c\);\n\s*\$\('#td-start'\)\.hidden = !c \|\| c\.hidden \|\| !left\.length;/);
+});

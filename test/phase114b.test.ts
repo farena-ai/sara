@@ -235,7 +235,7 @@ test('114b.6 starter chips send a real message; the short tours (6 stops) are of
     if (c.kind === 'send' || c.kind === 'code') assert.ok(c.text.length >= c.label.length);
     else assert.ok(c.kind === 'starter' || (c.kind === 'page' && /^[a-z]+-[a-z]+$/.test(c.page)));
   }
-  assert.match(offerText('coding', t), /Six quick stops/);
+  assert.match(offerText('coding', t), /Seven quick stops/); // PL2b: the coding tour's seventh stop (the / menu)
   assert.doesNotMatch(offerText('company', t), /one-minute/);
   const app = web('app.js');
   // A chip sends a real message (a coding conversation for code chips).
@@ -248,14 +248,15 @@ test('114b.6 starter chips send a real message; the short tours (6 stops) are of
   // The queue holds while the wizard loads; the hub's notes go through it.
   assert.match(app, /createQueue\(\{ doc: document, busy: \(\) => Boolean\(state\.setupPending\) \|\| overlayCount\(document\) > 0 \}\)/);
   assert.match(app, /initHub\(\{ demo: Boolean\(session\.demo\), openSettings, queue: firstRun \}\)/);
-  // The tours: 6 stops for each width; the 14-stop tour still in Help.
+  // The tours: 6 stops for each width (coding: 7 since PL2b, 2.61.1: one stop for the / menu, POLISH2 N27); the 14-stop tour still in Help.
   const block = (name: string) => app.slice(app.indexOf(`  ${name}: [`), app.indexOf('  ],', app.indexOf(`  ${name}: [`)));
   for (const name of ['company', 'coding']) {
     const steps = [...block(name).matchAll(/^    \{ (.*) \},?$/gm)].map((m) => m[1]);
     const wide = steps.filter((s) => !/when: \(\) => phoneWidth\(\)/.test(s));
     const phone = steps.filter((s) => !/when: \(\) => !phoneWidth\(\)/.test(s));
-    assert.equal(wide.length, 6, `${name} on a wide screen`);
-    assert.equal(phone.length, 6, `${name} on a phone`);
+    const stops = name === 'coding' ? 7 : 6;
+    assert.equal(wide.length, stops, `${name} on a wide screen`);
+    assert.equal(phone.length, stops, `${name} on a phone`);
   }
   assert.match(block('coding'), /sel: '#conv-settings-btn'[^]*sel: '#messages'[^]*sel: '#tool-list'[^]*sel: '#open-team'[^]*sel: '#open-findings'[^]*sel: '#pj-work-dials'/, '§5.3 order');
   assert.match(block('company'), /sel: '#input'[^]*sel: '#her-face'[^]*sel: '#open-today'[^]*sel: '#open-planner'[^]*sel: '#open-memory'[^]*data-page="her-character"/, '§5.2 order');

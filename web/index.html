@@ -335,6 +335,12 @@
       <div id="chat-checkin" class="checkin-slot"></div>
       <form id="composer">
         <ul id="ref-menu" class="ref-menu" role="listbox" aria-label="Attach with @" hidden></ul>
+        <!-- Phase 128 (PL2b, POLISH2 §4.3): the / menu (web/slash.js); the same look and keys as the @ menu. -->
+        <div id="slash-menu" class="ref-menu slash-menu" hidden>
+          <div class="slash-head"><span class="slash-title">Commands</span> <button id="slash-tip" type="button" class="tip" data-tip="Type / at the start of the message box for her commands. They run here and never go to her as a message. You only see the ones you can use in this chat.">?</button></div>
+          <ul id="slash-list" class="slash-list" role="listbox" aria-label="Commands"></ul>
+          <p id="slash-note" class="muted small slash-note" hidden></p>
+        </div>
         <textarea id="input" rows="1" placeholder="Message Sara…" autocomplete="off" aria-label="Message Sara…"></textarea>
         <div class="plus-wrap">
           <button id="composer-plus" class="ghost icon" type="button" aria-label="Add: a file, a photo or something to do together" aria-haspopup="menu" aria-expanded="false" aria-controls="composer-menu"><i class="ic" data-icon="plus"></i></button>
@@ -391,6 +397,11 @@
             <div class="td-now-head"><h2 id="td-now-h" class="td-now-h">Now</h2><span id="td-now-date" class="td-now-date"></span></div>
             <ul id="td-now-list" class="td-now-list"></ul>
             <div id="td-now-acts" class="td-now-acts"></div>
+          </section>
+          <!-- Phase 128 (PL2b, POLISH2 N27): Next steps, once Getting started is done (web/next-steps.js). -->
+          <section id="td-next" class="today-start today-next" aria-labelledby="td-next-title" hidden>
+            <div class="today-start-head"><h3 id="td-next-title">Next steps</h3> <button type="button" class="tip" data-tip="Three things worth a look now that Getting started is done, picked for how you use her. Hide puts them away on this device.">?</button><button id="td-next-hide" type="button" class="ghost small">Hide</button></div>
+            <div id="td-next-list" class="today-next-list"></div>
           </section>
           <section id="td-start" class="today-start" hidden>
             <div class="today-start-head"><h3>Getting started</h3><span id="td-start-count" class="muted small"></span><button id="td-start-hide" type="button" class="ghost small">Hide</button></div>
@@ -522,6 +533,7 @@
           <div id="hp-ctx" class="hp-ctx" hidden>
             <span id="hp-ctx-ring" class="ctx-ring hp-ctx-ring" aria-hidden="true"><span id="hp-ctx-pct" class="ctx-pct"></span></span>
             <p id="hp-ctx-text" class="hp-ctx-text"></p>
+            <button id="hp-ctx-tidy" type="button" class="ghost small hp-ctx-tidy" hidden>Tidy this chat</button>
           </div>
         </section>
       </div>
@@ -1921,6 +1933,7 @@
         <p id="settings-page-desc" class="settings-page-desc" hidden><span id="settings-help-text"></span> <a id="settings-help-link" href="/help" target="_blank" rel="noopener">Read the guide ↗</a></p>
         <div id="settings-howto" class="settings-howto"></div>
         <div class="settings-pages settings-body">
+        <div id="settings-elsewhere" class="settings-elsewhere" aria-live="polite" hidden></div>
         <section class="settings-page" data-page="her-character" data-group="Her" data-title="Name and personality" hidden>
       <div class="yours-head">
         <img id="my-face" class="my-face" src="/sara-portrait.jpg" alt="">
@@ -2135,7 +2148,7 @@
         <label>Pronouns <select id="cmp-pronouns"><option value="she">she / her</option><option value="he">he / him</option><option value="they">they / them</option></select></label>
       </div>
       <label>Start from <select id="cmp-from"><option value="">A new character (shape them afterwards)</option></select></label>
-      <p class="small"><button id="cmp-add" type="button">Add</button> <button id="cmp-from-file" type="button" class="ghost" data-owner-only>From a file…</button> <button type="button" class="tip" data-tip="A companion pack (.sara-companion.zip), a character card (PNG, JSON or CHARX) or a Sara character file. You see her card first. It always makes a new companion; the ones you have don't change.">?</button> <input id="cmp-file" type="file" accept=".zip,.png,.json,.charx,application/zip,image/png,application/json" hidden> <span id="cmp-status" class="muted small"></span></p>
+      <p class="small"><button id="cmp-add" type="button">Add</button> <button id="cmp-from-file" type="button" class="ghost" data-owner-only>From a file…</button> <button id="cmp-store" type="button" class="ghost" data-owner-only>Get a companion from the Store</button> <button type="button" class="tip" data-tip="A companion pack (.sara-companion.zip), a character card (PNG, JSON or CHARX) or a Sara character file. You see her card first. It always makes a new companion; the ones you have don't change.">?</button> <input id="cmp-file" type="file" accept=".zip,.png,.json,.charx,application/zip,image/png,application/json" hidden> <span id="cmp-status" class="muted small"></span></p>
       <h3>Planner</h3>
       <label>To-dos, reminders and notes <select id="cmp-planner"><option value="shared">One planner, shared by all companions</option><option value="separate">Each companion keeps her own</option></select></label>
       <p id="cmp-planner-note" class="muted small">A change applies after the next restart or update.</p>
@@ -2702,7 +2715,7 @@
       <p id="adult-app-note" class="muted small" hidden>Adult mode can only be turned on in a web browser, not in the phone apps.</p>
         </section>
 
-        <section class="settings-page" data-page="ab-store" data-group="Abilities" data-title="Get more" data-owner-only hidden>
+        <section class="settings-page" data-page="ab-store" data-group="Add-ons" data-title="Get more" data-owner-only hidden>
       <p class="muted small page-lead">Add-ons from the Sara Store: plugins, skills and tool servers, each one checked and signed by the Sara team. Nothing switches on by itself: every add-on shows you what it can do before you add it, and keys go to the vault. <a href="/help#plugins" target="_blank" rel="noopener">How add-ons work</a></p>
       <p id="sto-state" class="skl-note" hidden></p>
       <div class="sto-top">
@@ -2718,7 +2731,7 @@
       <label class="row sto-community"><input id="sto-community" type="checkbox"> <span>Show add-ons nobody has reviewed yet <button type="button" class="tip" data-tip="These passed our automatic checks, but no person at Sara has read them. Only switch this on if you can judge code yourself. Each one still shows its full review card.">?</button></span></label>
       <p id="sto-status" class="muted small" role="status"></p>
         </section>
-        <section class="settings-page" data-page="ab-tools" data-group="Abilities" data-title="Tools and approvals" data-owner-only hidden>
+        <section class="settings-page" data-page="ab-tools" data-group="Coding" data-title="Tools and approvals" data-owner-only hidden>
       <p id="sandbox-status" class="muted"></p>
       <p id="sandbox-note" class="small" hidden></p>
       <div class="lean-card">
@@ -2762,7 +2775,7 @@
       <p id="browser-status" class="muted small" role="status"></p>
       <div class="add-row"><button id="browser-recheck" type="button" class="ghost small">Look again</button></div>
         </section>
-        <section class="settings-page" data-page="ab-google" data-group="Abilities" data-title="Gmail and Calendar" data-owner-only hidden>
+        <section class="settings-page" data-page="ab-google" data-group="Add-ons" data-title="Gmail and Calendar" data-owner-only hidden>
       <p id="g-status" class="muted small" role="status"></p>
       <div id="g-connected" class="add-row" hidden><button id="g-disconnect" type="button" class="ghost">Sign out of Google</button></div>
       <div id="g-organize" class="add-row" hidden><button id="g-reconnect" type="button">Reconnect to allow organizing</button><button type="button" class="tip" data-tip="She can now organize your mail: archive, mark read, labels, stars, trash and spam. She shows the count first, and Undo works for 30 days. That needs one more Google permission (gmail.modify; it can't delete for good). Reconnect and leave the boxes ticked.">?</button></div>
@@ -2784,7 +2797,7 @@
       </details>
       <p class="muted small">Using another email provider? Email and calendar with an app password are under "Tools from other programs" below (Fastmail, iCloud, Outlook and more).</p>
         </section>
-        <section class="settings-page" data-page="ab-github" data-group="Abilities" data-title="GitHub" data-owner-only hidden>
+        <section class="settings-page" data-page="ab-github" data-group="Coding" data-title="GitHub" data-owner-only hidden>
       <p class="muted small page-lead">Only needed if you want her to push to GitHub. Make a <strong>fine-grained token</strong> at github.com → Settings → Developer settings → Personal access tokens, for just the repositories you choose, with <em>Contents: Read and write</em>. Pushing still asks you first. Delegating to Claude Code or Grok Build needs those subscriptions signed in (Models → Subscriptions).</p>
       <div class="add-row"><label>GitHub token <input id="gh-token" type="password" autocomplete="off" placeholder="not set"></label><button id="gh-save" type="button">Save</button><button id="gh-clear" type="button" class="ghost" hidden>Remove</button></div>
       <p id="gh-status" class="muted small" role="status"></p>
@@ -2797,7 +2810,7 @@
       </div>
       <p id="ghw-status" class="muted small" role="status"></p>
         </section>
-        <section class="settings-page" data-page="ab-projects" data-group="Abilities" data-title="Coding projects" data-owner-only hidden>
+        <section class="settings-page" data-page="ab-projects" data-group="Coding" data-title="Coding projects" data-owner-only hidden>
       <p class="muted small page-lead">What she knows about the code in each workspace: how to build and test it, its layout and rules, and the notes she keeps (decisions, conventions, commands). She looks again by herself every hour; coding conversations and her team use it.</p>
       <h3>How she is while you code <button type="button" class="tip" data-tip="Chatter, celebrating passing tests and teasing about bugs, only in coding conversations. The same dials as Her → Name and personality; a change here shows there too.">?</button></h3>
       <div id="pj-work-dials" class="dials"></div>
@@ -2854,7 +2867,7 @@
       <p id="rt-status" class="muted small" role="status"></p>
       </div>
         </section>
-        <section class="settings-page" data-page="ab-budgets" data-group="Abilities" data-title="Budgets" data-owner-only hidden>
+        <section class="settings-page" data-page="ab-budgets" data-group="Coding" data-title="Budgets" data-owner-only hidden>
       <div id="ab-budgets-form">
       <p class="muted small">A ceiling for each of her replies, so a long task can't run on and on. Near the limit she saves (a cheaper model, fewer tools), then wraps up and tells you what's done and what's left. Going on past it is always your call.</p>
       <h3>Coding chats</h3>
@@ -2881,7 +2894,7 @@
       </div>
         </section>
                 <!-- Phase 119 (RECALL §3.3, §4.10): when it comes up (web/recall-when.js). -->
-        <section class="settings-page" data-page="ab-when" data-group="Abilities" data-title="When it comes up" hidden>
+        <section class="settings-page" data-page="ab-when" data-group="You" data-title="When it comes up" hidden>
       <div id="wm-form">
       <p class="muted small page-lead">Reminders that wait for a person or a topic instead of a time: “when Dan comes up, remind me he owes me $20”. Only your own messages in your own chats set them off, and she brings it up once, inside her reply.</p>
       <label class="row"><input id="wm-on" type="checkbox"> Keep “when it comes up” reminders <button type="button" class="tip" data-tip="Lets her keep reminders that wait for a person or a topic instead of a time: 'when Dan comes up, remind me he owes me $20'. She only keeps the ones you ask for, and only your own messages in your own chats set them off.">?</button></label>
@@ -2899,7 +2912,7 @@
       </div>
         </section>
         <!-- Phase 120 (PRECISE §4.14, §5.10): checks after her edits and @-references (web/refs.js). -->
-        <section class="settings-page" data-page="ab-precise" data-group="Abilities" data-title="Check her edits" data-owner-only hidden>
+        <section class="settings-page" data-page="ab-precise" data-group="Coding" data-title="Check her edits" data-owner-only hidden>
       <div id="pc-form">
       <p class="muted small page-lead">After Sara changes a file, your project's own type checker or linter looks at it and she sees the errors before she answers. And in any chat, type @ to attach a file, a few lines, your changes, this branch, the current errors or a web page.</p>
       <h3>Check her edits</h3>
@@ -2925,7 +2938,7 @@
       <p class="muted small">In Telegram or Discord, type @file:src/app.ts:10-25, @diff, @branch, @problem or @url:https://… and she reads it the same way. /help refs lists them.</p>
       </div>
         </section>
-<section class="settings-page" data-page="ab-persist" data-group="Abilities" data-title="Keep going and repeats" data-owner-only hidden>
+<section class="settings-page" data-page="ab-persist" data-group="Coding" data-title="Keep going and repeats" data-owner-only hidden>
       <div id="ps-form">
       <p class="muted small page-lead">Keep going until it’s done: she works in rounds until a check you pick passes. Repeats: she checks something in a chat on a timer. Nothing starts until you press Start, and after a restart both wait for you.</p>
       <h3>Keep going until it’s done</h3>
@@ -2959,11 +2972,11 @@
       <p id="ps-spend" class="muted small" role="status"></p>
       </div>
         </section>
-        <section class="settings-page" data-page="ab-recipes" data-group="Abilities" data-title="Recipes" data-owner-only hidden>
+        <section class="settings-page" data-page="ab-recipes" data-group="Add-ons" data-title="Recipes" data-owner-only hidden>
       <p class="muted small">Recipes are skills now: every recipe she saved became a skill, and new ones are saved as skills. Read, change and switch them in Skills.</p>
       <div class="add-row"><button id="rc-open-skills" type="button">Open Skills</button></div>
         </section>
-        <section class="settings-page" data-page="ab-skills" data-group="Abilities" data-title="Skills" hidden>
+        <section class="settings-page" data-page="ab-skills" data-group="Add-ons" data-title="Skills" hidden>
       <p class="muted small page-lead">Skills are how-tos she follows for kinds of tasks: a code review, a changelog entry, a weekly review, a trip. She sees the list in every chat with you and opens the one that fits. They are folders in the open Agent Skills format, so you can bring them from other apps and take them along.</p>
       <p id="skl-migrated" class="skl-note" hidden></p>
       <div class="add-row skl-top"><button id="skl-new" type="button">New skill</button><button id="skl-add" type="button" class="ghost">Add a skill</button><button id="skl-export-all" type="button" class="ghost">Export all</button></div>
@@ -3004,7 +3017,7 @@
       </details>
       <p id="skl-status" class="muted small" role="status"></p>
         </section>
-        <section class="settings-page" data-page="ab-plugins" data-group="Abilities" data-title="Plugins" data-owner-only hidden>
+        <section class="settings-page" data-page="ab-plugins" data-group="Add-ons" data-title="Plugins" data-owner-only hidden>
       <p class="muted small page-lead">A plugin is a small program someone wrote for Sara: it can give her a tool, look at a turn and add a note, show a card, run on a schedule or carry a chat app. Each one runs in its own fenced process with only the permissions you approve, and is off until you switch it on. <strong>She still follows her rules: a plugin can add, never remove.</strong> <a href="/help#plugins" target="_blank" rel="noopener">How plugins work</a></p>
       <p id="plg-off" class="skl-note" hidden></p>
       <p id="plg-fence-note" class="skl-warn small" hidden>This computer can't fence plugins in (Windows, or Linux without bubblewrap): they run with Node's permission limits only. Add only plugins whose author you trust.</p>
@@ -3017,7 +3030,7 @@
       <div id="plg-builtin" class="skl-list"></div>
       <p id="plg-status" class="muted small" role="status"></p>
         </section>
-        <section class="settings-page" data-page="ab-home" data-group="Abilities" data-title="Home Assistant" data-owner-only hidden>
+        <section class="settings-page" data-page="ab-home" data-group="Add-ons" data-title="Home Assistant" data-owner-only hidden>
       <p class="muted small page-lead">Let her see and control your home through <strong>Home Assistant</strong>: lights, switches, thermostats, locks, blinds, scenes. She can look on her own; every change asks you first. Your Home Assistant must be reachable from this server (for example your Nabu Casa address, or over Tailscale).</p>
       <label>Home Assistant address <input id="ha-url" placeholder="https://homeassistant.local:8123" autocomplete="off"></label>
       <label>Long-lived access token <input id="ha-token" type="password" autocomplete="off" placeholder="not set"></label>
@@ -3047,7 +3060,7 @@
       <p id="pr-status" class="muted small" role="status"></p>
       </div>
         </section>
-        <section class="settings-page" data-page="ab-ssh" data-group="Abilities" data-title="Servers over SSH" data-owner-only hidden>
+        <section class="settings-page" data-page="ab-ssh" data-group="Coding" data-title="Servers over SSH" data-owner-only hidden>
       <!-- 2.52.1 (docs/design/SSH_EASY.md): one "Connect a server" flow: address + user → Sara looks → the easiest way in. -->
       <p class="muted small page-lead">Give Sara the address of a server and the user name. She makes her own key, looks at the server, and picks the easiest way in. She keeps only her key: a password or a cPanel token is used once to install it and then forgotten. Every command she runs there asks you first.</p>
       <p id="ssh-off" class="muted small" role="status" hidden></p>
@@ -3153,7 +3166,7 @@
       </div>
       <p id="ssh-status" class="muted small" role="status"></p>
         </section>
-        <section class="settings-page" data-page="ab-search" data-group="Abilities" data-title="Web search" data-owner-only hidden>
+        <section class="settings-page" data-page="ab-search" data-group="Add-ons" data-title="Web search" data-owner-only hidden>
       <label>Search service
         <select id="search-provider">
           <option value="">Off</option>
@@ -3167,7 +3180,7 @@
       <label id="search-url-row" hidden>SearXNG URL <input id="search-url" placeholder="http://127.0.0.1:8888"></label>
       <p id="search-status" class="muted small"></p>
         </section>
-        <section class="settings-page" data-page="ab-library" data-group="Abilities" data-title="Library" data-owner-only hidden>
+        <section class="settings-page" data-page="ab-library" data-group="Add-ons" data-title="Library" data-owner-only hidden>
       <p class="muted small page-lead">How big the documents in her library may be, and how she reads long ones. A 1,000-page book is read in the background, page by page, and can be paused; every scanned page is read by her picture model. Saved as you change it.</p>
       <label>Largest document
         <select id="lib-max-mb">
@@ -3200,7 +3213,7 @@
       <p class="muted small">Files over 100 MB need to be PDFs. Behind a reverse proxy, big files are sent in 8 MB pieces, so a proxy limit of 10 MB or more is enough.</p>
       <p id="lib-settings-status" class="muted small" role="status"></p>
         </section>
-        <section class="settings-page" data-page="ab-mcp" data-group="Abilities" data-title="Other programs (MCP)" data-owner-only hidden>
+        <section class="settings-page" data-page="ab-mcp" data-group="Add-ons" data-title="Other programs (MCP)" data-owner-only hidden>
       <p class="muted small page-lead">Plug-in tool servers (Model Context Protocol), such as your email or calendar. Their tools appear above: ones the server marks as read-only run on their own, everything that sends, changes or deletes asks you first.</p>
       <p class="muted small store-more"><a class="store-link" href="https://backstagecoding.com/sara/store/" target="_blank" rel="noopener noreferrer">More in the Sara Store</a></p>
       <div id="mcp-list"></div>
@@ -3265,7 +3278,7 @@
       </details>
       <p id="install-row" class="small" hidden><button id="install-app" type="button" class="ghost">Install Sara as an app</button></p>
         </section>
-        <section class="settings-page" data-page="co-telegram" data-group="Connections" data-title="Telegram" data-owner-only hidden>
+        <section class="settings-page" data-page="co-telegram" data-group="Chat apps" data-title="Telegram" data-owner-only hidden>
       <p class="muted small page-lead">Text Sara from your phone: you make her a bot in Telegram, and the steps below check each part with you.</p>
       <!-- PL2a (POLISH2 N5): the shared setup card and its steps (web/telegram-setup.js); every option
            below keeps its id and folds under More until Telegram works. -->
@@ -3323,7 +3336,7 @@
       </div>
       </details>
         </section>
-        <section class="settings-page" data-page="co-discord" data-group="Connections" data-title="Discord" data-owner-only hidden>
+        <section class="settings-page" data-page="co-discord" data-group="Chat apps" data-title="Discord" data-owner-only hidden>
       <p class="muted small page-lead">At <strong>discord.com/developers</strong>: New Application → Bot → Reset Token (paste it here) and turn on <em>Message Content Intent</em>. Invite it with OAuth2 → URL Generator (scope <code>bot</code>; Send Messages, Read Message History). Then link yourself.</p>
       <!-- Phase 114 (PL1c, S11): a status chip in the head, the settings in titled cards. -->
       <div class="kit-card">
@@ -3385,14 +3398,14 @@
       <div id="dc-rooms" class="room-list" data-nodirty></div>
       </div>
         </section>
-        <section class="settings-page" data-page="co-signal" data-group="Connections" data-title="Signal" data-owner-only hidden>
+        <section class="settings-page" data-page="co-signal" data-group="Chat apps" data-title="Signal" data-owner-only hidden>
       <p class="muted small page-lead">Text her on Signal through your own <strong>signal-cli</strong>, with a number of her own. It comes with Sara as a plugin, is off until you add it, and the card checks each step with you. <a href="/help#signal" target="_blank" rel="noopener">How Signal works</a></p>
       <div class="kit-card">
       <div class="card-head"><h3>Signal</h3><span id="sig-chip" class="status-chip" role="status">Not set up</span></div>
       <div id="sig-box" class="plg-signal"></div>
       </div>
         </section>
-        <section class="settings-page" data-page="co-email" data-group="Connections" data-title="Email" data-owner-only hidden>
+        <section class="settings-page" data-page="co-email" data-group="Chat apps" data-title="Email" data-owner-only hidden>
       <p class="muted small page-lead">Give her an email address of her own: write to her (or forward her a mail) and she answers in the same thread. It comes with Sara as a plugin, is off until you add it, and the card checks each step with you. This is her mailbox, not yours: reading your own inbox is Settings → Google or the Email MCP server. <a href="/help#email" target="_blank" rel="noopener">How email works</a></p>
       <div class="kit-card">
       <div class="card-head"><h3>Email</h3><span id="em-chip" class="status-chip" role="status">Not set up</span></div>
@@ -3400,7 +3413,7 @@
       </div>
         </section>
         <!-- Phase 122 (WHATSAPP §5, §6.3): the guided setup card (web/whatsapp.js). -->
-        <section class="settings-page" data-page="co-whatsapp" data-group="Connections" data-title="WhatsApp" data-owner-only hidden>
+        <section class="settings-page" data-page="co-whatsapp" data-group="Chat apps" data-title="WhatsApp" data-owner-only hidden>
       <p class="muted small page-lead">Text her on WhatsApp through Meta's official WhatsApp Business service, with an account and number you own. It comes with Sara as a plugin, is off until you add it, and the card checks each step with you. <a href="/help#whatsapp" target="_blank" rel="noopener">How WhatsApp works</a></p>
       <div class="kit-card">
       <div class="card-head"><h3>WhatsApp</h3><span id="wa-chip" class="status-chip" role="status">Not set up</span></div>
@@ -3408,7 +3421,7 @@
       </div>
         </section>
         <!-- Phase 122 part 2 (BRIDGES4 §7.3, §8.3): the Matrix setup card (web/matrix.js). -->
-        <section class="settings-page" data-page="co-matrix" data-group="Connections" data-title="Matrix" data-owner-only hidden>
+        <section class="settings-page" data-page="co-matrix" data-group="Chat apps" data-title="Matrix" data-owner-only hidden>
       <p class="muted small page-lead">Talk to her in Element or any Matrix app, through a Matrix account of her own. It comes with Sara as a plugin, is off until you add it, and the card checks each step with you. Rooms with her are not end-to-end encrypted. <a href="/help#matrix" target="_blank" rel="noopener">How Matrix works</a></p>
       <div class="kit-card">
       <div class="card-head"><h3>Matrix</h3><span id="mx-chip" class="status-chip" role="status">Not set up</span></div>
@@ -3416,7 +3429,7 @@
       </div>
         </section>
         <!-- Phase 122 part 3 (BRIDGES4 §7.1, §8.3): the iMessage setup card (web/imessage.js). -->
-        <section class="settings-page" data-page="co-imessage" data-group="Connections" data-title="iMessage" data-owner-only hidden>
+        <section class="settings-page" data-page="co-imessage" data-group="Chat apps" data-title="iMessage" data-owner-only hidden>
       <p class="muted small page-lead">Text her from Messages on your iPhone, through BlueBubbles on a Mac of yours and an Apple ID of her own. It comes with Sara as a plugin, is off until you add it, and the card checks each step with you. No Mac, no iMessage. <a href="/help#imessage" target="_blank" rel="noopener">How iMessage works</a></p>
       <div class="kit-card">
       <div class="card-head"><h3>iMessage</h3><span id="im-chip" class="status-chip" role="status">Not set up</span></div>
@@ -3424,7 +3437,7 @@
       </div>
         </section>
                 <!-- Phase 119 (RECALL §3.3, §5.10): pick a chat up in another app (web/pickup.js). -->
-        <section class="settings-page" data-page="co-pickup" data-group="Connections" data-title="Pick up across apps" data-owner-only hidden>
+        <section class="settings-page" data-page="co-pickup" data-group="Chat apps" data-title="Pick up across apps" data-owner-only hidden>
       <div id="pk-form">
       <p class="muted small page-lead">Carry our last conversation between apps: start on Telegram on the bus, open the app at home, and she knows what you were just talking about. Nothing is copied or merged; a chip shows it with Undo.</p>
       <div class="bud-grid">

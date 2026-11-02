@@ -351,6 +351,20 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Press Turn off adult mode.
 2. Conversations go back to normal right away.
 
+### When it comes up
+
+**How do I have her remind me when someone comes up?**
+
+1. In any of your chats, say “when Dan comes up, remind me he owes me $20” (or type /when Dan: he owes me $20).
+2. A card under her reply shows it, with Undo.
+3. The next time you mention Dan in one of your own chats, she brings it up once.
+
+**How do I see or forget what she is waiting to bring up?**
+
+1. Open Planner → Reminders → When it comes up.
+2. Press Forget next to one; Done lists the ones that already came up.
+3. Or type /when for the list and /when forget 1.
+
 ## Settings → Models
 
 ### Default model
@@ -417,249 +431,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Remove a model you don't use from its row.
 2. Ollama deletes its files.
 
-## Settings → Abilities
-
-### Get more
-
-**How do I add something from the store?**
-
-1. Search or pick it on a shelf, then open it.
-2. Read what it can do, then press Get.
-3. Read its card and press Install: it stays off until you switch it on.
-
-**How do I update an add-on?**
-
-1. Open My add-ons.
-2. Press Update next to it and read what changed.
-3. Nothing updates by itself.
-
-**How do I send the Sara team my plugin?**
-
-1. Press Submit yours.
-2. Give the folder, then press Check it.
-3. Fix what it finds, then send it: the team reviews it before it is listed.
-
-### Tools and approvals
-
-**How do I make her ask before she does something?**
-
-1. Find the tool in its group.
-2. Set it to Ask me first.
-3. Approval cards then appear in chat.
-
-**How do I switch a tool off?**
-
-1. Find the tool in its group.
-2. Set it to Off.
-
-### Skills
-
-**How do I teach her a skill?**
-
-1. Press New skill.
-2. Write the steps in plain words and save.
-3. She uses it when a request matches.
-
-**How do I add a skill from someone else?**
-
-1. Press Add a skill.
-2. Pick a zip, a GitHub link or a file.
-3. Read it before switching it on.
-
-### Plugins
-
-**How do I add a plugin?**
-
-1. Press Add a plugin.
-2. Read the permissions it asks for.
-3. Switch it on when you trust it.
-
-**How do I stop a plugin?**
-
-1. Switch it off on its card.
-2. Its log stays under What it did.
-
-### Web search
-
-**How do I let her search the web?**
-
-1. Pick a Search service.
-2. Paste its API key if it needs one.
-3. Ask her to look something up.
-
-**How do I search without a key?**
-
-1. Pick a service marked Free · no key.
-2. Or run your own SearXNG and paste its URL.
-
-### Library
-
-**How do I give her a document?**
-
-1. Open Library from the sidebar.
-2. Drop the file on the box at the top.
-3. Ask her about it in any chat.
-
-**How do I make reading gentler on my computer?**
-
-1. Pick Gentle under Background reading.
-2. Big documents then take longer.
-
-### Gmail and Calendar
-
-**How do I connect Gmail and Calendar?**
-
-1. Paste your Google Client ID and secret.
-2. Press Save, then Sign in with Google.
-
-**How do I disconnect Google?**
-
-1. Press Sign out of Google.
-
-### Home Assistant
-
-**How do I connect Home Assistant?**
-
-1. Type the Home Assistant address.
-2. Paste a long-lived access token.
-3. Press Save and test.
-
-**How do I let her notice when I get home?**
-
-1. Connect Home Assistant first.
-2. Under Presence, switch on React to what happens at home.
-3. Pick the people and what she does.
-
-### Other programs (MCP)
-
-**How do I connect another program (MCP)?**
-
-1. Pick Start from, or type the Command or URL.
-2. Add any Secrets it needs.
-3. Press Save and connect.
-
-**What is an MCP server?**
-
-1. A small program that gives her new tools.
-2. Its tools then appear in Tools and approvals.
-
-### Coding projects
-
-**How do I point her at my project?**
-
-1. Pick a Workspace (your projects folder).
-2. In a chat, press the conversation chip and switch to coding.
-3. Ask: "Look at my project".
-
-**How do I make her try commands safely?**
-
-1. Switch on Try commands in a sandbox first.
-2. Pick the size and time limits.
-3. Nothing is applied until you choose.
-
-**How do I check before I ship?**
-
-1. Press Before you ship.
-2. Read the results in Findings.
-
-### Budgets
-
-**How do I limit what a coding reply may use?**
-
-1. Under Coding chats, set Tokens, Steps or a Spending limit.
-2. She stops and asks when a reply reaches it.
-
-**What happens near the limit?**
-
-1. Choose under Near the limit whether she asks or stops.
-2. Usage and costs shows what was used.
-
-### Keep going and repeats
-
-**How do I make her keep going until the tests pass?**
-
-1. In the chat, press + and pick Keep going until it’s done….
-2. Under Done when, pick the check (the project’s tests are offered first).
-3. Press Start. She works in rounds; Sara runs the check after each one.
-
-**How do I have her check something every few minutes?**
-
-1. In the chat, press + and pick Repeat this… (or type /loop every 10m: what to check).
-2. Pick how often and until when, then press Start.
-3. She only tells you when something changes; Planner → Repeats lists them all.
-
-### Check her edits
-
-**How do I let her check her edits with my project's own type checker?**
-
-1. Keep Check her edits on at the top of this page.
-2. Under Projects, pick the workspace and set the project to On (or press Check her edits here on the card the first time she changes a file there).
-3. From then on she sees the errors her edit caused in the same reply and fixes them.
-
-**How do I switch checks off for one project?**
-
-1. Under Projects, pick the workspace.
-2. Set that project to Off.
-3. In a chat app you can also send /problems off.
-
-**How do I attach a file or my changes to a message?**
-
-1. In the message box, type @ and pick A file, My changes, This branch, Problems or A web page.
-2. Type a few letters to find a file; add :10-25 for just those lines.
-3. Send. The chips under your message show what she got.
-
-### When it comes up
-
-**How do I have her remind me when someone comes up?**
-
-1. In any of your chats, say “when Dan comes up, remind me he owes me $20” (or type /when Dan: he owes me $20).
-2. A card under her reply shows it, with Undo.
-3. The next time you mention Dan in one of your own chats, she brings it up once.
-
-**How do I see or forget what she is waiting to bring up?**
-
-1. Open Planner → Reminders → When it comes up.
-2. Press Forget next to one; Done lists the ones that already came up.
-3. Or type /when for the list and /when forget 1.
-
-### GitHub
-
-**How do I add a GitHub token?**
-
-1. Make a token on GitHub (Settings → Developer settings).
-2. Paste it in GitHub token.
-3. Press Save.
-
-**How do I turn issues into tasks?**
-
-1. Under Issues become tasks, set a label.
-2. Press Look now to fetch them.
-
-### Servers over SSH
-
-**How do I connect a server?**
-
-1. Type the server address and your user name under Connect a server.
-2. Press Connect and wait while Sara looks at it.
-3. Say yes to its ID card, then follow the way in she picks.
-
-**How do I connect a cPanel server?**
-
-1. In cPanel, make an API token called sara that expires tomorrow.
-2. Copy it and paste it into the cPanel token box.
-3. Press Install my key: Sara installs her key and deletes the token.
-
-**What if it doesn't work?**
-
-1. Read the box under the button you pressed.
-2. Press the button it offers, like Find the port or Check now.
-
-**Does she ask before running commands there?**
-
-1. Yes, every command asks first by default.
-2. Change it in Tools and approvals.
-
-## Settings → Connections
+## Settings → Chat apps
 
 ### Pick up across apps
 
@@ -673,43 +445,6 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Under When I switch apps, choose Only when I type /continue.
 2. To end one pickup, press Undo on its chip (or type /continue off).
-
-### Phone and notifications
-
-**How do I put her on my phone?**
-
-1. Open Sara in your phone's browser and sign in.
-2. Press Install Sara as an app (or Add to Home Screen).
-3. Then turn on notifications.
-
-**How do I get notifications?**
-
-1. Press Turn on for this device.
-2. Press Send a test.
-
-### This computer
-
-**How do I ask her from anywhere?**
-
-1. Pick a Quick ask shortcut.
-2. Press it in any app and type.
-
-**How do I check notifications work?**
-
-1. Press Show a test notification.
-
-### Computer use
-
-**How do I let her use this computer?**
-
-1. Allow her under This computer.
-2. Choose when she must ask first under Her actions.
-3. Move the mouse to take over any time.
-
-**How do I stop her right away?**
-
-1. Move the mouse or press a key.
-2. She stops and waits.
 
 ### Telegram
 
@@ -819,6 +554,275 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. BlueBubbles can't ring Sara, so she checks for messages every few seconds instead.
 2. Put the Mac and Sara on Tailscale, then press Ring on the iMessage card.
+
+## Settings → Add-ons
+
+### Get more
+
+**How do I add something from the store?**
+
+1. Search or pick it on a shelf, then open it.
+2. Read what it can do, then press Get.
+3. Read its card and press Install: it stays off until you switch it on.
+
+**How do I update an add-on?**
+
+1. Open My add-ons.
+2. Press Update next to it and read what changed.
+3. Nothing updates by itself.
+
+**How do I send the Sara team my plugin?**
+
+1. Press Submit yours.
+2. Give the folder, then press Check it.
+3. Fix what it finds, then send it: the team reviews it before it is listed.
+
+### Skills
+
+**How do I teach her a skill?**
+
+1. Press New skill.
+2. Write the steps in plain words and save.
+3. She uses it when a request matches.
+
+**How do I add a skill from someone else?**
+
+1. Press Add a skill.
+2. Pick a zip, a GitHub link or a file.
+3. Read it before switching it on.
+
+### Plugins
+
+**How do I add a plugin?**
+
+1. Press Add a plugin.
+2. Read the permissions it asks for.
+3. Switch it on when you trust it.
+
+**How do I stop a plugin?**
+
+1. Switch it off on its card.
+2. Its log stays under What it did.
+
+### Web search
+
+**How do I let her search the web?**
+
+1. Pick a Search service.
+2. Paste its API key if it needs one.
+3. Ask her to look something up.
+
+**How do I search without a key?**
+
+1. Pick a service marked Free · no key.
+2. Or run your own SearXNG and paste its URL.
+
+### Library
+
+**How do I give her a document?**
+
+1. Open Library from the sidebar.
+2. Drop the file on the box at the top.
+3. Ask her about it in any chat.
+
+**How do I make reading gentler on my computer?**
+
+1. Pick Gentle under Background reading.
+2. Big documents then take longer.
+
+### Gmail and Calendar
+
+**How do I connect Gmail and Calendar?**
+
+1. Paste your Google Client ID and secret.
+2. Press Save, then Sign in with Google.
+
+**How do I disconnect Google?**
+
+1. Press Sign out of Google.
+
+### Home Assistant
+
+**How do I connect Home Assistant?**
+
+1. Type the Home Assistant address.
+2. Paste a long-lived access token.
+3. Press Save and test.
+
+**How do I let her notice when I get home?**
+
+1. Connect Home Assistant first.
+2. Under Presence, switch on React to what happens at home.
+3. Pick the people and what she does.
+
+### Other programs (MCP)
+
+**How do I connect another program (MCP)?**
+
+1. Pick Start from, or type the Command or URL.
+2. Add any Secrets it needs.
+3. Press Save and connect.
+
+**What is an MCP server?**
+
+1. A small program that gives her new tools.
+2. Its tools then appear in Tools and approvals.
+
+## Settings → Coding
+
+### Tools and approvals
+
+**How do I make her ask before she does something?**
+
+1. Find the tool in its group.
+2. Set it to Ask me first.
+3. Approval cards then appear in chat.
+
+**How do I switch a tool off?**
+
+1. Find the tool in its group.
+2. Set it to Off.
+
+### Coding projects
+
+**How do I point her at my project?**
+
+1. Pick a Workspace (your projects folder).
+2. In a chat, press the conversation chip and switch to coding.
+3. Ask: "Look at my project".
+
+**How do I make her try commands safely?**
+
+1. Switch on Try commands in a sandbox first.
+2. Pick the size and time limits.
+3. Nothing is applied until you choose.
+
+**How do I check before I ship?**
+
+1. Press Before you ship.
+2. Read the results in Findings.
+
+### Budgets
+
+**How do I limit what a coding reply may use?**
+
+1. Under Coding chats, set Tokens, Steps or a Spending limit.
+2. She stops and asks when a reply reaches it.
+
+**What happens near the limit?**
+
+1. Choose under Near the limit whether she asks or stops.
+2. Usage and costs shows what was used.
+
+### Keep going and repeats
+
+**How do I make her keep going until the tests pass?**
+
+1. In the chat, press + and pick Keep going until it’s done….
+2. Under Done when, pick the check (the project’s tests are offered first).
+3. Press Start. She works in rounds; Sara runs the check after each one.
+
+**How do I have her check something every few minutes?**
+
+1. In the chat, press + and pick Repeat this… (or type /loop every 10m: what to check).
+2. Pick how often and until when, then press Start.
+3. She only tells you when something changes; Planner → Repeats lists them all.
+
+### Check her edits
+
+**How do I let her check her edits with my project's own type checker?**
+
+1. Keep Check her edits on at the top of this page.
+2. Under Projects, pick the workspace and set the project to On (or press Check her edits here on the card the first time she changes a file there).
+3. From then on she sees the errors her edit caused in the same reply and fixes them.
+
+**How do I switch checks off for one project?**
+
+1. Under Projects, pick the workspace.
+2. Set that project to Off.
+3. In a chat app you can also send /problems off.
+
+**How do I attach a file or my changes to a message?**
+
+1. In the message box, type @ and pick A file, My changes, This branch, Problems or A web page.
+2. Type a few letters to find a file; add :10-25 for just those lines.
+3. Send. The chips under your message show what she got.
+
+### GitHub
+
+**How do I add a GitHub token?**
+
+1. Make a token on GitHub (Settings → Developer settings).
+2. Paste it in GitHub token.
+3. Press Save.
+
+**How do I turn issues into tasks?**
+
+1. Under Issues become tasks, set a label.
+2. Press Look now to fetch them.
+
+### Servers over SSH
+
+**How do I connect a server?**
+
+1. Type the server address and your user name under Connect a server.
+2. Press Connect and wait while Sara looks at it.
+3. Say yes to its ID card, then follow the way in she picks.
+
+**How do I connect a cPanel server?**
+
+1. In cPanel, make an API token called sara that expires tomorrow.
+2. Copy it and paste it into the cPanel token box.
+3. Press Install my key: Sara installs her key and deletes the token.
+
+**What if it doesn't work?**
+
+1. Read the box under the button you pressed.
+2. Press the button it offers, like Find the port or Check now.
+
+**Does she ask before running commands there?**
+
+1. Yes, every command asks first by default.
+2. Change it in Tools and approvals.
+
+## Settings → Connections
+
+### Phone and notifications
+
+**How do I put her on my phone?**
+
+1. Open Sara in your phone's browser and sign in.
+2. Press Install Sara as an app (or Add to Home Screen).
+3. Then turn on notifications.
+
+**How do I get notifications?**
+
+1. Press Turn on for this device.
+2. Press Send a test.
+
+### This computer
+
+**How do I ask her from anywhere?**
+
+1. Pick a Quick ask shortcut.
+2. Press it in any app and type.
+
+**How do I check notifications work?**
+
+1. Press Show a test notification.
+
+### Computer use
+
+**How do I let her use this computer?**
+
+1. Allow her under This computer.
+2. Choose when she must ask first under Her actions.
+3. Move the mouse to take over any time.
+
+**How do I stop her right away?**
+
+1. Move the mouse or press a key.
+2. She stops and waits.
 
 ### Other apps
 

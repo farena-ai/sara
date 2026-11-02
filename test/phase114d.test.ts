@@ -55,7 +55,8 @@ test('PL1d: the How do I…? index in the guide lists every entry of howto.json,
   // Views first, then the Settings groups in menu order; every Settings page has a title.
   const sections = howtoSections(data, titles());
   assert.equal(sections[0].pages[0].id, 'chat');
-  assert.deepEqual(sections.slice(1).map((s) => s.heading), ['Her', 'You', 'Models', 'Abilities', 'Connections', 'Data & health', 'Household']);
+  // PL2b (2.61.1, POLISH2 §4.2): the 8 groups (Chat apps, Add-ons and Coding replace Abilities; Connections keeps 6 pages).
+  assert.deepEqual(sections.slice(1).map((s) => s.heading), ['Her', 'You', 'Models', 'Chat apps', 'Add-ons', 'Coding', 'Connections', 'Data & health', 'Household']);
 });
 
 test('PL1d: the guide index needs no new translations (titles and questions are keys the app already has)', () => {

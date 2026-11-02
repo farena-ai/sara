@@ -492,12 +492,14 @@ export async function decorateCompanionRows(list, o = {}) {
       if (row.update) li.append(el('span', 'pkp-chip small', t('Update')));
       if (row.paused) li.append(el('span', 'pkp-paused small', t('{name} was pulled from the Sara Store: {reason}', { name: row.name ?? '', reason: row.paused.reason })));
     }
+    // Phase 128 (PL2b, N16): Share her is a button on the row, not inside ⋯.
+    if (!o.member) li.append(' ', btn(t('Share her'), 'ghost small pkp-share', () => void openShare(id)));
+    if (!row) continue;
     const menu = el('details', 'share-menu pkp-menu');
     const sum = el('summary', 'button ghost small', '⋯');
     sum.setAttribute('aria-label', t('More for this companion'));
     const items = el('span', 'share-menu-items');
-    items.append(btn(t('Share her'), 'ghost small', () => void openShare(id)));
-    if (row) {
+    {
       const pick = el('input');
       pick.type = 'file';
       pick.accept = '.zip,application/zip';

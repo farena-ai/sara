@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { backupName, BACKUPS_DIR, createBackup, DEFAULT_BACKUP, listBackups } from '../backup.ts';
 import { HISTORY_BUDGET_CHARS } from '../chat.ts';
 import { checklist } from '../checklist.ts';
+import { appMenu } from '../bridges/commands.ts';
 import { CONTRADICT_MODES, type ContradictMode, contradictSettings } from '../contradict.ts';
 import { runDoctor } from '../doctor.ts';
 import { healthReport } from '../health.ts';
@@ -446,6 +447,8 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       return void createReadStream(join(dir, name)).pipe(res);
     }
 
+    // Phase 128 (PL2b, N19): the `/` menu of the app's message box (src/bridges/commands.ts APP_MENU).
+    if (a === 'chat-menu' && !b && method === 'GET') return send(res, 200, { commands: appMenu(app, { member: Boolean(opts.member) }) });
     // Phase 23: "Getting started" on the Today page.
     if (a === 'checklist' && !b) {
       const view = () =>

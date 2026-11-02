@@ -50,7 +50,7 @@ export function starterChips(path, where, t) {
 /** The tour offer's words: the stops are six, and Help keeps every tour (also the full one). */
 export function offerText(path, t) {
   const p = normPath(path);
-  if (p === 'coding') return t('New here? Six quick stops show where coding with her happens. (Help in the sidebar has every tour, also the full one.)');
+  if (p === 'coding') return t('New here? Seven quick stops show where coding with her happens. (Help in the sidebar has every tour, also the full one.)');
   return t('New here? Six quick stops show where everything is. (Help in the sidebar has every tour, also the full one.)');
 }
 

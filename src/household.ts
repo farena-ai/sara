@@ -500,6 +500,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'conversations', 'live', 'events', 'approvals', 'uploads', 'video', 'calls', 'voice', 'wake', 'tags', 'find', 'reports',
   // Phase 123: Undo on a tidy divider in their own chats
   'compactions',
+  // Phase 128 (PL2b): the / menu's list (read-only; GET /api/chat-menu filters it for a member)
+  'chat-menu',
   // Phase 78: the run view of their own turns (their space's own database)
   'runs',
   // her

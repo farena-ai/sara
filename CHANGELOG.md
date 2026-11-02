@@ -5,6 +5,20 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.61.1 (2026-11-02): find it (Phase 128, polish PL2b)
+
+- **Settings in 8 groups:** Her, You, Models, Chat apps, Add-ons, Coding, Connections, Data & health (and
+  Household). No page moved its address, so old links and the tour still work.
+- **Search finds things:** one index for Settings and Ctrl+K with keywords, synonyms and the *How do I…?*
+  questions; `@`, `/`, *funnel*, *takedown* and *hey sara* now find their pages, and *routine* points to
+  Planner → Routines. For this release the old group names (Abilities, Connections) still find their pages.
+- **The `/` menu:** type `/` in the message box for every command you can use in that chat, with arrow
+  keys, Enter, Esc and tap; members only see their own; the menu, Telegram's and Discord's come from one list.
+- **`@` in a new chat** now opens the reference menu (it needed a conversation to exist first).
+- **Next steps on Today:** once *Getting started* is done, three cards suggest the next thing (chat apps,
+  the Sara Store, Hey Sara; for coders the `/` menu and tool servers), with Hide. *Share her* and the Store
+  are easier to find from Her, and *Tidy this chat* is offered from 70% full.
+
 ## 2.61.0 (2026-11-02): no more brick walls (Phase 128, polish PL2a)
 
 - **One setup card for every chat app.** WhatsApp, Matrix, iMessage, Signal, Email and Telegram now share

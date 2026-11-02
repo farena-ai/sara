@@ -45,7 +45,7 @@ import { startsOnToday } from './start-view.js';
 import { DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNote, updatesShown, versionChanged } from './update-check.js';
 import { initHousehold, joinFromLink, loadAccount, loadHousehold, showPaused } from './household.js';
 import { compactNotice, dimFolded, initLean, loadLean, paintSheet } from './lean.js';
-import { initPersist, loadPersistSettings, loadRepeats, persistEvent, persistMessage, persistOpen, savePersistSettings } from './persist.js';
+import { initPersist, loadPersistSettings, loadRepeats, openGoalCard, openLoopCard, persistEvent, persistMessage, persistOpen, savePersistSettings } from './persist.js';
 import { initRoutines, loadRoutines, openRoutinesAt, setRoutinesOpener, todayRoutineCards } from './routines.js';
 import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-check.js';
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
@@ -57,7 +57,10 @@ import { loadWakePage, renderVoiceInstall, wakeEvent } from './wake.js';
 import { foldFirstRun, hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton, unfoldFirstRun } from './hub.js';
 import { createQueue, normPath, offerText, overlayCount, pathChoices, starterChips, tourFor } from './first-run.js';
 import { emptyState, initTidy, overflowMenu } from './tidy.js';
-import { howtoBlock, howtoForStep, loadHowto, mountViewHowtos } from './howto.js';
+import { howtoBlock, howtoFor, howtoForStep, loadHowto, mountViewHowtos } from './howto.js';
+import { foldText, rankElsewhere, rankPages, SETTINGS_KEYWORDS } from './settings-search.js';
+import { initSlash, loadSlash, slashCommands } from './slash.js';
+import { NEXT_HIDDEN_KEY, nextSteps } from './next-steps.js';
 import { choices } from './kit.js';
 import { addStep, finishStep, hasSteps, memoryStep, pluginStep, recallStep, runLink, runStep, setBudget, skillStep, stepLine, waitStep } from './steps.js';
 import { budgetCard, budgetMeter, fillBudgetSelect, overrideNote } from './budget-view.js';
@@ -1334,7 +1337,9 @@ initCommandBar({
     labels.sort((a, b) => b.sc - a.sc);
     const strong = labels.filter((x) => x.sc >= 3);
     const weak = labels.filter((x) => x.sc < 3);
-    return [...named.slice(0, 3).map(pageItem), ...strong.slice(0, 4), ...tiered.slice(0, 2).map(pageItem), ...weak].slice(0, 6);
+    // Phase 128 (PL2b, N30): the same Elsewhere as the Settings search (Planner tabs, chat commands).
+    const elsewhere = rankElsewhere(q, isMember() ? [] : slashCommands()).slice(0, 2).map((h) => ({ key: `elsewhere:${h.id}`, icon: h.id.startsWith('planner') ? 'calendar' : 'chat', label: h.label.map((x) => (x.startsWith('/') ? x : t(x))).join(' → '), sub: h.detail ?? t('Elsewhere'), run: () => openSearchPlace(h.id) }));
+    return [...named.slice(0, 3).map(pageItem), ...elsewhere, ...strong.slice(0, 4), ...tiered.slice(0, 2).map(pageItem), ...weak].slice(0, 6);
   },
   actions: () => {
     const list = [];
@@ -1992,7 +1997,8 @@ function commandNotice(m) {
 /** Phase 107: her commands typed in the app: /new, /reset, /stop, /status, /help, /model, /remember. */
 // Phase 113: /bug and /idea open the report sheet (the server answers with what to fill in).
 // Phase 123: /compact and /tools.
-const CHAT_COMMAND = /^\/(new|reset|stop|status|help|model|remember|bug|idea|when|continue|compact|tools)(?:\s[\s\S]*)?$/i;
+// Phase 128 (PL2b): /problems from the / menu too.
+const CHAT_COMMAND = /^\/(new|reset|stop|status|help|model|remember|bug|idea|when|continue|compact|tools|problems)(?:\s[\s\S]*)?$/i;
 async function runChatCommand(text) {
   if (!state.currentId) {
     const conv = await api('/conversations', { method: 'POST', body: {} });
@@ -2041,6 +2047,19 @@ async function runChatCommand(text) {
   }
 }
 
+/** A new chat gets its conversation now (the first message, an @ reference or a / command need one). */
+async function ensureConversation() {
+  if (state.currentId) return state.conv;
+  const conv = await api('/conversations', { method: 'POST', body: {} });
+  state.conversations.unshift(conv);
+  state.currentId = conv.id;
+  state.conv = conv;
+  renderConvSummary();
+  $('#chat-title').textContent = conv.title;
+  renderConversations();
+  return conv;
+}
+
 async function send(text) {
   // Phase 116: /btw is a side question (never a message); /steer and /queue with nothing running are a plain message.
   const typed = state.editing ? undefined : typedBusy(text);
@@ -2048,6 +2067,15 @@ async function send(text) {
   if (typed) {
     text = typed.text;
     if (!text) return;
+  }
+  // Phase 128 (PL2b, N19): /goal and /loop from the / menu open their cards (the same as + → Keep
+  // going… / Repeat this…), with what was typed after the command.
+  const persistCmd = state.editing ? null : /^\/(goal|loop)(?:\s+([\s\S]*))?$/i.exec(text.trim());
+  if (persistCmd && !isMember()) {
+    if (!state.currentId) await ensureConversation();
+    $('#input').value = '';
+    autosize();
+    return persistCmd[1].toLowerCase() === 'goal' ? openGoalCard((persistCmd[2] ?? '').trim()) : openLoopCard((persistCmd[2] ?? '').trim());
   }
   // Phase 107: a command never goes to her as a message (photos and documents need a real one).
   if (CHAT_COMMAND.test(text.trim()) && !state.editing && !state.photos.length && !state.docs.length) return runChatCommand(text.trim());
@@ -6495,11 +6523,13 @@ async function renderCompanionsPage() {
     }),
   );
   // Phase 127: each row's pack line and ⋯ menu (Share her, Update from a file, …).
-  if (!state.demo) void decorateCompanionRows($('#cmp-list'), { refresh: () => void renderCompanionsPage() });
+  if (!state.demo) void decorateCompanionRows($('#cmp-list'), { refresh: () => void renderCompanionsPage(), member: isMember() });
   const from = $('#cmp-from');
   from.replaceChildren(new Option(t('A new character (shape them afterwards)'), ''), ...d.companions.map((c) => new Option(`${t('A copy of')} ${c.name}`, c.id)));
   $('#cmp-planner').value = d.planner;
 }
+// Phase 128 (PL2b, N16): the Store has companions too.
+$('#cmp-store').addEventListener('click', () => showSettingsTab('ab-store', { focus: true }));
 $('#cmp-add').addEventListener('click', async () => {
   const name = $('#cmp-name').value.trim();
   if (!name) return ($('#cmp-status').textContent = t('Give them a name first.'));
@@ -7613,7 +7643,9 @@ $('#model-select').addEventListener('change', () => {
 // Settings pages (Phase 15): a list of pages grouped by topic, a search box, one page at a time.
 // Old tab names still work (links and first-run steps use them).
 // Phase 114 (PL1c, S5): Recipes became Skills; its old link lands there and it is out of the list.
-const OLD_TABS = { yours: 'her-character', models: 'models-default', you: 'you-about', abilities: 'ab-tools', connections: 'co-phone', voice: 'her-voice', data: 'dh-health', 'ab-recipes': 'ab-skills' };
+// Phase 128 (PL2b): Today's "Runs today" link asked for 'dh-runs', which never existed (it fell back to
+// the first page); the run history (Keep runs, Delete run history) is on Health.
+const OLD_TABS = { yours: 'her-character', models: 'models-default', you: 'you-about', abilities: 'ab-tools', connections: 'co-phone', voice: 'her-voice', data: 'dh-health', 'dh-runs': 'dh-health', 'ab-recipes': 'ab-skills' };
 // In the phone apps the adult-mode page isn't offered (store rules; it's a web-browser setting).
 // Adult mode is web-browser only (hidden in the phone and desktop apps); "This computer" only in the desktop app.
 // Phase 71: a household member sees only their own pages (data-member-only), never the owner's
@@ -7630,29 +7662,41 @@ const settingsPages = () =>
 
 // Settings groups (UI cleanup): real headers with an icon, opened and closed by a click; only the
 // group of the page on screen is open at first, and the choice is remembered on this device.
+// Phase 128 (PL2b, docs/design/POLISH2.md §4.2, N29): 8 groups of at most 10 pages (+ Household).
+// Page ids never change; a page's group is its data-group in index.html. `was` is the group a page
+// sat in before 2.61.1: search still finds it under the old name and says where it moved.
 const SETTINGS_GROUPS = [
   { name: 'Her', icon: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z' },
   { name: 'You', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4.4 3.6-7 8-7s8 2.6 8 7' },
   { name: 'Models', icon: 'M7 7h10v10H7zM10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4' },
-  { name: 'Abilities', icon: 'M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z' },
+  { name: 'Chat apps', icon: 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5' },
+  { name: 'Add-ons', icon: 'M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z' },
+  { name: 'Coding', icon: 'M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16' },
   { name: 'Connections', icon: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1' },
   { name: 'Data & health', icon: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM8 12h2l1.5-3 2 6 1.5-3h1' },
   { name: 'Household', icon: 'M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6' },
 ];
-// The order of the pages inside each group. Page ids and group names stay the same: links, tips,
-// tours and the guide's "Settings → Abilities → …" paths use them.
+/** Where the pages that moved in 2.61.1 used to be (for “moved to …” in search, one release). */
+const SETTINGS_WAS = {
+  Abilities: ['ab-store', 'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp', 'ab-projects', 'ab-precise', 'ab-budgets', 'ab-persist', 'ab-when', 'ab-github', 'ab-ssh'],
+  Connections: ['co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-pickup'],
+};
+/** The old group names in the app's language (search matches them for one release). */
+const WAS_WORDS = { Abilities: () => t('Abilities'), Connections: () => t('Connections') };
+// The order of the pages inside each group. Page ids stay the same: links, tips, tours and tests use them.
 const SETTINGS_ORDER = [
   'her-character', 'her-relationship', 'her-look', 'her-pictures', 'her-voice', 'her-hey', 'her-calls', 'her-companions', 'her-import',
-  'you-about', 'you-briefing', 'you-leave-by', 'you-adult',
+  'you-about', 'you-briefing', 'you-leave-by', 'ab-when', 'you-adult',
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
-  'ab-store', 'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp',
-  'ab-projects', 'ab-precise', 'ab-budgets', 'ab-persist', 'ab-when', 'ab-github', 'ab-ssh', 'ab-recipes',
-  'co-phone', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-pickup', 'co-apps', 'co-agents', 'co-hooks',
+  'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-pickup',
+  'ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-recipes',
+  'ab-projects', 'ab-precise', 'ab-persist', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-tools',
+  'co-phone', 'co-computer', 'desktop-app', 'co-apps', 'co-agents', 'co-hooks',
   'dh-safety', 'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
   'household', 'account',
 ];
-// A small heading inside a group, before the first of these pages.
-const SETTINGS_SUB = { 'ab-projects': 'For coding' };
+// A small heading inside a group, before the first of these pages (none since the Coding group).
+const SETTINGS_SUB = {};
 const NS_SVG = 'http://www.w3.org/2000/svg';
 function lineIcon(d, cls = '') {
   const s = document.createElementNS(NS_SVG, 'svg');
@@ -7834,48 +7878,100 @@ function showSettingsTab(page, opts = {}) {
   if (opts.focus) $('.settings-pages').focus({ preventScroll: true });
 }
 
-// Search: every word may match a page's title, group, description, labels, tips or text. Pages with
-// all the words come first; when no page has them all, pages with any of them show. The list keeps
-// up (only matching pages, their groups opened).
-const foldText = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+// Search: every word may match a page's title, group, description, labels, tips or text.
+// Phase 128 (PL2b, N30): one index for Settings and Ctrl+K (web/settings-search.js): page keywords
+// and synonyms, the pages' "How do I…?" questions, ranked name → question → label, and *Elsewhere*
+// (Planner tabs and chat commands). The list keeps up (only matching pages, their groups opened).
 /** A page's headline words: title, group, description, headings, labels and tips. */
 function settingsHeadText(p) {
   const bits = [t(p.dataset.title), p.dataset.title, t(p.dataset.group), t(HELP[p.dataset.page]?.[0] ?? '')];
   for (const n of p.querySelectorAll('h3, h4, label, legend, summary, [data-tip], [aria-label], [placeholder]')) bits.push(n.matches('h3, h4, label, legend, summary') ? n.textContent : '', n.dataset.tip ?? '', n.getAttribute('aria-label') ?? '', n.getAttribute('placeholder') ?? '');
   return foldText(bits.join(' '));
 }
-/**
- * The pages that match a search. Each word is looked for on its own. Best first: pages whose
- * headline words have every word; else pages with any of the words in their headline words; else
- * pages with every word anywhere in their text; else any word anywhere.
- */
-function matchSettings(q, pages, headOf = settingsHeadText, bodyOf = (p) => foldText(`${p.textContent} ${pageLead(p.dataset?.page)?.textContent ?? ''}`)) {
-  const words = foldText(q).split(/\s+/).filter((w) => w.length > 1 || /\d/.test(w));
-  if (!words.length) return [];
-  // "backups" also finds "backup", "emails" finds "email".
-  const stems = words.map((w) => (w.length > 4 && w.endsWith('s') ? w.slice(0, -1) : w));
-  const texts = pages.map((p) => ({ p, head: headOf(p), body: bodyOf(p) }));
-  const tiers = [
-    (x) => stems.every((w) => x.head.includes(w)),
-    (x) => stems.some((w) => x.head.includes(w)),
-    (x) => stems.every((w) => x.body.includes(w)),
-    (x) => stems.some((w) => x.body.includes(w)),
-  ];
-  for (const ok of tiers) {
-    const hits = texts.filter(ok).map((x) => x.p);
-    if (hits.length) return hits;
+const wasGroup = (page) => Object.keys(SETTINGS_WAS).find((g) => SETTINGS_WAS[g].includes(page) && document.querySelector(`#settings [data-page="${page}"]`)?.dataset.group !== g) ?? '';
+/** The search record of a Settings page (web/settings-search.js). */
+function settingsRecord(p, headOf = settingsHeadText, bodyOf = (p) => foldText(`${p.textContent} ${pageLead(p.dataset?.page)?.textContent ?? ''}`)) {
+  const page = p.dataset.page;
+  const was = wasGroup(page);
+  return {
+    p,
+    id: page,
+    title: foldText(`${t(p.dataset.title)} ${p.dataset.title}`),
+    group: foldText(`${t(p.dataset.group)} ${p.dataset.group}`),
+    was: was ? foldText(`${WAS_WORDS[was]()} ${was}`) : '',
+    keywords: (SETTINGS_KEYWORDS[page] ?? []).map(foldText),
+    questions: (howtoFor(page) ?? []).map((x) => foldText(`${t(x.q)} ${x.q}`)),
+    head: headOf(p),
+    body: bodyOf(p),
+  };
+}
+/** The pages that match a search, best first. */
+function matchSettings(q, pages, headOf, bodyOf) {
+  return rankPages(q, pages.map((p) => settingsRecord(p, headOf, bodyOf))).map((r) => r.p);
+}
+// The pages' order in the page (restored after a search, which shows the best match first).
+const SETTINGS_DOM_ORDER = [...document.querySelectorAll('#settings .settings-pages > .settings-page')];
+function restoreSettingsOrder() {
+  const box = $('.settings-pages');
+  const empty = $('#settings-empty');
+  for (const sec of SETTINGS_DOM_ORDER) box.insertBefore(sec, empty);
+}
+/** Elsewhere: the Planner tabs and chat commands that match (one click opens them). */
+function paintElsewhere(raw) {
+  const box = $('#settings-elsewhere');
+  const hits = raw ? rankElsewhere(raw, isMember() ? [] : slashCommands()) : [];
+  // Q2: for one release the old group names say where their pages went.
+  const moved = raw ? Object.keys(SETTINGS_WAS).filter((g) => foldText(raw).trim().length >= 4 && [WAS_WORDS[g](), g].some((w) => foldText(w).startsWith(foldText(raw).trim()))) : [];
+  box.replaceChildren();
+  box.hidden = !hits.length && !moved.length;
+  if (box.hidden) return;
+  for (const g of moved) {
+    const now = [...new Set(SETTINGS_WAS[g].map((id) => document.querySelector(`#settings [data-page="${id}"]`)?.dataset.group).filter((x) => x && x !== g))];
+    box.append(el('p', 'muted small se-moved', t('Some {old} pages moved in 2.61.1, to {groups}.', { old: WAS_WORDS[g](), groups: now.map((x) => t(x)).join(', ') })));
   }
-  return [];
+  if (!hits.length) return;
+  box.append(el('h3', 'se-head', t('Elsewhere')));
+  const list = el('div', 'se-list');
+  for (const h of hits) {
+    const b = el('button', 'ghost se-item');
+    b.type = 'button';
+    b.append(el('span', 'se-label', h.label.map((x) => (x.startsWith('/') ? x : t(x))).join(' → ')), ...(h.detail ? [el('span', 'muted small se-detail', h.detail)] : []));
+    b.addEventListener('click', () => void openSearchPlace(h.id));
+    list.append(b);
+  }
+  box.append(list);
+}
+async function openSearchPlace(id) {
+  const [kind, what] = id.split(':');
+  if ($('#settings').open) $('#settings').close();
+  if (kind === 'planner') {
+    if (what === 'routines') return void openRoutines();
+    if (!$('#planner').open) await openPlanner();
+    return void document.querySelector(`#planner .tab[data-tab="${what}"]`)?.click();
+  }
+  // A chat command: into the message box, with the / menu open on it.
+  const input = $('#input');
+  input.value = `/${what} `;
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 $('#settings-search').addEventListener('input', () => {
   const raw = $('#settings-search').value.trim();
   const pages = settingsPages();
   $('.settings-pages').classList.toggle('searching', Boolean(raw));
+  paintElsewhere(raw);
   if (!raw) {
+    restoreSettingsOrder();
     clearSettingsSearch();
     return showSettingsTab(localStorage.getItem('sara.settingsPage') ?? 'her-character');
   }
-  const hits = new Set(matchSettings(raw, pages));
+  const ranked = matchSettings(raw, pages);
+  const hits = new Set(ranked);
+  // Best first: the matching pages move to the top in rank order.
+  const box = $('.settings-pages');
+  restoreSettingsOrder();
+  for (const sec of [...ranked].reverse()) box.insertBefore(sec, box.querySelector('.settings-page'));
   for (const p of pages) p.hidden = !hits.has(p);
   $('#settings-nav-list').classList.add('searching');
   for (const b of document.querySelectorAll('#settings-nav-list [data-page]')) {
@@ -7892,7 +7988,7 @@ $('#settings-search').addEventListener('input', () => {
   $('#settings-page-title').textContent = found ? (found === 1 ? t('1 page with “{q}”', { q: raw }) : t('{n} pages with “{q}”', { n: found, q: raw })) : '';
   $('#settings-page-desc').hidden = true;
   $('#settings-howto').replaceChildren();
-  $('#settings-empty').hidden = found > 0;
+  $('#settings-empty').hidden = found > 0 || !$('#settings-elsewhere').hidden;
   $('#settings').classList.add('page-open');
 });
 $('#settings-back').addEventListener('click', () => $('#settings').classList.remove('page-open'));
@@ -7900,6 +7996,9 @@ buildSettingsNav();
 
 async function openSettings(tab, opts = {}) {
   $('#settings-search').value = '';
+  $('#settings-elsewhere').hidden = true;
+  restoreSettingsOrder();
+  void loadSlash(); // PL2b: Elsewhere in search lists the chat commands
   clearSettingsSearch();
   showSettingsTab(typeof tab === 'string' ? tab : (localStorage.getItem('sara.settingsPage') ?? 'her-character'), { howto: opts.howto ?? '' });
   // On a phone, opening Settings from the menu starts at the list of pages.
@@ -7946,6 +8045,7 @@ async function rerenderAfterLanguage() {
     if (studio.defs) renderStudio();
     await loadModels().catch(() => {}); // UX 21: the Default model status line
   }
+  void loadSlash(true); // PL2b: the / menu's lines in the new language
   renderConvSummary(); // UX 21: the chat header chip ("main folder")
   relabelNav();
   if ($('#today').open) await Promise.all([loadToday(), loadChecklist()]).catch(() => {});
@@ -8510,6 +8610,8 @@ const TOURS = {
   coding: [
     { before: async () => { sidebar(false)(); await showHeadChips(); }, sel: '#conv-settings-btn', title: t('This conversation'), text: t('The folder, model and mode of this conversation. Switch the mode to Coding for project work: she reads, edits and runs things in that folder.') },
     { before: sidebar(false), sel: '#messages', title: t('Her steps'), text: t('Under each reply a step line says what she did: files read, commands run, tests. Open it for every step, and Show the run for the whole turn.') },
+    // Phase 128 (PL2b, N27): one stop for the / menu.
+    { before: sidebar(false), sel: '#input', title: t('Type / for commands'), text: t('Type / at the start of the message box: /goal, /loop, /compact, /tools and more, each with one line on what it does.') },
     { when: () => !isMember(), before: settingsAt('ab-tools'), sel: '#tool-list', title: t('Ask me first'), text: t('For each tool: Ask me first, Always allowed or Never. Commands run in a sandbox when one is set up, and her approvals wait in the chat and in her panel.') },
     { before: navStep('#open-team'), sel: '#open-team', title: t('Team'), text: t('For bigger jobs she leads helpers that plan, build, test and review.') },
     { before: navStep('#open-findings'), sel: '#open-findings', title: t('Findings'), text: t('Her security pass adds what it finds here after coding turns, each with a fix she can make on its own branch.') },
@@ -9023,11 +9125,28 @@ initSafetyCheck({ api, el, openSettings: (page) => void openSettings(page) });
 // Phase 120: the @ menu and chips; who may use references here is decided again by the server.
 initRefs({
   api, state, el, openSettings: (page) => void openSettings(page),
+  // Phase 128 (PL2b, N20): a new chat has no conversation until the first message, and @ showed
+  // nothing there. A new chat is an everyday chat in the main folder, so @ works; the conversation is
+  // made when a reference needs it (ensure). Where @ can't be used, the menu says so in one line.
   place: () => {
     const conv = state.conv;
-    if (isMember() || document.body.classList.contains('demo') || !conv || conv.partner || isGroup(conv)) return null;
+    if (isMember() || document.body.classList.contains('demo')) return null;
+    if (!conv) return { workspace: true, url: true };
+    if (conv.partner || isGroup(conv)) return null;
     if (conv.offRecord) return { workspace: false, url: !conv.private };
     return { workspace: true, url: !conv.private };
+  },
+  hint: () => (state.conv?.partner ? t('@ works in your own chats, not in a chat with someone else.') : state.conv?.offRecord && state.conv.private ? t('@ doesn’t attach anything in a private off-the-record chat.') : ''),
+  ensure: () => ensureConversation(),
+});
+// Phase 128 (PL2b, N19): the / menu (web/slash.js). Group, partner and off-the-record chats only
+// offer the commands that work there; a household member's list comes filtered from the server.
+initSlash({
+  api, el, t,
+  chat: () => {
+    if (document.body.classList.contains('demo') || state.editing) return null;
+    const conv = state.conv;
+    return { own: !conv || !(conv.partner || isGroup(conv) || conv.offRecord), offRecord: Boolean(conv?.offRecord) };
   },
 });
 initWhen({ api, el });
@@ -9603,6 +9722,7 @@ async function loadChecklist() {
   const c = await api('/checklist').catch(() => null);
   void paintBegin(c?.path ?? 'both');
   const left = c ? c.items.filter((i) => !i.done) : [];
+  paintNextSteps(c);
   $('#td-start').hidden = !c || c.hidden || !left.length;
   if ($('#td-start').hidden) return;
   $('#td-start-count').textContent = t('{done} of {total} done', { done: c.items.length - left.length, total: c.items.length });
@@ -9631,6 +9751,33 @@ async function loadChecklist() {
     }),
   );
 }
+/** Phase 128 (PL2b, N27): Next steps, three cards once Getting started is done (web/next-steps.js). */
+function paintNextSteps(c) {
+  const cards = isMember() || document.body.classList.contains('demo') ? [] : nextSteps(c, localStorage.getItem(NEXT_HIDDEN_KEY) === '1', t);
+  $('#td-next').hidden = !cards.length;
+  $('#td-next-list').replaceChildren(...cards.map((x) => {
+    const b = el('button', 'start-item next-card');
+    b.type = 'button';
+    b.dataset.next = x.id;
+    b.append(icon(x.icon, 'next-ic') ?? '', el('span', 'next-title', x.title), el('span', 'next-text muted small', x.text));
+    b.addEventListener('click', async () => {
+      $('#today').close();
+      if (x.open === 'slash') {
+        const input = $('#input');
+        input.value = '/';
+        input.focus();
+        input.setSelectionRange(1, 1);
+        return void input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      await openSettings(x.open.split(':')[1]);
+    });
+    return b;
+  }));
+}
+$('#td-next-hide').addEventListener('click', () => {
+  localStorage.setItem(NEXT_HIDDEN_KEY, '1');
+  $('#td-next').hidden = true;
+});
 $('#td-start-hide').addEventListener('click', async () => {
   await api('/checklist', { method: 'PUT', body: { hidden: true } }).catch(() => {});
   $('#td-start').hidden = true;

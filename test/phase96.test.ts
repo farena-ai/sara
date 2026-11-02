@@ -611,7 +611,8 @@ test('web: Settings → Abilities → Skills, the editor and the import review; 
   const app = readFileSync(join(ROOT, 'web', 'app.js'), 'utf8');
   const sw = readFileSync(join(ROOT, 'web', 'sw.js'), 'utf8');
   const css = readFileSync(join(ROOT, 'web', 'screens.css'), 'utf8');
-  assert.match(html, /data-page="ab-skills" data-group="Abilities" data-title="Skills"/);
+  // PL2b (2.61.1, POLISH2 §4.2): Skills moved from Abilities to the new Add-ons group (page id unchanged).
+  assert.match(html, /data-page="ab-skills" data-group="Add-ons" data-title="Skills"/);
   for (const id of ['skl-list', 'skl-new', 'skl-add', 'skl-export-all', 'skl-show', 'skill-editor', 'skill-import', 'ski-review', 'ski-accept', 'rc-open-skills']) assert.match(html, new RegExp(`id="${id}"`), id);
   assert.match(html, /href="https:\/\/agentskills\.io\/specification"/);
   assert.doesNotMatch(html, /\sid="sk-/, 'the skl- prefix (sk- looks like a key to the export scan)');

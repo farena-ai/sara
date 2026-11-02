@@ -389,3 +389,12 @@ dialog .saved-tag { color: var(--success); }
   .wa-grid { gap: var(--s-2, 8px); }
 }
 
+/* Phase 128 (PL2b, N30): Settings search: *Elsewhere* (Planner tabs, chat commands) and the
+   "moved to …" line for the old group names, above the matching pages. */
+.settings-elsewhere { margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-control); background: var(--surface-2); }
+.settings-elsewhere .se-head { margin: 0 0 6px; font-size: var(--fs-small, 13px); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-2); }
+.settings-elsewhere .se-moved { margin: 0 0 6px; }
+.se-list { display: flex; flex-direction: column; gap: 4px; }
+.se-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; justify-content: flex-start; min-height: 44px; text-align: start; white-space: normal; }
+.se-label { font-weight: 600; }
+.se-detail { flex: 1 1 14em; min-width: 0; overflow-wrap: anywhere; }
