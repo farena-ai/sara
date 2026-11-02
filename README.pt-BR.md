@@ -14,7 +14,7 @@ em um só app para a web, Windows, Mac e celular.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1736%20passing-brightgreen" alt="1736 tests passing">
+  <img src="https://img.shields.io/badge/tests-1737%20passing-brightgreen" alt="1737 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -122,6 +122,7 @@ Guias de um minuto, gravados num servidor de teste com um modelo local (em ingl�
 
 | Versão | O que você ganha |
 |---|---|
+| **2.55.3** · MCP no Windows | Corrigido: no Windows, servidores MCP iniciados com `npx` (incluindo os modelos embutidos) não iniciavam. |
 | **2.55.2** · iMessage | **iMessage pelo BlueBubbles** (Configurações → Conexões → iMessage, um plugin opcional): escreva para ela pelo Mensagens no seu iPhone. Precisa de um Mac com BlueBubbles e um ID Apple só dela (a Sara se recusa a rodar com o seu, porque veria todas as suas conversas). Oito passos guiados conferidos com um ✓, soluções simples, texto, fotos e arquivos, e ela põe em dia o que chegou enquanto estava offline. Pontinhos de digitação e reações só se a Private API do BlueBubbles já estiver ligada; a Sara nunca pede para você baixar a segurança do Mac por isso. |
 | **2.55.1** · Matrix | **Matrix** (Configurações → Conexões → Matrix, um plugin opcional): fale com ela no Element ou em qualquer app Matrix por uma conta Matrix só dela. Cinco passos guiados, cada um conferido com um ✓, e soluções simples para cada erro. Texto, fotos e mensagens de voz; só você a menos que permita outros (servidores inteiros também); convites de desconhecidos são recusados. Só salas sem criptografia de ponta a ponta: numa sala criptografada ela explica por que não consegue ler e sai. |
 | **2.55** · WhatsApp | **WhatsApp** (Configurações → Conexões → WhatsApp, um plugin opcional): escreva para ela pela API oficial WhatsApp Cloud da Meta, com uma conta e um número da Meta que são seus. Um cartão guiado de 10 passos mostra as telas exatas da Meta, confere cada passo com um ✓ e transforma cada erro numa frase simples com a solução. Fotos e arquivos nos dois sentidos, pontinhos de digitação e uma linha *Estou nisso* com Parar em tarefas longas, só você a menos que adicione outros números, e as primeiras mensagens dela só dentro da janela de 24 horas do WhatsApp. Os termos da Meta limitam assistentes de IA genéricos no WhatsApp, então fica desligado até você instalar e marcar que leu. |
@@ -406,8 +407,8 @@ verificava. O que ela acrescenta hoje é o jeito de trabalhar (roda os testes, p
 de passos arriscados, mostra o que foi executado), não uma nota maior nesses conjuntos. Detalhes,
 resultados por tarefa e como rodar de novo: [docs/RESULTS.md](docs/RESULTS.md).
 
-E também `npm run check`: uma checagem de tipos e 1751 testes automáticos com um modelo falso
-roteirizado (sem rede, sem GPU): 1736 passam no Windows e os outros 8 são testes de isolamento só
+E também `npm run check`: uma checagem de tipos e 1752 testes automáticos com um modelo falso
+roteirizado (sem rede, sem GPU): 1737 passam no Windows e os outros 8 são testes de isolamento só
 para Linux, executados em um servidor Linux.
 
 ## Como a Sara se compara

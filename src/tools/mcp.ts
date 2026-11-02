@@ -4,8 +4,8 @@
 import { netFetch, privateLocalOn } from '../net-guard.ts';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync } from 'node:fs';
+import { delimiter, dirname, extname, isAbsolute, join } from 'node:path';
 import { sseEvents } from '../sse.ts';
 import type { ToolRegistry } from './registry.ts';
 import { bwrapArgs, commandPath, prepareForToolsUser, PRIVATE_LOCAL_ENV, RUNTIME_MOUNT, runtimeMountArgs, SANDBOX_EXEC, seatbeltProfile, type SandboxInfo } from './sandbox.ts';
@@ -54,6 +54,30 @@ interface Transport {
   request(method: string, params: unknown, signal: AbortSignal): Promise<unknown>;
   notify(method: string, params?: unknown): Promise<void>;
   close(): void;
+}
+
+/**
+ * 2.55.2 fix: on Windows, `npx`/`npm` (and every preset that uses them) are `.cmd` shims, which
+ * spawn() without a shell can't find (ENOENT), and Node refuses to run `.cmd` files without a shell.
+ * npm's shims are run as `node <npm>/bin/npx-cli.js …` instead (no shell, no quoting); a name with an
+ * `.exe` on PATH is used as is; any other `.cmd`/`.bat` gets a plain error saying what to do.
+ */
+export function windowsCommand(command: string, args: string[], pathVar = process.env.PATH, platform = process.platform, nodeExe = process.execPath): [string, string[]] {
+  if (platform !== 'win32' || extname(command).toLowerCase() === '.exe') return [command, args];
+  const base = command.replace(/\.(cmd|bat)$/i, '');
+  const dirs = isAbsolute(command) ? [dirname(command)] : [...(pathVar ?? '').split(delimiter).filter(Boolean), dirname(nodeExe)];
+  const name = isAbsolute(command) ? base.slice(dirname(command).length + 1) : base;
+  for (const d of dirs) {
+    if (existsSync(join(d, `${name}.exe`))) return [join(d, `${name}.exe`), args];
+    if (/^(npx|npm)$/i.test(name) && (existsSync(join(d, `${name}.cmd`)) || d === dirname(nodeExe))) {
+      const cli = join(d, 'node_modules', 'npm', 'bin', `${name.toLowerCase()}-cli.js`);
+      if (existsSync(cli)) return [nodeExe, [cli, ...args]];
+    }
+    if (existsSync(join(d, `${name}.cmd`)) || existsSync(join(d, `${name}.bat`))) {
+      throw new Error(`On Windows, "${command}" is a .cmd script, which Sara starts without a shell. Use its .exe, or "node" with the server's script path (often in node_modules/<package>/dist/index.js).`);
+    }
+  }
+  return [command, args];
 }
 
 class StdioTransport implements Transport {
@@ -298,7 +322,8 @@ export class McpConnection {
       prepareForToolsUser(home, opts.sandbox.gid!);
       return new StdioTransport(c.command, c.args ?? [], { ...baseEnv, HOME: home }, home, { uid: opts.sandbox.uid!, gid: opts.sandbox.gid! });
     }
-    return new StdioTransport(c.command, c.args ?? [], { ...baseEnv, HOME: home }, home);
+    const [file, args] = windowsCommand(c.command, c.args ?? [], baseEnv.PATH);
+    return new StdioTransport(file, args, { ...baseEnv, HOME: home }, home);
   }
 
   async callTool(name: string, args: Record<string, unknown>, signal: AbortSignal): Promise<string> {

@@ -5,6 +5,14 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.55.3 (2026-11-02): MCP servers start on Windows
+
+- **Fixed:** on Windows, every MCP server started with `npx` (including the built-in presets) failed
+  with "spawn npx ENOENT", because npm's `.cmd` shims can't be started without a shell. Sara now runs
+  them as `node <npm>/bin/npx-cli.js …` (no shell involved); a server whose command is another `.cmd`
+  script gets a plain message saying to use its `.exe` or `node` with its script. Found while measuring
+  Phase 123; checked live with `@modelcontextprotocol/server-memory` on Windows 11.
+
 ## 2.55.2 (2026-11-02): iMessage through BlueBubbles (Phase 122, part 3)
 
 - **iMessage** as an optional first-party plugin (Settings → Connections → iMessage): text her from
