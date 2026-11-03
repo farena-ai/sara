@@ -314,7 +314,7 @@ const PHASES: Record<Exclude<LibraryJob['phase'], 'done' | 'cancelled'>, PhaseFn
       const limits = libraryLimits(app.settings.get());
       if (limits.ocr === 'off') {
         lib.setOcrStatus(doc.id, null, 'skipped');
-        warn(lib, job, `${todo.length} scanned page${todo.length === 1 ? ' was' : 's were'} not read: reading scanned pages is off (Settings → Abilities → Library).`);
+        warn(lib, job, `${todo.length} scanned page${todo.length === 1 ? ' was' : 's were'} not read: reading scanned pages is off (Settings → Add-ons → Library).`);
         return finishText(app, lib, doc);
       }
       const est = ocrEstimate(app, doc, todo.length, job.secOcr);

@@ -218,7 +218,9 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
     }
     if (b === 'shots' && c && !d && method === 'GET') {
       if (!client || !/^[0-9a-f]{64}$/.test(c)) throw new HttpError(404, 'Not found');
-      const path = shotPaths.get(c);
+      // PL2d: a card's icon on the first screen is known from the signed list itself (the item page
+      // was never opened, so it isn't remembered yet); before, every icon there was a 404 in the console.
+      const path = shotPaths.get(c) ?? client.current()?.index.items.find((i) => i.iconSha === c)?.icon;
       if (!path) throw new HttpError(404, 'Not found');
       let buf: Buffer;
       try {

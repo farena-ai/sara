@@ -115,7 +115,7 @@ const pick = (v: unknown, list: readonly number[], dflt: number): number => {
   return Number.isFinite(n) && list.includes(n) ? n : dflt;
 };
 
-/** Settings → Abilities → Keep going and repeats (owner settings). Unknown values fall back to the defaults. */
+/** Settings → Coding → Keep going and repeats (owner settings). Unknown values fall back to the defaults. */
 export function persistSettings(app: AppContext): PersistSettings {
   const raw = ((app.settings.get() as { persist?: { goals?: Partial<GoalSettings>; loops?: Partial<LoopSettings> & { tick?: Partial<LoopSettings['tick']> } } }).persist ?? {}) as { goals?: Partial<GoalSettings>; loops?: Partial<LoopSettings> & { tick?: Partial<LoopSettings['tick']> } };
   const g = raw.goals ?? {};

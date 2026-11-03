@@ -118,7 +118,7 @@ export async function runDoctor(d: DoctorDeps): Promise<DoctorCheck[]> {
     if (d.sandbox.mode !== 'none') add('Tool sandbox', 'ok', `${d.sandbox.mode}: ${d.sandbox.detail}`);
     else {
       const unasked = d.tools ? d.tools.list().filter((t) => t.runsCommands && d.tools!.permission(t.spec.name, s.toolPermissions) === 'auto').map((t) => t.spec.name) : [];
-      if (unasked.length) add('Tool sandbox', 'warn', `${noSandboxNote(platform).split(':')[0]}, and you set ${unasked.join(', ')} to run without asking (Settings → Abilities → Tools and approvals).`);
+      if (unasked.length) add('Tool sandbox', 'warn', `${noSandboxNote(platform).split(':')[0]}, and you set ${unasked.join(', ')} to run without asking (Settings → Coding → Tools and approvals).`);
       else add('Tool sandbox', platform === 'linux' ? 'warn' : 'ok', platform === 'linux' ? `${d.sandbox.detail}` : noSandboxNote(platform));
     }
   }

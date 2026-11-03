@@ -12,7 +12,7 @@ version for everyday use is in the in-app guide (Help → Her library).
 
 - **Library** in the sidebar → **Add documents** (or drop files there), or 📎 in a chat (*Keep in
   her library* or *Just read this once*), or send the file to her on Telegram or Discord.
-- **How big:** PDFs up to the owner's limit (**Settings → Abilities → Library → Largest document**,
+- **How big:** PDFs up to the owner's limit (**Settings → Add-ons → Library → Largest document**,
   default 1 GB; choices 100 MB to 2 GB). Every other kind of file is read whole in memory and stays
   at 100 MB; save a bigger one as a PDF. Files sent through Telegram or Discord stay at 100 MB too
   (the bridges download into memory).
@@ -62,14 +62,14 @@ The phases:
 | learn | Key points into her memory, with the exact-words rule. Ordinary documents keep up to 30; long ones more (30 + one per 10,000 characters beyond 200,000, up to 400), read in more windows spread over the text. |
 | vectors | Meaning-search vectors for every passage (when *Meaning search* is set). |
 
-**Speed.** **Settings → Abilities → Library → Background reading**: *Gentle* (chat always first:
+**Speed.** **Settings → Add-ons → Library → Background reading**: *Gentle* (chat always first:
 short slices of work and a pause after every page), *Normal* (default) or *Fast*. The reader works
 in its own thread, so chats keep answering while a book is read; measured numbers are in
 [RESULTS.md](RESULTS.md#big-documents-phase-74).
 
 ### Scanned pages and cost
 
-Every scanned page is read (the old limit of 40 is gone). **Settings → Abilities → Library →
+Every scanned page is read (the old limit of 40 is gone). **Settings → Add-ons → Library →
 Scanned pages**:
 
 - **Read them; ask me first when a cloud model would** (default): with a picture model on this

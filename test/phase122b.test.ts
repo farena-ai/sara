@@ -28,7 +28,7 @@ const load = (f: string): Promise<Any> => import(pathToFileURL(join(ROOT, 'plugi
 const { toMatrix } = await load('html.mjs');
 const { readSync, kindOf, stripFallback, chatOf, roomOf } = await load('sync.mjs');
 const { codeOf, DIAGNOSES } = await load('diagnose.mjs');
-const { Pacer, EVERY_MS, Typing, TYPING_EVERY_MS, retryAfterMs } = await load('pace.mjs');
+const { Pacer, EVERY_MS, Typing, TYPING_EVERY_MS, retryAfterMs } = (await load('pace.mjs')).pacing('matrix'); // PL2d: one pace.mjs, per-app limits
 const { Http1 } = await load('http1.mjs');
 const { serverOf, baseHost, MatrixError } = await load('cs.mjs');
 const { FakeHomeserver, HER, HER_PASSWORD, OWNER, STRANGER, PARTNER } = await import(pathToFileURL(join(ROOT, 'test', 'fixtures', 'matrix', 'hs.mjs')).href);
@@ -332,6 +332,8 @@ test('login: one /login with "Sara (bot)", the token in the vault, the password 
   assert.ok(await until(() => sentBodies(r).includes('Hello from your companion.')), 'her answer arrived');
   const conv = r.app.store.listConversations().find((c) => c.channel === 'plugin-matrix');
   assert.ok(conv && !conv.partner);
+  // PL2d: "off" is sent after the reply (fire and forget), so under load it can land a moment later: wait for it.
+  await until(() => r.hs.typing.at(-1)?.typing === false);
   assert.ok(r.hs.typing.some((x: Any) => x.room === dmRoom && x.typing) && r.hs.typing.at(-1).typing === false, 'typing on, then off');
   assert.ok(r.hs.receipts.some((x: Any) => x.event === ev), 'a read receipt on his message');
   // Her own events in sync never start a turn.

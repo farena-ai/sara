@@ -474,8 +474,14 @@ test('isolated: a background process is gone after the try and flagged', { skip:
   const iso = detectIsolation(OS_SANDBOX);
   const r = await runInSandbox(ws, 'sleep 60 > /dev/null 2>&1 & echo started', { ...opts(dir, iso), base: { ...OS_SANDBOX, dataDir: dir } });
   assert.ok(r.findings.some((f) => f.rule === 'process-left'), JSON.stringify(r.findings));
-  const ps = spawnSync('sh', ['-c', 'ps -eo args | grep -c "^sleep 60$" || true'], { encoding: 'utf8' });
-  assert.equal(ps.stdout.trim(), '0', 'the sleep is gone');
+  // PL2d (C5): the process list is read until the stopped sleep has left it (up to 10 s), not once
+  // right after the try: under load the kernel can take a moment to reap it.
+  let left = '';
+  for (const until = Date.now() + 10_000; Date.now() < until; await new Promise((res) => setTimeout(res, 100))) {
+    left = spawnSync('sh', ['-c', 'ps -eo args | grep -c "^sleep 60$" || true'], { encoding: 'utf8' }).stdout.trim();
+    if (left === '0') break;
+  }
+  assert.equal(left, '0', 'the sleep is gone');
 });
 
 // ------------------------------------------------------------------------------------------------
@@ -815,8 +821,13 @@ test('Windows: a faked process list never stops a process that was already runni
   const before = Date.now();
   const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 20000)'], { stdio: 'ignore' });
   try {
-    await new Promise((r) => setTimeout(r, 300));
-    assert.deepEqual(await bornSince([child.pid!], before), [child.pid]);
+    // PL2d (C5): wait until Windows lists the new process (polled, up to 15 s) instead of a fixed 300 ms.
+    let born: number[] = [];
+    for (const until = Date.now() + 15_000; Date.now() < until; await new Promise((r) => setTimeout(r, 100))) {
+      born = await bornSince([child.pid!], before);
+      if (born.length) break;
+    }
+    assert.deepEqual(born, [child.pid]);
     assert.deepEqual(await bornSince([child.pid!], Date.now() + 60_000), [], 'started before the try: never');
   } finally {
     child.kill();

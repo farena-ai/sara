@@ -46,7 +46,7 @@ She says it in her reply ("Also, Dan still owes you $20"). If she leaves it out,
 line: *⏰ You asked me to remind you: he owes me $20.* Under her reply a ⏰ chip has **Done**,
 **Again next time** and **Forget** (buttons in Telegram and Discord; only you can press them).
 
-## Limits (Settings → Abilities → When it comes up)
+## Limits (Settings → You → When it comes up)
 
 | Setting | Default |
 |---|---|

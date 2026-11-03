@@ -11,7 +11,8 @@ import { Http1, multipart } from './http1.mjs';
 import { parsePayload, markOf } from './webhook.mjs';
 import { split, toWhatsApp, label, TEXT_MAX, CAPTION_MAX, BUTTON_BODY_MAX } from './format.mjs';
 import { codeOf, diagnose } from './diagnose.mjs';
-import { Pacer, CapError } from './pace.mjs';
+import { pacing } from './pace.mjs';
+const { Pacer, CapError } = pacing('whatsapp');
 
 const BRIDGE = 'whatsapp';
 const DEDUP_MS = 24 * 3600_000;

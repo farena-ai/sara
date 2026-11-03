@@ -75,7 +75,7 @@ test('114c.2 §5.2 step 6: each Getting started card opens its page with the mat
   const { setHowto, howtoForStep } = await howtoMod();
   setHowto(h);
   assert.deepEqual(howtoForStep('github'), { page: 'ab-github', q: 'token' });
-  const app = web('app.js');
+  const app = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n');
   assert.match(app, /await openSettings\(i\.open\.split\(':'\)\[1\], \{ howto: \(await loadHowto\(\), howtoForStep\(i\.id\)\)\?\.q \?\? '' \}\)/);
   assert.match(app, /showSettingsHelp\(pick, opts\.howto \?\? ''\)/);
 });
@@ -128,7 +128,7 @@ test('114c.5 style lint: kit.css uses only spacing tokens and the three designed
 });
 
 test('114c.6 S1/S5/S15: an accordion nav, Recipes out of the list (its link lands on Skills), the save note only where something can change', () => {
-  const app = web('app.js');
+  const app = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n');
   assert.match(app, /if \(open && remember\) for \(const g of document\.querySelectorAll\('#settings-nav-list \.settings-nav-group\.open'\)\) if \(g !== box\) setGroupOpen\(g, false, false\);/);
   assert.match(app, /setGroupOpen\(box, false, false\);\n {6}return box;/, 'all groups start closed; the page on screen opens its own');
   assert.match(app, /'ab-recipes': 'ab-skills' \};/);
@@ -141,7 +141,7 @@ test('114c.7 S2: one intro per page: the longer paragraph moves into the How do 
   const html = web('index.html');
   const leads = [...html.matchAll(/data-page="([^"]+)"[^>]*>\s*<p class="muted small page-lead">/g)].map((m) => m[1]);
   assert.ok(leads.length >= 25, `${leads.length} pages`);
-  const app = web('app.js');
+  const app = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n');
   assert.match(app, /for \(const p of document\.querySelectorAll\('#settings \.settings-page > p\.page-lead'\)\) \{/);
   assert.match(app, /howtoBlock\(page, \{ t, open, about: pageLead\(page\) \}\)/);
   assert.match(app, /pageLead\(p\.dataset\?\.page\)\?\.textContent/);
@@ -149,7 +149,7 @@ test('114c.7 S2: one intro per page: the longer paragraph moves into the How do 
 
 test('114c.8 settings fixes: segments (S6, banter), search cards (S7), usage words (S8), household picker (S9), routes line (S10), bot status chips (S11), warn callout (S12), What\'s new (S13)', () => {
   const html = web('index.html');
-  const app = web('app.js');
+  const app = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n');
   assert.match(web('library.js'), /speedSeg \?\?= choices\(\$\('#lib-speed'\), \[/);
   assert.match(web('group.js'), /banterSeg = choices\(\$\('#gc-banter'\), \[/);
   assert.match(app, /searchCards \?\?= choices\(\$\('#search-provider'\), \[\n {4}\{ value: 'searxng', label: 'SearXNG', tag: t\('Free · no key'\)/);
@@ -176,7 +176,7 @@ test('114c.8 settings fixes: segments (S6, banter), search cards (S7), usage wor
 
 test('114c.9 views: pin vs keep words (V3), Today hero row (V4/V5), coder subtitles (V8), icon-only message actions (V9), the usage line (V10), phone Today (M4)', () => {
   const html = web('index.html');
-  const app = web('app.js');
+  const app = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n');
   assert.match(html, /data-sb="moments">Pins and jokes<\/button>/);
   assert.ok(!/Press 📌 under a message to keep a moment/.test(app), '📌 pins, ♡ keeps');
   assert.match(html, /<div class="td-dateline"><button id="td-back"/);
@@ -209,7 +209,7 @@ test('114c.11 PL1b leftovers: claim screen (F10), step 2 cards (F7), one make-he
   assert.match(claim, /Started in a terminal[^]*Desktop app[^]*docker compose logs sara/);
   assert.ok(!/from her log/.test(claim));
   assert.match(web('kit.css'), /#login-form\.claiming > button\[type="submit"\] \{ display: none; \}/, 'one main button while setting up');
-  assert.match(web('app.js'), /\$\('#login-form'\)\.classList\.toggle\('claiming', Boolean\(c\.open\) && /);
+  assert.match(['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n'), /\$\('#login-form'\)\.classList\.toggle\('claiming', Boolean\(c\.open\) && /);
   const setup = html.slice(html.indexOf('<dialog id="setup"'), html.indexOf('<dialog id="plan-welcome"'));
   assert.match(setup, /<dialog id="setup" class="setup" data-nox>/);
   assert.ok(!/type="radio"/.test(setup), 'no radios');
@@ -217,7 +217,7 @@ test('114c.11 PL1b leftovers: claim screen (F10), step 2 cards (F7), one make-he
   assert.ok(!/id="su-talk"|id="su-vibe"|id="su-rel"/.test(setup), 'no second make-her form');
   assert.match(setup, /<div id="su-who" class="pick-cards su-who" role="radiogroup"/);
   assert.equal((setup.match(/class="pick-card su-way"/g) ?? []).length, 4);
-  const app = web('app.js');
+  const app = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n');
   assert.match(app, /else if \(su\.who === 'new'\) await openWizard\(\)/);
   assert.match(web('dialogs.js'), /if \(!dialog\.dataset\.required && !\('nox' in dialog\.dataset\)\) top\(dialog\)\.append\(x\);/);
 });

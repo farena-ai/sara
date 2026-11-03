@@ -334,6 +334,14 @@
     "New models on that provider show up in the list."
    ],
    "show": "#load-models"
+  },
+  {
+   "id": "compact",
+   "q": "How do I tidy a long chat?",
+   "steps": [
+    "Type /compact in the chat, or press Tidy this chat on her panel.",
+    "The older part becomes a summary she reads; nothing is deleted and Undo brings it back."
+   ]
   }
  ],
  "models-routes": [
@@ -1269,7 +1277,7 @@
    "id": "limit",
    "q": "How do I set a spending limit?",
    "steps": [
-    "Open Budgets on this page or Abilities → Budgets.",
+    "Open Budgets on this page or Coding → Budgets.",
     "Set a limit per job or per day."
    ]
   }
@@ -1376,6 +1384,15 @@
     "Pick a workspace and switch the mode to coding."
    ],
    "show": "#conv-settings-btn"
+  },
+  {
+   "id": "slash",
+   "q": "How do I use the / commands?",
+   "steps": [
+    "Type / at the start of the message box.",
+    "Pick one with ↑ ↓ and Enter, or keep typing to narrow the list."
+   ],
+   "show": "#input"
   }
  ],
  "today": [
@@ -1394,6 +1411,14 @@
    "steps": [
     "Press Customise.",
     "Switch sections on or off and drag them in order."
+   ]
+  },
+  {
+   "id": "routine",
+   "q": "How do I set up a routine?",
+   "steps": [
+    "Press Add a routine, or open Planner → Routines.",
+    "Pick a card, answer its questions, look at the preview, then press Turn on."
    ]
   }
  ],

@@ -1,7 +1,7 @@
 // Phase 120 (docs/design/PRECISE.md §4.16, §5.12): checks after her edits and @-references. The
 // owner's only: the demo and a member's space get 404 (members have no workspaces; their composer's
 // @ menu never opens). /v1, MCP, A2A keys and webhooks never reach these routes.
-//   GET  /api/precise · PUT /api/precise                 Settings → Abilities → Check her edits
+//   GET  /api/precise · PUT /api/precise                 Settings → Coding → Check her edits
 //   GET  /api/workspaces/:ws/checks                      per project: checkers, the choice, the last runs
 //   PUT  /api/workspaces/:ws/checks                      { project, state?, checkers?, confirm? }
 //   POST /api/workspaces/:ws/checks/run                  { project }: a full check now (409 while one runs)

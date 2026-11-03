@@ -351,7 +351,7 @@ test('128c.10 no inline styles, one ✕ per panel, the service worker moved on',
   // The Store's panel keeps one ✕ and ← Back.
   assert.equal((/<dialog id="store-panel"[\s\S]*?<\/dialog>/.exec(html)![0].match(/✕/g) ?? []).length, 1);
   const sw = web('sw.js');
-  assert.match(sw, /event\.waitUntil\(caches\.open\('sara-shell-v71'\)/);
+  assert.match(sw, /event\.waitUntil\(caches\.open\('sara-shell-v(7[1-9]|[89]\d)'\)/); // v71 or later (PL2d is v72)
   assert.match(sw, /v71 \(PL2c, 2\.61\.2\)/);
   assert.match(sw, /sara-shell-v70 from 2\.61\.1/);
 });

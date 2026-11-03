@@ -2,7 +2,7 @@
 
 Sara works with your Gmail through Google's own APIs, signed in with a small Google app (OAuth
 client) that **you** own. Nothing goes through anyone else's servers. Set it up once in
-**Settings → Abilities → Gmail and Calendar** (the steps are on that page, about 10 minutes).
+**Settings → Add-ons → Gmail and Calendar** (the steps are on that page, about 10 minutes).
 
 ## What she can do
 
@@ -58,7 +58,7 @@ delete for good). Sara asks for it when you sign in.
 - **New setup:** follow the steps in Settings. If your Google app lists its permissions (scopes)
   under *Google Auth Platform → Data access*, add `.../auth/gmail.modify` there next to
   `gmail.readonly`, `gmail.compose` and `calendar.events`.
-- **Already connected before this version:** Settings → Abilities → Gmail and Calendar shows
+- **Already connected before this version:** Settings → Add-ons → Gmail and Calendar shows
   **Reconnect to allow organizing**. Press it, sign in again and leave all the boxes ticked. Until
   then, Sara answers organizing requests with "Reconnect Google in Settings … to let me organize
   your mail" and changes nothing.

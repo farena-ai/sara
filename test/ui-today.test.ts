@@ -17,7 +17,7 @@ import { makeApp, ROOT, tempDir } from './helpers.ts';
 
 const web = (f: string) => readFileSync(join(ROOT, 'web', f), 'utf8');
 const html = web('index.html');
-const app = web('app.js');
+const app = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n');
 const todayJs = web('today.js');
 const barJs = web('bottom-bar.js');
 const todayCss = web('today.css');

@@ -1,5 +1,5 @@
 // Phase 14: Gmail and Google Calendar through Google's official APIs, signed in with the owner's
-// own Google OAuth client (made once in Google Cloud Console; Settings → Abilities walks through
+// own Google OAuth client (made once in Google Cloud Console; Settings → Add-ons → Gmail and Calendar walks through
 // it). Nothing goes through anyone else's servers. Tokens live in the encrypted vault and are
 // renewed automatically. Reading is allowed; drafting, sending and adding events ask first.
 import { netFetch } from './net-guard.ts';
@@ -160,7 +160,7 @@ export class GoogleAccount {
     if (!r.ok || !j.access_token) {
       if (j.error === 'invalid_grant') {
         this.#vault.delete(GOOGLE_TOKEN_VAULT);
-        throw new Error('Google signed Sara out (the sign-in expired or was removed). Sign in again in Settings → Abilities.');
+        throw new Error('Google signed Sara out (the sign-in expired or was removed). Sign in again in Settings → Add-ons → Gmail and Calendar.');
       }
       throw new Error(`Google sign-in failed: ${j.error_description ?? j.error ?? r.status}`);
     }
@@ -169,7 +169,7 @@ export class GoogleAccount {
 
   async #access(): Promise<string> {
     const t = this.#tokens();
-    if (!t) throw new Error('Google is not connected (Settings → Abilities → Google).');
+    if (!t) throw new Error('Google is not connected (Settings → Add-ons → Gmail and Calendar).');
     if (t.expiresAt > this.#now()) return t.access;
     const c = this.#client();
     if (!c) throw new Error('The Google app was removed.');

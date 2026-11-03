@@ -619,7 +619,7 @@ export class SshManager {
   #explain(s: SshServer, r: RunResult, scrub: string[] = [], mode: 'password' | 'key' | 'test' = 'key'): string {
     let text = `${r.stderr}`.trim();
     for (const x of scrub) if (x) text = text.split(x).join('[REDACTED]');
-    if (HOSTKEY_FAIL.test(text)) return `The host key of ${s.name} (${s.host}) is not the one you approved. I stopped and didn’t sign in. Check it in Settings → Abilities → Servers over SSH before trusting a new one.`;
+    if (HOSTKEY_FAIL.test(text)) return `The host key of ${s.name} (${s.host}) is not the one you approved. I stopped and didn’t sign in. Check it in Settings → Coding → Servers over SSH before trusting a new one.`;
     const d = this.diagnose(s, r, { mode, secrets: scrub });
     if (d && d.code !== 'UNKNOWN') return diagText(d);
     if (AUTH_FAIL.test(text)) return `${s.name} refused the sign-in for ${s.user}.`;
@@ -805,8 +805,8 @@ export class SshManager {
   async exec(id: string, command: string, opts: { timeoutMs?: number; signal?: AbortSignal; maxBytes?: number; verbose?: boolean } = {}): Promise<RunResult> {
     const s = this.get(id);
     this.#checkReach(s.host);
-    if (s.pending?.changed) throw new SshError(`The host key of ${s.name} changed since you approved it (now ${s.pending.fingerprint}). I won’t sign in until you check it: Settings → Abilities → Servers over SSH.`, 'HOSTKEY_CHANGED');
-    if (!s.fingerprint) throw new SshError(`Approve the host key of ${s.name} first (Settings → Abilities → Servers over SSH).`, 'NO_HOSTKEY');
+    if (s.pending?.changed) throw new SshError(`The host key of ${s.name} changed since you approved it (now ${s.pending.fingerprint}). I won’t sign in until you check it: Settings → Coding → Servers over SSH.`, 'HOSTKEY_CHANGED');
+    if (!s.fingerprint) throw new SshError(`Approve the host key of ${s.name} first (Settings → Coding → Servers over SSH).`, 'NO_HOSTKEY');
     if (!command.trim() || command.length > 20_000) throw new SshError('Give the command to run (up to 20,000 characters).', 'BAD_COMMAND');
     const timeoutMs = opts.timeoutMs ?? 120_000;
     let r: RunResult;
@@ -814,7 +814,7 @@ export class SshManager {
       r = await this.#run(this.#bins.ssh, [...this.sshOptions(s, 'key', s.key.path, opts.verbose ? 'VERBOSE' : 'ERROR'), command], { env: this.#baseEnv(), timeoutMs, ...(opts.signal ? { signal: opts.signal } : {}), ...(opts.maxBytes ? { maxBytes: opts.maxBytes } : {}) });
     } else {
       const pw = this.#vault.get(vaultKeyOf(id));
-      if (!pw) throw new SshError(`I have no key for ${s.name} yet. Sign in once with the password in Settings → Abilities → Servers over SSH (I’ll make my own key), or give me a key there.`, 'NO_KEY');
+      if (!pw) throw new SshError(`I have no key for ${s.name} yet. Sign in once with the password in Settings → Coding → Servers over SSH (I’ll make my own key), or give me a key there.`, 'NO_KEY');
       const buf = Buffer.from(pw, 'utf8');
       const ask = this.#askpass(buf);
       try {
@@ -1257,7 +1257,7 @@ export function keyAnnouncement(a: { name: string; host: string; user: string; k
     `I made my own SSH key for ${a.name} (${a.user}@${a.host}) and added it to ~/.ssh/authorized_keys there.`,
     `The private key is on the Sara server at ${a.keyPath} (the public half next to it, ${a.keyPath}.pub). The line I installed is: ${a.publicLine}`,
     a.works ? 'I checked it: signing in with the key works, so I’ll use the key from now on.' : 'But signing in with the key didn’t work when I checked, so look at the server’s SSH settings (PubkeyAuthentication).',
-    a.passwordSaved ? 'You asked me to keep the password, so it is saved encrypted with my other secrets; you can forget it with one click in Settings → Abilities → Servers over SSH.' : 'I did NOT keep the password.',
+    a.passwordSaved ? 'You asked me to keep the password, so it is saved encrypted with my other secrets; you can forget it with one click in Settings → Coding → Servers over SSH.' : 'I did NOT keep the password.',
   ].join(' ');
 }
 

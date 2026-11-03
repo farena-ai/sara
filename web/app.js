@@ -9,7 +9,6 @@ import { dialRows as dialRowsOf, refreshDials, soFarText } from './dials.js';
 import { CLOUD_TAG, countWords, modelCounts } from './model-count.js';
 import { browserLang, currentIdentity, currentLang, locale, savedLang, setIdentity, setLanguage, serverText, t, toLang, translateOnly } from './naming.js';
 import { autoSave, initDialogs, markDirty, onSave, runSave, saved } from './dialogs.js';
-import { endTour, startTour, tourRunning } from './tour.js';
 import { isDocFile, loadLibrarySettings, openArchives, openLibrary, saveLibrarySettings, uploadDoc, waitRead } from './library.js';
 import { initRooms, loadRoomList, openRoom } from './rooms.js';
 import { initProjectMap, resetProjectMap } from './codemap.js';
@@ -50,15 +49,15 @@ import { initRoutines, loadRoutines, openRoutinesAt, setRoutinesOpener, todayRou
 import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-check.js';
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
-import { initNav, relabelNav, revealNav, setMore } from './nav.js';
+import { initNav, relabelNav, setMore } from './nav.js';
 import { initGetMore, initStore, loadGetMore, loadStorePrivacy } from './store.js';
 import { decorateCompanionRows, initPacks } from './packs.js';
 import { loadWakePage, renderVoiceInstall, wakeEvent } from './wake.js';
-import { foldFirstRun, hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton, unfoldFirstRun } from './hub.js';
-import { createQueue, normPath, offerText, overlayCount, pathChoices, starterChips, tourFor } from './first-run.js';
+import { hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton } from './hub.js';
+import { createQueue, normPath, overlayCount, starterChips } from './first-run.js';
 import { emptyState, initTidy, overflowMenu } from './tidy.js';
-import { howtoBlock, howtoFor, howtoForStep, loadHowto, mountViewHowtos } from './howto.js';
-import { foldText, rankElsewhere, rankPages, SETTINGS_KEYWORDS } from './settings-search.js';
+import { howtoBlock, howtoForStep, loadHowto, mountViewHowtos } from './howto.js';
+import { rankElsewhere } from './settings-search.js';
 import { initSlash, loadSlash, slashCommands } from './slash.js';
 import { NEXT_HIDDEN_KEY, nextSteps } from './next-steps.js';
 import { choices } from './kit.js';
@@ -73,11 +72,14 @@ import { initPickup, loadPickupSettings, pickupAfterReply, pickupNotice, pickupO
 import { initEvals, onEvalEvent, openEvals } from './evals-view.js';
 import { renderCard, renderCards } from './result-cards.js';
 import { gmailApproval, gmailQuestion } from './gmail-view.js';
-import { initLook, setContextRing, setLookBusy, showHeadChips } from './look.js';
+import { initLook, setContextRing, setLookBusy } from './look.js';
 import { closePanel, initHerPanel, openPanel, panelConv, panelFace, panelJobs, panelMessages, panelMood, panelNow, panelOpen, togglePanel } from './her-panel.js';
 import { initCommandBar, openCommandBar, score as cmdScore } from './command-bar.js';
 import { icon, paintIcons, setIcon, TOOL_ICONS } from './icons.js';
 import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, pageOf, pageSize } from './session-list.js';
+import { buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintElsewhere, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
+import { closeOpenDialogs, initTours, offerFirstTour, queueTourOffer, runTour, tourFromHash } from './tours.js';
+import { initSetupWizard, openSetup } from './setup-wizard.js';
 import { ring as progressRing, share as shareOf } from './viz.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let hubReady = false;
@@ -5464,7 +5466,7 @@ async function saveRuns() {
   await api('/runs/settings', { method: 'PUT', body: { keepDays: Number($('#runs-keep').value) } });
   void loadRuns();
 }
-// ---------- Phase 80: "Try commands in a sandbox first" (Settings → Abilities → Coding projects) ----------
+// ---------- Phase 80: "Try commands in a sandbox first" (Settings → Coding → Coding projects) ----------
 async function loadSandboxGate(recheck = false) {
   let r;
   try {
@@ -5505,7 +5507,7 @@ async function saveSandboxGate() {
   await api('/sandbox', { method: 'PUT', body: { mode: $('#sbx-mode').value, network: $('#sbx-network').checked, maxMB: Number($('#sbx-size').value), timeLimitS: Number($('#sbx-time').value) } });
 }
 $('#sbx-recheck').addEventListener('click', () => void loadSandboxGate(true));
-// ---------- Phase 81: the security pass (Settings → Abilities → Coding projects) ----------
+// ---------- Phase 81: the security pass (Settings → Coding → Coding projects) ----------
 async function loadSecPass() {
   let r;
   try {
@@ -5530,7 +5532,7 @@ async function saveSecPass() {
   if (!$('#sec-form').dataset.loaded) return;
   await api('/security-pass', { method: 'PUT', body: { mode: $('#sec-mode').value, reviewer: $('#sec-reviewer').checked, advisories: $('#sec-advisories').checked, budgetTokens: Number($('#sec-budget').value), runTests: $('#sec-tests').checked } });
 }
-// ---------- Phase 82: the threat model after coding turns (Settings → Abilities → Coding projects) ----------
+// ---------- Phase 82: the threat model after coding turns (Settings → Coding → Coding projects) ----------
 async function loadThreatModel() {
   let r;
   try {
@@ -5547,7 +5549,7 @@ async function saveThreatModel() {
   if (!$('#thr-mode').dataset.loaded) return;
   await api('/threat-model', { method: 'PUT', body: { mode: $('#thr-mode').value } });
 }
-// ---------- Phase 86: red-team mode (Settings → Abilities → Coding projects) ----------
+// ---------- Phase 86: red-team mode (Settings → Coding → Coding projects) ----------
 async function loadRedTeam() {
   let r;
   try {
@@ -5614,7 +5616,7 @@ $('#sec-open').addEventListener('click', () => {
   $('#settings').close();
   void openFindings();
 });
-// ---------- Phase 79: per-reply budgets (Settings → Abilities → Budgets) ----------
+// ---------- Phase 79: per-reply budgets (Settings → Coding → Budgets) ----------
 const BUDGET_KINDS = ['coding', 'chat'];
 const BUDGET_LINES = ['tokens', 'steps', 'usd', 'minutes'];
 async function loadBudgets() {
@@ -5965,7 +5967,7 @@ $('#g-forget').addEventListener('click', async () => {
   const m = /^#google=(\w+)/.exec(location.hash);
   if (m) {
     history.replaceState(null, '', location.pathname);
-    const msg = { connected: t('Google is connected. Try: "what\'s on my calendar tomorrow?"'), refused: t('Google sign-in was cancelled.'), failed: t("Google sign-in didn't work. Check the steps in Settings → Abilities and try again.") }[m[1]];
+    const msg = { connected: t('Google is connected. Try: "what\'s on my calendar tomorrow?"'), refused: t('Google sign-in was cancelled.'), failed: t("Google sign-in didn't work. Check the steps in Settings → Add-ons → Gmail and Calendar and try again.") }[m[1]];
     if (msg) setTimeout(() => alert(msg), 600);
   }
 }
@@ -7640,148 +7642,9 @@ $('#model-select').addEventListener('change', () => {
   if (!v) $('#default-model').focus();
 });
 
-// Settings pages (Phase 15): a list of pages grouped by topic, a search box, one page at a time.
-// Old tab names still work (links and first-run steps use them).
-// Phase 114 (PL1c, S5): Recipes became Skills; its old link lands there and it is out of the list.
-// Phase 128 (PL2b): Today's "Runs today" link asked for 'dh-runs', which never existed (it fell back to
-// the first page); the run history (Keep runs, Delete run history) is on Health.
-const OLD_TABS = { yours: 'her-character', models: 'models-default', you: 'you-about', abilities: 'ab-tools', connections: 'co-phone', voice: 'her-voice', data: 'dh-health', 'dh-runs': 'dh-health', 'ab-recipes': 'ab-skills' };
-// In the phone apps the adult-mode page isn't offered (store rules; it's a web-browser setting).
-// Adult mode is web-browser only (hidden in the phone and desktop apps); "This computer" only in the desktop app.
-// Phase 71: a household member sees only their own pages (data-member-only), never the owner's
-// (data-owner-only); the household page isn't on the demo server.
-const settingsPages = () =>
-  [...document.querySelectorAll('#settings .settings-page')].filter(
-    (p) =>
-      !(p.dataset.page === 'you-adult' && /\b(SaraPhone|SaraDesktop)\/\d/.test(navigator.userAgent)) &&
-      !(p.dataset.page === 'desktop-app' && !window.SaraDesktop) &&
-      !(isMember() ? 'ownerOnly' in p.dataset : 'memberOnly' in p.dataset) &&
-      !(p.dataset.page === 'household' && document.body.classList.contains('demo')) &&
-      p.dataset.page !== 'ab-recipes',
-  );
+// PL2d: the Settings list of pages, its groups and search live in settings-nav.js.
+initSettingsNav({ isMember, el, showSettingsTab, pageLead: (page) => pageLead(page), openSearchPlace, help: () => HELP });
 
-// Settings groups (UI cleanup): real headers with an icon, opened and closed by a click; only the
-// group of the page on screen is open at first, and the choice is remembered on this device.
-// Phase 128 (PL2b, docs/design/POLISH2.md §4.2, N29): 8 groups of at most 10 pages (+ Household).
-// Page ids never change; a page's group is its data-group in index.html. `was` is the group a page
-// sat in before 2.61.1: search still finds it under the old name and says where it moved.
-const SETTINGS_GROUPS = [
-  { name: 'Her', icon: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z' },
-  { name: 'You', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4.4 3.6-7 8-7s8 2.6 8 7' },
-  { name: 'Models', icon: 'M7 7h10v10H7zM10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4' },
-  { name: 'Chat apps', icon: 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5' },
-  { name: 'Add-ons', icon: 'M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z' },
-  { name: 'Coding', icon: 'M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16' },
-  { name: 'Connections', icon: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1' },
-  { name: 'Data & health', icon: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM8 12h2l1.5-3 2 6 1.5-3h1' },
-  { name: 'Household', icon: 'M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6' },
-];
-/** Where the pages that moved in 2.61.1 used to be (for “moved to …” in search, one release). */
-const SETTINGS_WAS = {
-  Abilities: ['ab-store', 'ab-tools', 'ab-skills', 'ab-plugins', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-mcp', 'ab-projects', 'ab-precise', 'ab-budgets', 'ab-persist', 'ab-when', 'ab-github', 'ab-ssh'],
-  Connections: ['co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-pickup'],
-};
-/** The old group names in the app's language (search matches them for one release). */
-const WAS_WORDS = { Abilities: () => t('Abilities'), Connections: () => t('Connections') };
-// The order of the pages inside each group. Page ids stay the same: links, tips, tours and tests use them.
-const SETTINGS_ORDER = [
-  'her-character', 'her-relationship', 'her-look', 'her-pictures', 'her-voice', 'her-hey', 'her-calls', 'her-companions', 'her-import',
-  'you-about', 'you-briefing', 'you-leave-by', 'ab-when', 'you-adult',
-  'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
-  'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-pickup',
-  'ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-recipes',
-  'ab-projects', 'ab-precise', 'ab-persist', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-tools',
-  'co-phone', 'co-computer', 'desktop-app', 'co-apps', 'co-agents', 'co-hooks',
-  'dh-safety', 'dh-health', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
-  'household', 'account',
-];
-// A small heading inside a group, before the first of these pages (none since the Coding group).
-const SETTINGS_SUB = {};
-const NS_SVG = 'http://www.w3.org/2000/svg';
-function lineIcon(d, cls = '') {
-  const s = document.createElementNS(NS_SVG, 'svg');
-  for (const [k, v] of Object.entries({ viewBox: '0 0 24 24', 'aria-hidden': 'true', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })) s.setAttribute(k, v);
-  if (cls) s.setAttribute('class', cls);
-  const path = document.createElementNS(NS_SVG, 'path');
-  path.setAttribute('d', d);
-  s.append(path);
-  return s;
-}
-function setGroupOpen(box, open, remember = true) {
-  // Phase 114 (PL1c, S1): an accordion: opening a group closes the others (one scrollbar, never two).
-  if (open && remember) for (const g of document.querySelectorAll('#settings-nav-list .settings-nav-group.open')) if (g !== box) setGroupOpen(g, false, false);
-  box.classList.toggle('open', open);
-  box.querySelector('.settings-nav-head').setAttribute('aria-expanded', String(open));
-  box.querySelector('.settings-nav-items').hidden = !open;
-  if (!remember) return;
-  const set = new Set([...document.querySelectorAll('#settings-nav-list .settings-nav-group.open')].map((g) => g.dataset.group));
-  localStorage.setItem('sara.settingsGroups', JSON.stringify([...set]));
-}
-
-function buildSettingsNav() {
-  const nav = $('#settings-nav-list');
-  const groups = new Map();
-  const seen = new Set();
-  const order = (p) => {
-    const i = SETTINGS_ORDER.indexOf(p.dataset.page);
-    return i < 0 ? SETTINGS_ORDER.length : i;
-  };
-  // One entry per page (a page listed twice once showed up twice at the end of the list).
-  for (const sec of settingsPages().sort((x, y) => order(x) - order(y))) {
-    if (seen.has(sec.dataset.page)) continue;
-    seen.add(sec.dataset.page);
-    if (!groups.has(sec.dataset.group)) groups.set(sec.dataset.group, []);
-    groups.get(sec.dataset.group).push(sec);
-  }
-  const rank = (g) => {
-    const i = SETTINGS_GROUPS.findIndex((x) => x.name === g);
-    return i < 0 ? SETTINGS_GROUPS.length : i;
-  };
-  nav.replaceChildren(
-    ...[...groups].sort(([x], [y]) => rank(x) - rank(y)).map(([g, secs], gi) => {
-      const box = el('div', 'settings-nav-group');
-      box.dataset.group = g;
-      const head = el('button', 'settings-nav-head');
-      head.type = 'button';
-      const listId = `settings-group-${gi}`;
-      head.setAttribute('aria-controls', listId);
-      const info = SETTINGS_GROUPS.find((x) => x.name === g);
-      head.append(lineIcon(info?.icon ?? 'M4 6h16M4 12h16M4 18h16', 'sng-icon'), el('span', 'sng-name', t(g)), el('span', 'sng-count', String(secs.length)), lineIcon('M9 6l6 6-6 6', 'sng-chev'));
-      const items = el('div', 'settings-nav-items');
-      items.id = listId;
-      head.addEventListener('click', () => setGroupOpen(box, !box.classList.contains('open')));
-      for (const sec of secs) {
-        if (SETTINGS_SUB[sec.dataset.page]) items.append(el('div', 'settings-nav-sub', t(SETTINGS_SUB[sec.dataset.page])));
-        const b = el('button', 'settings-nav-item', t(sec.dataset.title));
-        b.type = 'button';
-        b.dataset.page = sec.dataset.page;
-        b.addEventListener('click', () => {
-          if ($('#settings-search').value) {
-            $('#settings-search').value = '';
-            clearSettingsSearch();
-          }
-          showSettingsTab(sec.dataset.page, { focus: true });
-        });
-        items.append(b);
-      }
-      box.append(head, items);
-      setGroupOpen(box, false, false);
-      return box;
-    }),
-  );
-}
-/** Opens the group of the page on screen (and closes the others: S1). */
-function openGroupOf(page) {
-  const box = document.querySelector(`#settings-nav-list [data-page="${page}"]`)?.closest('.settings-nav-group');
-  if (box && !box.classList.contains('open')) setGroupOpen(box, true);
-}
-function clearSettingsSearch() {
-  $('.settings-pages').classList.remove('searching');
-  for (const x of document.querySelectorAll('#settings-nav-list .dim, #settings-nav-list .no-match')) x.classList.remove('dim', 'no-match');
-  const keep = document.querySelector(`#settings-nav-list [data-page="${localStorage.getItem('sara.settingsPage')}"]`)?.closest('.settings-nav-group');
-  for (const g of document.querySelectorAll('#settings-nav-list .settings-nav-group')) setGroupOpen(g, g === keep, false);
-  $('#settings-nav-list').classList.remove('searching');
-}
 
 // Phase 23: a "?" on every Settings page: what it's for, in plain words, and the guide.
 // Page help and the ? tips live in tips.json (Phase 41), shared with the server's settings guide.
@@ -7838,7 +7701,7 @@ function showSettingsTab(page, opts = {}) {
     void loadLearning();
   }
   if (pick === 'ab-plugins') void loadPlugins();
-  // Phase 125: Settings → Abilities → Get more (the Sara Store).
+  // Phase 125: Settings → Add-ons → Get more (the Sara Store).
   if (pick === 'ab-store') void loadGetMore();
   // Phase 126: Settings → Her → Hey Sara.
   if (pick === 'her-hey') void loadWakePage();
@@ -7878,69 +7741,6 @@ function showSettingsTab(page, opts = {}) {
   if (opts.focus) $('.settings-pages').focus({ preventScroll: true });
 }
 
-// Search: every word may match a page's title, group, description, labels, tips or text.
-// Phase 128 (PL2b, N30): one index for Settings and Ctrl+K (web/settings-search.js): page keywords
-// and synonyms, the pages' "How do I…?" questions, ranked name → question → label, and *Elsewhere*
-// (Planner tabs and chat commands). The list keeps up (only matching pages, their groups opened).
-/** A page's headline words: title, group, description, headings, labels and tips. */
-function settingsHeadText(p) {
-  const bits = [t(p.dataset.title), p.dataset.title, t(p.dataset.group), t(HELP[p.dataset.page]?.[0] ?? '')];
-  for (const n of p.querySelectorAll('h3, h4, label, legend, summary, [data-tip], [aria-label], [placeholder]')) bits.push(n.matches('h3, h4, label, legend, summary') ? n.textContent : '', n.dataset.tip ?? '', n.getAttribute('aria-label') ?? '', n.getAttribute('placeholder') ?? '');
-  return foldText(bits.join(' '));
-}
-const wasGroup = (page) => Object.keys(SETTINGS_WAS).find((g) => SETTINGS_WAS[g].includes(page) && document.querySelector(`#settings [data-page="${page}"]`)?.dataset.group !== g) ?? '';
-/** The search record of a Settings page (web/settings-search.js). */
-function settingsRecord(p, headOf = settingsHeadText, bodyOf = (p) => foldText(`${p.textContent} ${pageLead(p.dataset?.page)?.textContent ?? ''}`)) {
-  const page = p.dataset.page;
-  const was = wasGroup(page);
-  return {
-    p,
-    id: page,
-    title: foldText(`${t(p.dataset.title)} ${p.dataset.title}`),
-    group: foldText(`${t(p.dataset.group)} ${p.dataset.group}`),
-    was: was ? foldText(`${WAS_WORDS[was]()} ${was}`) : '',
-    keywords: (SETTINGS_KEYWORDS[page] ?? []).map(foldText),
-    questions: (howtoFor(page) ?? []).map((x) => foldText(`${t(x.q)} ${x.q}`)),
-    head: headOf(p),
-    body: bodyOf(p),
-  };
-}
-/** The pages that match a search, best first. */
-function matchSettings(q, pages, headOf, bodyOf) {
-  return rankPages(q, pages.map((p) => settingsRecord(p, headOf, bodyOf))).map((r) => r.p);
-}
-// The pages' order in the page (restored after a search, which shows the best match first).
-const SETTINGS_DOM_ORDER = [...document.querySelectorAll('#settings .settings-pages > .settings-page')];
-function restoreSettingsOrder() {
-  const box = $('.settings-pages');
-  const empty = $('#settings-empty');
-  for (const sec of SETTINGS_DOM_ORDER) box.insertBefore(sec, empty);
-}
-/** Elsewhere: the Planner tabs and chat commands that match (one click opens them). */
-function paintElsewhere(raw) {
-  const box = $('#settings-elsewhere');
-  const hits = raw ? rankElsewhere(raw, isMember() ? [] : slashCommands()) : [];
-  // Q2: for one release the old group names say where their pages went.
-  const moved = raw ? Object.keys(SETTINGS_WAS).filter((g) => foldText(raw).trim().length >= 4 && [WAS_WORDS[g](), g].some((w) => foldText(w).startsWith(foldText(raw).trim()))) : [];
-  box.replaceChildren();
-  box.hidden = !hits.length && !moved.length;
-  if (box.hidden) return;
-  for (const g of moved) {
-    const now = [...new Set(SETTINGS_WAS[g].map((id) => document.querySelector(`#settings [data-page="${id}"]`)?.dataset.group).filter((x) => x && x !== g))];
-    box.append(el('p', 'muted small se-moved', t('Some {old} pages moved in 2.61.1, to {groups}.', { old: WAS_WORDS[g](), groups: now.map((x) => t(x)).join(', ') })));
-  }
-  if (!hits.length) return;
-  box.append(el('h3', 'se-head', t('Elsewhere')));
-  const list = el('div', 'se-list');
-  for (const h of hits) {
-    const b = el('button', 'ghost se-item');
-    b.type = 'button';
-    b.append(el('span', 'se-label', h.label.map((x) => (x.startsWith('/') ? x : t(x))).join(' → ')), ...(h.detail ? [el('span', 'muted small se-detail', h.detail)] : []));
-    b.addEventListener('click', () => void openSearchPlace(h.id));
-    list.append(b);
-  }
-  box.append(list);
-}
 async function openSearchPlace(id) {
   const [kind, what] = id.split(':');
   if ($('#settings').open) $('#settings').close();
@@ -8558,113 +8358,8 @@ function openViewFromHash() {
 }
 window.addEventListener('hashchange', openViewFromHash);
 
-// ---------- Phase 41: the Help window and short tours ----------
-const closeOpenDialogs = () => {
-  for (const d of document.querySelectorAll('dialog[open]')) d.close();
-};
-const settingsAt = (page) => async () => {
-  if (!$('#settings').open) {
-    closeOpenDialogs();
-    await openSettings(page);
-  } else showSettingsTab(page);
-};
-// On a phone the sidebar slides over the chat: open it for sidebar steps, close it for chat steps.
-const sidebar = (open) => () => {
-  closeOpenDialogs();
-  $('#main').classList.toggle('show-sidebar', open);
-  if (!open) setMore(false);
-};
-// A step on a sidebar place: the list is open, and More too when the place lives there.
-const navStep = (sel) => () => {
-  sidebar(true)();
-  revealNav(sel);
-};
-const TOURS = {
-  first: [
-    { sel: '#new-chat', title: t('New conversation'), text: t('Start a fresh chat any time. Old ones stay in the list below, with search.'), before: sidebar(true) },
-    { before: sidebar(false), sel: '#input', title: t('Talk to her'), text: t('Type here, or use the microphone. The + button attaches a photo or a file, or starts something to do together.') },
-    { before: sidebar(false), sel: '#her-face', title: t('Her panel'), text: t('Her face opens her panel: her mood, what she is doing right now, approvals waiting, your day and what she remembered for this reply. On a phone it slides up from the bottom.') },
-    { before: sidebar(false), sel: '#cmd-open', title: t('Search and go'), text: t('Press Ctrl+K (⌘K on a Mac) or this button to jump to any place, conversation, setting or action.') },
-    { before: async () => { sidebar(false)(); await showHeadChips(); }, sel: '#conv-settings-btn', title: t('This conversation'), text: t('The model, workspace and mode (chat or coding) for this conversation only. Private keeps everything on your server.') },
-    { when: () => !phoneWidth(), before: navStep('#open-today'), sel: '#open-today', title: t('Today'), text: t('Your home screen: the weather, your day, the Planner, what she remembered, photos, background work and your home, as tiles. Her face at the top of the list opens it too.') },
-    { when: () => phoneWidth(), before: sidebar(false), sel: '#bottom-bar', title: t('The bar at the bottom'), text: t('Chat, Today, the Planner, and More for every other place. ☰ at the top still lists your conversations.') },
-    { before: async () => { sidebar(false)(); await openToday(); }, sel: '#td-tiles', title: t('Your day as tiles'), text: t('Press a tile to open its place. Tiles with nothing in them stay away; Add to your day sets up the weather, your calendar or your home.') },
-    { before: navStep('#open-planner'), sel: '#open-planner', title: t('Planner'), text: t('To-dos, reminders and notes. You can also just ask her: "remind me to call Mom at 5".') },
-    { before: navStep('#open-memory'), sel: '#open-memory', title: t('Memory'), text: t('What she remembers about you. Look through it, correct it or make her forget something.') },
-    { before: navStep('#open-library'), sel: '#open-library', title: t('Library'), text: t('Give her documents to keep (PDFs, Word, spreadsheets, slides, e-books). She remembers the key points and looks things up in them when you ask.') },
-    { before: navStep('#open-sara'), sel: '#open-sara', title: t('Her page'), text: t('Her day, her mood and her character. Shape her personality from here.') },
-    { before: navStep('#open-team'), sel: '#open-team', title: t('Team'), text: t('For bigger jobs she leads helpers that plan, build, test and review.') },
-    { before: navStep('#open-settings'), sel: '#open-settings', title: t('Settings'), text: t('Everything is in pages: Her, Models, You, Abilities, Connections. Every setting has a ? that explains it.') },
-    { before: navStep('#open-help'), sel: '#open-help', title: t('Help'), text: t('Come back here for these tours and the guide. Or just ask her how something works.') },
-  ],
-  // Phase 114 (PL1b, F12, docs/design/POLISH.md §5): the two short tours offered after her first reply.
-  company: [
-    { before: sidebar(false), sel: '#input', title: t('Talk to her'), text: t('Type here, or use the microphone. The + button attaches a photo or a file, or starts something to do together.') },
-    { before: sidebar(false), sel: '#her-face', title: t('Her panel'), text: t('Her face opens her panel: her mood, what she is doing right now, approvals waiting, your day and what she remembered for this reply. On a phone it slides up from the bottom.') },
-    { when: () => !phoneWidth(), before: navStep('#open-today'), sel: '#open-today', title: t('Today'), text: t('Your home screen: the weather, your day, the Planner, what she remembered, photos, background work and your home, as tiles. Her face at the top of the list opens it too.') },
-    { when: () => phoneWidth(), before: sidebar(false), sel: '#bb-today', title: t('Today'), text: t('Your home screen: the weather, your day, the Planner, what she remembered, photos, background work and your home, as tiles. Her face at the top of the list opens it too.') },
-    { before: navStep('#open-planner'), sel: '#open-planner', title: t('Planner'), text: t('To-dos, reminders and notes. You can also just ask her: "remind me to call Mom at 5".') },
-    { before: navStep('#open-memory'), sel: '#open-memory', title: t('Memory'), text: t('What she remembers about you. Look through it, correct it or make her forget something.') },
-    { before: settingsAt('her-character'), sel: '#settings-nav-list [data-page="her-character"]', title: t('Make her yours'), text: t('Her name, personality, look and voice are under Settings → Her. Every setting has a ? that explains it.') },
-  ],
-  coding: [
-    { before: async () => { sidebar(false)(); await showHeadChips(); }, sel: '#conv-settings-btn', title: t('This conversation'), text: t('The folder, model and mode of this conversation. Switch the mode to Coding for project work: she reads, edits and runs things in that folder.') },
-    { before: sidebar(false), sel: '#messages', title: t('Her steps'), text: t('Under each reply a step line says what she did: files read, commands run, tests. Open it for every step, and Show the run for the whole turn.') },
-    // Phase 128 (PL2b, N27): one stop for the / menu.
-    { before: sidebar(false), sel: '#input', title: t('Type / for commands'), text: t('Type / at the start of the message box: /goal, /loop, /compact, /tools and more, each with one line on what it does.') },
-    { when: () => !isMember(), before: settingsAt('ab-tools'), sel: '#tool-list', title: t('Ask me first'), text: t('For each tool: Ask me first, Always allowed or Never. Commands run in a sandbox when one is set up, and her approvals wait in the chat and in her panel.') },
-    { before: navStep('#open-team'), sel: '#open-team', title: t('Team'), text: t('For bigger jobs she leads helpers that plan, build, test and review.') },
-    { before: navStep('#open-findings'), sel: '#open-findings', title: t('Findings'), text: t('Her security pass adds what it finds here after coding turns, each with a fix she can make on its own branch.') },
-    { when: () => !isMember(), before: settingsAt('ab-projects'), sel: '#pj-work-dials', title: t('Coding projects'), text: t('Your project folders, how she is while you code, the sandbox and the security pass, in one page.') },
-  ],
-  studio: [
-    { sel: '#st-wizard', title: t('Create your companion'), text: t('The easiest way: a guided setup with cards, about 5 minutes. Every step can be skipped.'), before: settingsAt('her-character') },
-    { sel: '#st-archetypes', title: t('Starting points'), text: t('Or pick a starting point and adjust from there. Changes save by themselves; Undo brings back how she was when you opened this page.') },
-    { sel: '#st-dials', title: t('Personality dials'), text: t('Slide each dial toward the words that fit her. The middle is balanced. Each dial has its own ? with examples.') },
-    { sel: '#st-life', title: t('Her life'), text: t('Her job, home, family and interests give her things to talk about and a day of her own.') },
-    { sel: '#st-try', title: t('Try it'), text: t('Hear how she would answer a few everyday moments, before you save.') },
-    { sel: '#settings-hint', title: t('Saves by itself'), text: t('Every change saves by itself and shows Saved. Typed text saves when you leave the box.') },
-  ],
-  models: [
-    { sel: '#jobs-recommend', title: t('Use recommended'), text: t('One press picks a sensible model for every job from the ones you have connected.'), before: settingsAt('models-routes') },
-    { sel: '#jobs-list', title: t('A model for each job'), text: t('Chat, coding, looking at photos, planning, writing, research and quick jobs. A job with no model of its own uses its parent, then the default.') },
-    { sel: '#jobs-companion', title: t('Her own model'), text: t('Give this companion her own chat model, different from the others.') },
-    { sel: '#settings-nav-list [data-page="models-default"]', title: t('The default'), text: t('Anything without its own model uses the default model.') },
-    { sel: '#settings-nav-list [data-page="models-subs"]', title: t('Subscriptions and providers'), text: t('Sign in with ChatGPT, Claude or Grok, or add your own Ollama or a service with a key. The ? next to each field says what to paste.') },
-  ],
-  team: [
-    { sel: '#team-goal', title: t('Give the team a job'), text: t('Describe the result you want, like "add a dark mode to my website, with tests, and get it reviewed". Or ask her in any chat.'), before: async () => {
-      closeOpenDialogs();
-      await openTeam();
-    } },
-    { sel: '#team-issue', title: t('From a GitHub issue'), text: t('Pick an issue and she clones the repository, builds it with her team and opens a reviewed pull request. She stops for your OK on the plan first.') },
-    { sel: '#team-tasks', title: t('Tasks'), text: t('Every job with its status. Open one to follow it live, answer questions, message a helper or stop it.') },
-    { sel: '#team-detail', title: t('Progress and receipts'), text: t('Each helper\'s work with what actually ran. Her report at the end only claims what the receipts show.') },
-  ],
-};
-/** The phone layout (the bottom bar shows): some tour steps are for it, some for wider screens. */
-const phoneWidth = () => matchMedia('(max-width: 720px)').matches;
-function runTour(name) {
-  const steps = TOURS[name]?.filter((s) => !s.when || s.when());
-  if (!steps) return;
-  $('#help-menu').close();
-  localStorage.setItem('sara.tour.first', 'seen');
-  void startTour(steps, t, () => {
-    $('#main').classList.remove('show-sidebar');
-    setMore(false);
-  });
-}
-$('#open-help').addEventListener('click', () => $('#help-menu').showModal());
-for (const b of document.querySelectorAll('#help-menu [data-tour]')) b.addEventListener('click', () => runTour(b.dataset.tour));
-// /#tour=<name> starts a tour (links in her answers, the guide).
-function tourFromHash() {
-  const m = /#tour=(\w+)/.exec(location.hash);
-  if (!m || !$('#main') || $('#main').hidden) return false;
-  history.replaceState(null, '', '/');
-  runTour(m[1]);
-  return true;
-}
-window.addEventListener('hashchange', tourFromHash);
+// PL2d: the Help window's tours and the tour offer live in tours.js.
+initTours({ openSettings, showSettingsTab, openToday, isMember, openTeam, el, state, firstRun });
 /** Phase 113: /#report=bug, /#report=idea and /#reports open the report sheet or My reports (links from /bug in the chat apps). */
 function reportFromHash() {
   if (!hubReady || document.body.classList.contains('demo') || !/^#reports?\b/.test(location.hash)) return false;
@@ -8673,46 +8368,6 @@ function reportFromHash() {
   return hubHash(h);
 }
 window.addEventListener('hashchange', reportFromHash);
-/** Offered once on each device after setup: a small card, never in the way. */
-function offerFirstTour() {
-  // Phase 113: not over the check-in's first-run notice (it is offered on a later visit instead).
-  if (localStorage.getItem('sara.tour.first') || tourRunning() || document.querySelector('dialog[open]:not(#today)') || !$('#hub-first').hidden) return;
-  localStorage.setItem('sara.tour.first', 'offered');
-  // Phase 114 (F12): the short tour for the use choice (six stops); the demo keeps the full one.
-  const demo = document.body.classList.contains('demo');
-  const tour = demo ? 'first' : tourFor(state.usePath);
-  const box = el('div', 'tour-offer');
-  box.setAttribute('role', 'status');
-  const yes = el('button', 'small', t('Show me around'));
-  const no = el('button', 'ghost small', t('No thanks'));
-  const btns = el('div', 'row-btns');
-  btns.append(no);
-  // Both: the Coder tour one press away too.
-  if (!demo && normPath(state.usePath) === 'both') {
-    const code = el('button', 'ghost small', t('Coder tour'));
-    code.addEventListener('click', () => {
-      box.remove();
-      runTour('coding');
-    });
-    btns.append(code);
-  }
-  btns.append(yes);
-  box.append(el('p', '', demo ? t('New here? The tour shows where everything is, in 14 stops. (Help in the sidebar has it any time.)') : offerText(state.usePath, t)), btns);
-  yes.addEventListener('click', () => {
-    box.remove();
-    runTour(tour);
-  });
-  no.addEventListener('click', () => {
-    box.remove();
-    firstRun.pump();
-  });
-  document.body.append(box);
-}
-/** Phase 114 (F2): the tour offer waits in the first-run queue until her first reply. */
-function queueTourOffer() {
-  if (localStorage.getItem('sara.tour.first') || document.body.classList.contains('demo')) return;
-  firstRun.add('tour', offerFirstTour, () => Boolean(state.replied) && !tourRunning());
-}
 
 /** Phase 114 (F13): a starter chip (wizard step 4 and the empty chat). */
 function starterButton(c, onClick) {
@@ -10440,7 +10095,7 @@ function renderDialExtras() {
   }
 }
 
-// Phase 114 (P10): the work dials and Quiet when I'm focused again at the top of Abilities → Coding
+// Phase 114 (P10): the work dials and Quiet when I'm focused again at the top of Coding → Coding projects
 // projects (same draft, same save as Her → Name and personality).
 function buildWorkDialsOnProjects() {
   const box = $('#pj-work-dials');
@@ -11521,389 +11176,8 @@ $('#look-reset').addEventListener('click', async () => {
   refreshLook();
 });
 
-// ---------- first-run setup guide ----------
-// Phase 114 (PL1b): `path` = the use choice of step 1; `brainOk` = the picked model answered a test
-// ping; `ping` numbers the pings (a newer one wins); `coderPick` = the model Models → Which model does
-// what would pick for coding.
-const su = { step: 1, info: null, provider: null, openSubs: false, original: null, changed: false, path: 'both', brainOk: false, ping: 0, coderPick: '', local: false, who: 'keep', way: '' };
-
-function suShow(step) {
-  su.step = step;
-  for (const sec of document.querySelectorAll('#setup [data-step]')) sec.hidden = Number(sec.dataset.step) !== step;
-  $('#setup-step').textContent = t('Step {step} of 4', { step });
-  $('#su-back').hidden = step === 1 || step === 4;
-  $('#su-skip').hidden = step === 4;
-  // Phase 114 (F3): Next is the primary button everywhere. In Connect a brain it waits until a model
-  // answered (or subscriptions open at the end); skipping is a quiet link, never the strong button.
-  $('#su-next').textContent = step === 4 ? t('Start talking') : t('Next');
-  $('#su-next').disabled = step === 3 && !su.brainOk && !su.openSubs;
-  $('#su-later').hidden = step !== 3 || su.brainOk;
-  if (step === 4) suStepFour();
-}
-
-/** Phase 114 (F9): the three use cards of step 1. */
-function suPathCards() {
-  $('#su-path').replaceChildren(
-    ...pathChoices(t).map((c) => {
-      const b = el('button', 'pick-card su-path-card');
-      b.type = 'button';
-      b.dataset.path = c.id;
-      b.setAttribute('role', 'radio');
-      b.setAttribute('aria-checked', String(c.id === su.path));
-      b.append(el('span', 'su-path-icon', c.icon), el('strong', '', c.title), el('span', 'muted small', c.text));
-      b.addEventListener('click', () => {
-        su.path = c.id;
-        for (const x of document.querySelectorAll('#su-path .su-path-card')) x.setAttribute('aria-checked', String(x === b));
-      });
-      return b;
-    }),
-  );
-}
-
-/**
- * Phase 114 (§5.2/§5.3): My subscription comes first, tagged, when no Ollama was found here
- * ("Easiest") or for a coder who is already signed in to one.
- */
-function suOrderBrains() {
-  const signed = Object.values(su.info?.subscriptions ?? {}).some(Boolean);
-  const up = (su.path === 'coding' && signed) || !su.info?.ollama?.[0];
-  const card = $('#su-ways [data-way="subs"]');
-  const tag = $('#su-subs-tag');
-  tag.hidden = !up;
-  tag.textContent = signed ? t('Signed in ✓') : t('Easiest');
-  if (up) $('#su-ways').prepend(card);
-  else $('#su-ways').append(card);
-}
-
-/** Phase 114 (PL1c): the four ways to connect a brain are choice cards; the picked one opens its panel. */
-function suWay(way) {
-  su.way = way;
-  for (const b of document.querySelectorAll('#su-ways .su-way')) {
-    const on = b.dataset.way === way;
-    b.setAttribute('aria-checked', String(on));
-    $(`#${b.getAttribute('aria-controls')}`).hidden = !on;
-  }
-}
-for (const b of document.querySelectorAll('#su-ways .su-way')) b.addEventListener('click', () => suWay(b.dataset.way));
-
-/** Phase 114 (PL1c, F7/F8): step 2's choice cards: keep her, a ready-made character, or make my own (Create your companion opens after setup). */
-function suWhoCards() {
-  const name = su.original?.name || 'Sara';
-  const cards = [
-    { id: 'keep', title: t('Keep {name}', { name }), text: t('She is ready to go; change anything later.') },
-    { id: 'gallery', title: t('A ready-made character'), text: t('Pick from characters with their own personality.') },
-    { id: 'new', title: t('Make my own'), text: t('✨ Create your companion opens after setup.') },
-  ];
-  $('#su-who').replaceChildren(
-    ...cards.map((c) => {
-      const b = el('button', 'pick-card su-who-card');
-      b.type = 'button';
-      b.dataset.who = c.id;
-      b.setAttribute('role', 'radio');
-      b.setAttribute('aria-checked', String(c.id === su.who));
-      const art = el('span', `su-who-art su-who-${c.id}`);
-      art.setAttribute('aria-hidden', 'true');
-      if (c.id === 'keep') {
-        const img = el('img', 'su-who-face');
-        img.src = $('#my-face')?.src || '/sara-portrait.jpg';
-        img.alt = '';
-        art.append(img);
-      } else art.append(icon(c.id === 'new' ? 'sparkle' : 'group') ?? '');
-      const title = el('strong', '', c.title);
-      if (c.id === 'keep') title.dataset.raw = '';
-      b.append(art, title, el('span', 'muted small', c.text));
-      b.addEventListener('click', () => suWho(c.id));
-      return b;
-    }),
-  );
-}
-function suWho(v) {
-  su.who = v;
-  for (const x of document.querySelectorAll('#su-who .su-who-card')) x.setAttribute('aria-checked', String(x.dataset.who === v));
-  $('#su-new').hidden = v !== 'new';
-  $('#su-gallery-box').hidden = v !== 'gallery';
-  // Phase 51: ready-made characters to pick from.
-  if (v === 'gallery' && !$('#su-gallery').childElementCount)
-    void renderGallery($('#su-gallery'), {
-      pick: (id, box) => {
-        su.gallery = id;
-        for (const c of box.querySelectorAll('.gallery-card')) c.classList.toggle('picked', c.dataset.id === id);
-      },
-    });
-}
-
-/** Phase 114 (F5/F6): the picked-for-you card: the model, why, where it runs, and its status chip. */
-function suPicked(model) {
-  $('#su-pick-name').textContent = model;
-  const where = CLOUD_TAG.test(model) ? t('on Ollama Cloud') : su.local ? t('runs on this computer') : t('in the cloud');
-  const why = model === su.coderPick ? t('good with code and tools') : t('a good all-rounder');
-  const tags = [el('span', 'muted', ` · ${why} · ${where}`)];
-  if (model === su.coderPick && su.path !== 'company') tags.push(el('span', 'su-chip su-chip-code', t('Good for coding')));
-  $('#su-pick-tags').replaceChildren(...tags);
-}
-function suStatus(kind) {
-  const chip = $('#su-status');
-  chip.dataset.state = kind;
-  chip.textContent = kind === 'ok' ? t('Connected ✓') : kind === 'checking' ? t('Checking it answers…') : kind === 'fail' ? t('No answer yet') : '';
-}
-/** Phase 114 (§5.2 step 3): done when the picked model answers a short test message. */
-async function suPing() {
-  const model = $('#su-model').value;
-  const run = ++su.ping;
-  su.brainOk = false;
-  suStatus('checking');
-  suShow(3);
-  try {
-    const r = await api('/model-jobs/test', { method: 'POST', body: { job: 'quick', providerId: su.provider, model } });
-    if (run !== su.ping) return;
-    if (!r.ok) throw new Error(r.error || t('It did not answer.'));
-    su.brainOk = true;
-    suStatus('ok');
-    $('#su-error').textContent = '';
-  } catch (err) {
-    if (run !== su.ping) return;
-    suStatus('fail');
-    $('#su-error').textContent = `${err.message} ${t('Pick another model with Change, or press Skip for now.')}`;
-  }
-  suShow(3);
-}
-$('#su-change').addEventListener('click', () => {
-  $('#su-model-pick').hidden = false;
-  $('#su-change').hidden = true;
-  $('#su-model').focus();
-});
-$('#su-model').addEventListener('change', () => {
-  suPicked($('#su-model').value);
-  void suPing();
-});
-
-/** Phase 114 (F2/F13): the last step: starter chips for the use choice and the check-in card folded in. */
-function suStepFour() {
-  const talks = Boolean(su.provider && su.brainOk) || Boolean(state.providers?.providers?.length);
-  const chips = starterChips(su.path, 'wizard', t).filter((c) => talks || c.kind === 'page');
-  $('#su-starters').replaceChildren(...chips.map((c) => starterButton(c, () => {
-    su.starter = c;
-    return suFinish();
-  })));
-  $('#su-starters-note').hidden = !chips.length;
-  // Phase 121 (BEGIN §4.9): one quiet link under the chips; the gallery opens after the wizard closes.
-  const rt = $('#su-routine');
-  if (rt) rt.onclick = async () => {
-    await suFinish();
-    void openRoutines(su.path === 'coding' ? 'ci-watch' : 'morning-brief');
-  };
-  foldFirstRun($('#su-checkin'));
-}
-
-async function openSetup(info) {
-  su.info = info;
-  $('#su-owner').value = info.ownerName ?? '';
-  // M2: who she was before step 2, so Back + Keep can bring her back.
-  su.original = (await api('/persona').catch(() => null))?.persona ?? null;
-  su.changed = false;
-  const presets = state.providers.presets.filter((p) => p.needsKey);
-  $('#su-preset').replaceChildren(...presets.map((p) => new Option(p.label, p.id)));
-  suShowLocal(info.ollama?.[0]);
-  su.path = normPath(info.usePath);
-  su.brainOk = false;
-  su.provider = null;
-  $('#su-model-row').hidden = true;
-  suPathCards();
-  suWhoCards();
-  suWho('keep');
-  suWay(info.ollama?.[0] ? 'local' : '');
-  suShow(1);
-  $('#setup').showModal();
-}
-
-// Phase 23: "On this computer": Ollama found here, or how to get it (then look again).
-function suShowLocal(found) {
-  const box = $('#su-found');
-  box.hidden = !found;
-  $('#su-local-none').hidden = Boolean(found);
-  if (!found) return;
-  suWay('local');
-  // Phase 114 (F4): the models on that computer, counted as Models → On this computer counts them.
-  const cloudToo = found.cloud ? ` ${t('It can use Ollama Cloud models too.')}` : '';
-  box.replaceChildren(el('span', 'su-found-text', found.models ? `${found.models === 1 ? t('Found Ollama on this computer with 1 model.') : t('Found Ollama on this computer with {n} models.', { n: found.models })}${cloudToo}` : found.cloud ? t('Found Ollama on this computer with Ollama Cloud models only.') : t('Found Ollama on this computer, but it has no models yet: run ollama pull gemma3 there, then Look again.')));
-  if (!found.models && !found.cloud) return;
-  const go = el('button', '', t('Use it'));
-  go.type = 'button';
-  go.className = 'su-use-local';
-  su.useLocal = go;
-  go.addEventListener('click', () => suConnect({ id: 'ollama-local', label: t('Ollama on this computer'), kind: 'openai-compatible', baseUrl: found.url, local: true, needsKey: false }));
-  box.append(go);
-}
-$('#su-rescan').addEventListener('click', async () => {
-  $('#su-rescan').disabled = true;
-  $('#su-rescan').textContent = t('Looking…');
-  try {
-    const info = await api('/setup?detect');
-    suShowLocal(info.ollama?.[0]);
-    if (!info.ollama?.[0]) $('#su-rescan').textContent = t('Not found yet. Look again');
-  } catch (err) {
-    $('#su-rescan').textContent = err.message;
-  } finally {
-    $('#su-rescan').disabled = false;
-  }
-});
-
-$('#su-subs').addEventListener('change', () => {
-  su.openSubs = $('#su-subs').checked;
-  suShow(su.step);
-});
-
-/**
- * A sensible first model for a beginner from a provider's list: a well-known general model of a
- * medium size, not an embedding, vision-only, uncensored or test build. (They can pick any.)
- */
-function suggestModel(models) {
-  const bad = /embed|bge|nomic|minilm|rerank|whisper|tts|vision-only|uncensor|abliterat|^hf\.co\/|nvfp4|test|preview|-base\b|guard/i;
-  const order = [/^gpt-5(\.\d)?$/, /^gpt-5[\w.-]*mini/, /claude-.*sonnet|^sonnet$/, /^grok-4[\w.]*$/, /gemma\d*:(12|27|31)b|gemma\d*:\d+b-cloud/, /gpt-oss/, /qwen\d[\w.]*:(14|30|32)b/, /llama\d[\w.]*:(8|70)b/, /mistral/, /gemma|qwen|llama|glm|deepseek|kimi/];
-  const ok = models.filter((m) => !bad.test(m));
-  for (const re of order) {
-    const hit = ok.find((m) => re.test(m));
-    if (hit) return hit;
-  }
-  return ok[0] ?? models[0];
-}
-
-async function suConnect(config, apiKey) {
-  $('#su-error').textContent = '';
-  $('#su-model-row').hidden = true;
-  su.brainOk = false;
-  su.local = Boolean(config.local);
-  try {
-    await api(`/providers/${config.id}`, { method: 'PUT', body: { ...config, ...(apiKey ? { apiKey } : {}) } });
-    $('#su-model-note').textContent = t('Loading models…');
-    $('#su-model-row').hidden = false;
-    // Phase 114 (F4/F5): the same list and count as Models → Default model, in two groups (on this
-    // computer, Ollama Cloud) with the pick first, instead of every raw tag in one long list.
-    modelCache.delete(config.id);
-    const view = await modelViewFor(config.id);
-    const models = view.models;
-    if (!models.length) throw new Error(t('Connected to {label}, but it has no models yet.', { label: config.label }));
-    // Phase 114 (§5.3): for coding, the model Which model does what → Use recommended picks for code.
-    const rec = su.path === 'company' ? null : (await api('/model-jobs/recommend').catch(() => null))?.picks?.coding;
-    su.coderPick = rec && rec.providerId === config.id && models.includes(rec.model) ? rec.model : '';
-    const pick = su.path === 'coding' && su.coderPick ? su.coderPick : suggestModel(models);
-    fillModelOptions($('#su-model'), view, '', { pick });
-    $('#su-model').value = pick;
-    const counted = countWords(modelCounts(models), Boolean(config.local), t);
-    $('#su-model-note').textContent = `${config.label}: ${counted}. ${models.length > 1 ? t('Any of them works; you can change it now or later.') : t('You can change it later.')}`;
-    su.provider = config.id;
-    suPicked(pick);
-    $('#su-model-pick').hidden = true;
-    $('#su-change').hidden = models.length < 2;
-    // F6: the Use it button becomes a Connected chip.
-    if (config.id === 'ollama-local') su.useLocal?.replaceWith(el('span', 'su-chip', t('Connected ✓')));
-    suShow(3);
-    $('#su-model-row').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    await suPing();
-  } catch (err) {
-    $('#su-model-row').hidden = true;
-    $('#su-error').textContent = err.message;
-    suShow(3);
-  }
-}
-$('#su-key-go').addEventListener('click', () => {
-  const preset = state.providers.presets.find((p) => p.id === $('#su-preset').value);
-  const key = $('#su-key').value.trim();
-  if (!preset || !key) return ($('#su-error').textContent = t('Pick the service and paste its key.'));
-  suConnect(preset, key);
-});
-$('#su-host-go').addEventListener('click', () => {
-  let h = $('#su-host').value.trim().replace(/\/+$/, '');
-  if (!h) return ($('#su-error').textContent = t("Type that computer's address."));
-  if (!/^https?:\/\//.test(h)) h = `http://${h}`;
-  if (!/:\d+$/.test(new URL(h).host)) h = `${h}:11434`;
-  suConnect({ id: 'ollama-pc', label: t('Ollama on my computer'), kind: 'openai-compatible', baseUrl: `${h}/v1`, local: true, needsKey: false });
-});
-
-async function suFinish() {
-  await api('/setup/done', { method: 'POST', body: {} });
-  // Phase 114 (F2): the check-in card goes back where it lives (seen; it doesn't come again).
-  unfoldFirstRun();
-  state.usePath = su.path;
-  $('#setup').close();
-  await loadProviders();
-  await loadConversations();
-  setChatTitle(); // M3: the header shows the character picked in setup
-  // Phase 114 (F1): Today under the wizard shows the name and the brain just set up (what Refresh does).
-  if (todayOpen()) await Promise.all([loadToday(true), loadChecklist()]).catch(() => undefined);
-  const starter = su.starter;
-  su.starter = null;
-  if (su.openSubs) openSettings('models');
-  else if (!state.providers.providers.length) openSettings('models');
-  // Phase 114 (PL1c, F8): "Make my own" is the one make-her flow, ✨ Create your companion.
-  else if (su.who === 'new') await openWizard().catch((err) => void ($('#su-error').textContent = err.message));
-  else {
-    if (!state.messages?.length) renderMessages([]);
-    // Phase 114 (F2): the tour is offered after her first reply, never on top of something else.
-    queueTourOffer();
-    if (starter) await runStarter(starter);
-  }
-  firstRun.pump();
-}
-
-$('#su-back').addEventListener('click', async () => {
-  // M2: back to step 2 undoes the character picked there (Next picks it again), so Keep means the original.
-  if (su.step === 3 && su.changed && su.original) {
-    const r = await api('/persona', { method: 'PUT', body: su.original }).catch((err) => void ($('#su-error').textContent = err.message));
-    if (r) {
-      su.changed = false;
-      setIdentity(r.persona);
-      setChatTitle();
-    }
-  }
-  suShow(Math.max(1, su.step - 1));
-});
-// L14: Enter in the name boxes goes on, like Next.
-for (const id of ['#su-owner'])
-  $(id).addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' || e.isComposing) return;
-    e.preventDefault();
-    $('#su-next').click();
-  });
-$('#su-skip').addEventListener('click', () => suFinish());
-// Phase 114 (F3): Connect a brain later (Getting started keeps the step).
-$('#su-later').addEventListener('click', () => {
-  $('#su-done-title').textContent = t('Almost there');
-  suShow(4);
-});
-$('#su-next').addEventListener('click', async () => {
-  $('#su-error').textContent = '';
-  try {
-    if (su.step === 1) {
-      const name = $('#su-owner').value.trim();
-      if (!name) return ($('#su-error').textContent = t('Type your name so Sara knows what to call you (or press Skip setup).'));
-      // Phase 114 (F9): the use choice is saved with the name (for this companion; About you changes it).
-      await api('/settings', { method: 'PUT', body: { ownerName: name, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, usePath: su.path } });
-      state.usePath = su.path;
-      suOrderBrains();
-      return suShow(2);
-    }
-    if (su.step === 2) {
-      if (su.who === 'gallery') {
-        if (!su.gallery) return ($('#su-error').textContent = t('Pick a character (or choose Keep).'));
-        const g = (await galleryList()).find((x) => x.id === su.gallery);
-        const r = await api('/character/import', { method: 'POST', body: { file: g.file, look: false, voice: false } });
-        setIdentity(r.persona);
-        su.changed = true;
-      }
-      setChatTitle();
-      return suShow(3);
-    }
-    if (su.step === 3) {
-      if (su.provider && $('#su-model').value) await api('/settings', { method: 'PUT', body: { defaultProviderId: su.provider, defaultModel: $('#su-model').value } });
-      $('#su-done-title').textContent = (su.provider && su.brainOk ? t('All set. Say hi to Sara!') : t('Almost there'));
-      return suShow(4);
-    }
-    await suFinish();
-  } catch (err) {
-    $('#su-error').textContent = err.message;
-  }
-});
+// PL2d: the first-run setup guide lives in setup-wizard.js.
+initSetupWizard({ el, api, renderGallery, galleryList, starterButton, openRoutines, modelViewFor, fillModelOptions, loadProviders, loadConversations, setChatTitle, loadToday, loadChecklist, openSettings, openWizard, renderMessages, runStarter, state, firstRun, modelCache });
 
 // ---------- signed-in devices and owner token ----------
 async function loadDevices() {

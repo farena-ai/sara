@@ -16,7 +16,7 @@ safe. Most are in **Settings → Data & health → Devices and sign-in**.
    access` shows how she's reached now.
 5. **Check who's signed in.** The list on Devices and sign-in shows every browser, phone and app.
    Sign out any you don't recognize or no longer use.
-6. **Review tool approvals.** *Settings → Abilities → Tools and approvals*: anything that runs
+6. **Review tool approvals.** *Settings → Coding → Tools and approvals*: anything that runs
    commands, sends things, spends money or reaches other people should stay on **Ask**. On
    Windows, where there's no command sandbox, keep commands on Ask.
 7. **Check the sandbox.** *Settings → Data & health → Health* shows the tool sandbox. On Linux it

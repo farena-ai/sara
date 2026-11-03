@@ -701,7 +701,7 @@ function reportLine(l) {
     'custom-skipped': () => t('Store cards you skipped: {n}', { n: l.count }),
     'custom-card': () => t('A store card not confirmed: nothing from it came in ({text})', { text: l.text.split('"')[3] ?? '' }),
     schedules: () => t('Old schedules → {n} tasks and reminders (they never act by themselves)', { n: l.count }),
-    'skills-held': () => t('{n} skills run scripts: off until you check them (Settings → Abilities → Skills)', { n: l.count }),
+    'skills-held': () => t('{n} skills run scripts: off until you check them (Settings → Add-ons → Skills)', { n: l.count }),
     'store-copies': () => t('{n} copies of one store (same tables): only one was mapped', { n: l.count }),
   };
   if (map[l.key]) return map[l.key]();
@@ -1239,7 +1239,7 @@ const KIND_TIP = {
   channel: () => t('Where you talked to the old agent. Sara never connects a channel by herself: confirm puts the reconnect steps in your report. Stop the old bot first, or both of us will answer.'),
   peer: () => t('Another agent the old one talked to. It is never connected by a move-in: add it again in Settings → Other agents with a new key.'),
   webhook: () => t('Outside services that sent events to the old agent. Sara makes new signed addresses; confirm puts the steps in your report.'),
-  mcp: () => t('Tool servers the old agent started. Programs never start from a move-in; add the ones you still want in Settings → Abilities.'),
+  mcp: () => t('Tool servers the old agent started. Programs never start from a move-in; add the ones you still want in Settings → Add-ons → Other programs (MCP).'),
   timezone: () => t('Your time zone from the old agent. Sara uses it only when she has none yet.'),
   info: () => t('Shown so nothing is silent, never copied. Old allowlists and approvals never become "Always allowed" in Sara.'),
 };

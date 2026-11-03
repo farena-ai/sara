@@ -2,7 +2,7 @@
 // app", "fix the flaky tests"): a title, when to use it, and the steps. At the start of a coding
 // turn the recipes that fit the request (and the workspace) are named in her instructions, so she
 // finds and follows them next time. Saving asks the owner first by default; the owner can read,
-// edit and delete them in Settings → Abilities → Recipes. Kept per companion, in her database
+// edit and delete them in Settings → Add-ons → Recipes. Kept per companion, in her database
 // (so backups and export carry them).
 import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';

@@ -305,7 +305,7 @@ export async function elevenlabsSpeak(cfg: VoiceSettings['elevenlabs'], key: str
 const XAI = 'https://api.x.ai/v1';
 
 export async function xaiSpeak(cfg: VoiceSettings['xai'], key: string | undefined, text: string, speed: number, fetchImpl: typeof fetch = netFetch): Promise<Audio> {
-  if (!key) throw new VoiceError('Add your xAI key in Settings → Voice (or Abilities → Pictures).');
+  if (!key) throw new VoiceError('Add your xAI key in Settings → Her → Voice.');
   const res = await fetchImpl(`${XAI}/tts`, {
     method: 'POST',
     headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },

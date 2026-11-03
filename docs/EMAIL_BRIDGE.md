@@ -30,7 +30,7 @@ Your normal password won't work. The app password goes **only into Sara's encryp
 
 ## Setting it up
 
-Since 2.61.0 the page is a guided setup card: *Settings → Connections → Email → Start*. Each step
+Since 2.61.0 the page is a guided setup card: *Settings → Chat apps → Email → Start*. Each step
 turns ✓ only when Sara has checked it.
 
 1. **Pick her mail provider** (Gmail, iCloud, Fastmail or Other). The card shows where that

@@ -4,7 +4,7 @@
 // (offered by group with reason chips, the deferred groups, Always offer here), and Tidy this chat /
 // New session. A `compact` notice in the thread is the divider: "✂ 46 earlier messages tidied" with
 // Show summary and Undo; the messages it stands in for stay where they are, dimmed. Settings →
-// Abilities → Tools and approvals holds the Short tool list card; Settings → Models → Default model →
+// Coding → Tools and approvals holds the Short tool list card; Settings → Models → Default model →
 // Long conversations holds Tidy long chats. Every button is a 44 px target with a text label.
 import { t } from './naming.js';
 

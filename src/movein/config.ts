@@ -231,11 +231,11 @@ const BRIDGED = new Set(['telegram', 'discord']);
 const KNOBS: [RegExp, string, string][] = [
   [/^(memory|memories|compression|compaction|context|session|sessions|history|summar)/i, 'Settings → Memory', 'memory'],
   [/^(display|ui|theme|streaming|stream|cli|terminal|tui|skin|banner)/i, 'Settings → Look', 'look'],
-  [/^(max_tokens|max_turns|temperature|reasoning|thinking|iterations|budget|limits?|rate)/i, 'Settings → Abilities → Budgets', 'budgets'],
+  [/^(max_tokens|max_turns|temperature|reasoning|thinking|iterations|budget|limits?|rate)/i, 'Settings → Coding → Budgets', 'budgets'],
   [/^(gateway|server|port|host|bind|logging|log|telemetry|metrics|update|updates|diagnostics|debug)/i, 'Settings → Data & health', 'checkup'],
-  [/^(browser|web|search)/i, 'Settings → Abilities → Web search', 'abilities'],
+  [/^(browser|web|search)/i, 'Settings → Add-ons → Web search', 'abilities'],
   [/^(cron|automations?|schedules?)/i, 'Your planner (schedules came across as tasks)', 'planner'],
-  [/^(skills?|plugins?|hooks?|extensions?)/i, 'Settings → Abilities', 'abilities'],
+  [/^(skills?|plugins?|hooks?|extensions?)/i, 'Settings → Add-ons', 'abilities'],
   [/^(agent|agents|personalit|persona|soul|identity)/i, 'Settings → Her', 'her'],
 ];
 
@@ -335,7 +335,7 @@ function channel(t: ConfigTree, path: string, name: string, v: unknown, add: Add
     });
     return;
   }
-  add({ key: `channel:${id}`, kind: 'channel', mode: 'info', title: label, from: `${t.path}#${path}`, old: `${label}: ${facts}`, lives: 'Settings → Abilities → Plugins', page: 'plugins', why: `Sara doesn't speak ${label} yet. A plugin bridge can add it (Settings → Abilities → Plugins).`, ...(secrets.length ? { secrets: secrets.slice(0, 6) } : {}) });
+  add({ key: `channel:${id}`, kind: 'channel', mode: 'info', title: label, from: `${t.path}#${path}`, old: `${label}: ${facts}`, lives: 'Settings → Add-ons → Plugins', page: 'plugins', why: `Sara doesn't speak ${label} yet. A plugin bridge can add it (Settings → Add-ons → Plugins).`, ...(secrets.length ? { secrets: secrets.slice(0, 6) } : {}) });
 }
 
 function approvals(t: ConfigTree, path: string, v: unknown, what: string, add: Add): void {
@@ -535,7 +535,7 @@ function openclaw(t: ConfigTree, ctx: TranslateContext, add: Add, handled: Set<s
   if (isObj(c.skills)) {
     mark('skills');
     const names = secretNames(c.skills, 'skills');
-    if (names.length) add({ key: 'skill-keys', kind: 'knob', mode: 'info', title: 'Skill keys', from: `${t.path}#skills`, old: `${names.length} keys for skills (removed)`, secrets: names.slice(0, 12), lives: 'Settings → Abilities → Skills', page: 'skills', why: 'Add the keys again for the skills that need them.' });
+    if (names.length) add({ key: 'skill-keys', kind: 'knob', mode: 'info', title: 'Skill keys', from: `${t.path}#skills`, old: `${names.length} keys for skills (removed)`, secrets: names.slice(0, 12), lives: 'Settings → Add-ons → Skills', page: 'skills', why: 'Add the keys again for the skills that need them.' });
   }
   if (isObj(c.plugins)) mark('plugins');
 }

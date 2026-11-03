@@ -110,7 +110,7 @@ export function initStore(o = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Phase 125 (2.58.0, docs/store/SARA_STORE.md §8, §9.4, §10.1, §12.3): Settings → Abilities → Get
+// Phase 125 (2.58.0, docs/store/SARA_STORE.md §8, §9.4, §10.1, §12.3): Settings → Add-ons → Get
 // more. Browse and search (on Sara's own server: nothing is sent while typing), the item page, Get
 // through the review cards that exist (a plugin's card with the store strip, the skills import, the
 // new tool-server card), My add-ons, Submit yours, My submissions and Report this. Every text from

@@ -965,7 +965,7 @@ async function rememberCommand(c: CommandContext, conv: Conversation | undefined
   if (!fact) return { text: tr('Tell me what to remember, like: /remember {example}', { example: 'I water the ferns on Sundays' }), ownerOnly: true };
   const memory = app.memory;
   if (!memory) return { text: tr("My memory isn't available right now."), ownerOnly: true };
-  // The same permission as her remember tool: Settings → Abilities → Tools and approvals (remember_fact).
+  // The same permission as her remember tool: Settings → Coding → Tools and approvals (remember_fact).
   const set = app.settings.get().toolPermissions?.remember_fact ?? 'auto';
   if (set === 'never') return { text: tr('Remembering on command is turned off in Settings.'), ownerOnly: true };
   const save = () => {

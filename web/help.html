@@ -49,6 +49,9 @@
   <a href="#runs">Show the run</a>
   <a href="#time-travel">Branch from a step</a>
   <a href="#evals">Evals: which settings work best for you</a>
+  <a href="#slash">Commands you can type</a>
+  <a href="#compact">Long chats and /compact</a>
+  <a href="#routines">Routines</a>
   <a href="#sandbox">Commands tried in a sandbox first</a>
   <a href="#security">Security pass and fix branches</a>
   <a href="#threat-model">Threat model and the fix pass</a>
@@ -87,11 +90,11 @@
 <ol>
   <li><strong>Pick <em>Coding</em></strong> in step 1 of the setup. Step 3 suggests a model that is good at code and offers <em>My subscription</em> (Claude Code, Codex or Grok Build) first when you are signed in.</li>
   <li><strong>Open a project:</strong> <em>+ Project</em> in the sidebar, give it a workspace folder and start a conversation in it. She works in that folder with files, a shell and git.</li>
-  <li><strong>Choose how she runs code</strong> in <em>Settings → Abilities → Tools and approvals</em>: she asks first, and risky commands can run in a sandbox copy first. See <a href="#sandbox">Commands tried in a sandbox first</a>.</li>
+  <li><strong>Choose how she runs code</strong> in <em>Settings → Coding → Tools and approvals</em>: she asks first, and risky commands can run in a sandbox copy first. See <a href="#sandbox">Commands tried in a sandbox first</a>.</li>
   <li><strong>Read the line under each reply:</strong> it lists what she did (files, commands, tests); tap it for the output. Cards show the files she changed and the test results, and anything risky waits for your <em>Allow</em>.</li>
-  <li><strong>Add a GitHub token</strong> in <em>Settings → Abilities → GitHub</em> for issues and pull requests, and let <a href="#team">a team of helpers</a> plan, build, test and review.</li>
+  <li><strong>Add a GitHub token</strong> in <em>Settings → Coding → GitHub</em> for issues and pull requests, and let <a href="#team">a team of helpers</a> plan, build, test and review.</li>
   <li><strong>Use her from your editor or terminal:</strong> <code>sara-chat</code>, the VS Code panel, MCP for Claude Code and Cursor, or the OpenAI-compatible address. See <a href="#clients">In your terminal and editor</a>.</li>
-  <li><strong>Set a budget</strong> in <em>Settings → Abilities → Budgets</em>, so a long task stops at a limit you choose. See <a href="#budgets">Budgets for her replies</a>.</li>
+  <li><strong>Set a budget</strong> in <em>Settings → Coding → Budgets</em>, so a long task stops at a limit you choose. See <a href="#budgets">Budgets for her replies</a>.</li>
 </ol>
 
 <h2 id="start">Getting started</h2>
@@ -119,9 +122,11 @@
 <details class="howto-q" id="howto-chat-start"><summary>How do I start?</summary><ol><li>Type in the box at the bottom and press Enter.</li><li>Or tap one of the suggestions above.</li></ol></details>
 <details class="howto-q" id="howto-chat-photo"><summary>How do I send her a photo or a file?</summary><ol><li>Press the paperclip next to the box.</li><li>Pick the file; add a line if you like.</li></ol></details>
 <details class="howto-q" id="howto-chat-code"><summary>How do I switch this chat to coding?</summary><ol><li>Press the chip at the top of the chat.</li><li>Pick a workspace and switch the mode to coding.</li></ol></details>
+<details class="howto-q" id="howto-chat-slash"><summary>How do I use the / commands?</summary><ol><li>Type / at the start of the message box.</li><li>Pick one with ↑ ↓ and Enter, or keep typing to narrow the list.</li></ol></details>
 <h4 id="howto-today">Today</h4>
 <details class="howto-q" id="howto-today-plan"><summary>How do I plan my day with her?</summary><ol><li>Press Plan my day with her.</li><li>She looks at your list, calendar and weather.</li></ol></details>
 <details class="howto-q" id="howto-today-arrange"><summary>How do I change what Today shows?</summary><ol><li>Press Customise.</li><li>Switch sections on or off and drag them in order.</li></ol></details>
+<details class="howto-q" id="howto-today-routine"><summary>How do I set up a routine?</summary><ol><li>Press Add a routine, or open Planner → Routines.</li><li>Pick a card, answer its questions, look at the preview, then press Turn on.</li></ol></details>
 <h4 id="howto-planner">Planner</h4>
 <details class="howto-q" id="howto-planner-todo"><summary>How do I add a to-do?</summary><ol><li>Type it in the box under To-do and press Add.</li><li>Or just tell her in chat: "add milk to my list".</li></ol></details>
 <details class="howto-q" id="howto-planner-remind"><summary>How do I set a reminder?</summary><ol><li>Open Reminders, type what and when.</li><li>Or tell her: "remind me at 5 to call Ana".</li></ol></details>
@@ -213,6 +218,7 @@
 <h4 id="howto-models-default">Default model</h4>
 <details class="howto-q" id="howto-models-default-pick"><summary>How do I choose the model she thinks with?</summary><ol><li>Pick a Provider.</li><li>Pick a Model from its list.</li><li>Anything without its own model uses this one.</li></ol></details>
 <details class="howto-q" id="howto-models-default-refresh"><summary>How do I see new models?</summary><ol><li>Press ↻ Refresh.</li><li>New models on that provider show up in the list.</li></ol></details>
+<details class="howto-q" id="howto-models-default-compact"><summary>How do I tidy a long chat?</summary><ol><li>Type /compact in the chat, or press Tidy this chat on her panel.</li><li>The older part becomes a summary she reads; nothing is deleted and Undo brings it back.</li></ol></details>
 <h4 id="howto-models-routes">Which model does what</h4>
 <details class="howto-q" id="howto-models-routes-rec"><summary>How do I let Sara pick models for each job?</summary><ol><li>Press ✨ Use recommended.</li><li>Check the rows; change any with its list.</li></ol></details>
 <details class="howto-q" id="howto-models-routes-test"><summary>How do I test a model on one job?</summary><ol><li>Pick the model in that job's row.</li><li>Press Test to see its speed and an answer.</li></ol></details>
@@ -349,7 +355,7 @@
 <details class="howto-q" id="howto-dh-updates-new"><summary>How do I see what changed?</summary><ol><li>Press What's new in each version.</li></ol></details>
 <h4 id="howto-dh-usage">Usage and costs</h4>
 <details class="howto-q" id="howto-dh-usage-cost"><summary>How do I see what she costs?</summary><ol><li>Read the top line for today.</li><li>Open By model or By what it was for for details.</li></ol></details>
-<details class="howto-q" id="howto-dh-usage-limit"><summary>How do I set a spending limit?</summary><ol><li>Open Budgets on this page or Abilities → Budgets.</li><li>Set a limit per job or per day.</li></ol></details>
+<details class="howto-q" id="howto-dh-usage-limit"><summary>How do I set a spending limit?</summary><ol><li>Open Budgets on this page or Coding → Budgets.</li><li>Set a limit per job or per day.</li></ol></details>
 <h4 id="howto-dh-privacy">Privacy</h4>
 <details class="howto-q" id="howto-dh-privacy-see"><summary>How do I see what the check-in sends?</summary><ol><li>Press Show what's sent.</li></ol></details>
 <details class="howto-q" id="howto-dh-privacy-off"><summary>How do I stop the daily check-in?</summary><ol><li>Switch the check-in off on this page.</li><li>Press Reset the install ID to start fresh.</li></ol></details>
@@ -370,9 +376,9 @@
   <li><strong>The sidebar</strong> lists the places you use most: Today, Planner, Library and Moments at first. <em>More</em> below them has the rest (Memory, Scrapbook, Your story, Team and anything new). Press the pin next to a place to keep it in the list; press it again to move it back under <em>More</em>. Pins are saved on each device.</li>
   <li><strong>Her face and name</strong> at the bottom of the sidebar open her page; <em>?</em> opens Help and the gear opens Settings. Her face and name at the top open Today.</li>
   <li><strong>On a phone</strong> a bar at the bottom has Chat, Today, the Planner and More (every other place). ☰ at the top still lists your conversations. The bar steps aside while you type.</li>
-  <li><strong>Settings</strong> are in groups: Her, You, Models, Abilities, Connections, Data &amp; health and Household. Press a group to open or close it. Each page starts with a line on what it is for. Search finds any word in page names, settings and their ? tips.</li>
+  <li><strong>Settings</strong> are in groups: Her, You, Models, Chat apps, Add-ons, Coding, Connections, Data &amp; health and Household. Press a group to open or close it. Each page starts with a line on what it is for. Search finds any word in page names, settings and their ? tips.</li>
   <li><strong>Search and go:</strong> press <em>Ctrl+K</em> (<em>⌘K</em> on a Mac) or the magnifier at the top to jump to any place, conversation, setting or action (a new conversation, off the record, a call, another companion, Night or Day). Use the arrow keys and Enter; Esc closes it. With nothing typed it shows what you opened last.</li>
-  <li><strong>Tools and approvals</strong> (<em>Settings → Abilities</em>) lists what she can do in plain words, grouped by topic. Each one is <em>Allowed</em> (she does it by herself), <em>Ask me first</em> (she asks in the chat each time) or <em>Off</em>. <em>Whole group</em> sets a whole group at once; the small grey name is the tool's own name.</li>
+  <li><strong>Tools and approvals</strong> (<em>Settings → Coding</em>) lists what she can do in plain words, grouped by topic. Each one is <em>Allowed</em> (she does it by herself), <em>Ask me first</em> (she asks in the chat each time) or <em>Off</em>. <em>Whole group</em> sets a whole group at once; the small grey name is the tool's own name.</li>
 </ul>
 
 <h2 id="showing-work">How she shows her work</h2>
@@ -441,7 +447,7 @@
   <li><strong>What she remembers:</strong> after reading, she writes the key points into her memory, each with the words it came from. Open a document in the Library to see them and delete any you don't want. <em>Read it again</em>, <em>Learn again</em> and <em>Remove…</em> are under ⋯ on its page; removing a document asks whether she should forget those too.</li>
   <li><strong>Asking about them:</strong> just ask ("when does my lease end?", "what does the manual say about the filter?"). She looks it up and says where it came from, like "your lease, page 4". If the document doesn't say, she tells you.</li>
   <li><strong>Finding things said in other words:</strong> with <em>Meaning search</em> set (<em>Settings → Models → Which model does what</em>, an embedding model such as nomic-embed-text on Ollama), she also finds passages that use different words.</li>
-  <li><strong>Big documents (Phase 74):</strong> manuals and books of 500 to 1,000 pages or more, PDFs up to 1 GB (the size is set in <em>Settings → Abilities → Library</em>). Big files go up in pieces, so a dropped connection carries on where it stopped. She reads them in the background, page by page: the Library shows <em>Reading page 412 of 980 · about 6 minutes left</em>, with <em>Pause</em>, <em>Resume</em> and <em>Cancel reading</em>. A restart of the server carries on from the same page. Files over 100 MB need to be PDFs. How it works and what it was measured at: <a href="https://github.com/farena-ai/sara/blob/main/docs/LIBRARY.md">docs/LIBRARY.md</a>.</li>
+  <li><strong>Big documents (Phase 74):</strong> manuals and books of 500 to 1,000 pages or more, PDFs up to 1 GB (the size is set in <em>Settings → Add-ons → Library</em>). Big files go up in pieces, so a dropped connection carries on where it stopped. She reads them in the background, page by page: the Library shows <em>Reading page 412 of 980 · about 6 minutes left</em>, with <em>Pause</em>, <em>Resume</em> and <em>Cancel reading</em>. A restart of the server carries on from the same page. Files over 100 MB need to be PDFs. How it works and what it was measured at: <a href="https://github.com/farena-ai/sara/blob/main/docs/LIBRARY.md">docs/LIBRARY.md</a>.</li>
   <li><strong>Scanned pages:</strong> every one is read by her picture model. On a model on this computer that starts by itself; if a cloud model would read them, she first shows how many pages, about how long and about what it costs, and asks. With <em>Nothing leaves this computer</em> on, only a model on this computer reads them.</li>
   <li><strong>Contents and summaries:</strong> a long document gets a contents list (its bookmarks, or else its headings), a short summary of each chapter or section, a summary of the whole document, and more key points the longer it is. Press a page in the contents to read from there.</li>
   <li><strong>Page numbers in her answers:</strong> when she answers from a document with pages she says which page, like <em>p. 412</em>. Press it to open the document at that page; <em>Open the PDF at this page</em> shows the page itself.</li>
@@ -450,7 +456,7 @@
 
 <h2 id="chatapps">Telegram and Discord</h2>
 <ul>
-  <li><strong>Connect:</strong> <em>Settings → Connections → Telegram</em> or <em>Discord</em>: paste the bot token, switch it on, then press <em>Link my Telegram / Discord</em> and send her the code. Your chats with her there have everything: her tools (with Allow and Deny buttons), memory and reminders.</li>
+  <li><strong>Connect:</strong> <em>Settings → Chat apps → Telegram</em> or <em>Discord</em>: paste the bot token, switch it on, then press <em>Link my Telegram / Discord</em> and send her the code. Your chats with her there have everything: her tools (with Allow and Deny buttons), memory and reminders.</li>
   <li><strong>More owners:</strong> add other people's Telegram or Discord user IDs under <em>Remote work</em>. They get the same as you.</li>
   <li><strong>Working in a group or server:</strong> switch on <em>Owners can use her tools</em> there. Everyone in the channel can read her replies, so she keeps your private things out unless you ask. Other people in the channel get a plain chat with no tools.</li>
   <li><strong>When she answers there:</strong> when someone @mentions her or replies to her. Optional: when someone says her name, and @everyone / @here (Discord) or @all / @everyone (Telegram). For Telegram to show her un-mentioned group messages, turn off the bot's privacy mode: <em>@BotFather → /setprivacy → Disable</em>.</li>
@@ -468,7 +474,7 @@
 <h2 id="signal">Signal</h2>
 <ul>
   <li><strong>What it is:</strong> Signal comes with Sara as a plugin. She talks to your own <em>signal-cli</em> (a free program that runs a Signal account on a computer), and only Sara holds the connection to it. Give her a number of her own, like a spare SIM, and keep signal-cli up to date.</li>
-  <li><strong>Set it up:</strong> start signal-cli for her number with <code>daemon --tcp 127.0.0.1:7583 --receive-mode=manual</code>. Then <em>Settings → Connections → Signal → Add Signal</em>, read its card, press <em>Install</em> and switch it on for her. Type the address and her number, press <em>Test</em>, then <em>Link my Signal</em> and send her <code>/link</code> and the code from your own Signal.</li>
+  <li><strong>Set it up:</strong> start signal-cli for her number with <code>daemon --tcp 127.0.0.1:7583 --receive-mode=manual</code>. Then <em>Settings → Chat apps → Signal → Add Signal</em>, read its card, press <em>Install</em> and switch it on for her. Type the address and her number, press <em>Test</em>, then <em>Link my Signal</em> and send her <code>/link</code> and the code from your own Signal.</li>
   <li><strong>Your safety number:</strong> Sara remembers it when you link. If it changes (a new phone, or someone else), she stops using her tools for that chat until you press <em>It's me</em> in the plugin's settings.</li>
   <li><strong>Groups:</strong> she answers in a group when she's mentioned or replied to, only in groups you're in (others start off). <em>Keep up with this room</em> works as on Telegram. Others never get her tools.</li>
   <li><strong>While she works:</strong> typing dots, one progress message that is edited at most 7 times (Signal allows 10 edits), and a 👀 on a message she'll use at the next step. A long job sends one <em>Still working</em> line and the whole answer at the end.</li>
@@ -478,7 +484,7 @@
 <h2 id="email">Email</h2>
 <ul>
   <li><strong>What it is:</strong> Email comes with Sara as a plugin and gives her a mailbox of her own. Email her or forward her a mail and she answers in the same thread. It's her mailbox, not yours: reading your own inbox is <em>Settings → Google</em>.</li>
-  <li><strong>Set it up:</strong> make an address only she uses and an app password for it (Gmail, iCloud and Fastmail: in your account's security settings). Then <em>Settings → Connections → Email → Add email</em>, read its card, press <em>Install</em>, type the address and the app password, then <em>Link my email</em> and send her the code as the subject.</li>
+  <li><strong>Set it up:</strong> make an address only she uses and an app password for it (Gmail, iCloud and Fastmail: in your account's security settings). Then <em>Settings → Chat apps → Email → Add email</em>, read its card, press <em>Install</em>, type the address and the app password, then <em>Link my email</em> and send her the code as the subject.</li>
   <li><strong>Your sender check:</strong> your mail counts as you only when it passes your provider's sender check. If it doesn't, she does nothing and tells you once a day; press <em>Check my sender</em> to see what your provider records.</li>
   <li><strong>Forwarded mail and strangers:</strong> forwarded text is someone else's words, so every step asks you first. Strangers are never answered and their mail never reaches her; automatic replies, mailing lists and bounces are skipped.</li>
   <li><strong>Threads and files:</strong> every thread is one session. She sends one plain-text mail per turn, with files attached. The first 8,000 characters of a mail reach her; write <em>keep this</em> to keep the whole mail in her library.</li>
@@ -488,7 +494,7 @@
 <ul>
   <li><strong>What it is:</strong> WhatsApp comes with Sara as a plugin and stays off until you add it. It uses Meta's official WhatsApp Business service with a Meta account and a number you own; Meta calls your Sara directly. Unofficial WhatsApp Web plugins are refused, because Meta bans their numbers.</li>
   <li><strong>Meta's rules:</strong> Meta's terms forbid offering a general-purpose AI assistant on WhatsApp as a product, and Meta can restrict an account or number. Tick the box on the page only if you accept that, and use a number you can afford to lose.</li>
-  <li><strong>Set it up:</strong> <em>Settings → Connections → WhatsApp</em>, then ten steps that each turn ✓ when Sara has checked them: add the plugin, make a Meta app, copy two IDs, list your phone on Meta's free test number, make a key that never expires, copy the app secret, give Meta a public address, connect Meta to Sara, send her <code>/link</code> and the code, and <em>Test</em>. A red step says what to fix.</li>
+  <li><strong>Set it up:</strong> <em>Settings → Chat apps → WhatsApp</em>, then ten steps that each turn ✓ when Sara has checked them: add the plugin, make a Meta app, copy two IDs, list your phone on Meta's free test number, make a key that never expires, copy the app secret, give Meta a public address, connect Meta to Sara, send her <code>/link</code> and the code, and <em>Test</em>. A red step says what to fix.</li>
   <li><strong>The public address:</strong> <em>Open the public door</em> uses Tailscale Funnel for <code>/hook/</code> only; the app itself stays private. A tunnel or your own domain works too.</li>
   <li><strong>The 24-hour window:</strong> chats you start are free. She can only write first within 24 hours of your last message; otherwise her message stays in the app until you write to her.</li>
   <li><strong>While she works:</strong> typing, and for a long job one <em>Working on it</em> line with a Stop button, then her answer. Only you can reach her unless you list other numbers; no groups or voice replies. If your WhatsApp identity changes, her tools there pause until you press <em>It's me</em>.</li>
@@ -498,7 +504,7 @@
 <ul>
   <li><strong>What it is:</strong> talk to her in Element or any Matrix app, through a Matrix account of her own (for example <code>@sara-frank:matrix.org</code>). Matrix comes with Sara as a plugin and stays off until you add it. It's free.</li>
   <li><strong>Not end-to-end encrypted:</strong> she can only read rooms with encryption off, so whoever runs the servers (matrix.org, or yours) can read your room with her. For private chats use Signal. In an encrypted room she says once that she can't read it, and the Matrix card lists it under <em>Rooms she can't read</em>.</li>
-  <li><strong>Set it up:</strong> <em>Settings → Connections → Matrix</em>, tick the box and press <em>Start</em>. Five steps follow, each ✓ when Sara has checked it.</li>
+  <li><strong>Set it up:</strong> <em>Settings → Chat apps → Matrix</em>, tick the box and press <em>Start</em>. Five steps follow, each ✓ when Sara has checked it.</li>
 </ul>
 <ol>
   <li>Make her a Matrix account at app.element.io (a private browser window, then sign out).</li>
@@ -517,7 +523,7 @@
 <ul>
   <li><strong>What it is:</strong> text her from Messages on your iPhone, iPad or Mac, in blue bubbles, to an Apple ID of her own. It works through BlueBubbles, a free app on a Mac of yours that is not made or approved by Apple. iMessage comes with Sara as a plugin and stays off until you add it. <strong>No Mac, no iMessage:</strong> try Signal or Telegram instead.</li>
   <li><strong>Never on your own Apple ID:</strong> she would see all your chats and answer as you, so Sara refuses to run on it.</li>
-  <li><strong>Set it up:</strong> <em>Settings → Connections → iMessage</em>, tick the box and press <em>Start</em>. Eight steps follow, each ✓ when Sara has checked it.</li>
+  <li><strong>Set it up:</strong> <em>Settings → Chat apps → iMessage</em>, tick the box and press <em>Start</em>. Eight steps follow, each ✓ when Sara has checked it.</li>
 </ul>
 <ol>
   <li>Give her an Apple ID at account.apple.com, with a new email address for her.</li>
@@ -626,7 +632,7 @@
 <ul>
   <li>Make a <strong>project</strong> (+ Project) and give it a workspace: a folder on the server where she reads and writes files.</li>
   <li>Switch a conversation to <strong>coding mode</strong> (the button next to the title) for the engineering workflow: she plans, edits, runs tests and shows what changed.</li>
-  <li>Risky actions (running commands, sending mail, pushing code) <strong>ask you first</strong>. Change that per tool in <em>Settings → Abilities → Tools and approvals</em>.</li>
+  <li>Risky actions (running commands, sending mail, pushing code) <strong>ask you first</strong>. Change that per tool in <em>Settings → Coding → Tools and approvals</em>.</li>
   <li>With GitHub connected she can commit, push, open pull requests and work with issues.</li>
   <li>Undo restores saved files from the snapshot list on the project page. Snapshots skip dependency folders such as <code>node_modules</code> and <code>.venv</code>, and files over 50 MB.</li>
 </ul>
@@ -648,21 +654,21 @@
   <li>Preview links are private and go through Sara (never opened to the internet). Each link has a long random key, works only while her app's job runs (at most 12 hours) and only reaches the port that job opened. The app runs <strong>sandboxed</strong>: it can't see your sign-in, Sara's data or anything else in Sara.</li>
   <li>Apps are shown under a sub-path, so she uses relative file paths (for Vite: <code>--base ./</code>). There's no live reload: press Reload after changes.</li>
   <li>She can also <strong>test it herself</strong> in a real browser with no window: open the preview, click, type, read the page, run simple checks and take screenshots at desktop and phone width. She sees the screenshots (when her model can see pictures), and they're attached to her message as proof. If she says she tested something in the browser but didn't, her reply is marked unverified.</li>
-  <li>The browser: Microsoft Edge on Windows, Chrome/Edge/Chromium on a Mac, and on Linux an optional download (see the install guide, <code>deploy/install-browser.sh</code>). <em>Settings → Abilities → Tools and approvals</em> shows whether one was found; <em>Run full check</em> and <code>sara doctor</code> also explain how to install it when it is missing. Switch <code>preview_start</code> and the <code>browser_</code> tools there. It only reaches her previews unless web tools are on, and never in private conversations.</li>
+  <li>The browser: Microsoft Edge on Windows, Chrome/Edge/Chromium on a Mac, and on Linux an optional download (see the install guide, <code>deploy/install-browser.sh</code>). <em>Settings → Coding → Tools and approvals</em> shows whether one was found; <em>Run full check</em> and <code>sara doctor</code> also explain how to install it when it is missing. Switch <code>preview_start</code> and the <code>browser_</code> tools there. It only reaches her previews unless web tools are on, and never in private conversations.</li>
 </ul>
 <h3 id="plan-check">She checks her plans against what you decided</h3>
 <ul>
   <li>Before she runs a tool, she compares what it would do with your <strong>decisions</strong> (Memory → Decided together) and rules in your notes, such as <em>never push to main</em>, <em>no force pushes</em>, <em>tests before every push</em>, <em>don't touch infra/</em> or <em>use pnpm, not npm</em>. Fixed rules in the code decide this, not her model, so it works the same on every model.</li>
   <li>In a coding or work conversation, a clear conflict <strong>stops</strong> with the approval card: it quotes your note and the day you decided it, with why it came up and how sure that is. Choose <em>Do it anyway</em> (kept on the reply as your explicit choice), <em>Don't</em>, or <em>Update the note</em> (opens the note so you can change it).</li>
   <li>When it is only a maybe, or in everyday chat, nothing stops: she tells you in her reply, quoting the note. Tools that only read or look are never checked, and notes that were replaced by newer ones don't count.</li>
-  <li>It can only add a stop: tools set to <em>Off</em> stay off and <em>Ask me first</em> still asks. Switch it in <em>Settings → Abilities → Tools and approvals → Your decisions</em>, and pick <em>Stop on clear conflicts</em> or <em>Only mention them</em>.</li>
+  <li>It can only add a stop: tools set to <em>Off</em> stay off and <em>Ask me first</em> still asks. Switch it in <em>Settings → Coding → Tools and approvals → Your decisions</em>, and pick <em>Stop on clear conflicts</em> or <em>Only mention them</em>.</li>
 </ul>
 
 <h2 id="accounts">Gmail, Calendar and GitHub</h2>
 <ul>
-  <li><strong>Google</strong> (<em>Settings → Abilities → Gmail and Calendar</em>): she can find and read mail, list what needs an answer, draft replies, organize your mail, and see or add calendar events. Sending, organizing and adding events ask you first.</li>
+  <li><strong>Google</strong> (<em>Settings → Add-ons → Gmail and Calendar</em>): she can find and read mail, list what needs an answer, draft replies, organize your mail, and see or add calendar events. Sending, organizing and adding events ask you first.</li>
   <li><strong>Organizing Gmail</strong>: archive, mark read or unread, star, mark important, add or remove labels, move to trash or out of it, and mark spam or not spam, for a Gmail search or plain dates ("everything from Oct 1st or older", "last week"). The card first shows how many emails, the search and a few of them; big jobs run in the background and can be stopped; the result card has <em>Undo</em> (30 days) and <em>Open in Gmail</em>. She never deletes for good and never opens unsubscribe links herself. Connected before this was added? Press <em>Reconnect to allow organizing</em>.</li>
-  <li><strong>GitHub</strong> (<em>Settings → Abilities → GitHub</em>): add a token; she can then list and read issues and pull requests, open issues, comment and open pull requests (writing asks you first).</li>
+  <li><strong>GitHub</strong> (<em>Settings → Coding → GitHub</em>): add a token; she can then list and read issues and pull requests, open issues, comment and open pull requests (writing asks you first).</li>
   <li>Text in mail and on GitHub can come from anyone. She treats it as information, never as instructions.</li>
 </ul>
 
@@ -807,16 +813,16 @@
 </ul>
 <h2 id="home">Home and places</h2>
 <ul>
-  <li><strong>Home Assistant</strong> (<em>Settings → Abilities → Home Assistant</em>): paste your Home Assistant address and a long-lived access token. Then ask things like "is the garage closed?" or "dim the living room to 30%". She looks on her own; every change asks you first.</li>
+  <li><strong>Home Assistant</strong> (<em>Settings → Add-ons → Home Assistant</em>): paste your Home Assistant address and a long-lived access token. Then ask things like "is the garage closed?" or "dim the living room to 30%". She looks on her own; every change asks you first.</li>
   <li>Your Home Assistant must be reachable from your Sara server, for example through Nabu Casa or Tailscale.</li>
   <li><strong>Place reminders</strong>: "remind me when I get to the store" or "…when I leave work". Save places in <em>Planner → Reminders → Places</em>: by address, or with "Save where I am" in the phone app. Then switch on <em>Place reminders</em> in <em>Settings → Connections → Phone and notifications</em> on your phone, and allow location "all the time".</li>
   <li>Your location stays on the phone. The phone only tells your server "arrived at Store" or "left Work". Looking up an address asks OpenStreetMap.</li>
-  <li><strong>Presence</strong> (<em>Settings → Abilities → Home Assistant → Presence</em>, off until you switch it on): she notices through Home Assistant when someone gets home or leaves, at bedtime, or when a light goes on in the morning, and says a short word as a message or on a speaker. Each kind at most once every few hours, never in the quiet hours of <em>Calls from her</em>.</li>
+  <li><strong>Presence</strong> (<em>Settings → Add-ons → Home Assistant → Presence</em>, off until you switch it on): she notices through Home Assistant when someone gets home or leaves, at bedtime, or when a light goes on in the morning, and says a short word as a message or on a speaker. Each kind at most once every few hours, never in the quiet hours of <em>Calls from her</em>.</li>
 </ul>
 
 <h2 id="ssh">Your other servers over SSH</h2>
 <ul>
-  <li><strong>Add a server</strong> in <em>Settings → Abilities → Servers over SSH</em> (or ask her: "add my web box, deploy@203.0.113.5"): a name, the address, the port and the user. She reads the server's host key and shows its SHA256 fingerprint. Compare it with the server's own (<code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> on the server) and trust it only if they match.</li>
+  <li><strong>Add a server</strong> in <em>Settings → Coding → Servers over SSH</em> (or ask her: "add my web box, deploy@203.0.113.5"): a name, the address, the port and the user. She reads the server's host key and shows its SHA256 fingerprint. Compare it with the server's own (<code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> on the server) and trust it only if they match.</li>
   <li><strong>With a password</strong>: type it once in the password box on that page, never in the chat. She signs in, makes her own SSH key for that server, adds it to <code>~/.ssh/authorized_keys</code> there and tells you where the key file is. From then on she uses the key and the password is not kept.</li>
   <li><strong>Saving the password</strong> is off by default. Tick it only if you really need it: it is a security risk (anyone who gets into Sara could use it), so it asks you twice, is stored encrypted with her other secrets, and <em>Forget the password</em> removes it with one click.</li>
   <li><strong>With a key</strong>: paste a private key the server already accepts, or give the path of a key file on the Sara server. Keys with a passphrase can't be used.</li>
@@ -837,7 +843,7 @@
 <ul>
   <li>A <strong>skill</strong> is a how-to for a kind of task: a folder with a <code>SKILL.md</code> (a name, what it does and when to use it, then the steps) and sometimes notes or scripts beside it. Sara uses the open Agent Skills format, so skills from other apps work in Sara and yours work elsewhere.</li>
   <li>In every chat with you she sees the name and description of each skill that is on, and opens the one that fits; the line under her reply says <em>Used skill</em>. When one fits clearly, its steps are loaded right away. Partner chats, group chats and other apps get no skills.</li>
-  <li>Six come built in: write a skill, review a pull request, write a changelog entry, a weekly review, debug a failing test and plan a trip. Switch any skill on or off for each companion in <em>Settings → Abilities → Skills</em>, make your own with <em>New skill</em>, or keep one for <em>All my companions</em>.</li>
+  <li>Six come built in: write a skill, review a pull request, write a changelog entry, a weekly review, debug a failing test and plan a trip. Switch any skill on or off for each companion in <em>Settings → Add-ons → Skills</em>, make your own with <em>New skill</em>, or keep one for <em>All my companions</em>.</li>
   <li><em>Add a skill</em> takes a .zip, a git address or a folder on the server. Nothing is added until you have read the review card: every file, every script, and warnings such as words that try to change her instructions, data sent elsewhere, or something that looks like a key. A skill added from outside that changes on disk waits for a new review.</li>
   <li>Scripts in a skill never run by themselves: each run shows the script and asks you (<em>Allow once</em> or <em>Allow for this task</em>), in her workspace sandbox. A skill can't change her approvals, budgets or safety rules, whatever it says.</li>
   <li>A workspace's own skills (in <code>.agents/skills</code>) are used only after you trust that workspace on the Skills page. <em>Export</em> gives a zip of one skill; <em>Export all</em> a zip of all of yours.</li>
@@ -854,7 +860,7 @@
 
 <h2 id="plugins">Plugins: new abilities from a folder</h2>
 <ul>
-  <li>A <strong>plugin</strong> is a small program written for Sara: a folder with a <code>sara-plugin.json</code> and its code. It can give her a tool, add a note before her reply, stop or hold a step for your OK, add a card, run on a schedule, or carry a chat app. Add one in <em>Settings → Abilities → Plugins</em> from a .zip, a git address or a folder on the server.</li>
+  <li>A <strong>plugin</strong> is a small program written for Sara: a folder with a <code>sara-plugin.json</code> and its code. It can give her a tool, add a note before her reply, stop or hold a step for your OK, add a card, run on a schedule, or carry a chat app. Add one in <em>Settings → Add-ons → Plugins</em> from a .zip, a git address or a folder on the server.</li>
   <li>Before anything is installed you read its card: what it can do in plain words (riskiest first), its files and its fingerprint. Installing switches nothing on; you switch it on for each companion. An update that asks for more shows the full card again, with the new parts marked.</li>
   <li>Each plugin runs in its own process with only what you approved. On Linux with bubblewrap and on macOS it has no network and sees only its own folders; it reaches the internet only through Sara, to the hosts it listed. On Windows the card says <em>Not fenced in</em>: add only plugins whose author you trust.</li>
   <li><strong>She still follows her rules.</strong> A plugin can add a labelled note or a card, or make a step ask you; it can never change her rules, her replies or what you decided, and it never sees private, partner, group or other apps' chats. A plugin that is too slow or crashes is skipped; one that keeps crashing is switched off.</li>
@@ -863,10 +869,10 @@
 
 <h2 id="workflows">Coding workflows</h2>
 <ul>
-  <li><strong>She learns each project:</strong> how to build, test and lint it, its layout, its own rules (AGENTS.md, CONTRIBUTING) and the notes she keeps (decisions, conventions, commands). See and edit them in <em>Settings → Abilities → Coding projects</em>.</li>
+  <li><strong>She learns each project:</strong> how to build, test and lint it, its layout, its own rules (AGENTS.md, CONTRIBUTING) and the notes she keeps (decisions, conventions, commands). See and edit them in <em>Settings → Coding → Coding projects</em>.</li>
   <li><strong>Plan → build → test → pull request:</strong> from a GitHub issue (Team → <em>From a GitHub issue…</em>, or ask her) her team clones the repository into its own workspace, plans, builds, tests and reviews, then she opens a pull request that closes the issue and posts her review on it. With <em>Stop for my OK</em> on, she waits for you on the plan and before the pull request. A task carries on after a restart.</li>
   <li><strong>Review mode:</strong> ask her to review your changes, a branch or a pull request ("review PR 12"). You get comments on files and lines and a verdict; she can post it on the pull request if you say so.</li>
-  <li><strong>Issues become tasks:</strong> in <em>Settings → Abilities → GitHub</em>, list repositories to watch (optionally only issues with a label like <code>sara</code>) and how often to look. New issues land on your planner. This runs on your own server and costs nothing; nothing is set up on GitHub.</li>
+  <li><strong>Issues become tasks:</strong> in <em>Settings → Coding → GitHub</em>, list repositories to watch (optionally only issues with a label like <code>sara</code>) and how often to look. New issues land on your planner. This runs on your own server and costs nothing; nothing is set up on GitHub.</li>
 </ul>
 
 <h2 id="starters">Starter projects</h2>
@@ -965,7 +971,7 @@
 
 <h2 id="budgets">Budgets for her replies</h2>
 <ul>
-  <li>Each reply has a ceiling, so a long task can't run on and on. Coding chats have one by default: <strong>200k tokens and 40 steps</strong>, no dollar limit. Everyday chats have none unless you turn it on (they still stop after 25 steps, as before). Change both in <em>Settings → Abilities → Budgets</em>, or switch them off.</li>
+  <li>Each reply has a ceiling, so a long task can't run on and on. Coding chats have one by default: <strong>200k tokens and 40 steps</strong>, no dollar limit. Everyday chats have none unless you turn it on (they still stop after 25 steps, as before). Change both in <em>Settings → Coding → Budgets</em>, or switch them off.</li>
   <li>Near the limit she saves instead of running on: first the rest of the reply goes to your <strong>quick model</strong> (if one is set and it's cheaper), then she uses <strong>one more round of tools</strong> at most, then she writes <strong>a short summary without tools</strong>: what's done, what she didn't get to, and what is kept.</li>
   <li>The reply then shows <strong>Budget reached</strong> with what was dropped and <strong>Continue with more</strong>. Nothing goes past a limit by itself: Continue gives exactly that much more, and it is noted on the reply and in its run. With <em>Ask me before going on</em> you get a card at the limit instead (<em>Keep going</em> or <em>Wrap up</em>).</li>
   <li>A small meter on the step line (and in <strong>Show the run</strong>) shows how much of the budget a reply used.</li>
@@ -979,14 +985,29 @@
   <li>She works in rounds. After each round <strong>Sara runs the check</strong>, not she; if it fails, the next round gets the real failure. It ends <strong>done</strong> (the check's output is the proof), <strong>done, review it</strong> (green, but she changed test files: look first), <strong>stuck</strong> (the same failure again, or a round that changed nothing) or <strong>paused</strong> at a cap. Her own words never end a goal.</li>
   <li>Each round is one ordinary reply inside your usual budget. A round that reaches its budget pauses the goal on that reply's <em>Continue with more</em>.</li>
   <li><strong>Repeats:</strong> <em>+ → Repeat this…</em> or <code>/loop every 10m for 2h: check the deploy and tell me if it's red</code>. She checks on a timer, stays quiet while nothing changes, and tells you when it does. Every repeat has an end time, a cap on checks and a daily budget; quiet hours skip checks; anything that needs your OK pauses it.</li>
-  <li>Planner → <em>Repeats</em> lists them all; <em>Settings → Abilities → Keep going and repeats</em> holds the limits. After a restart goals and repeats come back paused. Full guide: <code>docs/GOALS.md</code>.</li>
+  <li>Planner → <em>Repeats</em> lists them all; <em>Settings → Coding → Keep going and repeats</em> holds the limits. After a restart goals and repeats come back paused. Full guide: <code>docs/GOALS.md</code>.</li>
 </ul>
 <h2 id="when">When it comes up, and picking a chat up in another app</h2>
 <ul>
   <li><strong>When it comes up:</strong> say “when Dan comes up, remind me he owes me $20” in any of your chats (or type <code>/when Dan: he owes me $20</code>). The next time you mention Dan in one of your own chats, she brings it up once in her reply; the ⏰ chip under it has <em>Done</em>, <em>Again next time</em> and <em>Forget</em>.</li>
   <li>Only your own messages in your own chats set them off: never shared rooms, other people's chats, private or off-the-record chats, other apps or speakers. Anything she would send to someone else that mentions it asks you first.</li>
   <li><strong>Pick it up in another app:</strong> after talking on Telegram, open the app and press <em>Continue here</em> on the banner, or type <code>/continue</code> in any of your chats. She gets that chat's summary and last back-and-forths; nothing is copied, and <em>Undo</em> on the chip takes it away.</li>
-  <li>Planner → <em>Reminders</em> lists what is waiting to come up. <em>Settings → Abilities → When it comes up</em> and <em>Settings → Connections → Pick up across apps</em> hold the choices. Full guide: <code>docs/WHEN.md</code>.</li>
+  <li>Planner → <em>Reminders</em> lists what is waiting to come up. <em>Settings → You → When it comes up</em> and <em>Settings → Chat apps → Pick up across apps</em> hold the choices. Full guide: <code>docs/WHEN.md</code>.</li>
+</ul>
+<h2 id="slash">Commands you can type</h2>
+<ul>
+  <li>Type <code>/</code> at the start of the message box and a list opens: <code>/goal</code>, <code>/loop</code>, <code>/compact</code>, <code>/tools</code>, <code>/when</code>, <code>/btw</code>, <code>/stop</code> and more, each with one line on what it does. ↑ ↓ and Enter pick one; Esc closes the list.</li>
+  <li>The same commands work in Telegram, Discord and the other chat apps; you only see the ones you may use in that chat. Type <code>@</code> to point her at a file or a web page. Full list: <code>docs/CHATS.md</code>.</li>
+</ul>
+<h2 id="compact">Long chats and /compact</h2>
+<ul>
+  <li>When a chat gets long, <code>/compact</code> (or <em>Tidy this chat</em> on her panel) folds the older part into a summary she reads instead. Your last turns stay word for word, the folded messages stay in the thread under a divider with <em>Show summary</em> and <em>Undo</em>, and nothing is deleted.</li>
+  <li>Private chats are only ever tidied by a model on this computer. Full guide: <code>docs/TOOLS_AND_COMPACT.md</code>.</li>
+</ul>
+<h2 id="routines">Routines</h2>
+<ul>
+  <li><strong>Planner → Routines</strong> has ready-made things she does on a schedule: a morning briefing, a weekly review, a reminder to stretch, a CI watch and more. Each card says when it runs, what it needs and what it costs, and shows a preview before <em>Turn on</em>.</li>
+  <li><em>Off</em> stops a routine at once. Full guide: <code>docs/ROUTINES.md</code>.</li>
 </ul>
 <h2 id="sandbox">Commands tried in a sandbox first</h2>
 <ul>
@@ -994,7 +1015,7 @@
   <li>The card <strong>Ran in a sandbox</strong> shows the command, its result and time, the files it added, changed or removed, and anything worth a look: writes outside the copy, many files deleted, git hooks, network use, programs left running (they are stopped), running out of time.</li>
   <li>You choose: <strong>Apply to my workspace</strong> writes only those file changes into your project (a file you changed meanwhile is left alone), <strong>Discard</strong> throws the copy away, <strong>Run for real</strong> runs the command in your workspace as before. A clean try of a tool you let run on its own is applied by itself when the computer can isolate it.</li>
   <li>How isolated a try is depends on the computer: on Linux <strong>bubblewrap</strong> and on a Mac the <strong>macOS sandbox</strong> keep the rest of the computer read-only, your home folder hidden and the network off. On Windows it uses <strong>Docker</strong> (with its image already downloaded) or <strong>WSL2</strong> with bubblewrap if they are there; otherwise the copy is <strong>not isolated</strong>: writes outside it are watched and flagged, she asks before trying a command that asks first, and nothing is applied until you choose.</li>
-  <li>Change it in <em>Settings → Abilities → Coding projects</em>: only risky commands (the default), every command, or off; network for tries (off by default); the largest copy and the time limit. Dependency folders such as <code>node_modules</code> are never copied: they are shared read-only where the computer can, otherwise left out of the copy.</li>
+  <li>Change it in <em>Settings → Coding → Coding projects</em>: only risky commands (the default), every command, or off; network for tries (off by default); the largest copy and the time limit. Dependency folders such as <code>node_modules</code> are never copied: they are shared read-only where the computer can, otherwise left out of the copy.</li>
   <li>Approvals, tools you switched off, the check against your decisions and budgets work as before: the try never replaces them.</li>
 </ul>
 
@@ -1004,7 +1025,7 @@
   <li>Every finding quotes the <strong>real line</strong> it is about. A second look by the <strong>Reviewing</strong> model (Which model does what; the Coding model when unset) may add findings, but only ones whose quote is really in your file: invented ones are dropped. It has its own small budget.</li>
   <li><strong>Findings</strong> (in the sidebar) lists them per project and per run, with filters. <strong>Dismiss</strong> or <strong>Accept</strong> needs a reason, which is kept with the finding. Sandbox tries and plans that went against your decisions are listed here too.</li>
   <li><strong>Fix on a branch</strong> makes a local branch <code>sara/fix-…</code> in a separate folder (your checked-out branch and files are not touched), has the Coding model fix only that finding, checks it again and runs the project's tests in a sandbox copy, then shows the diff: <strong>Apply to my branch</strong> writes only those files (a file you changed meanwhile is left alone), <strong>Keep the branch</strong> leaves it for you to merge, <strong>Discard</strong> throws it away. Nothing is ever pushed; pushing or a pull request still asks first.</li>
-  <li><strong>Known vulnerabilities</strong> in dependencies are off until you switch them on in <em>Settings → Abilities → Coding projects</em>, which first shows the package list that would be sent. Only package names and versions go to <strong>OSV.dev</strong>, never code; never from private conversations or private local mode. Answers are kept for six hours; offline, it says <em>not checked: offline</em>. Installing a version with a known vulnerability shows a card first: <em>Install anyway</em> is your explicit choice and is recorded.</li>
+  <li><strong>Known vulnerabilities</strong> in dependencies are off until you switch them on in <em>Settings → Coding → Coding projects</em>, which first shows the package list that would be sent. Only package names and versions go to <strong>OSV.dev</strong>, never code; never from private conversations or private local mode. Answers are kept for six hours; offline, it says <em>not checked: offline</em>. Installing a version with a known vulnerability shows a card first: <em>Install anyway</em> is your explicit choice and is recorded.</li>
   <li>These checks look at your own code only and catch common mistakes; they are not a full security audit.</li>
 </ul>
 
@@ -1012,7 +1033,7 @@
 <ul>
   <li>After a coding turn that changed files, she maps where your app can be reached from (<strong>entry points</strong>: web routes, file uploads, messages, the command line) and follows each one through your own functions to <strong>dangerous lines</strong>: shell commands, SQL, file paths, outgoing requests, unsafe loading of data, HTML, redirects, code that runs input. A route that changes things without a sign-in check, or a sign-in route without a rate limit, counts too.</li>
   <li>Each <strong>threat</strong> quotes its entry point and the dangerous line and names the path between them; a check on the way (placeholders, keeping only the file name, an allowlist, escaping) counts as safe. The Reviewing model may add threats only from an entry point the code found, with real quotes. <em>Findings → Threat model</em> shows the surfaces, the trust boundaries, the open threats and what changed this turn.</li>
-  <li><strong>Fix these</strong> starts the second pass: the Coding model may only fix those threats (no new features, no refactors), on one local branch; its edits must stay in the code the threats run through, the same check runs again, the tests run in a sandbox copy, and you get one diff to <strong>Apply</strong>, <strong>Keep</strong> or <strong>Discard</strong>. Nothing is pushed. Choose <em>Report and offer the fix pass</em>, <em>Report only</em> or <em>Off</em> in <em>Settings → Abilities → Coding projects</em>.</li>
+  <li><strong>Fix these</strong> starts the second pass: the Coding model may only fix those threats (no new features, no refactors), on one local branch; its edits must stay in the code the threats run through, the same check runs again, the tests run in a sandbox copy, and you get one diff to <strong>Apply</strong>, <strong>Keep</strong> or <strong>Discard</strong>. Nothing is pushed. Choose <em>Report and offer the fix pass</em>, <em>Report only</em> or <em>Off</em> in <em>Settings → Coding → Coding projects</em>.</li>
 </ul>
 
 <h2 id="redteam">Red team: try to break it before you ship</h2>
@@ -1022,7 +1043,7 @@
   <li>The Coding model may write a few <strong>probe scripts</strong> against the app in the copy. Code checks each one first (only the app's address, no other hosts, no programs, installs or file writes). On a computer without an OS sandbox (Windows without Docker or WSL) you read each script and tick the ones to run; nothing it wrote runs by itself.</li>
   <li><strong>No theater:</strong> every break is sent again in a fresh copy and must break the same way, and the Reviewing model must cite the input, what happened and the code line, all checked by code. Anything else is dropped and listed under <em>Dropped</em>.</li>
   <li><strong>Fix what broke</strong> makes one local fix branch: the Coding model may only fix those breaks, the same inputs are sent again and must now get an answer, the tests must pass and the other checks must not find more. You choose <em>Apply</em>, <em>Keep</em> or <em>Discard</em>; nothing is pushed. A fixed break becomes a lesson she remembers in that project.</li>
-  <li><em>Settings → Abilities → Coding projects → Red-team before shipping</em>: <em>Ask me</em> (default) offers <em>Red-team first</em> when you ask her to push, open a PR or publish; <em>Always</em> runs it first; <em>Off</em>.</li>
+  <li><em>Settings → Coding → Coding projects → Red-team before shipping</em>: <em>Ask me</em> (default) offers <em>Red-team first</em> when you ask her to push, open a PR or publish; <em>Always</em> runs it first; <em>Off</em>.</li>
 </ul>
 
 <h2 id="computer">Let Sara use your computer</h2>

@@ -5,7 +5,7 @@
 // or the words · the text · Once / Every time · Undo, or Keep it / No when it waits for his OK).
 // Planner → Reminders → When it comes up: the list with Forget, a Done fold (30 days) and an add row
 // (words or a person from People, once or every time) with a live preview from
-// POST /api/reminders/check. Settings → Abilities → When it comes up holds the keys of §3.3.
+// POST /api/reminders/check. Settings → You → When it comes up holds the keys of §3.3.
 import { t } from './naming.js';
 
 const $ = (s) => document.querySelector(s);
@@ -212,7 +212,7 @@ async function addOne() {
   void loadWhenList();
 }
 
-// ---------------------------------------------------------------- Settings → Abilities → When it comes up
+// ---------------------------------------------------------------- Settings → You → When it comes up
 
 const IDS = { 'wm-on': ['on'], 'wm-confirm': ['confirm'], 'wm-per-reply': ['perReply'], 'wm-per-day': ['perDay'], 'wm-expires': ['expiresDays'], 'wm-gap': ['each', 'gapHours'], 'wm-fires': ['each', 'fires'], 'wm-calls': ['calls'], 'wm-rooms': ['rooms'] };
 const CHOICES = { 'wm-per-reply': 'perReply', 'wm-per-day': 'perDay', 'wm-expires': 'expiresDays', 'wm-gap': 'gapHours', 'wm-fires': 'fires' };

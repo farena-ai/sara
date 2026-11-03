@@ -2,7 +2,8 @@
 //   - the dial tables in web/help.html (between <!-- dials:start --> and <!-- dials:end -->) from src/traits.ts;
 //   - Phase 114 (PL1d): the "How do I…?" index in web/help.html (between <!-- howto:start --> and
 //     <!-- howto:end -->) and the docs page docs/HOW_DO_I.md, both from web/howto.json.
-//   - Phase 128 (PL2b): the app's / menu table in docs/CHATS.md (between <!-- appmenu:start --> and
+//   - PL2d: the answer count in docs/START_HERE.md ("All N answers") from web/howto.json.
+//   - Phase 128 (PL2b): the app's / menu table in docs/CHATS.md (and, since PL2d, docs/FOR_CODERS.md) (between <!-- appmenu:start --> and
 //     <!-- appmenu:end -->) from APP_MENU in src/bridges/commands.ts.
 //   node scripts/gen-guide.ts
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -23,8 +24,15 @@ const crlf = html.includes('\r\n');
 const out = withHowtoIndex(withDialTables(html.replace(/\r\n/g, '\n')), howto, titles);
 writeFileSync(file, crlf ? out.replace(/\n/g, '\r\n') : out);
 writeFileSync(join(ROOT, 'docs', 'HOW_DO_I.md'), howtoIndexMd(howto, titles));
+// PL2d (N37): START_HERE's "All N answers" is the number of questions in web/howto.json.
 {
-  const chats = join(ROOT, 'docs', 'CHATS.md');
+  const start = join(ROOT, 'docs', 'START_HERE.md');
+  const n = Object.values(howto).reduce((sum, qs) => sum + qs.length, 0);
+  writeFileSync(start, readFileSync(start, 'utf8').replace(/All \d+(\s+)answers/, `All ${n}$1answers`));
+}
+// PL2d (N36): FOR_CODERS.md carries the same generated table.
+for (const page of ['CHATS.md', 'FOR_CODERS.md']) {
+  const chats = join(ROOT, 'docs', page);
   const md = readFileSync(chats, 'utf8');
   const nl = md.includes('\r\n');
   const next = withAppMenuTable(md.replace(/\r\n/g, '\n'));

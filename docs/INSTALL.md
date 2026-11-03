@@ -427,9 +427,9 @@ Sara checks each list once a day. Nothing is sent anywhere for this but the list
 | **Subscriptions** (ChatGPT plan, Claude Pro/Max, SuperGrok/X Premium+) | `sudo /opt/sara-src/deploy/install-agents.sh`, then Settings → Models → Subscriptions |
 | **Local voice** (speech recognition + voices on your server) | `sudo /opt/sara-src/deploy/install-voice.sh` |
 | **Phone app + notifications** | Open Sara on your phone → *Add to Home Screen*; Settings → Connections → Phone and notifications |
-| **Telegram / Discord** | Settings → Connections → Telegram / Discord (create a bot, paste its token, link yourself) |
-| **Web search** | Settings → Abilities → Web search (Brave, Tavily, Ollama or SearXNG) |
-| **MCP tools** | Settings → Abilities → Other programs (MCP) ("Start from": Email or Calendar presets) |
+| **Telegram / Discord** | Settings → Chat apps → Telegram / Discord (create a bot, paste its token, link yourself) |
+| **Web search** | Settings → Add-ons → Web search (Brave, Tavily, Ollama or SearXNG) |
+| **MCP tools** | Settings → Add-ons → Other programs (MCP) ("Start from": Email or Calendar presets) |
 | **Browser for testing** (she previews, clicks through and screenshots the web apps she builds) | Linux: `sudo /opt/sara-src/deploy/install-browser.sh` (~120 MB download, ~275 MB in `/opt/sara-browser`); Windows uses Microsoft Edge; macOS uses Chrome, Edge or Chromium if installed. Then restart Sara. `sara doctor` and **Run full check** also show whether it was found and how to install it |
 
 The installers download only pinned versions and check each download against its checksum (Node.js,
@@ -638,7 +638,7 @@ systems set it up together with the desktop app. What differs from Linux:
   writable, and your whole home folder (documents, photos, mail, keys) and her data folder are
   hidden. Windows has no
   sandbox, so the shell and background-job tools ask you before every command (you can still set a
-  tool to *Allowed* in Settings → Abilities → Tools and approvals).
+  tool to *Allowed* in Settings → Coding → Tools and approvals).
 - **Updates:** Settings → Data & health → Updates checks the newest release and links its download
   page; running the new installer updates Sara in place.
 - **Local voice** (piper/whisper) is Linux only for now: use Grok or OpenAI voice.

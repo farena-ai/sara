@@ -21,7 +21,7 @@ const PKG_VERSION: string = JSON.parse(readFileSync(new URL('../package.json', i
 const V = satisfies(PKG_VERSION, '>=2.61.1') ? PKG_VERSION : '2.61.1';
 const web = (f: string) => readFileSync(join(ROOT, 'web', f), 'utf8');
 const html = web('index.html');
-const app = web('app.js');
+const app = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n');
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
 const search: Any = await import(pathToFileURL(join(ROOT, 'web', 'settings-search.js')).href);
@@ -80,7 +80,7 @@ test('128b.2 OLD_TABS, every openSettings / showSettingsTab / settings: link, th
   }
   assert.ok(n > 20, `${n} openSettings calls`);
   for (const m of readFileSync(join(ROOT, 'src', 'checklist.ts'), 'utf8').matchAll(/open: 'settings:([\w-]+)'/g)) assert.ok(ids.has(m[1]), `checklist: ${m[1]}`);
-  const tours = app.slice(app.indexOf('const TOURS = {'), app.indexOf('function runTour'));
+  const tours = app.slice(app.indexOf('function makeTours'), app.indexOf('function runTour'));
   for (const m of tours.matchAll(/(?:settingsAt\('|data-page=\\?")([\w-]+)/g)) assert.ok(ids.has(m[1]), `tour: ${m[1]}`);
   // The first tour's step on Settings → Her still points at the same button.
   assert.match(tours, /sel: '#settings-nav-list \[data-page="her-character"\]'/);

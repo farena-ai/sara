@@ -41,7 +41,11 @@ const COPY: Isolation = { driver: 'copy', isolated: false, label: 'Not isolated 
 const ISOLATED: Isolation = { driver: 'copy', isolated: true, label: 'Isolated (test)' };
 const HAS_GIT = spawnSync('git', ['--version'], { stdio: 'ignore' }).status === 0;
 const PY = ['python3', 'python'].find((p) => spawnSync(p, ['--version'], { stdio: 'ignore' }).status === 0);
-const PORTS: [number, number] = [7891, 7899];
+// PL2d (C5): a range of its own per test process. With one fixed range (7891–7899) two runs at once (the
+// full suite beside a single file, or two suites) raced between freePort and the app's listen, so a probe
+// could reach the other run's app or a start failed with the port taken.
+const PORT_BASE = 20_000 + (process.pid % 3_000) * 10;
+const PORTS: [number, number] = [PORT_BASE, PORT_BASE + 8];
 
 const g = (cwd: string, ...args: string[]) => {
   const r = spawnSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd, encoding: 'utf8' });
@@ -95,7 +99,10 @@ function setup(t: { after: (fn: () => void) => void }, o: { scripts?: number; bu
   app.fixes = new FixBranches(app, join(dir, 'cache', 'fix-branches'));
   app.redteam = new RedTeam(app, app.findings, app.store.db);
   app.redteam.isolation = () => o.iso ?? COPY;
-  app.redteam.timing = { startMs: 15_000, reqMs: 2_500 };
+  // PL2d (C5): startMs only caps the wait for the app to listen (polled every 150 ms), so 60 s costs
+  // nothing when it starts fast; under the full suite's load a fresh copy could take longer than 15 s
+  // to start, and the probes or the reproduction then found nothing. reqMs stays: it is how long a hang takes.
+  app.redteam.timing = { startMs: 60_000, reqMs: 2_500 };
   const conv = app.store.createConversation({ mode: 'coding' });
   const ws = workspaceDir(dir, conv.workspace);
   mkdirSync(ws, { recursive: true });
@@ -432,7 +439,7 @@ test('fix what broke: the re-check sends the breaking input again, the tests run
   const remote = repo(ws);
   const r = await run(app, ws, conv);
   const sum = r.breaks.find((b) => b.entry === 'GET /sum' && b.kind === 'crash')!;
-  assert.ok(sum, JSON.stringify(r.breaks.map((b) => [b.entry, b.kind])));
+  assert.ok(sum, JSON.stringify({ app: r.app, tried: r.tried, breaks: r.breaks.map((b) => [b.entry, b.kind]), dropped: r.dropped }).slice(0, 3000));
   gitLog.length = 0;
   let fixPrompts = 0;
   app.providerFactory = (config) =>
@@ -488,7 +495,7 @@ test('budget: shown up front and enforced: no model call past it, the fixed prob
   const r = await run(app, ws, conv);
   assert.equal(app.requests.length, calls + 1, 'one model call, none past the budget');
   assert.equal(r.reviewer.ran, false);
-  assert.equal(r.reviewer.note, 'budget');
+  assert.equal(r.reviewer.note, 'budget', JSON.stringify({ app: r.app, tried: r.tried, breaks: r.breaks.map((b) => [b.entry, b.kind]), dropped: r.dropped }).slice(0, 3000));
   assert.ok(r.budget.usedTokens <= 10_000 + 200);
   assert.ok(r.tried.probes > 10, 'the fixed catalogue ran');
   assert.ok(r.breaks.some((b) => b.entry === 'GET /sum'), 'code-found breaks still count (reproduced, quoted)');

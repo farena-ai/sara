@@ -7,7 +7,7 @@
 //   "A fix for …?"        the diff to a skill she used, with why (the step that failed and the one
 //                         that worked, or your own words), and Apply / Edit / Dismiss. Applying keeps
 //                         the old version (Skills → open the skill → Versions to undo).
-// And on Settings → Abilities → Skills: "Skills she learns" (the switches, the count before she
+// And on Settings → Add-ons → Skills: "Skills she learns" (the switches, the count before she
 // offers, how far back she looks, offers per day) and the cards still waiting for an answer.
 import { currentIdentity, serverText, t } from './naming.js';
 import { checkWords, editDraft, loadSkills } from './skills.js';
@@ -198,7 +198,7 @@ export function learnCard(m) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Settings → Abilities → Skills → Skills she learns
+// Settings → Add-ons → Skills → Skills she learns
 // ---------------------------------------------------------------------------------------------
 
 let learning = null;

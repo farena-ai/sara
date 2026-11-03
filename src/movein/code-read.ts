@@ -374,7 +374,7 @@ export function readCode(inp: CodeInput): CodeCard {
     const tool = TOOL_MAP.find(([re]) => re.test(tw))?.[1] ?? 'shell';
     claim(`stops or asks before ${tw}`, new RegExp(tw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
     summary = `${what} made the old agent stop or ask before "${tw}".`;
-    tr = { type: 'guard', tool, where: 'Settings → Abilities → Tools', page: 'abilities', why: `Sara will ask you before every "${tool}" step (it only ever makes her more careful).` };
+    tr = { type: 'guard', tool, where: 'Settings → Coding → Tools and approvals', page: 'abilities', why: `Sara will ask you before every "${tool}" step (it only ever makes her more careful).` };
   } else if (RITUAL.test(hay) && !hosts.length) {
     intent = 'ritual';
     summary = `${what} ran when a new chat or session started${description ? ` (${description})` : ''}.`;
@@ -460,7 +460,7 @@ export function mergeModelRead(card: CodeCard, inp: Pick<CodeInput, 'files'>, ra
   if (intent === 'guard') {
     const tw = String(o.tool ?? '');
     const tool = TOOL_MAP.find(([re]) => re.test(tw))?.[1];
-    return { ...next, intent, translation: tool ? { type: 'guard', tool, where: 'Settings → Abilities → Tools', page: 'abilities', why: `Sara will ask you before every "${tool}" step (it only ever makes her more careful).` } : { type: 'flag', why: `It guarded "${tw.slice(0, 40)}", which Sara has no tool for.` } };
+    return { ...next, intent, translation: tool ? { type: 'guard', tool, where: 'Settings → Coding → Tools and approvals', page: 'abilities', why: `Sara will ask you before every "${tool}" step (it only ever makes her more careful).` } : { type: 'flag', why: `It guarded "${tw.slice(0, 40)}", which Sara has no tool for.` } };
   }
   if (intent === card.intent) return next;
   // A different intent than Sara's own reading: keep Sara's translation, show her summary, let the owner decide.

@@ -20,7 +20,7 @@ export function livesLines(counts: Record<string, number>, config: Proposal[], c
   if (counts.persona) add('SOUL.md / persona files', 'Settings → Her (her character sheet)', 'her');
   if (counts.memories || counts.profile) add('MEMORY.md / USER.md', 'Settings → Memory (her notes; archived ones are searchable)', 'memory');
   if (counts.conversations) add('Sessions', 'Past conversations (archived, original dates)');
-  if (counts.skills) add('Skills', 'Settings → Abilities → Skills', 'skills');
+  if (counts.skills) add('Skills', 'Settings → Add-ons → Skills', 'skills');
   if (counts.tasks || counts.reminders) add('Cron jobs', 'Your planner (tasks and reminders)', 'planner');
   if (counts.cards) add('Kanban', board ? 'The board' : 'Your planner');
   if (counts.people) add('People tables', people ? 'People' : 'Her notes, tagged with the name');
@@ -31,7 +31,7 @@ export function livesLines(counts: Record<string, number>, config: Proposal[], c
   }
   for (const c of code) {
     const t = c.translation;
-    const now = t.type === 'rule' ? 'Settings → Her → How she talks (a rule line)' : t.type === 'guard' ? `Settings → Abilities → Tools (${t.tool} asks first)` : t.type === 'rebuild' ? 'A rebuild plan (Rebuild as a Sara plugin)' : t.type === 'flag' ? 'Needs you (not translated)' : (t.where ?? t.feature ?? 'Left behind');
+    const now = t.type === 'rule' ? 'Settings → Her → How she talks (a rule line)' : t.type === 'guard' ? `Settings → Coding → Tools and approvals (${t.tool} asks first)` : t.type === 'rebuild' ? 'A rebuild plan (Rebuild as a Sara plugin)' : t.type === 'flag' ? 'Needs you (not translated)' : (t.where ?? t.feature ?? 'Left behind');
     add(`${c.kind} "${c.name}"`, now, t.page);
   }
   return out.slice(0, 400);
@@ -120,7 +120,7 @@ export function rebuildTask(app: AppContext, batchId: string, key: string): { co
     '',
     'The old code is in old-code/ as .txt files: reference text only. Do not run it, rename it or copy it in.',
     'Write a new ST3 plugin from scratch: sara-plugin.json (start from the draft below) and its main file. Ask only for the permissions it really needs.',
-    'It is installed through Settings → Abilities → Plugins, with the permission review card.',
+    'It is installed through Settings → Add-ons → Plugins, with the permission review card.',
     '',
     '```json',
     JSON.stringify(plan.manifest, null, 2),

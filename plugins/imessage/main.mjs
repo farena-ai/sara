@@ -12,7 +12,8 @@ import { plugin } from './sara-plugin.mjs';
 import { BB, accountHandles, chatOf, guidOf, isGroupGuid, readInfo } from './bb.mjs';
 import { flatten, split, plainCommand, quoteLine } from './format.mjs';
 import { codeOf, diagnose } from './diagnose.mjs';
-import { Pacer, CapError, Typing, pollDelay } from './pace.mjs';
+import { pacing } from './pace.mjs';
+const { Pacer, CapError, Typing, pollDelay } = pacing('imessage');
 
 const BRIDGE = 'imessage';
 const TEXT_MAX = 8_000;

@@ -219,7 +219,7 @@ export class LookBuilder {
 
   async #call(path: '/images/generations' | '/images/edits', body: Record<string, unknown>): Promise<Buffer> {
     const key = await this.#d.key();
-    if (!key) throw new Error('Sign in to Grok (Settings → Models → Subscriptions) or add an xAI key (Abilities → Pictures) to make a look.');
+    if (!key) throw new Error('Sign in to Grok (Settings → Models → Subscriptions) or add an xAI key (Settings → Her → Voice) to make a look.');
     const res = await (this.#d.fetch ?? netFetch)(`https://api.x.ai/v1${path}`, {
       method: 'POST',
       headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },

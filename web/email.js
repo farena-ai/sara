@@ -1,4 +1,4 @@
-// PL2a (docs/design/POLISH2.md N1, N4): Settings → Connections → Email as guided steps. The provider
+// PL2a (docs/design/POLISH2.md N1, N4): Settings → Chat apps → Email as guided steps. The provider
 // first (Gmail, iCloud, Fastmail or Other) with the link to that provider's app-password page; then
 // Add Email from the short consent step; then her address and the app password (the server names
 // fill themselves: src/plugins/manager.ts EMAIL_PRESETS); then the link and Test. A step turns ✓

@@ -1,5 +1,5 @@
 // Phase 29: Home Assistant, with the owner's own Home Assistant address and a long-lived access
-// token (Settings → Abilities → Home Assistant). Reading states runs on its own; anything that
+// token (Settings → Add-ons → Home Assistant). Reading states runs on its own; anything that
 // changes something (lights, switches, locks, covers, climate, scenes, scripts) asks the owner
 // first. Names in Home Assistant are information only, never instructions.
 import { netFetch } from '../net-guard.ts';
@@ -93,7 +93,7 @@ export function createHomeTools(app: AppContext, fetchImpl: FetchLike = netFetch
   async function ha<T>(path: string, init: { method?: string; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
     const base = url();
     const t = token();
-    if (!base || !t) throw new ToolError('Home Assistant is not connected (Settings → Abilities → Home Assistant).');
+    if (!base || !t) throw new ToolError('Home Assistant is not connected (Settings → Add-ons → Home Assistant).');
     let res: Response;
     try {
       res = await fetchImpl(`${base}${path}`, {

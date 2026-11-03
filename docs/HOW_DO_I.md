@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 165 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 168 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -25,6 +25,11 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Press the chip at the top of the chat.
 2. Pick a workspace and switch the mode to coding.
 
+**How do I use the / commands?**
+
+1. Type / at the start of the message box.
+2. Pick one with ↑ ↓ and Enter, or keep typing to narrow the list.
+
 ### Today
 
 **How do I plan my day with her?**
@@ -36,6 +41,11 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Press Customise.
 2. Switch sections on or off and drag them in order.
+
+**How do I set up a routine?**
+
+1. Press Add a routine, or open Planner → Routines.
+2. Pick a card, answer its questions, look at the preview, then press Turn on.
 
 ### Planner
 
@@ -422,6 +432,11 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Press ↻ Refresh.
 2. New models on that provider show up in the list.
+
+**How do I tidy a long chat?**
+
+1. Type /compact in the chat, or press Tidy this chat on her panel.
+2. The older part becomes a summary she reads; nothing is deleted and Undo brings it back.
 
 ### Which model does what
 
@@ -1008,7 +1023,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 **How do I set a spending limit?**
 
-1. Open Budgets on this page or Abilities → Budgets.
+1. Open Budgets on this page or Coding → Budgets.
 2. Set a limit per job or per day.
 
 ### Privacy

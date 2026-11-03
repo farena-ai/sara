@@ -11,7 +11,7 @@ happens there through Home Assistant. Each way is optional and set up on its own
 | **Home Assistant voice** (Voice PE, ESPHome satellites, the HA app) | Sara as the conversation agent | Home Assistant integration | Yes (since 1.x) |
 | **Siri** (iPhone) | "Ask Sara" → say your message → her reply in Siri | Nothing: comes with the iPhone app | Built and compiled; ships with the next iPhone app update |
 | **Siri / Shortcuts on a Mac** | A Shortcut that asks her through her API | A Shortcut with an API key (below) | Yes (no native Mac intent yet) |
-| **Presence** | She notices you got home, left, bedtime, morning lights | Settings → Abilities → Home Assistant → Presence | Yes, via Home Assistant |
+| **Presence** | She notices you got home, left, bedtime, morning lights | Settings → Add-ons → Home Assistant → Presence | Yes, via Home Assistant |
 
 ## The same rules everywhere
 
@@ -92,7 +92,7 @@ App Intents yet. Until it does, a Shortcut can ask her through her **OpenAI-comp
 
 ## Presence (through Home Assistant)
 
-**Settings → Abilities → Home Assistant → Presence**, per companion, off until you switch it on:
+**Settings → Add-ons → Home Assistant → Presence**, per companion, off until you switch it on:
 
 - Pick the **people or phones** to watch (`person.…` or `device_tracker.…` from Home Assistant),
   and what she reacts to: **getting home**, **leaving**, **bedtime** (a switch or input_boolean

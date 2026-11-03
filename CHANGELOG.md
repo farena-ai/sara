@@ -5,6 +5,21 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.61.3 (2026-11-02): docs and tidy-up (Phase 128, polish PL2d; the roadmap is complete)
+
+- **Guides up to date:** FOR_CODERS covers long jobs, the short tool list and `/compact`, the Store and the
+  `/` commands (a table generated from the same list the app uses); START_HERE gains *Talk to her from your
+  phone's apps*; the in-app guide has *Commands you can type*, *Long chats and /compact* and *Routines*, and
+  three new *How do I…?* answers (168 in all). About 180 written paths now use the new Settings groups,
+  in all six languages.
+- **Code:** `web/app.js` loses its settings navigation, tours and first-run guide to their own modules
+  (a pure move, checked key-for-key); the 15 plugin SDK copies, 3 http helpers and 4 pacers are checked by
+  hash (`npm run sdk:sync` copies them), and the four chat-app pacers are one file.
+- **Steadier tests:** seven tests that failed under load now measure CPU time or wait for the real event
+  instead of a fixed pause; none of their limits were loosened.
+- **Fixed:** the Store's card icons failed to load until an item page was opened; Settings search's
+  "pages moved" line didn't name the groups.
+
 ## 2.61.2 (2026-11-02): choices, not forms (Phase 128, polish PL2c)
 
 - **Keep going and repeats** is now three choices, *Careful*, *Normal* and *Long jobs*, each stating its

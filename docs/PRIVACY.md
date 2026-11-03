@@ -19,12 +19,12 @@ reply you report with ⚑ is also sent to the app's developer unless you untick 
 | **Update checks** | GitHub (`api.github.com` on Windows and macOS; `git fetch` from github.com on Linux) | When you press *Check for updates* (Settings → Data & health → Updates) or run `sara check-updates` / `sara update` | Don't press it. Sara doesn't check on her own |
 | **Weather** | Open-Meteo (`api.open-meteo.com`, `geocoding-api.open-meteo.com`), free, no account | Once you set a city for the morning briefing: finding the city, then the forecast for the briefing (and, at most hourly, for her outfit when *Dress automatically* is on) | Leave the city empty (Settings → You → Morning briefing) |
 | **Place look-ups and travel times** | OpenStreetMap: `nominatim.openstreetmap.org` (address search) and `routing.openstreetmap.de` (travel time) | When you save a place by address (Planner → Reminders → Places), and for leave-by reminders on calendar events with an address | Save places with "Save where I am" in the phone app; leave Leave-by reminders off (Settings → You) |
-| **Web search and web pages** | The search service you set (Brave, Tavily, Ollama web search or your SearXNG), and the pages she opens with `web_fetch` | Only when web tools are on and she searches or reads a page | Settings → Abilities → Tools and approvals; leave Web search empty. Never in private conversations |
-| **Gmail and Google Calendar** | Google (`googleapis.com`, `accounts.google.com`), through your own Google app | After you connect it (Settings → Abilities → Gmail and Calendar), when she reads mail or the calendar, organizes mail you approved (archive, labels, trash; a log of which emails changed stays on your server 30 days for Undo), or for Today and the briefing | Disconnect it there |
-| **GitHub** | `api.github.com`, `github.com` | After you add a GitHub token: issues and pull requests, push, watched repositories (every 15 minutes or hourly, if you chose any) | Remove the token (Settings → Abilities → GitHub) |
-| **Home Assistant** | Your own Home Assistant address | After you connect it, when she reads or changes something | Settings → Abilities → Home Assistant |
-| **Other programs (MCP)** | Whatever MCP servers you add (for example a CalDAV calendar) | When she uses their tools | Settings → Abilities → Other programs (MCP) |
-| **Telegram and Discord** | `api.telegram.org`; `discord.com` and `gateway.discord.gg` | While a bot token is set | Settings → Connections → Telegram / Discord |
+| **Web search and web pages** | The search service you set (Brave, Tavily, Ollama web search or your SearXNG), and the pages she opens with `web_fetch` | Only when web tools are on and she searches or reads a page | Settings → Coding → Tools and approvals; leave Web search empty. Never in private conversations |
+| **Gmail and Google Calendar** | Google (`googleapis.com`, `accounts.google.com`), through your own Google app | After you connect it (Settings → Add-ons → Gmail and Calendar), when she reads mail or the calendar, organizes mail you approved (archive, labels, trash; a log of which emails changed stays on your server 30 days for Undo), or for Today and the briefing | Disconnect it there |
+| **GitHub** | `api.github.com`, `github.com` | After you add a GitHub token: issues and pull requests, push, watched repositories (every 15 minutes or hourly, if you chose any) | Remove the token (Settings → Coding → GitHub) |
+| **Home Assistant** | Your own Home Assistant address | After you connect it, when she reads or changes something | Settings → Add-ons → Home Assistant |
+| **Other programs (MCP)** | Whatever MCP servers you add (for example a CalDAV calendar) | When she uses their tools | Settings → Add-ons → Other programs (MCP) |
+| **Telegram and Discord** | `api.telegram.org`; `discord.com` and `gateway.discord.gg` | While a bot token is set | Settings → Chat apps → Telegram / Discord |
 | **Notifications in the browser or the home-screen app** | Your browser's push service (Google for Chrome, Microsoft for Edge, Mozilla for Firefox, Apple for Safari), end-to-end encrypted | When she has something to tell you and you allowed notifications | Turn notifications off (Settings → Connections → Phone and notifications). Your phone's own settings can hide the message text on the lock screen |
 | **iPhone app notifications and calls** | Apple's push service (`api.push.apple.com`) | Only if an Apple push key is set on the server | Leave the APNs key out |
 | **Android app** | Nothing: the app checks your server itself (no Google services) | | |
@@ -34,13 +34,13 @@ reply you report with ⚑ is also sent to the app's developer unless you untick 
 | **Pictures of her** | xAI Grok Imagine (`api.x.ai`): her portrait and a short scene description | When you make a new look, or she takes a new picture (she asks first unless you allow it) | Settings → Her → Pictures from her. Sharing an existing portrait sends nothing |
 | **Off-server backups** | The folder or S3-compatible storage you chose, encrypted with your passphrase before it leaves | After each daily backup, once you set it up | Settings → Data & health → Backups |
 | **Subscription programs** | OpenAI (Sign in with ChatGPT), Anthropic (Claude Code), xAI (Grok) | When a subscription is your model for a job | Sign out in Settings → Models → Subscriptions |
-| **The testing browser** | Only her own previews, plus public websites when web tools are on and the conversation isn't private | When she tests an app she built | Settings → Abilities → Tools and approvals |
+| **The testing browser** | Only her own previews, plus public websites when web tools are on and the conversation isn't private | When she tests an app she built | Settings → Coding → Tools and approvals |
 | **A model on this computer** (Settings → Models → On this computer) | Ollama's model library (`registry.ollama.ai`, fetched by your Ollama); for *Install Ollama with winget*, winget's sources | Only when you press **Download this model** or **Install Ollama with winget**. Finding Ollama and looking at the hardware sends nothing (`127.0.0.1:11434`, `nvidia-smi`, `sysctl`) | Don't press them (both are refused while *Nothing leaves this computer* is on) |
 | **Tailscale** | Tailscale's coordination servers (that's how Tailscale works) | If you chose "Tailscale" for how you reach her | `sara access local` (or another way) |
 | **Certificates for your own web address** | Let's Encrypt (through Caddy) | If you chose "My own web address" on Linux | `sara access local` (or another way) |
 
 Commands she runs in her workspace (builds, tests, `npm install`) can reach the internet only if
-**Allow internet access for shell commands** is on (Settings → Abilities → Tools and approvals),
+**Allow internet access for shell commands** is on (Settings → Coding → Tools and approvals),
 and never in private conversations.
 
 The demo server (`SARA_DEMO=1`) and the developer's report inbox (`SARA_REPORT_INBOX=1`) are
@@ -91,7 +91,7 @@ and deleting one deletes every member's copy.
 | **What you say to Alexa** (as text) and **her reply** | Amazon: Alexa turns your voice into text and sends it to your server's `/alexa`; her reply goes back through Amazon to the speaker. Your server downloads Amazon's signing certificate from `s3.amazonaws.com` (cached) and may ask `api.amazonalexa.com` to say "One moment" | Only after the owner set up the skill and you linked your Alexa with a code, each time you talk to it | Unlink it (Settings → Other apps → Alexa), delete the skill in the Alexa developer console, or clear the skill ID. Paused in private local mode |
 | **What you say to Siri** ("Ask Sara") | Apple turns your voice into text on its side; the iPhone app then sends the text to your own server and Siri speaks her reply | When you use the Ask Sara shortcut | Don't use it |
 | **Android assistant** | Nothing new: the app opens on your phone as usual | When you long-press home with Sara as your assistant | Pick another assistant in the phone's settings |
-| **Presence** | Your own Home Assistant (states of the entities you picked, once a minute; `tts.speak` for announcements). A Google Home or Nest speaker receives the audio Home Assistant sends it | Only when switched on (per companion) | Settings → Abilities → Home Assistant → Presence |
+| **Presence** | Your own Home Assistant (states of the entities you picked, once a minute; `tts.speak` for announcements). A Google Home or Nest speaker receives the audio Home Assistant sends it | Only when switched on (per companion) | Settings → Add-ons → Home Assistant → Presence |
 
 Sara keeps of an Alexa link only a hash of Alexa's user id, which person and companion it belongs
 to, and when it was linked and last used. Codes are kept as hashes for 10 minutes. Presence keeps
@@ -104,7 +104,7 @@ read or delete them. More: [VOICE_ASSISTANTS.md](VOICE_ASSISTANTS.md).
 | What | Goes to | When | How to turn it off |
 |---|---|---|---|
 | **A host key check** (`ssh-keyscan`) | The server you added | When you add a server or press *Read it again* | Don't add servers |
-| **The commands you approve, her public key line, the password once** | The server you named, over SSH | Each command you approve; the password only at the one sign-in you type it for | Revoke her key or remove the server (Settings → Abilities → Servers over SSH). Refused in private local mode for anything not on this computer |
+| **The commands you approve, her public key line, the password once** | The server you named, over SSH | Each command you approve; the password only at the one sign-in you type it for | Revoke her key or remove the server (Settings → Coding → Servers over SSH). Refused in private local mode for anything not on this computer |
 
 Kept on your server: the server list, the approved host keys and her keys in `<data>/ssh/`, and a
 password only if you asked her to save it (encrypted in the vault). The commands and their output

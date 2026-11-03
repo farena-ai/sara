@@ -11,7 +11,8 @@ import { Client, MatrixError, serverOf, baseHost } from './cs.mjs';
 import { readSync, kindOf, chatOf, roomOf, FILTER, FIRST_FILTER } from './sync.mjs';
 import { toMatrix, split } from './html.mjs';
 import { codeOf, diagnose } from './diagnose.mjs';
-import { Pacer, CapError, Typing } from './pace.mjs';
+import { pacing } from './pace.mjs';
+const { Pacer, CapError, Typing } = pacing('matrix');
 
 const BRIDGE = 'matrix';
 const TEXT_MAX = 16_000;

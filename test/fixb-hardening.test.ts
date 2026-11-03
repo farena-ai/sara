@@ -12,6 +12,19 @@ import { sharedWithApps } from '../src/recall.ts';
 import { createSaraServer, HA_CHANNEL } from '../src/server.ts';
 import { call as toolCall, makeApp, ROOT, tempDir, text } from './helpers.ts';
 
+// PL2d (C5): under the full suite a kept-alive connection is now and then closed by the server just as
+// the next request goes out (ECONNRESET, seen on the Home Assistant token path, M4). Such a request
+// never reached Sara, so this file's requests are sent once more after a reset; any other error, or a
+// second reset, still fails the test.
+const fetch = async (url: string | URL, init?: RequestInit): Promise<Response> => {
+  try {
+    return await globalThis.fetch(url, init);
+  } catch (err) {
+    if ((err as { cause?: { code?: string } }).cause?.code !== 'ECONNRESET') throw err;
+    return globalThis.fetch(url, init);
+  }
+};
+
 const { dir, cleanup } = tempDir();
 const clock = { now: new Date('2026-10-27T15:00:00Z') };
 const app = makeApp(dir, clock);

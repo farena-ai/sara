@@ -70,7 +70,7 @@ import { lessonText, normalizeMessage } from './triggers.ts';
 import { workspaceDir } from './tools/workspace.ts';
 
 // ------------------------------------------------------------------------------------------------
-// Settings (Settings → Abilities → Coding projects → Red-team before shipping)
+// Settings (Settings → Coding → Coding projects → Red-team before shipping)
 // ------------------------------------------------------------------------------------------------
 
 export type ShipMode = 'off' | 'ask' | 'always';

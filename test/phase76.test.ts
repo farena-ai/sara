@@ -278,13 +278,26 @@ test('13: 10,000 notes ranked in under 50 ms (with slack)', (t) => {
   mem.db.exec('COMMIT');
   const cands: Candidate[] = mem.listAll().map((m, i) => (i % 3 ? { memory: m, standing: true } : { memory: m, words: ['garden'] }));
   rankMemories(mem, { query: 'garden chess', conversationId: 'c', oldestHistoryId: 0, policy: NORMAL, today: TODAY }); // warm up
-  const t0 = performance.now();
-  const ranked = scoreCandidates(cands, NORMAL, TODAY, 2);
-  const r2 = rankMemories(mem, { query: 'garden chess', conversationId: 'c', oldestHistoryId: 0, policy: NORMAL, today: TODAY });
-  const ms = performance.now() - t0;
+  // PL2d (C5): the clock is fixed (TODAY) and the time measured is this process's CPU time, the median
+  // of 5 runs, so a full suite running beside it (other processes on the same cores) no longer counts.
+  // Wall time under the full suite's load was up to ~980 ms for the same work.
+  const cpuMs = () => {
+    const u = process.cpuUsage();
+    return (u.user + u.system) / 1000;
+  };
+  const runs: number[] = [];
+  let ranked: unknown[] = [];
+  let r2: unknown[] = [];
+  for (let i = 0; i < 5; i++) {
+    const c0 = cpuMs();
+    ranked = scoreCandidates(cands, NORMAL, TODAY, 2);
+    r2 = rankMemories(mem, { query: 'garden chess', conversationId: 'c', oldestHistoryId: 0, policy: NORMAL, today: TODAY });
+    runs.push(cpuMs() - c0);
+  }
+  const ms = runs.sort((a, b) => a - b)[2];
   assert.ok(ranked.length > 3000 && r2.length > 0);
-  console.log(`# ranked 10,000 notes in ${ms.toFixed(1)} ms`);
-  assert.ok(ms < 150, `ranked 10,000 in ${ms.toFixed(1)} ms (target 50, slack for a loaded machine)`);
+  console.log(`# ranked 10,000 notes in ${ms.toFixed(1)} ms of CPU (median of 5)`);
+  assert.ok(ms < 150, `ranked 10,000 in ${ms.toFixed(1)} ms of CPU (target 50, slack for a slow machine)`);
 });
 
 test('14: older callers keep working: fadeDays maps to a half-life, Memory[] related still counts', (t) => {

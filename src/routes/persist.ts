@@ -14,7 +14,7 @@
 //   GET    /api/conversations/:id/loops · GET /api/loops
 //   POST   /api/loops/:id/<start|pause|resume|stop|run-now>   resume: { allowOnce? }
 //   PATCH  /api/loops/:id { everyMin?, endsAt?, quiet? } · DELETE /api/loops/:id · GET /api/loops/:id/ticks?limit=
-//   GET    /api/persist · PUT /api/persist            Settings → Abilities → Keep going and repeats
+//   GET    /api/persist · PUT /api/persist            Settings → Coding → Keep going and repeats
 import { goalsFor } from '../goals.ts';
 import { HttpError, readJson, send } from '../http.ts';
 import { loopsFor, parseLoopCommand } from '../loops.ts';

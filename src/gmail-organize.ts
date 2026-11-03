@@ -27,7 +27,7 @@ export const BACKGROUND_OVER = 2_000;
 export const UNDO_DAYS = 30;
 /** Trash and spam ask every time, even when the owner set the tool to run on its own. */
 export const ALWAYS_ASK: ReadonlySet<string> = new Set(['trash', 'spam']);
-export const RECONNECT_TEXT = 'Reconnect Google in Settings → Abilities → Gmail and Calendar ("Reconnect to allow organizing") to let me organize your mail. Your current sign-in only lets me read and draft. Nothing was changed.';
+export const RECONNECT_TEXT = 'Reconnect Google in Settings → Add-ons → Gmail and Calendar ("Reconnect to allow organizing") to let me organize your mail. Your current sign-in only lets me read and draft. Nothing was changed.';
 
 /** The verbs for messages and the card ("Archive 4,213 emails …"). */
 export const ACTION_WORDS: Record<GmailAction, { verb: string; done: string; ing: string }> = {

@@ -36,7 +36,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
     const [a, b, c] = parts;
     // Phase 78: run snapshots (read only; time-travel is M8). The owner's own space; a household
     // member's space answers from that member's own database; the demo refuses (not in DEMO_READS).
-    // Phase 79: per-reply budgets (Settings → Abilities → Budgets). Owner-only (members follow the
+    // Phase 79: per-reply budgets (Settings → Coding → Budgets). Owner-only (members follow the
     // owner's: OWNER_SETTINGS); the demo refuses (not in DEMO_READS).
     if (a === 'budgets' && !b) {
       if (method === 'PUT') {
@@ -47,7 +47,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
       const quick = s.routes?.quick;
       return send(res, 200, { ...turnBudgetSettings(s), choices: { tokens: TOKEN_CHOICES, steps: STEP_CHOICES, usd: USD_CHOICES, minutes: MINUTE_CHOICES }, quickSet: Boolean(quick && s.providers.some((p) => p.id === quick.providerId)), defaults: DEFAULT_TURN_BUDGETS });
     }
-    // Phase 80: "Try commands in a sandbox first" (Settings → Abilities → Coding projects). Owner-only
+    // Phase 80: "Try commands in a sandbox first" (Settings → Coding → Coding projects). Owner-only
     // (members follow the owner's: OWNER_SETTINGS); the demo refuses (not in DEMO_READS). `?recheck=1`
     // looks for Docker / WSL2 again.
     if (a === 'sandbox' && !b) {
@@ -60,7 +60,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
       const iso = gate.isolation(new URL(req.url ?? '/', 'http://x').searchParams.get('recheck') === '1');
       return send(res, 200, { ...sandboxGateSettings(app.settings.get()), choices: { mode: SANDBOX_GATE_MODES, maxMB: SANDBOX_SIZE_CHOICES, timeLimitS: SANDBOX_TIME_CHOICES }, defaults: DEFAULT_SANDBOX_GATE, isolation: { driver: iso.driver, isolated: iso.isolated, label: iso.label, ...(iso.found ? { found: iso.found } : {}) }, platform: process.platform });
     }
-    // Phase 81 (harness M6): the security pass (Settings → Abilities → Coding projects). Owner-only
+    // Phase 81 (harness M6): the security pass (Settings → Coding → Coding projects). Owner-only
     // (members have no coding; OWNER_SETTINGS); the demo refuses (not in DEMO_READS). `?preview=1`
     // lists the packages live advisories would send to OSV.dev (shown before switching them on).
     if (a === 'security-pass' && !b) {
@@ -681,7 +681,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, { kind: meaning && maps.target ? 'meaning' : 'text', ...(meaning && !maps.target ? { note: "Meaning search isn't set up (Settings → Which model does what → Meaning search), so this is a word search." } : {}), hits: hits.map((h) => ({ path: h.path, line: h.line, name: h.symbol, snippet: h.snippet, by: h.by })) });
       }
     }
-    // Phase 50: her recipes (Settings → Abilities → Recipes).
+    // Phase 50: her recipes (Settings → Add-ons → Recipes).
     if (a === 'recipes') {
       const rs = app.recipes;
       if (!rs) throw new HttpError(404, 'Recipes are not available');
@@ -895,7 +895,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
             if (conv && !conv.private) {
               const sayParams = { name: srv.name, path: r.keyPath, line: r.publicLine };
               const said = r.passwordSaved
-                ? trOwner('I made my own SSH key for {name} and installed it there. The private key is at {path} on the Sara server, and the line I added to ~/.ssh/authorized_keys is: {line}. I’ll use the key from now on. You asked me to keep the password, so it is saved encrypted; you can forget it any time in Settings → Abilities → Servers over SSH.', app.settings.get(), sayParams, identityOf(app.persona))
+                ? trOwner('I made my own SSH key for {name} and installed it there. The private key is at {path} on the Sara server, and the line I added to ~/.ssh/authorized_keys is: {line}. I’ll use the key from now on. You asked me to keep the password, so it is saved encrypted; you can forget it any time in Settings → Coding → Servers over SSH.', app.settings.get(), sayParams, identityOf(app.persona))
                 : trOwner('I made my own SSH key for {name} and installed it there. The private key is at {path} on the Sara server, and the line I added to ~/.ssh/authorized_keys is: {line}. I’ll use the key from now on, and I did not keep your password.', app.settings.get(), sayParams, identityOf(app.persona));
               const msg = app.store.addMessage(conv.id, 'assistant', said, { ssh: id });
               app.events?.publish({ type: 'message', conversationId: conv.id, message: msg, reason: 'job' });

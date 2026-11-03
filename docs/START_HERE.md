@@ -1,6 +1,6 @@
 # Start here: I just installed it, now what?
 
-Seven small steps, about ten minutes, from the first sign-in to a Sara that feels like yours. Nothing
+Eight small steps, about ten minutes, from the first sign-in to a Sara that feels like yours. Nothing
 here needs a terminal after the install. Coming to write code with her? Read [For coders](FOR_CODERS.md)
 instead (the first three steps are the same).
 
@@ -68,11 +68,24 @@ briefing, a reminder to stretch, a weekly review, a price watch…), each with w
 turn it on ([Routines](ROUTINES.md)). And once you're set up, *Settings → Data & health → Safety
 check-up* tells you in plain words if anything could let someone in ([Safety check-up](SAFETY_CHECKUP.md)).
 
+## 8. Talk to her from your phone's apps
+
+She can answer you in the chat apps you already use, with the same memories: **Telegram** (the easiest:
+make a bot with @BotFather in two minutes, paste its key in *Settings → Chat apps → Telegram*), Discord,
+Signal, WhatsApp, Matrix, iMessage and email. Each one has a setup card that says what you need, about
+how long it takes and what it costs, then checks every step and ends with a test message on your phone.
+Type `/` in any of them for her commands ([Chats and commands](CHATS.md)).
+
+Two more things worth a look once you're set up: **Settings → Add-ons → Get more**, the Sara Store
+(plugins, skills, tool servers and companions, each through a review card; nothing switches on by itself),
+and **Settings → Her → Hey Sara** in the Windows app, to say her name and talk hands-free
+([Hey Sara](HEY_SARA.md)).
+
 ## When you're stuck
 
 <img src="screenshots/howto.webp" alt="The How do I…? box at the top of a Settings page, open: questions such as How do I change her name? with numbered steps and a Show me button" width="760">
 
-- Every page has a **How do I…?** box at the top, with numbered steps and a **Show me** button. All 123
+- Every page has a **How do I…?** box at the top, with numbered steps and a **Show me** button. All 168
   answers in one list: [How do I…?](HOW_DO_I.md).
 - Every setting has a **?** with an example; or simply ask her how something works.
 - [Questions and answers](FAQ.md), the [how-to videos](VIDEOS.md), and

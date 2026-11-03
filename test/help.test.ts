@@ -12,7 +12,7 @@ import { createSettingsGuideTool, guideEntries, searchGuide } from '../src/setti
 const WEB = join(import.meta.dirname, '..', 'web');
 const html = readFileSync(join(WEB, 'index.html'), 'utf8');
 const help = readFileSync(join(WEB, 'help.html'), 'utf8');
-const app = readFileSync(join(WEB, 'app.js'), 'utf8');
+const app = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => readFileSync(join(WEB, f), 'utf8')).join('\n');
 const tips = JSON.parse(readFileSync(join(WEB, 'tips.json'), 'utf8')) as { tips: Record<string, [string, string]>; pages: Record<string, [string, string]> };
 const anchors = new Set([...help.matchAll(/id="([\w-]+)"/g)].map((m) => m[1]));
 
@@ -39,7 +39,7 @@ test('help: tips point at real controls and real guide sections; every page has 
 });
 
 test('help: every tour step points at something on the page', () => {
-  const block = app.slice(app.indexOf('const TOURS = {'), app.indexOf('function runTour'));
+  const block = app.slice(app.indexOf('function makeTours'), app.indexOf('function runTour'));
   const sels = [...block.matchAll(/sel: '([^']+)'/g)].map((m) => m[1]);
   assert.ok(sels.length >= 20, `${sels.length} steps`);
   for (const s of sels) {

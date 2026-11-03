@@ -12,7 +12,7 @@
 // a model that keeps trying blocked calls gets its tools paused for the rest of the turn.
 import { errorLine, normalizeMessage, sigOf, stepFailed } from './triggers.ts';
 
-/** Fixed in v1 (shown read-only in Settings → Abilities → Coding). */
+/** Fixed in v1 (shown read-only in Settings → Coding → Keep going and repeats). */
 export const LOOP_REPEATS = 3;
 /** Blocked tries after the first block before tools pause for the turn. */
 export const IGNORE_LIMIT = 3;

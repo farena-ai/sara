@@ -362,7 +362,7 @@ export class Loops {
     const no = persistRefusal(app, conv);
     if (no) return { status: conv ? 400 : 404, error: no };
     const set = persistSettings(app).loops;
-    if (!set.on) return { status: 400, error: en('Repeats are switched off in Settings → Abilities.') };
+    if (!set.on) return { status: 400, error: en('Repeats are switched off in Settings → Coding → Keep going and repeats.') };
     const pl = this.plan(body);
     if (!pl.ok) return { status: 400, error: pl.error };
     if (body.start && this.#activeCount() >= set.maxActive) return { status: 409, error: trOwner('{n} repeats are already running. Stop one first.', app.settings.get(), { n: set.maxActive }) };
@@ -392,7 +392,7 @@ export class Loops {
   createRoutine(conversationId: string, spec: { prompt: string; everyMin?: number; schedule?: LoopSchedule; days: number; untilText?: string; routineId: number; source?: string }): { loop: Loop } | { status: number; error: string } {
     const app = this.#app;
     const set = persistSettings(app).loops;
-    if (!set.on) return { status: 400, error: en('Repeats are switched off in Settings → Abilities.') };
+    if (!set.on) return { status: 400, error: en('Repeats are switched off in Settings → Coding → Keep going and repeats.') };
     if (!(ROUTINE_MAX_DAYS as readonly number[]).includes(spec.days)) return { status: 400, error: en('Pick 7, 14, 30 or 90 days.') };
     const tz = app.settings.get().timeZone;
     const now = app.now();

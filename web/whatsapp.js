@@ -1,4 +1,4 @@
-// Phase 122 (docs/design/WHATSAPP.md §5, §6.3): Settings → Connections → WhatsApp. Before it is
+// Phase 122 (docs/design/WHATSAPP.md §5, §6.3): Settings → Chat apps → WhatsApp. Before it is
 // added: what it is, what he needs, Meta's terms box (a tick he must give) and Start. After that a
 // stepper: one step open at a time, the exact Meta screen in bold, the values to paste or copy, and
 // a check Sara runs; a step turns ✓ only when Sara checked it. Every failure is one plain sentence

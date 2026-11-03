@@ -1,4 +1,4 @@
-// Phase 73, rebuilt in 2.52.1 (docs/design/SSH_EASY.md): Settings → Abilities → Servers over SSH.
+// Phase 73, rebuilt in 2.52.1 (docs/design/SSH_EASY.md): Settings → Coding → Servers over SSH.
 // One "Connect a server" form (address + user), then Sara looks at the server (a short checklist),
 // then step 3: the server's ID card (host key) in plain words and the easiest way in (a cPanel
 // token, the password once, or pasting her one line), with the other ways as small links. Every

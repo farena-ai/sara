@@ -1,7 +1,7 @@
 # Plugins: writing one for Sara
 
 A **plugin** is a folder with a manifest (`sara-plugin.json`) and JavaScript code. The owner adds it
-in **Settings → Abilities → Plugins** from a .zip, a git address or a folder on the server, reads its
+in **Settings → Add-ons → Plugins** from a .zip, a git address or a folder on the server, reads its
 review card, and switches it on per companion. It runs **in its own process**, with only the
 permissions its manifest declares and the owner approved, and talks to Sara over **a small JSON
 channel** on stdin/stdout. It can hook into turns, run on a schedule or on an event, and add tools,
@@ -122,7 +122,7 @@ Store's signed list, the review card adds one line: *From the Sara Store · Made
 later pulls that version, the plugin is switched off on every companion with the chip *Pulled from the
 Sara Store: …* and nothing is deleted. See [STORE.md](STORE.md).
 
-**Getting it from the store and sending yours (2.58).** **Settings → Abilities → Get more** installs a
+**Getting it from the store and sending yours (2.58).** **Settings → Add-ons → Get more** installs a
 store plugin through this same review card (origin *Sara Store*); updates show the permission diff and
 are never applied on their own. To offer yours, run `sara pack <folder>`: the manifest and permission
 checks, a key scan, the fenced smoke test (no network, fake keys, every tool must answer `ready`), the

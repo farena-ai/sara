@@ -29,7 +29,7 @@ tools for her next step. Nothing is switched off: a tool she calls without havin
 your approval card, and a tool that isn't allowed in this chat (an MCP tool in a private chat) can't be
 found or run.
 
-- Settings → Abilities → Tools and approvals → *Short tool list*: Automatic (above 6,000 tokens of
+- Settings → Coding → Tools and approvals → *Short tool list*: Automatic (above 6,000 tokens of
   tools), Always or Off; the size; how long a looked-up tool stays; the smaller list for local models.
 - In a chat: `/tools`, `/tools all`, `/tools lean`, `/tools +github`, `/tools -github`. The ring's sheet
   in the header shows "Tools: 23 of 142 offered · ≈ 2.9k tokens a step" and *What she has*.

@@ -162,7 +162,7 @@ passphrase can't be used (she would have to keep the passphrase): that includes 
 ## Every command asks first
 
 `ssh_run` asks you before every command by default, like her shell. You can let it run on its own
-in Settings → Abilities → Tools and approvals; even then, commands on the **ask-first list** always
+in Settings → Coding → Tools and approvals; even then, commands on the **ask-first list** always
 wait for your OK: deleting recursively (`rm -r`, `rm -f`), shutting down or rebooting, disks
 (`mkfs`, `dd of=`, `fdisk`), users and passwords, firewalls, `systemctl stop/disable`, recursive
 `chmod/chown`, piping a download into a shell, anything touching `authorized_keys`,

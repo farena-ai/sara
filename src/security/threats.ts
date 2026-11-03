@@ -15,7 +15,7 @@
 // The SECOND PASS ("Fix these", src/security/fix.ts FixBranches.startBatch) is only ever started by
 // the owner: the Coding model fixes only those threats on one local branch, the threat rule is the
 // re-check, the project's tests run in an M5 sandbox copy, one diff with Apply / Keep / Discard.
-// Settings → Abilities → Coding projects → Threat model after coding turns: Off / Report only /
+// Settings → Coding → Coding projects → Threat model after coding turns: Off / Report only /
 // Report and offer the fix pass (default). Never in everyday chats.
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

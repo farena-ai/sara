@@ -1,4 +1,4 @@
-// Phase 122 part 2 (docs/design/BRIDGES4.md §7.3, §8.3): Settings → Connections → Matrix. Before it
+// Phase 122 part 2 (docs/design/BRIDGES4.md §7.3, §8.3): Settings → Chat apps → Matrix. Before it
 // is added: what it is, what he needs, the terms box (a tick he must give) and Start. After that the
 // WhatsApp stepper (web/whatsapp.js): one step open at a time, the exact Element screens as a
 // numbered list, a check Sara runs; a step turns ✓ only when Sara checked it. Every failure is one

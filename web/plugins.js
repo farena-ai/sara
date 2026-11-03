@@ -1,4 +1,4 @@
-// Phase 98 (ST3): Settings → Abilities → Plugins (docs/design/STAPLES.md §6.11, docs/PLUGINS.md).
+// Phase 98 (ST3): Settings → Add-ons → Plugins (docs/design/STAPLES.md §6.11, docs/PLUGINS.md).
 // A card per plugin: name, version, which companions it is on for, the fence chip, the last thing it
 // did, and a ⋯ menu (settings, log, check for updates, roll back, remove). Add a plugin: a .zip, a
 // git address or a folder on the server, then the review card (the shared proposal card): every
@@ -777,7 +777,7 @@ function renderSenderCheck(box, p, view, companion) {
   box.append(row, out);
 }
 
-// Phase 117 / PL2a: Settings → Connections → Signal and Email are guided setup cards now (web/signal.js,
+// Phase 117 / PL2a: Settings → Chat apps → Signal and Email are guided setup cards now (web/signal.js,
 // web/email.js); their settings button opens the same window as here.
 /** The plugin's settings and log window, for the Signal and Email pages. */
 export async function openPluginSettings(p) {

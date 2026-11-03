@@ -179,7 +179,7 @@ history, documents shared in one chat only, and, while Adult mode is off, anythi
 | `remember_fact` | Adds a fact about you to her memory | always asks |
 
 They follow her approval rules: the to-do and note tools use the setting of her `todo` and `note`
-tools (Settings → Abilities → Tools and approvals: allowed, ask first, or off); `remember_fact`
+tools (Settings → Coding → Tools and approvals: allowed, ask first, or off); `remember_fact`
 always asks. When something asks first, the tool answers *"Waiting for approval in Sara"* and an
 approval card waits in the conversation *"<key name>: changes (MCP)"*; nothing changes until you
 press Allow. An unknown `#id` is refused straight away, without asking. Changes show up in the

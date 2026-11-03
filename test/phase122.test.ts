@@ -31,7 +31,7 @@ const load = (f: string): Promise<Any> => import(pathToFileURL(join(ROOT, 'plugi
 const { toWhatsApp, split, label } = await load('format.mjs');
 const { parsePayload } = await load('webhook.mjs');
 const { codeOf, DIAGNOSES } = await load('diagnose.mjs');
-const { Pacer, EVERY_MS } = await load('pace.mjs');
+const { Pacer, EVERY_MS } = (await load('pace.mjs')).pacing('whatsapp'); // PL2d: one pace.mjs, per-app limits
 const { parseResponse, multipart } = await load('http1.mjs');
 
 const OWNER = OWNER_BSUID.toLowerCase();

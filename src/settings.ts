@@ -129,36 +129,36 @@ export interface Settings {
   /** Phase 78: how long run snapshots are kept (days; 0 = until deleted) and their size cap (MB). */
   /** Phase 84: the eval loop's "Re-check monthly" (off by default; owner-only). */
   evalSchedule?: Partial<import('./evals.ts').EvalSchedule>;
-  /** Phase 97 (ST2): skills she learns (per companion; Settings → Abilities → Skills). */
+  /** Phase 97 (ST2): skills she learns (per companion; Settings → Add-ons → Skills). */
   skillLearning?: Partial<import('./skill-learning.ts').LearnSettings>;
   /** Phase 98 (ST3): plugins switched on for this companion, their settings (secrets live in the vault). */
   plugins?: import('./plugins/manager.ts').CompanionPluginSettings;
   runs?: Partial<import('./runs.ts').RunSettings>;
   /**
-   * Phase 79: per-reply budgets (Settings → Abilities → Budgets): coding chats and everyday chats
+   * Phase 79: per-reply budgets (Settings → Coding → Budgets): coding chats and everyday chats
    * (tokens, steps, optional $ and minutes, on/off), the quick-model step and what happens at the limit.
    */
   turnBudgets?: Partial<Omit<import('./budget.ts').TurnBudgetSettings, 'coding' | 'chat'>> & { coding?: Partial<import('./budget.ts').TurnLimits>; chat?: Partial<import('./budget.ts').TurnLimits> };
   /**
-   * Phase 80: "Try commands in a sandbox first" (Settings → Abilities → Coding projects): off, only
+   * Phase 80: "Try commands in a sandbox first" (Settings → Coding → Coding projects): off, only
    * risky commands (default) or every command; network for tries, the size and time limits, and the
    * Docker image used on Windows when Docker is present.
    */
   sandboxGate?: Partial<import('./sandbox-run.ts').SandboxGateSettings>;
   /**
-   * Phase 81: the security pass (Settings → Abilities → Coding projects): after coding turns /
+   * Phase 81: the security pass (Settings → Coding → Coding projects): after coding turns /
    * only when asked / off, the Reviewing model's second look, live advisories from OSV.dev (off by
    * default), the pass's token budget and the fix loop's test run.
    */
   securityPass?: Partial<import('./security/pass.ts').SecuritySettings>;
   /**
-   * Phase 82: the threat model after coding turns (Settings → Abilities → Coding projects): Off /
+   * Phase 82: the threat model after coding turns (Settings → Coding → Coding projects): Off /
    * Report only / Report and offer the fix pass (default). Uses the security pass's reviewer switch
    * and budget.
    */
   threatModel?: Partial<import('./security/threats.ts').ThreatSettings>;
   /**
-   * Phase 86: red-team mode (Settings → Abilities → Coding projects): before a push / PR / release
+   * Phase 86: red-team mode (Settings → Coding → Coding projects): before a push / PR / release
    * (Off / Ask me (default) / Always), attacker scripts per run, its own token budget and time limit.
    */
   redteam?: Partial<import('./redteam.ts').RedTeamSettings>;

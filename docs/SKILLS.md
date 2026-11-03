@@ -7,7 +7,7 @@ work in Sara too.
 
 ## Where to find them
 
-**Settings → Abilities → Skills.** Each companion has her own skills; *All my companions* shares one.
+**Settings → Add-ons → Skills.** Each companion has her own skills; *All my companions* shares one.
 Six starter skills come built in (writing a skill, reviewing a pull request, a changelog entry, a
 weekly review, debugging a failing test, planning a trip). Turn any skill off, edit it, or copy it.
 
@@ -70,7 +70,7 @@ then once more on a later repeat) · **Never for this**. Nothing is written to h
   **Apply** (the old version is kept; open the skill → *Versions* to go back) · **Edit** · **Dismiss**.
   One a day per skill; three dismissed → none for 30 days. Built-in and project skills are never
   changed.
-- **Settings** (*Settings → Abilities → Skills → Skills she learns*, per companion): offer to make
+- **Settings** (*Settings → Add-ons → Skills → Skills she learns*, per companion): offer to make
   skills, how many times before she offers (2–6), look back (14–90 days), offers per day, check
   learned skills first, learn from step chains in coding, propose fixes. Household members have
   their own, learning only from their own conversations (their skills aren't checked: the eval loop

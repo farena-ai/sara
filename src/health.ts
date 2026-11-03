@@ -66,7 +66,7 @@ export function healthReport(app: AppContext, info: AppInfo) {
   }
   // Phase 46: without a sandbox (Windows) commands are fine as long as she asks before each one.
   const unasked = app.sandbox.mode === 'none' ? app.tools.list().filter((t) => t.runsCommands && app.tools.permission(t.spec.name, s.toolPermissions) === 'auto').map((t) => t.spec.name) : [];
-  add(en('Tool sandbox'), app.sandbox.mode !== 'none' || (process.platform !== 'linux' && !unasked.length), app.sandbox.mode !== 'none' ? `${app.sandbox.mode} (${app.sandbox.detail})` : unasked.length ? [en('none: {tools} run without asking (Settings → Abilities → Tools and approvals)'), { tools: unasked.join(', ') }] : [en('none ({detail})'), { detail: app.sandbox.detail }]);
+  add(en('Tool sandbox'), app.sandbox.mode !== 'none' || (process.platform !== 'linux' && !unasked.length), app.sandbox.mode !== 'none' ? `${app.sandbox.mode} (${app.sandbox.detail})` : unasked.length ? [en('none: {tools} run without asking (Settings → Coding → Tools and approvals)'), { tools: unasked.join(', ') }] : [en('none ({detail})'), { detail: app.sandbox.detail }]);
   // Phase 56: retired models still chosen somewhere, and switches made for them lately.
   if (app.modelCatalog) {
     // Hardening L1: a list that suddenly shrank (kept, nothing retired) is a warning too.

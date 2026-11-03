@@ -46,7 +46,7 @@ A tool is a plain object that implements `Tool` from
 | Field | What it's for |
 |---|---|
 | `spec` | `name`, `description` and JSON-schema `parameters`: what the model sees. Write the description for the model: when to use it, what it returns. |
-| `defaultPermission` | `'auto'` (runs without asking), `'ask'` (an Allow/Deny card first) or `'never'` (shipped switched off). The owner can change it per tool in Settings → Abilities → Tools and approvals. |
+| `defaultPermission` | `'auto'` (runs without asking), `'ask'` (an Allow/Deny card first) or `'never'` (shipped switched off). The owner can change it per tool in Settings → Coding → Tools and approvals. |
 | `isAvailable?()` | Return `false` to hide the tool (e.g. not configured yet). Hidden tools are not offered to the model. |
 | `runsCommands?` | `true` for tools that run commands the model wrote. On a computer with no sandbox (Windows) these always ask first, unless the owner explicitly chose otherwise. |
 | `summarize(args)` | One short line for the activity log and the approval card ("weather in Austin"). |
@@ -179,7 +179,7 @@ Sara tool called `mcp_<server>_<tool>`. Tools the server marks read-only
 (`annotations.readOnlyHint`) run without asking; everything else asks first. The owner can change
 either in Settings.
 
-Add one in **Settings → Abilities → Other programs (MCP)**: a name, stdio (command + arguments) or
+Add one in **Settings → Add-ons → Other programs (MCP)**: a name, stdio (command + arguments) or
 HTTP (address), and any secret environment variables or headers (kept in the encrypted vault).
 
 The example [`examples/mcp/hello-mcp-server.mjs`](../examples/mcp/hello-mcp-server.mjs) is a

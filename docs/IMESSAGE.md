@@ -28,7 +28,7 @@ iMessage comes with Sara as a plugin and stays **off until you add it**.
 
 ## The eight steps
 
-*Settings → Connections → iMessage*, tick the box and press **Start**. It comes with Sara, so after **Start** there is one short step: what it can reach, and **Add iMessage** (the full plugin card is under *Details*; Sara proves it is her own plugin herself, and the files' fingerprint is checked as for every plugin). Each step
+*Settings → Chat apps → iMessage*, tick the box and press **Start**. It comes with Sara, so after **Start** there is one short step: what it can reach, and **Add iMessage** (the full plugin card is under *Details*; Sara proves it is her own plugin herself, and the files' fingerprint is checked as for every plugin). Each step
 turns ✓ only when Sara has checked it.
 
 1. **Give her an Apple ID**: on any browser, account.apple.com → *Create Your Apple Account* → name

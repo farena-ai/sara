@@ -654,7 +654,7 @@ async function gated(cx: CallContext, tool: string | null, name: string, summary
   const alwaysAsk = rest.length === 2 && rest[0].alwaysAsk;
   const set = tool ? cx.app.tools.permission(tool, cx.app.settings.get().toolPermissions) : 'ask';
   const perm = alwaysAsk && set === 'auto' ? 'ask' : set;
-  if (perm === 'never') return `The owner has turned off ${tool === 'todo' ? 'to-dos' : 'notes'} for ${cx.app.persona.name} (Settings → Abilities → Tools and approvals).`;
+  if (perm === 'never') return `The owner has turned off ${tool === 'todo' ? 'to-dos' : 'notes'} for ${cx.app.persona.name} (Settings → Coding → Tools and approvals).`;
   if (perm === 'auto') return run();
   if (!cx.deps.requestApproval) return 'This needs the owner’s OK, and approvals aren’t available here.';
   // Changes wait in their own conversation, so ask_sara isn't blocked while the owner decides.

@@ -1,7 +1,7 @@
 # Chats in Telegram and Discord: commands
 
 Sara answers you in Telegram and Discord the same way she does in the app (set up in **Settings →
-Connections → Telegram / Discord**). Since 2.40.0 those chats have **commands**: a way to start fresh
+Chat apps → Telegram / Discord**). Since 2.40.0 those chats have **commands**: a way to start fresh
 when a chat is long or stuck, stop her, and see what she is using, without leaving the chat app.
 
 ## The commands
@@ -89,7 +89,7 @@ messages every turn. It ends by itself after 12 messages here or 24 hours.
   *↪ Continued from Telegram* sits at the top with **Show** (exactly what she is given) and **Undo**.
 - **In Telegram and Discord:** under her first reply after you switch, a row asks *↪ Pick up our chat
   from the app?* with **Continue here** / **No**. Or type `/continue`.
-- **Settings → Connections → Pick up across apps:** *Offer to pick up* (default), *Pick up on her own,
+- **Settings → Chat apps → Pick up across apps:** *Offer to pick up* (default), *Pick up on her own,
   with Undo* (a first line "↪ continued from Telegram · /continue off to undo"), or *Only when I type
   /continue*; how recent (3 h); how many exchanges; whether a fresh coding chat takes the folder along;
   which of your chats take part.
@@ -127,7 +127,7 @@ couldn't be), the list of commands with who may use each, and **Register menus n
 
 ### Owner to-do: register the menus on your real bots
 
-1. Update Sara, then open **Settings → Connections → Telegram** and **→ Discord** and check that
+1. Update Sara, then open **Settings → Chat apps → Telegram** and **→ Discord** and check that
    each card says *Menu set … ago*. If it says *Couldn't set the command menu*, press **Register
    menus now** and read the reason (usually the bot isn't connected).
 2. **Telegram:** open the chat with your bot on your phone and type `/`: the list should appear.
@@ -317,7 +317,7 @@ this computer); nothing starts until you confirm it.
 
 ## Signal, and long jobs on chat plugins (2.50.0)
 
-Signal comes with Sara as a plugin (Settings → Connections → Signal): see [SIGNAL.md](SIGNAL.md). It
+Signal comes with Sara as a plugin (Settings → Chat apps → Signal): see [SIGNAL.md](SIGNAL.md). It
 uses the same commands, sessions, channel project (*Signal*), keep-up, pictures and files, steer and
 queue as Telegram, with these differences: you link your chat with `/link` and a code from the
 plugin's settings, your safety number is remembered (a changed one pauses her tools there until you
@@ -329,7 +329,7 @@ On every chat plugin (Signal, the LINE example, any other) a job longer than 5 m
 
 ## Email (2.50.0)
 
-She can have **an email address of her own** (the Email plugin, Settings → Connections → Email;
+She can have **an email address of her own** (the Email plugin, Settings → Chat apps → Email;
 the full guide is [EMAIL_BRIDGE.md](EMAIL_BRIDGE.md)). Email her and she answers **in the same
 thread**; every email thread is one session in the *Email* project, and a reply in an older thread
 goes back to that thread's session. Commands work in the subject or the first line (`/status`,
@@ -341,7 +341,7 @@ reach her.
 
 ## WhatsApp (2.55.0)
 
-WhatsApp comes with Sara as a plugin (Settings → Connections → WhatsApp), off until you add it: see
+WhatsApp comes with Sara as a plugin (Settings → Chat apps → WhatsApp), off until you add it: see
 [WHATSAPP.md](WHATSAPP.md). It uses Meta's official WhatsApp Business service with your own Meta
 account and number, through a guided ten-step setup that checks each step. It uses the same
 commands, sessions and `/link` as Signal, with these differences: Meta only lets her write first
@@ -351,7 +351,7 @@ you list other numbers; no groups or voice replies.
 
 ## Matrix (2.55.1)
 
-Matrix comes with Sara as a plugin (Settings → Connections → Matrix), off until you add it: see
+Matrix comes with Sara as a plugin (Settings → Chat apps → Matrix), off until you add it: see
 [MATRIX.md](MATRIX.md). She has a Matrix account of her own and talks with you in a room **without
 end-to-end encryption** from Element or any Matrix app; in an encrypted room she says once that she
 can't read it. Her password is used once to log her in and never kept. Commands work typed or with her
@@ -361,7 +361,7 @@ when mentioned. Sessions file into the *Matrix* project.
 
 ## iMessage (2.55.2)
 
-iMessage comes with Sara as a plugin (Settings → Connections → iMessage), off until you add it: see
+iMessage comes with Sara as a plugin (Settings → Chat apps → iMessage), off until you add it: see
 [IMESSAGE.md](IMESSAGE.md). It needs **a Mac of yours** running BlueBubbles, signed in to Messages with
 **an Apple ID of her own** (Sara refuses to run on your own Apple ID). BlueBubbles rings Sara when a
 message comes (an unsigned "doorbell" that only carries ids; the plugin fetches each message itself),

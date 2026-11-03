@@ -3,7 +3,7 @@
 // A slim banner above the composer when he was just talking in another of his chats ("On Telegram
 // 12 min ago: 'so which flight did we pick…'" · Continue here · Not now · ?), the chip at the top of
 // the picked-up thread (↪ Continued from Telegram · Show · Undo; Show opens exactly the lines she is
-// given), and Settings → Connections → Pick up across apps. Nothing is copied or merged: the pickup is
+// given), and Settings → Chat apps → Pick up across apps. Nothing is copied or merged: the pickup is
 // a pointer the server checks at every turn.
 import { t } from './naming.js';
 
@@ -112,7 +112,7 @@ async function showNote(id) {
   dlg.showModal();
 }
 
-// ---------------------------------------------------------------- Settings → Connections → Pick up across apps
+// ---------------------------------------------------------------- Settings → Chat apps → Pick up across apps
 
 export async function loadPickupSettings() {
   const form = $('#pk-form');

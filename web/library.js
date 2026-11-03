@@ -468,7 +468,7 @@ export async function openLibrary(docId, page = 0) {
   else showHome();
 }
 
-// ---------- Phase 74: the Library settings page (Settings → Abilities → Library)
+// ---------- Phase 74: the Library settings page (Settings → Add-ons → Library)
 const SPEED_WORDS = { 1: 'Gentle (chat always first)', 2: 'Normal', 3: 'Fast' };
 let speedSeg = null;
 function speedLabel() {

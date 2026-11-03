@@ -1,4 +1,4 @@
-// Phase 122 part 3 (docs/design/BRIDGES4.md §7.1, §8.3): Settings → Connections → iMessage. Before it
+// Phase 122 part 3 (docs/design/BRIDGES4.md §7.1, §8.3): Settings → Chat apps → iMessage. Before it
 // is added: what it is, that it needs a Mac, what he needs, the terms box (a tick he must give) and
 // Start. After that the WhatsApp stepper (web/whatsapp.js): one step open at a time, the exact Mac
 // screens as a numbered list, a check Sara runs; a step turns ✓ only when Sara checked it. Every

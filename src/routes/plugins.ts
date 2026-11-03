@@ -1,4 +1,4 @@
-// Phase 98 (ST3, docs/design/STAPLES.md §6.10): Settings → Abilities → Plugins. Every route is the
+// Phase 98 (ST3, docs/design/STAPLES.md §6.10): Settings → Add-ons → Plugins. Every route is the
 // owner's: `plugins` is not a member route family (src/household.ts), so a household member gets 403
 // ownerOnly before reaching here, and the demo refuses it (not in DEMO_READS / DEMO_WRITES).
 //   GET    /api/plugins                          the list, the fence, calls waiting for the owner

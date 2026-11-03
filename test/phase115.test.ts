@@ -23,6 +23,7 @@ import { makeTestPicture } from '../src/bridges/test-picture.ts';
 import type { ChatRequest } from '../src/providers/types.ts';
 import { fromFolder } from '../src/packages.ts';
 import { PLUGIN_LIMITS, PluginManager } from '../src/plugins/manager.ts';
+import { pendingFor } from '../src/pending.ts';
 import { call, listen, makeApp, ROOT, tempDir, text, type TestApp } from './helpers.ts';
 
 // ------------------------------------------------------------------ helpers
@@ -130,14 +131,14 @@ const update = (message: Up) => ({ update_id: uid++, message: { message_id: uid,
 const dmFrom = (chatId: number, extra: Up, name = 'Alex') => update({ chat: { id: chatId, type: 'private' }, from: { id: chatId, first_name: name }, ...extra });
 const sizes = (base: string, bytes: number[]) => bytes.map((b, n) => ({ file_id: `${base}-${n}`, file_size: b, width: 100 * (n + 1), height: 100 * (n + 1) }));
 
-async function tgSetup(t: { after: (fn: () => void) => void }, o: { clock?: ManualClock; settings?: Record<string, unknown> } = {}) {
+async function tgSetup(t: { after: (fn: () => void) => void }, o: { clock?: ManualClock; settings?: Record<string, unknown>; albumMs?: number } = {}) {
   const { dir, cleanup } = tempDir();
   const time = { now: new Date('2026-11-01T12:00:00Z') };
   const app: TestApp = makeApp(dir, time);
   const tg = await fakeTelegram(o.clock);
   app.settings.update({ providers: [{ id: 'p', label: 'P', kind: 'openai-compatible', baseUrl: 'http://x' }], defaultProviderId: 'p', defaultModel: 'm', ownerName: 'Alex', timeZone: 'UTC', telegram: { enabled: true, allowOthers: true, mirror: false, ownerChatId: OWNER }, ...(o.settings ?? {}) });
   app.vault.set(TELEGRAM_VAULT, TG_TOKEN);
-  const bridge = new TelegramBridge(app, { apiBase: tg.url, albumMs: 60, ...(o.clock ? { clock: o.clock } : {}) });
+  const bridge = new TelegramBridge(app, { apiBase: tg.url, albumMs: o.albumMs ?? 60, ...(o.clock ? { clock: o.clock } : {}) });
   await bridge.restart();
   await bridge.menus;
   await bridge.leftovers;
@@ -183,12 +184,22 @@ test('telegram photo in: the largest size ≤ 8 MB is fetched, saved, stored on 
 });
 
 test('telegram album: three updates with one media_group_id are one turn with 3 images; five give 4 and the line', async (t) => {
-  const { app, bridge, tg } = await tgSetup(t);
+  // PL2d (C5): the album window is 1 s here (60 ms before), so a loaded machine's gap between two
+  // updates of one album can't split it, and the test waits for the turns themselves (polled), not a
+  // fixed 150 ms.
+  const { app, bridge, tg } = await tgSetup(t, { albumMs: 1000 });
+  const until = async (ok: () => boolean, ms = 15_000) => {
+    for (const end = Date.now() + ms; !ok() && Date.now() < end; ) await new Promise((r) => setTimeout(r, 20));
+  };
   for (let i = 0; i < 5; i++) tg.files.set(`photos/al${i}-0`, png(200 + i));
   for (let i = 0; i < 3; i++) await bridge.handle(dmFrom(OWNER, { photo: sizes(`al${i}`, [200 + i]), media_group_id: 'g1', ...(i === 0 ? { caption: 'our trip' } : {}) }), { queued: true });
-  await new Promise((r) => setTimeout(r, 150));
+  await until(() => bridge.albumTurns.length >= 1);
   await Promise.all(bridge.albumTurns);
-  await new Promise((r) => setTimeout(r, 50));
+  const userRows = () => {
+    const c = app.store.findChannelConversation('telegram', String(OWNER));
+    return c ? app.store.messages(c.id).filter((m) => m.role === 'user') : [];
+  };
+  await until(() => userRows().length >= 1);
   const conv = app.store.findChannelConversation('telegram', String(OWNER))!;
   let users = app.store.messages(conv.id).filter((m) => m.role === 'user');
   assert.equal(users.length, 1, 'one message');
@@ -196,13 +207,16 @@ test('telegram album: three updates with one media_group_id are one turn with 3 
   assert.equal((users[0].meta?.images as string[]).length, 3);
   // Five pictures (different bytes each): the first 4 and one line.
   for (let i = 0; i < 5; i++) await bridge.handle(dmFrom(OWNER, { photo: sizes(`al${i}`, [200 + i]), media_group_id: 'g2' }), { queued: true });
-  await new Promise((r) => setTimeout(r, 150));
+  await until(() => bridge.albumTurns.length >= 2);
   await Promise.all(bridge.albumTurns);
-  await new Promise((r) => setTimeout(r, 50));
+  await until(() => userRows().length >= 2 && tg.texts(OWNER).includes('I looked at the first 4.'));
   users = app.store.messages(conv.id).filter((m) => m.role === 'user');
   assert.equal(users.length, 2);
   assert.equal((users[1].meta?.images as string[]).length, 4);
   assert.ok(tg.texts(OWNER).includes('I looked at the first 4.'));
+  // The two turns run queued: wait for both replies to be stored, so nothing writes after the test ends.
+  await until(() => app.store.messages(conv.id).filter((m) => m.role === 'assistant').length >= 2 && !pendingFor(app).busy(conv.id));
+  assert.ok(app.store.messages(conv.id).filter((m) => m.role === 'assistant').length >= 2, 'both album turns answered');
 });
 
 test('telegram: a picture sent "as a file" is a photo; a captioned photo is never dropped any more', async (t) => {

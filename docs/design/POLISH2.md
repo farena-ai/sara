@@ -386,6 +386,36 @@ the tile headings that repeat their section name are `aria-hidden`. Screenshots:
 - [ ] codemap perf, phase80, fixb-hardening M4 and phase76 each pass 10 runs in a row while the
       full suite runs in parallel (recorded in the release notes, not as a test).
 
+**As built (PL2d, 2.61.3).** C1: `web/settings-nav.js` (230 lines: the old tab names, the groups and
+their order, the accordion, the ranked search and *Elsewhere*), `web/tours.js` (179: `makeTours`, built at
+start-up as before so the words are in the start-up language; `runTour`, the tour offer) and
+`web/setup-wizard.js` (424: the first-run setup guide) moved out of `web/app.js` (13,475 → 12,749 lines) by
+a generator over line ranges of a snapshot. Each module exports `init…(ctx)`, called where its code used
+to be (listeners and the tours keep their order); the free names were found with `tsc --checkJs` (none
+left, no new unused ones). The whole web app's sorted `t('…')` keys (6,715) and element ids (5,208) were
+equal before and after the move; `test/fixtures/pl2d-split.json` keeps the three modules' baseline for
+`phase128d`. Tests that read `app.js` as text read the four files. Two bugs found in the live run and
+fixed separately (not part of the move): search's "Some Abilities pages moved … to ." listed no groups
+(the selector found the nav button, which has no group; now `.settings-page`), and every Store card icon
+on the first screen was a 404 in the console (the icon's path was only known after its item page was
+opened; now also from the signed list). C4: `scripts/sdk-sync.ts` (`--check` lists copies that differ;
+**deviation:** no `npm run sdk:sync` script, package.json is the release owner's) and `phase128d` hashes
+all 15 `sara-plugin.mjs`, 3 `http1.mjs` and 4 `pace.mjs`. Q8: one `pace.mjs` with `LIMITS` per app and
+`pacing('<app>')` giving each plugin its old names and numbers (Signal's pacer kept as `ReplyPacer`).
+Docs: FOR_CODERS (*Long jobs*, *Big tool sets*, *Get tools from the Store*, the generated `/` table),
+START_HERE §8 (chat apps, Telegram first; the Store; Hey Sara) with the answer count written by
+`scripts/gen-guide.ts`; guide sections *Commands you can type*, *Long chats and /compact*, *Routines*;
+How do I…? for the `/` menu (chat), routines (Today) and `/compact` (Default model). Every "Settings →
+Abilities/Connections → …" path in the app, the guide, server messages and user docs now names the new
+group (translations moved to the new keys, the group word taken from each language's own group name);
+**the one-release old-name search aliases stay** (the doc doesn't say to drop them here; drop them in
+2.62). C5: phase76 and codemap perf measure this process's CPU time (median of 5 runs for phase76; per
+1,000 files for codemap), so the parallel suite no longer counts; phase80 polls the process list instead
+of one look / a fixed 300 ms; fixb M4 retries a request once on ECONNRESET in that file's fetch only;
+phase115's album test uses a 1 s album window and polls for the turns; phase86's start wait cap is 60 s
+(polled; reqMs unchanged) and its probe ports are a range per test process (a fixed 7891–7899 raced
+when two runs overlapped); phase122b waits for Matrix's typing-off before checking it. Screenshots and the console check: `outputs/ui-review/pl2d/`.
+
 ## 6. What Hermes Agent and OpenClaw have that Sara still lacks
 
 Checked 2026-11-02 against their docs indexes ([H0], [O0]) and the pages linked below; Sara's side

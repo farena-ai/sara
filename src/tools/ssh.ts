@@ -87,7 +87,7 @@ export function createSshTools(ssh: () => SshManager | undefined): Tool[] {
     summarize: () => 'SSH: list servers',
     async run() {
       const list = m().list();
-      if (!list.length) return `No servers yet. The owner adds one in Settings → Abilities → Servers over SSH ([Open Servers over SSH](${SSH_SETTINGS_LINK})), or you add one with ssh_connect.`;
+      if (!list.length) return `No servers yet. The owner adds one in Settings → Coding → Servers over SSH ([Open Servers over SSH](${SSH_SETTINGS_LINK})), or you add one with ssh_connect.`;
       return list.map((s) => line(m(), s)).join('\n');
     },
   };

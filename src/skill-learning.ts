@@ -48,7 +48,7 @@ import type { Conversation } from './store.ts';
 import { normalizeCommand, sigOf, stepFailed } from './triggers.ts';
 
 // ------------------------------------------------------------------------------------------------
-// Settings (per companion: `skillLearning`; Settings → Abilities → Skills → Skills she learns)
+// Settings (per companion: `skillLearning`; Settings → Add-ons → Skills → Skills she learns)
 // ------------------------------------------------------------------------------------------------
 
 export interface LearnSettings {

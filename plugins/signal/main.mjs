@@ -7,7 +7,8 @@
 import { plugin } from './sara-plugin.mjs';
 import { Rpc, isRateLimit, isUntrusted } from './rpc.mjs';
 import { split, toSignal, TEXT_MAX } from './format.mjs';
-import { Pacer } from './pace.mjs';
+import { pacing } from './pace.mjs';
+const { Pacer } = pacing('signal');
 
 const BRIDGE = 'signal';
 const BACKOFF_S = [1, 5, 30, 60];

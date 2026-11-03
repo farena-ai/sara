@@ -423,21 +423,27 @@ test('Map API: owner only (401 signed out, 403 in the demo); tree, file detail, 
   assert.equal((await fetch(`${base}/api/codemap/..%2F..`, { headers: owner })).status, 400, 'workspace names only');
 });
 
-test('performance: maps Sara herself (src, web, test) in well under 10 s; one changed file in under 1 s', (t) => {
+test('performance: maps Sara herself (src, web, test) in well under 10 s of CPU per 1,000 files; one changed file in under 1 s', (t) => {
   const { dir, close } = scratch(t);
   const ws = join(dir, 'sara');
   for (const d of ['src', 'web', 'test']) cpSync(join(ROOT, d), join(ws, d), { recursive: true });
   const store = new CodeMapStore(ws, join(dir, 'map.db'));
   close(() => store.close());
-  const t0 = performance.now();
+  // PL2d (C5): CPU time of this process (the full suite beside it doesn't count) and per 1,000 files
+  // (the copy of src, web and test grows every release).
+  const cpuMs = () => {
+    const u = process.cpuUsage();
+    return (u.user + u.system) / 1000;
+  };
+  const t0 = cpuMs();
   const r = store.refreshAll();
-  const first = performance.now() - t0;
+  const first = cpuMs() - t0;
   const st = store.status();
   const target = join(ws, 'src', 'safety.ts');
   writeFileSync(target, `${readFileSync(target, 'utf8')}\nexport function addedForTheTest(): number {\n  return 42;\n}\n`);
-  const t1 = performance.now();
+  const t1 = cpuMs();
   const again = store.refreshAll();
-  const second = performance.now() - t1;
+  const second = cpuMs() - t1;
   const bytes = statSync(join(dir, 'map.db')).size + (() => {
     try {
       return statSync(join(dir, 'map.db-wal')).size;
@@ -445,9 +451,9 @@ test('performance: maps Sara herself (src, web, test) in well under 10 s; one ch
       return 0;
     }
   })();
-  t.diagnostic(`codemap perf: ${st.files} files, ${st.symbols} symbols, ${st.chunks} chunks; first index ${Math.round(first)} ms; re-index of one file ${Math.round(second)} ms; database ${(bytes / 1048576).toFixed(1)} MB`);
+  t.diagnostic(`codemap perf: ${st.files} files, ${st.symbols} symbols, ${st.chunks} chunks; first index ${Math.round(first)} ms of CPU (${Math.round((first * 1000) / st.files)} per 1,000 files); re-index of one file ${Math.round(second)} ms; database ${(bytes / 1048576).toFixed(1)} MB`);
   assert.ok(r.reindexed.length > 150, `${r.reindexed.length} files`);
-  assert.ok(first < 10_000, `first index ${first} ms`);
+  assert.ok((first * 1000) / st.files < 10_000, `first index ${first} ms of CPU for ${st.files} files: under 10 s per 1,000 files`);
   assert.deepEqual(again.reindexed, ['src/safety.ts']);
   assert.ok(second < 1000, `re-index ${second} ms`);
   assert.ok(store.findSymbols('addedForTheTest').hits.length === 1);

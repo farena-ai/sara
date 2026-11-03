@@ -1,4 +1,4 @@
-// Phase 96 (ST1): Settings → Abilities → Skills (docs/design/STAPLES.md §4.11), and the skill
+// Phase 96 (ST1): Settings → Add-ons → Skills (docs/design/STAPLES.md §4.11), and the skill
 // cards in the chat. A card per skill: its name, what it is for, where it lives, how often she used
 // it, an on/off switch for this companion and a ⋯ menu (open, export, copy, delete). On top: New
 // skill (a simple editor), Add a skill (a .zip, a git address or a folder on the server, then a
@@ -708,7 +708,7 @@ export function skillApproval(card, title, ev, decide) {
     title.textContent = k.exists ? t('{name} wants to change her skill “{skill}”', { name: herName(), skill: k.skill }) : t('{name} wants to save a new skill “{skill}”', { name: herName(), skill: k.skill });
     const pre = el('pre', 'skl-head', k.skillMd);
     pre.dataset.raw = '';
-    sec.append(pre, el('p', 'small muted', t('You can edit it afterwards in Settings → Abilities → Skills.')));
+    sec.append(pre, el('p', 'small muted', t('You can edit it afterwards in Settings → Add-ons → Skills.')));
     row.append(yes(t('Save it')), no(t("Don't save")));
   } else {
     title.textContent = t('{name} wants to change her skill “{skill}”', { name: herName(), skill: k.skill });

@@ -68,7 +68,7 @@ export function presenceSettings(app: AppContext): PresenceSettings {
   return { ...DEFAULT_PRESENCE, ...s, bedtime: { ...DEFAULT_PRESENCE.bedtime, ...s.bedtime }, morning: { ...DEFAULT_PRESENCE.morning, ...s.morning } };
 }
 
-/** Checks the owner's choices (Settings → Abilities → Home Assistant → Presence). Throws plain words. */
+/** Checks the owner's choices (Settings → Add-ons → Home Assistant → Presence). Throws plain words. */
 export function cleanPresence(input: Record<string, unknown>, cur: PresenceSettings): PresenceSettings {
   const entity = (v: unknown, domains: string[], what: string): string | undefined => {
     const s = String(v ?? '').trim();

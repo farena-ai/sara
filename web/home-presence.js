@@ -1,4 +1,4 @@
-// Phase 72: Settings → Abilities → Home Assistant → Presence (per companion, off by default). The
+// Phase 72: Settings → Add-ons → Home Assistant → Presence (per companion, off by default). The
 // pickers are filled from Home Assistant's own entities; every change saves at once (the server
 // checks the whole set and says plainly what's missing).
 import { serverText, t } from './naming.js';

@@ -380,7 +380,7 @@ export function applyTranslations(app: AppContext, config: Proposal[], code: Cod
         perms[t.tool] = 'ask';
         permsChanged = true;
         r.items.push({ kind: 'setting', table: 'settings', id: `toolPermissions.${t.tool}`, ref: c.key });
-        r.translated.push(line('tr-guard', `${label} → Sara asks before "${t.tool}" (Settings → Abilities → Tools)`, { examples: [c.folder] }));
+        r.translated.push(line('tr-guard', `${label} → Sara asks before "${t.tool}" (Settings → Coding → Tools and approvals)`, { examples: [c.folder] }));
       } else r.translated.push(line('tr-guard', `${label} → Sara already ${now === 'never' ? 'never uses' : 'asks before'} "${t.tool}"`, { examples: [c.folder] }));
       continue;
     }

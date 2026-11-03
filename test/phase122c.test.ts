@@ -28,7 +28,7 @@ type Any = any;
 const load = (f: string): Promise<Any> => import(pathToFileURL(join(ROOT, 'plugins', 'imessage', f)).href);
 const { flatten, split, plainCommand, MORE } = await load('format.mjs');
 const { codeOf, DIAGNOSES } = await load('diagnose.mjs');
-const { Pacer, EVERY_MS, BURST, pollDelay } = await load('pace.mjs');
+const { Pacer, EVERY_MS, BURST, pollDelay } = (await load('pace.mjs')).pacing('imessage'); // PL2d: one pace.mjs, per-app limits
 const { chatOf, guidOf, readInfo, accountHandles } = await load('bb.mjs');
 const { FakeBlueBubbles, BB_PASSWORD, HER, OWNER, STRANGER, PARTNER, dmGuid, FIXTURE_JPEG, FIXTURE_HEIC } = await import(pathToFileURL(join(ROOT, 'test', 'fixtures', 'imessage', 'bb.mjs')).href);
 

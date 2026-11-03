@@ -347,7 +347,7 @@ export class Goals {
     const no = persistRefusal(app, conv);
     if (no) return { status: conv ? 400 : 404, error: no };
     const set = persistSettings(app).goals;
-    if (!set.on) return { status: 400, error: en('Keep going until it’s done is switched off in Settings → Abilities.') };
+    if (!set.on) return { status: 400, error: en('Keep going until it’s done is switched off in Settings → Coding → Keep going and repeats.') };
     const text = String(body.text ?? '').trim().slice(0, 2000);
     if (!text) return { status: 400, error: en('Say what she should keep going at.') };
     const options = checkOptions(app, conv!);

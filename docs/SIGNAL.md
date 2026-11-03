@@ -29,7 +29,7 @@ the connection to it. Design: [design/BRIDGES3.md](design/BRIDGES3.md) §4.
 
 ## In Sara
 
-Since 2.61.0 the page is a guided setup card, like WhatsApp's: *Settings → Connections → Signal →
+Since 2.61.0 the page is a guided setup card, like WhatsApp's: *Settings → Chat apps → Signal →
 Start*. Six steps, each turning ✓ only when Sara has checked it:
 
 1. **Get signal-cli**: pick your computer (Windows, macOS, Linux or Docker) for the exact way, each

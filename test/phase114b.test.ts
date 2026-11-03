@@ -146,7 +146,7 @@ test('114b.2 the use choice: saved per companion, About you changes it, the setu
   assert.equal(mira.get().usePath, 'company');
   assert.equal(server2.get().usePath, undefined, 'saved in her folder, not the shared settings');
   // The page: step 1 saves it with the name, About you changes it, the chips and Today follow.
-  const app_ = web('app.js');
+  const app_ = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n');
   assert.match(app_, /body: \{ ownerName: name, timeZone: Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone, usePath: su\.path \}/);
   assert.match(app_, /\$\('#use-path'\)\.addEventListener\('change', async \(\) => \{[^]*?usePath: v[^]*?renderMessages\(\[\]\)[^]*?loadChecklist\(\)/);
   assert.match(web('index.html'), /<select id="use-path"><option value="company">[^<]+<\/option><option value="coding">[^<]+<\/option><option value="both">Both<\/option><\/select>/);
@@ -197,7 +197,7 @@ test('114b.4 F11: two columns, the whole description, the next step highlighted 
     }
   }
   assert.match(css, /#today \.today-start-list \{ grid-template-columns: minmax\(0, 1fr\); \}/, 'phone: one column');
-  assert.match(web('app.js'), /const next = left\[0\]\?\.id;[^]*?\$\{i\.id === next \? ' next' : ''\}/);
+  assert.match(['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n'), /const next = left\[0\]\?\.id;[^]*?\$\{i\.id === next \? ' next' : ''\}/);
 });
 
 test('114b.5 F3/F5/F6: Next is primary and waits for a test ping; no primary button says Skip; the picked-for-you card', () => {
@@ -208,7 +208,7 @@ test('114b.5 F3/F5/F6: Next is primary and waits for a test ping; no primary but
   assert.match(setup, /<button id="su-later" type="button" class="linkish" hidden>Skip for now<\/button>/);
   assert.match(setup, /<button id="su-next" type="button">Next<\/button>/);
   for (const id of ['su-path', 'su-model-row', 'su-status', 'su-pick-name', 'su-pick-tags', 'su-change', 'su-model-pick', 'su-subs-box', 'su-subs-tag', 'su-starters', 'su-checkin']) assert.match(setup, new RegExp(`id="${id}"`), id);
-  const app = web('app.js');
+  const app = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n');
   assert.doesNotMatch(app, /\$\('#su-next'\)\.textContent = [^;]*Skip/, 'the primary button never says Skip');
   assert.match(app, /\$\('#su-next'\)\.disabled = step === 3 && !su\.brainOk && !su\.openSubs;/);
   assert.match(app, /api\('\/model-jobs\/test', \{ method: 'POST', body: \{ job: 'quick', providerId: su\.provider, model \} \}\)/, 'a real test message');
@@ -237,7 +237,7 @@ test('114b.6 starter chips send a real message; the short tours (6 stops) are of
   }
   assert.match(offerText('coding', t), /Seven quick stops/); // PL2b: the coding tour's seventh stop (the / menu)
   assert.doesNotMatch(offerText('company', t), /one-minute/);
-  const app = web('app.js');
+  const app = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n');
   // A chip sends a real message (a coding conversation for code chips).
   assert.match(app, /async function runStarter\(c\) \{[^]*?await api\('\/conversations', \{ method: 'POST', body: \{ mode: 'coding' \} \}\)[^]*?await send\(c\.text\);/);
   // The offer waits in the queue until her first reply; the demo keeps its own start.
@@ -249,9 +249,10 @@ test('114b.6 starter chips send a real message; the short tours (6 stops) are of
   assert.match(app, /createQueue\(\{ doc: document, busy: \(\) => Boolean\(state\.setupPending\) \|\| overlayCount\(document\) > 0 \}\)/);
   assert.match(app, /initHub\(\{ demo: Boolean\(session\.demo\), openSettings, queue: firstRun \}\)/);
   // The tours: 6 stops for each width (coding: 7 since PL2b, 2.61.1: one stop for the / menu, POLISH2 N27); the 14-stop tour still in Help.
+  // PL2d: the tours moved to tours.js (one level deeper, inside makeTours); the indent is not the test.
   const block = (name: string) => app.slice(app.indexOf(`  ${name}: [`), app.indexOf('  ],', app.indexOf(`  ${name}: [`)));
   for (const name of ['company', 'coding']) {
-    const steps = [...block(name).matchAll(/^    \{ (.*) \},?$/gm)].map((m) => m[1]);
+    const steps = [...block(name).matchAll(/^ +\{ (.*) \},?$/gm)].map((m) => m[1]);
     const wide = steps.filter((s) => !/when: \(\) => phoneWidth\(\)/.test(s));
     const phone = steps.filter((s) => !/when: \(\) => !phoneWidth\(\)/.test(s));
     const stops = name === 'coding' ? 7 : 6;
@@ -274,7 +275,7 @@ test('114b.7 F2: the check-in notice folds into the last step (same text, same t
   assert.match(hub, /export function unfoldFirstRun\(\) \{[^]*?if \(st\.firstPending\) void firstRun\('dismiss'\);/);
   assert.match(hub, /if \(st\.folded\) \{\n\s*const pre = \$\('#hub-first-preview'\);/, 'Show what\'s sent stays inside the wizard');
   assert.match(hub, /if \(!st\.firstPending \|\| st\.member \|\| st\.demo \|\| !host\) return false;/, 'members and the demo: never');
-  const app = web('app.js');
+  const app = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n');
   assert.match(app, /function suStepFour\(\) \{[^]*?foldFirstRun\(\$\('#su-checkin'\)\);/);
   assert.match(app, /async function suFinish\(\) \{\n\s*await api\('\/setup\/done', \{ method: 'POST', body: \{\} \}\);\n[^]*?unfoldFirstRun\(\);/);
   // The server still blocks the first check-in until the notice was shown (Phase 113).

@@ -1,4 +1,4 @@
-// PL2a (docs/design/POLISH2.md N3): Settings → Connections → Signal as guided steps, like WhatsApp's.
+// PL2a (docs/design/POLISH2.md N3): Settings → Chat apps → Signal as guided steps, like WhatsApp's.
 // Before: the shared setup card (web/setup-card.js). Then six steps: get signal-cli (Windows, macOS,
 // Linux, or Docker), register her number or link it to your phone (the link shown as a QR code),
 // start it with the exact command for this computer (Copy), add Signal from the short consent step,

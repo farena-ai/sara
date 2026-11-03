@@ -1,4 +1,4 @@
-// Phase 96 (ST1, docs/design/STAPLES.md §4.9): Settings → Abilities → Skills. The owner and each
+// Phase 96 (ST1, docs/design/STAPLES.md §4.9): Settings → Add-ons → Skills. The owner and each
 // household member reach their own space's skills (`skills` is a member route family in
 // src/household.ts); trusting a workspace's project skills and importing a folder from the server are
 // the owner's only. The demo refuses all of it (not in DEMO_READS / DEMO_WRITES).

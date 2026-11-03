@@ -1,4 +1,4 @@
-// PL2a (docs/design/POLISH2.md N1, N5): Settings → Connections → Telegram opens on the shared setup card
+// PL2a (docs/design/POLISH2.md N1, N5): Settings → Chat apps → Telegram opens on the shared setup card
 // and three plain steps (open @BotFather, /newbot, paste the key: ✓ when Sara reached the bot), then
 // Link and Test. Every option stays where it was, folded under *More* below (ids unchanged), so the
 // first screen is the steps, not eight checkboxes.

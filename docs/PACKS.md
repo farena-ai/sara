@@ -3,7 +3,7 @@
 A companion pack is one file (`name.sara-companion.zip`) that holds a companion: her character, her
 personality dials, her look, her voice choice, her first message and a few starter skills. You can give
 one to a friend, keep one as a backup of how she was, or add one from the Sara Store
-(**Settings → Abilities → Get more → Companions**).
+(**Settings → Add-ons → Get more → Companions**).
 
 A pack never holds anything about you or your life with her: no memories, no chats, no people you told
 her about, no keys, no vault, no pictures she sent you, no cloned voice, your name or your notes.

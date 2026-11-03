@@ -199,7 +199,7 @@ test('114a.4 the guide\'s dial tables are generated (5 bands), ids unique, the L
   assert.deepEqual(twice, [], `duplicate ids in help.html: ${twice.join(', ')}`);
   assert.match(help, /<h2 id="showing-work">How she shows her work<\/h2>/);
   assert.match(help, /<h2 id="look">Her look and character<\/h2>/);
-  assert.match(web('app.js'), /'look-studio': 'look'/);
+  assert.match(['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n'), /'look-studio': 'look'/);
 });
 
 test('114a.5 all 125 sample lines, the words and meanings are translated in the 5 other languages', () => {
@@ -277,7 +277,7 @@ test('114a.6 for every dial and every value 0-10 the row shows the band\'s word,
 });
 
 test('114a.7 the app uses the dial module; work dials on Coding projects; humour and Quiet focus sample lines; layout rules', () => {
-  const app = web('app.js');
+  const app = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n');
   const html = web('index.html');
   const css = web('style.css');
   assert.match(app, /import \{ dialRows as dialRowsOf, refreshDials, soFarText \} from '\.\/dials\.js';/);
@@ -404,11 +404,11 @@ test('114a.10 B3: a moved-in persona goes through savePersona: name, memories re
   // The page: the move-in runs in the background, so her name is re-loaded when the batch is done.
   const mv = web('movein.js');
   assert.match(mv, /if \(pv\.state === 'imported'\) \{\n[^]*?if \(state\.watching\) \{\n\s*state\.watching = false;\n\s*document\.dispatchEvent\(new CustomEvent\('sara:persona-changed'\)\);/);
-  assert.match(web('app.js'), /document\.addEventListener\('sara:persona-changed', \(\) => \{[^]*?setIdentity\(pe\.persona\);[^]*?setChatTitle\(\);/, 'the sidebar label follows without a reload');
+  assert.match(['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n'), /document\.addEventListener\('sara:persona-changed', \(\) => \{[^]*?setIdentity\(pe\.persona\);[^]*?setChatTitle\(\);/, 'the sidebar label follows without a reload');
 });
 
 test('114a.11 F1 and F4: Today refreshes when the wizard closes; one model count everywhere', async () => {
-  const app = web('app.js');
+  const app = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n');
   assert.match(app, /async function suFinish\(\) \{[^]*?if \(todayOpen\(\)\) await Promise\.all\(\[loadToday\(true\), loadChecklist\(\)\]\)/, 'F1: the same call Refresh makes');
   // F4: the browser's counting rule and the server's give the same answer on a real mixed tag list.
   const tags = ['nomic-embed-text:latest', 'gemma4:12b', 'qwen3.5:9b', 'hf.co/x/Omega-27B-GGUF:Q4_K_M', 'glm-5.3:cloud', 'gpt-oss:120b-cloud', 'gemma4:31b-cloud', 'mistral-small-24b-ablit-q4ks:latest', 'cloudy:7b', 'all-minilm:latest', 'kimi-k3:cloud'];

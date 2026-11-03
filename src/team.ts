@@ -688,7 +688,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     const ctx = { workspaceDir: wsDir, signal: run.ctl.signal, sandbox: { ...app.sandbox, network: app.settings.get().shellNetwork ?? true }, conversationId: task.conversationId, companionName: app.persona.name };
     const call = async (name: string, args: Record<string, unknown>): Promise<string> => {
       const tool = app.tools.get(name);
-      if (!tool || (tool.isAvailable && !tool.isAvailable())) throw new Error(`The ${name} tool isn't available${name.startsWith('github') ? ' (connect GitHub in Settings → Abilities → GitHub)' : ''}.`);
+      if (!tool || (tool.isAvailable && !tool.isAvailable())) throw new Error(`The ${name} tool isn't available${name.startsWith('github') ? ' (connect GitHub in Settings → Coding → GitHub)' : ''}.`);
       if (app.tools.permission(name, app.settings.get().toolPermissions) === 'never') throw new Error(`The ${name} tool is switched off in Settings.`);
       this.#note(task.id, step.id, `${app.persona.name}: ${app.redactor.redact(tool.summarize(args))}`);
       const t0 = Date.now();

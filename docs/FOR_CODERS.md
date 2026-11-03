@@ -21,14 +21,14 @@ Node 24+, zero runtime dependencies, no build step. Other ways to install: [docs
    Code, Codex or Grok Build) first when you are already signed in.
 2. **Open a project:** *+ Project* in the sidebar, with a workspace folder. Start a conversation in it
    (or tap *Look at my project*, *Fix a failing test* or *Start a new project* on the last setup step).
-3. **Choose how she runs code** in *Settings → Abilities → Tools and approvals*: she asks first, and
+3. **Choose how she runs code** in *Settings → Coding → Tools and approvals*: she asks first, and
    risky commands can run in a throwaway sandbox copy first.
 4. **Ask for something real**, and watch the cards: files changed, tests passed or failed, and every
    command waiting for your **Allow**.
-5. **Connect GitHub** (*Settings → Abilities → GitHub*) for issues and pull requests.
+5. **Connect GitHub** (*Settings → Coding → GitHub*) for issues and pull requests.
 6. **Use her from your editor or terminal:** `sara-chat`, the VS Code panel, MCP for Claude Code and
    Cursor, or the OpenAI-compatible address ([clients](clients.md), [other apps](OTHER_APPS.md)).
-7. **Set a budget** (*Settings → Abilities → Budgets*) so a long task stops where you want.
+7. **Set a budget** (*Settings → Coding → Budgets*) so a long task stops where you want.
 
 ## What a coding turn looks like
 
@@ -48,15 +48,79 @@ Wrote a file ×2 · +4 more*) opens to every command and its output.
 
 <img src="screenshots/work-dials.webp" alt="Settings, Coding projects: the How she is while you code dials (Banter while working, Celebrations, Teasing about bugs) with a sample line each, Quiet when I'm focused, and the workspace picker" width="760">
 
-*Settings → Abilities → Coding projects* sets how chatty she is while working (with a sample line for
+*Settings → Coding → Coding projects* sets how chatty she is while working (with a sample line for
 each step), *Quiet when I'm focused*, and what she knows about each project.
 
-## Checks after her edits, and @-references (2.53.0)
+## Checks after her edits, and @-references (2.53)
 
 After she changes a file, your project's own `tsc`, pyright, mypy, `cargo check`, `go vet` or ESLint
 looks at it and she reads the new errors in the same reply (each project asks once; nothing is
 installed). Type `@` to hand her a file or a few lines, your changes (`@diff`), the branch, the current
 problems or a web page. Full guide: [CHECKS.md](CHECKS.md).
+
+## Long jobs: goals, repeats and steering (2.49–2.61)
+
+- **Keep going until it's done:** `/goal make the tests pass` (or *+ → Keep going until it's done…*), then
+  pick what has to pass under *Done when*: the project's tests, its build or lint, a command you type or a
+  reviewer model. She works in rounds and **Sara runs the check after each one**, not she; a red check
+  sends the real failure into the next round, and editing a test to go green ends as *done, review it*.
+  Full guide: [GOALS.md](GOALS.md).
+- **Repeats:** `/loop every 10m for 2h: check the deploy and tell me if it's red`. Every repeat has an end
+  time, a cap on checks and a daily budget, and stays quiet while nothing changes. Planner → *Repeats*
+  lists them.
+- **The limits** are three presets in *Settings → Coding → Keep going and repeats*: *Careful*, *Normal*
+  (the defaults) and *Long jobs* (20 rounds, 4 hours, 2,000,000 tokens), each spelled out in rounds, time,
+  tokens and dollars; your own numbers stay under *Fine-tune*.
+- **Steer her while she works:** what you type mid-turn offers *Tell her now* (she reads it before her
+  next step, like `/steer`), *After this* (`/queue`) or *Just asking* (`/btw`, a side answer that isn't
+  saved). The loop guard stops her when she repeats the same failing step.
+
+## Big tool sets: the short tool list and /compact (2.56)
+
+With several MCP servers she gets only the tools that fit each step (measured: a fresh install from 11,871
+to 5,471 tokens a step, with four servers from 23,476 to 5,438) and looks up the rest with *find tools*;
+every call still goes through your approvals. `/tools` shows what she has (`/tools all`, `/tools +github`).
+`/compact` (or *Tidy this chat*) folds the older part of a long chat into a summary; your last turns stay
+word for word and *Undo* brings it back. Private chats only ever use a model on this computer. Details:
+[TOOLS_AND_COMPACT.md](TOOLS_AND_COMPACT.md).
+
+## Get tools from the Store (2.57–2.61)
+
+*Settings → Add-ons → Get more* is the signed Sara Store: tool servers such as a browser (Playwright),
+GitHub, files on this computer and current docs (Context7), plus plugins and skills. A tool server's card
+shows the exact command (and its Windows form), what it needs and what it can reach; keys go to the vault
+and nothing switches on by itself. `sara pack` checks your own plugin, skill or tool server before you
+submit it. Guide: [store/SARA_STORE.md](store/SARA_STORE.md); servers over SSH: [SSH.md](SSH.md) (connect
+from a chat with one card since 2.52.1).
+
+## Commands you can type
+
+Type `/` at the start of the message box for this list; the same commands work in Telegram, Discord and the
+other chat apps ([CHATS.md](CHATS.md)). The table is generated from the app's own list.
+
+<!-- appmenu:start -->
+| Command | What it does | Who sees it in the app |
+|---|---|---|
+| `/goal` | Keep going until it’s done: a goal for this chat that only a check you pick can end | You, in your own chats |
+| `/loop` | Repeat something in this chat on a timer, until a time or a condition | You, in your own chats |
+| `/compact` | Tidy the older part of this chat into a summary (undo, show) | You, in your own chats |
+| `/tools` | Which tools she has in this chat (all, lean, +name, -name) | You, in your own chats |
+| `/when` | Reminders for when a person or topic comes up (list, add, forget) | You, in your own chats |
+| `/continue` | Pick up our chat from your other app here | You, in your own chats |
+| `/btw` | A quick side question while she works (not saved) | You and household members |
+| `/queue` | Queue a message for when she has finished | You and household members |
+| `/steer` | Tell her something now: she reads it before her next step | You and household members |
+| `/stop` | Stop her current reply | You and household members |
+| `/new` | Start a fresh session (the last one is kept) | You and household members |
+| `/reset` | Clear a stuck reply and listen again | You and household members |
+| `/status` | Model, how full this chat is, and budget | You and household members |
+| `/model` | Pick the model for this session | You, in your own chats |
+| `/remember` | Save a note in her memory | You, in your own chats |
+| `/problems` | The latest type errors in this chat’s project (check, on, off) | You, in your own chats |
+| `/help` | What you can do here | You and household members |
+| `/bug` | Report a problem to the people who make Sara | You and household members |
+| `/idea` | Suggest something to the people who make Sara | You and household members |
+<!-- appmenu:end -->
 
 ## The harness, in one list
 
@@ -69,11 +133,11 @@ problems or a web page. Full guide: [CHECKS.md](CHECKS.md).
 | Security pass, threat model and red-team mode, each with a fix branch | *Findings* | [results](RESULTS.md) |
 | Run snapshots, branch from any step, evals on your own tasks | *Show the run* under a reply, *Evals* | guide: *Show the run* |
 | Budgets she keeps (tokens, steps, dollars) | *Budgets* | guide: *Budgets for her replies* |
-| Skills, plugins, MCP servers, webhooks | *Abilities*, *Connections* | [skills](SKILLS.md), [plugins](PLUGINS.md), [webhooks](WEBHOOKS.md) |
+| Skills, plugins, MCP servers, the Store; webhooks | *Add-ons*; *Connections* | [skills](SKILLS.md), [plugins](PLUGINS.md), [webhooks](WEBHOOKS.md) |
 | Your other servers over SSH, with her own key | *Servers over SSH* | [SSH](SSH.md) |
 | Hand-off to Claude Code, Codex or Grok Build | *Subscriptions* | [choosing a model](CHOOSING_A_MODEL.md) |
 
 Every page in the app has a **How do I…?** box; the coding ones are in the list at
-[How do I…?](HOW_DO_I.md) under *Settings → Abilities*. Benchmarks, with the honest reading:
+[How do I…?](HOW_DO_I.md) under *Settings → Coding*. Benchmarks, with the honest reading:
 [RESULTS.md](RESULTS.md). The code itself: [ARCHITECTURE.md](ARCHITECTURE.md) and
 [EXTENDING.md](EXTENDING.md).

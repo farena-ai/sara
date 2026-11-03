@@ -4,7 +4,7 @@
 // round · Working / Checking… / Paused · Pause or Resume · Stop) and one per repeat (🔁 the prompt ·
 // every … · next … · n of max · Pause or Resume · Stop · Check now). The + menu opens the goal card
 // (Done when, caps, Start) or the repeat card (every, for, stop when, at night, the estimate, Start).
-// Nothing starts until he presses Start. Planner → Repeats lists every repeat; Settings → Abilities
+// Nothing starts until he presses Start. Planner → Repeats lists every repeat; Settings → Coding
 // → Keep going and repeats holds the limits. Every button has a text label; the strip is a status
 // region and announces state changes once.
 import { t } from './naming.js';
@@ -394,7 +394,7 @@ function startRepeatFromPlanner() {
   box.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-// ------------------------------------------------------------------ Settings → Abilities → Keep going and repeats
+// ------------------------------------------------------------------ Settings → Coding → Keep going and repeats
 
 const IDS = {
   'ps-g-on': ['goals', 'on'], 'ps-g-rounds': ['goals', 'rounds'], 'ps-g-minutes': ['goals', 'minutes'], 'ps-g-tokens': ['goals', 'tokens'], 'ps-g-usd': ['goals', 'usd'], 'ps-g-stuck': ['goals', 'stuckAfter'], 'ps-g-check': ['goals', 'checkMinutes'], 'ps-g-reviewer': ['goals', 'reviewer'],

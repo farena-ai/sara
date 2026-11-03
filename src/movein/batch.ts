@@ -500,7 +500,7 @@ export async function runBatch(inp: BatchInput): Promise<BatchRow> {
   for (const f of staging.all('later')) needsYou.push({ key: (f.data as { code: string }).code, count: 1, text: `${(f.data as { what: string }).what}: ${(f.data as { why: string }).why}` });
   const held = staging.counts(choices).held;
   for (const [cat, n] of Object.entries(held)) if (n && !(choices.sensitive?.[cat as 'medical'] === true)) needsYou.push({ key: `held-${cat}`, count: n, text: `${cat === 'medical' ? 'Health/medical' : 'Intimate'}: ${n} items held. Import the bundle again and say yes to bring them.` });
-  if (counts.skillsHeld) needsYou.push({ key: 'skills-held', count: counts.skillsHeld, text: `${counts.skillsHeld} skills run scripts: they are off until you check them (Settings → Abilities → Skills).`, page: 'skills' });
+  if (counts.skillsHeld) needsYou.push({ key: 'skills-held', count: counts.skillsHeld, text: `${counts.skillsHeld} skills run scripts: they are off until you check them (Settings → Add-ons → Skills).`, page: 'skills' });
   const imported: ReportLine[] = [];
   if (counts.persona) imported.push({ key: 'persona', count: 1, text: `Personality: her sheet from ${personaF?.ref.split('/').at(-1) ?? 'the persona files'}${counts.personaNotes ? `, ${counts.personaNotes} lines kept as her notes` : ''}`, page: 'her' });
   if (counts.memories) imported.push({ key: 'memories', count: counts.memories, text: `Memories: ${counts.memories}${counts.archived ? ` (${counts.archived} archived)` : ''}`, page: 'memory' });

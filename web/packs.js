@@ -419,7 +419,7 @@ function followUps(r) {
       nodes.push(box);
     } else if (f.kind === 'routine') {
       const box = el('div', 'pkp-card');
-      box.append(el('strong', '', f.title), el('p', 'muted small', f.why ?? f.pitch ?? ''), el('p', 'muted small', t('Nothing is switched on: turn it on in Settings → Abilities → Routines when you like.')));
+      box.append(el('strong', '', f.title), el('p', 'muted small', f.why ?? f.pitch ?? ''), el('p', 'muted small', t('Nothing is switched on: turn it on in Planner → Routines when you like.')));
       nodes.push(box);
     } else if (f.kind === 'suggest') nodes.push(el('p', 'small', t('She suggests {name} from the Sara Store.', { name: f.store })));
   }

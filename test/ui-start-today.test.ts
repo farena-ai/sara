@@ -22,7 +22,7 @@ test('Today by default; any link, a call being answered, the guided setup or the
 });
 
 test('boot: the last conversation is opened underneath, then Today on top (the link is read before it is cleared)', () => {
-  const app = web('app.js');
+  const app = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => web(f)).join('\n');
   assert.match(app, /import \{ startsOnToday \} from '\.\/start-view\.js';/);
   const boot = app.slice(app.indexOf('async function boot()'), app.indexOf('function setChatTitle()'));
   const decide = boot.indexOf('const onToday = startsOnToday({ hash: location.hash,');

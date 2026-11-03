@@ -15,7 +15,7 @@
 // (npm/pnpm/yarn/pip/poetry/cargo/go/gem) is looked up first; a known-vulnerable version stops
 // with a "Known vulnerability" approval card. Going on is an explicit override, recorded.
 //
-// Settings → Abilities → Coding projects → Security pass: After coding turns (default) / Only when
+// Settings → Coding → Coding projects → Security pass: After coding turns (default) / Only when
 // I ask / Off; the second look by the Reviewing model; live advisories (off by default, the
 // package list shown before switching on); the pass's token budget. Never in everyday chats.
 import { readdirSync } from 'node:fs';

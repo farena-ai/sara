@@ -130,7 +130,7 @@ test('scrapbook photos: removed photos are kept per companion (each has its own 
 });
 
 const html = readFileSync(join(ROOT, 'web', 'index.html'), 'utf8');
-const app = readFileSync(join(ROOT, 'web', 'app.js'), 'utf8');
+const app = ['app.js', 'settings-nav.js', 'tours.js', 'setup-wizard.js'].map((f) => readFileSync(join(ROOT, 'web', f), 'utf8')).join('\n');
 const nav = readFileSync(join(ROOT, 'web', 'nav.js'), 'utf8');
 
 test('sidebar: every place keeps its button id, More holds the rest, her and Settings/Help sit below', () => {

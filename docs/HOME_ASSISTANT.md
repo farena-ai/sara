@@ -9,7 +9,7 @@ Sara reads the state of your home and, with your OK, changes things (lights, swi
 covers, climate, scenes, scripts).
 
 1. In Home Assistant: your profile → **Security → Long-lived access tokens → Create token**.
-2. In Sara: **Settings → Abilities → Home Assistant**. Enter your Home Assistant address (for
+2. In Sara: **Settings → Add-ons → Home Assistant**. Enter your Home Assistant address (for
    example `http://homeassistant.local:8123` or your Nabu Casa address) and the token.
 
 The token is kept in Sara's encrypted vault. Reading states runs on its own; anything that changes
@@ -88,7 +88,7 @@ block. A speaker reads exactly the reply the conversation in Sara shows.
 
 ## 4. Presence: she notices what happens at home
 
-With direction 1 connected, **Settings → Abilities → Home Assistant → Presence** (per companion,
+With direction 1 connected, **Settings → Add-ons → Home Assistant → Presence** (per companion,
 off until you switch it on) lets her react when someone gets home or leaves (`person.…` or
 `device_tracker.…`), at bedtime (a switch or `input_boolean` turning on, or a time while someone is
 home) or when a light goes on in the morning. She says one short line of her own as a message on
