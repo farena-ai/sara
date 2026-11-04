@@ -14,14 +14,15 @@ export const foldText = (s) => String(s ?? '').toLowerCase().normalize('NFD').re
  * too). Arrays, not sentences: these are search words, never shown.
  */
 export const SETTINGS_KEYWORDS = {
+  'dh-backups': ['backup', 'backups', 'restore', 'restore backup', 'keep a copy'],
   'her-character': ['personality', 'dials', 'sliders', 'name', 'character', 'archetype'],
   'her-hey': ['hey sara', 'wake word', 'wakeword', 'push to talk', 'push-to-talk', 'talk tile', 'hands free', 'hotword'],
-  'her-voice': ['voice notes', 'tts', 'speech', 'local voice', 'kokoro', 'piper', 'hearing'],
+  'her-voice': ['voice', 'voice notes', 'tts', 'speech', 'local voice', 'kokoro', 'piper', 'hearing'],
   'her-companions': ['companion packs', 'pack', 'packs', 'share her', 'character card', 'charx', 'tavern', 'store companions'],
   'her-import': ['character card', 'import her', 'bring her'],
   'you-about': ['use path', 'company or coding', 'language', 'time zone'],
   'ab-when': ['when it comes up', 'mention', 'mentions', 'person comes up', 'remind me when'],
-  'models-default': ['compact', 'tidy long chats', 'long conversations', 'summary', 'context'],
+  'models-default': ['connect model', 'connect an ai model', 'compact', 'tidy long chats', 'long conversations', 'summary', 'context'],
   'co-telegram': ['botfather', 'bot token', 'chat app', 'chat apps', 'progress message', 'voice notes'],
   'co-discord': ['bot token', 'server', 'chat app', 'chat apps', 'progress message'],
   'co-signal': ['signal-cli', 'chat app', 'chat apps', 'daemon', 'link qr'],

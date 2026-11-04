@@ -2,6 +2,12 @@
 
 ## Common questions
 
+**How do I find a setting without browsing every page?**
+Search at the top of Settings. Results show descriptions and breadcrumbs; opening one shows just that page. **Back to results** keeps your search. Try *restore*, *voice*, *connect model* or *permissions*. Only pages available to your account and app appear.
+
+**What should I do first on Today?**
+The main button guides an owner to connect a model, then try a message. Optional setup stays collapsed until a completed first reply; expand it whenever you want. Configuration means a model is selected, not that it is currently reachable.
+
 **Is Sara a real person?**
 No. Sara is software: an AI companion. The app always shows an "AI companion" badge, repeats the
 notice regularly, and she tells you she's an AI whenever you sincerely ask. See

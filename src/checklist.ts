@@ -60,11 +60,12 @@ export function voiceWorks(app: AppContext): boolean {
   return Boolean(app.vault.get(v.tts === 'openai' ? VOICE_VAULT.openai : VOICE_VAULT.elevenlabs));
 }
 
-export function checklist(app: AppContext, input: ChecklistInput): { hidden: boolean; path: UsePath; items: ChecklistItem[] } {
+export function checklist(app: AppContext, input: ChecklistInput): { hidden: boolean; path: UsePath; items: ChecklistItem[]; readiness: { modelConfigured: boolean; firstReply: boolean } } {
   const s = app.settings.get();
   const subs = app.subscriptions;
-  const brain = Boolean(s.defaultProviderId && s.defaultModel) || Boolean(subs?.grokStatus().signedIn || subs?.claudeStatus().signedIn || subs?.chatgpt?.status().signedIn);
+  const brain = Boolean(s.defaultProviderId && s.defaultModel) || (!input.member && Boolean(subs?.grokStatus().signedIn || subs?.claudeStatus().signedIn || subs?.chatgpt?.status().signedIn));
   const talked = Boolean(app.store.db.prepare(`SELECT 1 FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.role = 'user' AND c.partner IS NULL AND ${NOT_IMPORTED} LIMIT 1`).get());
+  const firstReply = Boolean(app.store.db.prepare(`SELECT 1 FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.role = 'assistant' AND length(trim(m.content)) > 0 AND coalesce(json_extract(m.meta, '$.partial'), 0) = 0 AND json_extract(m.meta, '$.blocked') IS NULL AND c.partner IS NULL AND ${NOT_IMPORTED} LIMIT 1`).get());
   const coded = Boolean(app.store.db.prepare("SELECT 1 FROM conversations c WHERE (c.mode = 'coding' OR c.workspace != 'main') AND c.partner IS NULL LIMIT 1").get());
   const all: ChecklistItem[] = [
     { id: 'brain', label: 'Connect a brain', hint: 'The AI model she thinks with: on this computer, in the cloud, or your subscription.', done: brain, open: 'settings:models-default' },
@@ -85,5 +86,5 @@ export function checklist(app: AppContext, input: ChecklistInput): { hidden: boo
   const path = usePathOf(s.usePath);
   const byId = new Map(all.map((i) => [i.id, i]));
   const items = CHECKLIST_ORDER[path].filter((id) => !input.member || !OWNER_STEPS.includes(id)).map((id) => byId.get(id)!);
-  return { hidden: Boolean(s.checklistHidden), path, items };
+  return { hidden: Boolean(s.checklistHidden), path, items, readiness: { modelConfigured: brain, firstReply } };
 }

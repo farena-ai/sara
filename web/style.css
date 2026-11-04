@@ -808,7 +808,7 @@ dialog.ring::backdrop { background: transparent; }
 .other-note.ringing { border-color: var(--accent); }
 
 /* Phase 32: "?" tips. The text is in data-tip; hover/focus on a computer, tap to open on a phone. */
-.tip { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; min-height: 0; padding: 0; margin: 0 2px; border-radius: 50%; border: 1px solid var(--hairline-strong); background: none; color: var(--muted); font-size: 11px; font-weight: 700; line-height: 1; cursor: help; vertical-align: middle; }
+.tip { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; min-width: 28px; min-height: 28px; flex-shrink: 0; padding: 0; margin: 0 2px; border-radius: 50%; border: 1px solid var(--hairline-strong); background: none; color: var(--muted); font-size: 11px; font-weight: 700; line-height: 1; cursor: help; vertical-align: middle; }
 .tip:hover, .tip:focus-visible, .tip.open { color: var(--accent); border-color: var(--accent); }
 .tip::after { content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%); width: max-content; max-width: min(300px, 80vw); padding: 8px 10px; border-radius: 10px; background: var(--glass-strong); color: var(--text); border: 1px solid var(--hairline-strong); box-shadow: var(--shadow-2); font-size: 0.82rem; font-weight: 400; line-height: 1.4; text-align: left; white-space: pre-line; z-index: 80; opacity: 0; pointer-events: none; transition: opacity 0.12s; display: none; }
 @media (hover: hover) { .tip:hover::after { opacity: 1; } }
@@ -1047,7 +1047,7 @@ dialog.ring::backdrop { background: transparent; }
 .tip-card p:last-child { margin: 0; }
 .tip-card a { font-size: 0.8rem; color: var(--accent); }
 /* Phase 41: tours and the Help window */
-.tour-ring { position: fixed; left: var(--tour-x); top: var(--tour-y); width: var(--tour-rw); height: var(--tour-rh); border: 2px solid var(--accent); border-radius: 12px; box-shadow: 0 0 0 9999px var(--scrim-soft); pointer-events: none; z-index: 1001; transition: all 0.2s ease; }
+.tour-ring { position: fixed; left: var(--tour-x); top: var(--tour-y); width: var(--tour-rw); height: var(--tour-rh); border: 2px solid var(--accent); border-radius: 12px; box-shadow: 0 0 0 9999px var(--scrim-soft); pointer-events: none; z-index: 1001; transition: left 0.2s ease, top 0.2s ease, width 0.2s ease, height 0.2s ease; }
 .tour-card { position: fixed; left: var(--tour-x, 8px); top: var(--tour-y, 8px); width: var(--tour-w, 320px); z-index: 1002; padding: 14px 16px 12px; border-radius: 16px; background: var(--glass-strong); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); color: var(--text); border: 1px solid var(--hairline-strong); box-shadow: var(--shadow-2); }
 .tour-card strong { display: block; margin-bottom: 4px; }
 .tour-card p { margin: 0 0 10px; font-size: 0.92rem; line-height: 1.45; }
@@ -1670,3 +1670,10 @@ button.conv-see-more, button.conv-show-less { min-height: 44px; padding: 0 10px;
 }
 /* Phase 114 (§3.4): the one-line meaning under a slider. */
 .slider-means { display: block; margin-top: var(--s-1); font-weight: 400; }
+
+.settings-results { display: grid; gap: 12px; }
+.settings-result { display: grid; gap: 6px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; color: var(--text); text-decoration: none; content-visibility: auto; contain-intrinsic-size: auto 120px; overflow-wrap: anywhere; }
+.settings-result:hover { border-color: var(--accent); }
+.skip-main { position: fixed; top: 8px; left: 8px; z-index: 100; transform: translateY(-200%); padding: 12px 18px; background: var(--glass-strong); color: var(--text); border: 2px solid var(--accent); border-radius: 8px; }
+.skip-main:focus { transform: none; }
+@media (prefers-reduced-motion: reduce) { .tour-ring { transition: none; } }

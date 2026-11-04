@@ -152,6 +152,9 @@ export function openGroupOf(page) {
 }
 export function clearSettingsSearch() {
   $('.settings-pages').classList.remove('searching');
+  $('#settings-results').hidden = true;
+  $('#settings-results-back').hidden = true;
+  $('#settings-elsewhere').hidden = true;
   for (const x of document.querySelectorAll('#settings-nav-list .dim, #settings-nav-list .no-match')) x.classList.remove('dim', 'no-match');
   const keep = document.querySelector(`#settings-nav-list [data-page="${localStorage.getItem('sara.settingsPage')}"]`)?.closest('.settings-nav-group');
   for (const g of document.querySelectorAll('#settings-nav-list .settings-nav-group')) setGroupOpen(g, g === keep, false);
@@ -227,4 +230,37 @@ export function paintElsewhere(raw) {
 export function initSettingsNav(c) {
   ctx = c;
   SETTINGS_DOM_ORDER = [...document.querySelectorAll('#settings .settings-pages > .settings-page')];
+}
+
+/** Metadata only: choosing a result never dispatches a settings input/change event. */
+export function paintSettingsResults(raw, { focus = false } = {}) {
+  const pages = settingsPages();
+  const ranked = matchSettings(raw, pages);
+  for (const p of document.querySelectorAll('#settings .settings-page')) p.hidden = true;
+  const box = $('#settings-results');
+  box.replaceChildren(...ranked.map((p) => {
+    const a = el('a', 'settings-result');
+    a.href = '/' + '#' + `view=settings:${p.dataset.page}`;
+    a.dataset.result = p.dataset.page;
+    a.append(el('span', 'muted small', `${t(p.dataset.group)} › ${t(p.dataset.title)}`), el('strong', '', t(p.dataset.title)), el('span', 'muted small', t(ctx.help()[p.dataset.page]?.[0] ?? p.dataset.title)));
+    a.addEventListener('click', (e) => {
+      if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      box.dataset.last = p.dataset.page;
+      showSettingsTab(p.dataset.page, { focus: true, searchResult: true });
+      box.hidden = true;
+      $('#settings-elsewhere').hidden = true;
+      $('#settings-results-back').hidden = false;
+    });
+    return a;
+  }));
+  box.hidden = false;
+  $('#settings-results-back').hidden = true;
+  paintElsewhere(raw);
+  $('#settings-page-title').textContent = ranked.length === 1 ? t('1 page with “{q}”', { q: raw }) : t('{n} pages with “{q}”', { n: ranked.length, q: raw });
+  $('#settings-page-desc').hidden = true;
+  $('#settings-howto').replaceChildren();
+  $('#settings-empty').hidden = ranked.length > 0 || !$('#settings-elsewhere').hidden;
+  $('#settings').classList.add('page-open');
+  if (focus) (box.querySelector(`[data-result="${box.dataset.last}"]`) ?? box.querySelector('a') ?? $('#settings-search')).focus();
 }

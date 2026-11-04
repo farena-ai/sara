@@ -159,6 +159,7 @@
 
   <!-- App -->
   <section id="main" class="screen" hidden>
+    <a id="skip-main" class="skip-main" href="#chat">Skip to main content</a>
     <div id="other-note" class="other-note" role="status" hidden><span id="other-note-text"></span> <button id="other-note-go" type="button" class="small"></button> <button id="other-note-x" type="button" class="ghost small" aria-label="Dismiss"><i class="ic" data-icon="close"></i></button></div>
     <aside id="sidebar">
       <div class="side-head">
@@ -207,7 +208,7 @@
       </nav>
     </aside>
     <button id="sidebar-scrim" type="button" tabindex="-1" aria-label="Close the list"></button>
-    <main id="chat">
+    <main id="chat" tabindex="-1">
       <header id="chat-head">
         <button id="toggle-sidebar" class="ghost" aria-label="Conversations"><i class="ic" data-icon="menu"></i></button>
         <button id="her-face" class="head-face-btn" type="button" aria-label="Her mood and what she is doing now" aria-controls="her-panel" aria-expanded="false"><img class="avatar head-face" src="/sara-avatar.jpg" alt=""></button>
@@ -371,7 +372,7 @@
       </form>
       <!-- Phase 75 (stage 3): Today, the home screen. A view over the chat column (opened with show(), not
            as a window), so the sidebar, her panel and the phone's bottom bar stay usable (web/today.js). -->
-      <dialog id="today" class="today-dialog today-view" data-wired="1" aria-labelledby="td-greeting">
+      <dialog id="today" tabindex="-1" class="today-dialog today-view" data-wired="1" aria-labelledby="td-greeting">
         <div class="td-scroll">
           <!-- Phase 112 (TD2): pull to refresh (web/today.js pullTracker): the one gesture in browsers and both phone apps. -->
           <div id="td-pull" class="td-pull" aria-hidden="true"><span class="td-pull-spin"></span></div>
@@ -406,6 +407,7 @@
           <section id="td-start" class="today-start" hidden>
             <div class="today-start-head"><h3>Getting started</h3><span id="td-start-count" class="muted small"></span><button id="td-start-hide" type="button" class="ghost small">Hide</button></div>
             <div id="td-start-list" class="today-start-list"></div>
+            <details id="td-start-optional"><summary>Optional setup</summary><div id="td-start-optional-list" class="today-start-list"></div></details>
           </section>
           <!-- Phase 121 (BEGIN §4.9, §5.9): a red safety line and, while nothing runs, three routine cards. -->
           <div id="td-begin" class="td-begin" hidden></div>
@@ -1934,11 +1936,13 @@
       <div class="settings-main">
         <header class="settings-page-head">
           <button id="settings-back" type="button" class="ghost small" aria-label="All settings">‹ All settings</button>
-          <h2 id="settings-page-title"></h2>
+          <button id="settings-results-back" type="button" class="ghost small" hidden>Back to results</button>
+          <h2 id="settings-page-title" tabindex="-1"></h2>
         </header>
         <p id="settings-page-desc" class="settings-page-desc" hidden><span id="settings-help-text"></span> <a id="settings-help-link" href="/help" target="_blank" rel="noopener">Read the guide ↗</a></p>
         <div id="settings-howto" class="settings-howto"></div>
         <div class="settings-pages settings-body">
+        <div id="settings-results" class="settings-results" aria-live="polite" hidden></div>
         <div id="settings-elsewhere" class="settings-elsewhere" aria-live="polite" hidden></div>
         <section class="settings-page" data-page="her-character" data-group="Her" data-title="Name and personality" hidden>
       <div class="yours-head">

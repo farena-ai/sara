@@ -320,7 +320,9 @@ test('128a.6 N5 and N4: Telegram opens on the steps with the options under More;
 
 test('128a.7 N26: the check-in note sits in the page flow (Today or above the message box), never over it', () => {
   const html = web('index.html');
-  const chat = html.slice(html.indexOf('<main id="chat">'), html.indexOf('<form id="composer">'));
+  const chatStart = html.search(/<main\b[^>]*\bid="chat"[^>]*>/);
+  assert.ok(chatStart >= 0, 'chat main exists, with optional accessibility attributes');
+  const chat = html.slice(chatStart, html.indexOf('<form id="composer">', chatStart));
   assert.match(chat, /<div id="chat-checkin" class="checkin-slot"><\/div>\s*$/, 'right above the composer, in the flow');
   assert.match(html, /<div id="td-checkin" class="checkin-slot td-checkin"><\/div>/);
   const hub = web('hub.js');

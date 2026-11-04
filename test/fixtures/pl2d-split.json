@@ -1,18 +1,27 @@
 {
  "settings-nav.js": {
   "keys": [
+   "1 page with “{q}”",
    "Abilities",
    "Connections",
    "Elsewhere",
-   "Some {old} pages moved in 2.61.1, to {groups}."
+   "Some {old} pages moved in 2.61.1, to {groups}.",
+   "{n} pages with “{q}”"
   ],
   "ids": [
    "settings",
    "settings",
    "settings",
    "settings",
+   "settings",
+   "settings",
+   "settings-elsewhere",
+   "settings-elsewhere",
+   "settings-elsewhere",
    "settings-elsewhere",
    "settings-empty",
+   "settings-empty",
+   "settings-howto",
    "settings-nav-list",
    "settings-nav-list",
    "settings-nav-list",
@@ -22,6 +31,14 @@
    "settings-nav-list",
    "settings-nav-list",
    "settings-nav-list",
+   "settings-page-desc",
+   "settings-page-title",
+   "settings-results",
+   "settings-results",
+   "settings-results-back",
+   "settings-results-back",
+   "settings-results-back",
+   "settings-search",
    "settings-search",
    "settings-search"
   ]

@@ -11644,5 +11644,9 @@
 "Connect an AI model": "Conectar um modelo de IA",
 "preserveDefault must be a boolean": "preserveDefault deve ser um booleano",
 "Pick another model with Change, or press Cancel.": "Escolha outro modelo com Alterar ou pressione Cancelar.",
-"No execution isolation. Commands run directly on this computer.": "Sem isolamento de execução. Os comandos são executados diretamente neste computador."
+"No execution isolation. Commands run directly on this computer.": "Sem isolamento de execução. Os comandos são executados diretamente neste computador.",
+"Try a message": "Experimente uma mensagem",
+"Optional setup": "Configuração opcional",
+"Back to results": "Voltar aos resultados",
+"Skip to main content": "Pular para o conteúdo principal"
 }

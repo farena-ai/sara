@@ -3,6 +3,12 @@
 Sara was built in phases, each one released, tested and documented before the next began. Every
 version's details are in the [changelog](../CHANGELOG.md).
 
+## Quality improvements in 2.61.5
+
+Focused Settings search with descriptions, page navigation and Back to results; readiness-first
+Today with optional setup collapsed before a first reply; visible main-content skip navigation,
+larger help targets and reduced-motion tour support. Included in 2.61.5.
+
 ## Quality improvements in 2.61.4
 
 First-use recovery after skipped model setup, keyboard navigation in the mobile sidebar, and

@@ -102,3 +102,11 @@ export function createQueue({ doc, timers = globalThis, every = 1500, busy } = {
     },
   };
 }
+
+/** Configuration is not a connectivity test. No provider call is made by this decision. */
+export function todayAction(checklist, member, demo) {
+  if (!checklist?.readiness) return 'plan';
+  if (!checklist.readiness.modelConfigured && !member && !demo) return 'model';
+  if (!checklist.readiness.firstReply) return 'message';
+  return !member && !demo && normPath(checklist.path) === 'coding' && !checklist.items?.find((i) => i.id === 'project')?.done ? 'project' : 'plan';
+}

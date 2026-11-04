@@ -64,7 +64,9 @@ the app's guide (Help → *Shaping your companion*).
 
 <img src="screenshots/getting-started.webp" alt="Today: a Getting started list with seven steps such as Connect a brain, Say hello, Make Sara your own, Put her on your phone, Pick her voice, Get a morning briefing and Keep a copy somewhere else" width="760">
 
-*Today* is where she opens. Its **Getting started** list ticks itself off as you go: her voice, Sara on
+*Today* is where she opens. Its main button starts with **Connect an AI model**, then **Try a message** until a completed reply. Model configuration is not a live connection test. Before that reply, optional customization, voice and phone choices sit under **Optional setup**; expand it any time. Hiding Getting started and your saved Today layout still work.
+
+Its **Getting started** list ticks itself off as you go: her voice, Sara on
 your phone ([Your phone](PHONE.md)), a morning briefing and a backup off this server. Each card opens the
 right page with its answer ready.
 
@@ -72,6 +74,8 @@ Want her to do something on a schedule? **Planner → Routines** has ready-made 
 briefing, a reminder to stretch, a weekly review, a price watch…), each with what it costs before you
 turn it on ([Routines](ROUTINES.md)). And once you're set up, *Settings → Data & health → Safety
 check-up* tells you in plain words if anything could let someone in ([Safety check-up](SAFETY_CHECKUP.md)).
+
+Need a setting? Search at the top of Settings (for example, *backup*, *voice* or *permissions*). Results show a short description and where the page lives. Open one, then **Back to results** to keep your query. Keyboard users can use **Skip to main content** to reach Today or chat; help buttons work with Enter or Space.
 
 ## 8. Talk to her from your phone's apps
 

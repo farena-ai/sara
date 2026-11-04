@@ -54,7 +54,7 @@ import { initGetMore, initStore, loadGetMore, loadStorePrivacy } from './store.j
 import { decorateCompanionRows, initPacks } from './packs.js';
 import { loadWakePage, renderVoiceInstall, wakeEvent } from './wake.js';
 import { hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton } from './hub.js';
-import { createQueue, normPath, overlayCount, starterChips } from './first-run.js';
+import { createQueue, normPath, overlayCount, starterChips, todayAction } from './first-run.js';
 import { emptyState, initTidy, overflowMenu } from './tidy.js';
 import { howtoBlock, howtoForStep, loadHowto, mountViewHowtos } from './howto.js';
 import { rankElsewhere } from './settings-search.js';
@@ -77,7 +77,7 @@ import { closePanel, initHerPanel, openPanel, panelConv, panelFace, panelJobs, p
 import { initCommandBar, openCommandBar, score as cmdScore } from './command-bar.js';
 import { icon, paintIcons, setIcon, TOOL_ICONS } from './icons.js';
 import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, pageOf, pageSize } from './session-list.js';
-import { buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintElsewhere, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
+import { buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintElsewhere, paintSettingsResults, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
 import { closeOpenDialogs, initTours, offerFirstTour, queueTourOffer, runTour, tourFromHash } from './tours.js';
 import { initSidebar } from './sidebar.js';
 import { initSetupWizard, openModelSetup, openSetup } from './setup-wizard.js';
@@ -7330,6 +7330,7 @@ async function loadProviders() {
 function refreshModelSettings() {
   renderProviders();
   void loadModels();
+  if (todayOpen()) void loadChecklist();
 }
 $('#connect-model').addEventListener('click', async () => {
   if (isMember()) return;
@@ -7702,6 +7703,10 @@ function showSettingsHelp(page, open = '') {
 }
 
 function showSettingsTab(page, opts = {}) {
+  if (!opts.searchResult && $('#settings-search').value) {
+    $('#settings-search').value = '';
+    clearSettingsSearch();
+  }
   page = OLD_TABS[page] ?? page;
   const pages = settingsPages();
   const pick = pages.some((p) => p.dataset.page === page) ? page : pages[0].dataset.page;
@@ -7757,7 +7762,7 @@ function showSettingsTab(page, opts = {}) {
   $('#settings').classList.add('page-open'); // phone: show the page instead of the list
   $('.settings-pages').scrollTop = 0;
   localStorage.setItem('sara.settingsPage', pick);
-  if (opts.focus) $('.settings-pages').focus({ preventScroll: true });
+  if (opts.focus) $('#settings-page-title').focus({ preventScroll: true });
 }
 
 async function openSearchPlace(id) {
@@ -7777,39 +7782,11 @@ async function openSearchPlace(id) {
 }
 $('#settings-search').addEventListener('input', () => {
   const raw = $('#settings-search').value.trim();
-  const pages = settingsPages();
-  $('.settings-pages').classList.toggle('searching', Boolean(raw));
-  paintElsewhere(raw);
-  if (!raw) {
-    restoreSettingsOrder();
-    clearSettingsSearch();
-    return showSettingsTab(localStorage.getItem('sara.settingsPage') ?? 'her-character');
-  }
-  const ranked = matchSettings(raw, pages);
-  const hits = new Set(ranked);
-  // Best first: the matching pages move to the top in rank order.
-  const box = $('.settings-pages');
-  restoreSettingsOrder();
-  for (const sec of [...ranked].reverse()) box.insertBefore(sec, box.querySelector('.settings-page'));
-  for (const p of pages) p.hidden = !hits.has(p);
-  $('#settings-nav-list').classList.add('searching');
-  for (const b of document.querySelectorAll('#settings-nav-list [data-page]')) {
-    const sec = pages.find((x) => x.dataset.page === b.dataset.page);
-    b.classList.toggle('no-match', !sec || sec.hidden);
-    b.setAttribute('aria-current', 'false');
-  }
-  for (const g of document.querySelectorAll('#settings-nav-list .settings-nav-group')) {
-    const any = Boolean(g.querySelector('.settings-nav-item:not(.no-match)'));
-    g.classList.toggle('no-match', !any);
-    setGroupOpen(g, any, false);
-  }
-  const found = hits.size;
-  $('#settings-page-title').textContent = found ? (found === 1 ? t('1 page with “{q}”', { q: raw }) : t('{n} pages with “{q}”', { n: found, q: raw })) : '';
-  $('#settings-page-desc').hidden = true;
-  $('#settings-howto').replaceChildren();
-  $('#settings-empty').hidden = found > 0 || !$('#settings-elsewhere').hidden;
-  $('#settings').classList.add('page-open');
+  if (raw) return paintSettingsResults(raw);
+  clearSettingsSearch();
+  showSettingsTab(localStorage.getItem('sara.settingsPage') ?? 'her-character');
 });
+$('#settings-results-back').addEventListener('click', () => paintSettingsResults($('#settings-search').value.trim(), { focus: true }));
 $('#settings-back').addEventListener('click', () => $('#settings').classList.remove('page-open'));
 buildSettingsNav();
 
@@ -8330,13 +8307,18 @@ $('#brand-today').addEventListener('click', () => {
   closeSidebar();
   void openToday();
 });
-$('#td-refresh').addEventListener('click', () => loadToday(true));
+$('#td-refresh').addEventListener('click', () => Promise.all([loadToday(true), loadChecklist()]));
 $('#td-otd-open').addEventListener('click', () => {
   $('#today').close();
   void openMoments();
 });
+let todayNextAction = 'message';
 $('#td-ask').addEventListener('click', async () => {
-  $('#today').close();
+  closeToday({ focus: false });
+  if (todayNextAction === 'model') return void openSettings('models-default');
+  if (todayNextAction === 'project') return void openSettings('ab-projects');
+  if (todayNextAction === 'message') return void $('#input').focus();
+  if ($('#input').value.trim()) return void $('#input').focus();
   if (!state.currentId || state.conv?.offRecord) await newConversation();
   $('#input').value = t("Let's plan my day: look at my list, my calendar and anything important in my mail, and help me decide what to do first.");
   $('#input').focus();
@@ -9379,7 +9361,7 @@ setRoutinesOpener(async () => {
 });
 
 /** Phase 121: Today's *Needs you* safety line (red only) and, while nothing runs, three routine cards. */
-async function paintBegin(path) {
+async function paintBegin(path, offerRoutines = true) {
   const box = $('#td-begin');
   if (!box) return;
   const parts = [];
@@ -9392,7 +9374,7 @@ async function paintBegin(path) {
       parts.push(b);
     }
   }
-  const cards = await todayRoutineCards(path);
+  const cards = offerRoutines ? await todayRoutineCards(path) : null;
   if (cards) parts.push(cards);
   box.replaceChildren(...parts);
   box.hidden = !parts.length;
@@ -9400,7 +9382,9 @@ async function paintBegin(path) {
 
 async function loadChecklist() {
   const c = await api('/checklist').catch(() => null);
-  void paintBegin(c?.path ?? 'both');
+  todayNextAction = todayAction(c, isMember(), document.body.classList.contains('demo'));
+  $('#td-ask').textContent = todayNextAction === 'model' ? t('Connect an AI model') : todayNextAction === 'message' ? t('Try a message') : todayNextAction === 'project' ? t('Open a project') : t('Plan my day with her');
+  void paintBegin(c?.path ?? 'both', Boolean(c?.readiness?.firstReply));
   const left = c ? c.items.filter((i) => !i.done) : [];
   paintNextSteps(c);
   $('#td-start').hidden = !c || c.hidden || !left.length;
@@ -9412,8 +9396,12 @@ async function loadChecklist() {
   // Phase 114 (F11): the order follows the use choice (the server sends it); the next step stands out.
   const next = left[0]?.id;
   $('#td-start').dataset.path = c.path ?? 'both';
-  $('#td-start-list').replaceChildren(
-    ...c.items.map((i) => {
+  const primary = $('#td-start-list');
+  const optional = $('#td-start-optional-list');
+  optional.replaceChildren();
+  $('#td-start-optional').hidden = Boolean(c.readiness?.firstReply);
+  primary.replaceChildren(
+    ...c.items.filter((i) => !(i.id === 'brain' && document.body.classList.contains('demo'))).map((i) => {
       const b = el('button', `start-item${i.done ? ' done' : ''}${i.id === next ? ' next' : ''}`);
       b.dataset.step = i.id;
       b.type = 'button';
@@ -9427,8 +9415,12 @@ async function loadChecklist() {
         // Phase 114 (PL1c, §5.2 step 6): the page opens its "How do I…?" with this step's question expanded.
         if (i.open.startsWith('settings:')) await openSettings(i.open.split(':')[1], { howto: (await loadHowto(), howtoForStep(i.id))?.q ?? '' });
       });
+      if (!c.readiness?.firstReply && !['brain', 'talk', 'project'].includes(i.id)) {
+        optional.append(b);
+        return null;
+      }
       return b;
-    }),
+    }).filter(Boolean),
   );
 }
 /** Phase 128 (PL2b, N27): Next steps, three cards once Getting started is done (web/next-steps.js). */
@@ -12771,4 +12763,13 @@ $('#team-i-go').addEventListener('click', () => {
   const n = Number($('#team-i-num').value);
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !(n > 0)) return ($('#team-msg').textContent = t('Type the repository as owner/name and the issue number.'));
   void startIssue(repo, n);
+});
+
+// Required disclosures and modal focus boundaries take precedence over view navigation.
+$('#skip-main').addEventListener('click', (e) => {
+  e.preventDefault();
+  if ($('#main').hidden || document.querySelector('dialog[open]:not(#today)')) return;
+  const target = $('#today').open ? $('#today') : $('#chat');
+  if (target.inert || target.hidden) return;
+  target.focus();
 });

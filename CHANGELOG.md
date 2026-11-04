@@ -5,6 +5,15 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.61.5 (2026-11-04): focused settings and a clearer first step (Q2)
+
+- **Find the setting you need:** Settings search shows focused results with descriptions and
+  breadcrumbs. Open one page and return to your results without scrolling through whole forms.
+- **A clearer first step:** Today prioritizes connecting a model and trying a first message before
+  optional setup. Extra getting-started choices remain available without crowding the essentials.
+- **Easier by keyboard and touch:** skip to the visible main view, larger help-button targets,
+  and intentional tour transitions with reduced-motion support.
+
 ## 2.61.4 (2026-11-04): reliable setup, keyboard navigation and truthful safety status (Q1)
 
 - **Model setup recovery:** after skipping setup, Default model offers the guided connection

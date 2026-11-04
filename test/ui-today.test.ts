@@ -165,8 +165,10 @@ async function load(file: string) {
 // ---------- Today: markup ----------
 
 test('Today: a view over the chat column (not a window), old ids and deep link kept, tiles focusable', () => {
-  const chat = html.slice(html.indexOf('<main id="chat">'), html.indexOf('</main>', html.indexOf('<main id="chat">')));
-  assert.match(chat, /<dialog id="today" class="today-dialog today-view" data-wired="1"/, 'inside #chat, wired by today.js (no ✕ window)');
+  const chatStart = html.search(/<main\b[^>]*\bid="chat"[^>]*>/);
+  assert.ok(chatStart >= 0, 'chat main exists, with optional accessibility attributes');
+  const chat = html.slice(chatStart, html.indexOf('</main>', chatStart));
+  assert.match(chat, /<dialog id="today"[^>]*class="today-dialog today-view" data-wired="1"/, 'inside #chat, wired by today.js (no ✕ window)');
   for (const id of ['td-greeting', 'td-date', 'td-start', 'td-start-count', 'td-start-hide', 'td-start-list', 'td-agenda', 'td-calendar', 'td-mail', 'td-her', 'td-her-name', 'td-otd', 'td-otd-title', 'td-otd-open', 'td-dates', 'td-models', 'td-jobs', 'td-ask', 'td-refresh', 'td-status']) {
     assert.ok(chat.includes(`id="${id}"`), `kept: #${id}`);
   }
@@ -313,7 +315,7 @@ test('Today tiles: everything comes from the one batched GET /api/today; home ch
   assert.match(todayJs, /if \(!h \|\| ctx\.demo\(\) \|\| ctx\.member\(\)\) \{\n {4}tile\.hidden = true;/);
   // The checklist, the briefing ask and refresh stay on Today.
   assert.match(app, /\$\('#td-ask'\)\.addEventListener\('click'/);
-  assert.match(app, /\$\('#td-refresh'\)\.addEventListener\('click', \(\) => loadToday\(true\)\);/);
+  assert.match(app, /\$\('#td-refresh'\)\.addEventListener\('click', \(\) => Promise\.all\(\[loadToday\(true\), loadChecklist\(\)\]\)\);/);
   assert.match(app, /async function openToday\(\) \{[\s\S]*?loadChecklist\(\)/);
 });
 
