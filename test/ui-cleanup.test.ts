@@ -152,7 +152,8 @@ test('sidebar: every place keeps its button id, More holds the rest, her and Set
 
 test('settings: groups and order cover every page; page ids unchanged', () => {
   const pages = [...html.matchAll(/class="settings-page[^"]*" data-page="([\w-]+)" data-group="([^"]+)"/g)].map((m) => ({ page: m[1], group: m[2] }));
-  assert.equal(pages.length, 62); // Q3: + Data & health → Recovery; Phase 126: + Her → Hey Sara; Phase 125: + Abilities → Get more; Phase 122 part 3: + Connections → iMessage; Phase 122 part 2: + Connections → Matrix; Phase 122: + Connections → WhatsApp; Phase 121: + Data & health → Safety check-up; Phase 120: + Abilities → Check her edits; Phase 119: + Abilities → When it comes up, + Connections → Pick up across apps; Phase 118: + Abilities → Keep going and repeats; Phase 117 part B: + Connections → Email; Phase 117: + Connections → Signal; Phase 113: + Data & health → Privacy; Phase 79: + Abilities → Budgets; Phase 87: + Connections → Computer use; Phase 96: + Abilities → Skills; Phase 98: + Abilities → Plugins; Phase 100: + Connections → Other agents; Phase 102: + Connections → Webhooks; Phase 104: + Data & health → Move in from another agent
+  assert.equal(pages.length, 63); // Q4 adds Operations; Q3 added Recovery. Every existing page remains accounted for below.
+  assert.deepEqual(pages.filter(p => p.page === 'dh-operations'), [{ page: 'dh-operations', group: 'Data & health' }]);
   const order = /const SETTINGS_ORDER = \[([\s\S]*?)\];/.exec(app)![1].match(/'([\w-]+)'/g)!.map((s) => s.slice(1, -1));
   assert.deepEqual([...order].sort(), pages.map((p) => p.page).sort(), 'SETTINGS_ORDER lists every page once');
   const groups = [...(/const SETTINGS_GROUPS = \[([\s\S]*?)\];/.exec(app)![1].matchAll(/name: '([^']+)'/g))].map((m) => m[1]);

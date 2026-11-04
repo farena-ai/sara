@@ -593,3 +593,27 @@ on acknowledgment/resolution; cursor pagination preserves access to old unresolv
 This ledger does not cover plugin IPC, arbitrary tool/command effects or all platform operations.
 Discord nonce protection has a short platform window, not exactly-once semantics. Restored data
 cannot know events after its snapshot. See RECOVERY.md and Q3 crash/isolated-boot tests for bounds.
+
+## Q4 measurements and retention (2.63.1)
+
+Operations and archive are owner-only, current-space APIs; household/demo/device credentials are
+denied and liveness stays minimal. Metrics keep only fixed route/status classes, counts, bounded
+latency samples and fresh generated UUID request IDs. Caller IDs, raw URLs/queries/headers/bodies,
+conversation identities and raw exception text are not copied into request-completion logs.
+Process memory/lag include other in-process activity and are labelled accordingly. Readiness
+checks only recorded/configuration facts; they do not infer successful delivery or inference.
+
+Archive accepts a strict old UTC cutoff and capped transaction, checks eligibility at mutation,
+and never archives unresolved uncertainty or active attempts. Compaction retains original
+transport state, human resolution and logical dedup keys; backups preserve that evidence.
+Archived rows refuse executable transitions and normal unresolved views exclude them. No automatic
+purge/VACUUM runs. This is not cryptographic erasure, database size bounding or tamper-proof audit.
+Synthetic qualification fixtures have no owner-data target option and do not call external
+providers. Real incident handling still requires isolated restores and current authorization.
+
+Backup workers inherit the server's filesystem authority, not command/tool authority; they execute
+only the shipped backup core. Parent messages contain scoped paths/configuration and return only
+validated manifests/names or fixed failure codes. Canonical-root serialization and shutdown
+admission closure prevent overlapping in-process snapshots or late workers cut off by normal
+shutdown. Same-second manual backups avoid overwriting one another. Forced external termination,
+filesystem contention and offsite maintenance retain their own failure/recovery limits.

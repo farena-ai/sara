@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { createBackupAsync } from './backup-async.ts';
 // Phase 121 part B (docs/design/BEGIN.md §5, 2.54.0): the safety check-up. Seventeen read-only
 // checks over what `sara doctor`, the settings, the vault, the hooks and the owner file already know
 // (no model call, no network: the update check reads the updater's cached status), a verdict in
@@ -11,7 +13,7 @@
 import { chmodSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
-import { BACKUPS_DIR, backupName, createBackup, DEFAULT_BACKUP, listBackups } from './backup.ts';
+import { BACKUPS_DIR, backupName, DEFAULT_BACKUP, listBackups } from './backup.ts';
 import type { AppContext } from './chat.ts';
 import { runDoctor } from './doctor.ts';
 import { isOllamaDaemon } from './model-catalog.ts';
@@ -608,7 +610,7 @@ export async function applyFix(d: SafetyDeps, checkId: string, fixId: string, bo
       before[ch.key] = 'present';
       after[ch.key] = 'removed';
     } else if (ch.key === 'backup.now') {
-      createBackup(d.dataDir, join(d.dataDir, BACKUPS_DIR, backupName(new Date(now))), { saraVersion: d.version ?? 'dev', includeWorkspaces: false });
+      await createBackupAsync(d.dataDir, join(d.dataDir, BACKUPS_DIR, backupName(new Date(now)).replace('.tar.gz', `-${randomUUID()}.tar.gz`)), { saraVersion: d.version ?? 'dev', includeWorkspaces: false });
       before[ch.key] = 'none';
       after[ch.key] = 'made';
     } else {

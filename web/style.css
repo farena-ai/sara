@@ -1687,3 +1687,12 @@ button.conv-see-more, button.conv-show-less { min-height: 44px; padding: 0 10px;
 .recovery-ack { display: flex; gap: 10px; align-items: start; margin-block: 12px; }
 .recovery-ack input { flex: 0 0 auto; min-width: 28px; min-height: 28px; }
 .recovery-status { overflow-wrap: anywhere; }
+
+/* Operations and explicit archival remain readable on compact Settings pages. */
+.operations-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.operations-grid dl { display: grid; gap: 4px; }
+.operations-grid dd { margin: 0 0 12px; overflow-wrap: anywhere; }
+.operations-grid > p { grid-column: 1 / -1; }
+.archive-controls input { width: 100%; min-width: 0; font-family: monospace; }
+.archive-controls label { display: grid; gap: 8px; }
+.operations-status { overflow-wrap: anywhere; }

@@ -1,8 +1,12 @@
+import { randomUUID } from 'node:crypto';
+import { createBackupAsync } from '../backup-async.ts';
+
+const activeBackupFiles = new Set<string>();
 // Admin: settings, backups, logs, doctor, status, health history, updates, access, desktop apps, safety stats, search, tools, MCP, checklist.
 // Moved from src/server.ts unchanged (wave 3); shared state comes from the RouteCtx (src/routes/context.ts).
 import { createReadStream, existsSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { backupName, BACKUPS_DIR, createBackup, DEFAULT_BACKUP, listBackups } from '../backup.ts';
+import { backupName, BACKUPS_DIR, DEFAULT_BACKUP, listBackups } from '../backup.ts';
 import { HISTORY_BUDGET_CHARS } from '../chat.ts';
 import { checklist } from '../checklist.ts';
 import { appMenu } from '../bridges/commands.ts';
@@ -410,9 +414,15 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, { ...cfg(), backups: listBackups(rootDir) });
       }
       if (!b && method === 'POST') {
-        const name = backupName(app.now());
-        const m = createBackup(rootDir, join(rootDir, BACKUPS_DIR, name), { saraVersion: opts.info?.version, now: app.now() });
-        return send(res, 200, { name, files: m.files, backups: listBackups(rootDir) });
+        const base = backupName(app.now());
+        const name = existsSync(join(rootDir, BACKUPS_DIR, base)) || activeBackupFiles.has(join(rootDir, BACKUPS_DIR, base))
+          ? base.replace('.tar.gz', `-${randomUUID()}.tar.gz`) : base;
+        const file = join(rootDir, BACKUPS_DIR, name);
+        activeBackupFiles.add(file);
+        try {
+          const m = await createBackupAsync(rootDir, file, { saraVersion: opts.info?.version, now: app.now() });
+          return send(res, 200, { name, files: m.files, backups: listBackups(rootDir) });
+        } finally { activeBackupFiles.delete(file); }
       }
       if (b && method === 'GET') {
         const item = listBackups(rootDir).find((x) => x.name === b);

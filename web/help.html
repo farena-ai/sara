@@ -107,6 +107,11 @@
 <p>Step 1 of the setup asks what you will mostly do with her: <em>Company</em>, <em>Coding</em> or <em>Both</em>. It only changes what you see first (the order of <em>Getting started</em> on <em>Today</em>, the short tour offered after her first reply and the starter chips in an empty chat); every feature stays available. Change it in <em>Settings → You → About you</em>.</p>
 <p>The <em>Today</em> page has a <em>Getting started</em> list that ticks itself off as you go, with the next step highlighted. For company it runs from saying hello to her voice, your phone and a morning briefing; for coding from opening a project to tools and approvals, GitHub, your editor and budgets.</p>
 
+<h2 id="operations">Operations</h2>
+<p>Current server only. HTTP response measurements do not measure model reply latency.</p>
+<p>A configured model is not proof of a successful reply. A backup does not prove recovery.</p>
+<p>Record totals include finished history. State counts show queued and running work; delivery records can include archived evidence.</p>
+<p>RSS and event-loop lag are process-wide, including other spaces and HTTP servers in this process. They are not current-space usage.</p>
 <h2 id="recovery">Recovering interrupted work</h2>
 <p>Open <em>Settings → Data &amp; health → Recovery</em>. Interrupted jobs offer <em>Review restart</em>: inspect the original request, copy it, or put it in an empty chat before you choose Send. This restarts the request from the beginning; previous effects may already have happened. Current safety checks and approvals still apply.</p>
 <p>Teams stay held after a restart. Review unfinished work before explicitly resuming; completed parts remain complete. A current privacy or safety hold may refuse recovery. Chat goals retain their existing paused/resume flow.</p>
@@ -345,6 +350,7 @@
 <details class="howto-q" id="howto-dh-recovery-job"><summary>How do I review an interrupted job?</summary><ol><li>Choose Review restart and read the preview before doing anything else.</li><li>Copy it, or use it in the same empty chat; an existing draft is kept.</li><li>Choose Send yourself. Earlier effects may repeat; current checks and approvals still apply.</li></ol></details>
 <details class="howto-q" id="howto-dh-recovery-team"><summary>How do I resume an interrupted team?</summary><ol><li>Check the unfinished step and its receipts; it may already have changed something.</li><li>Choose Resume team and acknowledge the risk before resuming. Completed steps are kept.</li></ol></details>
 <details class="howto-q" id="howto-dh-recovery-delivery"><summary>How do I check an uncertain delivery?</summary><ol><li>Use Unresolved or All history, then Load more deliveries to reach older records.</li><li>Check the destination first. Unknown messages may have arrived; live queued messages may still send.</li><li>Record only what you confirmed. Human resolution is separate from platform acknowledgment; this page never resends.</li></ol></details>
+<details class="howto-q" id="howto-dh-recovery-archive"><summary>How do I archive old delivery evidence?</summary><ol><li>Enter an explicit UTC cutoff in Recovery. Preview the eligible records first.</li><li>Confirm one batch of up to 500 records. Keep the same cutoff for further batches.</li><li>Use Archived to view retained evidence. Unresolved outcomes and deduplication identity are preserved.</li></ol></details>
 <h4 id="howto-dh-health">Health</h4>
 <details class="howto-q" id="howto-dh-health-check"><summary>How do I check everything works?</summary><ol><li>Press Run full check.</li><li>Fix anything marked red with its button.</li></ol></details>
 <details class="howto-q" id="howto-dh-health-runs"><summary>How do I clear old run history?</summary><ol><li>Pick how long to Keep runs.</li><li>Or press Delete run history.</li></ol></details>
@@ -372,6 +378,9 @@
 <h4 id="howto-dh-reports">Reports</h4>
 <details class="howto-q" id="howto-dh-reports-report"><summary>How do I report a problem?</summary><ol><li>Press Report a problem.</li><li>Say what happened; add diagnostics if you like.</li><li>Press Send.</li></ol></details>
 <details class="howto-q" id="howto-dh-reports-status"><summary>How do I see what happened to my report?</summary><ol><li>Each report shows its status and replies here.</li></ol></details>
+<h4 id="howto-dh-operations">Operations</h4>
+<details class="howto-q" id="howto-dh-operations-measurements"><summary>How do I check local operations?</summary><ol><li>Open Operations and press Refresh operations.</li><li>Read the measurement window and sample count. HTTP timings are not model reply timings.</li><li>A configured model and a saved backup do not prove inference or recovery.</li></ol></details>
+<details class="howto-q" id="howto-dh-operations-active-work"><summary>How do I tell active work from historical records?</summary><ol><li>Record totals include finished history. State counts show queued and running work; delivery records can include archived evidence.</li><li>RSS and event-loop lag are process-wide, including other spaces and HTTP servers in this process. They are not current-space usage.</li></ol></details>
 <h3>Household</h3>
 <h4 id="howto-household">People on this server</h4>
 <details class="howto-q" id="howto-household-invite"><summary>How do I invite someone?</summary><ol><li>Type their name under Invite someone.</li><li>Press Make invite, then Copy link and send it.</li></ol></details>

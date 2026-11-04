@@ -1,3 +1,4 @@
+import { asyncAutoBackupTick, beginBackupShutdown } from './backup-async.ts';
 // Entry point: `node src/main.ts`. Admin flags (the `sara` command on each system wraps them):
 //   --version · --status · --doctor · --backup [file] · --restore <file> · --reset-token
 //   --tailscale-status (JSON, for the installers' "How will you reach her?" question)
@@ -66,7 +67,7 @@ import { ApnsSender } from './apns.ts';
 import { PushService } from './push.ts';
 import { ReportStore } from './reports.ts';
 import { Subscriptions } from './subscriptions/index.ts';
-import { autoBackupTick, BACKUPS_DIR, backupName, createBackup, DEFAULT_BACKUP, restoreBackup } from './backup.ts';
+import { BACKUPS_DIR, backupName, createBackup, DEFAULT_BACKUP, restoreBackup } from './backup.ts';
 import { appInfo } from './health.ts';
 import { DiscordBridge } from './bridges/discord.ts';
 import { McpManager } from './tools/mcp.ts';
@@ -1284,35 +1285,39 @@ if (companions.all().length > 1) console.log(`Companions: ${companions.all().map
 // Notifications: every companion's messages and calls, named after the one who sent them.
 notifyFrom(ownerSpace);
 
-function backupTick(): void {
-  // The demo server keeps nothing worth backing up (visitors are in memory only).
-  if (isDemo) return;
-  try {
-    const name = autoBackupTick(dataDir, { ...DEFAULT_BACKUP, ...settings.get().backup }, new Date(), info.version);
-    if (name) {
-      console.log(`Automatic backup: ${name}`);
-      void copyOffsite(mainApp, join(dataDir, BACKUPS_DIR, name)).then(
-        (r) => r && console.log(`Off-server copy: ${r}`),
-        (err: Error) => console.warn(`Off-server copy failed: ${err.message}`),
-      );
-    }
-  } catch (err) {
-    console.warn(`Automatic backup failed: ${(err as Error).message}`);
-  }
-  // Phase 30: once a week, prove the newest off-server copy really restores (temporary folder).
-  if (offsiteTestDue(mainApp)) {
-    void testOffsite(mainApp).then((r) => (r.ok ? console.log(`Off-server test restore: ok (${r.name}: ${r.detail})`) : console.warn(`Off-server test restore failed: ${r.error}`)));
-  }
-  // Phase 121: hidden secrets' 30-day originals expire; the weekly quiet safety check (Backup check
-  // routine) runs here, on this same hourly timer (no new timer), and speaks only when a check got worse.
-  sweepUndo(mainApp);
-  const deps = (mainApp as AppContext & { safetyDeps?: () => SafetyDeps }).safetyDeps?.();
-  if (deps) void weeklySafetyTick(deps).catch((err: Error) => console.warn(`Weekly safety check failed: ${err.message}`));
+let backupTickRunning: Promise<void> | undefined;
+function backupTick(): Promise<void> {
+  if (isDemo || shuttingDown) return Promise.resolve();
+  if (backupTickRunning) return backupTickRunning;
+  backupTickRunning = (async () => {
+    try {
+      const name = await asyncAutoBackupTick(dataDir, { ...DEFAULT_BACKUP, ...settings.get().backup }, new Date(), info.version);
+      if (name) {
+        console.log(`Automatic backup: ${name}`);
+        try {
+          const copied = await copyOffsite(mainApp, join(dataDir, BACKUPS_DIR, name));
+          if (copied) console.log(`Off-server copy: ${copied}`);
+        } catch (err) { console.warn(`Off-server copy failed: ${(err as Error).message}`); }
+      }
+    } catch (err) { console.warn(`Automatic backup failed: ${(err as Error).message}`); }
+    // Reuse the hourly maintenance tick; await offsite work so ticks never overlap it.
+    try {
+      if (offsiteTestDue(mainApp)) {
+        const r = await testOffsite(mainApp);
+        if (r.ok) console.log(`Off-server test restore: ok (${r.name}: ${r.detail})`);
+        else console.warn(`Off-server test restore failed: ${r.error}`);
+      }
+      sweepUndo(mainApp);
+      const deps = (mainApp as AppContext & { safetyDeps?: () => SafetyDeps }).safetyDeps?.();
+      if (deps) await weeklySafetyTick(deps);
+    } catch (err) { console.warn(`Backup maintenance failed: ${(err as Error).message}`); }
+  })().finally(() => { backupTickRunning = undefined; });
+  return backupTickRunning;
 }
 // Checked hourly (and 2 minutes after start); a backup is made when the last one is a day old.
-const backupTimer = setInterval(() => guard('backup', backupTick), 3600_000);
+const backupTimer = setInterval(() => void backupTick(), 3600_000);
 backupTimer.unref();
-setTimeout(() => guard('backup', backupTick), 120_000).unref();
+setTimeout(() => void backupTick(), 120_000).unref();
 
 // Phase 71: removed members' spaces are deleted when their download window is over.
 function householdSweep(): void {
@@ -1477,11 +1482,13 @@ async function shutdown(): Promise<void> {
   healthHistory?.stop();
   hubPinger?.stop();
   clearInterval(backupTimer);
+  await backupTickRunning;
   bridges?.telegram?.stop();
   bridges?.discord?.stop();
   mcp.stopAll();
   storeClient?.stop();
   await pluginManager?.stopAll().catch(() => {});
+  await beginBackupShutdown();
   server.close(() => {
     for (const c of companions.all()) c.app.store.close();
     for (const sp of memberSpaces.values()) for (const c of sp.companions.all()) c.app.store.close();

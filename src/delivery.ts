@@ -28,6 +28,7 @@ export interface DeliveryView {
   updatedAt: string;
   resolution?: DeliveryResolution;
   resolvedAt?: string;
+  archivedAt?: string;
   reviewAvailable: boolean;
   held: boolean;
 }
@@ -43,6 +44,7 @@ interface Row {
   held: number;
   resolution: DeliveryResolution | null;
   resolved_at: string | null;
+  archived_at: string | null;
 }
 export class DeliveryError extends Error {
   readonly status: number;
@@ -81,12 +83,14 @@ export class DeliveryStore {
       CREATE INDEX IF NOT EXISTS deliveries_updated ON deliveries(updated_at);`);
     const columns = db.prepare('PRAGMA table_info(deliveries)').all() as unknown as { name: string }[];
     if (!columns.some(column => column.name === 'held')) db.exec('ALTER TABLE deliveries ADD COLUMN held INTEGER NOT NULL DEFAULT 0');
+    if (!columns.some(column => column.name === 'archived_at')) db.exec('ALTER TABLE deliveries ADD COLUMN archived_at TEXT');
+    db.exec('CREATE INDEX IF NOT EXISTS deliveries_archived ON deliveries(archived_at,updated_at)');
     this.recoverInterrupted();
   }
 
   recoverInterrupted(): void {
-    this.db.prepare("UPDATE deliveries SET held=1 WHERE state='queued'").run();
-    this.db.prepare("UPDATE deliveries SET state='outcome_unknown', reason='interrupted', updated_at=? WHERE state='attempted'").run(new Date().toISOString());
+    this.db.prepare("UPDATE deliveries SET held=1 WHERE state='queued' AND archived_at IS NULL").run();
+    this.db.prepare("UPDATE deliveries SET state='outcome_unknown', reason='interrupted', updated_at=? WHERE state='attempted' AND archived_at IS NULL").run(new Date().toISOString());
   }
 
   #context(id: string): string {
@@ -134,14 +138,14 @@ export class DeliveryStore {
 
   #transition(id: string, from: DeliveryState[], state: DeliveryState, reason?: string): void {
     this.#row(id);
-    const r = this.db.prepare(`UPDATE deliveries SET state=?,updated_at=?,reason=? WHERE id=? AND state IN (${from.map(() => '?').join(',')}) AND resolution IS NULL`)
+    const r = this.db.prepare(`UPDATE deliveries SET state=?,updated_at=?,reason=? WHERE id=? AND state IN (${from.map(() => '?').join(',')}) AND resolution IS NULL AND archived_at IS NULL`)
       .run(state, new Date().toISOString(), reason ?? null, id, ...from);
     if (!r.changes) throw new DeliveryError(409, 'Delivery state changed');
   }
 
   attempt(id: string): void {
     this.#row(id);
-    const r = this.db.prepare("UPDATE deliveries SET state='attempted',attempts=attempts+1,updated_at=? WHERE id=? AND state='queued' AND held=0 AND resolution IS NULL")
+    const r = this.db.prepare("UPDATE deliveries SET state='attempted',attempts=attempts+1,updated_at=? WHERE id=? AND state='queued' AND held=0 AND resolution IS NULL AND archived_at IS NULL")
       .run(new Date().toISOString(), id);
     if (!r.changes) throw new DeliveryError(409, 'Delivery is held or already attempted');
   }
@@ -155,7 +159,7 @@ export class DeliveryStore {
     if (!Array.isArray(refs) || refs.length < 1 || refs.length > 10 || refs.some(r => typeof r !== 'string' || !/^\d{1,24}$/.test(r) || /^0+$/.test(r))) {
       throw new DeliveryError(400, 'Invalid platform acknowledgment');
     }
-    const r = this.db.prepare("UPDATE deliveries SET state='acknowledged',refs=?,payload=NULL,updated_at=? WHERE id=? AND state='attempted' AND resolution IS NULL")
+    const r = this.db.prepare("UPDATE deliveries SET state='acknowledged',refs=?,payload=NULL,updated_at=? WHERE id=? AND state='attempted' AND resolution IS NULL AND archived_at IS NULL")
       .run(JSON.stringify(refs), new Date().toISOString(), row.id);
     if (!r.changes) throw new DeliveryError(409, 'Delivery state changed');
   }
@@ -170,26 +174,28 @@ export class DeliveryStore {
 
   list(limit = 100): DeliveryView[] {
     const n = Number.isSafeInteger(limit) ? Math.max(1, Math.min(200, limit)) : 100;
-    const rows = this.db.prepare("SELECT id,bridge,operation,state,attempts,created_at,updated_at,payload IS NOT NULL AS has_payload,resolution,resolved_at,held FROM deliveries ORDER BY (resolution IS NULL AND state!='acknowledged') DESC,updated_at DESC,id DESC LIMIT ?")
+    const rows = this.db.prepare("SELECT id,bridge,operation,state,attempts,created_at,updated_at,payload IS NOT NULL AS has_payload,resolution,resolved_at,held,archived_at FROM deliveries WHERE archived_at IS NULL ORDER BY (resolution IS NULL AND state!='acknowledged') DESC,updated_at DESC,id DESC LIMIT ?")
       .all(n) as unknown as (Row & { has_payload: number })[];
     return rows.map(r => ({
       id: r.id, bridge: r.bridge, operation: this.#scrub(r.operation), state: r.state, attempts: r.attempts,
       createdAt: r.created_at, updatedAt: r.updated_at, reviewAvailable: Boolean(r.has_payload), held: r.state === 'queued' && Boolean(r.held),
       ...(r.resolution ? { resolution: r.resolution, resolvedAt: r.resolved_at! } : {}),
+      ...(r.archived_at ? { archivedAt: r.archived_at } : {}),
     }));
   }
 
   /** Stable keyset paging: resolving a loaded row cannot shift the remaining page boundary. */
-  page(options: { filter?: 'unresolved' | 'all'; cursor?: string; limit?: number } = {}): { deliveries: DeliveryView[]; nextCursor: string | null } {
+  page(options: { filter?: 'unresolved' | 'all' | 'archived'; cursor?: string; limit?: number } = {}): { deliveries: DeliveryView[]; nextCursor: string | null } {
     const filter = options.filter ?? 'unresolved';
-    if (filter !== 'unresolved' && filter !== 'all') throw new DeliveryError(400, 'Invalid delivery filter');
+    if (filter !== 'unresolved' && filter !== 'all' && filter !== 'archived') throw new DeliveryError(400, 'Invalid delivery filter');
     if (options.cursor !== undefined && (!/^[1-9][0-9]{0,15}$/.test(options.cursor) || !Number.isSafeInteger(Number(options.cursor)))) {
       throw new DeliveryError(400, 'Invalid delivery cursor');
     }
     const limit = options.limit ?? 100;
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200) throw new DeliveryError(400, 'Invalid delivery limit');
-    const condition = filter === 'unresolved' ? "AND resolution IS NULL AND state!='acknowledged'" : '';
-    const rows = this.db.prepare(`SELECT rowid AS cursor,id,bridge,operation,state,attempts,created_at,updated_at,payload IS NOT NULL AS has_payload,resolution,resolved_at,held
+    const condition = filter === 'archived' ? 'AND archived_at IS NOT NULL' :
+      `AND archived_at IS NULL ${filter === 'unresolved' ? "AND resolution IS NULL AND state!='acknowledged'" : ''}`;
+    const rows = this.db.prepare(`SELECT rowid AS cursor,id,bridge,operation,state,attempts,created_at,updated_at,payload IS NOT NULL AS has_payload,resolution,resolved_at,held,archived_at
       FROM deliveries WHERE rowid>? ${condition} ORDER BY rowid ASC LIMIT ?`)
       .all(Number(options.cursor ?? 0), limit + 1) as unknown as (Row & { has_payload: number; cursor: number })[];
     const selected = rows.slice(0, limit);
@@ -198,14 +204,53 @@ export class DeliveryStore {
         id: r.id, bridge: r.bridge, operation: this.#scrub(r.operation), state: r.state, attempts: r.attempts,
         createdAt: r.created_at, updatedAt: r.updated_at, reviewAvailable: Boolean(r.has_payload), held: r.state === 'queued' && Boolean(r.held),
         ...(r.resolution ? { resolution: r.resolution, resolvedAt: r.resolved_at! } : {}),
+        ...(r.archived_at ? { archivedAt: r.archived_at } : {}),
       })),
       nextCursor: rows.length > limit ? String(selected.at(-1)!.cursor) : null,
     };
   }
 
+  #cutoff(before: string): void {
+    if (typeof before !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(before) ||
+      !Number.isFinite(Date.parse(before)) || new Date(before).toISOString() !== before || Date.parse(before) > Date.now()) {
+      throw new DeliveryError(400, 'Invalid archive cutoff');
+    }
+  }
+
+  #eligible(): string {
+    // Both transport and human evidence must be old. Never compact active queue work.
+    return `archived_at IS NULL AND payload IS NULL AND state!='attempted'
+      AND (state!='queued' OR held=1) AND updated_at<?
+      AND (state='acknowledged' OR resolution IN ('confirmed_received','confirmed_not_received','dismissed'))
+      AND (resolution IS NULL OR resolved_at<?)`;
+  }
+
+  archivePreview(before: string): { eligible: number } {
+    this.#cutoff(before);
+    const row = this.db.prepare(`SELECT COUNT(*) AS eligible FROM deliveries WHERE ${this.#eligible()}`).get(before, before)!;
+    return { eligible: Number(row.eligible) };
+  }
+
+  archive(before: string, limit = 500): { archived: number; remaining: number } {
+    this.#cutoff(before);
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500) throw new DeliveryError(400, 'Invalid archive limit');
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const result = this.db.prepare(`UPDATE deliveries SET archived_at=?,destination='',refs=NULL,reason=NULL
+        WHERE rowid IN (SELECT rowid FROM deliveries WHERE ${this.#eligible()} ORDER BY rowid LIMIT ?)
+        AND ${this.#eligible()}`).run(new Date().toISOString(), before, before, limit, before, before);
+      const remaining = this.archivePreview(before).eligible;
+      this.db.exec('COMMIT');
+      return { archived: Number(result.changes), remaining };
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
   review(id: string): DeliveryReview {
     const r = this.#row(id);
-    if (!r.payload) throw new DeliveryError(409, 'Delivery review is unavailable');
+    if (r.archived_at || !r.payload) throw new DeliveryError(409, 'Delivery review is unavailable');
     try {
       return this.#review(JSON.parse(this.#vault.unseal(r.payload, this.#context(id))) as DeliveryReview);
     } catch {
@@ -219,7 +264,7 @@ export class DeliveryStore {
     if (row.state === 'queued' && !row.held) throw new DeliveryError(409, 'Delivery is still queued to send');
     if (expectedState === 'attempted') throw new DeliveryError(409, 'Delivery is still in flight');
     // Human evidence never rewrites the transport outcome; resolved content no longer needs retention.
-    const r = this.db.prepare("UPDATE deliveries SET resolution=?,resolved_at=?,payload=NULL WHERE id=? AND state=? AND resolution IS NULL AND (state!='queued' OR held=1)")
+    const r = this.db.prepare("UPDATE deliveries SET resolution=?,resolved_at=?,payload=NULL WHERE id=? AND state=? AND resolution IS NULL AND (state!='queued' OR held=1) AND archived_at IS NULL")
       .run(decision, new Date().toISOString(), id, expectedState);
     if (!r.changes) throw new DeliveryError(409, 'Delivery state changed');
   }

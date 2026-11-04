@@ -14,7 +14,7 @@ em um só app para a web, Windows, Mac e celular.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1957%20passing-brightgreen" alt="1957 tests passing">
+  <img src="https://img.shields.io/badge/tests-1994%20passing-brightgreen" alt="1994 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -33,11 +33,13 @@ em um só app para a web, Windows, Mac e celular.
   <a href="docs/FOR_CODERS.md"><img src="https://img.shields.io/badge/Vim%20para%20programar-6E4BD8?style=for-the-badge" alt="Vim para programar" height="34"></a>
 </p>
 
-> **Status:** 2.62.0, licença MIT, com setenta e três versões com novos recursos desde a 1.0 (todas abaixo). Da
+> **Status:** 2.63.1, licença MIT, com setenta e quatro versões com novos recursos desde a 1.0 (todas abaixo). Da
 > 2.5 à 2.8 o app inteiro ganhou um visual novo. O
 > [app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) está no Google
 > Play; o app de iPhone e a versão da Mac App Store chegam assim que a Apple aprovar. Leia
 > [docs/DISCLOSURES.md](docs/DISCLOSURES.md) antes de usar ou compartilhar a Sara.
+
+**Operação com evidências:** métricas HTTP e de preparação somente para o proprietário, arquivamento seguro de entregas resolvidas e testes locais repetíveis de carga e navegador. [Operação](docs/OPERATIONS.md).
 
 **Recuperar trabalho interrompido:** Configurações → Dados e estado → Recuperação mantém pedidos de reinício para revisão e resultados incertos dos envios nativos de Telegram/Discord. Nada é repetido às cegas na inicialização; privacidade e aprovações atuais continuam valendo. [Guia de recuperação](docs/RECOVERY.md).
 

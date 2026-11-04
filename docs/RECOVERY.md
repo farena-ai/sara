@@ -81,3 +81,17 @@ that snapshot was taken. See [moving/backup guidance](MOVING.md).
 Q3 qualification includes local stand-in transport crash tests and a restored production-entry-point
 boot with networking blocked. These fixture measurements are not an enterprise recovery-time or
 power-loss durability certificate. Device/account and physical usability acceptance remain separate.
+
+## Archive resolved history
+
+In Recovery, **Archive old deliveries** requires an explicit canonical UTC cutoff, a non-mutating
+preview and a confirmed batch of at most 500. Only acknowledged or human-resolved old records with
+no review payload qualify. Both transport and human-resolution evidence must predate the cutoff.
+Unresolved uncertainty, held/failed records without resolution, live queued work and attempts are
+protected. Editing the cutoff invalidates its preview; server eligibility is checked again.
+
+**Archived** shows minimal historical evidence; **All** shows unarchived history. Archive clears
+destination/platform-reference/reason details but retains identities, logical keys, original state,
+attempts, dates and human decisions. It never retries, deletes rows or shrinks the database.
+Deduplication and encrypted unresolved reviews survive backup/restore. No automatic cleanup runs.
+For measurements, maintenance and a synthetic incident drill, see [Operations](OPERATIONS.md).

@@ -94,7 +94,7 @@ and **Settings → Her → Hey Sara** in the Windows app, to say her name and ta
 
 <img src="screenshots/howto.webp" alt="The How do I…? box at the top of a Settings page, open: questions such as How do I change her name? with numbered steps and a Show me button" width="760">
 
-- Every page has a **How do I…?** box at the top, with numbered steps and a **Show me** button. All 171
+- Every page has a **How do I…?** box at the top, with numbered steps and a **Show me** button. All 174
   answers in one list: [How do I…?](HOW_DO_I.md).
 - Every setting has a **?** with an example; or simply ask her how something works.
 - [Questions and answers](FAQ.md), the [how-to videos](VIDEOS.md), and

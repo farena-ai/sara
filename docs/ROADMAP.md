@@ -3,6 +3,12 @@
 Sara was built in phases, each one released, tested and documented before the next began. Every
 version's details are in the [changelog](../CHANGELOG.md).
 
+## Operations and retention in 2.63.1
+
+Owner-only HTTP/readiness measurements, explicit safe resolved-delivery archival and repeatable
+synthetic workload/browser/recovery checks. No background purge or automatic resend; unresolved
+records and deduplication identities remain. See [Operations](OPERATIONS.md).
+
 ## Recovery improvements in 2.62.0
 
 Durable encrypted job review, explicitly held team recovery and native Telegram/Discord delivery

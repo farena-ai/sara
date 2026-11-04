@@ -290,9 +290,15 @@ export function listBackups(dataDir: string): { name: string; size: number; crea
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter((n) => /^sara-[\w-]+\.tar\.gz$/.test(n))
-    .map((name) => {
-      const st = statSync(join(dir, name));
-      return { name, size: st.size, createdAt: st.mtime.toISOString() };
+    .flatMap((name) => {
+      try {
+        const st = statSync(join(dir, name));
+        return [{ name, size: st.size, createdAt: st.mtime.toISOString() }];
+      } catch (err) {
+        // Automatic retention can remove an archive after enumeration in another thread.
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
+        throw err;
+      }
     })
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }

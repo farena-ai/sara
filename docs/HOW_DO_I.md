@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 171 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 174 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -961,6 +961,12 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Check the destination first. Unknown messages may have arrived; live queued messages may still send.
 3. Record only what you confirmed. Human resolution is separate from platform acknowledgment; this page never resends.
 
+**How do I archive old delivery evidence?**
+
+1. Enter an explicit UTC cutoff in Recovery. Preview the eligible records first.
+2. Confirm one batch of up to 500 records. Keep the same cutoff for further batches.
+3. Use Archived to view retained evidence. Unresolved outcomes and deduplication identity are preserved.
+
 ### Health
 
 **How do I check everything works?**
@@ -1067,6 +1073,19 @@ them in one place. In the app, open the box and press **Show me** to see the con
 **How do I see what happened to my report?**
 
 1. Each report shows its status and replies here.
+
+### Operations
+
+**How do I check local operations?**
+
+1. Open Operations and press Refresh operations.
+2. Read the measurement window and sample count. HTTP timings are not model reply timings.
+3. A configured model and a saved backup do not prove inference or recovery.
+
+**How do I tell active work from historical records?**
+
+1. Record totals include finished history. State counts show queued and running work; delivery records can include archived evidence.
+2. RSS and event-loop lag are process-wide, including other spaces and HTTP servers in this process. They are not current-space usage.
 
 ## Settings → Household
 

@@ -47,8 +47,10 @@ test('128b.1 N29: every page id in SETTINGS_ORDER is in exactly one group; 8 gro
     byGroup.set(s.group, [...(byGroup.get(s.group) ?? []), s.id]);
   }
   // The retired Recipes page and the member-only account page aren't in the owner's list.
-  // Q3 intentionally adds Recovery to Data & health; unrelated groups retain the ten-page cap.
-  for (const [g, ids] of byGroup) assert.ok(ids.filter((x) => x !== 'ab-recipes' && x !== 'account').length <= (g === 'Data & health' ? 11 : 10), `${g}: ${ids.length} pages`);
+  // Q3 adds Recovery and Q4 adds Operations; unrelated groups retain the ten-page cap.
+  assert.equal(byGroup.get('Data & health')?.length, 12);
+  assert.ok(byGroup.get('Data & health')?.includes('dh-operations'));
+  for (const [g, ids] of byGroup) assert.ok(ids.filter((x) => x !== 'ab-recipes' && x !== 'account').length <= (g === 'Data & health' ? 12 : 10), `${g}: ${ids.length} pages`);
   const want: Record<string, string[]> = {
     'Chat apps': ['co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-pickup'],
     'Add-ons': ['ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-recipes'],

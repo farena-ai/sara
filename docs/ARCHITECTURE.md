@@ -450,3 +450,29 @@ local pixel redaction. Linux uses session/event matching for injected events; it
 OS-wide input hook. Picture masks cover recognized secret fields, key-shaped text and embedded frames after capture
 in a detached device-owned canvas. Authored shadow trees and oversized or changing pages refuse
 pictures rather than sending uncertain pixels. Arbitrary sensitive canvas content remains opaque. See `desktop.md` and the CU8 as-built record for exact limitations and qualification.
+
+## Q4 operational evidence and archival (2.63.1)
+
+`OperationsMonitor` in `src/operations.ts` belongs to one HTTP server. `src/server.ts` records
+normal responses using generated UUID headers, monotonic durations, a 512-sample latency ring,
+fixed route labels and cumulative error/abort/inflight counts. Finish/close is counted once;
+server close disables the process-wide perf_hooks lag monitor. WebSocket upgrades are excluded.
+No request content is retained. Existing rotated logs receive only UUID/family/status/duration.
+`src/routes/operations.ts` is owner-only and reads current-space queue/SQLite evidence; process
+RSS/lag and server-data backups are explicitly different scopes. No provider probe is performed.
+
+Delivery archive uses `archived_at` in the same SQLite row, indexes and bounded immediate
+transactions. Eligibility checks both old transport/resolution dates, terminal evidence and
+absent review payload. Compaction clears destination/refs/reason, preserves dedup identities;
+archived rows cannot execute/recover. A separate Archived cursor filter preserves access to
+minimal receipts. There is no destructive deletion, automatic purge or separate archive DB.
+UI behavior lives in `web/operations.js` and `web/recovery.js`. Locally invoked workload/browser
+scripts use synthetic loopback fixtures and never schedule production checks. See OPERATIONS.md.
+
+`backup-async.ts` serializes trusted manual/automatic snapshot work by canonical data root and
+spawns `backup-worker.ts` using Node24 native TypeScript without inherited test/watch flags.
+Messages return manifests/automatic names or fixed errors; exit completes queue admission only
+after cleanup. Runtime API/automatic/Safetycheck callsites await wrappers; offline synchronous
+core remains available. Shutdown closes admission atomically and drains jobs before forced exit.
+Concurrent prune/list enumeration tolerates ENOENT only. Synthetic profilev2 starts its monitor
+after fixture seed and samples live work before separate restore timing; failedv1 receipts remain.

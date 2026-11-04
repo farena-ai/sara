@@ -31,7 +31,7 @@ export const settingsPages = () =>
       !(p.dataset.page === 'you-adult' && /\b(SaraPhone|SaraDesktop)\/\d/.test(navigator.userAgent)) &&
       !(p.dataset.page === 'desktop-app' && !window.SaraDesktop) &&
       !(isMember() ? 'ownerOnly' in p.dataset : 'memberOnly' in p.dataset) &&
-      !(['household', 'dh-recovery'].includes(p.dataset.page) && document.body.classList.contains('demo')) &&
+      !(['household', 'dh-recovery', 'dh-operations'].includes(p.dataset.page) && document.body.classList.contains('demo')) &&
       p.dataset.page !== 'ab-recipes',
   );
 
@@ -67,7 +67,7 @@ const SETTINGS_ORDER = [
   'ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-recipes',
   'ab-projects', 'ab-precise', 'ab-persist', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-tools',
   'co-phone', 'co-computer', 'desktop-app', 'co-apps', 'co-agents', 'co-hooks',
-  'dh-safety', 'dh-health', 'dh-recovery', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
+  'dh-safety', 'dh-health', 'dh-operations', 'dh-recovery', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
   'household', 'account',
 ];
 // A small heading inside a group, before the first of these pages (none since the Coding group).

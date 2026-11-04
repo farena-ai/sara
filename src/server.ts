@@ -52,6 +52,8 @@ import { NEXT, type ActiveTurn, type RouteCtx } from './routes/context.ts';
 import { createLibraryRoutes } from './routes/library.ts';
 import { createCodingRoutes } from './routes/coding.ts';
 import { createDeliveryRoutes } from './routes/deliveries.ts';
+import { OperationsMonitor } from './operations.ts';
+import { createOperationsRoutes } from './routes/operations.ts';
 import { createEvalRoutes } from './routes/evals.ts';
 import { createSkillRoutes } from './routes/skills.ts';
 import { createPluginRoutes } from './routes/plugins.ts';
@@ -233,6 +235,7 @@ export const normalizePairCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-
 
 export function createSaraServer(opts: ServerOptions): Server {
   const { app, auth } = opts;
+  const operations = new OperationsMonitor();
   const limiter = new LoginLimiter();
   // Device-code start/poll get their own budget: an app (or a flood of them) can't lock the owner
   // out of signing in, and sign-in failures don't block apps.
@@ -346,7 +349,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports', 'boards']);
   /** Security review: routes an app signed in with a device code may not use (sign-in settings, devices, approving apps). */
   // Phase 100: 'agents' (A2A keys and peers) too.
-  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries']);
+  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations']);
   /**
    * Phase 24 (security review): what a demo visitor may read. Everyone on the demo is "signed in",
    * so owner-only pages (backups, files, health details, accounts, devices…) must be listed out,
@@ -885,6 +888,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const connectionsRoutes = createConnectionsRoutes(ctx);
   const adminRoutes = createAdminRoutes(ctx);
   const deliveryRoutes = createDeliveryRoutes(ctx);
+  const operationsRoutes = createOperationsRoutes(ctx, operations);
   const modelsRoutes = createModelsRoutes(ctx);
   const herRoutes = createHerRoutes(ctx);
   const voiceRoutes = createVoiceRoutes(ctx);
@@ -1228,6 +1232,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     // Admin: settings, backups, logs, doctor, status, health history, updates, access, desktop apps, safety stats, search, tools, MCP, checklist: src/routes/admin.ts.
     if ((await adminRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await deliveryRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await operationsRoutes(req, res, method, parts)) !== NEXT) return;
 
     // Coding: workspaces, approvals, jobs, starters, GitHub, code projects, code map, recipes, team, previews, SSH: src/routes/coding.ts.
     if ((await codingRoutes(req, res, method, parts)) !== NEXT) return;
@@ -2105,6 +2110,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   }
 
   const server = createServer(async (req, res) => {
+    operations.track(req, res);
     const method = req.method ?? 'GET';
     // Over https, browsers are told to keep using https for this site (a year).
     if (isHttps(req)) res.setHeader('strict-transport-security', 'max-age=31536000');
@@ -2165,6 +2171,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   // Keep idle connections longer than Node's 5 s default: apps (SillyTavern, the API, MCP clients,
   // a reverse proxy) reuse a connection between messages, and a reuse racing the server's close
   // fails with "connection reset". 65 s is longer than common proxies' own idle limit.
+  server.once('close', () => operations.close());
   server.keepAliveTimeout = 65_000;
   server.headersTimeout = 66_000;
   // Live voice calls: /api/live/<conversation id> upgrades to a WebSocket (src/routes/live.ts).

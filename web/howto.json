@@ -1174,6 +1174,16 @@
     "Record only what you confirmed. Human resolution is separate from platform acknowledgment; this page never resends."
    ],
    "show": "#recovery-content"
+  },
+  {
+   "id": "archive",
+   "q": "How do I archive old delivery evidence?",
+   "steps": [
+    "Enter an explicit UTC cutoff in Recovery. Preview the eligible records first.",
+    "Confirm one batch of up to 500 records. Keep the same cutoff for further batches.",
+    "Use Archived to view retained evidence. Unresolved outcomes and deduplication identity are preserved."
+   ],
+   "show": "#recovery-content"
   }
  ],
  "dh-health": [
@@ -1689,6 +1699,27 @@
     "Each variant is scored next to your settings.",
     "A winner is named only when the evidence says so."
    ]
+  }
+ ],
+ "dh-operations": [
+  {
+   "id": "measurements",
+   "q": "How do I check local operations?",
+   "steps": [
+    "Open Operations and press Refresh operations.",
+    "Read the measurement window and sample count. HTTP timings are not model reply timings.",
+    "A configured model and a saved backup do not prove inference or recovery."
+   ],
+   "show": "#operations-content"
+  },
+  {
+   "id": "active-work",
+   "q": "How do I tell active work from historical records?",
+   "steps": [
+    "Record totals include finished history. State counts show queued and running work; delivery records can include archived evidence.",
+    "RSS and event-loop lag are process-wide, including other spaces and HTTP servers in this process. They are not current-space usage."
+   ],
+   "show": "#operations-content"
   }
  ]
 }

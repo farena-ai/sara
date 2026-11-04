@@ -78,6 +78,7 @@ import { initCommandBar, openCommandBar, score as cmdScore } from './command-bar
 import { icon, paintIcons, setIcon, TOOL_ICONS } from './icons.js';
 import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, pageOf, pageSize } from './session-list.js';
 import { createRecovery } from './recovery.js';
+import { createOperations } from './operations.js';
 import { buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintElsewhere, paintSettingsResults, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
 import { closeOpenDialogs, initTours, offerFirstTour, queueTourOffer, runTour, tourFromHash } from './tours.js';
 import { initSidebar } from './sidebar.js';
@@ -7677,6 +7678,7 @@ initSettingsNav({ isMember, el, showSettingsTab, pageLead: (page) => pageLead(pa
 // Phase 23: a "?" on every Settings page: what it's for, in plain words, and the guide.
 // Page help and the ? tips live in tips.json (Phase 41), shared with the server's settings guide.
 let HELP = {};
+const operations = createOperations({ root: $('#operations-content'), api, isOwner: () => !isMember() && !document.body.classList.contains('demo') });
 const recovery = createRecovery({
   root: $('#recovery-content'), api,
   isOwner: () => !isMember() && !document.body.classList.contains('demo'),
@@ -7743,6 +7745,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'dh-updates') void loadUpdates();
   if (pick === 'dh-safety') void loadSafetyCheck();
   if (pick === 'dh-recovery') void recovery.refresh();
+  if (pick === 'dh-operations') void operations.refresh();
   if (pick === 'ab-skills') {
     void loadSkills();
     void loadLearning();

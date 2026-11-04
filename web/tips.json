@@ -1686,6 +1686,10 @@
     "her-hey": [
       "Say “Hey Sara” and talk, hands-free, in the Windows app (on Android, use the Talk button for now). A small model on the device listens only for her words; nothing is sent until then. Off until you switch it on, per device.",
       "voice"
+    ],
+    "dh-operations": [
+      "Read local HTTP measurements, readiness evidence and current-space queue counts. Refresh is read-only; configured models and saved backups are not proof of inference or recovery.",
+      "operations"
     ]
   }
 }

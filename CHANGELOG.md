@@ -5,6 +5,23 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.63.1 (2026-11-04): measured operation and safe retention (Q4)
+
+- **Operations:** owner-only readiness evidence, bounded HTTP latency/error/inflight measurements,
+  generated request IDs and fixed privacy-safe request logs. Process memory/event-loop delay is
+  clearly scoped; configured models and backup files are not presented as successful inference
+  or proven recovery. Public liveness remains minimal.
+- **Archive resolved deliveries:** explicit cutoff, preview and bounded confirmation preserve
+  unresolved uncertainty, human/transport evidence and duplicate-send identities. Archived history
+  remains accessible; no automatic deletion or database-shrinking claim.
+- **Responsive backups:** manual, existing automatic and Safetycheck creation runs in serialized
+  worker threads. Accepted jobs drain on shutdown; later work is refused. Parallel manual snapshots
+  keep distinct complete archives, and asynchronous retention tolerates files disappearing from a
+  concurrent list. The archive format, encryption/key handling and offline CLI remain compatible.
+- **Repeatable qualification:** synthetic workload/backup/upload/archival and real-browser journeys,
+  plus an incident/restore drill. Local commands only, no CI/watchers or provider charges. See
+  [Operations](docs/OPERATIONS.md) and [Recovery](docs/RECOVERY.md) for evidence and scope limits.
+
 ## 2.62.0 (2026-11-04): safe recovery after interruption (Q3)
 
 - **Recover without blind replay:** interrupted jobs keep encrypted original requests and durable
