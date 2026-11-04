@@ -5,6 +5,8 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+- **Tess, the practical maker:** a new gallery character who runs a repair workshop and writes small software tools. Original, adult and non-romantic by default, with no pictures.
+
 ## 2.62.0 (2026-11-04): safe recovery after interruption (Q3)
 
 - **Recover without blind replay:** interrupted jobs keep encrypted original requests and durable
