@@ -3,6 +3,11 @@
 Sara was built in phases, each one released, tested and documented before the next began. Every
 version's details are in the [changelog](../CHANGELOG.md).
 
+## Quality improvements in 2.61.4
+
+First-use recovery after skipped model setup, keyboard navigation in the mobile sidebar, and
+clearer reporting of command isolation versus approval prompts. Included in 2.61.4.
+
 ## Built
 
 | Phase | What it added | Version |

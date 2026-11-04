@@ -79,7 +79,8 @@ import { icon, paintIcons, setIcon, TOOL_ICONS } from './icons.js';
 import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, pageOf, pageSize } from './session-list.js';
 import { buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintElsewhere, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
 import { closeOpenDialogs, initTours, offerFirstTour, queueTourOffer, runTour, tourFromHash } from './tours.js';
-import { initSetupWizard, openSetup } from './setup-wizard.js';
+import { initSidebar } from './sidebar.js';
+import { initSetupWizard, openModelSetup, openSetup } from './setup-wizard.js';
 import { ring as progressRing, share as shareOf } from './viz.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let hubReady = false;
@@ -527,7 +528,7 @@ function convRow(c, o = {}) {
   a.append(more);
   a.addEventListener('click', (e) => {
     e.preventDefault();
-    $('#main').classList.remove('show-sidebar');
+    closeSidebar();
     openConversation(c.id);
   });
   a.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/sara-conv', c.id));
@@ -1246,7 +1247,7 @@ $('#offrecord-end').addEventListener('click', async () => {
   else await newConversation();
 });
 
-$('#toggle-sidebar').addEventListener('click', () => $('#main').classList.toggle('show-sidebar'));
+const sidebarUI = initSidebar({ main: $('#main'), sidebar: $('#sidebar'), toggle: $('#toggle-sidebar'), close: $('#close-sidebar'), scrim: $('#sidebar-scrim') });
 // The sidebar's places: pinned ones, the rest under More (web/nav.js).
 initNav();
 initTidy();
@@ -1306,7 +1307,7 @@ initCommandBar({
     state.conversations
       .filter((c) => !String(c.channel ?? '').startsWith('import-'))
       .sort((a, b) => Number(Boolean(a.archivedAt)) - Number(Boolean(b.archivedAt)))
-      .map((c) => ({ key: `conv:${c.id}`, icon: c.offRecord ? 'offrecord' : isGroup(c) ? 'group' : 'chat', label: c.title || t('New conversation'), sub: c.archivedAt ? t('Archived') : '', raw: true, run: () => { $('#main').classList.remove('show-sidebar'); return openConversation(c.id); } })),
+      .map((c) => ({ key: `conv:${c.id}`, icon: c.offRecord ? 'offrecord' : isGroup(c) ? 'group' : 'chat', label: c.title || t('New conversation'), sub: c.archivedAt ? t('Archived') : '', raw: true, run: () => { closeSidebar(); return openConversation(c.id); } })),
   settings: () => settingsPages().map((p) => ({ key: `settings:${p.dataset.page}`, icon: 'settings', label: t(p.dataset.title), sub: t(p.dataset.group), run: () => openSettings(p.dataset.page) })),
   // The Settings window's own tiered search for pages, plus every setting's label on its own.
   searchSettings: (q) => {
@@ -1362,20 +1363,15 @@ initCommandBar({
     add('panel', 'panel', panelOpen() ? t('Fold her panel away') : t('Show her panel'), () => togglePanel(), 'Ctrl+\\');
     if (usable($('#server-btn'))) add('servers', 'server', t('Open Your Saras'), () => $('#server-btn').click(), '', t('servers switch'));
     add('search', 'search', t('Search messages, memories and notes'), () => {
-      $('#main').classList.add('show-sidebar');
+      sidebarUI.open();
       $('#conv-search').focus();
     });
     add('tour', 'compass', t('Show me around'), () => runTour('first'), '', t('tour'));
     return list;
   },
 });
-// On a phone the list slides over the chat: ✕, a tap beside it, or Escape closes it.
-const closeSidebar = () => $('#main').classList.remove('show-sidebar');
-$('#close-sidebar').addEventListener('click', closeSidebar);
-$('#sidebar-scrim').addEventListener('click', closeSidebar);
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && $('#main').classList.contains('show-sidebar') && !document.querySelector('dialog[open]:not(#today)')) closeSidebar();
-});
+// Navigation keeps focus with the page or dialog it opens.
+const closeSidebar = () => sidebarUI.close({ restoreFocus: false });
 // Phase 75 (stage 3): Today's tiles (web/today.js) and the phone's bottom bar (web/bottom-bar.js).
 /** Phase 111: Today's date words, set once loadToday's helpers exist (initToday runs before them). */
 const TODAY_FMT_LATE = { fmtDue: (iso) => fmtDue(iso), inDaysWords: (n) => inDaysWords(n) };
@@ -1446,7 +1442,7 @@ initBottomBar({
   todayOpen,
   openPlanner: () => $('#open-planner').click(),
   openMore: () => {
-    $('#main').classList.add('show-sidebar');
+    sidebarUI.open();
     setMore(true);
   },
   closeSidebar,
@@ -7323,12 +7319,32 @@ $('#mcp-save').addEventListener('click', async () => {
 });
 
 // ---------- settings ----------
+// Rendered fallback choices are suggestions, not edits. Only an explicit model-control
+// change may promote them into the saved default during shared core-settings autosave.
+let defaultModelRevision = 0;
+let savedDefaultModelRevision = 0;
 async function loadProviders() {
   state.providers = await api('/providers');
 }
 
+function refreshModelSettings() {
+  renderProviders();
+  void loadModels();
+}
+$('#connect-model').addEventListener('click', async () => {
+  if (isMember()) return;
+  try {
+    await openModelSetup(await api('/setup?detect'));
+  } catch (err) {
+    $('#settings-error').textContent = err.message;
+  }
+});
+
 function renderProviders() {
   const { providers, presets } = state.providers;
+  $('#model-empty').hidden = Boolean(providers.length);
+  $('#model-configured').hidden = !providers.length;
+  $('#connect-model').hidden = isMember();
   const list = $('#provider-list');
   if (!providers.length) {
     list.replaceChildren(emptyState({ icon: 'server', text: t('No providers yet. Sign in to a subscription above, or add one below.'), howto: true }));
@@ -7631,11 +7647,14 @@ async function loadModels(fresh) {
   }
 }
 $('#load-models').addEventListener('click', () => loadModels(true));
+$('#default-model').addEventListener('change', () => { defaultModelRevision++; });
 $('#default-provider').addEventListener('change', () => {
+  defaultModelRevision++;
   $('#default-model').value = '';
   loadModels();
 });
 $('#model-select').addEventListener('change', () => {
+  defaultModelRevision++;
   const v = $('#model-select').value;
   $('#default-model').value = v;
   $('#default-model').hidden = Boolean(v);
@@ -7827,6 +7846,7 @@ async function loadSettingsPages() {
     sel.value = v;
   }
   renderProviders();
+  savedDefaultModelRevision = defaultModelRevision;
   // Phase 71: a household member's space answers only their own pages; the owner's are skipped.
   if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop()]));
   await loadTools();
@@ -7868,6 +7888,8 @@ $('#use-path').addEventListener('change', async () => {
 
 async function saveCoreSettings() {
   const before = currentLang();
+  const modelRevision = defaultModelRevision;
+  const saveModel = modelRevision !== savedDefaultModelRevision && !$('#model-configured').hidden;
   await api('/settings', {
     method: 'PUT',
     body: {
@@ -7876,12 +7898,15 @@ async function saveCoreSettings() {
       language: $('#ui-language').value,
       talkLanguage: $('#talk-language').value,
       storyYearly: $('#story-yearly').checked,
-      defaultProviderId: $('#default-provider').value || null,
-      defaultModel: $('#default-model').value.trim() || null,
+      ...(saveModel ? {
+        defaultProviderId: $('#default-provider').value || null,
+        defaultModel: $('#default-model').value.trim() || null,
+      } : {}),
       historyBudgetChars: Number($('#history-budget').value),
       modelAutoSwitch: $('#model-auto-switch').checked,
     },
   });
+  if (saveModel) savedDefaultModelRevision = modelRevision;
   // Phase 53: a new app language shows at once (this window included).
   await applyLanguage($('#ui-language').value, $('#ui-language').value === 'auto' ? '' : undefined);
   if (currentLang() !== before) await rerenderAfterLanguage();
@@ -8302,7 +8327,7 @@ $('#today').addEventListener('close', () => {
 });
 // Her face and name at the top of the sidebar go to Today too (on phones, the list closes).
 $('#brand-today').addEventListener('click', () => {
-  $('#main').classList.remove('show-sidebar');
+  closeSidebar();
   void openToday();
 });
 $('#td-refresh').addEventListener('click', () => loadToday(true));
@@ -8436,7 +8461,7 @@ async function runSearch() {
     if (snippet) a.append(el('span', 'hit-snippet', clean(snippet)));
     a.addEventListener('click', async (e) => {
       e.preventDefault();
-      $('#main').classList.remove('show-sidebar');
+      closeSidebar();
       await open();
     });
     return a;
@@ -9601,7 +9626,7 @@ $('#doctor-run').addEventListener('click', async () => {
     list.replaceChildren(
       ...checks.map((c) => {
         const li = el('li', c.status === 'ok' ? 'ok' : c.status === 'warn' ? 'warn' : 'bad');
-        li.append(el('strong', '', `${c.status === 'ok' ? '✓' : c.status === 'warn' ? '!' : '✗'} ${c.name}`), el('span', 'muted', ` ${c.detail}`));
+        li.append(el('strong', '', `${c.status === 'ok' ? '✓' : c.status === 'warn' ? '!' : '✗'} ${t(c.name)}`), el('span', 'muted', ` ${t(c.detailKey ?? c.detail, c.params)}`));
         return li;
       }),
     );
@@ -11177,7 +11202,7 @@ $('#look-reset').addEventListener('click', async () => {
 });
 
 // PL2d: the first-run setup guide lives in setup-wizard.js.
-initSetupWizard({ el, api, renderGallery, galleryList, starterButton, openRoutines, modelViewFor, fillModelOptions, loadProviders, loadConversations, setChatTitle, loadToday, loadChecklist, openSettings, openWizard, renderMessages, runStarter, state, firstRun, modelCache });
+initSetupWizard({ refreshModelSettings, openSubscriptions: () => showSettingsTab('models-subs'), el, api, renderGallery, galleryList, starterButton, openRoutines, modelViewFor, fillModelOptions, loadProviders, loadConversations, setChatTitle, loadToday, loadChecklist, openSettings, openWizard, renderMessages, runStarter, state, firstRun, modelCache });
 
 // ---------- signed-in devices and owner token ----------
 async function loadDevices() {

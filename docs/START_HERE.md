@@ -37,6 +37,11 @@ model and checks that it answers: **Connected ✓**. No graphics card? *My subsc
 already pay for (ChatGPT, Claude, SuperGrok), or add a cloud key. Help choosing:
 [Choosing a model](CHOOSING_A_MODEL.md) and [what it costs](COSTS.md).
 
+Skipped this step? Open **Settings → Models → Default model → Connect an AI model** to return
+to the guided choices. You do not need to repeat your name or companion setup. The chooser tests
+that the model answers before you confirm it as the default. Cancelling keeps your current default
+and chat draft; connections you explicitly saved with **Use it** or **Connect** stay saved.
+
 ## 5. Say hello
 
 The last setup step has three starters (*Tell me about yourself*, *Plan my day with me*, *What can you

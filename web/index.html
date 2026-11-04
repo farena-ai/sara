@@ -785,6 +785,7 @@
 
       <section data-step="3" hidden>
         <h2>Connect a brain</h2>
+        <p id="su-recovery-note" class="muted small" hidden>Use it saves a connection immediately. Cancel keeps saved connections and your current default model.</p>
         <p class="muted">Sara needs an AI model to think with. Pick the way that suits you; you can change it or add more later, and her memories stay.</p>
         <!-- Phase 114 (PL1c): four choice cards; the picked one opens its panel under the row. -->
         <div id="su-ways" class="pick-cards su-ways" role="radiogroup" aria-label="Ways to connect a brain">
@@ -2462,6 +2463,13 @@
       </div>
         </section>
         <section class="settings-page" data-page="models-default" data-group="Models" data-title="Default model" hidden>
+      <div id="model-empty" class="lean-card" hidden>
+        <h3>Connect a brain</h3>
+        <p>No model provider set up</p>
+        <p class="muted small">Connect a model to start talking. You can use a subscription, an API key or Ollama.</p>
+        <button id="connect-model" type="button">Connect an AI model</button>
+      </div>
+      <div id="model-configured">
       <label>Provider <select id="default-provider"></select></label>
       <label>Model
         <select id="model-select" hidden></select>
@@ -2471,6 +2479,7 @@
       <h3>Always-current model lists</h3>
       <p class="muted small">Sara checks every provider's model list once a day by herself: new models are marked “New” for a week, and retired ones disappear. ↻ Refresh checks now. Each provider's own switches are under Model providers.</p>
       <label class="row"><input id="model-auto-switch" type="checkbox"> Switch to the replacement automatically</label>
+      </div>
       <h3>Long conversations</h3>
       <p class="muted small">How much of a conversation Sara rereads each turn. Older parts beyond this are left out (with their summary, once she has written one). Smaller models need a shorter setting.</p>
       <label>Conversation length

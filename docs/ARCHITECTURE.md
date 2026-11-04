@@ -27,6 +27,14 @@ The original sketch from the first phase:
 - **Server:** an address the apps keep in their list and switch between ("Your Saras"). See docs/SERVERS.md.
 - **Space:** one person's data folder inside one instance (household mode). See docs/HOUSEHOLD.md.
 
+## Unreleased Q1 quality changes
+
+Q1 UI quality slice: `web/sidebar.js` owns responsive drawer inert/focus/keyboard behavior;
+`web/setup-wizard.js` exposes a model-only recovery entry using the existing model step.
+Settings keeps suggested model values separate from explicit model edits, so unrelated autosaves
+cannot promote a cancelled recovery choice into the default. Health and doctor report command
+approval policy independently of execution isolation. No authorization or safety policy changes.
+
 ## Error shapes (on purpose)
 
 - `/api/*`: `{ error, errorKey?, params?, ownerOnly? }`; `error` is English and also the translation key.
@@ -65,7 +73,7 @@ Every module in `src/`, roughly in the order they were added (the phase is noted
 | `src/routes/memory.ts` | memories, scrapbook, moments, photos, uploads, find; Phase 85: `GET /api/memory/recall` (mode, how many signatures and lessons, the latest feedback), `POST /api/memory/recall/feedback` (`{kind, ref, messageId}`: *Not useful*), `recall` in `GET/PUT /api/memory/settings` |
 | `src/routes/connections.ts` | google, home, bridges, alexa, other-apps, reports, events (SSE); Home Assistant's own API; `HA_CHANNEL` |
 | `src/routes/admin.ts` | settings, backups, logs, doctor, status, health history, update, access, desktop-apps, safety stats, search, tools, mcp, checklist |
-| `src/routes/models.ts` | providers, model-jobs, subscriptions, local-models, private-local, usage |
+| `src/routes/models.ts` | providers, model-jobs, subscriptions, local-models, private-local, usage; Q1 adds boolean `preserveDefault` to the existing owner-only provider PUT so an explicitly connected provider need not become the default before its test/confirmation. Legacy callers retain first-provider selection. |
 | `src/routes/her.ts` | persona, character, look, sara, together, gallery, adult, companions, phone |
 | `src/routes/voice.ts` · `src/routes/live.ts` | voice, calls, video, push, live status · the WebSocket upgrade for `/api/live/<conversation>` |
 | `src/cards.ts` | `cardFor()`: turns a tool result (weather, to-do, reminder, note, calendar, files changed, test run, task, smart home, photo, web search) into a small `card` on the `tool_result` event and the tool message's meta; the page draws it (`web/result-cards.js`) beside the step line (`web/steps.js`) |

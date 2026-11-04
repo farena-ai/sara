@@ -37,19 +37,21 @@ let modelCache = null;
 // Phase 114 (PL1b): `path` = the use choice of step 1; `brainOk` = the picked model answered a test
 // ping; `ping` numbers the pings (a newer one wins); `coderPick` = the model Models → Which model does
 // what would pick for coding.
-const su = { step: 1, info: null, provider: null, openSubs: false, original: null, changed: false, path: 'both', brainOk: false, ping: 0, coderPick: '', local: false, who: 'keep', way: '' };
+const su = { step: 1, info: null, provider: null, openSubs: false, original: null, changed: false, path: 'both', brainOk: false, ping: 0, coderPick: '', local: false, who: 'keep', way: '', recovery: false, connect: 0 };
 
 function suShow(step) {
   su.step = step;
   for (const sec of document.querySelectorAll('#setup [data-step]')) sec.hidden = Number(sec.dataset.step) !== step;
-  $('#setup-step').textContent = t('Step {step} of 4', { step });
-  $('#su-back').hidden = step === 1 || step === 4;
+  $('#setup-step').textContent = su.recovery ? t('Connect a brain') : t('Step {step} of 4', { step });
+  $('#su-back').hidden = su.recovery || step === 1 || step === 4;
   $('#su-skip').hidden = step === 4;
+  $('#su-skip').textContent = su.recovery ? t('Cancel') : t('Set up later');
   // Phase 114 (F3): Next is the primary button everywhere. In Connect a brain it waits until a model
   // answered (or subscriptions open at the end); skipping is a quiet link, never the strong button.
-  $('#su-next').textContent = step === 4 ? t('Start talking') : t('Next');
+  $('#su-next').textContent = su.recovery ? t('Use this model') : step === 4 ? t('Start talking') : t('Next');
   $('#su-next').disabled = step === 3 && !su.brainOk && !su.openSubs;
-  $('#su-later').hidden = step !== 3 || su.brainOk;
+  $('#su-later').hidden = su.recovery || step !== 3 || su.brainOk;
+  $('#su-recovery-note').hidden = !su.recovery;
   if (step === 4) suStepFour();
 }
 
@@ -174,7 +176,7 @@ async function suPing() {
   } catch (err) {
     if (run !== su.ping) return;
     suStatus('fail');
-    $('#su-error').textContent = `${err.message} ${t('Pick another model with Change, or press Skip for now.')}`;
+    $('#su-error').textContent = `${err.message} ${su.recovery ? t('Pick another model with Change, or press Cancel.') : t('Pick another model with Change, or press Skip for now.')}`;
   }
   suShow(3);
 }
@@ -198,6 +200,9 @@ function suStepFour() {
 }
 
 export async function openSetup(info) {
+  su.recovery = false;
+  su.openSubs = false;
+  $('#su-subs').checked = false;
   su.info = info;
   $('#su-owner').value = info.ownerName ?? '';
   // M2: who she was before step 2, so Back + Keep can bring her back.
@@ -216,6 +221,50 @@ export async function openSetup(info) {
   suWay(info.ollama?.[0] ? 'local' : '');
   suShow(1);
   $('#setup').showModal();
+}
+
+/** Reuse only the model step; owner identity and character are never revisited. */
+export async function openModelSetup(info) {
+  su.recovery = true;
+  su.info = info;
+  su.path = normPath(state.usePath);
+  su.provider = null;
+  su.brainOk = false;
+  su.openSubs = false;
+  su.ping++;
+  su.connect++;
+  su.closeRefresh = null;
+  $('#su-subs').checked = false;
+  $('#su-error').textContent = '';
+  $('#su-status').textContent = '';
+  $('#su-model-row').hidden = true;
+  $('#su-preset').replaceChildren(...state.providers.presets.filter((p) => p.needsKey).map((p) => new Option(p.label, p.id)));
+  suShowLocal(info.ollama?.[0]);
+  suOrderBrains();
+  suWay(info.ollama?.[0] ? 'local' : '');
+  suShow(3);
+  $('#setup').showModal();
+}
+
+async function suCancelRecovery() {
+  $('#setup').close();
+  await suRecoverClosed();
+}
+
+function suRecoverClosed() {
+  if (su.closeRefresh) return su.closeRefresh;
+  su.ping++;
+  su.connect++;
+  // Use it explicitly saves a connection. Cancel never changes its default or other settings.
+  su.closeRefresh = (async () => {
+    try {
+      await loadProviders();
+      ctx.refreshModelSettings?.();
+    } catch (err) {
+      $('#settings-error').textContent = err.message;
+    }
+  })();
+  return su.closeRefresh;
 }
 
 // Phase 23: "On this computer": Ollama found here, or how to get it (then look again).
@@ -253,22 +302,37 @@ function suggestModel(models) {
 }
 
 async function suConnect(config, apiKey) {
+  const run = ++su.connect;
+  ++su.ping;
+  su.provider = null;
   $('#su-error').textContent = '';
   $('#su-model-row').hidden = true;
   su.brainOk = false;
   su.local = Boolean(config.local);
+  suShow(3);
   try {
-    await api(`/providers/${config.id}`, { method: 'PUT', body: { ...config, ...(apiKey ? { apiKey } : {}) } });
+    // A recovery attempt must never replace an existing provider or its saved key.
+    if (su.recovery) {
+      let id = config.id;
+      let n = 2;
+      while (state.providers.providers.some((p) => p.id === id)) id = `${config.id}-${n++}`;
+      config = { ...config, id };
+    }
+    await api(`/providers/${config.id}`, { method: 'PUT', body: { ...config, ...(su.recovery ? { preserveDefault: true } : {}), ...(apiKey ? { apiKey } : {}) } });
+    if (run !== su.connect) return;
+    await loadProviders();
     $('#su-model-note').textContent = t('Loading models…');
     $('#su-model-row').hidden = false;
     // Phase 114 (F4/F5): the same list and count as Models → Default model, in two groups (on this
     // computer, Ollama Cloud) with the pick first, instead of every raw tag in one long list.
     modelCache.delete(config.id);
     const view = await modelViewFor(config.id);
+    if (run !== su.connect) return;
     const models = view.models;
     if (!models.length) throw new Error(t('Connected to {label}, but it has no models yet.', { label: config.label }));
     // Phase 114 (§5.3): for coding, the model Which model does what → Use recommended picks for code.
     const rec = su.path === 'company' ? null : (await api('/model-jobs/recommend').catch(() => null))?.picks?.coding;
+    if (run !== su.connect) return;
     su.coderPick = rec && rec.providerId === config.id && models.includes(rec.model) ? rec.model : '';
     const pick = su.path === 'coding' && su.coderPick ? su.coderPick : suggestModel(models);
     fillModelOptions($('#su-model'), view, '', { pick });
@@ -285,6 +349,7 @@ async function suConnect(config, apiKey) {
     $('#su-model-row').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     await suPing();
   } catch (err) {
+    if (run !== su.connect) return;
     $('#su-model-row').hidden = true;
     $('#su-error').textContent = err.message;
     suShow(3);
@@ -382,7 +447,18 @@ export function initSetupWizard(c) {
       e.preventDefault();
       $('#su-next').click();
     });
-  $('#su-skip').addEventListener('click', () => suFinish());
+  $('#su-skip').addEventListener('click', () => su.recovery ? suCancelRecovery() : suFinish());
+  $('#setup').addEventListener('cancel', (e) => {
+    if (!su.recovery) return;
+    e.preventDefault();
+    void suCancelRecovery();
+  });
+  $('#setup').addEventListener('close', () => {
+    // Includes the shared dialog handler's backdrop close.
+    if (su.recovery && !$('#setup').open) return suRecoverClosed();
+    su.ping++;
+    su.connect++;
+  });
   // Phase 114 (F3): Connect a brain later (Getting started keeps the step).
   $('#su-later').addEventListener('click', () => {
     $('#su-done-title').textContent = t('Almost there');
@@ -391,9 +467,19 @@ export function initSetupWizard(c) {
   $('#su-next').addEventListener('click', async () => {
     $('#su-error').textContent = '';
     try {
+      if (su.recovery) {
+        if (su.openSubs) {
+          await suCancelRecovery();
+          return ctx.openSubscriptions();
+        }
+        if (!su.provider || !su.brainOk || !$('#su-model').value) return;
+        await api('/settings', { method: 'PUT', body: { defaultProviderId: su.provider, defaultModel: $('#su-model').value } });
+        await suCancelRecovery();
+        return;
+      }
       if (su.step === 1) {
         const name = $('#su-owner').value.trim();
-        if (!name) return ($('#su-error').textContent = t('Type your name so Sara knows what to call you (or press Skip setup).'));
+        if (!name) return ($('#su-error').textContent = t('Type your name so Sara knows what to call you (or press Set up later).'));
         // Phase 114 (F9): the use choice is saved with the name (for this companion; About you changes it).
         await api('/settings', { method: 'PUT', body: { ownerName: name, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, usePath: su.path } });
         state.usePath = su.path;

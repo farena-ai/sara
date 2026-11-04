@@ -5,6 +5,17 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.61.4 (2026-11-04): reliable setup, keyboard navigation and truthful safety status (Q1)
+
+- **Model setup recovery:** after skipping setup, Default model offers the guided connection
+  chooser instead of an empty provider selector. Model-only setup keeps existing connections,
+  the current default and chat drafts when cancelled. In this guided flow the default changes
+  only after a successful model test and confirmation. Explicitly saved connections stay saved.
+- **Mobile keyboard navigation:** the closed sidebar is kept out of keyboard focus. Opening,
+  closing and resizing the navigation restore the appropriate interactive state.
+- **Clearer safety status:** execution isolation and command approval policy are reported
+  separately. Asking before a command no longer gives an unisolated sandbox a healthy checkmark.
+
 ## 2.61.3 (2026-11-02): docs and tidy-up (Phase 128, polish PL2d; the roadmap is complete)
 
 - **Guides up to date:** FOR_CODERS covers long jobs, the short tool list and `/compact`, the Store and the

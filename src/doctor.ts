@@ -14,14 +14,17 @@ import type { SettingsStore } from './settings.ts';
 import type { Subscriptions } from './subscriptions/index.ts';
 import type { Vault } from './vault.ts';
 import { localVoiceMissing, localVoiceSupported } from './platform.ts';
-import { noSandboxNote, type SandboxInfo } from './tools/sandbox.ts';
+import { type SandboxInfo } from './tools/sandbox.ts';
 import type { ToolRegistry } from './tools/registry.ts';
 import { findBrowser, type BrowserInfo } from './browser.ts';
+import { en } from './i18n.ts';
 
 export interface DoctorCheck {
   name: string;
   status: 'ok' | 'warn' | 'fail';
   detail: string;
+  detailKey?: string;
+  params?: Record<string, unknown>;
 }
 
 export interface DoctorDeps {
@@ -112,15 +115,13 @@ export async function runDoctor(d: DoctorDeps): Promise<DoctorCheck[]> {
   else if (!off.last) add('Off-server copy', 'warn', 'set up; no copy made yet');
   else add('Off-server copy', off.last.ok ? 'ok' : 'fail', off.last.ok ? `last ${off.last.name} at ${off.last.at}` : `last attempt failed: ${off.last.error}`);
 
-  // Shell commands: the sandbox, or asking first (Phase 46).
+  // Isolation and permission are independent checks.
   const platform = d.platform ?? process.platform;
   if (d.sandbox) {
-    if (d.sandbox.mode !== 'none') add('Tool sandbox', 'ok', `${d.sandbox.mode}: ${d.sandbox.detail}`);
-    else {
-      const unasked = d.tools ? d.tools.list().filter((t) => t.runsCommands && d.tools!.permission(t.spec.name, s.toolPermissions) === 'auto').map((t) => t.spec.name) : [];
-      if (unasked.length) add('Tool sandbox', 'warn', `${noSandboxNote(platform).split(':')[0]}, and you set ${unasked.join(', ')} to run without asking (Settings → Coding → Tools and approvals).`);
-      else add('Tool sandbox', platform === 'linux' ? 'warn' : 'ok', platform === 'linux' ? `${d.sandbox.detail}` : noSandboxNote(platform));
-    }
+    add('Tool sandbox', d.sandbox.mode !== 'none' ? 'ok' : 'warn', d.sandbox.mode !== 'none' ? `${d.sandbox.mode}: ${d.sandbox.detail}` : en('No execution isolation. Commands run directly on this computer.'));
+    const unasked = d.tools ? d.tools.list().filter((t) => t.runsCommands && d.tools!.permission(t.spec.name, s.toolPermissions) === 'auto').map((t) => t.spec.name) : [];
+    add(en('Command approvals'), !d.tools || unasked.length ? 'warn' : 'ok', !d.tools ? en('Command approval policy is unavailable.') : unasked.length ? `${unasked.join(', ')} run without asking (Settings → Coding → Tools and approvals)` : en('Command tools ask for approval or are blocked. Approval does not provide execution isolation.'));
+    if (unasked.length) Object.assign(out.at(-1)!, { detailKey: en('{tools} run without asking (Settings → Coding → Tools and approvals)'), params: { tools: unasked.join(', ') } });
   }
 
   // Optional installs.

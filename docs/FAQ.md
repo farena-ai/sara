@@ -97,9 +97,14 @@ cheap or local model is fine.
 **Meaning search**: finding things said in other words, using an embedding model such as
 `nomic-embed-text`. Without it she searches by words.
 
-**Sandbox**: the walls around commands she runs. On Linux, bubblewrap lets them see only her
-workspace; on a Mac, macOS's own sandbox does a similar job. Windows has none, so she asks before
-every command.
+**Sandbox**: the walls around commands she runs. On Linux, bubblewrap limits the command's view
+of the system; on a Mac, macOS's own sandbox does a similar job. Native Windows commands are not
+OS-isolated, so she asks before every command.
+
+Health reports execution isolation separately from approval policy: **asking first is not
+isolation**. A warning about an unavailable sandbox can therefore appear even when every command
+needs approval. Keep those approvals on; for isolated trials, use a supported isolation driver
+in Coding → Tools and approvals. A copy-and-diff trial alone is not OS isolation.
 
 **Workspace**: the folder for a coding project, where she reads, writes and runs things.
 

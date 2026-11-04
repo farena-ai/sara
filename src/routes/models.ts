@@ -373,6 +373,7 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
       if (!b && method === 'GET') return send(res, 200, providerView());
       if (b && !c && method === 'PUT') {
         const body = await readJson(req);
+        if (body.preserveDefault !== undefined && typeof body.preserveDefault !== 'boolean') throw new HttpError(400, 'preserveDefault must be a boolean');
         let config;
         try {
           config = validateProviderConfig({ ...body, id: b });
@@ -382,7 +383,7 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
         const s = app.settings.get();
         const was = s.providers.find((p) => p.id === b);
         const providers = s.providers.filter((p) => p.id !== b).concat(config);
-        app.settings.update({ providers, defaultProviderId: s.defaultProviderId ?? config.id });
+        app.settings.update({ providers, defaultProviderId: body.preserveDefault === true ? s.defaultProviderId : s.defaultProviderId ?? config.id });
         if (typeof body.apiKey === 'string') {
           if (body.apiKey) app.vault.set(vaultKeyFor(b), body.apiKey.trim());
           else app.vault.delete(vaultKeyFor(b));
