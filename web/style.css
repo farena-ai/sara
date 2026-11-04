@@ -1677,3 +1677,13 @@ button.conv-see-more, button.conv-show-less { min-height: 44px; padding: 0 10px;
 .skip-main { position: fixed; top: 8px; left: 8px; z-index: 100; transform: translateY(-200%); padding: 12px 18px; background: var(--glass-strong); color: var(--text); border: 2px solid var(--accent); border-radius: 8px; }
 .skip-main:focus { transform: none; }
 @media (prefers-reduced-motion: reduce) { .tour-ring { transition: none; } }
+
+/* Durable recovery: readable previews and reachable actions on narrow screens. */
+.recovery-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-block: 12px; overflow-wrap: anywhere; }
+.recovery-card button, .recovery-dialog button { min-width: 28px; min-height: 28px; white-space: normal; margin: 4px; overflow-wrap: anywhere; }
+.recovery-card h3 { font-size: 1rem; }
+.recovery-dialog { max-width: min(680px, 94vw); max-height: 90dvh; overflow: auto; }
+.recovery-preview { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 40dvh; overflow: auto; border: 1px solid var(--border); padding: 12px; user-select: text; }
+.recovery-ack { display: flex; gap: 10px; align-items: start; margin-block: 12px; }
+.recovery-ack input { flex: 0 0 auto; min-width: 28px; min-height: 28px; }
+.recovery-status { overflow-wrap: anywhere; }

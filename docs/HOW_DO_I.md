@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 168 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 171 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -941,6 +941,25 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. On the server, run: sara doctor --safety
 2. It prints the same rows, the fix for each, and exits 0 (safe), 1 (tighten) or 2 (fix first).
 3. The command line never changes anything; fixes are on this page.
+
+### Recovery
+
+**How do I review an interrupted job?**
+
+1. Choose Review restart and read the preview before doing anything else.
+2. Copy it, or use it in the same empty chat; an existing draft is kept.
+3. Choose Send yourself. Earlier effects may repeat; current checks and approvals still apply.
+
+**How do I resume an interrupted team?**
+
+1. Check the unfinished step and its receipts; it may already have changed something.
+2. Choose Resume team and acknowledge the risk before resuming. Completed steps are kept.
+
+**How do I check an uncertain delivery?**
+
+1. Use Unresolved or All history, then Load more deliveries to reach older records.
+2. Check the destination first. Unknown messages may have arrived; live queued messages may still send.
+3. Record only what you confirmed. Human resolution is separate from platform acknowledgment; this page never resends.
 
 ### Health
 

@@ -5,10 +5,11 @@
 // named role with its own model (Phase 38 jobs), tools and the same sandbox and approvals.
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
-import { type AppContext, fallbackAfterMs, promptChars, OFFSERVER_TOOL, resolveChain, SlowModelError, streamWithin } from './chat.ts';
+import { type AppContext, preflight, fallbackAfterMs, promptChars, OFFSERVER_TOOL, resolveChain, SlowModelError, streamWithin } from './chat.ts';
 import { cardOf, checkPlan, contradictSettings, gateAct, type Contradiction } from './contradict.ts';
 import { applySandbox, changesLine, discardSandbox, gateVerdict, sandboxCard, sandboxOutput, sandboxRecord, type ApplyResult, type CommandRisk, type SandboxDecision, type SandboxResult } from './sandbox-run.ts';
 import { complete } from './life.ts';
+import { privateLocalOn } from './net-guard.ts';
 import { memorySettings } from './memory-worker.ts';
 import { buildSystemPrompt, SAFETY_BOUNDARIES } from './persona.ts';
 import type { ChatMessage, ToolCall } from './providers/types.ts';
@@ -301,7 +302,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     // the task is picked up again (resumeInterrupted) from there.
     const live = db.prepare("SELECT id FROM team_tasks WHERE status IN ('planning', 'running', 'waiting')").all() as { id: number }[];
     for (const r of live) {
-      db.prepare("UPDATE team_steps SET status = 'waiting', started_at = NULL, receipts = '[]' WHERE task_id = ? AND status = 'running'").run(r.id);
+      // Keep in-flight receipts and state until explicit owner recovery.
       db.prepare("UPDATE team_tasks SET status = 'interrupted' WHERE id = ?").run(r.id);
       this.#resumable.push(r.id);
     }
@@ -481,14 +482,40 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     return undefined;
   }
 
-  /** After a restart: picks up the tasks that were running (each from the part it was on). */
-  resumeInterrupted(): number[] {
-    const ids = this.#resumable.splice(0).filter((id) => !this.#runs.has(id));
-    for (const id of ids) {
-      this.#note(id, null, 'Picked up again after a restart.');
-      this.#launch(id);
+  /** Compatibility shim: startup never launches interrupted work. */
+  resumeInterrupted(): number[] { return []; }
+
+  resume(id: number, acknowledgeUnknown: boolean): TeamTask {
+    const app = this.#app;
+    const task = this.get(id);
+    if (!task || task.status !== 'interrupted' || this.#runs.has(id)) throw new Error('Only an interrupted task can resume.');
+    if (!acknowledgeUnknown) throw new Error('Acknowledge that unfinished steps may already have had effects.');
+    const conv = app.store.getConversation(task.conversationId);
+    if (!conv || conv.partner || conv.workspace !== task.workspace || app.member) throw new Error('The original conversation or workspace is unavailable.');
+    const lastUser = app.store.messages(conv.id).filter(m => m.role === 'user').at(-1)?.content ?? '';
+    if (preflight(lastUser).crisis || preflight(lastUser).minor) throw new Error('Recovery is held for the current conversation safety state.');
+    if (task.workflow?.pr && (conv.private || privateLocalOn())) throw new Error('Pull-request recovery is held while this conversation is private.');
+    if (this.#runs.size >= 2 || app.isBusy?.(conv.id)) throw new Error('Wait for current work to finish.');
+    const teamTool = app.tools.get('team_task');
+    if (!teamTool || teamTool.isAvailable?.() === false || app.tools.permission('team_task', app.settings.get().toolPermissions) === 'never') throw new Error('Team work is disabled by current policy.');
+    if (this.#overLimit(task) || task.steps.filter(s => s.status === 'done').length >= task.limits.steps) throw new Error('The original task has reached its limits.');
+    const helpers = new Map(teamHelpers(app).map(h => [h.id,h]));
+    for (const step of task.steps.filter(s => s.status === 'running' || s.status === 'waiting')) {
+      const helper = helpers.get(step.helper);
+      if (step.helper !== 'lead' && (!helper || helper.role === 'agent' && app.tools.get('delegate_task')?.isAvailable?.() === false)) throw new Error('An unfinished helper is unavailable under current settings.');
     }
-    return ids;
+    if (task.workflow?.pr && task.steps.some(s => s.helper === 'lead')) throw new Error('The interrupted pull-request step needs manual reconciliation; automatic replay is unavailable.');
+    const workflow = task.workflow ? { ...task.workflow, checkpoints: true, passed: [] } : null;
+    this.#db.exec('BEGIN IMMEDIATE');
+    try {
+      const changed = this.#db.prepare("UPDATE team_tasks SET status='running', checkpoint=NULL, ended_at=NULL, workflow=? WHERE id=? AND status='interrupted'").run(workflow ? JSON.stringify(workflow) : null,id);
+      if (!changed.changes) throw new Error('Task recovery state changed; refresh before resuming.');
+      this.#db.prepare("UPDATE team_steps SET status='waiting' WHERE task_id=? AND status='running'").run(id);
+      this.#db.exec('COMMIT');
+    } catch(err) { this.#db.exec('ROLLBACK'); throw err; }
+    this.#note(id,null,'Owner acknowledged unfinished effects. Current approvals apply.');
+    this.#launch(id);
+    return this.get(id)!;
   }
 
   /** Answers the checkpoint a workflow is waiting at: go on, go on without asking again, or stop. */
@@ -687,6 +714,8 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     const receipts: Receipt[] = [];
     const ctx = { workspaceDir: wsDir, signal: run.ctl.signal, sandbox: { ...app.sandbox, network: app.settings.get().shellNetwork ?? true }, conversationId: task.conversationId, companionName: app.persona.name };
     const call = async (name: string, args: Record<string, unknown>): Promise<string> => {
+      const currentConversation = app.store.getConversation(task.conversationId);
+      if (!currentConversation || currentConversation.private || privateLocalOn() || currentConversation.workspace !== task.workspace) throw new Error('Pull-request publication is held by the current conversation privacy or workspace policy.');
       const tool = app.tools.get(name);
       if (!tool || (tool.isAvailable && !tool.isAvailable())) throw new Error(`The ${name} tool isn't available${name.startsWith('github') ? ' (connect GitHub in Settings → Coding → GitHub)' : ''}.`);
       if (app.tools.permission(name, app.settings.get().toolPermissions) === 'never') throw new Error(`The ${name} tool is switched off in Settings.`);
@@ -735,6 +764,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
         const d = await getDiff(app, ctx, { kind: 'pr', number: Number(url[2]), repo: url[1] }, repoPath);
         const review = await reviewDiff(app, conv, d.diff, d.label);
         receipts.push({ name: 'review_code', status: 'ok', args: { target: 'pr', number: Number(url[2]) }, output: formatReview(review) });
+        if (app.store.getConversation(task.conversationId)?.private !== false || privateLocalOn()) throw new Error('Pull-request review publication is held by current privacy policy.');
         const posted = await postReview(app, url[1], Number(url[2]), review, run.ctl.signal);
         receipts.push({ name: 'github_post_review', status: 'ok', args: { number: Number(url[2]) }, output: `Posted: ${posted}` });
       } catch (err) {
@@ -824,7 +854,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
         { role: 'system', content: system },
         { role: 'user', content: `${before.length ? `What the team did so far:\n${before.map((x) => `- ${x.helper}: ${clip(x.report ?? '', 600)}`).join('\n')}\n\n` : ''}Your part: ${step.title}\n${step.instructions}` },
       ];
-      const receipts: Receipt[] = [];
+      const receipts: Receipt[] = [...step.receipts];
       let corrected = false;
       for (let round = 0; round < MAX_HELPER_ROUNDS; round++) {
         if (ctl.signal.aborted) throw ctl.signal.reason;
@@ -896,7 +926,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
       }
       if (err instanceof LimitError && !run.ctl.signal.aborted) {
         // Phase 52: this part runs again if the owner continues with more budget.
-        Object.assign(step, { status: 'waiting', report: null, receipts: [], startedAt: null, endedAt: null });
+        Object.assign(step, { status: 'waiting', report: null, startedAt: null, endedAt: null });
         this.#saveStep(step);
         throw err;
       }
@@ -1084,7 +1114,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     ].filter(Boolean);
     const plain = [`Team task ${outcomeText}: ${task.goal}`, ...receipts.map((r) => `• ${r}`)].join('\n');
     let text = '';
-    if (conv) {
+    if (conv && outcome !== 'stopped') {
       try {
         const s = app.settings.get();
         const owner = s.ownerName?.trim() || 'the owner';

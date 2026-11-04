@@ -17,7 +17,7 @@ async function fakeTelegram() {
       return;
     }
     sent.push({ method, body });
-    const result = method === 'getMe' ? { id: 999, is_bot: true, username: 'sara_test_bot' } : method === 'getUpdates' ? await new Promise((r) => setTimeout(() => r([]), 50)) : true;
+    const result = method === 'getMe' ? { id: 999, is_bot: true, username: 'sara_test_bot' } : method === 'getUpdates' ? await new Promise((r) => setTimeout(() => r([]), 50)) : method === 'sendMessage' ? { message_id: sent.length } : true;
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: true, result }));
   });
   return { sent, url, close: () => server.close(), texts: (chat: number) => sent.filter((s) => s.method === 'sendMessage' && s.body.chat_id === chat).map((s) => String(s.body.text)) };

@@ -47,7 +47,7 @@ async function fakeTelegram() {
     const method = (req.url ?? '').split('/').pop()!;
     const body = JSON.parse((await readBody(req)) || '{}') as Record<string, unknown>;
     sent.push({ method, body });
-    const result = method === 'getMe' ? { id: 999, is_bot: true, username: 'sara_test_bot' } : method === 'getUpdates' ? await new Promise((r) => setTimeout(() => r([]), 50)) : true;
+    const result = method === 'getMe' ? { id: 999, is_bot: true, username: 'sara_test_bot' } : method === 'getUpdates' ? await new Promise((r) => setTimeout(() => r([]), 50)) : method === 'sendMessage' ? { message_id: sent.length } : true;
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: true, result }));
   });
   return { sent, close: () => server.close(), url };
@@ -310,6 +310,7 @@ test('paging (server): limit/before pages are complete and in order, with equal 
 
 test('discord: the first message files into Discord; the room gets its real name and chip (B3)', async (t) => {
   const { app, closers } = setup(t);
+  let nextMessageId = 1;
   const { server: srv, url } = await listen(async (req, res) => {
     const raw = await readBody(req);
     const path = req.url ?? '';
@@ -317,6 +318,7 @@ test('discord: the first message files into Discord; the room gets its real name
     if (path === '/users/@me') result = { id: '900', username: 'Sara' };
     else if (path === '/channels/555' && req.method === 'GET') result = { id: '555', name: 'general', guild_id: '77', nsfw: false };
     else if (path === '/guilds/77') result = { id: '77', name: 'My Server' };
+    else if (/^\/channels\/[^/]+\/messages$/.test(path) && req.method === 'POST') result = { id: String(nextMessageId++) };
     else if (path.endsWith('/typing')) return void res.writeHead(204).end();
     void raw;
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(result));

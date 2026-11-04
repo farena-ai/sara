@@ -5,6 +5,19 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.62.0 (2026-11-04): safe recovery after interruption (Q3)
+
+- **Recover without blind replay:** interrupted jobs keep encrypted original requests and durable
+  progress. Review a fresh restart in chat; current policy and approvals apply. Interrupted teams
+  stay held until explicit review, preserve completed work and recheck privacy/publication rules.
+- **Know what reached the platform:** native Telegram/Discord message creation has a durable
+  delivery outbox. Uncertain results stay visible, with no automatic resend or duplicate fallback.
+  Human resolution stays distinct from a platform acknowledgment; encrypted review text is available
+  for held work. Unresolved/history pagination keeps older records reachable.
+- **Safer restore:** recovery identities and encrypted reviews survive moving a backup; excluding
+  workspaces applies to every household/companion space. Crash and isolated-boot fixtures verify
+  conservative recovery. See docs/RECOVERY.md for coverage and limits.
+
 ## 2.61.5 (2026-11-04): focused settings and a clearer first step (Q2)
 
 - **Find the setting you need:** Settings search shows focused results with descriptions and

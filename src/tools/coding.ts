@@ -76,7 +76,7 @@ export function createCodingTools(app: AppContext): Tool[] {
       const command = str(args, 'command');
       const label = str(args, 'label', false) || command.slice(0, 120);
       const minutes = Math.min(60, Math.max(1, num(args, 'timeout_minutes', 30)));
-      const { job } = app.jobs!.start({ conversationId, workspace, label, command, timeoutMs: minutes * 60_000, sandbox: ctx.sandbox, ...(ctx.companionName && ctx.companionName !== 'Sara' ? { env: { GIT_AUTHOR_NAME: ctx.companionName, GIT_COMMITTER_NAME: ctx.companionName } } : {}) });
+      const { job } = app.jobs!.start({ conversationId, workspace, label, command, recoveryIntent: { kind: 'command', command }, timeoutMs: minutes * 60_000, sandbox: ctx.sandbox, ...(ctx.companionName && ctx.companionName !== 'Sara' ? { env: { GIT_AUTHOR_NAME: ctx.companionName, GIT_COMMITTER_NAME: ctx.companionName } } : {}) });
       return `Started background job #${job.id} (${label}). It runs for up to ${minutes} minutes; the result will be reported here when it ends. Don't claim a result before then; use job_status to check progress.`;
     },
   };
@@ -263,6 +263,7 @@ export function createCodingTools(app: AppContext): Tool[] {
         conversationId,
         workspace,
         kind: 'agent',
+        recoveryIntent: { kind: 'agent', agent: kind, task },
         label: `${name}: ${task.replace(/\s+/g, ' ').slice(0, 200)}`,
         command: `${command}; code=$?; rm -f ${shq(promptPath)}; exit $code`,
         timeoutMs: Math.min(MAX_JOB_MS, minutes * 60_000),

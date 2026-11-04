@@ -1,3 +1,5 @@
+import { sendDelivery, formReview, DeliveryRejected, DeliveryUncertain } from './delivery.ts';
+import { PRIO_EDIT, type Priority } from './sendq.ts';
 // Phase 6: Telegram bridge. Long polling (no public webhook needed). The owner links their account
 // with a one-time code; their DMs go to one owner conversation with everything (tools via
 // Approve/Deny buttons, memory, reminders). Other people only if the owner allows it: then each
@@ -183,8 +185,14 @@ export class TelegramBridge {
   /** Phase 115: a Bot API answer; a 429 becomes RateLimited (`parameters.retry_after`, seconds). */
   async #result<T>(method: string, res: Response): Promise<T> {
     const j = (await res.json().catch(() => ({}))) as { ok?: boolean; result?: T; description?: string; error_code?: number; parameters?: { retry_after?: number } };
+    const creating = ['sendMessage', 'sendPhoto', 'sendMediaGroup', 'sendDocument', 'sendVoice'].includes(method);
+    if (creating && res.status >= 500) throw new DeliveryUncertain();
     if (!j.ok && (res.status === 429 || j.error_code === 429)) throw new RateLimited(Math.ceil(Number(j.parameters?.retry_after ?? 1) * 1000), `Telegram ${method}: too many requests`);
-    if (!j.ok) throw new Error(`Telegram ${method}: ${j.description ?? `HTTP ${res.status}`}`);
+    if (!res.ok || j.ok !== true) {
+      if (!creating) throw new Error(`Telegram ${method}: ${j.description ?? `HTTP ${res.status}`}`);
+      if ((res.status >= 400 && res.status < 500) || (j.error_code && j.error_code >= 400 && j.error_code < 500)) throw new DeliveryRejected();
+      throw new DeliveryUncertain();
+    }
     return j.result as T;
   }
 
@@ -192,6 +200,20 @@ export class TelegramBridge {
   async #upload<T>(method: string, form: FormData): Promise<T> {
     const res = await netFetch(`${this.#apiBase}/bot${this.#token}/${method}`, { method: 'POST', body: form, signal: AbortSignal.timeout(120_000) });
     return this.#result<T>(method, res);
+  }
+
+  #sendNative<T>(method: string, body: Record<string, unknown>, priority: Priority = PRIO_REPLY): Promise<T | undefined> {
+    return sendDelivery(this.#app, this.sendq, `tg:${body.chat_id}`, priority,
+      { bridge: 'telegram', operation: method, destination: String(body.chat_id), review: { text: String(body.text ?? body.caption ?? '') } },
+      () => this.#call<T>(method, body));
+  }
+
+  #sendUpload<T>(method: string, form: FormData, text?: string): Promise<T | undefined> {
+    const chat = String(form.get('chat_id'));
+    const expected = method === 'sendMediaGroup' ? (JSON.parse(String(form.get('media'))) as unknown[]).length : 1;
+    return sendDelivery(this.#app, this.sendq, `tg:${chat}`, PRIO_FILE,
+      { bridge: 'telegram', operation: method, destination: chat, review: formReview(form, text ?? String(form.get('caption') ?? '')) },
+      () => this.#upload<T>(method, form), expected);
   }
 
   /** (Re)starts polling according to settings. */
@@ -335,7 +357,7 @@ export class TelegramBridge {
   async send(chatId: number, text: string, extra: Record<string, unknown> = {}): Promise<void> {
     for (const part of splitMessage(text)) {
       // Phase 115 (B2): through the pacer, ahead of files and progress edits; a 429 waits and retries.
-      const m = await this.sendq.send(`tg:${chatId}`, PRIO_REPLY, () => this.#call<{ message_id?: number } | undefined>('sendMessage', { chat_id: chatId, text: part, ...extra }));
+      const m = await this.#sendNative<{ message_id?: number }>('sendMessage', { ...extra, chat_id: chatId, text: part });
       // Phase 110: her own lines in a group she keeps up with are logged too (with Telegram's id).
       this.#herLine(chatId, m?.message_id, part);
     }
@@ -783,16 +805,17 @@ export class TelegramBridge {
   async sendVoice(chatId: number, text: string): Promise<boolean> {
     const speech = speechOf(this.#app);
     if (!speech.canSendNotes()) return false;
+    let dispatching = false;
     try {
       const audio = await speech.speak(text);
       const form = new FormData();
       form.append('chat_id', String(chatId));
       form.append('voice', new Blob([new Uint8Array(audio.data)], { type: audio.type }), audio.type.includes('mpeg') ? 'voice.mp3' : 'voice.ogg');
-      const res = await netFetch(`${this.#apiBase}/bot${this.#token}/sendVoice`, { method: 'POST', body: form, signal: AbortSignal.timeout(60_000) });
-      const j = (await res.json().catch(() => ({}))) as { ok?: boolean; description?: string };
-      if (!j.ok) throw new Error(j.description ?? `HTTP ${res.status}`);
+      dispatching = true;
+      await this.#sendUpload('sendVoice', form, text);
       return true;
     } catch (err) {
+      if (dispatching && !(err instanceof DeliveryRejected)) throw err;
       console.warn(`telegram voice note: ${(err as Error).message.replace(this.#token ?? '', '***')}`);
       return false;
     }
@@ -876,11 +899,14 @@ export class TelegramBridge {
       clearInterval(typing);
     }
     // The progress message turns into its summary line (its edit waits behind her answer in the pacer).
-    const closing = progress?.finish();
+    const closing = progress?.finish().catch(() => undefined);
     await Promise.allSettled(sends);
     // Pictures first (her reply as the caption when it fits), then files, then her text.
     if (out.items.length && where) {
-      const sent = await deliverOutgoing(app, app.store.getConversation(conv.id) ?? conv, { bridge: 'telegram', chatKey: String(chatId), place: where.place, lang: ownerLanguage(app) }, this.#mediaPort(chatId), out.items, outgoing.length === 1 && !errorLines.has(outgoing[0]) ? outgoing[0] : '').catch((err: Error) => ({ captionUsed: false, lines: [this.#tr("I couldn't send the picture here ({reason}). It's in the app.", { reason: err.message.slice(0, 120) })] }));
+      const sent = await deliverOutgoing(app, app.store.getConversation(conv.id) ?? conv, { bridge: 'telegram', chatKey: String(chatId), place: where.place, lang: ownerLanguage(app) }, this.#mediaPort(chatId), out.items, outgoing.length === 1 && !errorLines.has(outgoing[0]) ? outgoing[0] : '').catch((err: Error) => {
+        if (err instanceof DeliveryUncertain) throw err;
+        return { captionUsed: false, lines: [this.#tr("I couldn't send the picture here ({reason}). It's in the app.", { reason: err.message.slice(0, 120) })] };
+      });
       if (sent.captionUsed) outgoing.splice(0, 1);
       outgoing.push(...sent.lines);
     }
@@ -919,8 +945,9 @@ export class TelegramBridge {
     };
     return new ProgressMessage({
       port: {
+        createQueued: true,
         create: async (text, stop) => {
-          const m = await this.#call<{ message_id?: number }>('sendMessage', { chat_id: chatId, text, reply_markup: kb(stop) });
+          const m = await this.#sendNative<{ message_id?: number }>('sendMessage', { chat_id: chatId, text, reply_markup: kb(stop) }, PRIO_EDIT);
           return m?.message_id !== undefined ? String(m.message_id) : undefined;
         },
         edit: (ref, text, stop) => this.#call('editMessageText', { chat_id: chatId, message_id: Number(ref), text, reply_markup: kb(stop) }).then(() => undefined, notModified),
@@ -949,20 +976,19 @@ export class TelegramBridge {
       maxFileBytes: TELEGRAM_FILE_OUT,
       captionMax: 1024,
       sendPhotos: async (files, caption) => {
-        const key = `tg:${chatId}`;
         if (files.length === 1) {
           const form = new FormData();
           form.append('chat_id', String(chatId));
           form.append('photo', blob(files[0].path, files[0].mime), files[0].name);
           if (caption) form.append('caption', caption);
-          const m = await this.sendq.send(key, PRIO_FILE, () => this.#upload<{ photo?: { file_id: string }[] }>('sendPhoto', form));
+          const m = await this.#sendUpload<{ photo?: { file_id: string }[] }>('sendPhoto', form);
           return [m?.photo?.at(-1)?.file_id ?? ''];
         }
         const form = new FormData();
         form.append('chat_id', String(chatId));
         form.append('media', JSON.stringify(files.map((f, n) => ({ type: 'photo', media: `attach://p${n}`, ...(n === 0 && caption ? { caption } : {}) }))));
         files.forEach((f, n) => form.append(`p${n}`, blob(f.path, f.mime), f.name));
-        const list = await this.sendq.send(key, PRIO_FILE, () => this.#upload<{ photo?: { file_id: string }[] }[]>('sendMediaGroup', form));
+        const list = await this.#sendUpload<{ photo?: { file_id: string }[] }[]>('sendMediaGroup', form, caption);
         return (list ?? []).map((m) => m.photo?.at(-1)?.file_id ?? '');
       },
       sendFile: async (f, caption) => {
@@ -970,7 +996,7 @@ export class TelegramBridge {
         form.append('chat_id', String(chatId));
         form.append('document', blob(f.path, f.mime), f.name);
         if (caption) form.append('caption', caption.slice(0, 1024));
-        const m = await this.sendq.send(`tg:${chatId}`, PRIO_FILE, () => this.#upload<{ document?: { file_id: string } }>('sendDocument', form));
+        const m = await this.#sendUpload<{ document?: { file_id: string } }>('sendDocument', form);
         return m?.document?.file_id;
       },
     };
@@ -984,7 +1010,7 @@ export class TelegramBridge {
     form.append('chat_id', String(chat));
     form.append('photo', new Blob([new Uint8Array(png)], { type: 'image/png' }), 'test.png');
     form.append('caption', this.#tr('A test picture from Sara. Pictures and files reach you here.'));
-    await this.sendq.send(`tg:${chat}`, PRIO_FILE, () => this.#upload('sendPhoto', form));
+    await this.#sendUpload('sendPhoto', form);
   }
 
   /** Reminders and messages she starts herself also go to the owner's Telegram. */

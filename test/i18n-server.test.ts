@@ -62,7 +62,7 @@ test('i18n server: Telegram system messages to the owner use the owner language;
     const method = (req.url ?? '').split('/').pop()!;
     const body = JSON.parse((await readBody(req)) || '{}') as Record<string, unknown>;
     sent.push({ method, body });
-    const result = method === 'getMe' ? { id: 999, is_bot: true, username: 'sara_test_bot' } : method === 'getUpdates' ? await new Promise((r) => setTimeout(() => r([]), 50)) : true;
+    const result = method === 'getMe' ? { id: 999, is_bot: true, username: 'sara_test_bot' } : method === 'getUpdates' ? await new Promise((r) => setTimeout(() => r([]), 50)) : method === 'sendMessage' ? { message_id: sent.length } : true;
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: true, result }));
   });
   const { dir, cleanup } = tempDir();

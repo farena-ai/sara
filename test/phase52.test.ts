@@ -206,7 +206,7 @@ test('job budget (L4): a dollar-only budget stops at the first call with no pric
   assert.match(String((j.result?.budget as { reason: string }).reason), /no price for this model.*set a token budget or a price/);
 });
 
-test('job budget: an agent job stops cleanly at its token budget, says so plainly, and can continue', async (t) => {
+test('job budget: an agent job stops cleanly at its token budget, says so plainly, and refuses unsafe direct replay', async (t) => {
   const conv = app.store.createConversation({ mode: 'coding' });
   const ws = workspaceDir(dir, conv.workspace);
   // Like Claude Code's stream-json: one call shown as two lines (same id), then another call.
@@ -225,15 +225,15 @@ test('job budget: an agent job stops cleanly at its token budget, says so plainl
   const msg = app.store.messages(conv.id).filter((m) => m.role === 'assistant').at(-1)!;
   assert.equal(msg.meta?.budget, true);
   assert.match(msg.content, /didn't go past it/);
+  assert.match(msg.content, /review a fresh restart/);
   const list = (await (await api(`/api/jobs?conversation=${conv.id}`)).json()) as { id: number; canContinue?: boolean; usage?: { tokens: number } }[];
-  assert.equal(list.find((x) => x.id === job.id)?.canContinue, true);
+  assert.equal(list.find((x) => x.id === job.id)?.canContinue, false);
   assert.equal(list.find((x) => x.id === job.id)?.usage?.tokens, 1200);
-  // Continue with the same budget again (2000 tokens): this run finishes.
-  const next = (await (await api(`/api/jobs/${job.id}/continue`, 'POST', {})).json()) as { id: number; label: string };
-  assert.match(next.label, /\(continued\)$/);
-  await until(() => app.jobs!.get(next.id)?.status !== 'running');
-  assert.equal(app.jobs!.get(next.id)?.status, 'ok');
-  assert.equal((await api(`/api/jobs/${job.id}/continue`, 'POST', {})).status, 400, 'continued once');
+  const before = app.jobs!.list().length;
+  const response = await api(`/api/jobs/${job.id}/continue`, 'POST', {});
+  assert.equal(response.status, 409);
+  assert.match(await response.text(), /review/i);
+  assert.equal(app.jobs!.list().length, before, 'no replay job was created');
 });
 
 test('device flow: code → owner approves → the app gets its token once; it is listed, works with two-step on, can\'t approve others, signs out', async () => {

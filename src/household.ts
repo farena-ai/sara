@@ -374,7 +374,7 @@ export function memberVault(vault: Vault, limits: () => MemberLimits): Vault {
       if (prop === 'get') return (name: string) => (allowedKey(name) ? target.get(name) : undefined);
       if (prop === 'has') return (name: string) => allowedKey(name) && target.has(name);
       if (prop === 'values') return () => [];
-      if (prop === 'set' || prop === 'delete') return refuse;
+      if (prop === 'set' || prop === 'delete' || prop === 'seal' || prop === 'unseal') return refuse;
       const v = Reflect.get(target, prop, target) as unknown;
       return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(target) : v;
     },

@@ -5,6 +5,7 @@ import { netFetch } from './net-guard.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { StoryWorker } from './story.ts';
 import { JobManager } from './jobs.ts';
+import { deliveryFor } from './delivery.ts';
 import { createCodingTools } from './tools/coding.ts';
 import { createBrowserTools } from './tools/browser.ts';
 import { PreviewManager } from './preview.ts';
@@ -1109,6 +1110,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.hooks = hookManager;
     hookManager.attach(id, app);
   }
+  deliveryFor(app); // Recover delivery evidence once per store; never dispatch on boot.
   const server = createSaraServer({ ...serverOpts, app, auth: space.auth, companions: space.companions, spaceId: space.id, ...(isMember ? { member: memberHooksFor(space) } : isDemo ? {} : { household: householdHooks }) });
   return {
     id,
@@ -1127,8 +1129,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       libraryWorker?.start();
       vectorTimer = setInterval(indexVectors, 60_000);
       if (!isDemo) issueWatcher?.start();
-      // Team tasks that were running when the server stopped carry on.
-      if (app.team) setTimeout(() => app.team?.resumeInterrupted(), 15_000).unref();
+      // Interrupted team work stays held until an explicit recovery review.
       setTimeout(indexVectors, 5_000).unref();
       reminders.start();
       if (!sharedPlanner) app.cardWork?.start();

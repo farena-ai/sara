@@ -568,3 +568,28 @@ host keys, and, only if the owner asked, a server password in the vault.
 - The face lock sends her own locked portrait to the picture service with each edit; nothing else
   leaves the server. The Android app's `savePicture` only fetches from the configured server's
   origin, with the app's own cookie, and writes to Pictures/Sara.
+
+## Q3 recovery and delivery evidence (2.62.0)
+
+Recovery intent/review text is authenticated-encrypted in its own SQLite row with the existing
+Vault key, a persistent random database identity and a row/type context. Restore preserves that
+identity; copying ciphertext to another space/type fails authentication. Plain metadata never
+contains executable runtime state, credentials, callbacks or retained approval. Member Vault
+proxies cannot seal/unseal owner recovery data, and owner-only routes also deny device tokens.
+Filesystem/root compromise and stolen backup keys remain outside this encryption boundary.
+
+A recovery draft is historical untrusted data. It neither executes a tool nor creates an approval;
+explicit Send re-enters current chat policy. Team recovery is explicit, retains completed parts,
+rechecks current privacy/tool limits and resets workflow grants. Interrupted publication with an
+uncertain prior PR step requires manual reconciliation. Stop/crisis holds are not restart grants.
+
+Native Telegram/Discord message creation persists queued before admission and attempted before
+network. Valid platform ids are required for acknowledgment. Ambiguous network/storage outcomes
+are unknown, never fallback/retried automatically. A live queued send may still dispatch; a restored
+queued row is explicitly held and cannot attempt. Live queued rows cannot be resolved as though
+finished. Human resolution is separate from transport evidence. Review payloads are erased only
+on acknowledgment/resolution; cursor pagination preserves access to old unresolved work.
+
+This ledger does not cover plugin IPC, arbitrary tool/command effects or all platform operations.
+Discord nonce protection has a short platform window, not exactly-once semantics. Restored data
+cannot know events after its snapshot. See RECOVERY.md and Q3 crash/isolated-boot tests for bounds.

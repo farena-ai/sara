@@ -20,6 +20,8 @@ import { PRIO_EDIT, realClock, sleepOn, type Clock, type SendQueue } from './sen
 
 /** How a bridge posts and edits the one message (Telegram, Discord, a plugin with `edit`). */
 export interface ProgressPort {
+  /** Native creation persists its outbox entry before queue admission. */
+  createQueued?: boolean;
   /** Posts the message; returns its id (undefined: it couldn't be posted). */
   create(text: string, stop: boolean): Promise<string | undefined>;
   edit(ref: string, text: string, stop: boolean): Promise<void>;
@@ -290,7 +292,7 @@ export class ProgressMessage {
     this.#state = 'shown';
     const text = this.render();
     try {
-      const ref = await this.#o.queue.send(this.#o.key, PRIO_EDIT, () => this.#o.port.create(text, this.#o.owner));
+      const ref = await (this.#o.port.createQueued ? this.#o.port.create(text, this.#o.owner) : this.#o.queue.send(this.#o.key, PRIO_EDIT, () => this.#o.port.create(text, this.#o.owner)));
       if (!ref) {
         this.#state = 'off';
         return;

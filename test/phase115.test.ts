@@ -1,3 +1,4 @@
+import { deliveryFor } from '../src/delivery.ts';
 // Phase 115 (BR1, 2.48.0): chat apps catch up (docs/design/BRIDGES2.md §4.14). Photos and files both
 // ways in Telegram and Discord (stand-in servers) and through the plugin bridge contract v1.1, other
 // people's pictures (off by default, described first), send_file, and the one live progress message
@@ -88,6 +89,7 @@ async function fakeTelegram(clock?: ManualClock) {
   const sent: TgSent[] = [];
   const files = new Map<string, Buffer>();
   let nextId = 500;
+  let dropPhotos = false;
   /** Called before answering: return a 429 (retry_after seconds) for this call, or undefined. */
   let limit: (method: string) => number | undefined = () => undefined;
   const { server, url } = await listen(async (req, res) => {
@@ -102,6 +104,7 @@ async function fakeTelegram(clock?: ManualClock) {
     const ra = limit(method);
     if (ra !== undefined) return void res.writeHead(429, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: false, error_code: 429, description: 'Too Many Requests', parameters: { retry_after: ra } }));
     sent.push({ method, body: json, ...(form ? { form } : {}), at: clock?.now() ?? Date.now() });
+    if (dropPhotos && method === 'sendPhoto') return void req.socket.destroy();
     let result: unknown = true;
     if (method === 'getMe') result = { id: 999, is_bot: true, username: 'sara_test_bot' };
     else if (method === 'getUpdates') result = await new Promise((r) => setTimeout(() => r([]), 50));
@@ -116,6 +119,7 @@ async function fakeTelegram(clock?: ManualClock) {
     sent,
     files,
     url,
+    dropPhotos: () => { dropPhotos = true; },
     setLimit: (f: typeof limit) => (limit = f),
     close: () => server.close(),
     texts: (chat: number) => sent.filter((s) => s.method === 'sendMessage' && s.body.chat_id === chat).map((s) => String(s.body.text)),
@@ -235,6 +239,7 @@ async function fakeDiscord() {
   const sent: { method: string; path: string; body: Record<string, unknown>; form?: FormData }[] = [];
   const cdn = new Map<string, Buffer>();
   let n = 7000;
+  let dropPhotos = false;
   const { server, url } = await listen(async (req, res) => {
     const path = req.url ?? '';
     if (path.startsWith('/cdn/')) {
@@ -243,6 +248,7 @@ async function fakeDiscord() {
     }
     const { json, form } = await bodyOf(req);
     sent.push({ method: req.method ?? '', path, body: json, ...(form ? { form } : {}) });
+    if (dropPhotos && form && path.endsWith('/messages')) return void req.socket.destroy();
     let result: unknown = {};
     if (path === '/users/@me') result = { id: '900', username: 'Sara', bot: true };
     else if (/^\/channels\/[\w-]+$/.test(path) && req.method === 'GET') result = { id: path.split('/')[2], nsfw: false };
@@ -251,7 +257,7 @@ async function fakeDiscord() {
     else if (/\/messages$/.test(path) && req.method === 'POST') result = { id: String(n++), attachments: form ? [{ id: 'att-1' }] : [] };
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(result));
   });
-  return { sent, cdn, url, close: () => server.close(), posts: (ch: string) => sent.filter((s) => s.method === 'POST' && s.path === `/channels/${ch}/messages`) };
+  return { sent, cdn, url, dropPhotos: () => { dropPhotos = true; }, close: () => server.close(), posts: (ch: string) => sent.filter((s) => s.method === 'POST' && s.path === `/channels/${ch}/messages`) };
 }
 const DC_TOKEN = ['MTIzNDU2Nzg5MDEyMzQ1Njc4', 'GabcDE', 'abcdefghijklmnopqrstuvwxyz0123456789'].join('.');
 const DC_OWNER = { id: '100', username: 'alex', global_name: 'Alex' };
@@ -379,6 +385,7 @@ test('pictures out: a selfie asked for in Telegram arrives as sendPhoto with the
   await bridge.handle(dmFrom(OWNER, { text: 'send me a selfie' }));
   const photos = tg.calls('sendPhoto');
   assert.equal(photos.length, 1, 'the selfie arrives (2.47 dropped the image event)');
+  assert.ok(deliveryFor(app).list().some(row => row.operation === 'sendPhoto' && row.state === 'acknowledged'));
   assert.equal(photos[0].form!.get('caption'), 'Here I am!');
   assert.ok(photos[0].form!.get('photo') instanceof Blob);
   assert.ok(!tg.texts(OWNER).includes('Here I am!'), 'nothing else: the reply was the caption');
@@ -398,6 +405,7 @@ test('pictures out: a selfie asked for in Telegram arrives as sendPhoto with the
   await dc.bridge.handleMessage({ id: '9', channel_id: 'dm1', author: DC_OWNER, content: 'selfie please' } as never);
   const multi = dc.rest.posts('dm1').filter((p) => p.form);
   assert.equal(multi.length, 1);
+  assert.ok(deliveryFor(dc.app).list().some(row => row.operation === 'message' && row.state === 'acknowledged'));
   const payload = JSON.parse(String(multi[0].form!.get('payload_json'))) as { content?: string; attachments: { description?: string }[] };
   assert.equal(payload.content, 'Hi from Discord.');
   assert.ok(multi[0].form!.get('files[0]') instanceof Blob);
@@ -807,3 +815,25 @@ test('plugin bridge v1: no ready.bridge → exactly today\'s text messages; brid
   assert.match(String((denied as { denied?: string }).denied), /bridgeFiles/);
   assert.ok(r.pm.store.logs('line-bridge').some((l) => l.kind === 'denied' && /bridgeFiles/.test(l.detail)));
 });
+
+for (const fault of ['response-lost', 'ack-write'] as const) {
+  test(`Q3 caption uncertainty never repeats caption or falsely reports failure (${fault})`, async (t) => {
+    const tg = await tgSetup(t);
+    const dc = await dcSetup(t);
+    for (const app of [tg.app, dc.app]) {
+      deliveryFor(app);
+      if (fault === 'ack-write') app.store.db.exec("CREATE TRIGGER deny_q3_ack BEFORE UPDATE ON deliveries WHEN NEW.state='acknowledged' BEGIN SELECT RAISE(ABORT,'synthetic ack failure'); END");
+      addPhotoTool(app);
+      app.script.push([call('q3-photo', 'take_photo', {})], text('Unique caption fixture.'));
+    }
+    if (fault === 'response-lost') { tg.tg.dropPhotos(); dc.rest.dropPhotos(); }
+    await tg.bridge.handle(dmFrom(OWNER, {text:'selfie please'}));
+    await dc.bridge.handleMessage({id:'q3',channel_id:'dm1',author:DC_OWNER,content:'selfie please'} as never);
+    assert.equal(tg.tg.calls('sendPhoto').length,1);
+    assert.equal(dc.rest.posts('dm1').filter(p=>p.form).length,1);
+    assert.equal(tg.tg.texts(OWNER).some(text=>text==='Unique caption fixture.' || text.includes("couldn't send the picture")),false);
+    assert.equal(dc.rest.posts('dm1').some(p=>!p.form && (p.body.content==='Unique caption fixture.' || String(p.body.content).includes("couldn't send the picture"))),false);
+    assert.equal(deliveryFor(tg.app).list().filter(r=>r.state==='outcome_unknown' && r.operation==='sendPhoto').length,1);
+    assert.equal(deliveryFor(dc.app).list().filter(r=>r.state==='outcome_unknown' && deliveryFor(dc.app).review(r.id).attachments?.length).length,1);
+  });
+}

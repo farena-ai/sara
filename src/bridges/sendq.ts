@@ -18,7 +18,7 @@ export class RateLimited extends Error {
   readonly retryAfterMs: number;
   constructor(retryAfterMs: number, message = 'rate limited') {
     super(message);
-    this.retryAfterMs = Math.max(0, Math.min(retryAfterMs, 10 * 60_000));
+    this.retryAfterMs = Number.isFinite(retryAfterMs) && retryAfterMs >= 0 ? Math.min(retryAfterMs, 10 * 60_000) : 1000;
   }
 }
 
@@ -76,7 +76,7 @@ export class SendQueue {
   /** Pauses a chat's queue (a 429, or a bucket with no requests left until it resets). */
   pause(key: string, ms: number): void {
     const lane = this.#lane(key);
-    lane.pausedUntil = Math.max(lane.pausedUntil, this.#clock.now() + ms);
+    lane.pausedUntil = Math.max(lane.pausedUntil, this.#clock.now() + (Number.isFinite(ms) && ms >= 0 ? Math.min(ms, 600_000) : 1000));
   }
 
   /** Waiting items per chat (for tests and the status line). */

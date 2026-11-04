@@ -14,6 +14,7 @@ export const foldText = (s) => String(s ?? '').toLowerCase().normalize('NFD').re
  * too). Arrays, not sentences: these are search words, never shown.
  */
 export const SETTINGS_KEYWORDS = {
+  'dh-recovery': ['recovery', 'restart', 'interrupted', 'resume', 'outbox', 'delivery', 'unknown', 'held'],
   'dh-backups': ['backup', 'backups', 'restore', 'restore backup', 'keep a copy'],
   'her-character': ['personality', 'dials', 'sliders', 'name', 'character', 'archetype'],
   'her-hey': ['hey sara', 'wake word', 'wakeword', 'push to talk', 'push-to-talk', 'talk tile', 'hands free', 'hotword'],

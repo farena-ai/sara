@@ -34,7 +34,7 @@ const list = (name: string) => /const NAME = \[([\s\S]*?)\];/.source.replace('NA
 const ORDER = new RegExp(list('SETTINGS_ORDER')).exec(app)![1].match(/'([\w-]+)'/g)!.map((s) => s.slice(1, -1));
 const GROUPS = [...new RegExp(list('SETTINGS_GROUPS')).exec(app)![1].matchAll(/name: '([^']+)'/g)].map((m) => m[1]);
 
-test('128b.1 N29: every page id in SETTINGS_ORDER is in exactly one group; 8 groups (+ Household) of at most 10; ids unchanged', () => {
+test('128b.1 N29: every page id in SETTINGS_ORDER is in exactly one group; 8 groups (+ Household) with bounded pages; ids unchanged', () => {
   assert.equal(V.startsWith('2.61') || satisfies(V, '>=2.61.1'), true);
   assert.deepEqual(GROUPS, ['Her', 'You', 'Models', 'Chat apps', 'Add-ons', 'Coding', 'Connections', 'Data & health', 'Household']);
   // The guide's index and HOW_DO_I.md group the same way (generated from the group table).
@@ -47,7 +47,8 @@ test('128b.1 N29: every page id in SETTINGS_ORDER is in exactly one group; 8 gro
     byGroup.set(s.group, [...(byGroup.get(s.group) ?? []), s.id]);
   }
   // The retired Recipes page and the member-only account page aren't in the owner's list.
-  for (const [g, ids] of byGroup) assert.ok(ids.filter((x) => x !== 'ab-recipes' && x !== 'account').length <= 10, `${g}: ${ids.length} pages`);
+  // Q3 intentionally adds Recovery to Data & health; unrelated groups retain the ten-page cap.
+  for (const [g, ids] of byGroup) assert.ok(ids.filter((x) => x !== 'ab-recipes' && x !== 'account').length <= (g === 'Data & health' ? 11 : 10), `${g}: ${ids.length} pages`);
   const want: Record<string, string[]> = {
     'Chat apps': ['co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-pickup'],
     'Add-ons': ['ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-recipes'],

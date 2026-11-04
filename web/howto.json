@@ -1145,6 +1145,37 @@
    ]
   }
  ],
+ "dh-recovery": [
+  {
+   "id": "job",
+   "q": "How do I review an interrupted job?",
+   "steps": [
+    "Choose Review restart and read the preview before doing anything else.",
+    "Copy it, or use it in the same empty chat; an existing draft is kept.",
+    "Choose Send yourself. Earlier effects may repeat; current checks and approvals still apply."
+   ],
+   "show": "#recovery-content"
+  },
+  {
+   "id": "team",
+   "q": "How do I resume an interrupted team?",
+   "steps": [
+    "Check the unfinished step and its receipts; it may already have changed something.",
+    "Choose Resume team and acknowledge the risk before resuming. Completed steps are kept."
+   ],
+   "show": "#recovery-content"
+  },
+  {
+   "id": "delivery",
+   "q": "How do I check an uncertain delivery?",
+   "steps": [
+    "Use Unresolved or All history, then Load more deliveries to reach older records.",
+    "Check the destination first. Unknown messages may have arrived; live queued messages may still send.",
+    "Record only what you confirmed. Human resolution is separate from platform acknowledgment; this page never resends."
+   ],
+   "show": "#recovery-content"
+  }
+ ],
  "dh-health": [
   {
    "id": "check",

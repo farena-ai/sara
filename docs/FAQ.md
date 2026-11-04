@@ -2,6 +2,11 @@
 
 ## Common questions
 
+**What happens if Sara stops during a job or message send?**
+Open Settings → Data & health → Recovery. Jobs offer review of a fresh restart; teams remain held
+until explicit recovery. An uncertain native message stays unknown instead of being blindly sent
+again. Check the destination first. See [Recovery](RECOVERY.md) for supported paths and limits.
+
 **How do I find a setting without browsing every page?**
 Search at the top of Settings. Results show descriptions and breadcrumbs; opening one shows just that page. **Back to results** keeps your search. Try *restore*, *voice*, *connect model* or *permissions*. Only pages available to your account and app appear.
 

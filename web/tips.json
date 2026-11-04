@@ -1439,6 +1439,10 @@
     ]
   },
   "pages": {
+    "dh-recovery": [
+      "Review interrupted jobs, teams and native message outcomes. Nothing restarts or resends automatically.",
+      "recovery"
+    ],
     "her-import": [
       "Bring chats from Character.AI, SillyTavern, Replika, Nomi, Kindroid, ChatGPT or Claude: she suggests what she learned, you check it, and only what you keep is saved.",
       "import"

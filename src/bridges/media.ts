@@ -1,3 +1,4 @@
+import { DeliveryUncertain } from './delivery.ts';
 // Phase 115 (BR1 B1): bridge media, one place for pictures and files crossing a chat app in either
 // direction (docs/design/BRIDGES2.md §3.1 B1, §4.2–§4.7, §4.10, §4.11).
 //
@@ -477,6 +478,7 @@ export async function deliverOutgoing(app: AppContext, conv: Conversation, ctx: 
         if (ref) setPlatformRef(app, id, ref);
       });
     } catch (err) {
+      if (err instanceof DeliveryUncertain) throw err;
       res.lines.push(t(en("I couldn't send the picture here ({reason}). It's in the app."), { reason: scrubReason(app, (err as Error).message) }));
     }
   }
@@ -492,6 +494,7 @@ export async function deliverOutgoing(app: AppContext, conv: Conversation, ctx: 
       if (ref) setPlatformRef(app, row.id, ref);
       mediaDb(app).prepare('UPDATE shared_files SET bridge = ?, chat_key = ? WHERE id = ?').run(ctx.bridge, ctx.chatKey, row.id);
     } catch (err) {
+      if (err instanceof DeliveryUncertain) throw err;
       updateShared(app, row.id, { status: 'failed', reason: 'send' });
       res.lines.push(t(en("I couldn't send {name} here ({reason}). It's in the app."), { name: f.name, reason: scrubReason(app, (err as Error).message) }));
     }

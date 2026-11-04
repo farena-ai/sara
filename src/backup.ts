@@ -140,7 +140,7 @@ export function createBackup(dataDir: string, outFile: string, opts: { saraVersi
   const includeWorkspaces = opts.includeWorkspaces ?? true;
   const refs: FileRef[] = [];
   walk(dataDir, dataDir, refs);
-  const files = refs.filter((e) => includeWorkspaces || !e.path.startsWith('workspaces/'));
+  const files = refs.filter((e) => includeWorkspaces || !/(^|\/)workspaces\//.test(e.path));
   const dbs = ['sara.db'];
   const snaps: string[] = [];
   const cdir = join(dataDir, 'companions');

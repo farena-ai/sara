@@ -564,14 +564,14 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
         }));
       }
       if (b && c === 'stop' && method === 'POST') return send(res, 200, { stopped: jobs.stop(Number(b)) });
-      if (b && c === 'continue' && method === 'POST') {
+      if (b && (c === 'continue' || c === 'recovery') && method === 'POST') {
+        if (opts.demo || opts.member || app.member) throw new HttpError(403, 'Owner recovery only.');
         const body = await readJson(req);
-        try {
-          const { job } = jobs.continueWithMore(Number(b), cleanBudget(body));
-          return send(res, 200, job);
-        } catch (err) {
-          throw as400(err);
-        }
+        if (c === 'continue') throw new HttpError(409, 'Direct continuation is unavailable. Open Recovery to review a restart, then explicitly send it in chat.');
+        if (!/^\d+$/.test(b) || !Number.isSafeInteger(Number(b)) || Number(b) < 1) throw new HttpError(400, 'Invalid job id.');
+        if (!jobs.get(Number(b))) throw new HttpError(404, 'Job not found.');
+        try { return send(res, 200, jobs.prepareRecovery(Number(b), cleanBudget(body))); }
+        catch (err) { throw new HttpError(409, (err as Error).message); }
       }
     }
     // Phase 52: new projects from tested starters (the project page's "New project from a starter").
@@ -772,6 +772,12 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, { task: brief(t), log: team.log(id), approvals: team.approvals(id) });
       }
       if (id && c === 'stop' && method === 'POST') return send(res, 200, { stopped: team.stop(id) });
+      if (id && c === 'resume' && method === 'POST') {
+        if (opts.demo || opts.member || app.member) throw new HttpError(403, 'Owner recovery only.');
+        const body = await readJson(req);
+        try { return send(res, 200, brief(team.resume(id, body.acknowledgeUnknown === true))); }
+        catch (err) { throw new HttpError(409, (err as Error).message); }
+      }
       if (id && c === 'continue' && method === 'POST') {
         const body = await readJson(req);
         try {

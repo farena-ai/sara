@@ -716,6 +716,7 @@ test('discord: /steer /queue /btw are in the bulk overwrite with a required text
     sent.push({ method: req.method ?? '', path, body: raw ? (JSON.parse(raw) as Record<string, unknown>) : {} });
     let result: unknown = {};
     if (path === '/users/@me') result = { id: '900', username: 'Sara', bot: true };
+    else if (path.endsWith('/messages') && req.method === 'POST') result = { id: String(sent.length) };
     else if (path.endsWith('/typing') || path.includes('/callback') || path.includes('/reactions/')) return void res.writeHead(204).end();
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(result));
   });

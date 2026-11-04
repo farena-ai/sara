@@ -3,6 +3,12 @@
 Sara was built in phases, each one released, tested and documented before the next began. Every
 version's details are in the [changelog](../CHANGELOG.md).
 
+## Recovery improvements in 2.62.0
+
+Durable encrypted job review, explicitly held team recovery and native Telegram/Discord delivery
+uncertainty records. Backup/restore and crash fixtures cover interruption boundaries. No automatic
+command/message replay; current safety and approval rules remain. See [Recovery](RECOVERY.md).
+
 ## Quality improvements in 2.61.5
 
 Focused Settings search with descriptions, page navigation and Back to results; readiness-first

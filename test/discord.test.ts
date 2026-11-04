@@ -25,6 +25,7 @@ async function fakeRest(nsfw: Record<string, boolean>) {
     if (path === '/users/@me') result = BOT;
     else if (/^\/channels\/\d+$/.test(path) && req.method === 'GET') result = { id: path.split('/')[2], nsfw: Boolean(nsfw[path.split('/')[2]]) };
     else if (path === '/users/@me/channels') result = { id: 'dm-owner' };
+    else if (path.endsWith('/messages') && req.method === 'POST') result = { id: String(sent.length) };
     else if (path.endsWith('/typing')) return void res.writeHead(204).end();
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(result));
   });

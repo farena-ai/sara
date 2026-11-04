@@ -23,7 +23,7 @@ async function fakeTelegram() {
     const method = (req.url ?? '').split('/').pop()!;
     const body = JSON.parse((await readBody(req)) || '{}') as Record<string, unknown>;
     sent.push({ method, body });
-    const result = method === 'getMe' ? { id: 999, is_bot: true, username: 'sara_test_bot' } : method === 'getUpdates' ? await new Promise((r) => setTimeout(() => r([]), 50)) : true;
+    const result = method === 'getMe' ? { id: 999, is_bot: true, username: 'sara_test_bot' } : method === 'getUpdates' ? await new Promise((r) => setTimeout(() => r([]), 50)) : method === 'sendMessage' ? { message_id: sent.length } : true;
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: true, result }));
   });
   return { sent, url, close: () => server.close(), texts: (chat: number) => sent.filter((s) => s.method === 'sendMessage' && s.body.chat_id === chat).map((s) => String(s.body.text)) };
@@ -368,6 +368,7 @@ async function dcSetup(t: { after: (fn: () => void) => void }, discord: Record<s
     if (path === '/users/@me') result = BOT;
     else if (/^\/channels\/\d+$/.test(path) && req.method === 'GET') result = { id: path.split('/')[2], nsfw: false };
     else if (path === '/users/@me/channels') result = { id: `dm-${(JSON.parse(raw || '{}') as { recipient_id?: string }).recipient_id}` };
+    else if (/^\/channels\/[^/]+\/messages$/.test(path) && req.method === 'POST') result = { id: String(sent.length) };
     else if (path.endsWith('/typing') || path.includes('/callback')) return void res.writeHead(204).end();
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(result));
   });

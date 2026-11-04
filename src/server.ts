@@ -51,6 +51,7 @@ import { as400, clientIp, cookies, fromSaraApp, HttpError, isSameOrigin, MAX_BOD
 import { NEXT, type ActiveTurn, type RouteCtx } from './routes/context.ts';
 import { createLibraryRoutes } from './routes/library.ts';
 import { createCodingRoutes } from './routes/coding.ts';
+import { createDeliveryRoutes } from './routes/deliveries.ts';
 import { createEvalRoutes } from './routes/evals.ts';
 import { createSkillRoutes } from './routes/skills.ts';
 import { createPluginRoutes } from './routes/plugins.ts';
@@ -345,7 +346,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports', 'boards']);
   /** Security review: routes an app signed in with a device code may not use (sign-in settings, devices, approving apps). */
   // Phase 100: 'agents' (A2A keys and peers) too.
-  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks']);
+  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries']);
   /**
    * Phase 24 (security review): what a demo visitor may read. Everyone on the demo is "signed in",
    * so owner-only pages (backups, files, health details, accounts, devices…) must be listed out,
@@ -883,6 +884,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const roomRoutes = createRoomRoutes(ctx);
   const connectionsRoutes = createConnectionsRoutes(ctx);
   const adminRoutes = createAdminRoutes(ctx);
+  const deliveryRoutes = createDeliveryRoutes(ctx);
   const modelsRoutes = createModelsRoutes(ctx);
   const herRoutes = createHerRoutes(ctx);
   const voiceRoutes = createVoiceRoutes(ctx);
@@ -1175,6 +1177,9 @@ export function createSaraServer(opts: ServerOptions): Server {
     if (deviceTokenOf(req) && DEVICE_TOKEN_DENIED.has(a) && !(a === 'device' && (b === 'logout' || b === 'whoami'))) {
       throw new HttpError(403, 'Apps signed in with a device code can\'t change sign-in settings or devices. Use the web app (Settings → Devices and sign-in).');
     }
+    if (deviceTokenOf(req) && ((a === 'jobs' && (c === 'recovery' || c === 'continue')) || (a === 'team' && c === 'resume'))) {
+      throw new HttpError(403, 'Review interrupted work in the owner web app.');
+    }
     // Hardening M4: Home Assistant's token only talks with her in the conversations it made.
     {
       const devId = deviceTokenOf(req);
@@ -1222,6 +1227,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await modelsRoutes(req, res, method, parts)) !== NEXT) return;
     // Admin: settings, backups, logs, doctor, status, health history, updates, access, desktop apps, safety stats, search, tools, MCP, checklist: src/routes/admin.ts.
     if ((await adminRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await deliveryRoutes(req, res, method, parts)) !== NEXT) return;
 
     // Coding: workspaces, approvals, jobs, starters, GitHub, code projects, code map, recipes, team, previews, SSH: src/routes/coding.ts.
     if ((await codingRoutes(req, res, method, parts)) !== NEXT) return;

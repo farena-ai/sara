@@ -63,6 +63,26 @@ export class Vault {
     writeFileAtomic(path, out, 0o600);
   }
 
+  /** Authenticated recovery payload; deliberately excluded from stored secret values. */
+  seal(value: string, context: string): string {
+    if (typeof value !== 'string' || Buffer.byteLength(value) > 1_048_576 || typeof context !== 'string' || !context || context.length > 4096) throw new Error('Invalid recovery payload');
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', this.#key, iv);
+    cipher.setAAD(Buffer.from(`sara-seal:v1:${context}`, 'utf8'));
+    const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+    return 'v1.' + Buffer.concat([iv, cipher.getAuthTag(), encrypted]).toString('base64url');
+  }
+
+  unseal(value: string, context: string): string {
+    if (typeof value !== 'string' || value.length > 1_398_144 || !/^v1\.[A-Za-z0-9_-]+$/.test(value) || typeof context !== 'string' || !context || context.length > 4096) throw new Error('Invalid recovery payload');
+    const raw = Buffer.from(value.slice(3), 'base64url');
+    if (raw.length < 28 || raw.toString('base64url') !== value.slice(3)) throw new Error('Invalid recovery payload');
+    const decipher = createDecipheriv('aes-256-gcm', this.#key, raw.subarray(0, 12));
+    decipher.setAAD(Buffer.from(`sara-seal:v1:${context}`, 'utf8'));
+    decipher.setAuthTag(raw.subarray(12, 28));
+    return Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]).toString('utf8');
+  }
+
   get(name: string): string | undefined {
     return this.#data[name];
   }

@@ -1,3 +1,5 @@
+import { sendDelivery, formReview, DeliveryRejected, DeliveryUncertain } from './delivery.ts';
+import { PRIO_EDIT, type Priority } from './sendq.ts';
 // Phase 6: Discord bridge. Gateway WebSocket (Node's built-in client) for incoming messages, REST
 // for replies. The owner links their account with a one-time code in a DM; owner DMs go to one
 // owner conversation with everything (tool approvals as buttons). In servers she answers when
@@ -296,7 +298,11 @@ export class DiscordBridge {
     if (res.status === 204) return undefined as T;
     const j = (await res.json().catch(() => ({}))) as T & { message?: string; retry_after?: number };
     if (res.status === 429) throw new RateLimited(Math.ceil(Number(j.retry_after ?? res.headers.get('retry-after') ?? 1) * 1000), `Discord ${method}: too many requests`);
-    if (!res.ok) throw new Error(`Discord ${method} ${path.split('/').slice(0, 3).join('/')}: ${j.message ?? res.status}`);
+    if (!res.ok) {
+      if (method !== 'POST' || !/^\/channels\/[^/]+\/messages$/.test(path)) throw new Error(`Discord ${method} ${path.split('/').slice(0, 3).join('/')}: ${j.message ?? res.status}`);
+      if (res.status >= 400 && res.status < 500) throw new DeliveryRejected();
+      throw new DeliveryUncertain();
+    }
     return j;
   }
 
@@ -304,6 +310,19 @@ export class DiscordBridge {
   async #multipart<T>(path: string, form: FormData): Promise<T> {
     const res = await netFetch(`${this.#api}${path}`, { method: 'POST', headers: { authorization: `Bot ${this.#token}` }, body: form, signal: AbortSignal.timeout(120_000) });
     return this.#answer<T>('POST', path, res);
+  }
+
+  #sendNative<T>(channelId: string, body: Record<string, unknown>, priority: Priority = PRIO_REPLY): Promise<T | undefined> {
+    return sendDelivery(this.#app, this.sendq, `dc:${channelId}`, priority,
+      { bridge: 'discord', operation: 'message', destination: channelId, review: { text: String(body.content ?? '') } },
+      nonce => this.#rest<T>('POST', `/channels/${channelId}/messages`, { ...body, nonce, enforce_nonce: true }));
+  }
+
+  #sendUpload<T>(channelId: string, form: FormData): Promise<T | undefined> {
+    const payload = JSON.parse(String(form.get('payload_json') ?? '{}')) as Record<string, unknown>;
+    return sendDelivery(this.#app, this.sendq, `dc:${channelId}`, PRIO_FILE,
+      { bridge: 'discord', operation: 'message', destination: channelId, review: formReview(form, String(payload.content ?? '')) },
+      nonce => { form.set('payload_json', JSON.stringify({ ...payload, nonce, enforce_nonce: true })); return this.#multipart<T>(`/channels/${channelId}/messages`, form); });
   }
 
   async restart(): Promise<void> {
@@ -586,7 +605,7 @@ export class DiscordBridge {
   async send(channelId: string, text: string, extra: Record<string, unknown> = {}): Promise<void> {
     for (const part of splitDiscord(text)) {
       // Phase 115 (B2): through the pacer, ahead of files and progress edits; a 429 waits and retries.
-      const m = await this.sendq.send(`dc:${channelId}`, PRIO_REPLY, () => this.#rest<{ id?: string } | undefined>('POST', `/channels/${channelId}/messages`, { content: part, allowed_mentions: { parse: [] }, ...extra }));
+      const m = await this.#sendNative<{ id?: string }>(channelId, { ...extra, content: part, allowed_mentions: { parse: [] } });
       // Phase 110: her own lines in a room she keeps up with are logged too (with Discord's id).
       this.#herLine(channelId, m?.id, part);
     }
@@ -1010,15 +1029,17 @@ export class DiscordBridge {
   async sendVoice(channelId: string, text: string): Promise<boolean> {
     const speech = speechOf(this.#app);
     if (!speech.canSendNotes()) return false;
+    let dispatching = false;
     try {
       const audio = await speech.speak(text);
       const form = new FormData();
       form.append('payload_json', JSON.stringify({ content: text.slice(0, MAX_LEN), allowed_mentions: { parse: [] }, attachments: [{ id: 0, filename: 'voice.mp3' }] }));
       form.append('files[0]', new Blob([new Uint8Array(audio.data)], { type: audio.type }), 'voice.mp3');
-      const res = await netFetch(`${this.#api}/channels/${channelId}/messages`, { method: 'POST', headers: { authorization: `Bot ${this.#token}` }, body: form, signal: AbortSignal.timeout(60_000) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      dispatching = true;
+      await this.#sendUpload(channelId, form);
       return true;
     } catch (err) {
+      if (dispatching && !(err instanceof DeliveryRejected)) throw err;
       console.warn(`discord voice: ${(err as Error).message}`);
       return false;
     }
@@ -1096,11 +1117,14 @@ export class DiscordBridge {
     } finally {
       clearInterval(typing);
     }
-    const closing = progress?.finish();
+    const closing = progress?.finish().catch(() => undefined);
     await Promise.allSettled(sends);
     // Pictures first (her reply as the message text when it fits), then files, then her text.
     if (out.items.length && where) {
-      const sent = await deliverOutgoing(app, app.store.getConversation(conv.id) ?? conv, { bridge: 'discord', chatKey: channelId, place: where.place, lang: ownerLanguage(app) }, this.#mediaPort(channelId), out.items, outgoing.length === 1 && !errorLines.has(outgoing[0]) ? outgoing[0] : '').catch((err: Error) => ({ captionUsed: false, lines: [this.#tr("I couldn't send the picture here ({reason}). It's in the app.", { reason: err.message.slice(0, 120) })] }));
+      const sent = await deliverOutgoing(app, app.store.getConversation(conv.id) ?? conv, { bridge: 'discord', chatKey: channelId, place: where.place, lang: ownerLanguage(app) }, this.#mediaPort(channelId), out.items, outgoing.length === 1 && !errorLines.has(outgoing[0]) ? outgoing[0] : '').catch((err: Error) => {
+        if (err instanceof DeliveryUncertain) throw err;
+        return { captionUsed: false, lines: [this.#tr("I couldn't send the picture here ({reason}). It's in the app.", { reason: err.message.slice(0, 120) })] };
+      });
       if (sent.captionUsed) outgoing.splice(0, 1);
       outgoing.push(...sent.lines);
     }
@@ -1134,7 +1158,8 @@ export class DiscordBridge {
     const components = (stop: boolean) => (stop ? [{ type: 1, components: [{ type: 2, style: 2, label: `⏹ ${say(app, lang, en('Stop'))}`, custom_id: `st:${conv.id}` }] }] : []);
     return new ProgressMessage({
       port: {
-        create: async (text, stop) => (await this.#rest<{ id?: string }>('POST', `/channels/${channelId}/messages`, { content: text, allowed_mentions: { parse: [] }, components: components(stop) }))?.id,
+        createQueued: true,
+        create: async (text, stop) => (await this.#sendNative<{ id?: string }>(channelId, { content: text, allowed_mentions: { parse: [] }, components: components(stop) }, PRIO_EDIT))?.id,
         edit: (ref, text, stop) => this.#rest('PATCH', `/channels/${channelId}/messages/${ref}`, { content: text, components: components(stop) }).then(() => undefined),
         remove: (ref) => this.#rest('DELETE', `/channels/${channelId}/messages/${ref}`).then(() => undefined),
       },
@@ -1158,7 +1183,7 @@ export class DiscordBridge {
       const form = new FormData();
       form.append('payload_json', JSON.stringify({ ...(content ? { content } : {}), allowed_mentions: { parse: [] }, attachments: files.map((f, n) => ({ id: n, filename: f.name, ...(alt ? { description: alt } : {}) })) }));
       files.forEach((f, n) => form.append(`files[${n}]`, new Blob([new Uint8Array(readFileSync(f.path))], { type: f.mime }), f.name));
-      return this.sendq.send(`dc:${channelId}`, PRIO_FILE, () => this.#multipart<{ id?: string; attachments?: { id: string }[] }>(`/channels/${channelId}/messages`, form));
+      return this.#sendUpload<{ id?: string; attachments?: { id: string }[] }>(channelId, form);
     };
     const ext = (mime: string) => (mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : mime === 'image/gif' ? 'gif' : 'jpg');
     return {
@@ -1180,7 +1205,7 @@ export class DiscordBridge {
     const form = new FormData();
     form.append('payload_json', JSON.stringify({ content: this.#tr('A test picture from Sara. Pictures and files reach you here.'), attachments: [{ id: 0, filename: 'test.png', description: 'A test picture' }] }));
     form.append('files[0]', new Blob([new Uint8Array(png)], { type: 'image/png' }), 'test.png');
-    await this.sendq.send(`dc:${dm}`, PRIO_FILE, () => this.#multipart(`/channels/${dm}/messages`, form));
+    await this.#sendUpload(dm, form);
   }
 
   async #ownerDm(): Promise<string | undefined> {

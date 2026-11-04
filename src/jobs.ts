@@ -16,6 +16,7 @@ import { identityOf } from './persona.ts';
 import { billingOf, cleanBudget, overBudget, usageScope, type Budget, type UsageNumbers, type UsageScope } from './usage.ts';
 import type { ProviderConfig } from './providers/types.ts';
 import { RunRecorder, filesNamed } from './runs.ts';
+import { JobRecoveryStore, type JobIntent, type JobRecoveryView, type RestartReview } from './job-recovery.ts';
 
 /** 'budget': stopped cleanly at its token / $ budget (Phase 52; can be continued with more). */
 export type JobStatus = 'running' | 'ok' | 'failed' | 'stopped' | 'interrupted' | 'budget';
@@ -35,9 +36,11 @@ export interface Job {
   tail: string;
   /** Extra results (agent jobs: files changed, the agent's final words, undo point). */
   result?: Record<string, unknown>;
+  recovery?: JobRecoveryView;
 }
 
 export interface JobSpec {
+  recoveryIntent?: JobIntent;
   conversationId: string;
   workspace: string;
   label: string;
@@ -84,7 +87,7 @@ export class JobManager {
   /** Phase 49: the process each running job started (previews check who listens on a port). */
   readonly #pids = new Map<number, number>();
   /** Phase 52: jobs stopped at their budget, with what's needed to carry on (until a restart). */
-  readonly #paused = new Map<number, JobSpec>();
+  readonly #recovery: JobRecoveryStore;
 
   constructor(app: AppContext, db: DatabaseSync) {
     this.#app = app;
@@ -102,12 +105,14 @@ export class JobManager {
       tail TEXT NOT NULL DEFAULT '',
       result TEXT
     )`);
+    this.#recovery = new JobRecoveryStore(app, db);
     // Jobs that were running when the server stopped did not finish.
     db.prepare("UPDATE jobs SET status = 'interrupted', ended_at = ? WHERE status = 'running'").run(app.now().toISOString());
   }
 
   #row(r: Record<string, string | number | null>): Job {
     return {
+      recovery: this.#recovery.view(Number(r.id)),
       id: Number(r.id),
       conversationId: String(r.conversation_id),
       workspace: String(r.workspace),
@@ -150,9 +155,11 @@ export class JobManager {
     if (this.#running.size >= MAX_RUNNING) throw new Error(`Already ${MAX_RUNNING} background jobs running; wait for one or stop it.`);
     const app = this.#app;
     const startedAt = app.now().toISOString();
-    const r = this.#db.prepare("INSERT INTO jobs (conversation_id, workspace, label, kind, status, started_at) VALUES (?, ?, ?, ?, 'running', ?)").run(spec.conversationId, spec.workspace, spec.label.slice(0, 500), spec.kind ?? 'command', startedAt);
+    const r = this.#db.prepare("INSERT INTO jobs (conversation_id, workspace, label, kind, status, started_at) VALUES (?, ?, ?, ?, 'running', ?)").run(spec.conversationId, spec.workspace, app.redactor.redact(spec.label).slice(0, 500), spec.kind ?? 'command', startedAt);
     const id = Number(r.lastInsertRowid);
-    const job: Job = { id, conversationId: spec.conversationId, workspace: spec.workspace, label: spec.label.slice(0, 500), kind: spec.kind ?? 'command', status: 'running', exitCode: null, startedAt, endedAt: null, tail: '' };
+    const job: Job = { id, conversationId: spec.conversationId, workspace: spec.workspace, label: app.redactor.redact(spec.label).slice(0, 500), kind: spec.kind ?? 'command', status: 'running', exitCode: null, startedAt, endedAt: null, tail: '' };
+    this.#recovery.save(id, spec);
+    job.recovery = this.#recovery.view(id);
     this.#live.set(id, job);
     const ac = new AbortController();
     this.#running.set(id, ac);
@@ -168,6 +175,7 @@ export class JobManager {
     const used = { tokens: 0, usd: 0, unpriced: 0 };
     let budgetHit: string | undefined;
     let partial = '';
+    let rawTail = '';
     const meterLine = (line: string) => {
       const m = spec.meter;
       const u = m?.parse(line);
@@ -204,11 +212,13 @@ export class JobManager {
               if (partial.length > 1_000_000) partial = '';
               for (const l of lines) meterLine(l);
             }
-            job.tail = (job.tail + app.redactor.redact(text)).slice(-TAIL);
+            rawTail = (rawTail + text).slice(-TAIL * 2);
+            job.tail = app.redactor.redact(rawTail).slice(-TAIL);
             // Progress to the app at most twice a second.
             const t = Date.now();
             if (t - lastEvent > 500) {
               lastEvent = t;
+              this.#db.prepare('UPDATE jobs SET tail = ? WHERE id = ?').run(job.tail, id);
               app.events?.publish({ type: 'job', job: { ...job } });
             }
           },
@@ -221,7 +231,7 @@ export class JobManager {
       job.status = budgetHit ? 'budget' : stopped ? 'stopped' : run.exitCode === 0 && !run.timedOut ? 'ok' : 'failed';
       if (budgetHit) {
         job.result = { ...(job.result ?? {}), budget: { reason: budgetHit, ...spec.budget, used } };
-        this.#paused.set(id, spec);
+
       }
       job.exitCode = run.exitCode;
       job.endedAt = app.now().toISOString();
@@ -260,7 +270,7 @@ export class JobManager {
     if (this.#running.size >= MAX_RUNNING) throw new Error(`Already ${MAX_RUNNING} background jobs running; wait for one or stop it.`);
     const app = this.#app;
     const startedAt = app.now().toISOString();
-    const label = spec.label.slice(0, 500);
+    const label = app.redactor.redact(spec.label).slice(0, 500);
     const id = Number(this.#db.prepare("INSERT INTO jobs (conversation_id, workspace, label, kind, status, started_at) VALUES (?, ?, ?, 'command', 'running', ?)").run(spec.conversationId, spec.workspace, label, startedAt).lastInsertRowid);
     const job: Job = { id, conversationId: spec.conversationId, workspace: spec.workspace, label, kind: 'command', status: 'running', exitCode: null, startedAt, endedAt: null, tail: '' };
     this.#live.set(id, job);
@@ -277,6 +287,7 @@ export class JobManager {
           const t = Date.now();
           if (t - lastEvent > 500) {
             lastEvent = t;
+            this.#db.prepare('UPDATE jobs SET tail = ? WHERE id = ?').run(job.tail, id);
             app.events?.publish({ type: 'job', job: { ...job } });
           }
         });
@@ -303,24 +314,18 @@ export class JobManager {
     return { job: { ...job }, done };
   }
 
-  /** Phase 52: a job stopped at its budget can carry on (as a new job) with a bigger one. */
-  canContinue(id: number): boolean {
-    return this.#paused.has(id);
+  /** Arbitrary commands have no durable execution cursor; review a fresh attempt instead. */
+  canContinue(_id: number): boolean { return false; }
+
+  continueWithMore(_id: number, _more: Budget = {}): never {
+    throw new Error('Direct continuation is unavailable. Review restart in Recovery, then explicitly send the reviewed request in chat.');
   }
 
-  continueWithMore(id: number, more: Budget = {}): { job: Job; done: Promise<Job> } {
-    const spec = this.#paused.get(id);
-    if (!spec) throw new Error("That job can't be continued (it didn't stop at its budget, or the server restarted since).");
-    const was = spec.budget ?? {};
-    const add = cleanBudget(more);
-    // Without an amount: the same budget again.
-    const budget: Budget = {
-      ...(was.tokens || add.tokens ? { tokens: (was.tokens ?? 0) + (add.tokens ?? (add.usd ? 0 : (was.tokens ?? 0))) } : {}),
-      ...(was.usd || add.usd ? { usd: Math.round(((was.usd ?? 0) + (add.usd ?? (add.tokens ? 0 : (was.usd ?? 0)))) * 100) / 100 } : {}),
-    };
-    const next = this.start({ ...spec, label: spec.label.replace(/ \(continued\)$/, '') + ' (continued)', budget });
-    this.#paused.delete(id);
-    return next;
+  prepareRecovery(id: number, more: Budget = {}): RestartReview {
+    const job = this.get(id);
+    if (!job) throw new Error('Job not found.');
+    if (job.status !== 'interrupted' && job.status !== 'budget') throw new Error('Only interrupted or budget-stopped jobs can be reviewed.');
+    return this.#recovery.prepare(job, more);
   }
 
   stop(id: number): boolean {
@@ -371,8 +376,8 @@ export class JobManager {
     if (job.status === 'budget') {
       // Phase 52: a plain message (no model call: the budget is used up), with the Continue button.
       const text = budget?.reason
-        ? trOwner('I stopped {label} at {reason}, so it didn\'t go past it. What it did so far is kept. Press "Continue with more budget" if you want me to carry on.', app.settings.get(), { label: job.label, reason: budget.reason }, identityOf(app.persona))
-        : trOwner('I stopped {label} at its budget, so it didn\'t go past it. What it did so far is kept. Press "Continue with more budget" if you want me to carry on.', app.settings.get(), { label: job.label }, identityOf(app.persona));
+        ? trOwner('I stopped {label} at {reason}, so it didn\'t go past it. What it did so far is kept. Open Recovery to review a fresh restart before sending it in chat.', app.settings.get(), { label: job.label, reason: budget.reason }, identityOf(app.persona))
+        : trOwner('I stopped {label} at its budget, so it didn\'t go past it. What it did so far is kept. Open Recovery to review a fresh restart before sending it in chat.', app.settings.get(), { label: job.label }, identityOf(app.persona));
       const msg = app.store.addMessage(conv.id, 'assistant', text, { job: job.id, budget: true });
       app.events?.publish({ type: 'message', conversationId: conv.id, message: msg, reason: 'job' });
       return;

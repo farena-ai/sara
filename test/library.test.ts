@@ -264,7 +264,7 @@ test('library on Telegram: a document from the owner goes to her library and she
     const method = (req.url ?? '').split('/').pop()!;
     const body = JSON.parse((await readBody(req)) || '{}') as Record<string, unknown>;
     sent.push({ method, body });
-    const result = method === 'getMe' ? { id: 999, is_bot: true, username: 'sara_test_bot' } : method === 'getFile' ? { file_path: 'documents/file_7.md' } : method === 'getUpdates' ? await new Promise((r) => setTimeout(() => r([]), 50)) : true;
+    const result = method === 'getMe' ? { id: 999, is_bot: true, username: 'sara_test_bot' } : method === 'getFile' ? { file_path: 'documents/file_7.md' } : method === 'getUpdates' ? await new Promise((r) => setTimeout(() => r([]), 50)) : method === 'sendMessage' ? { message_id: sent.length } : true;
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: true, result }));
   });
   t.after(() => srv.server.close());

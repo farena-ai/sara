@@ -77,6 +77,7 @@ import { closePanel, initHerPanel, openPanel, panelConv, panelFace, panelJobs, p
 import { initCommandBar, openCommandBar, score as cmdScore } from './command-bar.js';
 import { icon, paintIcons, setIcon, TOOL_ICONS } from './icons.js';
 import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, pageOf, pageSize } from './session-list.js';
+import { createRecovery } from './recovery.js';
 import { buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintElsewhere, paintSettingsResults, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
 import { closeOpenDialogs, initTours, offerFirstTour, queueTourOffer, runTour, tourFromHash } from './tours.js';
 import { initSidebar } from './sidebar.js';
@@ -1867,7 +1868,7 @@ function renderMessages(messages, opts = {}) {
         if (m.meta.team.status === 'limit') b.append(continueButton(`/team/${m.meta.team.id}/continue`, () => void openTeam(m.meta.team.id)));
       }
       // Phase 52: a job she stopped at its budget can carry on.
-      if (m.meta?.budget && m.meta?.job) b.append(continueButton(`/jobs/${m.meta.job}/continue`, () => void loadJobs()));
+      if (m.meta?.budget && m.meta?.job && !isMember() && !document.body.classList.contains('demo')) b.append(restartReviewButton(m.meta.job));
       if (m.meta?.forgotten) b.classList.add('forgotten');
       if (m.meta?.reminder) b.classList.add('reminder');
       if (m.meta?.proactive) b.classList.add('proactive');
@@ -5716,6 +5717,13 @@ $('#bk-now').addEventListener('click', async () => {
 // ---------- background jobs (Phase 13) ----------
 /** A finished job's result in the conversation (first line = what happened; rest = details). */
 /** Phase 52: "Continue with more budget" (the same budget again; the server says if it can't). */
+function restartReviewButton(id) {
+  const b = el('button', 'small', t('Review restart'));
+  b.type = 'button';
+  b.addEventListener('click', () => void recovery.reviewJob(id, b));
+  return b;
+}
+
 function continueButton(path, after) {
   const b = el('button', 'small continue-budget', t('Continue with more budget'));
   b.type = 'button';
@@ -7669,6 +7677,20 @@ initSettingsNav({ isMember, el, showSettingsTab, pageLead: (page) => pageLead(pa
 // Phase 23: a "?" on every Settings page: what it's for, in plain words, and the guide.
 // Page help and the ? tips live in tips.json (Phase 41), shared with the server's settings guide.
 let HELP = {};
+const recovery = createRecovery({
+  root: $('#recovery-content'), api,
+  isOwner: () => !isMember() && !document.body.classList.contains('demo'),
+  getDraft: () => $('#input').value,
+  hasPendingChat: () => Boolean(state.photos?.length || state.docs?.length || state.editing || state.streaming || state.watch),
+  getConversation: () => state.currentId,
+  useDraft: (text) => {
+    $('#input').value = text;
+    $('#input').dispatchEvent(new Event('input'));
+    if (todayOpen()) closeToday({ focus: false });
+    if ($('#settings').open) $('#settings').close();
+    $('#input').focus();
+  },
+});
 const TIP_GUIDE_FOR = { team: 'team', planner: 'planner', memory: 'memory', 'together-dialog': 'together', studio: 'shaping', 'look-studio': 'look' };
 fetch('/tips.json')
   .then((r) => r.json())
@@ -7720,6 +7742,7 @@ function showSettingsTab(page, opts = {}) {
   openGroupOf(pick);
   if (pick === 'dh-updates') void loadUpdates();
   if (pick === 'dh-safety') void loadSafetyCheck();
+  if (pick === 'dh-recovery') void recovery.refresh();
   if (pick === 'ab-skills') {
     void loadSkills();
     void loadLearning();
