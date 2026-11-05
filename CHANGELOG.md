@@ -5,6 +5,14 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.68.0 (2026-11-05): owner-session continuity
+
+- **Context across eligible personal chats:** refresh linked owner-session context at actual provider boundaries, coordinate provider steps within the same companion store, and offer bounded historical reads and internal handoffs. Source edits, forgetting and privacy changes invalidate affected context. Internal notes never send human messages, grant tool authority or certify completed work.
+- **Owner controls:** separate Session continuity switch and current-conversation inspector with literal-text source/time/expiry, latest-versus-history labels, confirmation and conflict-safe target-only clear. Expired retained notes can be explicitly cleared while the feature is off. Keyboard focus returns to enabled recovery controls.
+- **Accurate provenance and audit:** native JSON imports retain host import markers; historical rows with unknown origin are not labelled authenticated owner speech. Final tool-offer audits are refreshed after waits, including additions, removals and schema-token estimates. Existing audit history is retained.
+- **Guided first use:** Settings navigation, page help and three How do I answers with a real Show me control, translated in five languages. Existing pickup/busy preferences and every previous page remain intact.
+- **Qualification:** reviewed source passed2709 automated tests: Windows2693pass/0fail/16skip; Linux2694pass/0fail/15skip. Ten isolated desktop/mobile browser journeys and actual Windows/Mac recovery, twelve approval-revalidation cases,286 compatibility cases and77 continuity cases pass. The universal Mac installer is signed and notarized; Windows is unsigned. Synthetic data and scripted providers establish harness behavior; physical Intel, screen-reader/device acceptance, real-model tone and production recovery remain separate checks. Household members, business actors, private/partner/off-record/room/imported/external contexts stay separate. Shared roleplay scenes, project coordination and full voice/video parity remain future slices.
+
 ## 2.67.0 (2026-11-05): continuity and conversational attunement
 
 Includes the checkpoint and coding hardening work planned for2.66.0, which was not published as

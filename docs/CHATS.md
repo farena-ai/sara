@@ -4,6 +4,22 @@ Sara answers you in Telegram and Discord the same way she does in the app (set u
 Chat apps → Telegram / Discord**). Since 2.40.0 those chats have **commands**: a way to start fresh
 when a chat is long or stuck, stop her, and see what she is using, without leaving the chat app.
 
+## Owner-session continuity (in development, unreleased)
+
+The development branch is adding ordered context between your own linked app and chat sessions.
+A later eligible reply can use a previous committed reply and bounded historical context. The
+session_context tool reads eligible history; session_handoff saves an internal context note for a
+later model step. A saved note does not send a message, wake another model, grant permission or
+prove that work was executed or checked.
+
+Current-history edits while an eligible request is waiting stop that request before it reaches
+the provider; refresh the conversation and send again. Private, off-record, other-person, shared
+room, household and business audiences remain separate. Explicit shared roleplay scenes and
+project coordination are later slices. The development candidate now has owner controls in
+Settings → Chat apps → Session continuity and a saved-context inspector in This conversation.
+See [Session continuity](SESSION_CONTINUITY.md) for disable/clear, retention and conflict handling.
+Complete qualification is pending; this feature is not in the current public or installed private release.
+
 ## The commands
 
 | Command | What it does | Who may use it |

@@ -111,7 +111,7 @@ export interface StepInfo {
   lean?: StepLean;
 }
 
-/** Phase 123 (LEAN §4.8): offered names (the first step in full, later ones as `+added`), loads, sizes. */
+/** Phase 123 (LEAN §4.8): offered names (first step in full, later `+added`/`-removed`), loads, sizes. */
 export interface StepLean {
   lean?: boolean;
   offered?: string[];
@@ -835,7 +835,7 @@ export class RunRecorder {
   }
 
   /** Final provider inputs after awaited preparation; preserve the existing step and receipts. */
-  refreshModelInputs(info: Required<Pick<StepInfo, 'model' | 'provider' | 'system' | 'extra' | 'inputsSha'>>): void {
+  refreshModelInputs(info: Required<Pick<StepInfo, 'model' | 'provider' | 'system' | 'extra' | 'inputsSha'>> & Pick<StepInfo, 'lean'>): void {
     this.#safe(() => {
       const step = this.#cur();
       if (!step || step.info.label) return;
@@ -848,7 +848,7 @@ export class RunRecorder {
         this.#lastSha = sha;
       }
       step.sha = sha;
-      step.info = { ...step.info, model: info.model, provider: info.provider, extra: [...info.extra], inputsSha: info.inputsSha };
+      step.info = { ...step.info, model: info.model, provider: info.provider, extra: [...info.extra], inputsSha: info.inputsSha, ...(info.lean ? { lean: { ...step.info.lean, ...info.lean } } : {}) };
     });
   }
 

@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 174 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 177 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -503,6 +503,29 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Under When I switch apps, choose Only when I type /continue.
 2. To end one pickup, press Undo on its chip (or type /continue off).
+
+### Session continuity
+
+**How do I turn session continuity on or off?**
+
+1. Open Settings → Chat apps → Session continuity.
+2. Switch Use context across my sessions on or off; it saves automatically.
+3. Off stops new context but keeps saved notes. Pick up across apps and While she's working keep their own settings.
+
+**How do I read the notes from my other sessions?**
+
+1. Close Settings and open one of your own eligible chats with this companion.
+2. Press the conversation chip at the top, then find Saved session context.
+3. Press Show saved session context to see the source, time, expiry and notes.
+4. Notes help later replies; they do not send messages or confirm completed work.
+
+**How do I clear saved notes, including expired ones?**
+
+1. In This conversation, show the saved session context first.
+2. Choose Clear saved context, review the confirmation, then Confirm clear; Cancel or Escape leaves the notes alone.
+3. Clear also removes expired saved notes while continuity is off; only this session's saved notes are removed.
+4. Original chats, old run records, exports and backups stay.
+5. If the notes changed elsewhere, reload and review them before trying again.
 
 ### Telegram
 

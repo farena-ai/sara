@@ -35,7 +35,7 @@
 
 **Vous venez en équipe ?** Utilisez l’[installation professionnelle séparée](docs/BUSINESS_OPERATIONS.md) : clés d’accès individuelles, rôles explicites et espaces partagés. Cette installation manuelle possède son propre dossier de données ; les installateurs personnels ne convertissent ni votre compagne ni votre foyer.
 
-> **État :** 2.67.0 — [Indices récents, suivis et continuité du projet](https://github.com/farena-ai/sara/releases/tag/v2.67.0). [Voir les nouveautés](#quoi-de-neuf)
+> **État :** 2.68.0, [Du contexte entre vos propres conversations](https://github.com/farena-ai/sara/releases/tag/v2.68.0). Du contexte frais entre les conversations admissibles du propriétaire, avec notes internes, étapes fournisseur ordonnées et commandes dédiées. [Voir les nouveautés](#quoi-de-neuf)
 >
 > Installateur Windows : non signé ([aide SmartScreen](docs/INSTALL.md)). Le processus de publication macOS exige des téléchargements signés et notariés ; chaque compilation est vérifiée séparément. Android : [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone : [app web sur l’écran d’accueil](docs/PHONE.md).
 
@@ -126,6 +126,7 @@ Versions récentes · 5 novembre 2026. [Journal complet](CHANGELOG.md) · [Tous 
 
 | Version | Ce qui change pour vous |
 |---|---|
+| **[2.68.0](https://github.com/farena-ai/sara/releases/tag/v2.68.0)** | **[Du contexte entre vos propres conversations](docs/SESSION_CONTINUITY.md)** — Du contexte frais entre les conversations admissibles du propriétaire avec la même compagne, des lectures bornées de l’historique, des notes internes et des étapes fournisseur ordonnées. Interrupteur du propriétaire, inspection et effacement confirmé pour la seule conversation choisie ; confidentialité et autorisations des outils restent en vigueur. Scènes partagées, coordination des projets et parité complète voix/vidéo restent à venir. |
 | **[2.67.0](https://github.com/farena-ai/sara/releases/tag/v2.67.0)** | **[Indices récents et suivis](docs/ATTUNEMENT.md)** — Des indices explicites et limités du propriétaire dans six langues et des suivis d’événements fondés sur des sources vérifiées. Les **[points de reprise du projet](docs/FOR_CODERS.md#project-checkpoints)** gardent la logique, les blocages et jusqu’à trois prochaines étapes, avec cinq versions et des commandes pour consulter, remplacer et effacer ; ce contexte historique ne lance aucune commande et ne reconduit aucune autorisation. |
 | **[2.65.0](https://github.com/farena-ai/sara/releases/tag/v2.65.0)** | **[Configuration professionnelle guidée](docs/BUSINESS.md)** — Première utilisation et administration guidées, historique des invitations limité au périmètre autorisé, révocation, vérification de configuration en lecture seule et exercices reproductibles de navigateur et de reprise. |
 | **[2.64.0](https://github.com/farena-ai/sara/releases/tag/v2.64.0)** | **[Espaces professionnels séparés](docs/BUSINESS_OPERATIONS.md)** — Clés d’accès individuelles, rôles, textes et documents partagés, plafonds de modèles contrôlés par l’opérateur et reprise chiffrée. Les données personnelles et du foyer restent séparées. |
@@ -138,6 +139,8 @@ Versions récentes · 5 novembre 2026. [Journal complet](CHANGELOG.md) · [Tous 
 La version 2.67.0 distingue aussi les critiques du code d’un conflit dirigé contre Sara, revérifie les sources des indices et des suivis juste avant l’appel normal au fournisseur et ne clôt automatiquement un élément d’Agenda qu’avec des preuves claires de l’événement, du résultat et de la question correspondante. Vie intérieure reste le réglage d’activation ; aucun diagnostic émotionnel, appel supplémentaire à un classificateur ou nouveau profil d’humeur du propriétaire. Les nouveaux indices excluent les conversations privées ou hors enregistrement, les membres, les groupes, les contextes externes, la relecture et les tâches sans surveillance. Les prompts enregistrés, exports et sauvegardes peuvent conserver des notes selon leurs réglages habituels ; la relecture omet les nouveaux compléments transitoires enregistrés et signale que les entrées ont changé. Cette version corrige aussi l’identification automatique de la révision source de l’installateur Windows.
 
 <!-- sara:recent-releases:end -->
+
+Qualification du code de 2.68.0 : contrôle des types et **2709 tests automatisés** ; Windows **2693 réussites / 0 échec / 16 ignorés**, Linux **2694 réussites / 0 échec / 15 ignorés**, plus dix parcours isolés du navigateur sur ordinateur et mobile. Les vrais paquets Windows et Mac, ce dernier signé et notarié, ont réussi chacun cinq profils de reprise et de régression ; Windows n’est pas signé. Ces contrôles utilisent des données synthétiques et des modèles simulés. L’exécution physique Intel/Rosetta, l’acceptation sur appareils et lecteurs d’écran, le ton naturel avec de vrais modèles et la reprise de production restent des vérifications distinctes.
 
 <!-- sara:release-history:start -->
 

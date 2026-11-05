@@ -333,10 +333,13 @@ test('terminal client end to end: login with the device code, ask about a folder
   assert.equal(a.code, 0, a.err);
   assert.match(a.out, /Sara: It is a weather app\./);
   assert.match(a.err, /Sending: a list of \d+ entries \(2 files\) and README\.md/);
-  const sent = JSON.stringify(app.requests.at(-1)!.messages.at(-1));
+  const messages = app.requests.at(-1)!.messages;
+  const question = messages.findLast(message => message.role === 'user');
+  assert.ok(question, 'the actual request contains the terminal question and folder context');
+  const sent = JSON.stringify(question);
   assert.match(sent, /Weather app/);
   assert.match(sent, /src\/main\.js/);
-  assert.doesNotMatch(sent, /supersecretvalue|server\.key|- \.env|node_modules\/x/);
+  assert.doesNotMatch(JSON.stringify(messages), /supersecretvalue|server\.key|- \.env|node_modules\/x/, 'excluded folder secrets are absent from the whole provider request');
   // An approval prompt answered y on the terminal.
   app.script.push([call('w1', 'write_file', { path: 'from-cli.txt', content: 'hi from the terminal' })], text('Wrote it.'));
   const b = await run(['ask', 'Write a file'], 'y\n');

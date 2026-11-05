@@ -764,6 +764,39 @@
    "show": "#pk-mode"
   }
  ],
+ "co-continuity": [
+  {
+   "id": "toggle",
+   "q": "How do I turn session continuity on or off?",
+   "steps": [
+    "Open Settings → Chat apps → Session continuity.",
+    "Switch Use context across my sessions on or off; it saves automatically.",
+    "Off stops new context but keeps saved notes. Pick up across apps and While she's working keep their own settings."
+   ],
+   "show": "#continuity-enabled"
+  },
+  {
+   "id": "inspect",
+   "q": "How do I read the notes from my other sessions?",
+   "steps": [
+    "Close Settings and open one of your own eligible chats with this companion.",
+    "Press the conversation chip at the top, then find Saved session context.",
+    "Press Show saved session context to see the source, time, expiry and notes.",
+    "Notes help later replies; they do not send messages or confirm completed work."
+   ]
+  },
+  {
+   "id": "clear",
+   "q": "How do I clear saved notes, including expired ones?",
+   "steps": [
+    "In This conversation, show the saved session context first.",
+    "Choose Clear saved context, review the confirmation, then Confirm clear; Cancel or Escape leaves the notes alone.",
+    "Clear also removes expired saved notes while continuity is off; only this session's saved notes are removed.",
+    "Original chats, old run records, exports and backups stay.",
+    "If the notes changed elsewhere, reload and review them before trying again."
+   ]
+  }
+ ],
  "ab-github": [
   {
    "id": "token",

@@ -43,6 +43,7 @@ import { en, fill } from './i18n.ts';
 import { Store, type Conversation, type StoredMessage } from './store.ts';
 import { workspaceDir } from './tools/workspace.ts';
 import { OWNER_CUES_MARK } from './attunement.ts';
+import { SESSION_CONTINUITY_MARK } from './session-continuity.ts';
 
 /** An error with the HTTP status the route answers with. */
 export class ReplayError extends Error {
@@ -157,11 +158,14 @@ export function rebuildStep(app: AppContext, runId: number, idx: number): Rebuil
   const extra = step.extra.filter((x) => !x.startsWith(OWNER_CUES_MARK) && !x.startsWith(FOLLOW_UP_NOTE_MARK));
   const omittedEvidence = extra.length !== step.extra.length;
   if (omittedEvidence) problems.push(said(en('Transient owner cue or follow-up notes were omitted from this replay.')));
+  const replayExtra = extra.filter(x => !x.startsWith(SESSION_CONTINUITY_MARK));
+  const omittedContinuity = replayExtra.length !== extra.length;
+  if (omittedContinuity) problems.push(said(en('Live session context was omitted from this replay.')));
   const messages: ChatMessage[] = [];
-  let rest = extra;
-  if (hist.dropped && extra[0]?.startsWith(LONG_NOTE)) {
-    messages.push({ role: 'user', content: extra[0] });
-    rest = extra.slice(1);
+  let rest = replayExtra;
+  if (hist.dropped && replayExtra[0]?.startsWith(LONG_NOTE)) {
+    messages.push({ role: 'user', content: replayExtra[0] });
+    rest = replayExtra.slice(1);
   }
   messages.push(...hist.messages, ...rest.map(noteMessage));
   const userMessage = run.userMessageId ? stored.find((m) => m.id === run.userMessageId && m.role === 'user') : undefined;
@@ -182,7 +186,7 @@ export function rebuildStep(app: AppContext, runId: number, idx: number): Rebuil
   if (run.parentRunId && run.branchedFromStep !== null) {
     for (const m of stored) if (m.role === 'tool' && !priorTools.some((p) => p.messageId === m.id) && m.id > (run.userMessageId ?? 0)) priorTools.push({ step: -1, callId: String(m.meta?.toolCallId ?? ''), name: String(m.meta?.name ?? ''), summary: String(m.meta?.summary ?? ''), output: m.content, messageId: m.id });
   }
-  const exact = omittedEvidence ? false : step.inputsSha ? inputsHash(messages) === step.inputsSha : null;
+  const exact = omittedEvidence || omittedContinuity ? false : step.inputsSha ? inputsHash(messages) === step.inputsSha : null;
   if (exact === false && !problems.length) problems.push(said(en('Something it saw has changed since (a message or note was edited).')));
   const call = mainCall(step);
   const [polProvider, ...polModel] = String(run.policy?.model ?? '').split('/');
@@ -193,7 +197,7 @@ export function rebuildStep(app: AppContext, runId: number, idx: number): Rebuil
     system,
     stored,
     messages,
-    extra,
+    extra: replayExtra,
     picks: step.memoryPicks as PickNote[],
     ...(userMessage ? { userMessage } : {}),
     priorTools,

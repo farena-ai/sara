@@ -8,6 +8,10 @@ For recent explicit tiredness/frustration cues, their privacy controls and how a
 recognize an answer, see [Recent cues and follow-ups](ATTUNEMENT.md). Check its release status before
 expecting development-candidate behavior on an older installation.
 
+For the development candidate's owner controls and saved-context retention, see
+[Session continuity](SESSION_CONTINUITY.md). Check its release status before expecting it on
+an older installation.
+
 > Not installed yet? [Install Sara](INSTALL.md) first (Linux, Docker, Windows, macOS or a NAS), and
 > check [what computer you need](REQUIREMENTS.md).
 
@@ -98,7 +102,7 @@ and **Settings → Her → Hey Sara** in the Windows app, to say her name and ta
 
 <img src="screenshots/howto.webp" alt="The How do I…? box at the top of a Settings page, open: questions such as How do I change her name? with numbered steps and a Show me button" width="760">
 
-- Every page has a **How do I…?** box at the top, with numbered steps and a **Show me** button. All 174
+- Every page has a **How do I…?** box at the top, with numbered steps and a **Show me** button. All 177
   answers in one list: [How do I…?](HOW_DO_I.md).
 - Every setting has a **?** with an example; or simply ask her how something works.
 - [Questions and answers](FAQ.md), the [how-to videos](VIDEOS.md), and

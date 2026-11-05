@@ -67,6 +67,7 @@ import { ensureLeanTables, setChatPin, setLeanOff, toolsView } from './lean.ts';
 import { createSafetyCheckRoutes } from './routes/safety-check.ts';
 import { createRoutineRoutes } from './routes/routines.ts';
 import { createRecallRoutes } from './routes/recall.ts';
+import { createSessionContinuityRoutes } from './routes/session-continuity.ts';
 import { pickupsFor } from './pickup.ts';
 import { createAgendaRoutes } from './routes/agenda.ts';
 import { createPlannerRoutes } from './routes/planner.ts';
@@ -876,6 +877,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const routineRoutes = createRoutineRoutes(ctx);
   // Phase 119: when it comes up, and picking a chat up in another app (src/routes/recall.ts).
   const recallRoutes = createRecallRoutes(ctx);
+  const sessionContinuityRoutes = createSessionContinuityRoutes(ctx);
   // Phase 100: her address on the Agent Card is the one the peer used (https behind a trusted proxy).
   if (app.a2a) app.a2a.baseOf = (req) => `${isHttps(req) ? 'https' : 'http'}://${String(req.headers.host ?? 'localhost')}`;
   const plannerRoutes = createPlannerRoutes(ctx);
@@ -1252,6 +1254,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await safetyCheckRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await routineRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await recallRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await sessionContinuityRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 87: computer use: the computers, the live view, step thumbnails (src/routes/hands.ts).
     if ((await handsRoutes(req, res, method, parts)) !== NEXT) return;
 

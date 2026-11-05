@@ -49,6 +49,11 @@ export interface ToolContext {
   attachCard?: (card: import('../hooks.ts').PluginCard) => void;
   /** Phase 123 (LEAN §4.7): this turn's lean tool list (find_tools loads into it). */
   lean?: { find: (args: Record<string, unknown>) => string };
+  /** Host-bound current owner-session authority; never reconstructed from model arguments. */
+  sessionContinuity?: {
+    context: (args: { action: 'list' } | { action: 'read'; conversationId: string; before?: number }) => Promise<string>;
+    handoff: (args: { targetId: string; text: string; expectedId: number }) => Promise<string>;
+  };
 }
 
 export interface Tool {

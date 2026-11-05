@@ -24,9 +24,11 @@ async function turn(f: Fixture, message: string, opts: TurnOptions = {}) {
   for await (const _ of runTurn(f.app, f.conv.id, message, undefined, { noTools: true, ...opts })) void _;
 }
 
-test('E2 prompt: awaited edits use the current cue in actual provider input and the ordinary audit', async () => {
+test('E2 prompt with session continuity disabled: awaited edits refresh the cue and ordinary audit', async () => {
   const f = fixture();
   try {
+    // The legacy cue refresh remains supported without R1's current-history conflict guard.
+    f.app.settings.update({ chats: { continuity: { enabled: false } } });
     let calls = 0;
     await turn(f, 'I am exhausted.', { hooks: { async beforeModelCall() {
       calls++;
@@ -49,7 +51,7 @@ test('E2 prompt: awaited edits use the current cue in actual provider input and 
   } finally { f.close(); }
 });
 
-test('E2 prompt: source and context revocation during awaited hooks removes cues before handoff', async () => {
+test('E2/R1 prompt: source revocation refreshes cues or stops changed current history before provider handoff', async () => {
   const mutations: [string, (f: Fixture, id: number) => void][] = [
     ['edit', (f, id) => f.app.store.updateMessageContent(id, 'The weather is pleasant.')],
     ['delete', (f, id) => { f.app.store.db.prepare('DELETE FROM messages WHERE id=?').run(id); }],
@@ -58,9 +60,10 @@ test('E2 prompt: source and context revocation during awaited hooks removes cues
     ['opt out', (f) => { f.app.settings.update({ persona: { innerLife: false } } as never); }],
     ['expiry', (f) => { f.clock.now = new Date(Date.parse(NOW) + 30 * 60_000); }],
   ];
-  for (const [label, mutate] of mutations) {
+  for (const continuity of [true, false]) for (const [label, mutate] of mutations) {
     const f = fixture();
     try {
+      if (!continuity) f.app.settings.update({ chats: { continuity: { enabled: false } } });
       let observed = false;
       await turn(f, 'I am exhausted.', { hooks: { async beforeModelCall() {
         assert.ok(ownerCueNote(f.app, f.conv.id, {}), `${label}: eligible before awaited mutation`);
@@ -69,8 +72,8 @@ test('E2 prompt: source and context revocation during awaited hooks removes cues
         mutate(f, f.app.store.messages(f.conv.id).find((m) => m.role === 'user')!.id);
       } } });
       assert.ok(observed);
-      if (label === 'private') {
-        assert.equal(f.app.requests.length, 0, 'existing privacy admission guard aborts before handoff');
+      if (label === 'private' || (continuity && ['edit', 'delete', 'forget'].includes(label))) {
+        assert.equal(f.app.requests.length, 0, `${label}: current privacy/history conflict stops before provider handoff`);
         continue;
       }
       assert.equal(f.app.requests.length, 1, label);
@@ -215,9 +218,10 @@ test('E2 prompt: bounded follow-up display remains fully inspectable in the reco
   } finally { f.close(); }
 });
 
-test('E2 prompt: a source changed during real budget approval is refreshed without duplicate steps', async () => {
+test('E2 prompt with session continuity disabled: a budget-time source edit refreshes without duplicate steps', async () => {
   const f = fixture();
   try {
+    f.app.settings.update({ chats: { continuity: { enabled: false } } });
     f.app.store.updateConversation(f.conv.id, { mode: 'coding' });
     f.app.settings.update({ turnBudgets: { onLimit: 'ask', quick: false, coding: { on: true, tokens: 200_000, steps: 2, usd: 0, minutes: 0 } } });
     f.app.tools.add({ spec: { name: 'read_file', description: 'read fixture', parameters: { type: 'object', properties: {} } }, defaultPermission: 'auto', summarize: () => 'read fixture', async run() { return 'Read fixture.'; } });

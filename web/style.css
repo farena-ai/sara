@@ -1696,3 +1696,10 @@ button.conv-see-more, button.conv-show-less { min-height: 44px; padding: 0 10px;
 .archive-controls input { width: 100%; min-width: 0; font-family: monospace; }
 .archive-controls label { display: grid; gap: 8px; }
 .operations-status { overflow-wrap: anywhere; }
+/* Owner session context uses the existing cards and dialog rhythm. */
+.session-continuity, .continuity-records, .continuity-facts { min-width: 0; }
+.continuity-records { display: grid; gap: .65rem; }
+.continuity-facts { margin: 0; display: grid; gap: .2rem; }
+.continuity-facts dd { margin: 0 0 .45rem; overflow-wrap: anywhere; }
+.continuity-note { white-space: pre-wrap; overflow-wrap: anywhere; }
+.session-continuity .actions-left { flex-wrap: wrap; }

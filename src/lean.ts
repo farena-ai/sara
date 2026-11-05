@@ -13,6 +13,8 @@ import type { Tool } from './tools/types.ts';
 import type { ToolSpec } from './providers/types.ts';
 import type { DatabaseSync } from 'node:sqlite';
 import { checkpointAllowed } from './project-checkpoints.ts';
+import { continuityAllowed, continuityForTurn } from './session-continuity.ts';
+import { SESSION_TOOLS } from './session-continuity-tools.ts';
 
 // ---------------------------------------------------------------------------------------------
 // Settings (owner-only; `lean` in OWNER_SETTINGS), §3.3
@@ -116,7 +118,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^shell$/, 'shell', 'commands'],
   [/^(web_fetch|web_search)$/, 'web', 'web'],
   [/^(todo|note|remind|tasks|add_task|list_tasks|complete_task|update_task|delete_task|add_note|list_notes|read_note|update_note|delete_note)$/, 'planner', 'reminders and notes'],
-  [/^(recall|search_memory|remember_fact|list_facts|scrapbook|moments)$/, 'memory', 'memory'],
+  [/^(recall|search_memory|remember_fact|list_facts|scrapbook|moments|session_context|session_handoff)$/, 'memory', 'memory'],
   [/^ssh_/, 'ssh', 'SSH servers'],
   [/^code_/, 'code', 'code map'],
   [/^(skill_|recipe_)/, 'skills', 'skills and recipes'],
@@ -186,8 +188,8 @@ export const tokensOf = (tools: { spec: ToolSpec }[]): number => tools.reduce((n
 // §4.2 core, safety pins
 // ---------------------------------------------------------------------------------------------
 
-export const CORE_CHAT = ['todo', 'note', 'remind', 'recall', 'library', 'send_file', 'share_photo', 'person_lookup', 'skill_use', 'settings_guide', 'web_fetch', 'web_search'] as const;
-export const CORE_CODING = ['list_dir', 'read_file', 'write_file', 'edit_file', 'search', 'shell', 'code_map', 'code_find', 'code_refs', 'git', 'git_commit', 'start_job', 'web_fetch', 'skill_use', 'todo', 'remind'] as const;
+export const CORE_CHAT = ['todo', 'note', 'remind', 'recall', 'session_context', 'library', 'send_file', 'share_photo', 'person_lookup', 'skill_use', 'settings_guide', 'web_fetch', 'web_search'] as const;
+export const CORE_CODING = ['list_dir', 'read_file', 'write_file', 'edit_file', 'search', 'shell', 'code_map', 'code_find', 'code_refs', 'git', 'git_commit', 'start_job', 'web_fetch', 'skill_use', 'todo', 'remind', 'session_context'] as const;
 /** Tools whose absence could leave something running or reachable: always offered when eligible. */
 export const SAFETY_PINS = ['stop_job', 'job_status', 'preview_stop', 'ssh_revoke_key', 'ssh_forget_password', 'safety_report'] as const;
 const SAFETY_SET = new Set<string>(SAFETY_PINS);
@@ -337,7 +339,6 @@ export interface LeanInput {
 export class TurnTools {
   readonly lean: boolean;
   readonly eligible: Tool[];
-  readonly eligibleTokens: number;
   /** Offered names in order, with the first reason. */
   readonly offered = new Map<string, Reason>();
   /** Loads made during this turn (the run record and the step line). */
@@ -347,7 +348,7 @@ export class TurnTools {
   readonly #byName = new Map<string, Tool>();
   readonly #set: LeanSettings['tools'];
   readonly #recent: Map<string, number>;
-  #sentBefore: string[] = [];
+  #sentBefore: string[] | undefined;
 
   constructor(eligible: Tool[], lean: boolean, set: LeanSettings['tools'], recent: Map<string, number> = new Map()) {
     this.eligible = eligible;
@@ -355,11 +356,17 @@ export class TurnTools {
     this.#set = set;
     this.#recent = recent;
     for (const t of eligible) this.#byName.set(t.spec.name, t);
-    this.eligibleTokens = tokensOf(eligible);
   }
+
+  get eligibleTokens(): number { return tokensOf(this.eligible); }
 
   isEligible(name: string): boolean {
     return this.#byName.has(name);
+  }
+  /** Revocation narrows this turn permanently, including late explicit find_tools loads. */
+  revoke(names: ReadonlySet<string>): void {
+    for (const name of names) { this.#byName.delete(name); this.offered.delete(name); }
+    for (let i = this.eligible.length - 1; i >= 0; i--) if (names.has(this.eligible[i].spec.name)) this.eligible.splice(i, 1);
   }
   isOffered(name: string): boolean {
     return !this.lean || this.offered.has(name);
@@ -410,13 +417,14 @@ export class TurnTools {
     return this.lean ? tokensOf([...this.offered.keys()].map((n) => this.#byName.get(n)!)) : this.eligibleTokens;
   }
 
-  /** The run record's step field: the first step in full, later ones as `+added`. */
-  stepRecord(): { lean: boolean; offered: string[]; loaded: { name: string; why: Reason }[]; eligible: number; eligibleTokens: number; offeredTokens: number } {
-    const now = this.offeredNames();
+  /** Preview without consuming the delta; commit once at the actual provider boundary. */
+  stepRecord(current = this.eligible, commit = true): { lean: boolean; offered: string[]; loaded: { name: string; why: Reason }[]; eligible: number; eligibleTokens: number; offeredTokens: number } {
+    const specs = this.offeredSpecs(current);
+    const now = specs.map(spec => spec.name);
     const prev = this.#sentBefore;
-    this.#sentBefore = now;
-    const offered = prev.length ? now.filter((n) => !prev.includes(n)).map((n) => `+${n}`) : now;
-    return { lean: this.lean, offered, loaded: [...this.loaded], eligible: this.eligible.length, eligibleTokens: this.eligibleTokens, offeredTokens: this.offeredTokens() };
+    if (commit) this.#sentBefore = now;
+    const offered = prev ? [...now.filter(n => !prev.includes(n)).map(n => `+${n}`), ...prev.filter(n => !now.includes(n)).map(n => `-${n}`)] : now;
+    return { lean: this.lean, offered, loaded: [...this.loaded], eligible: current.length, eligibleTokens: tokensOf(current), offeredTokens: tokensOf(specs.map(spec => ({ spec }))) };
   }
 
   /** Deferred families: eligible but not offered, with counts. */
@@ -583,13 +591,14 @@ export function schemaHint(tool: Tool): string {
 // ---------------------------------------------------------------------------------------------
 
 /** The eligible list for an owner chat, the main gates of runTurn applied (no model, no turn). */
-export function eligibleFor(app: AppContext, conv: Pick<Conversation, 'private' | 'partner' | 'channel' | 'mode'> & Partial<Pick<Conversation, 'channelKey'>>): Tool[] {
+export function eligibleFor(app: AppContext, conv: Pick<Conversation, 'private' | 'partner' | 'channel' | 'mode'> & Partial<Pick<Conversation, 'channelKey' | 'id'>>): Tool[] {
   if (conv.partner) return [];
   const s = app.settings.get();
   const OFF = (n: string) => n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'delegate_task' || n === 'git_push' || /^(home_|mcp_|gmail_|calendar_|github_)/.test(n);
   const work = conv.channel.endsWith('-work');
   let tools = app.tools.enabled(s.toolPermissions).filter((t) => !(conv.private && OFF(t.spec.name)));
   if (!checkpointAllowed(app, conv)) tools = tools.filter(t => t.spec.name !== 'project_checkpoint');
+  if (!continuityAllowed(app, conv as Conversation) || conv.id && !continuityForTurn(app, conv.id)) tools = tools.filter(t => !SESSION_TOOLS.has(t.spec.name));
   if (conv.private || work) tools = tools.filter((t) => !t.spec.name.startsWith('ssh_'));
   if (work) tools = tools.filter((t) => !t.spec.name.startsWith('pc_') && t.spec.name !== 'moments');
   if (conv.private) tools = tools.filter((t) => !t.spec.name.startsWith('agenda_'));

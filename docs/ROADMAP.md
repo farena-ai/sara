@@ -10,12 +10,28 @@ then inspect, replace or clear them. Brief explicit energy/frustration cues and 
 follow-up closure improve conversational context; existing privacy, opt-outs and model limits
 remain. See [Project continuity](FOR_CODERS.md#project-checkpoints) and [Recent cues and follow-ups](ATTUNEMENT.md).
 
-## Next: continuity and shared experiences (in development)
+## Owner-session continuity in 2.68.0
 
-Coherent presence across eligible owner sessions/channels is now in development, starting with
-scoped internal context and ordering. Shared roleplay scenes and project coordination follow as
-separate slices. These are not released features. Private audiences are not merged by default,
-and development history is not automatically proof that a current check passed.
+The first slice adds fresh eligible owner-session context, bounded history tools, internal notes,
+ordered provider steps and inspect/disable/clear controls. Context stays within the same companion
+and eligible owner audience; history and internal handoffs grant no tool permissions or approvals.
+Shared multi-person scenes and project coordination are separate future slices.
+
+## Next: add-ons discovery in existing Settings
+
+Prepared supplied-data workflow candidates and MCP investigations will appear in the existing
+Plugins and Other programs pages, with clear prerequisites, permissions, costs and qualification
+limits. Local candidates, previews, account requirements and blocked entries will stay distinct
+from verified signed-store availability. Review, installation and per-companion enablement remain
+explicit; nothing is automatically installed, connected or enabled. This integration is planned,
+not included in2.68.0. Image preparation is not image generation; a supplied home snapshot is not
+live device control.
+
+## Later: shared scenes, project coordination and calls
+
+Explicit shared roleplay scenes and project coordination follow as separate slices. Private
+audiences are not merged by default, and development history is not automatically proof that a
+current check passed. These are planned features.
 
 Voice/video follow-on work will align calls with the same user's text-chat history, memory,
 tools, approvals and enabled adult setting, and add expressive speech such as laughter and sighs

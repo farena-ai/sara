@@ -35,7 +35,7 @@
 
 **Du kommst mit einem Team?** Nutze die [separate Unternehmenseinrichtung](docs/BUSINESS_OPERATIONS.md): individuelle Passkeys, ausdrückliche Rollen und gemeinsame Arbeitsbereiche. Die manuelle Installation hat einen eigenen Datenordner; persönliche Installer wandeln weder deine Begleiterin noch deinen Haushalt um.
 
-> **Status:** 2.67.0 — [Aktuelle Hinweise, Nachfragen und Projektkontinuität](https://github.com/farena-ai/sara/releases/tag/v2.67.0). [Was ist neu?](#was-ist-neu)
+> **Status:** 2.68.0, [Kontext zwischen eigenen Chats](https://github.com/farena-ai/sara/releases/tag/v2.68.0). Frischer Kontext zwischen berechtigten Eigentümer-Chats, mit internen Notizen, geordneten Anbieterschritten und eigenen Bedienelementen. [Was ist neu?](#was-ist-neu)
 >
 > Windows-Installer: unsigniert ([SmartScreen-Hilfe](docs/INSTALL.md)). Der macOS-Release-Prozess verlangt signierte und notarisierte Downloads; jeder Build wird gesondert geprüft. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [Web-App auf dem Home-Bildschirm](docs/PHONE.md).
 
@@ -124,6 +124,7 @@ Aktuelle Releases · 5. November 2026. [Vollständiges Änderungsprotokoll](CHAN
 
 | Version | Was sich für dich ändert |
 |---|---|
+| **[2.68.0](https://github.com/farena-ai/sara/releases/tag/v2.68.0)** | **[Kontext zwischen eigenen Chats](docs/SESSION_CONTINUITY.md)** — Frischer Kontext zwischen berechtigten Chats des Eigentümers mit derselben Begleiterin, begrenzte Verlaufsabfragen, interne Notizen und geordnete Anbieterschritte. Eigener Schalter, Einsicht und bestätigtes Löschen nur für das gewählte Ziel; Datenschutz und Werkzeugfreigaben gelten weiterhin. Gemeinsame Szenen, Projektkoordination und vollständige Sprach-/Video-Parität bleiben künftige Arbeit. |
 | **[2.67.0](https://github.com/farena-ai/sara/releases/tag/v2.67.0)** | **[Aktuelle Hinweise und Nachfragen](docs/ATTUNEMENT.md)** — Begrenzte ausdrückliche Hinweise des Eigentümers in sechs Sprachen und Ereignisnachfragen mit geprüften Quellen. **[Projekt-Checkpoints](docs/FOR_CODERS.md#project-checkpoints)** behalten Logik, Blockaden und bis zu drei nächste Schritte mit fünf Versionen sowie Anzeigen/Ersetzen/Löschen; historischer Kontext führt keine Befehle aus und übernimmt keine alten Freigaben. |
 | **[2.65.0](https://github.com/farena-ai/sara/releases/tag/v2.65.0)** | **[Geführte Unternehmenseinrichtung](docs/BUSINESS.md)** — Geführter Einstieg und Verwaltung, Einladungsverlauf im eigenen Zuständigkeitsbereich, Widerruf, schreibgeschützte Konfigurationsprüfung und wiederholbare Browser- und Wiederherstellungsübungen. |
 | **[2.64.0](https://github.com/farena-ai/sara/releases/tag/v2.64.0)** | **[Separate Unternehmensarbeitsbereiche](docs/BUSINESS_OPERATIONS.md)** — Individuelle Passkeys, Rollen, geteilte Texte und Dokumente, Modelllimits unter Betreiberkontrolle und verschlüsselte Wiederherstellung. Persönliche und Haushaltsdaten bleiben getrennt. |
@@ -136,6 +137,8 @@ Außerdem in 2.67.0: zuverlässiger Zugriff auf Coding-Projekte über die Einste
 Version 2.67.0 unterscheidet außerdem Kritik am Code von Konflikten mit Sara, prüft Quellen für Hinweise und Nachfragen unmittelbar vor der normalen Anbieteranfrage erneut und schließt Agenda-Einträge nur bei klarer Zuordnung von Ereignis, Ergebnis und zugehöriger Frage automatisch ab. Inneres Leben bleibt der Schalter zum Aktivieren; es gibt keine Gefühlsdiagnose, keinen zusätzlichen Klassifikatoraufruf und kein neues Stimmungsprofil des Eigentümers. Neue Hinweise sind für private Chats, Chats ohne Aufzeichnung, Mitglieder, Gruppen, externe Kontexte, Wiedergabe und unbeaufsichtigte Arbeit ausgeschlossen. Aufgezeichnete Prompts, Exporte und Sicherungen können Notizen unter ihren bisherigen Einstellungen behalten; die Wiedergabe lässt neu aufgezeichnete vorübergehende Zusätze aus und kennzeichnet geänderte Eingaben. Diese Version korrigiert auch die automatische Erfassung der Quellrevision des Windows-Installers.
 
 <!-- sara:recent-releases:end -->
+
+Quellcodequalifikation von 2.68.0: Typprüfung und **2709 automatisierte Tests**; Windows **2693 bestanden / 0 fehlgeschlagen / 16 übersprungen**, Linux **2694 bestanden / 0 fehlgeschlagen / 15 übersprungen**, dazu zehn isolierte Desktop-/Mobil-Browserabläufe. Die tatsächlichen Windows- und Mac-Pakete bestanden jeweils fünf Wiederherstellungs- und Regressionsprofile; das Mac-Paket ist signiert und notarisiert, Windows ist unsigniert. Die Prüfungen verwenden synthetische Daten und simulierte Modelle. Physische Intel-/Rosetta-Ausführung, Geräte- und Screenreader-Abnahme, natürlicher Ton mit echten Modellen und Produktionswiederherstellung bleiben getrennte Prüfungen.
 
 <!-- sara:release-history:start -->
 

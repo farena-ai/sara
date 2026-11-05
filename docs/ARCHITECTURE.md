@@ -366,6 +366,10 @@ Every module in `src/`, roughly in the order they were added (the phase is noted
 | `web/video-call.js`, `web/video-logic.js` | Phase 69: the video call screen (the call's `Presence` moved in full size over her blurred portrait; timer, mute, camera with self-view and "Camera on" label, sound, captions, end; stills shrunk to 512 px JPEG) and its pure logic (timer, picture size, `FramePacer`, `expressionFromText`, `CaptionLog`), tested in `test/phase69.test.ts` |
 | `src/together.ts` | Phase 37: things to do together (20 questions, trivia, a story together…) |
 | `src/elsewhere.ts` | What was just said in her other conversations, so she keeps track like one person would |
+| `src/session-handoffs.ts`, `src/session-continuity.ts`, `src/session-continuity-tools.ts` | R1A development, unreleased: pure Store-installed `session_handoffs` schema/source and room revocation triggers; same-personal-store owner policy, bounded historical reads, TTL/CAS/inspection and latest-per-source note selection. Host-bound session_context/session_handoff capabilities carry no model-selected source or authority. Source/target privacy and actual database identity are rechecked; reads do not initialize schemas or mutate. No model wake or human delivery. Task3 owner controls are locally reviewed; whole/platform qualification and R1 delivery remain pending. |
+| `src/routes/session-continuity.ts`, registered by `src/server.ts` | R1A development, unreleased: owner-personal-only `GET/PUT /api/chats/continuity` and `GET/DELETE /api/conversations/:id/continuity`. Strict boolean/CAS inputs, current authentication/owner/app/space/target checks repeated after body waits before mutations, with original Store/database identity bound across delayed clears; nonowner/missing/forbidden audiences get no target oracle. Toggle preserves other chat/continuity settings. Explicit eligible inspection/clear work while disabled, without model tools or turns. |
+| `web/session-continuity.js` | R1A development, unreleased: Chat apps settings and current-conversation inspector, literal-text source/title/time/expiry and saved-version labels, confirmation/CAS target-only clear and retained error/conflict views. Available context is not delivered/read/executed proof; disabling and target-note clear do not erase original history/run audit/exports/backups. Six-language strings and one new tip; actual isolated desktop/mobile qualification remains separate from physical acceptance. |
+| `src/session-step-gate.ts`, R1A boundary in `src/chat.ts` | R1A development, unreleased: abortable FIFO provider-step leases keyed by actual database object, at most20 waiters, idempotent release and independent data-space queues. Acquire after hooks/budget waits, refresh current scope/history and bounded context, hold through saved reply/tool-call row, release before tools/approval/afterReply awaits. Cancellation covers a grant while the consumer is paused before provider entry. No durable lease/background worker; final recorded inputs match the actual prompt, fresh context is omitted on replay. |
 | `src/recall.ts` | Phase 32: the `recall` tool: her own past conversations by words and by time |
 | `src/embeddings.ts` | Phase 38: meaning search: vectors from the owner's embedding model (for example `nomic-embed-text`), searched in Sara's own code |
 | `src/scrapbook.ts` | Phase 9: shared moments, photos and inside jokes. UI cleanup: photos taken out of the scrapbook only (`scrapbook_hidden` table in each companion's `sara.db`; `hidePhoto`/`unhidePhoto`, `photos(store, limit, 'skip'\|'only'\|'all')`); routes `POST /api/scrapbook/photos/hide`, `…/unhide` and `…/delete` (`confirm: true`, through `deletePhotoEverywhere`); the demo refuses them |
@@ -591,3 +595,15 @@ and scoped access. Closed-session generations reject delayed auth responses. Unc
 uses a view-bound management updater to reconcile keyed roster/candidate metadata without remounting
 edited forms or the one-time creation-code panel. Authority loss clears protected state before later
 metadata awaits; request IDs/payloads remain bound to their original scope with no automatic replay.
+
+### R1A final-boundary audit and imported history
+
+The lean plan previews before hooks without consuming deltas; it commits one final witness from
+the actual offered schemas/current eligible tools at the provider boundary. Recorder final-input
+refresh merges this witness while retaining fold/other step metadata, without reopening steps
+or rewriting old audit rows. Later additions/removals and token estimates reflect actual offers.
+Native JSON import adds host importedFrom provenance for null/valid-object metadata lacking it;
+prior markers and invalid metadata bytes remain. Known imported rows are excluded by existing R1
+policy even if later new direct dialogue makes the conversation eligible. Historical null-origin
+rows remain compatible and use explicit unverified-source attribution only in the new R1 path.
+Earlier unmarked imports cannot be retroactively identified without further evidence.

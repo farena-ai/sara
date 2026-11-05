@@ -68,6 +68,7 @@ import { advisoryFlag, advisorySection, initFindings, openFindings, openRedTeam,
 import { openRunView } from './run-view.js';
 import { recallChip, recallKindWords } from './recall-view.js';
 import { initWhen, loadWhenList, loadWhenSettings, saveWhenSettings, whenChip, whenFor } from './recall-when.js';
+import { initSessionContinuity, loadSessionContinuitySettings, saveSessionContinuitySettings, loadConversationContinuity } from './session-continuity.js';
 import { initPickup, loadPickupSettings, pickupAfterReply, pickupNotice, pickupOpen, savePickupSettings } from './pickup.js';
 import { initEvals, onEvalEvent, openEvals } from './evals-view.js';
 import { renderCard, renderCards } from './result-cards.js';
@@ -3516,6 +3517,7 @@ $('#conv-settings-btn').addEventListener('click', async () => {
   renderConvTitle(c);
   void loadConvTitle(c);
   void loadConvFiles(c);
+  loadConversationContinuity(c);
   $('#conv-settings').showModal();
 });
 
@@ -7768,6 +7770,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'ab-precise') void loadPreciseSettings();
   if (pick === 'ab-when') void loadWhenSettings();
   if (pick === 'co-pickup') void loadPickupSettings();
+  if (pick === 'co-continuity') void loadSessionContinuitySettings();
   if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam(), loadCodeProjects(), loadProjectDials()]);
   if (pick === 'ab-ssh') void loadSsh();
   if (pick === 'ab-library') void loadLibrarySettings();
@@ -7941,6 +7944,7 @@ const SETTINGS_SAVERS = {
   'ab-precise': [savePreciseSettings],
   'ab-when': [saveWhenSettings],
   'co-pickup': [savePickupSettings],
+  'co-continuity': [saveSessionContinuitySettings],
   'ab-projects': [saveSandboxGate, saveSecPass, saveThreatModel, saveRedTeam],
 };
 const settingsChanged = new Set();
@@ -8839,6 +8843,7 @@ initSlash({
   },
 });
 initWhen({ api, el });
+initSessionContinuity({ api });
 initPickup({ api, el, state, reload: (id) => void openConversation(id) });
 initLearning();
 initBoard({ fmtDue: (iso) => fmtDue(iso, false), openConversation: (id) => openConversation(id), openPlanner: async (tab) => {

@@ -26,6 +26,7 @@
   <a href="#phone">Phone and notifications</a>
   <a href="#voice">Voice and calls</a>
   <a href="#memory">Memory and privacy</a>
+  <a href="#session-continuity">Session continuity</a>
   <a href="#import">Bring her from another app</a>
   <a href="#story">Your story together</a>
   <a href="#moments">Our moments</a>
@@ -246,6 +247,10 @@
 <h4 id="howto-co-pickup">Pick up across apps</h4>
 <details class="howto-q" id="howto-co-pickup-continue"><summary>How do I pick up a chat from Telegram in the app?</summary><ol><li>Open the app after talking on Telegram: a banner offers to pick it up.</li><li>Press Continue here (or type /continue in any of your chats).</li><li>The chip at the top says where it came from; Undo takes it away.</li></ol></details>
 <details class="howto-q" id="howto-co-pickup-off"><summary>How do I stop the pick-up offers?</summary><ol><li>Under When I switch apps, choose Only when I type /continue.</li><li>To end one pickup, press Undo on its chip (or type /continue off).</li></ol></details>
+<h4 id="howto-co-continuity">Session continuity</h4>
+<details class="howto-q" id="howto-co-continuity-toggle"><summary>How do I turn session continuity on or off?</summary><ol><li>Open Settings → Chat apps → Session continuity.</li><li>Switch Use context across my sessions on or off; it saves automatically.</li><li>Off stops new context but keeps saved notes. Pick up across apps and While she's working keep their own settings.</li></ol></details>
+<details class="howto-q" id="howto-co-continuity-inspect"><summary>How do I read the notes from my other sessions?</summary><ol><li>Close Settings and open one of your own eligible chats with this companion.</li><li>Press the conversation chip at the top, then find Saved session context.</li><li>Press Show saved session context to see the source, time, expiry and notes.</li><li>Notes help later replies; they do not send messages or confirm completed work.</li></ol></details>
+<details class="howto-q" id="howto-co-continuity-clear"><summary>How do I clear saved notes, including expired ones?</summary><ol><li>In This conversation, show the saved session context first.</li><li>Choose Clear saved context, review the confirmation, then Confirm clear; Cancel or Escape leaves the notes alone.</li><li>Clear also removes expired saved notes while continuity is off; only this session's saved notes are removed.</li><li>Original chats, old run records, exports and backups stay.</li><li>If the notes changed elsewhere, reload and review them before trying again.</li></ol></details>
 <h4 id="howto-co-telegram">Telegram</h4>
 <details class="howto-q" id="howto-co-telegram-connect"><summary>How do I get her on Telegram?</summary><ol><li>Press Start and open @BotFather.</li><li>Send /newbot and paste the key it gives you.</li><li>Press Link my Telegram and send the bot the code.</li></ol></details>
 <details class="howto-q" id="howto-co-telegram-groups"><summary>How do I add her to a group?</summary><ol><li>Add the bot to the group in Telegram.</li><li>Choose who may talk to her under Remote work and groups.</li></ol></details>
@@ -599,6 +604,14 @@
   <li><b>Remove imported history</b> deletes the imported conversations and every note learned from them. Nothing else is touched.</li>
   <li>The export is read on your server and the upload is deleted after the import. Nothing is sent anywhere except, while learning, to the background model you chose.</li>
 </ul>
+
+<section id="session-continuity">
+<h2>Session continuity</h2>
+<p>Development candidate, not yet released. In Settings → Chat apps → Session continuity, turn Use context across my sessions on or off. This is separate from Pick up across apps and While she's working. Off stops new continuity context at the next model boundary; saved notes stay available to inspect or clear.</p>
+<p>In an eligible chat, open This conversation → Saved session context → Show saved session context. Notes show their source, saved time and eligibility time. Earlier notes are history. These notes are context, never a record of human delivery, reading, execution or verified work.</p>
+<p>Clear saved context needs Confirm clear. Cancel or Escape sends no delete request. Clear affects this session's saved notes only; original chats, old run prompts, exports and backups stay. If notes changed elsewhere, your view stays visible: reload and review before clearing again. A failed request also keeps your view.</p>
+<p>Notes are eligible for 24 hours, not erased by a background timer; expired rows are pruned on the next write. Only eligible owner sessions with this companion in this personal space take part. Private, off-the-record, other-person, room, household-member, business, imported, replay and external-app contexts remain separate.</p>
+</section>
 
 <h2 id="import">Bring her from another app</h2>
 <ul>

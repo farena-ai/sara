@@ -106,6 +106,7 @@ export const OTHER_LANGS = ['es', 'fr', 'de', 'pt-BR', 'it'] as const;
 
 /** Owner settings for commands (Settings → Telegram / Discord → Commands). */
 export interface ChatsSettings {
+  continuity?: { enabled?: boolean };
   commands?: { native?: boolean; namePrefix?: boolean };
   offerNew?: boolean;
   /** Phase 109 (CH3): titles that grow (src/titles.ts `titleSettings`). */

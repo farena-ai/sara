@@ -152,7 +152,8 @@ test('sidebar: every place keeps its button id, More holds the rest, her and Set
 
 test('settings: groups and order cover every page; page ids unchanged', () => {
   const pages = [...html.matchAll(/class="settings-page[^"]*" data-page="([\w-]+)" data-group="([^"]+)"/g)].map((m) => ({ page: m[1], group: m[2] }));
-  assert.equal(pages.length, 63); // Q4 adds Operations; Q3 added Recovery. Every existing page remains accounted for below.
+  assert.equal(pages.length, 64); // R1A adds Session continuity; Q4 Operations and Q3 Recovery remain accounted for below.
+  assert.deepEqual(pages.filter(p => p.page === 'co-continuity'), [{ page: 'co-continuity', group: 'Chat apps' }]);
   assert.deepEqual(pages.filter(p => p.page === 'dh-operations'), [{ page: 'dh-operations', group: 'Data & health' }]);
   const order = /const SETTINGS_ORDER = \[([\s\S]*?)\];/.exec(app)![1].match(/'([\w-]+)'/g)!.map((s) => s.slice(1, -1));
   assert.deepEqual([...order].sort(), pages.map((p) => p.page).sort(), 'SETTINGS_ORDER lists every page once');

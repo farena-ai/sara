@@ -1834,6 +1834,7 @@
         <h3>Files in this chat <button type="button" class="tip" data-tip="Pictures and files that came in or went out of this chat through a chat app or send_file. Remove deletes the bytes now; the line stays. Other people's pictures go after 7 days.">?</button></h3>
         <ul id="cs-files" class="cs-files"></ul>
       </div>
+      <div id="cs-continuity" class="tidy-card tidy-stack" data-owner-only hidden></div>
       <p class="muted small cs-summary">Sara writes a dated summary of this conversation after it's been quiet for a while. <button id="cs-remember" type="button" class="ghost small">Write summary now</button></p>
       <p id="cs-error" class="error" role="alert"></p>
       <div class="actions tidy-foot">
@@ -3466,7 +3467,19 @@
       <div id="im-box" class="wa-box"></div>
       </div>
         </section>
-                <!-- Phase 119 (RECALL §3.3, §5.10): pick a chat up in another app (web/pickup.js). -->
+        <!-- Owner session continuity settings. -->
+        <section class="settings-page" data-page="co-continuity" data-group="Chat apps" data-title="Session continuity" data-owner-only hidden>
+          <p class="muted small page-lead">Keep context between your own sessions with this companion. This is separate from Pick up across apps and While she's working.</p>
+          <div id="continuity-settings" class="tidy-card tidy-stack" hidden>
+            <h3>Session continuity</h3>
+            <label class="row"><input id="continuity-enabled" name="continuity-enabled" type="checkbox" aria-labelledby="continuity-enabled-label"> <span id="continuity-enabled-label">Use context across my sessions</span> <span><button type="button" class="tip" data-tip="On: eligible sessions can use recent context and saved notes. Off stops new continuity context; saved records stay. Notes are eligible for 24 hours; expired rows are pruned on the next write. Inspect or clear in This conversation.">?</button></span></label>
+            <p class="muted small">Turning this off keeps saved notes. Clear saved context in This conversation; original chats, old run records, exports and backups stay.</p>
+            <p class="muted small">Only your own eligible sessions with this companion take part. Notes are context, never proof that a message was delivered or work was checked.</p>
+            <p id="continuity-status" class="muted small" role="status"></p>
+            <p class="small"><a href="/help#session-continuity" target="_blank" rel="noopener">Read the session continuity guide ↗</a></p>
+          </div>
+        </section>
+        <!-- Phase 119 (RECALL §3.3, §5.10): pick a chat up in another app (web/pickup.js). -->
         <section class="settings-page" data-page="co-pickup" data-group="Chat apps" data-title="Pick up across apps" data-owner-only hidden>
       <div id="pk-form">
       <p class="muted small page-lead">Carry our last conversation between apps: start on Telegram on the bus, open the app at home, and she knows what you were just talking about. Nothing is copied or merged; a chip shows it with Undo.</p>

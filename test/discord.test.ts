@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { runTurn } from '../src/chat.ts';
+import { SESSION_CONTINUITY_MARK } from '../src/session-continuity.ts';
 import { BOT_WAIT_LINE, DISCORD_INTENTS, DISCORD_VAULT, DiscordBridge, type GatewaySocket } from '../src/bridges/discord.ts';
 import { call, listen, makeApp, readBody, tempDir, text, type TestApp } from './helpers.ts';
 
@@ -258,11 +259,13 @@ test('continuity: her chats know what just happened in Discord; Discord people n
   app.store.addMessage(web.id, 'assistant', 'That is wonderful!');
   app.script.push(text('Sounds fun, Bob!'));
   await bridge.handleMessage(msg({ channel_id: '200', guild_id: 'g', author: bob, content: '<@900> we are doing trivia at 8', mentions: [BOT] }));
-  const inDiscord = app.requests.at(-1)!.messages[0].content as string;
+  const inDiscord = app.requests.at(-1)!.messages.map(m => m.content).join('\n');
   assert.doesNotMatch(inDiscord, /propose|Lately in your other conversations/, 'nothing from the owner\'s chats reaches other people');
   app.script.push(text('Bob was setting up trivia at 8.'));
   for await (const _ of runTurn(app, web.id, 'what happened on discord?')) void _;
-  const inWeb = app.requests.at(-1)!.messages[0].content as string;
+  const notes = app.requests.at(-1)!.messages.filter(m => m.role === 'system' && m.content.startsWith(SESSION_CONTINUITY_MARK));
+  assert.equal(notes.length, 1, 'one fresh cross-session context note');
+  const inWeb = notes[0].content;
   assert.match(inWeb, /Lately in your other conversations[\s\S]*Discord, with other people[\s\S]*\[Bob\]: @Sara we are doing trivia at 8[\s\S]*You: Sounds fun, Bob!/);
 });
 
@@ -404,6 +407,9 @@ test('discord bots: the owner\'s "lately elsewhere" note shows bot lines as bots
   const web = app.store.createConversation({ title: 'Evening' });
   app.script.push(text('Helper finished a summary.'));
   for await (const _ of runTurn(app, web.id, 'anything on discord?')) void _;
-  const inWeb = app.requests.at(-1)!.messages[0].content as string;
+  const notes = app.requests.at(-1)!.messages.filter(m => m.role === 'system' && m.content.startsWith(SESSION_CONTINUITY_MARK));
+  assert.equal(notes.length, 1, 'one fresh cross-session context note');
+  const inWeb = notes[0].content;
   assert.match(inWeb, /Discord, with other people[\s\S]*\[Helper \(bot\)\]: @Sara I finished the summary[\s\S]*You: Nice work, Helper\./);
+  assert.doesNotMatch(inWeb, /(?:Alex|the owner): @Sara I finished the summary/, 'a bot line is never relabelled as owner speech');
 });

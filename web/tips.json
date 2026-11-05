@@ -1563,6 +1563,10 @@
       "Reminders that wait for a person or a topic to come up in your own messages (“when Dan comes up, remind me he owes me $20”): how often, how many a day, and when they end.",
       "when"
     ],
+    "co-continuity": [
+      "Choose whether your own sessions with this companion share context. Inspect or clear saved notes in This conversation, even while continuity is off. Expired notes can remain until a write or explicit clear.",
+      "session-continuity"
+    ],
     "co-pickup": [
       "Carry our last conversation between your apps: start on Telegram, open the app, and pick it up with Continue here or /continue. Nothing is copied or merged.",
       "when"

@@ -52,7 +52,7 @@ test('128b.1 N29: every page id in SETTINGS_ORDER is in exactly one group; 8 gro
   assert.ok(byGroup.get('Data & health')?.includes('dh-operations'));
   for (const [g, ids] of byGroup) assert.ok(ids.filter((x) => x !== 'ab-recipes' && x !== 'account').length <= (g === 'Data & health' ? 12 : 10), `${g}: ${ids.length} pages`);
   const want: Record<string, string[]> = {
-    'Chat apps': ['co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-pickup'],
+    'Chat apps': ['co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-pickup', 'co-continuity'],
     'Add-ons': ['ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-recipes'],
     Coding: ['ab-projects', 'ab-precise', 'ab-persist', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-tools'],
     You: ['you-about', 'you-briefing', 'you-leave-by', 'ab-when', 'you-adult'],

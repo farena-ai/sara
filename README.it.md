@@ -35,7 +35,7 @@
 
 **Sei qui con un team?** Usa la [configurazione aziendale separata](docs/BUSINESS_OPERATIONS.md): passkey individuali, ruoli espliciti e spazi condivisi. È un’installazione manuale con una cartella dati dedicata; gli installer personali non convertono la tua compagna né il tuo nucleo domestico.
 
-> **Stato:** 2.67.0 — [Segnali recenti, aggiornamenti sugli eventi e continuità del progetto](https://github.com/farena-ai/sara/releases/tag/v2.67.0). [Scopri le novità](#novità)
+> **Stato:** 2.68.0, [Contesto tra le tue conversazioni](https://github.com/farena-ai/sara/releases/tag/v2.68.0). Contesto recente tra chat consentite del proprietario, con note interne, passi ordinati del fornitore e controlli del proprietario. [Scopri le novità](#novità)
 >
 > Installer Windows: non firmato ([guida SmartScreen](docs/INSTALL.md)). Il processo di rilascio macOS richiede download firmati e autenticati da Apple; ogni build viene verificata separatamente. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web nella schermata Home](docs/PHONE.md).
 
@@ -124,6 +124,7 @@ Versioni recenti · 5 novembre 2026. [Registro completo](CHANGELOG.md) · [Tutti
 
 | Versione | Cosa cambia per te |
 |---|---|
+| **[2.68.0](https://github.com/farena-ai/sara/releases/tag/v2.68.0)** | **[Contesto tra le tue conversazioni](docs/SESSION_CONTINUITY.md)** — Contesto recente tra chat consentite del proprietario con la stessa compagna, lettura limitata della cronologia, note interne e passi ordinati del fornitore. Controllo del proprietario, ispezione e cancellazione confermata del solo destinatario scelto; privacy e approvazioni degli strumenti restano valide. Scene condivise, coordinamento dei progetti e piena parità di voce e video restano sviluppi futuri. |
 | **[2.67.0](https://github.com/farena-ai/sara/releases/tag/v2.67.0)** | **[Segnali recenti e aggiornamenti sugli eventi](docs/ATTUNEMENT.md)** — Segnali espliciti e circoscritti del proprietario in sei lingue e domande sugli eventi basate su fonti verificate. I **[punti di ripresa del progetto](docs/FOR_CODERS.md#project-checkpoints)** conservano logica, blocchi e fino a tre prossimi passi, con cinque versioni e controlli per consultare, sostituire o cancellare; il contesto storico non esegue comandi e non trasferisce vecchie approvazioni. |
 | **[2.65.0](https://github.com/farena-ai/sara/releases/tag/v2.65.0)** | **[Configurazione aziendale guidata](docs/BUSINESS.md)** — Primo utilizzo e amministrazione guidati, cronologia degli inviti nel proprio ambito autorizzato, revoca, verifica della configurazione in sola lettura ed esercitazioni ripetibili di browser e ripristino. |
 | **[2.64.0](https://github.com/farena-ai/sara/releases/tag/v2.64.0)** | **[Spazi aziendali separati](docs/BUSINESS_OPERATIONS.md)** — Passkey individuali, ruoli, testi e documenti condivisi, limiti dei modelli controllati dall’operatore e ripristino cifrato. Dati personali e domestici restano separati. |
@@ -136,6 +137,8 @@ Inoltre in 2.67.0: accesso affidabile ai Progetti di codice dalla ricerca nelle 
 La versione 2.67.0 distingue inoltre le critiche al codice dai conflitti rivolti a Sara, ricontrolla le fonti dei segnali e delle domande sugli eventi immediatamente prima della normale chiamata al fornitore e chiude automaticamente gli elementi di Agenda solo con prove chiare dell’evento, del risultato e della domanda corrispondente. Vita interiore resta il controllo di attivazione; non ci sono diagnosi emotive, chiamate aggiuntive a un classificatore o nuovi profili dell’umore del proprietario. I nuovi segnali escludono chat private o senza registrazione, membri, gruppi, contesti esterni, riproduzione e lavoro senza supervisione. Prompt registrati, esportazioni e backup possono conservare note con i controlli abituali; la riproduzione omette i nuovi extra transitori registrati e segnala che gli input sono cambiati. Questa versione corregge anche l’identificazione automatica della revisione sorgente dell’installer Windows.
 
 <!-- sara:recent-releases:end -->
+
+Qualificazione del codice di 2.68.0: controllo dei tipi e **2709 test automatici**; Windows **2693 superati / 0 falliti / 16 saltati**, Linux **2694 superati / 0 falliti / 15 saltati**, più dieci percorsi isolati del browser su desktop e mobile. I pacchetti reali Windows e Mac, quest’ultimo firmato e notarizzato, hanno superato cinque profili di ripristino e regressione ciascuno; Windows non è firmato. Le verifiche usano dati sintetici e modelli simulati. Esecuzione fisica Intel/Rosetta, accettazione su dispositivi e lettori di schermo, tono naturale con modelli reali e ripristino di produzione restano verifiche separate.
 
 <!-- sara:release-history:start -->
 
