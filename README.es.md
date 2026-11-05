@@ -2,24 +2,24 @@
 
 # Sara
 
-**Una compañera de IA con la personalidad que tú elijas, que además es una verdadera compañera de programación.**
-Charla, recuerda, planifica tu día y lee tus libros; escribe, ejecuta y prueba código en su propio
-espacio de trabajo aislado. Todo en tu propio servidor, con los modelos que elijas, en una sola app
-para la web, Windows, Mac y el móvil.
+<p align="center"><strong>Tu compañera. Tu socia de programación. Tu servidor.</strong></p>
 
-> Esta es una traducción del [README en inglés](README.md). Los enlaces llevan a la documentación,
-> que está en inglés.
+<p align="center">Una compañera de IA con la personalidad que tú eliges, recuerdos que tú controlas y herramientas para trabajar de verdad.<br>Habla, organiza, crea, escribe código y ejecuta pruebas. Usa tus propios modelos. Hazla tuya.</p>
 
-<p>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
-  <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-2137%20passing-brightgreen" alt="2137 tests passing">
-  <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
+<p align="center"><b>Gratis y de código abierto · MIT · En tu servidor</b></p>
+
+<p align="center">
+  <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/badge/Descargar-B4436C?style=for-the-badge" alt="Descargar"></a>
+  <a href="docs/INSTALL.md"><img src="https://img.shields.io/badge/Gu%C3%ADa%20de%20instalaci%C3%B3n-315C66?style=for-the-badge" alt="Guía de instalación"></a>
+  <a href="https://github.com/farena-ai/sara"><img src="https://img.shields.io/badge/%E2%98%85%20Estrella%20en%20GitHub-8A6422?style=for-the-badge" alt="★ Estrella en GitHub"></a>
+</p>
+
+<p align="center">
+  <a href="docs/INSTALL.md">Windows · macOS · Linux · Docker</a> ·
+  <a href="LICENSE">MIT</a> ·
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
-  <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
-  <img src="https://img.shields.io/badge/languages-6-8A2BE2" alt="Six languages">
-  <a href="https://glama.ai/mcp/servers/farena-ai/sara"><img src="https://glama.ai/mcp/servers/farena-ai/sara/badges/score.svg" alt="Sara MCP server on Glama"></a>
+  <br>
+  <sub>Sara es gratis. Tu equipo, alojamiento y los proveedores de modelos opcionales pueden tener un coste. <a href="docs/COSTS.md">Qué cuesta</a>.</sub>
 </p>
 
 <p align="center">
@@ -33,15 +33,16 @@ para la web, Windows, Mac y el móvil.
   <a href="docs/FOR_CODERS.md"><img src="https://img.shields.io/badge/Vengo%20a%20programar-6E4BD8?style=for-the-badge" alt="Vengo a programar" height="34"></a>
 </p>
 
-> **Estado:** 2.65.0, licencia MIT. Las versiones con novedades desde la 1.0 aparecen abajo. De
-> la 2.5 a la 2.8 toda la app estrenó aspecto. La
-> [app de Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) está en Google
-> Play; la app de iPhone y la versión del Mac App Store llegarán en cuanto Apple las apruebe. Lee
-> [docs/DISCLOSURES.md](docs/DISCLOSURES.md) antes de usar o compartir Sara.
+**¿Vienes con un equipo?** Usa la [instalación empresarial independiente](docs/BUSINESS_OPERATIONS.md): claves de acceso individuales, roles explícitos y espacios compartidos. Es una instalación manual con su propia carpeta de datos; los instaladores personales no convierten tu compañera ni tu hogar.
 
-**Operación con evidencia:** métricas HTTP y de preparación solo para el propietario, archivo seguro de entregas resueltas y pruebas locales repetibles de carga y navegador. [Operación](docs/OPERATIONS.md).
+> **Estado:** 2.65.0, [versión estable actual](https://github.com/farena-ai/sara/releases/tag/v2.65.0). Configuración empresarial guiada, gestión de invitaciones y recuperación más segura. [Ver novedades](#novedades).
+>
+> Instalador Windows: sin firma ([guía de SmartScreen](docs/INSTALL.md)). Descarga macOS: firmada y notarizada. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web en la pantalla de inicio](docs/PHONE.md).
 
-**Recuperar trabajo interrumpido:** Ajustes → Datos y estado → Recuperación conserva las solicitudes de reinicio y los resultados inciertos de Telegram y Discord nativos. Nada se repite a ciegas al iniciar; siguen aplicándose la privacidad y las aprobaciones actuales. [Guía de recuperación](docs/RECOVERY.md).
+Sara es una IA. Lee los [avisos](docs/DISCLOSURES.md) antes de usarla o compartirla. El modo local mantiene las llamadas al modelo en tu ordenador; las funciones en la nube envían datos a los proveedores que elijas ([privacidad](docs/PRIVACY.md)).
+
+> Esta es una traducción del [README en inglés](README.md). Los enlaces llevan a la documentación,
+> que está en inglés.
 
 ## Por qué Sara
 
@@ -57,8 +58,7 @@ para la web, Windows, Mac y el móvil.
 - **Una app preciosa en cada dispositivo.** Un aspecto Noche tranquilo (o Día, si lo prefieres) con su
   presencia junto a cada chat, una línea bajo cada respuesta que muestra lo que hizo y los resultados
   como tarjetas. En la web y como app instalable, en las apps de Windows y Mac (con *pregunta rápida*
-  con un atajo sobre cualquier app), en Android y en iPhone (la app espera a Apple; la app web en la
-  pantalla de inicio ya funciona).
+  con un atajo sobre cualquier app), en Android y en iPhone mediante la [app web en la pantalla de inicio](docs/PHONE.md).
 - **Privada y tuya.** Un dueño por servidor; los chats, recuerdos y claves se quedan allí. Cualquier
   modelo: local (Ollama, vLLM, llama.cpp), en la nube (OpenAI, Anthropic, xAI, OpenRouter) o los planes
   que ya pagas (ChatGPT, Claude Pro/Max, SuperGrok / X Premium+). Un interruptor lo deja todo en un solo
@@ -118,9 +118,31 @@ Guías de un minuto, grabadas en un servidor de prueba con un modelo local (en i
 
 ## Novedades
 
+<!-- sara:recent-releases:start -->
+
+Versiones recientes · 4 de noviembre de 2026. [Historial completo](CHANGELOG.md) · [Todas las descargas](https://github.com/farena-ai/sara/releases).
+
+| Versión | Qué cambia para ti |
+|---|---|
+| **[2.65.0](https://github.com/farena-ai/sara/releases/tag/v2.65.0)** | **[Configuración empresarial guiada](docs/BUSINESS.md)** — Primer uso y administración guiados, historial de invitaciones limitado al ámbito autorizado, revocación, comprobación de configuración de solo lectura y pruebas repetibles de navegador y recuperación. |
+| **[2.64.0](https://github.com/farena-ai/sara/releases/tag/v2.64.0)** | **[Espacios empresariales independientes](docs/BUSINESS_OPERATIONS.md)** — Claves de acceso individuales, roles, textos y documentos compartidos, límites de modelos controlados por el operador y recuperación cifrada. Separados de los datos personales y del hogar. |
+| **[2.63.1](https://github.com/farena-ai/sara/releases/tag/v2.63.1)** | **[Operación medida](docs/OPERATIONS.md)** — Métricas HTTP y de preparación solo para el propietario, archivo seguro de entregas resueltas, copias de seguridad sin bloquear la app y pruebas locales repetibles. |
+| **[2.62.0](https://github.com/farena-ai/sara/releases/tag/v2.62.0)** | **[Recuperación sin repetir a ciegas](docs/RECOVERY.md)** — Revisa los trabajos interrumpidos antes de reiniciarlos; los envíos nativos inciertos de Telegram y Discord siguen visibles y no se reenvían automáticamente. |
+| **[2.61.5](https://github.com/farena-ai/sara/releases/tag/v2.61.5)** | **[Encuentra el siguiente paso](docs/START_HERE.md)** — Búsqueda enfocada en Ajustes, un primer mensaje más sencillo y mejor navegación con teclado, táctil y movimiento reducido. |
+| **[2.61.4](https://github.com/farena-ai/sara/releases/tag/v2.61.4)** | **[Configuración más fiable](docs/SECURITY_CHECKLIST.md)** — Retoma la configuración del modelo tras omitirla, conserva el foco móvil donde corresponde y distingue la aprobación de comandos del aislamiento de ejecución. |
+
+<!-- sara:recent-releases:end -->
+
+<!-- sara:release-history:start -->
+
+<details>
+<summary><b>Novedades anteriores · 2.61, 2.60 y 2.59</b></summary>
+
 - **2.61** ·  Configurar apps de chat es más fácil: una tarjeta guiada para WhatsApp, Matrix, iMessage, Signal, correo y Telegram, cada paso comprobado y con soluciones claras; los plugins propios de Sara solo necesitan un OK, no un aviso para desarrolladores.
 - **2.60** · Paquetes de compañeras: comparte el carácter, el aspecto, la voz y las habilidades de inicio de una compañera como archivo o en la Sara Store, sin compartir nunca tus recuerdos ni tus chats; también se importan tarjetas de personaje.
 - **2.59** · «Hey Sara»: di su nombre para hablar sin manos en la app de Windows (un pequeño modelo en tu ordenador solo escucha eso), un atajo para hablar en todas partes, y oído y voces locales en Windows.
+
+</details>
 
 <details>
 <summary><b>Historial de versiones</b>: lo que trajo cada versión desde la 2.4</summary>
@@ -216,16 +238,13 @@ Guías de un minuto, grabadas en un servidor de prueba con un modelo local (en i
 
 </details>
 
+<!-- sara:release-history:end -->
+
 Todas las versiones: [CHANGELOG.md](CHANGELOG.md) · [versiones](https://github.com/farena-ai/sara/releases).
 
 ### Lo que viene
 
-En orden de construcción, una versión cada una ([la lista completa](docs/ROADMAP.md)):
-
-- **Después** (2.61): fotos y archivos en las apps de chat, hablarle mientras trabaja, Signal, correo, WhatsApp, iMessage (BlueBubbles) y SMS, «sigue hasta terminar», comprobaciones de código tras cada cambio, una galería de rutinas y **la Sara Store** de plugins, habilidades y servidores MCP (ComfyUI, Blender, Playwright…) con instalación en un clic y una forma de enviar los tuyos.
-- La app de iPhone (esperando a Apple) y tus ideas en [Discussions](https://github.com/farena-ai/sara/discussions).
-
-El plan completo: [docs/ROADMAP.md](docs/ROADMAP.md).
+Consulta el [plan público](docs/ROADMAP.md) para el trabajo pendiente y [Discussions](https://github.com/farena-ai/sara/discussions) para proponer ideas. Los espacios empresariales ya están disponibles; validarlos con tu dominio, personas reales y una prueba de recuperación es un paso aparte. En iPhone, usa la [app web en la pantalla de inicio](docs/PHONE.md).
 
 ## Recorrido por las funciones
 
@@ -373,12 +392,11 @@ tarjetas de personaje para importar y exportar ([docs/OTHER_APPS.md](docs/OTHER_
 
 <img src="docs/screenshots/howto.webp" alt="El cuadro ¿Cómo hago…? abierto arriba de Nombre y personalidad: ¿Cómo le cambio el nombre? con tres pasos numerados y un botón Muéstrame, y dos preguntas más" width="760">
 
-Cada página y cada vista empieza con un cuadro **¿Cómo hago…?**: de dos a cuatro preguntas con pasos numerados, y *Muéstrame* señala el control. Las páginas vacías dicen qué va ahí y ofrecen un siguiente paso. Las 123 respuestas en una lista: [docs/HOW_DO_I.md](docs/HOW_DO_I.md).
+Cada página y cada vista empieza con un cuadro **¿Cómo hago…?**: de dos a cuatro preguntas con pasos numerados, y *Muéstrame* señala el control. Las páginas vacías dicen qué va ahí y ofrecen un siguiente paso. Las 174 respuestas en una lista: [docs/HOW_DO_I.md](docs/HOW_DO_I.md).
 
 #### Seguridad, siempre activa
 
-Las acciones arriesgadas esperan tu permiso (en Windows, que no tiene aislamiento de comandos, lo
-espera cada comando): en el chat, en su panel o como aviso con Permitir / Denegar en las apps de
+Las acciones arriesgadas esperan tu permiso: en el chat, en su panel o como aviso con Permitir / Denegar en las apps de
 Windows y Mac. La capa de seguridad funciona en el código alrededor de cada llamada al modelo y **no se
 puede desactivar**: aviso de que es una IA al principio y de forma periódica, una respuesta honesta
 siempre que se le pregunte en serio si es una IA, recursos de ayuda en crisis y un bloqueo total del
@@ -419,9 +437,7 @@ prueba comprobaba. Lo que aporta hoy es la forma de trabajar (ejecuta las prueba
 antes de pasos arriesgados, muestra lo que se ejecutó), no una puntuación más alta en estos
 conjuntos. Detalles, resultados por tarea y cómo repetirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-Además, `npm run check`: una comprobación de tipos y 1893 pruebas automáticas con un modelo falso
-programado (sin red, sin GPU): 1878 pasan en Windows y las otras 8 son pruebas del aislamiento solo
-para Linux, que se ejecutan en un servidor Linux.
+Validación de **2.65.0**: comprobación de tipos y 2.153 pruebas automatizadas con un modelo simulado (sin llamadas a proveedores): **2.137 correctas / 0 fallos / 16 omitidas en Windows** y **2.138 correctas / 0 fallos / 15 omitidas en Linux**. Son comprobaciones de ingeniería, no una garantía para cada modelo o instalación.
 
 ## Cómo se compara Sara
 
@@ -517,6 +533,7 @@ sudo sara access       # how you reach her (change: tailscale, local, domain, la
 | [Traducir](docs/TRANSLATING.md) | La app en tu idioma |
 | [Cumplimiento](docs/COMPLIANCE.md) · [Modelo de amenazas](docs/THREAT_MODEL.md) · [Avisos](docs/DISCLOSURES.md) | Seguridad, protección y lo que hay que saber primero |
 | [Hoja de ruta](docs/ROADMAP.md) · [Registro de cambios](CHANGELOG.md) · [Versiones](https://github.com/farena-ai/sara/releases) | Hacia dónde va y qué ha cambiado |
+| [Espacios empresariales](docs/BUSINESS.md) · [Operación empresarial](docs/BUSINESS_OPERATIONS.md) | [Recuperación](docs/RECOVERY.md) · [Operación](docs/OPERATIONS.md) |
 
 Todo esto también se convierte en un pequeño sitio web con búsqueda y modo oscuro:
 `node scripts/build-docs.ts` lo escribe en `outputs/site/` (abre `index.html`; está listo para
@@ -539,3 +556,7 @@ npm run check      # typecheck + all tests
 
 MIT, consulta [LICENSE](LICENSE). Créditos de las piezas que Sara descarga o usa:
 [docs/CREDITS.md](docs/CREDITS.md).
+
+---
+
+**Hazla tuya.** [Descarga Sara](https://github.com/farena-ai/sara/releases/latest), sigue la [guía de instalación](docs/INSTALL.md) y pulsa **Star** arriba en [este repositorio](https://github.com/farena-ai/sara) si te gusta el proyecto. Puede que su lenguaje del amor sean las estrellas de GitHub.
