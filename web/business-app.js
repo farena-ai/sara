@@ -9,8 +9,12 @@ const posts = new Map();
 const authentication = new BroadcastChannel('sara-business-auth');
 let acknowledgedAt = 0, acknowledgementTimer;
 let managementEpoch = 0;
+let managementAuthority = '';
+let refreshManagement;
 let previewNonce = 0, reviewedInvite;
 let selectionNonce = 0, mountedEditor = '';
+let refreshNonce = 0;
+let backgroundRefresh = true;
 const text = (id, value) => { $(id).textContent = value; };
 const notice = value => text('notice', value);
 function composerNotice(value) {
@@ -21,12 +25,13 @@ const scope = () => `${self?.principal.identityId}/${self?.principal.sessionId}/
 const role = () => spaces.find(x => x.id === workspace)?.role;
 const writable = () => !!workspace && role() !== 'viewer';
 function clearProtected(clearDrafts = false, preserveRequests = false) {
+  refreshManagement = undefined;
   previewNonce++; reviewedInvite = undefined; text('invite-preview', '');
   epoch++; selectionNonce++; mountedEditor = ''; stream?.close(); stream = undefined;
   if (!preserveRequests) { clearTimeout(expiry); for (const controller of posts.values()) controller.abort(); posts.clear(); }
   if (clearDrafts) drafts?.clear();
   workspace = ''; conversation = ''; spaces = []; policy = {}; audience = undefined;
-  for (const id of ['messages', 'audience', 'conversations', 'document-list', 'document-body', 'management-body', 'workspace-name', 'organization', 'actor', 'conversation-name', 'file-preview', 'model-destination', 'request-state', 'composer-notice']) $(id).replaceChildren();
+  for (const id of ['messages', 'audience', 'conversations', 'document-list', 'document-body', 'management-body', 'workspace-name', 'organization', 'actor', 'conversation-name', 'file-preview', 'model-destination', 'request-state', 'composer-notice', 'next-step']) $(id).replaceChildren();
   for (const id of ['workspace', 'selected-documents']) $(id).replaceChildren();
   $('draft').value = ''; $('file').value = ''; $('conversation-title').value = ''; $('person-name').value = ''; $('code').value = ''; $('acknowledge').checked = false;
   text('document-selection-count', t('Selected documents: {count}/8', { count: 0 }));
@@ -47,13 +52,18 @@ async function api(path, data, signal) {
   catch (error) { if (error.name === 'AbortError') throw error; throw Object.assign(new Error('connection'), { status: 0 }); }
   const value = await response.json();
   if (!response.ok) {
-    if (value.error === 'Business session changed.' && self?.principal.sessionId === expectedSession) { clearProtected(true); self = undefined; $('auth').hidden = false; $('logout').hidden = true; $('join-team').hidden = true; }
-    if (response.status === 401 && self && self.principal.sessionId === expectedSession) { clearProtected(true); self = undefined; $('auth').hidden = false; $('logout').hidden = true; }
+    if (value.error === 'Business session changed.' && self?.principal.sessionId === expectedSession) { backgroundRefresh = false; clearProtected(true); self = undefined; $('auth').hidden = false; $('logout').hidden = true; $('join-team').hidden = true; updateAuthMode(); }
+    if (response.status === 401 && self && self.principal.sessionId === expectedSession) { backgroundRefresh = false; clearProtected(true); self = undefined; $('auth').hidden = false; $('logout').hidden = true; $('join-team').hidden = true; updateAuthMode(); }
     throw Object.assign(new Error(value.error || value.state), { status: response.status, value });
   }
+  // Successful delayed responses still belong to the session that requested them.
+  if (expectedSession && self?.principal.sessionId !== expectedSession) throw new DOMException('Session changed', 'AbortError');
   return value;
 }
 function errorText(error) {
+  if (error.message === 'Claim denied.') return t('Setup was refused. Check the private setup code and exact address with the host operator; the code may have expired or already been used.');
+  if (error.message === 'Re-enrollment denied.') return t('Recovery was refused. Ask the host operator for a new private re-enrollment code and confirm that you are 18 or older.');
+  if (error.message === 'Adult confirmation (18+) is required.') return t('Enter your name and confirm that you are 18 or older before creating an account.');
   if (error.message === 'Business session changed.') return t('Your active account changed. Reload this page before continuing.');
   if (error.status === 0) return t('Connection lost. Your draft and original request are retained. Check the original request before sending again.');
   if (error.status === 401) return t('Your sign-in expired. Sign in again with your passkey.');
@@ -101,34 +111,41 @@ function updateComposer() {
   if (pending) text('request-state', active ? t('Request in progress in its original workspace. You can switch without cancelling it.') : drafts.ready(workspace, conversation) ? t('The original request was not admitted. Choose Send to submit the same request explicitly.') : t('An original request is retained. Check its status; do not create a duplicate.'));
   else text('request-state', '');
 }
-async function boot() {
-  const version = epoch;
-  const oldIdentity = self?.principal.identityId; const oldSession = self?.principal.sessionId;
+async function boot(preserveView = false) {
+  const version = epoch; const refresh = ++refreshNonce;
+  const previousSelf = JSON.stringify(self); const authWasVisible = !$('auth').hidden; const deskWasVisible = !$('desk').hidden;
+  const previousScreen = screen; const previousManagement = $('tab-org').hasAttribute('aria-current') ? 'org' : $('tab-audit').hasAttribute('aria-current') ? 'audit' : 'members';
+  const oldIdentity = self?.principal.identityId; const oldSession = self?.principal.sessionId; const oldOrganizationRole = self?.organization?.role;
   let current;
   try { current = await api('/me'); } catch (error) {
-    if (version !== epoch) return;
+    if (version !== epoch || refresh !== refreshNonce) return;
     if (error.status === 401 && !oldIdentity) {
       $('auth').hidden = false; $('logout').hidden = true; $('join-team').hidden = true; notice('');
     } else unavailable(error);
     return;
   }
-  if (version !== epoch) return;
+  if (version !== epoch || refresh !== refreshNonce) return;
   self = current;
+  if (oldOrganizationRole === 'orgadmin' && self?.organization?.role !== 'orgadmin') {
+    managementEpoch++; managementAuthority = ''; $('management-body').replaceChildren();
+    if (previousScreen === 'management' && previousManagement === 'org') showPanel('content');
+  }
   if (!self) { clearProtected(); $('auth').hidden = false; $('logout').hidden = true; return; }
   if (oldIdentity && (oldIdentity !== self.principal.identityId || oldSession !== self.principal.sessionId)) clearProtected(true);
   const draftKey = `business-drafts:${self.principal.identityId}:${self.principal.sessionId}`;
   if (!drafts?.active || drafts.key !== draftKey) drafts = new BusinessDrafts(sessionStorage, self.principal.identityId, self.principal.sessionId);
-  $('auth').hidden = true; $('logout').hidden = false; $('join-team').hidden = false;
+  $('auth').hidden = !(preserveView && authWasVisible && oldIdentity === self.principal.identityId && oldSession === self.principal.sessionId); $('logout').hidden = false; $('join-team').hidden = false; updateAuthMode();
   clearTimeout(expiry);
   const expire = () => {
     if (!self) return;
     if (self.principal.expiresAt > Date.now()) { expiry = setTimeout(expire, Math.min(self.principal.expiresAt - Date.now(), 2_147_483_647)); return; }
-    clearProtected(true); self = undefined; $('auth').hidden = false; $('logout').hidden = true; notice(t('Your sign-in expired. Sign in again with your passkey.'));
+    backgroundRefresh = false; clearProtected(true); self = undefined; $('auth').hidden = false; $('logout').hidden = true; $('join-team').hidden = true; updateAuthMode(); notice(t('Your sign-in expired. Sign in again with your passkey.'));
   };
   expire();
-  if (!self.passkeyEnrolled) { $('enroll').hidden = false; return; }
+  if (!self.passkeyEnrolled) { clearProtected(!!oldIdentity && oldSession === self.principal.sessionId); $('enroll').hidden = false; return; }
   $('enroll').hidden = true;
   if (!self.organization || self.recovering) {
+    clearProtected(true);
     $('recovery').querySelector('h1').textContent = t('Access is being reconciled');
     $('recovery').querySelector('p').textContent = t('Your new passkey is ready. The host operator must complete archive recovery, or an organization administrator must reapprove your account. Workspace managers separately approve workspace access.');
     $('recovery').hidden = false; return;
@@ -138,12 +155,44 @@ async function boot() {
   text('actor', t('Signed in as {name} · {role}', { name: self.identity.name, role: roleName(self.organization.role) }));
   $('tab-org').hidden = self.organization.role !== 'orgadmin';
   let authorizedSpaces;
-  try { authorizedSpaces = await api('/workspaces'); } catch (error) { if (version === epoch) unavailable(error); return; }
-  if (version !== epoch) return; spaces = authorizedSpaces;
+  try { authorizedSpaces = await api('/workspaces'); } catch (error) { if (version === epoch && refresh === refreshNonce) unavailable(error); return; }
+  if (version !== epoch || refresh !== refreshNonce) return;
+  const link = new URLSearchParams(location.hash.slice(1));
+  const sameView = preserveView && deskWasVisible && previousSelf === JSON.stringify(self) && JSON.stringify(spaces) === JSON.stringify(authorizedSpaces) && (!link.get('workspace') || link.get('workspace') === workspace) && (!link.get('conversation') || link.get('conversation') === conversation);
+  if (sameView) {
+    try {
+      let sameAuthority = previousScreen !== 'management';
+      if (previousScreen === 'management' && managementAuthority && refreshManagement) {
+        const update = refreshManagement; const view = managementEpoch;
+        const rows = await api(previousManagement === 'org' ? '/org/users' : `/workspaces/${workspace}/members`);
+        if (version !== epoch || refresh !== refreshNonce || view !== managementEpoch) return;
+        const own = rows.find(row => (row.identityId || row.id) === self.principal.identityId);
+        sameAuthority = !!own && managementAuthority === JSON.stringify([own.role, own.status, own.revision]);
+        if (sameAuthority) await update(rows, () => version === epoch && refresh === refreshNonce && view === managementEpoch);
+      }
+      if (sameAuthority && workspace) {
+        const [people, destination] = await Promise.all([api(`/workspaces/${workspace}/audience`), api(`/workspaces/${workspace}/model-policy`)]);
+        if (version !== epoch || refresh !== refreshNonce) return;
+        // A changed destination requires a fresh disclosure acknowledgement and full view refresh.
+        sameAuthority = JSON.stringify(destination) === JSON.stringify(policy);
+        if (sameAuthority) { audience = people; renderAudience(people); }
+      }
+      if (version !== epoch || refresh !== refreshNonce) return;
+      if (sameAuthority) { updateComposer(); return; }
+    } catch (error) { if (version === epoch && refresh === refreshNonce) unavailable(error); return; }
+  }
+  spaces = authorizedSpaces;
   $('workspace').replaceChildren(...spaces.map(w => { const option = document.createElement('option'); option.value = w.id; option.textContent = w.name; return option; }));
-  const link = new URLSearchParams(location.hash.slice(1)); const desired = link.get('workspace') || workspace || spaces[0]?.id;
+  const desired = link.get('workspace') || workspace || spaces[0]?.id;
   if (desired && !spaces.some(w => w.id === desired)) { await switchWorkspace(''); notice(t('This workspace is unavailable to your account. Choose an authorized workspace.')); return; }
-  await switchWorkspace(desired || '', link.get('conversation') || '');
+  const switching = switchWorkspace(desired || '', link.get('conversation') || ''); const selectedEpoch = epoch;
+  await switching;
+  if (epoch !== selectedEpoch || refresh !== refreshNonce || oldIdentity !== self?.principal.identityId || oldSession !== self?.principal.sessionId) return;
+  if (previousScreen === 'documents') showPanel('documents');
+  if (previousScreen === 'management' && ((previousManagement === 'org' && self.organization?.role === 'orgadmin') || (previousManagement !== 'org' && role() === 'manager'))) await manage(previousManagement);
+}
+function renderAudience(people) {
+  text('audience', t('Shared workspace · {role} · {count} people', { role: roleName(role()), count: people.count }) + '\n' + people.members.map(p => `${p.name} · ${roleName(p.role)}`).join(' / '));
 }
 async function switchWorkspace(id, targetConversation = '') {
   saveDraft(); const version = ++epoch; selectionNonce++; mountedEditor = ''; stream?.close(); stream = undefined;
@@ -153,6 +202,7 @@ async function switchWorkspace(id, targetConversation = '') {
   text('document-selection-count', t('Selected documents: {count}/8', { count: 0 }));
   $('tab-members').hidden = role() !== 'manager'; $('tab-audit').hidden = role() !== 'manager';
   text('workspace-name', spaces.find(w => w.id === id)?.name || t('Choose your next workspace'));
+  text('next-step', !id ? t('An organization account is the first step. A workspace manager must separately invite you to shared content.') : role() === 'manager' ? t('Next: invite active colleagues in Workspace members, then start a shared conversation. Ask the host operator to configure a model and rehearse backup recovery.') : role() === 'viewer' ? t('Read shared conversations and documents. Ask this workspace manager if you need permission to contribute.') : t('Choose or start a shared conversation. Review the audience and model destination before sending.'));
   showPanel('content'); updateComposer();
   if (!id) { if (self.organization.role === 'orgadmin') await manage('org'); else notice(t('No workspace access yet. Ask a manager for an invitation.')); return; }
   history.replaceState(null, '', `#workspace=${id}${targetConversation ? '&conversation=' + targetConversation : ''}`);
@@ -160,7 +210,7 @@ async function switchWorkspace(id, targetConversation = '') {
     const [people, destination, conversations, documents] = await Promise.all([api(`/workspaces/${id}/audience`), api(`/workspaces/${id}/model-policy`), api(`/workspaces/${id}/conversations`), api(`/workspaces/${id}/documents`)]);
     if (version !== epoch) return;
     audience = people; policy = destination;
-    text('audience', t('Shared workspace · {role} · {count} people', { role: roleName(role()), count: people.count }) + '\n' + people.members.map(p => `${p.name} · ${roleName(p.role)}`).join(' / '));
+    renderAudience(people);
     text('model-destination', destination.configured ? t('Selected destination: {provider} · {model} · {destination} · {egress}. Selected shared content is sent there.', { ...destination, egress: destination.egress === 'cloud' ? t('Cloud provider') : t('Local provider') }) : t('No allowed model is configured. Ask the host operator to configure a provider and budget.'));
     if (self.spendingPaused) notice(t('Spending is held because usage is uncertain. The host operator must reconcile it; retrying cannot clear the hold.'));
     for (const item of conversations) { const button = document.createElement('button'); button.textContent = item.title; button.type = 'button'; button.onclick = () => run(() => selectConversation(item.id)); $('conversations').append(button); }
@@ -180,7 +230,7 @@ async function switchWorkspace(id, targetConversation = '') {
         void run(async () => {
           const people = await api(`/workspaces/${id}/audience`); if (version !== epoch) return;
           audience = people;
-          text('audience', t('Shared workspace · {role} · {count} people', { role: roleName(role()), count: people.count }) + '\n' + people.members.map(p => `${p.name} · ${roleName(p.role)}`).join(' / '));
+          renderAudience(people);
           updateComposer();
         });
       }
@@ -225,9 +275,11 @@ function showPanel(name) {
 async function manage(kind) {
   saveDraft(); showPanel('management'); const version = epoch; const id = workspace;
   const view = managementEpoch;
+  managementAuthority = ''; refreshManagement = undefined;
   text('management-title', kind === 'org' ? t('Organization administration') : kind === 'members' ? t('Workspace members') : t('Workspace audit'));
   $('management-body').replaceChildren(); $('tab-members').removeAttribute('aria-current'); $(`tab-${kind}`).setAttribute('aria-current', 'page');
-  await renderManagement({ kind, api, workspace: id, workspaceName: spaces.find(item => item.id === id)?.name, organizationName: self.organization.name, actorId: self.principal.identityId, host: $('management-body'), current: () => version === epoch && view === managementEpoch && screen === 'management', run, refresh: async () => { await boot(); if (self?.organization) await manage(kind); } });
+  const update = await renderManagement({ kind, api, workspace: id, workspaceName: spaces.find(item => item.id === id)?.name, organizationName: self.organization.name, actorId: self.principal.identityId, host: $('management-body'), current: () => version === epoch && view === managementEpoch && screen === 'management', authorized: value => { managementAuthority = value; }, run, refresh: async () => { await boot(); if (self?.organization) await manage(kind); } });
+  if (version === epoch && view === managementEpoch && screen === 'management') refreshManagement = update;
 }
 async function checkOriginal() {
   const id = workspace; const cid = conversation; const key = scope(); const currentDrafts = drafts;
@@ -269,13 +321,26 @@ async function send() {
 await initializeLanguage();
 document.documentElement.dataset.theme = sessionStorage.getItem('business-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
 $('theme').onclick = () => { const theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = theme; sessionStorage.setItem('business-theme', theme); };
-$('signin').onclick = event => run(async () => { await passkey(api, 'login'); clearProtected(true); self = undefined; authentication.postMessage('changed'); await boot(); }, event.currentTarget);
-$('register').onclick = event => run(async () => { await passkey(api, 'register'); await boot(); }, event.currentTarget);
-$('logout').onclick = () => run(async () => { clearProtected(true); await api('/logout', {}); self = undefined; authentication.postMessage('changed'); $('auth').hidden = false; $('logout').hidden = true; $('join-team').hidden = true; history.replaceState(null, '', '/'); });
+$('signin').onclick = event => run(async () => { const version = epoch; await passkey(api, 'login'); if (version !== epoch) return; clearProtected(true); self = undefined; backgroundRefresh = true; authentication.postMessage('changed'); await boot(); }, event.currentTarget);
+$('register').onclick = event => run(async () => { const session = self?.principal.sessionId; await passkey(api, 'register'); if (session !== self?.principal.sessionId) return; authentication.postMessage('changed'); await boot(); }, event.currentTarget);
+$('logout').onclick = () => run(async () => { const signingOut = api('/logout', {}); backgroundRefresh = false; clearProtected(true); self = undefined; refreshNonce++; $('auth').hidden = false; $('logout').hidden = true; $('join-team').hidden = true; updateAuthMode(); history.replaceState(null, '', '/'); try { await signingOut; } finally { authentication.postMessage('changed'); } });
 $('refresh').onclick = () => run(boot);
+function updateAuthMode() {
+  const mode = $('auth-mode').value; const needsName = mode !== 'reenroll' && !(mode === 'join' && self); const needsAdult = !(mode === 'join' && self);
+  for (const [id, needed] of [['person-name', needsName], ['adult', needsAdult]]) { const control = $(id); control.closest('label').hidden = !needed; control.disabled = !needed; control.required = needed; }
+  $('preview-invite').hidden = mode !== 'join';
+  text('auth-guidance', mode === 'claim' ? t('First setup: use the host operator’s short setup code, confirm your name and age, then create your individual passkey.') : mode === 'reenroll' ? t('Recover your existing account with the host operator’s private re-enrollment code, confirm your age, then create a fresh passkey. Your name stays unchanged.') : self ? t('Accept while signed in as the intended account. An organization invitation and a workspace invitation grant different access; review the scope before accepting.') : t('New colleague: first accept an organization invitation and create your passkey. A manager then invites your active account to a specific workspace.'));
+}
+function validCode(mode, code) {
+  const valid = mode === 'claim' ? /^[A-Za-z0-9\s-]+$/.test(code) && code.replace(/[^A-Za-z0-9]/g, '').length === 8 : /^[0-9a-f-]{36}\.[A-Za-z0-9_-]{43}$/.test(code);
+  if (valid) return true;
+  notice(mode === 'claim' ? t('Paste the complete 8-character setup code supplied by the host operator. Spaces and dashes are allowed.') : t('Paste the complete private invitation or recovery code, including its dot. Ask the issuer for a new code if it is unavailable.'));
+  $('code').focus(); return false;
+}
 async function previewInvitation() {
   const code = $('code').value.trim(); const actor = self?.principal.identityId || ''; const nonce = ++previewNonce;
   reviewedInvite = undefined; text('invite-preview', '');
+  if ($('auth-mode').value !== 'join' || !validCode('join', code)) return false;
   const preview = await api('/invites/preview', { code });
   if (nonce !== previewNonce || code !== $('code').value.trim() || actor !== (self?.principal.identityId || '')) return false;
   reviewedInvite = { code, actor };
@@ -284,16 +349,21 @@ async function previewInvitation() {
 }
 $('preview-invite').onclick = () => run(previewInvitation);
 $('auth-form').onsubmit = event => { event.preventDefault(); void run(async () => {
-  const mode = $('auth-mode').value; const code = $('code').value.trim();
+  const mode = $('auth-mode').value; const code = $('code').value.trim(); const version = epoch;
+  if (!['join', 'claim', 'reenroll'].includes(mode)) return;
+  if (!validCode(mode, code)) return;
+  if (!$('person-name').disabled && (!$('person-name').value.trim() || $('person-name').value.length > 80 || !$('person-name').value.isWellFormed() || /[\u0000-\u001f\u007f]/u.test($('person-name').value))) { notice(t('Enter a name of 1 to 80 characters without control characters so colleagues can identify you.')); $('person-name').focus(); return; }
   if (!(mode === 'join' && self) && !$('adult').checked) { notice(t('Confirm that you are 18 or older to continue.')); return; }
   if (mode === 'join' && (reviewedInvite?.code !== code || reviewedInvite?.actor !== (self?.principal.identityId || ''))) { if (await previewInvitation()) notice(t('Review the invitation above, then continue to accept.')); return; }
   const joined = await api(mode === 'join' ? '/invites/join' : '/' + mode, mode === 'join' && self ? { code } : { code, ...(mode !== 'reenroll' ? { name: $('person-name').value.trim() } : {}), confirm18: true });
+  if (version !== epoch) return;
+  backgroundRefresh = true;
   $('code').value = ''; text('invite-preview', ''); if (mode !== 'join' || !self) { clearProtected(true); self = undefined; authentication.postMessage('changed'); } if (joined.workspaceId) history.replaceState(null, '', '#workspace=' + joined.workspaceId); await boot();
 }); };
 $('code').oninput = () => { previewNonce++; reviewedInvite = undefined; text('invite-preview', ''); };
-$('auth-mode').onchange = () => { previewNonce++; reviewedInvite = undefined; text('invite-preview', ''); };
+$('auth-mode').onchange = () => { previewNonce++; reviewedInvite = undefined; text('invite-preview', ''); updateAuthMode(); };
 $('workspace').onchange = () => run(() => { history.pushState(null, '', '#workspace=' + $('workspace').value); return switchWorkspace($('workspace').value); });
-$('join-team').onclick = () => { $('auth').hidden = false; $('auth').querySelector('details').open = true; $('auth-mode').value = 'join'; $('code').focus(); };
+$('join-team').onclick = () => { $('auth').hidden = false; $('auth').querySelector('details').open = true; $('auth-mode').value = 'join'; updateAuthMode(); $('code').focus(); };
 for (const kind of ['content', 'documents']) $(`tab-${kind}`).onclick = () => showPanel(kind);
 for (const kind of ['members', 'org', 'audit']) $(`tab-${kind}`).onclick = () => run(() => manage(kind));
 $('draft').oninput = saveDraft; $('selected-documents').onchange = event => { let count = $('selected-documents').querySelectorAll('input:checked').length; if (count > 8) { event.target.checked = false; count--; notice(t('Choose up to 8 documents.')); } text('document-selection-count', t('Selected documents: {count}/8', { count })); saveDraft(); }; $('acknowledge').onchange = () => { acknowledgedAt = $('acknowledge').checked ? Date.now() : 0; clearTimeout(acknowledgementTimer); if (acknowledgedAt) acknowledgementTimer = setTimeout(updateComposer, 3 * 60 * 60 * 1000); updateComposer(); };
@@ -307,9 +377,11 @@ $('upload-form').onsubmit = event => { event.preventDefault(); void run(async ()
   await api(`/workspaces/${id}/uploads`, { name: file.name, mime: /\.txt$/i.test(file.name) ? 'text/plain' : 'text/markdown', contentBase64: btoa(String.fromCharCode(...bytes)) });
   if (version === epoch) { await switchWorkspace(id, conversation); showPanel('documents'); notice(t('Document shared with the listed workspace audience.')); }
 }); };
-addEventListener('hashchange', () => run(boot));
-authentication.onmessage = () => { clearProtected(true); self = undefined; void run(boot); };
-addEventListener('focus', () => { if (self) void run(async () => { await api('/me'); }); });
+addEventListener('hashchange', () => { if (backgroundRefresh) void run(boot); });
+// Hints can revalidate an active session, but cannot reopen a session already closed here.
+authentication.onmessage = () => { if (backgroundRefresh) void run(() => boot(true)); };
+addEventListener('focus', () => { if (backgroundRefresh && self) void run(() => boot(true)); });
+updateAuthMode();
 await run(boot);
 if (/^(?:[0-9.]+|\[.*\])$/.test(location.hostname)) {
   notice(t('Passkeys require a hostname. Ask the host operator to configure a matching HTTPS hostname and business origin, or localhost for local use, then restart this business instance before setup.'));

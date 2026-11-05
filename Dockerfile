@@ -38,6 +38,7 @@ ENV NODE_ENV=production \
     SARA_TOOLS_USER=sara-tools
 
 COPY package.json package-lock.json ./
+COPY LICENSE ./LICENSE
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 COPY src ./src

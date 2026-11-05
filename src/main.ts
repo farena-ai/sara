@@ -186,7 +186,7 @@ const defaultPersonaPath = resolve(process.env.SARA_PERSONA ?? join(root, 'perso
 
 // Dispatch before constructing owner auth, stores, tools, or background workers.
 if (process.argv[2]?.startsWith('--business-')) {
-  try { const { runBusinessCli } = await import('./business/cli.ts'); await runBusinessCli(process.argv.slice(2), process.env); }
+  try { const { runBusinessCli } = await import('./business/cli.ts'); const code = await runBusinessCli(process.argv.slice(2), process.env); if (typeof code === 'number') process.exitCode = code; }
   catch { process.stderr.write('Business operator command refused. Check isolated paths, writer ownership, generation and required reconciliation.\n'); process.exitCode = 1; }
   process.exit(process.exitCode ?? 0);
 }

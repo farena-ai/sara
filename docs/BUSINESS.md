@@ -11,6 +11,22 @@ passkey. New colleagues choose **Accept an invitation**, paste their private cod
 inviter, workspace and role, then accept and create their own passkey. New accounts require adult
 confirmation. Codes are never put in links and do not become a shared team password.
 
+The setup form explains the next step for each mode. **Set up this instance** needs the host
+operator's 8-character setup code, your name and adult confirmation. **Recover my sign-in** needs
+the complete private recovery code and adult confirmation; it keeps the existing account name.
+Signed-in invitation acceptance uses the current account and hides the name/adult controls.
+New-account names must contain 1–80 characters without control characters. Paste the complete
+invitation/recovery code, including its dot. Invalid fields stay editable; unavailable, expired or
+revoked invitations have the same safe refusal. Ask the issuing administrator or operator for a
+new code rather than repeatedly trying the old one.
+
+Organization administrators see an ordered guide: name the organization, create a workspace,
+invite new organization accounts, then have workspace managers separately invite those active
+accounts to shared content. Managers see the corresponding workspace steps. These guides do not
+grant additional access. Allowed models, provider credentials, spending configuration and private
+backup/recovery rehearsal remain the host operator's responsibility. A configured model destination
+does not demonstrate successful inference or verified backup custody.
+
 Choose a workspace from the selector. Its name, your role and the listed audience stay visible.
 **View only** lets you read conversations/documents; sending and sharing remain unavailable.
 Organization administration and workspace membership are separate: being an organization admin
@@ -27,6 +43,16 @@ original workspace/conversation. Drafts and document selections stay with their 
 session, workspace and conversation across reloads and switches. Signing out or losing access
 clears protected views and session drafts. The conversation view shows the latest 200 messages;
 older records are retained, not automatically deleted.
+
+After another tab enrolls a passkey, or this tab regains focus, the desk rechecks the current
+server-derived sign-in and access state. An unchanged identity and browser session keep scoped
+message drafts, selected documents and original pending request IDs; refresh does not resend them.
+Management refresh also updates colleague rows and eligible invitation recipients while keeping
+typed fields, unsaved role choices and the currently displayed private invitation code. Each row
+shows its current server access separately from unsaved choices. An ineligible recipient is cleared
+for an explicit new choice, never silently replaced with another colleague.
+A changed cookie, expired sign-in or revoked account clears protected state. Background tab hints
+cannot reopen a sign-in already closed in this tab: sign in explicitly or reload the page.
 
 If a request becomes uncertain, use **Check original request**. This is a read-only lookup and
 cannot start inference. An uncertain original keeps its UUID/payload binding even when a check
@@ -126,6 +152,28 @@ expire, can be revoked and are consumed once; an existing user must accept while
 intended account. Invitation secrets are submitted in POST bodies, not code-bearing request URLs.
 Logging out does not invalidate invitations already issued, but issuer access/role changes do.
 
+Organization administrators and workspace managers can return to **Recent invitations** in their
+respective management screen. The list shows the latest 100 invitations for that exact scope,
+newest creation first, with role, expiry and current status. Older invitations can still exist;
+this bounded list is not a complete historical register. Organization administration lists only
+organization invitations; a workspace list requires current manager access to that workspace.
+Names appear only when the account is already visible in the current roster or invitation
+pick-list; otherwise the desk shows **Unlisted account**.
+
+**Pending** means the invitation currently passes the same eligibility checks as preview and
+acceptance. Expiry, revocation, changes to the issuer's authority or sign-in credentials, loss of
+recipient access, or an existing membership row can make an unused invitation unavailable.
+The list distinguishes **Expired**, **Revoked** and **Invalidated**. **Accepted** means the code
+was used; it does not prove the recipient still has access. Revoking an accepted code does not
+remove membership: manage current access separately in the roster.
+
+Any current administrator or manager for that scope can revoke its pending invitations, including
+ones another authorized colleague issued. **Refresh invitations** and ordinary same-session focus
+refresh update the list without resetting unsaved access choices, private creation code, message
+drafts or original pending requests. The private code is shown only immediately after creation;
+leaving that view removes it, and the inventory cannot recover it. Send it privately at creation.
+No automatic reissue, acceptance, email, bulk revocation or membership removal runs.
+
 Ordinary workspace removal/demotion cannot remove its final active manager. Organization-wide
 offboarding still revokes access immediately, even for a sole workspace manager; it preserves
 records and existing other-member grants. It does not make an organization admin the new content
@@ -189,3 +237,10 @@ contents, titles, filenames, keys and raw errors. Authentication/configuration f
 have durable intent records, which do not prove the file operation succeeded. Audit is not protected
 against the host operator editing disk. Backup limits and recovery custody must be checked against
 the actual installation; laboratory recovery is not a production recovery-time promise.
+
+For repeatable synthetic first-use, invitation, read-only configuration and closed-restore checks,
+operators can run the [manual business qualification](BUSINESS_OPERATIONS.md#repeat-the-manual-synthetic-qualification)
+from a complete source checkout. It retains machine-readable child receipts and failed logs in a
+new private evidence directory for each attempt. Browser automation uses virtual passkeys;
+physical authenticator, screen-reader, colleague usability and installation-specific recovery
+acceptance still need real people at the intended hostname.

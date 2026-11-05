@@ -9,6 +9,8 @@ import type { BusinessMutation, BusinessPrincipal, BusinessWorkspace, Organizati
 interface InviteRow { id: string; scope: 'organization' | 'workspace'; workspaceId: string | null; role: string; subject: string; expiresAt: number; usedAt: number | null; revokedAt: number | null; issuedBy: string; issuerEpoch: number; issuerOrganizationRevision: number; issuerWorkspaceRevision: number | null }
 export interface IssuedBusinessInvite { id: string; code: string; expiresAt: number }
 export interface BusinessInvitePreview { scope: 'organization' | 'workspace'; role: string; inviter: string; workspace?: string; subject: 'new' | 'existing'; expiresAt: number }
+export interface BusinessInviteMetadata { id: string; scope: 'organization' | 'workspace'; role: string; subject: 'new' | 'existing'; subjectLabel: string | null; inviterLabel: string | null; expiresAt: number; state: 'pending' | 'accepted' | 'revoked' | 'expired' | 'invalidated' }
+const inviteColumns = 'id,scope,workspace_id AS workspaceId,role,subject,expires_at AS expiresAt,used_at AS usedAt,revoked_at AS revokedAt,issued_by AS issuedBy,issuer_epoch AS issuerEpoch,issuer_organization_revision AS issuerOrganizationRevision,issuer_workspace_revision AS issuerWorkspaceRevision';
 const organizationRoles = ['orgadmin', 'user'];
 const workspaceRoles = ['manager', 'contributor', 'viewer'];
 const hash = (code: string) => createHash('sha256').update(code).digest('hex');
@@ -221,22 +223,47 @@ export class BusinessControlStore {
       this.#event({ action: 'invite.create', actorId: principal.identityId, ...(context ? { workspaceId: context.workspaceId } : {}) }); return { id, code, expiresAt };
     });
   }
-  #invite(code: unknown): InviteRow {
-    if (typeof code !== 'string' || !/^[0-9a-f-]{36}\.[A-Za-z0-9_-]{43}$/.test(code)) throw new BusinessAccessError(404);
-    const row = this.database.prepare('SELECT id,scope,workspace_id AS workspaceId,role,subject,expires_at AS expiresAt,used_at AS usedAt,revoked_at AS revokedAt,issued_by AS issuedBy,issuer_epoch AS issuerEpoch,issuer_organization_revision AS issuerOrganizationRevision,issuer_workspace_revision AS issuerWorkspaceRevision FROM workspace_invites WHERE secret_hash=?').get(hash(code)) as unknown as InviteRow | undefined;
-    if (!row || row.usedAt !== null || row.revokedAt !== null || row.expiresAt <= Date.now()) throw new BusinessAccessError(404);
+  /** Shared, read-only eligibility for inventory, public preview and transactional redemption. */
+  #eligibleInvite(row: InviteRow, now: number): boolean {
+    if (row.usedAt !== null || row.revokedAt !== null || row.expiresAt <= now) return false;
     const issuer = this.identities.get(row.issuedBy); const organization = this.organizationMembership(row.issuedBy);
-    if (!issuer || issuer.status !== 'active' || issuer.authEpoch !== row.issuerEpoch || !organization || organization.status !== 'active' || !organizationRoles.includes(organization.role) || organization.revision !== row.issuerOrganizationRevision) throw new BusinessAccessError(404);
-    if (row.scope === 'organization') { if (organization.role !== 'orgadmin' || !organizationRoles.includes(row.role) || row.workspaceId !== null) throw new BusinessAccessError(404); }
+    if (!issuer || issuer.status !== 'active' || issuer.authEpoch !== row.issuerEpoch || !organization || organization.status !== 'active' || !organizationRoles.includes(organization.role) || organization.revision !== row.issuerOrganizationRevision) return false;
+    if (row.scope === 'organization') { if (organization.role !== 'orgadmin' || !organizationRoles.includes(row.role) || row.workspaceId !== null) return false; }
     else if (row.scope === 'workspace') {
       const member = this.workspaceMembership(row.workspaceId!, row.issuedBy); const workspace = this.workspace(row.workspaceId!);
-      if (!workspace || workspace.status !== 'active' || workspace.visibility !== 'shared' || !workspaceRoles.includes(row.role) || !member || member.status !== 'active' || member.role !== 'manager' || member.revision !== row.issuerWorkspaceRevision) throw new BusinessAccessError(404);
-    } else throw new BusinessAccessError(404);
+      if (!workspace || workspace.status !== 'active' || workspace.visibility !== 'shared' || !workspaceRoles.includes(row.role) || !member || member.status !== 'active' || member.role !== 'manager' || member.revision !== row.issuerWorkspaceRevision || row.subject === 'new') return false;
+    } else return false;
     if (row.subject !== 'new') {
       const subject = this.identities.get(row.subject); const membership = this.organizationMembership(row.subject);
-      if (!subject || subject.status !== 'active' || (membership && (membership.status !== 'active' || !organizationRoles.includes(membership.role))) || (row.scope === 'workspace' && !membership)) throw new BusinessAccessError(404);
+      if (!subject || subject.status !== 'active' || (membership && (membership.status !== 'active' || !organizationRoles.includes(membership.role))) || (row.scope === 'workspace' && (!membership || this.workspaceMembership(row.workspaceId!, row.subject))) || (row.scope === 'organization' && membership)) return false;
     }
+    return true;
+  }
+  #invite(code: unknown): InviteRow {
+    if (typeof code !== 'string' || !/^[0-9a-f-]{36}\.[A-Za-z0-9_-]{43}$/.test(code)) throw new BusinessAccessError(404);
+    const row = this.database.prepare(`SELECT ${inviteColumns} FROM workspace_invites WHERE secret_hash=?`).get(hash(code)) as unknown as InviteRow | undefined;
+    if (!row || !this.#eligibleInvite(row, Date.now())) throw new BusinessAccessError(404);
     return row;
+  }
+  listInvites(principal: BusinessPrincipal, workspaceId?: string): BusinessInviteMetadata[] {
+    const names = new Map<string, string>();
+    if (workspaceId === undefined) {
+      this.policy.requireOrganizationAdmin(principal);
+      for (const row of this.listOrganizationUsers(principal)) names.set(String(row.id), String(row.name));
+    } else {
+      this.policy.authorizeWorkspace(principal, workspaceId, 'manage');
+      for (const row of this.listWorkspaceMembers(principal, workspaceId)) {
+        const identity = this.identities.get(row.identityId); if (identity) names.set(identity.id, identity.name);
+      }
+      for (const row of this.listInviteCandidates(principal, workspaceId)) names.set(row.id, row.name);
+    }
+    // Insertion order is independent of random IDs and mutable expiration times. Scope precedes LIMIT.
+    const rows = (workspaceId === undefined
+      ? this.database.prepare(`SELECT ${inviteColumns} FROM workspace_invites WHERE scope='organization' ORDER BY rowid DESC LIMIT 100`).all()
+      : this.database.prepare(`SELECT ${inviteColumns} FROM workspace_invites WHERE scope='workspace' AND workspace_id=? ORDER BY rowid DESC LIMIT 100`).all(workspaceId)) as unknown as InviteRow[];
+    const now = Date.now();
+    return rows.map(row => ({ id: row.id, scope: row.scope, role: row.role, subject: row.subject === 'new' ? 'new' : 'existing', subjectLabel: row.subject === 'new' ? null : names.get(row.subject) ?? null, inviterLabel: names.get(row.issuedBy) ?? null, expiresAt: row.expiresAt,
+      state: row.usedAt !== null ? 'accepted' : row.revokedAt !== null ? 'revoked' : row.expiresAt <= now ? 'expired' : this.#eligibleInvite(row, now) ? 'pending' : 'invalidated' }));
   }
   previewInvite(code: unknown): BusinessInvitePreview {
     const invite = this.#invite(code);

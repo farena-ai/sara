@@ -5,3 +5,4 @@
 .document-choices{max-height:260px;overflow:auto;padding:4px}.is-viewer #conversation-form,.is-viewer #composer>label,.is-viewer #composer>fieldset,.is-viewer .model-disclosure>label,.is-viewer #upload-form>label,.is-viewer #file-preview{display:none}.audit-entry{border-bottom:1px solid var(--hairline-strong);padding:16px 0}.audit-entry p{margin:4px 0}
 
 #composer-notice:not(:empty){border-left:3px solid var(--warn);background:var(--warn-soft);padding:16px;overflow-wrap:anywhere}
+.step-guidance{border-left:3px solid var(--accent-solid);background:var(--accent-soft);padding:16px 20px;border-radius:0 10px 10px 0;max-width:80ch;overflow-wrap:anywhere}.step-guidance h3{margin:0 0 12px;font-size:1.05rem}.step-guidance ol{margin:0;padding-left:1.4rem}.step-guidance li+li{margin-top:10px}.step-guidance p{margin:8px 0}#auth-form label[hidden]{display:none}

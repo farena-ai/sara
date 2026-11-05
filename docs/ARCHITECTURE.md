@@ -15,6 +15,14 @@ HTTP routes; personal, household, device/API and integration entry paths never f
 authority. Passkeys are origin/identity/epoch bound. Workspace/content/recovery modules follow as
 separate reviewed slices. See [Business workspaces](BUSINESS.md); no conversion of personal data.
 
+`src/business/check.ts` supplies the argument-free `--business-check` configuration report before
+profile initialization. It inspects bounded recognized metadata and descriptor-bounded profile/policy
+JSON, revalidating original directory identities and canonical ancestry around reads and final output.
+It never constructs SQLite, Vault or runtime objects, acquires a writer fence, or reads credentials or
+content. Access/usage/recovery/credential/inference/custody/availability remain unverified.
+`model-policy.ts` holds the unchanged pure policy validator shared with `model-config.ts`;
+`cli.ts` rejects unknown commands and invalid command shapes before opening a profile.
+
 `src/business/store.ts` adds organization membership, workspace registry/membership and hashed
 single-use invitations to the same control database. `policy.ts` checks live browser expiry/session,
 identity/organization state and explicit workspace capability; immutable issued contexts carry
@@ -24,6 +32,14 @@ grants workspace access to existing active organization users; only org-admin in
 organization identities. `BusinessControlStore.transaction` is synchronous/non-nested and emits
 fixed best-effort event metadata after commit. Durable audit now participates in the authoritative
 control/content transactions separately; the event hook itself is not durable evidence.
+
+The scoped invitation inventory uses current organization-admin or workspace-manager authority,
+with the SQL scope predicate before a rowid-descending LIMIT100. Listing exposes only safe metadata
+and currently visible labels, never code/hash material. A shared side-effect-free eligibility check
+keeps preview, redemption and pending classification consistent with issuer revisions/authentication
+epochs, subject state and existing-membership conflicts. Accepted history precedes later code
+revocation; it is not a claim of current membership. The browser refreshes keyed invitation rows
+independently of unsaved forms and volatile creation codes, guarded by the current view/session.
 
 `workspaces.ts` provides per-operation business content SQLite connections at
 `business/workspaces/<uuid>/content.db`; each database must contain the matching business/workspace
@@ -63,6 +79,15 @@ a model, reserve budget or regenerate work. Browser draft/request bindings remai
 scoped, with loaded-editor and stale-completion guards. Dispatch intent persists before network
 work; only an exact live first-attempt refusal can release its immutable request binding. Actual virtual-passkey
 browser journeys supplement direct API tests; physical devices/screen readers remain separate.
+
+`scripts/qualify-business-operations.mjs` is a manual source-checkout evidence runner, not a runtime
+service or scheduled check. It creates an exclusive new output directory, composes the fixed B2/B3/
+onboarding browser drivers and `test/fixtures/business-operations.ts`, and retains exact child exit,
+stdout/stderr and original JSON receipt digests. Partial/failed reports remain false; later children
+still run after a failure. The operator fixture uses only dedicated synthetic roots to prove actual
+CLI no-write behavior, scoped denials and fresh-target closed encrypted restore. Native packages,
+built images and human/production acceptance retain separate gates. Docker COPY includes LICENSE;
+the recipe-materialization contract complements actual release-image byte verification.
 
 The original sketch from the first phase:
 
@@ -535,3 +560,10 @@ after cleanup. Runtime API/automatic/Safetycheck callsites await wrappers; offli
 core remains available. Shutdown closes admission atomically and drains jobs before forced exit.
 Concurrent prune/list enumeration tolerates ENOENT only. Synthetic profilev2 starts its monitor
 after fixture seed and samples live work before separate restore timing; failedv1 receipts remain.
+
+### Business session and management refresh (next release)
+The business shell treats focus/enrollment broadcasts as hints and fetches current identity/session
+and scoped access. Closed-session generations reject delayed auth responses. Unchanged authority
+uses a view-bound management updater to reconcile keyed roster/candidate metadata without remounting
+edited forms or the one-time creation-code panel. Authority loss clears protected state before later
+metadata awaits; request IDs/payloads remain bound to their original scope with no automatic replay.

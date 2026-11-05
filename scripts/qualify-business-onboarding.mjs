@@ -33,7 +33,9 @@ async function open(beforeNavigate) {
 }
 async function codeForm(page, mode, code, name = '') {
   await page.locator('#auth details').evaluate(element => { element.open = true; });
-  await page.locator('#auth-mode').selectOption(mode); await page.locator('#code').fill(code); await page.locator('#person-name').fill(name); await page.locator('#adult').check();
+  await page.locator('#auth-mode').selectOption(mode); await page.locator('#code').fill(code);
+  if (await page.locator('#person-name').isEnabled()) await page.locator('#person-name').fill(name);
+  if (await page.locator('#adult').isEnabled()) await page.locator('#adult').check();
 }
 async function accept(page) { await page.locator('#preview-invite').click(); await page.locator('#invite-preview').filter({ hasText: 'Invited by' }).waitFor(); await page.locator('#auth-form button[type=submit]').click(); }
 try {

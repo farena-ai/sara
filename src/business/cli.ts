@@ -4,6 +4,7 @@ import { createBusinessRuntime } from './runtime.ts';
 import { restoreBusinessBackup } from './backup.ts';
 import { configureBusinessModelsFile } from './model-config.ts';
 import { businessRecoveryStatus, completeBusinessRecovery, issueBusinessReenrollment, reconcileBusinessRecovery, resumeBusinessSpending, resumeBusinessPause } from './recovery.ts';
+import { inspectBusinessConfiguration } from './check.ts';
 
 function localFile(path: string, maximum: number): string {
   const stat = lstatSync(path);
@@ -11,11 +12,22 @@ function localFile(path: string, maximum: number): string {
   return readFileSync(path, 'utf8');
 }
 /** Explicit operator CLI is dispatched before personal startup; secrets are files, never argv values. */
-export async function runBusinessCli(args: string[], env: NodeJS.ProcessEnv): Promise<void> {
+export async function runBusinessCli(args: string[], env: NodeJS.ProcessEnv): Promise<number | void> {
   const [command, ...values] = args;
+  if (command === '--business-check') {
+    const report = inspectBusinessConfiguration(env, values);
+    process.stdout.write(JSON.stringify(report) + '\n');
+    return report.status === 'blocked' ? 1 : 0;
+  }
   if (!env.SARA_DATA || !command?.startsWith('--business-')) throw new Error('Explicit business data and command required.');
+  // Reject unsupported command shapes before opening or initializing any data root.
+  const valid = command === '--business-restore' ? values.length === 5 && values[1] === '--target' && values[3] === '--passphrase-file'
+    : command === '--business-backup' ? values.length === 3 && values[1] === '--passphrase-file'
+    : command === '--business-status' ? values.length === 0
+    : command === '--business-reenroll' ? values.length === 1 || values.length === 2 && values[1] === '--reactivate'
+    : ['--business-configure', '--business-reconcile', '--business-complete', '--business-resume-spending', '--business-resume-pause'].includes(command) && values.length === 1;
+  if (!valid) throw new Error('Unknown business command or invalid arguments.');
   if (command === '--business-restore') {
-    if (values.length !== 5 || values[1] !== '--target' || values[3] !== '--passphrase-file') throw new Error('Expected archive --target fresh-path --passphrase-file local-file.');
     const manifest = await restoreBusinessBackup(values[0], values[2], localFile(values[4], 4096).trim());
     process.stdout.write(JSON.stringify({ generation: manifest.generation, recovery: 'reconciliation-required', spending: 'held' }) + '\n'); return;
   }

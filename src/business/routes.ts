@@ -25,6 +25,9 @@ export function createBusinessManagementRouter(deps: BusinessRouteDependencies) 
       const invitation = path === '/api/business/invites/preview' || path === '/api/business/invites/join';
       if (!invitation && !principal) throw new BusinessAccessError(401);
       if (req.method === 'GET') {
+        if (path === '/api/business/org/invites') return send(200, deps.store.listInvites(principal!));
+        const workspaceInvites = /^\/api\/business\/workspaces\/([^/]+)\/invites$/.exec(path);
+        if (workspaceInvites) return send(200, deps.store.listInvites(principal!, workspaceInvites[1]));
         if (path === '/api/business/org/users') return send(200, deps.store.listOrganizationUsers(principal!));
         if (path === '/api/business/workspaces') return send(200, deps.store.listWorkspaces(principal!).map(workspace => ({ ...workspace, role: deps.store.workspaceMembership(workspace.id, principal!.identityId)!.role })));
         const workspace = /^\/api\/business\/workspaces\/([^/]+)(\/members)?$/.exec(path);

@@ -1,6 +1,6 @@
 # Business installation operations
 
-**For Sara 2.64.0 and later.** Use a separate business instance, operating-system
+**Business mode requires Sara 2.64.0 or later; `--business-check` requires 2.65.0 or later.** Use a separate business instance, operating-system
 identity, data root and browser hostname. This guide does not authorize converting a personal
 instance or restoring over existing data. [Business workspaces](BUSINESS.md) explains the user flow.
 
@@ -26,6 +26,84 @@ Compose file, Linux personal installer and generic `sara backup/restore/update` 
 personal instances; they are not business provisioning or coherent business recovery commands.
 Use the explicit `--business-*` entrypoints below and your own separate business service/data/origin.
 Existing marked business roots fail closed when a personal command is selected accidentally.
+
+## First installation, in order
+
+1. Choose a dedicated operating-system identity, empty or missing business data root and exact
+   browser origin. Set `SARA_PROFILE=business`, explicit `SARA_DATA`, `SARA_BUSINESS_ORIGIN` and
+   the intended `SARA_PORT` (default 7860). An HTTPS reverse proxy may use a different public port;
+   its Host must match the configured origin. Use a hostname for individual browser passkeys.
+2. Deliberately start this separate business instance with `node src/main.ts`. Use its local setup
+   code to create the first adult organization administrator and enroll that person's passkey.
+   Verify sign-out and individual passkey sign-in at the intended hostname.
+3. Create a workspace, verify its explicit manager grant and invite intended colleagues through
+   the appropriate organization and workspace forms. Organization administration grants no
+   automatic workspace membership. See [Business workspaces](BUSINESS.md).
+4. Create the protected local model-policy input described below. Select the installation's
+   approved endpoint/model, bind the intended workspace UUID and configure it explicitly.
+5. Run `node src/main.ts --business-check` with the same serving environment. Resolve configuration
+   refusals and setup actions. Current access, spending/recovery state and successful inference
+   still require their separate checks; this command does not establish them.
+6. Stop only this business runtime, take a private encrypted business backup and rehearse the
+   fresh-target recovery procedure below. Verify actual custody and current-person/grant policy
+   before making any production decision.
+
+## Read-only local configuration inspection
+
+```text
+node src/main.ts --business-check
+```
+
+This argument-free command requires explicit `SARA_PROFILE=business`, `SARA_DATA` and
+`SARA_BUSINESS_ORIGIN`; it checks the configured serving port independently of any reverse-proxy
+port. It works from the packaged runtime payload without a source-checkout helper script. A missing
+root remains missing and an empty root remains empty. It can inspect while a supported writer owns
+the root because it neither opens a database nor acquires the writer fence. Concurrent filesystem
+changes may produce a refusal; it is bounded configuration evidence, not an atomic runtime snapshot.
+
+Standard output is one version-1 JSON object with exactly `version`, `status` and `checks`. Each
+check has exactly `id`, `status`, `message` and `action`; messages/actions are fixed English operator
+guidance independent of the browser language. Values never include raw paths, names, configured
+URLs, keys, invitation codes, file contents or parser-error excerpts. The check IDs are stable:
+
+| Check IDs | Evidence and limits |
+|---|---|
+| `invocation` | Explicit business profile/data and no command arguments |
+| `origin`, `port` | Canonical HTTPS or loopback HTTP origin and decimal port 1–65535; IP origins need a hostname for passkeys |
+| `data-root`, `profile-marker`, `layout` | Dedicated ancestry, valid bounded business marker and recognized filesystem metadata |
+| `storage` | Database presence only; database integrity/schema remain unknown |
+| `model-policy` | Bounded stored revision/policy shape and at least one declared workspace binding; no live workspace or provider verification |
+| `access` | Current identities, enrollment and grants remain unknown |
+| `usage-recovery` | Pending/held requests, charges, pauses and recovery state remain unknown and unchanged |
+| `credentials` | Key, Vault and credential validity/custody remain unknown |
+| `inference`, `backup`, `availability` | Successful inference, backup/recovery custody and production availability remain unverified |
+
+Overall `status` is `configuration-only`, `setup-needed` or `blocked`. Individual check status is
+`ok`, `needs-action`, `unverified` or `blocked`. `configuration-only` means the bounded configuration
+inspection found no setup action or refusal; it never means production-ready, valid credentials,
+current access or a healthy provider. Missing storage/policy or an empty/missing root produces
+`setup-needed`. Unsafe/unsupported paths, malformed profile/policy or invalid invocation produce
+`blocked`. Exit **0** means inspection completed, including `setup-needed`; exit **1** means unsafe
+or invalid configuration, or inspection refused. Automation must inspect JSON status/checks as well
+as the exit code. No scheduled check is created by this command.
+
+Only the profile marker (at most 4KiB) and stored model policy (at most 256KiB) are read. Descriptor-
+and size-checked reads cap growing inputs. Metadata traversal stops at 10,000 entries, depth 10 or
+unrecognized state. Personal, household, mixed or nested roots; symbolic links/junctions; hardlinked
+files; and nonregular entries fail closed. No SQLite open/copy, Vault/key/credential/content read or
+decryption, network probe, inference, port bind, fence acquisition, pending-request hold, migration,
+policy acceptance or recovery change occurs. Database bytes and credential contents can therefore
+remain invalid without this command detecting their validity; those checks stay `unverified`.
+Original directory identities and canonical ancestry are retained and rechecked before/after bounded
+reads and before reporting; a persistent replacement or new link refuses inspection. Ordinary path
+APIs still do not provide an atomic snapshot against an actor concurrently replacing and restoring
+filesystem paths. Run against operator-controlled storage and repeat a refused inspection only
+after identifying the change.
+
+`--business-status` serves a different purpose: it opens the offline stores under the writer fence
+and conservatively holds crash-left pending requests. Stop the business runtime before that command
+and follow the explicit uncertainty/recovery procedure. Configuration inspection never performs or
+authorizes that transition.
 
 ## Configure an allowed model
 
@@ -292,6 +370,44 @@ refused, and replay cannot clear a later spending pause. Then start the isolated
 and perform installation acceptance before any production decision.
 
 ## Evidence and limits
+
+### Repeat the manual synthetic qualification
+
+From a complete source checkout, use Node 24+ and an already installed compatible Playwright
+module/Chromium. Set `SARA_PLAYWRIGHT_MODULE` to that module's absolute `index.mjs` path, then run:
+
+```text
+node scripts/qualify-business-operations.mjs --output outputs/qualification/business-run-001
+```
+
+The output directory must not exist. Each attempt gets a new directory; rerunning into an old
+directory refuses rather than overwriting receipts. No tooling is installed and no scheduled check
+is created. This command is a source-checkout qualification tool, separate from the packaged
+`--business-check` operator command. It accepts no installed-data or provider target.
+
+The fixed sequence runs the existing B2 first-use/keyboard/narrow-screen/sibling-tab browser
+journeys, B3 invitation inventory/revocation/forbidden-caller browser journeys, and first-claim/
+passkey/onboarding/recovery browser journeys. Chromium uses virtual WebAuthn and fresh synthetic
+loopback profiles. A small operator drill additionally invokes the real main CLI against a
+quiescent synthetic business root with its supported writer present, compares every file byte,
+mode, modification time and directory entry before/after inspection, checks scoped invitation
+denials, and creates an encrypted archive/restores a fresh target with old cookies, invitations,
+grants and spending closed. No inference or provider request is made.
+
+`report.json` records each exact child command, controlled environment overrides, exit/signal, stdout/stderr paths and
+SHA256 digests, and the paths/digests/validated group counts of the original child JSON receipts.
+B2/B3 use `results.json`; onboarding uses both `onboarding-results.json` and
+`anonymous-first-401-results.json`; the operator drill uses its own `results.json`. A nonzero child,
+missing/malformed receipt, failed assertion or browser page error fails the aggregate even if
+another receipt claims success. Later children still run. Read both the exit code and aggregate
+`pass`; incomplete/interrupted reports remain false. Original failed logs and receipts stay intact.
+
+Keep the entire evidence directory private. It includes synthetic archives/restored authentication
+material and may include machine paths, screenshots and failure state. Do not publish it as a
+sanitized result. Share only reviewed aggregate counts and the stated limits. These are repeatable
+engineering scenarios, not physical screen-reader/novice acceptance, real backup custody,
+production availability/capacity or RPO/RTO proof. Actual native bundles and built container images
+need their separate release checks; the Docker COPY recipe contract is not a built-image test.
 
 Audit records are bounded metadata. Control/content mutations commit with their audit; filesystem
 authentication/configuration records are durable intents, not atomic proof the file operation

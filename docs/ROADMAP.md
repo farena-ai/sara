@@ -3,6 +3,14 @@
 Sara was built in phases, each one released, tested and documented before the next began. Every
 version's details are in the [changelog](../CHANGELOG.md).
 
+## Business setup and administration in 2.65.0
+
+Guided first use and mode-specific invitation feedback, safe sibling-tab access refresh, a read-only
+local configuration check, scoped recent invitation history/revocation, and repeatable manual
+browser/recovery qualification. Existing business authority and separate-instance requirements
+remain; configuration evidence is not proof of inference, backup custody or production availability.
+See [Business](BUSINESS.md) and [Business installation operations](BUSINESS_OPERATIONS.md).
+
 ## Business workspaces in 2.64.0
 
 Optional business mode runs in a separate instance with individual passkeys, explicit workspace

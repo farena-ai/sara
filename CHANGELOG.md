@@ -5,6 +5,30 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.65.0 (2026-11-04): guided business setup and invitation management
+
+- **Business first use and administration:** mode-specific name/adult/code guidance, scoped next
+  steps and actionable input feedback. Passkey enrollment and focus changes refresh authoritative
+  access metadata across tabs while keeping unchanged drafts, original requests, unsaved admin
+  choices and displayed private codes. Fresh colleague rows and invitation choices update in place;
+  closed sessions and delayed authentication replies cannot silently reopen protected work.
+
+- **Business operator configuration check:** `--business-check` reports bounded, read-only local
+  configuration evidence and ordered next actions. Missing roots remain missing; databases,
+  credentials, content, pending usage and recovery state are never opened or changed. Unsafe or
+  changing layouts fail closed, and live access, inference, custody and availability stay explicitly
+  unverified. Invalid business command shapes are refused before data initialization.
+
+- **Business invitation history:** authorized administrators and workspace managers can see the
+  latest 100 invitations for their own management scope, with expiry and current status, and revoke
+  pending invitations. Private codes are shown only at creation. Used invitations remain accepted
+  in history even if their code is later revoked; current membership is managed separately.
+
+- **Repeatable business qualification:** a manual combined browser, configuration and encrypted
+  recovery drill preserves original child logs and fails on missing, invalid or failed receipts.
+  Synthetic engineering evidence stays distinct from real people, backup custody and production
+  availability. Container images now include the physical MIT license alongside their metadata.
+
 ## 2.64.0 (2026-11-04): separate business workspaces (B1)
 
 - **Business workspaces:** optional separate business profile with individual passkeys,
