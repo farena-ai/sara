@@ -14,7 +14,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1994%20passing-brightgreen" alt="1994 tests passing">
+  <img src="https://img.shields.io/badge/tests-2112%20passing-brightgreen" alt="2112 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -33,7 +33,7 @@ Modellen deiner Wahl, in einer App für Web, Windows, Mac und Handy.
   <a href="docs/FOR_CODERS.md"><img src="https://img.shields.io/badge/Ich%20bin%20zum%20Programmieren%20hier-6E4BD8?style=for-the-badge" alt="Ich bin zum Programmieren hier" height="34"></a>
 </p>
 
-> **Status:** 2.63.1, MIT-Lizenz, mit vierundsiebzig Funktions-Releases seit 1.0 (alle unten). Mit 2.5 bis 2.8
+> **Status:** 2.64.0, MIT-Lizenz, mit vierundsiebzig Funktions-Releases seit 1.0 (alle unten). Mit 2.5 bis 2.8
 > hat die ganze App einen neuen Look bekommen. Die
 > [Android-App](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) ist bei Google
 > Play; die iPhone-App und die Version für den Mac App Store folgen, sobald Apple sie freigibt.

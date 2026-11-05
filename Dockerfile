@@ -64,7 +64,7 @@ EXPOSE 7860
 
 # Follows SARA_PORT if you change it (the container listens on every address, so ask loopback).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.SARA_PORT||7860)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "try{const p=process.env.SARA_PROFILE??'personal',target='http://127.0.0.1:'+(process.env.SARA_PORT||7860)+'/api/health';if(p==='personal'){fetch(target).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))}else{if(p!=='business')throw 0;const port=Number(process.env.SARA_PORT??7860);if(!Number.isInteger(port)||port<1||port>65535)throw 0;const value=process.env.SARA_BUSINESS_ORIGIN,u=new URL(value);if(u.origin!==value||u.username||u.password||(u.protocol!=='https:'&&!(u.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(u.hostname))))throw 0;require('node:http').get({hostname:'127.0.0.1',port,path:'/api/health',headers:{host:u.host},timeout:4000},r=>process.exit(r.statusCode>=200&&r.statusCode<300?0:1)).on('error',()=>process.exit(1)).on('timeout',()=>process.exit(1))}}catch{process.exit(1)}"
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "src/main.ts"]

@@ -96,7 +96,7 @@ word for word and *Undo* brings it back. Private chats only ever use a model on 
 GitHub, files on this computer and current docs (Context7), plus plugins and skills. A tool server's card
 shows the exact command (and its Windows form), what it needs and what it can reach; keys go to the vault
 and nothing switches on by itself. `sara pack` checks your own plugin, skill or tool server before you
-submit it. Guide: [store/SARA_STORE.md](store/SARA_STORE.md); servers over SSH: [SSH.md](SSH.md) (connect
+submit it. Guide: [Store guide](STORE.md); servers over SSH: [SSH.md](SSH.md) (connect
 from a chat with one card since 2.52.1).
 
 ## Commands you can type

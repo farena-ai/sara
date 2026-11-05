@@ -5,7 +5,9 @@ export interface SseEvent {
   data: string;
 }
 
-export async function* sseEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<SseEvent> {
+export async function* sseEvents(body: ReadableStream<Uint8Array>, maxBytes?: number): AsyncGenerator<SseEvent> {
+  if (maxBytes !== undefined && (!Number.isSafeInteger(maxBytes) || maxBytes < 1)) throw new Error('Invalid stream byte bound.');
+  let bytes = 0;
   const decoder = new TextDecoder();
   let buf = '';
   let event: string | undefined;
@@ -34,6 +36,9 @@ export async function* sseEvents(body: ReadableStream<Uint8Array>): AsyncGenerat
   }
 
   for await (const chunk of body as unknown as AsyncIterable<Uint8Array>) {
+    bytes += chunk.byteLength;
+    // Throwing from this for-await also returns/cancels the stream reader.
+    if (maxBytes !== undefined && bytes > maxBytes) throw new Error('Model stream exceeded its byte bound.');
     buf += decoder.decode(chunk, { stream: true });
     yield* takeLines();
   }

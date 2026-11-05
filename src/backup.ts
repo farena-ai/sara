@@ -2,7 +2,7 @@
 // (VACUUM INTO, safe while Sara runs), settings, character, vault + master key, MCP config and
 // workspaces. Undo snapshots and temp files are left out. Zero dependencies: a small ustar/pax
 // writer and reader on top of node:zlib.
-import { chmodSync, closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
+import { chmodSync, closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { dirname, join, posix, relative, sep } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { gunzipSync, gzipSync } from 'node:zlib';
@@ -247,8 +247,22 @@ export function inspectBackup(file: string): { manifest: BackupManifest; entries
  * old backups, the logs and the Mac app's service folder) is first moved to `before-restore-<time>/`,
  * so a restore can itself be undone.
  */
+export function assertPersonalRestoreArchive(file: string): void {
+  const fd = openSync(file, 'r'); const head = Buffer.alloc(8);
+  try { readSync(fd, head, 0, head.length, 0); } finally { closeSync(fd); }
+  if (head.toString() === 'SARABUS1') throw new Error('Business archives require business recovery into a fresh isolated target.');
+  if (head[0] === 0x1f && head[1] === 0x8b) assertPersonalEntries(inspectBackup(file).entries);
+}
+function assertPersonalEntries(entries: Entry[]): void {
+  if (entries.some(entry => {
+    const path = posix.normalize(entry.path);
+    return path === 'BUSINESS_BACKUP.json' || path === 'business/business.db' || path === 'profile.json' && entry.data.toString().includes('business');
+  })) throw new Error('Business archives cannot restore into a personal profile.');
+}
 export function restoreBackup(file: string, dataDir: string, now = new Date()): { manifest: BackupManifest; movedTo: string } {
+  assertPersonalRestoreArchive(file);
   const { manifest, entries } = inspectBackup(file);
+  assertPersonalEntries(entries);
   mkdirSync(dataDir, { recursive: true });
   const aside = join(dataDir, `before-restore-${now.toISOString().replace(/[:.]/g, '-')}`);
   mkdirSync(aside);

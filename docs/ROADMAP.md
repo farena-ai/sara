@@ -3,6 +3,17 @@
 Sara was built in phases, each one released, tested and documented before the next began. Every
 version's details are in the [changelog](../CHANGELOG.md).
 
+## Business workspaces in 2.64.0
+
+Optional business mode runs in a separate instance with individual passkeys, explicit workspace
+roles, shared text/documents and scoped recovery. The business desk shows audience and model
+destination before sharing. Conservative model admission, metadata audit and encrypted generation
+recovery preserve access and spending boundaries. Personal/household data stay separate.
+Provision business instances through the separate manual source/container workflow; existing
+personal installers do not convert them. See [Business](BUSINESS.md) and
+[Business installation operations](BUSINESS_OPERATIONS.md). Real installation acceptance and
+deployment targets remain separate from synthetic engineering qualification.
+
 ## Operations and retention in 2.63.1
 
 Owner-only HTTP/readiness measurements, explicit safe resolved-delivery archival and repeatable

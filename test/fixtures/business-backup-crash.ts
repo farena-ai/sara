@@ -1,0 +1,13 @@
+import { randomUUID } from 'node:crypto';
+import { openBusinessProfile } from '../../src/business/profile.ts';
+import { createBusinessRuntime } from '../../src/business/runtime.ts';
+const runtime = createBusinessRuntime({ profile: openBusinessProfile(process.argv[2]), origin: 'http://127.0.0.1:9990' });
+const admin = runtime.auth.claim('127.0.0.1', runtime.auth.claimCode, 'Synthetic', true)!;
+runtime.control.bootstrapAdministrator();
+const workspace = runtime.control.createWorkspace(admin.principal, { name: 'Crash fixture' });
+const key = { requestId: randomUUID(), actorId: admin.principal.identityId, workspaceId: workspace.id, conversationId: randomUUID(), payloadHash: 'a'.repeat(64), policyHash: 'b'.repeat(64) };
+runtime.budget.reserve(key, { instanceAllowanceNanoUsd: 1000, workspaceAllowanceNanoUsd: 1000, maxConcurrent: 1, maxInputTokens: 100, maxOutputTokens: 100, inputNanoUsdPerToken: 1, outputNanoUsdPerToken: 1 });
+void runtime.lifecycle.run(() => new Promise<void>(() => {}));
+void runtime.backup(process.argv[3], 'synthetic passphrase for recovery');
+process.stdout.write(JSON.stringify({ state: runtime.lifecycle.state, key }) + '\n');
+setInterval(() => {}, 1000);

@@ -140,3 +140,29 @@ it included offline restore in the histogram and exposed real blocking backup wo
 worker creation implemented and v2's window corrected, with thresholds unchanged. v1/v2 lag values
 are not directly comparable because the window differs. Reproduce on your own deployment before
 setting workload or recovery promises; sustained-load and physical user acceptance remain separate.
+
+## Development checkout: ten-minute qualification (unreleased tooling)
+
+In a development checkout containing `scripts/qualify-soak.ts`, run:
+
+```powershell
+node scripts/qualify-soak.ts --output outputs/qualification/soak.json
+```
+
+This finite manual command creates fresh synthetic data and a loopback server. It cannot accept
+an installed-data path, target server or shortened duration. Eight clients make paced metadata
+requests for ten minutes; each minute has a real worker backup. Ten offline restores then verify
+database integrity, payload bytes, archived identities, encrypted unresolved reviews and their full
+state/resolution/retry metadata. Offline restore is excluded from serving measurements. No model
+inference, external delivery, production restore, CI or recurring task is performed.
+
+Each one-minute window requires at least 100 requests and response p95 <=500ms; the run requires
+zero unexpected errors, loop-delay p95 <=100ms, sampled RSS growth <=256MiB, and all ten backups
+restored. The report distinguishes sampled RSS from the process high-water reading. These remain
+engineering regression gates, not a supported capacity, sustained production soak or SLA. Synthetic
+fixtures remain in OS temporary storage for diagnosis; they contain generated keys, not owner data.
+
+The additional encrypted-copy drill is `node --test test/post-q4-offsite.test.ts`. It uses a separate
+local folder as the destination and verifies all four space types, restored keys/file bytes and
+uncertainty, plus wrong-key/tamper refusal. It does not verify a real offsite host, credentials or
+disaster-recovery key custody. Neither command changes an installed service or releases an update.

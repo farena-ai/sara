@@ -59,6 +59,12 @@ export interface ChatRequest {
    */
   reasoning?: 'none' | 'low' | 'medium' | 'high';
   signal?: AbortSignal;
+  /** Business admission requires complete, exact aggregate usage; unknown counts stay non-finite. */
+  strictUsage?: boolean;
+  /** Optional total raw streaming-response byte ceiling, checked before SSE buffering. */
+  maxResponseBytes?: number;
+  /** Business requests require the configured canonical endpoint and refuse all redirects. */
+  redirect?: 'error';
 }
 
 /** Streamed output: text deltas as they arrive; tool calls once fully assembled. */

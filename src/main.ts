@@ -67,7 +67,7 @@ import { ApnsSender } from './apns.ts';
 import { PushService } from './push.ts';
 import { ReportStore } from './reports.ts';
 import { Subscriptions } from './subscriptions/index.ts';
-import { BACKUPS_DIR, backupName, createBackup, DEFAULT_BACKUP, restoreBackup } from './backup.ts';
+import { BACKUPS_DIR, backupName, createBackup, DEFAULT_BACKUP, restoreBackup, assertPersonalRestoreArchive } from './backup.ts';
 import { appInfo } from './health.ts';
 import { DiscordBridge } from './bridges/discord.ts';
 import { McpManager } from './tools/mcp.ts';
@@ -152,6 +152,7 @@ import { storeSettings } from './routes/store.ts';
 import { detectChannel, hubArch, hubBase, type HubOs, hubOs, HubPinger, HubState, localHub, modelKind, pingBlocked, scrubText, TicketStore, type HubFacts, type HubSpace } from './hub.ts';
 import { appLanguage } from './i18n.ts';
 import { homedir } from 'node:os';
+import { assertPersonalProfile, runtimeProfile } from './business/profile.ts';
 
 // A promise nobody waited for that failed: log it and carry on (a background job, a model call
 // whose answer was no longer needed). A thrown error nothing caught: log it plainly and stop, so
@@ -182,6 +183,28 @@ const dataDir = resolve(process.env.SARA_DATA ?? join(root, 'data'));
 const host = process.env.SARA_HOST ?? '127.0.0.1';
 const port = Number(process.env.SARA_PORT ?? 7860);
 const defaultPersonaPath = resolve(process.env.SARA_PERSONA ?? join(root, 'persona', 'sara.json'));
+
+// Dispatch before constructing owner auth, stores, tools, or background workers.
+if (process.argv[2]?.startsWith('--business-')) {
+  try { const { runBusinessCli } = await import('./business/cli.ts'); await runBusinessCli(process.argv.slice(2), process.env); }
+  catch { process.stderr.write('Business operator command refused. Check isolated paths, writer ownership, generation and required reconciliation.\n'); process.exitCode = 1; }
+  process.exit(process.exitCode ?? 0);
+}
+
+if (runtimeProfile(process.env) === 'business') {
+  if (process.argv.slice(2).length === 1 && process.argv[2] === '--version') {
+    const i = appInfo(root);
+    console.log(`Sara ${i.version}${i.revision ? ` (${i.revision})` : ''}`);
+    process.exit(0);
+  }
+  if (process.argv.slice(2).length) throw new Error('Personal CLI commands are unavailable in the business profile.');
+  const { startBusinessFromEnv } = await import('./business/runtime.ts');
+  await startBusinessFromEnv(process.env);
+  await new Promise<never>(() => {});
+}
+assertPersonalProfile(dataDir);
+const personalRestoreIndex = process.argv.indexOf('--restore');
+if (personalRestoreIndex >= 0 && process.argv[personalRestoreIndex + 1]) assertPersonalRestoreArchive(process.argv[personalRestoreIndex + 1]);
 
 // Flags that read only (nothing is created): the installers and the `sara` command use them.
 if (process.argv.includes('--version')) {

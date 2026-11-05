@@ -189,6 +189,7 @@ export function allKeys(): Map<string, string> {
   const keys = new Map<string, string>();
   const add = (list: string[], where: string) => { for (const k of list) if (!keys.has(k)) keys.set(k, where); };
   add(fromHtml(readFileSync(join(ROOT, 'web', 'index.html'), 'utf8')), 'index.html');
+  add(fromHtml(readFileSync(join(ROOT, 'web', 'business.html'), 'utf8')), 'business.html');
   for (const f of webJsFiles()) add(fromJs(readFileSync(f, 'utf8')), f.slice(ROOT.length + 1).replace(/\\/g, '/'));
   add(fromTips(readFileSync(join(ROOT, 'web', 'tips.json'), 'utf8')), 'tips.json');
   add(fromHowto(readFileSync(join(ROOT, 'web', 'howto.json'), 'utf8')), 'howto.json');

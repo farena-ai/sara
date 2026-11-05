@@ -38,6 +38,39 @@ provider on hardware the owner controls.
 
 ## Defences, by attacker
 
+### Optional business instance (B1, 2.64.0)
+
+Business dispatch precedes personal runtime construction. A separately marked root, browser
+origin, operating-system identity and business authentication/provider material prevent accidental
+personal/household reuse. Organization administration grants no implicit workspace content access;
+every scoped read/write revalidates live sessions and membership revisions across awaits.
+Revocation closes subscriptions and cancels model work, but cannot recall bytes already delivered
+to a browser or provider. The host operator can read disk; this is not privacy against root.
+
+Shared text/Markdown and model output are untrusted data. They cannot change audience or authorize
+tools; the business runtime constructs no external-effect capability. Operator-only model policy
+defines egress and independent keys, with explicit cloud approval, refused redirects, bounded
+responses and conservative lifetime spending reservations. Unknown usage stays held; retries
+cannot silently regenerate. Safety and per-actor/browser AI disclosure remain mandatory.
+Durable metadata audit, coherent backup generations and closed restore/grant reconciliation are
+implemented and synthetically engineering-qualified. Restores require fresh individual passkeys and explicit prior
+grant approval; spending remains separate and preserves held exposure. An exclusive local-SQLite
+fence and admission drain coordinate supported writers. Filesystem auth/config audit records are
+intents, not cross-file atomic proof. Abrupt death can leave a private plaintext staging directory
+for deliberate operator cleanup. No root-resistant audit, distributed lock, power-loss atomicity
+or production recovery guarantee is claimed.
+See [Business workspaces](BUSINESS.md) for scope and current qualification limits.
+
+The business browser uses a fixed static shell with no embedded user data. Cross-site top-level
+navigation can load that shell while private APIs retain Host/Origin/cookie checks. The optional
+expected-session header narrows the current cookie principal and prevents a stale tab from
+submitting another actor's draft after a cookie change. It is not an authority-bearing token.
+Invitation preview is bound to its exact code/actor; request-state checks are read-only and scoped.
+Mounted-editor and stale-completion guards preserve scoped drafts. Persisted uncertainty precedes
+dispatch; page destruction cannot turn a later refusal into proof an earlier request never arrived.
+Only the exact live first dispatch can establish editable non-admission. Already delivered browser
+data cannot be recalled. Final qualification and its limits are recorded separately.
+
 ### 1. Internet, no sign-in
 - Every `/api` route needs a session cookie, the owner token or a device token, except: health,
   login, pairing redemption, passkey sign-in, `GET /api/session` (says only whether you're signed

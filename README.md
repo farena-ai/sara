@@ -11,7 +11,7 @@ Windows, Mac and phones.
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1994%20passing-brightgreen" alt="1994 tests passing">
+  <img src="https://img.shields.io/badge/tests-2112%20passing-brightgreen" alt="2112 tests passing">
   <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
   <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
@@ -30,7 +30,7 @@ Windows, Mac and phones.
   <a href="docs/FOR_CODERS.md"><img src="https://img.shields.io/badge/I%27m%20here%20to%20code-6E4BD8?style=for-the-badge" alt="I'm here to code" height="34"></a>
 </p>
 
-> **Status:** 2.63.1, MIT licensed, with seventy-four feature releases since 1.0 (all below). 2.5 to 2.8
+> **Status:** 2.64.0, MIT licensed, with seventy-four feature releases since 1.0 (all below). 2.5 to 2.8
 > gave the whole app a new look. The [Android app](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
 > is on Google Play; the iPhone app and the Mac App Store version are coming as soon as Apple approves them.
 > Read [docs/DISCLOSURES.md](docs/DISCLOSURES.md) before using or sharing Sara.
@@ -40,6 +40,11 @@ Windows, Mac and phones.
 **Recover interrupted work:** Settings → Data & health → Recovery keeps job restart reviews and
 native Telegram/Discord delivery uncertainty visible. Nothing is blindly replayed after startup;
 current privacy and approvals still apply. [Recovery guide](docs/RECOVERY.md).
+
+**Business workspaces in 2.64.0:** an optional separate instance with individual passkeys,
+explicit workspace roles, shared text/documents, conservative model budgets and encrypted recovery.
+Personal data and credentials stay separate. [Business guide](docs/BUSINESS.md) ·
+[Operator handbook](docs/BUSINESS_OPERATIONS.md).
 
 ## Why Sara
 

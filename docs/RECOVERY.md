@@ -4,6 +4,12 @@ Open **Settings → Data & health → Recovery** after a restart or uncertain se
 runs an old command or resends a message by itself. Use an owner sign-in; household members, the
 demo and apps signed in with a device code cannot open protected recovery data.
 
+Optional business workspaces are unreleased and use a separate encrypted backup/recovery path.
+Personal restore refuses business archives before initializing its target. Business restore keeps
+access closed pending fresh individual sign-in/passkeys and explicit grant/spending reconciliation;
+the personal Recovery page does not perform that work. See [Business workspaces](BUSINESS.md) and
+the [business operator handbook](BUSINESS_OPERATIONS.md).
+
 ## Background jobs: review a restart
 
 For a supported interrupted or budget-stopped job, **Review restart** shows the original request
@@ -95,3 +101,9 @@ destination/platform-reference/reason details but retains identities, logical ke
 attempts, dates and human decisions. It never retries, deletes rows or shrinks the database.
 Deduplication and encrypted unresolved reviews survive backup/restore. No automatic cleanup runs.
 For measurements, maintenance and a synthetic incident drill, see [Operations](OPERATIONS.md).
+
+Development qualification also checks full unresolved metadata across repeated backups, and an
+encrypted folder-copy restore across owner, companion, member and member-companion spaces.
+Encryption failure is refused; a readable review alone is insufficient evidence that its original
+unknown state and duplicate protection survived. See Operations for the manual, isolated commands
+and their limits. Physical offsite recovery and production recovery targets still need separate proof.

@@ -5,6 +5,32 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.64.0 (2026-11-04): separate business workspaces (B1)
+
+- **Business workspaces:** optional separate business profile with individual passkeys,
+  explicit workspace roles and transactional invitations. The business desk shows audience, role
+  and model destination before sharing text/Markdown. Scoped search/events, per-session drafts,
+  bounded document selection and read-only original-request checks preserve workspace boundaries.
+  Operator-only model policy, atomic lifetime allowances and durable request IDs keep uncertain
+  usage held without automatic regeneration. Metadata audit, graceful draining and encrypted
+  generation backups support closed restore with fresh passkeys, explicit grant reconciliation
+  and conservative spending acceptance. Routine lost-sign-in recovery affects only that person;
+  ordinary spending-pause acceptance preserves existing access and held exposure. Personal and
+  household credentials/data remain separate. See [Business workspaces](docs/BUSINESS.md) and
+  [Business installation operations](docs/BUSINESS_OPERATIONS.md). Business provisioning uses the
+  separate manual source/container workflow; personal installers do not convert existing data.
+- **Portable business snapshots:** system temporary-directory aliases are resolved before snapshot
+  creation, including macOS /var paths; archive link checks remain strict.
+- **Clear first use and healthy containers:** signed-out newcomers see the invitation/sign-in
+  screen without a false access-loss warning. Business container health uses the configured
+  hostname while staying on loopback; invalid configuration fails closed.
+
+- **Manual engineering qualification:** a fixed ten-minute, eight-client synthetic loopback soak
+  with periodic worker backups and independently checked restores. Failure receipts wait for
+  accepted workers; restored uncertainty metadata is checked as well as encrypted review text.
+  Added four-space encrypted folder-copy recovery coverage, including wrong-key/tamper refusal.
+  The manual tools use synthetic fixtures; no background schedule or paid service is enabled.
+
 ## 2.63.1 (2026-11-04): measured operation and safe retention (Q4)
 
 - **Operations:** owner-only readiness evidence, bounded HTTP latency/error/inflight measurements,
