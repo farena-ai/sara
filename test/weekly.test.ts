@@ -72,7 +72,7 @@ test('memory worker: dates come from the owner\'s own words (quote-checked)', as
 
 test('dates in her prompt; on the day she texts about it once, even off her usual timing', async (t) => {
   const { app, clock } = setup(t, '2027-03-14T15:00:00Z');
-  app.memory!.add({ kind: 'date', content: "Alex's mom's birthday", onDate: '03-14', conversationId: null, sourceMessageId: null, happenedOn: '2026-10-01' });
+  app.memory!.addOwner({ kind: 'date', content: "Alex's mom's birthday", onDate: '03-14', happenedOn: '2026-10-01' });
   const conv = app.store.createConversation();
   app.store.addMessage(conv.id, 'user', 'hi');
   clock.now = new Date('2027-03-14T15:00:00Z');
@@ -91,6 +91,24 @@ test('dates in her prompt; on the day she texts about it once, even off her usua
   app.store.addMessage(conv.id, 'user', 'thanks!');
   app.store.db.prepare('UPDATE messages SET created_at = ?').run('2027-03-13T08:00:00Z');
   assert.equal((await worker.maybeProactive()).skipped, 'not this time');
+});
+
+test('a generic sourceless date does not trigger a proactive message or get marked mentioned', async (t) => {
+  const { app } = setup(t, '2027-03-14T15:00:00Z');
+  const birthday = app.memory!.add({ kind: 'date', content: "Alex's mom's birthday", onDate: '03-14', conversationId: null, sourceMessageId: null, happenedOn: '2026-10-01' });
+  const conv = app.store.createConversation();
+  app.store.addMessage(conv.id, 'user', 'hi');
+  app.store.db.prepare('UPDATE messages SET created_at = ?').run('2027-03-13T08:00:00Z');
+  const markMentioned = t.mock.method(app.memory!, 'markMentioned');
+  const worker = new LifeWorker(app, app.life!, app.inner!, () => 0.99);
+  app.script.push(text("Isn't it your mom's birthday today? Tell her happy birthday from me."));
+
+  assert.equal(birthday.origin, 'derived');
+  assert.deepEqual(await worker.maybeProactive(), { skipped: 'not this time' });
+  assert.equal(app.requests.length, 0, 'an unauthenticated date cannot bypass the random gate');
+  assert.equal(app.store.messages(conv.id).length, 1, 'no proactive message is delivered');
+  assert.equal(markMentioned.mock.callCount(), 0);
+  assert.equal(app.memory!.get(birthday.id)!.mentionedOn, null);
 });
 
 test('weekly look back: patterns from the notes; older facts replaced (kept, no longer used)', async (t) => {

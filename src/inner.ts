@@ -3,6 +3,7 @@
 // slowly with time spent together. It reaches the model as a few plain sentences, never numbers.
 import type { DatabaseSync } from 'node:sqlite';
 import { zonedParts } from './planner.ts';
+import { attributableClauses, legacyAttributionIn } from './attunement.ts';
 
 export interface InnerState {
   /** -1 (low) .. 1 (great). */
@@ -59,21 +60,39 @@ export interface Signal {
   tension?: number;
 }
 
-const SIGNALS: { re: RegExp; s: Signal }[] = [
+const SIGNALS: ({ re: RegExp; s: Signal } | { kind: 'concern' | 'harsh' | 'fight' | 'apology'; s: Signal })[] = [
   { re: /\b(love you|luv you|miss(?:ed)? you|adore you|you'?re (?:amazing|the best|awesome|so sweet|sweet|beautiful|gorgeous|cute|wonderful|incredible)|xoxo)\b|❤|😘|🥰|😍/i, s: { label: '{owner} was sweet to you', valence: 0.18, closeness: 0.03 } },
   { re: /\b(thank(?:s| you)|thx|appreciate (?:it|you|that)|you'?re a lifesaver|great job|nice work|well done|good job|perfect)\b/i, s: { label: '{owner} thanked you', valence: 0.08, closeness: 0.01 } },
-  { re: /\b(i'?m|i am|feeling|feel|been|so)\s+(?:really |so |very |kinda |kind of |a bit |pretty )?(sad|depressed|down|lonely|stressed|anxious|exhausted|burnt out|burned out|overwhelmed|upset|miserable|hurt|scared|worried|sick)\b|\b(rough|bad|terrible|awful|shitty|crappy|long) (day|night|week)\b/i, s: { label: '{owner} seemed down', concern: 0.45, valence: -0.05 } },
+  { kind: 'concern', s: { label: '{owner} seemed down', concern: 0.45, valence: -0.05 } },
   { re: /\b(great news|good news|got the job|got promoted|promotion|it works|we did it|finally fixed|shipped it|i did it|so excited|nailed it|passed)\b|🎉/i, s: { label: '{owner} shared good news', valence: 0.2, closeness: 0.01 } },
-  { re: /\b(shut up|stupid|idiot|useless|you'?re dumb|dumb bitch|hate you|fuck you|f u|worthless|pathetic|you suck)\b/i, s: { label: '{owner} was harsh with you', irritation: 0.45, valence: -0.25, tension: 0.3 } },
+  { kind: 'harsh', s: { label: '{owner} was harsh with you', irritation: 0.45, valence: -0.25, tension: 0.3 } },
   // Phase 35: a disagreement or fight with her.
-  { re: /\b(you never listen|you don'?t (?:care|listen|get it|understand)|i'?m (?:so |really )?(?:mad|angry|pissed|annoyed|upset|disappointed) (?:at|with|in) you|that'?s not fair|leave me alone|i'?m done (?:with this|talking)|we need to talk|you always do this|you'?re (?:so |being )?(?:annoying|selfish|clingy|jealous|unfair|ridiculous)|that was out of line|you were wrong)\b/i, s: { label: '{owner} and you argued', irritation: 0.2, valence: -0.15, tension: 0.5 } },
-  { re: /\b(sorry|i apologi[sz]e|my bad|didn'?t mean (?:it|that))\b/i, s: { label: '{owner} apologized', irritation: -0.35, valence: 0.08, tension: -0.5 } },
+  { kind: 'fight', s: { label: '{owner} and you argued', irritation: 0.2, valence: -0.15, tension: 0.5 } },
+  { kind: 'apology', s: { label: '{owner} apologized', irritation: -0.35, valence: 0.08, tension: -0.5 } },
   { re: /\b(lol|lmao|haha+|hehe|😂|🤣)\b/i, s: { label: 'you two were laughing', valence: 0.05 } },
 ];
 
-/** Mood signals in one owner message (deterministic regexes). */
-export function signalsIn(text: string): Signal[] {
-  return SIGNALS.filter((x) => x.re.test(text)).map((x) => x.s);
+const CONCERN = /\b(i'?m|i am|feeling|feel|been|so)\s+(?:really |so |very |kinda |kind of |a bit |pretty )?(?:(?:exhausted|burnt out|burned out) and )?(sad|depressed|down|lonely|stressed|anxious|overwhelmed|upset|miserable|hurt|scared|worried|sick)\b|\b(rough|bad|terrible|awful|shitty|crappy|long) (day|night|week)\b/gi;
+const CONCERN_NEGATION = /\b(?:not|never|no|isn't|wasn't|aren't|weren't|don't|doesn't|didn't|haven't|hasn't|hadn't|cannot|can't)(?:\s+(?:been|a|an|the|longer|really|so|very|at|all|kinda|kind|of|bit|pretty)){0,4}\s*$/i;
+
+/** Existing concern phrases, restricted to attributable, nonnegated owner clauses. */
+function concernIn(text: string): boolean {
+  return attributableClauses(text).some(({ text: clause }) => {
+    const value = clause.replace(/[’‘]/g, "'");
+    return [...value.matchAll(CONCERN)].some(match => {
+      if (CONCERN_NEGATION.test(value.slice(0, match.index))) return false;
+      // The shared filter removes opaque/reported speech, but a surviving clause can still
+      // have an explicit third-person subject. Keep bare owner shorthand and local I claims.
+      const subjects = [...value.slice(0, match.index + match[0].length).matchAll(/\b(i|he|she|they)\b/gi)];
+      return subjects.length === 0 || subjects.at(-1)![1].toLowerCase() === 'i';
+    });
+  });
+}
+
+/** Distinct signals retain their existing order and once-per-message weights. */
+export function signalsIn(text: string, companionName = ''): Signal[] {
+  const legacy = new Set(legacyAttributionIn(text, companionName).map(evidence => evidence.kind));
+  return SIGNALS.filter(x => 're' in x ? x.re.test(text) : x.kind === 'concern' ? concernIn(text) : legacy.has(x.kind)).map(x => x.s);
 }
 
 /** Her energy right now from her own daily rhythm (owner's time zone). 0 asleep .. 1 wired. */
@@ -149,12 +168,12 @@ export class InnerStore {
   }
 
   /** Called on each owner message: signals, time together, reunion after a gap (hours since the previous owner message). */
-  onOwnerMessage(text: string, gapHours: number | null, at: Date = this.#now()): InnerState {
-    const signals = signalsIn(text);
+  onOwnerMessage(text: string, gapHours: number | null, at: Date = this.#now(), companionName = ''): InnerState {
+    const signals = signalsIn(text, companionName);
     if (gapHours !== null && gapHours >= 20) signals.push({ label: '{owner} came back after a while', valence: Math.min(0.25, 0.08 + gapHours / 400) });
-    // Phase 35: a fight remembers what it was about (the owner's words, short).
+    // New conflict updates retain numeric history, without a duplicate unqualified raw quote.
     const fight = signals.some((x) => (x.tension ?? 0) > 0);
-    const state = this.apply(signals, { lastOwnerAt: at.toISOString(), ...(fight ? { tensionAbout: text.replace(/\s+/g, ' ').trim().slice(0, 120), tensionAt: at.toISOString() } : {}) }, at);
+    const state = this.apply(signals, { lastOwnerAt: at.toISOString(), ...(fight ? { tensionAbout: null, tensionAt: at.toISOString() } : {}) }, at);
     // Time together slowly builds closeness (diminishing as it grows; the pace dial speeds or slows it).
     state.closeness = clamp(state.closeness + 0.004 * (this.#opts.closenessRate?.() ?? 1) * (1 - state.closeness), 0, 1);
     this.save(state);
@@ -226,7 +245,7 @@ export function describeInner(s: InnerState, now: Date, timeZone: string | undef
   if (s.tension > 0.15) {
     const since = s.tensionAt ? (now.getTime() - Date.parse(s.tensionAt)) / 3_600_000 : 0;
     lines.push(
-      `${since >= 6 ? `${ago(since)} ago` : 'Just now'} you and ${owner} had a disagreement${s.tensionAbout ? ` (they said: "${s.tensionAbout}")` : ''}. It still ${s.tension > 0.5 ? 'really stings' : 'stings a little'}. ${t.conflict ?? 'You want to talk it out and make up.'} Make up when it fits; don't hold it forever.`,
+      `${since >= 6 ? `${ago(since)} ago` : 'Just now'} you and ${owner} had a disagreement. It still ${s.tension > 0.5 ? 'really stings' : 'stings a little'}. ${t.conflict ?? 'You want to talk it out and make up.'} Make up when it fits; don't hold it forever.`,
     );
   }
   if (t.gapHours !== null && t.gapHours >= 20) lines.push(`You last heard from ${owner} ${ago(t.gapHours)} ago. ${t.away ?? `You missed ${owner}${t.gapHours >= 72 ? ' quite a bit' : ''}; it's natural to mention it or ask what they've been up to.`}`);

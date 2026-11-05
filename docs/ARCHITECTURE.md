@@ -5,6 +5,25 @@
 To add tools, bridges, characters, MCP servers, languages or starter templates, see
 [EXTENDING.md](EXTENDING.md) and the working examples in [`examples/`](../examples/).
 
+## Recent owner cues and source-qualified follow-ups (E2 development)
+
+New nullable messages.owner_origin and memories.origin distinguish trusted runtime/owner additions
+from generic/imported/legacy rows; JSON import cannot mint provenance. conversations.dialogue_epoch
+is a conservative mutation witness for actual dialogue content/role/conversation/metadata edits and
+deletions, excluding inserts/no-ops/tool notices. It is not an authorization or mood field.
+
+The pure attunement parser and read-only owner-evidence/cue adapters use current scope, quote,
+category and chronology before bounded source limits. Normal chat resolves transient extras after
+awaited preparation; RunRecorder refreshes final input metadata without duplicating a step or
+rerunning hooks. Replay omits newly generated transient extras and propagates non-identical input
+identity while keeping the original audit inspectable. General historical snapshots are unchanged.
+
+Life revalidates every injected date and opt-out after generation, preserving usage on a dropped
+result. Agenda records nullable sent epoch, answer ID/match kind and actual event date separately
+from movable dueAt; automatic closure revalidates source/question/answer and never causes redelivery.
+Unsupported but source-qualified plans keep normal delivery/manual authority. See
+[Recent cues and follow-ups](ATTUNEMENT.md) for user controls and retention limits.
+
 ## Optional business profile (B1, 2.64.0)
 
 `src/main.ts` dispatches `SARA_PROFILE=business` before personal authentication, stores, tools or
@@ -172,6 +191,7 @@ Every module in `src/`, roughly in the order they were added (the phase is noted
 | `src/fs-util.ts` · `src/spoken.ts` · `src/model-names.ts` | `writeFileAtomic` (every store; `owner.json` also keeps a `.bak`) · the one cleaner for spoken text (app voice, Alexa, Home Assistant) · the one rule for Ollama Cloud model names (net-guard keeps an identical, tested copy) |
 | `src/auth.ts` | Owner token (hash only stored), HMAC-signed session cookies, login rate limit; `setupPending` until the first owner sign-in (Phase 59) |
 | `src/claim.ts` | Phase 59: first sign-in in the browser on a new server (`/api/claim`): setup code from the log or, behind a login proxy (`SARA_SETUP=browser`, Umbrel), one click; time window, private addresses only, one-time; see THREAT_MODEL.md |
+| `src/tool-admission.ts` | Release hardening: binds pending tool execution to its original turn/task context and tool identity; reads current permission, availability, privacy/network capability and conversation scope at effect admission. Shared by normal turns and team helpers; context invalidation stops stale continuation. Sandbox diff application rechecks after its awaited workspace reference and before mutation. No new approval authority, schema or running-operation rollback. |
 | `src/chat.ts` | One turn: disclosure → safety checks → provider routing → agent loop (stream → tool calls → plan check against decisions (Phase 77) → approvals → results → repeat) → persist |
 | `src/providers/*` | Adapter interface; OpenAI-compatible and Anthropic adapters; presets. Phase 63: adapters also pass on each raw piece of a tool call's arguments (`tool_delta`: OpenAI `tool_calls[].function.arguments`, Anthropic `input_json_delta`, ChatGPT `function_call_arguments.delta`); the CLI agents keep sending whole calls |
 | `src/tool-stream.ts` | Phase 63: reads half-written tool-call JSON (`partialArgs`) and turns the pieces into throttled (≤10/s), size-capped, redacted `tool_building` events (path, the newest lines of a file being written, a line count). Shown only: nothing runs until the provider sends the finished call, which goes through approvals and safety as before |
@@ -262,7 +282,10 @@ Every module in `src/`, roughly in the order they were added (the phase is noted
 | `src/events.ts` | Push hub for `GET /api/events` (reminders, planner changes, later proactive messages) |
 | `src/export.ts` | Export (scrubbed) / import (merge, remapped ids) |
 | `scripts/eval-memory.ts` | Memory golden set on a local model; `--rank`: the offline ranking golden set (40 notes, 20 messages, no model) |
-| `src/inner.ts` | Her inner state: mood/energy/closeness/concern/irritation, signals, decay, words for the prompt |
+| `src/inner.ts` | Her simulated mood/energy/closeness/concern/irritation, attribution-aware legacy signals and decay. Future prompts omit historical raw tension quotations without read-time reset; tiredness alone adds no persistent concern. |
+| `src/attunement.ts` | Pure bounded six-language explicit cue/outcome parser, latest-six/original-expiry reducer and escaped cue-note formatter. No I/O, policy, provider call or inferred-state table. |
+| `src/owner-evidence.ts` | Concrete current owner/conversation/turn/source gates, filtered source-row access, exact attributable quote reconciliation and shared event outcome/chronology checks. Unknown/imported provenance never becomes trusted from role or supplied fields. |
+| `src/owner-cues.ts` | Read-only fresh current-conversation cue adapter with inner-life opt-out, source privacy/workspace/origin and replay/resume/room/unattended exclusions before source reads. Normal chat resolves its note at actual provider handoff. |
 | `src/life.ts` | Her day (daily note), proactive messages, `LifeWorker` |
 | `scripts/eval-life.ts` | Inner life on a local model (day, self-memories, texting first, honesty) |
 | `scripts/eval-safety-classifier.ts` | Safety classifier accuracy on tricky messages |
@@ -364,6 +387,7 @@ Every module in `src/`, roughly in the order they were added (the phase is noted
 | `src/team.ts` | Phase 39: Sara leads a team of helpers (plan, build, test, review) with time and token limits |
 | `src/jobs.ts`, `src/tools/coding.ts` | Phase 13: background jobs in the workspace sandbox; git tools (commit, branch and push ask first) |
 | `src/codereview.ts`, `src/issues.ts`, `src/projectknow.ts` | Phase 40: review mode (diffs and pull requests), GitHub issues that become tasks, what she learned about each repository |
+| `src/project-checkpoints.ts`, `web/project-checkpoints.js` | E1 (development): scoped historical project handoffs, bounded SQLite history and optimistic concurrency; source-lifecycle invalidation; owner-only tool/API and dedicated guarded prompt context; inspect/replace/clear controls beside project notes |
 | `src/tools/github.ts` | Phase 20: GitHub issues and pull requests with the owner's token (writes ask first) |
 | `src/google.ts`, `src/tools/google.ts` | Phase 14: Gmail and Google Calendar through the owner's own Google OAuth client, and their tools |
 | `src/gmail-organize.ts`, `src/gmail-dates.ts`, `src/tools/gmail-organize.ts`, `web/gmail-view.js` | Gmail organizing (docs/GMAIL.md): archive / read / star / important / labels / trash / spam over a search or ids at any size (paged ids, `batchModify` ×1,000, per-message trash, 429 back-off), count-first approval through `Tool.prepare`, big runs as `JobManager.startTask` background tasks, the `gmail_actions` undo log (30 days, `POST /api/google/undo/:id`), date words → Gmail search in the owner's zone; plus gmail_labels, gmail_senders, gmail_unsubscribe_info |

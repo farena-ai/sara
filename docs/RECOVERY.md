@@ -4,7 +4,7 @@ Open **Settings → Data & health → Recovery** after a restart or uncertain se
 runs an old command or resends a message by itself. Use an owner sign-in; household members, the
 demo and apps signed in with a device code cannot open protected recovery data.
 
-Optional business workspaces are unreleased and use a separate encrypted backup/recovery path.
+Optional business workspaces were released in 2.64.0 and use a separate encrypted backup/recovery path.
 Personal restore refuses business archives before initializing its target. Business restore keeps
 access closed pending fresh individual sign-in/passkeys and explicit grant/spending reconciliation;
 the personal Recovery page does not perform that work. See [Business workspaces](BUSINESS.md) and

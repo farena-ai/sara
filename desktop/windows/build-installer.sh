@@ -59,8 +59,11 @@ mkdir -p "$STAGE/server/desktop/shared" && cp "$ROOT/desktop/shared/page-agent.j
 cp "$ROOT/package.json" "$ROOT/LICENSE" "$STAGE/server/"
 mkdir -p "$STAGE/server/docs"
 cp "$ROOT/docs/INSTALL.md" "$ROOT/docs/desktop.md" "$STAGE/server/docs/"
-REV="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || true)"
-[[ -n "$REV" ]] && printf '%s\n' "$REV" > "$STAGE/server/REVISION"
+# A source archive has no .git; never inherit a containing repository's revision.
+if [[ -d "$ROOT/.git" || -f "$ROOT/.git" ]]; then
+  REV="$(git -C "$(winpath "$ROOT")" rev-parse --short HEAD)"
+  printf '%s\n' "$REV" > "$STAGE/server/REVISION"
+fi
 # Batch files want Windows line endings.
 sed 's/\r$//; s/$/\r/' "$HERE/installer/sara.cmd" > "$STAGE/bin/sara.cmd"
 

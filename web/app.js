@@ -79,6 +79,7 @@ import { icon, paintIcons, setIcon, TOOL_ICONS } from './icons.js';
 import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, pageOf, pageSize } from './session-list.js';
 import { createRecovery } from './recovery.js';
 import { createOperations } from './operations.js';
+import { renderProjectCheckpoint } from './project-checkpoints.js';
 import { buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintElsewhere, paintSettingsResults, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
 import { closeOpenDialogs, initTours, offerFirstTour, queueTourOffer, runTour, tourFromHash } from './tours.js';
 import { initSidebar } from './sidebar.js';
@@ -7767,7 +7768,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'ab-precise') void loadPreciseSettings();
   if (pick === 'ab-when') void loadWhenSettings();
   if (pick === 'co-pickup') void loadPickupSettings();
-  if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam(), loadProjectDials()]);
+  if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam(), loadCodeProjects(), loadProjectDials()]);
   if (pick === 'ab-ssh') void loadSsh();
   if (pick === 'ab-library') void loadLibrarySettings();
   if (pick === 'co-apps') void Promise.all([loadOtherApps(), loadAlexa()]);
@@ -12687,21 +12688,26 @@ function onTeamEvent(task) {
 }
 
 // ---------- Phase 40: coding projects, issues → workflows, checkpoints ----------
+let codeProjectsLoad = 0;
 async function loadCodeProjects(fresh = false) {
+  const generation = ++codeProjectsLoad;
   const sel = $('#pj-ws');
   if (!sel.options.length) {
     const names = [...new Set(['main', ...(state.conversations ?? []).map((c) => c.workspace).filter(Boolean)])];
     sel.replaceChildren(...names.map((n) => new Option(n, n)));
   }
   const ws = sel.value || 'main';
+  const isCurrent = () => generation === codeProjectsLoad && (sel.value || 'main') === ws;
   const box = $('#pj-list');
   box.replaceChildren(el('p', 'muted small', t('Looking…')));
   let v;
   try {
     v = await api(`/code-projects?workspace=${encodeURIComponent(ws)}${fresh ? '&fresh=1' : ''}`);
   } catch (err) {
+    if (!isCurrent()) return;
     return box.replaceChildren(el('p', 'muted small', err.message));
   }
+  if (!isCurrent()) return;
   if (!v.projects.length) return box.replaceChildren(emptyState({ icon: 'project', text: t('No code here yet. When a repository is in this workspace (cloned, or made in a coding conversation), she learns it.'), howto: true }));
   box.replaceChildren(
     ...v.projects.map((k) => {
@@ -12718,31 +12724,58 @@ async function loadCodeProjects(fresh = false) {
       }
       if (f.conventions.length) card.append(el('span', 'muted', `${t('Conventions')}: ${f.conventions.join('; ')}`));
       const notes = el('ul', 'pj-notes');
-      for (const n of k.notes) {
-        const li = el('li');
-        const del = el('button', 'ghost small', '✕');
-        del.type = 'button';
-        del.title = t('Remove this note');
-        del.addEventListener('click', async () => {
-          await api(`/code-projects/notes/${n.id}`, { method: 'DELETE' });
-          void loadCodeProjects();
-        });
-        li.append(el('span', '', `(${t(n.kind)}) ${n.text}`), del);
-        notes.append(li);
-      }
       const add = el('div', 'add-row');
       const kind = document.createElement('select');
       kind.append(...['decision', 'convention', 'command', 'note'].map((x) => new Option(t(x[0].toUpperCase() + x.slice(1)), x)));
       const inp = Object.assign(document.createElement('input'), { maxLength: 500, placeholder: t('e.g. Run npm run build before the tests') });
       const go = el('button', 'ghost small', t('Add note'));
       go.type = 'button';
+      const noteStatus = el('p', 'muted small');
+      noteStatus.setAttribute('role', 'status');
+      noteStatus.setAttribute('aria-live', 'polite');
+      let noteBusy = false;
+      function noteControls() {
+        for (const control of [kind, inp, go, ...notes.querySelectorAll('button')]) control.disabled = noteBusy;
+      }
+      async function writeNote(action) {
+        if (noteBusy || !isCurrent()) return;
+        noteBusy = true;
+        noteStatus.textContent = '';
+        noteControls();
+        try { await action(); }
+        catch (err) { if (isCurrent()) noteStatus.textContent = err.message; }
+        finally { noteBusy = false; noteControls(); }
+      }
+      function renderNotes() {
+        notes.replaceChildren(...k.notes.map((n) => {
+          const li = el('li');
+          const del = el('button', 'ghost small', '✕');
+          del.type = 'button';
+          del.title = t('Remove this note');
+          del.addEventListener('click', () => writeNote(async () => {
+            await api(`/code-projects/notes/${n.id}`, { method: 'DELETE' });
+            if (!isCurrent()) return;
+            k.notes = k.notes.filter(note => note.id !== n.id);
+            renderNotes();
+          }));
+          li.append(el('span', '', `(${t(n.kind)}) ${n.text}`), del);
+          return li;
+        }));
+        noteControls();
+      }
       go.addEventListener('click', async () => {
         if (!inp.value.trim()) return;
-        await api('/code-projects/notes', { method: 'POST', body: { workspace: ws, path: k.path, kind: kind.value, text: inp.value } });
-        void loadCodeProjects();
+        await writeNote(async () => {
+          const note = await api('/code-projects/notes', { method: 'POST', body: { workspace: ws, path: k.path, kind: kind.value, text: inp.value } });
+          if (!isCurrent()) return;
+          k.notes = [...k.notes.filter(n => n.id !== note.id), note].sort((a, b) => a.id - b.id).slice(-40);
+          inp.value = '';
+          renderNotes();
+        });
       });
+      renderNotes();
       add.append(kind, inp, go);
-      card.append(el('strong', 'small', t('Her notes')), notes, add);
+      card.append(el('strong', 'small', t('Her notes')), notes, add, noteStatus, renderProjectCheckpoint({ workspace: ws, path: k.path, api, t }));
       return card;
     }),
   );
@@ -12751,9 +12784,6 @@ $('#pj-ws').addEventListener('change', () => loadCodeProjects());
 $('#pj-refresh').addEventListener('click', () => loadCodeProjects(true));
 // Phase 86: "Before you ship": red-team the chosen project (the plan with its budget comes first).
 $('#pj-redteam').addEventListener('click', () => void openRedTeam({ workspace: $('#pj-ws').value || 'main' }));
-document.addEventListener('click', (e) => {
-  if (e.target.closest?.('#settings-nav-list [data-page="ab-projects"]')) void loadCodeProjects();
-});
 
 async function loadTeamIssues() {
   const list = $('#team-issues');

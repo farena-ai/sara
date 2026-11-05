@@ -291,9 +291,18 @@ test('never breaks a write: broken checker → one "Couldn\'t check" line; a mis
   mergePrecise(app, {});
   app.settings.update({ precise: { checks: { waitS: 0.3, timeoutS: 30 } } } as never);
   writeFileSync(join(ws, 'fake-mode.txt'), 'sleep:1500');
+  const beforeSlow = checksDb(app).runs('main', '.', 1)[0]?.id ?? 0;
+  const slowDeadline = Date.now() + preciseSettings(app).checks.timeoutS * 1000;
   await turn(app, conv.id, 'slow', [[call('e3', 'write_file', { path: 'src/s.ts', content: 'export {};\n' })], [call('r1', 'list_dir', { path: '.' })], text('ok')]);
   const r2 = tools(app, conv.id);
   assert.match(r2.at(-2)!.content, /\[Still checking \(tsc, 0\.3 s so far\): the result comes with your next step\.\]/);
+  // A turn can finish before its late checker. Keep this mode until that child has
+  // exited and its result is recorded, so the next subcase cannot queue behind it.
+  while ((checksDb(app).runs('main', '.', 1)[0]?.id ?? 0) === beforeSlow) {
+    assert.ok(Date.now() < slowDeadline, 'slow checker finishes within its existing timeout');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.equal(checksDb(app).runs('main', '.', 1)[0].state, 'ok');
   // Timeout: killed, said once.
   app.settings.update({ precise: { checks: { waitS: 15, timeoutS: 0.5 } } } as never);
   writeFileSync(join(ws, 'fake-mode.txt'), 'sleep:5000');

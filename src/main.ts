@@ -48,6 +48,7 @@ import { priceTable, UsageStore } from './usage.ts';
 import { RunStore, runSettings } from './runs.ts';
 import { createStarterTool } from './starters.ts';
 import { createProjectNoteTool, ProjectKnowledgeStore } from './projectknow.ts';
+import { createProjectCheckpointTool } from './project-checkpoints.ts';
 import { createSettingsGuideTool } from './settingsguide.ts';
 import { findToolsTool } from './lean.ts';
 import { createReviewTools } from './codereview.ts';
@@ -829,6 +830,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     dataDir: dir,
     rootDir: space.dir,
     companionId: id,
+    demo: isDemo,
     companions: space.companions,
     tools,
     approvals: new ApprovalBroker(),
@@ -1075,6 +1077,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   // Phase 40: project knowledge, review mode, GitHub issues as tasks (watching is off by default).
   app.projects = new ProjectKnowledgeStore(app, store.db);
   if (!isMember) tools.add(createProjectNoteTool(() => app));
+  if (!isMember && !isDemo) tools.add(createProjectCheckpointTool(() => app));
   tools.add(createSettingsGuideTool());
   // Phase 123 (LEAN §4.7): she looks up and loads tools she wasn't sent (offered in lean turns only).
   tools.add(findToolsTool());

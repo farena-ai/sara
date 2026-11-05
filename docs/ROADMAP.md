@@ -3,6 +3,25 @@
 Sara was built in phases, each one released, tested and documented before the next began. Every
 version's details are in the [changelog](../CHANGELOG.md).
 
+## Project continuity and conversational attunement in 2.67.0
+
+Save explicit project checkpoints with current logic, blockers and up to three next steps,
+then inspect, replace or clear them. Brief explicit energy/frustration cues and source-aware
+follow-up closure improve conversational context; existing privacy, opt-outs and model limits
+remain. See [Project continuity](FOR_CODERS.md#project-checkpoints) and [Recent cues and follow-ups](ATTUNEMENT.md).
+
+## Next: continuity and shared experiences (in development)
+
+Coherent presence across eligible owner sessions/channels is now in development, starting with
+scoped internal context and ordering. Shared roleplay scenes and project coordination follow as
+separate slices. These are not released features. Private audiences are not merged by default,
+and development history is not automatically proof that a current check passed.
+
+Voice/video follow-on work will align calls with the same user's text-chat history, memory,
+tools, approvals and enabled adult setting, and add expressive speech such as laughter and sighs
+where the selected engine supports it. Live and classic calls need separate qualification.
+These are roadmap goals; existing privacy, safety and provider limits remain.
+
 ## Business setup and administration in 2.65.0
 
 Guided first use and mode-specific invitation feedback, safe sibling-tab access refresh, a read-only

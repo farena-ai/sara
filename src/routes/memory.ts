@@ -92,7 +92,10 @@ export function createMemoryRoutes(ctx: RouteCtx): RouteHandler {
           const onDate = kind === 'date' ? String(body.onDate ?? '') : null;
           if (kind === 'date' && !parseOnDate(onDate)) throw new HttpError(400, 'Pick a real date.');
           const s2 = app.settings.get();
-          const m = mem.add({ kind, content, onDate, conversationId: null, sourceMessageId: null, happenedOn: localDate(app.now().toISOString(), s2.timeZone), evidence: 'You added this.' });
+          const happenedOn = localDate(app.now().toISOString(), s2.timeZone);
+          const m = ctx.isAuthed(req) && !app.member && !app.demo && !app.offRecord && !opts.demo
+            ? mem.addOwner({ kind, content, onDate, happenedOn })
+            : mem.add({ kind, content, onDate, conversationId: null, sourceMessageId: null, happenedOn, evidence: 'You added this.' });
           // Phase 101 (ST6): "My sister Ana is a nurse" goes on Ana's card (proposed if she's new).
           if (app.people) {
             const about = app.people.aboutFromText(content);

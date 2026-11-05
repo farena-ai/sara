@@ -36,6 +36,17 @@ unfinished effects need explicit review; publication may require manual reconcil
 approval/privacy rules still apply. [Recovery details](RECOVERY.md).
 
 
+## Pending approvals when settings change (2.66)
+
+An Allow applies to the action in its original chat context. Before it starts, Sara checks the
+current tool permission and the chat's workspace, privacy and other execution settings again.
+Turning a tool off or changing that context stops the stale action, including team helpers and
+applying a sandbox copy. Start a new request in the intended context to continue. Valid unchanged
+approvals and scoped grants keep their usual behavior.
+
+Use Stop for work already running. Review completed file changes in project history before
+choosing an available undo action.
+
 ## What a coding turn looks like
 
 <img src="screenshots/ask-first.webp" alt="A coding chat in the tip-calculator workspace: Sara writes tip.js and test.js (a Files changed card) and asks before running node --test, with Allow and Deny in the chat and in her panel, which says Waiting for your OK" width="860">
@@ -56,6 +67,35 @@ Wrote a file ×2 · +4 more*) opens to every command and its output.
 
 *Settings → Coding → Coding projects* sets how chatty she is while working (with a sample line for
 each step), *Quiet when I'm focused*, and what she knows about each project.
+
+## Project checkpoints
+
+Project checkpoints are included in the 2.67.0 public release.
+
+In **Settings → Coding → Coding projects**, open **Project checkpoint** beside a repository's
+notes. Keep the current logic, any blockers and one to three next steps. Save before changing tasks
+or starting a new coding chat. You can also ask Sara to save a checkpoint in an ordinary owner coding
+conversation; she uses `project_checkpoint`, not a background summarizer.
+
+The newest checkpoint can give a fresh coding chat in the same unambiguous project its context,
+even after a restart or chat compaction. With several nested repositories, ask her to read the
+checkpoint for the particular project path. It is a historical handoff: file state and test results
+still need checking. Saving it runs no commands and carries no earlier approvals forward.
+
+The editor shows the saved content and up to five recent versions. **Replace** saves a new version;
+**Clear** removes that project's checkpoint history after confirmation. If another tab saved first,
+your draft stays put. Review it before explicitly reloading the saved checkpoint. Removing a
+checkpoint does not rewrite earlier chat messages or run records that already showed its text.
+
+Checkpoints stay in this companion's local data and backups, scoped to workspace and project.
+They become context for the model selected for allowed coding chats, under the normal provider
+policy; **Nothing leaves this computer** still supports local checkpoint storage. Private and
+off-record chats, shared/group/external-app requests, household members, the demo and business mode
+do not use this owner feature. Keep passwords and keys in Secrets, not a checkpoint.
+
+A checkpoint derived from a conversation is removed if its source chat is deleted or a covered
+message is edited, removed or forgotten. After forgetting source messages, use a fresh coding chat
+or enter a reviewed checkpoint yourself in the editor. Compaction alone preserves the checkpoint.
 
 ## Checks after her edits, and @-references (2.53)
 

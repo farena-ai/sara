@@ -87,7 +87,7 @@ function makeTours() {
       { sel: '#st-dials', title: t('Personality dials'), text: t('Slide each dial toward the words that fit her. The middle is balanced. Each dial has its own ? with examples.') },
       { sel: '#st-life', title: t('Her life'), text: t('Her job, home, family and interests give her things to talk about and a day of her own.') },
       { sel: '#st-try', title: t('Try it'), text: t('Hear how she would answer a few everyday moments, before you save.') },
-      { sel: '#settings-hint', title: t('Saves by itself'), text: t('Every change saves by itself and shows Saved. Typed text saves when you leave the box.') },
+      { sel: '#settings-hint', title: t('Saving settings'), text: t('Most settings save automatically. For project notes and checkpoints, use the Save or confirmation buttons shown.') },
     ],
     models: [
       { sel: '#jobs-recommend', title: t('Use recommended'), text: t('One press picks a sensible model for every job from the ones you have connected.'), before: settingsAt('models-routes') },

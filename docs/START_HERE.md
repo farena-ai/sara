@@ -4,6 +4,10 @@ Eight small steps, about ten minutes, from the first sign-in to a Sara that feel
 here needs a terminal after the install. Coming to write code with her? Read [For coders](FOR_CODERS.md)
 instead (the first three steps are the same).
 
+For recent explicit tiredness/frustration cues, their privacy controls and how automatic follow-ups
+recognize an answer, see [Recent cues and follow-ups](ATTUNEMENT.md). Check its release status before
+expecting development-candidate behavior on an older installation.
+
 > Not installed yet? [Install Sara](INSTALL.md) first (Linux, Docker, Windows, macOS or a NAS), and
 > check [what computer you need](REQUIREMENTS.md).
 

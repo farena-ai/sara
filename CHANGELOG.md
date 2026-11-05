@@ -5,6 +5,61 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.67.0 (2026-11-05): continuity and conversational attunement
+
+Includes the checkpoint and coding hardening work planned for2.66.0, which was not published as
+a separate public release. Earlier qualification evidence remains separate from this release's gates.
+
+- **Recent explicit cues:** normal owner chat/coding replies can adapt to bounded current fatigue,
+  task frustration or directed conflict without treating software criticism as a personal attack.
+  Six-language rules, corrections, current-source rechecks and original expiry use the existing
+  inner-life opt-out. No extra classifier call or separate durable owner mood profile is added.
+- **Character privacy:** newly built prompts omit historical raw disagreement quotations; true
+  owner conflict/apology reactions and ordinary private owner interaction retain their character
+  behavior. External/untrusted and unknown queued origins do not mutate owner-derived state.
+- **Qualified follow-ups:** explicit event outcomes/cancellation/decline replace loose name overlap.
+  Current source ownership, workspace, privacy and chronology are revalidated, including changes
+  during proactive generation. Cancelled or revoked dates do not post or update delivery state;
+  actual usage is still recorded. Old/imported notes remain editable without minting owner proof.
+- **Agenda answer provenance:** identifiable question/answer chains and an event-date witness keep
+  direct replies and rescheduled windows honest. Invalid derived completion returns only to Sent,
+  preserving delivery/no-resend and manual authority; unrelated plans retain normal delivery.
+- **Prompt audit and replay:** final transient notes and input hashes reflect the actual handoff
+  after preparation/approval. Replays omit new transient notes and report changed inputs while
+  preserving original inspection records. See [Recent cues and follow-ups](docs/ATTUNEMENT.md) for
+  limits, opt-outs, source invalidation and existing history/export/backup retention.
+
+- **Project continuity:** explicit project checkpoints keep current logic, blockers and up to three
+  next steps, with bounded history and owner inspect/replace/clear controls. New coding chats can
+  recover historical context without replaying commands or old approvals. Source deletion, covered
+  edits and forgetting invalidate derived records; private/off-record/shared/external contexts are
+  excluded. Checkpoint changes run no commands and carry no earlier approvals forward.
+- **Pending coding authority:** normal turns and team helpers recheck current permissions, tool
+  availability and their original conversation/workspace context before execution and sandbox
+  application. Changed context stops stale planning; valid unchanged approvals and scoped grants
+  retain their existing behavior. Already-started work uses the existing Stop/undo controls.
+- **Windows build provenance:** Git-backed installer builds record their actual source revision
+  even with Git Bash argument conversion disabled. A failed expected Git lookup stops packaging;
+  historyless source archives do not borrow a parent repository's revision.
+- **Coding project navigation:** opening Coding projects from Settings search loads the project
+  cards through the same route as ordinary Settings navigation.
+- **Coding project reliability:** late responses from a previous workspace cannot replace the
+  newly selected workspace. Adding or removing project notes preserves unsaved checkpoint drafts.
+- **Off-record privacy:** off-record coding contexts do not read the persistent project-knowledge
+  store inherited from the ordinary app context.
+- **Release presentation discipline:** local release collection checks that all six README status
+  lines, newest release summaries and primary download/install/star links match the release before
+  changing artifact output. No CI or recurring release watcher is introduced.
+- **Publisher hardening carried forward from the unpublished 2.66 candidate:** author and committer privacy checks compare actual
+  email fields exactly in both full-release and README-only modes.
+
+## GitHub presentation update (2026-11-05; published separately from software 2.65.0)
+
+- **GitHub presentation and publishing:** refreshed all six README entry pages with download,
+  install and star links, current release highlights and folded history. The checked publisher
+  supports an explicitly requested six-README-only update without changing software releases.
+  This six-README-only update was published without changing the 2.65.0 software release.
+
 ## 2.65.0 (2026-11-04): guided business setup and invitation management
 
 - **Business first use and administration:** mode-specific name/adult/code guidance, scoped next

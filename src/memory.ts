@@ -2,6 +2,8 @@
 // source turn, searched with SQLite FTS5 and injected under a small fixed budget. No embeddings, no
 // second model.
 import type { DatabaseSync } from 'node:sqlite';
+import type { AppContext } from './chat.ts';
+import { ownerEvidenceConversation, pendingOwnerEvents, type OwnerEvidenceTurn } from './owner-evidence.ts';
 import { bracketNote, DEFAULT_DECAY, type DecayPolicy, matchedWords, type PickNote, pickNote, policyId, type PolicyWithId, PRESET_HALF_LIFE, queryWords, rankMemories } from './memory-rank.ts';
 
 /**
@@ -20,6 +22,7 @@ export const MEMORY_KINDS: MemoryKind[] = ['summary', 'fact', 'self', 'date', 'r
 export interface Memory {
   id: number;
   kind: MemoryKind;
+  origin?: 'owner' | 'derived' | null;
   content: string;
   conversationId: string | null;
   /** Fact: the owner's message it came from. Summary: last message covered. */
@@ -94,6 +97,7 @@ function toMemory(r: Row): Memory {
   return {
     id: Number(r.id),
     kind: r.kind as MemoryKind,
+    origin: r.origin === 'owner' || r.origin === 'derived' ? r.origin : null,
     content: String(r.content),
     conversationId: (r.conversation_id as string | null) ?? null,
     sourceMessageId: r.source_message_id === null ? null : Number(r.source_message_id),
@@ -131,19 +135,31 @@ export class MemoryStore {
     this.db = db;
     this.#now = now;
     db.exec(SCHEMA);
+    const hasOrigin = (db.prepare('PRAGMA table_info(memories)').all() as { name: string }[]).some((c) => c.name === 'origin');
+    if (!hasOrigin) {
+      db.exec('ALTER TABLE memories ADD COLUMN origin TEXT');
+    }
     // Phase 12 columns (added in place on older databases).
     const cols = new Set((db.prepare('PRAGMA table_info(memories)').all() as { name: string }[]).map((c) => c.name));
     for (const [c, type] of [['on_date', 'TEXT'], ['superseded_by', 'INTEGER'], ['mentioned_on', 'TEXT'], ['resolved_at', 'TEXT'], ['source_doc_id', 'INTEGER'], ['pinned', 'INTEGER NOT NULL DEFAULT 0'], ['last_used_on', 'TEXT'], ['use_count', 'INTEGER NOT NULL DEFAULT 0'], ['archived', 'INTEGER NOT NULL DEFAULT 0']]) if (!cols.has(c)) db.exec(`ALTER TABLE memories ADD COLUMN ${c} ${type}`);
+    if (!hasOrigin) db.exec("UPDATE memories SET origin = 'derived' WHERE conversation_id IS NOT NULL OR source_message_id IS NOT NULL OR source_from_id IS NOT NULL OR source_doc_id IS NOT NULL");
   }
 
   add(m: { kind: MemoryKind; content: string; conversationId: string | null; sourceMessageId: number | null; sourceFromId?: number | null; happenedOn: string; evidence?: string | null; onDate?: string | null; sourceDocId?: number | null }): Memory {
     const ts = this.#now().toISOString();
     const r = this.db
       .prepare(
-        'INSERT INTO memories (kind, content, conversation_id, source_message_id, source_from_id, happened_on, evidence, on_date, source_doc_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        "INSERT INTO memories (kind, content, conversation_id, source_message_id, source_from_id, happened_on, evidence, on_date, source_doc_id, created_at, updated_at, origin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'derived')",
       )
       .run(m.kind, m.content, m.conversationId, m.sourceMessageId, m.sourceFromId ?? null, m.happenedOn, m.evidence ?? null, m.onDate ?? null, m.sourceDocId ?? null, ts, ts);
     return this.get(Number(r.lastInsertRowid))!;
+  }
+
+  /** Authenticated owner editor only; generic writers and imports never mint this marker. */
+  addOwner(m: { kind: MemoryKind; content: string; happenedOn: string; onDate?: string | null }): Memory {
+    const memory = this.add({ kind: m.kind, content: m.content, happenedOn: m.happenedOn, onDate: m.onDate, conversationId: null, sourceMessageId: null, evidence: 'You added this.' });
+    this.db.prepare("UPDATE memories SET origin = 'owner' WHERE id = ?").run(memory.id);
+    return this.get(memory.id)!;
   }
 
   get(id: number): Memory | undefined {
@@ -428,22 +444,17 @@ export function datesNote(mem: MemoryStore, today: string, days = 14, allow?: (m
 }
 
 /**
- * Phase 37: things that just happened in the owner's life that they haven't talked about since
- * (no owner message after the day mentions it), for her to ask how they went.
+ * Eligible recent events with no clear attributable outcome in the bounded owner evidence.
+ * Topic mentions alone leave the event pending; matching competitors are evaluated together.
  */
-export function followUps(mem: MemoryStore, today: string, ownerSince: (sinceDay: string) => string[]): { memory: Memory; daysAgo: number; date: string }[] {
-  const STOP = new Set(['with', 'from', 'that', 'this', 'have', 'will', 'their', 'there', 'about', 'appointment', 'today', 'tomorrow', 'week', 'morning', 'evening', 'afternoon', 'flies', 'going']);
-  return mem.recentPast(today).filter((p) => {
-    const words = (p.memory.content.toLowerCase().match(/[a-z0-9']{4,}/g) ?? []).map((w) => w.replace(/'s$/, '')).filter((w) => !STOP.has(w));
-    if (!words.length) return true;
-    const said = ownerSince(p.date).join(' ').toLowerCase();
-    return !words.some((w) => said.includes(w));
-  });
+export function followUps(app: AppContext, conversationId: string, today: string, turn?: OwnerEvidenceTurn): { memory: Memory; daysAgo: number; date: string }[] {
+  if (!ownerEvidenceConversation(app, conversationId, turn) || !app.memory || app.settings.get().memory?.enabled === false) return [];
+  return pendingOwnerEvents(app, conversationId, app.memory.recentPast(today), turn);
 }
 
 export function followUpsNote(items: { memory: Memory; daysAgo: number; date: string }[], owner: string): string | undefined {
   if (!items.length) return undefined;
-  return `${items.map((p) => `- ${p.daysAgo === 1 ? 'Yesterday' : `${p.daysAgo} days ago`}: ${p.memory.content}`).join('\n')}\n${owner} told you about this before it happened and hasn't told you how it went. You care, so ask about it early in this conversation, in your own words (one at a time if there are several), unless ${owner} brings up something urgent.`;
+  return `${items.map((p) => `- ${p.daysAgo === 1 ? 'Yesterday' : `${p.daysAgo} days ago`}: ${p.memory.content}`).join('\n')}\nNo clear outcome was found in eligible recent messages. Ask only if still relevant, in your own words (one at a time if there are several); do not repeat if answered here or if ${owner} brings up something urgent.`;
 }
 
 // ---- per-turn selection (3.4) ----

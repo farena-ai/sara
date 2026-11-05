@@ -1215,10 +1215,11 @@ function safeTarget(ws: string, rel: string): string | undefined {
  * (a conflict); git internals, hooks and dependency folders are never written. The copy goes
  * afterwards. Records the M3 workspace manifest before and after.
  */
-export async function applySandbox(r: SandboxResult): Promise<ApplyResult> {
+export async function applySandbox(r: SandboxResult, beforeApply?: () => void): Promise<ApplyResult> {
   if (!r.copyDir || !existsSync(r.copyDir)) throw new Error('This sandbox try is no longer there to apply.');
   const ws = r.workspaceDir;
   const refBefore = await workspaceRef(ws).catch(() => undefined);
+  beforeApply?.();
   const out: ApplyResult = { written: [], removed: [], conflicts: [], refused: [] };
   const realNow = statTree(ws);
   const start = r.realAtStart ?? new Map<string, FileStat>();

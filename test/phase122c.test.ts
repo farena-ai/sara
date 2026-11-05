@@ -384,6 +384,7 @@ test('basic mode: no typing/react/edit calls; a steer gets a line; groups by nam
   // A long turn: the working line at 20 s ends "Send /stop to stop."; a steer gets a text line.
   let open: () => void = () => undefined;
   const gate = new Promise<void>((res) => (open = res));
+  let longTurnStarted = false;
   const realRun = r.app.runTracked!;
   r.app.runTracked = async (id, content, onEvent, opts) => {
     if (!/long job/.test(String(content))) return realRun(id, content, onEvent, opts);
@@ -391,12 +392,14 @@ test('basic mode: no typing/react/edit calls; a steer gets a line; groups by nam
     const { pendingFor } = await import('../src/pending.ts');
     pendingFor(r.app).turnStarted(id);
     onEvent({ type: 'tool_call', id: 'c1', name: 'web_search', args: { query: 'pnpm' } } as unknown as ChatEvent);
+    longTurnStarted = true;
     await gate;
     pendingFor(r.app).turnEnded(id);
     onEvent({ type: 'token', text: 'All done.' } as ChatEvent);
   };
   r.bb.incoming(OWNER, 'a long job please');
-  await pause(400);
+  // The bridge registers its working timer before runTracked; wait for that turn before moving time.
+  assert.ok(await until(() => longTurnStarted), 'the long turn started with its working timer registered');
   await clock.advance(25_000);
   assert.ok(await until(() => sent(r).some((x: string) => /Send \/stop to stop\.$/.test(x))), `the working line: ${sent(r).join(' | ')}`);
   r.bb.incoming(OWNER, 'use pnpm instead');

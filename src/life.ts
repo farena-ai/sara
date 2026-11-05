@@ -11,10 +11,10 @@ import type { RoutePurpose } from './settings.ts';
 import { awayLine, CONFLICT } from './bond.ts';
 import { lifeLines } from './traits.ts';
 import { describeInner, type InnerStore } from './inner.ts';
-import { followUps, datesNote, selectMemories } from './memory.ts';
+import { datesNote, selectMemories } from './memory.ts';
 import { isForgotten, localDate } from './memory-worker.ts';
 import { buildSystemPrompt } from './persona.ts';
-import { dayStartUtc, zonedParts } from './planner.ts';
+import { zonedParts } from './planner.ts';
 import type { ChatMessage } from './providers/types.ts';
 import { checkClaims } from './receipts.ts';
 import { detectMinorSexualContent, disclosureDue, disclosureText } from './safety.ts';
@@ -22,6 +22,7 @@ import { personalize } from './identity.ts';
 import { identityOf } from './persona.ts';
 import type { Conversation } from './store.ts';
 import { usageScope } from './usage.ts';
+import { ownerEvidenceConversation, ownerEventMemory, pendingOwnerEvents } from './owner-evidence.ts';
 
 export interface ProactiveSettings {
   enabled: boolean;
@@ -309,17 +310,26 @@ export class LifeWorker {
     const gapH = (now.getTime() - lastOwner.getTime()) / 3_600_000;
     if (gapH < cfg.minGapHours) return { skipped: 'talked recently' };
     if (state.lastProactiveAt && (now.getTime() - new Date(state.lastProactiveAt).getTime()) / 3_600_000 < cfg.minGapHours) return { skipped: 'texted recently' };
-    const conv = targetConversation(app);
+    const conv = app.store.listConversations().find((c) => c.mode === 'chat' && ownerEvidenceConversation(app, c.id));
     if (!conv) return { skipped: 'no chat' };
     if (app.isBusy?.(conv.id)) return { skipped: 'busy' };
     const msgs = app.store.messages(conv.id).filter((m) => !isForgotten(m) && m.role !== 'notice');
     const last = msgs.at(-1);
     // Never double-text: if her last proactive message is still unanswered, wait.
     if (last?.role === 'assistant' && last.meta?.proactive) return { skipped: 'unanswered' };
+    // Evaluate the whole date batch before selection so ambiguous outcomes stay ambiguous.
+    const pendingDates = () => {
+      const day = localDate(app.now().toISOString(), tz);
+      return app.memory ? pendingOwnerEvents(app, conv.id, [
+        ...app.memory.upcoming(day, 14).map((p) => ({ memory: p.memory, date: p.date, daysAgo: 0 })),
+        ...app.memory.recentPast(day),
+      ]) : [];
+    };
+    const pending = pendingDates();
     // Phase 12: a date that matters is today and she hasn't brought it up yet.
-    const dateToday = app.memory?.upcoming(today, 0).find((u) => u.memory.mentionedOn !== today)?.memory;
+    const dateToday = pending.find((p) => p.date === today && p.memory.mentionedOn !== today)?.memory;
     // Phase 37: something that just happened in the owner's life, not followed up yet (she asks how it went).
-    const followUp = dateToday ? undefined : app.memory ? followUps(app.memory, today, (day) => app.store.ownerMessagesSince(dayStartUtc(day, app.settings.get().timeZone).toISOString())).find((p) => !p.memory.mentionedOn || p.memory.mentionedOn < p.date) : undefined;
+    const followUp = dateToday ? undefined : pending.find((p) => p.daysAgo > 0 && (!p.memory.mentionedOn || p.memory.mentionedOn < p.date));
     // Don't fire the instant she becomes eligible; feel less like a timer.
     if (!dateToday && !followUp && this.#random() > 0.25) return { skipped: 'not this time' };
 
@@ -336,6 +346,7 @@ export class LifeWorker {
           : `${owner} has been quiet for a few hours and something made you think of them.`;
     const lastSummary = app.memory?.list({ kind: 'summary', limit: 1 })[0]?.content ?? '';
     const injection = app.memory ? selectMemories(app.memory, { userText: `${lastSummary} ${agenda}`, conversationId: '', oldestHistoryId: Number.MAX_SAFE_INTEGER, budgetChars: 1200, notes: false }) : undefined;
+    const dateMemories = pending.filter((p) => p.daysAgo === 0).slice(0, 6).map((p) => p.memory);
     const system = buildSystemPrompt(app.persona, {
       now,
       timeZone: tz,
@@ -344,15 +355,28 @@ export class LifeWorker {
       agenda: agenda || undefined,
       inner: describeInner(state, now, tz, owner, { gapHours: gapH, daysKnown: null, away: awayLine(app.persona.away), conflict: app.persona.conflict ? CONFLICT[app.persona.conflict]?.line : undefined }),
       day: this.#life.get(today),
-      dates: app.memory ? datesNote(app.memory, today) : undefined,
+      dates: app.memory && app.settings.get().memory?.enabled !== false ? datesNote(app.memory, today, 14, (m) => dateMemories.some((d) => d.id === m.id)) : undefined,
       threads: threadsNote(this.#life),
       ...bondContext(app, state.closeness),
       language: languageLine(talkLanguage(s, app.store.ownerMessagesSince(new Date(now.getTime() - 7 * 86_400_000).toISOString())[0])),
     });
     const note = `[Note from the app, not from ${owner}: ${owner} hasn't written for ${gapH < 48 ? `${Math.round(gapH)} hours` : `${Math.round(gapH / 24)} days`}. ${reason} You decide to text ${owner} first, the way someone close would. Write only the message: 1 to 3 short, natural sentences, specific to something real (your day, something from your memories, or the list). No greeting card tone, no questions stacked up, don't mention this note. If nothing feels natural to send right now, reply with exactly SKIP.]`;
     const history = historyFrom(msgs.slice(-20)).filter((m) => m.role === 'user' || (m.role === 'assistant' && m.content.trim())).map((m) => ({ role: m.role, content: m.content }) as ChatMessage);
+    const selected = dateToday ?? followUp?.memory;
+    const selectedSnapshot = selected ? JSON.stringify(selected) : undefined;
+    const stillEligible = () => {
+      const current = ownerEvidenceConversation(app, conv.id);
+      if (!current || current.workspace !== conv.workspace || !innerEnabled(app) || !proactiveSettings(app).enabled) return false;
+      const pendingNow = pendingDates();
+      if (dateMemories.some((m) => !ownerEventMemory(app, conv.id, m) || !pendingNow.some((p) => p.memory.id === m.id))) return false;
+      if (selected && (app.settings.get().memory?.enabled === false || !ownerEventMemory(app, conv.id, selected) || JSON.stringify(app.memory?.get(selected.id)) !== selectedSnapshot)) return false;
+      if (selected && !pendingNow.some((p) => p.memory.id === selected.id && p.date === (followUp?.date ?? today))) return false;
+      return true;
+    };
+    if (!stillEligible()) return { skipped: 'source or context changed' };
     const text = (await complete(app, conv, [{ role: 'system', content: system }, ...history, { role: 'user', content: note }], MSG_MAX_TOKENS, 'quick')).replace(/^["']|["']$/g, '').trim();
 
+    if (!stillEligible()) return { skipped: 'source or context changed' };
     if (!text || /^skip\b/i.test(text) || text.length > 1200) {
       this.#holdUntil = now.getTime() + 2 * 60 * 60_000;
       return { skipped: 'model chose not to' };

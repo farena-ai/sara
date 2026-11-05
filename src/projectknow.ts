@@ -14,6 +14,7 @@ import { GIT_SAFE } from './tools/coding.ts';
 import { repoFromRemote } from './tools/github.ts';
 import { ToolError, type Tool } from './tools/types.ts';
 import { resolveInside, workspaceDir } from './tools/workspace.ts';
+import { ProjectCheckpointStore } from './project-checkpoints.ts';
 
 export interface ProjectFacts {
   /** Folder of the repository inside the workspace ('.' for the workspace itself). */
@@ -195,12 +196,14 @@ export function scanProject(ws: string, dir: string): ProjectFacts {
 const FRESH_MS = 3600_000;
 
 export class ProjectKnowledgeStore {
+  readonly checkpoints: ProjectCheckpointStore;
   readonly #db: DatabaseSync;
   readonly #app: AppContext;
 
   constructor(app: AppContext, db: DatabaseSync) {
     this.#app = app;
     this.#db = db;
+    this.checkpoints = new ProjectCheckpointStore(app, db);
     db.exec(`
 CREATE TABLE IF NOT EXISTS project_knowledge (
   workspace TEXT NOT NULL,
@@ -221,6 +224,11 @@ CREATE TABLE IF NOT EXISTS project_notes (
 
   #ws(workspace: string): string {
     return workspaceDir(this.#app.rootDir ?? this.#app.dataDir, workspace);
+  }
+
+  /** Existing canonical keys only: checkpoint operations must never trigger project scans. */
+  knownPaths(workspace: string): string[] {
+    return (this.#db.prepare('SELECT path FROM project_knowledge WHERE workspace = ? ORDER BY path').all(workspace) as { path: string }[]).map(row => row.path);
   }
 
   /** What she knows about every project in a workspace (looks again when older than an hour or `fresh`). */

@@ -29,6 +29,7 @@ import { DEFAULT_SECURITY, mergeSecurity, REVIEW_BUDGET_CHOICES, SECURITY_MODES,
 import { DEFAULT_THREATS, mergeThreats, THREAT_MODES, threatSettings } from '../security/threats.ts';
 import { DEFAULT_REDTEAM, mergeRedteam, redteamSettings, RT_BUDGET_CHOICES, RT_MINUTE_CHOICES, SCRIPT_CHOICES, SHIP_MODES } from '../redteam.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { CheckpointError, checkpointKeys } from '../project-checkpoints.ts';
 
 export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
   const { active, app, me, opts, projectOrThrow, rootDir } = ctx;
@@ -619,6 +620,25 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, { ok: true });
       }
       if (method === 'POST' && b === 'check') return send(res, 200, { found: (await checkIssues(app)).length });
+    }
+    if (a === 'code-projects' && b === 'checkpoints' && !c) {
+      if (opts.demo || opts.member || app.demo || app.member || app.offRecord) throw new HttpError(403, 'Project checkpoints are available only in your own coding space.');
+      const checkpoints = app.projects?.checkpoints;
+      if (!checkpoints) throw new HttpError(404, 'Project checkpoints are unavailable.');
+      try {
+        if (method === 'GET') {
+          const q = new URL(req.url ?? '/', 'http://x').searchParams;
+          return send(res, 200, checkpoints.view(q.get('workspace') as string, q.get('path') as string));
+        }
+        if (method !== 'POST' && method !== 'DELETE') throw new HttpError(405, 'Method not allowed');
+        const body = await readJson(req);
+        checkpointKeys(body, method === 'POST' ? ['workspace', 'path', 'logic', 'blockers', 'nextSteps', 'expectedId'] : ['workspace', 'path', 'expectedId']);
+        if (method === 'DELETE') { checkpoints.clear(body.workspace as string, body.path as string, body.expectedId as number); return send(res, 200, { ok: true }); }
+        return send(res, 200, checkpoints.save(body.workspace as string, body.path as string, { logic: body.logic as string, blockers: body.blockers as string[], nextSteps: body.nextSteps as string[] }, body.expectedId as number, null));
+      } catch (err) {
+        if (err instanceof CheckpointError) throw new HttpError(err.status, err.message);
+        throw err;
+      }
     }
     if (a === 'code-projects' && app.projects) {
       const url = new URL(req.url ?? '/', 'http://x');

@@ -12,6 +12,7 @@ import type { Conversation } from './store.ts';
 import type { Tool } from './tools/types.ts';
 import type { ToolSpec } from './providers/types.ts';
 import type { DatabaseSync } from 'node:sqlite';
+import { checkpointAllowed } from './project-checkpoints.ts';
 
 // ---------------------------------------------------------------------------------------------
 // Settings (owner-only; `lean` in OWNER_SETTINGS), §3.3
@@ -582,12 +583,13 @@ export function schemaHint(tool: Tool): string {
 // ---------------------------------------------------------------------------------------------
 
 /** The eligible list for an owner chat, the main gates of runTurn applied (no model, no turn). */
-export function eligibleFor(app: AppContext, conv: Pick<Conversation, 'private' | 'partner' | 'channel' | 'mode'>): Tool[] {
+export function eligibleFor(app: AppContext, conv: Pick<Conversation, 'private' | 'partner' | 'channel' | 'mode'> & Partial<Pick<Conversation, 'channelKey'>>): Tool[] {
   if (conv.partner) return [];
   const s = app.settings.get();
   const OFF = (n: string) => n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'delegate_task' || n === 'git_push' || /^(home_|mcp_|gmail_|calendar_|github_)/.test(n);
   const work = conv.channel.endsWith('-work');
   let tools = app.tools.enabled(s.toolPermissions).filter((t) => !(conv.private && OFF(t.spec.name)));
+  if (!checkpointAllowed(app, conv)) tools = tools.filter(t => t.spec.name !== 'project_checkpoint');
   if (conv.private || work) tools = tools.filter((t) => !t.spec.name.startsWith('ssh_'));
   if (work) tools = tools.filter((t) => !t.spec.name.startsWith('pc_') && t.spec.name !== 'moments');
   if (conv.private) tools = tools.filter((t) => !t.spec.name.startsWith('agenda_'));

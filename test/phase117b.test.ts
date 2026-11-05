@@ -433,5 +433,5 @@ test('email: forwarded mail is fenced and makes every tool ask first; pictures i
   app.script.push(text('One.'), text('Two.'), text('Three.'));
   for (let i = 0; i < 3; i++) fake.deliver(mail({ from: 'Kim <kim@friends.test>', subject: 'Re: Hello Sara', body: `Thanks! (#${i + 10})`, inReplyTo: '<loop-root@friends.test>', references: ['<loop-root@friends.test>'], ar: [passAr('mx.test', 'friends.test')] }));
   assert.ok(await until(() => pm.store.logs('email').some((l) => /notify/.test(l.detail))), 'the owner was told');
-  assert.ok((skipsOn(app.store.db, 'plugin-email', new Date().toISOString().slice(0, 10)).loop ?? 0) >= 1);
+  assert.ok(await until(() => (skipsOn(app.store.db, 'plugin-email', new Date().toISOString().slice(0, 10)).loop ?? 0) >= 1), 'the loop skip was recorded');
 });

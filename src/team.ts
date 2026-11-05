@@ -3,6 +3,7 @@
 // checks the work (a failing test goes back to the coder, a reviewer's changes too), and reports
 // only what the receipts show. Helpers are not companions: no persona, no relationship, just a
 // named role with its own model (Phase 38 jobs), tools and the same sandbox and approvals.
+import { captureToolScope, assertCurrentScope, assertToolAdmission, ToolAdmissionError, type ToolScope } from './tool-admission.ts';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { type AppContext, preflight, fallbackAfterMs, promptChars, OFFSERVER_TOOL, resolveChain, SlowModelError, streamWithin } from './chat.ts';
@@ -248,7 +249,7 @@ type Row = Record<string, string | number | null>;
 export class TeamManager {
   readonly #app: AppContext;
   readonly #db: DatabaseSync;
-  readonly #runs = new Map<number, { ctl: AbortController; step?: { id: number; ctl: AbortController }; inbox: Map<number, string[]>; approvals: Map<string, PendingApproval>; done: Promise<TeamTask>; answer?: (d: 'go' | 'skip' | 'stop') => void; rec: RunRecorder }>();
+  readonly #runs = new Map<number, { ctl: AbortController; step?: { id: number; ctl: AbortController }; inbox: Map<number, string[]>; approvals: Map<string, PendingApproval>; done: Promise<TeamTask>; answer?: (d: 'go' | 'skip' | 'stop') => void; rec: RunRecorder; scope: ToolScope }>();
   /** Tasks that were running when the server stopped (picked up again by resumeInterrupted). */
   readonly #resumable: number[] = [];
 
@@ -423,7 +424,10 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     // Phase 78: each launch of a team task is a run (each helper's move a step). The usage scope
     // (AsyncLocalStorage, as before) carries the recorder to every model call in it.
     const rec = this.#app.runs && conv && this.#app.store.getConversation(conv) ? new RunRecorder(this.#app.runs, { kind: 'team', conversationId: conv, teamTaskId: id, title: clip(task?.goal ?? '', 120), budget: task?.limits }) : RunRecorder.none();
-    const run = { ctl: new AbortController(), inbox: new Map<number, string[]>(), approvals: new Map<string, PendingApproval>(), done: Promise.resolve(undefined as unknown as TeamTask), rec };
+    const original = conv ? this.#app.store.getConversation(conv) : undefined;
+    if (!original || !task) throw new Error('The original conversation is unavailable.');
+    const scope = captureToolScope(original, task.workspace, privateLocalOn());
+    const run = { scope, ctl: new AbortController(), inbox: new Map<number, string[]>(), approvals: new Map<string, PendingApproval>(), done: Promise.resolve(undefined as unknown as TeamTask), rec };
     this.#runs.set(id, run);
     // Phase 52: every model call in the run counts toward it (the usage meter and its budget).
     run.done = usageScope
@@ -594,6 +598,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     let outcome: TaskStatus = 'done';
     let reason = '';
     try {
+      assertCurrentScope(app, run.scope, run.ctl.signal, task.workspace, privateLocalOn());
       // An undo point for the whole task.
       if (!task.undo) try {
         this.#setTask(id, { undo: app.snapshots.take(task.workspace, wsDir, `before team task #${id}: ${clip(task.goal, 100)}`, task.conversationId).id });
@@ -634,6 +639,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
           this.#saveStep(step);
           continue;
         }
+        assertCurrentScope(app, run.scope, run.ctl.signal, task.workspace, privateLocalOn());
         await this.#runHelper(cur, step, helper, wsDir, started);
         if ((step.status as StepStatus) !== 'done') continue; // (set by #runHelper)
         // The lead checks the work: a failing run goes back to the coder, then gets tested again.
@@ -674,6 +680,23 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
       const wf = this.get(id)!.workflow;
       if (wf?.pr && outcome === 'done' && !wf.prUrl) {
         await this.#checkpoint(id, 'pr', `Open a pull request with these changes${wf.issue ? ` (closes ${wf.issue.repo}#${wf.issue.number})` : ''}?`);
+        try {
+          assertCurrentScope(app, run.scope, run.ctl.signal, task.workspace, privateLocalOn());
+        } catch (err) {
+          if (!(err instanceof ToolAdmissionError) || run.ctl.signal.aborted) throw err;
+          const current = app.store.getConversation(task.conversationId);
+          const reason = current?.private || privateLocalOn() ? 'Pull-request publication is held by the current conversation privacy policy.' : err.message;
+          // Keep completed helpers intact and expose the held publication in the existing step UI.
+          this.#insertStep(id, null, 'lead', 'Pull-request publication held', 'Publication requires the original conversation context.', reason);
+          const held = this.get(id)!.steps.at(-1)!;
+          held.status = 'failed';
+          held.report = reason;
+          held.endedAt = app.now().toISOString();
+          held.receipts = [{ name: 'github_open_pr', status: 'denied', args: {}, output: reason }];
+          this.#saveStep(held);
+          run.rec.tool({ id: 'pr-held', name: 'github_open_pr', summary: 'Pull-request publication held', args: {}, status: 'denied', output: reason, ms: 0, approval: 'denied' });
+          throw new ToolAdmissionError(reason);
+        }
         await this.#pullRequest(this.get(id)!, wsDir, byId);
       }
     } catch (err) {
@@ -704,6 +727,11 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
   async #pullRequest(task: TeamTask, wsDir: string, byId: Map<string, HelperDef>): Promise<void> {
     const app = this.#app;
     const run = this.#runs.get(task.id)!;
+    const currentScope = () => {
+      assertCurrentScope(app, run.scope, run.ctl.signal, task.workspace, privateLocalOn());
+      if (run.scope.conversation.private || privateLocalOn()) throw new ToolAdmissionError('Pull-request publication is held by the current conversation privacy policy.');
+    };
+    currentScope();
     const wf = task.workflow!;
     const repoPath = wf.repoPath && wf.repoPath !== '.' ? wf.repoPath : undefined;
     this.#insertStep(task.id, null, 'lead', 'Open the pull request', 'Commit, push, open the pull request, review it.', null);
@@ -714,21 +742,22 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     const receipts: Receipt[] = [];
     const ctx = { workspaceDir: wsDir, signal: run.ctl.signal, sandbox: { ...app.sandbox, network: app.settings.get().shellNetwork ?? true }, conversationId: task.conversationId, companionName: app.persona.name };
     const call = async (name: string, args: Record<string, unknown>): Promise<string> => {
-      const currentConversation = app.store.getConversation(task.conversationId);
-      if (!currentConversation || currentConversation.private || privateLocalOn() || currentConversation.workspace !== task.workspace) throw new Error('Pull-request publication is held by the current conversation privacy or workspace policy.');
+      currentScope();
       const tool = app.tools.get(name);
       if (!tool || (tool.isAvailable && !tool.isAvailable())) throw new Error(`The ${name} tool isn't available${name.startsWith('github') ? ' (connect GitHub in Settings → Coding → GitHub)' : ''}.`);
       if (app.tools.permission(name, app.settings.get().toolPermissions) === 'never') throw new Error(`The ${name} tool is switched off in Settings.`);
       this.#note(task.id, step.id, `${app.persona.name}: ${app.redactor.redact(tool.summarize(args))}`);
       const t0 = Date.now();
       try {
+        assertToolAdmission(app, run.scope, tool, run.ctl.signal, { workspace: task.workspace, privateLocal: privateLocalOn(), offServer: OFFSERVER_TOOL(name), network: ctx.sandbox.network });
         const out = app.redactor.redact(await tool.run(args, ctx));
         receipts.push({ name, status: 'ok', args, output: out });
         run.rec.tool({ id: `pr-${name}`, name, summary: app.redactor.redact(tool.summarize(args)), args: app.redactor.redactValue(args), status: 'ok', output: out, ms: Date.now() - t0, approval: 'allowed' });
         return out;
       } catch (err) {
-        receipts.push({ name, status: 'error', args, output: `Error: ${(err as Error).message}` });
-        run.rec.tool({ id: `pr-${name}`, name, summary: app.redactor.redact(tool.summarize(args)), args: app.redactor.redactValue(args), status: 'error', output: app.redactor.redact(`Error: ${(err as Error).message}`), ms: Date.now() - t0, approval: 'allowed' });
+        const denied = err instanceof ToolAdmissionError;
+        receipts.push({ name, status: denied ? 'denied' : 'error', args, output: `Error: ${(err as Error).message}` });
+        run.rec.tool({ id: `pr-${name}`, name, summary: app.redactor.redact(tool.summarize(args)), args: app.redactor.redactValue(args), status: denied ? 'denied' : 'error', output: app.redactor.redact(`Error: ${(err as Error).message}`), ms: Date.now() - t0, approval: denied ? 'denied' : 'allowed' });
         throw err;
       } finally {
         step.receipts = receipts;
@@ -758,18 +787,23 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
       if (!url) throw new Error(`Couldn't read the pull request from: ${clip(opened, 200)}`);
       this.#setTask(task.id, { workflow: JSON.stringify({ ...this.get(task.id)!.workflow, prUrl: url[0] }) });
       // Her review of the pull request, posted on it.
+      let reviewCompleted = false;
       try {
         const { getDiff, reviewDiff, formatReview, postReview } = await import('./codereview.ts');
-        const conv = app.store.getConversation(task.conversationId)!;
+        currentScope();
+        const conv = run.scope.conversation;
         const d = await getDiff(app, ctx, { kind: 'pr', number: Number(url[2]), repo: url[1] }, repoPath);
+        currentScope();
         const review = await reviewDiff(app, conv, d.diff, d.label);
         receipts.push({ name: 'review_code', status: 'ok', args: { target: 'pr', number: Number(url[2]) }, output: formatReview(review) });
-        if (app.store.getConversation(task.conversationId)?.private !== false || privateLocalOn()) throw new Error('Pull-request review publication is held by current privacy policy.');
+        reviewCompleted = true;
+        currentScope();
         const posted = await postReview(app, url[1], Number(url[2]), review, run.ctl.signal);
         receipts.push({ name: 'github_post_review', status: 'ok', args: { number: Number(url[2]) }, output: `Posted: ${posted}` });
       } catch (err) {
-        receipts.push({ name: 'review_code', status: 'error', args: {}, output: `Error: ${(err as Error).message}` });
+        receipts.push({ name: reviewCompleted ? 'github_post_review' : 'review_code', status: err instanceof ToolAdmissionError ? 'denied' : 'error', args: {}, output: `Error: ${(err as Error).message}` });
         this.#note(task.id, step.id, `The review couldn't be posted: ${(err as Error).message}`);
+        if (err instanceof ToolAdmissionError) throw err;
       }
       step.status = 'done';
       step.report = `Opened ${url[0]} from ${branch}.`;
@@ -801,7 +835,9 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     }
     const usable = helpers.filter((h) => h.role !== 'agent' || app.tools.get('delegate_task')?.isAvailable?.() !== false);
     const prompt = `You lead a small team that does work in a workspace folder. The task from ${app.settings.get().ownerName?.trim() || 'the owner'}:\n"""${task.goal}"""\n\nFiles in the workspace: ${files || '(empty)'}\n\nYour helpers (use their ids):\n${usable.map((h) => `- ${h.id}: ${h.name}. ${h.blurb}`).join('\n')}\n\nSplit the task into 2 to 6 parts, in order, each done by ONE helper. Usual shape for code: coder writes it (with tests), tester runs the tests, reviewer reads it. Only the helpers the task needs. Each part's instructions must stand alone: the helper sees only them (and short reports from the parts before). Be concrete: file names, what "done" means.\nReturn ONLY JSON: {"steps":[{"helper":"<id>","title":"<short>","instructions":"<what to do>"}]}`;
-    const conv = app.store.getConversation(task.conversationId)!;
+    const run = this.#runs.get(task.id)!;
+    assertCurrentScope(app, run.scope, signal, task.workspace, privateLocalOn());
+    const conv = run.scope.conversation;
     let text = '';
     try {
       text = await complete(app, { ...conv, providerId: null, model: null }, [{ role: 'user', content: prompt }], 1500, 'planning');
@@ -857,6 +893,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
       const receipts: Receipt[] = [...step.receipts];
       let corrected = false;
       for (let round = 0; round < MAX_HELPER_ROUNDS; round++) {
+        assertCurrentScope(app, run.scope, ctl.signal, task.workspace, privateLocalOn());
         if (ctl.signal.aborted) throw ctl.signal.reason;
         if (budgetCheck(teamBudget(task.limits, ['minutes']), { tokens: 0, usd: 0, ms: Date.now() - started }).reached) throw new LimitError(`the time limit (${task.limits.minutes} minutes)`);
         // Phase 52: stop before a call that would go past the budget (its input is counted roughly).
@@ -909,6 +946,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
           step.receipts = receipts;
           this.#saveStep(step);
           messages.push({ role: 'tool', toolCallId: call.id, name: call.name, content: clip(out.receipt.output, 12_000) });
+          assertCurrentScope(app, run.scope, ctl.signal, task.workspace, privateLocalOn());
           if (ctl.signal.aborted) throw ctl.signal.reason;
         }
       }
@@ -947,9 +985,18 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
   async #tool(task: TeamTask, step: TeamStep, helper: HelperDef, tools: Tool[], call: ToolCall, wsDir: string, signal: AbortSignal): Promise<{ receipt: Receipt }> {
     const app = this.#app;
     const run = this.#runs.get(task.id)!;
-    const tool = app.tools.get(call.name);
+    const tool = tools.find(t => t.spec.name === call.name) ?? app.tools.get(call.name);
     const summary = app.redactor.redact(tool?.summarize(call.arguments) ?? call.name);
-    const permission = tool ? app.tools.permission(call.name, app.settings.get().toolPermissions) : 'never';
+    const network = run.scope.conversation.private || privateLocalOn() ? false : (app.settings.get().shellNetwork ?? true);
+    let permission: import('./tools/types.ts').Permission = 'never';
+    let admissionFailure: ToolAdmissionError | undefined;
+    let explicitlyApproved = false;
+    const currentAdmission = () => tool ? assertToolAdmission(app, run.scope, tool, signal, { workspace: task.workspace, privateLocal: privateLocalOn(), offServer: OFFSERVER_TOOL(call.name), network }) : 'never';
+    try { permission = currentAdmission(); } catch (err) { if (!(err instanceof ToolAdmissionError)) throw err; admissionFailure = err; }
+    const admit = () => {
+      const fresh = currentAdmission();
+      if (fresh === 'ask' && permission === 'auto' && !explicitlyApproved) throw new ToolAdmissionError('The current tool policy requires a new approval. Please request this action again.');
+    };
     let status: Receipt['status'] = 'ok';
     const t0 = Date.now();
     let asked = false;
@@ -960,117 +1007,139 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     let triedDecision: SandboxDecision | undefined;
     let triedApplied: ApplyResult | undefined;
     let output = '';
-    if (!tool || !tools.some((t) => t.spec.name === call.name)) {
+    if (admissionFailure) {
+      status = 'denied';
+      output = admissionFailure.message;
+    } else if (!tool || !tools.some((t) => t.spec.name === call.name)) {
       status = 'denied';
       output = `${helper.name} doesn't have the ${call.name} tool.`;
     } else if (permission === 'never') {
       status = 'denied';
       output = `The owner has disabled the ${call.name} tool.`;
     } else {
-      // Phase 77: helpers' calls are checked against the owner's decisions like hers (team work is
-      // coding work: a clear conflict stops with the approval; fuzzy ones are noted in the log).
-      // The tests-first rule is left to her own turns: a helper's run doesn't carry the turn's receipts.
-      let stopFor: Contradiction | undefined;
-      const cset = contradictSettings(app.settings.get());
-      if (cset.on && app.memory && memorySettings(app).enabled) {
-        try {
-          const found = checkPlan(app.memory, { tool: call.name, args: call.arguments, callId: call.id, summary, conversationId: task.conversationId, workspaceDir: wsDir, skipShapes: ['tests-first'], now: app.now() });
-          const act = gateAct(found, { settings: cset, work: true, group: false });
-          stopFor = act === 'stop' ? found.find((c) => c.clear) : undefined;
-          if (stopFor) stopFor.act = 'stop';
-          else if (found.length) this.#note(task.id, step.id, `This may go against what you decided: "${found[0].note}"`);
-        } catch (err) {
-          console.warn(`plan check (team): ${(err as Error).message}`);
-        }
-      }
-      // Phase 80 (harness M5): helpers' risky commands try a throwaway copy first, like hers.
-      const network = app.settings.get().shellNetwork ?? true;
-      const gate = app.sandboxGate?.plan({ tool: call.name, args: call.arguments, coding: true, permission: permission === 'ask' ? 'ask' : 'auto', workspaceDir: wsDir, network, ...(app.persona.name && app.persona.name !== 'Sara' ? { gitName: app.persona.name } : {}) });
-      const firstCard = Boolean(stopFor) || (permission === 'ask' && (!gate || gate.askFirst));
-      let allowed = (permission === 'auto' && !stopFor) || (!firstCard && Boolean(gate));
-      stopSeen = stopFor;
-      if (firstCard) {
-        asked = true;
-        const { id, decision } = app.approvals.request(task.conversationId, signal);
-        const shown = stopFor ? `${summary} (goes against what you decided: "${stopFor.note}")` : gate ? `${summary} (tried in a throwaway copy first${gate.isolation.isolated ? '' : ', not isolated on this computer'})` : summary;
-        run.approvals.set(id, { id, stepId: step.id, helper: helper.name, tool: call.name, summary: shown, ...(stopFor ? { contradiction: cardOf(stopFor) } : {}) });
-        this.#note(task.id, step.id, `Waiting for your OK: ${shown}`);
-        allowed = await decision;
-        const how = app.approvals.takeHow(id);
-        run.approvals.delete(id);
-        if (stopFor) {
-          stopFor.answer = allowed ? 'override' : how === 'update' ? 'update' : 'deny';
-          stopFor.status = allowed ? 'overridden' : how === 'update' ? 'update' : 'declined';
-          if (allowed) app.memory?.markUsed([stopFor.memoryId], app.now().toISOString().slice(0, 10));
-        }
-        this.#note(task.id, step.id, allowed ? (stopFor ? 'You said do it anyway.' : 'You said yes.') : 'Not allowed.');
-      }
-      let decided: SandboxDecision | undefined;
-      let applied: ApplyResult | undefined;
-      if (allowed && gate) {
-        this.#note(task.id, step.id, `${helper.name} tries it in a throwaway copy first: ${summary}`);
-        try {
-          tried = await gate.run(signal);
-          triedRisk = gate.risk;
-        } catch (err) {
-          console.warn(`sandbox try (team): ${(err as Error).message}`);
-        }
-        if (tried) {
-          const verdict = gateVerdict(tried, permission === 'ask' && !firstCard ? 'ask' : 'auto');
-          if (signal.aborted) decided = 'cancelled';
-          else if (verdict.act === 'allow') decided = 'auto-applied';
-          else {
-            asked = true;
-            const { id, decision } = app.approvals.request(task.conversationId, signal);
-            const shown = `${summary} (ran in a sandbox: ${changesLine(tried.changes)}${tried.findings.filter((f) => f.severity !== 'info' && f.severity !== 'low').map((f) => `; ${f.title}`).join('')}. Allow applies it.)`;
-            run.approvals.set(id, { id, stepId: step.id, helper: helper.name, tool: call.name, summary: shown, sandbox: sandboxCard(tried, gate.risk) });
-            this.#note(task.id, step.id, `Waiting for your OK: ${shown}`);
-            const ok = await decision;
-            const how = app.approvals.takeHow(id);
-            run.approvals.delete(id);
-            decided = !ok ? (signal.aborted ? 'cancelled' : 'discarded') : how === 'real' ? 'ran' : 'applied';
-            this.#note(task.id, step.id, decided === 'discarded' ? 'You discarded the sandbox try.' : decided === 'ran' ? 'You said run it for real.' : decided === 'applied' ? 'You applied the sandbox try.' : 'Cancelled.');
+      try {
+        admit();
+        // Phase 77: helpers' calls are checked against the owner's decisions like hers (team work is
+        // coding work: a clear conflict stops with the approval; fuzzy ones are noted in the log).
+        // The tests-first rule is left to her own turns: a helper's run doesn't carry the turn's receipts.
+        let stopFor: Contradiction | undefined;
+        const cset = contradictSettings(app.settings.get());
+        if (cset.on && app.memory && memorySettings(app).enabled) {
+          try {
+            const found = checkPlan(app.memory, { tool: call.name, args: call.arguments, callId: call.id, summary, conversationId: task.conversationId, workspaceDir: wsDir, skipShapes: ['tests-first'], now: app.now() });
+            const act = gateAct(found, { settings: cset, work: true, group: false });
+            stopFor = act === 'stop' ? found.find((c) => c.clear) : undefined;
+            if (stopFor) stopFor.act = 'stop';
+            else if (found.length) this.#note(task.id, step.id, `This may go against what you decided: "${found[0].note}"`);
+          } catch (err) {
+            console.warn(`plan check (team): ${(err as Error).message}`);
           }
-          if (decided === 'applied' || decided === 'auto-applied') {
-            try {
-              applied = await applySandbox(tried);
-            } catch (err) {
-              decided = 'cancelled';
-              status = 'error';
-              output = `Error: ${(err as Error).message}`;
-            }
-          } else discardSandbox(tried);
-          triedDecision = decided;
-          triedApplied = applied;
-          if (decided !== 'ran') allowed = false;
-        } else if (permission === 'ask' && !firstCard) {
+        }
+        // Phase 80 (harness M5): helpers' risky commands try a throwaway copy first, like hers.
+        const gate = app.sandboxGate?.plan({ tool: call.name, args: call.arguments, coding: true, permission: permission === 'ask' ? 'ask' : 'auto', workspaceDir: wsDir, network, ...(app.persona.name && app.persona.name !== 'Sara' ? { gitName: app.persona.name } : {}) });
+        const firstCard = Boolean(stopFor) || (permission === 'ask' && (!gate || gate.askFirst));
+        let allowed = (permission === 'auto' && !stopFor) || (!firstCard && Boolean(gate));
+        stopSeen = stopFor;
+        if (firstCard) {
           asked = true;
           const { id, decision } = app.approvals.request(task.conversationId, signal);
-          run.approvals.set(id, { id, stepId: step.id, helper: helper.name, tool: call.name, summary });
+          const shown = stopFor ? `${summary} (goes against what you decided: "${stopFor.note}")` : gate ? `${summary} (tried in a throwaway copy first${gate.isolation.isolated ? '' : ', not isolated on this computer'})` : summary;
+          run.approvals.set(id, { id, stepId: step.id, helper: helper.name, tool: call.name, summary: shown, ...(stopFor ? { contradiction: cardOf(stopFor) } : {}) });
+          this.#note(task.id, step.id, `Waiting for your OK: ${shown}`);
           allowed = await decision;
-          app.approvals.takeHow(id);
+          explicitlyApproved = allowed;
+          const how = app.approvals.takeHow(id);
           run.approvals.delete(id);
+          admit();
+          if (stopFor) {
+            stopFor.answer = allowed ? 'override' : how === 'update' ? 'update' : 'deny';
+            stopFor.status = allowed ? 'overridden' : how === 'update' ? 'update' : 'declined';
+            if (allowed) app.memory?.markUsed([stopFor.memoryId], app.now().toISOString().slice(0, 10));
+          }
+          this.#note(task.id, step.id, allowed ? (stopFor ? 'You said do it anyway.' : 'You said yes.') : 'Not allowed.');
         }
-      }
-      if (tried && decided && decided !== 'ran') {
-        if (status !== 'error') {
-          if (decided !== 'applied' && decided !== 'auto-applied') status = 'denied';
-          output = sandboxOutput(tried, decided, applied);
+        let decided: SandboxDecision | undefined;
+        let applied: ApplyResult | undefined;
+        if (allowed && gate) {
+          this.#note(task.id, step.id, `${helper.name} tries it in a throwaway copy first: ${summary}`);
+          try {
+            admit();
+            tried = await gate.run(signal);
+            triedRisk = gate.risk;
+            admit();
+          } catch (err) {
+            if (err instanceof ToolAdmissionError) throw err;
+            console.warn(`sandbox try (team): ${(err as Error).message}`);
+          }
+          if (tried) {
+            const verdict = gateVerdict(tried, permission === 'ask' && !firstCard ? 'ask' : 'auto');
+            if (signal.aborted) decided = 'cancelled';
+            else if (verdict.act === 'allow') decided = 'auto-applied';
+            else {
+              asked = true;
+              const { id, decision } = app.approvals.request(task.conversationId, signal);
+              const shown = `${summary} (ran in a sandbox: ${changesLine(tried.changes)}${tried.findings.filter((f) => f.severity !== 'info' && f.severity !== 'low').map((f) => `; ${f.title}`).join('')}. Allow applies it.)`;
+              run.approvals.set(id, { id, stepId: step.id, helper: helper.name, tool: call.name, summary: shown, sandbox: sandboxCard(tried, gate.risk) });
+              this.#note(task.id, step.id, `Waiting for your OK: ${shown}`);
+              const ok = await decision;
+              explicitlyApproved = ok;
+              const how = app.approvals.takeHow(id);
+              run.approvals.delete(id);
+              admit();
+              decided = !ok ? (signal.aborted ? 'cancelled' : 'discarded') : how === 'real' ? 'ran' : 'applied';
+              this.#note(task.id, step.id, decided === 'discarded' ? 'You discarded the sandbox try.' : decided === 'ran' ? 'You said run it for real.' : decided === 'applied' ? 'You applied the sandbox try.' : 'Cancelled.');
+            }
+            if (decided === 'applied' || decided === 'auto-applied') {
+              try {
+                admit();
+                applied = await applySandbox(tried, admit);
+              } catch (err) {
+                if (err instanceof ToolAdmissionError) throw err;
+                decided = 'cancelled';
+                status = 'error';
+                output = `Error: ${(err as Error).message}`;
+              }
+            } else discardSandbox(tried);
+            triedDecision = decided;
+            triedApplied = applied;
+            if (decided !== 'ran') allowed = false;
+          } else if (permission === 'ask' && !firstCard) {
+            asked = true;
+            const { id, decision } = app.approvals.request(task.conversationId, signal);
+            run.approvals.set(id, { id, stepId: step.id, helper: helper.name, tool: call.name, summary });
+            allowed = await decision;
+            explicitlyApproved = allowed;
+            app.approvals.takeHow(id);
+            run.approvals.delete(id);
+            admit();
+          }
         }
-      } else if (!allowed) {
+        if (tried && decided && decided !== 'ran') {
+          if (status !== 'error') {
+            if (decided !== 'applied' && decided !== 'auto-applied') status = 'denied';
+            output = sandboxOutput(tried, decided, applied);
+          }
+        } else if (!allowed) {
+          status = 'denied';
+          output = signal.aborted ? 'Cancelled.' : stopFor ? `The owner declined this action: it goes against what they decided: "${stopFor.note}".` : 'The owner declined this action.';
+        } else {
+          admit();
+          this.#note(task.id, step.id, `${helper.name}: ${summary}`);
+          try {
+            output = await tool.run(call.arguments, { workspaceDir: wsDir, signal, sandbox: { ...app.sandbox, network }, conversationId: task.conversationId, companionName: app.persona.name });
+            // Claude Code / Grok Build run as a background job: wait for its report.
+            if (call.name === 'delegate_task') output = await this.#awaitJob(output, signal);
+            if (tried && decided === 'ran') output = `[tried in a sandbox copy first: ${changesLine(tried.changes)}; the owner chose to run it for real]\n${output}`;
+          } catch (err) {
+            status = 'error';
+            output = `Error: ${err instanceof ToolError ? err.message : (err as Error).message}`;
+          }
+        }
+      } catch (err) {
+        if (!(err instanceof ToolAdmissionError)) throw err;
+        if (tried) { discardSandbox(tried); triedDecision = 'cancelled'; }
         status = 'denied';
-        output = signal.aborted ? 'Cancelled.' : stopFor ? `The owner declined this action: it goes against what they decided: "${stopFor.note}".` : 'The owner declined this action.';
-      } else {
-        this.#note(task.id, step.id, `${helper.name}: ${summary}`);
-        try {
-          output = await tool.run(call.arguments, { workspaceDir: wsDir, signal, sandbox: { ...app.sandbox, network }, conversationId: task.conversationId, companionName: app.persona.name });
-          // Claude Code / Grok Build run as a background job: wait for its report.
-          if (call.name === 'delegate_task') output = await this.#awaitJob(output, signal);
-          if (tried && decided === 'ran') output = `[tried in a sandbox copy first: ${changesLine(tried.changes)}; the owner chose to run it for real]\n${output}`;
-        } catch (err) {
-          status = 'error';
-          output = `Error: ${err instanceof ToolError ? err.message : (err as Error).message}`;
-        }
+        output = err.message;
       }
     }
     output = app.redactor.redact(output);
@@ -1116,6 +1185,8 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     let text = '';
     if (conv && outcome !== 'stopped') {
       try {
+        const active = this.#runs.get(task.id);
+        if (active) assertCurrentScope(app, active.scope, active.ctl.signal, task.workspace, privateLocalOn());
         const s = app.settings.get();
         const owner = s.ownerName?.trim() || 'the owner';
         const system = buildSystemPrompt(app.persona, { now: app.now(), timeZone: s.timeZone, ownerName: s.ownerName });

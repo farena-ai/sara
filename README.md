@@ -35,9 +35,9 @@
 
 **Here with a team?** Use the [separate business setup](docs/BUSINESS_OPERATIONS.md): individual passkeys, explicit roles and shared workspaces. It is a manual installation with its own data root; personal installers do not convert your companion or household.
 
-> **Status:** 2.65.0, [current stable release](https://github.com/farena-ai/sara/releases/tag/v2.65.0). Guided business setup, invitation management and safer recovery. [See what changed](#whats-new).
+> **Status:** 2.67.0 — [Recent cues, follow-ups and project continuity](https://github.com/farena-ai/sara/releases/tag/v2.67.0). [See what changed](#whats-new)
 >
-> Windows installer: unsigned ([SmartScreen guidance](docs/INSTALL.md)). macOS download: signed and notarized. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [home-screen web app](docs/PHONE.md).
+> Windows installer: unsigned ([SmartScreen guidance](docs/INSTALL.md)). The macOS release process requires signed and notarized downloads; each build is qualified separately. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [home-screen web app](docs/PHONE.md).
 
 Sara is AI. Read the [disclosures](docs/DISCLOSURES.md) before using or sharing her. Local mode keeps model calls on your computer; cloud features send data to the providers you choose ([privacy](docs/PRIVACY.md)).
 
@@ -115,16 +115,20 @@ One-minute walkthroughs, recorded on a throwaway test server with a local model.
 
 <!-- sara:recent-releases:start -->
 
-Recent releases · 4 November 2026. [Full changelog](CHANGELOG.md) · [All downloads](https://github.com/farena-ai/sara/releases).
+Recent releases · 5 November 2026. [Full changelog](CHANGELOG.md) · [All downloads](https://github.com/farena-ai/sara/releases).
 
 | Release | What changed for you |
 |---|---|
+| **[2.67.0](https://github.com/farena-ai/sara/releases/tag/v2.67.0)** | **[Recent cues and follow-ups](docs/ATTUNEMENT.md)** — Bounded explicit owner cues in six languages and source-qualified event follow-ups. **[Project checkpoints](docs/FOR_CODERS.md#project-checkpoints)** keep logic, blockers and up to three next steps, with five-version history and inspect/replace/clear controls; historical context grants no commands or old approvals. |
 | **[2.65.0](https://github.com/farena-ai/sara/releases/tag/v2.65.0)** | **[Guided business setup](docs/BUSINESS.md)** — First-use and admin guidance, scoped invitation history and revocation, a read-only configuration check, and repeatable browser/recovery drills. |
 | **[2.64.0](https://github.com/farena-ai/sara/releases/tag/v2.64.0)** | **[Separate business workspaces](docs/BUSINESS_OPERATIONS.md)** — Individual passkeys, workspace roles, shared text/documents, operator-controlled model allowances and encrypted recovery. Separate from personal and household data. |
 | **[2.63.1](https://github.com/farena-ai/sara/releases/tag/v2.63.1)** | **[Measured operation](docs/OPERATIONS.md)** — Owner-only readiness and HTTP measurements, safe archival of resolved deliveries, responsive backups and repeatable local qualification. |
 | **[2.62.0](https://github.com/farena-ai/sara/releases/tag/v2.62.0)** | **[Recovery without blind replay](docs/RECOVERY.md)** — Review interrupted jobs before restarting; keep uncertain native Telegram/Discord sends visible instead of automatically sending again. |
 | **[2.61.5](https://github.com/farena-ai/sara/releases/tag/v2.61.5)** | **[Find your next step](docs/START_HERE.md)** — Focused Settings search, a simpler first-message path, and better keyboard, touch and reduced-motion navigation. |
-| **[2.61.4](https://github.com/farena-ai/sara/releases/tag/v2.61.4)** | **[More reliable setup](docs/SECURITY_CHECKLIST.md)** — Recover model setup after skipping it, keep mobile focus in the right place, and distinguish command approval from execution isolation. |
+
+Also in 2.67.0: reliable Coding projects navigation from Settings search, preserved drafts and stale-response handling, off-record project-knowledge privacy, and a local six-language release-presentation freshness check. No CI or recurring release watcher. Owner-only checkpoints stay scoped to the workspace/project; deleting, editing or forgetting covered source content invalidates derived records. Pending coding actions, including team helpers and sandbox application, recheck current permissions and conversation/workspace context before execution; a changed context stops the stale action instead of moving it.
+
+Version 2.67.0 also distinguishes criticism of code from conflict directed at Sara, rechecks cue and follow-up sources at the normal provider handoff, and keeps automatic Agenda closure conservative about event identity, outcomes and question targets. Inner life remains the opt-in control; there is no emotion diagnosis, separate classifier call or new owner mood profile. Private/off-record chats, members, groups, external contexts, replay and unattended work are excluded from new cues. Existing recorded prompts, exports and backups can retain notes under their normal controls; replay omits newly recorded transient extras and reports changed inputs. This release also corrects automatic Windows installer revision provenance.
 
 <!-- sara:recent-releases:end -->
 
@@ -144,6 +148,7 @@ Recent releases · 4 November 2026. [Full changelog](CHANGELOG.md) · [All downl
 
 | Release | What you get |
 |---|---|
+| **2.61.4** · [v2.61.4](https://github.com/farena-ai/sara/releases/tag/v2.61.4) | **[More reliable setup](docs/SECURITY_CHECKLIST.md)** — Recover model setup after skipping it, keep mobile focus in the right place, and distinguish command approval from execution isolation. |
 | **2.60** · Companion packs | **Share her:** Settings → Her → ⋯ → *Share her* builds a pack of exactly what you tick (her character, dials, look, closet, voice, first message, skills, suggested routines) and shows what never leaves: memories, chats, people, keys, your name (it becomes `{{user}}`), your relationship notes and limits. **Install a pack** as a new companion, never over one you have, through a review card; updates show what the author changed and keep your own edits. Character Card V1/V2/V3 (PNG, JSON, CHARX) import as packs, with a lorebook turned into a few background lines, never memories. The minors check runs when a pack is made, reviewed and installed, with no override; ratings map onto Adult mode. Four starter companions on the store: Juniper, Rowan, Vesper and Jax. Also fixed: exporting a character card no longer includes your name or notes. |
 | **2.59** · "Hey Sara" | **Say her name and talk** in the Windows app: a 5 MB model on your computer listens only for "Hey Sara" (or your own words for each companion), and nothing is sent until you say them; recording starts after the phrase, audio is never kept, and a dot on the tray icon shows when she's listening. Off until you switch it on, on each device; pauses while the screen is locked; when two devices hear you, one answers. **Talk to Sara** with Ctrl+Alt+Space or the tray, and on Android a Talk button in the notification and a Quick Settings tile. The AI notice is spoken first and crisis help is read in full. **Local hearing and voices on Windows:** `sara voice install` (about 650 MB, every file checked) where it used to be Linux only. Mac, Linux and the always-listening Android detector come next. |
 | **2.58** · Get more | **Settings → Abilities → Get more:** browse and search the Sara Store, open an item, and install with one click through the usual review card (nothing switches on by itself). Tool servers get a card with the exact command (and its Windows form), what it needs, what it can reach and whether it's fenced; keys go to the vault. **Updates** show exactly what changed, with any new permission marked, and you can go back. **My add-ons** lists everything with where it came from. **Submit your own:** `sara pack` checks a plugin, skill or tool server on your computer (manifest, permissions, a secret scan, a fenced smoke test, screenshots), then *Submit* in Settings or `sara submit` sends it, signed with your own author key. The Sara team reviews it before it's listed, and you can follow and answer from *My submissions*. Reports and takedowns switch an add-on off, never delete it. |
@@ -423,7 +428,9 @@ README or SPEC that no test checked. What she adds today is the way of working (
 asks before risky steps, shows what ran), not a higher score on these sets. Details, per-task
 results and how to re-run: [docs/RESULTS.md](docs/RESULTS.md).
 
-Validation for **2.65.0**: the typecheck and 2,153 automated tests, with a scripted fake model (no provider calls), recorded **2,137 pass / 0 fail / 16 skip on Windows** and **2,138 pass / 0 fail / 15 skip on Linux**. These are engineering checks, not a guarantee for every model or installation.
+Earlier release evidence — Validation for **2.65.0**: the typecheck and 2,153 automated tests, with a scripted fake model (no provider calls), recorded **2,137 pass / 0 fail / 16 skip on Windows** and **2,138 pass / 0 fail / 15 skip on Linux**. These are engineering checks, not a guarantee for every model or installation.
+
+2.67.0 qualification (November 5, 2026): typecheck and 2632 automated tests; Windows **2616 passed / 0 failed / 16 skipped**, Linux **2617 passed / 0 failed / 15 skipped**. Actual Windows, Mac and both container architectures passed encrypted recovery, 12 approval-revalidation cases and 286 E2 regressions each, with matching payload hashes. The universal Mac package is signed and notarized; Windows is unsigned. These use synthetic data and scripted models. Physical Intel/Rosetta, screen-reader/device acceptance, real-model tone and production disaster recovery remain separate checks.
 
 ## How Sara compares
 

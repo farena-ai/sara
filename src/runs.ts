@@ -834,6 +834,24 @@ export class RunRecorder {
     return this.#safe(() => this.#open(info)) ?? -1;
   }
 
+  /** Final provider inputs after awaited preparation; preserve the existing step and receipts. */
+  refreshModelInputs(info: Required<Pick<StepInfo, 'model' | 'provider' | 'system' | 'extra' | 'inputsSha'>>): void {
+    this.#safe(() => {
+      const step = this.#cur();
+      if (!step || step.info.label) return;
+      let sha = this.#lastSha;
+      if (info.system !== this.#lastSystem) {
+        const blob = this.#store!.putBlob(info.system);
+        sha = blob.sha;
+        this.#bytes += blob.added;
+        this.#lastSystem = info.system;
+        this.#lastSha = sha;
+      }
+      step.sha = sha;
+      step.info = { ...step.info, model: info.model, provider: info.provider, extra: [...info.extra], inputsSha: info.inputsSha };
+    });
+  }
+
   #open(info: StepInfo): number {
     {
       {

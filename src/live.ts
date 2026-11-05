@@ -15,7 +15,6 @@
 import { openWebSocket } from './net-guard.ts';
 import type { AppContext } from './chat.ts';
 import { appLanguage, languageLine, speechLanguage, talkLanguage } from './i18n.ts';
-import { dayStartUtc } from './planner.ts';
 import { bondContext, classify, daysKnown, innerEnabled } from './chat.ts';
 import { identityOf, buildSystemPrompt } from './persona.ts';
 import { elsewhereNote } from './elsewhere.ts';
@@ -24,6 +23,7 @@ import { importedOther, movedFrom } from './store.ts';
 import { threadsNote } from './life.ts';
 import { decayPolicy, isForgotten, localDate, memorySettings } from './memory-worker.ts';
 import { describeInner } from './inner.ts';
+import { legacyInnerConversation, ownerEvidenceConversation } from './owner-evidence.ts';
 import { ADULT_OFF_NOTE, CRISIS_RESOURCES, CRISIS_SYSTEM_NOTE, detectCrisis, detectMinorSexualContent, disclosureDue, disclosureText, MINOR_BLOCK_REPLY } from './safety.ts';
 import { adultModeOn } from './settings.ts';
 import { CONFLICT } from './bond.ts';
@@ -543,7 +543,7 @@ export class LiveCall {
       const oldest = visible.at(-HISTORY_ITEMS)?.id ?? 0;
       memories = selectMemories(app.memory, { userText: userText || visible.filter((m) => m.role === 'user').at(-1)?.content || '', conversationId: conv.id, oldestHistoryId: oldest, budgetChars: memCfg.injectBudgetChars, importedFrom: (id) => importedOther(app.store.getConversation(id)), movedFrom: (id) => movedFrom(app.store.getConversation(id)), policy: decayPolicy(memCfg), today: localDate(now.toISOString(), s.timeZone), notes: false }).text;
     }
-    const inner = app.inner && innerEnabled(app) ? app.inner.get() : undefined;
+    const inner = conv && legacyInnerConversation(app, conv.id) && app.inner && innerEnabled(app) ? app.inner.get() : undefined;
     const system = buildSystemPrompt(app.persona, {
       now,
       timeZone: s.timeZone,
@@ -556,7 +556,7 @@ export class LiveCall {
       dates: app.memory && memCfg.enabled ? datesNote(app.memory, localDate(now.toISOString(), s.timeZone)) : undefined,
       threads: inner ? threadsNote(app.life) : undefined,
       ...bondContext(app, inner?.closeness),
-      followUps: app.memory && memCfg.enabled ? followUpsNote(followUps(app.memory, localDate(now.toISOString(), s.timeZone), (day) => app.store.ownerMessagesSince(dayStartUtc(day, s.timeZone).toISOString())), owner) : undefined,
+      followUps: conv && app.memory && memCfg.enabled ? followUpsNote(followUps(app, conv.id, localDate(now.toISOString(), s.timeZone)), owner) : undefined,
       elsewhere: conv ? elsewhereNote(app, conv, now, owner) : undefined,
       language: languageLine(talkLanguage(s, userText || undefined)),
     });
@@ -700,12 +700,14 @@ export class LiveCall {
     const { store } = this.#app;
     const now = new Date(this.#now());
     const conv = store.getConversation(this.#convId);
-    const prev = store.lastOwnerMessageAt();
+    const legacyOwner = legacyInnerConversation(this.#app, this.#convId);
+    const prev = legacyOwner ? store.lastOwnerMessageAt() : null;
     const isFirst = store.messages(this.#convId).every((m) => m.role === 'notice');
-    store.addMessage(this.#convId, 'user', text, { live: true });
+    const message = store.addMessage(this.#convId, 'user', text, { live: true });
+    if (ownerEvidenceConversation(this.#app, this.#convId)) store.markDirectOwnerMessage(message.id);
     if (isFirst && conv?.title === 'New conversation') store.updateConversation(this.#convId, { title: text.replace(/\s+/g, ' ').slice(0, 60) });
     this.#tell({ type: 'you', text, final: true });
-    if (this.#app.inner && innerEnabled(this.#app)) this.#app.inner.onOwnerMessage(text, prev ? (now.getTime() - prev.getTime()) / 3_600_000 : null, now);
+    if (legacyOwner && this.#app.inner && innerEnabled(this.#app)) this.#app.inner.onOwnerMessage(text, prev ? (now.getTime() - prev.getTime()) / 3_600_000 : null, now, this.#app.persona.name);
     if (!this.#check(text, item, false)) {
       // Fresh memories for what was just said (applies from her next reply).
       this.#send({ type: 'session.update', session: this.#engine.update(this.instructions(text)) });
