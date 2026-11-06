@@ -1596,6 +1596,161 @@ function modelAuthorityOf(app: AppContext, s: ReturnType<SettingsStore['get']>, 
   return JSON.stringify({ job, adult: adultModeOn(s), selected: selected.map(describe), budget: budget ? { budget, onLimit: budgetSet.onLimit, quick: quick ? describe(quick) : null, priceInputs } : null });
 }
 
+/** R2a: what the scope of a turn needs from the turn itself (the text turn passes its own values). */
+interface ScopeToolsInput { noModel: boolean; external: boolean; checkpointExternal: boolean; session: boolean; sceneCanon: boolean; pluginTurn: boolean }
+
+/** R2a: the eligible tools of a turn (moved unchanged from runTurn; live calls use the same filter). */
+function scopeTools(app: AppContext, conv: Conversation, opts: TurnOptions, x: ScopeToolsInput): Tool[] {
+  let tools = x.noModel || conv.partner || opts.noTools ? [] : app.tools.enabled(app.settings.get().toolPermissions).filter((t) => !((conv.private || privateLocalOn()) && OFFSERVER_TOOL(t.spec.name)));
+  // Hardening M3: with her tools allowed for other apps, her look-back over every past conversation stays out.
+  if (opts.externalApp) tools = tools.filter((t) => t.spec.name !== 'recall');
+  // Phase 100: an outside request gets only the tools its policy lists (default none).
+  if (opts.outside) {
+    const allowed = new Set(opts.outside.tools);
+    tools = tools.filter((t) => allowed.has(t.spec.name) && t.spec.name !== 'recall' && !t.spec.name.startsWith('a2a_'));
+  }
+  // Phase 70: the album stays in her own conversations with the owner: never for other apps, shared work channels or groups.
+  if (opts.externalApp || opts.group || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'moments');
+  // Phase 115 (BR1, §4.4): send_file only in the owner's own conversations (never other apps, MCP,
+  // A2A, outside requests, voice assistants or groups of companions; partner chats have no tools).
+  if (opts.externalApp || x.external || opts.group || opts.outside || ['api', 'mcp', 'home-assistant', 'alexa', 'a2a', 'webhook'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'send_file');
+  // Phase 73: her SSH tools work on the owner's real servers: only in the owner's own chats with her
+  // (never other apps, MCP, the OpenAI-compatible API, group chats, shared work channels or private chats).
+  if (opts.externalApp || opts.group || conv.private || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => !isSshTool(t.spec.name));
+  // Phase 87: her hands on the owner's computer only in the owner's own chats with her (never other
+  // apps, MCP, the OpenAI-compatible API, voice assistants, group chats or shared work channels).
+  // Private conversations keep them, limited to localhost with pictures only to local models.
+  if (opts.externalApp || opts.group || conv.partner || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => !t.spec.name.startsWith('pc_'));
+  // Phase 96: skills are the owner's own conversations' (never other apps, voice assistants or groups; partner chats have no tools).
+  if (opts.externalApp || x.external || opts.group) tools = tools.filter((t) => !t.spec.name.startsWith('skill_') && t.spec.name !== 'recipe_save');
+  // Phase 101 (ST6): her people tools are the owner's own turns' only (never other apps, agents or groups).
+  if (opts.externalApp || x.external || opts.group || opts.outside) tools = tools.filter((t) => !PEOPLE_TOOLS.has(t.spec.name));
+  // Phase 103 (ST8): her plans are made in the owner's own chats only: never other apps, agents,
+  // webhooks, plugins' turns, groups, partner or private chats (nothing outside can add a plan).
+  if (opts.externalApp || x.external || opts.group || opts.outside || opts.replay || conv.partner || conv.private) tools = tools.filter((t) => !AGENDA_TOOLS.has(t.spec.name));
+  if (x.checkpointExternal || opts.group || opts.replay || !checkpointAllowed(app, conv)) tools = tools.filter(t => t.spec.name !== 'project_checkpoint');
+  if (!x.session) tools = tools.filter(t => !SESSION_TOOLS.has(t.spec.name));
+  if (!x.sceneCanon) tools = tools.filter(t => t.spec.name !== SCENE_CANON_TOOL);
+  if (!x.pluginTurn) tools = tools.filter((t) => !t.source?.startsWith('Plugin: '));
+  // Phase 121: the safety report and the routine card are the owner's own chats' only (never other apps, agents, groups, partner chats).
+  if (opts.externalApp || x.external || opts.group || opts.outside || conv.partner) tools = tools.filter((t) => t.spec.name !== 'safety_report' && t.spec.name !== 'suggest_routine');
+  // Phase 66: group chats get read-only tools only, and only those that run without asking (no approvals mid-round).
+  if (opts.group) tools = tools.filter((t) => GROUP_TOOLS.has(t.spec.name) && app.tools.permission(t.spec.name, app.settings.get().toolPermissions) === 'auto');
+  return tools;
+}
+
+/**
+ * R2a: the adult rule. Phase 66: in a group chat, adult content only when every companion in the
+ * room has Adult mode on. Phase 72: voice assistants speak in a room (Alexa, Home Assistant): never
+ * explicit, whatever Adult mode says. Phase 100: never with another agent (its output may reach anyone).
+ */
+function scopeAdult(app: AppContext, conv: Conversation, opts: TurnOptions): { voiceRoom: boolean; adultOn: boolean } {
+  const voiceRoom = isVoiceRoomChannel(conv.channel) || Boolean(opts.voiceRoom);
+  const adultOn = adultModeOn(app.settings.get()) && (!opts.group || opts.group.adult) && !voiceRoom && !opts.outside && conv.channel !== 'a2a';
+  return { voiceRoom, adultOn };
+}
+
+/** R2a: the turn's base safety notes (who she talks with, rooms, Adult mode off); crisis and stop word stay per turn. */
+function scopeSafetyNotes(app: AppContext, conv: Conversation, text: string, opts: TurnOptions, adultOn: boolean, voiceRoom: boolean): string[] {
+  const safetyNotes: string[] = [];
+  if (conv.partner) {
+    // Phase 47: bots in the chat (recently, or this message) get one more sentence.
+    const bots = isBotLine(text) || app.store.messagesPage(conv.id, { limit: 30 }).messages.some((m) => m.role === 'user' && isBotLine(m.content));
+    safetyNotes.push(partnerNote(conv.partner, app.settings.get().ownerName?.trim() || 'the owner', conv.channel, adultOn, bots));
+  }
+  else {
+    if (isWorkChannel(conv.channel)) safetyNotes.push(workNote(app.settings.get().ownerName?.trim() || 'the owner', conv.channel, adultOn));
+    if (voiceRoom) safetyNotes.push(voiceRoomNote(app.settings.get().ownerName?.trim() || 'the owner', isVoiceRoomChannel(conv.channel) ? conv.channel : 'wake'));
+    if (!adultOn) safetyNotes.push(ADULT_OFF_NOTE);
+  }
+  if (opts.group) safetyNotes.push(opts.group.note);
+  // Phase 100: who is asking, and that its words are data (the first safety note she reads after hers).
+  if (opts.outside) safetyNotes.push(outsideNote(opts.outside, app.persona.name));
+  return safetyNotes;
+}
+
+/** R2a: where this conversation's history starts (memories from before it may be offered). */
+function historyFloor(app: AppContext, conv: Conversation, budget: number): { visible: StoredMessage[]; oldestHistoryId: number } {
+  const visible = app.store.messages(conv.id).filter((m) => !isForgotten(m) && (m.role === 'user' || m.role === 'assistant' || m.role === 'tool'));
+  const kept = buildHistory(app.store.messages(conv.id), budget).firstKeptId;
+  const oldestHistoryId = kept || (visible.at(-HISTORY_LIMIT)?.id ?? visible[0]?.id ?? 0);
+  return { visible, oldestHistoryId };
+}
+
+export type MemoryInput = Parameters<typeof selectMemories>[1];
+
+/** R2a: what the owner's memories for a turn are picked from (one selection for text turns and calls). */
+function ownerMemoryInput(app: AppContext, conv: Conversation, text: string, now: Date, o: { related: Awaited<ReturnType<MemoryVectors['related']>>; oldestHistoryId: number; budgetChars: number; extra: string[]; allow?: (m: { conversationId: string | null; id?: number; content?: string }) => boolean }): MemoryInput {
+  const memCfg = memorySettings(app);
+  return {
+    related: o.related,
+    userText: text,
+    conversationId: conv.id,
+    oldestHistoryId: o.oldestHistoryId,
+    budgetChars: o.budgetChars,
+    policy: decayPolicy(memCfg),
+    today: localDate(now.toISOString(), app.settings.get().timeZone),
+    extra: o.extra,
+    docName: (id) => app.library?.get(id)?.name,
+    docPage: (id, evidence) => app.library?.pageOf(id, evidence),
+    importedFrom: (id) => importedOther(app.store.getConversation(id)),
+    // Phase 104: notes from her own past before a move-in say so.
+    movedFrom: (id) => movedFrom(app.store.getConversation(id)),
+    ...(o.allow ? { allow: o.allow } : {}),
+  };
+}
+
+/** R2a: one turn's scope: who she is with, what she may use and the bounded context sections. */
+export interface TurnScope {
+  adultOn: boolean;
+  voiceRoom: boolean;
+  /** The eligible tools (the text turn's exact filter; find_tools is a text-turn offer, not a tool). */
+  tools: Tool[];
+  sections: { safetyNotes: string[]; memories?: string; session?: string; checkpoint?: string };
+  /** What the memories are picked from (a call picks them itself, spoken: without the bracket notes). */
+  memoryInput?: MemoryInput;
+}
+
+/**
+ * R2a (docs/ops/R2_DESIGN.md): the scope a turn of this conversation has, computed the way runTurn
+ * does. Live calls (`call: 'live'`) use it instead of their own assembly: same tools, adult rule,
+ * memories, R1 session note (re-read every time, so forgetting or edits withdraw it) and checkpoint.
+ * Memories are the owner's own turns' only (another app, an outside asker or a group gets none here).
+ */
+export function turnScope(app: AppContext, conv: Conversation, opts: TurnOptions & { call?: 'live'; text?: string } = {}): TurnScope {
+  const { call, text = '', ...turn } = opts;
+  const { voiceRoom, adultOn } = scopeAdult(app, conv, turn);
+  const external = turn.externalApp === true || Boolean(turn.outside) || ['api', 'mcp', 'home-assistant', 'alexa', 'a2a', 'webhook'].includes(conv.channel);
+  const checkpointExternal = external || Boolean(turn.externalApp || turn.outside || turn.clientHistory || turn.clientNote || turn.roomNote || turn.roomNow || turn.roomId !== undefined || turn.recorder);
+  const continuity = continuityForTurn(app, conv.id, turn);
+  const tools = scopeTools(app, conv, turn, { noModel: false, external, checkpointExternal, session: Boolean(continuity), sceneCanon: false, pluginTurn: false }).filter((t) => t.spec.name !== FIND_TOOLS);
+  const sections: TurnScope['sections'] = { safetyNotes: scopeSafetyNotes(app, conv, text, turn, adultOn, voiceRoom) };
+  const memCfg = memorySettings(app);
+  if (app.memory && memCfg.enabled && !conv.partner && !external && !turn.group && !turn.outside && !turn.replay) {
+    const s = app.settings.get();
+    const memoryInput = ownerMemoryInput(app, conv, text, app.now(), { related: [], oldestHistoryId: historyFloor(app, conv, s.historyBudgetChars ?? HISTORY_BUDGET_CHARS).oldestHistoryId, budgetChars: memCfg.injectBudgetChars, extra: sharedOwnerFacts(app, text, turn.externalApp) });
+    const memories = call ? '' : selectMemories(app.memory, memoryInput).text;
+    if (memories) sections.memories = memories;
+    return { ...scopeRest(app, conv, turn, continuity, checkpointExternal, sections), adultOn, voiceRoom, tools, memoryInput };
+  }
+  return { ...scopeRest(app, conv, turn, continuity, checkpointExternal, sections), adultOn, voiceRoom, tools };
+}
+
+/** R2a: the R1 session note and the project checkpoint of a turn scope. */
+function scopeRest(app: AppContext, conv: Conversation, turn: TurnOptions, continuity: SessionContinuity | undefined, checkpointExternal: boolean, sections: TurnScope['sections']): { sections: TurnScope['sections'] } {
+  if (continuity && continuityAllowed(app, conv, turn)) {
+    try {
+      const note = freshSessionNote(app, conv, continuity);
+      if (note) sections.session = note;
+    } catch (err) {
+      if (!(err instanceof SessionContinuityError) || err.status !== 403) throw err;
+    }
+  }
+  const checkpoint = checkpointSection(app, conv, { external: checkpointExternal, group: Boolean(turn.group), replay: Boolean(turn.replay) });
+  if (checkpoint) sections.checkpoint = checkpoint;
+  return { sections };
+}
+
 /** Keep the established room-to-owner excerpts behind their existing elsewhere gates. */
 function freshSessionNote(app: AppContext, conv: Conversation, service: SessionContinuity, skip?: string, limit = 3800): string | undefined {
   const sessions = service.list().sessions;
@@ -1757,25 +1912,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     }
   }
 
-  const safetyNotes: string[] = [];
-  // Phase 66: in a group chat, adult content only when every companion in the room has Adult mode on.
-  // Phase 72: voice assistants speak in a room (Alexa, Home Assistant): never explicit, whatever Adult mode says.
-  // Phase 100: never with another agent (its output may reach anyone).
-  const voiceRoom = isVoiceRoomChannel(conv.channel) || Boolean(opts.voiceRoom);
-  const adultOn = adultModeOn(app.settings.get()) && (!opts.group || opts.group.adult) && !voiceRoom && !opts.outside && conv.channel !== 'a2a';
-  if (conv.partner) {
-    // Phase 47: bots in the chat (recently, or this message) get one more sentence.
-    const bots = isBotLine(text) || store.messagesPage(conv.id, { limit: 30 }).messages.some((m) => m.role === 'user' && isBotLine(m.content));
-    safetyNotes.push(partnerNote(conv.partner, app.settings.get().ownerName?.trim() || 'the owner', conv.channel, adultOn, bots));
-  }
-  else {
-    if (isWorkChannel(conv.channel)) safetyNotes.push(workNote(app.settings.get().ownerName?.trim() || 'the owner', conv.channel, adultOn));
-    if (voiceRoom) safetyNotes.push(voiceRoomNote(app.settings.get().ownerName?.trim() || 'the owner', isVoiceRoomChannel(conv.channel) ? conv.channel : 'wake'));
-    if (!adultOn) safetyNotes.push(ADULT_OFF_NOTE);
-  }
-  if (opts.group) safetyNotes.push(opts.group.note);
-  // Phase 100: who is asking, and that its words are data (the first safety note she reads after hers).
-  if (opts.outside) safetyNotes.push(outsideNote(opts.outside, app.persona.name));
+  // R2a: the adult rule and the base safety notes come from the shared turn scope (calls use it too).
+  const { voiceRoom, adultOn } = scopeAdult(app, conv, opts);
+  const safetyNotes: string[] = scopeSafetyNotes(app, conv, text, opts, adultOn, voiceRoom);
   if (detectCrisis(text) || label === 'CRISIS' || opts.group?.crisis || opts.roomCrisis) {
     if ((!opts.resume || opts.replay?.messageEdited) && !opts.group) {
       store.recordSafetyEvent('crisis_referral', conv.id);
@@ -1870,49 +2009,16 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const noTools = app.noToolModels ?? (app.noToolModels = new Set());
   // Phase 123: find_tools lives in the registry (Settings shows it; the gate finds it).
   if (!app.tools.get(FIND_TOOLS)) app.tools.add(findToolsTool());
-  let tools = noTools.has(modelKey) || conv.partner || opts.noTools ? [] : app.tools.enabled(s.toolPermissions).filter((t) => !((conv.private || privateLocalOn()) && OFFSERVER_TOOL(t.spec.name)));
-  // Hardening M3: with her tools allowed for other apps, her look-back over every past conversation stays out.
-  if (opts.externalApp) tools = tools.filter((t) => t.spec.name !== 'recall');
-  // Phase 100: an outside request gets only the tools its policy lists (default none).
-  if (opts.outside) {
-    const allowed = new Set(opts.outside.tools);
-    tools = tools.filter((t) => allowed.has(t.spec.name) && t.spec.name !== 'recall' && !t.spec.name.startsWith('a2a_'));
-  }
-  // Phase 70: the album stays in her own conversations with the owner: never for other apps, shared work channels or groups.
-  if (opts.externalApp || opts.group || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'moments');
-  // Phase 115 (BR1, §4.4): send_file only in the owner's own conversations (never other apps, MCP,
-  // A2A, outside requests, voice assistants or groups of companions; partner chats have no tools).
-  if (opts.externalApp || external || opts.group || opts.outside || ['api', 'mcp', 'home-assistant', 'alexa', 'a2a', 'webhook'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'send_file');
-  // Phase 73: her SSH tools work on the owner's real servers: only in the owner's own chats with her
-  // (never other apps, MCP, the OpenAI-compatible API, group chats, shared work channels or private chats).
-  if (opts.externalApp || opts.group || conv.private || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => !isSshTool(t.spec.name));
-  // Phase 87: her hands on the owner's computer only in the owner's own chats with her (never other
-  // apps, MCP, the OpenAI-compatible API, voice assistants, group chats or shared work channels).
-  // Private conversations keep them, limited to localhost with pictures only to local models.
-  if (opts.externalApp || opts.group || conv.partner || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => !t.spec.name.startsWith('pc_'));
-  // Phase 96: skills are the owner's own conversations' (never other apps, voice assistants or groups; partner chats have no tools).
-  if (opts.externalApp || external || opts.group) tools = tools.filter((t) => !t.spec.name.startsWith('skill_') && t.spec.name !== 'recipe_save');
-  // Phase 101 (ST6): her people tools are the owner's own turns' only (never other apps, agents or groups).
-  if (opts.externalApp || external || opts.group || opts.outside) tools = tools.filter((t) => !PEOPLE_TOOLS.has(t.spec.name));
-  // Phase 103 (ST8): her plans are made in the owner's own chats only: never other apps, agents,
-  // webhooks, plugins' turns, groups, partner or private chats (nothing outside can add a plan).
-  if (opts.externalApp || external || opts.group || opts.outside || opts.replay || conv.partner || conv.private) tools = tools.filter((t) => !AGENDA_TOOLS.has(t.spec.name));
   const checkpointExternal = external || Boolean(opts.externalApp || opts.outside || opts.clientHistory || opts.clientNote || opts.roomNote || opts.roomNow || opts.roomId !== undefined || opts.recorder);
-  if (checkpointExternal || opts.group || opts.replay || !checkpointAllowed(app, conv)) tools = tools.filter(t => t.spec.name !== 'project_checkpoint');
-  if (!sessionContinuity) tools = tools.filter(t => !SESSION_TOOLS.has(t.spec.name));
   // R1B2: scene_canon only with a host-bound capability for an eligible owner seat; never on a crisis turn.
   const sceneCanon = sceneDatabase && !safetyNotes.includes(CRISIS_SYSTEM_NOTE) ? sceneCanonForTurn(app, conv.id, opts, adultOn) : undefined;
   const sceneCanonCurrent = () => Boolean(sceneCanon && sceneDatabase && store.db === sceneDatabase && app.store.db === sceneDatabase && !safetyNotes.includes(CRISIS_SYSTEM_NOTE) && sceneCanon.current());
-  if (!sceneCanon) tools = tools.filter(t => t.spec.name !== SCENE_CANON_TOOL);
   // Phase 98 (ST3, STAPLES §6.4): plugins see only the owner's own turns (never private, partner,
   // group, imported, adult-channel, other apps', replayed or eval turns), and their tools are only
   // offered there.
   const pluginTurn = app.plugins && pluginTurnAllowed(conv, { group: Boolean(opts.group), external: external || Boolean(opts.externalApp), replay: Boolean(opts.replay), eval: Boolean(opts.recorder) }) ? new PluginTurn(app.plugins, conv, app.now) : undefined;
-  if (!pluginTurn) tools = tools.filter((t) => !t.source?.startsWith('Plugin: '));
-  // Phase 121: the safety report and the routine card are the owner's own chats' only (never other apps, agents, groups, partner chats).
-  if (opts.externalApp || external || opts.group || opts.outside || conv.partner) tools = tools.filter((t) => t.spec.name !== 'safety_report' && t.spec.name !== 'suggest_routine');
-  // Phase 66: group chats get read-only tools only, and only those that run without asking (no approvals mid-round).
-  if (opts.group) tools = tools.filter((t) => GROUP_TOOLS.has(t.spec.name) && app.tools.permission(t.spec.name, s.toolPermissions) === 'auto');
+  // R2a: the eligible tools come from the shared turn scope (live calls use the same filter).
+  let tools = scopeTools(app, conv, opts, { noModel: noTools.has(modelKey), external, checkpointExternal, session: Boolean(sessionContinuity), sceneCanon: Boolean(sceneCanon), pluginTurn: Boolean(pluginTurn) });
   // Private conversations: commands get no network either (nothing leaves the server).
   const sandbox: SandboxInfo = { ...app.sandbox, network: conv.private || privateLocalOn() ? false : (s.shellNetwork ?? true) };
   let wsDir = '';
@@ -1971,9 +2077,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     });
     usedMarked = true;
   } else if (app.memory && memCfg.enabled && !conv.partner) {
-    const visible = store.messages(conv.id).filter((m) => !isForgotten(m) && (m.role === 'user' || m.role === 'assistant' || m.role === 'tool'));
-    const kept = buildHistory(store.messages(conv.id), budget).firstKeptId;
-    const oldestHistoryId = kept || (visible.at(-HISTORY_LIMIT)?.id ?? visible[0]?.id ?? 0);
+    const { visible, oldestHistoryId } = historyFloor(app, conv, budget);
     // Phase 38: notes close in meaning, when the embeddings job is set (word search always runs).
     // Phase 76: the meaning scores are kept (they rank the notes and say how sure).
     const related = app.vectors ? await app.vectors.related(text).catch(() => []) : [];
@@ -1989,22 +2093,13 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         console.warn(`people: ${(err as Error).message}`);
       }
     }
-    injection = selectMemories(app.memory, {
+    injection = selectMemories(app.memory, ownerMemoryInput(app, conv, text, now, {
       related,
-      userText: text,
-      conversationId: conv.id,
       oldestHistoryId,
       budgetChars: Math.max(200, memCfg.injectBudgetChars - (peopleText ? peopleText.length + 1 : 0)),
-      policy: decayPolicy(memCfg),
-      today: localDate(now.toISOString(), s.timeZone),
       extra: sharedOwnerFacts(app, text, opts.externalApp).filter((l) => !peopleGate || peopleGate.text(l)),
-      docName: (id) => app.library?.get(id)?.name,
-      docPage: (id, evidence) => app.library?.pageOf(id, evidence),
-      importedFrom: (id) => importedOther(store.getConversation(id)),
-      // Phase 104: notes from her own past before a move-in say so.
-      movedFrom: (id) => movedFrom(store.getConversation(id)),
       ...(appSafe ? { allow: appSafe } : {}),
-    });
+    }));
     // Phase 32: pick up from last time at the start of a conversation, and look up what the
     // owner refers to ("remember when…") in the real past messages.
     const ownerName = s.ownerName?.trim() || 'the owner';

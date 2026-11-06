@@ -46,6 +46,12 @@ In web work Sara edits, previews, takes desktop and phone screenshots, fixes wha
 checks again. Claims about phone width or a finished fix need matching evidence, otherwise the
 reply is marked unverified. See [Web pages: look, fix, look again](FOR_CODERS.md#web-pages-look-fix-look-again).
 
+## Calls work like the chat in 2.75.0
+
+On a voice or video call Sara has the same memories, context and Adult-mode rule as in the chat,
+and live calls can use her tools. Anything that needs your OK shows a card on the call screen that
+only a tap answers; hanging up or talking over her cancels it. See [Video calls](VIDEO_CALLS.md).
+
 ## Read together in 2.74.0
 
 Open a text or Markdown document from your library with Sara, share a passage (or let her follow

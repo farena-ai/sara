@@ -5,6 +5,15 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.75.0 (2026-11-06): calls work like the chat
+
+- **Calls work like the chat (R2a–R2c):** on a call she has the same memories, other-chat
+  context, checkpoint, tools and Adult-mode rule as typing in that chat (a household member gets
+  their own). A tool that needs your OK shows its card on the call screen and she says so; only a
+  tap answers it, and hanging up, talking over her or two minutes without a tap cancels it. Live
+  calls can now use her tools (not commands, her hands or SSH), with a note of each result in the
+  chat; on a voice without tool calling the screen offers *Switch to classic*. See [Video calls](docs/VIDEO_CALLS.md#what-she-knows-and-can-do-on-a-call).
+
 ## 2.74.0 (2026-11-06): read together
 
 - **Fixed: cards that looked stuck.** When you press *Use it*, *Edit first*, *Not now*, *Install* or

@@ -453,6 +453,11 @@ body.in-video-call { overflow: hidden; }
 .vc-icon { margin-left: auto; background: var(--call-glass); border: 1px solid var(--call-line); color: var(--on-photo); border-radius: 10px; width: 40px; height: 40px; font-size: 18px; cursor: pointer; }
 .vc-notice { max-width: 640px; margin: 4px 0 0; padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--call-bg) 82%, transparent); border: 1px solid var(--call-line); font-size: 14px; line-height: 1.35; }
 .vc-notice[data-kind="crisis"] { border-color: var(--accent-text); }
+/* R2b: an approval card on the call screen (the chat's own card, readable over her portrait). */
+.vc-approvals { width: min(560px, 100%); max-height: 42dvh; overflow: auto; margin: 6px 0 0; color: var(--text); }
+.vc-approvals:empty { display: none; }
+.call-tools-note { margin: 4px 0 0; }
+.vc-approvals .approval { margin: 0 0 6px; box-shadow: var(--shadow-2); }
 .vc-stage { flex: 1 1 0; min-height: 0; width: 100%; display: grid; place-items: center; padding: 8px 0; }
 #call-presence.vc-presence { width: min(92vw, 100%, calc(100dvh - 340px), 720px); max-height: 100%; aspect-ratio: 1; border-radius: 28px; box-shadow: var(--shadow-2); }
 .vc-captions { width: min(720px, 100%); min-height: 0; max-height: 26dvh; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; margin: 6px 0 8px; }

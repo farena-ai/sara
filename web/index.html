@@ -260,8 +260,10 @@
         <p id="call-status" class="call-status">Listening…</p>
         <div class="call-actions">
           <button id="call-to-video" type="button" class="ghost small" title="See her full size while you talk"><i class="ic" data-icon="video"></i>Video</button>
+          <button id="call-classic" type="button" class="ghost small" title="End this live call and call the classic way: her tools work there" hidden>Switch to classic</button>
           <button id="call-end" type="button" class="ghost small">End call</button>
         </div>
+        <p id="call-tools-note" class="call-tools-note small muted" hidden>On this voice, ask me in the chat to use tools.</p>
       </div>
       <div id="video-call" class="video-call" role="dialog" aria-modal="true" aria-labelledby="vc-name" tabindex="-1" hidden>
         <img id="vc-backdrop" class="vc-backdrop" alt="">
@@ -273,6 +275,7 @@
           <button id="vc-minimize" type="button" class="vc-icon" title="Voice only: back to the chat, the call goes on" aria-label="Voice only"><i class="ic" data-icon="minimize"></i></button>
         </div>
         <p id="vc-notice" class="vc-notice" role="alert" hidden></p>
+        <div id="vc-approvals" class="vc-approvals" role="region" aria-label="Waiting for your OK"></div>
         <div id="vc-stage" class="vc-stage"></div>
         <div id="vc-captions" class="vc-captions" aria-live="polite"></div>
         <div id="vc-self" class="vc-self" hidden>
@@ -286,6 +289,7 @@
           <button id="vc-look" type="button" class="vc-btn" title="Send her a picture from your camera now and ask what she thinks" hidden><span aria-hidden="true"><i class="ic" data-icon="eye"></i></span><small>Look at this</small></button>
           <button id="vc-sound" type="button" class="vc-btn" aria-pressed="false" title="Her voice on or off"><span aria-hidden="true"><i class="ic" data-icon="speaker-on"></i></span><small>Sound</small></button>
           <button id="vc-cc" type="button" class="vc-btn" aria-pressed="true" title="Show what you both say as text"><span aria-hidden="true"><i class="ic" data-icon="captions"></i></span><small>Captions</small></button>
+          <button id="vc-classic" type="button" class="vc-btn" title="End this live call and call the classic way: her tools work there" hidden><span aria-hidden="true"><i class="ic" data-icon="tool"></i></span><small>Switch to classic</small></button>
           <button id="vc-end" type="button" class="vc-btn end" title="Hang up"><span aria-hidden="true"><i class="ic" data-icon="phone-end"></i></span><small>End</small></button>
         </div>
       </div>

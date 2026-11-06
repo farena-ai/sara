@@ -2,6 +2,7 @@
 import { Call, Mic, Speaker } from './voice.js';
 import { LiveCall } from './live.js';
 import { VideoCallView } from './video-call.js';
+import { CallApprovals } from './call-approvals.js';
 import { parse as parseMd, toDom } from './markdown.js';
 import { Presence, setLookVersion } from './presence.js';
 import { openLightbox } from './lightbox.js';
@@ -2457,6 +2458,7 @@ async function runStream(path, body, userBubble) {
           place(card);
           card.scrollIntoView({ block: 'nearest' });
           setActivity('waiting', ev.summary);
+          if (voice.call?.active) callApprovals.shown(ev.id, card);
         } else if (ev.type === 'contradiction') {
           // Phase 77: a flag (she mentions it), or how a stop ended (Do it anyway / Don't / Update the note).
           const old = document.querySelector(`.contradict-flag[data-call="${CSS.escape(ev.id)}"][data-mem="${ev.item.memoryId}"]`);
@@ -2492,6 +2494,7 @@ async function runStream(path, body, userBubble) {
           place(recallChip(ev.item, { api }));
         } else if (ev.type === 'sandbox_running') {
           // Phase 80: the command is being tried in a throwaway copy first.
+          callApprovals.done(ev.id);
           document.querySelector(`.approval[data-call="${CSS.escape(ev.id)}"]`)?.remove();
           if (steps) runStep(steps, ev.id);
           setActivity('running', t('trying it in a sandbox copy'));
@@ -2505,6 +2508,7 @@ async function runStream(path, body, userBubble) {
           // Phase 86: "Red-team first" on the ship card: the run started, shipping waits for its report.
           place(redteamFlag(ev));
         } else if (ev.type === 'tool_running') {
+          callApprovals.done(ev.id);
           document.querySelector(`.approval[data-call="${CSS.escape(ev.id)}"]`)?.remove();
           if (steps) runStep(steps, ev.id);
           setActivity('running', ev.summary);
@@ -2594,6 +2598,7 @@ async function runStream(path, body, userBubble) {
     if (err.name !== 'AbortError') append(bubble('error', err.message));
   } finally {
     dropBuilding();
+    callApprovals.settle();
     if (voiceOn()) speaker.flush();
     if (videoView.active && voice.call?.active) videoView.herDone();
     // A typed reply finishes typing before the chat is redrawn (stopping shows it all at once).
@@ -4299,6 +4304,24 @@ const videoView = new VideoCallView({
     await send(t('What do you think of this?'));
   },
   onCue: (x) => callPresence.setExpression(x ?? state.expression, state.customAvatar),
+  // R2b: cards still waiting when the call screen closes go back into the chat.
+  onApprovalBack: (card) => $('#messages').append(card),
+});
+// R2b: an approval card during a call goes on the call screen with one spoken line; only a tap answers it.
+const callApprovals = new CallApprovals({
+  t,
+  say: (text) => {
+    if (voice.call?.active) speaker.say(text);
+  },
+  stop: () => {
+    if (voice.call?.active && state.streaming) void fetch(`/api/conversations/${state.currentId}/stop`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).catch(() => {});
+  },
+  show: (card) => {
+    if (videoView.open) videoView.approval(card);
+  },
+  release: (card) => {
+    if (card.closest?.('#vc-approvals')) card.remove();
+  },
 });
 /** Opens the video call screen for the call going on (or about to). */
 function openVideo() {
@@ -4306,6 +4329,7 @@ function openVideo() {
   $('#call-panel').hidden = true;
   voice.liveCall?.setVideo?.(true);
   void videoView.show({ conversationId: state.currentId, demo: document.body.classList.contains('demo'), name: currentIdentity().name || t('Sara'), status: $('#call-status').textContent });
+  callApprovals.reshow();
 }
 new MutationObserver(() => ($('#sara-dialog')?.open ? sdPresence.start() : sdPresence.stop())).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
 speaker.onState = ((prev) => (on) => {
@@ -4350,6 +4374,9 @@ async function startLiveCall(ringId, { video = false } = {}) {
   let heard = null;
   const end = (reason) => {
     if (!voice.liveCall) return;
+    // R2c: what waits for an OK is cancelled with the call (the server cancels it too).
+    callApprovals.ended();
+    toolsFallback(false);
     voice.liveCall = null;
     videoView.hide();
     callPresence.listen(null);
@@ -4368,6 +4395,26 @@ async function startLiveCall(ringId, { video = false } = {}) {
         else if (ev.type === 'caption') videoView.her(ev.text.replace(/\[(?:laugh|chuckle|sigh|breath|pause|long-pause|giggle|exhale|inhale|cough|gasp)\]|<\/?(?:whisper|soft|laugh-speak|emphasis|sing|slow|fast|loud|quiet)>/gi, ''));
         else if (ev.type === 'said') videoView.herDone(ev.text + (ev.interrupted ? ' …' : ''));
       }
+      // R2c: her tools on the live call: a card only a tap answers, what runs, and the fallback.
+      if (ev.type === 'approval') {
+        const card = approvalCard(ev);
+        if (state.currentId === convId) append(card);
+        callApprovals.shown(ev.id, card);
+        return;
+      }
+      if (ev.type === 'approval_done') {
+        callApprovals.done(ev.id);
+        document.querySelector(`.approval[data-call="${CSS.escape(ev.id)}"]`)?.remove();
+        return;
+      }
+      if (ev.type === 'tool') {
+        if (ev.state === 'running') {
+          $('#call-status').textContent = ev.summary;
+          if (videoView.active) videoView.status(ev.summary);
+        }
+        return;
+      }
+      if (ev.type === 'tools') return void toolsFallback(ev.fallback === true);
       if (state.currentId !== convId) return;
       if (ev.type === 'status') {
         $('#call-status').textContent = LIVE_STATUS[ev.state] ?? '';
@@ -4429,8 +4476,25 @@ async function startLiveCall(ringId, { video = false } = {}) {
   }
 }
 
+/** R2c: on a voice service without tool calling, the call screen says so and offers a classic call. */
+function toolsFallback(on) {
+  $('#call-tools-note').hidden = !on;
+  $('#call-classic').hidden = !on;
+  $('#vc-classic').hidden = !on;
+  if (on && videoView.active) videoView.notice('tools', t('On this voice, ask me in the chat to use tools.'));
+}
+async function switchToClassic() {
+  const video = videoView.open;
+  if (voice.liveCall) $('#call').click();
+  await startClassicCall(video);
+}
+$('#call-classic').addEventListener('click', () => void switchToClassic());
+$('#vc-classic').addEventListener('click', () => void switchToClassic());
+
 $('#call').addEventListener('click', async () => {
   if (voice.liveCall) {
+    callApprovals.ended();
+    toolsFallback(false);
     voice.liveCall.hangUp();
     voice.liveCall = null;
     callPresence.listen(null);
@@ -4445,6 +4509,8 @@ $('#call').addEventListener('click', async () => {
     return startLiveCall();
   }
   if (voice.call?.active) {
+    // R2b: hanging up cancels what waits for an OK (nothing runs after the call).
+    callApprovals.ended();
     voice.call.stop();
     voice.call = null;
     speaker.stop();
@@ -4463,11 +4529,14 @@ async function startClassicCall(video) {
     speaker,
     transcribe,
     onUtterance: async (text) => {
+      // R2b: words while a card waits never answer it; they interrupt, which cancels it.
+      callApprovals.heard();
       if (state.streaming) await fetch(`/api/conversations/${state.currentId}/stop`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
       while (state.streaming) await new Promise((r) => setTimeout(r, 100));
       await send(text);
     },
     onInterrupt: () => {
+      callApprovals.heard();
       if (state.streaming) void fetch(`/api/conversations/${state.currentId}/stop`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
     },
     onStatus: (s) => {

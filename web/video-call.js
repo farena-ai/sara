@@ -15,7 +15,8 @@ const $ = (s) => document.getElementById(s);
 export class VideoCallView {
   /**
    * @param {{ presence: object, home: HTMLElement, onEnd: () => void, onMute: (muted: boolean) => boolean,
-   *   onSound: (on: boolean) => boolean, onMinimize: () => void, onLook: () => Promise<void>, onCue: (expression: string|null) => void }} o
+   *   onSound: (on: boolean) => boolean, onMinimize: () => void, onLook: () => Promise<void>, onCue: (expression: string|null) => void,
+   *   onApprovalBack?: (card: HTMLElement) => void }} o
    */
   constructor(o) {
     this.o = o;
@@ -84,6 +85,8 @@ export class VideoCallView {
     document.body.classList.remove('in-video-call');
     this.o.presence.root.classList.remove('vc-presence');
     this.o.home.prepend(this.o.presence.root);
+    // R2b: a card still waiting for an OK goes back into the chat.
+    for (const card of [...$('vc-approvals').children]) this.o.onApprovalBack?.(card);
     this.wake?.release?.().catch(() => {});
     this.wake = null;
     this.o.onCue(null);
@@ -102,6 +105,11 @@ export class VideoCallView {
   backdrop() {
     const src = this.o.presence.base?.src;
     if (src && $('vc-backdrop').src !== src) $('vc-backdrop').src = src;
+  }
+
+  /** R2b: an approval card on the call screen (the same card as in the chat; a tap answers it). */
+  approval(card) {
+    $('vc-approvals').append(card);
   }
 
   status(text) {
