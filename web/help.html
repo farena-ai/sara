@@ -286,6 +286,8 @@
 <h4 id="howto-ab-plugins">Plugins</h4>
 <details class="howto-q" id="howto-ab-plugins-add"><summary>How do I add a plugin?</summary><ol><li>Press Add a plugin.</li><li>Read the permissions it asks for.</li><li>Switch it on when you trust it.</li></ol></details>
 <details class="howto-q" id="howto-ab-plugins-stop"><summary>How do I stop a plugin?</summary><ol><li>Switch it off on its card.</li><li>Its log stays under What it did.</li></ol></details>
+<details class="howto-q" id="howto-ab-plugins-candidates"><summary>How do I try a workflow candidate?</summary><ol><li>Open Workflow candidates and read Details and limits.</li><li>Press Review local candidate, inspect its exact permissions and trust warning, then Install only if you agree.</li><li>It stays off for every companion. Enable it separately on its installed card.</li></ol></details>
+<details class="howto-q" id="howto-ab-plugins-guides"><summary>How do I use a starter guide?</summary><ol><li>Open Starter guides under Workflow candidates.</li><li>Read its members, qualification, privacy, costs and setup checklist.</li><li>Follow existing Settings links and review each member separately. Nothing installs as a group.</li></ol></details>
 <h4 id="howto-ab-search">Web search</h4>
 <details class="howto-q" id="howto-ab-search-on"><summary>How do I let her search the web?</summary><ol><li>Pick a Search service.</li><li>Paste its API key if it needs one.</li><li>Ask her to look something up.</li></ol></details>
 <details class="howto-q" id="howto-ab-search-free"><summary>How do I search without a key?</summary><ol><li>Pick a service marked Free · no key.</li><li>Or run your own SearXNG and paste its URL.</li></ol></details>
@@ -301,6 +303,8 @@
 <h4 id="howto-ab-mcp">Other programs (MCP)</h4>
 <details class="howto-q" id="howto-ab-mcp-add"><summary>How do I connect another program (MCP)?</summary><ol><li>Pick Start from, or type the Command or URL.</li><li>Add any Secrets it needs.</li><li>Press Save and connect.</li></ol></details>
 <details class="howto-q" id="howto-ab-mcp-what"><summary>What is an MCP server?</summary><ol><li>A small program that gives her new tools.</li><li>Its tools then appear in Tools and approvals.</li></ol></details>
+<details class="howto-q" id="howto-ab-mcp-previews"><summary>How do I inspect an MCP recipe preview?</summary><ol><li>Open Connection investigations and filter the list.</li><li>Expand View recipe preview or Why blocked; read prerequisites, scope, costs and qualification.</li><li>Prepare configuration yourself in the existing form only after review. Previews do not save, connect or authorize accounts.</li></ol></details>
+<details class="howto-q" id="howto-ab-mcp-permissions"><summary>How do I verify MCP approval settings?</summary><ol><li>Inspect each discovered tool in Tools and approvals and select Ask or Off.</li><li>Save, leave the page, reopen it and read back the saved permissions.</li><li>Repeat after discovery, reconnect and updates. Server read-only annotations can auto-allow calls and do not enforce external-effect approval or cost limits.</li></ol></details>
 <h3>Coding</h3>
 <h4 id="howto-ab-tools">Tools and approvals</h4>
 <details class="howto-q" id="howto-ab-tools-ask"><summary>How do I make her ask before she does something?</summary><ol><li>Find the tool in its group.</li><li>Set it to Ask me first.</li><li>Approval cards then appear in chat.</li></ol></details>
@@ -901,6 +905,13 @@
   <li><strong>She still follows her rules.</strong> A plugin can add a labelled note or a card, or make a step ask you; it can never change her rules, her replies or what you decided, and it never sees private, partner, group or other apps' chats. A plugin that is too slow or crashes is skipped; one that keeps crashing is switched off.</li>
   <li>Writing your own: the guide is <code>docs/PLUGINS.md</code>, with two examples in <code>examples/plugins/</code>.</li>
 </ul>
+
+<h3>Workflow candidates and starter guides</h3>
+<p>In Settings → Add-ons → Plugins, Workflow candidates are local supplied-data workflows in testing, not signed store releases. Expand Details and limits to read prerequisites, permissions, privacy, costs and qualification. Review local candidate opens the normal exact-file permission review, including trust and Windows fencing warnings. Cancel installs nothing; after Install every companion stays off until you enable it on its installed card. Image Workshop prepares prompts and briefs; Home Dashboard reads a supplied snapshot, not a live home.</p>
+<p>Starter guides are six collapsed reading and setup checklists. Each member is reviewed separately through existing Settings links. Signed availability comes only from Get more; absent listings remain held. Private and local depends on the models, providers, network and scopes you actually select. A guide installs nothing as a group.</p>
+<h3>Connection investigations</h3>
+<p>Settings → Add-ons → Other programs (MCP) keeps your existing connections, two presets and manual form. Connection investigations adds seven read-only recipe previews and fourteen blocked investigations. Filter the list, then expand View recipe preview or Why blocked. Previews collect no secrets and never save, connect, authorize an account or execute commands. A top-level package pin does not lock transitive dependencies; generic hosted OAuth and real-account qualification remain unproven.</p>
+<p>Inspect each discovered tool in Tools and approvals, choose Ask or Off, save, leave the page, reopen and read back the saved permissions. Repeat after discovery, reconnect and updates. Server read-only annotations can auto-allow tools and do not enforce external-effect approvals or cost limits. DBHub needs database-enforced read-only credentials; MarkItDown is not a file or network sandbox; draw.io may open a browser.</p>
 
 <h2 id="workflows">Coding workflows</h2>
 <ul>

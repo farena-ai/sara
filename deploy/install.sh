@@ -226,9 +226,19 @@ fi
 
 log "Installing application to $APP_DIR..."
 mkdir -p "$APP_DIR"
-for item in src web persona templates skills package.json package-lock.json; do
+for item in src web persona templates skills plugins package.json package-lock.json; do
   rm -rf "${APP_DIR:?}/$item"
   cp -r "$SRC_DIR/$item" "$APP_DIR/"
+done
+# Local workflow candidates remain untrusted packages, reviewed separately before installation.
+CANDIDATE_PLUGINS=(
+  daily-briefing meeting-assistant document-desk research-notebook project-handoff weekly-review
+  inbox-triage content-studio image-workshop spreadsheet-assistant travel-planner home-dashboard
+)
+rm -rf "${APP_DIR:?}/store/plugins"
+mkdir -p "$APP_DIR/store/plugins"
+for id in "${CANDIDATE_PLUGINS[@]}"; do
+  cp -r "$SRC_DIR/store/plugins/$id" "$APP_DIR/store/plugins/"
 done
 # Phase 87: the shared page agent her testing browser reads pages with (also in the desktop apps).
 rm -rf "${APP_DIR:?}/desktop" && mkdir -p "$APP_DIR/desktop/shared"

@@ -10,6 +10,7 @@ import { icon } from './icons.js';
 import { overflowMenu, emptyState } from './tidy.js';
 import { proposalCard } from './proposal-card.js';
 import { reviewNotices } from './plugin-notice.js';
+import { loadNativeDiscovery } from './addons-discovery.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -94,6 +95,16 @@ const STATE = {
 let state = { plugins: [], companions: [], waiting: [], fence: 'node-only' };
 let pending = null;
 let editing = null;
+let focusPlugin = null;
+
+function focusInstalled() {
+  if (!focusPlugin) return;
+  const card = document.querySelector(`[data-installed-plugin="${CSS.escape(focusPlugin)}"]`);
+  if (!card) return;
+  card.scrollIntoView({ block: 'center' });
+  card.focus();
+  focusPlugin = null;
+}
 
 function status(text) {
   const s = $('#plg-status');
@@ -109,6 +120,7 @@ export async function loadPlugins() {
     $('#plg-off').hidden = false;
     $('#plg-off').textContent = err.status === 403 || err.status === 404 ? t('Plugins are off on this server.') : err.message;
     $('#plg-add').hidden = true;
+    $('#plg-discovery')?.replaceChildren();
     box.replaceChildren();
     return;
   }
@@ -119,7 +131,9 @@ export async function loadPlugins() {
   $('#plg-fence-note').hidden = state.fence !== 'node-only' || !(state.plugins ?? []).some((p) => p.origin && p.origin !== 'builtin' && p.origin !== 'store');
   renderWaiting();
   renderList();
+  focusInstalled();
   await renderBuiltin();
+  await loadNativeDiscovery(addCandidate);
 }
 
 // ---------- Phase 117 (P3): plugins that come with Sara ----------
@@ -167,6 +181,20 @@ export async function addBuiltin(id) {
   $('#pla-status').textContent = t('Reading it…');
   try {
     pending = await api('/plugins/install', { method: 'POST', body: { builtin: id } });
+    $('#pla-status').textContent = '';
+    renderReview();
+  } catch (err) {
+    $('#pla-status').textContent = err.message;
+  }
+}
+
+/** Local candidates keep the ordinary untrusted stage/review/approval flow. */
+export async function addCandidate(id) {
+  openAdd();
+  for (const sel of ['#pla-sources', '#pla-zip-row', '#pla-look-row']) if ($(sel)) $(sel).hidden = true;
+  $('#pla-status').textContent = t('Reading it…');
+  try {
+    pending = await api('/plugins/install', { method: 'POST', body: { candidate: id } });
     $('#pla-status').textContent = '';
     renderReview();
   } catch (err) {
@@ -228,6 +256,8 @@ function renderList() {
 
 function pluginCard(p) {
   const card = el('article', `skl-card plg-card${p.status !== 'installed' ? ' off' : ''}`);
+  card.dataset.installedPlugin = p.id;
+  card.tabIndex = -1;
   const head = el('div', 'plg-head');
   const ic = el('span', 'skl-icon');
   ic.append(icon('tool'));
@@ -255,6 +285,7 @@ function pluginCard(p) {
   // Phase 124: the Sara Store pulled it (the store's reason, shown as plain text).
   if (p.status === 'disabled' && String(p.statusNote ?? '').startsWith(STORE_PULLED)) chips.append(chip(t('Pulled from the Sara Store: {reason}', { reason: p.statusNote.slice(STORE_PULLED.length) }), 'bad'));
   if (p.origin === 'builtin') chips.append(chip(t('Comes with Sara'), 'muted'));
+  else if (p.origin === 'candidate') chips.append(chip(t('Local workflow candidate'), 'warn'));
   else if (p.author) chips.append(chip(t('By {who}', { who: p.author }), 'muted'));
   card.append(chips);
   const on = el('div', 'plg-companions');
@@ -389,7 +420,10 @@ export function reviewCard(r, opts = {}) {
   const chips = [{ text: notes.calm ? t('No sandbox here') : FENCE[r.fence]?.() ?? r.fence, cls: notes.amberChip ? 'warn' : '' }, ...(m.license ? [{ text: m.license }] : []), ...(r.current ? [{ text: t('Now: {version}', { version: r.current.version }) }] : [])];
   const why = [own(i18n, m.description)];
   // Phase 124 (SARA_STORE.md §6.1): the files match a version in the verified Sara Store list.
-  if (r.store) why.push(STORE_STRIP[r.store.trust]?.() ?? STORE_STRIP.community());
+  if (r.origin?.kind === 'candidate') {
+    why.unshift(t('Local workflow candidate · not a signed store release'));
+    if (r.store) why.push(t('These exact files also match a verified store entry; this installation remains a local candidate.'));
+  } else if (r.store) why.push(STORE_STRIP[r.store.trust]?.() ?? STORE_STRIP.community());
   if (r.builtin) why.push(t('Comes with Sara · made by the Sara team'));
   else if (m.author) why.push(t('By {who}', { who: m.author }));
   const warn = notes.warn;
@@ -911,6 +945,12 @@ export function pluginAskLine(plugin) {
 
 export function initPlugins() {
   if (!$('#plg-list')) return;
+  document.addEventListener('sara:focus-plugin', (event) => {
+    if (typeof event.detail !== 'string') return;
+    focusPlugin = event.detail;
+    // Navigation re-renders installed cards; focus follows that render as well.
+    if (document.querySelector('.settings-page[data-page="ab-plugins"]:not([hidden])')) focusInstalled();
+  });
   $('#plg-add').addEventListener('click', openAdd);
   for (const b of document.querySelectorAll('#pla-sources .pick-card')) b.addEventListener('click', () => pickSource(b.dataset.kind));
   $('#pla-look').addEventListener('click', (e) => void lookAtIt(e.currentTarget));

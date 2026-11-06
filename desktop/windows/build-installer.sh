@@ -54,6 +54,15 @@ cp build/Release/Sara.exe build/Release/SaraService.exe "$STAGE/"
 cp "$NODE_DIR/node.exe" "$STAGE/node/"
 cp "$NODE_DIR/LICENSE" "$STAGE/node/LICENSE.txt"
 cp -r "$ROOT/src" "$ROOT/web" "$ROOT/persona" "$ROOT/templates" "$ROOT/skills" "$ROOT/plugins" "$STAGE/server/"
+# Local workflow candidates remain untrusted packages, reviewed separately before installation.
+CANDIDATE_PLUGINS=(
+  daily-briefing meeting-assistant document-desk research-notebook project-handoff weekly-review
+  inbox-triage content-studio image-workshop spreadsheet-assistant travel-planner home-dashboard
+)
+mkdir -p "$STAGE/server/store/plugins"
+for id in "${CANDIDATE_PLUGINS[@]}"; do
+  cp -r "$ROOT/store/plugins/$id" "$STAGE/server/store/plugins/"
+done
 # Phase 87: the shared page agent (her testing browser reads pages with it too).
 mkdir -p "$STAGE/server/desktop/shared" && cp "$ROOT/desktop/shared/page-agent.js" "$STAGE/server/desktop/shared/"
 cp "$ROOT/package.json" "$ROOT/LICENSE" "$STAGE/server/"

@@ -3059,6 +3059,7 @@
       <div id="plg-list" class="skl-list"></div>
       <h3 id="plg-builtin-head" hidden>Comes with Sara <button type="button" class="tip" data-tip="Plugins made by the Sara team that ship inside Sara. They install through the same card as any plugin, nothing is switched on by itself, and a newer one shows Update available.">?</button></h3>
       <div id="plg-builtin" class="skl-list"></div>
+      <div id="plg-discovery" class="addon-discovery" data-noauto></div>
       <p id="plg-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="ab-home" data-group="Add-ons" data-title="Home Assistant" data-owner-only hidden>
@@ -3245,7 +3246,7 @@
       <p id="lib-settings-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="ab-mcp" data-group="Add-ons" data-title="Other programs (MCP)" data-owner-only hidden>
-      <p class="muted small page-lead">Plug-in tool servers (Model Context Protocol), such as your email or calendar. Their tools appear above: ones the server marks as read-only run on their own, everything that sends, changes or deletes asks you first.</p>
+      <p class="muted small page-lead">Plug-in tool servers (Model Context Protocol), such as your email or calendar. Their tools appear in Tools and approvals. Server read-only annotations can allow tools to run automatically; they do not guarantee approval for external effects or costs. Inspect permissions, choose Ask or Off, save, leave and reopen to verify them after discovery, reconnect and updates.</p>
       <p class="muted small store-more"><a class="store-link" href="https://backstagecoding.com/sara/store/" target="_blank" rel="noopener noreferrer">More in the Sara Store</a></p>
       <div id="mcp-list"></div>
       <details id="mcp-add" data-noauto>
@@ -3266,6 +3267,7 @@
         <label class="row"><input id="mcp-enabled" type="checkbox" checked> Enabled</label>
         <button id="mcp-save" type="button">Save and connect</button>
       </details>
+      <div id="mcp-discovery" class="addon-discovery" data-noauto></div>
         </section>
         <section class="settings-page" data-page="co-phone" data-group="Connections" data-title="Phone and notifications" hidden>
       <div id="phone-app" hidden>

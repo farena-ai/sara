@@ -48,6 +48,19 @@ COPY templates ./templates
 COPY skills ./skills
 # Phase 117: the plugins that come with Sara (Signal); installed only through their review card.
 COPY plugins ./plugins
+# Local workflow candidates remain untrusted packages; no catalog authoring data ships here.
+COPY store/plugins/daily-briefing ./store/plugins/daily-briefing
+COPY store/plugins/meeting-assistant ./store/plugins/meeting-assistant
+COPY store/plugins/document-desk ./store/plugins/document-desk
+COPY store/plugins/research-notebook ./store/plugins/research-notebook
+COPY store/plugins/project-handoff ./store/plugins/project-handoff
+COPY store/plugins/weekly-review ./store/plugins/weekly-review
+COPY store/plugins/inbox-triage ./store/plugins/inbox-triage
+COPY store/plugins/content-studio ./store/plugins/content-studio
+COPY store/plugins/image-workshop ./store/plugins/image-workshop
+COPY store/plugins/spreadsheet-assistant ./store/plugins/spreadsheet-assistant
+COPY store/plugins/travel-planner ./store/plugins/travel-planner
+COPY store/plugins/home-dashboard ./store/plugins/home-dashboard
 # Phase 87: the shared page agent her testing browser reads pages with (also in the desktop apps).
 COPY desktop/shared/page-agent.js ./desktop/shared/page-agent.js
 # Phase 104: the move-in collector Sara serves (Settings → Data & health → Move in from another agent).

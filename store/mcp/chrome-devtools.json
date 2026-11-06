@@ -1,0 +1,112 @@
+{
+  "id": "chrome-devtools",
+  "version": "1.0.0",
+  "name": "Chrome DevTools",
+  "category": "coding",
+  "tags": [
+    "coding",
+    "mcp"
+  ],
+  "summary": "Inspect and automate a separate test Chrome browser.",
+  "description": "Inspect and automate a separate test Chrome browser. Available capabilities depend on the provider and the explicitly granted permissions.",
+  "about": [
+    "Inspect and automate a separate test Chrome browser. Available capabilities depend on the provider and the explicitly granted permissions.",
+    "Windows direct stdio discovery plus an isolated headless loopback-page navigation, accessibility snapshot and title/button inspection passed. No authenticated vendor feature or Sara-host execution.",
+    "Reads browser content, network requests and console; can navigate and execute JavaScript",
+    "Server code is free; visited sites may have their own charges.",
+    "Read and write permissions are different. This recipe grants no automatic execution. Sara may still auto-allow tools from server read-only annotations; the owner must inspect and set host permissions before use."
+  ],
+  "license": "Apache-2.0",
+  "source": "https://raw.githubusercontent.com/ChromeDevTools/chrome-devtools-mcp/HEAD/README.md",
+  "needs": [
+    "node",
+    "app:Google Chrome"
+  ],
+  "works": [],
+  "mcp": {
+    "transport": "stdio",
+    "name": "chrome-devtools",
+    "command": "npx",
+    "args": [
+      "-y",
+      "chrome-devtools-mcp@1.12.0",
+      "--isolated",
+      "--headless",
+      "--no-usage-statistics",
+      "--no-performance-crux",
+      "--workspace",
+      "${home}"
+    ],
+    "fields": [
+      {
+        "key": "CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS",
+        "kind": "choice",
+        "label": "Disable update checks",
+        "tip": "Keeps the pinned tool from checking npm for updates while it runs. Review and update the pin separately.",
+        "default": "1",
+        "choices": [
+          "1"
+        ]
+      }
+    ],
+    "secrets": [],
+    "reaches": [
+      "websites you explicitly navigate to",
+      "npm registry at installation"
+    ],
+    "needs": [
+      "node",
+      "app:Google Chrome"
+    ],
+    "tools": {
+      "readOnly": [],
+      "ask": [
+        "click",
+        "close_page",
+        "drag",
+        "emulate",
+        "evaluate_script",
+        "fill",
+        "fill_form",
+        "get_console_message",
+        "get_css_styles",
+        "get_network_request",
+        "handle_dialog",
+        "hover",
+        "lighthouse_audit",
+        "list_console_messages",
+        "list_network_requests",
+        "list_pages",
+        "navigate_page",
+        "new_page",
+        "performance_analyze_insight",
+        "performance_start_trace",
+        "performance_stop_trace",
+        "press_key",
+        "resize_page",
+        "screencast_start",
+        "screencast_stop",
+        "select_page",
+        "take_heapsnapshot",
+        "take_screenshot",
+        "take_snapshot",
+        "type_text",
+        "upload_file",
+        "wait_for"
+      ]
+    },
+    "guide": [
+      "Use Node 24 LTS. Upstream accepts ^20.19.0, ^22.12.0 or >=23. Confirm node --version; dependency presence does not validate this range.",
+      "Uses a separate temporary Chrome profile, not your personal signed-in browser.",
+      "Telemetry and CrUX lookups are disabled; filesystem tools are restricted to this server folder.",
+      "Only an owned loopback page was navigated and inspected in an isolated headless browser. No external site, signed-in profile, upload or real-user page was tested.",
+      "After discovery, open Settings → Coding → Tools and approvals. Set every tool in this server's group to Ask me first or Off before sending any request.",
+      "Save, leave and reopen the page; read back every tool setting. Repeat after restart, update or newly discovered tools. Stop if settings cannot be confirmed."
+    ]
+  },
+  "changes": [
+    "First connection preview. Not published; qualification limitations are explicit."
+  ],
+  "tested": [],
+  "reviewNotes": "Connection preview, not a live vendor screenshot. Windows direct stdio discovery and four harmless isolated-browser fixture calls passed; no real account, external navigation, upload or Sara-host execution."
+}

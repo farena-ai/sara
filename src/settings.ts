@@ -283,6 +283,8 @@ export class StartupError extends Error {
 export class SettingsStore {
   readonly #path: string;
   #settings: Settings;
+  /** In-process authority observation; called synchronously only after a successful save. */
+  onUpdated?: (before: Readonly<Settings>, after: Readonly<Settings>) => void;
 
   constructor(dataDir: string) {
     this.#path = join(dataDir, FILE);
@@ -303,9 +305,11 @@ export class SettingsStore {
 
   update(patch: Partial<Settings>): Settings {
     // Saved first: if the disk refuses, the running server keeps what is really on disk.
-    const next = { ...this.#settings, ...patch };
+    const before = this.#settings;
+    const next = { ...before, ...patch };
     writeFileAtomic(this.#path, JSON.stringify(next, null, 2) + '\n', 0o666);
     this.#settings = next;
+    this.onUpdated?.(before, next);
     return this.get();
   }
 }

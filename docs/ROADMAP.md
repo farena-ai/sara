@@ -17,15 +17,19 @@ ordered provider steps and inspect/disable/clear controls. Context stays within 
 and eligible owner audience; history and internal handoffs grant no tool permissions or approvals.
 Shared multi-person scenes and project coordination are separate future slices.
 
-## Next: add-ons discovery in existing Settings
+## Add-ons discovery in existing Settings in 2.69.0
 
-Prepared supplied-data workflow candidates and MCP investigations will appear in the existing
+Prepared supplied-data workflow candidates and MCP investigations appear in the existing
 Plugins and Other programs pages, with clear prerequisites, permissions, costs and qualification
-limits. Local candidates, previews, account requirements and blocked entries will stay distinct
+limits. Local candidates, previews, account requirements and blocked entries stay distinct
 from verified signed-store availability. Review, installation and per-companion enablement remain
-explicit; nothing is automatically installed, connected or enabled. This integration is planned,
-not included in2.68.0. Image preparation is not image generation; a supplied home snapshot is not
-live device control.
+explicit; nothing is automatically installed, connected or enabled. Image preparation is not image
+generation; a supplied home snapshot is not live device control. See [the add-ons library](ADDONS_LIBRARY.md).
+
+## Next: more add-ons and a matching library website
+
+The rest of the public add-ons library and new developer add-ons will join the same Settings
+path, each with its own review. The add-ons pages will then be restyled to match the main site.
 
 ## Later: shared scenes, project coordination and calls
 

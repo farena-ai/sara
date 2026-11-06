@@ -35,7 +35,7 @@
 
 **Vous venez en équipe ?** Utilisez l’[installation professionnelle séparée](docs/BUSINESS_OPERATIONS.md) : clés d’accès individuelles, rôles explicites et espaces partagés. Cette installation manuelle possède son propre dossier de données ; les installateurs personnels ne convertissent ni votre compagne ni votre foyer.
 
-> **État :** 2.68.0, [Du contexte entre vos propres conversations](https://github.com/farena-ai/sara/releases/tag/v2.68.0). Du contexte frais entre les conversations admissibles du propriétaire, avec notes internes, étapes fournisseur ordonnées et commandes dédiées. [Voir les nouveautés](#quoi-de-neuf)
+> **État :** 2.69.0, [Extensions dans les Réglages](https://github.com/farena-ai/sara/releases/tag/v2.69.0). Douze flux locaux, sept aperçus MCP, quatorze investigations bloquées et six guides ; examen et activation explicites par compagnon. [Voir les nouveautés](#quoi-de-neuf)
 >
 > Installateur Windows : non signé ([aide SmartScreen](docs/INSTALL.md)). Le processus de publication macOS exige des téléchargements signés et notariés ; chaque compilation est vérifiée séparément. Android : [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone : [app web sur l’écran d’accueil](docs/PHONE.md).
 
@@ -126,6 +126,7 @@ Versions récentes · 5 novembre 2026. [Journal complet](CHANGELOG.md) · [Tous 
 
 | Version | Ce qui change pour vous |
 |---|---|
+| **[2.69.0](https://github.com/farena-ai/sara/releases/tag/v2.69.0)** | **[Extensions dans les Réglages](docs/ADDONS_LIBRARY.md)** — Douze flux utilisant les données fournies passent par l’examen habituel des fichiers et permissions et restent désactivés au départ. Sept aperçus de recettes MCP, quatorze investigations bloquées et six guides présentent prérequis, coûts et limites. Aucune installation, connexion ou activation automatique ; la disponibilité dans la boutique signée reste distincte. |
 | **[2.68.0](https://github.com/farena-ai/sara/releases/tag/v2.68.0)** | **[Du contexte entre vos propres conversations](docs/SESSION_CONTINUITY.md)** — Du contexte frais entre les conversations admissibles du propriétaire avec la même compagne, des lectures bornées de l’historique, des notes internes et des étapes fournisseur ordonnées. Interrupteur du propriétaire, inspection et effacement confirmé pour la seule conversation choisie ; confidentialité et autorisations des outils restent en vigueur. Scènes partagées, coordination des projets et parité complète voix/vidéo restent à venir. |
 | **[2.67.0](https://github.com/farena-ai/sara/releases/tag/v2.67.0)** | **[Indices récents et suivis](docs/ATTUNEMENT.md)** — Des indices explicites et limités du propriétaire dans six langues et des suivis d’événements fondés sur des sources vérifiées. Les **[points de reprise du projet](docs/FOR_CODERS.md#project-checkpoints)** gardent la logique, les blocages et jusqu’à trois prochaines étapes, avec cinq versions et des commandes pour consulter, remplacer et effacer ; ce contexte historique ne lance aucune commande et ne reconduit aucune autorisation. |
 | **[2.65.0](https://github.com/farena-ai/sara/releases/tag/v2.65.0)** | **[Configuration professionnelle guidée](docs/BUSINESS.md)** — Première utilisation et administration guidées, historique des invitations limité au périmètre autorisé, révocation, vérification de configuration en lecture seule et exercices reproductibles de navigateur et de reprise. |
@@ -140,7 +141,7 @@ La version 2.67.0 distingue aussi les critiques du code d’un conflit dirigé c
 
 <!-- sara:recent-releases:end -->
 
-Qualification du code de 2.68.0 : contrôle des types et **2709 tests automatisés** ; Windows **2693 réussites / 0 échec / 16 ignorés**, Linux **2694 réussites / 0 échec / 15 ignorés**, plus dix parcours isolés du navigateur sur ordinateur et mobile. Les vrais paquets Windows et Mac, ce dernier signé et notarié, ont réussi chacun cinq profils de reprise et de régression ; Windows n’est pas signé. Ces contrôles utilisent des données synthétiques et des modèles simulés. L’exécution physique Intel/Rosetta, l’acceptation sur appareils et lecteurs d’écran, le ton naturel avec de vrais modèles et la reprise de production restent des vérifications distinctes.
+Qualification du code de 2.69.0 : contrôle des types et **3033 tests automatisés** ; Windows **3017 réussites / 0 échec / 16 ignorés**, Linux **3018 réussites / 0 échec / 15 ignorés**, plus treize parcours isolés du navigateur sur ordinateur et mobile. Les vrais paquets Windows et Mac, ce dernier signé et notarié, ont réussi leurs profils de reprise et de régression ainsi que les contrôles des extensions ; les images de conteneur des deux architectures ont réussi les contrôles de santé ; Windows n’est pas signé. Ces contrôles utilisent des données synthétiques et des modèles simulés. L’exécution physique Intel/Rosetta, l’acceptation sur appareils et lecteurs d’écran, le ton naturel avec de vrais modèles et la reprise de production restent des vérifications distinctes.
 
 <!-- sara:release-history:start -->
 

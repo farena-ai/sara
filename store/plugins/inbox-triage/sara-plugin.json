@@ -1,0 +1,40 @@
+{
+  "manifest": 1,
+  "id": "inbox-triage",
+  "name": "Inbox triage",
+  "version": "1.0.0",
+  "description": "Classify supplied messages and prepare unsent reply drafts. No mailbox connection or sending.",
+  "author": "Sara team",
+  "license": "MIT",
+  "homepage": "https://backstagecoding.com/sara/store/",
+  "sara": ">=2.65.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "workflow"
+    ],
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Inbox triage": "Clasificación de correo",
+      "Classify supplied messages and prepare unsent reply drafts. No mailbox connection or sending.": "Clasifica mensajes proporcionados y prepara borradores sin enviar. No conecta con el buzón ni envía mensajes."
+    },
+    "fr": {
+      "Inbox triage": "Tri de messages",
+      "Classify supplied messages and prepare unsent reply drafts. No mailbox connection or sending.": "Classe les messages fournis et prépare des brouillons non envoyés. Aucun accès à la boîte ni envoi."
+    },
+    "de": {
+      "Inbox triage": "Posteingang sortieren",
+      "Classify supplied messages and prepare unsent reply drafts. No mailbox connection or sending.": "Ordnet bereitgestellte Nachrichten und erstellt ungesendete Antworten. Kein Postfachzugriff oder Versand."
+    },
+    "pt-BR": {
+      "Inbox triage": "Triagem da caixa de entrada",
+      "Classify supplied messages and prepare unsent reply drafts. No mailbox connection or sending.": "Classifica mensagens fornecidas e prepara rascunhos não enviados. Sem conexão à caixa nem envio."
+    },
+    "it": {
+      "Inbox triage": "Smistamento messaggi",
+      "Classify supplied messages and prepare unsent reply drafts. No mailbox connection or sending.": "Classifica i messaggi forniti e prepara bozze non inviate. Nessun accesso alla posta o invio."
+    }
+  }
+}

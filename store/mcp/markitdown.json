@@ -1,0 +1,71 @@
+{
+  "id": "markitdown",
+  "version": "1.0.0",
+  "name": "MarkItDown",
+  "category": "knowledge",
+  "tags": [
+    "knowledge",
+    "mcp"
+  ],
+  "summary": "Convert a selected document to Markdown.",
+  "description": "Convert a selected document to Markdown. Available capabilities depend on the provider and the explicitly granted permissions.",
+  "about": [
+    "Convert a selected document to Markdown. Available capabilities depend on the provider and the explicitly granted permissions.",
+    "Windows stdio discovery and synthetic local TXT/HTML conversion passed with the declared prerelease dependency policy. Sara-host installation and OS-enforced file/network bounds remain unqualified.",
+    "Can read local files and fetch supplied URLs",
+    "Local code is free; optional cloud/model services cost extra.",
+    "Read and write permissions are different. This recipe grants no automatic execution. Sara may still auto-allow tools from server read-only annotations; the owner must inspect and set host permissions before use.",
+    "The server can read any file accessible to its OS user and fetch supplied URLs. A selected folder is not a filesystem sandbox. Dependencies are resolved by uvx; only the top-level server package is pinned."
+  ],
+  "license": "MIT",
+  "source": "https://raw.githubusercontent.com/microsoft/markitdown/HEAD/README.md",
+  "needs": [
+    "uvx"
+  ],
+  "works": [],
+  "mcp": {
+    "transport": "stdio",
+    "name": "markitdown",
+    "command": "uvx",
+    "args": [
+      "markitdown-mcp==0.0.1a8"
+    ],
+    "fields": [
+      {
+        "key": "UV_PRERELEASE",
+        "kind": "choice",
+        "label": "Preview dependency policy",
+        "tip": "Allows prerelease dependencies required by this preview pin. This is not a transitive lock; review the resolved dependency inventory before use with real files.",
+        "choices": ["allow"],
+        "default": "allow"
+      }
+    ],
+    "secrets": [],
+    "reaches": [
+      "supplied web URLs (if used)",
+      "PyPI and package download hosts at installation"
+    ],
+    "needs": [
+      "uvx"
+    ],
+    "tools": {
+      "readOnly": [],
+      "ask": [
+        "convert_to_markdown"
+      ]
+    },
+    "guide": [
+      "Requires uvx and Python >=3.10. Runtime fixtures used existing Python 3.12; other interpreter/platform combinations remain unqualified.",
+      "This prerelease dependency policy is explicit: UV_PRERELEASE=allow was required for resolution. Dependencies are not transitively locked; use only isolated preview execution pending a reviewed lock policy.",
+      "Use a separate restricted OS user or sandbox; this tool can read files available to its user.",
+      "Approve each conversion. Prefer sanitized data URIs until filesystem/network bounds are verified.",
+      "After discovery, open Settings → Coding → Tools and approvals. Set every tool in this server's group to Ask me first or Off before sending any request.",
+      "Save, leave and reopen the page; read back every tool setting. Repeat after restart, update or newly discovered tools. Stop if settings cannot be confirmed."
+    ]
+  },
+  "changes": [
+    "First connection preview. Not published; qualification limitations are explicit."
+  ],
+  "tested": [],
+  "reviewNotes": "Connection preview, not a live vendor screenshot. Windows direct stdio initialize/list and synthetic TXT/HTML conversions passed with the declared UV_PRERELEASE=allow policy. No Sara-host installation, OS sandbox or real-document access qualification."
+}

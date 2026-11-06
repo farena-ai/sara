@@ -1703,3 +1703,28 @@ button.conv-see-more, button.conv-show-less { min-height: 44px; padding: 0 10px;
 .continuity-facts dd { margin: 0 0 .45rem; overflow-wrap: anywhere; }
 .continuity-note { white-space: pre-wrap; overflow-wrap: anywhere; }
 .session-continuity .actions-left { flex-wrap: wrap; }
+/* Existing Settings discovery: compact cards, native disclosures and safe long previews. */
+.addon-discovery { margin-top: 1.5rem; }
+.addon-filters { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); gap: .65rem; }
+.addon-filters label, .addon-filters input, .addon-filters select { min-width: 0; }
+.addon-filters input, .addon-filters select { display: block; width: 100%; }
+.addon-card { min-width: 0; }
+.addon-head { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: .4rem; }
+.addon-head .skl-chips { margin: 0; }
+.addon-card > p { margin: .5rem 0; }
+.addon-origin { font-weight: 600; }
+.addon-details { margin-top: .65rem; }
+.addon-details summary { cursor: pointer; padding: .4rem 0; }
+.addon-details > :not(summary) { margin-left: .4rem; }
+.addon-section { margin: .7rem 0; }
+.addon-section ul, .addon-section ol { padding-left: 1.3rem; }
+.addon-section li, .addon-members li { margin: .4rem 0; }
+.addon-card, .addon-details, .addon-recipe { overflow-wrap: anywhere; }
+.addon-recipe { white-space: pre-wrap; max-width: 100%; }
+.addon-card:focus, .addon-details summary:focus-visible, .addon-filters :focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+@media (max-width: 600px) {
+  .addon-filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .addon-filters label:first-child { grid-column: 1 / -1; }
+  .addon-head { display: block; }
+  .addon-head .skl-chips { margin-top: .45rem; }
+}

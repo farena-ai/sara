@@ -27,7 +27,7 @@ const run = (cmd: string, args: string[], cwd = ROOT) => execFileSync(cmd, args,
 const git = (args: string[], cwd: string) => run('git', ['-c', `user.name=${name}`, '-c', `user.email=${email}`, '-c', 'commit.gpgsign=false', ...args], cwd);
 
 // 1. A fresh, checked public copy (fails on any secret or private detail).
-if (!readmeOnly) run(process.execPath, [join(ROOT, 'scripts', 'public-export.ts')]);
+if (!readmeOnly) run(process.execPath, [join(ROOT, 'scripts', 'public-export.ts'), '--replace']);
 const exportDir = join(ROOT, 'outputs', 'public-export');
 
 // 2. The public repository, cloned (or created empty) under outputs/.

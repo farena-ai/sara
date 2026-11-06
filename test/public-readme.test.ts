@@ -40,7 +40,10 @@ function fixture() {
   git(dir, 'clone', '--bare', '-q', publicDir, remote);
   const before = git(remote, 'for-each-ref', '--format=%(objectname) %(refname)');
   const base = git(publicDir, 'rev-parse', 'HEAD');
-  const env = { ...process.env, SARA_PUBLIC_NAME: 'Sara Fixture', SARA_PUBLIC_EMAIL: EMAIL, SARA_PUBLIC_COAUTHORS: '', SARA_PRIVATE_PATTERNS: join(dir, 'private-patterns.json'), GIT_CONFIG_GLOBAL: join(dir, 'no-global-config'), GIT_CONFIG_SYSTEM: join(dir, 'no-system-config'), GIT_CONFIG_COUNT: '2', GIT_CONFIG_KEY_0: `url.${pathToFileURL(dir).href}/.insteadOf`, GIT_CONFIG_VALUE_0: 'https://github.com/readme-fixture/', GIT_CONFIG_KEY_1: 'protocol.file.allow', GIT_CONFIG_VALUE_1: 'always', GIT_AUTHOR_NAME: '', GIT_AUTHOR_EMAIL: '', GIT_COMMITTER_NAME: '', GIT_COMMITTER_EMAIL: '' };
+  // Git for Windows may decode a rewritten file:///C:/ URL as the invalid /C:/ path.
+  // Use its native absolute local prefix; Unix keeps the normal file URL fixture.
+  const localPrefix = process.platform === 'win32' ? `${dir.replaceAll('\\', '/')}/` : `${pathToFileURL(dir).href}/`;
+  const env = { ...process.env, SARA_PUBLIC_NAME: 'Sara Fixture', SARA_PUBLIC_EMAIL: EMAIL, SARA_PUBLIC_COAUTHORS: '', SARA_PRIVATE_PATTERNS: join(dir, 'private-patterns.json'), GIT_CONFIG_GLOBAL: join(dir, 'no-global-config'), GIT_CONFIG_SYSTEM: join(dir, 'no-system-config'), GIT_CONFIG_COUNT: '2', GIT_CONFIG_KEY_0: `url.${localPrefix}.insteadOf`, GIT_CONFIG_VALUE_0: 'https://github.com/readme-fixture/', GIT_CONFIG_KEY_1: 'protocol.file.allow', GIT_CONFIG_VALUE_1: 'always', GIT_AUTHOR_NAME: '', GIT_AUTHOR_EMAIL: '', GIT_COMMITTER_NAME: '', GIT_COMMITTER_EMAIL: '' };
   // Empty identity overrides are removed so the publisher's explicit no-reply config is authoritative.
   for (const key of ['GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_COMMITTER_NAME', 'GIT_COMMITTER_EMAIL']) delete (env as Record<string, string | undefined>)[key];
   return { dir, source, publicDir, remote, before, base, env, run(extra: string[] = [], readmeOnly = true) { return spawnSync(process.execPath, [join(source, 'scripts', 'publish-public.ts'), ...(readmeOnly ? ['--readme-only'] : []), '--repo', 'readme-fixture/remote', ...extra], { cwd: source, env, encoding: 'utf8' }); }, close() { rmSync(dir, { recursive: true, force: true }); } };
@@ -88,7 +91,7 @@ test('preview updates only the disposable clone and leaves remote refs unchanged
 });
 
 for (const kind of ['missing', 'directory', 'source-link-mode', 'public-link-mode', 'empty-base', 'private-history', 'wrong-root-author', 'personal-identity', 'secret', 'private-pattern', 'no-op', 'output-link', 'output-parent-link', 'untracked-source', 'empty-input', 'missing-public', 'non-main-base', 'inherited-identity', 'non-readme-hook', 'readme-link-hook', 'secret-hook', 'tag-hook'] as const) {
-  test(`README-only CLI rejects ${kind} before changing remote refs`, () => {
+  test(`README-only CLI rejects ${kind} before changing remote refs`, (t) => {
     const f = fixture();
     try {
       let pattern = /README|regular|symlink|history|public repository|identity|no-reply|secret|private|Nothing changed|existing|outputs/i;
@@ -118,6 +121,14 @@ for (const kind of ['missing', 'directory', 'source-link-mode', 'public-link-mod
       if (kind === 'output-link') { mkdirSync(join(f.source, 'outputs')); symlinkSync(f.publicDir, join(f.source, 'outputs', 'public-repo'), 'junction'); }
       if (kind === 'non-readme-hook' || kind === 'readme-link-hook' || kind === 'secret-hook' || kind === 'tag-hook') {
         const hooks = join(f.dir, 'hooks'); mkdirSync(hooks);
+        // Git can only run these hooks where the temporary folder allows programs (the server's
+        // /tmp is mounted noexec). Probe with a harmless script and skip there instead of failing.
+        if (process.platform !== 'win32') {
+          const probe = join(hooks, 'exec-probe');
+          writeFileSync(probe, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+          if (spawnSync(probe, [], { cwd: hooks }).status !== 0) { t.skip('the temporary folder does not allow running programs (noexec), so git hooks cannot run here'); return; }
+          rmSync(probe);
+        }
         writeFileSync(join(hooks, 'pre-commit'), kind === 'non-readme-hook'
           ? '#!/bin/sh\nprintf changed > runtime.ts\ngit add -- runtime.ts\n'
           : kind === 'readme-link-hook'
@@ -169,3 +180,20 @@ for (const readmeOnly of [true, false]) {
     });
   }
 }
+
+test('ordinary full preview explicitly replaces its prior disposable export without publishing', () => {
+  const f = fixture();
+  try {
+    writeFileSync(join(f.source, 'package.json'), '{"type":"module","version":"2.65.1"}\n');
+    const first = f.run([], false);
+    assert.equal(first.status, 0, first.stderr + first.stdout);
+    const exportDir = join(f.source, 'outputs', 'public-export');
+    writeFileSync(join(exportDir, 'stale.txt'), 'old disposable export');
+    writeFileSync(join(f.source, 'runtime.ts'), 'fresh second preview\n');
+    const second = f.run([], false);
+    assert.equal(second.status, 0, second.stderr + second.stdout);
+    assert.equal(readFileSync(join(exportDir, 'runtime.ts'), 'utf8'), 'fresh second preview\n');
+    assert.equal(existsSync(join(exportDir, 'stale.txt')), false);
+    assert.equal(git(f.remote, 'for-each-ref', '--format=%(objectname) %(refname)'), f.before);
+  } finally { f.close(); }
+});

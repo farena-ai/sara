@@ -1,0 +1,40 @@
+{
+  "manifest": 1,
+  "id": "travel-planner",
+  "name": "Travel planner",
+  "version": "1.0.0",
+  "description": "Arrange confirmed supplied options into a dated itinerary and budget. Estimates only, never live quotes or bookings.",
+  "author": "Sara team",
+  "license": "MIT",
+  "homepage": "https://backstagecoding.com/sara/store/",
+  "sara": ">=2.65.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "workflow"
+    ],
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Travel planner": "Planificador de viajes",
+      "Arrange confirmed supplied options into a dated itinerary and budget. Estimates only, never live quotes or bookings.": "Organiza opciones confirmadas proporcionadas en un itinerario con fechas y presupuesto. Solo estimaciones, sin cotizaciones en vivo ni reservas."
+    },
+    "fr": {
+      "Travel planner": "Planificateur de voyage",
+      "Arrange confirmed supplied options into a dated itinerary and budget. Estimates only, never live quotes or bookings.": "Organise les options confirmées fournies en itinéraire daté avec budget. Estimations uniquement, sans tarifs en direct ni réservations."
+    },
+    "de": {
+      "Travel planner": "Reiseplaner",
+      "Arrange confirmed supplied options into a dated itinerary and budget. Estimates only, never live quotes or bookings.": "Ordnet bestätigte bereitgestellte Optionen zu Reiseplan und Budget. Nur Schätzungen, keine Livepreise oder Buchungen."
+    },
+    "pt-BR": {
+      "Travel planner": "Planejador de viagens",
+      "Arrange confirmed supplied options into a dated itinerary and budget. Estimates only, never live quotes or bookings.": "Organiza opções confirmadas fornecidas em roteiro com datas e orçamento. Apenas estimativas, sem cotações ao vivo nem reservas."
+    },
+    "it": {
+      "Travel planner": "Pianificatore di viaggi",
+      "Arrange confirmed supplied options into a dated itinerary and budget. Estimates only, never live quotes or bookings.": "Organizza le opzioni confermate fornite in un itinerario datato con budget. Solo stime, senza preventivi in tempo reale o prenotazioni."
+    }
+  }
+}

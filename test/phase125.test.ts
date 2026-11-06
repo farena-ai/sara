@@ -16,6 +16,7 @@ import { MEMBER_ROUTES } from '../src/household.ts';
 import { setPrivateLocal } from '../src/net-guard.ts';
 import { fromFolder, hashFiles, type PackageFile } from '../src/packages.ts';
 import { PluginManager } from '../src/plugins/manager.ts';
+import { PluginProcess } from '../src/plugins/runtime.ts';
 import { parseManifest, permissionIds, satisfies } from '../src/plugins/manifest.ts';
 import { createSaraServer } from '../src/server.ts';
 import { SkillStore } from '../src/skill-store.ts';
@@ -100,6 +101,18 @@ function skillVersion(s: Shelf, id: string, version: string): void {
   const zip = zipStored(files);
   const entry = { ...baseEntry(id, 'skill', version, 'Lunch box'), manifest: { name: id, description: 'Packs a lunch box.' }, scripts: true };
   addVersion(s, { ...itemOf(id, 'skill', 'Lunch box'), category: 'skills' }, { version, sara: '>=2.57.0', published: '2026-11-20', entry: `entries/${id}/${version}.json`, entrySha: '', package: `packages/${id}-${version}.zip`, sha256: sha256(zip), size: zip.length, contentSha: hashFiles(files), permissions: ['scripts'] }, entry, zip);
+}
+
+/** A signed fixture containing the exact candidate bytes, including its local assets. */
+function candidateVersion(s: Shelf, version = '1.0.0'): PackageFile[] {
+  const files = fromFolder(join(ROOT, 'store', 'plugins', 'daily-briefing'));
+  const manifest = JSON.parse(files.find(f => f.path === 'sara-plugin.json')!.data.toString('utf8'));
+  manifest.version = version;
+  const exact = version === '1.0.0' ? files : files.map(f => f.path === 'sara-plugin.json' ? { ...f, data: Buffer.from(JSON.stringify(manifest)) } : f);
+  const zip = zipStored(exact);
+  const parsed = parseManifest(manifest, { saraVersion: V });
+  addVersion(s, itemOf(manifest.id, 'plugin', manifest.name, 'first-party'), { version, sara: '>=2.57.0', published: '2026-11-20', entry: `entries/${manifest.id}/${version}.json`, entrySha: '', package: `packages/${manifest.id}-${version}.zip`, sha256: sha256(zip), size: zip.length, contentSha: hashFiles(exact), permissions: permissionIds(parsed) }, { ...baseEntry(manifest.id, 'plugin', version, manifest.name), manifest }, zip);
+  return exact;
 }
 const helloRecipe = (version: string, extra: Any = {}): Any => ({
   transport: 'stdio', command: 'node', args: ['${home}/hello.mjs', ...(extra.args ?? [])], name: 'hello',
@@ -186,6 +199,299 @@ async function rig(t: TestContext, o: { member?: boolean; demo?: boolean; fence?
   return { app, pm, client: c, installs, shelf, held, seen, dir, base, api, check };
 }
 const FOCUS = join(ROOT, 'store', 'plugins', 'focus');
+
+test('A1: an exact signed-content association preserves candidate origin and never grants Store update authority', async t => {
+  const r = await rig(t);
+  const files = candidateVersion(r.shelf);
+  await r.check();
+  const review = r.pm.stage(files, { kind: 'candidate' as never, where: 'daily-briefing' });
+  const approved = await r.api('POST', '/api/plugins/daily-briefing/approve', { review: review.id, trust: true });
+  assert.equal(approved.status, 200, JSON.stringify(approved.json));
+  assert.equal(r.installs.get('daily-briefing')?.content_sha, hashFiles(files), 'signed association retained for block/yank evidence');
+  const mine = await r.api('GET', '/api/store/mine');
+  const local = mine.json.addons.find((x: Any) => x.ref === 'daily-briefing');
+  assert.equal(local.origin, 'candidate');
+  assert.equal(local.update, null);
+  candidateVersion(r.shelf, '1.1.0'); await r.check();
+  const shelf = await r.api('GET', '/api/store');
+  const item = shelf.json.items.find((x: Any) => x.id === 'daily-briefing');
+  assert.equal(item.installedOrigin, 'candidate'); assert.equal(item.installedVersion, '1.0.0');
+  assert.equal(item.updateAvailable, false); assert.ok(item.installHeld);
+  const detail = await r.api('GET', '/api/store/items/daily-briefing');
+  assert.equal(detail.json.installed.origin, 'candidate'); assert.equal(detail.json.installAllowed, false); assert.ok(detail.json.installHeld);
+  const downloads = () => r.seen.filter(x => x.url.includes('/packages/')).length;
+  const before = downloads();
+  for (const path of ['/api/store/install', '/api/store/update', '/api/store/goback']) {
+    const response = await r.api('POST', path, path.endsWith('/install') ? { id: 'daily-briefing' } : { item: 'daily-briefing' });
+    assert.equal(response.status, 409, `${path}: ${JSON.stringify(response.json)}`);
+  }
+  assert.equal(downloads(), before, 'candidate source conflict is refused before package download');
+  assert.equal(JSON.parse(r.pm.store.get('daily-briefing')!.origin ?? '{}').kind, 'candidate');
+  assert.equal(r.pm.store.get('daily-briefing')!.version, '1.0.0');
+});
+
+test('A1: a stale signed association cannot update a removed or mismatched local plugin', async t => {
+  const r = await rig(t);
+  pluginVersion(r.shelf, FOCUS); await r.check();
+  const review = (await r.api('POST', '/api/store/install', { id: 'focus' })).json.review;
+  assert.equal((await r.api('POST', '/api/plugins/focus/approve', { review: review.id, trust: true })).status, 200);
+  await r.pm.remove('focus');
+  assert.ok(r.installs.get('focus'), 'retain a stale ledger fixture');
+  pluginVersion(r.shelf, FOCUS, { version: '1.1.0' }); await r.check();
+  const shelf = await r.api('GET', '/api/store');
+  const item = shelf.json.items.find((x: Any) => x.id === 'focus');
+  assert.equal(item.updateAvailable, false); assert.ok(item.installHeld);
+  const before = r.seen.filter(x => x.url.includes('/packages/')).length;
+  const update = await r.api('POST', '/api/store/update', { item: 'focus' });
+  assert.equal(update.status, 409);
+  assert.equal(r.seen.filter(x => x.url.includes('/packages/')).length, before);
+  assert.equal(r.pm.store.get('focus'), undefined);
+  const forgotten = await r.api('POST', '/api/store/remove', { item: 'focus' });
+  assert.equal(forgotten.status, 200); assert.equal(r.installs.get('focus'), undefined);
+  const fresh = await r.api('POST', '/api/store/install', { id: 'focus' });
+  assert.equal(fresh.status, 200, 'forgetting a stale record restores the supported fresh review');
+});
+
+test('A1: forgetting a stale signed association preserves a replacement local installation', async t => {
+  const r = await rig(t);
+  const v1 = pluginVersion(r.shelf, FOCUS).files;
+  await r.check();
+  const review = (await r.api('POST', '/api/store/install', { id: 'focus' })).json.review;
+  assert.equal((await r.api('POST', '/api/plugins/focus/approve', { review: review.id, trust: true })).status, 200);
+  await r.pm.remove('focus');
+  const v2 = v1.map(f => f.path === 'sara-plugin.json' ? { ...f, data: Buffer.from(JSON.stringify({ ...JSON.parse(f.data.toString('utf8')), version: '1.1.0' })) } : f);
+  const replacement = r.pm.stage(v2, { kind: 'zip', where: 'replacement.zip' });
+  await r.pm.approve(replacement.id, { trust: true });
+  const row = r.pm.store.get('focus')!;
+  const detail = await r.api('GET', '/api/store/items/focus');
+  assert.equal(detail.json.installHeldCode, 'association');
+  assert.equal((await r.api('GET', '/api/store/mine')).json.addons.find((x: Any) => x.ref === 'focus').origin, 'zip');
+  assert.equal((await r.api('POST', '/api/store/remove', { item: 'focus' })).status, 200);
+  assert.equal(r.installs.get('focus'), undefined);
+  assert.deepEqual(r.pm.store.get('focus'), row);
+  assert.ok(existsSync(row.dir)); assert.equal(hashFiles(fromFolder(row.dir)), row.approved_sha);
+});
+
+test('A1: signed yanks and blocks still reach a matching candidate without changing its source', async t => {
+  const r = await rig(t);
+  const files = candidateVersion(r.shelf); await r.check();
+  const review = r.pm.stage(files, { kind: 'candidate', where: 'daily-briefing' });
+  assert.equal((await r.api('POST', '/api/plugins/daily-briefing/approve', { review: review.id, trust: true })).status, 200);
+  r.shelf.items.find(x => x.id === 'daily-briefing').versions[0].yanked = 'Synthetic qualification withdrawal.';
+  await r.check(); assert.equal(r.installs.get('daily-briefing')?.state, 'yanked');
+  r.shelf.blocked = [{ id: 'daily-briefing', versions: '*', action: 'disable', reason: 'Synthetic block.', at: '2026-11-21' }];
+  await r.check(); assert.equal(r.pm.store.get('daily-briefing')?.status, 'disabled');
+  assert.equal(r.installs.get('daily-briefing')?.state, 'blocked');
+  assert.equal(JSON.parse(r.pm.store.get('daily-briefing')!.origin ?? '{}').kind, 'candidate');
+  assert.equal((await r.api('POST', '/api/store/override', { item: 'daily-briefing', confirm: true })).status, 200);
+  assert.equal(r.pm.store.get('daily-briefing')?.status, 'installed');
+  assert.equal(JSON.parse(r.pm.store.get('daily-briefing')!.origin ?? '{}').kind, 'candidate');
+});
+
+test('A1: a stale blocked association cannot restore a replacement disabled for changed files', async t => {
+  const r = await rig(t);
+  const files = pluginVersion(r.shelf, FOCUS).files; await r.check();
+  const review = (await r.api('POST', '/api/store/install', { id: 'focus' })).json.review;
+  assert.equal((await r.api('POST', '/api/plugins/focus/approve', { review: review.id, trust: true })).status, 200);
+  await r.pm.remove('focus');
+  const changed = files.map(f => f.path === 'sara-plugin.json' ? { ...f, data: Buffer.from(JSON.stringify({ ...JSON.parse(f.data.toString('utf8')), version: '1.1.0' })) } : f);
+  await r.pm.approve(r.pm.stage(changed, { kind: 'zip', where: 'replacement.zip' }).id, { trust: true });
+  r.pm.store.setStatus('focus', 'disabled', 'changed');
+  r.installs.setState('focus', 'blocked', 'Synthetic old version block.', new Date().toISOString());
+  const current = r.pm.store.get('focus');
+  const override = await r.api('POST', '/api/store/override', { item: 'focus', confirm: true });
+  assert.equal(override.status, 409);
+  assert.deepEqual(r.pm.store.get('focus'), current);
+});
+
+test('A1: a local zip with exact signed content keeps its actual origin and ordinary Store update path', async t => {
+  const r = await rig(t);
+  const files = pluginVersion(r.shelf, FOCUS).files; await r.check();
+  const review = r.pm.stage(files, { kind: 'zip', where: 'local-copy.zip' });
+  assert.equal((await r.api('POST', '/api/plugins/focus/approve', { review: review.id, trust: true })).status, 200);
+  assert.equal((await r.api('GET', '/api/store/mine')).json.addons.find((x: Any) => x.ref === 'focus').origin, 'zip');
+  assert.equal((await r.api('GET', '/api/store/items/focus')).json.installed.origin, 'zip');
+  pluginVersion(r.shelf, FOCUS, { version: '1.1.0' }); await r.check();
+  const update = await r.api('POST', '/api/store/update', { item: 'focus' });
+  assert.equal(update.status, 200); assert.equal(update.json.review.origin.kind, 'store');
+});
+
+test('A1: delayed Store downloads recheck source authority after a local replacement', async t => {
+  const r = await rig(t);
+  const files = pluginVersion(r.shelf, FOCUS).files; await r.check();
+  const review = (await r.api('POST', '/api/store/install', { id: 'focus' })).json.review;
+  assert.equal((await r.api('POST', '/api/plugins/focus/approve', { review: review.id, trust: true })).status, 200);
+  pluginVersion(r.shelf, FOCUS, { version: '1.2.0' }); await r.check();
+  let downloaded!: () => void; const reached = new Promise<void>(resolve => { downloaded = resolve; });
+  let release!: () => void; const barrier = new Promise<void>(resolve => { release = resolve; });
+  const original = r.client.packageFiles.bind(r.client);
+  t.mock.method(r.client, 'packageFiles', async (...args: Parameters<typeof original>) => { const result = await original(...args); downloaded(); await barrier; return result; });
+  const pending = r.api('POST', '/api/store/update', { item: 'focus' });
+  try {
+    await reached;
+    await r.pm.remove('focus');
+    const replacement = files.map(f => f.path === 'sara-plugin.json' ? { ...f, data: Buffer.from(JSON.stringify({ ...JSON.parse(f.data.toString('utf8')), version: '1.1.0' })) } : f);
+    await r.pm.approve(r.pm.stage(replacement, { kind: 'zip', where: 'replacement.zip' }).id, { trust: true });
+    const current = r.pm.store.get('focus'); release();
+    const result = await pending;
+    assert.equal(result.status, 409, JSON.stringify(result.json));
+    assert.deepEqual(r.pm.store.get('focus'), current);
+    assert.equal(hashFiles(fromFolder(current!.dir)), current!.approved_sha);
+  } finally { release(); await pending; }
+});
+
+async function focusHistory(r: Rig): Promise<void> {
+  pluginVersion(r.shelf, FOCUS); await r.check();
+  let review = (await r.api('POST', '/api/store/install', { id: 'focus' })).json.review;
+  assert.equal((await r.api('POST', '/api/plugins/focus/approve', { review: review.id, trust: true })).status, 200);
+  pluginVersion(r.shelf, FOCUS, { version: '1.1.0' }); await r.check();
+  review = (await r.api('POST', '/api/store/update', { item: 'focus' })).json.review;
+  assert.equal((await r.api('POST', '/api/plugins/focus/approve', { review: review.id, trust: true })).status, 200);
+}
+
+test('A1: rollback preserves the restored version’s fresh signed withdrawal during an awaited process stop', async t => {
+  const r = await rig(t); await focusHistory(r);
+  await r.pm.setEnabled('focus', 'main', true);
+  assert.ok(await until(() => Boolean(r.app.tools.get('focus__start'))));
+  let stopped!: () => void; const reached = new Promise<void>(resolve => { stopped = resolve; });
+  let release!: () => void; const barrier = new Promise<void>(resolve => { release = resolve; });
+  const original = PluginProcess.prototype.stop;
+  const held = t.mock.method(PluginProcess.prototype, 'stop', async function(this: PluginProcess) { const exiting = original.call(this); stopped(); await barrier; await exiting; });
+  const pending = r.api('POST', '/api/store/goback', { item: 'focus' });
+  try {
+    await reached;
+    for (const v of r.shelf.items.find(x => x.id === 'focus').versions) v.yanked = v.version === '1.0.0' ? 'Synthetic old-version withdrawal.' : 'Synthetic current-version withdrawal.';
+    await r.check();
+    assert.equal(r.installs.get('focus')?.state, 'yanked');
+    release(); const result = await pending;
+    assert.equal(result.status, 200, JSON.stringify(result.json));
+    assert.equal(r.pm.store.get('focus')?.version, '1.0.0');
+    assert.equal(r.installs.get('focus')?.version, '1.0.0');
+    assert.equal(r.installs.get('focus')?.state, 'yanked');
+    assert.equal(r.installs.get('focus')?.state_note, 'Synthetic old-version withdrawal.');
+  } finally { release(); await pending; held.mock.restore(); }
+});
+
+test('A1: rollback association failure leaves the approved plugin, signed ledger and both package trees coherent', async t => {
+  const r = await rig(t); await focusHistory(r);
+  const plugin = r.pm.store.get('focus')!; const ledger = r.installs.get('focus');
+  const previous = JSON.parse(plugin.prev_version!);
+  const upsert = r.installs.upsert.bind(r.installs);
+  t.mock.method(r.installs, 'upsert', (row: Parameters<typeof upsert>[0]) => { upsert(row); if (row.version === '1.0.0') throw new Error('Synthetic association write failure.'); });
+  const result = await r.api('POST', '/api/store/goback', { item: 'focus' });
+  assert.equal(result.status, 400);
+  assert.deepEqual(r.pm.store.get('focus'), plugin);
+  assert.deepEqual(r.installs.get('focus'), ledger);
+  assert.equal(hashFiles(fromFolder(plugin.dir)), plugin.approved_sha);
+  assert.equal(hashFiles(fromFolder(previous.dir)), previous.approved_sha);
+});
+
+test('A1: rollback clears a withdrawal that applies only to the newer version and refuses a blocked target', async t => {
+  const r = await rig(t); await focusHistory(r);
+  r.shelf.items.find(x => x.id === 'focus').versions.find((v: Any) => v.version === '1.1.0').yanked = 'Synthetic newer-version withdrawal.';
+  await r.check(); assert.equal(r.installs.get('focus')?.state, 'yanked');
+  assert.equal((await r.api('POST', '/api/store/goback', { item: 'focus' })).status, 200);
+  assert.equal(r.installs.get('focus')?.version, '1.0.0');
+  assert.equal(r.installs.get('focus')?.state, 'ok'); assert.equal(r.installs.get('focus')?.state_note, null);
+  assert.equal((await r.api('POST', '/api/store/goback', { item: 'focus' })).status, 200);
+  r.shelf.blocked = [{ id: 'focus', versions: ['1.0.0'], action: 'disable', reason: 'Synthetic restored-version block.', at: '2026-11-21' }];
+  await r.check();
+  const current = r.pm.store.get('focus'); const association = r.installs.get('focus');
+  assert.equal((await r.api('POST', '/api/store/goback', { item: 'focus' })).status, 403);
+  assert.deepEqual(r.pm.store.get('focus'), current);
+  assert.deepEqual(r.installs.get('focus'), association);
+});
+
+test('A1: Store rollback cannot associate a previously approved local package with different signed bytes', async t => {
+  const r = await rig(t);
+  const signed = pluginVersion(r.shelf, FOCUS).files; await r.check();
+  const local = signed.map(f => f.path === 'main.mjs' ? { ...f, data: Buffer.concat([f.data, Buffer.from('\n// Synthetic alternative source.\n')]) } : f);
+  const review = r.pm.stage(local, { kind: 'zip', where: 'local-copy.zip' });
+  assert.equal((await r.api('POST', '/api/plugins/focus/approve', { review: review.id, trust: true })).status, 200);
+  assert.equal(r.installs.get('focus'), undefined);
+  pluginVersion(r.shelf, FOCUS, { version: '1.1.0' }); await r.check();
+  const update = (await r.api('POST', '/api/store/install', { id: 'focus' })).json.review;
+  assert.equal((await r.api('POST', '/api/plugins/focus/approve', { review: update.id, trust: true })).status, 200);
+  const current = r.pm.store.get('focus'); const association = r.installs.get('focus');
+  const result = await r.api('POST', '/api/store/goback', { item: 'focus' });
+  assert.equal(result.status, 409);
+  assert.deepEqual(r.pm.store.get('focus'), current); assert.deepEqual(r.installs.get('focus'), association);
+  r.shelf.items.find(x => x.id === 'focus').versions = r.shelf.items.find(x => x.id === 'focus').versions.filter((v: Any) => v.version !== '1.0.0');
+  await r.check();
+  assert.equal((await r.api('POST', '/api/store/goback', { item: 'focus' })).status, 409, 'a missing signed target cannot create an association either');
+  assert.deepEqual(r.pm.store.get('focus'), current); assert.deepEqual(r.installs.get('focus'), association);
+  assert.equal((await r.api('POST', '/api/plugins/focus/rollback', {})).status, 200, 'previously approved local bytes remain available through the ordinary Plugins rollback');
+  assert.equal(r.pm.store.get('focus')?.approved_sha, hashFiles(local));
+  assert.equal((await r.api('GET', '/api/store/items/focus')).json.installHeldCode, 'association');
+});
+
+test('A1: a newly withdrawn exact-signed candidate requires a fresh review and records the current withdrawal', async t => {
+  const r = await rig(t);
+  const files = candidateVersion(r.shelf); await r.check();
+  const review = r.pm.stage(files, { kind: 'candidate', where: 'daily-briefing' });
+  const reason = 'Synthetic withdrawal before first approval.';
+  r.shelf.items.find(x => x.id === 'daily-briefing').versions[0].yanked = reason;
+  await r.check();
+  assert.equal((await r.api('POST', '/api/plugins/daily-briefing/approve', { review: review.id, trust: true })).status, 409);
+  assert.equal(r.pm.store.get('daily-briefing'), undefined); assert.equal(r.installs.get('daily-briefing'), undefined);
+  const fresh = r.pm.stage(files, { kind: 'candidate', where: 'daily-briefing' });
+  assert.equal(fresh.store?.yanked, reason); assert.equal(fresh.firstParty, undefined);
+  assert.equal((await r.api('POST', '/api/plugins/daily-briefing/approve', { review: fresh.id, trust: true })).status, 200);
+  assert.equal(r.installs.get('daily-briefing')?.state, 'yanked'); assert.equal(r.installs.get('daily-briefing')?.state_note, reason);
+});
+
+test('A1: a verified block before first approval cannot be bypassed by a candidate or an unassociated local review', async t => {
+  const r = await rig(t);
+  const files = candidateVersion(r.shelf); await r.check();
+  const review = r.pm.stage(files, { kind: 'candidate', where: 'daily-briefing' });
+  r.shelf.blocked = [{ id: 'daily-briefing', versions: '*', action: 'disable', reason: 'Synthetic block before first approval.', at: '2026-11-21', contentShas: [hashFiles(files)] }];
+  await r.check();
+  assert.equal((await r.api('POST', '/api/plugins/daily-briefing/approve', { review: review.id, trust: true })).status, 403);
+  assert.equal(r.pm.store.get('daily-briefing'), undefined); assert.equal(r.installs.get('daily-briefing'), undefined);
+  r.pm.storeMatch = undefined;
+  const local = r.pm.stage(files, { kind: 'zip', where: 'local-copy.zip' });
+  assert.equal(local.store, undefined);
+  assert.equal((await r.api('POST', '/api/plugins/daily-briefing/approve', { review: local.id, trust: true })).status, 403);
+  assert.equal(r.pm.store.get('daily-briefing'), undefined);
+});
+
+for (const change of ['trust', 'content', 'held'] as const) test(`A1: current signed ${change} authority is rechecked before first approval`, async t => {
+  const r = await rig(t);
+  const files = candidateVersion(r.shelf); await r.check();
+  const review = r.pm.stage(files, { kind: 'candidate', where: 'daily-briefing' });
+  const item = r.shelf.items.find(x => x.id === 'daily-briefing');
+  if (change === 'trust') item.trust = 'community';
+  if (change === 'content') item.versions[0].contentSha = 'ab'.repeat(32);
+  if (change === 'held') r.held.push('daily-briefing');
+  await r.check();
+  assert.equal((await r.api('POST', '/api/plugins/daily-briefing/approve', { review: review.id, trust: true })).status, 409);
+  assert.equal(r.pm.store.get('daily-briefing'), undefined); assert.equal(r.installs.get('daily-briefing'), undefined);
+});
+
+for (const withdrawal of ['yank', 'block'] as const) test(`A1: target-only ${withdrawal} during an awaited approval stop preserves the installed baseline`, async t => {
+  const r = await rig(t);
+  pluginVersion(r.shelf, FOCUS); await r.check();
+  let review = (await r.api('POST', '/api/store/install', { id: 'focus' })).json.review;
+  assert.equal((await r.api('POST', '/api/plugins/focus/approve', { review: review.id, trust: true })).status, 200);
+  await r.pm.setEnabled('focus', 'main', true); assert.ok(await until(() => Boolean(r.app.tools.get('focus__start'))));
+  pluginVersion(r.shelf, FOCUS, { version: '1.1.0' }); await r.check();
+  review = (await r.api('POST', '/api/store/update', { item: 'focus' })).json.review;
+  const current = r.pm.store.get('focus'); const association = r.installs.get('focus');
+  let stopped!: () => void; const reached = new Promise<void>(resolve => { stopped = resolve; });
+  let release!: () => void; const barrier = new Promise<void>(resolve => { release = resolve; });
+  const original = PluginProcess.prototype.stop;
+  const held = t.mock.method(PluginProcess.prototype, 'stop', async function(this: PluginProcess) { const exiting = original.call(this); stopped(); await barrier; await exiting; });
+  const pending = r.api('POST', '/api/plugins/focus/approve', { review: review.id, trust: true });
+  try {
+    await reached;
+    if (withdrawal === 'yank') r.shelf.items.find(x => x.id === 'focus').versions.find((v: Any) => v.version === '1.1.0').yanked = 'Synthetic target-only withdrawal.';
+    else r.shelf.blocked = [{ id: 'focus', versions: ['1.1.0'], action: 'disable', reason: 'Synthetic target-only block.', at: '2026-11-21' }];
+    await r.check(); release();
+    assert.equal((await pending).status, withdrawal === 'yank' ? 409 : 403);
+    assert.deepEqual(r.pm.store.get('focus'), current); assert.deepEqual(r.installs.get('focus'), association);
+    assert.ok(await until(() => Boolean(r.app.tools.get('focus__start'))), 'unchanged live baseline restarts');
+  } finally { release(); await pending; held.mock.restore(); }
+});
 
 test('1 · Get on a plugin: the normal review with the store strip, origin store, nothing on after approve, a store_installs row', async (t) => {
   const r = await rig(t);

@@ -211,6 +211,7 @@ export function matches(item, q) {
 }
 
 function actionFor(i) {
+  if (i.installHeld) return { label: t('Installation held'), off: true, why: t(i.installHeld) };
   if (i.blockedHere) return { label: t('Pulled'), off: true };
   if (i.held) return { label: t('Being checked'), off: true, why: t('Being checked by the Sara team') };
   if (!i.canRun) return { label: t('Can’t run here'), off: true, why: i.why ? t(i.why.text, i.why.params ?? {}) : '' };
@@ -255,6 +256,9 @@ function card(i) {
   act.disabled = Boolean(a.off) || !g.shelf?.installAllowed;
   if (a.why) act.title = a.why;
   c.append(open, act);
+  if (i.installedOrigin === 'candidate') c.append(el('span', 'sto-why muted small', t('Local workflow candidate')));
+  if (i.blockedHere) c.append(el('span', 'skl-warn small', t('Pulled from the Sara Store: {reason}', { reason: i.blockedHere })));
+  if (i.yankedHere) c.append(el('span', 'skl-warn small', t('This version was pulled from the store: {reason}', { reason: i.yankedHere })));
   if (a.why) c.append(el('span', 'sto-why muted small', a.why));
   return c;
 }
@@ -390,9 +394,24 @@ export async function openItem(id, o = {}) {
   else if (r.installed?.state === 'yanked') nodes.push(el('p', 'skl-warn', t('This version was pulled from the store: {reason}', { reason: r.installed.note ?? '' })));
   const go = el('div', 'prop-buttons');
   const updatable = r.installed && r.installed.version !== r.version;
-  if (!r.installed || updatable) go.append(btn(updatable ? t('Update') : t('Get'), '', (b) => void (updatable ? update(i.id, b) : get(i.id, b))));
+  if (r.installHeld) {
+    nodes.push(el('p', 'skl-warn small', t(r.installHeld)));
+    if (r.installed?.origin === 'candidate') nodes.push(el('p', 'muted small', t('Local workflow candidate')));
+    if (r.installHeldCode === 'association') go.append(btn(t('Forget stale store record'), 'ghost', async (b) => {
+      if (!window.confirm(t('Forget this stale store record? Any current local plugin and its data stay in place.'))) return;
+      b.disabled = true;
+      try { await api('/store/remove', { method: 'POST', body: { item: i.id } }); await openItem(i.id, { push: false }); void loadGetMore(); }
+      catch (err) { say(err.message); }
+      finally { b.disabled = false; }
+    }));
+    else go.append(btn(t('Open installed plugin card'), 'ghost', () => {
+      $('#store-panel').close();
+      location.hash = '#view=settings:ab-plugins';
+      document.dispatchEvent(new CustomEvent('sara:focus-plugin', { detail: i.id }));
+    }));
+  } else if (!r.installed || updatable) go.append(btn(updatable ? t('Update') : t('Get'), '', (b) => void (updatable ? update(i.id, b) : get(i.id, b))));
   else go.append(el('span', 'muted', t('Installed ({version})', { version: r.installed.version })));
-  for (const b of go.querySelectorAll('button')) b.disabled = !r.installAllowed;
+  if (!r.installHeld) for (const b of go.querySelectorAll('button')) b.disabled = !r.installAllowed;
   nodes.push(go);
   nodes.push(section(t('What it does'), el('p', '', r.entry.description), ...(r.entry.about ?? []).filter((p) => p !== r.entry.description).map((p) => el('p', 'small', p))));
   const can = el('ul', 'prop-can');
@@ -630,7 +649,7 @@ async function approveMcp(b) {
 
 // ---- My add-ons (§8.7) ----
 
-const ORIGIN = { store: () => t('Sara Store'), zip: () => t('A file you chose'), git: () => t('A git address'), folder: () => t('A folder on this server'), typed: () => t('You typed it in') };
+const ORIGIN = { candidate: () => t('Local workflow candidate'), store: () => t('Sara Store'), zip: () => t('A file you chose'), git: () => t('A git address'), folder: () => t('A folder on this server'), typed: () => t('You typed it in') };
 const PAGE = { plugin: 'ab-plugins', skill: 'ab-skills', mcp: 'ab-mcp' };
 
 export async function openMine(o = {}) {
@@ -651,18 +670,23 @@ export async function openMine(o = {}) {
     const status = a.state === 'blocked' ? t('{name} was pulled from the Sara Store: {reason} Sara switched it off. Nothing was deleted.', { name: a.name, reason: a.stateNote ?? '' }) : a.state === 'yanked' ? t('This version was pulled from the store: {reason}', { reason: a.stateNote ?? '' }) : a.state === 'removed-from-store' ? t('No longer in the store') : a.kind === 'mcp' ? (a.status === 'ready' ? (a.tools === 1 ? t('Running · 1 tool') : t('Running · {n} tools', { n: a.tools })) : a.status === 'disabled' ? t('Off') : t('Not running')) : a.status === 'installed' ? t('Installed') : a.status === 'disabled' ? t('Off') : String(a.status ?? '');
     row.append(el('p', a.state === 'blocked' || a.state === 'yanked' ? 'skl-warn small' : 'muted small', status));
     const acts = el('div', 'stp-addon-acts');
-    if (a.update) acts.append(btn(t('Update to {version}', { version: a.update }), '', (b) => void update(a.item, b)));
+    if (a.installHeld) row.append(el('p', 'skl-warn small', t(a.installHeld)));
+    if (!a.installHeld && a.update) acts.append(btn(t('Update to {version}', { version: a.update }), '', (b) => void update(a.item, b)));
     acts.append(btn(t('Settings and log'), 'ghost', () => {
       $('#store-panel').close();
       location.hash = `#view=settings:${PAGE[a.kind]}`;
+      if (a.origin === 'candidate') document.dispatchEvent(new CustomEvent('sara:focus-plugin', { detail: a.ref }));
     }));
-    if (a.item && a.canGoBack) acts.append(btn(t('Go back'), 'ghost', (b) => void storeAct('goback', a.item, b)));
+    if (!a.installHeld && a.item && a.canGoBack) acts.append(btn(t('Go back'), 'ghost', (b) => void storeAct('goback', a.item, b)));
     if (a.item) acts.append(btn(t('Report this'), 'ghost', () => openReport(a.item, a.version)));
     if (a.item && a.state === 'blocked') acts.append(btn(t('Switch it on anyway'), 'ghost', (b) => {
       if (window.confirm(t('The Sara team found a serious problem with this add-on. Switch it on anyway?'))) void storeAct('override', a.item, b, { confirm: true });
     }));
-    if (a.item) acts.append(btn(t('Remove'), 'ghost danger', (b) => {
+    if (a.item && a.origin !== 'candidate' && a.installHeldCode !== 'association') acts.append(btn(t('Remove'), 'ghost danger', (b) => {
       if (window.confirm(t('Remove {name}? Its settings and saved data go too.', { name: a.name }))) void storeAct('remove', a.item, b);
+    }));
+    if (a.item && a.installHeldCode === 'association') acts.append(btn(t('Forget stale store record'), 'ghost', (b) => {
+      if (window.confirm(t('Forget this stale store record? Any current local plugin and its data stay in place.'))) void storeAct('remove', a.item, b);
     }));
     row.append(acts);
     nodes.push(row);

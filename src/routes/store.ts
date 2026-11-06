@@ -30,7 +30,7 @@ import { fromZip, PackageError } from '../packages.ts';
 import { SARA_VERSION } from '../plugins/manager.ts';
 import { checkServerFolder } from '../skill-store.ts';
 import { imageType, STORE_PLUGIN_LIMITS } from '../store/checks.ts';
-import { shelfView } from '../store/client.ts';
+import { pluginInstallation, shelfView } from '../store/client.ts';
 import { isStoreId, shortKey } from '../store/format.ts';
 import { entryLines, InstallError, StoreInstaller } from '../store/install.ts';
 import { packFiles, packPath, readStoreZip, type Pack } from '../store/pack.ts';
@@ -94,7 +94,7 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
   /** *My add-ons* (§8.7): every add-on that didn't come with Sara, from the store or not. */
   const mine = (): Record<string, unknown> => {
     const rows = new Map((app.storeInstalls?.all() ?? []).map((r) => [`${r.kind}:${r.local_ref}`, r]));
-    const shelf = app.storeClient ? (shelfView(app.storeClient, { saraVersion: app.pluginManager?.version ?? SARA_VERSION, installs: app.storeInstalls, ...storeSettings(app.settings.get() as never) }).items as { id: string; version: string; updateAvailable: boolean }[]) : [];
+    const shelf = app.storeClient ? (shelfView(app.storeClient, { saraVersion: app.pluginManager?.version ?? SARA_VERSION, installs: app.storeInstalls, plugins: app.pluginManager, ...storeSettings(app.settings.get() as never) }).items as { id: string; version: string; updateAvailable: boolean }[]) : [];
     const upd = (item?: string) => shelf.find((x) => x.id === item && x.updateAvailable)?.version ?? null;
     const out: Record<string, unknown>[] = [];
     for (const p of app.pluginManager?.store.all() ?? []) {
@@ -106,7 +106,8 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
       }
       if (origin === 'builtin') continue;
       const r = rows.get(`plugin:${p.id}`);
-      out.push({ kind: 'plugin', ref: p.id, name: p.name, version: p.version, origin: r ? 'store' : origin, item: r?.item ?? null, trust: r?.trust ?? null, status: p.status, note: p.status_note ?? null, state: r?.state ?? null, stateNote: r?.state_note ?? null, update: upd(r?.item), canGoBack: Boolean(p.prev_version) });
+      const source = pluginInstallation(app.pluginManager, p.id, r);
+      out.push({ kind: 'plugin', ref: p.id, name: p.name, version: p.version, origin, item: r?.item ?? null, trust: r?.trust ?? null, status: p.status, note: p.status_note ?? null, state: r?.state ?? null, stateNote: r?.state_note ?? null, update: source.installHeld ? null : upd(r?.item), ...(source.installHeld ? { installHeld: source.installHeld, installHeldCode: source.installHeldCode } : {}), canGoBack: Boolean(p.prev_version) });
     }
     for (const s of app.skills?.list() ?? []) {
       if (s.source !== 'imported') continue;
@@ -141,7 +142,7 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
     const saraVersion = app.pluginManager?.version ?? SARA_VERSION;
     const view = () => {
       if (!client) return { ...settings(), blocked: 'demo', freshness: 'none', items: [], held: [], notices: [] };
-      return shelfView(client, { saraVersion, installs: app.storeInstalls, ...settings(), adultAny: adultAny() });
+      return shelfView(client, { saraVersion, installs: app.storeInstalls, plugins: app.pluginManager, ...settings(), adultAny: adultAny() });
     };
     const installer = () => {
       if (!client || !app.storeInstalls) throw new HttpError(404, en('The Sara Store is not available here.'));
@@ -201,6 +202,7 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
       for (const s of entry.shots) remember(s.sha256, s.file);
       if (hit.item.icon && hit.item.iconSha) remember(hit.item.iconSha, hit.item.icon);
       const row = app.storeInstalls?.get(c);
+      const source = hit.item.kind === 'plugin' ? pluginInstallation(app.pluginManager, c, row) : undefined;
       const { lines, error } = entryLines(entry, saraVersion);
       const held = client.held().some((h) => h.id === c);
       return send(res, 200, {
@@ -211,9 +213,10 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
         entry: { description: entry.description, about: entry.about, license: entry.license, source: entry.source ?? null, contact: entry.author.contact ?? null, shots: entry.shots.map((s) => ({ sha: s.sha256, alt: s.alt })), changes: entry.changes, checks: entry.checks, review: entry.review ?? null, tested: entry.tested ?? [], needs: entry.needs ?? [], works: entry.works ?? [], ...(entry.mcp ? { mcp: entry.mcp } : {}), ...(entry.companion ? { companion: entry.companion } : {}) },
         lines,
         ...(error ? { linesError: error } : {}),
-        installed: row ? { version: row.version, state: row.state, note: row.state_note } : null,
+        installed: source ? source.installed ? { version: source.version, origin: source.origin, state: row?.state ?? null, note: row?.state_note ?? null } : null : row ? { version: row.version, state: row.state, note: row.state_note } : null,
+        ...(source?.installHeld ? { installHeld: source.installHeld, installHeldCode: source.installHeldCode } : {}),
         held,
-        installAllowed: client.installAllowed() && !held,
+        installAllowed: client.installAllowed() && !held && !source?.installHeld,
       });
     }
     if (b === 'shots' && c && !d && method === 'GET') {

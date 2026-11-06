@@ -515,6 +515,26 @@
     "Switch it off on its card.",
     "Its log stays under What it did."
    ]
+  },
+  {
+   "id": "candidates",
+   "q": "How do I try a workflow candidate?",
+   "steps": [
+    "Open Workflow candidates and read Details and limits.",
+    "Press Review local candidate, inspect its exact permissions and trust warning, then Install only if you agree.",
+    "It stays off for every companion. Enable it separately on its installed card."
+   ],
+   "show": "#plg-discovery"
+  },
+  {
+   "id": "guides",
+   "q": "How do I use a starter guide?",
+   "steps": [
+    "Open Starter guides under Workflow candidates.",
+    "Read its members, qualification, privacy, costs and setup checklist.",
+    "Follow existing Settings links and review each member separately. Nothing installs as a group."
+   ],
+   "show": "#plg-discovery"
   }
  ],
  "ab-search": [
@@ -615,6 +635,26 @@
     "A small program that gives her new tools.",
     "Its tools then appear in Tools and approvals."
    ]
+  },
+  {
+   "id": "previews",
+   "q": "How do I inspect an MCP recipe preview?",
+   "steps": [
+    "Open Connection investigations and filter the list.",
+    "Expand View recipe preview or Why blocked; read prerequisites, scope, costs and qualification.",
+    "Prepare configuration yourself in the existing form only after review. Previews do not save, connect or authorize accounts."
+   ],
+   "show": "#mcp-discovery"
+  },
+  {
+   "id": "permissions",
+   "q": "How do I verify MCP approval settings?",
+   "steps": [
+    "Inspect each discovered tool in Tools and approvals and select Ask or Off.",
+    "Save, leave the page, reopen it and read back the saved permissions.",
+    "Repeat after discovery, reconnect and updates. Server read-only annotations can auto-allow calls and do not enforce external-effect approval or cost limits."
+   ],
+   "show": "#mcp-discovery"
   }
  ],
  "ab-projects": [

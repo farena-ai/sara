@@ -10,6 +10,27 @@ cards, settings (each with a **?** tip) and chat bridges.
 MCP servers stay as they are (tools from other programs). Plugins are the Sara-native path: they
 also get hooks, cards, settings, schedules and bridges, without forking Sara.
 
+### Workflow candidates (in development, after 2.68)
+
+The existing Plugins page adds twelve supplied-data workflow candidates. **Local candidate** and
+**In testing** describe source and qualification; neither means a signed-store release. Expand
+an entry to read prerequisites, permissions, cost, privacy and limits, then choose **Review local
+candidate** to open the ordinary review card. Review the exact files and permissions, supply the
+normal trust confirmation where required, and install. Each companion stays off until you switch
+it on in the real installed card. Cancel leaves nothing installed. Missing or changed supplied
+packages remain listed with a held reason.
+
+These workflows do not silently read your inbox, calendar or chat history. Image Workshop prepares
+prompts and briefs; it does not generate images. Home Dashboard summarizes a supplied non-live
+snapshot; it does not control devices. Optional explicitly requested model work uses the configured
+background route and can incur provider cost. Installation and discovery never invoke a model.
+
+A candidate's updates are reviewed from its Plugins card. A matching signed-store content hash
+can retain block/yank evidence, but never changes its actual source or grants Store-update or
+first-party-consent authority. To change source, remove it and review a fresh installation.
+An obsolete Store record can be explicitly forgotten without deleting a replacement local plugin.
+Starter guides are reading checklists, not bulk installers or saved enablement state.
+
 **The promise to the owner:** she still follows her rules. A plugin can add a labelled note or a
 card, or make a step ask the owner; it can never change her rules, her persona, her safety notes, her
 replies, a tool result or a decision. Plugins never see private, partner, group, imported,

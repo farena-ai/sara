@@ -242,7 +242,11 @@ export function checkCompanion(input: readonly PackageFile[], o: CheckOptions): 
   const level = persona?.intimacy?.level;
   const adultLevel = Boolean(level && intimacyLevel(level)?.adult);
   const adultLooks = closetMeta.some((c) => c.meta?.adult === true || isAdultOutfit(String(c.meta?.wear ?? '')));
-  const explicitText = detectExplicit(packText(files.filter((f) => !f.path.startsWith('skills/')), name));
+  // Dotted release numbers are not the standalone explicit token "69". Keep the raw
+  // text (including duplicate JSON fields); minors and safety checks above remain unaltered.
+  const ratingText = packText(files.filter((f) => !f.path.startsWith('skills/')), name)
+    .replace(/(?<![\p{L}\p{N}.])\d+\.\d+\.\d+(?![\p{L}\p{N}.])/gu, '[version]');
+  const explicitText = detectExplicit(ratingText);
   const rating = pack?.rating;
   if ((explicitText || adultLevel || adultLooks) && rating && rating !== 'explicit') rp.push(explicitText ? 'This pack has explicit lines, so rate it Explicit.' : adultLevel ? 'Her intimacy level is explicit, so rate the pack Explicit.' : 'This pack has adults-only closet looks, so rate it Explicit.');
   else if (rating === 'general' && level && !['none', 'sweet'].includes(level)) rp.push('Her intimacy level is more than sweet, so rate the pack Mature (or Explicit).');

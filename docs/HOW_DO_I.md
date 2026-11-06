@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 177 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 181 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -685,6 +685,18 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Switch it off on its card.
 2. Its log stays under What it did.
 
+**How do I try a workflow candidate?**
+
+1. Open Workflow candidates and read Details and limits.
+2. Press Review local candidate, inspect its exact permissions and trust warning, then Install only if you agree.
+3. It stays off for every companion. Enable it separately on its installed card.
+
+**How do I use a starter guide?**
+
+1. Open Starter guides under Workflow candidates.
+2. Read its members, qualification, privacy, costs and setup checklist.
+3. Follow existing Settings links and review each member separately. Nothing installs as a group.
+
 ### Web search
 
 **How do I let her search the web?**
@@ -748,6 +760,18 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. A small program that gives her new tools.
 2. Its tools then appear in Tools and approvals.
+
+**How do I inspect an MCP recipe preview?**
+
+1. Open Connection investigations and filter the list.
+2. Expand View recipe preview or Why blocked; read prerequisites, scope, costs and qualification.
+3. Prepare configuration yourself in the existing form only after review. Previews do not save, connect or authorize accounts.
+
+**How do I verify MCP approval settings?**
+
+1. Inspect each discovered tool in Tools and approvals and select Ask or Off.
+2. Save, leave the page, reopen it and read back the saved permissions.
+3. Repeat after discovery, reconnect and updates. Server read-only annotations can auto-allow calls and do not enforce external-effect approval or cost limits.
 
 ## Settings → Coding
 

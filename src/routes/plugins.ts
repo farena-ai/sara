@@ -39,6 +39,7 @@
 //   POST   /api/plugins/:id/check-sender         { companion } → waits ≤ 10 min for his next mail: { got, from, headers };
 //                                                { companion, use } → that provider id counts (email)
 import { readFileSync } from 'node:fs';
+import { PUBLIC_GUIDED_PACKS } from '../addons/discovery.ts';
 import { extname, join, resolve, sep } from 'node:path';
 import { HttpError, readJson, readRaw, SECURITY_HEADERS, send } from '../http.ts';
 import { isPrivateLocalError } from '../net-guard.ts';
@@ -80,12 +81,22 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
     }
 
     if (b === 'builtin' && !c && method === 'GET') return send(res, 200, { builtin: pm.builtinList() });
+    if (b === 'candidates' && parts.length === 2) {
+      if (method !== 'GET') throw new HttpError(405, 'Method not allowed');
+      return send(res, 200, { candidates: pm.candidateList(), packs: PUBLIC_GUIDED_PACKS });
+    }
     if (b === 'install') {
       if (!c && method === 'POST') {
         const type = String(req.headers['content-type'] ?? '');
         try {
           if (type.startsWith('application/json')) {
             const body = await readJson(req);
+            const sources = ['candidate', 'builtin', 'store', 'path', 'url'];
+            const selected = sources.filter(key => Object.hasOwn(body, key));
+            if (selected.length !== 1 || Object.keys(body).some(key => !sources.includes(key)) || typeof body[selected[0]] !== 'string' || !(body[selected[0]] as string).trim()) {
+              throw new HttpError(400, en('Choose exactly one plugin source.'));
+            }
+            if (typeof body.candidate === 'string') return send(res, 200, pm.stageCandidate(body.candidate.trim()));
             if (typeof body.builtin === 'string' && body.builtin.trim()) return send(res, 200, pm.stageBuiltin(body.builtin.trim()));
             // Phase 125 (§12.2): `{store: id}` is the store install (download, verify, the same card).
             if (typeof body.store === 'string' && body.store.trim()) {
@@ -260,16 +271,28 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
       try {
         // PL2a (N2): Sara's own plugins install from the short consent step (`consent`); the manager
         // honours it only for a review it marked first-party itself, never for anything the page says.
-        await pm.approve(r.id, { trust: body.trust === true, consent: body.consent === true });
+        const strip = r.store;
+        const installs = app.storeInstalls;
+        if (strip && installs && installs.db !== pm.store.db) throw new HttpError(409, en('The plugin store association is unavailable. Try again later.'));
+        await pm.approve(r.id, {
+          trust: body.trust === true, consent: body.consent === true,
+          onCommitted: row => {
+            const index = app.storeClient?.current()?.index;
+            const block = index?.blocked.find(entry => (entry.id === row.id && (entry.versions === '*' || entry.versions.includes(row.version))) || entry.contentShas?.includes(row.approved_sha));
+            if (block) throw new HttpError(403, en('This version was pulled from the store: {reason}'), { params: { reason: block.reason } });
+            if (!strip || !installs) return;
+            if (app.storeClient?.held().some(entry => entry.id === strip.item)) throw new HttpError(409, en('Being checked by the Sara team'));
+            const item = index?.items.find(entry => entry.id === strip.item);
+            const version = item?.versions.find(entry => entry.version === strip.version);
+            if (!item || item.kind !== 'plugin' || strip.item !== row.id || strip.version !== row.version || !version || version.contentSha !== row.approved_sha || item.trust !== strip.trust || (version.yanked ?? null) !== (strip.yanked ?? null)) {
+              throw new HttpError(409, en('That review has expired. Add the plugin again.'));
+            }
+            const at = app.now().toISOString();
+            installs.upsert({ item: item.id, kind: 'plugin', version: row.version, trust: item.trust, local_ref: row.id, content_sha: row.approved_sha, entry_sha: version.entrySha, installed_at: at, updated_at: at, ...(version.yanked ? { state: 'yanked' as const, state_note: version.yanked } : {}) });
+          },
+        });
       } catch (err) {
         return asHttp(err);
-      }
-      // Phase 124 (SARA_STORE.md §6.1): a file whose content hash matches a store entry is recorded as
-      // that store add-on, so the store's yanks and blocks reach it.
-      if (r.store && app.storeInstalls) {
-        const at = app.now().toISOString();
-        const hit = app.storeClient?.version(r.store.item, r.store.version);
-        app.storeInstalls.upsert({ item: r.store.item, kind: 'plugin', version: r.store.version, trust: r.store.trust, local_ref: id, content_sha: r.sha, entry_sha: hit?.v.entrySha ?? '', installed_at: at, updated_at: at, ...(r.store.yanked ? { state: 'yanked' as const, state_note: r.store.yanked } : {}) });
       }
       return send(res, 200, pm.view(pm.store.get(id)!));
     }
@@ -282,7 +305,7 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
       try {
         await pm.remove(id);
         // Phase 122: a plugin's bridge hooks (and their vault entries) go with it.
-        app.hooks?.removeForPlugin(id);
+        if (!pm.store.get(id)) app.hooks?.removeForPlugin(id);
       } catch (err) {
         return asHttp(err);
       }

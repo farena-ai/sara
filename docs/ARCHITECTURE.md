@@ -607,3 +607,21 @@ prior markers and invalid metadata bytes remain. Known imported rows are exclude
 policy even if later new direct dialogue makes the conversation eligible. Historical null-origin
 rows remain compatible and use explicit unverified-source attribution only in the new R1 path.
 Earlier unmarked imports cannot be retroactively identified without further evidence.
+
+### Add-ons discovery and candidate admission (in development)
+
+`src/addons/discovery.ts` and `discovery-data.ts` expose a bounded frozen public read model:
+twelve native candidates, twenty-one MCP investigations (seven recipe previews/fourteen blocked)
+and six reading guides. They import no authoring catalogs, filesystem, provider or process code.
+Expected content hashes identify package bytes; signed StoreClient metadata remains the signed
+availability authority. Private parity tests and raw catalog records are excluded from exports.
+
+PluginManager reads only allowlisted candidate folders, verifies ancestor/link boundaries and
+manifest/content identity, and stages through the ordinary hash/trust/per-companion flows.
+Reviews capture a private installed/absent baseline and monotonic epoch; guarded mutations retain
+removal tombstones, reject stale/ABA reviews, suppress stale runtime callbacks and preserve immediate
+Off/block revocation. Relevant SettingsStore writes invalidate authority after successful persistence.
+The approval savepoint includes a synchronous trusted signed-association callback. Association never
+changes actual candidate origin or grants Store update authority; source changes require removal
+and a fresh review. Missing/changed payloads remain visible with a held reason. Actual installed-root
+and release qualification remain separate gates from source and isolated copy-fixture tests.

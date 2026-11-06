@@ -5,6 +5,39 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.69.0 (2026-11-05): add-ons in existing Settings
+
+- **Companion-pack ratings:** dotted release numbers such as 2.69.0 no longer count as explicit
+  prose. Standalone explicit terms still require the Explicit rating; minors, privacy and raw
+  duplicate-field checks remain intact.
+
+- **Development checks:** cap independent test files at four to avoid oversubscribing child
+  processes on large development machines. The full test set, assertions, timeouts and each
+  application's concurrent-user tests remain unchanged.
+
+- **Existing Settings discovery:** twelve supplied-data workflow
+  candidates use the normal Plugins review, trust and per-companion enablement flows. Seven MCP
+  recipe previews, fourteen blocked investigations and six starter guides explain prerequisites,
+  permissions, costs and qualification limits. Search follows displayed translations; disclosures
+  and contained retry work on desktop and phone. No automatic installation, connection or enablement.
+- **Honest source and approval state:** local candidates stay distinct from signed Store releases.
+  Stale reviews, concurrent mutations and outdated downloads cannot replace newer authority;
+  rollback preserves current signed block/yank evidence and cannot invent a signed association.
+  Forgetting an obsolete Store record preserves a replacement plugin. Off remains immediate.
+- **Complete distribution payloads:** Windows, macOS, Docker and Linux copy the twelve candidate
+  packages with their SDKs/assets. Linux also preserves all five existing builtin plugins and
+  removes stale candidate files on rerun.
+- **Scope:** Image Workshop prepares prompts; Home Dashboard summarizes a supplied non-live
+  snapshot. MCP recipes remain preparation previews, with explicit annotation/OAuth/approval/cost
+  limits. The live website, existing signed metadata and package URLs are unchanged. See
+  [the library's scope and limits](docs/ADDONS_LIBRARY.md). 
+- **Qualification:** 3033 automated tests: Windows 3017 pass/0 fail/16 skip; Linux 3018 pass/0
+  fail/15 skip. Thirteen isolated desktop/mobile browser journeys pass. Actual Windows and the
+  signed/notarized universal Mac package pass their recovery/regression profiles and the add-ons
+  checks, including four refusal cases; both container architectures carry exactly the twelve
+  candidate packages and pass personal/business health checks. Windows is unsigned. Synthetic
+  data and scripted providers; physical-device, screen-reader and real-account checks stay separate.
+
 ## 2.68.0 (2026-11-05): owner-session continuity
 
 - **Context across eligible personal chats:** refresh linked owner-session context at actual provider boundaries, coordinate provider steps within the same companion store, and offer bounded historical reads and internal handoffs. Source edits, forgetting and privacy changes invalidate affected context. Internal notes never send human messages, grant tool authority or certify completed work.

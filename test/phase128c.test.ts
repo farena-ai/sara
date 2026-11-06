@@ -239,9 +239,9 @@ test('128c.6 N13: Sara’s own plugin on Windows shows one calm line; a third-pa
   assert.equal(calm.amberChip, false);
   // Honest on other systems too: it still says there is no sandbox.
   assert.match(notice.reviewNotices(own, { windows: false }).calm, /no sandbox on this computer/);
-  // The fingerprint check is unchanged: it runs at approve, calm wording or not.
+  // Calm wording never bypasses either admission or atomic-commit fingerprint validation.
   await pm.approve(own.id, { consent: true });
-  assert.deepEqual(seen, [own.sha]);
+  assert.deepEqual(seen, [own.sha, own.sha]);
   await pm.remove('whatsapp');
 
   // A third-party copy (a folder, a zip, git): every amber line stays.

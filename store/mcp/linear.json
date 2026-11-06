@@ -1,0 +1,59 @@
+{
+  "id": "linear",
+  "version": "1.0.0",
+  "name": "Linear",
+  "category": "coding",
+  "tags": [
+    "coding",
+    "mcp"
+  ],
+  "summary": "Find issues and prepare project updates.",
+  "description": "Find issues and prepare project updates. Available capabilities depend on the provider and the explicitly granted permissions.",
+  "about": [
+    "Find issues and prepare project updates. Available capabilities depend on the provider and the explicitly granted permissions.",
+    "Official static Bearer HTTP path documented; no account or remote protocol execution.",
+    "Reads and may mutate issues, projects and comments within token permissions",
+    "Linear account and plan limits apply.",
+    "Read and write permissions are different. This recipe grants no automatic execution. Sara may still auto-allow tools from server read-only annotations; the owner must inspect and set host permissions before use."
+  ],
+  "license": "Unknown (hosted service terms)",
+  "source": "https://linear.app/docs/mcp",
+  "needs": [],
+  "works": [],
+  "mcp": {
+    "transport": "http",
+    "name": "linear",
+    "url": "https://mcp.linear.app/mcp",
+    "fields": [],
+    "secrets": [
+      {
+        "key": "LINEAR_API_KEY",
+        "kind": "secret",
+        "label": "Restricted Linear API key",
+        "tip": "Use a restricted Linear API key. It is sent only as an Authorization header, not in the URL. OAuth login/refresh is not implemented here.",
+        "header": "Authorization",
+        "prefix": "Bearer "
+      }
+    ],
+    "reaches": [
+      "mcp.linear.app"
+    ],
+    "needs": [],
+    "tools": {
+      "readOnly": [],
+      "ask": []
+    },
+    "guide": [
+      "Create a restricted API key in Linear and review the granted workspace/project access.",
+      "This is the documented static Bearer path, not OAuth. No account was connected or issue changed.",
+      "After Test, inspect discovered tools and set explicit approval permissions before using them.",
+      "After discovery, open Settings → Coding → Tools and approvals. Set every tool in this server's group to Ask me first or Off before sending any request.",
+      "Save, leave and reopen the page; read back every tool setting. Repeat after restart, update or newly discovered tools. Stop if settings cannot be confirmed."
+    ]
+  },
+  "changes": [
+    "First connection preview. Not published; qualification limitations are explicit."
+  ],
+  "tested": [],
+  "reviewNotes": "Connection preview, not a live vendor screenshot. Official static Bearer HTTP path documented; no account or remote protocol execution."
+}

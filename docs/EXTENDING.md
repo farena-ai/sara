@@ -182,6 +182,19 @@ either in Settings.
 Add one in **Settings → Add-ons → Other programs (MCP)**: a name, stdio (command + arguments) or
 HTTP (address), and any secret environment variables or headers (kept in the encrypted vault).
 
+**Connection investigations (in development, after 2.68):** this same Settings page adds twenty-one
+discovery records: seven recipe previews and fourteen blocked investigations. They explain
+prerequisites, account requirements, permissions, costs and qualification limits. Reading or
+filtering them never saves configuration, starts a server, connects an account or runs a tool.
+The existing two presets, saved connections and manual form remain separate supported flows.
+
+Treat server read-only annotations as claims, not approval or spending guarantees. Review every
+tool in **Tools and approvals**, choose Ask or Off, save, leave, reopen and read back the saved
+permissions; repeat after new tool discovery, reconnects and updates. Generic hosted OAuth remains
+unqualified. A preview does not establish real-account access or Sara-host qualification. In
+particular, use database-enforced read-only credentials for DBHub; MarkItDown is not a file/network
+sandbox; draw.io can open a browser. These investigation notes do not authorize paid calls.
+
 The example [`examples/mcp/hello-mcp-server.mjs`](../examples/mcp/hello-mcp-server.mjs) is a
 complete stdio server in about 50 lines of plain Node (no SDK): it answers `initialize`,
 `tools/list` and `tools/call` with JSON-RPC, one message per line. Try it with:

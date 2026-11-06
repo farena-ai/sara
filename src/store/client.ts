@@ -11,9 +11,10 @@ import { join } from 'node:path';
 import { writeFileAtomic } from '../fs-util.ts';
 import { isLoopbackHost, netFetch, outboundAllowed, privateLocalOn } from '../net-guard.ts';
 import type { PackageFile } from '../packages.ts';
+import type { PluginManager } from '../plugins/manager.ts';
 import { compareSemver, satisfies } from '../plugins/manifest.ts';
 import { COMPANION_PACKAGE_MAX, parseEntry, type StoreBlock, type StoreEntry, type StoreIndex, type StoreItem, type StorePlatform, type StoreVersion } from './format.ts';
-import type { StoreInstalls } from './installs.ts';
+import type { StoreInstallRow, StoreInstalls } from './installs.ts';
 import { STORE_KEYS } from './keys.ts';
 import { STORE_COMPANION_LIMITS } from '../packs/format.ts';
 import { acceptIndex, checkPackage, checkPinned, indexFresh, sha256, StoreRefused } from './verify.ts';
@@ -459,7 +460,8 @@ export async function applyIndex(index: StoreIndex, o: { client: StoreClient; in
     }
   }
   for (const r of rows) {
-    if (r.state === 'blocked') continue;
+    // This snapshot predates the block writes above; a yank must not overwrite a fresh block.
+    if (r.state === 'blocked' || index.blocked.some(b => b.id === r.item && blockedVersion(b, r.version))) continue;
     const item = index.items.find((x) => x.id === r.item);
     if (!item) {
       if (!index.blocked.some((b) => b.id === r.item)) o.installs?.setState(r.item, 'removed-from-store', null, at);
@@ -492,6 +494,9 @@ export interface ShelfItem {
   why?: { code: 'sara' | 'platform'; text: string; params?: Record<string, string> };
   installed: boolean;
   installedVersion?: string;
+  installedOrigin?: string;
+  installHeld?: string;
+  installHeldCode?: 'candidate' | 'association';
   updateAvailable: boolean;
   /** Phase 125: being checked by the Sara team (no Get or Update). */
   held?: boolean;
@@ -503,8 +508,23 @@ export interface ShelfItem {
   romance?: boolean;
 }
 
+/** Signed-content association does not change the source of the installed plugin. */
+export function pluginInstallation(plugins: Pick<PluginManager, 'store'> | undefined, id: string, association?: StoreInstallRow): { installed: boolean; version?: string; origin?: string; installHeld?: string; installHeldCode?: 'candidate' | 'association' } {
+  const local = plugins?.store.get(id);
+  let origin: string | undefined;
+  if (local) {
+    try { origin = (JSON.parse(local.origin ?? '{}') as { kind?: string }).kind; } catch { origin = 'unknown'; }
+  }
+  const installHeld = origin === 'candidate'
+    ? 'This is a local candidate. Review its updates in Plugins. Remove it before choosing a different source.'
+    : plugins && association && (!local || association.local_ref !== id || association.content_sha !== local.approved_sha || association.version !== local.version)
+      ? 'The saved store association no longer matches the installed plugin. Remove the stale association before installing again.'
+      : undefined;
+  return { installed: plugins ? Boolean(local && (association || origin === 'candidate')) : Boolean(association), ...(local ? { version: local.version, origin } : association ? { version: association.version } : {}), ...(installHeld ? { installHeld, installHeldCode: origin === 'candidate' ? 'candidate' : 'association' } : {}) };
+}
+
 /** The read model of GET /api/store (§6.2). */
-export function shelfView(client: StoreClient, o: { saraVersion: string; platform?: NodeJS.Platform; installs?: StoreInstalls; on: boolean; community: boolean; adultAny?: boolean }): Record<string, unknown> {
+export function shelfView(client: StoreClient, o: { saraVersion: string; platform?: NodeJS.Platform; installs?: StoreInstalls; plugins?: Pick<PluginManager, 'store'>; on: boolean; community: boolean; adultAny?: boolean }): Record<string, unknown> {
   const blocked = client.blocked();
   const cur = client.current();
   const st = client.state();
@@ -524,6 +544,7 @@ export function shelfView(client: StoreClient, o: { saraVersion: string; platfor
     if (!satisfies(o.saraVersion, v.sara)) why = { code: 'sara', text: 'Needs Sara {version}', params: { version: rangeFloor(v.sara) ?? v.sara } };
     else if (it.works && (plat === 'other' || !it.works.includes(plat))) why = { code: 'platform', text: 'Not for this computer' };
     const row = rows.get(it.id);
+    const plugin = it.kind === 'plugin' ? pluginInstallation(o.plugins, it.id, row) : undefined;
     const held = heldIds.has(it.id);
     items.push({
       id: it.id,
@@ -538,9 +559,11 @@ export function shelfView(client: StoreClient, o: { saraVersion: string; platfor
       permissions: v.permissions,
       canRun: !why,
       ...(why ? { why } : {}),
-      installed: Boolean(row),
-      ...(row ? { installedVersion: row.version } : {}),
-      updateAvailable: Boolean(row && row.state !== 'blocked' && compareSemver(v.version, row.version) > 0 && !why && !held),
+      installed: plugin?.installed ?? Boolean(row),
+      ...(plugin?.version || row ? { installedVersion: plugin?.version ?? row!.version } : {}),
+      ...(plugin?.origin ? { installedOrigin: plugin.origin } : {}),
+      ...(plugin?.installHeld ? { installHeld: plugin.installHeld, installHeldCode: plugin.installHeldCode } : {}),
+      updateAvailable: Boolean(row && row.state !== 'blocked' && compareSemver(v.version, row.version) > 0 && !why && !held && !plugin?.installHeld),
       ...(held ? { held: true } : {}),
       ...(it.icon && it.iconSha ? { icon: it.iconSha } : {}),
       ...(row?.state === 'yanked' ? { yankedHere: row.state_note ?? '' } : {}),

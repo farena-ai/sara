@@ -54,7 +54,10 @@ test('128d.3 N38: the new guide sections resolve to unique ids, and every # link
 
 test('128d.4 C4: every sara-plugin.mjs, http1.mjs and pace.mjs (outside node_modules and outputs) has its source\'s hash', () => {
   const copies = sdkCopies();
-  assert.equal(copies['sara-plugin.mjs'].length, 15, copies['sara-plugin.mjs'].join(', '));
+  assert.equal(copies['sara-plugin.mjs'].length, 27, copies['sara-plugin.mjs'].join(', '));
+  for (const id of ['daily-briefing', 'meeting-assistant', 'document-desk', 'research-notebook', 'project-handoff', 'weekly-review', 'inbox-triage', 'content-studio', 'image-workshop', 'spreadsheet-assistant', 'travel-planner', 'home-dashboard']) {
+    assert.ok(copies['sara-plugin.mjs'].includes(`store/plugins/${id}/sara-plugin.mjs`), `${id}: standalone SDK remains hash-checked`);
+  }
   assert.ok(copies['sara-plugin.mjs'].includes('plugins/whatsapp/sara-plugin.mjs') && copies['sara-plugin.mjs'].includes('store/plugins/focus/sara-plugin.mjs'));
   assert.deepEqual(copies['http1.mjs'], ['plugins/imessage/http1.mjs', 'plugins/matrix/http1.mjs', 'plugins/whatsapp/http1.mjs']);
   assert.deepEqual(copies['pace.mjs'], ['plugins/imessage/pace.mjs', 'plugins/matrix/pace.mjs', 'plugins/signal/pace.mjs', 'plugins/whatsapp/pace.mjs']);

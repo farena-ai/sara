@@ -18,6 +18,7 @@ import { loadWhatsAppPage } from './whatsapp.js';
 import { loadMatrixPage } from './matrix.js';
 import { loadIMessagePage } from './imessage.js';
 import { initPlugins, loadPlugins, pluginAskLine, pluginNotice, pluginResultCard, pluginStepWords } from './plugins.js';
+import { loadMcpDiscovery } from './addons-discovery.js';
 import { loadSignalPage } from './signal.js';
 import { loadEmailPage } from './email.js';
 import { renderTelegramSetup } from './telegram-setup.js';
@@ -7281,6 +7282,7 @@ function renderMcp(list) {
 async function loadMcp() {
   renderMcp(await api('/mcp'));
   mcpRows();
+  await loadMcpDiscovery();
 }
 
 function parseSecrets(text) {

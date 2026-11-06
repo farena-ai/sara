@@ -35,7 +35,7 @@
 
 **Du kommst mit einem Team?** Nutze die [separate Unternehmenseinrichtung](docs/BUSINESS_OPERATIONS.md): individuelle Passkeys, ausdrückliche Rollen und gemeinsame Arbeitsbereiche. Die manuelle Installation hat einen eigenen Datenordner; persönliche Installer wandeln weder deine Begleiterin noch deinen Haushalt um.
 
-> **Status:** 2.68.0, [Kontext zwischen eigenen Chats](https://github.com/farena-ai/sara/releases/tag/v2.68.0). Frischer Kontext zwischen berechtigten Eigentümer-Chats, mit internen Notizen, geordneten Anbieterschritten und eigenen Bedienelementen. [Was ist neu?](#was-ist-neu)
+> **Status:** 2.69.0, [Erweiterungen in den bestehenden Einstellungen](https://github.com/farena-ai/sara/releases/tag/v2.69.0). Zwölf lokale Abläufe, sieben MCP-Vorschauen, vierzehn blockierte Untersuchungen und sechs Anleitungen; Prüfung und Aktivierung bleiben je Begleitung ausdrücklich erforderlich. [Was ist neu?](#was-ist-neu)
 >
 > Windows-Installer: unsigniert ([SmartScreen-Hilfe](docs/INSTALL.md)). Der macOS-Release-Prozess verlangt signierte und notarisierte Downloads; jeder Build wird gesondert geprüft. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [Web-App auf dem Home-Bildschirm](docs/PHONE.md).
 
@@ -124,6 +124,7 @@ Aktuelle Releases · 5. November 2026. [Vollständiges Änderungsprotokoll](CHAN
 
 | Version | Was sich für dich ändert |
 |---|---|
+| **[2.69.0](https://github.com/farena-ai/sara/releases/tag/v2.69.0)** | **[Erweiterungen in den Einstellungen](docs/ADDONS_LIBRARY.md)** — Zwölf Abläufe für bereitgestellte Daten nutzen die normale Datei- und Berechtigungsprüfung und sind anfangs ausgeschaltet. Sieben MCP-Rezeptvorschauen, vierzehn blockierte Untersuchungen und sechs Anleitungen erklären Voraussetzungen, Kosten und Grenzen. Keine automatische Installation, Verbindung oder Aktivierung; die Verfügbarkeit im signierten Store bleibt getrennt. |
 | **[2.68.0](https://github.com/farena-ai/sara/releases/tag/v2.68.0)** | **[Kontext zwischen eigenen Chats](docs/SESSION_CONTINUITY.md)** — Frischer Kontext zwischen berechtigten Chats des Eigentümers mit derselben Begleiterin, begrenzte Verlaufsabfragen, interne Notizen und geordnete Anbieterschritte. Eigener Schalter, Einsicht und bestätigtes Löschen nur für das gewählte Ziel; Datenschutz und Werkzeugfreigaben gelten weiterhin. Gemeinsame Szenen, Projektkoordination und vollständige Sprach-/Video-Parität bleiben künftige Arbeit. |
 | **[2.67.0](https://github.com/farena-ai/sara/releases/tag/v2.67.0)** | **[Aktuelle Hinweise und Nachfragen](docs/ATTUNEMENT.md)** — Begrenzte ausdrückliche Hinweise des Eigentümers in sechs Sprachen und Ereignisnachfragen mit geprüften Quellen. **[Projekt-Checkpoints](docs/FOR_CODERS.md#project-checkpoints)** behalten Logik, Blockaden und bis zu drei nächste Schritte mit fünf Versionen sowie Anzeigen/Ersetzen/Löschen; historischer Kontext führt keine Befehle aus und übernimmt keine alten Freigaben. |
 | **[2.65.0](https://github.com/farena-ai/sara/releases/tag/v2.65.0)** | **[Geführte Unternehmenseinrichtung](docs/BUSINESS.md)** — Geführter Einstieg und Verwaltung, Einladungsverlauf im eigenen Zuständigkeitsbereich, Widerruf, schreibgeschützte Konfigurationsprüfung und wiederholbare Browser- und Wiederherstellungsübungen. |
@@ -138,7 +139,7 @@ Version 2.67.0 unterscheidet außerdem Kritik am Code von Konflikten mit Sara, p
 
 <!-- sara:recent-releases:end -->
 
-Quellcodequalifikation von 2.68.0: Typprüfung und **2709 automatisierte Tests**; Windows **2693 bestanden / 0 fehlgeschlagen / 16 übersprungen**, Linux **2694 bestanden / 0 fehlgeschlagen / 15 übersprungen**, dazu zehn isolierte Desktop-/Mobil-Browserabläufe. Die tatsächlichen Windows- und Mac-Pakete bestanden jeweils fünf Wiederherstellungs- und Regressionsprofile; das Mac-Paket ist signiert und notarisiert, Windows ist unsigniert. Die Prüfungen verwenden synthetische Daten und simulierte Modelle. Physische Intel-/Rosetta-Ausführung, Geräte- und Screenreader-Abnahme, natürlicher Ton mit echten Modellen und Produktionswiederherstellung bleiben getrennte Prüfungen.
+Quellcodequalifikation von 2.69.0: Typprüfung und **3033 automatisierte Tests**; Windows **3017 bestanden / 0 fehlgeschlagen / 16 übersprungen**, Linux **3018 bestanden / 0 fehlgeschlagen / 15 übersprungen**, dazu dreizehn isolierte Desktop-/Mobil-Browserabläufe. Die tatsächlichen Windows- und Mac-Pakete bestanden ihre Wiederherstellungs- und Regressionsprofile sowie die Erweiterungsprüfungen; die Container-Images beider Architekturen bestanden die Zustandsprüfungen; das Mac-Paket ist signiert und notarisiert, Windows ist unsigniert. Die Prüfungen verwenden synthetische Daten und simulierte Modelle. Physische Intel-/Rosetta-Ausführung, Geräte- und Screenreader-Abnahme, natürlicher Ton mit echten Modellen und Produktionswiederherstellung bleiben getrennte Prüfungen.
 
 <!-- sara:release-history:start -->
 

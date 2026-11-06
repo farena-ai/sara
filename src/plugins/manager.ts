@@ -16,8 +16,9 @@
 // background route), kv.get/kv.set, memory.notes (shared-notes only) and bridge.inbound.
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { randomInt, randomUUID } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { getNativeCandidate, PUBLIC_NATIVE_CANDIDATES } from '../addons/discovery.ts';
 import type { AppContext, ChatEvent } from '../chat.ts';
 import type { EventHub, HubEvent } from '../events.ts';
 import { cleanCard, type HookPlugin, type PluginCard, type PluginHookPoint, type PluginHost } from '../hooks.ts';
@@ -38,6 +39,7 @@ import { PluginStore, type PluginRow } from './store.ts';
 import * as netModule from './net.ts';
 import * as bridgeDbModule from './bridge-db.ts';
 import { rooms } from '../bridges/rooms.ts';
+import type { Settings, SettingsStore } from '../settings.ts';
 
 export const PLUGIN_LIMITS: PackageLimits = { maxZipBytes: 10 * 1024 * 1024, maxFiles: 500, maxTotalBytes: 30 * 1024 * 1024, maxFileBytes: 5 * 1024 * 1024, maxDepth: 10 };
 const REVIEW_MS = 60 * 60_000;
@@ -93,7 +95,7 @@ const ID_RE = /^[\w@.:+=/-]{1,120}$/;
 
 export interface Origin {
   /** Phase 124: 'store' (`where: '<id>@<version>'`) for an add-on from the Sara Store (installs: Phase 125). */
-  kind: 'zip' | 'git' | 'folder' | 'builtin' | 'store';
+  kind: 'zip' | 'git' | 'folder' | 'builtin' | 'store' | 'candidate';
   where: string;
 }
 
@@ -147,6 +149,8 @@ interface Staged {
   review: Review;
   files: PackageFile[];
   expires: number;
+  baseline: string;
+  epoch: number;
 }
 
 /** A Sara tool a plugin asked to use, waiting for the owner. */
@@ -384,6 +388,8 @@ export interface ManagerOptions {
   netCa?: string | Buffer | (string | Buffer)[];
   /** Phase 117 (P3): the folder of plugins that come with Sara (default: plugins/ at the top of Sara). */
   builtinDir?: string;
+  /** Construction-only local candidate package root; never supplied by an install request. */
+  candidateDir?: string;
   /**
    * Phase 117 part B, tests only: let the broker reach a loopback stand-in mail server. Honoured only
    * under `node --test` (src/plugins/net.ts `loopbackMailOverride`); never on in the app.
@@ -395,6 +401,7 @@ export interface ManagerOptions {
 
 /** Phase 117 (P3): plugins that come with Sara live in plugins/ at the top of the repo and of every package. */
 export const BUILTIN_DIR = resolve(import.meta.dirname, '..', '..', 'plugins');
+export const CANDIDATE_DIR = resolve(import.meta.dirname, '..', '..', 'store', 'plugins');
 
 /** A very small JSON-schema check for plugin tool arguments (object, required, types, enum). */
 export function checkArgs(schema: unknown, args: Record<string, unknown>): string | undefined {
@@ -450,6 +457,10 @@ export class PluginManager {
   readonly fence: Fence;
   readonly version: string;
   readonly #staged = new Map<string, Staged>();
+  /** Epochs retain absent IDs after removal, including a remove/reinstall or rollback ABA. */
+  readonly #epochs = new Map<string, number>();
+  readonly #mutating = new Set<string>();
+  readonly #settingsObservers = new Map<SettingsStore, { prior: SettingsStore['onUpdated']; handler: NonNullable<SettingsStore['onUpdated']>; companions: Set<string> }>();
   readonly #attached = new Map<string, Attached>();
   readonly #waiting = new Map<string, { call: WaitingCall; resolve: (ok: boolean) => void; timer: NodeJS.Timeout }>();
   #tick: NodeJS.Timeout | undefined;
@@ -479,6 +490,139 @@ export class PluginManager {
     return join(this.opts.dataDir, 'plugin-data', id, companion);
   }
 
+  #epoch(id: string): number { return this.#epochs.get(id) ?? 0; }
+  #invalidate(id: string): number {
+    const next = this.#epoch(id) + 1;
+    this.#epochs.set(id, next);
+    return next;
+  }
+  #idle(id: string): void {
+    if (this.#mutating.has(id)) throw new ManifestError('That plugin is changing. Try again when it finishes.');
+  }
+  #begin(id: string): number {
+    this.#idle(id); this.#mutating.add(id);
+    return this.#invalidate(id);
+  }
+  #baseline(id: string): string { return JSON.stringify(this.store.get(id) ?? null); }
+  #checkBaseline(s: Staged): void {
+    const id = s.review.manifest.id;
+    if (s.epoch !== this.#epoch(id) || s.baseline !== this.#baseline(id)) throw new ManifestError('That plugin changed after you reviewed it. Add it again for a fresh review.');
+  }
+  #checkMutation(id: string, token: number, baseline: string): void {
+    if (token !== this.#epoch(id) || baseline !== this.#baseline(id)) throw new ManifestError('That plugin changed while it was stopping. Add it again for a fresh review.');
+  }
+  #commitRow(row: PluginRow, onCommitted?: (row: PluginRow) => void): void {
+    // Trusted synchronous association writes share the plugin's canonical SQLite savepoint.
+    const savepoint = `plugin_commit_${randomUUID().replaceAll('-', '')}`;
+    this.opts.db.exec(`SAVEPOINT ${savepoint}`);
+    try {
+      this.store.upsert(row);
+      const result: unknown = onCommitted?.(row);
+      if (result && typeof (result as { then?: unknown }).then === 'function') throw new ManifestError('The plugin commit callback must be synchronous.');
+      this.opts.db.exec(`RELEASE ${savepoint}`);
+    } catch (err) {
+      this.opts.db.exec(`ROLLBACK TO ${savepoint}; RELEASE ${savepoint}`);
+      throw err;
+    }
+  }
+  #candidateTransition(row: PluginRow | undefined, origin: Origin): void {
+    if (!row) return;
+    if (this.isCandidate(row.id) !== (origin.kind === 'candidate')) throw new ManifestError('A local candidate cannot change installation source. Remove it first, then review the new source.');
+  }
+
+  /** The actual installed source, independent of a signed-content association. */
+  isCandidate(id: string): boolean {
+    try { return (JSON.parse(this.store.get(id)?.origin ?? '{}') as Origin).kind === 'candidate'; } catch { return false; }
+  }
+  /** Store bookkeeping alone cannot authorize changing a candidate or a stale installation. */
+  assertStoreAuthority(id: string, expectedHash?: string): void {
+    const row = this.store.get(id);
+    if (!row && expectedHash === undefined) return;
+    if (!row || this.isCandidate(id) || (expectedHash !== undefined && row.approved_sha !== expectedHash)) throw new ManifestError('This installation source does not allow a Sara Store update. Review it from its own card.');
+  }
+  /** Existing explicit Store override, with the same mutation/review invalidation boundary. */
+  overrideStoreBlock(id: string): void {
+    this.#begin(id);
+    try {
+      if (!this.store.get(id)) throw new ManifestError('No such plugin.');
+      this.store.setStatus(id, 'installed', null);
+    } finally { this.#mutating.delete(id); }
+  }
+
+  #candidateFiles(id: unknown): PackageFile[] {
+    const candidate = getNativeCandidate(id);
+    if (!candidate) throw new ManifestError('Unknown local workflow candidate.');
+    try {
+      const root = resolve(this.opts.candidateDir ?? CANDIDATE_DIR);
+      const folder = join(root, candidate.id);
+      // fromFolder checks the package itself; also refuse a linked/junction ancestor.
+      for (let at = folder; ; at = dirname(at)) {
+        if (lstatSync(at).isSymbolicLink()) throw new Error('linked ancestor');
+        if (dirname(at) === at) break;
+      }
+      if (realpathSync(folder) !== folder) throw new Error('redirected source');
+      const files = fromFolder(folder, PLUGIN_LIMITS);
+      const mf = files.find(f => f.path === MANIFEST_FILE);
+      const manifest = mf && parseManifest(mf.data.toString('utf8'), { saraVersion: this.version, files: files.map(f => f.path) });
+      if (!manifest || manifest.id !== candidate.id || manifest.version !== candidate.version || hashFiles(files) !== candidate.contentSha) throw new Error('changed source');
+      return files;
+    } catch {
+      throw new ManifestError('This local workflow candidate is missing or changed. Restore the supplied package before reviewing it.');
+    }
+  }
+  stageCandidate(id: unknown): Review {
+    const candidate = getNativeCandidate(id);
+    if (!candidate) throw new ManifestError('Unknown local workflow candidate.');
+    return this.stage(this.#candidateFiles(id), { kind: 'candidate', where: candidate.id });
+  }
+  candidateList() {
+    return PUBLIC_NATIVE_CANDIDATES.map(candidate => {
+      const row = this.store.get(candidate.id);
+      let heldReason: string | undefined;
+      try {
+        this.#idle(candidate.id); this.#candidateFiles(candidate.id);
+        this.#candidateTransition(row, { kind: 'candidate', where: candidate.id });
+      } catch (err) { heldReason = (err as Error).message; }
+      let installedOrigin: string | undefined;
+      try { installedOrigin = row ? (JSON.parse(row.origin ?? '{}') as Origin).kind : undefined; } catch { /* old source */ }
+      return { ...candidate, availability: heldReason ? 'held' as const : 'local-candidate' as const, ...(heldReason ? { heldReason } : {}), installed: Boolean(row), ...(row ? { installedVersion: row.version, installedOrigin } : {}), updateAvailable: Boolean(row && !heldReason && compareSemver(candidate.version, row.version) > 0) };
+    });
+  }
+
+  #observeSettings(a: Attached): void {
+    const settings = a.app.settings;
+    const existing = this.#settingsObservers.get(settings);
+    if (existing) { existing.companions.add(a.id); return; }
+    const companions = new Set([a.id]);
+    const prior = settings.onUpdated;
+    const handler: NonNullable<SettingsStore['onUpdated']> = (before, after) => {
+      const permissions = new Map<string, Set<string>>();
+      const include = (manifest: PluginManifest) => {
+        const names = permissions.get(manifest.id) ?? new Set<string>();
+        for (const name of manifest.permissions.tools) names.add(pluginToolName(manifest.id, name));
+        for (const name of manifest.permissions.callTools) names.add(name);
+        permissions.set(manifest.id, names);
+      };
+      for (const row of this.store.all()) include(this.manifestOf(row));
+      for (const s of this.#staged.values()) if (s.expires > Date.now()) include(s.review.manifest);
+      for (const [id, names] of permissions) {
+        const own = (s: Readonly<Settings>) => (s as { plugins?: CompanionPluginSettings }).plugins?.[id];
+        if (JSON.stringify(own(before)) !== JSON.stringify(own(after)) || [...names].some(name => before.toolPermissions?.[name] !== after.toolPermissions?.[name])) this.#invalidate(id);
+      }
+      prior?.(before, after);
+    };
+    settings.onUpdated = handler;
+    this.#settingsObservers.set(settings, { prior, handler, companions });
+  }
+  #unobserveSettings(a: Attached): void {
+    const settings = a.app.settings; const observer = this.#settingsObservers.get(settings);
+    if (!observer) return;
+    observer.companions.delete(a.id);
+    if (observer.companions.size) return;
+    if (settings.onUpdated === observer.handler) settings.onUpdated = observer.prior;
+    this.#settingsObservers.delete(settings);
+  }
+
   // ------------------------------------------------------------------------------------------
   // install and review
   // ------------------------------------------------------------------------------------------
@@ -492,7 +636,13 @@ export class PluginManager {
     if (!mf) throw new ManifestError(`There is no ${MANIFEST_FILE} at the top of it, so it isn't a Sara plugin.`);
     const manifest = parseManifest(mf.data.toString('utf8'), { saraVersion: this.version, files: inner.map((f) => f.path) });
     const sha = hashFiles(inner);
+    this.#idle(manifest.id);
     const existing = this.store.get(manifest.id);
+    this.#candidateTransition(existing, origin);
+    if (origin.kind === 'candidate') {
+      const candidate = getNativeCandidate(origin.where);
+      if (!candidate || candidate.id !== manifest.id || candidate.version !== manifest.version || candidate.contentSha !== sha) throw new ManifestError('This local workflow candidate is missing or changed. Restore the supplied package before reviewing it.');
+    }
     let added: string[] = [];
     if (existing) {
       const c = compareSemver(manifest.version, existing.version);
@@ -529,12 +679,14 @@ export class PluginManager {
       unknownCallTools,
       proposal: { kind: 'proposal', source: 'plugin', what: { key: existing ? (added.length ? '{name} {version} asks for more' : '{name} {version}: same permissions') : 'Add {name} {version}?', params: { name: manifest.name, version: manifest.version } }, can: permissionLines(manifest), buttons: ['use', 'cancel'] },
     };
-    this.#staged.set(id, { review, files: inner, expires: Date.now() + REVIEW_MS });
+    this.#staged.set(id, { review, files: inner, expires: Date.now() + REVIEW_MS, baseline: this.#baseline(manifest.id), epoch: this.#epoch(manifest.id) });
     return review;
   }
 
   /** PL2a (N2): see Review.firstParty. A zip, a git address or a server folder never is, whatever its manifest claims. */
   #firstParty(origin: Origin, manifest: PluginManifest, sha: string): boolean {
+    // Signed-content association does not promote a local candidate's approval authority.
+    if (origin.kind === 'candidate') return false;
     if (origin.kind === 'builtin') return origin.where === manifest.id && /^[a-z0-9][a-z0-9-]{0,46}$/.test(origin.where);
     const strip = this.storeMatch?.(sha);
     return Boolean(strip && strip.trust === 'first-party' && strip.item === manifest.id && !strip.yanked);
@@ -557,7 +709,7 @@ export class PluginManager {
   }
 
   /** The owner pressed Install (or Update) on the review card. */
-  async approve(reviewId: string, o: { trust?: boolean; consent?: boolean } = {}): Promise<PluginRow> {
+  async approve(reviewId: string, o: { trust?: boolean; consent?: boolean; onCommitted?: (row: PluginRow) => void } = {}): Promise<PluginRow> {
     const s = this.#staged.get(reviewId);
     if (!s || s.expires < Date.now()) throw new ManifestError('That review has expired. Add the plugin again.');
     const { review, files } = s;
@@ -566,56 +718,84 @@ export class PluginManager {
     if (review.needsTrust && !trusted) throw new ManifestError("This computer can't fence the plugin in. Tick \"I trust this plugin's author\" to add it.");
     this.checkFingerprint(files, review.sha);
     const m = review.manifest;
+    this.#idle(m.id);
+    this.#checkBaseline(s);
     const existing = this.store.get(m.id);
+    this.#candidateTransition(existing, review.origin);
+    if (review.origin.kind === 'candidate') this.checkFingerprint(this.#candidateFiles(review.origin.where), review.sha);
     const dest = join(this.pluginsDir, `${m.id}@${m.version}`);
     if (existing && resolve(existing.dir) === resolve(dest)) throw new ManifestError('That version is already installed.');
-    makeWritable(dest);
-    rmSync(dest, { recursive: true, force: true, maxRetries: 3 });
-    mkdirSync(this.pluginsDir, { recursive: true, mode: 0o700 });
-    writePackage(files, dest);
-    makeReadOnly(dest);
-    const now = this.#now().toISOString();
-    const prev = existing ? JSON.stringify({ version: existing.version, dir: existing.dir, manifest: existing.manifest, sha: existing.sha, approved_sha: existing.approved_sha, approved_permissions: existing.approved_permissions, approved_at: existing.approved_at }) : null;
-    // An older kept version than the one rolled back to goes (one version is kept).
-    if (existing?.prev_version) {
-      try {
-        const old = JSON.parse(existing.prev_version) as { dir: string };
-        if (old.dir && resolve(old.dir) !== resolve(dest) && resolve(old.dir).startsWith(resolve(this.pluginsDir))) {
-          makeWritable(old.dir);
-          rmSync(old.dir, { recursive: true, force: true, maxRetries: 3 });
-        }
-      } catch {
-        /* nothing kept */
+    const kept = existing?.prev_version ? JSON.parse(existing.prev_version) as { dir?: string; approved_sha?: string } : undefined;
+    const reuse = Boolean(kept?.dir && resolve(kept.dir) === resolve(dest));
+    if (reuse && (kept!.approved_sha !== review.sha || hashFiles(fromFolder(dest, PLUGIN_LIMITS)) !== review.sha)) throw new ManifestError('The kept version has different files. Review a new version number instead.');
+    const baseline = this.#baseline(m.id); const token = this.#begin(m.id);
+    let wrote = false; let committed = false;
+    try {
+      if (existing) await this.#stopEverywhere(m.id);
+      this.#checkMutation(m.id, token, baseline);
+      if (this.#staged.get(reviewId) !== s || s.expires < Date.now()) throw new ManifestError('That review expired or was cancelled. Add the plugin again.');
+      // All awaited stops precede filesystem replacement and the synchronous commit boundary.
+      if (review.origin.kind === 'candidate') this.checkFingerprint(this.#candidateFiles(review.origin.where), review.sha);
+      this.checkFingerprint(files, review.sha);
+      if (reuse) this.checkFingerprint(fromFolder(dest, PLUGIN_LIMITS), review.sha);
+      else {
+        makeWritable(dest); rmSync(dest, { recursive: true, force: true, maxRetries: 3 });
+        mkdirSync(this.pluginsDir, { recursive: true, mode: 0o700 });
+        wrote = true; writePackage(files, dest); makeReadOnly(dest);
       }
+      const prev = existing ? JSON.stringify({ version: existing.version, dir: existing.dir, manifest: existing.manifest, sha: existing.sha, origin: existing.origin, approved_sha: existing.approved_sha, approved_permissions: existing.approved_permissions, approved_at: existing.approved_at }) : null;
+      const row: PluginRow = { id: m.id, version: m.version, name: m.name, dir: dest, manifest: JSON.stringify(m), sha: review.sha, origin: JSON.stringify(review.origin), approved_sha: review.sha, approved_permissions: JSON.stringify(permissionIds(m)), approved_at: this.#now().toISOString(), fenced: this.fence, status: 'installed', prev_version: prev, status_note: null };
+      this.#commitRow(row, o.onCommitted);
+      committed = true; this.#staged.delete(reviewId);
+      // A failed association never deletes either previously approved package.
+      if (existing?.prev_version) {
+        try {
+          const old = JSON.parse(existing.prev_version) as { dir: string };
+          if (old.dir && resolve(old.dir) !== resolve(dest) && resolve(old.dir).startsWith(resolve(this.pluginsDir))) { makeWritable(old.dir); rmSync(old.dir, { recursive: true, force: true, maxRetries: 3 }); }
+        } catch { /* no older package to prune */ }
+      }
+      this.store.log(m.id, null, 'log', existing ? `updated ${existing.version} → ${m.version} (approved by the owner)` : `installed ${m.version} (approved by the owner; fence: ${this.fence})`);
+      if (existing) this.#startEverywhere(m.id);
+      this.#changed(); return row;
+    } finally {
+      try {
+        if (wrote && !committed) { makeWritable(dest); rmSync(dest, { recursive: true, force: true, maxRetries: 3 }); }
+        if (!committed && existing && this.#epoch(m.id) === token && this.#baseline(m.id) === baseline) this.#startEverywhere(m.id);
+      } finally { this.#mutating.delete(m.id); }
     }
-    const row: PluginRow = { id: m.id, version: m.version, name: m.name, dir: dest, manifest: JSON.stringify(m), sha: review.sha, origin: JSON.stringify(review.origin), approved_sha: review.sha, approved_permissions: JSON.stringify(permissionIds(m)), approved_at: now, fenced: this.fence, status: 'installed', prev_version: prev, status_note: null };
-    this.#staged.delete(reviewId);
-    if (existing) await this.#stopEverywhere(m.id);
-    this.store.upsert(row);
-    this.store.log(m.id, null, 'log', existing ? `updated ${existing.version} → ${m.version} (approved by the owner)` : `installed ${m.version} (approved by the owner; fence: ${this.fence})`);
-    if (existing) this.#startEverywhere(m.id);
-    this.#changed();
-    return row;
   }
 
   /** Back to the version kept by the last update (it was approved then). */
-  async rollback(id: string): Promise<PluginRow> {
+  async rollback(id: string, o: { onCommitted?: (row: PluginRow) => void } = {}): Promise<PluginRow> {
+    this.#idle(id);
     const row = this.store.get(id);
     if (!row) throw new ManifestError('No such plugin.');
     if (!row.prev_version) throw new ManifestError('There is no earlier version to go back to.');
-    const prev = JSON.parse(row.prev_version) as { version: string; dir: string; manifest: string; sha: string; approved_sha: string; approved_permissions: string; approved_at: string };
+    const prev = JSON.parse(row.prev_version) as { version: string; dir: string; manifest: string; sha: string; origin?: string | null; approved_sha: string; approved_permissions: string; approved_at: string };
     if (!existsSync(prev.dir)) throw new ManifestError('The earlier version is no longer on this server.');
-    await this.#stopEverywhere(id);
-    const next: PluginRow = { ...row, version: prev.version, dir: prev.dir, manifest: prev.manifest, name: (JSON.parse(prev.manifest) as PluginManifest).name, sha: prev.sha, approved_sha: prev.approved_sha, approved_permissions: prev.approved_permissions, approved_at: prev.approved_at, status: 'installed', status_note: null, prev_version: JSON.stringify({ version: row.version, dir: row.dir, manifest: row.manifest, sha: row.sha, approved_sha: row.approved_sha, approved_permissions: row.approved_permissions, approved_at: row.approved_at }) };
-    this.store.upsert(next);
-    this.store.log(id, null, 'log', `rolled back ${row.version} → ${prev.version}`);
-    this.#startEverywhere(id);
-    this.#changed();
-    return next;
+    if (prev.origin !== undefined) this.#candidateTransition(row, JSON.parse(prev.origin ?? '{}') as Origin);
+    const baseline = this.#baseline(id); const token = this.#begin(id);
+    let committed = false;
+    try {
+      await this.#stopEverywhere(id);
+      this.#checkMutation(id, token, baseline);
+      const next: PluginRow = { ...row, version: prev.version, dir: prev.dir, manifest: prev.manifest, name: (JSON.parse(prev.manifest) as PluginManifest).name, sha: prev.sha, origin: prev.origin ?? row.origin, approved_sha: prev.approved_sha, approved_permissions: prev.approved_permissions, approved_at: prev.approved_at, status: 'installed', status_note: null, prev_version: JSON.stringify({ version: row.version, dir: row.dir, manifest: row.manifest, sha: row.sha, origin: row.origin, approved_sha: row.approved_sha, approved_permissions: row.approved_permissions, approved_at: row.approved_at }) };
+      this.#commitRow(next, o.onCommitted);
+      committed = true;
+      this.store.log(id, null, 'log', `rolled back ${row.version} → ${prev.version}`);
+      this.#startEverywhere(id);
+      this.#changed();
+      return next;
+    } finally {
+      try {
+        if (!committed && this.#epoch(id) === token && this.#baseline(id) === baseline) this.#startEverywhere(id);
+      } finally { this.#mutating.delete(id); }
+    }
   }
 
   /** "Check for updates": the same git address or server folder again (never automatic). */
   async updateCheck(id: string): Promise<{ upToDate: true; version: string } | Review> {
+    this.#idle(id);
     const row = this.store.get(id);
     if (!row) throw new ManifestError('No such plugin.');
     const origin = JSON.parse(row.origin ?? '{}') as Origin;
@@ -623,6 +803,7 @@ export class PluginManager {
     if (origin.kind === 'git') files = await fromGit(origin.where, join(this.opts.dataDir, 'cache', 'plugin-imports'), PLUGIN_LIMITS);
     else if (origin.kind === 'folder') files = fromFolder(origin.where, PLUGIN_LIMITS);
     else if (origin.kind === 'builtin') files = fromFolder(this.#builtinFolder(origin.where), PLUGIN_LIMITS);
+    else if (origin.kind === 'candidate') files = this.#candidateFiles(origin.where);
     else if (origin.kind === 'store') throw new ManifestError('It came from the Sara Store: its updates show in Get more → My add-ons.');
     else throw new ManifestError('It was added from a .zip: add the new .zip with Add a plugin to update it.');
     const { files: inner } = stripTop(files);
@@ -631,29 +812,34 @@ export class PluginManager {
   }
 
   async remove(id: string): Promise<void> {
+    this.#idle(id);
     const row = this.store.get(id);
     if (!row) throw new ManifestError('No such plugin.');
-    await this.#stopEverywhere(id);
-    for (const a of this.#attached.values()) {
-      const cur = (a.app.settings.get() as { plugins?: CompanionPluginSettings }).plugins ?? {};
-      if (cur[id]) {
-        const { [id]: _gone, ...rest } = cur;
-        a.app.settings.update({ plugins: rest } as never);
+    const baseline = this.#baseline(id); const token = this.#begin(id);
+    try {
+      await this.#stopEverywhere(id);
+      this.#checkMutation(id, token, baseline);
+      for (const a of this.#attached.values()) {
+        const cur = (a.app.settings.get() as { plugins?: CompanionPluginSettings }).plugins ?? {};
+        if (cur[id]) {
+          const { [id]: _gone, ...rest } = cur;
+          a.app.settings.update({ plugins: rest } as never);
+        }
       }
-    }
-    for (const dir of [row.dir, ...(row.prev_version ? [(JSON.parse(row.prev_version) as { dir: string }).dir] : [])]) {
-      if (!resolve(dir).startsWith(resolve(this.pluginsDir))) continue;
-      makeWritable(dir);
-      rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
-    }
-    rmSync(join(this.opts.dataDir, 'plugin-data', id), { recursive: true, force: true, maxRetries: 3 });
-    for (const s of this.manifestOf(row).settings) if (s.type === 'secret') this.opts.vault.delete(`plugin:${id}:${s.key}`);
-    // Phase 117: its bridges' identities, threads and skip counts go with it (every companion).
-    const { forgetBridge } = bridgeDbModule;
-    for (const a of this.#attached.values()) for (const b of this.manifestOf(row).permissions.bridges) forgetBridge(a.app.store.db, `plugin-${b}`);
-    this.store.delete(id);
-    this.store.log(id, null, 'log', 'removed by the owner');
-    this.#changed();
+      for (const dir of [row.dir, ...(row.prev_version ? [(JSON.parse(row.prev_version) as { dir: string }).dir] : [])]) {
+        if (!resolve(dir).startsWith(resolve(this.pluginsDir))) continue;
+        makeWritable(dir);
+        rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+      }
+      rmSync(join(this.opts.dataDir, 'plugin-data', id), { recursive: true, force: true, maxRetries: 3 });
+      for (const s of this.manifestOf(row).settings) if (s.type === 'secret') this.opts.vault.delete(`plugin:${id}:${s.key}`);
+      // Phase 117: its bridges' identities, threads and skip counts go with it (every companion).
+      const { forgetBridge } = bridgeDbModule;
+      for (const a of this.#attached.values()) for (const b of this.manifestOf(row).permissions.bridges) forgetBridge(a.app.store.db, `plugin-${b}`);
+      this.store.delete(id);
+      this.store.log(id, null, 'log', 'removed by the owner');
+      this.#changed();
+    } finally { this.#mutating.delete(id); }
   }
 
   manifestOf(row: PluginRow): PluginManifest {
@@ -681,10 +867,14 @@ export class PluginManager {
   async storeBlock(id: string, note: string): Promise<void> {
     const row = this.store.get(id);
     if (!row) return;
-    this.store.setStatus(id, 'disabled', note.slice(0, 400));
-    this.store.log(id, null, 'denied', note.slice(0, 400));
-    await this.#stopEverywhere(id);
-    this.#changed();
+    const owns = !this.#mutating.has(id); if (owns) this.#mutating.add(id);
+    this.#invalidate(id);
+    try {
+      this.store.setStatus(id, 'disabled', note.slice(0, 400));
+      this.store.log(id, null, 'denied', note.slice(0, 400));
+      await this.#stopEverywhere(id);
+      this.#changed();
+    } finally { if (owns) this.#mutating.delete(id); }
   }
 
   /** Recomputes the folder's hash: false (and the plugin switched off) when it changed on disk. */
@@ -698,6 +888,7 @@ export class PluginManager {
       sha = 'unreadable';
     }
     if (sha === row.approved_sha) return true;
+    this.#invalidate(id);
     this.store.setStatus(id, 'disabled', 'changed');
     this.store.log(id, null, 'denied', "its files changed on disk since you approved them, so it was switched off. Add it again to review the change.");
     void this.#stopEverywhere(id);
@@ -711,8 +902,14 @@ export class PluginManager {
 
   /** A companion of the owner's joins: its enabled plugins start. */
   attach(companionId: string, app: AppContext): void {
+    const previous = this.#attached.get(companionId);
+    if (previous) {
+      previous.unsub?.(); this.#unobserveSettings(previous);
+      for (const id of previous.procs.keys()) void this.#stop(previous, id);
+    }
     const a: Attached = { id: companionId, app, procs: new Map() };
     this.#attached.set(companionId, a);
+    this.#observeSettings(a);
     app.plugins = this.hostFor(companionId);
     if (this.opts.events) {
       a.unsub = this.opts.events.subscribe((ev) => {
@@ -737,6 +934,7 @@ export class PluginManager {
   }
 
   async setEnabled(id: string, companionId: string, on: boolean): Promise<void> {
+    if (on) this.#idle(id);
     const row = this.store.get(id);
     if (!row) throw new ManifestError('No such plugin.');
     const a = this.#attached.get(companionId);
@@ -748,15 +946,20 @@ export class PluginManager {
       const other = [...this.#attached.values()].find((x) => x.id !== companionId && this.enabledFor(id, x.id));
       if (other) throw new ManifestError(`${this.manifestOf(row).name} is already on for ${other.app.persona.name}. Switch it off there first.`);
     }
-    const cur = this.companionSettings(companionId);
-    a.app.settings.update({ plugins: { ...cur, [id]: { ...(cur[id] ?? {}), enabled: on } } } as never);
-    if (on) {
-      if (row.status === 'crashed' || row.status === 'disabled') this.store.setStatus(id, 'installed', null);
-      const fresh = this.store.get(id)!;
-      if (!a.procs.has(id)) this.#start(a, fresh);
-    } else await this.#stop(a, id);
-    this.store.log(id, companionId, 'log', on ? 'switched on' : 'switched off');
-    this.#changed();
+    // Off revokes synchronously even while a package mutation is awaiting process exit.
+    const owns = !this.#mutating.has(id); if (owns) this.#mutating.add(id);
+    this.#invalidate(id);
+    try {
+      const cur = this.companionSettings(companionId);
+      a.app.settings.update({ plugins: { ...cur, [id]: { ...(cur[id] ?? {}), enabled: on } } } as never);
+      if (on) {
+        if (row.status === 'crashed' || row.status === 'disabled') this.store.setStatus(id, 'installed', null);
+        const fresh = this.store.get(id)!;
+        if (!a.procs.has(id)) this.#start(a, fresh, true);
+      } else await this.#stop(a, id);
+      this.store.log(id, companionId, 'log', on ? 'switched on' : 'switched off');
+      this.#changed();
+    } finally { if (owns) this.#mutating.delete(id); }
   }
 
   /** The settings page of one plugin for one companion (secrets: only whether one is set). */
@@ -774,73 +977,83 @@ export class PluginManager {
   }
 
   async putSettings(id: string, companionId: string, values: Record<string, unknown>, bridge?: { ownerChats?: unknown; others?: unknown; allow?: unknown; workInGroups?: unknown; nameCalls?: unknown }): Promise<void> {
+    this.#idle(id);
     const row = this.store.get(id);
     if (!row) throw new ManifestError('No such plugin.');
     const a = this.#attached.get(companionId);
     if (!a) throw new ManifestError('No such companion.');
-    const m = this.manifestOf(row);
-    const cur = this.companionSettings(companionId);
-    const next: Record<string, string | number | boolean> = { ...(cur[id]?.settings ?? {}) };
-    for (const s of m.settings) {
-      if (!(s.key in values)) continue;
-      const v = values[s.key];
-      if (s.type === 'secret') {
-        // Write-only: a value sets it, "" removes it; it is never sent back.
-        const t = String(v ?? '');
-        if (t.length > 4000) throw new ManifestError(`${s.label} is too long.`);
-        if (t) this.opts.vault.set(`plugin:${id}:${s.key}`, t);
-        else this.opts.vault.delete(`plugin:${id}:${s.key}`);
-        continue;
+    this.#begin(id);
+    try {
+      const m = this.manifestOf(row);
+      const cur = this.companionSettings(companionId);
+      const next: Record<string, string | number | boolean> = { ...(cur[id]?.settings ?? {}) };
+      for (const s of m.settings) {
+        if (!(s.key in values)) continue;
+        const v = values[s.key];
+        if (s.type === 'secret') {
+          // Write-only: a value sets it, "" removes it; it is never sent back.
+          const t = String(v ?? '');
+          if (t.length > 4000) throw new ManifestError(`${s.label} is too long.`);
+          if (t) this.opts.vault.set(`plugin:${id}:${s.key}`, t);
+          else this.opts.vault.delete(`plugin:${id}:${s.key}`);
+          continue;
+        }
+        if (s.type === 'switch') next[s.key] = v === true;
+        else if (s.type === 'number') {
+          const n = Number(v);
+          if (!Number.isFinite(n) || (s.min !== undefined && n < s.min) || (s.max !== undefined && n > s.max)) throw new ManifestError(`${s.label}: a number${s.min !== undefined ? ` from ${s.min}` : ''}${s.max !== undefined ? ` up to ${s.max}` : ''}.`);
+          next[s.key] = n;
+        } else if (s.type === 'choice') {
+          if (!s.choices!.includes(String(v))) throw new ManifestError(`${s.label}: pick one of the choices.`);
+          next[s.key] = String(v);
+        } else {
+          const t = String(v ?? '').slice(0, 500);
+          // §7.1: settings never hold a credential (only secret settings go to the vault).
+          if (KEY_SHAPED.some((re) => re.test(t))) throw new ManifestError(`${s.label}: that looks like a password or key. Put it in a password setting instead.`);
+          next[s.key] = t;
+        }
       }
-      if (s.type === 'switch') next[s.key] = v === true;
-      else if (s.type === 'number') {
-        const n = Number(v);
-        if (!Number.isFinite(n) || (s.min !== undefined && n < s.min) || (s.max !== undefined && n > s.max)) throw new ManifestError(`${s.label}: a number${s.min !== undefined ? ` from ${s.min}` : ''}${s.max !== undefined ? ` up to ${s.max}` : ''}.`);
-        next[s.key] = n;
-      } else if (s.type === 'choice') {
-        if (!s.choices!.includes(String(v))) throw new ManifestError(`${s.label}: pick one of the choices.`);
-        next[s.key] = String(v);
-      } else {
-        const t = String(v ?? '').slice(0, 500);
-        // §7.1: settings never hold a credential (only secret settings go to the vault).
-        if (KEY_SHAPED.some((re) => re.test(t))) throw new ManifestError(`${s.label}: that looks like a password or key. Put it in a password setting instead.`);
-        next[s.key] = t;
+      // Phase 117 part B (§5.2): an email bridge refuses his own mailbox (she would answer his whole inbox).
+      if (m.permissions.bridges.includes('email')) {
+        // *Mail provider* fills in the server names and ports it knows (empty ones only; §5.13).
+        const preset = EMAIL_PRESETS[String(next.provider ?? '')];
+        if (preset && 'provider' in values) for (const [k, v] of Object.entries(preset)) if (m.settings.some((x) => x.key === k) && (!next[k] || String(values.provider) !== String(cur[id]?.settings?.provider ?? ''))) next[k] = v;
+        const mine = this.#ownerAddresses(a, id);
+        for (const k of ['address', 'username']) {
+          const v = String(next[k] ?? '').trim().toLowerCase();
+          if (v && mine.includes(v)) throw new ManifestError(OWN_MAILBOX_LINE);
+        }
       }
-    }
-    // Phase 117 part B (§5.2): an email bridge refuses his own mailbox (she would answer his whole inbox).
-    if (m.permissions.bridges.includes('email')) {
-      // *Mail provider* fills in the server names and ports it knows (empty ones only; §5.13).
-      const preset = EMAIL_PRESETS[String(next.provider ?? '')];
-      if (preset && 'provider' in values) for (const [k, v] of Object.entries(preset)) if (m.settings.some((x) => x.key === k) && (!next[k] || String(values.provider) !== String(cur[id]?.settings?.provider ?? ''))) next[k] = v;
-      const mine = this.#ownerAddresses(a, id);
-      for (const k of ['address', 'username']) {
-        const v = String(next[k] ?? '').trim().toLowerCase();
-        if (v && mine.includes(v)) throw new ManifestError(OWN_MAILBOX_LINE);
+      const entry = { ...(cur[id] ?? {}), settings: next } as CompanionPluginSettings[string];
+      if (bridge && m.permissions.bridges.length) {
+        const chats = (Array.isArray(bridge.ownerChats) ? bridge.ownerChats : String(bridge.ownerChats ?? '').split(/[\s,]+/)).map((x) => String(x).trim()).filter((x) => /^[\w@.:+-]{1,80}$/.test(x)).slice(0, 10);
+        const prev = cur[id]?.bridge ?? {};
+        const list = (v: unknown, n: number) => (Array.isArray(v) ? v : String(v ?? '').split(/[\s,]+/)).map((x) => String(x).trim().toLowerCase()).filter((x) => /^[\w@.:+=/-]{1,120}$/.test(x)).slice(0, n);
+        // 2.49's fields as before; the v1.2 ones are kept unless the page sends them.
+        entry.bridge = { ...prev, ownerChats: chats, others: bridge.others === true, ...(bridge.allow !== undefined ? { allow: list(bridge.allow, 200) } : {}), ...(bridge.workInGroups !== undefined ? { workInGroups: bridge.workInGroups === true } : {}), ...(bridge.nameCalls !== undefined ? { nameCalls: bridge.nameCalls === true } : {}) };
+        if (!entry.bridge.ownerIds?.length) delete entry.bridge.ownerIds;
       }
-    }
-    const entry = { ...(cur[id] ?? {}), settings: next } as CompanionPluginSettings[string];
-    if (bridge && m.permissions.bridges.length) {
-      const chats = (Array.isArray(bridge.ownerChats) ? bridge.ownerChats : String(bridge.ownerChats ?? '').split(/[\s,]+/)).map((x) => String(x).trim()).filter((x) => /^[\w@.:+-]{1,80}$/.test(x)).slice(0, 10);
-      const prev = cur[id]?.bridge ?? {};
-      const list = (v: unknown, n: number) => (Array.isArray(v) ? v : String(v ?? '').split(/[\s,]+/)).map((x) => String(x).trim().toLowerCase()).filter((x) => /^[\w@.:+=/-]{1,120}$/.test(x)).slice(0, n);
-      // 2.49's fields as before; the v1.2 ones are kept unless the page sends them.
-      entry.bridge = { ...prev, ownerChats: chats, others: bridge.others === true, ...(bridge.allow !== undefined ? { allow: list(bridge.allow, 200) } : {}), ...(bridge.workInGroups !== undefined ? { workInGroups: bridge.workInGroups === true } : {}), ...(bridge.nameCalls !== undefined ? { nameCalls: bridge.nameCalls === true } : {}) };
-      if (!entry.bridge.ownerIds?.length) delete entry.bridge.ownerIds;
-    }
-    a.app.settings.update({ plugins: { ...cur, [id]: entry } } as never);
-    // A running plugin gets its new settings at its next start.
-    if (a.procs.has(id)) {
-      await this.#stop(a, id);
-      this.#start(a, this.store.get(id)!);
-    }
-    this.store.log(id, companionId, 'log', 'settings changed');
+      a.app.settings.update({ plugins: { ...cur, [id]: entry } } as never);
+      const token = this.#epoch(id); const baseline = this.#baseline(id);
+      // A running plugin gets its new settings at its next start.
+      if (a.procs.has(id)) {
+        await this.#stop(a, id);
+        const fresh = this.store.get(id);
+        const current = this.#attached.get(companionId);
+        if (current && fresh && this.#epoch(id) === token && this.#baseline(id) === baseline && fresh.status === 'installed' && this.enabledFor(id, companionId)) this.#start(current, fresh, true);
+      }
+      this.store.log(id, companionId, 'log', 'settings changed');
+    } finally { this.#mutating.delete(id); }
   }
 
   // ------------------------------------------------------------------------------------------
   // processes
   // ------------------------------------------------------------------------------------------
 
-  #start(a: Attached, row: PluginRow): void {
+  #start(a: Attached, row: PluginRow, mutationRestart = false): void {
+    if (this.#mutating.has(row.id) && !mutationRestart) return;
+    const current = this.store.get(row.id);
+    if (this.#attached.get(a.id) !== a || !current || current.status !== 'installed' || !this.enabledFor(row.id, a.id) || current.approved_sha !== row.approved_sha || current.version !== row.version || current.origin !== row.origin) return;
     if (a.procs.has(row.id)) return;
     if (!this.verify(row.id)) return;
     const m = this.manifestOf(row);
@@ -862,16 +1075,19 @@ export class PluginManager {
       key,
       () => spawnSpec({ fence: this.fence, pluginDir: row.dir, dataDir: data, main: m.main, readExtra, saraDataDir: this.opts.dataDir, ...(this.opts.execPath ? { execPath: this.opts.execPath } : {}) }),
       {
-        onReady: (msg) => this.#ready(a, run, msg),
-        onCall: (op, msg) => this.#call(a, run, op, msg),
+        onReady: (msg) => { if (this.#current(a, run)) this.#ready(a, run, msg); },
+        onCall: (op, msg) => this.#current(a, run) ? this.#call(a, run, op, msg) : Promise.reject(new Error('The plugin is no longer available.')),
         onLog: (kind, text) => {
+          if (!this.#current(a, run)) return;
           this.store.log(row.id, a.id, kind === 'log' ? 'log' : kind, this.opts.scrub(text));
           // Phase 117: a crashed process's sockets go (the restarted one opens its own).
           if (kind === 'crash') run.net?.closeAll('the plugin crashed');
           if (kind !== 'log') this.#changed();
         },
-        onOneWay: (msg) => this.#oneWay(a, run, msg),
+        onOneWay: (msg) => { if (this.#current(a, run)) this.#oneWay(a, run, msg); },
         onGaveUp: (why) => {
+          if (!this.#current(a, run)) return;
+          this.#invalidate(row.id);
           this.store.setStatus(row.id, 'crashed', 'crashed');
           this.store.log(row.id, a.id, 'crash', `crashed 3 times in 10 minutes, so it was switched off (${this.opts.scrub(why).slice(0, 300)})`);
           this.#unregister(a, run);
@@ -980,12 +1196,14 @@ export class PluginManager {
       spec: { name: full, description: `${description || name} (from the plugin ${label})`, parameters },
       defaultPermission: perm,
       source: `Plugin: ${label}`,
-      isAvailable: () => run.proc.state === 'ready' && a.procs.get(run.row.id) === run,
+      isAvailable: () => run.proc.state === 'ready' && this.#current(a, run),
       summarize: (args) => cut(`${label}: ${name}${Object.keys(args).length ? ` ${JSON.stringify(args)}` : ''}`, 160),
       run: async (args, ctx) => {
+        if (run.proc.state !== 'ready' || !this.#current(a, run)) throw new ToolError(`The plugin ${label} is no longer available.`);
         const bad = checkArgs(parameters, args);
         if (bad) throw new ToolError(`${label}: ${bad}.`);
         const res = await run.proc.request('tool', { name, args }, TOOL_MS);
+        if (!this.#current(a, run)) throw new ToolError(`The plugin ${label} is no longer available.`);
         if (!res) {
           this.store.log(run.row.id, a.id, 'timeout', `tool ${name}: no answer within ${TOOL_MS / 1000} s`);
           throw new ToolError(`The plugin ${label} didn't answer in time.`);
@@ -1002,6 +1220,12 @@ export class PluginManager {
   #unregister(a: Attached, run: Running): void {
     for (const t of run.tools) a.app.tools.remove(t);
     run.tools = [];
+  }
+
+  #current(a: Attached, run: Running): boolean {
+    if (this.#attached.get(a.id) !== a || a.procs.get(run.row.id) !== run || !this.enabledFor(run.row.id, a.id)) return false;
+    const row = this.store.get(run.row.id);
+    return Boolean(row && row.status === 'installed' && row.approved_sha === run.row.approved_sha && row.version === run.row.version && row.origin === run.row.origin);
   }
 
   async #stop(a: Attached, id: string): Promise<void> {
@@ -1025,7 +1249,7 @@ export class PluginManager {
   #startEverywhere(id: string): void {
     const row = this.store.get(id);
     if (!row || row.status !== 'installed') return;
-    for (const a of this.#attached.values()) if (this.enabledFor(id, a.id)) this.#start(a, row);
+    for (const a of this.#attached.values()) if (this.enabledFor(id, a.id)) this.#start(a, row, true);
   }
 
   /** A companion went away (retired, or the server stops): its plugin processes stop. */
@@ -1033,6 +1257,8 @@ export class PluginManager {
     const a = this.#attached.get(companionId);
     if (!a) return;
     this.#attached.delete(companionId);
+    this.#unobserveSettings(a);
+    for (const id of a.procs.keys()) this.#invalidate(id);
     a.unsub?.();
     await Promise.all([...a.procs.keys()].map((id) => this.#stop(a, id)));
   }
@@ -1040,8 +1266,18 @@ export class PluginManager {
   async stopAll(): Promise<void> {
     clearInterval(this.#tick);
     this.#tick = undefined;
-    await Promise.all([...this.#attached.values()].flatMap((a) => [...a.procs.keys()].map((id) => this.#stop(a, id))));
-    for (const a of this.#attached.values()) a.unsub?.();
+    // Shutdown must not depend on the lifetime/order of the shared SQLite connection.
+    const ids = new Set([
+      ...this.#epochs.keys(), ...this.#mutating,
+      ...[...this.#staged.values()].map(s => s.review.manifest.id),
+      ...[...this.#attached.values()].flatMap(a => [...a.procs.keys()]),
+    ]);
+    for (const id of ids) this.#invalidate(id);
+    try {
+      await Promise.all([...this.#attached.values()].flatMap((a) => [...a.procs.keys()].map((id) => this.#stop(a, id))));
+    } finally {
+      for (const a of this.#attached.values()) { a.unsub?.(); this.#unobserveSettings(a); }
+    }
   }
 
   /** The process of one plugin for one companion (tests, the log view). */

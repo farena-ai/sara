@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { PUBLIC_MCP_INVESTIGATIONS } from '../addons/discovery.ts';
 import { createBackupAsync } from '../backup-async.ts';
 
 const activeBackupFiles = new Set<string>();
@@ -298,6 +299,10 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       }
     }
 
+    if (a === 'mcp' && b === 'discovery' && c === 'previews' && parts.length === 3) {
+      if (method !== 'GET') throw new HttpError(405, 'Method not allowed');
+      return send(res, 200, { investigations: PUBLIC_MCP_INVESTIGATIONS });
+    }
     if (a === 'mcp' && b === 'presets' && method === 'GET') return send(res, 200, MCP_PRESETS);
     if (a === 'mcp') {
       const view = () =>

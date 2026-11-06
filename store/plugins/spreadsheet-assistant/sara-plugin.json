@@ -1,0 +1,40 @@
+{
+  "manifest": 1,
+  "id": "spreadsheet-assistant",
+  "name": "Spreadsheet assistant",
+  "version": "1.0.0",
+  "description": "Validate and profile supplied CSV, filter rows and export formula-safe CSV text. No XLSX or formula evaluation.",
+  "author": "Sara team",
+  "license": "MIT",
+  "homepage": "https://backstagecoding.com/sara/store/",
+  "sara": ">=2.65.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "workflow"
+    ],
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Spreadsheet assistant": "Asistente de hojas de cálculo",
+      "Validate and profile supplied CSV, filter rows and export formula-safe CSV text. No XLSX or formula evaluation.": "Valida y analiza CSV proporcionado, filtra filas y exporta texto CSV protegido contra fórmulas. Sin XLSX ni evaluación de fórmulas."
+    },
+    "fr": {
+      "Spreadsheet assistant": "Assistant tableur",
+      "Validate and profile supplied CSV, filter rows and export formula-safe CSV text. No XLSX or formula evaluation.": "Valide et analyse le CSV fourni, filtre les lignes et exporte du texte CSV protégé contre les formules. Sans XLSX ni calcul de formules."
+    },
+    "de": {
+      "Spreadsheet assistant": "Tabellenassistent",
+      "Validate and profile supplied CSV, filter rows and export formula-safe CSV text. No XLSX or formula evaluation.": "Prüft und analysiert bereitgestellte CSV-Daten, filtert Zeilen und exportiert formelgeschützten CSV-Text. Kein XLSX oder Formelauswerten."
+    },
+    "pt-BR": {
+      "Spreadsheet assistant": "Assistente de planilhas",
+      "Validate and profile supplied CSV, filter rows and export formula-safe CSV text. No XLSX or formula evaluation.": "Valida e analisa CSV fornecido, filtra linhas e exporta texto CSV protegido contra fórmulas. Sem XLSX nem cálculo de fórmulas."
+    },
+    "it": {
+      "Spreadsheet assistant": "Assistente fogli di calcolo",
+      "Validate and profile supplied CSV, filter rows and export formula-safe CSV text. No XLSX or formula evaluation.": "Convalida e analizza il CSV fornito, filtra righe ed esporta testo CSV protetto dalle formule. Nessun XLSX o calcolo di formule."
+    }
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "id": "dbhub",
+  "version": "1.0.0",
+  "name": "DBHub",
+  "category": "coding",
+  "tags": [
+    "coding",
+    "mcp"
+  ],
+  "summary": "Explore a dedicated database using SQL tools.",
+  "description": "Explore a dedicated database using SQL tools. Available capabilities depend on the provider and the explicitly granted permissions.",
+  "about": [
+    "Explore a dedicated database using SQL tools. Available capabilities depend on the provider and the explicitly granted permissions.",
+    "Windows initialize/tools-list and bundled in-memory demo SELECT returned fixture_value=7. Real DSN, database-enforced read-only credentials and authenticated databases remain unqualified.",
+    "SQL can read and modify database records; DSNs may contain credentials",
+    "Server code is free; remote database hosting may cost.",
+    "Read and write permissions are different. This recipe grants no automatic execution. Sara may still auto-allow tools from server read-only annotations; the owner must inspect and set host permissions before use.",
+    "Required: database-enforced read-only credentials. The SQL tool name or annotations do not enforce a read-only connection; writes must be denied by the database itself."
+  ],
+  "license": "MIT",
+  "source": "https://raw.githubusercontent.com/bytebase/dbhub/HEAD/README.md",
+  "needs": [
+    "node",
+    "app:Dedicated read-only database"
+  ],
+  "works": [],
+  "mcp": {
+    "transport": "stdio",
+    "name": "dbhub",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@bytebase/dbhub@1.5.1",
+      "--transport",
+      "stdio"
+    ],
+    "fields": [],
+    "secrets": [
+      {
+        "key": "DSN",
+        "kind": "secret",
+        "label": "Read-only database DSN",
+        "tip": "Connection string for a dedicated test database using enforced read-only credentials. Stored in the vault; never use a production administrator DSN."
+      }
+    ],
+    "reaches": [
+      "only the database host in your DSN",
+      "npm registry at installation"
+    ],
+    "needs": [
+      "node",
+      "app:Dedicated read-only database"
+    ],
+    "tools": {
+      "readOnly": [],
+      "ask": [
+        "execute_sql",
+        "search_objects"
+      ]
+    },
+    "guide": [
+      "Use Node 24 LTS; this pinned package requires Node >=22.5.0. Confirm node --version before setup; dependency presence does not check its version.",
+      "Provision database-enforced read-only credentials before adding this server.",
+      "Never connect a production administrator DSN. SQL tools are not automatically approved.",
+      "Only a bundled in-memory demo SELECT was executed, not a real database connection.",
+      "After discovery, open Settings → Coding → Tools and approvals. Set every tool in this server's group to Ask me first or Off before sending any request.",
+      "Save, leave and reopen the page; read back every tool setting. Repeat after restart, update or newly discovered tools. Stop if settings cannot be confirmed."
+    ]
+  },
+  "changes": [
+    "First connection preview. Not published; qualification limitations are explicit."
+  ],
+  "tested": [],
+  "reviewNotes": "Connection preview, not a live vendor screenshot. Windows initialize/tools-list and bundled in-memory demo SELECT returned fixture_value=7. Real DSN, database-enforced read-only credentials and authenticated databases remain unqualified."
+}

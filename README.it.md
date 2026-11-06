@@ -35,7 +35,7 @@
 
 **Sei qui con un team?** Usa la [configurazione aziendale separata](docs/BUSINESS_OPERATIONS.md): passkey individuali, ruoli espliciti e spazi condivisi. È un’installazione manuale con una cartella dati dedicata; gli installer personali non convertono la tua compagna né il tuo nucleo domestico.
 
-> **Stato:** 2.68.0, [Contesto tra le tue conversazioni](https://github.com/farena-ai/sara/releases/tag/v2.68.0). Contesto recente tra chat consentite del proprietario, con note interne, passi ordinati del fornitore e controlli del proprietario. [Scopri le novità](#novità)
+> **Stato:** 2.69.0, [Componenti nelle Impostazioni esistenti](https://github.com/farena-ai/sara/releases/tag/v2.69.0). Dodici flussi locali, sette anteprime MCP, quattordici indagini bloccate e sei guide; verifica e attivazione esplicite per ogni compagna. [Scopri le novità](#novità)
 >
 > Installer Windows: non firmato ([guida SmartScreen](docs/INSTALL.md)). Il processo di rilascio macOS richiede download firmati e autenticati da Apple; ogni build viene verificata separatamente. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web nella schermata Home](docs/PHONE.md).
 
@@ -124,6 +124,7 @@ Versioni recenti · 5 novembre 2026. [Registro completo](CHANGELOG.md) · [Tutti
 
 | Versione | Cosa cambia per te |
 |---|---|
+| **[2.69.0](https://github.com/farena-ai/sara/releases/tag/v2.69.0)** | **[Componenti nelle Impostazioni](docs/ADDONS_LIBRARY.md)** — Dodici flussi su dati forniti usano la normale verifica di file e permessi e partono disattivati. Sette anteprime di ricette MCP, quattordici indagini bloccate e sei guide spiegano requisiti, costi e limiti. Nessuna installazione, connessione o attivazione automatica; la disponibilità nello store firmato resta separata. |
 | **[2.68.0](https://github.com/farena-ai/sara/releases/tag/v2.68.0)** | **[Contesto tra le tue conversazioni](docs/SESSION_CONTINUITY.md)** — Contesto recente tra chat consentite del proprietario con la stessa compagna, lettura limitata della cronologia, note interne e passi ordinati del fornitore. Controllo del proprietario, ispezione e cancellazione confermata del solo destinatario scelto; privacy e approvazioni degli strumenti restano valide. Scene condivise, coordinamento dei progetti e piena parità di voce e video restano sviluppi futuri. |
 | **[2.67.0](https://github.com/farena-ai/sara/releases/tag/v2.67.0)** | **[Segnali recenti e aggiornamenti sugli eventi](docs/ATTUNEMENT.md)** — Segnali espliciti e circoscritti del proprietario in sei lingue e domande sugli eventi basate su fonti verificate. I **[punti di ripresa del progetto](docs/FOR_CODERS.md#project-checkpoints)** conservano logica, blocchi e fino a tre prossimi passi, con cinque versioni e controlli per consultare, sostituire o cancellare; il contesto storico non esegue comandi e non trasferisce vecchie approvazioni. |
 | **[2.65.0](https://github.com/farena-ai/sara/releases/tag/v2.65.0)** | **[Configurazione aziendale guidata](docs/BUSINESS.md)** — Primo utilizzo e amministrazione guidati, cronologia degli inviti nel proprio ambito autorizzato, revoca, verifica della configurazione in sola lettura ed esercitazioni ripetibili di browser e ripristino. |
@@ -138,7 +139,7 @@ La versione 2.67.0 distingue inoltre le critiche al codice dai conflitti rivolti
 
 <!-- sara:recent-releases:end -->
 
-Qualificazione del codice di 2.68.0: controllo dei tipi e **2709 test automatici**; Windows **2693 superati / 0 falliti / 16 saltati**, Linux **2694 superati / 0 falliti / 15 saltati**, più dieci percorsi isolati del browser su desktop e mobile. I pacchetti reali Windows e Mac, quest’ultimo firmato e notarizzato, hanno superato cinque profili di ripristino e regressione ciascuno; Windows non è firmato. Le verifiche usano dati sintetici e modelli simulati. Esecuzione fisica Intel/Rosetta, accettazione su dispositivi e lettori di schermo, tono naturale con modelli reali e ripristino di produzione restano verifiche separate.
+Qualificazione del codice di 2.69.0: controllo dei tipi e **3033 test automatici**; Windows **3017 superati / 0 falliti / 16 saltati**, Linux **3018 superati / 0 falliti / 15 saltati**, più tredici percorsi isolati del browser su desktop e mobile. I pacchetti reali Windows e Mac, quest’ultimo firmato e notarizzato, hanno superato i rispettivi profili di ripristino e regressione e le verifiche dei componenti; le immagini container di entrambe le architetture hanno superato i controlli di stato; Windows non è firmato. Le verifiche usano dati sintetici e modelli simulati. Esecuzione fisica Intel/Rosetta, accettazione su dispositivi e lettori di schermo, tono naturale con modelli reali e ripristino di produzione restano verifiche separate.
 
 <!-- sara:release-history:start -->
 

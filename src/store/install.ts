@@ -16,7 +16,7 @@ import type { PluginManager, Review } from '../plugins/manager.ts';
 import { parseManifest, permissionLines, type PermissionLine } from '../plugins/manifest.ts';
 import { mcpToolName, mcpVaultKey, MCP_NAME_RE, validateMcpConfig, type McpServerConfig } from '../tools/mcp.ts';
 import { badFolder, recipeCommand, recipeProblems } from './checks.ts';
-import type { StoreClient } from './client.ts';
+import { pluginInstallation, type StoreClient } from './client.ts';
 import { parseRecipe, type McpRecipe, type RecipeField, type StoreEntry, type StoreItem, type StoreVersion } from './format.ts';
 import type { StoreInstallRow, StoreInstalls } from './installs.ts';
 import { StoreRefused } from './verify.ts';
@@ -129,6 +129,7 @@ export class StoreInstaller {
   /** Get (or Update): download, verify and stage the right review. Nothing is installed by this. */
   async install(id: string, o: { version?: string; community?: boolean; understand?: boolean } = {}): Promise<{ kind: 'plugin'; review: Review } | { kind: 'skill'; review: Record<string, unknown> } | { kind: 'mcp'; review: McpReview } | { kind: 'companion'; token: string; card: import('../packs/install.ts').PackCard }> {
     const { item, v } = this.#pick(id, o.version, o);
+    if (item.kind === 'plugin') this.#pluginAuthority(id);
     if (item.kind === 'mcp') return { kind: 'mcp', review: await this.mcpReview(item, v) };
     let files: PackageFile[];
     try {
@@ -151,6 +152,7 @@ export class StoreInstaller {
     if (item.kind === 'plugin') {
       const pm = this.d.plugins;
       if (!pm) throw new InstallError(409, 'plugins', "Plugins aren't available on this server.");
+      this.#pluginAuthority(id);
       const review = pm.stage(files, { kind: 'store', where: `${id}@${v.version}` });
       if (review.manifest.id !== id) {
         pm.cancel(review.id);
@@ -340,10 +342,19 @@ export class StoreInstaller {
 
   // ---- update, go back, remove, override ----
 
+  #pluginAuthority(item: string): void {
+    const association = this.d.installs.get(item);
+    const source = pluginInstallation(this.d.plugins, item, association);
+    if (source.installHeld) throw new InstallError(409, 'source', source.installHeld);
+    try { this.d.plugins?.assertStoreAuthority(item, association?.content_sha ?? undefined); }
+    catch (err) { throw new InstallError(409, 'source', (err as Error).message); }
+  }
+
   /** *Update*: the same download and review as *Get*; never applied without the owner's yes. */
   async update(item: string, o: { community?: boolean; understand?: boolean } = {}): ReturnType<StoreInstaller['install']> {
     const row = this.d.installs.get(item);
     if (!row) throw new InstallError(404, 'missing', 'That add-on was not installed from the store.');
+    if (row.kind === 'plugin') this.#pluginAuthority(item);
     if (row.state === 'blocked') throw new InstallError(403, 'blocked', 'The Sara store blocked this add-on.');
     return this.install(item, { ...o, understand: true, community: o.community ?? row.trust === 'community' });
   }
@@ -353,10 +364,20 @@ export class StoreInstaller {
     if (!row) throw new InstallError(404, 'missing', 'That add-on was not installed from the store.');
     const at = this.#now().toISOString();
     if (row.kind === 'plugin') {
+      this.#pluginAuthority(item);
       const pm = this.d.plugins;
       if (!pm) throw new InstallError(409, 'plugins', "Plugins aren't available on this server.");
-      const p = await pm.rollback(row.local_ref);
-      this.d.installs.upsert({ ...row, version: p.version, content_sha: p.approved_sha, updated_at: at });
+      if (this.d.installs.db !== pm.store.db) throw new InstallError(409, 'source', 'The plugin store association is unavailable. Try again later.');
+      await pm.rollback(row.local_ref, { onCommitted: p => {
+        const current = this.d.installs.get(item);
+        if (!current || current.kind !== 'plugin' || current.local_ref !== row.local_ref || current.version !== row.version || current.content_sha !== row.content_sha) throw new InstallError(409, 'source', 'The saved store association changed. Review the installed plugin again.');
+        const index = this.d.client.current()?.index;
+        const block = index?.blocked.find(b => (b.id === item && (b.versions === '*' || b.versions.includes(p.version))) || b.contentShas?.includes(p.approved_sha));
+        if (block) throw new InstallError(403, 'blocked', 'The Sara store blocked this add-on.');
+        const restored = this.d.client.version(item, p.version);
+        if (!restored || restored.item.kind !== 'plugin' || restored.v.contentSha !== p.approved_sha) throw new InstallError(409, 'source', 'The earlier plugin does not match a verified store release. Use its Plugins card to roll back.');
+        this.d.installs.upsert({ ...current, version: p.version, trust: restored.item.trust, content_sha: p.approved_sha, entry_sha: restored.v.entrySha, updated_at: this.#now().toISOString(), state: restored.v.yanked ? 'yanked' : 'ok', state_note: restored.v.yanked ?? null });
+      } });
     } else if (row.kind === 'mcp') {
       if (!row.prev_recipe) throw new InstallError(409, 'none', 'There is no earlier version to go back to.');
       // The kept recipe carries the version it came with (not a recipe field).
@@ -378,8 +399,11 @@ export class StoreInstaller {
     if (!row) throw new InstallError(404, 'missing', 'That add-on was not installed from the store.');
     const app = this.d.app;
     if (row.kind === 'plugin') {
-      if (this.d.plugins?.store.get(row.local_ref)) {
-        await this.d.plugins.remove(row.local_ref);
+      const plugins = this.d.plugins;
+      const local = plugins?.store.get(row.local_ref);
+      if (plugins && local && row.local_ref === row.item && local.approved_sha === row.content_sha && local.version === row.version) {
+        await plugins.remove(row.local_ref);
+        if (plugins.store.get(row.local_ref)) return;
         app.hooks?.removeForPlugin(row.local_ref);
       }
     } else if (row.kind === 'skill') {
@@ -423,8 +447,10 @@ export class StoreInstaller {
     const app = this.d.app;
     if (row.kind === 'plugin') {
       const pm = this.d.plugins;
-      if (pm?.store.get(row.local_ref)) {
-        pm.store.setStatus(row.local_ref, 'installed', null);
+      const local = pm?.store.get(row.local_ref);
+      if (!pm || !local || row.local_ref !== row.item || local.approved_sha !== row.content_sha || local.version !== row.version) throw new InstallError(409, 'source', 'The saved store association no longer matches the installed plugin.');
+      if (local) {
+        pm.overrideStoreBlock(row.local_ref);
         pm.store.log(row.local_ref, null, 'log', OVERRIDE_NOTE);
       }
     } else if (row.kind === 'skill') {

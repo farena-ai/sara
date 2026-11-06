@@ -1,0 +1,72 @@
+{
+  "id": "tavily",
+  "version": "1.0.0",
+  "name": "Tavily",
+  "category": "search",
+  "tags": [
+    "search",
+    "mcp"
+  ],
+  "summary": "Search the web and extract page content.",
+  "description": "Search the web and extract page content. Available capabilities depend on the provider and the explicitly granted permissions.",
+  "about": [
+    "Search the web and extract page content. Available capabilities depend on the provider and the explicitly granted permissions.",
+    "Windows initialize/tools-list answered; no authenticated vendor feature or Sara-host execution.",
+    "Sends queries and URLs to Tavily; crawl/search may consume credits",
+    "API credits and plan limits apply; no paid calls made.",
+    "Read and write permissions are different. This recipe grants no automatic execution. Sara may still auto-allow tools from server read-only annotations; the owner must inspect and set host permissions before use."
+  ],
+  "license": "MIT",
+  "source": "https://raw.githubusercontent.com/tavily-ai/tavily-mcp/HEAD/README.md",
+  "needs": [
+    "node"
+  ],
+  "works": [],
+  "mcp": {
+    "transport": "stdio",
+    "name": "tavily",
+    "command": "npx",
+    "args": [
+      "-y",
+      "tavily-mcp@0.2.22"
+    ],
+    "fields": [],
+    "secrets": [
+      {
+        "key": "TAVILY_API_KEY",
+        "kind": "secret",
+        "label": "Tavily API key",
+        "tip": "Your own Tavily API key, kept in the vault. Searches, extraction, crawling and research can consume provider credits."
+      }
+    ],
+    "reaches": [
+      "api.tavily.com",
+      "npm registry at installation"
+    ],
+    "needs": [
+      "node"
+    ],
+    "tools": {
+      "readOnly": [],
+      "ask": [
+        "tavily_search",
+        "tavily_extract",
+        "tavily_crawl",
+        "tavily_map",
+        "tavily_research"
+      ]
+    },
+    "guide": [
+      "Use Node 24 LTS; confirm node --version before setup. The dependency check detects presence, not the runtime version.",
+      "Add your own API key in the vault-backed secret field.",
+      "Test only checks connection/tool discovery. Review credit limits before approving a search or crawl.",
+      "After discovery, open Settings → Coding → Tools and approvals. Set every tool in this server's group to Ask me first or Off before sending any request.",
+      "Save, leave and reopen the page; read back every tool setting. Repeat after restart, update or newly discovered tools. Stop if settings cannot be confirmed."
+    ]
+  },
+  "changes": [
+    "First connection preview. Not published; qualification limitations are explicit."
+  ],
+  "tested": [],
+  "reviewNotes": "Connection preview, not a live vendor screenshot. Windows initialize/tools-list answered; no authenticated vendor feature or Sara-host execution."
+}
