@@ -295,6 +295,14 @@
       </div>
       <!-- R1C2: other owner chats active on this project (web/project-now.js). -->
       <div id="project-now" class="project-now small" role="region" aria-label="Also active on this project" hidden></div>
+      <!-- E5: read together (web/read-together.js): a document from her library above the chat. -->
+      <section id="rt-panel" class="rt-panel" aria-label="Read together" hidden>
+        <div class="rt-bar"><span id="rt-now" class="rt-now" data-raw></span> <button id="rt-stop" type="button" class="danger small">Stop</button> <button type="button" class="tip" data-tip="Stop ends sharing at once: her next reply won’t see the passage. A message already sent can’t be unsent.">?</button></div>
+        <div class="rt-tools"><label class="rt-follow small"><input id="rt-follow" type="checkbox"> Follow my place</label> <button type="button" class="tip" data-tip="Off by default. When on, the passage at the top of the view goes to her once you stop scrolling, so your next message is about it. With a cloud model, your place leaves this computer with each message.">?</button> <button id="rt-share" type="button" class="small" hidden>Share this passage</button></div>
+        <p id="rt-note" class="rt-note small muted" role="status"></p>
+        <p id="rt-private" class="rt-note small" hidden>Reading together needs a model on this computer while private mode is on.</p>
+        <div id="rt-text" class="rt-text lib-text" data-raw></div>
+      </section>
       <div id="messages" aria-live="polite"></div>
       <div id="activity" hidden aria-live="polite">
         <span class="spinner" aria-hidden="true"></span>
@@ -1539,6 +1547,7 @@
           <a id="lib-doc-download" class="button ghost small" href="#" download>Download</a>
           <a id="lib-doc-pdf" class="button ghost small" href="#" target="_blank" rel="noopener" hidden>Open the PDF</a>
           <button id="lib-doc-keep" type="button" class="ghost small" hidden>Keep in her library</button>
+          <button id="lib-doc-together" type="button" class="ghost small" title="Opens it above your chat so you can share a passage with her, or let her follow your place." hidden>Read together</button>
           <button type="button" class="ghost small tidy-more-btn" aria-label="More actions" title="More actions">⋯</button>
           <span class="tidy-overflow">
             <button id="lib-doc-reread" type="button" class="ghost small" title="Read the file again from the start, for example after it couldn't be read.">Read it again</button>

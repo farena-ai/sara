@@ -1,4 +1,4 @@
-# Shared scenes (R1B1, R1B2 and R1B3, development, not released)
+# Shared scenes
 
 A shared scene is one story you play with your companion across several of **your own** chats: your
 web chat and your own Telegram or Discord DMs, plus at most one shared room with other people (a
@@ -7,9 +7,8 @@ short canon facts ("the inn burned down"). Each linked chat sees the current can
 so the story carries from the web to your DM and into the room. Messages themselves are never
 copied between chats.
 
-Status: implemented on development branches only (slices R1B1, R1B2 and R1B3 of
-`docs/ops/R1B_DESIGN.md`). It is not in any release. Household-member scenes (R1B4) and
-multi-companion group chats are not part of it.
+Status: released in Sara 2.70.0 (slices R1B1, R1B2 and R1B3 of `docs/ops/R1B_DESIGN.md`).
+Household-member scenes (R1B4) and multi-companion group chats are not part of it.
 
 ## Where
 

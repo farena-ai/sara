@@ -6,6 +6,7 @@
 import { serverText, t } from './naming.js';
 import { emptyState } from './tidy.js';
 import { choices } from './kit.js';
+import { openReadTogether } from './read-together.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -161,6 +162,7 @@ function statusText(d, { withJob = true } = {}) {
 }
 
 let current = null;
+let currentDoc = null;
 let textFrom = 0;
 
 async function loadList() {
@@ -298,6 +300,9 @@ async function openDoc(id, { quiet = false, page = 0 } = {}) {
   showContents(d, r.sections);
   $('#lib-doc-download').setAttribute('download', d.name);
   $('#lib-doc-keep').hidden = d.keep;
+  // E5: Read together (text and Markdown documents she keeps).
+  $('#lib-doc-together').hidden = !(d.keep && !d.readOnly && d.status === 'ready' && ['text', 'markdown'].includes(d.kind));
+  currentDoc = d;
   $('#lib-doc-relearn').hidden = !d.keep || d.status !== 'ready' || d.readOnly;
   // Phase 110: a room archive is read-only (no re-read, no learning; Remove stays: his records, his choice).
   $('#lib-doc-reread').hidden = Boolean(d.readOnly);
@@ -513,6 +518,19 @@ for (const ev of ['dragover', 'drop']) {
 $('#lib-doc-more').addEventListener('click', async () => {
   const r = await api(`/library/${current}/passages?from=${textFrom}&limit=40`);
   showText(r.passages);
+});
+$('#lib-doc-together').addEventListener('click', async () => {
+  if (!currentDoc) return;
+  $('#library').close();
+  let note = '';
+  try {
+    if (!(await openReadTogether(currentDoc))) note = t('Open a chat with her first.');
+  } catch (err) {
+    note = err.message;
+  }
+  if (!note) return;
+  $('#library').showModal();
+  $('#lib-doc-state').textContent = note;
 });
 $('#lib-doc-keep').addEventListener('click', async () => {
   await api(`/library/${current}`, { method: 'PATCH', body: { keep: true } });

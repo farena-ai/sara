@@ -106,6 +106,7 @@ import { cardOf, checkPlan, contradictionNote, contradictSettings, declinedOutpu
 import { filesNamed, inputsHash, RunRecorder, toolSetHash, workspaceRef, WORKSPACE_TOOLS, type WorkspaceRef } from './runs.ts';
 import { join } from 'node:path';
 import { PROJECT_NOW_MARK, projectNowPath, projectNowSection } from './project-now.ts';
+import { READ_TOGETHER_MARK, readTogetherSection } from './read-together.ts';
 import { budgetSummaryFallback, LADDER, quickIsCheaper, turnBudgetFor, turnBudgetSettings, TurnMeter, type Budget, type BudgetState, type ModelCallPlan } from './budget.ts';
 import { billingOf, findPrice, priceTable } from './usage.ts';
 import type { SecurityPass } from './security/pass.ts';
@@ -263,6 +264,8 @@ export interface AppContext {
   /** Phase 36: her closet. */
   /** Phase 37: things to do together and shared lists. */
   together?: import('./together.ts').TogetherStore;
+  /** E5: read together (the shared passage per conversation; memory only). */
+  readTogether?: import('./read-together.ts').ReadTogether;
   wardrobe?: import('./wardrobe.ts').WardrobeWorker;
   /** Shared scrapbook (Phase 9). */
   scrapbook?: Scrapbook;
@@ -1786,6 +1789,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     safetyNotes.push(STOP_NOTE(app.settings.get().ownerName?.trim() || 'the owner'));
     // R1B1: the stop word also pauses a shared scene for every seat; only the owner resumes it.
     if (sceneDatabase) pauseSceneForStopWord(app, conv.id);
+    // E5: and ends reading together at once (before this turn's sections are built).
+    app.readTogether?.stop(conv.id);
   }
 
   // Phase 123 (LEAN §5.7): near the limit, the older part is tidied before the first model call (his
@@ -2539,6 +2544,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // R1C2: Project now (quoted titles, times, paths and check labels; its own mark, never replayed).
     const projectNow = nowPath ? projectNowSection(app, conv, { ...nowGate, now: projectNowRef }) : undefined;
     if (projectNow) messages.push({ role: 'system', content: projectNow });
+    // E5: the passage he shares (read from the library now; its own mark, never replayed). With
+    // Nothing leaves this computer on (or a private chat), only a model on this computer sees it.
+    const readTogether = readTogetherSection(app, conv, { ...nowGate, local: !(privateLocalOn() || conv.private) || onThisComputer(provider.config, model) });
+    if (readTogether) messages.push({ role: 'system', content: readTogether });
     yield { type: 'context', used: historySize(hist.messages), budget, dropped: hist.dropped };
     if (hist.dropped && activeFold) {
       messages.push({ role: 'user', content: '[Note from the app: even after the tidied part, this conversation is long, so some messages after it are left out here.]' });
@@ -2594,7 +2603,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const inHist = new Set<ChatMessage>(hist.messages);
       const have = new Set(messages.slice(1).filter((m) => !inHist.has(m)).map((m) => m.content));
       // Phase 85: recorded recall notes are not replayed: the triggers decide again (an eval's "off" stays off).
-      for (const x of opts.replay.extra) if (!have.has(x) && !x.startsWith(RECALL_MARK) && !x.startsWith(OWNER_CUES_MARK) && !x.startsWith(FOLLOW_UP_NOTE_MARK) && !x.startsWith(SESSION_CONTINUITY_MARK) && !x.startsWith(SHARED_SCENE_MARK) && !x.startsWith(PROJECT_NOW_MARK)) messages.push(x.startsWith('[Note from the app') ? { role: 'user', content: x } : { role: 'system', content: x });
+      for (const x of opts.replay.extra) if (!have.has(x) && !x.startsWith(RECALL_MARK) && !x.startsWith(OWNER_CUES_MARK) && !x.startsWith(FOLLOW_UP_NOTE_MARK) && !x.startsWith(SESSION_CONTINUITY_MARK) && !x.startsWith(SHARED_SCENE_MARK) && !x.startsWith(PROJECT_NOW_MARK) && !x.startsWith(READ_TOGETHER_MARK)) messages.push(x.startsWith('[Note from the app') ? { role: 'user', content: x } : { role: 'system', content: x });
     }
     // Phase 118: a goal round's or a loop tick's note from the app (step 0 only; never stored as his message).
     if (opts.persist?.note && step === 0) messages.push({ role: 'user', content: opts.persist.note });

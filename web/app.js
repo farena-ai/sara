@@ -48,6 +48,7 @@ import { compactNotice, dimFolded, initLean, loadLean, paintSheet } from './lean
 import { initPersist, loadPersistSettings, loadRepeats, openGoalCard, openLoopCard, persistEvent, persistMessage, persistOpen, savePersistSettings } from './persist.js';
 import { initRoutines, loadRoutines, openRoutinesAt, setRoutinesOpener, todayRoutineCards } from './routines.js';
 import { initWatches, watchNotice } from './watches.js';
+import { initReadTogether, readTogetherSwitched } from './read-together.js';
 import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-check.js';
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
@@ -1059,6 +1060,8 @@ async function openConversation(id) {
   // Phase 49: another conversation's app preview doesn't stay open beside this one.
   if (id !== state.currentId && state.previewUrl) closePreview();
   state.currentId = conv.id;
+  // E5: reading together belongs to the chat it started in; it ends when another opens.
+  readTogetherSwitched(conv.id);
   $('#chat-title').textContent = conv.title;
   state.conv = conv;
   renderConvSummary();
@@ -8829,6 +8832,8 @@ initPersist({ api, state, el, openConversation: (id) => void openConversation(id
 initLean({ api, state, el, reload: () => void openConversation(state.currentId), newSession: () => void runChatCommand('/new') });
 // Phase 121: routines (Planner → Routines) and the safety check-up (Settings → Data & health).
 initRoutines({ api, el, openConversation: (id) => { $('#planner').close(); void openConversation(id); }, openSettings: (page) => { $('#planner').close(); void openSettings(page); } });
+// E5: Read together (web/read-together.js): the Library's Read together opens beside this chat.
+initReadTogether({ api, current: () => state.currentId });
 // E4: Watch a file (web/watches.js): Ask about this puts his own question in the message box of the watch's chat.
 initWatches({
   api,

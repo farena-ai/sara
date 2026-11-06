@@ -67,6 +67,7 @@ import { ensureLeanTables, setChatPin, setLeanOff, toolsView } from './lean.ts';
 import { createSafetyCheckRoutes } from './routes/safety-check.ts';
 import { createRoutineRoutes } from './routes/routines.ts';
 import { createWatchRoutes } from './routes/watches.ts';
+import { createReadTogetherRoutes } from './routes/read-together.ts';
 import { createRecallRoutes } from './routes/recall.ts';
 import { createSessionContinuityRoutes } from './routes/session-continuity.ts';
 import { sceneChipFor } from './shared-scenes-policy.ts';
@@ -886,6 +887,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const routineRoutes = createRoutineRoutes(ctx);
   // E4: file/log watches, the owner's only (src/routes/watches.ts).
   const watchRoutes = createWatchRoutes(ctx);
+  // E5: read together, the owner's only (src/routes/read-together.ts).
+  const readTogetherRoutes = createReadTogetherRoutes(ctx);
   // Phase 119: when it comes up, and picking a chat up in another app (src/routes/recall.ts).
   const recallRoutes = createRecallRoutes(ctx);
   const sessionContinuityRoutes = createSessionContinuityRoutes(ctx);
@@ -1266,6 +1269,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await safetyCheckRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await routineRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await watchRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await readTogetherRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await recallRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await sessionContinuityRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await sceneRoutes(req, res, method, parts)) !== NEXT) return;

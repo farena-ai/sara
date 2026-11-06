@@ -1,7 +1,7 @@
 # Recent cues and follow-ups
 
-E2 development candidate: implementation and qualification are separate from a published release.
-See the changelog and release notes for the version actually installed.
+Status: released in Sara 2.67.0. See the changelog and release notes for the version actually
+installed.
 
 Sara can respond to explicit tiredness, frustration with a task and conflict directed at her.
 Criticizing broken code is not the same thing as insulting your companion. The rules recognize

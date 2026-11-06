@@ -46,6 +46,12 @@ In web work Sara edits, previews, takes desktop and phone screenshots, fixes wha
 checks again. Claims about phone width or a finished fix need matching evidence, otherwise the
 reply is marked unverified. See [Web pages: look, fix, look again](FOR_CODERS.md#web-pages-look-fix-look-again).
 
+## Read together in 2.74.0
+
+Open a text or Markdown document from your library with Sara, share a passage (or let her follow
+your place) and she comments on exactly that text at that version. If it changed she says so;
+Stop ends sharing at once. See [Read together](LIBRARY.md#read-together).
+
 ## Watch a file in 2.73.0
 
 Opt-in alerts: pick a log or file in one of your workspaces (or her own log) and a few literal

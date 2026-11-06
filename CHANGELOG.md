@@ -5,6 +5,23 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.74.0 (2026-11-06): read together
+
+- **Fixed: cards that looked stuck.** When you press *Use it*, *Edit first*, *Not now*, *Install* or
+  another button on a suggestion card, the button now says it is working and the card ignores
+  further presses until the answer comes back; if it fails, the card is usable again.
+- **Read together (E5):** open a text or Markdown document in the Library and press *Read
+  together*; it opens above your chat. Select some text and press *Share this passage*, or switch
+  on *Follow my place* (off by default), and she comments on exactly that text at that version. If
+  the document or passage changed she says so instead of using old text. *Stop* (or your stop
+  word) ends sharing at once; a restart ends it too. Owner only, and with *Nothing leaves this
+  computer* on only a model on this computer sees it. See [Read together](docs/LIBRARY.md#read-together).
+- **New GitHub front page:** a brand hero banner, one-sentence summary, download/install/star
+  and update actions, a "What Sara does" grid with one line and guide links per area, a developer
+  path, the recent-releases table cut to six rows with older history folded, and a trust, safety and
+  legal section. The screenshot feature tour moved to [docs/FEATURES.md](docs/FEATURES.md); new
+  illustrations live in `docs/images/brand/`.
+
 ## 2.73.0 (2026-11-06): watch a file
 
 - **Watch a file:** in *Planner → Routines*, Sara can watch a log or file in one of your

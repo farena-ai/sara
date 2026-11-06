@@ -70,3 +70,13 @@
 .project-now .pn-lead { font-weight: 600; }
 .project-now .pn-item { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0 2px; min-width: 0; overflow-wrap: anywhere; }
 .project-now .pn-link { padding: 0 4px; min-height: 0; text-decoration: underline; }
+/* E5: read together (web/read-together.js): the document above the chat, its bar, Follow and Share. */
+.rt-panel { display: flex; flex-direction: column; gap: 4px; width: min(860px, calc(100% - 24px)); margin: 0 auto 6px; padding: 6px 10px; box-sizing: border-box; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-2, transparent); }
+.rt-panel[hidden] { display: none; }
+.rt-bar, .rt-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.rt-now { font-weight: 600; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.rt-follow { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; margin: 0; white-space: nowrap; }
+.rt-follow input { margin: 0; width: auto; flex: none; }
+.rt-note { margin: 0; }
+.rt-text { max-height: 34vh; }
+@media (max-width: 600px) { .rt-text { max-height: 28vh; } }

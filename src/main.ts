@@ -102,6 +102,7 @@ import { createPhotoTools, DEFAULT_IMAGE_MODEL, photoSettings, xaiImageKey } fro
 import { LookBuilder, PLACES } from './look.ts';
 import { createWardrobeTool, WardrobeWorker } from './wardrobe.ts';
 import { createSharedListTool, TogetherStore } from './together.ts';
+import { ReadTogether } from './read-together.ts';
 import { createScrapbookTool, Scrapbook } from './scrapbook.ts';
 import { createMomentsTool, MomentsStore, MomentsWorker } from './moments.ts';
 import { migrateProviderLabels, SettingsStore, StartupError } from './settings.ts';
@@ -1099,6 +1100,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   const issueWatcher = isMember ? undefined : new IssueWatcher(app);
   // Phase 37: things to do together and shared lists.
   app.together = new TogetherStore(store.db, () => app.now());
+  // E5: read together (memory only; a restart ends sharing).
+  app.readTogether = new ReadTogether(() => app.now());
   tools.add(createSharedListTool(() => app.together));
   // Phase 36: her closet (dresses for the scenario when the owner turns it on).
   const wardrobe = new WardrobeWorker(app);

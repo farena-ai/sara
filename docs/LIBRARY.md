@@ -98,6 +98,26 @@ scanned pages and makes meaning-search vectors, whatever was approved before.
 - The **library tool** gives her `search`, `read` (from a place, e.g. `page 412`, looked up
   directly), `contents` (chapters and sections with their pages and summaries) and `list`.
 
+## Read together
+
+Open a text or Markdown document she keeps and press **Read together**. It opens above your chat.
+
+- **Share this passage:** select some text (up to about a page: 4,000 characters over at most 3
+  passages) and press it. Your next message comes with that passage; she comments on that text only.
+- **Follow my place** (off by default, **?** tip): the passage at the top of the view is sent after
+  1.5 s still, at most once every 5 s (the server allows 12 a minute). Moving never starts a reply.
+- **Stop** ends sharing at once (so does your stop word, and opening another chat). A reply already
+  sent can't be unsent. A restart ends sharing too (it is kept in memory only).
+- The browser sends only positions and hashes. Each turn the server reads the passage from her
+  library again and checks the document's revision (its SHA-256) and the passage's hash; if either
+  changed, or the document is gone, she gets no text, only a note to ask you to share it again.
+- Owner only: not for household members, the demo, off-record, partner, room, API/MCP or other-app
+  chats, replays or evals. With *Nothing leaves this computer* on (or in a private chat), only a model
+  on this computer gets the passage. Nothing of it is stored in the chat, memory or exports.
+- Code: `src/read-together.ts` (the share, the checks, the `[SARA-READ-TOGETHER]` section, never
+  replayed), `src/routes/read-together.ts` (`GET`/`PUT`/`DELETE /api/read-together/<chat>`),
+  `web/read-together.js`.
+
 ## Where things are
 
 | What | Where |
