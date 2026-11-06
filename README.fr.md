@@ -35,7 +35,7 @@
 
 **Vous venez en équipe ?** Utilisez l’[installation professionnelle séparée](docs/BUSINESS_OPERATIONS.md) : clés d’accès individuelles, rôles explicites et espaces partagés. Cette installation manuelle possède son propre dossier de données ; les installateurs personnels ne convertissent ni votre compagne ni votre foyer.
 
-> **État :** 2.71.0, [Continuité des projets](https://github.com/farena-ai/sara/releases/tag/v2.71.0). Les conversations de code d’un même projet voient le travail actif des autres, et les résultats indiquent s’ils sont encore à jour. [Voir les nouveautés](#quoi-de-neuf)
+> **État :** 2.72.0, [Vérifications visuelles honnêtes](https://github.com/farena-ai/sara/releases/tag/v2.72.0). En travail web, elle regarde des captures ordinateur et mobile, corrige ce qui ne va pas et revérifie avant de dire que c’est réglé. [Voir les nouveautés](#quoi-de-neuf)
 >
 > Installateur Windows : non signé ([aide SmartScreen](docs/INSTALL.md)). Le processus de publication macOS exige des téléchargements signés et notariés ; chaque compilation est vérifiée séparément. Android : [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone : [app web sur l’écran d’accueil](docs/PHONE.md).
 
@@ -126,6 +126,7 @@ Versions récentes · 5 novembre 2026. [Journal complet](CHANGELOG.md) · [Tous 
 
 | Version | Ce qui change pour vous |
 |---|---|
+| **[2.72.0](https://github.com/farena-ai/sara/releases/tag/v2.72.0)** | **[Vérifications visuelles honnêtes](docs/FOR_CODERS.md#web-pages-look-fix-look-again)** — En travail web, Sara modifie, prévisualise, prend des captures ordinateur et mobile, corrige ce qui cloche et revérifie. Affirmer la largeur mobile exige une capture à cette largeur, et « c’est réglé » exige une vérification après sa dernière modification ; sinon la réponse est marquée non vérifiée. |
 | **[2.71.0](https://github.com/farena-ai/sara/releases/tag/v2.71.0)** | **[Continuité des projets](docs/FOR_CODERS.md#project-now-other-chats-and-current-checks)** — Vos conversations de code sur un même projet voient ce que font les autres (titres et fichiers, jamais le texte des messages), et chaque résultat de vérification, d’objectif ou de point d’étape indique à jour, périmé ou base inconnue. Sara relance une vérification périmée avant d’affirmer qu’elle passe. |
 | **[2.70.0](https://github.com/farena-ai/sara/releases/tag/v2.70.0)** | **[Scènes de jeu de rôle partagées](docs/SCENES.md)** — Une histoire dans vos conversations web, Telegram et Discord plus un salon partagé, avec des faits versionnés que vous ajoutez, modifiez ou retirez. Les invités gardent toutes les règles de partenaire ; leurs mots ne comptent que si vous choisissez Ajouter à la scène. Supprimer ou oublier une ligne efface ce qui en vient ; les contrôles de sécurité s’appliquent à chaque scène. |
 | **[2.69.0](https://github.com/farena-ai/sara/releases/tag/v2.69.0)** | **[Extensions dans les Réglages](docs/ADDONS_LIBRARY.md)** — Douze flux utilisant les données fournies passent par l’examen habituel des fichiers et permissions et restent désactivés au départ. Sept aperçus de recettes MCP, quatorze investigations bloquées et six guides présentent prérequis, coûts et limites. Aucune installation, connexion ou activation automatique ; la disponibilité dans la boutique signée reste distincte. |

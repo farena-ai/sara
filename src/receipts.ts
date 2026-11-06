@@ -238,6 +238,23 @@ const BROWSER_I18N = w(
     '(?:testei|abri|verifiquei|olhei).{0,80}?(?:navegador|pré-visualização|largura de celular|no celular)|(?:tirei|fiz) (?:um |uns )?(?:print|captura)s?|' +
     "(?:(?:l'|lo |la )?ho) (?:provat|testat|apert|controllat)[oaie].{0,80}?(?:browser|anteprima|larghezza (?:del )?telefono|sul telefono)|ho fatto (?:uno |degli )?screenshot",
 );
+/** E3: which width a claim names, in the six languages ("at phone width", "en el móvil", "auf dem Desktop"). */
+const PHONE = w('phones?|mobile|small screens?|narrow screens?|móvil|celular|téléphone|handy(?:breite)?|mobil|telefono');
+const DESKTOP = w('desktop|escritorio|ordinateur|computador');
+/** E3: present-tense "fixed / looks right now" in the six languages; needs a browser look after the last edit. */
+const FIXED_NOW = [
+  /\b(?:I(?:'ve| have)?|I just)\s+(?:also\s+)?fixed\b|\b(?:it's|it is|that's|that is|is|are)\s+(?:now\s+)?fixed\b|\b(?:looks?|fits?|works?)\s+(?:(?:right|good|fine|correct|properly)\s+)?now\b|\bnow (?:looks|fits|works)\b/i,
+  w("arreglad[oa]s?|corregid[oa]s?|se ve bien|corrigée?s?|réparée?s?|s'affiche bien|behoben|repariert|korrigiert|sieht (?:jetzt )?gut aus|corrigid[oa]s?|consertad[oa]s?|sistemat[oa]|corrett[oa]|risolt[oa]"),
+];
+/** E3: phone = "phone"/"mobile" or an explicit width up to 480 px; desktop = the default, "desktop" or 1024 px and up. */
+export function shotWidth(r: Receipt): 'phone' | 'desktop' | undefined {
+  const v = r.args.width;
+  if (v === undefined || v === null || v === '' || v === 'desktop') return 'desktop';
+  if (v === 'phone' || v === 'mobile') return 'phone';
+  const n = Number(String(v).replace(/px$/i, ''));
+  if (!Number.isFinite(n)) return undefined;
+  return n <= 480 ? 'phone' : n >= 1024 ? 'desktop' : undefined;
+}
 /** Clause edges: punctuation and "but" words; negation counts only in the verb's own clause. */
 const CLAUSE = /\s*[,;:–—]\s*|\s+-\s+|\s+(?:but|however|pero|aunque|sin embargo|mais|cependant|aber|jedoch|doch|mas|porém|però|ma)\s+/i;
 /** Read-only tools: they never back an action claim. */
@@ -316,6 +333,13 @@ function backing(receipts: Receipt[]) {
     hasPlanner: ok.some((r) => r.name === 'todo' || r.name === 'note') || mcp,
     hasBrowser: ok.some((r) => BROWSER_TOOLS.has(r.name)),
     hasShot: ok.some((r) => r.name === 'browser_screenshot'),
+    // E3: the widths her screenshots were taken at, and whether she looked again after her last edit:
+    shotAt: new Set(ok.filter((r) => r.name === 'browser_screenshot').map(shotWidth)),
+    // A screenshot (at that width, when one is named) or a passing browser_check after the last edit.
+    lookedAfterEdit: (width?: 'phone' | 'desktop') => {
+      const last = (f: (r: Receipt) => boolean) => receipts.findLastIndex((r) => r.status === 'ok' && f(r));
+      return last((r) => (r.name === 'browser_screenshot' && (!width || shotWidth(r) === width)) || (!width && r.name === 'browser_check' && !/^FAIL\b/m.test(r.output))) > last((r) => WRITE_TOOLS.has(r.name));
+    },
     // Phase 62: sending (mail, a GitHub comment / issue / pull request, an MCP tool, a mail command).
     hasSend: mcp || ok.some((r) => r.name === 'gmail_send' || r.name === 'github_comment' || r.name === 'github_create_issue' || r.name === 'github_open_pr') || shells.some((r) => /\b(?:mail|sendmail|msmtp|mutt|curl|gh)\b/.test(cmd(r))),
     // Phase 62: a calendar entry (or a reminder set for it).
@@ -365,6 +389,13 @@ export function checkClaims(reply: string, receipts: Receipt[], prior: Receipt[]
     } else if (!remind && !b.hasPlanner && !b.hasWrite && claimed(s, [PLANNER, I18N.planner, ...MORE.planner!])) add('planner', s, 'missing');
     if (!b.hasSend && ((SEND_OBJ.test(s) && claimed(s, SEND_VERB)) || claimed(s, SEND_ALONE))) add('send', s, 'missing');
     if ((claimed(s, SCREENSHOT) && !b.hasShot) || (claimed(s, [BROWSER, BROWSER_I18N]) && !b.hasBrowser)) add('browser', s, 'missing');
+    // E3: a phone or desktop claim needs a screenshot at that width; "fixed / looks right now" in web
+    // work (browser tools ran) needs a screenshot or a passing browser_check after the last edit.
+    if (claimed(s, [SCREENSHOT, BROWSER, BROWSER_I18N]) && ((PHONE.test(s) && !b.shotAt.has('phone')) || (DESKTOP.test(s) && !b.shotAt.has('desktop')))) add('browser', s, 'missing');
+    if (b.hasBrowser && claimed(s, FIXED_NOW)) {
+      const width = PHONE.test(s) ? 'phone' : DESKTOP.test(s) ? 'desktop' : undefined;
+      if (!b.lookedAfterEdit() || (width && !b.lookedAfterEdit(width))) add('browser', s, 'missing');
+    }
   }
   return claims;
 }

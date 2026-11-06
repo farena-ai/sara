@@ -40,6 +40,12 @@ message text). Check, goal and checkpoint results say whether they are current, 
 change, or of unknown basis, and Sara re-runs a stale check before calling it a pass. See
 [Project now](FOR_CODERS.md#project-now-other-chats-and-current-checks).
 
+## Honest visual checks in 2.72.0
+
+In web work Sara edits, previews, takes desktop and phone screenshots, fixes what looks wrong and
+checks again. Claims about phone width or a finished fix need matching evidence, otherwise the
+reply is marked unverified. See [Web pages: look, fix, look again](FOR_CODERS.md#web-pages-look-fix-look-again).
+
 ## Next: more add-ons and a matching library website
 
 The rest of the public add-ons library and new developer add-ons will join the same Settings

@@ -1,0 +1,4 @@
+/* E3 fixture: the fixed width overflows a 390px phone screen. */
+body { font-family: sans-serif; margin: 0; padding: 16px; }
+textarea { width: 100%; box-sizing: border-box; }
+.save { width: 600px; padding: 12px; }

@@ -35,7 +35,7 @@
 
 **¿Vienes con un equipo?** Usa la [instalación empresarial independiente](docs/BUSINESS_OPERATIONS.md): claves de acceso individuales, roles explícitos y espacios compartidos. Es una instalación manual con su propia carpeta de datos; los instaladores personales no convierten tu compañera ni tu hogar.
 
-> **Estado:** 2.71.0, [Continuidad de proyectos](https://github.com/farena-ai/sara/releases/tag/v2.71.0). Los chats de código del mismo proyecto ven el trabajo activo de los demás, y los resultados indican si siguen vigentes. [Ver novedades](#novedades)
+> **Estado:** 2.72.0, [Comprobaciones visuales honestas](https://github.com/farena-ai/sara/releases/tag/v2.72.0). En trabajo web mira capturas de escritorio y móvil, corrige lo que está mal y vuelve a comprobar antes de decir que está arreglado. [Ver novedades](#novedades)
 >
 > Instalador Windows: sin firma ([guía de SmartScreen](docs/INSTALL.md)). El proceso de publicación de macOS exige descargas firmadas y notarizadas; cada compilación se verifica por separado. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web en la pantalla de inicio](docs/PHONE.md).
 
@@ -124,6 +124,7 @@ Versiones recientes · 5 de noviembre de 2026. [Historial completo](CHANGELOG.md
 
 | Versión | Qué cambia para ti |
 |---|---|
+| **[2.72.0](https://github.com/farena-ai/sara/releases/tag/v2.72.0)** | **[Comprobaciones visuales honestas](docs/FOR_CODERS.md#web-pages-look-fix-look-again)** — En trabajo web Sara edita, previsualiza, toma capturas de escritorio y móvil, corrige lo que se ve mal y vuelve a comprobar. Afirmar el ancho de móvil exige una captura a ese ancho, y "está arreglado" exige una comprobación tras su última edición; si no, la respuesta se marca sin verificar. |
 | **[2.71.0](https://github.com/farena-ai/sara/releases/tag/v2.71.0)** | **[Continuidad de proyectos](docs/FOR_CODERS.md#project-now-other-chats-and-current-checks)** — Tus chats de código del mismo proyecto ven qué hacen los demás (títulos y archivos, nunca el texto de los mensajes), y cada resultado de comprobación, objetivo o punto de control indica vigente, desactualizado o base desconocida. Sara repite una comprobación desactualizada antes de decir que pasa. |
 | **[2.70.0](https://github.com/farena-ai/sara/releases/tag/v2.70.0)** | **[Escenas de rol compartidas](docs/SCENES.md)** — Una historia en tus chats web, de Telegram y de Discord más una sala compartida, con hechos versionados que añades, editas o retiras. Los invitados mantienen todas las reglas de pareja; sus palabras solo cuentan cuando eliges Añadir a la escena. Borrar u olvidar una línea elimina lo que salió de ella; las comprobaciones de seguridad se aplican a cada escena. |
 | **[2.69.0](https://github.com/farena-ai/sara/releases/tag/v2.69.0)** | **[Complementos en Ajustes](docs/ADDONS_LIBRARY.md)** — Doce flujos con datos proporcionados usan la revisión habitual de archivos y permisos y empiezan desactivados. Siete vistas previas de recetas MCP, catorce investigaciones bloqueadas y seis guías explican requisitos, costes y límites. Sin instalación, conexión ni activación automáticas; la disponibilidad de la tienda firmada se mantiene separada. |

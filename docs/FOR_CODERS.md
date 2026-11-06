@@ -121,6 +121,14 @@ looks at it and she reads the new errors in the same reply (each project asks on
 installed). Type `@` to hand her a file or a few lines, your changes (`@diff`), the branch, the current
 problems or a web page. Full guide: [CHECKS.md](CHECKS.md).
 
+## Web pages: look, fix, look again
+
+When she works on a web page she runs it, opens the preview in her testing browser and takes
+screenshots at desktop and phone width. Her reply is marked unverified if she says she checked it at
+phone width without a phone screenshot (phone = `phone` or a width up to 480px; desktop = the default
+or 1024px and up), or says it's fixed or looks right now without a screenshot or a passing
+`browser_check` after her last edit. Marked, never blocked; approvals are unchanged.
+
 ## Long jobs: goals, repeats and steering (2.49–2.61)
 
 - **Keep going until it's done:** `/goal make the tests pass` (or *+ → Keep going until it's done…*), then

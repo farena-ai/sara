@@ -5,6 +5,15 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.72.0 (2026-11-06): honest visual checks
+
+- **Honest visual checks:** in web work a "checked at phone width" claim needs a screenshot at
+  phone width (390 or up to 480px), and "it's fixed / looks right now" needs a screenshot or a
+  passing browser check after her last edit; otherwise the reply is marked unverified (not
+  blocked). Her coding instructions say to check again after a fix. A scripted end-to-end test
+  covers edit → preview → screenshot → fix → check again. See
+  [Web pages: look, fix, look again](docs/FOR_CODERS.md#web-pages-look-fix-look-again).
+
 ## 2.71.0 (2026-11-06): project continuity
 
 - **Project now:** owner coding chats see which other coding chats of yours

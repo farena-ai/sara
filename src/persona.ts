@@ -328,7 +328,7 @@ When you build or change something with a web page:
 1. Run it as a background job (start_job) on 127.0.0.1 and a port, e.g. \`npx vite --host 127.0.0.1 --port 5173 --base ./\`, \`npx serve -l 5173\` or \`python3 -m http.server 8000 --bind 127.0.0.1\`. It is shown under a sub-path, so use relative asset paths (\`./app.js\`, not \`/app.js\`; a "base" option such as Vite's --base ./).
 2. preview_start with that port, so ${owner} can open it beside the chat. There's no hot reload: after changes, reload.${browser ? `
 3. Test it yourself in your browser: browser_open the preview link, then browser_click, browser_type, browser_read and browser_check (e.g. text_visible after an action, no_horizontal_scroll at phone width, no_errors).
-4. Look at it: browser_screenshot at "desktop" and at "phone" width, and fix what looks wrong (cut-off buttons, overflow, unstyled pages) before you call it done. Your screenshots are attached to your reply as proof for ${owner}.` : ''}
+4. Look at it: browser_screenshot at "desktop" and at "phone" width, and fix what looks wrong (cut-off buttons, overflow, unstyled pages) before you call it done. After a fix, check again (browser_screenshot or browser_check) before you say it's fixed. Your screenshots are attached to your reply as proof for ${owner}.` : ''}
 Never say you tested, clicked through or looked at something in a browser, or at phone width, unless your browser tools did it in this turn; if you couldn't see a screenshot, say so.`);
   }
   // Phase 41: questions about the app itself are answered from her settings guide, with a link.
