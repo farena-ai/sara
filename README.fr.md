@@ -35,7 +35,7 @@
 
 **Vous venez en équipe ?** Utilisez l’[installation professionnelle séparée](docs/BUSINESS_OPERATIONS.md) : clés d’accès individuelles, rôles explicites et espaces partagés. Cette installation manuelle possède son propre dossier de données ; les installateurs personnels ne convertissent ni votre compagne ni votre foyer.
 
-> **État :** 2.72.0, [Vérifications visuelles honnêtes](https://github.com/farena-ai/sara/releases/tag/v2.72.0). En travail web, elle regarde des captures ordinateur et mobile, corrige ce qui ne va pas et revérifie avant de dire que c’est réglé. [Voir les nouveautés](#quoi-de-neuf)
+> **État :** 2.73.0, [Surveiller un fichier](https://github.com/farena-ai/sara/releases/tag/v2.73.0). Alertes facultatives quand une nouvelle ligne de vos journaux contient des mots comme ERROR, avec Vérifier maintenant et Arrêter. [Voir les nouveautés](#quoi-de-neuf)
 >
 > Installateur Windows : non signé ([aide SmartScreen](docs/INSTALL.md)). Le processus de publication macOS exige des téléchargements signés et notariés ; chaque compilation est vérifiée séparément. Android : [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone : [app web sur l’écran d’accueil](docs/PHONE.md).
 
@@ -126,6 +126,7 @@ Versions récentes · 5 novembre 2026. [Journal complet](CHANGELOG.md) · [Tous 
 
 | Version | Ce qui change pour vous |
 |---|---|
+| **[2.73.0](https://github.com/farena-ai/sara/releases/tag/v2.73.0)** | **[Surveiller un fichier](docs/WATCHES.md)** — Choisissez un journal ou un fichier dans un de vos espaces de travail (ou son propre journal) et quelques mots comme ERROR ; Sara envoie une carte dans la conversation et une notification quand une nouvelle ligne correspond, 12 par jour au plus. Vérifier maintenant, Pause et Arrêter ; la lecture n’utilise aucun modèle et elle ne corrige jamais rien seule. |
 | **[2.72.0](https://github.com/farena-ai/sara/releases/tag/v2.72.0)** | **[Vérifications visuelles honnêtes](docs/FOR_CODERS.md#web-pages-look-fix-look-again)** — En travail web, Sara modifie, prévisualise, prend des captures ordinateur et mobile, corrige ce qui cloche et revérifie. Affirmer la largeur mobile exige une capture à cette largeur, et « c’est réglé » exige une vérification après sa dernière modification ; sinon la réponse est marquée non vérifiée. |
 | **[2.71.0](https://github.com/farena-ai/sara/releases/tag/v2.71.0)** | **[Continuité des projets](docs/FOR_CODERS.md#project-now-other-chats-and-current-checks)** — Vos conversations de code sur un même projet voient ce que font les autres (titres et fichiers, jamais le texte des messages), et chaque résultat de vérification, d’objectif ou de point d’étape indique à jour, périmé ou base inconnue. Sara relance une vérification périmée avant d’affirmer qu’elle passe. |
 | **[2.70.0](https://github.com/farena-ai/sara/releases/tag/v2.70.0)** | **[Scènes de jeu de rôle partagées](docs/SCENES.md)** — Une histoire dans vos conversations web, Telegram et Discord plus un salon partagé, avec des faits versionnés que vous ajoutez, modifiez ou retirez. Les invités gardent toutes les règles de partenaire ; leurs mots ne comptent que si vous choisissez Ajouter à la scène. Supprimer ou oublier une ligne efface ce qui en vient ; les contrôles de sécurité s’appliquent à chaque scène. |

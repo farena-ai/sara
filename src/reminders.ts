@@ -59,6 +59,8 @@ export class ReminderScheduler {
     // Phase 118 (PERSIST §3.1 P4): the loops' clock is this tick (no new timer); goals' approval waits too.
     this.#app.loops?.due(now);
     this.#app.goals?.tick(now.getTime());
+    // E4: file/log watches ride the same tick (a plain read; no model, no timer of their own).
+    this.#app.watches?.due(now);
     return delivered;
   }
 

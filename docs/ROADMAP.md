@@ -46,6 +46,13 @@ In web work Sara edits, previews, takes desktop and phone screenshots, fixes wha
 checks again. Claims about phone width or a finished fix need matching evidence, otherwise the
 reply is marked unverified. See [Web pages: look, fix, look again](FOR_CODERS.md#web-pages-look-fix-look-again).
 
+## Watch a file in 2.73.0
+
+Opt-in alerts: pick a log or file in one of your workspaces (or her own log) and a few literal
+words; Sara posts a chat card and a notification when a new matching line appears, with strict
+rate limits, Check now, Pause and Stop. Reading uses no model and she never fixes anything by
+herself. See [Watch a file](WATCHES.md).
+
 ## Next: more add-ons and a matching library website
 
 The rest of the public add-ons library and new developer add-ons will join the same Settings

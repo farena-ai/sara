@@ -35,7 +35,7 @@
 
 **Sei qui con un team?** Usa la [configurazione aziendale separata](docs/BUSINESS_OPERATIONS.md): passkey individuali, ruoli espliciti e spazi condivisi. È un’installazione manuale con una cartella dati dedicata; gli installer personali non convertono la tua compagna né il tuo nucleo domestico.
 
-> **Stato:** 2.72.0, [Verifiche visive oneste](https://github.com/farena-ai/sara/releases/tag/v2.72.0). Nel lavoro web guarda screenshot desktop e telefono, corregge ciò che non va e ricontrolla prima di dire che è risolto. [Scopri le novità](#novità)
+> **Stato:** 2.73.0, [Sorvegliare un file](https://github.com/farena-ai/sara/releases/tag/v2.73.0). Avvisi facoltativi quando una nuova riga dei tuoi log contiene parole come ERROR, con Controlla ora e Ferma. [Scopri le novità](#novità)
 >
 > Installer Windows: non firmato ([guida SmartScreen](docs/INSTALL.md)). Il processo di rilascio macOS richiede download firmati e autenticati da Apple; ogni build viene verificata separatamente. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web nella schermata Home](docs/PHONE.md).
 
@@ -124,6 +124,7 @@ Versioni recenti · 5 novembre 2026. [Registro completo](CHANGELOG.md) · [Tutti
 
 | Versione | Cosa cambia per te |
 |---|---|
+| **[2.73.0](https://github.com/farena-ai/sara/releases/tag/v2.73.0)** | **[Sorvegliare un file](docs/WATCHES.md)** — Scegli un log o un file in uno dei tuoi spazi di lavoro (o il suo log) e alcune parole come ERROR; Sara invia una scheda in chat e una notifica quando compare una nuova riga corrispondente, al massimo 12 al giorno. Controlla ora, Pausa e Ferma; la lettura non usa modelli e non corregge mai nulla da sola. |
 | **[2.72.0](https://github.com/farena-ai/sara/releases/tag/v2.72.0)** | **[Verifiche visive oneste](docs/FOR_CODERS.md#web-pages-look-fix-look-again)** — Nel lavoro web Sara modifica, mostra l’anteprima, fa screenshot desktop e telefono, corregge ciò che appare sbagliato e ricontrolla. Dire di aver controllato la larghezza telefono richiede uno screenshot a quella larghezza, e "è risolto" richiede una verifica dopo l’ultima modifica; altrimenti la risposta è segnata come non verificata. |
 | **[2.71.0](https://github.com/farena-ai/sara/releases/tag/v2.71.0)** | **[Continuità dei progetti](docs/FOR_CODERS.md#project-now-other-chats-and-current-checks)** — Le tue chat di codice sullo stesso progetto vedono cosa fanno le altre (titoli e file, mai il testo dei messaggi), e ogni risultato di verifica, obiettivo o checkpoint indica aggiornato, superato o base sconosciuta. Sara ripete una verifica superata prima di dire che passa. |
 | **[2.70.0](https://github.com/farena-ai/sara/releases/tag/v2.70.0)** | **[Scene di gioco di ruolo condivise](docs/SCENES.md)** — Una storia nelle tue chat web, Telegram e Discord più una stanza condivisa, con fatti versionati che aggiungi, modifichi o ritiri. Gli ospiti mantengono tutte le regole da partner; le loro parole contano solo quando scegli Aggiungi alla scena. Eliminare o dimenticare una riga cancella ciò che ne deriva; i controlli di sicurezza valgono per ogni scena. |

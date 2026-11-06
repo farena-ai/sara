@@ -211,6 +211,8 @@ export interface AppContext {
   /** Phase 118 (PERSIST): this companion's chat goals and loops (owner space only; src/goals.ts, src/loops.ts). */
   goals?: import('./goals.ts').Goals;
   loops?: import('./loops.ts').Loops;
+  /** E4: the owner's file/log watches (owner space only; src/watch.ts). Checked on the reminder tick. */
+  watches?: import('./watch.ts').Watches;
   /** Phase 99: shared household boards (src/shared-boards.ts) and who this space is. Never on the demo. */
   sharedBoards?: import('./shared-boards.ts').SharedBoardsAccess;
   /** Set by the server: stops the turn running in a conversation (a card's Stop). */

@@ -53,7 +53,7 @@ export const SETTINGS_KEYWORDS = {
  * come from the `/` menu's own list (GET /api/chat-menu), so the words stay with the commands.
  */
 export const ELSEWHERE = [
-  { id: 'planner:routines', label: ['Planner', 'Routines'], words: ['routine', 'routines', 'bedtime', 'morning routine', 'weekly review routine', 'gallery'] },
+  { id: 'planner:routines', label: ['Planner', 'Routines'], words: ['routine', 'routines', 'bedtime', 'morning routine', 'weekly review routine', 'gallery', 'watch a file', 'watch log', 'log alert', 'file alert', 'error alert'] },
   { id: 'planner:repeats', label: ['Planner', 'Repeats'], words: ['repeats', 'repeat', 'loop', 'loops', 'every 10 minutes'] },
   { id: 'planner:reminders', label: ['Planner', 'Reminders'], words: ['reminder', 'reminders', 'remind me', 'when it comes up', 'places'] },
   { id: 'planner:todos', label: ['Planner', 'To-dos'], words: ['to-do', 'todo', 'todos', 'task list'] },

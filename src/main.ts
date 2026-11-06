@@ -59,6 +59,7 @@ import { createPlannerTools, PlannerStore, type Reminder } from './planner.ts';
 import { fileChannelChats } from './bridges/rooms.ts';
 import { Goals } from './goals.ts';
 import { Loops } from './loops.ts';
+import { Watches } from './watch.ts';
 import { ReminderScheduler } from './reminders.ts';
 import { CompanionHub, EventHub } from './events.ts';
 import { InnerStore } from './inner.ts';
@@ -891,6 +892,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isDemo && !isMember) {
     app.goals = new Goals(app, store.db);
     app.loops = new Loops(app, store.db);
+    // E4: file/log watches (the owner's only); they come back paused after a restart.
+    app.watches = new Watches(app, store.db);
     const g = app.goals.startupSweep();
     const l = app.loops.startupSweep();
     if (g || l) console.log(`Keep going and repeats: ${g} goal(s) and ${l} repeat(s) from before the restart are paused.`);

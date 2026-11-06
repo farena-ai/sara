@@ -47,6 +47,7 @@ import { initHousehold, joinFromLink, loadAccount, loadHousehold, showPaused } f
 import { compactNotice, dimFolded, initLean, loadLean, paintSheet } from './lean.js';
 import { initPersist, loadPersistSettings, loadRepeats, openGoalCard, openLoopCard, persistEvent, persistMessage, persistOpen, savePersistSettings } from './persist.js';
 import { initRoutines, loadRoutines, openRoutinesAt, setRoutinesOpener, todayRoutineCards } from './routines.js';
+import { initWatches, watchNotice } from './watches.js';
 import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-check.js';
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
@@ -1836,6 +1837,9 @@ function renderMessages(messages, opts = {}) {
     } else if (m.role === 'notice' && m.kind === 'command') {
       // Phase 107: /new, /reset, /stop… from a chat app or typed here (never a message to her).
       els.push(bubble('notice', commandNotice(m), 'command', m.id));
+    } else if (m.role === 'notice' && m.kind === 'watch') {
+      // E4: a watched file's new matching line (or a paused watch), labelled as the app's (web/watches.js).
+      els.push(watchNotice(m));
     } else if (m.role === 'notice' && m.kind === 'call') {
       els.push(bubble('notice', `📞 ${t('Sara called you')}: ${m.content}`, 'call', m.id));
     } else if (m.role === 'assistant' && !m.content.trim() && !m.meta?.proof?.length) {
@@ -6246,6 +6250,7 @@ function startEvents() {
       }
       if (ev.message.meta?.call) b.classList.add('missed-call');
       if (ev.message.role === 'notice' && ev.message.content.startsWith('agenda:')) append(agendaNotice(ev.message));
+      else if (ev.message.role === 'notice' && ev.message.content.startsWith('watch:')) append(watchNotice({ ...ev.message, content: ev.message.content.slice(6) }));
       else if (ev.message.role === 'notice' && ev.message.content.startsWith('job:')) {
         append(jobCard(ev.message.content.slice(4), ev.message.meta?.status, ev.message.meta));
         const rc = ev.message.meta?.card ? renderCard(ev.message.meta.card) : null;
@@ -8824,6 +8829,22 @@ initPersist({ api, state, el, openConversation: (id) => void openConversation(id
 initLean({ api, state, el, reload: () => void openConversation(state.currentId), newSession: () => void runChatCommand('/new') });
 // Phase 121: routines (Planner → Routines) and the safety check-up (Settings → Data & health).
 initRoutines({ api, el, openConversation: (id) => { $('#planner').close(); void openConversation(id); }, openSettings: (page) => { $('#planner').close(); void openSettings(page); } });
+// E4: Watch a file (web/watches.js): Ask about this puts his own question in the message box of the watch's chat.
+initWatches({
+  api,
+  el,
+  ask: async (id, text) => {
+    if ($('#planner').open) $('#planner').close();
+    if (state.currentId !== id) await openConversation(id);
+    $('#input').value = text;
+    $('#input').dispatchEvent(new Event('input'));
+    $('#input').focus();
+  },
+  openWatches: async () => {
+    await openRoutinesAt('');
+    $('#rt-watch-h')?.scrollIntoView({ block: 'start' });
+  },
+});
 initSafetyCheck({ api, el, openSettings: (page) => void openSettings(page) });
 // Phase 120: the @ menu and chips; who may use references here is decided again by the server.
 initRefs({

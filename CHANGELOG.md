@@ -5,6 +5,16 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.73.0 (2026-11-06): watch a file
+
+- **Watch a file:** in *Planner → Routines*, Sara can watch a log or file in one of your
+  workspaces (or her own log) for a few words like `ERROR`. When a new matching line appears she
+  posts a chat card and sends a notification, at most one every 10 minutes and 12 a day, with
+  repeats counted up. Each watch has *Check now*, *Pause*, *Stop* and *Stop and forget*. Reading uses
+  no model, she never fixes anything by herself, and a line goes to a model only when you ask
+  about it. Owner only; watches pause after a restart and end after 30 days. See
+  [Watch a file](docs/WATCHES.md).
+
 ## 2.72.0 (2026-11-06): honest visual checks
 
 - **Honest visual checks:** in web work a "checked at phone width" claim needs a screenshot at

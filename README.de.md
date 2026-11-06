@@ -35,7 +35,7 @@
 
 **Du kommst mit einem Team?** Nutze die [separate Unternehmenseinrichtung](docs/BUSINESS_OPERATIONS.md): individuelle Passkeys, ausdrückliche Rollen und gemeinsame Arbeitsbereiche. Die manuelle Installation hat einen eigenen Datenordner; persönliche Installer wandeln weder deine Begleiterin noch deinen Haushalt um.
 
-> **Status:** 2.72.0, [Ehrliche Sichtprüfungen](https://github.com/farena-ai/sara/releases/tag/v2.72.0). Bei Web-Arbeit sieht sie sich Desktop- und Handy-Screenshots an, behebt Fehler und prüft erneut, bevor sie „behoben“ sagt. [Was ist neu?](#was-ist-neu)
+> **Status:** 2.73.0, [Datei beobachten](https://github.com/farena-ai/sara/releases/tag/v2.73.0). Optionale Hinweise, wenn eine neue Zeile in deinen Logs Wörter wie ERROR enthält, mit Jetzt prüfen und Stopp. [Was ist neu?](#was-ist-neu)
 >
 > Windows-Installer: unsigniert ([SmartScreen-Hilfe](docs/INSTALL.md)). Der macOS-Release-Prozess verlangt signierte und notarisierte Downloads; jeder Build wird gesondert geprüft. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [Web-App auf dem Home-Bildschirm](docs/PHONE.md).
 
@@ -124,6 +124,7 @@ Aktuelle Releases · 5. November 2026. [Vollständiges Änderungsprotokoll](CHAN
 
 | Version | Was sich für dich ändert |
 |---|---|
+| **[2.73.0](https://github.com/farena-ai/sara/releases/tag/v2.73.0)** | **[Datei beobachten](docs/WATCHES.md)** — Wähle ein Log oder eine Datei in einem deiner Arbeitsbereiche (oder ihr eigenes Log) und ein paar Wörter wie ERROR; Sara schickt eine Chat-Karte und eine Benachrichtigung, wenn eine neue passende Zeile erscheint, höchstens 12 am Tag. Jetzt prüfen, Pause und Stopp; das Lesen nutzt kein Modell, und sie behebt nie selbst etwas. |
 | **[2.72.0](https://github.com/farena-ai/sara/releases/tag/v2.72.0)** | **[Ehrliche Sichtprüfungen](docs/FOR_CODERS.md#web-pages-look-fix-look-again)** — Bei Web-Arbeit bearbeitet Sara, zeigt eine Vorschau, macht Desktop- und Handy-Screenshots, behebt, was falsch aussieht, und prüft erneut. Eine Aussage zur Handybreite braucht einen Screenshot in dieser Breite, und „behoben“ braucht eine Prüfung nach ihrer letzten Änderung; sonst wird die Antwort als ungeprüft markiert. |
 | **[2.71.0](https://github.com/farena-ai/sara/releases/tag/v2.71.0)** | **[Projektkontinuität](docs/FOR_CODERS.md#project-now-other-chats-and-current-checks)** — Deine Coding-Chats am selben Projekt sehen, woran die anderen arbeiten (Titel und Dateien, nie Nachrichtentext), und jedes Prüf-, Ziel- und Checkpoint-Ergebnis zeigt aktuell, veraltet oder Basis unbekannt. Sara wiederholt eine veraltete Prüfung, bevor sie sagt, dass sie besteht. |
 | **[2.70.0](https://github.com/farena-ai/sara/releases/tag/v2.70.0)** | **[Gemeinsame Rollenspielszenen](docs/SCENES.md)** — Eine Geschichte über deine Web-, Telegram- und Discord-Chats plus einen gemeinsamen Raum, mit versionierten Fakten, die du hinzufügst, bearbeitest oder zurückziehst. Gäste behalten alle Partnerregeln; ihre Worte zählen nur, wenn du Zur Szene hinzufügen wählst. Löschen oder Vergessen einer Zeile entfernt, was daraus entstand; die Sicherheitsprüfungen gelten für jede Szene. |
