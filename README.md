@@ -35,7 +35,7 @@
 
 **Here with a team?** Use the [separate business setup](docs/BUSINESS_OPERATIONS.md): individual passkeys, explicit roles and shared workspaces. It is a manual installation with its own data root; personal installers do not convert your companion or household.
 
-> **Status:** 2.70.0, [Shared roleplay scenes](https://github.com/farena-ai/sara/releases/tag/v2.70.0). Play one story across your own chats and one Discord or Telegram room, with story facts you control. [See what changed](#whats-new)
+> **Status:** 2.71.0, [Project continuity](https://github.com/farena-ai/sara/releases/tag/v2.71.0). Coding chats on the same project see each other's active work, and check results say whether they are still current. [See what changed](#whats-new)
 >
 > Windows installer: unsigned ([SmartScreen guidance](docs/INSTALL.md)). The macOS release process requires signed and notarized downloads; each build is qualified separately. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [home-screen web app](docs/PHONE.md).
 
@@ -119,6 +119,7 @@ Recent releases · 5 November 2026. [Full changelog](CHANGELOG.md) · [All downl
 
 | Release | What changed for you |
 |---|---|
+| **[2.71.0](https://github.com/farena-ai/sara/releases/tag/v2.71.0)** | **[Project continuity](docs/FOR_CODERS.md#project-now-other-chats-and-current-checks)** — Your coding chats on the same project see what the others are doing (titles and files, never message text), and every check, goal and checkpoint result says current, stale or basis unknown. Sara re-runs a stale check before saying it passes. |
 | **[2.70.0](https://github.com/farena-ai/sara/releases/tag/v2.70.0)** | **[Shared roleplay scenes](docs/SCENES.md)** — One story across your own web, Telegram and Discord chats plus one shared room, with versioned canon facts you add, edit or retire. Guests keep every partner rule; their words count only when you pick Add to scene. Deleting or forgetting a line erases what came from it; the safety checks apply to every scene. |
 | **[2.69.0](https://github.com/farena-ai/sara/releases/tag/v2.69.0)** | **[Add-ons in Settings](docs/ADDONS_LIBRARY.md)** — Twelve supplied-data workflow candidates use the normal file/permission review and start off. Seven MCP recipe previews, fourteen blocked investigations and six reading guides explain prerequisites, costs and limits. No automatic install, connection or enablement; signed-store availability remains separate. |
 | **[2.68.0](https://github.com/farena-ai/sara/releases/tag/v2.68.0)** | **[Context across your own chats](docs/SESSION_CONTINUITY.md)** — Fresh context across eligible owner chats with the same companion, bounded history reads, internal handoffs and ordered provider steps. Owner switch, inspection and confirmed target-only clear; privacy and tool approvals still apply. Shared scenes, project coordination and full voice/video parity remain future work. |

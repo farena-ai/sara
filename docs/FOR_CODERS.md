@@ -97,6 +97,23 @@ A checkpoint derived from a conversation is removed if its source chat is delete
 message is edited, removed or forgotten. After forgetting source messages, use a fresh coding chat
 or enter a reviewed checkpoint yourself in the editor. Compaction alone preserves the checkpoint.
 
+## Project now: other chats and current checks
+
+In an owner coding chat on one project, Sara sees a short **Project now** note before every step,
+and the chat shows **Also active on this project** under its header when another of your coding
+chats on the same workspace ran within the last 2 hours (or is running): its title, how long ago,
+and the files it touched (`*` = this chat touched the file too). Click the title to open that
+chat. Only titles, times and paths are shown, never message text. It is a note: nothing is locked,
+merged or asked again, and editors outside Sara show up on her next step, not instantly.
+
+Check results now say what they ran on. In **Settings → Coding → Check her edits** and on the goal
+chip a result reads `ran on a1b2c3d + 2 changed files, current`, or `stale since 14:02: HEAD
+a1b2c3d → 9f8e7d6, 3 files changed (…)`, or `basis unknown` (older results, git errors, or very
+large/many changed files). Sara is told that a stale or unknown result is not proof and that she
+must re-run the check before saying it passes. A checkpoint adds `Files changed since saved: N`.
+Private, off-record, group and other-app chats, household members, the demo and business mode
+never get this.
+
 ## Checks after her edits, and @-references (2.53)
 
 After she changes a file, your project's own `tsc`, pyright, mypy, `cargo check`, `go vet` or ESLint

@@ -63,3 +63,10 @@
 .ps-fine { margin: 4px 0 10px; }
 .ps-fine > summary { display: flex; align-items: center; gap: 6px; min-height: 44px; cursor: pointer; font-weight: 600; }
 .ps-fine h4 { margin: 10px 0 6px; }
+/* R1C: what a check ran on, and other chats active on this project (web/project-now.js). */
+.ps-basis-stale, .ps-basis-unknown { color: var(--warn); }
+.project-now { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0 0 6px; padding: 4px 10px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--warn-soft); color: var(--text-1); }
+.project-now[hidden] { display: none; }
+.project-now .pn-lead { font-weight: 600; }
+.project-now .pn-item { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0 2px; min-width: 0; overflow-wrap: anywhere; }
+.project-now .pn-link { padding: 0 4px; min-height: 0; text-decoration: underline; }

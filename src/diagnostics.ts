@@ -14,6 +14,7 @@ import type { AppContext, ChatEvent } from './chat.ts';
 import { en } from './i18n.ts';
 import { fingerprint, fpChanges, runProjectCommand, type Fingerprint } from './persist.ts';
 import { findRepos } from './projectknow.ts';
+import { workspaceRef, type WorkspaceRef } from './runs.ts';
 import type { Conversation } from './store.ts';
 import { windowsShell } from './tools/sandbox.ts';
 import { inside, resolveInside } from './tools/workspace.ts';
@@ -324,6 +325,8 @@ export interface DiagRun {
   warnings: number;
   otherErrors: number;
   note: string | null;
+  /** R1C: the workspace manifest the check ran on (null: basis unknown, recorded before R1C). */
+  basis?: WorkspaceRef | null;
 }
 
 /**
@@ -354,6 +357,8 @@ CREATE TABLE IF NOT EXISTS project_checks (
   python TEXT, asked_at TEXT, decided_at TEXT,
   PRIMARY KEY (workspace, project)
 );`);
+    // R1C (additive): the workspace manifest each run checked. Old rows stay NULL (basis unknown).
+    if (!(this.db.prepare('PRAGMA table_info(diag_runs)').all() as { name: string }[]).some((c) => c.name === 'basis')) this.db.exec('ALTER TABLE diag_runs ADD COLUMN basis TEXT');
   }
   close(): void {
     try {
@@ -384,15 +389,23 @@ CREATE TABLE IF NOT EXISTS project_checks (
     this.db.prepare('DELETE FROM diag_cache WHERE workspace = ? AND project = ? AND rowid NOT IN (SELECT rowid FROM diag_cache WHERE workspace = ? AND project = ? ORDER BY at DESC LIMIT 2000)').run(workspace, project, workspace, project);
   }
   addRun(r: Omit<DiagRun, 'id'>): number {
-    const id = Number(this.db.prepare('INSERT INTO diag_runs (workspace, project, checker, engine, files, started_at, ms, exit_code, state, errors, warnings, other_errors, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(r.workspace, r.project, r.checker, r.engine, JSON.stringify(r.files === '*' ? '*' : r.files.slice(0, 50)), r.startedAt, r.ms, r.exitCode, r.state, r.errors, r.warnings, r.otherErrors, r.note).lastInsertRowid);
+    const id = Number(this.db.prepare('INSERT INTO diag_runs (workspace, project, checker, engine, files, started_at, ms, exit_code, state, errors, warnings, other_errors, note, basis) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(r.workspace, r.project, r.checker, r.engine, JSON.stringify(r.files === '*' ? '*' : r.files.slice(0, 50)), r.startedAt, r.ms, r.exitCode, r.state, r.errors, r.warnings, r.otherErrors, r.note, r.basis ? JSON.stringify(r.basis) : null).lastInsertRowid);
     this.db.prepare('DELETE FROM diag_runs WHERE workspace = ? AND project = ? AND id NOT IN (SELECT id FROM diag_runs WHERE workspace = ? AND project = ? ORDER BY id DESC LIMIT 200)').run(r.workspace, r.project, r.workspace, r.project);
     return id;
   }
   runs(workspace: string, project?: string, limit = 20): DiagRun[] {
     const rows = this.db.prepare(`SELECT * FROM diag_runs WHERE workspace = ?${project ? ' AND project = ?' : ''} ORDER BY id DESC LIMIT ?`).all(...[workspace, ...(project ? [project] : []), limit]) as Record<string, unknown>[];
-    return rows.map((r) => ({ id: Number(r.id), workspace: String(r.workspace), project: String(r.project), checker: String(r.checker), engine: 'command', files: JSON.parse(String(r.files)) as string[] | '*', startedAt: String(r.started_at), ms: r.ms === null ? null : Number(r.ms), exitCode: r.exit_code === null ? null : Number(r.exit_code), state: String(r.state) as DiagRun['state'], errors: Number(r.errors), warnings: Number(r.warnings), otherErrors: Number(r.other_errors), note: (r.note as string | null) ?? null }));
+    return rows.map((r) => ({ id: Number(r.id), workspace: String(r.workspace), project: String(r.project), checker: String(r.checker), engine: 'command', files: JSON.parse(String(r.files)) as string[] | '*', startedAt: String(r.started_at), ms: r.ms === null ? null : Number(r.ms), exitCode: r.exit_code === null ? null : Number(r.exit_code), state: String(r.state) as DiagRun['state'], errors: Number(r.errors), warnings: Number(r.warnings), otherErrors: Number(r.other_errors), note: (r.note as string | null) ?? null, basis: parseRef(r.basis) }));
   }
 }
+
+const parseRef = (v: unknown): WorkspaceRef | null => {
+  try {
+    return typeof v === 'string' && v ? (JSON.parse(v) as WorkspaceRef) : null;
+  } catch {
+    return null;
+  }
+};
 
 const dbs = new Map<string, ChecksDb>();
 /** The checks database of this server's data folder (opened once). */
@@ -458,11 +471,15 @@ export interface CheckerRun {
   note?: string;
   /** The files it was run for ('*' = the project). */
   files: string[] | '*';
+  /** R1C: the workspace manifest taken just before it ran. */
+  basis?: WorkspaceRef;
 }
 
 /** Runs one checker once (no shell for the checker itself; the sandbox's own spawn path). */
 export async function runChecker(app: AppContext, ws: string, project: ProjectRef, checker: Checker, files: string[] | '*', o: { signal: AbortSignal; timeoutMs: number; sandbox?: AppContext['sandbox'] }): Promise<CheckerRun> {
-  const base = { checker, project, files } as const;
+  // R1C: the manifest it checks, taken before it runs (an edit while it runs makes it stale, never current).
+  const basis = await workspaceRef(project.dir).catch((err: Error) => ({ error: String(err.message).slice(0, 200) }) as WorkspaceRef);
+  const base = { checker, project, files, basis } as const;
   if (!checker.installed || (checker.argv[1] && /node_modules/.test(checker.argv[1]) && !existsSync(join(project.dir, checker.argv[1])))) {
     return { ...base, diags: [], ms: 0, exitCode: null, state: 'broken', note: `${checker.label} is not installed in this project` };
   }
@@ -527,7 +544,7 @@ function record(app: AppContext, workspace: string, ws: string, run: CheckerRun,
   }
   const errors = run.diags.filter((x) => x.severity === 'error');
   const touchedSet = new Set(touched);
-  d.addRun({ workspace, project: run.project.path, checker: run.checker.id, engine: 'command', files: run.files, startedAt: at, ms: run.ms, exitCode: run.exitCode, state: run.state, errors: errors.filter((x) => full || touchedSet.has(x.file)).length, warnings: run.diags.length - errors.length, otherErrors: full ? 0 : errors.filter((x) => !touchedSet.has(x.file)).length, note: run.note ?? null });
+  d.addRun({ workspace, project: run.project.path, checker: run.checker.id, engine: 'command', files: run.files, startedAt: at, ms: run.ms, exitCode: run.exitCode, state: run.state, errors: errors.filter((x) => full || touchedSet.has(x.file)).length, warnings: run.diags.length - errors.length, otherErrors: full ? 0 : errors.filter((x) => !touchedSet.has(x.file)).length, note: run.note ?? null, basis: run.basis ?? null });
 }
 
 /** A full check of a project now (the first OK, *Run now*, `/problems check`, goals' Types check). */

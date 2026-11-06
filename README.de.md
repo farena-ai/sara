@@ -35,7 +35,7 @@
 
 **Du kommst mit einem Team?** Nutze die [separate Unternehmenseinrichtung](docs/BUSINESS_OPERATIONS.md): individuelle Passkeys, ausdrückliche Rollen und gemeinsame Arbeitsbereiche. Die manuelle Installation hat einen eigenen Datenordner; persönliche Installer wandeln weder deine Begleiterin noch deinen Haushalt um.
 
-> **Status:** 2.70.0, [Gemeinsame Rollenspielszenen](https://github.com/farena-ai/sara/releases/tag/v2.70.0). Eine Geschichte über deine eigenen Chats und einen Discord- oder Telegram-Raum, mit Story-Fakten, die du steuerst. [Was ist neu?](#was-ist-neu)
+> **Status:** 2.71.0, [Projektkontinuität](https://github.com/farena-ai/sara/releases/tag/v2.71.0). Coding-Chats am selben Projekt sehen die laufende Arbeit der anderen, und Prüfergebnisse zeigen, ob sie noch aktuell sind. [Was ist neu?](#was-ist-neu)
 >
 > Windows-Installer: unsigniert ([SmartScreen-Hilfe](docs/INSTALL.md)). Der macOS-Release-Prozess verlangt signierte und notarisierte Downloads; jeder Build wird gesondert geprüft. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [Web-App auf dem Home-Bildschirm](docs/PHONE.md).
 
@@ -124,6 +124,7 @@ Aktuelle Releases · 5. November 2026. [Vollständiges Änderungsprotokoll](CHAN
 
 | Version | Was sich für dich ändert |
 |---|---|
+| **[2.71.0](https://github.com/farena-ai/sara/releases/tag/v2.71.0)** | **[Projektkontinuität](docs/FOR_CODERS.md#project-now-other-chats-and-current-checks)** — Deine Coding-Chats am selben Projekt sehen, woran die anderen arbeiten (Titel und Dateien, nie Nachrichtentext), und jedes Prüf-, Ziel- und Checkpoint-Ergebnis zeigt aktuell, veraltet oder Basis unbekannt. Sara wiederholt eine veraltete Prüfung, bevor sie sagt, dass sie besteht. |
 | **[2.70.0](https://github.com/farena-ai/sara/releases/tag/v2.70.0)** | **[Gemeinsame Rollenspielszenen](docs/SCENES.md)** — Eine Geschichte über deine Web-, Telegram- und Discord-Chats plus einen gemeinsamen Raum, mit versionierten Fakten, die du hinzufügst, bearbeitest oder zurückziehst. Gäste behalten alle Partnerregeln; ihre Worte zählen nur, wenn du Zur Szene hinzufügen wählst. Löschen oder Vergessen einer Zeile entfernt, was daraus entstand; die Sicherheitsprüfungen gelten für jede Szene. |
 | **[2.69.0](https://github.com/farena-ai/sara/releases/tag/v2.69.0)** | **[Erweiterungen in den Einstellungen](docs/ADDONS_LIBRARY.md)** — Zwölf Abläufe für bereitgestellte Daten nutzen die normale Datei- und Berechtigungsprüfung und sind anfangs ausgeschaltet. Sieben MCP-Rezeptvorschauen, vierzehn blockierte Untersuchungen und sechs Anleitungen erklären Voraussetzungen, Kosten und Grenzen. Keine automatische Installation, Verbindung oder Aktivierung; die Verfügbarkeit im signierten Store bleibt getrennt. |
 | **[2.68.0](https://github.com/farena-ai/sara/releases/tag/v2.68.0)** | **[Kontext zwischen eigenen Chats](docs/SESSION_CONTINUITY.md)** — Frischer Kontext zwischen berechtigten Chats des Eigentümers mit derselben Begleiterin, begrenzte Verlaufsabfragen, interne Notizen und geordnete Anbieterschritte. Eigener Schalter, Einsicht und bestätigtes Löschen nur für das gewählte Ziel; Datenschutz und Werkzeugfreigaben gelten weiterhin. Gemeinsame Szenen, Projektkoordination und vollständige Sprach-/Video-Parität bleiben künftige Arbeit. |

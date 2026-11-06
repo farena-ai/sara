@@ -472,3 +472,58 @@ test('checkpoint prompt quotes multiline content as data and bounds maximum next
     assert.ok(section.includes(saved.nextSteps[1]) && section.includes(saved.nextSteps[2]));
   } finally { f.close(); }
 });
+
+test('R1C1: a saved checkpoint stores its basis; a later edit adds "files changed since saved"; old rows say basis unknown; the cap holds', async () => {
+  const f = fixture();
+  try {
+    const { git } = await import('./project-now-fixture.ts');
+    const { workspaceRef } = await import('../src/runs.ts');
+    const ws = workspaceDir(f.dir, 'main');
+    git(ws, 'init', '-q', '-b', 'main'); git(ws, 'add', '-A'); git(ws, 'commit', '-q', '-m', 'init');
+    f.app.tools.add(checkpointModule.createProjectCheckpointTool(() => f.app));
+    const conv = f.app.store.createConversation({ mode: 'coding' });
+    f.app.store.addMessage(conv.id, 'user', 'Synthetic source.');
+    await f.app.tools.get('project_checkpoint')!.run({ action: 'save', path: '.', logic: 'L'.repeat(1500), blockers: Array(5).fill('B'.repeat(240)), nextSteps: ['N'.repeat(240), 'M'.repeat(240), 'O'.repeat(240)], expectedId: 0 }, { conversationId: conv.id, workspaceDir: ws, sandbox: f.app.sandbox, signal: new AbortController().signal });
+    const saved = f.app.projects!.checkpoints.view('main', '.').current!;
+    assert.deepEqual(saved.basis, await workspaceRef(ws), 'the checkpoint stores the manifest it was saved on');
+    const same = checkpointModule.checkpointSection(f.app, conv, { now: await workspaceRef(ws) })!;
+    assert.doesNotMatch(same, /files changed since saved/i);
+    writeFileSync(join(ws, 'package.json'), '{"name":"fixture","version":"2"}');
+    writeFileSync(join(ws, 'new.ts'), 'export {};');
+    const later = checkpointModule.checkpointSection(f.app, conv, { now: await workspaceRef(ws) })!;
+    assert.match(later, /Files changed since saved: 2/);
+    assert.ok(later.length <= 3000, String(later.length));
+    for (const step of saved.nextSteps) assert.ok(later.includes(step));
+    f.app.store.db.prepare('UPDATE project_checkpoints SET basis = NULL').run();
+    assert.match(checkpointModule.checkpointSection(f.app, conv, { now: await workspaceRef(ws) })!, /basis unknown/i);
+  } finally { f.close(); }
+});
+
+test('R1C1: an existing database gains the nullable basis columns without rewriting rows', async () => {
+  const temp = tempDir();
+  try {
+    const { DatabaseSync } = await import('node:sqlite');
+    const { ChecksDb } = await import('../src/diagnostics.ts');
+    const file = join(temp.dir, 'checks.db');
+    const old = new DatabaseSync(file);
+    old.exec("CREATE TABLE diag_runs (id INTEGER PRIMARY KEY AUTOINCREMENT, workspace TEXT NOT NULL, project TEXT NOT NULL, checker TEXT NOT NULL, engine TEXT NOT NULL, files TEXT NOT NULL, started_at TEXT NOT NULL, ms INTEGER, exit_code INTEGER, state TEXT NOT NULL, errors INTEGER NOT NULL DEFAULT 0, warnings INTEGER NOT NULL DEFAULT 0, other_errors INTEGER NOT NULL DEFAULT 0, note TEXT); INSERT INTO diag_runs (workspace, project, checker, engine, files, started_at, state) VALUES ('main', '.', 'tsc', 'command', '\"*\"', '2026-11-01T00:00:00Z', 'ok');");
+    old.close();
+    const checks = new ChecksDb(file);
+    try {
+      const [run] = checks.runs('main', '.');
+      assert.equal(run.basis, null, 'old rows have no basis');
+      assert.equal(run.checker, 'tsc');
+    } finally { checks.close(); }
+    const app = makeApp(temp.dir, { now: new Date('2026-11-06T12:00:00Z') });
+    try {
+      app.store.db.exec("CREATE TABLE IF NOT EXISTS goal_checks (id INTEGER PRIMARY KEY AUTOINCREMENT, goal_id INTEGER NOT NULL, round INTEGER NOT NULL, run_id INTEGER, kind TEXT NOT NULL, command TEXT, ok INTEGER NOT NULL, exit_code INTEGER, timed_out INTEGER NOT NULL DEFAULT 0, passed INTEGER, failed INTEGER, skipped INTEGER, key TEXT, quote TEXT, tail TEXT NOT NULL DEFAULT '', tampered TEXT, ms INTEGER NOT NULL, at TEXT NOT NULL)");
+      app.store.db.exec('CREATE TABLE IF NOT EXISTS project_checkpoints (id INTEGER PRIMARY KEY AUTOINCREMENT, workspace TEXT NOT NULL, path TEXT NOT NULL, logic TEXT NOT NULL, blockers TEXT NOT NULL, next_steps TEXT NOT NULL, created_at TEXT NOT NULL, source_conversation_id TEXT, source_through_message_id INTEGER)');
+      const { Goals } = await import('../src/goals.ts');
+      new Goals(app);
+      app.projects = new ProjectKnowledgeStore(app, app.store.db);
+      const cols = (t: string) => (app.store.db.prepare(`PRAGMA table_info(${t})`).all() as { name: string }[]).map(c => c.name);
+      assert.ok(cols('goal_checks').includes('basis'));
+      assert.ok(cols('project_checkpoints').includes('basis'));
+    } finally { app.store.close(); }
+  } finally { temp.cleanup(); }
+});

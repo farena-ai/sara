@@ -103,7 +103,9 @@ import { metered } from './usage.ts';
 import { cutOtherSpeakers, GROUP_TOOLS, isGroupChannel, otherLine, ownerLine, stripLeadTag } from './group.ts';
 import { cardFor, type Card } from './cards.ts';
 import { cardOf, checkPlan, contradictionNote, contradictSettings, declinedOutput, gateAct, judgePrompt, judgeSaysNo, type Contradiction, type ContradictionCard } from './contradict.ts';
-import { filesNamed, inputsHash, RunRecorder, toolSetHash } from './runs.ts';
+import { filesNamed, inputsHash, RunRecorder, toolSetHash, workspaceRef, WORKSPACE_TOOLS, type WorkspaceRef } from './runs.ts';
+import { join } from 'node:path';
+import { PROJECT_NOW_MARK, projectNowPath, projectNowSection } from './project-now.ts';
 import { budgetSummaryFallback, LADDER, quickIsCheaper, turnBudgetFor, turnBudgetSettings, TurnMeter, type Budget, type BudgetState, type ModelCallPlan } from './budget.ts';
 import { billingOf, findPrice, priceTable } from './usage.ts';
 import type { SecurityPass } from './security/pass.ts';
@@ -1590,7 +1592,7 @@ function modelAuthorityOf(app: AppContext, s: ReturnType<SettingsStore['get']>, 
 }
 
 /** Keep the established room-to-owner excerpts behind their existing elsewhere gates. */
-function freshSessionNote(app: AppContext, conv: Conversation, service: SessionContinuity, skip?: string): string | undefined {
+function freshSessionNote(app: AppContext, conv: Conversation, service: SessionContinuity, skip?: string, limit = 3800): string | undefined {
   const sessions = service.list().sessions;
   const ids = new Set(sessions.map(s => s.id));
   const sourceStore = app.store;
@@ -1617,8 +1619,8 @@ function freshSessionNote(app: AppContext, conv: Conversation, service: SessionC
   // The established excerpt is already bounded. Budget the escaped representation as sent.
   let excerpt = recent ?? '';
   const tail = handoff ? `\n${handoff}` : '';
-  while (excerpt && heading.length + quote(excerpt).length + tail.length > 3800) excerpt = excerpt.slice(0, Math.max(0, excerpt.length - 100));
-  return `${heading}${excerpt && heading.length + quote(excerpt).length + tail.length <= 3800 ? quote(excerpt) : ''}${tail}`;
+  while (excerpt && heading.length + quote(excerpt).length + tail.length > limit) excerpt = excerpt.slice(0, Math.max(0, excerpt.length - 100));
+  return `${heading}${excerpt && heading.length + quote(excerpt).length + tail.length <= limit ? quote(excerpt) : ''}${tail}`;
 }
 
 async function* runTurnInner(app: AppContext, conversationId: string, userText: string, signal: AbortSignal, opts: TurnOptions, rec: RunRecorder): AsyncGenerator<ChatEvent> {
@@ -1916,6 +1918,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   }
   // Phase 78 (risk 3): coding runs record git HEAD + the dirty files' hashes per step.
   if (conv.mode === 'coding') rec.workspaceDir = wsDir;
+  // R1C: the manifest Project now compares with: fresh on step 0 and after a write/shell/git tool, else reused.
+  let projectNowRef: WorkspaceRef | undefined;
+  let projectRefDue = true;
 
   // 3.4: memories for this turn (selected once, small fixed budget).
   let injection: Injection | undefined;
@@ -2521,8 +2526,17 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         })()
       : buildHistory(store.messages(conv.id), budget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined, opts.group ? undefined : refsText, activeFold);
     // A forget/edit tool can invalidate the source mid-turn. Recheck before every new injection.
-    const checkpointText = checkpointSection(app, conv, { external: checkpointExternal, group: Boolean(opts.group), replay: Boolean(opts.replay) });
+    const nowGate = { external: checkpointExternal, group: Boolean(opts.group), replay: Boolean(opts.replay) };
+    const nowPath = projectNowPath(app, conv, nowGate);
+    if (nowPath && projectRefDue) {
+      projectRefDue = false;
+      projectNowRef = await workspaceRef(nowPath === '.' ? wsDir : join(wsDir, nowPath)).catch((err: Error) => ({ error: String(err.message).slice(0, 200) }));
+    }
+    const checkpointText = checkpointSection(app, conv, { ...nowGate, ...(nowPath ? { now: projectNowRef } : {}) });
     const messages: ChatMessage[] = [{ role: 'system', content: (opts.clientNote?.text.trim() ? system + clientNoteSection(opts.clientNote) : system) + (checkpointText ? '\n\n' + checkpointText : '') + (opts.roomNow?.trim() ? (conv.partner ? roomNowSection(opts.roomNow) : roomNoteSection(opts.roomNow, undefined, true)) : opts.roomNote?.trim() ? roomNoteSection(opts.roomNote) : '') }];
+    // R1C2: Project now (quoted titles, times, paths and check labels; its own mark, never replayed).
+    const projectNow = nowPath ? projectNowSection(app, conv, { ...nowGate, now: projectNowRef }) : undefined;
+    if (projectNow) messages.push({ role: 'system', content: projectNow });
     yield { type: 'context', used: historySize(hist.messages), budget, dropped: hist.dropped };
     if (hist.dropped && activeFold) {
       messages.push({ role: 'user', content: '[Note from the app: even after the tidied part, this conversation is long, so some messages after it are left out here.]' });
@@ -2578,7 +2592,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const inHist = new Set<ChatMessage>(hist.messages);
       const have = new Set(messages.slice(1).filter((m) => !inHist.has(m)).map((m) => m.content));
       // Phase 85: recorded recall notes are not replayed: the triggers decide again (an eval's "off" stays off).
-      for (const x of opts.replay.extra) if (!have.has(x) && !x.startsWith(RECALL_MARK) && !x.startsWith(OWNER_CUES_MARK) && !x.startsWith(FOLLOW_UP_NOTE_MARK) && !x.startsWith(SESSION_CONTINUITY_MARK) && !x.startsWith(SHARED_SCENE_MARK)) messages.push(x.startsWith('[Note from the app') ? { role: 'user', content: x } : { role: 'system', content: x });
+      for (const x of opts.replay.extra) if (!have.has(x) && !x.startsWith(RECALL_MARK) && !x.startsWith(OWNER_CUES_MARK) && !x.startsWith(FOLLOW_UP_NOTE_MARK) && !x.startsWith(SESSION_CONTINUITY_MARK) && !x.startsWith(SHARED_SCENE_MARK) && !x.startsWith(PROJECT_NOW_MARK)) messages.push(x.startsWith('[Note from the app') ? { role: 'user', content: x } : { role: 'system', content: x });
     }
     // Phase 118: a goal round's or a loop tick's note from the app (step 0 only; never stored as his message).
     if (opts.persist?.note && step === 0) messages.push({ role: 'user', content: opts.persist.note });
@@ -2695,7 +2709,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     }
     if (sessionCurrent && sessionContinuity && continuityAllowed(app, conv, opts)) {
       try {
-        const note = freshSessionNote(app, conv, sessionContinuity, pickupSource);
+        // R1C: the R1A note and Project now share the existing 3,800-character budget.
+        const note = freshSessionNote(app, conv, sessionContinuity, pickupSource, 3800 - (projectNow?.length ?? 0));
         if (note) messages.push({ role: 'system', content: note });
       } catch (err) {
         if (!(err instanceof SessionContinuityError) || err.status !== 403) throw err;
@@ -3314,6 +3329,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // Phase 96: a skill body she loaded is marked, so the history keeps it while the task runs.
       const loadedSkill = call.name === 'skill_use' && status === 'ok' ? /^<skill name="([^"]+)"/.exec(output)?.[1] : undefined;
       if (loadedSkill) turnSkills.add(loadedSkill);
+      if (status !== 'denied' && WORKSPACE_TOOLS.test(call.name)) projectRefDue = true;
       if (!store.getConversation(conv.id)) return;
       const toolMsg = store.addMessage(conv.id, 'tool', stored, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status, ms, ...(loadedSkill ? { skill: loadedSkill } : {}), ...(snapshotId ? { snapshotId } : {}), ...(shown.length ? { images: shown } : {}), ...(card ? { card } : {}), ...(flagged?.length ? { contradiction: flagged[0] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(advisoryStop ? { advisory: { ...advisoryStop, ...(advisoryAnswer ? { answer: advisoryAnswer } : {}) } } : {}), ...(guardRec ? { guard: { kind: guardRec.kind, quote: guardRec.quote } } : {}), ...(checksCard ? { checksCard } : {}), ...(checkBlock ? { checked: true } : {}) });
       receipts.push({ name: call.name, status, args: call.arguments, output });

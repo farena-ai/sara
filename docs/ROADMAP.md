@@ -33,16 +33,19 @@ Play one story across your own chats and one shared Discord or Telegram room. St
 and retiring one always asks you. Guests keep every partner rule, and their words become canon
 only when you pick a line with Add to scene. See [Shared scenes](SCENES.md).
 
+## Project continuity in 2.71.0
+
+Coding chats on the same project see each other's active work (titles and touched files, never
+message text). Check, goal and checkpoint results say whether they are current, stale since a
+change, or of unknown basis, and Sara re-runs a stale check before calling it a pass. See
+[Project now](FOR_CODERS.md#project-now-other-chats-and-current-checks).
+
 ## Next: more add-ons and a matching library website
 
 The rest of the public add-ons library and new developer add-ons will join the same Settings
 path, each with its own review. The add-ons pages will then be restyled to match the main site.
 
-## Later: project coordination and calls
-
-Project coordination follows as a separate slice. Private
-audiences are not merged by default, and development history is not automatically proof that a
-current check passed. These are planned features.
+## Later: calls
 
 Voice/video follow-on work will align calls with the same user's text-chat history, memory,
 tools, approvals and enabled adult setting, and add expressive speech such as laughter and sighs

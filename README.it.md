@@ -35,7 +35,7 @@
 
 **Sei qui con un team?** Usa la [configurazione aziendale separata](docs/BUSINESS_OPERATIONS.md): passkey individuali, ruoli espliciti e spazi condivisi. È un’installazione manuale con una cartella dati dedicata; gli installer personali non convertono la tua compagna né il tuo nucleo domestico.
 
-> **Stato:** 2.70.0, [Scene di gioco di ruolo condivise](https://github.com/farena-ai/sara/releases/tag/v2.70.0). Una storia nelle tue chat e in una stanza Discord o Telegram, con fatti della storia che controlli tu. [Scopri le novità](#novità)
+> **Stato:** 2.71.0, [Continuità dei progetti](https://github.com/farena-ai/sara/releases/tag/v2.71.0). Le chat di codice sullo stesso progetto vedono il lavoro attivo delle altre, e i risultati dicono se sono ancora aggiornati. [Scopri le novità](#novità)
 >
 > Installer Windows: non firmato ([guida SmartScreen](docs/INSTALL.md)). Il processo di rilascio macOS richiede download firmati e autenticati da Apple; ogni build viene verificata separatamente. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web nella schermata Home](docs/PHONE.md).
 
@@ -124,6 +124,7 @@ Versioni recenti · 5 novembre 2026. [Registro completo](CHANGELOG.md) · [Tutti
 
 | Versione | Cosa cambia per te |
 |---|---|
+| **[2.71.0](https://github.com/farena-ai/sara/releases/tag/v2.71.0)** | **[Continuità dei progetti](docs/FOR_CODERS.md#project-now-other-chats-and-current-checks)** — Le tue chat di codice sullo stesso progetto vedono cosa fanno le altre (titoli e file, mai il testo dei messaggi), e ogni risultato di verifica, obiettivo o checkpoint indica aggiornato, superato o base sconosciuta. Sara ripete una verifica superata prima di dire che passa. |
 | **[2.70.0](https://github.com/farena-ai/sara/releases/tag/v2.70.0)** | **[Scene di gioco di ruolo condivise](docs/SCENES.md)** — Una storia nelle tue chat web, Telegram e Discord più una stanza condivisa, con fatti versionati che aggiungi, modifichi o ritiri. Gli ospiti mantengono tutte le regole da partner; le loro parole contano solo quando scegli Aggiungi alla scena. Eliminare o dimenticare una riga cancella ciò che ne deriva; i controlli di sicurezza valgono per ogni scena. |
 | **[2.69.0](https://github.com/farena-ai/sara/releases/tag/v2.69.0)** | **[Componenti nelle Impostazioni](docs/ADDONS_LIBRARY.md)** — Dodici flussi su dati forniti usano la normale verifica di file e permessi e partono disattivati. Sette anteprime di ricette MCP, quattordici indagini bloccate e sei guide spiegano requisiti, costi e limiti. Nessuna installazione, connessione o attivazione automatica; la disponibilità nello store firmato resta separata. |
 | **[2.68.0](https://github.com/farena-ai/sara/releases/tag/v2.68.0)** | **[Contesto tra le tue conversazioni](docs/SESSION_CONTINUITY.md)** — Contesto recente tra chat consentite del proprietario con la stessa compagna, lettura limitata della cronologia, note interne e passi ordinati del fornitore. Controllo del proprietario, ispezione e cancellazione confermata del solo destinatario scelto; privacy e approvazioni degli strumenti restano valide. Scene condivise, coordinamento dei progetti e piena parità di voce e video restano sviluppi futuri. |

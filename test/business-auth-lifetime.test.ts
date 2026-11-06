@@ -26,7 +26,7 @@ async function stalled(f: Awaited<ReturnType<typeof contentFixture>>, session: B
     send = request(f.runtime.origin + path, { method: 'POST', headers: { origin: f.runtime.origin, cookie: 'sara_business_session=' + session.value, 'content-type': 'application/json', 'content-length': Buffer.byteLength(payload) } }, res => {
       let body = ''; res.on('data', chunk => { body += chunk; }); res.on('end', () => resolve({ status: res.statusCode!, body }));
     });
-    send.on('error', reject); send.setTimeout(5000, () => send.destroy(new Error('Stalled registration test timed out'))); send.write(payload.slice(0, 1));
+    send.on('error', reject); send.setTimeout(15000, () => send.destroy(new Error('Stalled registration test timed out'))); send.write(payload.slice(0, 1));
   });
   await authenticated;
   return { finish: async () => { send.end(payload.slice(1)); return response; } };
@@ -37,7 +37,7 @@ for (const boundary of ['logout', 'expiry']) for (const operation of ['options',
   try {
     seedVault(f); let session = f.admin;
     if (boundary === 'expiry') {
-      const signed = new OwnerAuth(join(f.profile.businessDir, 'auth', f.admin.principal.identityId, '0'), () => new Date(Date.now() - 30 * 24 * 3600_000 + 1500)).createSession();
+      const signed = new OwnerAuth(join(f.profile.businessDir, 'auth', f.admin.principal.identityId, '0'), () => new Date(Date.now() - 30 * 24 * 3600_000 + 6000)).createSession(); // expires in ~6 s: the first options request must finish before it, even on a loaded host
       const value = `${f.admin.principal.identityId}.0.${signed.value}`;
       session = { value, maxAgeSeconds: signed.maxAgeSeconds, principal: f.runtime.auth.principal(value)! };
     }

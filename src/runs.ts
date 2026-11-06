@@ -718,6 +718,9 @@ export function readHead(dir: string): { head?: string; branch?: string } {
   }
 }
 
+/** Tools after which the workspace manifest is taken again (the recorder and R1C's Project now). */
+export const WORKSPACE_TOOLS = /^(shell|write_file|edit_file|apply_patch|delegate_task)$|^git_/;
+
 const GIT_READONLY = ['-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=/dev/null', '-c', 'core.pager=cat', '-c', 'diff.external=', '-c', 'credential.helper=', '-c', 'core.untrackedCache=false'];
 const MAX_DIRTY = 200;
 const MAX_HASH_BYTES = 2 * 1024 * 1024;
@@ -934,7 +937,7 @@ export class RunRecorder {
     const last = s.calls.at(-1);
     this.#bytes += this.#store!.writeStep(this.id, s.idx, s.info, s.at, s.sha, { model: last?.model ?? null, provider: last?.provider ?? null, calls: s.calls, tools: s.tools, files: [...s.files], contradictions: s.contradictions, stopped: s.stopped, replyMessageId: s.replyMessageId });
     // Coding mode: HEAD + dirty file hashes, in the background (never holds the turn up).
-    if (this.workspaceDir && (s.idx === 0 || s.tools.some((t) => /^(shell|write_file|edit_file|apply_patch|delegate_task)$|^git_/.test(t.name) && t.status !== 'denied'))) {
+    if (this.workspaceDir && (s.idx === 0 || s.tools.some((t) => WORKSPACE_TOOLS.test(t.name) && t.status !== 'denied'))) {
       const dir = this.workspaceDir;
       const store = this.#store!;
       const id = this.id;

@@ -9,6 +9,7 @@
 // itself when the message is saved: this file only helps type them. The sent message shows the chips
 // with "What she got"; her reply shows the checks chip; a first edit in a project shows the card.
 import { t } from './naming.js';
+import { basisWords } from './project-now.js';
 import { fold, score } from './command-bar.js';
 
 const $ = (s) => document.querySelector(s);
@@ -420,7 +421,7 @@ function projectRow(ws, p) {
     if (!c.installed) row.append(ctx.el('span', 'muted small', ` · ${t('Not installed in this project')}: `), ctx.el('code', '', c.install ?? ''));
     if (c.script) row.append(ctx.el('span', 'muted small', ` · ${t('your project’s own script runs the same check')}: `), ctx.el('code', '', c.script));
     const last = p.runs.find((x) => x.checker === c.id);
-    if (last) row.append(ctx.el('span', 'muted small', ` · ${t('last run: {state}, {n} errors', { state: t(last.state), n: last.errors + last.otherErrors })}`));
+    if (last) row.append(ctx.el('span', 'muted small', ` · ${t('last run: {state}, {n} errors', { state: t(last.state), n: last.errors + last.otherErrors })}${last.basisLabel ? ` · ${basisWords(last.basisLabel)}` : ''}`));
     box.append(row);
   }
   const say = ctx.el('p', 'muted small');

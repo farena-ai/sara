@@ -5,6 +5,14 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.71.0 (2026-11-06): project continuity
+
+- **Project now:** owner coding chats see which other coding chats of yours
+  are active on the same project (titles, times and touched files, never message text), and every
+  check, goal and checkpoint result says what it ran on: current, stale since a time with what
+  changed, or basis unknown. Sara must re-run a stale check before saying it passes. A note only:
+  nothing is locked or re-asked. See [Project now](docs/FOR_CODERS.md#project-now-other-chats-and-current-checks).
+
 ## 2.70.0 (2026-11-05): shared roleplay scenes
 
 - **Shared scenes across your own chats:** play one story

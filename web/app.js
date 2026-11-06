@@ -83,6 +83,7 @@ import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, p
 import { createRecovery } from './recovery.js';
 import { createOperations } from './operations.js';
 import { renderProjectCheckpoint } from './project-checkpoints.js';
+import { projectNowOpen } from './project-now.js';
 import { buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintElsewhere, paintSettingsResults, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
 import { closeOpenDialogs, initTours, offerFirstTour, queueTourOffer, runTour, tourFromHash } from './tours.js';
 import { initSidebar } from './sidebar.js';
@@ -1070,6 +1071,8 @@ async function openConversation(id) {
   void persistOpen(conv.id);
   // Phase 119: was he just talking in another of his chats? (the pickup banner)
   void pickupOpen(conv.id);
+  // R1C2: other chats of his active on this project (coding chats only; the server decides).
+  void projectNowOpen(conv.id, { api, open: (other) => void openConversation(other), current: () => state.currentId });
   if (conv.activity && !state.streaming) watchConversation(conv);
   void loadJobs();
   void updateConvUsage();
