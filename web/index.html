@@ -3480,6 +3480,15 @@
             <p id="continuity-status" class="muted small" role="status"></p>
             <p class="small"><a href="/help#session-continuity" target="_blank" rel="noopener">Read the session continuity guide ↗</a></p>
           </div>
+          <!-- R1B1: shared roleplay scenes across your own chats (web/scenes.js). -->
+          <div id="scenes-settings" class="tidy-card tidy-stack" hidden>
+            <h3>Shared scenes <button type="button" class="tip" data-tip="A shared scene is a story she keeps across the chats you link: a title, a premise and a few canon facts. Raw messages are never copied between chats. Only you create, link and change it.">?</button></h3>
+            <label class="row"><input id="scenes-enabled" name="scenes-enabled" type="checkbox" aria-labelledby="scenes-enabled-label"> <span id="scenes-enabled-label">Use shared scenes in linked chats</span> <span><button type="button" class="tip" data-tip="On: linked chats see their scene in her replies. Off stops that everywhere and keeps every scene, so you can still look, unlink, reset or delete.">?</button></span></label>
+            <p class="muted small">Play one story across your own web chat and your own Telegram or Discord DMs. Only the scene's title, premise and canon move between them, never your messages.</p>
+            <div id="scenes-box" class="tidy-stack"></div>
+            <p id="scenes-status" class="muted small" role="status" aria-live="polite"></p>
+            <p class="small"><a href="/help#shared-scenes" target="_blank" rel="noopener">Read the shared scenes guide ↗</a></p>
+          </div>
         </section>
         <!-- Phase 119 (RECALL §3.3, §5.10): pick a chat up in another app (web/pickup.js). -->
         <section class="settings-page" data-page="co-pickup" data-group="Chat apps" data-title="Pick up across apps" data-owner-only hidden>

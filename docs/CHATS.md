@@ -18,6 +18,7 @@ room, household and business audiences remain separate. Explicit shared roleplay
 project coordination are later slices. The development candidate now has owner controls in
 Settings → Chat apps → Session continuity and a saved-context inspector in This conversation.
 See [Session continuity](SESSION_CONTINUITY.md) for disable/clear, retention and conflict handling.
+Shared roleplay scenes across your own chats (development, unreleased): [Shared scenes](SCENES.md).
 Complete qualification is pending; this feature is not in the current public or installed private release.
 
 ## The commands

@@ -15,6 +15,8 @@ import type { DatabaseSync } from 'node:sqlite';
 import { checkpointAllowed } from './project-checkpoints.ts';
 import { continuityAllowed, continuityForTurn } from './session-continuity.ts';
 import { SESSION_TOOLS } from './session-continuity-tools.ts';
+import { SCENE_CANON_TOOL } from './shared-scenes-tools.ts';
+import { sceneCanonPreview } from './shared-scenes-policy.ts';
 
 // ---------------------------------------------------------------------------------------------
 // Settings (owner-only; `lean` in OWNER_SETTINGS), §3.3
@@ -118,7 +120,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^shell$/, 'shell', 'commands'],
   [/^(web_fetch|web_search)$/, 'web', 'web'],
   [/^(todo|note|remind|tasks|add_task|list_tasks|complete_task|update_task|delete_task|add_note|list_notes|read_note|update_note|delete_note)$/, 'planner', 'reminders and notes'],
-  [/^(recall|search_memory|remember_fact|list_facts|scrapbook|moments|session_context|session_handoff)$/, 'memory', 'memory'],
+  [/^(recall|search_memory|remember_fact|list_facts|scrapbook|moments|session_context|session_handoff|scene_canon)$/, 'memory', 'memory'],
   [/^ssh_/, 'ssh', 'SSH servers'],
   [/^code_/, 'code', 'code map'],
   [/^(skill_|recipe_)/, 'skills', 'skills and recipes'],
@@ -599,6 +601,8 @@ export function eligibleFor(app: AppContext, conv: Pick<Conversation, 'private' 
   let tools = app.tools.enabled(s.toolPermissions).filter((t) => !(conv.private && OFF(t.spec.name)));
   if (!checkpointAllowed(app, conv)) tools = tools.filter(t => t.spec.name !== 'project_checkpoint');
   if (!continuityAllowed(app, conv as Conversation) || conv.id && !continuityForTurn(app, conv.id)) tools = tools.filter(t => !SESSION_TOOLS.has(t.spec.name));
+  // R1B2: the same owner-seat binding the turn uses (no seat, paused setting, adult off: not offered).
+  if (!sceneCanonPreview(app, conv as Partial<Conversation>)) tools = tools.filter(t => t.spec.name !== SCENE_CANON_TOOL);
   if (conv.private || work) tools = tools.filter((t) => !t.spec.name.startsWith('ssh_'));
   if (work) tools = tools.filter((t) => !t.spec.name.startsWith('pc_') && t.spec.name !== 'moments');
   if (conv.private) tools = tools.filter((t) => !t.spec.name.startsWith('agenda_'));

@@ -70,6 +70,7 @@ import { openRunView } from './run-view.js';
 import { recallChip, recallKindWords } from './recall-view.js';
 import { initWhen, loadWhenList, loadWhenSettings, saveWhenSettings, whenChip, whenFor } from './recall-when.js';
 import { initSessionContinuity, loadSessionContinuitySettings, saveSessionContinuitySettings, loadConversationContinuity } from './session-continuity.js';
+import { addToSceneAction, initScenes, loadSceneSettings, renderSceneChip, saveSceneSettings } from './scenes.js';
 import { initPickup, loadPickupSettings, pickupAfterReply, pickupNotice, pickupOpen, savePickupSettings } from './pickup.js';
 import { initEvals, onEvalEvent, openEvals } from './evals-view.js';
 import { renderCard, renderCards } from './result-cards.js';
@@ -1627,6 +1628,8 @@ function msgActions(div, m, { last, lastUser, other = false }) {
     // Phase 70: a photo can go in "Our moments" by hand (e.g. from a private conversation).
     if (!state.conv?.offRecord && !other && Array.isArray(m.meta?.images) && m.meta.images.length) bar.append(addToMomentsButton(m.id));
   }
+  // R1B3: the owner picks a line of a linked chat (his, hers or a guest's in the shared room) as canon.
+  if (!other) { const sceneAdd = addToSceneAction(m, state.conv, act); if (sceneAdd) bar.append(sceneAdd); }
   if (m.role === 'assistant' && m.meta?.model) {
     const who = el('span', 'msg-model', m.meta.model);
     who.dataset.raw = '';
@@ -1697,6 +1700,8 @@ function unfinished(messages) {
 }
 
 function renderMessages(messages, opts = {}) {
+  // R1B3: "In scene: <title>" beside the title of a linked conversation (owner only).
+  renderSceneChip(state.conv);
   const box = $('#messages');
   state.messages = messages;
   if (!messages.length) {
@@ -7772,7 +7777,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'ab-precise') void loadPreciseSettings();
   if (pick === 'ab-when') void loadWhenSettings();
   if (pick === 'co-pickup') void loadPickupSettings();
-  if (pick === 'co-continuity') void loadSessionContinuitySettings();
+  if (pick === 'co-continuity') void Promise.all([loadSessionContinuitySettings(), loadSceneSettings()]);
   if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam(), loadCodeProjects(), loadProjectDials()]);
   if (pick === 'ab-ssh') void loadSsh();
   if (pick === 'ab-library') void loadLibrarySettings();
@@ -7946,7 +7951,7 @@ const SETTINGS_SAVERS = {
   'ab-precise': [savePreciseSettings],
   'ab-when': [saveWhenSettings],
   'co-pickup': [savePickupSettings],
-  'co-continuity': [saveSessionContinuitySettings],
+  'co-continuity': [saveSessionContinuitySettings, saveSceneSettings],
   'ab-projects': [saveSandboxGate, saveSecPass, saveThreatModel, saveRedTeam],
 };
 const settingsChanged = new Set();
@@ -8846,6 +8851,7 @@ initSlash({
 });
 initWhen({ api, el });
 initSessionContinuity({ api });
+initScenes({ api });
 initPickup({ api, el, state, reload: (id) => void openConversation(id) });
 initLearning();
 initBoard({ fmtDue: (iso) => fmtDue(iso, false), openConversation: (id) => openConversation(id), openPlanner: async (tab) => {

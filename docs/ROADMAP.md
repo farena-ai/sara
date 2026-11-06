@@ -26,14 +26,21 @@ from verified signed-store availability. Review, installation and per-companion 
 explicit; nothing is automatically installed, connected or enabled. Image preparation is not image
 generation; a supplied home snapshot is not live device control. See [the add-ons library](ADDONS_LIBRARY.md).
 
+## Shared roleplay scenes in 2.70.0
+
+Play one story across your own chats and one shared Discord or Telegram room. Story facts
+(canon) are versioned and stay under your control; she can read and save them in your own chats,
+and retiring one always asks you. Guests keep every partner rule, and their words become canon
+only when you pick a line with Add to scene. See [Shared scenes](SCENES.md).
+
 ## Next: more add-ons and a matching library website
 
 The rest of the public add-ons library and new developer add-ons will join the same Settings
 path, each with its own review. The add-ons pages will then be restyled to match the main site.
 
-## Later: shared scenes, project coordination and calls
+## Later: project coordination and calls
 
-Explicit shared roleplay scenes and project coordination follow as separate slices. Private
+Project coordination follows as a separate slice. Private
 audiences are not merged by default, and development history is not automatically proof that a
 current check passed. These are planned features.
 

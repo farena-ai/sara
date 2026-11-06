@@ -719,3 +719,16 @@ dialog:not(.settings-dialog) .settings-body > :is(.error, p[role="status"]):empt
   /* Above the phone's bottom bar. */
   .update-note { bottom: calc(76px + var(--safe-b)); }
 }
+
+/* R1B1 shared scenes (web/scenes.js): same cards at desktop and phone width. */
+.scene-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.scene-head .status-chip { margin-left: 0; }
+.scene-title { margin: 0; overflow-wrap: anywhere; }
+.scene-premise, .scene-text, .scene-history p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.scene-field input, .scene-field textarea, .scene-field select { width: 100%; box-sizing: border-box; }
+/* R1B3: the shared room confirm card, the "In scene" chip and the Add to scene dialog. */
+.scene-room-confirm ul { margin: 0; padding-left: 1.2em; }
+.scene-room-confirm li { overflow-wrap: anywhere; }
+#chat-head .scene-chip { margin-left: 0; align-self: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; padding: 0 var(--s-2); }
+.scene-add-dialog { width: min(520px, calc(100vw - 24px)); box-sizing: border-box; }
+.scene-add-line { margin: 0; padding: var(--s-2) var(--s-3); border-left: 3px solid var(--hairline-strong); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 30vh; overflow: auto; }

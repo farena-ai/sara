@@ -17,6 +17,7 @@ import type { AppContext } from '../chat.ts';
 import type { PlannerStore, Project } from '../planner.ts';
 import type { Conversation } from '../store.ts';
 import { installSessionRoomInvalidation } from '../session-handoffs.ts';
+import { installSceneRoomInvalidation } from '../shared-scenes.ts';
 
 export type ChannelKind = 'telegram' | 'discord' | 'plugin';
 export interface ChannelProject {
@@ -209,6 +210,7 @@ function roomsTable(app: AppContext): void {
   UNIQUE (bridge, key)
 )`);
   installSessionRoomInvalidation(app.store.db);
+  installSceneRoomInvalidation(app.store.db);
 }
 
 type Row = Record<string, string | number | null>;

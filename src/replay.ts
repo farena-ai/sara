@@ -44,6 +44,7 @@ import { Store, type Conversation, type StoredMessage } from './store.ts';
 import { workspaceDir } from './tools/workspace.ts';
 import { OWNER_CUES_MARK } from './attunement.ts';
 import { SESSION_CONTINUITY_MARK } from './session-continuity.ts';
+import { SHARED_SCENE_MARK } from './shared-scenes-policy.ts';
 
 /** An error with the HTTP status the route answers with. */
 export class ReplayError extends Error {
@@ -161,6 +162,10 @@ export function rebuildStep(app: AppContext, runId: number, idx: number): Rebuil
   const replayExtra = extra.filter(x => !x.startsWith(SESSION_CONTINUITY_MARK));
   const omittedContinuity = replayExtra.length !== extra.length;
   if (omittedContinuity) problems.push(said(en('Live session context was omitted from this replay.')));
+  // R1B: shared-scene canon is live context too; replay does no scene lookup, gate or write.
+  const omittedScene = replayExtra.some(x => x.startsWith(SHARED_SCENE_MARK));
+  if (omittedScene) problems.push(said(en('Shared scene context was omitted from this replay.')));
+  if (omittedScene) replayExtra.splice(0, replayExtra.length, ...replayExtra.filter(x => !x.startsWith(SHARED_SCENE_MARK)));
   const messages: ChatMessage[] = [];
   let rest = replayExtra;
   if (hist.dropped && replayExtra[0]?.startsWith(LONG_NOTE)) {
@@ -186,7 +191,7 @@ export function rebuildStep(app: AppContext, runId: number, idx: number): Rebuil
   if (run.parentRunId && run.branchedFromStep !== null) {
     for (const m of stored) if (m.role === 'tool' && !priorTools.some((p) => p.messageId === m.id) && m.id > (run.userMessageId ?? 0)) priorTools.push({ step: -1, callId: String(m.meta?.toolCallId ?? ''), name: String(m.meta?.name ?? ''), summary: String(m.meta?.summary ?? ''), output: m.content, messageId: m.id });
   }
-  const exact = omittedEvidence || omittedContinuity ? false : step.inputsSha ? inputsHash(messages) === step.inputsSha : null;
+  const exact = omittedEvidence || omittedContinuity || omittedScene ? false : step.inputsSha ? inputsHash(messages) === step.inputsSha : null;
   if (exact === false && !problems.length) problems.push(said(en('Something it saw has changed since (a message or note was edited).')));
   const call = mainCall(step);
   const [polProvider, ...polModel] = String(run.policy?.model ?? '').split('/');

@@ -6,6 +6,7 @@ import type { Role } from './providers/types.ts';
 import { StartupError } from './settings.ts';
 import { SOURCE_NAME, type HistorySource } from './history-import/types.ts';
 import { installSessionHandoffSchema } from './session-handoffs.ts';
+import { installSharedSceneSchema } from './shared-scenes.ts';
 
 /** Phase 51: conversations brought in from another assistant's export live on these channels. */
 export const isImportChannel = (channel: string): boolean => channel.startsWith('import-');
@@ -251,6 +252,7 @@ export class Store {
       this.db.exec(SCHEMA);
       migrate(this.db);
       installSessionHandoffSchema(this.db);
+      installSharedSceneSchema(this.db);
     } catch (err) {
       const e = err as Error & { code?: string; errcode?: number };
       throw new StartupError(

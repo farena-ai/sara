@@ -5,6 +5,29 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.70.0 (2026-11-05): shared roleplay scenes
+
+- **Shared scenes across your own chats:** play one story
+  across your own web chat and your own Telegram or Discord DMs. Settings → Chat apps → Session
+  continuity → Shared scenes: create a scene, link chats after seeing who will experience it, and
+  keep short canon facts with history, retire, reset and delete. Her replies in linked chats get the
+  current canon in one marked, capped block; messages are never copied between chats. Editing or
+  forgetting a source line, privacy/channel/archive changes and room identity changes revoke what
+  came from them. Crisis turns leave the scene out, the stop word pauses it, adult scenes need Adult
+  mode, minors canon is refused. Household scenes are a later slice. See
+  [Shared scenes](docs/SCENES.md).
+- **One shared room per scene:** link one Discord channel, Telegram group or DM with a guest
+  to a scene after seeing exactly who is in it (Confirm is bound to that room). Guests experience the
+  canon in her replies and keep every partner rule: no tools, approvals, memories or your other
+  chats. Their words become canon only when you pick a line with **Add to scene** in its message
+  menu; her replies there never record canon. Adult scenes take only adult rooms while Adult mode
+  is on, never a guest DM. Linked chats show an "In scene" chip, to you only.
+- **Her scene canon tool:** in your own linked chats she can read the scene's canon and
+  save facts with `scene_canon` (revision-checked, same safety checks as your own canon); retiring
+  a fact always asks you first. Her facts are marked "Written by her in a linked chat" and are erased
+  with the reply they came from. Never offered outside your own scene seats, in replays, on crisis
+  turns or when set to Never.
+
 ## 2.69.0 (2026-11-05): add-ons in existing Settings
 
 - **Companion-pack ratings:** dotted release numbers such as 2.69.0 no longer count as explicit

@@ -68,6 +68,8 @@ import { createSafetyCheckRoutes } from './routes/safety-check.ts';
 import { createRoutineRoutes } from './routes/routines.ts';
 import { createRecallRoutes } from './routes/recall.ts';
 import { createSessionContinuityRoutes } from './routes/session-continuity.ts';
+import { sceneChipFor } from './shared-scenes-policy.ts';
+import { createSceneRoutes } from './routes/scenes.ts';
 import { pickupsFor } from './pickup.ts';
 import { createAgendaRoutes } from './routes/agenda.ts';
 import { createPlannerRoutes } from './routes/planner.ts';
@@ -659,6 +661,12 @@ export function createSaraServer(opts: ServerOptions): Server {
     });
     return { room, members };
   }
+  /** R1B3: the "In scene" chip, for the owner's own companion only (never members, demo or off-record). */
+  const sceneInfo = (cx: AppContext, conv: Conversation) => {
+    if (cx !== app || opts.member || opts.demo || app.member || app.demo || app.offRecord || spaceId !== 'owner') return {};
+    const chip = sceneChipFor(app, conv.id);
+    return chip ? { scene: chip } : {};
+  };
   const groupInfo = (conv: Conversation) => {
     const room = isGroupChannel(conv.channel) ? rooms().get(conv.channelKey) : undefined;
     return room ? { group: roomView(room) } : {};
@@ -878,6 +886,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   // Phase 119: when it comes up, and picking a chat up in another app (src/routes/recall.ts).
   const recallRoutes = createRecallRoutes(ctx);
   const sessionContinuityRoutes = createSessionContinuityRoutes(ctx);
+  const sceneRoutes = createSceneRoutes(ctx);
   // Phase 100: her address on the Agent Card is the one the peer used (https behind a trusted proxy).
   if (app.a2a) app.a2a.baseOf = (req) => `${isHttps(req) ? 'https' : 'http'}://${String(req.headers.host ?? 'localhost')}`;
   const plannerRoutes = createPlannerRoutes(ctx);
@@ -1255,6 +1264,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await routineRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await recallRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await sessionContinuityRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await sceneRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 87: computer use: the computers, the live view, step thumbnails (src/routes/hands.ts).
     if ((await handsRoutes(req, res, method, parts)) !== NEXT) return;
 
@@ -1874,7 +1884,7 @@ export function createSaraServer(opts: ServerOptions): Server {
           const { limit } = pageOpts();
           const page = limit ? cx.store.messagesPage(b, { limit }) : { messages: cx.store.messages(b), earlier: 0 };
           const ts = cx.store.titleState(b);
-          return send(res, 200, { ...conv, ...(offRecord ? { offRecord: true } : {}), ...titleView(cx, conv, ts), ...(offRecord ? { titleNever: 'off-record' } : {}), ...groupInfo(conv), messages: page.messages.map(view), earlier: page.earlier, pinned: pins(), activity: activityView(b), together: cx.together?.activity(b) ?? null, pending: pendOf(b).list(b) });
+          return send(res, 200, { ...conv, ...(offRecord ? { offRecord: true } : {}), ...titleView(cx, conv, ts), ...(offRecord ? { titleNever: 'off-record' } : {}), ...groupInfo(conv), ...sceneInfo(cx, conv), messages: page.messages.map(view), earlier: page.earlier, pinned: pins(), activity: activityView(b), together: cx.together?.activity(b) ?? null, pending: pendOf(b).list(b) });
         }
         if (c === 'messages' && !parts[3] && method === 'GET') {
           const { limit, before } = pageOpts();

@@ -54,6 +54,12 @@ export interface ToolContext {
     context: (args: { action: 'list' } | { action: 'read'; conversationId: string; before?: number }) => Promise<string>;
     handoff: (args: { targetId: string; text: string; expectedId: number }) => Promise<string>;
   };
+  /** R1B2: host-bound shared-scene canon of the current owner seat; never reconstructed from model arguments. */
+  sceneCanon?: {
+    read: () => Promise<string>;
+    set: (args: { key: string; text: string; expectedRevision: number }) => Promise<string>;
+    retire: (args: { key: string; expectedRevision: number }) => Promise<string>;
+  };
 }
 
 export interface Tool {

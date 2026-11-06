@@ -43,6 +43,8 @@ import {
 import { elsewhereNote } from './elsewhere.ts';
 import { continuityAllowed, continuityForTurn, SESSION_CONTINUITY_MARK, SessionContinuityError, type SessionContinuity } from './session-continuity.ts';
 import { acquireSessionStep } from './session-step-gate.ts';
+import { pauseSceneForStopWord, sceneCanonForTurn, sceneContextForTurn, sceneSeatFor, SceneError, SHARED_SCENE_MARK } from './shared-scenes-policy.ts';
+import { SCENE_CANON_TOOL } from './shared-scenes-tools.ts';
 import { SESSION_TOOLS } from './session-continuity-tools.ts';
 import { pickupForTurn } from './pickup.ts';
 import { afterReply as mentionAfterReply, matchMentions, mentionNote, mentionSettings, outgoingHolds, ownChat, roomMentionToDm, takeCards, wirePeople, type MentionHit } from './mentions.ts';
@@ -1626,9 +1628,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     yield { type: 'error', message: 'Conversation not found.' };
     return;
   }
+  // R1B: set only when this step's request carried the shared-scene block (memory labels it fiction).
+  let sceneTag: { id: number; revision: number } | undefined;
   // Bind audit identity at insertion; finalization must not edit dialogue or overwrite later edits.
   const addAssistantMessage = (content: string, meta: Record<string, unknown>) =>
-    store.addMessage(conv.id, 'assistant', content, { ...meta, ...(rec.on ? { runId: rec.id } : {}) });
+    store.addMessage(conv.id, 'assistant', content, { ...meta, ...(sceneTag ? { scene: sceneTag } : {}), ...(rec.on ? { runId: rec.id } : {}) });
   const admissionScope = captureToolScope(conv, conv.workspace, privateLocalOn());
   // Bind before hooks or approvals: a replacement app/store must never acquire fresh authority.
   const sessionContinuity = continuityForTurn(app, conv.id, opts);
@@ -1723,6 +1727,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     yield { type: 'done', messageId: msg.id };
     return;
   }
+  // R1B1: a shared-scene seat is bound only after the minors block, so a blocked message never
+  // reaches scene code. The block itself is rebuilt from persisted rows after the step gate.
+  const sceneDatabase = sceneSeatFor(app, conv, opts) ? store.db : undefined;
 
   // Phase 120 (PRECISE §5.4, §5.6): his @-references are read once, now, when the message is saved
   // (a Continue uses the stored rows; Regenerate and edit save the message again and read again).
@@ -1771,7 +1778,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     safetyNotes.push(CRISIS_SYSTEM_NOTE);
   }
   // Phase 35: the stop word ends any scene at once.
-  if (!conv.partner && usedStopWord(text, app.persona.intimacy?.stopWord)) safetyNotes.push(STOP_NOTE(app.settings.get().ownerName?.trim() || 'the owner'));
+  if (!conv.partner && usedStopWord(text, app.persona.intimacy?.stopWord)) {
+    safetyNotes.push(STOP_NOTE(app.settings.get().ownerName?.trim() || 'the owner'));
+    // R1B1: the stop word also pauses a shared scene for every seat; only the owner resumes it.
+    if (sceneDatabase) pauseSceneForStopWord(app, conv.id);
+  }
 
   // Phase 123 (LEAN §5.7): near the limit, the older part is tidied before the first model call (his
   // own chats, coding chats and goal rounds; never a partner chat, a group, another app, a replay or
@@ -1880,6 +1891,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const checkpointExternal = external || Boolean(opts.externalApp || opts.outside || opts.clientHistory || opts.clientNote || opts.roomNote || opts.roomNow || opts.roomId !== undefined || opts.recorder);
   if (checkpointExternal || opts.group || opts.replay || !checkpointAllowed(app, conv)) tools = tools.filter(t => t.spec.name !== 'project_checkpoint');
   if (!sessionContinuity) tools = tools.filter(t => !SESSION_TOOLS.has(t.spec.name));
+  // R1B2: scene_canon only with a host-bound capability for an eligible owner seat; never on a crisis turn.
+  const sceneCanon = sceneDatabase && !safetyNotes.includes(CRISIS_SYSTEM_NOTE) ? sceneCanonForTurn(app, conv.id, opts, adultOn) : undefined;
+  const sceneCanonCurrent = () => Boolean(sceneCanon && sceneDatabase && store.db === sceneDatabase && app.store.db === sceneDatabase && !safetyNotes.includes(CRISIS_SYSTEM_NOTE) && sceneCanon.current());
+  if (!sceneCanon) tools = tools.filter(t => t.spec.name !== SCENE_CANON_TOOL);
   // Phase 98 (ST3, STAPLES §6.4): plugins see only the owner's own turns (never private, partner,
   // group, imported, adult-channel, other apps', replayed or eval turns), and their tools are only
   // offered there.
@@ -2373,6 +2388,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       tools = tools.filter(t => !revoked.has(t.spec.name));
       turnTools.revoke(revoked);
     }
+    // R1B2: a revoked seat, paused setting, crisis or 'never' withdraws scene_canon (late discovery too).
+    if (!sceneCanonCurrent() || app.tools.permission(SCENE_CANON_TOOL, app.settings.get().toolPermissions) === 'never') {
+      tools = tools.filter(t => t.spec.name !== SCENE_CANON_TOOL);
+      turnTools.revoke(new Set([SCENE_CANON_TOOL]));
+    }
   };
   for (let step = 0; step < maxSteps; step++) {
     try { currentScope(); } catch (err) {
@@ -2558,7 +2578,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const inHist = new Set<ChatMessage>(hist.messages);
       const have = new Set(messages.slice(1).filter((m) => !inHist.has(m)).map((m) => m.content));
       // Phase 85: recorded recall notes are not replayed: the triggers decide again (an eval's "off" stays off).
-      for (const x of opts.replay.extra) if (!have.has(x) && !x.startsWith(RECALL_MARK) && !x.startsWith(OWNER_CUES_MARK) && !x.startsWith(FOLLOW_UP_NOTE_MARK) && !x.startsWith(SESSION_CONTINUITY_MARK)) messages.push(x.startsWith('[Note from the app') ? { role: 'user', content: x } : { role: 'system', content: x });
+      for (const x of opts.replay.extra) if (!have.has(x) && !x.startsWith(RECALL_MARK) && !x.startsWith(OWNER_CUES_MARK) && !x.startsWith(FOLLOW_UP_NOTE_MARK) && !x.startsWith(SESSION_CONTINUITY_MARK) && !x.startsWith(SHARED_SCENE_MARK)) messages.push(x.startsWith('[Note from the app') ? { role: 'user', content: x } : { role: 'system', content: x });
     }
     // Phase 118: a goal round's or a loop tick's note from the app (step 0 only; never stored as his message).
     if (opts.persist?.note && step === 0) messages.push({ role: 'user', content: opts.persist.note });
@@ -2630,10 +2650,12 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       yield { type: 'error', message: signal.aborted ? 'Stopped.' : err.message };
       return;
     }
-    if (sessionCurrent && sessionContinuity && continuityAllowed(app, conv, opts)) {
+    const sceneStep = Boolean(sceneDatabase && store.db === sceneDatabase && sceneSeatFor(app, store.getConversation(conv.id) ?? conv, opts));
+    if ((sessionCurrent && sessionContinuity && continuityAllowed(app, conv, opts)) || sceneStep) {
       try {
         currentScope();
-        const ticket = acquireSessionStep(database!, conv.id, gateAbort.signal);
+        // Seats of one scene share the per-database gate, so each step sees the canon committed before it.
+        const ticket = acquireSessionStep(database ?? sceneDatabase!, conv.id, gateAbort.signal);
         // Attach both handlers before yielding: the consumer can leave the generator paused.
         void ticket.ready.then(release => { releaseStep = release; if (gateClosed || signal.aborted) releaseSessionStep(); }, () => {});
         const waitFrom = Date.now();
@@ -2661,6 +2683,16 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       return;
     }
     narrowSessionTools();
+    // R1B1: fresh shared-scene canon after the gate; left out on crisis turns (she steps out of the story).
+    sceneTag = undefined;
+    if (sceneDatabase && store.db === sceneDatabase && !safetyNotes.includes(CRISIS_SYSTEM_NOTE)) {
+      const block = sceneContextForTurn(app, conv.id, opts, adultOn);
+      const bound = block ? sceneSeatFor(app, store.getConversation(conv.id) ?? conv, opts) : undefined;
+      if (block && bound) {
+        messages.push({ role: 'system', content: block });
+        sceneTag = { id: bound.scene.id, revision: bound.scene.revision };
+      }
+    }
     if (sessionCurrent && sessionContinuity && continuityAllowed(app, conv, opts)) {
       try {
         const note = freshSessionNote(app, conv, sessionContinuity, pickupSource);
@@ -2863,7 +2895,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     for (const [callIdx, call] of calls.entries()) {
       const tool = tools.find(t => t.spec.name === call.name) ?? app.tools.get(call.name);
       let summary = app.redactor.redact(tool?.summarize(call.arguments) ?? call.name);
-      if (SESSION_TOOLS.has(call.name)) summary = trOwner(summary, app.settings.get());
+      if (SESSION_TOOLS.has(call.name) || call.name === SCENE_CANON_TOOL) summary = trOwner(summary, app.settings.get());
       const shownArgs = app.redactor.redactValue(call.arguments);
       yield { type: 'tool_call', id: call.id, name: call.name, summary, args: shownArgs };
       const started = Date.now();
@@ -2893,6 +2925,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const currentAdmission = () => {
         currentScope();
         if (SESSION_TOOLS.has(call.name) && (!sessionCurrent || !sessionContinuity || !continuityAllowed(app, conv, opts))) throw new ToolAdmissionError(trOwner(en('Session continuity is unavailable in this context.'), app.settings.get()));
+        if (call.name === SCENE_CANON_TOOL && !sceneCanonCurrent()) throw new ToolAdmissionError(trOwner(en('Shared scene canon is unavailable in this context.'), app.settings.get()));
         // Preserve the original eligibility refusal for tools never offered in this context.
         if (!tool || conv.partner || !tools.includes(tool)) return tool ? app.tools.permission(call.name, app.settings.get().toolPermissions) : 'never';
         return assertToolAdmission(app, admissionScope, tool, signal, { workspace: conv.workspace, privateLocal: privateLocalOn(), offServer: OFFSERVER_TOOL(call.name), network: sandbox.network });
@@ -3193,11 +3226,25 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
                     catch (err) { throw new ToolError(trOwner((err as Error).message, app.settings.get())); }
                   },
                 } } : {}),
+                ...(sceneCanon ? { sceneCanon: (() => {
+                  // Re-admitted at the effect; the source is this step's saved row, never a model argument.
+                  const effect = (work: () => string): Promise<string> => {
+                    admit();
+                    if (!sceneCanonCurrent()) throw new ToolError(en('Shared scene canon is unavailable in this context.'));
+                    try { return Promise.resolve(work()); }
+                    catch (err) { throw err instanceof SceneError ? new ToolError(err.message) : err; }
+                  };
+                  return {
+                    read: () => effect(() => sceneCanon.read()),
+                    set: (a: { key: string; text: string; expectedRevision: number }) => effect(() => sceneCanon.set(a, saved.id)),
+                    retire: (a: { key: string; expectedRevision: number }) => effect(() => sceneCanon.retire(a)),
+                  };
+                })() } : {}),
               });
               if (tried && sbDecision === 'ran') output = `[tried in a sandbox copy first: ${changesLine(tried.changes)}; the owner chose to run it for real]\n${output}`;
             } catch (err) {
               status = 'error';
-              output = err instanceof ToolError ? `Error: ${SESSION_TOOLS.has(call.name) ? trOwner(err.message, app.settings.get()) : err.message}` : `Error: ${(err as Error).message}`;
+              output = err instanceof ToolError ? `Error: ${SESSION_TOOLS.has(call.name) || (call.name === SCENE_CANON_TOOL && err.message === en('Shared scene canon is unavailable in this context.')) ? trOwner(err.message, app.settings.get()) : err.message}` : `Error: ${(err as Error).message}`;
             }
           }
         } catch (err) {
