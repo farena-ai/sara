@@ -206,6 +206,9 @@ interface Candidate {
 // The store (one row per red-team run; additive table in each space's sara.db)
 // ------------------------------------------------------------------------------------------------
 
+
+/** How long a reproduction waits for an answer to a break that was not a hang (see #patient). */
+const REPRO_WAIT_MS = 15_000;
 export class RedTeamStore {
   readonly #db: DatabaseSync;
   constructor(db: DatabaseSync) {
@@ -477,6 +480,15 @@ export class RedTeam {
     const iso = this.#iso();
     const g = gate?.settings();
     return runInSandbox(wsDir, command, { cacheDir: gate?.cacheDir ?? `${this.#app.dataDir}/cache/sandbox-runs`, base: this.#app.sandbox, isolation: iso, network: false, timeoutMs, signal, maxBytes: (g?.maxMB ?? 500) * 1048576, keep: false, ...(g?.dockerImage ? { dockerImage: g.dockerImage } : {}), preferWorktree: false, ...(inject ? { inject } : {}) });
+  }
+
+  /**
+   * Reproduction waits for the answer itself (up to REPRO_WAIT_MS) for every break that was not a
+   * hang: judged by the hang limit, a crash that answers slowly on a busy machine came back as a
+   * "timeout" and was dropped as not reproduced. A hang is still judged by the hang limit.
+   */
+  #patient<T extends object>(x: T, kinds: BreakKind[]): T {
+    return kinds.includes('timeout') ? x : { ...x, waitMs: REPRO_WAIT_MS };
   }
 
   /** Runs the driver with a plan in a sandbox copy of `dir`; returns its events and the try's findings. */
@@ -807,7 +819,7 @@ export class RedTeam {
     const probeC = cands.filter((c) => c.by === 'probe' && c.probe);
     if (probeC.length && !signal.aborted) {
       const port = start?.portFrom === 'fixed' ? start.port! : await freePort(input.ports ?? portRange());
-      const plan: DriverPlan & { cli: Record<string, string> } = { mode: 'repro', start, port, startMs: this.timing.startMs, reqMs: this.timing.reqMs, fresh: true, probes: probeC.map((c) => c.probe!), scripts: [], scriptMs: 20_000, deadlineMs: Math.max(10_000, Math.min(120_000, s.minutes * 60_000)), cli: Object.fromEntries(probeC.filter((c) => c.entry?.kind === 'cli').map((c) => [c.entry!.id, c.entry!.file])) };
+      const plan: DriverPlan & { cli: Record<string, string> } = { mode: 'repro', start, port, startMs: this.timing.startMs, reqMs: this.timing.reqMs, fresh: true, probes: probeC.map((c) => (c.probe!.type === 'http' ? this.#patient(c.probe!, [c.kind]) : c.probe!)), scripts: [], scriptMs: 20_000, deadlineMs: Math.max(10_000, Math.min(120_000, s.minutes * 60_000)), cli: Object.fromEntries(probeC.filter((c) => c.entry?.kind === 'cli').map((c) => [c.entry!.id, c.entry!.file])) };
       const d = await this.#drive(input.wsDir, plan, {}, signal);
       for (const c of probeC) {
         const x = d.events.find((e) => e.t === 'x' && e.probe === c.probe!.id) as unknown as Exchange | undefined;
@@ -828,7 +840,7 @@ export class RedTeam {
         const x = l[0].script!;
         const file = `${DRIVER_DIR}/${x.id.toLowerCase()}.${x.lang === 'python' ? 'py' : 'mjs'}`;
         files[file] = x.code;
-        return { id: x.id, lang: x.lang, file };
+        return this.#patient({ id: x.id, lang: x.lang, file }, l.map((c) => c.kind));
       });
       const d = await this.#drive(input.wsDir, { mode: 'scripts', start, port, startMs: this.timing.startMs, reqMs: this.timing.reqMs, fresh: true, probes: [], scripts, scriptMs: 20_000, deadlineMs: 90_000 }, files, signal);
       for (const c of scriptC) {
@@ -1021,7 +1033,7 @@ export class RedTeam {
       const probe = m.repro as Probe;
       const entry = m.entry as { id: string; file: string } | undefined;
       if (probe.type === 'http' && !startPlan) return 1;
-      const plan: DriverPlan & { cli: Record<string, string> } = { mode: 'repro', start: startPlan, port: startPlan?.portFrom === 'fixed' ? startPlan.port! : await freePort(portRange()), startMs: this.timing.startMs, reqMs: this.timing.reqMs, fresh: true, probes: [probe], scripts: [], scriptMs: 0, deadlineMs: 30_000, cli: entry ? { [entry.id]: entry.file } : {} };
+      const plan: DriverPlan & { cli: Record<string, string> } = { mode: 'repro', start: startPlan, port: startPlan?.portFrom === 'fixed' ? startPlan.port! : await freePort(portRange()), startMs: this.timing.startMs, reqMs: this.timing.reqMs, fresh: true, probes: [probe.type === 'http' ? this.#patient(probe, [kind]) : probe], scripts: [], scriptMs: 0, deadlineMs: 30_000, cli: entry ? { [entry.id]: entry.file } : {} };
       const d = await this.#drive(dir, plan, {}, signal);
       const st = d.events.find((e) => e.t === 'start');
       if (probe.type === 'http' && !st?.ok) return 1;
@@ -1032,7 +1044,7 @@ export class RedTeam {
     if (m.script && typeof m.script === 'object' && startPlan) {
       const sc = m.script as { id: string; lang: ScriptLang; code: string; path: string };
       const file = `${DRIVER_DIR}/${sc.id.toLowerCase()}.${sc.lang === 'python' ? 'py' : 'mjs'}`;
-      const d = await this.#drive(dir, { mode: 'scripts', start: startPlan, port: startPlan.portFrom === 'fixed' ? startPlan.port! : await freePort(portRange()), startMs: this.timing.startMs, reqMs: this.timing.reqMs, fresh: true, probes: [], scripts: [{ id: sc.id, lang: sc.lang, file }], scriptMs: 20_000, deadlineMs: 60_000 }, { [file]: sc.code }, signal);
+      const d = await this.#drive(dir, { mode: 'scripts', start: startPlan, port: startPlan.portFrom === 'fixed' ? startPlan.port! : await freePort(portRange()), startMs: this.timing.startMs, reqMs: this.timing.reqMs, fresh: true, probes: [], scripts: [this.#patient({ id: sc.id, lang: sc.lang, file }, [kind])], scriptMs: 20_000, deadlineMs: 60_000 }, { [file]: sc.code }, signal);
       const ev = d.events.find((e) => e.t === 'script');
       const recs = ((ev?.records ?? []) as (Exchange & { path: string })[]).filter((r) => r.path === sc.path);
       return recs.some((r) => breaksIn({ ...r, probe: 'S' }, secrets).includes(kind)) ? 1 : 0;

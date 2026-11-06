@@ -1,0 +1,8 @@
+{
+  "name": "sara-developer-code-graph-tooling",
+  "private": true,
+  "type": "module",
+  "engines": {"node": "^22.18.0 || >=24.11.0"},
+  "dependencies": {"@babel/parser":"8.1.0","@babel/traverse":"8.1.0"},
+  "devDependencies": {"esbuild":"0.28.2"}
+}

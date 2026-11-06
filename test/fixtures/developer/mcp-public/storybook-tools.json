@@ -1,0 +1,329 @@
+{
+  "status": "ready",
+  "error": "",
+  "tools": [
+    {
+      "name": "stories-preview",
+      "title": "Get story preview URLs",
+      "description": "Use this tool to get one or more Storybook preview URLs.\nCall it after editing anything that changes how the UI looks — components, stories, styles, CSS, themes, colors, or design tokens — no exceptions. A shared file has no stories of its own: preview the stories of the components that consume it.\nInclude each returned preview URL in your final user-facing response so users can open them directly.",
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://stories-preview/preview.html"
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "stories": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "exportName": {
+                      "type": "string",
+                      "description": "The export name of the story from the story file.\nUse this path-based shape only when you're already editing a .stories.* file and know the export names in that file.\nIf you do not already have story file context, prefer the storyId shape instead of searching files."
+                    },
+                    "explicitStoryName": {
+                      "type": "string",
+                      "description": "If the story has an explicit name set via the \"name\" property, that is different from the export name, provide it here.\nOtherwise don't set this."
+                    },
+                    "absoluteStoryPath": {
+                      "type": "string",
+                      "description": "Absolute path to the story file. Use together with exportName only when story file context is already available."
+                    },
+                    "props": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {},
+                      "description": "Optional custom props to pass to the story for rendering. Use this when you don't want to render the default story,\nbut you want to customize some args or other props.\nYou can look up the component's documentation using the get-storybook-story-instructions tool to see what props are available."
+                    },
+                    "globals": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {},
+                      "description": "Optional Storybook globals to set for the story preview. Globals are used for things like theme, locale, viewport, and other cross-cutting concerns.\nCommon globals include 'theme' (e.g., 'dark', 'light'), 'locale' (e.g., 'en', 'fr'), and 'backgrounds' (e.g., { value: '#000' })."
+                    }
+                  },
+                  "required": [
+                    "exportName",
+                    "absoluteStoryPath"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "storyId": {
+                      "type": "string",
+                      "description": "The full Storybook story ID (for example \"button--primary\").\nPrefer this shape whenever you are not already working in a specific story file.\nUse IDs discovered from docs-list (withStoryIds=true) or docs-show."
+                    },
+                    "props": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {},
+                      "description": "Optional custom props to pass to the story for rendering. Use this when you don't want to render the default story,\nbut you want to customize some args or other props.\nYou can look up the component's documentation using the get-storybook-story-instructions tool to see what props are available."
+                    },
+                    "globals": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {},
+                      "description": "Optional Storybook globals to set for the story preview. Globals are used for things like theme, locale, viewport, and other cross-cutting concerns.\nCommon globals include 'theme' (e.g., 'dark', 'light'), 'locale' (e.g., 'en', 'fr'), and 'backgrounds' (e.g., { value: '#000' })."
+                    }
+                  },
+                  "required": [
+                    "storyId"
+                  ]
+                }
+              ]
+            },
+            "description": "Stories to preview.\nPrefer { storyId } when you don't already have story file context, since this avoids filesystem discovery.\nUse { storyId } when IDs were discovered from documentation tools.\nUse { absoluteStoryPath + exportName } only when you're already working in a specific .stories.* file and already have that context."
+          }
+        },
+        "required": [
+          "stories"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "stories": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "previewUrl": {
+                      "type": "string",
+                      "description": "Direct URL to open the story preview. Include this URL in the final user-facing response so users can open it directly."
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "name",
+                    "previewUrl"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "input": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "exportName": {
+                              "type": "string",
+                              "description": "The export name of the story from the story file.\nUse this path-based shape only when you're already editing a .stories.* file and know the export names in that file.\nIf you do not already have story file context, prefer the storyId shape instead of searching files."
+                            },
+                            "explicitStoryName": {
+                              "type": "string",
+                              "description": "If the story has an explicit name set via the \"name\" property, that is different from the export name, provide it here.\nOtherwise don't set this."
+                            },
+                            "absoluteStoryPath": {
+                              "type": "string",
+                              "description": "Absolute path to the story file. Use together with exportName only when story file context is already available."
+                            },
+                            "props": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {},
+                              "description": "Optional custom props to pass to the story for rendering. Use this when you don't want to render the default story,\nbut you want to customize some args or other props.\nYou can look up the component's documentation using the get-storybook-story-instructions tool to see what props are available."
+                            },
+                            "globals": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {},
+                              "description": "Optional Storybook globals to set for the story preview. Globals are used for things like theme, locale, viewport, and other cross-cutting concerns.\nCommon globals include 'theme' (e.g., 'dark', 'light'), 'locale' (e.g., 'en', 'fr'), and 'backgrounds' (e.g., { value: '#000' })."
+                            }
+                          },
+                          "required": [
+                            "exportName",
+                            "absoluteStoryPath"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "storyId": {
+                              "type": "string",
+                              "description": "The full Storybook story ID (for example \"button--primary\").\nPrefer this shape whenever you are not already working in a specific story file.\nUse IDs discovered from docs-list (withStoryIds=true) or docs-show."
+                            },
+                            "props": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {},
+                              "description": "Optional custom props to pass to the story for rendering. Use this when you don't want to render the default story,\nbut you want to customize some args or other props.\nYou can look up the component's documentation using the get-storybook-story-instructions tool to see what props are available."
+                            },
+                            "globals": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {},
+                              "description": "Optional Storybook globals to set for the story preview. Globals are used for things like theme, locale, viewport, and other cross-cutting concerns.\nCommon globals include 'theme' (e.g., 'dark', 'light'), 'locale' (e.g., 'en', 'fr'), and 'backgrounds' (e.g., { value: '#000' })."
+                            }
+                          },
+                          "required": [
+                            "storyId"
+                          ]
+                        }
+                      ]
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "input",
+                    "error"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "required": [
+          "stories"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get-storybook-story-instructions",
+      "title": "Storybook Story Development Instructions",
+      "description": "Get comprehensive instructions for writing, testing, and fixing Storybook stories (.stories.tsx, .stories.ts, .stories.jsx, .stories.js, .stories.svelte, .stories.vue files).\n\nCRITICAL: You MUST call this tool before:\n- Creating new Storybook stories or story files\n- Updating or modifying existing Storybook stories\n- Adding new story variants or exports to story files\n- Editing any file matching *.stories.* patterns\n- Writing components that will need stories\n- Editing anything that changes how the UI looks — components, styles, CSS, themes, colors, or design tokens; a shared file with no stories of its own still changes its consumers' stories\n\nThis tool provides essential Storybook-specific guidance including:\n- How to structure stories correctly for Storybook 9\n- Required imports (Meta, StoryObj from framework package)\n- Test utility imports (from 'storybook/test')\n- Story naming conventions and best practices\n- Play function patterns for interactive testing\n- Mocking strategies for external dependencies\n- Story variants and coverage requirements\n\nEven if you're familiar with Storybook, call this tool to ensure you're following the correct patterns, import paths, and conventions for this specific Storybook setup.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "stories-find-by-component",
+      "title": "Get stories for component files",
+      "description": "Map component source files to the stories that render them, returning grounded `storyId` values from the live Storybook index — hand these to stories-preview instead of guessing.\n\nReach for this whenever you need story IDs, whatever shape the input has: files you just edited, a feature/domain/topic the user named, or a query like \"all consumers of X\". First resolve the input to a list of absolute component file paths using filesystem search (grep / Glob / find) and code reading — that bridge is yours to build; this tool starts where it ends. One common trap: when the changed file is _shared_ infrastructure (theme token, design token, util, hook, CSS module) it isn't itself a component — grep for its consumers and pass _their_ paths, not the shared file's. If the symbol you grepped looks like one member of a related group (sibling tokens, neighboring exports), widen to the rest of the group too — a too-narrow grep silently drops stories. Try `stories-changed` first for \"I just edited X\" when it's available; if a file you touched is missing from its response, treat that file as the shared-infrastructure case and route its consumers through this tool.\n\nResults are sorted by `distance` (0 = the path you passed is itself a story file, 1 = direct importer, 2+ = transitive; lower = stronger). Shared primitives are usually consumed through wrapper components, so the distance-1 bucket is often empty — the default `maxDistance: 3` keeps that cascade visible while capping noise from wide decorators; raise it to widen recall, lower it to tighten precision. The distance buckets map onto the visual cascade (the component itself → direct importers → page-level context) — use them to decide which stories to preview; when several stories of a component share a distance, prefer the variant whose name signals it renders the changed surface.\n\nNever invent IDs from file names, feature names, or memory; title strings can be overridden by story authors, so only IDs returned by discovery tools resolve. If a component has no matches here, it has no stories yet (say so, don't fabricate).\n\nBacked by Storybook's live reverse dependency graph, available only when the dev server runs a builder that supports change detection (e.g. Vite) — otherwise returns a typed error.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "componentPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "description": "Absolute paths to component source files (e.g. \"/repo/src/Button.tsx\").\nPass the components you actually want stories for — typically files you just read, edited, or that the user mentioned.\nRelative paths are also accepted and resolved against the Storybook working directory, but absolute paths are preferred for unambiguous results.\nStory files (`*.stories.*`) are accepted too: they appear at distance 0 as self-matches, plus any reverse-graph hits (other stories that import them)."
+          },
+          "maxDistance": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Ceiling on the import depth to include in results. Must be a positive integer.\n- 1: only stories that directly import the component.\n- 2+: also include stories that reach the component through N hops.\nDefaults to 3; raise it to widen recall, lower it to tighten precision. Shared components (Button, Icon, …) accumulate noisy indirect matches at distance ≥ 3, so the default cap protects against runaway results."
+          }
+        },
+        "required": [
+          "componentPaths"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "componentPath": {
+                  "type": "string"
+                },
+                "matches": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "storyId": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "importPath": {
+                        "type": "string"
+                      },
+                      "distance": {
+                        "type": "number",
+                        "description": "Import-graph depth from the story file to the component (lower = stronger). 0: the path you passed is itself a story file (self-match). 1: story file directly imports the component. 2+: reached through N hops."
+                      }
+                    },
+                    "required": [
+                      "storyId",
+                      "title",
+                      "name",
+                      "importPath",
+                      "distance"
+                    ]
+                  }
+                },
+                "clipped": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "number"
+                    },
+                    "distances": {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      }
+                    }
+                  },
+                  "required": [
+                    "count",
+                    "distances"
+                  ],
+                  "description": "Present only when `maxDistance` filtered out one or more matches. `count` is how many were dropped; `distances` lists the (sorted, distinct) distances those dropped matches sat at — widen `maxDistance` to include them."
+                },
+                "pathNotFound": {
+                  "type": "boolean",
+                  "description": "`true` when no file exists at the resolved absolute path. Distinguishes a typo from \"this component has no stories yet\". The agent should re-check the path it sent."
+                }
+              },
+              "required": [
+                "componentPath",
+                "matches"
+              ]
+            }
+          }
+        },
+        "required": [
+          "results"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    }
+  ]
+}

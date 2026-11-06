@@ -1,0 +1,52 @@
+{
+  "manifest": 1,
+  "id": "visual-regression",
+  "name": "Visual Regression",
+  "version": "1.0.0",
+  "description": "Compare supplied PNG pairs offline at desktop/phone sizes. Exact pixels only; no capture or URL access. Supplied images may be sensitive.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "compare"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Visual Regression": "Regresión visual",
+      "Compare supplied PNG pairs offline at desktop/phone sizes. Exact pixels only; no capture or URL access. Supplied images may be sensitive.": "Compara pares PNG proporcionados sin conexión en tamaños de escritorio y móvil. Píxeles exactos; sin capturas ni acceso URL. Las imágenes pueden ser sensibles."
+    },
+    "fr": {
+      "Visual Regression": "Régression visuelle",
+      "Compare supplied PNG pairs offline at desktop/phone sizes. Exact pixels only; no capture or URL access. Supplied images may be sensitive.": "Compare hors ligne des paires PNG fournies aux tailles bureau et téléphone. Pixels exacts ; aucune capture ni accès URL. Les images peuvent être sensibles."
+    },
+    "de": {
+      "Visual Regression": "Visuelle Regression",
+      "Compare supplied PNG pairs offline at desktop/phone sizes. Exact pixels only; no capture or URL access. Supplied images may be sensitive.": "Vergleicht bereitgestellte PNG-Paare offline in Desktop-/Telefongröße. Exakte Pixel; keine Aufnahme oder URL-Zugriffe. Bilder können sensibel sein."
+    },
+    "pt-BR": {
+      "Visual Regression": "Regressão visual",
+      "Compare supplied PNG pairs offline at desktop/phone sizes. Exact pixels only; no capture or URL access. Supplied images may be sensitive.": "Compara pares PNG fornecidos offline em tamanhos de computador e telefone. Pixels exatos; sem captura nem acesso URL. As imagens podem ser sensíveis."
+    },
+    "it": {
+      "Visual Regression": "Regressione visiva",
+      "Compare supplied PNG pairs offline at desktop/phone sizes. Exact pixels only; no capture or URL access. Supplied images may be sensitive.": "Confronta coppie PNG fornite offline in formati desktop e telefono. Pixel esatti; nessuna cattura o accesso URL. Le immagini possono essere sensibili."
+    }
+  }
+}

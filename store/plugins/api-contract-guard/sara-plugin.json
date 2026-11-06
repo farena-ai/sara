@@ -1,0 +1,39 @@
+{
+  "manifest": 1,
+  "id": "api-contract-guard",
+  "name": "API Contract Guard",
+  "description": "Compare bounded OpenAPI JSON contracts offline.",
+  "version": "0.1.0",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "author": "Sara contributors",
+  "license": "MIT",
+  "permissions": {
+    "tools": [
+      "compare"
+    ],
+    "files": { "read": [], "write": [] }
+  },
+  "i18n": {
+    "es": {
+      "name": "Guardián de contratos API",
+      "description": "Compara contratos JSON OpenAPI limitados sin conexión."
+    },
+    "fr": {
+      "name": "Gardien des contrats API",
+      "description": "Compare des contrats JSON OpenAPI bornés hors ligne."
+    },
+    "de": {
+      "name": "API-Vertragsprüfung",
+      "description": "Vergleicht begrenzte OpenAPI-JSON-Verträge offline."
+    },
+    "pt-BR": {
+      "name": "Proteção de contratos API",
+      "description": "Compara contratos JSON OpenAPI limitados sem conexão."
+    },
+    "it": {
+      "name": "Controllo contratti API",
+      "description": "Confronta contratti JSON OpenAPI limitati offline."
+    }
+  }
+}

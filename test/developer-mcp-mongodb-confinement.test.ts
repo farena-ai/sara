@@ -1,0 +1,37 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {existsSync, readFileSync} from 'node:fs';
+const path = new URL('../tools/developer-mcp-mongodb/confinement.mjs', import.meta.url);
+test('MDB-CONFINEMENT: fail-closed upstream inventory and explicit shipped controls', async () => {
+  assert.ok(existsSync(path), 'missing audited fixture confinement implementation');
+  const {fixtureControls} = await import(path.href);
+  const names = ['find','collection-schema','explain','connect','export','atlas-test','other'];
+  const c = fixtureControls(names);
+  assert.deepEqual(c.allowed, ['collection-schema','explain','find']);
+  for (const n of ['connect','export','atlas-test','other','create','update','delete','atlas','atlas-local','assistant']) assert.ok(c.disabled.includes(n));
+  assert.equal(c.env.MDB_MCP_READ_ONLY, 'true');
+  assert.equal(c.env.MDB_MCP_DISABLE_SERVER_SIDE_JS, 'true');
+  assert.equal(c.env.MDB_MCP_TELEMETRY, 'disabled');
+  assert.equal(c.env.MDB_MCP_MAX_DOCUMENTS_PER_QUERY, '5');
+  assert.equal(c.env.MDB_MCP_MAX_BYTES_PER_QUERY, '8192');
+  assert.equal(c.env.MDB_MCP_TIMEOUT_MS, '5000');
+  assert.throws(() => fixtureControls(['find','explain']), /inventory/);
+  assert.throws(() => fixtureControls([...names,'find']), /inventory/);
+});
+test('MDB-RESUME-ADMISSION: real upstream zero-limit witness blocks promotion', () => {
+  const recordPath=new URL('./fixtures/developer/mcp-mongodb/resume-admission.json',import.meta.url);
+  assert.ok(existsSync(recordPath),'missing resumed blocked admission');
+  const record=JSON.parse(readFileSync(recordPath,'utf8'));
+  assert.equal(record.status,'blocked-upstream-row-bound');
+  assert.equal(record.installable,false);
+  assert.equal(record.productionQualified,false);
+  assert.equal(record.sourceQualified,false);
+  assert.equal(record.engine.downloaded,true);
+  assert.equal(record.downloadBudgetBytes,1073741824);
+  assert.equal(record.witness.configuredMaximumDocuments,5);
+  assert.equal(record.witness.requestedLimit,0);
+  assert.equal(record.witness.actualDocuments,20);
+  assert.equal(record.cleanup.activeProcesses,0);
+  assert.equal(record.cleanup.fixtureRemoved,true);
+  assert.equal(record.cleanup.listenerClosed,true);
+});

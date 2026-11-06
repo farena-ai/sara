@@ -1,0 +1,70 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[\\w.-]+(?:/[\\w.-]+)*$"
+          },
+          "kind": {
+            "enum": [
+              "deployment",
+              "metric",
+              "alert",
+              "operator-note",
+              "recovery",
+              "cause-claim"
+            ],
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 100000,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "path",
+          "kind",
+          "text"
+        ]
+      },
+      "maxItems": 20,
+      "minItems": 1
+    },
+    "incident": {
+      "type": "string",
+      "maxLength": 100,
+      "minLength": 1
+    },
+    "sensitiveValues": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 2000,
+        "minLength": 1
+      },
+      "maxItems": 100,
+      "minItems": 0
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    }
+  },
+  "required": [
+    "files",
+    "incident",
+    "sensitiveValues",
+    "limit"
+  ]
+}

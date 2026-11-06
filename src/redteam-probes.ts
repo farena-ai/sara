@@ -76,6 +76,11 @@ export interface HttpProbe {
   contentType?: string;
   /** What was sent, in plain words ("q = a very long value"). */
   label: string;
+  /**
+   * Reproduction only: wait this long for the answer instead of the hang limit (reqMs). Set for every
+   * break that was not a hang, so a slow answer on a busy machine is judged by what it says.
+   */
+  waitMs?: number;
 }
 export interface CliProbe {
   type: 'cli';
@@ -666,7 +671,8 @@ export interface DriverPlan {
   /** Start the app afresh before every probe (reproduction: one probe can't set up the next). */
   fresh: boolean;
   probes: Probe[];
-  scripts: { id: string; lang: ScriptLang; file: string }[];
+  /** waitMs: as HttpProbe.waitMs, for the script's requests through the recording proxy. */
+  scripts: { id: string; lang: ScriptLang; file: string; waitMs?: number }[];
   scriptMs: number;
   deadlineMs: number;
   /** The node binary to use for the app (the sandbox's own when empty). */
@@ -708,6 +714,20 @@ function stopTree(child) {
     else process.kill(-child.pid, 'SIGKILL');
   } catch { try { child.kill('SIGKILL'); } catch {} }
 }
+// Stops the app and waits for the signals that it is gone (its exit event, then its port closed), each
+// capped, instead of a fixed pause: under load a fixed pause was too short and the restart then found
+// the old app still on the port ("already in use") and gave up.
+async function stopApp() {
+  const child = app;
+  if (child && child.exitCode === null && !child.signalCode) {
+    const gone = new Promise((r) => { child.once('exit', r); setTimeout(r, 15000); });
+    stopTree(child);
+    await gone;
+  }
+  exited = true;
+  const until = Date.now() + 15000;
+  while (Date.now() < until && await open(port)) await sleep(100);
+}
 function python() {
   for (const p of ['python3', 'python']) { const r = spawnSync(p, ['--version'], { stdio: 'ignore', windowsHide: true, timeout: 10000 }); if (r.status === 0) return p; }
   return null;
@@ -731,7 +751,7 @@ async function start() {
   stopTree(app);
   return { ok: false, why };
 }
-function send(p, target) {
+function send(p, target, waitMs) {
   return new Promise((res) => {
     const t1 = Date.now();
     let done = false;
@@ -747,7 +767,7 @@ function send(p, target) {
         r.on('error', (e) => fin({ status: r.statusCode, headers: r.headers, body: Buffer.concat(chunks).toString('utf8'), timedOut: false, error: e.code || e.message }));
       });
     } catch (e) { return fin({ status: null, body: '', timedOut: false, error: 'client: ' + (e.code || e.message) }); }
-    req.setTimeout(plan.reqMs, () => { req.destroy(); fin({ status: null, body: '', timedOut: true }); });
+    req.setTimeout(waitMs || plan.reqMs, () => { req.destroy(); fin({ status: null, body: '', timedOut: true }); });
     req.on('error', (e) => fin({ status: null, body: '', timedOut: false, error: e.code || e.message }));
     if (body) req.write(body);
     req.end();
@@ -757,10 +777,10 @@ async function settle() { await sleep(200); }
 async function probeHttp(p) {
   if (!app || exited) { const s = await start(); if (!s.ok) return { probe: p.id, status: null, ms: 0, timedOut: false, error: 'restart: ' + s.why, body: '', exited: false, log: [] }; }
   const mark = log.length;
-  const r = await send(p, port);
+  const r = await send(p, port, p.waitMs);
   await settle();
   const x = { probe: p.id, status: r.status ?? null, ms: r.ms, timedOut: r.timedOut, ...(r.error ? { error: r.error } : {}), headers: r.headers || {}, body: r.body || '', exited, exitCode, log: log.slice(mark, mark + 40) };
-  if (r.timedOut && !exited) { stopTree(app); await sleep(300); exited = true; }
+  if (r.timedOut && !exited) await stopApp();
   return x;
 }
 function runProgram(prog, args, ms, extraEnv) {
@@ -784,7 +804,7 @@ async function probeCli(p) {
   const r = await runProgram(prog, [file].concat(p.args), 10000, {});
   return { probe: p.id, status: null, ms: r.ms, timedOut: r.timedOut, body: '', exited: false, exitCode: r.exitCode, log: [], output: r.output };
 }
-function proxy(records) {
+function proxy(records, waitMs) {
   return new Promise((res) => {
     const srv = http.createServer((req, resp) => {
       const chunks = []; let n = 0;
@@ -794,11 +814,11 @@ function proxy(records) {
         if (records.length >= 200) { resp.writeHead(429); return resp.end('probe limit reached'); }
         if (!app || exited) { const s = await start(); if (!s.ok) { resp.writeHead(502); return resp.end('the app is down'); } }
         const mark = log.length;
-        const r = await send({ method: req.method, path: req.url, body: chunks.length ? body : undefined, contentType: req.headers['content-type'] }, port);
+        const r = await send({ method: req.method, path: req.url, body: chunks.length ? body : undefined, contentType: req.headers['content-type'] }, port, waitMs);
         await settle();
         const rec = { probe: 'S', method: req.method, path: String(req.url).slice(0, 2000), sent: body.slice(0, 2000), status: r.status ?? null, ms: r.ms, timedOut: r.timedOut, ...(r.error ? { error: r.error } : {}), headers: r.headers || {}, body: (r.body || '').slice(0, 4000), exited, exitCode, log: log.slice(mark, mark + 40) };
         records.push(rec);
-        if (r.timedOut && !exited) { stopTree(app); exited = true; }
+        if (r.timedOut && !exited) await stopApp();
         resp.writeHead(r.status || 502, { 'content-type': (r.headers && r.headers['content-type']) || 'text/plain' });
         resp.end(r.body || '');
       });
@@ -813,15 +833,21 @@ function proxy(records) {
   for (const p of plan.probes) {
     if (late()) { out({ t: 'late' }); break; }
     if (p.type === 'http' && !httpOk) continue;
-    if (plan.fresh && p.type === 'http') { stopTree(app); await sleep(200); exited = true; }
+    if (plan.fresh && p.type === 'http') await stopApp();
     const x = p.type === 'cli' ? await probeCli(p) : await probeHttp(p);
     out({ t: 'x', ...x });
   }
   for (const sc of plan.scripts) {
     if (late() || !httpOk) break;
-    if (plan.fresh) { stopTree(app); await sleep(200); exited = true; }
+    // A fresh app for every script, started before the script's own time limit begins (the proxy only
+    // starts it again when the script's requests took it down).
+    if (plan.fresh) {
+      await stopApp();
+      const st = await start();
+      if (!st.ok) { out({ t: 'script', id: sc.id, exitCode: null, timedOut: false, ms: 0, output: 'restart: ' + st.why, records: [] }); continue; }
+    }
     const records = [];
-    const srv = await proxy(records);
+    const srv = await proxy(records, sc.waitMs);
     const prog = sc.lang === 'python' ? python() : process.execPath;
     const r = prog ? await runProgram(prog, [sc.file], plan.scriptMs, { APP_URL: 'http://127.0.0.1:' + srv.address().port }) : { exitCode: null, output: 'no interpreter', timedOut: false, ms: 0 };
     srv.close();

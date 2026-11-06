@@ -46,18 +46,6 @@ In web work Sara edits, previews, takes desktop and phone screenshots, fixes wha
 checks again. Claims about phone width or a finished fix need matching evidence, otherwise the
 reply is marked unverified. See [Web pages: look, fix, look again](FOR_CODERS.md#web-pages-look-fix-look-again).
 
-## Calls work like the chat in 2.75.0
-
-On a voice or video call Sara has the same memories, context and Adult-mode rule as in the chat,
-and live calls can use her tools. Anything that needs your OK shows a card on the call screen that
-only a tap answers; hanging up or talking over her cancels it. See [Video calls](VIDEO_CALLS.md).
-
-## Read together in 2.74.0
-
-Open a text or Markdown document from your library with Sara, share a passage (or let her follow
-your place) and she comments on exactly that text at that version. If it changed she says so;
-Stop ends sharing at once. See [Read together](LIBRARY.md#read-together).
-
 ## Watch a file in 2.73.0
 
 Opt-in alerts: pick a log or file in one of your workspaces (or her own log) and a few literal
@@ -65,17 +53,32 @@ words; Sara posts a chat card and a notification when a new matching line appear
 rate limits, Check now, Pause and Stop. Reading uses no model and she never fixes anything by
 herself. See [Watch a file](WATCHES.md).
 
-## Next: more add-ons and a matching library website
+## Read together in 2.74.0
 
-The rest of the public add-ons library and new developer add-ons will join the same Settings
-path, each with its own review. The add-ons pages will then be restyled to match the main site.
+Open a text or Markdown document from your library with Sara, share a passage (or let her follow
+your place) and she comments on exactly that text at that version. If it changed she says so;
+Stop ends sharing at once. See [Read together](LIBRARY.md#read-together).
 
-## Later: calls
+## Calls work like the chat in 2.75.0
 
-Voice/video follow-on work will align calls with the same user's text-chat history, memory,
-tools, approvals and enabled adult setting, and add expressive speech such as laughter and sighs
-where the selected engine supports it. Live and classic calls need separate qualification.
-These are roadmap goals; existing privacy, safety and provider limits remain.
+On a voice or video call Sara has the same memories, context and Adult-mode rule as in the chat,
+and live calls can use her tools. Anything that needs your OK shows a card on the call screen that
+only a tap answers; hanging up or talking over her cancels it. See [Video calls](VIDEO_CALLS.md).
+
+## Developer add-ons in Settings in 2.76.0
+
+Nineteen local-only developer add-ons (API, security, data and code-graph analysis, SQL
+rehearsal, visual comparison, localization, structural accessibility checks, staged-cache
+inspection and an HTTP/webhook workbench) are signed in the Sara Store and now also appear in
+Settings → Plugins beside the twelve workflows. Every public library entry is shown once; account
+or cost previews and blocked investigations stay visibly held. Each install stays Off until you
+enable it. Watch alerts can also go to your own Telegram or Discord chat (off by default). See
+[developer add-ons](DEVELOPER_ADDONS.md) and the [add-ons library](ADDONS_LIBRARY.md).
+
+## Next
+
+The add-ons library pages are being restyled to match the main site. Expressive speech on calls
+(laughter and sighs where the voice supports it) follows after listening tests.
 
 ## Business setup and administration in 2.65.0
 

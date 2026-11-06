@@ -1,0 +1,40 @@
+{
+  "id": "local-git",
+  "version": "0.1.0",
+  "name": "Local Git",
+  "category": "coding",
+  "tags": ["git", "local", "developer", "preview"],
+  "summary": "Preview: inspect status, diffs and history in a disposable local repository.",
+  "description": "Unpublished qualification preview, not project-ready. Pinned upstream exposes both reads and mutations. Explicit saved Ask/Off policy and a real filesystem fence are required; read-only annotations are not authorization.",
+  "about": [
+    "MIT mcp-server-git 2026.11.4, source archive SHA256 23a1ecc621f2a8aa8f235ce2c42d8dec345f9e0da18033b2c97d13e72a7c25db.",
+    "Qualification uses an isolated hash-locked dependency environment, not this top-level-only uvx reference. See DEVELOPER_LOCAL_GIT_QUALIFICATION.md for exact runtime, schema and evidence.",
+    "Local source can enter model context. No account or remote operation is qualified. Do not expose owner repositories, Git configuration or credentials."
+  ],
+  "license": "MIT",
+  "source": "https://github.com/modelcontextprotocol/servers/tree/main/src/git",
+  "needs": ["uv", "python", "git"],
+  "works": [],
+  "mcp": {
+    "transport": "stdio",
+    "command": "uvx",
+    "args": ["mcp-server-git==2026.11.4", "--repository", "{repository}"],
+    "name": "local-git",
+    "fields": [{"key":"repository","kind":"text","label":"Disposable repository","tip":"An owned disposable fixture only. An absolute path does not grant a Linux mount.","where":"local"}],
+    "secrets": [],
+    "reaches": [],
+    "tools": {"readOnly":[],"ask":["git_status","git_diff_unstaged","git_diff_staged","git_diff","git_log","git_show","git_branch","git_remote"]},
+    "needs": ["uv", "python", "git"],
+    "guide": [
+      "Preview only: do not install in production or infer that these instructions override server readOnlyHint defaults.",
+      "Resolve and hash-lock all dependencies in a dedicated environment; use the reviewed absolute interpreter and package bytes, not an ambient uvx cache.",
+      "Before any feature call save all eight read tools as Ask and git_add, git_commit, git_reset, git_create_branch, git_checkout and git_merge as Off; readback the persisted effective policy for all fourteen registered tools.",
+      "Keep unknown tools Off. Use isolated HOME/config, disable optional Git locks, external diff, textconv, filters, fsmonitor, credential helpers and hooks; never trust repository config as inert data.",
+      "Only use a synthetic repository in the existing MCP home fence. No broad host mount, owner repository, provider authorization or remote operations.",
+      "Disconnect after use. Direct registered-tool tests do not qualify full chat approvals, cancellation or project authority."
+    ]
+  },
+  "changes": ["Unpublished pinned Local Git qualification preview."],
+  "tested": [],
+  "reviewNotes": "Unpublished preview. H1 admission lineage, H2 selected-project mounts, H3 OS fence/cancellation, H4 policy/discovery and H5 provenance/result bounds remain incompletely qualified. No ready, account, Linux mount or publication claim."
+}

@@ -7,6 +7,19 @@ Sara's add-ons extend the existing harness rather than replacing its memory, saf
 
 Browse the [Sara Add-ons website](https://backstagecoding.com/sara/store/) for each entry's current qualification and publication state. A source folder, successful local test or attractive listing is not a published signed store package. New connection previews are not production-ready integrations.
 
+## What Sara shows today
+
+Every entry in the library appears in Sara once, in the place it can actually be used:
+
+| Where in Settings | What you find there | Count |
+|---|---|---|
+| **Add-ons → Get more** | Signed Store plugins, tool servers and the four starter companions | 16 |
+| **Plugins → Workflow candidates** | Twelve supplied-data workflows and nineteen developer add-ons (see [Developer add-ons](DEVELOPER_ADDONS.md)); review the exact files, install, then switch on per companion | 31 |
+| **Other programs (MCP) → Connection investigations** | Seven read-only recipe previews (Tavily, Firecrawl and Linear need your own account) and fourteen blocked investigations, each with its reason | 21 |
+
+Nothing installs, connects or switches on by itself. Held previews and blocked entries have no
+install button. Developer targets that are still in development are not listed until they qualify.
+
 ## Native workflow scope
 
 These workflows work from material you explicitly supply. They do not silently read an inbox, calendar, project history or private conversation. Their first tier is intentionally useful without an external account.
@@ -77,3 +90,8 @@ site-only tools/tests remain outside the public source export; native package so
 tests stay included.
 Retained source entries must also be regular files with non-linked ancestors; a public logical
 path cannot alias a private operational directory through a link or junction.
+
+The bundle builder API accepts an explicit `targetSara` compatibility version when the authoring
+checkout differs from the intended host. Its receipt preserves `sara` as the checkout version and
+records `targetSara` separately. This runs the real package compatibility checks and smoke; it is
+not proof that the complete target-version application or its normal chat approval flow ran.

@@ -10,7 +10,9 @@ import { createSaraServer } from '../src/server.ts';
 import { makeApp, ROOT, tempDir } from './helpers.ts';
 import { contentFixture } from './helpers/business-content.ts';
 
-const NATIVE = ['daily-briefing', 'meeting-assistant', 'document-desk', 'research-notebook', 'project-handoff', 'weekly-review', 'inbox-triage', 'content-studio', 'image-workshop', 'spreadsheet-assistant', 'travel-planner', 'home-dashboard'];
+const NATIVE = ['daily-briefing', 'meeting-assistant', 'document-desk', 'research-notebook', 'project-handoff', 'weekly-review', 'inbox-triage', 'content-studio', 'image-workshop', 'spreadsheet-assistant', 'travel-planner', 'home-dashboard',
+  // A2 developer add-ons share the same candidate review path.
+  ...['secret-scanner', 'license-auditor', 'sbom-builder', 'artifact-provenance-verifier', 'coverage-explorer', 'log-explorer', 'incident-workbench', 'environment-config-doctor', 'database-fixture-studio', 'data-contract-validator', 'change-impact-analyzer', 'architecture-guard', 'sql-migration-reviewer', 'visual-regression', 'localization-qa', 'accessibility-auditor', 'build-cache-inspector', 'api-contract-guard', 'http-webhook-workbench']];
 const RECIPES = ['markitdown', 'tavily', 'firecrawl', 'chrome-devtools', 'dbhub', 'drawio', 'linear'];
 
 async function rig(t: TestContext, mode: 'owner' | 'member' | 'demo' = 'owner') {
@@ -33,7 +35,7 @@ async function rig(t: TestContext, mode: 'owner' | 'member' | 'demo' = 'owner') 
   return { app, pm, api, dir };
 }
 
-test('existing Settings APIs expose twelve candidates and inert twenty-one MCP investigations without configuration effects', async t => {
+test('existing Settings APIs expose every local candidate and inert twenty-one MCP investigations without configuration effects', async t => {
   const { app, pm, api, dir } = await rig(t);
   app.vault.set('synthetic-discovery-sentinel', 'synthetic-value');
   const settings = app.settings.get();
@@ -71,7 +73,7 @@ test('candidate installation rejects malformed or mixed source selectors without
   assert.deepEqual(pm.list(), []);
 });
 
-test('all twelve candidate selectors use the ordinary review and cancel flow without installation', async t => {
+test('every candidate selector use the ordinary review and cancel flow without installation', async t => {
   const { pm, api } = await rig(t);
   for (const id of NATIVE) {
     const staged = await api('/api/plugins/install', 'POST', { candidate: id });

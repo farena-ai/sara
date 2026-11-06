@@ -61,6 +61,25 @@ COPY store/plugins/image-workshop ./store/plugins/image-workshop
 COPY store/plugins/spreadsheet-assistant ./store/plugins/spreadsheet-assistant
 COPY store/plugins/travel-planner ./store/plugins/travel-planner
 COPY store/plugins/home-dashboard ./store/plugins/home-dashboard
+COPY store/plugins/secret-scanner ./store/plugins/secret-scanner
+COPY store/plugins/license-auditor ./store/plugins/license-auditor
+COPY store/plugins/sbom-builder ./store/plugins/sbom-builder
+COPY store/plugins/artifact-provenance-verifier ./store/plugins/artifact-provenance-verifier
+COPY store/plugins/coverage-explorer ./store/plugins/coverage-explorer
+COPY store/plugins/log-explorer ./store/plugins/log-explorer
+COPY store/plugins/incident-workbench ./store/plugins/incident-workbench
+COPY store/plugins/environment-config-doctor ./store/plugins/environment-config-doctor
+COPY store/plugins/database-fixture-studio ./store/plugins/database-fixture-studio
+COPY store/plugins/data-contract-validator ./store/plugins/data-contract-validator
+COPY store/plugins/change-impact-analyzer ./store/plugins/change-impact-analyzer
+COPY store/plugins/architecture-guard ./store/plugins/architecture-guard
+COPY store/plugins/sql-migration-reviewer ./store/plugins/sql-migration-reviewer
+COPY store/plugins/visual-regression ./store/plugins/visual-regression
+COPY store/plugins/localization-qa ./store/plugins/localization-qa
+COPY store/plugins/accessibility-auditor ./store/plugins/accessibility-auditor
+COPY store/plugins/build-cache-inspector ./store/plugins/build-cache-inspector
+COPY store/plugins/api-contract-guard ./store/plugins/api-contract-guard
+COPY store/plugins/http-webhook-workbench ./store/plugins/http-webhook-workbench
 # Phase 87: the shared page agent her testing browser reads pages with (also in the desktop apps).
 COPY desktop/shared/page-agent.js ./desktop/shared/page-agent.js
 # Phase 104: the move-in collector Sara serves (Settings → Data & health → Move in from another agent).

@@ -1,0 +1,3 @@
+# Third-party notices
+
+No third-party JavaScript dependency is bundled. The unchanged Sara SDK and this package are covered by the accompanying full MIT LICENSE. Execution uses the host-provided Node.js node:sqlite and node:crypto built-ins; Node.js and SQLite binaries are not redistributed by this package. SQLite is public-domain software (https://sqlite.org/copyright.html). Node.js license notices remain with the installed host runtime (https://github.com/nodejs/node/blob/main/LICENSE). No claim of a separately maintained full SQL AST parser is made: the handwritten recognizer accepts only the documented closed grammar; SQLite itself compiles every admitted statement.

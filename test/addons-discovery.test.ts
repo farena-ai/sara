@@ -7,7 +7,9 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { fromFolder, hashFiles, stripTop } from '../src/packages.ts';
 
 const moduleUrl = new URL('../src/addons/discovery.ts', import.meta.url);
-const nativeIds = ['daily-briefing', 'meeting-assistant', 'document-desk', 'research-notebook', 'project-handoff', 'weekly-review', 'inbox-triage', 'content-studio', 'image-workshop', 'spreadsheet-assistant', 'travel-planner', 'home-dashboard'];
+// A2 adds the developer add-ons through the same candidate path (host-tested, pinned versions).
+const devIds = ['secret-scanner', 'license-auditor', 'sbom-builder', 'artifact-provenance-verifier', 'coverage-explorer', 'log-explorer', 'incident-workbench', 'environment-config-doctor', 'database-fixture-studio', 'data-contract-validator', 'change-impact-analyzer', 'architecture-guard', 'sql-migration-reviewer', 'visual-regression', 'localization-qa', 'accessibility-auditor', 'build-cache-inspector', 'api-contract-guard', 'http-webhook-workbench'];
+const nativeIds = ['daily-briefing', 'meeting-assistant', 'document-desk', 'research-notebook', 'project-handoff', 'weekly-review', 'inbox-triage', 'content-studio', 'image-workshop', 'spreadsheet-assistant', 'travel-planner', 'home-dashboard', ...devIds];
 const previewIds = ['markitdown', 'tavily', 'firecrawl', 'chrome-devtools', 'dbhub', 'drawio', 'linear'];
 const blockedIds = ['notion', 'serena', 'supabase', 'figma', 'google-workspace', 'microsoft-365', 'slack', 'atlassian', 'home-assistant', 'obsidian', 'sentry', 'cloudflare', 'docker', 'gitlab'];
 const guideIds = ['everyday-assistant', 'research-documents', 'developer', 'creator', 'small-business', 'private-local'];
@@ -30,14 +32,14 @@ test('discovery has exact native, preview, blocked and guide identity sets', asy
   assert.deepEqual(sorted(a.PUBLIC_MCP_INVESTIGATIONS.filter((x: any) => x.status === 'needs-account').map((x: any) => x.id)), ['firecrawl', 'linear', 'tavily']);
   assert.deepEqual(sorted(a.PUBLIC_GUIDED_PACKS.map((x: any) => x.id)), sorted(guideIds));
   for (const x of a.PUBLIC_NATIVE_CANDIDATES) {
-    assert.equal(x.kind, 'plugin'); assert.equal(x.status, 'in-testing'); assert.equal(x.version, '1.0.0');
+    assert.equal(x.kind, 'plugin'); assert.equal(x.status, devIds.includes(x.id) ? 'tested' : 'in-testing'); assert.equal(x.version, x.id === 'api-contract-guard' ? '0.1.0' : '1.0.0');
     assert.equal(a.getNativeCandidate(x.id), x);
     for (const key of ['installable', 'available', 'signed', 'firstParty', 'origin', 'packageUrl']) assert.equal(Object.hasOwn(x, key), false);
   }
   for (const id of ['', '../focus', 'C:\\invalid', 'focus', '__proto__', 'constructor', null, 1, {}]) assert.equal(a.getNativeCandidate(id), undefined);
 });
 
-test('all twelve literal identities match real complete native packages and manifest tools', async () => {
+test('all literal candidate identities match real complete native packages and manifest tools', async () => {
   const a = await api();
   const limits = { maxZipBytes: 10485760, maxFiles: 500, maxTotalBytes: 31457280, maxFileBytes: 5242880, maxDepth: 10 };
   for (const candidate of a.PUBLIC_NATIVE_CANDIDATES) {

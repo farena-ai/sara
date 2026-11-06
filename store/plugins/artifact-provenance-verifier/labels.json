@@ -1,0 +1,50 @@
+{
+  "en": {
+    "title": "Artifact provenance verifier",
+    "description": "Verify supplied artifact bytes using SHA-256, Ed25519, a pinned public-key fingerprint and expected identity. Local envelope v1 only, not Sigstore/SLSA.",
+    "scope": "Trust depends on independently obtained expected identity and key fingerprint. No certificate, transparency log or build-process attestation checked.",
+    "error": "Invalid input or input/output limit exceeded. Split the request; supplied values are not included in errors.",
+    "summary": "Results: {n} · Status: {status}",
+    "message": "Offline analysis completed."
+  },
+  "es": {
+    "title": "Verificador de procedencia",
+    "description": "Verifica bytes con SHA-256, Ed25519, huella de clave fijada e identidad esperada. Solo sobre local v1; no Sigstore/SLSA.",
+    "scope": "La confianza depende de identidad y huella obtenidas por separado. No verifica certificados, registros ni procesos de compilación.",
+    "error": "Entrada no válida o límite excedido. Divide la solicitud; los errores no incluyen valores aportados.",
+    "summary": "Resultados: {n} · Estado: {status}",
+    "message": "Análisis local completado."
+  },
+  "fr": {
+    "title": "Vérificateur de provenance",
+    "description": "Vérifie les octets avec SHA-256, Ed25519, empreinte de clé épinglée et identité attendue. Enveloppe locale v1 uniquement, pas Sigstore/SLSA.",
+    "scope": "La confiance dépend des valeurs attendues obtenues indépendamment. Aucun certificat, journal de transparence ou processus de compilation vérifié.",
+    "error": "Entrée non valide ou limite dépassée. Divisez la demande ; les erreurs ne contiennent pas les valeurs fournies.",
+    "summary": "Résultats : {n} · État : {status}",
+    "message": "Analyse locale terminée."
+  },
+  "de": {
+    "title": "Artefakt-Herkunftsprüfung",
+    "description": "Prüft Bytes mit SHA-256, Ed25519, festgelegtem Schlüsselfingerabdruck und erwarteter Identität. Nur lokales v1-Format, kein Sigstore/SLSA.",
+    "scope": "Vertrauen erfordert unabhängig ermittelte Identität und Fingerabdruck. Keine Zertifikate, Transparenzprotokolle oder Build-Prozesse geprüft.",
+    "error": "Ungültige Eingabe oder Grenze überschritten. Anfrage aufteilen; Fehler enthalten keine Eingabewerte.",
+    "summary": "Ergebnisse: {n} · Status: {status}",
+    "message": "Lokale Analyse abgeschlossen."
+  },
+  "pt-BR": {
+    "title": "Verificador de proveniência",
+    "description": "Verifica bytes com SHA-256, Ed25519, impressão de chave fixada e identidade esperada. Apenas envelope local v1, não Sigstore/SLSA.",
+    "scope": "A confiança depende de identidade e impressão obtidas independentemente. Não verifica certificados, registros ou processos de compilação.",
+    "error": "Entrada inválida ou limite excedido. Divida a solicitação; erros não incluem valores fornecidos.",
+    "summary": "Resultados: {n} · Estado: {status}",
+    "message": "Análise local concluída."
+  },
+  "it": {
+    "title": "Verifica provenienza artefatti",
+    "description": "Verifica byte con SHA-256, Ed25519, impronta della chiave fissata e identità attesa. Solo formato locale v1, non Sigstore/SLSA.",
+    "scope": "La fiducia richiede identità e impronta ottenute indipendentemente. Nessuna verifica di certificati, registri o processi di compilazione.",
+    "error": "Input non valido o limite superato. Dividere la richiesta; gli errori non includono i valori forniti.",
+    "summary": "Risultati: {n} · Stato: {status}",
+    "message": "Analisi locale completata."
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "manifest": 1,
+  "id": "database-fixture-studio",
+  "name": "Database Fixture Studio",
+  "version": "1.0.0",
+  "description": "Generate seeded synthetic relational rows and executable SQLite SQL from a bounded schema. No database connection or personal-data import.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "analyze"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Database Fixture Studio": "Estudio de datos sintéticos",
+      "Generate seeded synthetic relational rows and executable SQLite SQL from a bounded schema. No database connection or personal-data import.": "Genera filas relacionales sintéticas y SQL SQLite con semilla. Sin conexión a bases ni importación de datos personales."
+    },
+    "fr": {
+      "Database Fixture Studio": "Atelier de données synthétiques",
+      "Generate seeded synthetic relational rows and executable SQLite SQL from a bounded schema. No database connection or personal-data import.": "Génère des lignes relationnelles synthétiques et du SQL SQLite avec graine. Aucune connexion ni importation personnelle."
+    },
+    "de": {
+      "Database Fixture Studio": "Studio für synthetische Daten",
+      "Generate seeded synthetic relational rows and executable SQLite SQL from a bounded schema. No database connection or personal-data import.": "Erzeugt synthetische relationale Zeilen und SQLite-SQL mit Startwert. Keine Datenbankverbindung oder Personendatenimporte."
+    },
+    "pt-BR": {
+      "Database Fixture Studio": "Estúdio de dados sintéticos",
+      "Generate seeded synthetic relational rows and executable SQLite SQL from a bounded schema. No database connection or personal-data import.": "Gera linhas relacionais sintéticas e SQL SQLite com semente. Sem conexão a bancos ou importação de dados pessoais."
+    },
+    "it": {
+      "Database Fixture Studio": "Studio di dati sintetici",
+      "Generate seeded synthetic relational rows and executable SQLite SQL from a bounded schema. No database connection or personal-data import.": "Genera righe relazionali sintetiche e SQL SQLite con seme. Nessuna connessione o importazione personale."
+    }
+  }
+}

@@ -497,7 +497,7 @@ test('12 · every first-party item in store/ passes the checks, and every plugin
 test('13 · every recipe in store/mcp/ passes §6.5, and the checker refuses each bad shape', () => {
   const dir = join(ROOT, 'store', 'mcp');
   const recipes = readdirSync(dir).filter((f) => f.endsWith('.json'));
-  // Keep the six original recipes and exactly the seven qualified connection previews.
+  // Keep six originals and seven earlier previews; policy-blocked Local Git stays a test fixture.
   // Preview files do not imply they are published in the signed shelf.
   assert.deepEqual(recipes.map((f) => f.slice(0, -5)).sort(), ['blender', 'chrome-devtools', 'comfyui', 'context7', 'dbhub', 'drawio', 'filesystem', 'firecrawl', 'github', 'linear', 'markitdown', 'playwright', 'tavily']);
   for (const f of recipes) {

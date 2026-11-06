@@ -1,0 +1,52 @@
+{
+  "manifest": 1,
+  "id": "coverage-explorer",
+  "name": "Coverage Explorer",
+  "description": "Read supplied LCOV, source and changed ranges; identify untested changed branches.",
+  "version": "1.0.0",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "analyze"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Coverage Explorer": "Explorador de cobertura",
+      "Read supplied LCOV, source and changed ranges; identify untested changed branches.": "Lee LCOV, fuentes y rangos aportados; identifica ramas modificadas sin probar."
+    },
+    "fr": {
+      "Coverage Explorer": "Explorateur de couverture",
+      "Read supplied LCOV, source and changed ranges; identify untested changed branches.": "Lit LCOV, sources et plages fournies ; repère les branches modifiées non testées."
+    },
+    "de": {
+      "Coverage Explorer": "Abdeckungsanalyse",
+      "Read supplied LCOV, source and changed ranges; identify untested changed branches.": "Prüft bereitgestellte LCOV-Daten, Quellen und Änderungen auf ungetestete Zweige."
+    },
+    "pt-BR": {
+      "Coverage Explorer": "Explorador de cobertura",
+      "Read supplied LCOV, source and changed ranges; identify untested changed branches.": "Lê LCOV, fontes e alterações fornecidas; identifica ramos alterados não testados."
+    },
+    "it": {
+      "Coverage Explorer": "Esploratore di copertura",
+      "Read supplied LCOV, source and changed ranges; identify untested changed branches.": "Legge LCOV, sorgenti e intervalli forniti; individua rami modificati non testati."
+    }
+  }
+}

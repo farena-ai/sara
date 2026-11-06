@@ -1013,6 +1013,24 @@ export class TelegramBridge {
     await this.#sendUpload('sendPhoto', form);
   }
 
+  /** E4: linked to the owner's own private chat (a group id is negative and never counts) and running. */
+  ownerLinked(): boolean {
+    const id = telegramSettings(this.#app).ownerChatId;
+    return Boolean(this.#abort) && typeof id === 'number' && Number.isSafeInteger(id) && id > 0;
+  }
+
+  /** E4: a short note to the owner's own private chat only (watch alerts he turned on). */
+  async toOwner(text: string): Promise<boolean> {
+    if (!this.ownerLinked()) return false;
+    try {
+      await this.send(telegramSettings(this.#app).ownerChatId!, text);
+      return true;
+    } catch (err) {
+      this.#error = (err as Error).message;
+      return false;
+    }
+  }
+
   /** Reminders and messages she starts herself also go to the owner's Telegram. */
   async #mirror(ev: HubEvent): Promise<void> {
     if (ev.type !== 'message' || ev.message.role === 'notice') return;

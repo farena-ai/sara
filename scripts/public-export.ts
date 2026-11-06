@@ -63,6 +63,9 @@ export const PRIVATE = [/^AGENTS\.md$/, /^docs\/handoffs\//, /^docs\/SOURCE_OF_T
   /^scripts\/(?:build-addons-site\.ts|check-addons-site\.mjs|addons-output-path\.ts)$/,
   /^test\/addons-(?:site|mcp)\.test\.ts$/,
   /^test\/addons-discovery-parity\.test\.ts$/,
+  /^test\/developer-catalog-site\.test\.ts$/,
+  // A2's per-entry inventory test reads private authoring records (docs/ops, store/addons).
+  /^test\/addons-a2-inventory\.test\.ts$/,
   /^store\/addons\//,
 ];
 /** Files published under another name: the owner's working roadmap stays private; the public one takes its name. */

@@ -74,6 +74,11 @@ cp -R "$ROOT/src" "$ROOT/web" "$ROOT/persona" "$ROOT/templates" "$ROOT/skills" "
 CANDIDATE_PLUGINS=(
   daily-briefing meeting-assistant document-desk research-notebook project-handoff weekly-review
   inbox-triage content-studio image-workshop spreadsheet-assistant travel-planner home-dashboard
+  secret-scanner license-auditor sbom-builder artifact-provenance-verifier coverage-explorer
+  log-explorer incident-workbench environment-config-doctor database-fixture-studio
+  data-contract-validator change-impact-analyzer architecture-guard sql-migration-reviewer
+  visual-regression localization-qa accessibility-auditor build-cache-inspector api-contract-guard
+  http-webhook-workbench
 )
 mkdir -p "$S/store/plugins"
 for id in "${CANDIDATE_PLUGINS[@]}"; do

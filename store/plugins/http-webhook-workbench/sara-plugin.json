@@ -1,0 +1,78 @@
+{
+  "manifest": 1,
+  "id": "http-webhook-workbench",
+  "name": "HTTP and Webhook Workbench",
+  "description": "Send a loopback HTTP request and optionally replay once. Calls can have effects. Sensitive fields are redacted.",
+  "version": "1.0.0",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.70.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "request"
+    ],
+    "connect": [
+      {
+        "id": "fixture",
+        "host": "setting:endpoint",
+        "ports": "setting",
+        "where": "local",
+        "tls": "none"
+      }
+    ],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": true,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "settings": [
+    {
+      "key": "endpoint",
+      "type": "text",
+      "label": "Loopback endpoint",
+      "tip": "Enter 127.0.0.1:port. This computer only; every call can have effects.",
+      "default": ""
+    }
+  ],
+  "i18n": {
+    "es": {
+      "HTTP and Webhook Workbench": "Banco HTTP y webhooks",
+      "Send a loopback HTTP request and optionally replay once. Calls can have effects. Sensitive fields are redacted.": "Envía una solicitud HTTP local y puede repetirla una vez. Puede tener efectos. Se ocultan campos sensibles.",
+      "Loopback endpoint": "Destino local",
+      "Enter 127.0.0.1:port. This computer only; every call can have effects.": "Escribe 127.0.0.1:puerto. Solo este equipo; cada llamada puede tener efectos."
+    },
+    "fr": {
+      "HTTP and Webhook Workbench": "Atelier HTTP et webhooks",
+      "Send a loopback HTTP request and optionally replay once. Calls can have effects. Sensitive fields are redacted.": "Envoie une requête HTTP locale et peut la répéter une fois. Elle peut avoir des effets. Les champs sensibles sont masqués.",
+      "Loopback endpoint": "Destination locale",
+      "Enter 127.0.0.1:port. This computer only; every call can have effects.": "Saisissez 127.0.0.1:port. Cet ordinateur seulement ; chaque appel peut avoir des effets."
+    },
+    "de": {
+      "HTTP and Webhook Workbench": "HTTP- und Webhook-Werkbank",
+      "Send a loopback HTTP request and optionally replay once. Calls can have effects. Sensitive fields are redacted.": "Sendet eine lokale HTTP-Anfrage und wiederholt sie optional einmal. Aufrufe können Änderungen bewirken. Vertrauliche Felder werden verdeckt.",
+      "Loopback endpoint": "Lokales Ziel",
+      "Enter 127.0.0.1:port. This computer only; every call can have effects.": "127.0.0.1:Port eingeben. Nur dieser Computer; jeder Aufruf kann Änderungen bewirken."
+    },
+    "pt-BR": {
+      "HTTP and Webhook Workbench": "Bancada HTTP e webhooks",
+      "Send a loopback HTTP request and optionally replay once. Calls can have effects. Sensitive fields are redacted.": "Envia uma solicitação HTTP local e pode repeti-la uma vez. Chamadas podem ter efeitos. Campos sensíveis são ocultados.",
+      "Loopback endpoint": "Destino local",
+      "Enter 127.0.0.1:port. This computer only; every call can have effects.": "Digite 127.0.0.1:porta. Apenas este computador; cada chamada pode ter efeitos."
+    },
+    "it": {
+      "HTTP and Webhook Workbench": "Banco HTTP e webhook",
+      "Send a loopback HTTP request and optionally replay once. Calls can have effects. Sensitive fields are redacted.": "Invia una richiesta HTTP locale e può ripeterla una volta. Le chiamate possono avere effetti. I campi sensibili sono oscurati.",
+      "Loopback endpoint": "Destinazione locale",
+      "Enter 127.0.0.1:port. This computer only; every call can have effects.": "Inserisci 127.0.0.1:porta. Solo questo computer; ogni chiamata può avere effetti."
+    }
+  }
+}

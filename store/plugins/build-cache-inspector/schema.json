@@ -1,0 +1,105 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "operation",
+    "cacheId"
+  ],
+  "properties": {
+    "operation": {
+      "type": "string",
+      "enum": [
+        "inspect",
+        "preview"
+      ]
+    },
+    "cacheId": {
+      "type": "string",
+      "enum": [
+        "typescript"
+      ],
+      "description": "Only operator-staged native home owned-caches-v1/typescript; never selected workspace or system cache."
+    },
+    "snapshot": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Required for preview; exact hash returned by inspect. Content/metadata changes invalidate it."
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "referenceMs",
+        "minAgeMs",
+        "maxPruneBytes",
+        "retainNewest",
+        "preserve"
+      ],
+      "properties": {
+        "referenceMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Explicit policy reference in Unix milliseconds, no more than 5 minutes behind or 1 minute ahead of runtime wall clock."
+        },
+        "minAgeMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 31536000000
+        },
+        "maxPruneBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16777216
+        },
+        "retainNewest": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "preserve": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^f[0-9]{3}$"
+          }
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "operation": {
+          "const": "inspect"
+        }
+      },
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "snapshot"
+            ]
+          },
+          {
+            "required": [
+              "policy"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "properties": {
+        "operation": {
+          "const": "preview"
+        }
+      },
+      "required": [
+        "snapshot",
+        "policy"
+      ]
+    }
+  ]
+}

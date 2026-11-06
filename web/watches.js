@@ -2,7 +2,9 @@
 // workspaces (or Sara's own log), a few words to look for and how often; each watch has Check now,
 // Pause / Turn on, Stop and Delete. The chat card for a new matching line has "Ask about this",
 // which puts his own question in the message box (and says so first when a cloud model would read
-// it). Nothing here runs a command; checking never calls a model.
+// it). Nothing here runs a command; checking never calls a model. Where alerts go: the card in his
+// chosen chat (default: the most recent) and, only when he turns it on per watch, also his own
+// linked Telegram chat or Discord DMs (the server lists only his own chats and linked bridges).
 import { t } from './naming.js';
 
 const $ = (s) => document.querySelector(s);
@@ -107,8 +109,64 @@ async function watchRow(w) {
   acts.append(btn(t('Stop and forget'), 'ghost small danger', () => {
     if (confirm(t('Stop watching this file and delete its alerts?'))) void act(`/watches/${w.id}`, 'DELETE');
   }));
+  if (w.state !== 'stopped') {
+    // Where this watch's alerts go; each change is saved at once.
+    const more = document.createElement('details');
+    more.className = 'wt-dest';
+    more.append(el('summary', 'small', t('Where alerts go')));
+    const form = el('div', 'rt-form');
+    destFields(form, w, (body) => void patchWatch(w.id, body));
+    more.append(form);
+    row.append(more);
+  }
   row.append(acts);
   return row;
+}
+
+async function patchWatch(id, body) {
+  try {
+    await ctx.api(`/watches/${id}`, { method: 'PATCH', body });
+  } catch (e) {
+    alert(e.message);
+    await loadWatches();
+  }
+}
+
+const BRIDGE_TIPS = {
+  telegram: () => t('Off by default. On: each alert also goes to your own linked Telegram chat, never a group. Same limits: at most one every 10 minutes, 12 a day, held in quiet hours.'),
+  discord: () => t('Off by default. On: each alert also goes to your own Discord direct messages, never a server channel. Same limits: at most one every 10 minutes, 12 a day, held in quiet hours.'),
+};
+
+/**
+ * The chat for the alert cards and the "Also send to" switches (only bridges linked to his own chat).
+ * `onChange` gets a partial body ({conversationId} or {alsoTo}); returns a reader for the add form.
+ */
+function destFields(form, w, onChange) {
+  const add = (label, input, help) => {
+    const lab = el('label', 'rt-field');
+    lab.append(el('span', '', label), input, tip(help));
+    form.append(lab);
+  };
+  const chat = document.createElement('select');
+  chat.append(Object.assign(document.createElement('option'), { value: '', textContent: t('The most recent chat') }));
+  for (const c of data.chats ?? []) chat.append(Object.assign(document.createElement('option'), { value: c.id, textContent: c.title }));
+  chat.value = w?.conversationId && (data.chats ?? []).some((c) => c.id === w.conversationId) ? w.conversationId : '';
+  chat.addEventListener('change', () => onChange?.({ conversationId: chat.value || null }));
+  add(t('Alert cards go to'), chat, t('The chat that gets the card for a new matching line. Default: your most recent chat. Only your own chats are listed, never guests or group rooms.'));
+  const boxes = {};
+  const linked = data.roots.bridges ?? {};
+  for (const b of ['telegram', 'discord']) {
+    if (!linked[b] && !w?.alsoTo?.includes(b)) continue;
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = Boolean(w?.alsoTo?.includes(b));
+    cb.disabled = !linked[b] && !cb.checked;
+    boxes[b] = cb;
+    cb.addEventListener('change', () => onChange?.({ alsoTo: Object.keys(boxes).filter((k) => boxes[k].checked) }));
+    add(b === 'telegram' ? t('Also send to Telegram') : t('Also send to Discord'), cb, BRIDGE_TIPS[b]());
+  }
+  if (!Object.keys(boxes).length) form.append(el('p', 'muted small', t('To also get alerts on Telegram or Discord, link it in Settings first.')));
+  return () => ({ conversationId: chat.value || null, alsoTo: Object.keys(boxes).filter((k) => boxes[k].checked) });
 }
 
 function alertLine(a) {
@@ -194,6 +252,7 @@ function addForm() {
   every.addEventListener('input', () => (everyOut.textContent = everyWords(EVERY[Number(every.value)])));
   field(t('How often'), every, t('How often she reads the new lines: every 5 minutes to once a day. Reading costs nothing (no model). Check now looks at once.'));
   form.append(everyOut);
+  const dest = destFields(form, null, null);
   sync();
   box.append(form);
   const bar = el('div', 'rt-actions');
@@ -203,7 +262,7 @@ function addForm() {
   }));
   bar.append(btn(t('Turn on'), 'primary', async () => {
     if (word.value.trim()) addWord();
-    const body = { patterns: words, caseIns: ci.checked, everyMin: EVERY[Number(every.value)], ...(where.value === 'log' ? { root: 'log' } : { root: 'workspace', workspace: where.value.slice(3), path: path.value.trim() }) };
+    const body = { patterns: words, caseIns: ci.checked, everyMin: EVERY[Number(every.value)], ...dest(), ...(where.value === 'log' ? { root: 'log' } : { root: 'workspace', workspace: where.value.slice(3), path: path.value.trim() }) };
     try {
       await ctx.api('/watches', { method: 'POST', body });
       adding = false;
@@ -212,7 +271,7 @@ function addForm() {
     }
     await loadWatches();
   }));
-  box.append(bar, el('p', 'muted small', t('She tells you about new matching lines in a chat card and a notification, at most one every 10 minutes. She never restarts, edits or fixes anything on her own.')));
+  box.append(bar, el('p', 'muted small', t('She tells you about new matching lines in a chat card and a notification (and on Telegram or Discord only if you turn that on), at most one every 10 minutes. She never restarts, edits or fixes anything on her own.')));
   return box;
 }
 

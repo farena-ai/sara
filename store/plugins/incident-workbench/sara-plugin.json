@@ -1,0 +1,52 @@
+{
+  "manifest": 1,
+  "id": "incident-workbench",
+  "name": "Incident Workbench",
+  "description": "Assemble a cited chronology from supplied deployment, metric, alert and operator evidence; never infer causes.",
+  "version": "1.0.0",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "analyze"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Incident Workbench": "Taller de incidentes",
+      "Assemble a cited chronology from supplied deployment, metric, alert and operator evidence; never infer causes.": "Compone una cronología citada de despliegues, métricas, alertas y notas; no infiere causas."
+    },
+    "fr": {
+      "Incident Workbench": "Atelier d’incidents",
+      "Assemble a cited chronology from supplied deployment, metric, alert and operator evidence; never infer causes.": "Assemble une chronologie sourcée de déploiements, mesures, alertes et notes ; sans déduire de cause."
+    },
+    "de": {
+      "Incident Workbench": "Vorfallwerkstatt",
+      "Assemble a cited chronology from supplied deployment, metric, alert and operator evidence; never infer causes.": "Erstellt eine belegte Chronologie aus Deployments, Messwerten, Alarmen und Notizen; keine Ursachenvermutung."
+    },
+    "pt-BR": {
+      "Incident Workbench": "Oficina de incidentes",
+      "Assemble a cited chronology from supplied deployment, metric, alert and operator evidence; never infer causes.": "Monta cronologia citada de implantações, métricas, alertas e notas; não deduz causas."
+    },
+    "it": {
+      "Incident Workbench": "Laboratorio incidenti",
+      "Assemble a cited chronology from supplied deployment, metric, alert and operator evidence; never infer causes.": "Compone cronologia citata da rilasci, metriche, avvisi e note; non deduce cause."
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "en": {
+    "title": "Secret scanner",
+    "description": "Detect credential patterns in explicitly supplied text files; return locations and value-free finding IDs. No automatic disk scan.",
+    "scope": "Only supplied text inspected; pattern detection is not proof of absence. Finding IDs hash coordinates, never secret values.",
+    "error": "Invalid input or input/output limit exceeded. Split the request; supplied values are not included in errors.",
+    "summary": "Results: {n} · Status: {status}",
+    "message": "Offline analysis completed."
+  },
+  "es": {
+    "title": "Detector de secretos",
+    "description": "Detecta patrones de credenciales en archivos de texto aportados; devuelve ubicaciones e identificadores sin valores. No examina el disco.",
+    "scope": "Solo se examina el texto aportado; los patrones no prueban ausencia. Los IDs resumen coordenadas, nunca secretos.",
+    "error": "Entrada no válida o límite excedido. Divide la solicitud; los errores no incluyen valores aportados.",
+    "summary": "Resultados: {n} · Estado: {status}",
+    "message": "Análisis local completado."
+  },
+  "fr": {
+    "title": "Détecteur de secrets",
+    "description": "Détecte des motifs de secrets dans les textes fournis ; renvoie les emplacements et identifiants sans valeurs. Aucun parcours du disque.",
+    "scope": "Seuls les textes fournis sont examinés ; les motifs ne prouvent pas une absence. Les ID condensent les positions, jamais les secrets.",
+    "error": "Entrée non valide ou limite dépassée. Divisez la demande ; les erreurs ne contiennent pas les valeurs fournies.",
+    "summary": "Résultats : {n} · État : {status}",
+    "message": "Analyse locale terminée."
+  },
+  "de": {
+    "title": "Geheimnisprüfung",
+    "description": "Erkennt Zugangsdatenmuster in bereitgestellten Texten; liefert Fundorte und IDs ohne Werte. Kein automatischer Festplattenscan.",
+    "scope": "Nur bereitgestellte Texte geprüft; Muster beweisen keine Abwesenheit. IDs hashen Positionen, niemals Geheimnisse.",
+    "error": "Ungültige Eingabe oder Grenze überschritten. Anfrage aufteilen; Fehler enthalten keine Eingabewerte.",
+    "summary": "Ergebnisse: {n} · Status: {status}",
+    "message": "Lokale Analyse abgeschlossen."
+  },
+  "pt-BR": {
+    "title": "Detector de segredos",
+    "description": "Detecta padrões de credenciais em textos fornecidos; retorna locais e IDs sem valores. Não varre o disco.",
+    "scope": "Somente textos fornecidos; padrões não provam ausência. IDs resumem coordenadas, nunca segredos.",
+    "error": "Entrada inválida ou limite excedido. Divida a solicitação; erros não incluem valores fornecidos.",
+    "summary": "Resultados: {n} · Estado: {status}",
+    "message": "Análise local concluída."
+  },
+  "it": {
+    "title": "Rilevatore di segreti",
+    "description": "Rileva credenziali nei testi forniti; restituisce posizioni e ID senza valori. Nessuna scansione automatica del disco.",
+    "scope": "Solo testi forniti; i modelli non provano assenza. Gli ID derivano dalle coordinate, mai dai segreti.",
+    "error": "Input non valido o limite superato. Dividere la richiesta; gli errori non includono i valori forniti.",
+    "summary": "Risultati: {n} · Stato: {status}",
+    "message": "Analisi locale completata."
+  }
+}

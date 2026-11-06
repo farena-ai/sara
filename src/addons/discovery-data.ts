@@ -411,6 +411,618 @@ export const discoveryData ={
       "version": "1.0.0",
       "tool": "workflow",
       "contentSha": "03673f78bf34878885d53643bc7aafffa6dc4c77b72a991b006da050758ef8e0"
+    },
+    {
+      "id": "secret-scanner",
+      "kind": "plugin",
+      "name": "Secret scanner",
+      "summary": "Detect credential patterns in explicitly supplied text files; return locations and value-free finding IDs. No automatic disk scan.",
+      "description": "Find credential-pattern locations without returning secret values or source snippets.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model."
+      ],
+      "permissions": [
+        "Adds analyze tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Small documented pattern set, not entropy analysis, provider validation or a guarantee that no secrets remain.",
+        "1–12 supplied files; 32768 UTF-16 units per file, 65536 aggregate UTF-8 bytes, 120 findings; no automatic disk/history scan.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "analyze",
+      "contentSha": "711494a247fdf7866e0fbe2a27c5338d8cdd3b45cc9836ff9df8a1581968befd"
+    },
+    {
+      "id": "license-auditor",
+      "kind": "plugin",
+      "name": "License auditor",
+      "summary": "Audit npm lockfile v2/v3 license metadata and SPDX expressions against an explicit allow/deny policy. Unknowns require review; not legal advice.",
+      "description": "Turn npm lockfile license metadata into allow, deny or review decisions under your explicit SPDX policy.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model."
+      ],
+      "permissions": [
+        "Adds analyze tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Metadata policy assessment only; not source-license inspection, license compatibility or legal advice.",
+        "Lockfile v2/v3 only: 65536 UTF-8 bytes and 60 installed paths; missing/custom metadata requires review.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "analyze",
+      "contentSha": "aac24b2fa7259f1a0ef0fbae60ff77a90ad9c9d2ab2f91d84f59f09dfdfbb87d"
+    },
+    {
+      "id": "sbom-builder",
+      "kind": "plugin",
+      "name": "SBOM builder",
+      "summary": "Build a deterministic CycloneDX 1.5 npm inventory from supplied lockfile v2/v3, including nested identities, purls and SRI hashes. No dependency install.",
+      "description": "Produce a deterministic CycloneDX 1.5 npm inventory with nested identities, purls and checked SRI metadata.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model."
+      ],
+      "permissions": [
+        "Adds analyze tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Inventory only; no complete dependency graph, vulnerability scan, install or build. Hashes describe supplied metadata, not fetched artifact bytes.",
+        "65536 UTF-8 bytes of lock JSON and 60 installed paths; workspace links refused and oversized output refuses.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "analyze",
+      "contentSha": "3fadff50b47d9e86b0740b5534e976ecf084e396053e000b2dfb0c3debe2621b"
+    },
+    {
+      "id": "artifact-provenance-verifier",
+      "kind": "plugin",
+      "name": "Artifact provenance verifier",
+      "summary": "Verify supplied artifact bytes using SHA-256, Ed25519, a pinned public-key fingerprint and expected identity. Local envelope v1 only, not Sigstore/SLSA.",
+      "description": "Check supplied artifact bytes against the expected identity, digest and explicitly pinned Ed25519 signer.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model."
+      ],
+      "permissions": [
+        "Adds analyze tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Local envelope v1 only, not Sigstore, SLSA, transparency-log or publisher identity certification.",
+        "Trust the expected signer fingerprint and identity separately; no network discovery or artifact download.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "analyze",
+      "contentSha": "befcfaab8f61ebccc8334adf50e03d4c0c6589b0a6fa22be6c457af5ebcdaade"
+    },
+    {
+      "id": "coverage-explorer",
+      "kind": "plugin",
+      "name": "Coverage Explorer",
+      "summary": "Read supplied LCOV, source and changed ranges; identify untested changed branches.",
+      "description": "Identify untested changed branches with LCOV and supplied-source line citations.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model."
+      ],
+      "permissions": [
+        "Adds analyze tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Does not run tests or collect coverage; missing and unknown branch evidence is not treated as covered.",
+        "LCOV limited to 100000 characters, 20 sources of 30000 characters and 100 changed ranges; contradictory function summaries refuse.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "analyze",
+      "contentSha": "907d35a9291b66c3115769c5c71937727585b61b6b8753fb0db73370e85c788d"
+    },
+    {
+      "id": "log-explorer",
+      "kind": "plugin",
+      "name": "Log Explorer",
+      "summary": "Search supplied structured and line logs with redacted messages and file/time citations.",
+      "description": "Locate matching log events with redacted messages, file/line spans and timestamp evidence.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model."
+      ],
+      "permissions": [
+        "Adds analyze tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Supplied artifacts only, not a connected logging service. Pattern/literal redaction cannot guarantee detection of arbitrary secrets or encodings.",
+        "At most 20 files, 100000 characters per file and 150000 aggregate; requested results at most 100. Pagination or uncertain timestamps makes completeness false.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "analyze",
+      "contentSha": "4d443b6983722697c6bc7a8a053781426b0339a78f5a1c18f5eb0cb3735bad76"
+    },
+    {
+      "id": "incident-workbench",
+      "kind": "plugin",
+      "name": "Incident Workbench",
+      "summary": "Assemble a cited chronology from supplied deployment, metric, alert and operator evidence; never infer causes.",
+      "description": "Build a cited UTC incident chronology from correlated deployments, metrics, alerts and operator notes.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model."
+      ],
+      "permissions": [
+        "Adds analyze tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Chronology is not causation: cause and recovery claims remain cited claims; no inferred root cause or remediation execution.",
+        "At most 20 files, 150000 aggregate characters and 100 requested events. Missing timezone, partial pages and unordered evidence remain explicit.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "analyze",
+      "contentSha": "a3eaa16e1cc364e1606d980a3145f4a14d79ad87120f7255bc072430a910f091"
+    },
+    {
+      "id": "environment-config-doctor",
+      "kind": "plugin",
+      "name": "Environment Config Doctor",
+      "summary": "Validate explicitly supplied dotenv or JSON against typed rules; return rule indices, never values or digests.",
+      "description": "Identify missing and invalid configuration by rule index without exposing names, values or digests.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model."
+      ],
+      "permissions": [
+        "Adds analyze tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "No environment/vault import or file scan; output cannot erase secrets already supplied to host history.",
+        "Conservative dotenv subset or flat scalar JSON only; no interpolation or multiline quoted dotenv. Malformed and duplicate decoded JSON keys refuse.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "analyze",
+      "contentSha": "e4cff7fd214625cbead09745efdbd3fb6f53ff7ae87839ec9bba83895f8d6de0"
+    },
+    {
+      "id": "database-fixture-studio",
+      "kind": "plugin",
+      "name": "Database Fixture Studio",
+      "summary": "Generate seeded synthetic relational rows and executable SQLite SQL from a bounded schema. No database connection or personal-data import.",
+      "description": "Generate seeded synthetic relational rows plus SQLite DDL/INSERT text for repeatable test fixtures.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model."
+      ],
+      "permissions": [
+        "Adds analyze tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Does not connect to or populate a database, import personal rows or execute the generated SQL.",
+        "6 tables, 12 columns per table, 100 rows per table and 200 total rows; unsupported constraints, cycles and impossible bounds refuse.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "analyze",
+      "contentSha": "bd09b7af7116ca6cc2df96bbe27d76e6b9dfc030787937c6159ccaff95cc1f00"
+    },
+    {
+      "id": "data-contract-validator",
+      "kind": "plugin",
+      "name": "Schema and Data Contract Validator",
+      "summary": "Validate explicit payloads and compare bounded JSON Schema draft-07 or Protobuf contracts using pinned libraries. Unsupported constructs are refused.",
+      "description": "Compare bounded JSON Schema or Protobuf contracts and actually validate supplied payloads with pinned libraries.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model."
+      ],
+      "permissions": [
+        "Adds analyze tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Deliberately bounded JSON Schema draft-07 and flat Protobuf subset; unsupported refs, composition, imports and complex messages refuse. Not full standard compatibility.",
+        "Contracts up to 16384 characters each; 20 payloads of 8192 characters. Wire compatibility does not imply JSON-name compatibility.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "analyze",
+      "contentSha": "809b4ad8ef8d1181bb545d7a6fa4f3b0f62d2b3c5122ade358d70e4cace4c407"
+    },
+    {
+      "id": "change-impact-analyzer",
+      "kind": "plugin",
+      "name": "Change Impact Analyzer",
+      "summary": "Map one changed function to statically resolved callers, packages and supplied tests. Explicit source snapshot only; no execution or runtime coverage claim.",
+      "description": "Trace one changed function to statically resolved callers, packages and candidate supplied tests using AST evidence.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model."
+      ],
+      "permissions": [
+        "Adds analyze tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Static reachability, not executed tests or runtime coverage. Dynamic calls, escaping callbacks and unsupported resolution make the report incomplete.",
+        "24 files, 8192 UTF-8 bytes per file and 32768 total source bytes. JS/JSX/TS/TSX ES modules only; no tsconfig aliases, CJS or project execution.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "analyze",
+      "contentSha": "845446ca51bb982389707127b8f69e9609b934d03258d8c8fde0f07956791958"
+    },
+    {
+      "id": "architecture-guard",
+      "kind": "plugin",
+      "name": "Architecture Guard",
+      "summary": "Check directed static module imports against explicit forbidden imports and layer rules; return evidenced dependency-cycle witnesses. Supplied source only, never execute a project.",
+      "description": "Check directed module dependencies against explicit layer policy and return evidenced cycle witnesses.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model."
+      ],
+      "permissions": [
+        "Adds analyze tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Incomplete graphs return an unknown policy verdict, never a safe verdict. One witness per cyclic component, not all possible cycles.",
+        "24 supplied files and 32768 total source bytes; static ES-module subset only, including type dependencies. No project config execution or automatic discovery.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "analyze",
+      "contentSha": "bfb96872b64a0ea440903d60c590829cc72a8af6c00f85dba20316cdd0f72a79"
+    },
+    {
+      "id": "sql-migration-reviewer",
+      "kind": "plugin",
+      "name": "SQL Migration Reviewer",
+      "summary": "Rehearse bounded additive SQLite DDL in disposable memory with synthetic rows and rollback evidence. No live database or workspace access.",
+      "description": "Execute admitted additive SQLite DDL in disposable memory, verify rollback and return schema/count/hash evidence.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model.",
+        "Node SQLite with working setAuthorizer enforcement; Node 24.20.0 was exercised. Unsupported runtimes refuse."
+      ],
+      "permissions": [
+        "Adds rehearse tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "SQLite-only closed additive grammar, not a production migration safety, locking, performance or cross-dialect assessment. No live database or apply operation.",
+        "8192 SQL UTF-8 bytes, 512 tokens and 8 statements; baseline at most 8 tables and 400 synthetic rows. No hard in-process wall-clock or OS sandbox guarantee.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "rehearse",
+      "contentSha": "a130a2c3eac7daa967839a90ed5e9c1b93d93756f8516f623900b03972677f06"
+    },
+    {
+      "id": "visual-regression",
+      "kind": "plugin",
+      "name": "Visual Regression",
+      "summary": "Compare supplied PNG pairs offline at desktop/phone sizes. Exact pixels only; no capture or URL access. Supplied images may be sensitive.",
+      "description": "Compare supplied PNG pairs by exact decoded RGBA8 pixels, changed-pixel count and bounding rectangle.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model."
+      ],
+      "permissions": [
+        "Adds compare tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Exact pixel equality only, not perceptual significance, anti-alias tolerance or color management; invisible RGB changes count. No capture, browser or URL access.",
+        "One or two pairs; RGB/RGBA8 noninterlaced PNG only, no ancillary chunks; 10000 bytes per PNG and 60000 serialized input bytes. Unsupported ordinary PNGs require explicit external conversion.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "compare",
+      "contentSha": "87eda29c956f198f0352d2aa4585618dd82bc30d93cce30834ff948280e4f4fe"
+    },
+    {
+      "id": "localization-qa",
+      "kind": "plugin",
+      "name": "Localization QA",
+      "summary": "Check flat catalogs, named placeholders and supplied owned-fixture render measurements. No live capture or workspace access.",
+      "description": "Find missing keys and named-placeholder mismatches; derive overflow only from supplied owned-fixture measurements.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model."
+      ],
+      "permissions": [
+        "Adds check tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "No live capture or translation-quality verdict. Absent render evidence is not-measured; coherent measurement hashes are not authenticated capture proof.",
+        "32 keys, 512 UTF-16 units per value, 24000 UTF-8 bytes per raw catalog; combined escaped request must fit 65536 UTF-16 units. Named-v1 only, not ICU or printf validation.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "check",
+      "contentSha": "e1fba1dfb62738cf60b80e80ecfdb859b523c4622d640074b1851ab007795b6e"
+    },
+    {
+      "id": "accessibility-auditor",
+      "kind": "plugin",
+      "name": "Accessibility Auditor",
+      "summary": "Analyze supplied HTML offline. Structural findings only; no live capture, rendering or WCAG verdict. HTML may be sensitive.",
+      "description": "Find bounded HTML5 structural and naming-uncertainty issues with source offsets and AST references.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model."
+      ],
+      "permissions": [
+        "Adds audit tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Static findings, not confirmed rendered violations, complete accessible-name computation or WCAG conformance. Contrast, focus, layout and dynamic states require browser review.",
+        "6000 UTF-16 input units / 24KB UTF-8; 512 tree nodes, depth 32 and 64 findings. Default browser evidence is recorded owned-fixture evidence, not a fresh/live capture.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "audit",
+      "contentSha": "b010936d96d1e7cf48d1d6d8a92e36412aed0dd08fefd732a4679bea882b2e42"
+    },
+    {
+      "id": "build-cache-inspector",
+      "kind": "plugin",
+      "name": "Build Cache Inspector",
+      "summary": "Measure an operator-staged native-home cache and preview pruning. No changes or selected-project access.",
+      "description": "Measure actual staged TypeScript cache files and produce an immutable pruning preview without applying it.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model.",
+        "With the plugin disabled, a trusted operator stages ordinary TypeScript build outputs in its own native data home; keep staging quiescent and retain the local ordinal mapping."
+      ],
+      "permissions": [
+        "Adds inspect tool (Ask)",
+        "Own plugin-data read only; no writes or selected-project access.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Own native data home only, not selected-project or full-owner-cache access. No deletion, apply, compiler execution or hit-rate inference; logical bytes are not guaranteed disk recovery.",
+        "Trusted quiescent staging required; 128 files, 256 entries, depth 8 and 16MiB hash reads. Not hostile-writer race-proofing or NTFS alternate-stream enumeration; refusals use fixed English text.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "inspect",
+      "contentSha": "6ab10645c5107600e58fe9039e678c3344fa8d6e532f4bb2e1c00e0d6a8f5e6b"
+    },
+    {
+      "id": "api-contract-guard",
+      "kind": "plugin",
+      "name": "API Contract Guard",
+      "summary": "Compare bounded OpenAPI JSON contracts offline.",
+      "description": "Identify breaking request/response changes in supplied OpenAPI JSON using directional acceptance rules and document pointers.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with Sara 2.70.0 on Windows (Node 24.20.0) and Linux (Node 24.22.1): registered tool execution, invocation cards, refusal and disablement checks passed against the exact approved package bytes. Linux default bubblewrap package smoke also passed. These are bounded add-on checks, not full-app or ordinary chat-approval acceptance. Signed availability is shown separately from the publication snapshot.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model."
+      ],
+      "permissions": [
+        "Adds compare tool (Ask)",
+        "No filesystem read/write grants; explicit supplied inputs only.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Fail-closed OpenAPI 3.0/3.1 JSON subset, not a full OpenAPI/JSON Schema validator. No YAML, remote refs, composition, security requirements or model interpretation.",
+        "Document-pointer evidence only, not file/hash or executed API evidence. Per-document 256KiB and 128 findings; the real host combined argument limit also applies.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "0.1.0",
+      "tool": "compare",
+      "contentSha": "c39908850908954074398dc6282136eb6a35e75a088de0f8b5473472547ec4ee"
+    },
+    {
+      "id": "http-webhook-workbench",
+      "kind": "plugin",
+      "name": "HTTP and Webhook Workbench",
+      "summary": "Send a loopback HTTP request and optionally replay once. Calls can have effects. Sensitive fields are redacted.",
+      "description": "Send bounded HTTP requests through Sara's existing socket broker to an explicitly configured local developer service; compare actual responses from an optional single replay. This is not a public webhook listener.",
+      "status": "tested",
+      "costTier": "unconfirmed",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Qualified with actual Sara 2.70.0 modules: 26/26 focused tests passed on Windows Node 24.20.0 (node-only) and Linux Node 24.22.1 (default bubblewrap fixture lifecycle). Both exercise an owned loopback listener, actual replay, redaction, response refusals, result cards and disablement; source, archive and manager-approved runtime bytes match across platforms. Actual 2.70.0 chat approval with a scripted provider also passed: denial sent zero requests, approval sent the request plus replay and returned a redacted card. Timing admission witnesses use mocked monotonic time, not delayed real TCP handshakes. This does not claim generic OS sandbox safety, a real provider/account or owner UI acceptance. Signed availability is determined separately by the current Store snapshot.",
+      "prerequisites": [
+        "Sara >=2.70.0 <3.0.0; Node 24+",
+        "Review installation trust, configure endpoint as literal 127.0.0.1:port, and explicitly enable for the intended companion; request tool defaults Ask.",
+        "Use an owned, authorized local developer service and synthetic data. Tool arguments may be retained by host history or shared with its configured model; redaction cannot erase already-supplied arguments."
+      ],
+      "permissions": [
+        "Adds request tool (Ask). Loopback calls can have side effects, including modifying or deleting data.",
+        "Existing Sara socket broker only: settings-selected literal 127.0.0.1:port, local non-TLS connection. No direct network SDK bypass, public/LAN host access or workspace/filesystem grants.",
+        "Reads configured endpoint setting; no model/provider calls, memory store, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only; private-local mode blocks the broker."
+      ],
+      "limitations": [
+        "GET/POST/PUT/PATCH/DELETE/HEAD only; empty or object/array JSON bodies and simple origin-form paths. No URL queries, percent escapes, fragments, redirects, chunking, compression, informational responses or streaming.",
+        "4096 UTF-8 request-body bytes, 8192 response-body bytes, 4096 response-header bytes and 12288 total response bytes; at most 12 headers of 512 ASCII characters. Shared 20-second monotonic invocation budget includes both connections, responses and optional replay; at most two requests.",
+        "Replay explicitly repeats the approved method once; duplication may repeat non-idempotent side effects. No automatic retries or rollback: response refusal or timeout does not undo an already-sent request.",
+        "Bounded sensitive-field/known-value redaction only, not arbitrary secrets, encoded secrets or personal data detection. Do not put secrets in paths or public headers. Duplicate decoded JSON keys and redacted-key collisions visibly refuse; no new secret manager or saved recordings.",
+        "Linux bubblewrap qualification covers this actual brokered fixture lifecycle, not general hostile-code isolation. Chat acceptance used a scripted model, not a paid provider or real owner account. Check the current signed Store for installation availability."
+      ],
+      "cost": "The plugin itself makes no model/provider calls, but does make local HTTP requests. The configured local service may incur its own costs; review that service separately.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "request",
+      "contentSha": "cafef41c0d07665c6f676f049024e5d0dd2cda92d24bbfced230f02d50db7d45"
     }
   ],
   "investigations": [

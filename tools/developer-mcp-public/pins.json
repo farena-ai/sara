@@ -1,0 +1,21 @@
+{
+  "terraform": {
+    "version": "1.4.1",
+    "commit": "3781509a674482ca7e2821fab8159a25e3b29bdf",
+    "license": "MPL-2.0",
+    "platform": "windows_amd64",
+    "archiveSha256": "1783262cd00ed02b8c3e660ce247362ed2399901704e75103981e6efb37077c1",
+    "binarySha256": "180994c5ae735314e77357d41fa854d8983425f73e80ca2586804a816214244d",
+    "binaryUrl": "https://releases.hashicorp.com/terraform-mcp-server/1.4.1/terraform-mcp-server_1.4.1_windows_amd64.zip",
+    "tools": ["search_provider_docs", "get_provider_details"]
+  },
+  "storybook": {
+    "version": "10.6.6",
+    "license": "MIT",
+    "addonArchiveSha256": "a0f6327dcab948d5cb4316dc7bd91d03a500362118fcfa59eadabf0d47e75a4f",
+    "coreArchiveSha256": "0d7c22462aef6f569f304410100c2bb8082b6e5125e701309ee5147d6eae8175"
+  },
+  "dependencyLockSha256": "cfb381d36e8aaf18cf2c752e79a3437f2b1f1b1be9ffca6cc8018bdd64e0fa70",
+  "installable": false,
+  "qualification": "Public registry and owned rendered fixture only; not full target, plan, docs-manifest, chat approval, installer or OS sandbox qualification."
+}

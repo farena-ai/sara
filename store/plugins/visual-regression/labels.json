@@ -1,0 +1,38 @@
+{
+  "en": {
+    "title": "Visual Regression",
+    "description": "Compare supplied PNG pairs offline at desktop/phone sizes. Exact pixels only; no capture or URL access. Supplied images may be sensitive.",
+    "complete": "Offline pixel comparison complete. Counts and rectangles refer only to supplied images.",
+    "error": "Invalid, unsupported, mismatched or excessive PNG/input/output. No comparison result released."
+  },
+  "es": {
+    "title": "Regresión visual",
+    "description": "Compara pares PNG proporcionados sin conexión en tamaños de escritorio y móvil. Píxeles exactos; sin capturas ni acceso URL. Las imágenes pueden ser sensibles.",
+    "complete": "Comparación de píxeles sin conexión completa. Los recuentos y rectángulos solo se refieren a las imágenes proporcionadas.",
+    "error": "PNG/entrada/salida no válidos, no admitidos, incompatibles o excesivos. No se publicó ningún resultado."
+  },
+  "fr": {
+    "title": "Régression visuelle",
+    "description": "Compare hors ligne des paires PNG fournies aux tailles bureau et téléphone. Pixels exacts ; aucune capture ni accès URL. Les images peuvent être sensibles.",
+    "complete": "Comparaison de pixels hors ligne terminée. Les nombres et rectangles concernent uniquement les images fournies.",
+    "error": "PNG/entrée/sortie invalides, non pris en charge, incompatibles ou excessifs. Aucun résultat publié."
+  },
+  "de": {
+    "title": "Visuelle Regression",
+    "description": "Vergleicht bereitgestellte PNG-Paare offline in Desktop-/Telefongröße. Exakte Pixel; keine Aufnahme oder URL-Zugriffe. Bilder können sensibel sein.",
+    "complete": "Offline-Pixelvergleich abgeschlossen. Zahlen und Rechtecke beziehen sich nur auf bereitgestellte Bilder.",
+    "error": "Ungültige, nicht unterstützte, unpassende oder zu große PNG/Ein-/Ausgabe. Kein Ergebnis ausgegeben."
+  },
+  "pt-BR": {
+    "title": "Regressão visual",
+    "description": "Compara pares PNG fornecidos offline em tamanhos de computador e telefone. Pixels exatos; sem captura nem acesso URL. As imagens podem ser sensíveis.",
+    "complete": "Comparação de pixels offline concluída. Contagens e retângulos referem-se apenas às imagens fornecidas.",
+    "error": "PNG/entrada/saída inválidos, não suportados, incompatíveis ou excessivos. Nenhum resultado emitido."
+  },
+  "it": {
+    "title": "Regressione visiva",
+    "description": "Confronta coppie PNG fornite offline in formati desktop e telefono. Pixel esatti; nessuna cattura o accesso URL. Le immagini possono essere sensibili.",
+    "complete": "Confronto pixel offline completato. Conteggi e rettangoli riguardano solo le immagini fornite.",
+    "error": "PNG/input/output non validi, non supportati, incompatibili o eccessivi. Nessun risultato pubblicato."
+  }
+}

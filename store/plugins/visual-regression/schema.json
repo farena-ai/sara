@@ -1,0 +1,45 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "pairs"
+  ],
+  "properties": {
+    "pairs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "description": "One pair per fixed viewport label; PNG dimensions must agree within each pair. Max 60000 serialized input bytes.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "viewport",
+          "baseline",
+          "candidate"
+        ],
+        "properties": {
+          "viewport": {
+            "type": "string",
+            "enum": [
+              "desktop",
+              "phone"
+            ]
+          },
+          "baseline": {
+            "type": "string",
+            "minLength": 60,
+            "maxLength": 13336,
+            "description": "Canonical base64 PNG, not a path/URL. <=10000 bytes; RGB/RGBA8 noninterlaced; IHDR/IDAT/IEND only; <=1280x960, <=1000000 pixels."
+          },
+          "candidate": {
+            "type": "string",
+            "minLength": 60,
+            "maxLength": 13336,
+            "description": "Canonical base64 PNG, same restrictions and dimensions as baseline."
+          }
+        }
+      }
+    }
+  }
+}

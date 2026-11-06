@@ -1,0 +1,1 @@
+{"extends":"../../tsconfig.json","include":["../../test/developer-localization-qa*.test.ts","./verify.ts"],"exclude":[]}

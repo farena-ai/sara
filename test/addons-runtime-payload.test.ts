@@ -8,7 +8,9 @@ import { fromFolder, hashFiles } from '../src/packages.ts';
 import { NATIVE_CANDIDATE_IDS } from '../src/addons/discovery.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
-const IDS = ['daily-briefing', 'meeting-assistant', 'document-desk', 'research-notebook', 'project-handoff', 'weekly-review', 'inbox-triage', 'content-studio', 'image-workshop', 'spreadsheet-assistant', 'travel-planner', 'home-dashboard'];
+const IDS = ['daily-briefing', 'meeting-assistant', 'document-desk', 'research-notebook', 'project-handoff', 'weekly-review', 'inbox-triage', 'content-studio', 'image-workshop', 'spreadsheet-assistant', 'travel-planner', 'home-dashboard',
+  // A2 developer add-ons ship beside the A1 candidates so their reviews are not held as missing.
+  ...['secret-scanner', 'license-auditor', 'sbom-builder', 'artifact-provenance-verifier', 'coverage-explorer', 'log-explorer', 'incident-workbench', 'environment-config-doctor', 'database-fixture-studio', 'data-contract-validator', 'change-impact-analyzer', 'architecture-guard', 'sql-migration-reviewer', 'visual-regression', 'localization-qa', 'accessibility-auditor', 'build-cache-inspector', 'api-contract-guard', 'http-webhook-workbench']];
 const BUILTINS = ['email', 'imessage', 'matrix', 'signal', 'whatsapp'];
 const read = (path: string) => readFileSync(join(ROOT, path), 'utf8').replaceAll('\r\n', '\n');
 const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash';
@@ -20,7 +22,7 @@ test('runtime candidate allowlist matches the approved public projection', () =>
 
 function verifyPayload(payload: string): void {
   assert.deepEqual(sorted(readdirSync(join(payload, 'store'))), ['plugins'], 'runtime store contains no catalogs, MCP recipes or website authoring');
-  assert.deepEqual(sorted(readdirSync(join(payload, 'store/plugins'))), sorted(IDS), 'only the twelve approved candidate roots ship');
+  assert.deepEqual(sorted(readdirSync(join(payload, 'store/plugins'))), sorted(IDS), 'only the approved candidate roots ship');
   assert.deepEqual(sorted(readdirSync(join(payload, 'plugins'))), BUILTINS, 'all five existing builtins ship');
   for (const relative of [...IDS.map(id => `store/plugins/${id}`), ...BUILTINS.map(id => `plugins/${id}`)]) {
     const source = fromFolder(join(ROOT, relative));
@@ -89,7 +91,7 @@ for (const [name, path, destination] of [
 test('Docker COPY recipe delivers only selected complete candidate packages and five builtins', { skip: REPO_OUTPUTS_READONLY }, () => {
   const recipe = read('Dockerfile').replace(/\\\n\s*/g, ' ');
   const candidateSources = [...recipe.matchAll(/^COPY (store\/plugins\/\S+) /gm)].map(match => match[1]);
-  assert.deepEqual(sorted(candidateSources), sorted(NATIVE_CANDIDATE_IDS.map(id => `store/plugins/${id}`)), 'image explicitly includes all twelve candidates');
+  assert.deepEqual(sorted(candidateSources), sorted(NATIVE_CANDIDATE_IDS.map(id => `store/plugins/${id}`)), 'image explicitly includes every candidate');
   fixture(folder => {
     const payload = join(folder, 'runtime'); mkdirSync(payload);
     for (const line of recipe.split('\n').filter(line => /^COPY\s/.test(line))) {

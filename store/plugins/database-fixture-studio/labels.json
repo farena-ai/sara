@@ -1,0 +1,38 @@
+{
+  "en": {
+    "title": "Database Fixture Studio",
+    "description": "Generate seeded synthetic relational rows and executable SQLite SQL from a bounded schema. No database connection or personal-data import.",
+    "error": "Invalid, unsupported or excessive input/output. No data imported or database modified.",
+    "message": "Local analysis complete."
+  },
+  "es": {
+    "title": "Estudio de datos sintéticos",
+    "description": "Genera filas relacionales sintéticas y SQL SQLite con semilla. Sin conexión a bases ni importación de datos personales.",
+    "error": "Entrada/salida inválida, no admitida o excesiva. No se importaron datos ni se modificaron bases.",
+    "message": "Análisis local completo."
+  },
+  "fr": {
+    "title": "Atelier de données synthétiques",
+    "description": "Génère des lignes relationnelles synthétiques et du SQL SQLite avec graine. Aucune connexion ni importation personnelle.",
+    "error": "Entrée/sortie invalide, non prise en charge ou excessive. Aucune donnée importée ni base modifiée.",
+    "message": "Analyse locale terminée."
+  },
+  "de": {
+    "title": "Studio für synthetische Daten",
+    "description": "Erzeugt synthetische relationale Zeilen und SQLite-SQL mit Startwert. Keine Datenbankverbindung oder Personendatenimporte.",
+    "error": "Ungültige, nicht unterstützte oder zu große Ein-/Ausgabe. Keine Daten importiert oder Datenbanken geändert.",
+    "message": "Lokale Analyse abgeschlossen."
+  },
+  "pt-BR": {
+    "title": "Estúdio de dados sintéticos",
+    "description": "Gera linhas relacionais sintéticas e SQL SQLite com semente. Sem conexão a bancos ou importação de dados pessoais.",
+    "error": "Entrada/saída inválida, não suportada ou excessiva. Nenhum dado importado ou banco alterado.",
+    "message": "Análise local concluída."
+  },
+  "it": {
+    "title": "Studio di dati sintetici",
+    "description": "Genera righe relazionali sintetiche e SQL SQLite con seme. Nessuna connessione o importazione personale.",
+    "error": "Input/output non valido, non supportato o eccessivo. Nessun dato importato o database modificato.",
+    "message": "Analisi locale completata."
+  }
+}

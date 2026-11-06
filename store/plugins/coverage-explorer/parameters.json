@@ -1,0 +1,74 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "lcov": {
+      "type": "string",
+      "maxLength": 100000,
+      "minLength": 1
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[\\w.-]+(?:/[\\w.-]+)*$"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 30000,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "path",
+          "text"
+        ]
+      },
+      "maxItems": 20,
+      "minItems": 1
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[\\w.-]+(?:/[\\w.-]+)*$"
+          },
+          "start": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30000
+          },
+          "end": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30000
+          }
+        },
+        "required": [
+          "path",
+          "start",
+          "end"
+        ]
+      },
+      "maxItems": 100,
+      "minItems": 0
+    }
+  },
+  "required": [
+    "lcov",
+    "sources",
+    "changes"
+  ]
+}

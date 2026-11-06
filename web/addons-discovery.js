@@ -21,6 +21,7 @@ async function read(path) {
 }
 const STATUS = {
   'in-testing': () => t('In testing'),
+  tested: () => t('Host-tested'),
   'needs-account': () => t('Needs account'),
   blocked: () => t('Blocked'),
 };
@@ -200,7 +201,7 @@ export async function loadNativeDiscovery(review) {
   return load(box, async () => {
     const data = await read('/plugins/candidates');
     const [mcp, shelf] = await Promise.all([read('/mcp/discovery/previews').catch(() => ({ investigations: [] })), read('/store').catch(() => null)]);
-    box.replaceChildren(el('h3', '', t('Workflow candidates')), el('p', 'muted small', t('Supplied-data workflows in testing. Review exact files and permissions before installing; each companion stays off until you enable it.')));
+    box.replaceChildren(el('h3', '', t('Workflow candidates')), el('p', 'muted small', t('Supplied-data workflows and developer tools. Review exact files and permissions before installing; each companion stays off until you enable it.')));
     filters(box, 'native-discovery', data.candidates, item => nativeCard(item, review));
     guides(box, data.packs, data.candidates, mcp.investigations, shelf);
   }, () => loadNativeDiscovery(review));

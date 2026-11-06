@@ -1,9 +1,11 @@
 // E4 (docs/ops/E4_DESIGN.md): file/log watches, the owner's only. Household members, the demo and
 // anyone else get 403 (guests and other apps' keys never get past sign-in). Nothing here calls a
 // model or runs a command; there is no model tool for this (she can only suggest a watch).
-//   GET    /api/watches                       {watches, roots, limits}
-//   POST   /api/watches                       {root, workspace, path, patterns, caseIns, everyMin, conversationId} → {watch}
-//   PATCH  /api/watches/:id                   {patterns, caseIns, everyMin} → {watch}
+//   GET    /api/watches                       {watches, roots (incl. linked bridges), chats, limits}
+//   POST   /api/watches                       {root, workspace, path, patterns, caseIns, everyMin, conversationId, alsoTo} → {watch}
+//   PATCH  /api/watches/:id                   {patterns, caseIns, everyMin, conversationId, alsoTo} → {watch}
+//          alsoTo: names only ('telegram', 'discord'), each linked to the owner's own chat; the card's
+//          chat must be one of his own (no guests, rooms or groups).
 //   POST   /api/watches/:id/check-now · /pause · /resume · /stop
 //   DELETE /api/watches/:id                   Stop and forget (the watch and its alerts)
 //   GET    /api/watches/:id/alerts            {alerts}
@@ -31,7 +33,7 @@ export function createWatchRoutes(ctx: RouteCtx): RouteHandler {
     }
     const w = app.watches;
     if (!b) {
-      if (method === 'GET') return send(res, 200, { watches: w.list(), roots: w.roots(), limits: WATCH });
+      if (method === 'GET') return send(res, 200, { watches: w.list(), roots: w.roots(), chats: w.chats(), limits: WATCH });
       if (method === 'POST') {
         const body = await readJson(req);
         return send(res, 200, { watch: wrap(() => w.create(body)) });

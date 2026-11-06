@@ -10,7 +10,7 @@ import { REPO_OUTPUTS_READONLY } from './repo-outputs.ts';
 const isPrivate = (path: string) => PRIVATE.some((pattern) => pattern.test(path));
 
 test('public export keeps website-only tools with their private template boundary', () => {
-  for (const path of ['scripts/build-addons-site.ts', 'scripts/check-addons-site.mjs', 'scripts/addons-output-path.ts', 'test/addons-site.test.ts', 'test/addons-mcp.test.ts', 'store/addons/mcp-catalog.json', 'store/addons/packs.json', 'docs/store/website/addons/frame.html']) {
+  for (const path of ['scripts/build-addons-site.ts', 'scripts/check-addons-site.mjs', 'scripts/addons-output-path.ts', 'test/addons-site.test.ts', 'test/addons-mcp.test.ts', 'test/developer-catalog-site.test.ts', 'store/addons/developer-catalog.json', 'store/addons/mcp-catalog.json', 'store/addons/packs.json', 'docs/store/website/addons/frame.html']) {
     assert.equal(isPrivate(path), true, `${path}: private catalog tooling must not ship with missing inputs`);
   }
   for (const path of ['scripts/package-addons.ts', 'test/addons-bundle.test.ts', 'test/addons-knowledge.test.ts', 'test/addons-workflows.test.ts', 'store/plugins/daily-briefing/main.mjs', 'store/mcp/dbhub.json']) {

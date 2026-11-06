@@ -1,0 +1,727 @@
+{
+  "ttlMs": 0,
+  "cacheScope": "public",
+  "tools": [
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true,
+        "title": "Get Build"
+      },
+      "description": "Get a single build with lightweight annotation summaries. Annotation bodies and jobs are not included \u2014 use list_annotations to read annotations, list_jobs or get_job for job detail, and list_step_uploads to see the dynamic pipeline configuration the build received via `buildkite-agent pipeline upload`",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "telemetry": {
+            "type": "object",
+            "properties": {
+              "context": {
+                "type": "string",
+                "description": "Explain why calling this tool fits the user's overall goal. This parameter supports analytics and user-intent tracking. Provide 15-25 meaningful words in third-person perspective. Avoid credentials, passwords, and personal data; the server does not classify sensitive content.",
+                "maxLength": 256
+              }
+            },
+            "description": "Analytics metadata describing the tool call's purpose",
+            "required": [
+              "context"
+            ],
+            "additionalProperties": false
+          },
+          "org_slug": {
+            "type": "string"
+          },
+          "pipeline_slug": {
+            "type": "string"
+          },
+          "build_number": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_slug",
+          "pipeline_slug",
+          "build_number"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_build"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true,
+        "title": "Get Build Test Engine Runs"
+      },
+      "description": "Get test engine runs data for a specific build in Buildkite. This can be used to look up Test Runs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "telemetry": {
+            "type": "object",
+            "properties": {
+              "context": {
+                "type": "string",
+                "description": "Explain why calling this tool fits the user's overall goal. This parameter supports analytics and user-intent tracking. Provide 15-25 meaningful words in third-person perspective. Avoid credentials, passwords, and personal data; the server does not classify sensitive content.",
+                "maxLength": 256
+              }
+            },
+            "description": "Analytics metadata describing the tool call's purpose",
+            "required": [
+              "context"
+            ],
+            "additionalProperties": false
+          },
+          "org_slug": {
+            "type": "string"
+          },
+          "pipeline_slug": {
+            "type": "string"
+          },
+          "build_number": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_slug",
+          "pipeline_slug",
+          "build_number"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_build_test_engine_runs"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true,
+        "title": "Get Job"
+      },
+      "description": "Get a single job by its UUID. Provide 'pipeline_slug' and 'build_number' for a build-scoped lookup, or omit both to look the job up by organization and job ID alone",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "telemetry": {
+            "type": "object",
+            "properties": {
+              "context": {
+                "type": "string",
+                "description": "Explain why calling this tool fits the user's overall goal. This parameter supports analytics and user-intent tracking. Provide 15-25 meaningful words in third-person perspective. Avoid credentials, passwords, and personal data; the server does not classify sensitive content.",
+                "maxLength": 256
+              }
+            },
+            "description": "Analytics metadata describing the tool call's purpose",
+            "required": [
+              "context"
+            ],
+            "additionalProperties": false
+          },
+          "org_slug": {
+            "type": "string"
+          },
+          "job_id": {
+            "type": "string"
+          },
+          "pipeline_slug": {
+            "type": "string",
+            "description": "Pipeline slug. Provide together with 'build_number' for a build-scoped lookup. Omit both to look up the job by organization and job ID alone"
+          },
+          "build_number": {
+            "type": "string",
+            "description": "Build number. Provide together with 'pipeline_slug' for a build-scoped lookup. Omit both to look up the job by organization and job ID alone"
+          },
+          "include_agent": {
+            "type": "boolean",
+            "description": "Include full agent details in job objects. When false (default), only agent.id is included"
+          }
+        },
+        "required": [
+          "org_slug",
+          "job_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_job"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true,
+        "title": "Get Job Environment Variables"
+      },
+      "description": "Get the environment variables for a specific job in a Buildkite build",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "telemetry": {
+            "type": "object",
+            "properties": {
+              "context": {
+                "type": "string",
+                "description": "Explain why calling this tool fits the user's overall goal. This parameter supports analytics and user-intent tracking. Provide 15-25 meaningful words in third-person perspective. Avoid credentials, passwords, and personal data; the server does not classify sensitive content.",
+                "maxLength": 256
+              }
+            },
+            "description": "Analytics metadata describing the tool call's purpose",
+            "required": [
+              "context"
+            ],
+            "additionalProperties": false
+          },
+          "org_slug": {
+            "type": "string"
+          },
+          "pipeline_slug": {
+            "type": "string"
+          },
+          "build_number": {
+            "type": "string"
+          },
+          "job_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_slug",
+          "pipeline_slug",
+          "build_number",
+          "job_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_job_env"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true,
+        "title": "Get Step Upload"
+      },
+      "description": "Get a single dynamic pipeline upload including its pipeline definition rendered as YAML (definition_yaml). Definitions over the API's render limit are omitted: definition_yaml is omitted, definition_yaml_omitted is true and definition_bytes reports the size. Only available while the build is within its maximum lifetime (~30 days); older builds return 410 Gone",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "telemetry": {
+            "type": "object",
+            "properties": {
+              "context": {
+                "type": "string",
+                "description": "Explain why calling this tool fits the user's overall goal. This parameter supports analytics and user-intent tracking. Provide 15-25 meaningful words in third-person perspective. Avoid credentials, passwords, and personal data; the server does not classify sensitive content.",
+                "maxLength": 256
+              }
+            },
+            "description": "Analytics metadata describing the tool call's purpose",
+            "required": [
+              "context"
+            ],
+            "additionalProperties": false
+          },
+          "org_slug": {
+            "type": "string"
+          },
+          "pipeline_slug": {
+            "type": "string"
+          },
+          "build_number": {
+            "type": "string"
+          },
+          "upload_uuid": {
+            "type": "string",
+            "description": "UUID of the step upload, from list_step_uploads"
+          }
+        },
+        "required": [
+          "org_slug",
+          "pipeline_slug",
+          "build_number",
+          "upload_uuid"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_step_upload"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true,
+        "title": "List Builds"
+      },
+      "description": "List builds, newest first, for a pipeline or, when pipeline_slug is omitted, across all pipelines in an organization. Returns lightweight summaries including pipeline_slug, creator and finished_at; jobs are not included \u2014 use list_jobs or get_job for job detail. Org-wide listings without created_from can time out. For questions spanning many builds, filter by state, branch, creator and date with per_page 100 instead of calling get_build per build",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "telemetry": {
+            "type": "object",
+            "properties": {
+              "context": {
+                "type": "string",
+                "description": "Explain why calling this tool fits the user's overall goal. This parameter supports analytics and user-intent tracking. Provide 15-25 meaningful words in third-person perspective. Avoid credentials, passwords, and personal data; the server does not classify sensitive content.",
+                "maxLength": 256
+              }
+            },
+            "description": "Analytics metadata describing the tool call's purpose",
+            "required": [
+              "context"
+            ],
+            "additionalProperties": false
+          },
+          "org_slug": {
+            "type": "string"
+          },
+          "pipeline_slug": {
+            "type": "string",
+            "description": "Filter builds by pipeline. When omitted, lists builds across all pipelines in the organization"
+          },
+          "branch": {
+            "type": "string",
+            "description": "Filter builds by git branch name"
+          },
+          "state": {
+            "type": "string",
+            "description": "Filter builds by state (scheduled, running, passed, failed, canceled, skipped)"
+          },
+          "commit": {
+            "type": "string",
+            "description": "Full commit SHA"
+          },
+          "creator": {
+            "type": "string",
+            "description": "Creator's user UUID (a build's creator.id), or me"
+          },
+          "created_from": {
+            "type": "string",
+            "description": "RFC 3339 timestamp or YYYY-MM-DD (UTC)"
+          },
+          "created_to": {
+            "type": "string",
+            "description": "RFC 3339 timestamp, or YYYY-MM-DD (UTC) to include that whole day"
+          },
+          "finished_from": {
+            "type": "string",
+            "description": "RFC 3339 timestamp or YYYY-MM-DD (UTC)"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (min 1)"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Results per page for pagination (min 1, max 100)"
+          }
+        },
+        "required": [
+          "org_slug"
+        ],
+        "additionalProperties": false
+      },
+      "name": "list_builds"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true,
+        "title": "List Jobs"
+      },
+      "description": "List jobs for a Buildkite build, returning an actionable summary by default. For CI failure diagnosis, use state='failed,timed_out,expired' to avoid returning successful jobs, and investigate jobs without soft_failed first: soft_failed true means the job ran and failed but soft_fail allowed its exit status, so it did not block the build. Broken jobs never ran because pipeline configuration excluded them; they are not failures. Use detail_level='detailed' for execution metadata or 'full' for the existing full MCP job response. Returns 'items' and cursor pagination 'links'",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "telemetry": {
+            "type": "object",
+            "properties": {
+              "context": {
+                "type": "string",
+                "description": "Explain why calling this tool fits the user's overall goal. This parameter supports analytics and user-intent tracking. Provide 15-25 meaningful words in third-person perspective. Avoid credentials, passwords, and personal data; the server does not classify sensitive content.",
+                "maxLength": 256
+              }
+            },
+            "description": "Analytics metadata describing the tool call's purpose",
+            "required": [
+              "context"
+            ],
+            "additionalProperties": false
+          },
+          "org_slug": {
+            "type": "string"
+          },
+          "pipeline_slug": {
+            "type": "string"
+          },
+          "build_number": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "description": "Filter jobs by state. Comma-separated for multiple states (e.g., 'passed,failed,running')"
+          },
+          "step_key": {
+            "type": "string",
+            "description": "Filter jobs by step key. Includes all parallel jobs for the step"
+          },
+          "group_key": {
+            "type": "string",
+            "description": "Filter jobs by group key. Includes all jobs in the group"
+          },
+          "detail_level": {
+            "type": "string",
+            "description": "Response detail level: 'summary' (default), 'detailed', or 'full'"
+          },
+          "include_retried_jobs": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Include retried jobs in the response. Defaults to true on the server when omitted"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Results per page for cursor pagination (min 1, max 100, default 30)"
+          },
+          "after": {
+            "type": "string",
+            "description": "Cursor for the next page. Take this from the 'links.next' URL of a previous response. Mutually exclusive with 'before'"
+          },
+          "before": {
+            "type": "string",
+            "description": "Cursor for the previous page. Take this from a previous response. Mutually exclusive with 'after'"
+          },
+          "include_agent": {
+            "type": "boolean",
+            "description": "Include full agent details at the detailed and full levels. When false (default), detailed and full responses include only agent.id"
+          }
+        },
+        "required": [
+          "org_slug",
+          "pipeline_slug",
+          "build_number"
+        ],
+        "additionalProperties": false
+      },
+      "name": "list_jobs"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true,
+        "title": "List Step Uploads"
+      },
+      "description": "List the dynamic pipeline uploads (`buildkite-agent pipeline upload`) a build received, newest first, without their definitions. Each item includes state, the uploading job (source_job_id), created_jobs_count (omitted until applied, 0 when applied but no jobs were created), and rejection details. Use get_step_upload to read an upload's pipeline definition. Only available while the build is within its maximum lifetime (~30 days); older builds return 410 Gone",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "telemetry": {
+            "type": "object",
+            "properties": {
+              "context": {
+                "type": "string",
+                "description": "Explain why calling this tool fits the user's overall goal. This parameter supports analytics and user-intent tracking. Provide 15-25 meaningful words in third-person perspective. Avoid credentials, passwords, and personal data; the server does not classify sensitive content.",
+                "maxLength": 256
+              }
+            },
+            "description": "Analytics metadata describing the tool call's purpose",
+            "required": [
+              "context"
+            ],
+            "additionalProperties": false
+          },
+          "org_slug": {
+            "type": "string"
+          },
+          "pipeline_slug": {
+            "type": "string"
+          },
+          "build_number": {
+            "type": "string"
+          },
+          "source_job_id": {
+            "type": "string",
+            "description": "Only return uploads performed by this job (a job UUID)"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Results per page for pagination (min 1, max 100)"
+          },
+          "after": {
+            "type": "string",
+            "description": "Cursor from a previous response's links.next to fetch the next page"
+          },
+          "before": {
+            "type": "string",
+            "description": "Cursor from a previous response's links.prev to fetch the previous page"
+          }
+        },
+        "required": [
+          "org_slug",
+          "pipeline_slug",
+          "build_number"
+        ],
+        "additionalProperties": false
+      },
+      "name": "list_step_uploads"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true,
+        "title": "Read Logs"
+      },
+      "description": "Read log entries from the file, optionally starting from a specific row number. ALWAYS use 'limit' parameter to avoid excessive tokens. For recent failures, use 'tail_logs' instead. Recommended limits: investigation (100-500), exploration (use seek + small limits). The json format: {ts: timestamp_ms, c: content, rn: row_number}.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "telemetry": {
+            "type": "object",
+            "properties": {
+              "context": {
+                "type": "string",
+                "description": "Explain why calling this tool fits the user's overall goal. This parameter supports analytics and user-intent tracking. Provide 15-25 meaningful words in third-person perspective. Avoid credentials, passwords, and personal data; the server does not classify sensitive content.",
+                "maxLength": 256
+              }
+            },
+            "description": "Analytics metadata describing the tool call's purpose",
+            "required": [
+              "context"
+            ],
+            "additionalProperties": false
+          },
+          "org_slug": {
+            "type": "string"
+          },
+          "pipeline_slug": {
+            "type": "string"
+          },
+          "build_number": {
+            "type": "string",
+            "description": "Sequential build number, not the build UUID"
+          },
+          "job_id": {
+            "type": "string",
+            "description": "Buildkite job UUID"
+          },
+          "cache_ttl": {
+            "type": "string",
+            "description": "Go duration; defaults to 30s"
+          },
+          "force_refresh": {
+            "type": "boolean",
+            "description": "Bypass cached log data"
+          },
+          "seek": {
+            "type": "integer",
+            "description": "Zero-based row at which to begin reading"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum entries to return; 0 reads all remaining entries"
+          }
+        },
+        "required": [
+          "org_slug",
+          "pipeline_slug",
+          "build_number",
+          "job_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "read_logs"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true,
+        "title": "Search Logs"
+      },
+      "description": "Search log entries using regex patterns with optional context lines. For recent failures, try 'tail_logs' first, then use search_logs with patterns like 'error|failed|exception' and limit: 10-20. The json format: {ts: timestamp_ms, c: content, rn: row_number}.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "telemetry": {
+            "type": "object",
+            "properties": {
+              "context": {
+                "type": "string",
+                "description": "Explain why calling this tool fits the user's overall goal. This parameter supports analytics and user-intent tracking. Provide 15-25 meaningful words in third-person perspective. Avoid credentials, passwords, and personal data; the server does not classify sensitive content.",
+                "maxLength": 256
+              }
+            },
+            "description": "Analytics metadata describing the tool call's purpose",
+            "required": [
+              "context"
+            ],
+            "additionalProperties": false
+          },
+          "org_slug": {
+            "type": "string"
+          },
+          "pipeline_slug": {
+            "type": "string"
+          },
+          "build_number": {
+            "type": "string",
+            "description": "Sequential build number, not the build UUID"
+          },
+          "job_id": {
+            "type": "string",
+            "description": "Buildkite job UUID"
+          },
+          "cache_ttl": {
+            "type": "string",
+            "description": "Go duration; defaults to 30s"
+          },
+          "force_refresh": {
+            "type": "boolean",
+            "description": "Bypass cached log data"
+          },
+          "pattern": {
+            "type": "string",
+            "description": "Go regular expression"
+          },
+          "context": {
+            "type": "integer",
+            "description": "Lines before and after each match; overrides before_context and after_context when nonzero"
+          },
+          "before_context": {
+            "type": "integer",
+            "description": "Lines before each match; ignored when context is nonzero"
+          },
+          "after_context": {
+            "type": "integer",
+            "description": "Lines after each match; ignored when context is nonzero"
+          },
+          "case_sensitive": {
+            "type": "boolean"
+          },
+          "invert_match": {
+            "type": "boolean"
+          },
+          "reverse": {
+            "type": "boolean",
+            "description": "Search from the end of the log"
+          },
+          "seek_start": {
+            "type": "integer",
+            "description": "Zero-based starting row; 0 uses the default (log end when reverse)"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum matches to return; 0 returns all"
+          }
+        },
+        "required": [
+          "org_slug",
+          "pipeline_slug",
+          "build_number",
+          "job_id",
+          "pattern"
+        ],
+        "additionalProperties": false
+      },
+      "name": "search_logs"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true,
+        "title": "Tail Logs"
+      },
+      "description": "Show the last N entries from the log file. RECOMMENDED for failure diagnosis - most build failures appear in the final log entries. More token-efficient than read_logs for recent issues. The json format: {ts: timestamp_ms, c: content, rn: row_number}.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "telemetry": {
+            "type": "object",
+            "properties": {
+              "context": {
+                "type": "string",
+                "description": "Explain why calling this tool fits the user's overall goal. This parameter supports analytics and user-intent tracking. Provide 15-25 meaningful words in third-person perspective. Avoid credentials, passwords, and personal data; the server does not classify sensitive content.",
+                "maxLength": 256
+              }
+            },
+            "description": "Analytics metadata describing the tool call's purpose",
+            "required": [
+              "context"
+            ],
+            "additionalProperties": false
+          },
+          "org_slug": {
+            "type": "string"
+          },
+          "pipeline_slug": {
+            "type": "string"
+          },
+          "build_number": {
+            "type": "string",
+            "description": "Sequential build number, not the build UUID"
+          },
+          "job_id": {
+            "type": "string",
+            "description": "Buildkite job UUID"
+          },
+          "cache_ttl": {
+            "type": "string",
+            "description": "Go duration; defaults to 30s"
+          },
+          "force_refresh": {
+            "type": "boolean",
+            "description": "Bypass cached log data"
+          },
+          "tail": {
+            "type": "integer",
+            "description": "Final log entries to return; defaults to 10"
+          }
+        },
+        "required": [
+          "org_slug",
+          "pipeline_slug",
+          "build_number",
+          "job_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "tail_logs"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true,
+        "title": "Wait for Build"
+      },
+      "description": "Wait for a build to reach a terminal state (passed, failed, canceled, skipped, not_run, or blocked on a block step), polling for up to 45 seconds. Returns finished=true along with the build once it settles. If the build is still in progress when the window closes it returns finished=false and the current state only, with no build detail \u2014 call this tool again to keep waiting. Judge a long build by build_elapsed_seconds, which counts from the build's own start time and does not reset between calls; waited_seconds covers only the latest call. Do not wait indefinitely: after roughly ten consecutive calls, stop and report the build as still running with its elapsed time rather than continuing to poll. Jobs and annotation bodies are never included \u2014 use list_jobs or get_job for job detail, and list_annotations to read annotations",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "telemetry": {
+            "type": "object",
+            "properties": {
+              "context": {
+                "type": "string",
+                "description": "Explain why calling this tool fits the user's overall goal. This parameter supports analytics and user-intent tracking. Provide 15-25 meaningful words in third-person perspective. Avoid credentials, passwords, and personal data; the server does not classify sensitive content.",
+                "maxLength": 256
+              }
+            },
+            "description": "Analytics metadata describing the tool call's purpose",
+            "required": [
+              "context"
+            ],
+            "additionalProperties": false
+          },
+          "org_slug": {
+            "type": "string"
+          },
+          "pipeline_slug": {
+            "type": "string"
+          },
+          "build_number": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_slug",
+          "pipeline_slug",
+          "build_number"
+        ],
+        "additionalProperties": false
+      },
+      "name": "wait_for_build"
+    }
+  ]
+}

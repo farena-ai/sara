@@ -58,8 +58,8 @@ test('watch owner: the owner lists, adds, checks, pauses and stops a watch', asy
 for (const mode of ['member', 'demo'] as const) {
   test(`watch owner: a ${mode} gets 403 on every watch route`, async (t) => {
     const { api, app } = await rig(t, mode);
-    for (const [path, method] of [['/api/watches', 'GET'], ['/api/watches', 'POST'], ['/api/watches/1/check-now', 'POST'], ['/api/watches/1', 'DELETE'], ['/api/watches/alerts/1/ask', 'POST']] as const) {
-      assert.equal((await api(path, method, method === 'POST' ? NEW : undefined)).status, 403, `${mode} ${method} ${path}`);
+    for (const [path, method] of [['/api/watches', 'GET'], ['/api/watches', 'POST'], ['/api/watches/1/check-now', 'POST'], ['/api/watches/1', 'DELETE'], ['/api/watches/1', 'PATCH'], ['/api/watches/alerts/1/ask', 'POST']] as const) {
+      assert.equal((await api(path, method, method === 'POST' ? NEW : method === 'PATCH' ? { alsoTo: ['telegram'] } : undefined)).status, 403, `${mode} ${method} ${path}`);
     }
     assert.equal(app.watches!.list().length, 0);
   });

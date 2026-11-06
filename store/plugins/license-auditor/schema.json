@@ -1,0 +1,72 @@
+{
+  "type": "object",
+  "properties": {
+    "lock": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 65536,
+      "description": "Explicit npm package-lock JSON text, lockfileVersion2 or3. Maximum60 installed paths; no links/workspaces."
+    },
+    "metadata": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "expression": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "path",
+          "expression"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 60
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "allow": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "minItems": 0,
+          "maxItems": 60
+        },
+        "deny": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "minItems": 0,
+          "maxItems": 60
+        }
+      },
+      "required": [
+        "allow",
+        "deny"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "lock",
+    "metadata",
+    "policy"
+  ],
+  "additionalProperties": false
+}

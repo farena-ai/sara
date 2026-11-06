@@ -1,0 +1,52 @@
+{
+  "manifest": 1,
+  "id": "sbom-builder",
+  "name": "SBOM builder",
+  "version": "1.0.0",
+  "description": "Build a deterministic CycloneDX 1.5 npm inventory from supplied lockfile v2/v3, including nested identities, purls and SRI hashes. No dependency install.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "analyze"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "SBOM builder": "Generador SBOM",
+      "Build a deterministic CycloneDX 1.5 npm inventory from supplied lockfile v2/v3, including nested identities, purls and SRI hashes. No dependency install.": "Genera un inventario CycloneDX 1.5 desde un lockfile npm v2/v3 con identidades anidadas, purls y hashes SRI. No instala dependencias."
+    },
+    "fr": {
+      "SBOM builder": "Générateur SBOM",
+      "Build a deterministic CycloneDX 1.5 npm inventory from supplied lockfile v2/v3, including nested identities, purls and SRI hashes. No dependency install.": "Crée un inventaire CycloneDX 1.5 depuis un lockfile npm v2/v3, avec identités imbriquées, purls et empreintes SRI. Aucune installation."
+    },
+    "de": {
+      "SBOM builder": "SBOM-Erstellung",
+      "Build a deterministic CycloneDX 1.5 npm inventory from supplied lockfile v2/v3, including nested identities, purls and SRI hashes. No dependency install.": "Erstellt CycloneDX-1.5-Inventar aus npm-v2/v3-Lockdateien mit verschachtelten Identitäten, PURLs und SRI-Hashes. Keine Installation."
+    },
+    "pt-BR": {
+      "SBOM builder": "Gerador SBOM",
+      "Build a deterministic CycloneDX 1.5 npm inventory from supplied lockfile v2/v3, including nested identities, purls and SRI hashes. No dependency install.": "Gera inventário CycloneDX 1.5 de lockfile npm v2/v3 com identidades aninhadas, purls e hashes SRI. Não instala dependências."
+    },
+    "it": {
+      "SBOM builder": "Generatore SBOM",
+      "Build a deterministic CycloneDX 1.5 npm inventory from supplied lockfile v2/v3, including nested identities, purls and SRI hashes. No dependency install.": "Genera un inventario CycloneDX 1.5 da lockfile npm v2/v3 con identità annidate, purl e hash SRI. Nessuna installazione."
+    }
+  }
+}

@@ -1,0 +1,254 @@
+{
+  "type": "object",
+  "description": "Combined request JSON.stringify(args).length <=65,536 UTF-16 code units AND <=180,000 UTF-8 bytes, including JSON escaping and optional evidence. Independent catalog limits do not guarantee combined host usability.",
+  "additionalProperties": false,
+  "properties": {
+    "base": {
+      "type": "string",
+      "maxLength": 24000,
+      "description": "Raw flat JSON string catalog <=24,000 UTF-8 bytes; at most 32 keys, keys <=128 and values <=512 UTF-16 code units. Schema maxLength counts Unicode code points, not bytes or UTF-16 units; runtime and combined request limits also apply. Decoded duplicate keys refused."
+    },
+    "target": {
+      "type": "string",
+      "maxLength": 24000,
+      "description": "Raw flat JSON translation catalog; same independent UTF-8 byte, UTF-16 key/value and combined serialized request limits as base."
+    },
+    "grammar": {
+      "type": "string",
+      "enum": [
+        "named-v1"
+      ],
+      "description": "Only named-v1 {name}, {name:string}, {name:number} validated; backslash escapes braces/backslash. ICU and malformed braces/escapes refuse. Plain %s and %d are literal text, not validated as printf placeholders. No Unicode, markup or translation-quality validation."
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fixture": {
+          "type": "string",
+          "enum": [
+            "localization-owned-v1"
+          ]
+        },
+        "htmlSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "captureSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "baseSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "targetSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "renderer": {
+          "type": "string",
+          "enum": [
+            "chromium"
+          ]
+        },
+        "browserVersion": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "dpr": {
+          "type": "integer",
+          "enum": [
+            1
+          ]
+        },
+        "font": {
+          "type": "string",
+          "enum": [
+            "16px Arial"
+          ]
+        },
+        "viewports": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "integer",
+            "enum": [
+              390,
+              900
+            ]
+          }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ref": {
+                "type": "string",
+                "pattern": "^k[0-9]{3}$"
+              },
+              "viewport": {
+                "type": "integer",
+                "enum": [
+                  390,
+                  900
+                ]
+              },
+              "b": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 32768
+                  },
+                  "y": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 32768
+                  },
+                  "width": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 32768
+                  },
+                  "height": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 32768
+                  },
+                  "scrollWidth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 32768
+                  },
+                  "scrollHeight": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 32768
+                  },
+                  "textWidth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 32768
+                  },
+                  "textHeight": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 32768
+                  },
+                  "textSha": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height",
+                  "scrollWidth",
+                  "scrollHeight",
+                  "textWidth",
+                  "textHeight",
+                  "textSha"
+                ]
+              },
+              "t": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 32768
+                  },
+                  "y": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 32768
+                  },
+                  "width": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 32768
+                  },
+                  "height": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 32768
+                  },
+                  "scrollWidth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 32768
+                  },
+                  "scrollHeight": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 32768
+                  },
+                  "textWidth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 32768
+                  },
+                  "textHeight": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 32768
+                  },
+                  "textSha": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height",
+                  "scrollWidth",
+                  "scrollHeight",
+                  "textWidth",
+                  "textHeight",
+                  "textSha"
+                ]
+              }
+            },
+            "required": [
+              "ref",
+              "viewport",
+              "b",
+              "t"
+            ]
+          }
+        }
+      },
+      "required": [
+        "fixture",
+        "htmlSha",
+        "captureSha",
+        "baseSha",
+        "targetSha",
+        "renderer",
+        "browserVersion",
+        "dpr",
+        "font",
+        "viewports",
+        "rows"
+      ]
+    }
+  },
+  "required": [
+    "base",
+    "target",
+    "grammar"
+  ]
+}

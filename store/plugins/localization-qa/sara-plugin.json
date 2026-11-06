@@ -1,0 +1,52 @@
+{
+  "manifest": 1,
+  "id": "localization-qa",
+  "name": "Localization QA",
+  "version": "1.0.0",
+  "description": "Check flat catalogs, named placeholders and supplied owned-fixture render measurements. No live capture or workspace access.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "check"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Localization QA": "Control de localización",
+      "Check flat catalogs, named placeholders and supplied owned-fixture render measurements. No live capture or workspace access.": "Comprueba catálogos planos, marcadores y medidas de la plantilla propia. Sin captura en vivo ni acceso al proyecto."
+    },
+    "fr": {
+      "Localization QA": "Contrôle de localisation",
+      "Check flat catalogs, named placeholders and supplied owned-fixture render measurements. No live capture or workspace access.": "Vérifie les catalogues plats, paramètres nommés et mesures du rendu de la maquette dédiée. Sans capture directe ni accès au projet."
+    },
+    "de": {
+      "Localization QA": "Lokalisierungsprüfung",
+      "Check flat catalogs, named placeholders and supplied owned-fixture render measurements. No live capture or workspace access.": "Prüft flache Kataloge, benannte Platzhalter und gelieferte Rendermaße der eigenen Testvorlage. Keine Live-Aufnahme oder Projektzugriffe."
+    },
+    "pt-BR": {
+      "Localization QA": "Verificação de localização",
+      "Check flat catalogs, named placeholders and supplied owned-fixture render measurements. No live capture or workspace access.": "Verifica catálogos planos, marcadores nomeados e medidas de renderização da amostra própria. Sem captura ao vivo ou acesso ao projeto."
+    },
+    "it": {
+      "Localization QA": "Verifica della localizzazione",
+      "Check flat catalogs, named placeholders and supplied owned-fixture render measurements. No live capture or workspace access.": "Verifica cataloghi piatti, segnaposto e misure di rendering della prova dedicata. Nessuna acquisizione dal vivo o accesso al progetto."
+    }
+  }
+}

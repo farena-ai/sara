@@ -1,0 +1,38 @@
+{
+  "en": {
+    "title": "Accessibility Auditor",
+    "description": "Analyze supplied HTML offline. Structural findings only; no live capture, rendering or WCAG verdict. HTML may be sensitive.",
+    "complete": "Structural analysis complete; browser verification remains required.",
+    "error": "Input unsupported or exceeds the bounded audit limits."
+  },
+  "es": {
+    "title": "Auditor de accesibilidad",
+    "description": "Analiza HTML proporcionado sin conexión. Solo hallazgos estructurales; sin captura, renderizado ni dictamen WCAG. El HTML puede ser sensible.",
+    "complete": "Análisis estructural completo; aún requiere verificación en navegador.",
+    "error": "Entrada no compatible o fuera de los límites del análisis."
+  },
+  "fr": {
+    "title": "Auditeur d’accessibilité",
+    "description": "Analyse hors ligne du HTML fourni. Constats structurels uniquement ; aucune capture, rendu ou conclusion WCAG. Le HTML peut être sensible.",
+    "complete": "Analyse structurelle terminée ; vérification par navigateur nécessaire.",
+    "error": "Entrée non prise en charge ou limites de l’analyse dépassées."
+  },
+  "de": {
+    "title": "Barrierefreiheitsprüfung",
+    "description": "Prüft bereitgestelltes HTML offline. Nur Strukturbefunde; keine Aufnahme, Darstellung oder WCAG-Bewertung. HTML kann sensibel sein.",
+    "complete": "Strukturanalyse abgeschlossen; Browserprüfung bleibt erforderlich.",
+    "error": "Eingabe nicht unterstützt oder Analysegrenzen überschritten."
+  },
+  "pt-BR": {
+    "title": "Auditor de acessibilidade",
+    "description": "Analisa HTML fornecido offline. Apenas achados estruturais; sem captura, renderização ou parecer WCAG. O HTML pode ser sensível.",
+    "complete": "Análise estrutural concluída; verificação no navegador ainda necessária.",
+    "error": "Entrada não suportada ou acima dos limites da análise."
+  },
+  "it": {
+    "title": "Verifica accessibilità",
+    "description": "Analizza HTML fornito offline. Solo rilievi strutturali; nessuna cattura, rendering o valutazione WCAG. Il codice HTML può essere sensibile.",
+    "complete": "Analisi strutturale completata; verifica nel browser ancora necessaria.",
+    "error": "Input non supportato o oltre i limiti dell’analisi."
+  }
+}

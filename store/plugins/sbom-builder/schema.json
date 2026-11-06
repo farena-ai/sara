@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "properties": {
+    "lock": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 65536,
+      "description": "Explicit npm package-lock JSON text, lockfileVersion2 or3. Maximum60 installed paths; no links/workspaces."
+    }
+  },
+  "required": [
+    "lock"
+  ],
+  "additionalProperties": false
+}

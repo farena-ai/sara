@@ -2,10 +2,12 @@
 // remain with the existing plugin manager and verified Store client.
 import { discoveryData } from './discovery-data.ts';
 
-export const NATIVE_CANDIDATE_IDS = Object.freeze(['daily-briefing', 'meeting-assistant', 'document-desk', 'research-notebook', 'project-handoff', 'weekly-review', 'inbox-triage', 'content-studio', 'image-workshop', 'spreadsheet-assistant', 'travel-planner', 'home-dashboard'] as const);
+export const NATIVE_CANDIDATE_IDS = Object.freeze(['daily-briefing', 'meeting-assistant', 'document-desk', 'research-notebook', 'project-handoff', 'weekly-review', 'inbox-triage', 'content-studio', 'image-workshop', 'spreadsheet-assistant', 'travel-planner', 'home-dashboard',
+  // A2: developer add-ons from the add-ons session, through the same local-candidate path.
+  'secret-scanner', 'license-auditor', 'sbom-builder', 'artifact-provenance-verifier', 'coverage-explorer', 'log-explorer', 'incident-workbench', 'environment-config-doctor', 'database-fixture-studio', 'data-contract-validator', 'change-impact-analyzer', 'architecture-guard', 'sql-migration-reviewer', 'visual-regression', 'localization-qa', 'accessibility-auditor', 'build-cache-inspector', 'api-contract-guard', 'http-webhook-workbench'] as const);
 export type CandidateId = typeof NATIVE_CANDIDATE_IDS[number];
 export type CostTier = 'local-only' | 'mixed' | 'provider' | 'unconfirmed';
-export type QualificationState = 'in-testing' | 'needs-account' | 'blocked';
+export type QualificationState = 'in-testing' | 'tested' | 'needs-account' | 'blocked';
 export interface DiscoveryText {
   readonly name: string; readonly summary: string; readonly description: string;
   readonly prerequisites: readonly string[]; readonly permissions: readonly string[];
@@ -49,7 +51,9 @@ const GUIDES = ['everyday-assistant', 'research-documents', 'developer', 'creato
 // These legacy references are navigation identities, never availability claims.
 const GUIDE_REFERENCES: readonly string[] = [...NATIVE_CANDIDATE_IDS, ...PREVIEWS, ...BLOCKED, 'focus', 'weather-alerts', 'filesystem', 'reading-list', 'github', 'context7', 'playwright', 'comfyui', 'blender'];
 const COMMON = ['id', 'kind', 'name', 'summary', 'description', 'status', 'costTier', 'source', 'documentation', 'qualification', 'prerequisites', 'permissions', 'limitations', 'cost', 'privacy'];
-const TOOLS = ['brief', 'extract', 'inspect', 'notebook', 'snapshot', 'review', 'workflow', 'workflow', 'workflow', 'workflow', 'workflow', 'workflow'];
+const TOOLS = ['brief', 'extract', 'inspect', 'notebook', 'snapshot', 'review', 'workflow', 'workflow', 'workflow', 'workflow', 'workflow', 'workflow', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'rehearse', 'compare', 'check', 'audit', 'inspect', 'compare', 'request'];
+// Pinned manifest versions; every other candidate is 1.0.0.
+const VERSIONS: Readonly<Record<string, string>> = { 'api-contract-guard': '0.1.0' };
 const COSTS: readonly CostTier[] = ['local-only', 'mixed', 'provider', 'unconfirmed'];
 
 /** Unknown cost classifications remain unconfirmed; prose never decides cost. */
@@ -103,7 +107,7 @@ function exactIds(items: readonly { id: string }[], expected: readonly string[])
 function common(value: unknown, kind: 'plugin' | 'mcp'): DiscoveryItem {
   const x = record(value, kind === 'plugin' ? [...COMMON, 'version', 'tool', 'contentSha'] : COMMON, kind === 'mcp' ? ['recipePreview'] : []);
   if (x.kind !== kind || !COSTS.includes(x.costTier as CostTier)) invalid();
-  if (!['in-testing', 'needs-account', 'blocked'].includes(x.status as string)) invalid();
+  if (!['in-testing', 'tested', 'needs-account', 'blocked'].includes(x.status as string)) invalid();
   return { id: text(x.id, 80), kind, name: text(x.name, 100), summary: text(x.summary, 240), description: text(x.description),
     status: x.status as QualificationState, costTier: x.costTier as CostTier,
     source: url(x.source), documentation: url(x.documentation), qualification: text(x.qualification),
@@ -156,11 +160,14 @@ function freeze<T>(value: T): T {
 /** Validate a complete public model, copying only allowlisted bounded values. */
 export function validateDiscovery(input: unknown): AddonsDiscovery {
   const x = record(input, ['candidates', 'investigations', 'packs']);
-  const candidates: NativeCandidate[] = array(x.candidates, 12).map(value => {
+  const candidates: NativeCandidate[] = array(x.candidates, NATIVE_CANDIDATE_IDS.length).map(value => {
     const item = common(value, 'plugin'); const source = value as Record<string, unknown>;
     const index = NATIVE_CANDIDATE_IDS.indexOf(item.id as CandidateId);
-    if (index < 0 || item.status !== 'in-testing' || source.version !== '1.0.0' || source.tool !== TOOLS[index] || typeof source.contentSha !== 'string' || !/^[a-f0-9]{64}$/.test(source.contentSha)) invalid();
-    return { ...item, kind: 'plugin', id: item.id as CandidateId, version: '1.0.0', tool: source.tool as string, contentSha: source.contentSha };
+    // A1 candidates are in testing; A2 developer candidates carry their host-tested state.
+    const status = index < 12 ? 'in-testing' : 'tested';
+    const version = VERSIONS[item.id] ?? '1.0.0';
+    if (index < 0 || item.status !== status || source.version !== version || source.tool !== TOOLS[index] || typeof source.contentSha !== 'string' || !/^[a-f0-9]{64}$/.test(source.contentSha)) invalid();
+    return { ...item, kind: 'plugin', id: item.id as CandidateId, version, tool: source.tool as string, contentSha: source.contentSha };
   });
   const investigations: McpInvestigation[] = array(x.investigations, 21).map(value => {
     const item = common(value, 'mcp'); const source = value as Record<string, unknown>;

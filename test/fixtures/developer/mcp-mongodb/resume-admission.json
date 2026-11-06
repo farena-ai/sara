@@ -1,0 +1,35 @@
+{
+  "target": "MongoDB",
+  "status": "blocked-upstream-row-bound",
+  "installable": false,
+  "productionQualified": false,
+  "sourceQualified": false,
+  "downloadBudgetBytes": 1073741824,
+  "historicalAdmission": "admission.json",
+  "upstream": {"package": "mongodb-mcp-server", "version": "3.2.2", "license": "Apache-2.0"},
+  "engine": {
+    "version": "8.0.34",
+    "url": "https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-8.0.34.zip",
+    "downloaded": true,
+    "bytes": 807616685,
+    "sha256": "6b021a0864494e4decf278b36477a29eb36072432773e4e62c2f42c302630db0",
+    "executableSha256": "4c9e9764cbac5be8eb92733e23ce7f70b52f8ae84b6879b4d5cc010c90ec6082",
+    "authenticodeStatus": "NotSigned",
+    "signatureVerified": false,
+    "independentRebuildVerified": false,
+    "zipLicense": "SSPL-1.0",
+    "zipLegalsInspected": true
+  },
+  "actualToolSurface": ["collection-schema", "explain", "find"],
+  "witness": {
+    "configuredMaximumDocuments": 5,
+    "requestedLimit": 0,
+    "actualDocuments": 20,
+    "source": "@mongodb-js/mcp-tools-mongodb/dist/tools/read/find.js:149-164",
+    "reason": "Math.min(0, 5) passes MongoDB limit 0, which means unbounded document count. No upstream patch, invented allowlist flag, model/URI bridge or fallback was introduced."
+  },
+  "latestPassingAcceptanceIds": ["MDB-ACL-WRITE", "MDB-ACL-OUT", "MDB-ACL-MERGE", "MDB-ACL-FOREIGN-COLLECTION", "MDB-ACL-CROSSDB", "MDB-SARA-LIFECYCLE", "MDB-ROWS", "MDB-SCHEMA", "MDB-INDEX-EXPLAIN", "MDB-JS", "MDB-CLEANUP"],
+  "latestNotPassingAcceptanceIds": ["MDB-BOUNDS", "MDB-RECONNECT", "MDB-STALE", "MDB-DISABLE"],
+  "cleanup": {"activeProcesses": 0, "fixtureRemoved": true, "listenerClosed": true},
+  "notes": "Actual authenticated synthetic engine/upstream/Sara fixture witnesses only. Correctness opt-in remains RED at row bounds; later lifecycle witnesses exist in an explicitly historical narrower run. No source-qualified/Atlas/production/OS-fence/chat-consent claim."
+}

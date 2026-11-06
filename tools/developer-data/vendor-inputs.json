@@ -1,0 +1,1542 @@
+{
+  "inputs": {
+    "tools/developer-data/node_modules/ajv/dist/compile/codegen/code.js": {
+      "bytes": 4676,
+      "imports": [],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/compile/codegen/scope.js": {
+      "bytes": 5198,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/code.js",
+          "kind": "require-call",
+          "original": "./code"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js": {
+      "bytes": 23127,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/code.js",
+          "kind": "require-call",
+          "original": "./code"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/scope.js",
+          "kind": "require-call",
+          "original": "./scope"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/code.js",
+          "kind": "require-call",
+          "original": "./code"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/scope.js",
+          "kind": "require-call",
+          "original": "./scope"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/compile/util.js": {
+      "bytes": 7103,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "./codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/code.js",
+          "kind": "require-call",
+          "original": "./codegen/code"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/compile/names.js": {
+      "bytes": 1440,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "./codegen"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/compile/errors.js": {
+      "bytes": 5771,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "./codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "./util"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/names.js",
+          "kind": "require-call",
+          "original": "./names"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/compile/validate/boolSchema.js": {
+      "bytes": 1531,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/errors.js",
+          "kind": "require-call",
+          "original": "../errors"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/names.js",
+          "kind": "require-call",
+          "original": "../names"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/compile/rules.js": {
+      "bytes": 918,
+      "imports": [],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/compile/validate/applicability.js": {
+      "bytes": 853,
+      "imports": [],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/compile/validate/dataType.js": {
+      "bytes": 8409,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/rules.js",
+          "kind": "require-call",
+          "original": "../rules"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/validate/applicability.js",
+          "kind": "require-call",
+          "original": "./applicability"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/errors.js",
+          "kind": "require-call",
+          "original": "../errors"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/compile/validate/defaults.js": {
+      "bytes": 1448,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/code.js": {
+      "bytes": 6216,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../compile/util"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/names.js",
+          "kind": "require-call",
+          "original": "../compile/names"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../compile/util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/compile/validate/keyword.js": {
+      "bytes": 5695,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/names.js",
+          "kind": "require-call",
+          "original": "../names"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/code.js",
+          "kind": "require-call",
+          "original": "../../vocabularies/code"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/errors.js",
+          "kind": "require-call",
+          "original": "../errors"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/compile/validate/subschema.js": {
+      "bytes": 3858,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/fast-deep-equal/index.js": {
+      "bytes": 1177,
+      "imports": [],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/json-schema-traverse/index.js": {
+      "bytes": 2428,
+      "imports": [],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/compile/resolve.js": {
+      "bytes": 5006,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "./util"
+        },
+        {
+          "path": "tools/developer-data/node_modules/fast-deep-equal/index.js",
+          "kind": "require-call",
+          "original": "fast-deep-equal"
+        },
+        {
+          "path": "tools/developer-data/node_modules/json-schema-traverse/index.js",
+          "kind": "require-call",
+          "original": "json-schema-traverse"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/compile/validate/index.js": {
+      "bytes": 20552,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/validate/boolSchema.js",
+          "kind": "require-call",
+          "original": "./boolSchema"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/validate/dataType.js",
+          "kind": "require-call",
+          "original": "./dataType"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/validate/applicability.js",
+          "kind": "require-call",
+          "original": "./applicability"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/validate/dataType.js",
+          "kind": "require-call",
+          "original": "./dataType"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/validate/defaults.js",
+          "kind": "require-call",
+          "original": "./defaults"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/validate/keyword.js",
+          "kind": "require-call",
+          "original": "./keyword"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/validate/subschema.js",
+          "kind": "require-call",
+          "original": "./subschema"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/names.js",
+          "kind": "require-call",
+          "original": "../names"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/resolve.js",
+          "kind": "require-call",
+          "original": "../resolve"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../util"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/errors.js",
+          "kind": "require-call",
+          "original": "../errors"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/runtime/validation_error.js": {
+      "bytes": 337,
+      "imports": [],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/compile/ref_error.js": {
+      "bytes": 543,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/resolve.js",
+          "kind": "require-call",
+          "original": "./resolve"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/compile/index.js": {
+      "bytes": 10046,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "./codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/runtime/validation_error.js",
+          "kind": "require-call",
+          "original": "../runtime/validation_error"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/names.js",
+          "kind": "require-call",
+          "original": "./names"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/resolve.js",
+          "kind": "require-call",
+          "original": "./resolve"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "./util"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/validate/index.js",
+          "kind": "require-call",
+          "original": "./validate"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/refs/data.json": {
+      "bytes": 409,
+      "imports": []
+    },
+    "tools/developer-data/node_modules/fast-uri/lib/utils.js": {
+      "bytes": 22505,
+      "imports": [],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/fast-uri/lib/schemes.js": {
+      "bytes": 7367,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/fast-uri/lib/utils.js",
+          "kind": "require-call",
+          "original": "./utils"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/fast-uri/index.js": {
+      "bytes": 25881,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/fast-uri/lib/utils.js",
+          "kind": "require-call",
+          "original": "./lib/utils"
+        },
+        {
+          "path": "tools/developer-data/node_modules/fast-uri/lib/schemes.js",
+          "kind": "require-call",
+          "original": "./lib/schemes"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/runtime/uri.js": {
+      "bytes": 218,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/fast-uri/index.js",
+          "kind": "require-call",
+          "original": "fast-uri"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/core.js": {
+      "bytes": 25185,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/validate/index.js",
+          "kind": "require-call",
+          "original": "./compile/validate"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "./compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/runtime/validation_error.js",
+          "kind": "require-call",
+          "original": "./runtime/validation_error"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/ref_error.js",
+          "kind": "require-call",
+          "original": "./compile/ref_error"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/rules.js",
+          "kind": "require-call",
+          "original": "./compile/rules"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/index.js",
+          "kind": "require-call",
+          "original": "./compile"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "./compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/resolve.js",
+          "kind": "require-call",
+          "original": "./compile/resolve"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/validate/dataType.js",
+          "kind": "require-call",
+          "original": "./compile/validate/dataType"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "./compile/util"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/refs/data.json",
+          "kind": "require-call",
+          "original": "./refs/data.json"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/runtime/uri.js",
+          "kind": "require-call",
+          "original": "./runtime/uri"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/core/id.js": {
+      "bytes": 267,
+      "imports": [],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/core/ref.js": {
+      "bytes": 5234,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/ref_error.js",
+          "kind": "require-call",
+          "original": "../../compile/ref_error"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/code.js",
+          "kind": "require-call",
+          "original": "../code"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/names.js",
+          "kind": "require-call",
+          "original": "../../compile/names"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/index.js",
+          "kind": "require-call",
+          "original": "../../compile"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/core/index.js": {
+      "bytes": 357,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/core/id.js",
+          "kind": "require-call",
+          "original": "./id"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/core/ref.js",
+          "kind": "require-call",
+          "original": "./ref"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/limitNumber.js": {
+      "bytes": 1036,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/multipleOf.js": {
+      "bytes": 1023,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/runtime/ucs2length.js": {
+      "bytes": 808,
+      "imports": [],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/limitLength.js": {
+      "bytes": 1130,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/runtime/ucs2length.js",
+          "kind": "require-call",
+          "original": "../../runtime/ucs2length"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/pattern.js": {
+      "bytes": 905,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/code.js",
+          "kind": "require-call",
+          "original": "../code"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/limitProperties.js": {
+      "bytes": 896,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/required.js": {
+      "bytes": 3188,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/code.js",
+          "kind": "require-call",
+          "original": "../code"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/limitItems.js": {
+      "bytes": 852,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/runtime/equal.js": {
+      "bytes": 286,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/fast-deep-equal/index.js",
+          "kind": "require-call",
+          "original": "fast-deep-equal"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/uniqueItems.js": {
+      "bytes": 3037,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/validate/dataType.js",
+          "kind": "require-call",
+          "original": "../../compile/validate/dataType"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/runtime/equal.js",
+          "kind": "require-call",
+          "original": "../../runtime/equal"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/const.js": {
+      "bytes": 852,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/runtime/equal.js",
+          "kind": "require-call",
+          "original": "../../runtime/equal"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/enum.js": {
+      "bytes": 1901,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/runtime/equal.js",
+          "kind": "require-call",
+          "original": "../../runtime/equal"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/index.js": {
+      "bytes": 1036,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/limitNumber.js",
+          "kind": "require-call",
+          "original": "./limitNumber"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/multipleOf.js",
+          "kind": "require-call",
+          "original": "./multipleOf"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/limitLength.js",
+          "kind": "require-call",
+          "original": "./limitLength"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/pattern.js",
+          "kind": "require-call",
+          "original": "./pattern"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/limitProperties.js",
+          "kind": "require-call",
+          "original": "./limitProperties"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/required.js",
+          "kind": "require-call",
+          "original": "./required"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/limitItems.js",
+          "kind": "require-call",
+          "original": "./limitItems"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/uniqueItems.js",
+          "kind": "require-call",
+          "original": "./uniqueItems"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/const.js",
+          "kind": "require-call",
+          "original": "./const"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/enum.js",
+          "kind": "require-call",
+          "original": "./enum"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/additionalItems.js": {
+      "bytes": 1931,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/items.js": {
+      "bytes": 1993,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/code.js",
+          "kind": "require-call",
+          "original": "../code"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/prefixItems.js": {
+      "bytes": 354,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/items.js",
+          "kind": "require-call",
+          "original": "./items"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/items2020.js": {
+      "bytes": 1037,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/code.js",
+          "kind": "require-call",
+          "original": "../code"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/additionalItems.js",
+          "kind": "require-call",
+          "original": "./additionalItems"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/contains.js": {
+      "bytes": 3680,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/dependencies.js": {
+      "bytes": 3198,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/code.js",
+          "kind": "require-call",
+          "original": "../code"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/propertyNames.js": {
+      "bytes": 1221,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js": {
+      "bytes": 4309,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/code.js",
+          "kind": "require-call",
+          "original": "../code"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/names.js",
+          "kind": "require-call",
+          "original": "../../compile/names"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/properties.js": {
+      "bytes": 2153,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/validate/index.js",
+          "kind": "require-call",
+          "original": "../../compile/validate"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/code.js",
+          "kind": "require-call",
+          "original": "../code"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js",
+          "kind": "require-call",
+          "original": "./additionalProperties"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/patternProperties.js": {
+      "bytes": 3236,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/code.js",
+          "kind": "require-call",
+          "original": "../code"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/not.js": {
+      "bytes": 773,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/anyOf.js": {
+      "bytes": 343,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/code.js",
+          "kind": "require-call",
+          "original": "../code"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/oneOf.js": {
+      "bytes": 2257,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/allOf.js": {
+      "bytes": 756,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/if.js": {
+      "bytes": 2438,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/thenElse.js": {
+      "bytes": 446,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/index.js": {
+      "bytes": 1529,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/additionalItems.js",
+          "kind": "require-call",
+          "original": "./additionalItems"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/prefixItems.js",
+          "kind": "require-call",
+          "original": "./prefixItems"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/items.js",
+          "kind": "require-call",
+          "original": "./items"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/items2020.js",
+          "kind": "require-call",
+          "original": "./items2020"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/contains.js",
+          "kind": "require-call",
+          "original": "./contains"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/dependencies.js",
+          "kind": "require-call",
+          "original": "./dependencies"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/propertyNames.js",
+          "kind": "require-call",
+          "original": "./propertyNames"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js",
+          "kind": "require-call",
+          "original": "./additionalProperties"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/properties.js",
+          "kind": "require-call",
+          "original": "./properties"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/patternProperties.js",
+          "kind": "require-call",
+          "original": "./patternProperties"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/not.js",
+          "kind": "require-call",
+          "original": "./not"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/anyOf.js",
+          "kind": "require-call",
+          "original": "./anyOf"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/oneOf.js",
+          "kind": "require-call",
+          "original": "./oneOf"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/allOf.js",
+          "kind": "require-call",
+          "original": "./allOf"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/if.js",
+          "kind": "require-call",
+          "original": "./if"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/thenElse.js",
+          "kind": "require-call",
+          "original": "./thenElse"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/format/format.js": {
+      "bytes": 4317,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/format/index.js": {
+      "bytes": 209,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/format/format.js",
+          "kind": "require-call",
+          "original": "./format"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/metadata.js": {
+      "bytes": 427,
+      "imports": [],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/draft7.js": {
+      "bytes": 557,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/core/index.js",
+          "kind": "require-call",
+          "original": "./core"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/index.js",
+          "kind": "require-call",
+          "original": "./validation"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/index.js",
+          "kind": "require-call",
+          "original": "./applicator"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/format/index.js",
+          "kind": "require-call",
+          "original": "./format"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/metadata.js",
+          "kind": "require-call",
+          "original": "./metadata"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/discriminator/types.js": {
+      "bytes": 308,
+      "imports": [],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/vocabularies/discriminator/index.js": {
+      "bytes": 4845,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "../../compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/discriminator/types.js",
+          "kind": "require-call",
+          "original": "../discriminator/types"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/index.js",
+          "kind": "require-call",
+          "original": "../../compile"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/ref_error.js",
+          "kind": "require-call",
+          "original": "../../compile/ref_error"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/node_modules/ajv/dist/refs/json-schema-draft-07.json": {
+      "bytes": 3811,
+      "imports": []
+    },
+    "tools/developer-data/node_modules/ajv/dist/ajv.js": {
+      "bytes": 2841,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/core.js",
+          "kind": "require-call",
+          "original": "./core"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/draft7.js",
+          "kind": "require-call",
+          "original": "./vocabularies/draft7"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/discriminator/index.js",
+          "kind": "require-call",
+          "original": "./vocabularies/discriminator"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/refs/json-schema-draft-07.json",
+          "kind": "require-call",
+          "original": "./refs/json-schema-draft-07.json"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/validate/index.js",
+          "kind": "require-call",
+          "original": "./compile/validate"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
+          "kind": "require-call",
+          "original": "./compile/codegen"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/runtime/validation_error.js",
+          "kind": "require-call",
+          "original": "./runtime/validation_error"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/ref_error.js",
+          "kind": "require-call",
+          "original": "./compile/ref_error"
+        }
+      ],
+      "format": "cjs"
+    },
+    "tools/developer-data/vendor-entry.mjs": {
+      "bytes": 37,
+      "imports": [
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/ajv.js",
+          "kind": "import-statement",
+          "original": "ajv"
+        }
+      ],
+      "format": "esm"
+    }
+  },
+  "outputs": {
+    "store/plugins/data-contract-validator/validator.mjs": {
+      "imports": [],
+      "exports": [
+        "Ajv"
+      ],
+      "entryPoint": "tools/developer-data/vendor-entry.mjs",
+      "inputs": {
+        "tools/developer-data/node_modules/ajv/dist/compile/codegen/code.js": {
+          "bytesInOutput": 2540
+        },
+        "tools/developer-data/node_modules/ajv/dist/compile/codegen/scope.js": {
+          "bytesInOutput": 2556
+        },
+        "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js": {
+          "bytesInOutput": 11758
+        },
+        "tools/developer-data/node_modules/ajv/dist/compile/util.js": {
+          "bytesInOutput": 3570
+        },
+        "tools/developer-data/node_modules/ajv/dist/compile/names.js": {
+          "bytesInOutput": 612
+        },
+        "tools/developer-data/node_modules/ajv/dist/compile/errors.js": {
+          "bytesInOutput": 3072
+        },
+        "tools/developer-data/node_modules/ajv/dist/compile/validate/boolSchema.js": {
+          "bytesInOutput": 672
+        },
+        "tools/developer-data/node_modules/ajv/dist/compile/rules.js": {
+          "bytesInOutput": 570
+        },
+        "tools/developer-data/node_modules/ajv/dist/compile/validate/applicability.js": {
+          "bytesInOutput": 480
+        },
+        "tools/developer-data/node_modules/ajv/dist/compile/validate/dataType.js": {
+          "bytesInOutput": 4095
+        },
+        "tools/developer-data/node_modules/ajv/dist/compile/validate/defaults.js": {
+          "bytesInOutput": 680
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/code.js": {
+          "bytesInOutput": 3105
+        },
+        "tools/developer-data/node_modules/ajv/dist/compile/validate/keyword.js": {
+          "bytesInOutput": 2944
+        },
+        "tools/developer-data/node_modules/ajv/dist/compile/validate/subschema.js": {
+          "bytesInOutput": 1978
+        },
+        "tools/developer-data/node_modules/fast-deep-equal/index.js": {
+          "bytesInOutput": 736
+        },
+        "tools/developer-data/node_modules/json-schema-traverse/index.js": {
+          "bytesInOutput": 1246
+        },
+        "tools/developer-data/node_modules/ajv/dist/compile/resolve.js": {
+          "bytesInOutput": 2073
+        },
+        "tools/developer-data/node_modules/ajv/dist/compile/validate/index.js": {
+          "bytesInOutput": 10181
+        },
+        "tools/developer-data/node_modules/ajv/dist/runtime/validation_error.js": {
+          "bytesInOutput": 206
+        },
+        "tools/developer-data/node_modules/ajv/dist/compile/ref_error.js": {
+          "bytesInOutput": 323
+        },
+        "tools/developer-data/node_modules/ajv/dist/compile/index.js": {
+          "bytesInOutput": 4676
+        },
+        "tools/developer-data/node_modules/ajv/dist/refs/data.json": {
+          "bytesInOutput": 358
+        },
+        "tools/developer-data/node_modules/fast-uri/lib/utils.js": {
+          "bytesInOutput": 7574
+        },
+        "tools/developer-data/node_modules/fast-uri/lib/schemes.js": {
+          "bytesInOutput": 2526
+        },
+        "tools/developer-data/node_modules/fast-uri/index.js": {
+          "bytesInOutput": 7703
+        },
+        "tools/developer-data/node_modules/ajv/dist/runtime/uri.js": {
+          "bytesInOutput": 155
+        },
+        "tools/developer-data/node_modules/ajv/dist/core.js": {
+          "bytesInOutput": 12276
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/core/id.js": {
+          "bytesInOutput": 195
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/core/ref.js": {
+          "bytesInOutput": 2363
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/core/index.js": {
+          "bytesInOutput": 213
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/limitNumber.js": {
+          "bytesInOutput": 666
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/multipleOf.js": {
+          "bytesInOutput": 551
+        },
+        "tools/developer-data/node_modules/ajv/dist/runtime/ucs2length.js": {
+          "bytesInOutput": 301
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/limitLength.js": {
+          "bytesInOutput": 629
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/pattern.js": {
+          "bytesInOutput": 496
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/limitProperties.js": {
+          "bytesInOutput": 549
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/required.js": {
+          "bytesInOutput": 1399
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/limitItems.js": {
+          "bytesInOutput": 510
+        },
+        "tools/developer-data/node_modules/ajv/dist/runtime/equal.js": {
+          "bytesInOutput": 157
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/uniqueItems.js": {
+          "bytesInOutput": 1481
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/const.js": {
+          "bytesInOutput": 439
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/enum.js": {
+          "bytesInOutput": 921
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/index.js": {
+          "bytesInOutput": 381
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/additionalItems.js": {
+          "bytesInOutput": 1090
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/items.js": {
+          "bytesInOutput": 1074
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/prefixItems.js": {
+          "bytesInOutput": 227
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/items2020.js": {
+          "bytesInOutput": 529
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/contains.js": {
+          "bytesInOutput": 1734
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/dependencies.js": {
+          "bytesInOutput": 1564
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/propertyNames.js": {
+          "bytesInOutput": 630
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js": {
+          "bytesInOutput": 1740
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/properties.js": {
+          "bytesInOutput": 991
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/patternProperties.js": {
+          "bytesInOutput": 1167
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/not.js": {
+          "bytesInOutput": 435
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/anyOf.js": {
+          "bytesInOutput": 228
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/oneOf.js": {
+          "bytesInOutput": 912
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/allOf.js": {
+          "bytesInOutput": 407
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/if.js": {
+          "bytesInOutput": 1105
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/thenElse.js": {
+          "bytesInOutput": 278
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/applicator/index.js": {
+          "bytesInOutput": 462
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/format/format.js": {
+          "bytesInOutput": 1932
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/format/index.js": {
+          "bytesInOutput": 121
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/metadata.js": {
+          "bytesInOutput": 308
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/draft7.js": {
+          "bytesInOutput": 235
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/discriminator/types.js": {
+          "bytesInOutput": 181
+        },
+        "tools/developer-data/node_modules/ajv/dist/vocabularies/discriminator/index.js": {
+          "bytesInOutput": 2296
+        },
+        "tools/developer-data/node_modules/ajv/dist/refs/json-schema-draft-07.json": {
+          "bytesInOutput": 2481
+        },
+        "tools/developer-data/node_modules/ajv/dist/ajv.js": {
+          "bytesInOutput": 1671
+        },
+        "tools/developer-data/vendor-entry.mjs": {
+          "bytesInOutput": 18
+        }
+      },
+      "bytes": 124322
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "en": {
+    "title": "License auditor",
+    "description": "Audit npm lockfile v2/v3 license metadata and SPDX expressions against an explicit allow/deny policy. Unknowns require review; not legal advice.",
+    "scope": "Policy decisions only; metadata is unverified. Review unknown/custom licenses and legal obligations.",
+    "error": "Invalid input or input/output limit exceeded. Split the request; supplied values are not included in errors.",
+    "summary": "Results: {n} · Status: {status}",
+    "message": "Offline analysis completed."
+  },
+  "es": {
+    "title": "Auditor de licencias",
+    "description": "Revisa metadatos de licencias npm v2/v3 y expresiones SPDX según una política explícita. Los datos desconocidos requieren revisión; no es asesoría legal.",
+    "scope": "Solo decisiones de política; metadatos sin verificar. Revisa licencias desconocidas y obligaciones legales.",
+    "error": "Entrada no válida o límite excedido. Divide la solicitud; los errores no incluyen valores aportados.",
+    "summary": "Resultados: {n} · Estado: {status}",
+    "message": "Análisis local completado."
+  },
+  "fr": {
+    "title": "Audit des licences",
+    "description": "Examine les licences npm v2/v3 et expressions SPDX selon une politique explicite. Les inconnues nécessitent un examen ; aucun conseil juridique.",
+    "scope": "Décisions de politique uniquement ; métadonnées non vérifiées. Examinez les licences inconnues et obligations juridiques.",
+    "error": "Entrée non valide ou limite dépassée. Divisez la demande ; les erreurs ne contiennent pas les valeurs fournies.",
+    "summary": "Résultats : {n} · État : {status}",
+    "message": "Analyse locale terminée."
+  },
+  "de": {
+    "title": "Lizenzprüfung",
+    "description": "Prüft npm-v2/v3-Lizenzen und SPDX-Ausdrücke nach expliziter Richtlinie. Unbekanntes muss geprüft werden; keine Rechtsberatung.",
+    "scope": "Nur Richtlinienentscheidungen; Metadaten ungeprüft. Unbekannte Lizenzen und Rechtspflichten prüfen.",
+    "error": "Ungültige Eingabe oder Grenze überschritten. Anfrage aufteilen; Fehler enthalten keine Eingabewerte.",
+    "summary": "Ergebnisse: {n} · Status: {status}",
+    "message": "Lokale Analyse abgeschlossen."
+  },
+  "pt-BR": {
+    "title": "Auditor de licenças",
+    "description": "Audita licenças npm v2/v3 e expressões SPDX conforme política explícita. Dados desconhecidos exigem revisão; não é orientação jurídica.",
+    "scope": "Apenas decisões da política; metadados não verificados. Revise licenças desconhecidas e obrigações legais.",
+    "error": "Entrada inválida ou limite excedido. Divida a solicitação; erros não incluem valores fornecidos.",
+    "summary": "Resultados: {n} · Estado: {status}",
+    "message": "Análise local concluída."
+  },
+  "it": {
+    "title": "Verifica delle licenze",
+    "description": "Verifica licenze npm v2/v3 ed espressioni SPDX con regole esplicite. I dati sconosciuti richiedono revisione; non è consulenza legale.",
+    "scope": "Solo decisioni delle regole; metadati non verificati. Rivedere licenze sconosciute e obblighi legali.",
+    "error": "Input non valido o limite superato. Dividere la richiesta; gli errori non includono i valori forniti.",
+    "summary": "Risultati: {n} · Stato: {status}",
+    "message": "Analisi locale completata."
+  }
+}

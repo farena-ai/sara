@@ -1,0 +1,180 @@
+{
+  "type": "object",
+  "properties": {
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[A-Za-z0-9_@.-]+(?:/[A-Za-z0-9_@.-]+)*$"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 8192
+          },
+          "kind": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 6,
+            "enum": [
+              "source",
+              "test"
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "source",
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "maxItems": 24
+    },
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^(?:@[a-z0-9_-]+/)?[a-z0-9_-]+$"
+          },
+          "root": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[A-Za-z0-9_@.-]+(?:/[A-Za-z0-9_@.-]+)*$"
+          },
+          "entry": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[A-Za-z0-9_@.-]+(?:/[A-Za-z0-9_@.-]+)*$"
+          }
+        },
+        "required": [
+          "name",
+          "root",
+          "entry"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 12
+    },
+    "rules": {
+      "type": "object",
+      "properties": {
+        "forbidden": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 96,
+                "pattern": "^[A-Za-z0-9_@.-]+(?:/[A-Za-z0-9_@.-]+)*$"
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 96,
+                "pattern": "^[A-Za-z0-9_@.-]+(?:/[A-Za-z0-9_@.-]+)*$"
+              }
+            },
+            "required": [
+              "from",
+              "to"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 24
+        },
+        "layers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 32
+              },
+              "prefix": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 96,
+                "pattern": "^[A-Za-z0-9_@.-]+(?:/[A-Za-z0-9_@.-]+)*$"
+              }
+            },
+            "required": [
+              "name",
+              "prefix"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 12
+        },
+        "allowed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 32
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 32
+              }
+            },
+            "required": [
+              "from",
+              "to"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 48
+        },
+        "defaultPolicy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5,
+          "enum": [
+            "allow",
+            "deny"
+          ]
+        }
+      },
+      "required": [
+        "forbidden",
+        "layers",
+        "allowed",
+        "defaultPolicy"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "files",
+    "packages",
+    "rules"
+  ],
+  "additionalProperties": false
+}

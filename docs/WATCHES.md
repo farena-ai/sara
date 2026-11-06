@@ -15,6 +15,13 @@ request, with your normal approvals.
 4. **How often:** every 5 minutes to once a day (15 minutes by default). *Check now* checks
    straight away (at most once every 10 seconds) and shows any earlier matching lines in the last
    256 KB as a preview.
+5. **Alert cards go to:** which of your own chats gets the card. By default it is your most
+   recent chat. Only your own chats are offered (never a guest's chat or a group room).
+6. **Also send to Telegram / Discord** (off by default): shown only for a bridge that is linked
+   to you. On, each alert also goes to your own Telegram chat with her or your Discord direct
+   messages, never a group, a server channel or anyone else.
+
+Both can be changed later under *Where alerts go* on the watch.
 
 Only lines added **after** you turn it on count, so you don't get a flood of old ones.
 
@@ -23,6 +30,8 @@ Only lines added **after** you turn it on count, so you don't get a flood of old
 - A card in the chat (*Watch: app.log*) quoting the line, cut to 300 characters, with secrets
   scrubbed. It also sends a notification. *Ask about this* puts your own question about that
   line in the message box. If your chat model may run in the cloud, you are asked first.
+- With *Also send to* on, the same alert (the same cut, scrubbed line and *+N more*) goes to your
+  Telegram or Discord too. It is part of the same alert, so the limits below count it once.
 - At most one alert per watch every 10 minutes and 12 a day across all watches. During quiet
   hours, and between alerts, new lines are held and arrive later as one alert (*+3 more*).
 - When the same line comes back within 6 hours (numbers, times and paths aside), it counts up

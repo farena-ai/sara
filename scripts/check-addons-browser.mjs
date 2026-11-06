@@ -48,7 +48,7 @@ try {
   }
   await openSettings('plugins', 'ab-plugins');
   await page.locator('#plg-discovery [data-discovery-id="home-dashboard"]').waitFor();
-  assert.equal(await page.locator('#plg-discovery .addon-card').count(), 12);
+  assert.equal(await page.locator('#plg-discovery .addon-card').count(), 31);
   assert.equal(await page.locator('#plg-builtin .plg-card').count(), 5);
   assert.equal(await page.locator('#plg-discovery .addon-card details[open]').count(), 0);
   const beforeFilters = writes.length;
@@ -84,7 +84,7 @@ try {
   await page.locator('[data-howto="ab-plugins"] [data-q="candidates"]').getByRole('button', { name: 'Show me', exact: true }).click();
   assert.equal(await page.locator('#plg-discovery').evaluate(node => node.classList.contains('howto-pulse')), true);
   await page.locator('[data-howto="ab-plugins"] > summary').click();
-  report.journeys.push('12 native candidates, 5 unchanged builtins, collapsed details and inert filters');
+  report.journeys.push('31 native candidates (12 A1 + 19 A2), 5 unchanged builtins, collapsed details and inert filters');
   await page.locator('[data-discovery-id="daily-briefing"]').evaluate(node => node.scrollIntoView({ block: 'center' }));
   await page.screenshot({ path: join(output, 'plugins-desktop.png') });
   for (const id of ['daily-briefing', 'meeting-assistant', 'document-desk', 'research-notebook', 'project-handoff', 'weekly-review', 'inbox-triage', 'content-studio', 'image-workshop', 'spreadsheet-assistant', 'travel-planner', 'home-dashboard']) {
@@ -98,7 +98,7 @@ try {
     await page.locator('#plugin-add').waitFor({ state: 'hidden' });
     assert.equal(fixture.pm.list().length, 0, `${id}: cancellation leaves no installation`);
   }
-  report.journeys.push('All 12 default-root packages stage through actual review and cancel with trust/fencing warnings; no installation');
+  report.journeys.push('All 31 default-root packages stage through actual review and cancel with trust/fencing warnings; no installation');
   const daily = page.locator('[data-discovery-id="daily-briefing"]');
   await daily.getByRole('button', { name: 'Review local candidate', exact: true }).click();
   await page.locator('#pla-review').getByRole('button', { name: 'Install', exact: true }).click();
@@ -287,7 +287,7 @@ try {
   assert.equal((await negativeContext.request.post(`${fixture.origin}/api/plugins/daily-briefing/approve`, { data: { review: review.id, trust: true } })).status(), 200);
   fixture.damageCopiedPayloads();
   const heldPayload = await (await negativeContext.request.get(`${fixture.origin}/api/plugins/candidates`)).json();
-  assert.equal(heldPayload.candidates.length, 12);
+  assert.equal(heldPayload.candidates.length, 31);
   for (const id of ['meeting-assistant', 'document-desk']) {
     const candidate = heldPayload.candidates.find(item => item.id === id);
     assert.equal(candidate.availability, 'held');
@@ -304,7 +304,7 @@ try {
   await page.locator('#setup').waitFor({ state: 'hidden' });
   await openSettings('plugins', 'ab-plugins');
   await page.locator('[data-discovery-id="home-dashboard"]').waitFor();
-  assert.equal(await page.locator('#plg-discovery .addon-card').count(), 12);
+  assert.equal(await page.locator('#plg-discovery .addon-card').count(), 31);
   assert.equal(await page.locator('#plg-builtin .plg-card').count(), 5);
   const beforeHeld = negativeWrites.filter(path => path === '/api/plugins/install').length;
   for (const id of ['meeting-assistant', 'document-desk']) {
@@ -338,7 +338,7 @@ try {
   assert.deepEqual(report.pageErrors, []);
   assert.deepEqual(report.unexpectedNetwork, []);
   report.journeys.push('Runtime-copy negative: manager imported from copied src with default roots, one missing manifest and one tampered entrypoint stay visible/held with disabled Review; intact candidate reviews, installed plugin and MCP draft remain intact');
-  report.limits += ' The missing/tampered-payload negative copies only src, package.json, 5 builtins and 12 candidates into a fresh synthetic tree; it is runtime-copy/default-root qualification, not a whole Linux/native artifact qualification.';
+  report.limits += ' The missing/tampered-payload negative copies only src, package.json, 5 builtins and 31 candidates into a fresh synthetic tree; it is runtime-copy/default-root qualification, not a whole Linux/native artifact qualification.';
   report.passed = true;
 } catch (error) { report.error = error.stack ?? String(error); process.exitCode = 1; }
 finally {

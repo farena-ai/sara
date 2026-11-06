@@ -1,0 +1,1 @@
+{"extends":"../../tsconfig.json","include":["../../test/developer-accessibility-auditor*.test.ts","./verify.ts","../../store/plugins/accessibility-auditor/*.d.mts"],"exclude":[]}

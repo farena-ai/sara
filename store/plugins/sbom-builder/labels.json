@@ -1,0 +1,50 @@
+{
+  "en": {
+    "title": "SBOM builder",
+    "description": "Build a deterministic CycloneDX 1.5 npm inventory from supplied lockfile v2/v3, including nested identities, purls and SRI hashes. No dependency install.",
+    "scope": "Installed-path inventory only, not a complete dependency graph; supplied integrity is not a downloaded-file verification.",
+    "error": "Invalid input or input/output limit exceeded. Split the request; supplied values are not included in errors.",
+    "summary": "Results: {n} · Status: {status}",
+    "message": "Offline analysis completed."
+  },
+  "es": {
+    "title": "Generador SBOM",
+    "description": "Genera un inventario CycloneDX 1.5 desde un lockfile npm v2/v3 con identidades anidadas, purls y hashes SRI. No instala dependencias.",
+    "scope": "Solo inventario de rutas instaladas, no grafo completo; la integridad aportada no verifica archivos descargados.",
+    "error": "Entrada no válida o límite excedido. Divide la solicitud; los errores no incluyen valores aportados.",
+    "summary": "Resultados: {n} · Estado: {status}",
+    "message": "Análisis local completado."
+  },
+  "fr": {
+    "title": "Générateur SBOM",
+    "description": "Crée un inventaire CycloneDX 1.5 depuis un lockfile npm v2/v3, avec identités imbriquées, purls et empreintes SRI. Aucune installation.",
+    "scope": "Inventaire des chemins installés, pas un graphe complet ; les empreintes fournies ne vérifient pas les fichiers téléchargés.",
+    "error": "Entrée non valide ou limite dépassée. Divisez la demande ; les erreurs ne contiennent pas les valeurs fournies.",
+    "summary": "Résultats : {n} · État : {status}",
+    "message": "Analyse locale terminée."
+  },
+  "de": {
+    "title": "SBOM-Erstellung",
+    "description": "Erstellt CycloneDX-1.5-Inventar aus npm-v2/v3-Lockdateien mit verschachtelten Identitäten, PURLs und SRI-Hashes. Keine Installation.",
+    "scope": "Nur Installationspfad-Inventar, kein vollständiger Graph; gelieferte Prüfsummen prüfen keine heruntergeladenen Dateien.",
+    "error": "Ungültige Eingabe oder Grenze überschritten. Anfrage aufteilen; Fehler enthalten keine Eingabewerte.",
+    "summary": "Ergebnisse: {n} · Status: {status}",
+    "message": "Lokale Analyse abgeschlossen."
+  },
+  "pt-BR": {
+    "title": "Gerador SBOM",
+    "description": "Gera inventário CycloneDX 1.5 de lockfile npm v2/v3 com identidades aninhadas, purls e hashes SRI. Não instala dependências.",
+    "scope": "Somente inventário de caminhos, não grafo completo; integridade fornecida não verifica arquivos baixados.",
+    "error": "Entrada inválida ou limite excedido. Divida a solicitação; erros não incluem valores fornecidos.",
+    "summary": "Resultados: {n} · Estado: {status}",
+    "message": "Análise local concluída."
+  },
+  "it": {
+    "title": "Generatore SBOM",
+    "description": "Genera un inventario CycloneDX 1.5 da lockfile npm v2/v3 con identità annidate, purl e hash SRI. Nessuna installazione.",
+    "scope": "Solo inventario dei percorsi, non grafo completo; le impronte fornite non verificano file scaricati.",
+    "error": "Input non valido o limite superato. Dividere la richiesta; gli errori non includono i valori forniti.",
+    "summary": "Risultati: {n} · Stato: {status}",
+    "message": "Analisi locale completata."
+  }
+}

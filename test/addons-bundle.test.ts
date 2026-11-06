@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -61,5 +61,31 @@ test('an invalid second package version fails before smoke or distribution write
     }
     await assert.rejects(() => api.buildAddonBundle({ root, output, pluginIds: ['first', 'second'] }), /version|filename/i);
     assert.equal(existsSync(output), false);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('explicit compatibility target preserves checkout provenance and runs real target-aware smoke', { skip: REPO_OUTPUTS_READONLY }, async () => {
+  const api = await import(implementation.href) as any;
+  const parent = fileURLToPath(new URL('../outputs/addons/', import.meta.url));
+  mkdirSync(parent, { recursive: true });
+  const root = mkdtempSync(join(parent, 'bundle-target-'));
+  try {
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ version: '8.0.0' }));
+    const source = join(root, 'store/plugins/focus');
+    cpSync(new URL('../store/plugins/focus/', import.meta.url), source, { recursive: true });
+    const manifestPath = join(source, 'sara-plugin.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    manifest.sara = '>=9.0.0'; writeFileSync(manifestPath, JSON.stringify(manifest));
+    const output = join(root, 'outputs/target');
+    const result = await api.buildAddonBundle({ root, output, pluginIds: ['focus'], targetSara: '9.0.0' });
+    assert.equal(result.sara, '8.0.0', 'checkout provenance is not rewritten into the target version');
+    assert.equal(result.targetSara, '9.0.0');
+    assert.equal(result.plugins[0].ready, true); assert.equal(result.plugins[0].smoke, 'ran');
+    assert.deepEqual(JSON.parse(readFileSync(join(output, 'bundle.json'), 'utf8')), result);
+    await assert.rejects(() => api.buildAddonBundle({ root, output: join(root, 'outputs/old'), pluginIds: ['focus'], targetSara: '8.0.0' }), /not ready|version|requires/i);
+    for (const targetSara of ['9.0.0\n', ' 9.0.0', '', '../9.0.0']) {
+      await assert.rejects(() => api.buildAddonBundle({ root, output: join(root, 'outputs/bad'), pluginIds: ['focus'], targetSara }), /version|target/i);
+    }
+    assert.equal(existsSync(join(root, 'outputs/bad')), false);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

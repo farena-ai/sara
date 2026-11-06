@@ -1,0 +1,151 @@
+// Opt-in trusted synthetic fixture only. No model, owner database or project grant.
+import assert from 'node:assert/strict';
+import {once} from 'node:events';
+import {spawn} from 'node:child_process';
+import {createServer} from 'node:net';
+import {mkdirSync, readFileSync, writeFileSync} from 'node:fs';
+import {join, resolve} from 'node:path';
+import {randomBytes, createHash} from 'node:crypto';
+import {MongoClient} from 'mongodb';
+import {fixtureControls} from './confinement.mjs';
+import {SettingsStore} from '../../src/settings.ts';
+import {McpManager, mcpToolName} from '../../src/tools/mcp.ts';
+import {ToolRegistry} from '../../src/tools/registry.ts';
+const root = resolve(import.meta.dirname, '../..');
+const out = join(root, 'outputs/developer-addons/mcp-mongodb');
+const home = process.env.MDB_OWNED_HOME;
+assert.equal(process.env.MONGODB_LOCAL_QUALIFY, '1');
+assert.ok(home && home.startsWith(process.env.TEMP));
+// Supervisor assigns this process to its owned Windows Job before admitting launch.
+await once(process.stdin, 'data');
+const receipt = {status:'running', passed:[], stage:'audit', observations:{}};
+const save = () => writeFileSync(join(out,'local-resume-result.json'), JSON.stringify(receipt,null,2)+'\n');
+const pass = id => {receipt.passed.push(id); save();};
+const sha = p => createHash('sha256').update(readFileSync(p)).digest('hex');
+let engine, admin, reader, manager, port;
+let currentStage = 'audit';
+const secretValues=[];
+try {
+  const {AllTools} = await import('./node_modules/mongodb-mcp-server/dist/esm/allTools.js');
+  const names = AllTools.map(T => T.toolName);
+  const controls = fixtureControls(names);
+  const pkg = JSON.parse(readFileSync(join(import.meta.dirname,'node_modules/mongodb-mcp-server/package.json'),'utf8'));
+  assert.equal(pkg.version,'3.2.2');
+  const artifact = JSON.parse(readFileSync(join(out,'engine-acquisition-resume.json'),'utf8'));
+  const engineFile = join(out,artifact.extracted.find(x=>x.path.endsWith('mongod.exe')).path);
+  assert.equal(sha(engineFile),'4c9e9764cbac5be8eb92733e23ce7f70b52f8ae84b6879b4d5cc010c90ec6082');
+  receipt.observations.controls = controls;
+  receipt.observations.inventory = names;
+  receipt.observations.sourceHashes = Object.fromEntries(['confinement.mjs','qualify-local.mjs','qualify-owned.py','package-lock.json'].map(p=>[p,sha(join(import.meta.dirname,p))]));
+  const s = createServer(); s.listen(0,'127.0.0.1'); await once(s,'listening'); port=s.address().port; await new Promise(r=>s.close(r));
+  receipt.port=port; save();
+  mkdirSync(join(home,'db'));
+  currentStage='engine-start';
+  engine=spawn(engineFile,['--dbpath',join(home,'db'),'--bind_ip','127.0.0.1','--port',String(port),'--auth','--noscripting','--wiredTigerCacheSizeGB','0.25'],{cwd:home,env:{SYSTEMROOT:process.env.SYSTEMROOT,TEMP:home,TMP:home,HOME:home},stdio:['ignore','pipe','pipe'],windowsHide:true});
+  // Database logs are deliberately not persisted; they may carry authentication details.
+  engine.stdout.resume(); engine.stderr.resume();
+  engine.on('error',()=>{});
+  receipt.enginePid=engine.pid; save();
+  const address=`mongodb://127.0.0.1:${port}/?directConnection=true&serverSelectionTimeoutMS=500&connectTimeoutMS=500`;
+  const bootstrap=new MongoClient(address);
+  let ready=false;
+  for(let i=0;i<100;i++) {try {await bootstrap.connect(); await bootstrap.db('admin').command({ping:1}); ready=true; break;}catch {await new Promise(r=>setTimeout(r,200));}}
+  assert.ok(ready,'owned engine did not become ready');
+  const adminPass=randomBytes(32).toString('hex'), readerPass=randomBytes(32).toString('hex');
+  secretValues.push(adminPass,readerPass);
+  const dbName='fixture_'+randomBytes(8).toString('hex'), collection='observations';
+  currentStage='bootstrap-auth';
+  await bootstrap.db('admin').command({createUser:'fixture_admin',pwd:adminPass,roles:[{role:'root',db:'admin'}]});
+  await bootstrap.close();
+  admin=new MongoClient(address,{auth:{username:'fixture_admin',password:adminPass},authSource:'admin',timeoutMS:5000}); await admin.connect();
+  const db=admin.db(dbName), c=db.collection(collection);
+  const rows=Array.from({length:20},(_,i)=>({_id:i,kind:i%2?'odd':'even',value:i,label:`synthetic-${i}`,padding:'x'.repeat(100)}));
+  await c.insertMany(rows); await c.createIndex({value:1},{name:'fixture_value_1',unique:true});
+  await db.collection('foreign').insertOne({_id:'foreign',private:'not-readable'});
+  await admin.db(dbName+'_other').collection(collection).insertOne({_id:'other',private:'not-readable'});
+  await db.command({createRole:'fixture_reader',privileges:[{resource:{db:dbName,collection},actions:['find']}],roles:[]});
+  await db.command({createUser:'fixture_reader',pwd:readerPass,roles:[{role:'fixture_reader',db:dbName}]});
+  reader=new MongoClient(address,{auth:{username:'fixture_reader',password:readerPass},authSource:dbName,timeoutMS:5000}); await reader.connect();
+  assert.deepEqual(await reader.db(dbName).collection(collection).find({value:7}).project({_id:0,value:1,label:1}).toArray(),[{value:7,label:'synthetic-7'}]);
+  const deny=async(id,fn)=>{await assert.rejects(fn,e=>e.code===13);pass(id);};
+  currentStage='acl';
+  const rc=reader.db(dbName).collection(collection);
+  await deny('MDB-ACL-WRITE',()=>rc.insertOne({_id:1000}));
+  await deny('MDB-ACL-OUT',()=>rc.aggregate([{$match:{value:7}},{$out:'forbidden_out'}]).toArray());
+  await deny('MDB-ACL-MERGE',()=>rc.aggregate([{$match:{value:7}},{$merge:'forbidden_merge'}]).toArray());
+  await deny('MDB-ACL-FOREIGN-COLLECTION',()=>reader.db(dbName).collection('foreign').findOne({}));
+  await deny('MDB-ACL-CROSSDB',()=>reader.db(dbName+'_other').collection(collection).findOne({}));
+  await assert.rejects(()=>rc.find({$where:'function() { return true; }'}).toArray(),e=>e.code===2 || /JavaScript|javascript|where|scripting/i.test(e.message));
+  currentStage='host-off-policy';
+  const registry=new ToolRegistry([]);
+  const env={...controls.env,MDB_MCP_CONNECTION_STRING:`mongodb://fixture_reader:${readerPass}@127.0.0.1:${port}/${dbName}?authSource=${dbName}&directConnection=true&serverSelectionTimeoutMS=3000`,USERPROFILE:home,APPDATA:home,LOCALAPPDATA:home,TEMP:home,TMP:home,TMPDIR:home};
+  manager=new McpManager(registry,{dataDir:home,sandbox:{mode:'none',network:true,detail:'trusted owned home only; not an OS fence'},secrets:()=>({env})});
+  const config={name:'mongodb-fixture',enabled:false,transport:'stdio',command:process.execPath,args:[join(import.meta.dirname,'node_modules/mongodb-mcp-server/dist/index.js')]};
+  const permissions=Object.fromEntries(names.map(n=>[mcpToolName(config.name,n),controls.allowed.includes(n)?'ask':'never']));
+  const settings=new SettingsStore(home);settings.update({mcpServers:[config],toolPermissions:permissions});
+  let saved=new SettingsStore(home).get();assert.equal(saved.mcpServers[0].enabled,false);assert.deepEqual(saved.toolPermissions,permissions);
+  await manager.start(saved.mcpServers[0]);assert.equal(registry.list().length,0);
+  settings.update({mcpServers:[{...config,enabled:true}]});saved=new SettingsStore(home).get();
+  currentStage='host-connect';
+  let conn=await manager.start(saved.mcpServers[0]);
+  assert.equal(conn.status,'ready','upstream MCP initialization failed');
+  assert.deepEqual(conn.tools.map(t=>t.name).sort(),controls.allowed);
+  assert.deepEqual(registry.list().map(t=>t.spec.name).sort(),controls.allowed.map(n=>mcpToolName(config.name,n)).sort());
+  for(const [n,p] of Object.entries(permissions)) assert.equal(registry.permission(n,saved.toolPermissions),p);
+  assert.equal(registry.permission('unregistered-new-tool',saved.toolPermissions),'never');
+  writeFileSync(join(out,'upstream-tools-resume.json'),JSON.stringify(conn.tools,null,2)+'\n');
+  await assert.rejects(()=>conn.callTool('connect',{connectionString:'mongodb://127.0.0.1:1'},AbortSignal.timeout(5000)));
+  pass('MDB-SARA-LIFECYCLE');
+  const args={connectionId:'preconfigured',database:dbName,collection};
+  const call=async(name,extra={})=>{
+    assert.equal(registry.permission(mcpToolName(config.name,name),new SettingsStore(home).get().toolPermissions),'ask');
+    const text=await registry.get(mcpToolName(config.name,name)).run({...args,...extra},{signal:AbortSignal.timeout(10000)});
+    assert.equal(typeof text,'string');assert.ok(Buffer.byteLength(text)<40000,'host output clipped or oversized');return text;
+  };
+  currentStage='rows';
+  const text=await call('find',{filter:{value:7},projection:{_id:0,value:1,label:1},limit:1});
+  assert.ok(text.includes('synthetic-7') && text.includes('"value":7'));assert.ok(!text.includes('synthetic-8'));pass('MDB-ROWS');
+  currentStage='schema';
+  const schema=await call('collection-schema',{sampleSize:5});assert.ok(schema.includes('label')&&schema.includes('value')&&schema.includes('kind'));pass('MDB-SCHEMA');
+  currentStage='explain';
+  const plan=await call('explain',{method:[{name:'find',arguments:{filter:{value:7},limit:1}}],verbosity:'executionStats'});
+  assert.ok(plan.includes('fixture_value_1')&&plan.includes('IXSCAN'));assert.match(plan,/"nReturned":1/);assert.match(plan,/"totalDocsExamined":1/);pass('MDB-INDEX-EXPLAIN');
+  receipt.observations.positive={row:{value:7,label:'synthetic-7'},index:'fixture_value_1',nReturned:1,totalDocsExamined:1}; save();
+  currentStage='upstream-denials';
+  for (const filter of [{$where:'function() { return true; }'},{$expr:{$function:{body:'function() { return true; }',args:[],lang:'js'}}}]) await assert.rejects(()=>call('find',{filter}));
+  for(const stage of [{$out:'forbidden_out'},{$merge:'forbidden_merge'}]) await assert.rejects(()=>call('explain',{method:[{name:'aggregate',arguments:{pipeline:[stage]}}]}));
+  for(const extra of [{collection:'foreign'},{database:dbName+'_other'}]) await assert.rejects(()=>call('find',extra));
+  pass('MDB-JS');
+  currentStage='bounds';
+  const bounded=await call('find',{filter:{},limit:1000,projection:{_id:1}});
+  const payload=bounded.match(/\[\{"_id".*?\]/s);assert.ok(payload); assert.equal(JSON.parse(payload[0]).length,5);
+  const tiny=await call('find',{filter:{},limit:1000,responseBytesLimit:200});assert.ok(Buffer.byteLength(tiny)<8192);
+  for(const limit of [0,-100]) {
+    const result=await call('find',{filter:{},limit,projection:{_id:1}});
+    const documents=result.match(/\[\{"_id".*?\]/s);assert.ok(documents);
+    const observed=JSON.parse(documents[0]).length;
+    receipt.observations.zeroNegativeLimits ??= [];receipt.observations.zeroNegativeLimits.push({limit,observed,maximum:5});save();
+    assert.ok(observed<=5,'configured maximumDocumentsPerQuery must bound zero/negative limit');
+  }
+  pass('MDB-BOUNDS');
+  currentStage='reconnect';
+  const stale=registry.get(mcpToolName(config.name,'find'));
+  manager.stop(config.name);assert.equal(registry.list().length,0);
+  await assert.rejects(()=>stale.run({...args,filter:{value:7}},{signal:AbortSignal.timeout(5000)}));pass('MDB-STALE');
+  conn=await manager.start(new SettingsStore(home).get().mcpServers[0]);assert.equal(conn.status,'ready');assert.deepEqual(conn.tools.map(t=>t.name).sort(),controls.allowed);assert.ok((await call('find',{filter:{value:7},limit:1})).includes('synthetic-7'));pass('MDB-RECONNECT');
+  settings.update({mcpServers:[config]});saved=new SettingsStore(home).get();assert.equal(saved.mcpServers[0].enabled,false);await manager.start(saved.mcpServers[0]);assert.equal(registry.list().length,0);pass('MDB-DISABLE');
+  assert.equal(await c.countDocuments({}),20);assert.deepEqual((await db.listCollections().toArray()).map(c=>c.name).sort(),['foreign','observations']);
+  receipt.observations.unchangedRows=20;
+  await admin.db(dbName+'_other').dropDatabase();await db.dropDatabase();
+  receipt.status='feature-pass-cleanup-pending';
+} catch(e) {
+  // No exception message/stack: driver messages may contain synthetic credentials.
+  receipt.status='fail';receipt.failure={stage:currentStage,type:e?.constructor?.name,code:typeof e?.code==='number'?e.code:undefined,assertion:e?.operator,detail:secretValues.reduce((m,s)=>m.split(s).join('[REDACTED]'),String(e?.message)).replace(/mongodb(?:\+srv)?:\/\/\S+/g,'[URI REDACTED]').slice(0,1500)};
+} finally {
+  manager?.stopAll();
+  await reader?.close().catch(()=>{});
+  if(admin){try {await admin.db('admin').command({shutdown:1,force:true,timeoutSecs:2});}catch{}await admin.close().catch(()=>{});}
+  if(engine && engine.exitCode===null){await Promise.race([once(engine,'exit'),new Promise(r=>setTimeout(r,4000))]);if(engine.exitCode===null)engine.kill();}
+  save();
+}
+process.exitCode=receipt.status==='feature-pass-cleanup-pending'?0:1;

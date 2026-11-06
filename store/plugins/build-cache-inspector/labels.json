@@ -1,0 +1,44 @@
+{
+  "en": [
+    "Build Cache Inspector",
+    "Measure an operator-staged native-home cache and preview pruning. No changes or selected-project access.",
+    "Operator-staged cache only. No changes.",
+    "Files",
+    "Bytes"
+  ],
+  "es": [
+    "Inspector de caché",
+    "Mide la caché preparada en el directorio propio y propone una limpieza. Sin cambios ni acceso al proyecto.",
+    "Solo caché preparada por el operador. Sin cambios.",
+    "Archivos",
+    "Bytes"
+  ],
+  "fr": [
+    "Inspection du cache",
+    "Mesure le cache préparé dans le dossier propre et propose un nettoyage. Sans modification ni accès au projet.",
+    "Cache préparé par l’opérateur uniquement. Aucune modification.",
+    "Fichiers",
+    "Octets"
+  ],
+  "de": [
+    "Build-Cache-Prüfung",
+    "Misst den bereitgestellten Cache im eigenen Datenordner und zeigt einen Bereinigungsvorschlag. Keine Änderungen oder Projektzugriffe.",
+    "Nur vom Betreiber bereitgestellter Cache. Keine Änderungen.",
+    "Dateien",
+    "Bytes"
+  ],
+  "pt-BR": [
+    "Inspetor de cache",
+    "Mede o cache preparado no diretório próprio e propõe limpeza. Sem alterações nem acesso ao projeto.",
+    "Somente cache preparado pelo operador. Sem alterações.",
+    "Arquivos",
+    "Bytes"
+  ],
+  "it": [
+    "Ispettore della cache",
+    "Misura la cache preparata nella cartella dedicata e propone una pulizia. Nessuna modifica o accesso al progetto.",
+    "Solo cache preparata dall’operatore. Nessuna modifica.",
+    "File",
+    "Byte"
+  ]
+}

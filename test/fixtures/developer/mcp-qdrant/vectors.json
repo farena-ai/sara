@@ -1,0 +1,17 @@
+{
+  "collection": "owned-vectors",
+  "dimension": 3,
+  "distance": "Cosine",
+  "points": [
+    {"id": 1, "vector": [1, 0, 0], "payload": {"label": "SYNTHETIC east"}},
+    {"id": 2, "vector": [0.8, 0.6, 0], "payload": {"label": "SYNTHETIC northeast"}},
+    {"id": 3, "vector": [0, 1, 0], "payload": {"label": "SYNTHETIC north"}},
+    {"id": 4, "vector": [-1, 0, 0], "payload": {"label": "SYNTHETIC west"}},
+    {"id": 5, "vector": [0, 0, 1], "payload": {"label": "SYNTHETIC up"}}
+  ],
+  "queries": [
+    {"vector": [1, 0, 0], "limit": 2, "expectedIds": [1, 2]},
+    {"vector": [0, 1, 0], "limit": 2, "expectedIds": [3, 2]},
+    {"vector": [-1, 0, 0], "limit": 1, "expectedIds": [4]}
+  ]
+}

@@ -10,7 +10,9 @@
 // through the vault-secret scrub. Repeats inside 6 h count up (normalizeMessage); pings are at most
 // one per watch per 10 minutes and 12 a day, quiet hours fold them into one later ping. Alerts are
 // kept 14 days / 200 per watch. Watches end after 30 days unless renewed and come back paused after
-// a restart. Matched lines are app notices, which the model never reads (src/chat.ts history), so a
+// a restart. A watch may also send its ping to the owner's own linked Telegram or Discord chat
+// ("Also send to", off unless he turns it on per watch; never a chat id, group or room), as part of
+// the same ping, so every limit above is shared. Matched lines are app notices, which the model never reads (src/chat.ts history), so a
 // line reaches a model only when the owner asks about that alert (ask()).
 //
 // Tables (additive, the companion's own store.db): env_watches, env_alerts, env_watch_pings.
@@ -75,6 +77,8 @@ export interface Watch {
   state: WatchState;
   reason: string | null;
   conversationId: string | null;
+  /** Also send each ping to these bridges (the owner's own linked chat on each). Empty by default. */
+  alsoTo: WatchBridge[];
   lastCheckAt: string | null;
   lastMatchAt: string | null;
   lastError: string | null;
@@ -115,6 +119,7 @@ interface Row {
   offset: number;
   misses: number;
   conversation_id: string | null;
+  also_to: string;
   last_check_at: string | null;
   last_match_at: string | null;
   last_ping_at: string | null;
@@ -142,7 +147,14 @@ function ensureTables(db: DatabaseSync): void {
     CREATE INDEX IF NOT EXISTS env_alerts_watch ON env_alerts(watch_id, key);
     CREATE TABLE IF NOT EXISTS env_watch_pings (id INTEGER PRIMARY KEY AUTOINCREMENT, watch_id INTEGER NOT NULL, day TEXT NOT NULL, at TEXT NOT NULL);
   `);
+  // E4 follow-up: the per-watch "Also send to" bridges (JSON list; empty = web push and the card only).
+  const cols = (db.prepare('PRAGMA table_info(env_watches)').all() as { name: string }[]).map((c) => c.name);
+  if (!cols.includes('also_to')) db.exec("ALTER TABLE env_watches ADD COLUMN also_to TEXT NOT NULL DEFAULT '[]'");
 }
+
+/** Bridges a watch may also ping: the owner's own linked chat on each, nothing else. */
+export const WATCH_BRIDGES = ['telegram', 'discord'] as const;
+export type WatchBridge = (typeof WATCH_BRIDGES)[number];
 
 /** Sara's own log, when SARA_LOG_FILE is set (read live, so a changed setting is honoured). */
 function saraLog(): string | undefined {
@@ -266,6 +278,7 @@ export class Watches {
       state: r.state,
       reason: r.reason,
       conversationId: r.conversation_id,
+      alsoTo: JSON.parse(r.also_to || '[]') as WatchBridge[],
       lastCheckAt: r.last_check_at,
       lastMatchAt: r.last_match_at,
       lastError: r.last_error,
@@ -288,8 +301,41 @@ export class Watches {
     return (this.#db.prepare('SELECT * FROM env_watches ORDER BY id').all() as unknown as Row[]).map((r) => this.#view(r));
   }
 
-  /** What the picker offers: the owner's workspaces, and whether Sara's own log is set. */
-  roots(): { workspaces: string[]; log: boolean } {
+  /** Which bridges are linked to the owner's own chat right now (the "Also send to" choices). */
+  #linked(): Record<WatchBridge, boolean> {
+    const b = this.#app.bridges;
+    return { telegram: Boolean(b?.telegram?.ownerLinked()), discord: Boolean(b?.discord?.ownerLinked()) };
+  }
+
+  /** "Also send to": only the names of bridges linked to the owner's own chat (no ids, groups, rooms). */
+  #alsoTo(raw: unknown): WatchBridge[] {
+    if (raw === undefined || raw === null) return [];
+    if (!Array.isArray(raw) || raw.some((x) => typeof x !== 'string' || !(WATCH_BRIDGES as readonly string[]).includes(x))) throw new WatchError(400, en('Alerts can only also go to your own linked Telegram or Discord chat.'));
+    const list = [...new Set(raw as WatchBridge[])];
+    const linked = this.#linked();
+    if (list.some((b) => !linked[b])) throw new WatchError(400, en('Link your Telegram or Discord first (Settings → Chat apps), then pick it here.'));
+    return list;
+  }
+
+  /** The owner's own chats can get the card: web chats and his private bridge chats, never guests or rooms. */
+  #ownChat(id: string): boolean {
+    const c = this.#app.store.getConversation(id);
+    return Boolean(c && !c.partner && ['web', 'telegram', 'discord'].includes(c.channel));
+  }
+
+  #cardChat(raw: unknown): string | null {
+    if (raw === undefined || raw === null || raw === '') return null;
+    if (typeof raw !== 'string' || !this.#ownChat(raw)) throw new WatchError(400, en('Pick one of your own chats for the alert cards.'));
+    return raw;
+  }
+
+  /** The owner's own chats the card can go to (most recent first, at most 30). */
+  chats(): { id: string; title: string }[] {
+    return this.#app.store.listConversations().filter((c) => this.#ownChat(c.id)).slice(0, 30).map((c) => ({ id: c.id, title: c.title }));
+  }
+
+  /** What the picker offers: the owner's workspaces, whether Sara's own log is set, the linked bridges. */
+  roots(): { workspaces: string[]; log: boolean; bridges: Record<WatchBridge, boolean> } {
     const dir = join(this.#app.dataDir, 'workspaces');
     let names: string[] = [];
     try {
@@ -298,7 +344,7 @@ export class Watches {
       names = [];
     }
     const log = saraLog();
-    return { workspaces: names, log: Boolean(log && existsSync(log)) };
+    return { workspaces: names, log: Boolean(log && existsSync(log)), bridges: this.#linked() };
   }
 
   #activeCount(): number {
@@ -306,9 +352,11 @@ export class Watches {
   }
 
   /** The owner's tap on Turn on (never a model tool). Starts at the end of the file. */
-  create(body: { root?: unknown; workspace?: unknown; path?: unknown; patterns?: unknown; caseIns?: unknown; everyMin?: unknown; conversationId?: unknown }): Watch {
+  create(body: { root?: unknown; workspace?: unknown; path?: unknown; patterns?: unknown; caseIns?: unknown; everyMin?: unknown; conversationId?: unknown; alsoTo?: unknown }): Watch {
     const patterns = cleanPatterns(body.patterns);
     const everyMin = cleanEvery(body.everyMin);
+    const alsoTo = this.#alsoTo(body.alsoTo);
+    const conv = this.#cardChat(body.conversationId);
     let rootDir: string;
     let abs: string;
     let workspace: string | null = null;
@@ -344,12 +392,11 @@ export class Watches {
     const total = (this.#db.prepare('SELECT COUNT(*) AS n FROM env_watches').get() as { n: number }).n;
     if (total >= WATCH.maxTotal) throw new WatchError(409, en('You have {n} watches. Delete one first.'), { n: WATCH.maxTotal });
     if (this.#activeCount() >= WATCH.maxActive) throw new WatchError(409, en('{n} watches are already on. Pause one first.'), { n: WATCH.maxActive });
-    const conv = typeof body.conversationId === 'string' && this.#app.store.getConversation(body.conversationId) ? body.conversationId : null;
     const now = this.#now();
     const iso = now.toISOString();
     const r = this.#db
-      .prepare('INSERT INTO env_watches (path_abs, root_kind, root_dir, workspace, patterns_json, case_ins, every_min, state, dev, ino, offset, conversation_id, last_check_at, ends_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(abs, rootKind, rootDir, workspace, JSON.stringify(patterns), body.caseIns ? 1 : 0, everyMin, 'active', String(opened.st.dev), String(opened.st.ino), Number(opened.st.size), conv, iso, new Date(now.getTime() + WATCH.lifeDays * DAY_MS).toISOString(), iso, iso);
+      .prepare('INSERT INTO env_watches (path_abs, root_kind, root_dir, workspace, patterns_json, case_ins, every_min, state, dev, ino, offset, conversation_id, also_to, last_check_at, ends_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(abs, rootKind, rootDir, workspace, JSON.stringify(patterns), body.caseIns ? 1 : 0, everyMin, 'active', String(opened.st.dev), String(opened.st.ino), Number(opened.st.size), conv, JSON.stringify(alsoTo), iso, new Date(now.getTime() + WATCH.lifeDays * DAY_MS).toISOString(), iso, iso);
     return this.get(Number(r.lastInsertRowid))!;
   }
 
@@ -359,13 +406,15 @@ export class Watches {
     return r;
   }
 
-  patch(id: number, body: { patterns?: unknown; caseIns?: unknown; everyMin?: unknown }): Watch {
+  patch(id: number, body: { patterns?: unknown; caseIns?: unknown; everyMin?: unknown; alsoTo?: unknown; conversationId?: unknown }): Watch {
     const r = this.#must(id);
     if (r.state === 'stopped') throw new WatchError(409, en('This watch has stopped. Add it again to start over.'));
     const p: Record<string, string | number | null> = {};
     if (body.patterns !== undefined) p.patterns_json = JSON.stringify(cleanPatterns(body.patterns));
     if (body.everyMin !== undefined) p.every_min = cleanEvery(body.everyMin);
     if (body.caseIns !== undefined) p.case_ins = body.caseIns ? 1 : 0;
+    if (body.alsoTo !== undefined) p.also_to = JSON.stringify(this.#alsoTo(body.alsoTo));
+    if (body.conversationId !== undefined) p.conversation_id = this.#cardChat(body.conversationId);
     if (Object.keys(p).length) this.#set(id, p);
     return this.get(id)!;
   }
@@ -535,8 +584,8 @@ export class Watches {
 
   #conversation(r: Row): string {
     const store = this.#app.store;
-    if (r.conversation_id && store.getConversation(r.conversation_id)) return r.conversation_id;
-    return (store.listConversations()[0] ?? store.createConversation({ title: 'Watches' })).id;
+    if (r.conversation_id && this.#ownChat(r.conversation_id)) return r.conversation_id;
+    return (store.listConversations().find((c) => this.#ownChat(c.id)) ?? store.createConversation({ title: 'Watches' })).id;
   }
 
   /** The card and the ping for what is new (folded: one per watch per 10 min, 12 a day, none in quiet hours). */
@@ -555,7 +604,13 @@ export class Watches {
     const msg = this.#app.store.addMessage(conversationId, 'notice', `watch:${first.line_capped}`, { watch: { id: r.id, alertId: first.id, file, pattern: first.pattern, more } });
     this.#app.events?.publish({ type: 'message', conversationId, message: msg, reason: 'reply' });
     const text = more ? `${first.line_capped} ${trOwner('(+{n} more)', s, { n: more })}` : first.line_capped;
-    void this.#app.push?.notifyOwner(trOwner('Watch: {file}', s, { file }), text, conversationId, `watch-${r.id}`).catch(() => {});
+    const title = trOwner('Watch: {file}', s, { file });
+    void this.#app.push?.notifyOwner(title, text, conversationId, `watch-${r.id}`).catch(() => {});
+    // "Also send to": the same ping, the same capped and scrubbed text, the owner's own chat only.
+    const linked = this.#linked();
+    for (const b of JSON.parse(r.also_to || '[]') as WatchBridge[]) {
+      if (linked[b]) void this.#app.bridges?.[b]?.toOwner(`${title}\n${text}`).catch(() => false);
+    }
     this.#db.prepare('UPDATE env_alerts SET notified = 1 WHERE watch_id = ? AND notified = 0').run(r.id);
     this.#db.prepare('INSERT INTO env_watch_pings (watch_id, day, at) VALUES (?, ?, ?)').run(r.id, day, iso);
     this.#set(r.id, { last_ping_at: iso });

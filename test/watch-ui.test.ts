@@ -17,10 +17,14 @@ test('watch ui: the card lives in Planner → Routines and the chat shows watch 
   assert.match(html, /<div id="rt-watch"/);
   assert.doesNotMatch(js, /style=|\.style\./);
   // Every control of the add form goes through field(label, input, ? tip).
-  const fields = [...js.matchAll(/field\(t\('[^']*'\), \w+, t\('((?:[^'\\]|\\.)*)'\)\)/g)];
-  assert.equal(fields.length, 5, 'where, file, words, case, how often');
+  const fields = [...js.matchAll(/(?:field|add)\(t\('[^']*'\), \w+, t\('((?:[^'\\]|\\.)*)'\)\)/g)];
+  assert.equal(fields.length, 6, 'where, file, words, case, how often, the card\'s chat');
   for (const m of fields) assert.ok(m[1].length <= 260, m[1]);
-  assert.equal([...js.matchAll(/document\.createElement\('(input|select)'\)/g)].length, 5, 'no control without a field');
+  // E4 follow-up: one "Also send to" switch per linked bridge, each with its tip, off unless the watch has it.
+  assert.match(js, /add\(b === 'telegram' \? t\('Also send to Telegram'\) : t\('Also send to Discord'\), cb, BRIDGE_TIPS\[b\]\(\)\)/);
+  for (const m of js.matchAll(/(?:telegram|discord): \(\) => t\('((?:[^'\\]|\\.)*)'\)/g)) assert.ok(m[1].length <= 260, m[1]);
+  assert.match(js, /cb\.checked = Boolean\(w\?\.alsoTo\?\.includes\(b\)\)/, 'off by default');
+  assert.equal([...js.matchAll(/document\.createElement\('(input|select)'\)/g)].length, 7, 'no control without a field');
   assert.match(app, /m\.kind === 'watch'\) \{\s*\/\/[^\n]*\n\s*els\.push\(watchNotice\(m\)\)/);
   assert.match(app, /content\.startsWith\('watch:'\)\) append\(watchNotice/);
   // Ask about this: his own words in the message box; nothing is sent for him.

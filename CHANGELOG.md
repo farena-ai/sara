@@ -5,6 +5,35 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.76.0 (2026-11-06): developer add-ons
+
+- **Watch alerts on Telegram or Discord, and in the chat you pick (E4 follow-up):** each watch has
+  *Also send to Telegram / Discord*, off by default and offered only for a bridge linked to you;
+  alerts then also reach your own Telegram chat or Discord DMs (never a group, server channel or
+  anyone else), with the same limits and the same cut, scrubbed line. *Alert cards go to* picks
+  which of your own chats gets the card (default: the most recent). See [Watch a file](docs/WATCHES.md).
+- **Fixed: red-team runs that came out differently on a busy computer.** When she re-runs a break
+  to confirm it, she now waits for the app's actual answer (unless the break was a hang), so a crash
+  that answers slowly is no longer dropped as "did not happen again". Restarting the app between
+  probes waits until the old copy has really stopped and freed its port (a fixed pause used to end
+  in "port already in use"), and each attacker script gets a freshly started app before its own
+  time limit starts. The test app's "breaks only after earlier requests" route now counts in its
+  copy, so its test no longer depends on how busy the computer is.
+- **Developer add-ons in Settings (A2):** the nineteen developer add-ons (secret scanner, license
+  auditor, SBOM builder, API contract guard, HTTP and webhook workbench and more) now appear in
+  *Settings → Plugins → Workflow candidates* beside the twelve workflows, marked *Host-tested*. Same
+  review, install and per-companion switch as before; each installs Off. Every library entry is
+  shown once: 16 signed Store items in *Get more*, 31 workflow candidates, and 21 connection
+  previews or blocked investigations that stay visibly held. See [Add-ons library](docs/ADDONS_LIBRARY.md#what-sara-shows-today).
+
+- **Developer add-ons (merged from the add-ons session, store release separate from a harness
+  version):** nineteen local-only native developer add-ons were published in signed Store
+  sequence 3 by the add-ons session (31 signed items; earlier records unchanged) and listed on
+  the enterprise website. Installs stay Off until enabled. Full supported scopes:
+  [Developer add-ons](docs/DEVELOPER_ADDONS.md). MongoDB stays blocked by its reproduced upstream
+  zero-limit row-cap bypass; Local Git is blocked for project use after real external-diff,
+  textconv and outside-config canaries. Remaining developer targets are not promoted.
+
 ## 2.75.0 (2026-11-06): calls work like the chat
 
 - **Calls work like the chat (R2a–R2c):** on a call she has the same memories, other-chat

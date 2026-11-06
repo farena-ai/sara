@@ -20,7 +20,7 @@ import { runTurn, type ChatEvent } from '../src/chat.ts';
 import { countFindings } from '../src/evals.ts';
 import { OWNER_SETTINGS } from '../src/household.ts';
 import type { ChatRequest, Provider, ProviderConfig, StreamEvent } from '../src/providers/types.ts';
-import { breaksIn, citeFromTrace, DRIVER_SOURCE, insecureDefaults, maskSecrets, paramsOf, planProbes, probesFor, subRoutes, validateScript, VALUE_SETS, type Exchange } from '../src/redteam-probes.ts';
+import { breaksIn, citeFromTrace, DRIVER_SOURCE, driverEvents, insecureDefaults, maskSecrets, paramsOf, planProbes, probesFor, subRoutes, validateScript, VALUE_SETS, type Exchange } from '../src/redteam-probes.ts';
 import { isShipAction, RedTeam, redteamSettings } from '../src/redteam.ts';
 import { RunStore } from '../src/runs.ts';
 import { SandboxGate, sandboxGateSettings, type Isolation } from '../src/sandbox-run.ts';
@@ -412,21 +412,82 @@ test('attacker scripts with OS isolation run without waiting (still validated); 
       },
     });
   const r = await run(app, ws, conv);
+  // What the reproduction step saw (in every failure message below, so a failure says why).
+  const seen = () => JSON.stringify({ dropped: r.dropped, repro: app.runs!.steps(r.runId!).flatMap((s) => s.tools).filter((x) => /script|repro/.test(x.name)).map((x) => [x.name, x.summary, x.status, String(x.output).slice(0, 300)]) });
   assert.equal(r.status, 'done', r.error);
   assert.deepEqual(r.scripts.map((s) => [s.id, s.status]), [['S1', 'ran'], ['S2', 'rejected'], ['S3', 'ran']]);
   assert.equal(r.scripts[2].note, 'rewritten after the checks');
   assert.ok(app.requests.some((q) => String(q.messages.at(-1)?.content).includes('S2 (node): it names another address')), 'the reasons go back to the model');
   assert.equal(r.reviewer.ran, true);
   // The flaky /order break (only after other requests) did not happen again in a fresh copy.
-  assert.ok(r.dropped.some((d) => d.why === 'did not happen again in a fresh copy' && /\/order/.test(d.input ?? '')), JSON.stringify(r.dropped));
+  assert.ok(r.dropped.some((d) => d.why === 'did not happen again in a fresh copy' && /\/order/.test(d.input ?? '')), seen());
   assert.ok(!/^input: GET \/order/m.test(reviewPrompt), 'unreproducible candidates never reach the reviewer');
-  assert.ok(r.dropped.some((d) => d.why === 'the review did not cite the observed output' && /\/shout/.test(d.input ?? '')));
-  assert.ok(r.dropped.some((d) => d.why === 'the Reviewing model found it is not a real problem' && /script S1/.test(d.input ?? '')));
-  assert.deepEqual(r.breaks.filter((b) => b.by !== 'default').map((b) => b.entry), ['GET /sum']);
+  assert.ok(r.dropped.some((d) => d.why === 'the review did not cite the observed output' && /\/shout/.test(d.input ?? '')), seen());
+  assert.ok(r.dropped.some((d) => d.why === 'the Reviewing model found it is not a real problem' && /script S1/.test(d.input ?? '')), seen());
+  assert.deepEqual(r.breaks.filter((b) => b.by !== 'default').map((b) => b.entry), ['GET /sum'], seen());
   const f = app.findings!.get(r.breaks.find((b) => b.entry === 'GET /sum')!.findingId)!;
   assert.equal(f.origin, 'model');
   assert.equal(f.meta.reviewed, true);
   assert.match(f.quote!, /req\.query\.nums\.split/);
+});
+
+/** Runs the driver itself on a plan in `dir` (no sandbox) and returns its events. */
+function driveHere(dir: string, plan: Record<string, unknown>, files: Record<string, string> = {}) {
+  writeFiles(dir, { '.sara-redteam/driver.mjs': DRIVER_SOURCE, '.sara-redteam/plan.json': JSON.stringify({ startMs: 30_000, reqMs: 2_500, scriptMs: 20_000, deadlineMs: 60_000, probes: [], scripts: [], ...plan }), ...files });
+  const r = spawnSync(process.execPath, ['.sara-redteam/driver.mjs'], { cwd: dir, encoding: 'utf8', timeout: 120_000 });
+  return driverEvents(r.stdout ?? '');
+}
+
+test('the driver starts a fresh app before a script runs, so the script\'s own time limit never includes the app\'s start (load-proof)', async () => {
+  const { dir, cleanup } = tempDir();
+  try {
+    // An app that takes longer to listen than the script may run: before the fix the proxy started it
+    // lazily inside the script's limit, the script was stopped and the request never recorded.
+    const app = "require('http').createServer((q, s) => s.end('up')).listen(Number(process.env.PORT), '127.0.0.1');";
+    const ev = driveHere(dir, { mode: 'scripts', fresh: true, port: PORT_BASE + 9, start: { lang: 'node', file: 'app.js', portFrom: 'env' }, scriptMs: 2_500, scripts: [{ id: 'S1', lang: 'node', file: '.sara-redteam/s1.mjs' }] }, {
+      'app.js': `setTimeout(() => { ${app} }, 3_000);`,
+      '.sara-redteam/s1.mjs': "const r = await fetch(process.env.APP_URL + '/x');\nconsole.log(r.status, await r.text());\n",
+    });
+    const s = ev.find((e) => e.t === 'script') as { timedOut: boolean; records: { path: string; status: number }[] } | undefined;
+    assert.ok(s, JSON.stringify(ev));
+    assert.equal(s.timedOut, false, JSON.stringify(s));
+    assert.deepEqual(s.records.map((x) => [x.path, x.status]), [['/x', 200]]);
+  } finally {
+    cleanup();
+  }
+});
+
+test('reproducing a break that was not a hang waits for the answer itself, not the hang limit (load-proof)', () => {
+  const { dir, cleanup } = tempDir();
+  try {
+    // Answers 500 after 1.5 s: slower than this plan's hang limit, as any request can be on a busy machine.
+    const app = "require('http').createServer((q, s) => setTimeout(() => { s.statusCode = 500; s.end('boom'); }, 1_500)).listen(Number(process.env.PORT), '127.0.0.1');";
+    const probe = (id: string, waitMs?: number) => ({ type: 'http', id, entry: 'E', kind: 'baseline', method: 'GET', path: '/x', label: '', ...(waitMs ? { waitMs } : {}) });
+    const script = "const r = await fetch(process.env.APP_URL + '/x');\nconsole.log(r.status);\n";
+    const ev = driveHere(dir, { mode: 'repro', fresh: true, port: PORT_BASE + 9, reqMs: 500, start: { lang: 'node', file: 'app.js', portFrom: 'env' }, probes: [probe('crash', 20_000), probe('hang')], scripts: [{ id: 'S1', lang: 'node', file: '.sara-redteam/s1.mjs', waitMs: 20_000 }, { id: 'S2', lang: 'node', file: '.sara-redteam/s1.mjs' }] }, { 'app.js': app, '.sara-redteam/s1.mjs': script });
+    const x = (id: string) => ev.find((e) => e.t === 'x' && e.probe === id) as Exchange | undefined;
+    assert.equal(x('crash')?.status, 500, JSON.stringify(ev));
+    assert.equal(x('hang')?.timedOut, true, 'without waitMs the hang limit still decides (a hang candidate)');
+    const sc = (id: string) => (ev.find((e) => e.t === 'script' && e.id === id) as { records: Exchange[] } | undefined)?.records[0];
+    assert.equal(sc('S1')?.status, 500, JSON.stringify(ev));
+    assert.equal(sc('S2')?.timedOut, true);
+  } finally {
+    cleanup();
+  }
+});
+
+test('the small app\'s state-dependent /order break counts per copy, so a restart after a slow request cannot hide it (load-proof)', () => {
+  const { dir, cleanup } = tempDir();
+  try {
+    smallProject(dir);
+    // fresh: the app is stopped and started again before every probe, as after a request that took
+    // longer than reqMs under load. The fourth /order in this copy still breaks.
+    const probes = [1, 2, 3, 4].map((n) => ({ type: 'http', id: `O${n}`, entry: 'E', kind: 'baseline', method: 'GET', path: `/order?id=${n}`, label: '' }));
+    const ev = driveHere(dir, { mode: 'repro', fresh: true, port: PORT_BASE + 9, start: { lang: 'node', file: 'server.js', portFrom: 'env' }, probes });
+    assert.deepEqual(ev.filter((e) => e.t === 'x').map((e) => [e.probe, e.status]), [['O1', 200], ['O2', 200], ['O3', 200], ['O4', 500]], JSON.stringify(ev));
+  } finally {
+    cleanup();
+  }
 });
 
 // ------------------------------------------------------------------------------------------------

@@ -1208,6 +1208,25 @@ export class DiscordBridge {
     await this.#sendUpload(dm, form);
   }
 
+  /** E4: linked to the owner (his user id) and connected; notes go to his DMs, never a server channel. */
+  ownerLinked(): boolean {
+    return Boolean(this.#me) && !this.#stopped && Boolean(discordSettings(this.#app).ownerUserId);
+  }
+
+  /** E4: a short note to the owner's own DMs only (watch alerts he turned on). */
+  async toOwner(text: string): Promise<boolean> {
+    if (!this.ownerLinked()) return false;
+    try {
+      const dm = await this.#ownerDm();
+      if (!dm) return false;
+      await this.send(dm, text);
+      return true;
+    } catch (err) {
+      this.#error = (err as Error).message;
+      return false;
+    }
+  }
+
   async #ownerDm(): Promise<string | undefined> {
     const owner = discordSettings(this.#app).ownerUserId;
     if (!owner) return undefined;

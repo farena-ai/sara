@@ -50,13 +50,16 @@ interface PluginArtifact {
 }
 
 /** The existing Sara packer performs manifest, scan and real process smoke checks. */
-export async function buildAddonBundle(o: { output: string; root?: string; pluginIds?: readonly string[]; recipeIds?: readonly string[] }) {
+export async function buildAddonBundle(o: { output: string; root?: string; pluginIds?: readonly string[]; recipeIds?: readonly string[]; targetSara?: string }) {
   const root = o.root ?? ROOT;
   const output = assertBundleOutput(o.output, root);
   const ids = o.pluginIds ?? WORKFLOW_IDS;
   if (!ids.length || ids.length > 32 || new Set(ids).size !== ids.length || ids.some((id) => !/^[a-z][a-z0-9-]{0,47}$/.test(id))) throw new Error('Plugin identifiers must be one to thirty-two unique reviewed IDs.');
   if (o.recipeIds?.length) throw new Error('MCP recipes are qualified separately; this bundle distributes native workflow packages only.');
   const version = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')).version as string;
+  const targetSara = o.targetSara ?? version;
+  artifactName('sara', version);
+  artifactName('target-sara', targetSara);
   // Validate every filename before any smoke process or output staging is started.
   const sources = ids.map((id) => {
     const source = resolve(root, 'store', 'plugins', id);
@@ -67,13 +70,13 @@ export async function buildAddonBundle(o: { output: string; root?: string; plugi
   const pending: { artifact: PluginArtifact; zip: Buffer; report: unknown }[] = [];
   let total = 0;
   for (const { id, source, manifest, file } of sources) {
-    const pack = await packPath(source, { saraVersion: version, smoke: smokeFence() });
+    const pack = await packPath(source, { saraVersion: targetSara, smoke: smokeFence() });
     if (!pack.report.ready || pack.report.smoke !== 'ran') throw new Error(`${id} is not ready: ${JSON.stringify(pack.report.results.filter((r) => !r.ok))}`);
     total += pack.size;
     if (total > 50 * 1024 * 1024) throw new Error('Aggregate bundle exceeds fifty MiB.');
     pending.push({ artifact: { id, version: manifest.version, file, sha256: pack.sha256, bytes: pack.size, ready: true, smoke: pack.report.smoke, fence: pack.report.fence ?? 'unknown' }, zip: pack.zip, report: pack.report });
   }
-  const result = { format: 'sara-addons-local-bundle', version: 1, sara: version, published: false, generated: new Date().toISOString(), plugins: pending.map((p) => p.artifact), limitations: ['Local package and process checks do not prove live account or model-provider behavior.', 'Windows Node permission limits are not an OS sandbox.', 'Installation, enablement and model/provider costs remain owner-controlled.'] };
+  const result = { format: 'sara-addons-local-bundle', version: 1, sara: version, targetSara, published: false, generated: new Date().toISOString(), plugins: pending.map((p) => p.artifact), limitations: ['Local package and process checks do not prove live account or model-provider behavior.', 'sara identifies the checkout version; targetSara is a compatibility assessment, not proof a target-version host was executed.', 'Windows Node permission limits are not an OS sandbox.', 'Installation, enablement and model/provider costs remain owner-controlled.'] };
   assertBundleOutput(output, root);
   mkdirSync(dirname(output), { recursive: true });
   const staging = mkdtempSync(resolve(dirname(output), '.addons-stage-'));
