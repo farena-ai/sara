@@ -19,6 +19,7 @@
 //   GET  /api/store/author               the author key's fingerprint (if made)
 //   GET|PUT /api/store/settings          { on, community }
 //   POST /api/store/notices/:item/dismiss
+import { policy } from '../policy-profile.ts';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { writeFileAtomic } from '../fs-util.ts';
@@ -48,7 +49,9 @@ export interface StoreSettings {
   community: boolean;
 }
 export function storeSettings(s: { store?: { on?: unknown; community?: unknown } } | undefined): StoreSettings {
-  return { on: s?.store?.on !== false, community: s?.store?.community === true };
+  // EC5: the admin's pin reads through: off = no Store at all, official = the signed shelf only.
+  const pin = policy().pins.store;
+  return { on: s?.store?.on !== false && pin !== 'off', community: s?.store?.community === true && !pin };
 }
 
 /** Pictures the item pages showed (sha → path in the store), so /shots/:sha can fetch them. */
@@ -175,6 +178,7 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
         const body = await readJson(req);
         const cur = settings();
         const next: StoreSettings = { on: typeof body.on === 'boolean' ? body.on : cur.on, community: typeof body.community === 'boolean' ? body.community : cur.community };
+        policy().guard('store', (next.on && !cur.on) || (next.community && !cur.community));
         app.settings.update({ store: next } as never);
         return send(res, 200, next);
       }
@@ -242,6 +246,7 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
     if (b === 'install' && !c && method === 'POST') {
       const body = await readJson(req);
       if (!isStoreId(body.id)) throw new HttpError(400, 'Not a store id.');
+      policy().guard('store', policy().pins.store === 'off');
       try {
         return send(res, 200, await installer().install(body.id, { ...(typeof body.version === 'string' ? { version: body.version } : {}), community: settings().community, understand: body.understand === true }));
       } catch (err) {

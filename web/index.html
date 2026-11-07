@@ -3582,6 +3582,14 @@
       <div id="im-box" class="wa-box"></div>
       </div>
         </section>
+        <!-- EC1: Slack, a first-party plugin over Socket Mode (web/slack.js). -->
+        <section class="settings-page" data-page="co-slack" data-group="Chat apps" data-title="Slack" data-owner-only hidden>
+      <p class="muted small page-lead">Talk to her in Slack: her DMs, and the channels you choose when someone mentions her. You create a small Slack app from a manifest Sara gives you; Slack needs no address for Sara (Socket Mode). It comes with Sara as a plugin, is off until you add it, and the card checks each step with you. <a href="/help#slack" target="_blank" rel="noopener">How Slack works</a></p>
+      <div class="kit-card">
+      <div class="card-head"><h3>Slack</h3><span id="sl-chip" class="status-chip" role="status">Not set up</span></div>
+      <div id="sl-box" class="wa-box"></div>
+      </div>
+        </section>
         <!-- Owner session continuity settings. -->
         <section class="settings-page" data-page="co-continuity" data-group="Chat apps" data-title="Session continuity" data-owner-only hidden>
           <p class="muted small page-lead">Keep context between your own sessions with this companion. This is separate from Pick up across apps and While she's working.</p>
@@ -3774,6 +3782,55 @@
         </div>
       </dialog>
         </section>
+        <!-- EC4 (docs/ops/EC45_DESIGN.md): the audit trail (web/governance.js). Names, never values. -->
+        <section class="settings-page" data-page="dh-audit" data-group="Household" data-title="Audit trail" data-owner-only hidden>
+      <div class="au-page" data-noauto data-nodirty>
+        <p class="muted small page-lead">Who changed what, when and from where: settings, sign-ins, approvals and background work, for you and everyone in your household. Rows hold names, never values, keys or chat text. <button type="button" class="tip" data-tip="One row per change: who, what, where, the outcome and the policy in force. Rows are chained with SHA-256, so an edited or removed row shows up when you check the chain.">?</button></p>
+        <div class="au-filters">
+          <label>Who <button type="button" class="tip" data-tip="Only rows by you, a household member, an app with a device code or Sara herself (background work).">?</button> <select id="au-who"><option value="">Everyone</option><option value="owner">You</option><option value="member">Household members</option><option value="device">Apps</option><option value="system">Sara herself</option></select></label>
+          <label>What <button type="button" class="tip" data-tip="Only one kind of change, for example sign-ins, tool permissions or approvals.">?</button> <select id="au-action"><option value="">Everything</option><option value="settings">Settings</option><option value="tools">Tools and approvals settings</option><option value="approval">Approval cards</option><option value="providers">Model providers</option><option value="login">Sign-ins</option><option value="passkey">Passkeys</option><option value="devices">Devices</option><option value="household">Household</option><option value="store">Sara Store</option><option value="plugins">Plugins</option><option value="policy">Policy</option><option value="run">Background work</option><option value="audit">Audit trail</option></select></label>
+          <label>Where <button type="button" class="tip" data-tip="Only rows from one place: the web app, the phone or desktop app, a chat app, or Sara herself.">?</button> <select id="au-channel"><option value="">Anywhere</option><option value="web">Web app</option><option value="phone">Phone app</option><option value="desktop">Desktop app</option><option value="app">Apps with a device code</option><option value="telegram">Telegram</option><option value="discord">Discord</option><option value="system">Sara herself</option></select></label>
+          <label>Outcome <button type="button" class="tip" data-tip="Done, refused (sign-in failed, not allowed, or pinned by the policy), failed, or still waiting.">?</button> <select id="au-outcome"><option value="">Any</option><option value="ok">Done</option><option value="refused">Refused</option><option value="failed">Failed</option><option value="pending">Waiting</option></select></label>
+          <label>From <button type="button" class="tip" data-tip="Rows from this day on.">?</button> <input id="au-from" type="date"></label>
+          <label>To <button type="button" class="tip" data-tip="Rows up to the end of this day.">?</button> <input id="au-to" type="date"></label>
+        </div>
+        <div class="add-row"><button id="au-verify" type="button" class="ghost">Check the chain</button> <button type="button" class="tip" data-tip="Recomputes every row's SHA-256 link. If a row was edited, removed or the newest ones cut off, it says which row. Nothing is changed.">?</button> <span id="au-status" class="muted small" role="status"></span></div>
+        <div id="au-list" class="au-list"></div>
+        <h3>Export <button type="button" class="tip" data-tip="A ZIP with the rows that match the filters (JSONL or CSV) and a manifest with their SHA-256, the chain head and a signature made with this server's key.">?</button></h3>
+        <label class="row"><input id="au-content" type="checkbox"> Include message content <button type="button" class="tip" data-tip="Off: no message text at all. On: an approval card's short summary is added, with keys and passwords hidden. Only switch this on when a reviewer needs it.">?</button></label>
+        <div class="add-row"><button id="au-jsonl" type="button">Export JSONL</button> <button id="au-csv" type="button" class="ghost">Export CSV</button></div>
+        <h3>Keep</h3>
+        <label class="row">Keep the audit trail <select id="au-keep"><option value="30">for 30 days</option><option value="90">for 90 days</option><option value="365">for a year</option><option value="0">until I change this</option></select> <button type="button" class="tip" data-tip="Older rows are deleted after this. A row still waiting (a delivery not settled yet) and everything after it is always kept. Your admin's policy can pin this.">?</button></label>
+      </div>
+        </section>
+        <!-- EC5: the policy profile (web/governance.js). Pins only tighten; the server enforces them. -->
+        <section class="settings-page" data-page="dh-policy" data-group="Household" data-title="Policy" data-owner-only hidden>
+      <div class="po-page" data-noauto data-nodirty>
+        <p class="muted small page-lead">Pin rules for everyone on this server: you, every companion and every household member. A pinned setting shows as Set by your admin and cannot be changed, not even by you, until you change the policy here. <button type="button" class="tip" data-tip="Pins only make things stricter. Sara enforces them on the server: in the app, the API and chat commands. Every change to the policy is in the audit trail.">?</button></p>
+        <p id="po-state" class="muted small" role="status"></p>
+        <label class="row">Policy name <input id="po-name" type="text" maxlength="60" autocomplete="off"> <button type="button" class="tip" data-tip="Shown next to every pinned setting and in refusals, for example Family rules or Front desk.">?</button></label>
+        <h3>Allowed model providers <button type="button" class="tip" data-tip="Tick the kinds of model provider that may be used. None ticked: any provider. A provider of another kind can't be added, picked or used.">?</button></h3>
+        <div class="po-kinds">
+          <label><input type="checkbox" data-kind="openai-compatible"> OpenAI-compatible (Ollama, OpenAI…)</label>
+          <label><input type="checkbox" data-kind="anthropic"> Anthropic</label>
+          <label><input type="checkbox" data-kind="chatgpt"> ChatGPT subscription</label>
+          <label><input type="checkbox" data-kind="claude-code"> Claude Code subscription</label>
+          <label><input type="checkbox" data-kind="grok-cli"> Grok subscription</label>
+        </div>
+        <h3>Tools</h3>
+        <label class="row">Commands <select id="po-commands"><option value="">No limit</option><option value="ask">Always ask</option><option value="never">Never allow</option></select> <button type="button" class="tip" data-tip="The most her command tools (shell, running code) may do. Never allow hides them. Always ask beats every Always allow.">?</button></label>
+        <label class="row">Tool servers (MCP) <select id="po-mcp"><option value="">No limit</option><option value="ask">Always ask</option><option value="never">Never allow</option></select> <button type="button" class="tip" data-tip="The most any tool from a tool server may do, whatever the server's own choice (Always allow the safe ones, Everything).">?</button></label>
+        <label class="row"><input id="po-always" type="checkbox"> Turn off Always allow <button type="button" class="tip" data-tip="Approval cards stop offering Always allow this tool, and computer use can't be set to Always allowed. Every action asks as it would without it.">?</button></label>
+        <h3>Safety</h3>
+        <label class="row"><input id="po-adult" type="checkbox"> Keep adult mode off <button type="button" class="tip" data-tip="Adult mode is turned off for everyone now and can't be turned on.">?</button></label>
+        <label class="row"><input id="po-net" type="checkbox"> No internet for her commands <button type="button" class="tip" data-tip="Her shell commands never reach the internet (builds that download packages then fail).">?</button></label>
+        <label class="row"><input id="po-local" type="checkbox"> Keep private local mode on <button type="button" class="tip" data-tip="Once Nothing leaves this computer is on, it can't be turned off. If it's off now, the safety check-up says so until you turn it on.">?</button></label>
+        <label class="row">Sara Store <select id="po-store"><option value="">No limit</option><option value="official">Signed Store items only</option><option value="off">No installs</option></select> <button type="button" class="tip" data-tip="Signed Store items only: no community items. No installs: nothing can be installed or updated from the Store.">?</button></label>
+        <label class="row">Audit trail retention <select id="po-retention"><option value="">Not pinned</option><option value="30">30 days</option><option value="90">90 days</option><option value="365">A year</option><option value="0">Keep everything</option></select> <button type="button" class="tip" data-tip="Pins how long the audit trail is kept. Not pinned: you choose on the Audit trail page.">?</button></label>
+        <div class="add-row"><button id="po-save" type="button" class="primary">Save the policy</button> <button id="po-export" type="button" class="ghost">Export JSON</button> <button id="po-import" type="button" class="ghost">Import JSON</button> <button type="button" class="tip" data-tip="Export saves this policy as a JSON file; Import applies one, for setting up another server the same way. Importing replaces every pin.">?</button> <input id="po-file" type="file" accept="application/json,.json" hidden></div>
+        <p id="po-status" class="small" role="status"></p>
+      </div>
+        </section>
         <section class="settings-page" data-page="dh-health" data-group="Data & health" data-title="Health" data-owner-only hidden>
       <div id="access-box" class="access-box">
         <p class="small"><strong>How you reach her:</strong> <span id="access-line">…</span> <button type="button" class="tip" data-tip="The address to open on your phone or another computer, set when Sara was installed: Tailscale (private, works anywhere, with HTTPS), just this computer, your own web address, or your home network. Scan the code with your phone's camera to open it. To change it, run the installer again or the sara access command on this computer.">?</button></p>
@@ -3798,6 +3855,28 @@
         </section>
         <section class="settings-page" data-page="dh-operations" data-group="Data & health" data-title="Operations" data-owner-only hidden>
           <div id="operations-content" aria-live="polite"></div>
+          <!-- EC3 (docs/ops/EC3_DESIGN.md): monitoring for operators (web/monitoring.js). Off by default. -->
+          <div id="mon-box" class="mon-box" data-nodirty hidden>
+            <h3>Monitoring <button type="button" class="tip" data-tip="Put Sara on the dashboards you already run (Prometheus, Grafana, an OpenTelemetry collector). Only counts, timings, sizes, ids and names leave the server: never chat text, prompts, files or keys. Both are off until you switch them on.">?</button></h3>
+            <h4>Prometheus metrics</h4>
+            <p class="small"><label class="row"><input type="checkbox" id="mon-metrics"> <span>Serve metrics at <code>/metrics</code></span> <button type="button" class="tip" data-tip="Prometheus reads turns, reply and model timings, tokens and estimated cost, tool calls, approvals, errors, tool servers, chat apps, queues, database size and uptime. Off: the address does not exist.">?</button></label></p>
+            <p class="small"><label>Addresses that may read without a token <button type="button" class="tip" data-tip="Optional. IP addresses or ranges (10.0.0.5, 192.168.1.0/24), separated by commas, that may read /metrics with no token: for Prometheus on this computer or your private network. Everyone else needs the scrape token.">?</button> <input id="mon-allow" type="text" class="mon-wide" placeholder="127.0.0.1, 10.0.0.0/8" autocomplete="off" spellcheck="false"></label></p>
+            <p class="small"><span id="mon-token-state"></span> <button id="mon-token-new" type="button" class="ghost small">Make a scrape token</button> <button id="mon-token-del" type="button" class="ghost small danger" hidden>Remove the token</button> <button type="button" class="tip" data-tip="A long random password only for reading /metrics. It is kept in the encrypted vault and shown once: put it in a file next to Prometheus (credentials_file). Replacing it stops the old one at once.">?</button></p>
+            <div id="mon-token-show" class="mon-token" hidden>
+              <p class="small">The scrape token. It is shown once: save it next to Prometheus now.</p>
+              <code id="mon-token-value" class="sc-cmd"></code>
+              <p class="small"><button id="mon-token-copy" type="button" class="ghost small">Copy</button></p>
+            </div>
+            <p class="small"><button id="mon-scrape-copy" type="button" class="ghost small">Copy the scrape config</button> <a id="mon-dashboard" href="/api/telemetry/dashboard" download>Download the Grafana dashboard</a></p>
+            <pre id="mon-scrape" class="mon-pre"></pre>
+            <h4>OpenTelemetry traces</h4>
+            <p class="small"><label class="row"><input type="checkbox" id="mon-traces"> <span>Send traces</span> <button type="button" class="tip" data-tip="Each traced reply becomes one trace: the reply, each model call and each tool or tool-server call, with names, timings, token counts and outcomes. Sent after the reply over OTLP/HTTP; a collector that is down never slows her.">?</button></label></p>
+            <p class="small"><label>Collector address <button type="button" class="tip" data-tip="Your OpenTelemetry collector's OTLP/HTTP address, for example http://localhost:4318. Sara adds /v1/traces when it is missing.">?</button> <input id="mon-endpoint" type="url" class="mon-wide" placeholder="http://localhost:4318" autocomplete="off" spellcheck="false"></label></p>
+            <p class="small"><label>Share of replies traced <button type="button" class="tip" data-tip="How many replies get a trace: 10 % is plenty to see timings on a busy server; 100 % traces every reply. Whole replies are picked, never parts.">?</button> <input id="mon-sample" type="range" class="mon-wide" min="0" max="1" step="0.05"></label> <span id="mon-sample-val" class="muted"></span></p>
+            <p class="small"><label>Collector headers <button type="button" class="tip" data-tip="Optional, for collectors that need a key: one name: value per line. Kept in the encrypted vault and never shown again; leave empty and save to remove them.">?</button> <textarea id="mon-headers" rows="2" class="mon-wide" autocomplete="off" spellcheck="false"></textarea></label> <button id="mon-headers-save" type="button" class="ghost small">Save headers</button></p>
+            <p class="small"><button id="mon-test" type="button" class="ghost small">Send a test trace</button> <span id="mon-last" class="muted" role="status"></span></p>
+            <p id="mon-status" class="small error" role="alert"></p>
+          </div>
         </section>
         <section class="settings-page" data-page="dh-recovery" data-group="Data & health" data-title="Recovery" data-owner-only hidden>
           <p class="page-lead">Review interrupted work and uncertain native message outcomes before deciding what to do next.</p>

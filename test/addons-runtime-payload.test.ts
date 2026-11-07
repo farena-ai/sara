@@ -12,7 +12,7 @@ const IDS = ['daily-briefing', 'meeting-assistant', 'document-desk', 'research-n
   // A2 developer add-ons ship beside the A1 candidates so their reviews are not held as missing.
   ...['secret-scanner', 'license-auditor', 'sbom-builder', 'artifact-provenance-verifier', 'coverage-explorer', 'log-explorer', 'incident-workbench', 'environment-config-doctor', 'database-fixture-studio', 'data-contract-validator', 'change-impact-analyzer', 'architecture-guard', 'sql-migration-reviewer', 'visual-regression', 'localization-qa', 'accessibility-auditor', 'build-cache-inspector', 'api-contract-guard', 'http-webhook-workbench',
     'performance-regression-lab', 'code-migration-studio', 'build-reproducibility-inspector', 'test-doctor', 'flaky-test-lab', 'documentation-doctor', 'release-readiness', 'repository-onboarding']];
-const BUILTINS = ['email', 'imessage', 'matrix', 'signal', 'whatsapp'];
+const BUILTINS = ['email', 'imessage', 'matrix', 'signal', 'slack', 'whatsapp'];
 const read = (path: string) => readFileSync(join(ROOT, path), 'utf8').replaceAll('\r\n', '\n');
 const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash';
 const sorted = (values: readonly string[]) => [...values].sort();
@@ -24,7 +24,7 @@ test('runtime candidate allowlist matches the approved public projection', () =>
 function verifyPayload(payload: string): void {
   assert.deepEqual(sorted(readdirSync(join(payload, 'store'))), ['plugins'], 'runtime store contains no catalogs, MCP recipes or website authoring');
   assert.deepEqual(sorted(readdirSync(join(payload, 'store/plugins'))), sorted(IDS), 'only the approved candidate roots ship');
-  assert.deepEqual(sorted(readdirSync(join(payload, 'plugins'))), BUILTINS, 'all five existing builtins ship');
+  assert.deepEqual(sorted(readdirSync(join(payload, 'plugins'))), BUILTINS, 'all six builtins ship (EC1: + Slack)');
   for (const relative of [...IDS.map(id => `store/plugins/${id}`), ...BUILTINS.map(id => `plugins/${id}`)]) {
     const source = fromFolder(join(ROOT, relative));
     const actual = fromFolder(join(payload, relative));

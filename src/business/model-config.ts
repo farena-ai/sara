@@ -44,7 +44,7 @@ export function validateBusinessOperatorSnapshot(businessDir: string): void {
     const decoded: unknown = JSON.parse(Buffer.concat([decipher.update(bytes.subarray(28)), decipher.final()]).toString('utf8'));
     if (!decoded || typeof decoded !== 'object' || Array.isArray(decoded) || Object.getPrototypeOf(decoded) !== Object.prototype) throw new Error('Invalid operator Vault record.');
     secrets = decoded as Record<string, unknown>;
-    if (Object.keys(secrets).length > 1000 || Object.entries(secrets).some(([name, value]) => !name.startsWith('business-provider:') || name.length > 256 || typeof value !== 'string' || !value.trim() || value.length > 8192 || /[\r\n\u0000]/.test(value))) throw new Error('Invalid operator Vault record.');
+    if (Object.keys(secrets).length > 1000 || Object.entries(secrets).some(([name, value]) => !(name.startsWith('business-provider:') || name === 'business-oidc:client-secret') || name.length > 256 || typeof value !== 'string' || !value.trim() || value.length > 8192 || /[\r\n\u0000]/.test(value))) throw new Error('Invalid operator Vault record.');
   }
   const policyPath = join(businessDir, 'model-policy.json');
   if (!existsSync(policyPath)) return;
@@ -54,7 +54,7 @@ export function validateBusinessOperatorSnapshot(businessDir: string): void {
   const policy = validate(stored.policy);
   for (const model of policy.models) if (model.provider.needsKey && !Object.hasOwn(secrets, `business-provider:${model.provider.id}`)) throw new Error('Missing configured business credential.');
 }
-function operatorVault(profile: BusinessProfile): Vault {
+export function operatorVault(profile: BusinessProfile): Vault {
   const dir = join(profile.businessDir, 'operator');
   if (!existsSync(dir)) mkdirSync(dir, { mode: 0o700 });
   if (lstatSync(dir).isSymbolicLink() || !lstatSync(dir).isDirectory()) throw new BusinessAccessError(400);

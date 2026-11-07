@@ -155,6 +155,29 @@ export class BusinessControlStore {
       this.#event({ action: 'organization.member', actorId: principal.identityId, subjectId: identityId, revision: updated.revision }); return updated;
     });
   }
+  /** EC2 just-in-time account: identity, organization membership and the caller's link/session in one transaction. */
+  ssoCreateMember(name: string, role: 'orgadmin' | 'user', finish: (identity: import('./types.ts').BusinessIdentity) => BusinessSession): BusinessSession {
+    if (!organizationRoles.includes(role)) throw new BusinessAccessError(400);
+    return this.transaction(() => {
+      const identity = this.identities.create(name);
+      this.database.prepare("INSERT INTO organization_members(identity_id,role,status,revision) VALUES (?,?,'active',1)").run(identity.id, role);
+      this.#event({ action: 'organization.member', actorId: identity.id, subjectId: identity.id, revision: 1 });
+      return finish(identity);
+    });
+  }
+  /** EC2 group mapping. Never changes the break-glass owner and never removes the last active administrator. */
+  ssoSyncRole(identityId: string, role: 'orgadmin' | 'user'): boolean {
+    validId(identityId);
+    return this.transaction(() => {
+      const member = this.organizationMembership(identityId);
+      if (!member || member.status !== 'active' || member.role === role || identityId === this.identities.firstIdentityId()) return false;
+      if (member.role === 'orgadmin' && !this.database.prepare("SELECT m.identity_id FROM organization_members m JOIN business_identities i ON i.id=m.identity_id WHERE m.role='orgadmin' AND m.status='active' AND i.status='active' AND m.identity_id<>? LIMIT 1").get(identityId)) return false;
+      this.database.prepare('UPDATE organization_members SET role=?,revision=revision+1 WHERE identity_id=?').run(role, identityId);
+      const updated = this.organizationMembership(identityId)!;
+      this.#event({ action: 'organization.member', actorId: identityId, subjectId: identityId, revision: updated.revision });
+      return true;
+    });
+  }
   createWorkspace(principal: BusinessPrincipal, input: unknown): BusinessWorkspace {
     exactFields(input, ['name', 'visibility']);
     if (typeof input.name !== 'string' || !input.name.trim() || input.name.length > 120 || (input.visibility !== undefined && input.visibility !== 'shared')) throw new BusinessAccessError(400);

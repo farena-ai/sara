@@ -138,6 +138,8 @@ export interface Settings {
   runs?: Partial<import('./runs.ts').RunSettings>;
   /** Settings → Data & health: the log level (SARA_LOG_LEVEL, when set, wins). Missing = info. */
   logLevel?: import('./log.ts').LogLevel;
+  /** EC3: monitoring (Settings → Data & health → Monitoring); off by default. Secrets live in the vault. */
+  telemetry?: Partial<{ metrics: Partial<import('./telemetry/config.ts').TelemetrySettings['metrics']>; traces: Partial<import('./telemetry/config.ts').TelemetrySettings['traces']> }>;
   /**
    * Phase 79: per-reply budgets (Settings → Coding → Budgets): coding chats and everyday chats
    * (tokens, steps, optional $ and minutes, on/off), the quick-model step and what happens at the limit.

@@ -47,12 +47,16 @@ import { clip } from './tools/types.ts';
 import { exportAll } from './export.ts';
 import { type AppInfo } from './health.ts';
 import { summarizeConversation } from './memory-worker.ts';
-import { as400, clientIp, cookies, fromSaraApp, HttpError, isSameOrigin, MAX_BODY, MIME, PHOTO_BODY, readJson, readRaw, safeDecode, SECURITY_HEADERS, send, validWorkspace } from './http.ts';
+import { audit } from './audit-trail.ts';
+import { as400, bodyKeys, clientIp, cookies, fromSaraApp, HttpError, isSameOrigin, MAX_BODY, MIME, PHOTO_BODY, readJson, readRaw, safeDecode, SECURITY_HEADERS, send, validWorkspace } from './http.ts';
 import { NEXT, type ActiveTurn, type RouteCtx } from './routes/context.ts';
 import { createLibraryRoutes } from './routes/library.ts';
 import { createCodingRoutes } from './routes/coding.ts';
 import { createDeliveryRoutes } from './routes/deliveries.ts';
 import { OperationsMonitor } from './operations.ts';
+import { Telemetry } from './telemetry/index.ts';
+import { readiness, serveMetrics } from './telemetry/endpoint.ts';
+import { createTelemetryRoutes } from './routes/telemetry.ts';
 import { createOperationsRoutes } from './routes/operations.ts';
 import { createEvalRoutes } from './routes/evals.ts';
 import { createSkillRoutes } from './routes/skills.ts';
@@ -81,6 +85,7 @@ import { createPeopleRoutes } from './routes/people.ts';
 import { createRoomRoutes } from './routes/rooms.ts';
 import { createConnectionsRoutes, createHomeAssistantApi } from './routes/connections.ts';
 import { createAdminRoutes } from './routes/admin.ts';
+import { createGovernanceRoutes } from './routes/governance.ts';
 import { createModelsRoutes } from './routes/models.ts';
 import { createHerRoutes } from './routes/her.ts';
 import { createVoiceRoutes } from './routes/voice.ts';
@@ -241,6 +246,8 @@ export const normalizePairCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-
 export function createSaraServer(opts: ServerOptions): Server {
   const { app, auth } = opts;
   const operations = new OperationsMonitor();
+  // EC3: metrics and traces for operators (src/telemetry/, docs/ops/EC3_DESIGN.md); off by default.
+  const telemetry = new Telemetry({ version: opts.info?.version ?? 'dev' });
   const limiter = new LoginLimiter();
   // Device-code start/poll get their own budget: an app (or a flood of them) can't lock the owner
   // out of signing in, and sign-in failures don't block apps.
@@ -353,8 +360,29 @@ export function createSaraServer(opts: ServerOptions): Server {
   // Phase 99: 'boards' (the demo's sample board, per visitor, in memory) and its card actions below.
   const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports', 'boards']);
   /** Security review: routes an app signed in with a device code may not use (sign-in settings, devices, approving apps). */
-  // Phase 100: 'agents' (A2A keys and peers) too.
-  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations']);
+  // Phase 100: 'agents' (A2A keys and peers) too. EC4/EC5: the audit trail and the policy.
+  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy']);
+  /**
+   * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
+   * tool name) and policy changes by the policy store, so each action writes exactly one row.
+   */
+  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit']);
+  const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
+  const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
+    const dev = deviceTokenOf(req);
+    const st = res.statusCode;
+    const ua = String(req.headers['user-agent'] ?? '');
+    const target = parts.slice(1, 3).filter((p) => /^[\w.:@-]{1,80}$/.test(p)).join('/');
+    audit({
+      action: `${parts[0]}.${VERB[method] ?? 'do'}`,
+      ...(target ? { target } : {}),
+      role: opts.member ? 'member' : dev ? 'device' : 'owner',
+      who: opts.member ? `member:${spaceId}` : dev ? `device:${dev.slice(0, 12)}` : 'owner',
+      channel: dev ? `app:${auth.deviceKind(dev) ?? 'app'}` : /SaraPhone\//.test(ua) ? 'phone' : /SaraDesktop\//.test(ua) ? 'desktop' : 'web',
+      outcome: st < 400 ? 'ok' : st === 401 || st === 403 || st === 409 || st === 429 ? 'refused' : 'failed',
+      ...(bodyKeys(req) ? { keys: bodyKeys(req) } : {}),
+    });
+  };
   /**
    * Phase 24 (security review): what a demo visitor may read. Everyone on the demo is "signed in",
    * so owner-only pages (backups, files, health details, accounts, devices…) must be listed out,
@@ -496,8 +524,12 @@ export function createSaraServer(opts: ServerOptions): Server {
     const partner = Boolean(cx.store.getConversation(conversationId)?.partner);
     const started = Date.now();
     let firstToken = 0;
+    // EC3: the turn's metrics and trace (never its text); `outcome` stays 'error' if the turn throws.
+    const watch = telemetry.turn(cx, conversationId);
+    let outcome: 'ok' | 'error' | 'stopped' = 'error';
     try {
-      for await (const ev of runTurn(cx, conversationId, content, controller.signal, opts)) {
+      for await (const ev of watch.wrap(runTurn(cx, conversationId, content, controller.signal, opts))) {
+        watch.event(ev);
         trackActivity(turn, ev);
         onEvent(ev);
         // Phase 30: how long until her reply starts (health history).
@@ -512,7 +544,9 @@ export function createSaraServer(opts: ServerOptions): Server {
       const secs = (app.now().getTime() - Date.parse(turn.startedAt)) / 1000;
       if (!partner && !failed && !controller.signal.aborted && secs >= 60 && !opts.persist) void app.push?.notifyOwner(trOwner('Sara finished', app.settings.get(), undefined, identityOf(app.persona)), lastText.trim() || trOwner('Done.', app.settings.get()), conversationId, `done-${conversationId}`).catch(() => {});
       app.healthHistory?.turn(firstToken || null, failed);
+      outcome = failed ? 'error' : controller.signal.aborted ? 'stopped' : 'ok';
     } finally {
+      watch.end(controller.signal.aborted && !failed ? 'stopped' : outcome);
       active.delete(conversationId);
       // Phase 116: the next queued message (or a note she got after her last step) runs now.
       try {
@@ -904,8 +938,11 @@ export function createSaraServer(opts: ServerOptions): Server {
   const roomRoutes = createRoomRoutes(ctx);
   const connectionsRoutes = createConnectionsRoutes(ctx);
   const adminRoutes = createAdminRoutes(ctx);
+  // EC4/EC5: the audit trail and the policy profile (src/routes/governance.ts).
+  const governanceRoutes = createGovernanceRoutes(ctx);
   const deliveryRoutes = createDeliveryRoutes(ctx);
   const operationsRoutes = createOperationsRoutes(ctx, operations);
+  const telemetryRoutes = createTelemetryRoutes(ctx, telemetry);
   const modelsRoutes = createModelsRoutes(ctx);
   const herRoutes = createHerRoutes(ctx);
   const voiceRoutes = createVoiceRoutes(ctx);
@@ -935,6 +972,12 @@ export function createSaraServer(opts: ServerOptions): Server {
     };
 
     if (a === 'health' && !b && method === 'GET') return send(res, 200, { ok: true });
+    // EC3: readiness for load balancers and orchestrators (fixed names only).
+    if (a === 'health' && b === 'ready' && !c && method === 'GET') {
+      const r = opts.demo || opts.member ? { ok: true } : readiness(app, operations);
+      res.setHeader('cache-control', 'no-store');
+      return send(res, r.ok ? 200 : 503, r);
+    }
     // The developer's report inbox: open to every Sara server and app, but small and rate-limited.
     if (a === 'public' && b === 'report' && method === 'POST' && opts.reportInbox && app.reports) {
       const body = await readJson(req, 16 * 1024);
@@ -1248,8 +1291,10 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await modelsRoutes(req, res, method, parts)) !== NEXT) return;
     // Admin: settings, backups, logs, doctor, status, health history, updates, access, desktop apps, safety stats, search, tools, MCP, checklist: src/routes/admin.ts.
     if ((await adminRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await governanceRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await deliveryRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await operationsRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await telemetryRoutes(req, res, method, parts)) !== NEXT) return;
 
     // Coding: workspaces, approvals, jobs, starters, GitHub, code projects, code map, recipes, team, previews, SSH: src/routes/coding.ts.
     if ((await codingRoutes(req, res, method, parts)) !== NEXT) return;
@@ -2167,6 +2212,8 @@ export function createSaraServer(opts: ServerOptions): Server {
         await readRaw(req, 256 * 1024).catch(() => undefined);
         return send(res, 404, { error: 'Not found' });
       }
+      // EC3: Prometheus scrape endpoint (404 unless switched on; token or allowlisted address).
+      if (url.pathname === '/metrics') return serveMetrics(req, res, { app, metrics: telemetry.metrics, operations, info, closed: Boolean(opts.demo || opts.member), ...(opts.trustProxy ? { trustProxy: opts.trustProxy } : {}) });
       if (url.pathname === '/mcp' || url.pathname === '/mcp/') {
         return await handleMcp(req, res, { app, auth, demo: Boolean(opts.demo), version: info.version, limiter: appLimiter, requestApproval });
       }
@@ -2174,6 +2221,8 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (url.pathname === '/movein/sara-movein.py' && (method === 'GET' || method === 'HEAD') && !opts.demo) return serveCollector(res);
       if (url.pathname.startsWith('/api/')) {
         const parts = url.pathname.slice(5).split('/').filter(Boolean).map(safeDecode);
+        // EC4: one audit row per sensitive change (who, what, where, outcome; field names, never values).
+        if (method !== 'GET' && method !== 'HEAD' && AUDITED.has(parts[0]) && !opts.demo) res.once('finish', () => auditRequest(req, res, method, parts));
         await api(req, res, method, parts);
       } else if (method === 'GET' || method === 'HEAD') {
         await serveStatic(req, res, url.pathname);
@@ -2192,7 +2241,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   // Keep idle connections longer than Node's 5 s default: apps (SillyTavern, the API, MCP clients,
   // a reverse proxy) reuse a connection between messages, and a reuse racing the server's close
   // fails with "connection reset". 65 s is longer than common proxies' own idle limit.
-  server.once('close', () => operations.close());
+  server.once('close', () => (operations.close(), telemetry.close()));
   server.keepAliveTimeout = 65_000;
   server.headersTimeout = 66_000;
   // Live voice calls: /api/live/<conversation id> upgrades to a WebSocket (src/routes/live.ts).

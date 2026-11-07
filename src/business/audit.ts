@@ -4,11 +4,12 @@ import type { BusinessControlStore } from './store.ts';
 import type { BusinessPrincipal, WorkspaceContext } from './types.ts';
 import { exactFields, validId } from './policy.ts';
 
-export const AUDIT_ACTIONS = ['organization.settings', 'organization.bootstrap', 'organization.member', 'workspace.create', 'workspace.member', 'invite.create', 'invite.revoke', 'invite.redeem', 'identity.create', 'identity.epoch', 'identity.credential', 'identity.reenroll', 'identity.signin', 'identity.signin.attempt', 'identity.logout.attempt', 'content.send', 'content.document', 'model.resume', 'model.reserve', 'model.state', 'operator.configure.attempt', 'recovery.restore', 'recovery.reconcile', 'recovery.complete', 'backup.stage'] as const;
+export const AUDIT_ACTIONS = ['organization.settings', 'organization.bootstrap', 'organization.member', 'workspace.create', 'workspace.member', 'invite.create', 'invite.revoke', 'invite.redeem', 'identity.create', 'identity.epoch', 'identity.credential', 'identity.reenroll', 'identity.signin', 'identity.signin.attempt', 'identity.logout.attempt', 'content.send', 'content.document', 'model.resume', 'model.reserve', 'model.state', 'operator.configure.attempt', 'recovery.restore', 'recovery.reconcile', 'recovery.complete', 'backup.stage', 'sso.configure', 'sso.signin', 'sso.refused', 'sso.revoked', 'sso.link'] as const;
 export interface AuditRecord { action: typeof AUDIT_ACTIONS[number]; actorId?: string; workspaceId?: string; subjectId?: string; revision?: number }
 export function initializeAudit(db: DatabaseSync): void {
   const previous = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='business_audit'").get();
-  if (previous && !String(previous.sql).includes("'organization.settings'")) {
+  // Any action missing from the stored CHECK list (an older schema) rebuilds the table in place.
+  if (previous && AUDIT_ACTIONS.some(action => !String(previous.sql).includes(`'${action}'`))) {
     const triggers = db.prepare("SELECT name,sql FROM sqlite_master WHERE type='trigger' AND instr(sql,'business_audit')>0").all();
     db.exec('BEGIN IMMEDIATE');
     try {

@@ -8,6 +8,7 @@ space.
 
 > Part 1 is the user guide. Part 2 is the design (what is shared, what is isolated, and why it holds).
 > The attack cases and how each is blocked are in [THREAT_MODEL.md → Household mode](THREAT_MODEL.md#household-mode-phase-71).
+> Pinning rules for everyone and the audit trail: [AUDIT_AND_POLICY.md](AUDIT_AND_POLICY.md).
 
 ---
 

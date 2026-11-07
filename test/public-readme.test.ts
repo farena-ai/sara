@@ -197,3 +197,30 @@ test('ordinary full preview explicitly replaces its prior disposable export with
     assert.equal(git(f.remote, 'for-each-ref', '--format=%(objectname) %(refname)'), f.before);
   } finally { f.close(); }
 });
+
+test('README-only also publishes the tracked images the READMEs show, and nothing else', () => {
+  const f = fixture();
+  try {
+    mkdirSync(join(f.source, 'docs', 'screenshots'), { recursive: true });
+    writeFileSync(join(f.source, 'docs', 'screenshots', 'new-look.webp'), Buffer.from([82, 73, 70, 70, 1, 2, 3]));
+    writeFileSync(join(f.source, 'docs', 'screenshots', 'unused.webp'), Buffer.from([9, 9]));
+    for (const file of READMES) writeFileSync(join(f.source, file), `# New ${file}\n<img src="docs/screenshots/new-look.webp" alt="">\n`);
+    git(f.source, 'add', '-A');
+    git(f.source, 'commit', '-qm', 'Screens');
+    const result = f.run(['--push']);
+    assert.equal(result.status, 0, result.stderr + result.stdout);
+    const head = git(f.remote, 'rev-parse', 'main');
+    assert.deepEqual(git(f.remote, 'diff-tree', '--no-commit-id', '--name-only', '-r', head).split('\n').sort(), [...READMES, 'docs/screenshots/new-look.webp'].sort());
+    assert.equal(git(f.remote, 'show', 'main:runtime.ts'), 'released runtime');
+  } finally { f.close(); }
+});
+
+test('README-only refuses an image the READMEs show that is not tracked in the source', () => {
+  const f = fixture();
+  try {
+    mkdirSync(join(f.source, 'docs', 'screenshots'), { recursive: true });
+    writeFileSync(join(f.source, 'docs', 'screenshots', 'local-only.webp'), Buffer.from([1]));
+    for (const file of READMES) writeFileSync(join(f.source, file), `# New ${file}\n![x](docs/screenshots/local-only.webp)\n`);
+    denied(f, /image.*tracked/i);
+  } finally { f.close(); }
+});

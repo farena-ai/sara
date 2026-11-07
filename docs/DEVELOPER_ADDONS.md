@@ -166,6 +166,13 @@ node --test --test-concurrency=2 test/developer-security.test.ts test/developer-
 node --test --test-concurrency=2 test/developer-workbench.test.ts test/developer-workbench-variance.test.ts test/developer-workbench-map.test.ts test/developer-workbench-protocol.test.ts test/developer-workbench-host.test.ts test/developer-api-contract-guard.test.ts
 ```
 
+Locked tool versions (2026-11-07 security bump, Dependabot): `tools/developer-data` Ajv 8.18.0 and
+protobufjs 7.6.6, `tools/developer-security` Ajv 8.18.0, `tools/developer-mcp-public` Vite 7.3.7
+(esbuild 0.28.2), `tools/developer-mcp-mongodb` basic-ftp 6.2.6 via an npm override (mongodb-mcp-server
+3.2.2 still asks for basic-ftp 5). These are qualification tools only. The shipped Data Contract
+Validator still vendors the Ajv 8.17.1 and protobufjs 7.5.4 bytes it was qualified with, until it is
+rebuilt with `tools/developer-data/vendor.mjs` and re-qualified.
+
 These run actual analyzers, native subprocesses, official packaging/smoke and registered-host
 lifecycles against synthetic data. Windows Node permission tests do not establish an OS sandbox.
 The frozen eighteen-package source snapshot passed the complete root suite and a fresh exported

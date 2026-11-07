@@ -91,6 +91,12 @@ export function send(res: ServerResponse, status: number, body: unknown): void {
   res.end(json);
 }
 
+/** EC4: the field names (never the values) of each request's JSON body, for its audit row. */
+const BODY_KEYS = new WeakMap<IncomingMessage, string[]>();
+export const bodyKeys = (req: IncomingMessage): string[] | undefined => BODY_KEYS.get(req);
+const keyNames = (v: Record<string, unknown>): string[] =>
+  Object.entries(v).flatMap(([k, x]) => (x && typeof x === 'object' && !Array.isArray(x) ? [k, ...Object.keys(x).map((c) => `${k}.${c}`)] : [k])).slice(0, 40);
+
 export async function readJson(req: IncomingMessage, maxBody = MAX_BODY): Promise<Record<string, unknown>> {
   const type = req.headers['content-type'] ?? '';
   if (!type.startsWith('application/json')) throw new HttpError(415, 'Expected application/json');
@@ -106,6 +112,7 @@ export async function readJson(req: IncomingMessage, maxBody = MAX_BODY): Promis
   try {
     const v = JSON.parse(Buffer.concat(chunks).toString('utf8'));
     if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error();
+    BODY_KEYS.set(req, keyNames(v));
     return v as Record<string, unknown>;
   } catch {
     throw new HttpError(400, 'Invalid JSON body');

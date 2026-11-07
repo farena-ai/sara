@@ -102,6 +102,16 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Ready for work and teams in 2.81.0
+
+Sara joins Slack (direct messages, mentions, threads, Allow and Deny buttons, files both ways).
+Business instances can sign in with Microsoft Entra ID, Google Workspace, Okta or Keycloak, with
+invitation-only first sign-in and the owner's passkey always kept. One tamper-evident audit trail
+records who did what and exports to CSV or JSONL; an admin can pin settings as a policy that the
+server enforces; operators can scrape Prometheus metrics and send OpenTelemetry traces that never
+carry chat text. The front page has new branded art and current screenshots, and the developer
+tool libraries are updated for the latest security advisories.
+
 ## Every installer checked end to end in 2.80.0
 
 Every tool server and native add-on in Settings was installed, configured, connected, used and
@@ -114,6 +124,28 @@ again; retiring a companion right after adding her no longer stops the server.
 
 Expressive speech on calls (laughter and sighs where the voice supports it) follows after
 listening tests.
+
+## Coming for work and teams
+
+Planned in this order; each lands as its own release, and anything that costs money stays off until
+you switch it on.
+
+- **Sara in Slack**, then Microsoft Teams: DMs, mentions, threads, approvals as buttons and files.
+- **Single sign-on** for business workspaces (Microsoft, Google, Okta, Keycloak and other OpenID
+  providers), next to passkeys.
+- **Policy profiles**: an administrator pins allowed models, network access, tools that always ask and
+  add-on sources; nobody can loosen them from the app.
+- **One audit trail** of sign-ins, approvals, settings changes and outside effects, with export.
+- **Metrics and tracing** for your own monitoring (Prometheus and OpenTelemetry), off by default and
+  with no chat text in them.
+- **Research runs**: a plan you approve, the sources she read, and a cited report you can export.
+
+After that: a container sandbox so Windows and Mac get real isolation, a network allowlist for her
+work, secrets from your password manager or Vault, read-only share links, standing crews of helpers
+with their own schedules and budgets, an overnight memory tidy you approve, editor support through
+ACP, and usage reports per person and project. Later, as demand shows: directory sync (SCIM),
+retention and legal hold, measured scale-out, voice rooms and meeting notes, and a trust report that
+puts what she claimed next to what actually ran.
 
 ## Business setup and administration in 2.65.0
 

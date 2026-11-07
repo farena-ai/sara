@@ -1,1 +1,1 @@
-{"name":"sara-developer-data-tooling","private":true,"type":"module","dependencies":{"ajv":"8.17.1","protobufjs":"7.5.4","esbuild":"0.25.12"}}
+{"name":"sara-developer-data-tooling","private":true,"type":"module","dependencies":{"ajv":"8.18.0","protobufjs":"7.6.6","esbuild":"0.25.12"}}

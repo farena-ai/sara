@@ -33,7 +33,49 @@ and conversation/user identifiers are absent. Incoming request IDs are not trust
 receipts have their own run IDs; this does not claim end-to-end distributed request/run tracing.
 Logs use the existing rotation/redaction policy. Avoid posting whole owner logs publicly.
 
-## Keeping delivery history manageable
+## Metrics, traces and readiness for your own monitoring (EC3)
+
+Off by default. Turn them on under **Settings → Data & health → Operations → Monitoring** (owner
+only). Nothing is sent to a paid service; Sara never adds chat text, prompts, tool arguments or
+output, file contents, error messages, people or keys to a metric label or a span. Design and the
+full metric list: `docs/ops/EC3_DESIGN.md` (private) and the dashboard in
+`docs/monitoring/grafana-dashboard.json`.
+
+- **Prometheus:** switch on *Serve metrics at /metrics*. Prometheus may read it with the scrape
+  token (*Make a scrape token*, shown once, kept in the vault) or from an address in *Addresses that
+  may read without a token* (single IPs or ranges like `10.0.0.0/8`; behind a proxy the forwarded
+  address counts only when `SARA_TRUST_PROXY` is set). Off: `/metrics` is a 404. Wrong or missing
+  token: 401. Never served on the demo or in a household member's space. *Copy the scrape config*
+  gives a job like:
+
+  ```yaml
+  scrape_configs:
+    - job_name: sara
+      metrics_path: /metrics
+      scheme: https
+      authorization: { type: Bearer, credentials_file: /etc/prometheus/sara-token }
+      static_configs: [{ targets: ['sara.example.com'] }]
+  ```
+
+  Metrics (all `sara_`): replies by outcome and their duration and first-word histograms; model calls,
+  latency histograms, tokens and estimated cost per provider id and model; tool calls by tool
+  (`mcp:<server>` for tool-server tools) and outcome; approvals asked and answered; errors; MCP server
+  up; plugin jobs; chat bridges connected; queue items by fixed state; database bytes; newest backup
+  age; HTTP totals; resident memory; uptime; build info; trace exports. Each metric keeps at most 200
+  label sets (the rest count as `other`). Counters reset when Sara restarts (Prometheus handles that).
+- **Grafana:** *Download the Grafana dashboard* and import it; pick your Prometheus data source and
+  the `sara` job.
+- **OpenTelemetry:** switch on *Send traces*, set the collector's OTLP/HTTP address (for example
+  `http://localhost:4318`; `/v1/traces` is added) and the share of replies traced (10 % is plenty).
+  Each traced reply is one trace: `sara.turn`, one `sara.model.call` per model call (`gen_ai.*`
+  names, tokens, cost estimate), one `sara.tool.call` or `sara.mcp.call` per tool call (name,
+  outcome, output size, duration). The only id is the conversation id. Collector headers (for a key)
+  are stored in the vault and never shown again. Export runs after the reply with a 5 s limit; a
+  collector that is down never slows or breaks a reply. *Send a test trace* and the status line show
+  the last export (fixed words only: `timeout`, `unreachable`, `HTTP 401`, ...).
+- **Readiness:** `GET /api/health/ready` (no sign-in) answers 200 `{"ok":true}` or 503
+  `{"ok":false,"failing":["database"|"storage"]}`; `/api/health` stays the liveness probe.
+
 
 Use **Recovery → Archive old deliveries**. Enter an explicit UTC cutoff in the shown format,
 preview the eligible count, then confirm a batch. Each batch handles at most 500 records; repeat

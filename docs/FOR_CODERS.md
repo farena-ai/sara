@@ -49,13 +49,13 @@ choosing an available undo action.
 
 ## What a coding turn looks like
 
-<img src="screenshots/ask-first.webp" alt="A coding chat in the tip-calculator workspace: Sara writes tip.js and test.js (a Files changed card) and asks before running node --test, with Allow and Deny in the chat and in her panel, which says Waiting for your OK" width="860">
+<img src="screenshots/ask-first.webp" alt="A coding chat in the habit-tracker workspace: Sara asks before running node --test, with Try it in a copy and Deny in the chat and in her panel, which says Waiting for your OK" width="860">
 
 She explains the plan, writes the files (they grow live in the chat while the model streams them), and
 stops on an approval card before running a command. The same Allow / Deny sits in her panel and, in the
 Windows and Mac apps, in a notification.
 
-<img src="screenshots/coding.webp" alt="The same chat later: a Tests failed card (3 passed, 3 failed), her explanation of the floating-point bug she caught in her own code, then a Tests passed card with 6 passed, a summary, and the step line under the reply" width="860">
+<img src="screenshots/coding.webp" alt="A coding chat in the habit-tracker workspace: a Tests failed card (5 passed, 1 failed), what she remembered about the same error, the file she changed, a Tests passed card with 6 passed, her explanation with the diff, and the security pass and threat model" width="860">
 
 A real run on a local model (qwen3.8 27B on Ollama): the first test run caught a rounding bug in her own
 code; she fixed it and all six tests passed. The line under each reply (*Looked through the files ·

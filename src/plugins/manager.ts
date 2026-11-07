@@ -27,6 +27,7 @@ import { localDate } from '../memory-worker.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { fromFolder, fromGit, hashFiles, PackageError, type PackageFile, type PackageFinding, type PackageLimits, scanPackage, stripTop, writePackage } from '../packages.ts';
 import { sharedWithApps } from '../recall.ts';
+import { hub } from '../telemetry/hub.ts';
 import type { Conversation } from '../store.ts';
 import { KEY_SHAPED } from '../redact.ts';
 import { isPrivateAddress, pinnedGet } from '../tools/builtin.ts';
@@ -198,6 +199,8 @@ interface Running {
   /** Phase 115: progress refs it was given (`p-<n>`) → the conversation (for its Stop). */
   refs?: Map<string, string>;
   refSeq?: number;
+  /** EC1: approvals shown in its chats as buttons (approval id → the chat it went to). */
+  approvalsSent?: Map<string, string>;
   /** Phase 117: today's counts for the *Today* line. */
   today?: { day: string; in: number; out: number };
   /** Phase 117 part B: the day a mail from his own address last failed the sender check (the Settings banner). */
@@ -417,6 +420,8 @@ export interface ManagerOptions {
    * under `node --test` (src/plugins/net.ts `loopbackMailOverride`); never on in the app.
    */
   netTestLoopback?: boolean;
+  /** EC1 (B5), tests: the loopback stand-in's port for `domain:` endpoints (honoured only with netTestLoopback under node --test). */
+  netTestPort?: number;
   /** Phase 122 part 2 (B3), tests: whether this computer is on a tailnet (default: `tailscale status`). */
   netTailnet?: () => boolean;
 }
@@ -1145,6 +1150,7 @@ export class PluginManager {
         ...(this.opts.netCa ? { ca: this.opts.netCa } : {}),
         ...(this.opts.clock ? { clock: this.opts.clock } : {}),
         ...(this.opts.netTestLoopback ? { testLoopback: true } : {}),
+        ...(this.opts.netTestPort ? { testPort: this.opts.netTestPort } : {}),
         ...(this.opts.netTailnet ? { tailnet: this.opts.netTailnet } : {}),
       });
     }
@@ -1516,6 +1522,7 @@ export class PluginManager {
       const decided = AbortSignal.any([life.signal, AbortSignal.timeout(askMs)]);
       const ok = await this.#ask(a, run, 'job', `run ${command} in ${where}${plan.cwd !== '.' ? ` (folder ${plan.cwd})` : ''}, ${plan.network ? 'with' : 'without'} network, up to ${plan.timeoutS} s; ${FENCE_LABELS[fence]}`, { ...card }, { signal: decided }, card);
       if (!ok) {
+        hub.pluginJob('declined');
         this.store.log(id, a.id, 'call', 'job: the owner said no (or didn\'t answer); nothing ran');
         return { ok: false, content: 'The owner declined this. Nothing ran.' };
       }
@@ -1528,6 +1535,8 @@ export class PluginManager {
       this.#changed();
       try {
         const r = await runJob(plan, { sourceDir, cacheDir: join(this.opts.dataDir, 'cache', 'plugin-jobs'), fence, signal: AbortSignal.any([life.signal, ctl.signal]), ...(plan.source === 'workspace' ? { depsFrom: sourceDir } : {}) });
+        // EC3: plugin job outcomes for the metrics (src/telemetry/hub.ts).
+        hub.pluginJob(r.error ? 'failed' : r.cancelled ? 'stopped' : r.timedOut ? 'timeout' : r.exitCode === 0 ? 'ok' : 'failed');
         this.store.log(id, a.id, 'call', `job: ${cut(command, 200)}: ${r.error ? `not run (${cut(r.error, 200)})` : r.cancelled ? 'stopped' : r.timedOut ? `stopped after ${plan.timeoutS} s` : `exit ${r.exitCode ?? r.signal}`} (${fence}; copy ${r.deleted ? 'deleted' : 'NOT deleted'})`);
         // The answer must fit one channel line (1 MB) after JSON escaping.
         // (`id` is the channel's call id: the run's own id goes back as `jobId`.)
@@ -1766,7 +1775,7 @@ export class PluginManager {
     const from = cut(String(msg.from ?? '').replace(/[\r\n]/g, ' ').trim() || 'someone', 60);
     // Phase 115: files it assembled with bridge.file, and the progress message's Stop.
     const fileIds = Array.isArray(msg.files) ? msg.files.slice(0, 5).map((f) => String((f as { fileId?: unknown } | null)?.fileId ?? '')).filter(Boolean) : [];
-    const action = msg.action === 'stop' ? 'stop' : undefined;
+    const action = msg.action === 'stop' ? 'stop' : msg.action === 'decide' ? 'decide' : undefined;
     if (!/^[\w@.:+=/-]{1,120}$/.test(chatId) || (!text && !fileIds.length && !action && !(typeof msg.forwarded === 'string' && msg.forwarded.trim()))) return deny('a message without a chat id or text');
     const cfg = this.companionSettings(a.id)[run.row.id]?.bridge;
     const channel = `plugin-${bridge}`;
@@ -1816,6 +1825,9 @@ export class PluginManager {
       this.#unaligned(a, run, bridge, channel, chatId, fromId);
       return { ok: false, reason: 'sender check' };
     }
+    // EC1 (docs/ops/EC1_DESIGN.md): Allow or Deny tapped on an approval it showed. Only the linked
+    // owner decides (his own id when the platform gives one), and only an approval sent to this chat.
+    if (action === 'decide') return this.#bridgeDecide(a, run, { chatId, group, owner: !paused && (ownerSender || (!group && !fromId && owner)), approval: String(msg.approval ?? ''), allow: msg.allow === true, lang: msg.lang, fromId });
     // Phase 122 (§13 Q6): on a platform with a reply window (WhatsApp) an empty list means nobody, as for
     // email; a listed number in + form matches the sender's phone number (the plugin's `phone`).
     const phone = typeof msg.phone === 'string' && /^\d{6,20}$/.test(msg.phone) ? msg.phone : undefined;
@@ -1957,7 +1969,7 @@ export class PluginManager {
         if (ownChat) {
           run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId: ownChat, text: r.text + list });
           run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: say(a.app, lang, en('Sent you the answer privately.')) });
-        } else run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: r.text + list, ...((group || thread) && messageId ? { replyTo: messageId } : {}), ...(thread ? { thread } : {}) });
+        } else run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: r.text + list, ...((group || thread) && messageId ? { replyTo: messageId } : {}), ...(thread ? { thread } : {}), ...(r.approval && !r.refused ? this.#approvalButtons(run, chatId, r.approval.id, (x) => say(a.app, lang, x)) : {}) });
       }
       if (r.approval) void r.approval.done.then((t) => run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: t, ...(thread ? { thread, ...(messageId ? { replyTo: messageId } : {}) } : {}) })).catch(() => undefined);
       this.store.log(run.row.id, a.id, 'call', `bridge ${bridge}: /${cmd.name}`);
@@ -2095,7 +2107,8 @@ export class PluginManager {
     const heldFiles: { path: string; name: string; mime: string }[] = [];
     const sendText = (text: string, extraFields: Record<string, unknown> = {}) => {
       if (one) held.push(text);
-      else run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text, ...extraFields });
+      // EC1: a thread turn on a chat app (Slack DMs) answers in that thread.
+      else run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text, ...(m.thread && feats?.threads ? { thread: m.thread } : {}), ...extraFields });
     };
     const sendLine = (t: string) => sendText(say(a.app, lang, t));
     if (item?.kind === 'steer' && !one) sendLine(PENDING_LINES.moved);
@@ -2125,7 +2138,7 @@ export class PluginManager {
           create: async (t) => {
             const ref = `p-${(run.refSeq = (run.refSeq ?? 0) + 1)}`;
             run.refs!.set(ref, conv.id);
-            run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, ref, text: t });
+            run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, ref, text: t, ...(m.thread ? { thread: m.thread } : {}) });
             return ref;
           },
           edit: async (ref, t) => {
@@ -2178,6 +2191,11 @@ export class PluginManager {
           }
         }
         if (owner) out.onEvent(ev);
+        // EC1: her request for his OK, as Allow / Deny in this chat (bridgeApprovals, owner turns only).
+        if (ev.type === 'approval' && owner && !one) {
+          const buttons = this.#approvalButtons(run, chatId, ev.approvalId, (x) => say(a.app, lang, x));
+          if (buttons.buttons) sendText(this.opts.scrub(say(a.app, lang, en('She wants to: {what}'), { what: ev.summary })), { ...buttons, ...(room && m.messageId ? { replyTo: m.messageId } : {}) });
+        }
         if (ev.type === 'token') reply += ev.text;
         else if (ev.type === 'replace') reply = ev.text;
         else if (ev.type === 'notice' && (ev.kind === 'disclosure' || ev.kind === 'crisis')) notices.push(ev.text);
@@ -2240,6 +2258,34 @@ export class PluginManager {
     this.#count(run, 'out');
     await closing?.catch(() => undefined);
     this.store.log(run.row.id, a.id, 'call', `bridge ${bridge}: a ${owner ? 'owner' : 'partner'} turn${room ? ' in a group' : ''}`);
+  }
+
+  /**
+   * EC1: Allow / Deny buttons for one approval, when the plugin may show them (`bridgeApprovals` and at
+   * least two reply buttons); the approval is remembered with the chat it goes to. `{}` otherwise.
+   */
+  #approvalButtons(run: Running, chatId: string, approvalId: string, tr: (x: string) => string): { buttons?: { id: string; label: string }[] } {
+    if (!run.manifest.permissions.bridgeApprovals || (run.bridge?.buttons ?? 0) < 2 || !/^[\w-]{1,80}$/.test(approvalId)) return {};
+    const sent = (run.approvalsSent ??= new Map());
+    sent.set(approvalId, chatId);
+    if (sent.size > 200) sent.delete(sent.keys().next().value!);
+    return { buttons: [{ id: `ap:${approvalId}:1`, label: tr(en('Allow')) }, { id: `ap:${approvalId}:0`, label: tr(en('Deny')) }] };
+  }
+
+  /** EC1: a tap on Allow or Deny → the decision and the line the plugin shows in place of the buttons. */
+  async #bridgeDecide(a: Attached, run: Running, d: { chatId: string; group: boolean; owner: boolean; approval: string; allow: boolean; lang: unknown; fromId?: string }): Promise<Record<string, unknown>> {
+    const { askerLanguage, ownerLanguage, say } = await import('../bridges/commands.ts');
+    if (!d.owner) {
+      this.store.log(run.row.id, a.id, 'denied', `an approval button was pressed by someone who is not the owner (${cut(d.fromId ?? d.chatId, 40)})`);
+      return { ok: false, decided: 'refused', line: say(a.app, askerLanguage(d.lang), en('Only the owner can answer that.')) };
+    }
+    const lang = ownerLanguage(a.app);
+    const sentTo = run.approvalsSent?.get(d.approval);
+    if (!sentTo || sentTo !== d.chatId) return { ok: false, decided: 'expired', line: say(a.app, lang, en('That request is no longer waiting.')) };
+    run.approvalsSent!.delete(d.approval);
+    const ok = a.app.approvals.decide(d.approval, d.allow);
+    this.store.log(run.row.id, a.id, 'call', `an approval was ${ok ? (d.allow ? 'allowed' : 'denied') : 'answered too late'} from ${run.manifest.name}`);
+    return { ok, decided: ok ? (d.allow ? 'allowed' : 'denied') : 'expired', line: say(a.app, lang, ok ? (d.allow ? en('Allowed.') : en('Denied.')) : en('That request is no longer waiting.')) };
   }
 
   /** Phase 117 (oneMessage): one bridge.send with the whole text and every file, then their chunks. */

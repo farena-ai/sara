@@ -60,6 +60,8 @@ export interface PluginPermissions {
   bridges: string[];
   /** Phase 115 (BR1 §4.9): pictures and files both ways in its chats (opt-in; v1 plugins stay text only). */
   bridgeFiles: boolean;
+  /** EC1: her requests for his OK go to its chats as Allow/Deny buttons (only the linked owner can answer). */
+  bridgeApprovals: boolean;
   model: { callsPerDay: number; tokensPerDay: number };
   memory: 'none' | 'shared-notes';
   /** Phase 117 (BRIDGES3 P1): sockets Sara opens and relays for it (src/plugins/net.ts); up to 4. */
@@ -92,6 +94,7 @@ export interface PluginPermissions {
  */
 export interface ConnectEndpoint {
   id: string;
+  /** `setting:<key>` (the owner's address), or EC1 (B5) `domain:<name>` (that public domain and its subdomains). */
   host: string;
   ports: number[] | 'setting';
   where: 'local' | 'public';
@@ -127,7 +130,7 @@ export class ManifestError extends Error {
 }
 
 const TOP_KEYS = new Set(['manifest', 'id', 'name', 'version', 'description', 'author', 'license', 'homepage', 'sara', 'main', 'permissions', 'schedules', 'settings', 'i18n', '$schema']);
-const PERMISSION_KEYS = new Set(['hooks', 'tools', 'callTools', 'network', 'files', 'settings', 'cards', 'bridges', 'bridgeFiles', 'model', 'memory', 'connect', 'webhooks', 'webhookKinds', 'doorbell', 'run']);
+const PERMISSION_KEYS = new Set(['hooks', 'tools', 'callTools', 'network', 'files', 'settings', 'cards', 'bridges', 'bridgeFiles', 'bridgeApprovals', 'model', 'memory', 'connect', 'webhooks', 'webhookKinds', 'doorbell', 'run']);
 
 function parseRun(v: unknown): RunPermission | null {
   if (v === undefined || v === null) return null;
@@ -308,6 +311,8 @@ function parsePermissions(v: unknown): PluginPermissions {
   if (memory !== 'none' && memory !== 'shared-notes') throw new ManifestError('permissions.memory may be none or shared-notes.');
   const bridgeFiles = bool('bridgeFiles');
   if (bridgeFiles && !bridges.length) throw new ManifestError('permissions.bridgeFiles needs a bridge in permissions.bridges.');
+  const bridgeApprovals = bool('bridgeApprovals');
+  if (bridgeApprovals && !bridges.length) throw new ManifestError('permissions.bridgeApprovals needs a bridge in permissions.bridges.');
   const connect = parseConnect(p.connect);
   // Phase 122 part 3 (B1): `{"bridge": ["url"], "doorbell": true}` names the kinds; an unsigned `url`
   // hook needs `doorbell` (the plugin is woken with ids only and fetches each message itself).
@@ -331,7 +336,7 @@ function parsePermissions(v: unknown): PluginPermissions {
   }
   if (webhooks !== 'none' && webhooks !== 'bridge') throw new ManifestError('permissions.webhooks may be none or bridge.');
   if (webhooks === 'bridge' && !bridges.length) throw new ManifestError('permissions.webhooks "bridge" needs a bridge in permissions.bridges.');
-  return { hooks, tools, callTools, network, files, settings: bool('settings'), cards: bool('cards'), bridges, bridgeFiles, model, memory, connect, webhooks: webhooks as 'none' | 'bridge', webhookKinds, doorbell, run: parseRun(p.run) };
+  return { hooks, tools, callTools, network, files, settings: bool('settings'), cards: bool('cards'), bridges, bridgeFiles, bridgeApprovals, model, memory, connect, webhooks: webhooks as 'none' | 'bridge', webhookKinds, doorbell, run: parseRun(p.run) };
 }
 
 function parseConnect(v: unknown): ConnectEndpoint[] {
@@ -344,9 +349,12 @@ function parseConnect(v: unknown): ConnectEndpoint[] {
     if (!/^[a-z][a-z0-9-]{0,23}$/.test(id)) throw new ManifestError(`The connect id "${id.slice(0, 30)}" must be lower-case letters, digits and hyphens.`);
     if (out.some((x) => x.id === id)) throw new ManifestError(`The connect id "${id}" is listed twice.`);
     const host = String(e.host ?? '');
-    if (!/^setting:[a-zA-Z][a-zA-Z0-9_]{0,31}$/.test(host)) throw new ManifestError(`connect "${id}": host must be "setting:<key>" (the owner types the address in its settings; a plugin can't name one itself).`);
+    // EC1 (B5): `domain:<name>` = that public domain and its subdomains (the plugin names one at open).
+    const domain = /^domain:((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63})$/.test(host);
+    if (!domain && !/^setting:[a-zA-Z][a-zA-Z0-9_]{0,31}$/.test(host)) throw new ManifestError(`connect "${id}": host must be "setting:<key>" (the owner types the address in its settings; a plugin can't name one itself) or "domain:<name>" (one public domain and its subdomains).`);
     const where = e.where;
     if (where !== 'local' && where !== 'public') throw new ManifestError(`connect "${id}": where must be "local" or "public".`);
+    if (domain && where !== 'public') throw new ManifestError(`connect "${id}": a domain endpoint is always public (where: "public").`);
     const tls = e.tls;
     if (tls !== 'none' && tls !== 'required' && tls !== 'optional') throw new ManifestError(`connect "${id}": tls must be "none", "required" or "optional".`);
     if ((tls === 'none' || tls === 'optional') && where !== 'local') throw new ManifestError(`connect "${id}": an unencrypted connection is only allowed to a program on this computer (where: "local").`);
@@ -484,6 +492,7 @@ export function parseManifest(raw: unknown, opts: { saraVersion: string; files?:
   const settings = parseSettings(m.settings, permissions.settings);
   const schedules = parseSchedules(m.schedules, permissions.hooks);
   for (const c of permissions.connect) {
+    if (c.host.startsWith('domain:')) continue;
     const key = c.host.slice('setting:'.length);
     const s = settings.find((x) => x.key === key);
     if (!s || s.type !== 'text') throw new ManifestError(`connect "${c.id}": its host setting "${key}" must be one of its text settings.`);
@@ -547,6 +556,7 @@ export function permissionLines(m: PluginManifest, toolLabel: (name: string) => 
   if (p.memory === 'shared-notes') out.push({ id: 'memory', key: 'Can read the notes about you that other apps may see (read only)', risk: 'high' });
   for (const b of p.bridges) out.push({ id: `bridge:${b}`, key: 'Carries chats with her for {bridge}', params: { bridge: b }, risk: 'high' });
   if (p.bridgeFiles) out.push({ id: 'bridgeFiles', key: 'Can send and receive pictures and files in its chats', risk: 'high' });
+  if (p.bridgeApprovals) out.push({ id: 'bridgeApprovals', key: 'Shows her requests for your OK in its chats, with Allow and Deny (only you can answer)', risk: 'high' });
   if (p.webhooks === 'bridge' && p.doorbell) out.push({ id: 'webhooks:doorbell', key: 'Is woken by its app on your network; checks every message with that app before reading it', risk: 'high' });
   else if (p.webhooks === 'bridge') out.push({ id: 'webhooks:bridge', key: 'Receives messages from Meta at a public web address Sara gives it', risk: 'high' });
   for (const h of p.hooks) if (HOOK_WORDS[h]) out.push({ id: `hook:${h}`, key: HOOK_WORDS[h], risk: h === 'turn.before' || h === 'reply.after' || h === 'tool.after' ? 'medium' : 'low' });
@@ -560,10 +570,11 @@ export function permissionLines(m: PluginManifest, toolLabel: (name: string) => 
 }
 
 /** Phase 117: a connect endpoint's stable id (`connect:<id>:<where>:<ports>:<tls>`); a new port or endpoint is an addition. */
-export const connectId = (c: ConnectEndpoint): string => `connect:${c.id}:${c.where}:${c.ports === 'setting' ? 'setting' : c.ports.join(',')}:${c.tls}`;
+export const connectId = (c: ConnectEndpoint): string => `connect:${c.id}:${c.where}:${c.ports === 'setting' ? 'setting' : c.ports.join(',')}:${c.tls}${c.host.startsWith('domain:') ? `:${c.host}` : ''}`;
 
 function connectLine(m: PluginManifest, c: ConnectEndpoint): PermissionLine {
   const label = m.settings.find((s) => `setting:${s.key}` === c.host)?.label ?? c.host;
+  if (c.host.startsWith('domain:')) return { id: connectId(c), key: 'Connects to {domain} and its subdomains (ports {ports}, always encrypted)', params: { domain: c.host.slice('domain:'.length), ports: (c.ports as number[]).join(', ') }, risk: 'high' };
   if (c.where === 'local') {
     return c.ports === 'setting'
       ? { id: connectId(c), key: 'Connects to a program on this computer at the address and port you give it in {setting}', params: { setting: label }, risk: 'high' }
@@ -593,6 +604,7 @@ export function permissionIds(m: PluginManifest): string[] {
     ...(p.memory !== 'none' ? [`memory:${p.memory}`] : []),
     ...p.bridges.map((b) => `bridge:${b}`),
     ...(p.bridgeFiles ? ['bridgeFiles'] : []),
+    ...(p.bridgeApprovals ? ['bridgeApprovals'] : []),
     ...(p.webhooks === 'bridge' ? [p.doorbell ? 'webhooks:doorbell' : 'webhooks:bridge'] : []),
     ...p.hooks.map((h) => `hook:${h}`),
     ...m.schedules.map((s) => `schedule:${s.id}:${s.every}:${s.at ?? ''}`),

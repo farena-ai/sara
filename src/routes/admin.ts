@@ -37,6 +37,7 @@ import { applyServerPolicy, coverage, SERVER_POLICIES, type ServerPolicy, server
 import { SEARCH_PROVIDERS, type SearchProvider, searchVaultKey } from '../tools/search.ts';
 import { type Permission, PERMISSIONS } from '../tools/types.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { policy, policy as pinPolicy } from '../policy-profile.ts';
 
 /** Phase 38: up to two backup models ({providerId, model}) from a request, checked. */
 function cleanModelList(v: unknown, localOnly: boolean): { providerId: string; model: string }[] {
@@ -140,6 +141,7 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           if (id && !app.settings.get().providers.some((p) => p.id === id)) throw new HttpError(400, 'Unknown provider');
           const cur = app.settings.get();
           if (id && id !== cur.defaultProviderId) pausedPick(cur.providers.find((p) => p.id === id)!, body.defaultModel ? String(body.defaultModel) : undefined);
+          if (id && id !== cur.defaultProviderId) policy().checkProvider(cur.providers.find((p) => p.id === id)!);
           patch.defaultProviderId = id;
         }
         if (body.defaultModel !== undefined) patch.defaultModel = body.defaultModel ? String(body.defaultModel).slice(0, 200) : undefined;
@@ -159,6 +161,7 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
             if (k === 'private' && isCloudModel(model)) throw new HttpError(400, '{model} is an Ollama cloud model (it runs on Ollama\'s servers). Private conversations need a model on your own hardware.', { params: { model } });
             const was = app.settings.get().routes?.[k as RoutePurpose];
             pausedPick(prov, model, was);
+            if (was?.providerId !== pid) policy().checkProvider(prov);
             const fallbacks = cleanModelList((v as { fallbacks?: unknown }).fallbacks, k === 'private');
             routes[k as RoutePurpose] = { providerId: pid, model, ...(fallbacks.length ? { fallbacks } : {}) };
           }
@@ -266,6 +269,9 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           patch.toolPermissions = perms;
         }
         if (body.shellNetwork !== undefined) patch.shellNetwork = Boolean(body.shellNetwork);
+        // EC5: nothing above the admin's ceilings, no internet for commands when that is pinned off.
+        for (const [name, v] of Object.entries(patch.toolPermissions ?? {})) if (body.permissions && Object.hasOwn(body.permissions as object, name) && policy().clamp(name, v, app.tools.get(name)) !== v) throw policy().refusal('tools');
+        policy().guard('shellNetwork', patch.shellNetwork === true);
         if (body.contradict !== undefined) {
           if (!body.contradict || typeof body.contradict !== 'object') throw new HttpError(400, 'contradict must be an object');
           const c = body.contradict as { on?: unknown; mode?: unknown };
@@ -286,6 +292,8 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       if (!(s.mcpServers ?? []).some((m) => m.name === server)) throw new HttpError(400, 'Unknown tool server {name}', { params: { name: server } });
       if (!SERVER_POLICIES.includes(body.policy as ServerPolicy)) throw new HttpError(400, 'Pick Ask me first, the safe ones, everything or Never.');
       const policy = body.policy as ServerPolicy;
+      // EC5: a server choice that would let a tool past the admin's ceiling is refused.
+      if ((policy === 'all' || policy === 'safe') && serverTools(app.mcp, server).some((t) => pinPolicy().ceiling(t.key, app.tools.get(t.key)))) throw pinPolicy().refusal('tools');
       app.settings.update({ toolPermissions: applyServerPolicy(s.toolPermissions ?? {}, policy, server, serverTools(app.mcp, server)), mcpPolicy: { ...(s.mcpPolicy ?? {}), [server]: policy } });
       return send(res, 200, { ok: true, server, policy, ...coverage(server, serverTools(app.mcp, server)) });
     }

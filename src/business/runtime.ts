@@ -20,6 +20,8 @@ import { BusinessDocuments } from './documents.ts';
 import { BusinessChat } from './chat.ts';
 import { createBusinessWriteRouter } from './write-routes.ts';
 import { envMode } from '../private-local.ts';
+import { BusinessSso } from './sso.ts';
+import { SSO_BINDING_COOKIE, ssoRoutes } from './sso-routes.ts';
 import type { BusinessMutation } from './types.ts';
 
 const MAX_BODY = 65_536;
@@ -73,6 +75,9 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
     const models = new BusinessModels(options.profile, options.privateLocal, () => { lifecycle.assertAdmission(); if (recoveryMode(control.database)) throw new Error('Models are disabled during recovery.'); });
     const documents = new BusinessDocuments(control, workspaces);
     const chat = new BusinessChat({ control, workspaces, retrieval, budget, models }); activeChat = chat;
+    const sso = new BusinessSso({ profile: options.profile, control, auth, origin, privateLocal: options.privateLocal });
+    const ssoLimiter = new LoginLimiter(30);
+    const ssoStarts = new LoginLimiter(100);
     const unsubscribeAuth = auth.onSessionInvalidated(() => { workspaceEvents.revalidateAll(); chat.revalidateActive(); });
     const failedAuth = new LoginLimiter(30);
     const challengeAllocations = new LoginLimiter(100);
@@ -93,12 +98,24 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
         const path = new URL(req.url ?? '/', origin).pathname;
         if (req.headers.host !== new URL(origin).host) return json(res, 403, { error: 'Origin denied.' });
         if (await serveBusinessStatic(req, res, path)) return;
+        // EC2: the IdP sends the browser back cross-site; state + the binding cookie authenticate it.
+        if (path === '/api/business/sso/callback' && req.method === 'GET') {
+          const ip = clientIp(req, options.trustProxy);
+          const back = (location: string, cookies: string[] = []) => { res.writeHead(303, { location, 'cache-control': 'no-store', 'set-cookie': [`${SSO_BINDING_COOKIE}=; Path=/api/business/sso; HttpOnly; SameSite=Lax; Max-Age=0${origin.startsWith('https:') ? '; Secure' : ''}`, ...cookies] }); res.end(); };
+          if (recoveryMode(control.database)) return back('/?sso=unavailable');
+          if (ssoLimiter.blocked(ip)) return back('/?sso=state');
+          const binding = (req.headers.cookie ?? '').split(';').map(c => c.trim()).find(c => c.startsWith(`${SSO_BINDING_COOKIE}=`))?.slice(SSO_BINDING_COOKIE.length + 1);
+          const result = await sso.callback(new URL(req.url ?? '/', origin).searchParams, binding);
+          if ('reason' in result) { ssoLimiter.fail(ip); return back(`/?sso=${result.reason}`); }
+          return back('/', [`${BUSINESS_COOKIE}=${result.session.value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${result.session.maxAgeSeconds}${origin.startsWith('https:') ? '; Secure' : ''}`]);
+        }
         if ( (req.headers.origin && req.headers.origin !== origin) || req.headers['sec-fetch-site'] === 'cross-site') return json(res, 403, { error: 'Origin denied.' });
         if (path === '/api/health' && req.method === 'GET') return json(res, 200, { ok: true, profile: 'business' });
         if (recoveryMode(control.database) && !['/api/business/reenroll', '/api/business/me', '/api/business/logout', '/api/business/passkeys/register/options', '/api/business/passkeys/register/finish', '/api/business/passkeys/login/options', '/api/business/passkeys/login/finish'].includes(path)) return json(res, 503, { error: 'Business recovery requires reconciliation.' });
         if (path === '/api/business/claim' && req.method === 'GET') return json(res, 200, auth.claimStatus());
         const allowed = new Set(['/api/business/reenroll', '/api/business/claim', '/api/business/me', '/api/business/logout', '/api/business/passkeys/register/options', '/api/business/passkeys/register/finish', '/api/business/passkeys/login/options', '/api/business/passkeys/login/finish']);
         if (path === '/api/business/org/audit') allowed.add(path);
+        if (['/api/business/sso/status', '/api/business/sso/start', '/api/business/sso/config', '/api/business/sso/test'].includes(path)) allowed.add(path);
         if (!allowed.has(path) && !management.matches(path) && !content.matches(path) && !writes.matches(path)) return json(res, 404, { error: 'Not found.' });
         if (req.method !== 'GET' && (req.method !== 'POST' || req.headers.origin !== origin)) return json(res, 403, { error: 'Origin denied.' });
         const cookies = (req.headers.cookie ?? '').split(';').map(s => s.trim()).filter(s => s.startsWith(`${BUSINESS_COOKIE}=`));
@@ -113,13 +130,14 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
           try { if (!principal) return json(res, 401, { error: 'Sign-in required.' }); return json(res, 200, audit.organization(principal)); }
           catch { return json(res, 403, { error: 'Request denied.' }); }
         }
+        if (path.startsWith('/api/business/sso/')) return ssoRoutes({ req, res, path, principal, sso, auth, body, json, origin, limiter: ssoStarts, ip: clientIp(req, options.trustProxy) });
         if (path === '/api/business/me' && req.method === 'GET') {
           if (!principal) return json(res, 401, { error: 'Sign-in required.' });
           const identity = identities.get(principal.identityId)!;
           let organization: { name: string | null; role: string } | null = null;
           try { organization = { name: control.organizationName(), role: control.policy.requireOrganization(principal).role }; } catch { /* Enrollment/recovery remains available without grants. */ }
           const enrolled = !!control.database.prepare('SELECT credential_id FROM business_credential_refs WHERE identity_id=? AND auth_epoch=? LIMIT 1').get(principal.identityId, principal.authEpoch);
-          return json(res, 200, { principal, identity: { id: identity.id, name: identity.name }, organization, passkeyEnrolled: enrolled, recovering: recoveryMode(control.database), spendingPaused: !!control.database.prepare("SELECT value FROM business_model_state WHERE key='paused'").get() });
+          return json(res, 200, { principal, identity: { id: identity.id, name: identity.name }, organization, passkeyEnrolled: enrolled, signIn: sso.isSsoSession(principal) ? 'sso' : 'passkey', recovering: recoveryMode(control.database), spendingPaused: !!control.database.prepare("SELECT value FROM business_model_state WHERE key='paused'").get() });
         }
         const anonymous = path === '/api/business/reenroll' || path === '/api/business/claim' || path.startsWith('/api/business/passkeys/login/');
         if (!anonymous && !principal) return json(res, 401, { error: 'Sign-in required.' });
@@ -147,7 +165,8 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
           cookie(res, session); return json(res, 201, { principal: session.principal });
         }
         if (path === '/api/business/logout') {
-          auth.logout(principal!); cookie(res); return json(res, 200, { ok: true });
+          const endSession = await sso.logout(principal!).catch(() => undefined);
+          auth.logout(principal!); cookie(res); return json(res, 200, { ok: true, ...(endSession ? { endSession } : {}) });
         }
         const kind = path.includes('/register/') ? 'register' : 'login';
         if (path.endsWith('/options')) {
@@ -174,13 +193,15 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
     const closeServer = server.close.bind(server);
     server.close = callback => {
       // Node waits for active SSE responses; end them before asking its server to drain.
-      lifecycle.closeAdmission(); chat.close(); workspaceEvents.close(); return closeServer(callback);
+      lifecycle.closeAdmission(); chat.close(); workspaceEvents.close(); sso.close(); return closeServer(callback);
     };
+    sso.startTimer();
     let closing: Promise<void> | undefined;
-    return { configureModels: (input: unknown, keys: Record<string, string> = {}) => configureBusinessModels(options.profile, input, keys, writer), backup: (file: string, passphrase: string) => createBusinessBackup(options.profile, control, file, passphrase), lifecycle, audit, server, auth, identities, control, policy: control.policy, workspaces, retrieval, events: workspaceEvents, budget, models, documents, chat, origin, close(): Promise<void> {
+    return { sso, configureModels: (input: unknown, keys: Record<string, string> = {}) => configureBusinessModels(options.profile, input, keys, writer), backup: (file: string, passphrase: string) => createBusinessBackup(options.profile, control, file, passphrase), lifecycle, audit, server, auth, identities, control, policy: control.policy, workspaces, retrieval, events: workspaceEvents, budget, models, documents, chat, origin, close(): Promise<void> {
       if (closing) return closing;
-      lifecycle.closeAdmission(); unsubscribeAuth(); chat.close(); workspaceEvents.close();
+      lifecycle.closeAdmission(); unsubscribeAuth(); chat.close(); workspaceEvents.close(); sso.close();
       closing = (async () => {
+        await sso.closing();
         if (server.listening) {
           const stopped = new Promise<void>((resolveClose, reject) => { server.close(err => err ? reject(err) : resolveClose()); server.closeIdleConnections(); });
           await lifecycle.drain();

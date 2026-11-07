@@ -3,6 +3,7 @@ import { asyncAutoBackupTick, beginBackupShutdown } from './backup-async.ts';
 //   --version · --status · --doctor · --backup [file] · --restore <file> · --reset-token
 //   --tailscale-status (JSON, for the installers' "How will you reach her?" question)
 import { netFetch } from './net-guard.ts';
+import { randomBytes } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { StoryWorker } from './story.ts';
 import { JobManager } from './jobs.ts';
@@ -106,7 +107,9 @@ import { createSharedListTool, TogetherStore } from './together.ts';
 import { ReadTogether } from './read-together.ts';
 import { createScrapbookTool, Scrapbook } from './scrapbook.ts';
 import { createMomentsTool, MomentsStore, MomentsWorker } from './moments.ts';
-import { migrateProviderLabels, SettingsStore, StartupError } from './settings.ts';
+import { migrateProviderLabels, type Settings, SettingsStore, StartupError } from './settings.ts';
+import { AuditTrail, setAuditTrail } from './audit-trail.ts';
+import { PolicyStore, setPolicy } from './policy-profile.ts';
 import { Store } from './store.ts';
 import { Vault } from './vault.ts';
 import { guard, Log, logOptions } from './log.ts';
@@ -404,6 +407,18 @@ const log = new Log(dataDir, (s) => redactor.redact(s), undefined, logOptions())
 log.useSaved(settings.get().logLevel);
 log.captureConsole();
 const isDemo = process.env.SARA_DEMO === '1';
+// EC5: the admin's policy profile (<data>/policy.json; none = no pins). EC4: the server's one audit trail.
+const policyStore = new PolicyStore(isDemo ? undefined : dataDir);
+setPolicy(policyStore);
+const auditTrailMain = isDemo
+  ? undefined
+  : new AuditTrail(dataDir, {
+      redact: (s) => redactor.redact(s),
+      key: () => vault.get('audit:key') ?? (vault.set('audit:key', randomBytes(32).toString('hex')), vault.get('audit:key')!),
+      policyRev: () => policyStore.get().rev,
+    });
+setAuditTrail(auditTrailMain);
+const pruneAudit = () => auditTrailMain?.prune(policyStore.pins.auditRetentionDays ?? auditTrailMain.retentionDays);
 // The demo lets anyone in without signing in, so it must never run on a real owner's data.
 if (isDemo && existsSync(join(dataDir, 'sara.db'))) {
   const db = new DatabaseSync(join(dataDir, 'sara.db'), { readOnly: true });
@@ -549,6 +564,18 @@ function handsFor(sp: Space, member: boolean): HandsHub | undefined {
 const ownerSpace: Space = { id: 'owner', dir: dataDir, auth, settings, vault, events, companions };
 ownerSpace.hands = handsFor(ownerSpace, false);
 const memberSpaces = new Map<string, Space>();
+// EC5: a saved policy brings every companion's and member's settings in line (only ever tighter).
+policyStore.onApply = (p) => {
+  for (const sp of [ownerSpace, ...memberSpaces.values()]) {
+    for (const c of sp.companions.all()) {
+      const s = c.app.settings.get();
+      const patch: Partial<Settings> = {};
+      if (p.pins.adultMode === false && s.adultMode?.on) patch.adultMode = { ...s.adultMode, on: false };
+      if (p.pins.shellNetwork === false && s.shellNetwork !== false) patch.shellNetwork = false;
+      if (Object.keys(patch).length) c.app.settings.update(patch);
+    }
+  }
+};
 const household = new HouseholdStore(dataDir);
 // Phase 99 (ST4, docs/BOARD.md): household boards shared by choice, in one shared store (never on the
 // demo). A change is pushed to the event hub of each of the board's people only.
@@ -1403,6 +1430,8 @@ const mediaSweep = () => guard('media', () => {
 });
 const mediaTimer = setInterval(() => {
   mediaSweep();
+  // EC4: the audit trail's retention (hourly; cheap when nothing is old enough).
+  guard('audit', () => void pruneAudit());
   // Phase 116: finished steers and queued messages go after 7 days (every companion; members' spaces too).
   guard('pending', () => {
     for (const sp of [ownerSpace, ...memberSpaces.values()]) for (const c of sp.companions.all()) c.app.pending?.prune();
@@ -1481,6 +1510,9 @@ server.on('upgrade', (req, socket, head) => {
 
 server.listen(port, host, () => {
   if (auth.newToken) banner(auth.newToken);
+  // EC5: a policy file put in place by hand applies at start; EC4: the trail's retention (then hourly).
+  if (policyStore.get().rev) policyStore.onApply?.(policyStore.get());
+  pruneAudit();
   claimBanner();
   // Reachable from other machines without HTTPS: sign-in tokens and cookies would cross the
   // network readable by anyone on it.

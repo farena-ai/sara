@@ -14,6 +14,7 @@ export const foldText = (s) => String(s ?? '').toLowerCase().normalize('NFD').re
  * too). Arrays, not sentences: these are search words, never shown.
  */
 export const SETTINGS_KEYWORDS = {
+  'dh-operations': ['monitoring', 'metrics', 'prometheus', 'grafana', 'opentelemetry', 'otel', 'otlp', 'traces', 'tracing', 'scrape'],
   'dh-recovery': ['recovery', 'restart', 'interrupted', 'resume', 'outbox', 'delivery', 'unknown', 'held'],
   'dh-backups': ['backup', 'backups', 'restore', 'restore backup', 'keep a copy'],
   'her-character': ['personality', 'dials', 'sliders', 'name', 'character', 'archetype'],
@@ -44,7 +45,9 @@ export const SETTINGS_KEYWORDS = {
   'ab-tools': ['approvals', 'ask me first', 'permissions', 'short tool list', 'lean', 'sandbox', 'tools'],
   'ab-budgets': ['budget', 'tokens', 'spending', 'cost limit'],
   'ab-ssh': ['ssh', 'server', 'servers', 'cpanel', 'deploy', 'host key'],
-  'dh-safety': ['safety', 'check-up', 'checkup', 'security check', 'audit'],
+  'dh-safety': ['safety', 'check-up', 'checkup', 'security check'],
+  'dh-audit': ['audit', 'audit log', 'audit trail', 'who changed', 'export log', 'compliance'],
+  'dh-policy': ['policy', 'admin', 'pinned', 'managed settings', 'lock settings'],
   'dh-privacy': ['privacy', 'store data', 'what leaves'],
   'dh-reports': ['report', 'bug', 'idea', 'takedown', 'report an add-on'],
   'co-phone': ['notifications', 'push', 'phone app', 'android', 'iphone', 'talk tile'],

@@ -1704,6 +1704,12 @@ button.conv-see-more, button.conv-show-less { min-height: 44px; padding: 0 10px;
 /* Operations and explicit archival remain readable on compact Settings pages. */
 .operations-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
 .operations-grid dl { display: grid; gap: 4px; }
+/* EC3: Monitoring (web/monitoring.js). */
+.mon-box { border-top: 1px solid var(--border); margin-top: 20px; padding-top: 8px; }
+.mon-box h4 { margin: 16px 0 4px; font-size: 0.95rem; }
+.mon-wide { display: block; width: 100%; max-width: 32rem; margin-top: 4px; box-sizing: border-box; }
+.mon-pre { font-family: var(--font-mono); font-size: 0.85em; padding: 8px 10px; border-radius: var(--r-control); background: var(--surface-2); overflow-x: auto; white-space: pre; max-width: 100%; }
+.mon-token { margin-block: 8px; }
 .operations-grid dd { margin: 0 0 12px; overflow-wrap: anywhere; }
 .operations-grid > p { grid-column: 1 / -1; }
 .archive-controls input { width: 100%; min-width: 0; font-family: monospace; }

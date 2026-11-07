@@ -76,6 +76,8 @@ export interface NetDeps {
   testLoopback?: boolean;
   /** B3: whether this computer is on a tailnet now (default: `tailscale status`; tests fake it). */
   tailnet?: () => boolean;
+  /** EC1 (B5), tests only with `testLoopback`: the stand-in's port for `domain:` endpoints on loopback. */
+  testPort?: number;
 }
 
 /** The test-only loopback override (see the top of this file): never on by default. */
@@ -214,22 +216,35 @@ export class PluginSockets {
 
   /** `net.open {endpoint, port?, tls?}` → `{socket, tls?}` (`tls` only for `tls: 'optional'` endpoints). */
   async open(msg: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const ep = this.#d.endpoints.find((e) => e.id === String(msg.endpoint ?? ''));
+    // EC1 (B5): `<id>@<host>` names the host of a `domain:` endpoint (the SDK passes the endpoint as given).
+    const [epId, atHost] = String(msg.endpoint ?? '').split(/@(.*)/s);
+    const ep = this.#d.endpoints.find((e) => e.id === epId && (atHost === undefined || e.host.startsWith('domain:')));
     if (!ep) return this.#deny(`"${String(msg.endpoint ?? '').slice(0, 30)}" isn't one of the connections in its manifest`);
+    if (atHost !== undefined) msg = { ...msg, host: atHost };
     try {
       assertOnline('plugin connections');
     } catch {
       return this.#deny('private local mode is on ("Nothing leaves this computer")');
     }
     if (this.#held.size >= MAX_SOCKETS) return this.#deny(`it already has ${MAX_SOCKETS} connections open`);
-    if (msg.host !== undefined) this.#d.log('denied', `net.open: it named a host of its own (${String(msg.host).slice(0, 60)}); the address in its settings is used`);
     const settings = this.#d.settings();
-    const key = ep.host.slice('setting:'.length);
-    const addr = splitAddress(String(settings[key] ?? ''));
-    if (!addr) return this.#deny(`the address in its setting "${key}" is missing or isn't a host name or address`);
+    // EC1 (B5): a `domain:` endpoint takes the host the plugin names, only that domain or a subdomain of it.
+    const domain = ep.host.startsWith('domain:') ? ep.host.slice('domain:'.length) : undefined;
+    let addr: { host: string; port?: number } | undefined;
+    if (domain) {
+      const named = msg.host === undefined ? domain : String(msg.host).trim().toLowerCase();
+      const label = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+      if (named.length > 253 || (named !== domain && !(named.endsWith(`.${domain}`) && named.slice(0, -domain.length - 1).split('.').every((l) => label.test(l))))) return this.#deny(`${named.slice(0, 60)} isn't ${domain} or one of its subdomains`);
+      addr = { host: named };
+    } else {
+      if (msg.host !== undefined) this.#d.log('denied', `net.open: it named a host of its own (${String(msg.host).slice(0, 60)}); the address in its settings is used`);
+      const key = ep.host.slice('setting:'.length);
+      addr = splitAddress(String(settings[key] ?? ''));
+      if (!addr) return this.#deny(`the address in its setting "${key}" is missing or isn't a host name or address`);
+    }
     let port: number;
     if (ep.ports === 'setting') {
-      if (!addr.port) return this.#deny(`the address in "${key}" has no port (like 127.0.0.1:7583)`);
+      if (!addr.port) return this.#deny(`the address in "${ep.host.slice('setting:'.length)}" has no port (like 127.0.0.1:7583)`);
       port = addr.port;
     } else {
       const want = msg.port === undefined ? (addr.port ?? ep.ports[0]) : Number(msg.port);
@@ -256,7 +271,7 @@ export class PluginSockets {
     const ip = addrs[0];
     // The test-only override: a loopback stand-in for a public mail server, on the port typed in the setting.
     const testOverride = ep.where === 'public' && loopbackMailOverride(this.#d.testLoopback) && addrs.every(isLoopbackAddress);
-    const connectPort = testOverride && addr.port ? addr.port : port;
+    const connectPort = testOverride && domain && this.#d.testPort ? this.#d.testPort : testOverride && addr.port ? addr.port : port;
     if (testOverride) this.#d.log('call', `TEST OVERRIDE (SARA_TEST_ALLOW_LOOPBACK_MAIL): a stand-in mail server on this computer at ${addr.host}:${connectPort} for port ${port}`);
     const ca = this.#d.ca ?? (testOverride ? overrideCa() : undefined);
     let sock: Socket | TLSSocket;

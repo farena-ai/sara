@@ -1,1 +1,1 @@
-{"name":"sara-developer-security-qualification","version":"1.0.0","private":true,"type":"module","license":"MIT","description":"Scoped offline qualification and package assembly; never loaded by plugin handlers.","dependencies":{"ajv":"8.17.1","spdx-expression-parse":"4.0.0"}}
+{"name":"sara-developer-security-qualification","version":"1.0.0","private":true,"type":"module","license":"MIT","description":"Scoped offline qualification and package assembly; never loaded by plugin handlers.","dependencies":{"ajv":"8.18.0","spdx-expression-parse":"4.0.0"}}

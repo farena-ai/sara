@@ -1145,6 +1145,28 @@
    "show": "#im-box"
   }
  ],
+ "co-slack": [
+  {
+   "id": "connect",
+   "q": "How do I talk to her in Slack?",
+   "steps": [
+    "Press Start on the Slack card, then copy the app manifest it shows.",
+    "At api.slack.com/apps, create an app from that manifest, make the two tokens and paste them into the card.",
+    "Press Link my Slack and send her the code in a Slack DM."
+   ],
+   "show": "#sl-chip"
+  },
+  {
+   "id": "channel",
+   "q": "How do I let her answer in a Slack channel?",
+   "steps": [
+    "In the channel, type /invite and her name.",
+    "In Settings → Chat apps → Slack, press Answer here next to that channel.",
+    "Mention her in the channel; she answers in a thread."
+   ],
+   "show": "#sl-box"
+  }
+ ],
  "co-apps": [
   {
    "id": "editor",
@@ -1205,6 +1227,59 @@
     "Open the webhook's card.",
     "Look at its deliveries."
    ]
+  }
+ ],
+ "dh-audit": [
+  {
+   "id": "find",
+   "q": "How do I see who changed a setting?",
+   "steps": [
+    "Open Settings → Household → Audit trail.",
+    "Pick Settings under What, or a person under Who.",
+    "Each row says when, what, who and where, and whether it was done or refused."
+   ],
+   "show": "#au-action"
+  },
+  {
+   "id": "export",
+   "q": "How do I give a reviewer a copy?",
+   "steps": [
+    "Set the filters to what the reviewer asked for.",
+    "Press Export JSONL or Export CSV.",
+    "Give them the ZIP: its manifest holds the SHA-256 and the signature."
+   ],
+   "show": "#au-jsonl"
+  },
+  {
+   "id": "check",
+   "q": "How do I know nobody edited it?",
+   "steps": [
+    "Press Check the chain.",
+    "It says the chain is fine, or the first row that was changed, removed or cut off."
+   ],
+   "show": "#au-verify"
+  }
+ ],
+ "dh-policy": [
+  {
+   "id": "pin",
+   "q": "How do I stop anyone turning a setting back on?",
+   "steps": [
+    "Open Settings → Household → Policy.",
+    "Tick or pick the rule, for example Keep adult mode off.",
+    "Press Save the policy. The setting shows Set by your admin everywhere."
+   ],
+   "show": "#po-save"
+  },
+  {
+   "id": "copy",
+   "q": "How do I set up another server the same way?",
+   "steps": [
+    "Press Export JSON here.",
+    "On the other server, open Policy and press Import JSON.",
+    "Pick the file: it replaces every pin there."
+   ],
+   "show": "#po-export"
   }
  ],
  "dh-safety": [

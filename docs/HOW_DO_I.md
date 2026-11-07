@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 183 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 190 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -648,6 +648,20 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. BlueBubbles can't ring Sara, so she checks for messages every few seconds instead.
 2. Put the Mac and Sara on Tailscale, then press Ring on the iMessage card.
 
+### Slack
+
+**How do I talk to her in Slack?**
+
+1. Press Start on the Slack card, then copy the app manifest it shows.
+2. At api.slack.com/apps, create an app from that manifest, make the two tokens and paste them into the card.
+3. Press Link my Slack and send her the code in a Slack DM.
+
+**How do I let her answer in a Slack channel?**
+
+1. In the channel, type /invite and her name.
+2. In Settings → Chat apps → Slack, press Answer here next to that channel.
+3. Mention her in the channel; she answers in a thread.
+
 ## Settings → Add-ons
 
 ### Get more
@@ -1147,6 +1161,39 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. RSS and event-loop lag are process-wide, including other spaces and HTTP servers in this process. They are not current-space usage.
 
 ## Settings → Household
+
+### Audit trail
+
+**How do I see who changed a setting?**
+
+1. Open Settings → Household → Audit trail.
+2. Pick Settings under What, or a person under Who.
+3. Each row says when, what, who and where, and whether it was done or refused.
+
+**How do I give a reviewer a copy?**
+
+1. Set the filters to what the reviewer asked for.
+2. Press Export JSONL or Export CSV.
+3. Give them the ZIP: its manifest holds the SHA-256 and the signature.
+
+**How do I know nobody edited it?**
+
+1. Press Check the chain.
+2. It says the chain is fine, or the first row that was changed, removed or cut off.
+
+### Policy
+
+**How do I stop anyone turning a setting back on?**
+
+1. Open Settings → Household → Policy.
+2. Tick or pick the rule, for example Keep adult mode off.
+3. Press Save the policy. The setting shows Set by your admin everywhere.
+
+**How do I set up another server the same way?**
+
+1. Press Export JSON here.
+2. On the other server, open Policy and press Import JSON.
+3. Pick the file: it replaces every pin there.
 
 ### People on this server
 

@@ -1639,6 +1639,10 @@
       "Text her from Messages on your iPhone through BlueBubbles on your own Mac, with an Apple ID of her own: a guided setup that checks each step. Needs a Mac.",
       "imessage"
     ],
+    "co-slack": [
+      "Talk to her in Slack through a small Slack app you create from a manifest: her DMs, and mentions in channels you switch on. A guided setup that checks each step; no public address needed.",
+      "slack"
+    ],
     "co-apps": [
       "Use her from other apps (SillyTavern, Open WebUI, Claude Code, Cursor, Claude Desktop) with an API key.",
       "clients"
@@ -1658,6 +1662,14 @@
     "co-computer": [
       "Let her use web pages on this computer in her own browser window: look, read, click and type. Off until you turn it on, and you can stop her any time.",
       "computer"
+    ],
+    "dh-audit": [
+      "Who changed what, when and from where: settings, sign-ins, approvals and background work. Names only, never values or chat text. Filter, check the chain and export it.",
+      "security"
+    ],
+    "dh-policy": [
+      "Pin rules for everyone on this server: allowed model providers, tool limits, Always allow off, adult mode off, Store installs, retention. Pinned settings can't be changed until the policy changes.",
+      "security"
     ],
     "dh-safety": [
       "Read-only checks of how Sara is set up (who can reach her, sign-in, backups, tools that run without asking, chat apps, webhooks, secrets in her notes), with one-click fixes that only make things safer.",

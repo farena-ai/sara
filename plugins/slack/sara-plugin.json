@@ -1,0 +1,106 @@
+{
+  "manifest": 1,
+  "id": "slack",
+  "name": "Slack",
+  "version": "1.0.0",
+  "description": "Talk to her in Slack: her DMs, and the channels you choose when someone mentions her.",
+  "author": "The Sara team",
+  "license": "MIT",
+  "sara": ">=2.81.0",
+  "main": "main.mjs",
+  "permissions": {
+    "bridges": [
+      "slack"
+    ],
+    "bridgeFiles": true,
+    "bridgeApprovals": true,
+    "settings": true,
+    "connect": [
+      {
+        "id": "slack",
+        "host": "domain:slack.com",
+        "ports": [
+          443
+        ],
+        "where": "public",
+        "tls": "required"
+      }
+    ],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    }
+  },
+  "settings": [
+    {
+      "key": "botToken",
+      "type": "secret",
+      "label": "Bot token",
+      "tip": "Starts with xoxb-. In your Slack app: Install App → Bot User OAuth Token. Kept encrypted in Sara's vault and never shown again."
+    },
+    {
+      "key": "appToken",
+      "type": "secret",
+      "label": "App-level token",
+      "tip": "Starts with xapp-. In your Slack app: Basic Information → App-Level Tokens, with the connections:write scope. It lets Sara connect out to Slack (Socket Mode); kept encrypted in Sara's vault."
+    },
+    {
+      "key": "mirror",
+      "type": "switch",
+      "label": "Send reminders and messages she starts to my Slack DM too",
+      "default": false,
+      "tip": "Her reminders also come to your DM with her in Slack. Never to channels or other people."
+    }
+  ],
+  "i18n": {
+    "es": {
+      "Talk to her in Slack: her DMs, and the channels you choose when someone mentions her.": "Habla con ella en Slack: sus mensajes directos y, cuando alguien la menciona, los canales que elijas.",
+      "Bot token": "Token del bot",
+      "Starts with xoxb-. In your Slack app: Install App → Bot User OAuth Token. Kept encrypted in Sara's vault and never shown again.": "Empieza por xoxb-. En tu app de Slack: Install App → Bot User OAuth Token. Se guarda cifrado en la bóveda de Sara y no se vuelve a mostrar.",
+      "App-level token": "Token de nivel de app",
+      "Starts with xapp-. In your Slack app: Basic Information → App-Level Tokens, with the connections:write scope. It lets Sara connect out to Slack (Socket Mode); kept encrypted in Sara's vault.": "Empieza por xapp-. En tu app de Slack: Basic Information → App-Level Tokens, con el permiso connections:write. Permite a Sara conectarse a Slack (Socket Mode); se guarda cifrado en la bóveda de Sara.",
+      "Send reminders and messages she starts to my Slack DM too": "Enviar también a mi mensaje directo de Slack los recordatorios y mensajes que ella inicia",
+      "Her reminders also come to your DM with her in Slack. Never to channels or other people.": "Sus recordatorios también llegan a tu mensaje directo con ella en Slack. Nunca a canales ni a otras personas."
+    },
+    "fr": {
+      "Talk to her in Slack: her DMs, and the channels you choose when someone mentions her.": "Parlez-lui dans Slack : ses messages directs et, quand quelqu'un la mentionne, les canaux que vous choisissez.",
+      "Bot token": "Jeton du bot",
+      "Starts with xoxb-. In your Slack app: Install App → Bot User OAuth Token. Kept encrypted in Sara's vault and never shown again.": "Commence par xoxb-. Dans votre app Slack : Install App → Bot User OAuth Token. Gardé chiffré dans le coffre de Sara et plus jamais affiché.",
+      "App-level token": "Jeton de niveau app",
+      "Starts with xapp-. In your Slack app: Basic Information → App-Level Tokens, with the connections:write scope. It lets Sara connect out to Slack (Socket Mode); kept encrypted in Sara's vault.": "Commence par xapp-. Dans votre app Slack : Basic Information → App-Level Tokens, avec la portée connections:write. Il permet à Sara de se connecter à Slack (Socket Mode) ; gardé chiffré dans le coffre de Sara.",
+      "Send reminders and messages she starts to my Slack DM too": "Envoyer aussi dans mon message direct Slack les rappels et les messages qu'elle commence",
+      "Her reminders also come to your DM with her in Slack. Never to channels or other people.": "Ses rappels arrivent aussi dans votre message direct avec elle dans Slack. Jamais dans des canaux ni à d'autres personnes."
+    },
+    "de": {
+      "Talk to her in Slack: her DMs, and the channels you choose when someone mentions her.": "Sprich mit ihr in Slack: ihre Direktnachrichten und, wenn jemand sie erwähnt, die Kanäle, die du wählst.",
+      "Bot token": "Bot-Token",
+      "Starts with xoxb-. In your Slack app: Install App → Bot User OAuth Token. Kept encrypted in Sara's vault and never shown again.": "Beginnt mit xoxb-. In deiner Slack-App: Install App → Bot User OAuth Token. Verschlüsselt in Saras Tresor gespeichert und nie wieder angezeigt.",
+      "App-level token": "App-Token",
+      "Starts with xapp-. In your Slack app: Basic Information → App-Level Tokens, with the connections:write scope. It lets Sara connect out to Slack (Socket Mode); kept encrypted in Sara's vault.": "Beginnt mit xapp-. In deiner Slack-App: Basic Information → App-Level Tokens, mit dem Scope connections:write. Damit verbindet sich Sara zu Slack (Socket Mode); verschlüsselt in Saras Tresor gespeichert.",
+      "Send reminders and messages she starts to my Slack DM too": "Erinnerungen und Nachrichten, die sie beginnt, auch in meine Slack-Direktnachricht senden",
+      "Her reminders also come to your DM with her in Slack. Never to channels or other people.": "Ihre Erinnerungen kommen auch in deine Direktnachricht mit ihr in Slack. Nie in Kanäle oder an andere."
+    },
+    "pt-BR": {
+      "Talk to her in Slack: her DMs, and the channels you choose when someone mentions her.": "Converse com ela no Slack: as mensagens diretas dela e, quando alguém a menciona, os canais que você escolher.",
+      "Bot token": "Token do bot",
+      "Starts with xoxb-. In your Slack app: Install App → Bot User OAuth Token. Kept encrypted in Sara's vault and never shown again.": "Começa com xoxb-. No seu app do Slack: Install App → Bot User OAuth Token. Fica criptografado no cofre da Sara e nunca é mostrado de novo.",
+      "App-level token": "Token de nível de app",
+      "Starts with xapp-. In your Slack app: Basic Information → App-Level Tokens, with the connections:write scope. It lets Sara connect out to Slack (Socket Mode); kept encrypted in Sara's vault.": "Começa com xapp-. No seu app do Slack: Basic Information → App-Level Tokens, com o escopo connections:write. Permite que a Sara se conecte ao Slack (Socket Mode); fica criptografado no cofre da Sara.",
+      "Send reminders and messages she starts to my Slack DM too": "Enviar também para minha mensagem direta do Slack os lembretes e mensagens que ela começa",
+      "Her reminders also come to your DM with her in Slack. Never to channels or other people.": "Os lembretes dela também chegam à sua mensagem direta com ela no Slack. Nunca a canais nem a outras pessoas."
+    },
+    "it": {
+      "Talk to her in Slack: her DMs, and the channels you choose when someone mentions her.": "Parla con lei in Slack: i suoi messaggi diretti e, quando qualcuno la menziona, i canali che scegli.",
+      "Bot token": "Token del bot",
+      "Starts with xoxb-. In your Slack app: Install App → Bot User OAuth Token. Kept encrypted in Sara's vault and never shown again.": "Inizia con xoxb-. Nella tua app Slack: Install App → Bot User OAuth Token. Custodito cifrato nella cassaforte di Sara e mai più mostrato.",
+      "App-level token": "Token a livello di app",
+      "Starts with xapp-. In your Slack app: Basic Information → App-Level Tokens, with the connections:write scope. It lets Sara connect out to Slack (Socket Mode); kept encrypted in Sara's vault.": "Inizia con xapp-. Nella tua app Slack: Basic Information → App-Level Tokens, con lo scope connections:write. Permette a Sara di collegarsi a Slack (Socket Mode); custodito cifrato nella cassaforte di Sara.",
+      "Send reminders and messages she starts to my Slack DM too": "Invia anche al mio messaggio diretto Slack i promemoria e i messaggi che inizia lei",
+      "Her reminders also come to your DM with her in Slack. Never to channels or other people.": "I suoi promemoria arrivano anche nel tuo messaggio diretto con lei in Slack. Mai nei canali o ad altre persone."
+    }
+  }
+}

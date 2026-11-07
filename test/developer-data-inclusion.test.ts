@@ -1,7 +1,7 @@
 import test,{after} from 'node:test';import assert from 'node:assert/strict';
 import {mkdirSync,writeFileSync} from 'node:fs';
 const oracleResults:any[]=[];
-after(()=>{mkdirSync('outputs/developer-addons/data-fix',{recursive:true});writeFileSync('outputs/developer-addons/data-fix/inclusion-oracle.json',JSON.stringify({validator:'independent unbundled Ajv 8.17.1',finiteOnly:true,cases:oracleResults.length,comparisons:oracleResults.reduce((n,r)=>n+r.payloads,0),results:oracleResults},null,2)+'\n');});
+after(()=>{mkdirSync('outputs/developer-addons/data-fix',{recursive:true});writeFileSync('outputs/developer-addons/data-fix/inclusion-oracle.json',JSON.stringify({validator:'independent unbundled Ajv 8.18.0',finiteOnly:true,cases:oracleResults.length,comparisons:oracleResults.reduce((n,r)=>n+r.payloads,0),results:oracleResults},null,2)+'\n');});
 import {analyze} from '../store/plugins/data-contract-validator/engine.mjs';
 // Independent unbundled pinned Ajv: never consult engine comparison internals.
 import {Ajv} from '../tools/developer-data/node_modules/ajv/dist/ajv.js';

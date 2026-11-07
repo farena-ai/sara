@@ -279,6 +279,9 @@
 <details class="howto-q" id="howto-co-imessage-connect"><summary>How do I text her from my iPhone?</summary><ol><li>You need a Mac that stays on. Tick the box about Apple and BlueBubbles and press Start.</li><li>Give her an Apple ID and a user on the Mac, sign her in to Messages and install BlueBubbles.</li><li>Paste the BlueBubbles password, press Ring, then send the code from Link my iMessage to her address.</li></ol></details>
 <details class="howto-q" id="howto-co-imessage-own"><summary>Why won't she run on my own Apple ID?</summary><ol><li>On your Apple ID she would see all your chats and her answers would go out as you.</li><li>Make a separate Apple ID for her and sign it in to Messages as a separate user on the Mac.</li></ol></details>
 <details class="howto-q" id="howto-co-imessage-slow"><summary>Why do her iMessage answers take a few seconds?</summary><ol><li>BlueBubbles can't ring Sara, so she checks for messages every few seconds instead.</li><li>Put the Mac and Sara on Tailscale, then press Ring on the iMessage card.</li></ol></details>
+<h4 id="howto-co-slack">Slack</h4>
+<details class="howto-q" id="howto-co-slack-connect"><summary>How do I talk to her in Slack?</summary><ol><li>Press Start on the Slack card, then copy the app manifest it shows.</li><li>At api.slack.com/apps, create an app from that manifest, make the two tokens and paste them into the card.</li><li>Press Link my Slack and send her the code in a Slack DM.</li></ol></details>
+<details class="howto-q" id="howto-co-slack-channel"><summary>How do I let her answer in a Slack channel?</summary><ol><li>In the channel, type /invite and her name.</li><li>In Settings → Chat apps → Slack, press Answer here next to that channel.</li><li>Mention her in the channel; she answers in a thread.</li></ol></details>
 <h3>Add-ons</h3>
 <h4 id="howto-ab-store">Get more</h4>
 <details class="howto-q" id="howto-ab-store-get"><summary>How do I add something from the store?</summary><ol><li>Search or pick it on a shelf, then open it.</li><li>Read what it can do, then press Get.</li><li>Read its card and press Install: it stays off until you switch it on.</li></ol></details>
@@ -395,6 +398,13 @@
 <details class="howto-q" id="howto-dh-operations-measurements"><summary>How do I check local operations?</summary><ol><li>Open Operations and press Refresh operations.</li><li>Read the measurement window and sample count. HTTP timings are not model reply timings.</li><li>A configured model and a saved backup do not prove inference or recovery.</li></ol></details>
 <details class="howto-q" id="howto-dh-operations-active-work"><summary>How do I tell active work from historical records?</summary><ol><li>Record totals include finished history. State counts show queued and running work; delivery records can include archived evidence.</li><li>RSS and event-loop lag are process-wide, including other spaces and HTTP servers in this process. They are not current-space usage.</li></ol></details>
 <h3>Household</h3>
+<h4 id="howto-dh-audit">Audit trail</h4>
+<details class="howto-q" id="howto-dh-audit-find"><summary>How do I see who changed a setting?</summary><ol><li>Open Settings → Household → Audit trail.</li><li>Pick Settings under What, or a person under Who.</li><li>Each row says when, what, who and where, and whether it was done or refused.</li></ol></details>
+<details class="howto-q" id="howto-dh-audit-export"><summary>How do I give a reviewer a copy?</summary><ol><li>Set the filters to what the reviewer asked for.</li><li>Press Export JSONL or Export CSV.</li><li>Give them the ZIP: its manifest holds the SHA-256 and the signature.</li></ol></details>
+<details class="howto-q" id="howto-dh-audit-check"><summary>How do I know nobody edited it?</summary><ol><li>Press Check the chain.</li><li>It says the chain is fine, or the first row that was changed, removed or cut off.</li></ol></details>
+<h4 id="howto-dh-policy">Policy</h4>
+<details class="howto-q" id="howto-dh-policy-pin"><summary>How do I stop anyone turning a setting back on?</summary><ol><li>Open Settings → Household → Policy.</li><li>Tick or pick the rule, for example Keep adult mode off.</li><li>Press Save the policy. The setting shows Set by your admin everywhere.</li></ol></details>
+<details class="howto-q" id="howto-dh-policy-copy"><summary>How do I set up another server the same way?</summary><ol><li>Press Export JSON here.</li><li>On the other server, open Policy and press Import JSON.</li><li>Pick the file: it replaces every pin there.</li></ol></details>
 <h4 id="howto-household">People on this server</h4>
 <details class="howto-q" id="howto-household-invite"><summary>How do I invite someone?</summary><ol><li>Type their name under Invite someone.</li><li>Press Make invite, then Copy link and send it.</li></ol></details>
 <details class="howto-q" id="howto-household-limit"><summary>How do I limit what they use?</summary><ol><li>Set Messages a day and Spending a day.</li><li>Choose the models they may use.</li></ol></details>
@@ -573,6 +583,25 @@
   <li><strong>While she works:</strong> a long job gets one <em>Working on it</em> line; send <code>/stop</code> to stop her. If BlueBubbles' Private API is already on, you get typing dots, a tapback when you steer her and one progress message she edits. Sara never asks you to turn off your Mac's security (SIP) for it.</li>
   <li><strong>Pictures and files:</strong> both ways. iPhone HEIC photos may need <em>Settings → Camera → Formats → Most Compatible</em>.</li>
   <li><strong>After the Mac was off:</strong> she catches up on what you sent; anything older than a day is filed, not answered.</li>
+</ul>
+
+<h2 id="slack">Slack</h2>
+<ul>
+  <li><strong>What it is:</strong> talk to her in Slack, in her DMs and, when someone mentions her, in the channels you choose. You create a small Slack app of your own from a manifest the Slack card shows. Slack comes with Sara as a plugin and stays off until you add it. It's free.</li>
+  <li><strong>No public address:</strong> it uses Slack's Socket Mode, so Sara connects out to Slack and nothing on the internet has to reach Sara.</li>
+  <li><strong>Set it up:</strong> <em>Settings → Chat apps → Slack</em> and press <em>Start</em>. Four steps follow, each ✓ when Sara has checked it.</li>
+</ul>
+<ol>
+  <li>At api.slack.com/apps: <em>Create New App → From a manifest</em>, pick your workspace, paste the manifest from the card and create the app.</li>
+  <li><em>Basic Information → App-Level Tokens</em>: make one with <code>connections:write</code> (it starts with <code>xapp-</code>). Then <em>Install App → Install to Workspace</em> and copy the <em>Bot User OAuth Token</em> (<code>xoxb-</code>). Paste both and press <em>Save and check</em>.</li>
+  <li>Press <em>Link my Slack</em> and send her <code>link</code> and the code in a Slack DM (or <code>/sara link</code> and the code).</li>
+  <li>Press <em>Test</em>.</li>
+</ol>
+<ul>
+  <li><strong>Approvals:</strong> when she needs your OK for a tool, the message has <em>Allow</em> and <em>Deny</em> buttons. Only you can answer them; anyone else is told so privately.</li>
+  <li><strong>Channels:</strong> invite her (<code>/invite</code> and her name), then press <em>Answer here</em> on the Slack card. She answers mentions in a thread, without tools or anything private, unless <em>Owners can use her tools in groups</em> is on.</li>
+  <li><strong>While she works:</strong> one progress message she edits, with a ⏹ button that stops her. A reply in a thread of her DM is its own session. <code>/sara help</code>, <code>/sara new</code> and the other commands work.</li>
+  <li><strong>Who can read it:</strong> Slack keeps the messages in your workspace, so whoever runs it can read them. For private chats use Signal.</li>
 </ul>
 
 <h2 id="voice">Voice and calls</h2>

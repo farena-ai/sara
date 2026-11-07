@@ -1,5 +1,6 @@
 // Her: persona, character files and cards, look, avatar, together, gallery, adult mode, companions, phone widgets.
 // Moved from src/server.ts unchanged (wave 3); shared state comes from the RouteCtx (src/routes/context.ts).
+import { policy } from '../policy-profile.ts';
 import { randomBytes } from 'node:crypto';
 import { createReadStream, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
@@ -713,6 +714,7 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
       if (method === 'PUT') {
         const body = await readJson(req);
         if (body.on === true) {
+          policy().guard('adultMode', true);
           if (opts.demo) throw new HttpError(403, 'Adult mode is not available in the demo.');
           if (fromSaraApp(req)) throw new HttpError(403, 'Adult mode can only be turned on in a web browser.');
           if (body.confirm18 !== true) throw new HttpError(400, 'Confirm that you are 18 or older to turn on adult mode.');

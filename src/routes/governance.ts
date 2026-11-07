@@ -1,0 +1,71 @@
+// EC4 + EC5 (docs/ops/EC45_DESIGN.md): the audit trail (view, check, retention, export) and the
+// policy profile (read by everyone signed in; changed, imported and exported by the owner only).
+// Household members only reach GET /api/policy (src/household.ts); apps with a device code reach
+// neither (DEVICE_TOKEN_DENIED in src/server.ts).
+import type { IncomingMessage } from 'node:http';
+import { audit, auditTrail, type AuditFilter, RETENTION_CHOICES } from '../audit-trail.ts';
+import { HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
+import { policy, PIN_KEYS, PROVIDER_KINDS } from '../policy-profile.ts';
+import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+
+function filters(req: IncomingMessage): AuditFilter & { content: boolean } {
+  const q = new URL(req.url ?? '/', 'http://x').searchParams;
+  const g = (k: string) => q.get(k)?.trim().slice(0, 80) || undefined;
+  const limit = Number(q.get('limit'));
+  return { who: g('who'), action: g('action'), channel: g('channel'), outcome: g('outcome'), from: g('from'), to: g('to'), ...(limit > 0 ? { limit } : {}), content: q.get('content') === '1' };
+}
+
+export function createGovernanceRoutes(ctx: RouteCtx): RouteHandler {
+  const { opts, app } = ctx;
+  const ownerOnly = () => {
+    if (opts.member || app.member || opts.demo || app.demo) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+  };
+  return async (req, res, method, parts) => {
+    const [a, b] = parts;
+    if (a === 'audit') {
+      ownerOnly();
+      const trail = auditTrail();
+      if (!trail) throw new HttpError(404, 'Not available');
+      const retention = () => ({ retentionDays: policy().pins.auditRetentionDays ?? trail.retentionDays, retentionPinned: policy().pinned('auditRetentionDays'), choices: RETENTION_CHOICES });
+      if (!b && method === 'GET') {
+        const { content, ...f } = filters(req);
+        return send(res, 200, { rows: trail.list(f, { content }), verify: trail.verify(), ...retention() });
+      }
+      if (b === 'verify' && method === 'GET') return send(res, 200, trail.verify());
+      if (b === 'settings' && method === 'PUT') {
+        const body = await readJson(req);
+        const days = Number(body.retentionDays);
+        policy().guard('auditRetentionDays', true);
+        if (!(RETENTION_CHOICES as readonly number[]).includes(days)) throw new HttpError(400, 'Pick 30, 90 or 365 days, or keep everything.');
+        trail.setRetention(days);
+        trail.prune(days);
+        return send(res, 200, retention());
+      }
+      if (b === 'export' && method === 'GET') {
+        const { content, ...f } = filters(req);
+        const format = new URL(req.url ?? '/', 'http://x').searchParams.get('format') === 'csv' ? 'csv' : 'jsonl';
+        // The export itself is on the record (what was asked for, never what it held).
+        audit({ action: 'audit.export', target: format, keys: [...Object.keys(f).filter((k) => f[k as keyof AuditFilter] !== undefined), ...(content ? ['content'] : [])] });
+        const { zip } = trail.exportZip(format, f, { content });
+        res.writeHead(200, { 'content-type': 'application/zip', 'content-disposition': `attachment; filename="sara-audit-${new Date().toISOString().slice(0, 10)}.zip"`, 'cache-control': 'no-store', ...SECURITY_HEADERS });
+        return void res.end(zip);
+      }
+      throw new HttpError(404, 'Not found');
+    }
+    if (a === 'policy') {
+      if (!b && method === 'GET') {
+        const p = policy().get();
+        return send(res, 200, { policy: p, pinned: PIN_KEYS.filter((k) => policy().pinned(k)), kinds: PROVIDER_KINDS, retentionChoices: RETENTION_CHOICES, canEdit: !opts.member && !app.member && !opts.demo });
+      }
+      ownerOnly();
+      if (!b && method === 'PUT') return send(res, 200, { policy: policy().set(await readJson(req), { how: 'change' }) });
+      if (b === 'import' && method === 'POST') return send(res, 200, { policy: policy().set(await readJson(req, 64 * 1024), { how: 'import' }) });
+      if (b === 'export' && method === 'GET') {
+        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'content-disposition': 'attachment; filename="sara-policy.json"', 'cache-control': 'no-store', ...SECURITY_HEADERS });
+        return void res.end(JSON.stringify(policy().exportFile(), null, 2) + '\n');
+      }
+      throw new HttpError(404, 'Not found');
+    }
+    return NEXT;
+  };
+}

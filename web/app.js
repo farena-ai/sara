@@ -19,6 +19,7 @@ import { initLearning, learnCard, loadLearning } from './learned-skills.js';
 import { loadWhatsAppPage } from './whatsapp.js';
 import { loadMatrixPage } from './matrix.js';
 import { loadIMessagePage } from './imessage.js';
+import { loadSlackPage } from './slack.js';
 import { initPlugins, loadPlugins, pluginAskLine, pluginNotice, pluginResultCard, pluginStepWords } from './plugins.js';
 import { loadMcpDiscovery } from './addons-discovery.js';
 import { loadSignalPage } from './signal.js';
@@ -53,6 +54,7 @@ import { initRoutines, loadRoutines, openRoutinesAt, setRoutinesOpener, todayRou
 import { initWatches, watchNotice } from './watches.js';
 import { initReadTogether, readTogetherSwitched } from './read-together.js';
 import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-check.js';
+import { initGovernance } from './governance.js';
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
 import { initNav, placeRail, relabelNav, setMore } from './nav.js';
@@ -87,6 +89,7 @@ import { icon, paintIcons, setIcon, TOOL_ICONS } from './icons.js';
 import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, pageOf, pageSize } from './session-list.js';
 import { createRecovery } from './recovery.js';
 import { createOperations } from './operations.js';
+import { createMonitoring } from './monitoring.js';
 import { renderProjectCheckpoint } from './project-checkpoints.js';
 import { projectNowOpen } from './project-now.js';
 import { buildSettingsHome, buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintCrumbs, paintElsewhere, paintSettingsResults, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
@@ -6464,6 +6467,7 @@ function startEvents() {
     if (document.querySelector('[data-page="co-whatsapp"]:not([hidden])')) void loadWhatsAppPage();
     if (document.querySelector('[data-page="co-matrix"]:not([hidden])')) void loadMatrixPage();
     if (document.querySelector('[data-page="co-imessage"]:not([hidden])')) void loadIMessagePage();
+    if (document.querySelector('[data-page="co-slack"]:not([hidden])')) void loadSlackPage();
   });
   // Phase 102: a webhook got a delivery or changed: the Webhooks page refreshes.
   es.addEventListener('hooks', () => {
@@ -7939,6 +7943,8 @@ initSettingsNav({ isMember, el, showSettingsTab, pageLead: (page) => pageLead(pa
 // Page help and the ? tips live in tips.json (Phase 41), shared with the server's settings guide.
 let HELP = {};
 const operations = createOperations({ root: $('#operations-content'), api, isOwner: () => !isMember() && !document.body.classList.contains('demo') });
+// EC3: monitoring for operators (Prometheus metrics, OpenTelemetry traces) under Operations.
+const monitoring = createMonitoring({ api, isOwner: () => !isMember() && !document.body.classList.contains('demo'), copyText });
 const recovery = createRecovery({
   root: $('#recovery-content'), api,
   isOwner: () => !isMember() && !document.body.classList.contains('demo'),
@@ -8008,7 +8014,10 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'dh-updates') void loadUpdates();
   if (pick === 'dh-safety') void loadSafetyCheck();
   if (pick === 'dh-recovery') void recovery.refresh();
-  if (pick === 'dh-operations') void operations.refresh();
+  if (pick === 'dh-operations') {
+    void operations.refresh();
+    void monitoring.refresh();
+  }
   if (pick === 'ab-skills') {
     void loadSkills();
     void loadLearning();
@@ -8023,6 +8032,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'co-whatsapp') void loadWhatsAppPage();
   if (pick === 'co-matrix') void loadMatrixPage();
   if (pick === 'co-imessage') void loadIMessagePage();
+  if (pick === 'co-slack') void loadSlackPage();
   if (pick === 'ab-budgets') void loadBudgets();
   if (pick === 'ab-persist') void loadPersistSettings();
   // Phase 123: the Short tool list and Tidy long chats cards.
@@ -9386,6 +9396,7 @@ initWatches({
   },
 });
 initSafetyCheck({ api, el, openSettings: (page) => void openSettings(page) });
+initGovernance({ api, el, openSettings: (page) => void openSettings(page) });
 // Phase 120: the @ menu and chips; who may use references here is decided again by the server.
 initRefs({
   api, state, el, openSettings: (page) => void openSettings(page),

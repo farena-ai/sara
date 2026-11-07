@@ -5,6 +5,62 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.81.0 (2026-11-07): ready for work and teams
+
+- **Security:** developer qualification tool locks bumped for the 26 open Dependabot alerts: protobufjs
+  7.6.6 and Ajv 8.18.0 (developer-data), Ajv 8.18.0 (developer-security), Vite 7.3.7 with esbuild 0.28.2
+  (developer-mcp-public), basic-ftp 6.2.6 by override (developer-mcp-mongodb); `npm audit` is clean there and at the root.
+- **Metrics and tracing for operators (EC3, `docs/OPERATIONS.md`):** Settings → Data & health →
+  Operations → Monitoring. Off by default. A Prometheus `/metrics` endpoint (scrape token in the vault
+  or allowlisted addresses; 404 when off) with replies, model latency, tokens and cost estimates, tool
+  calls, approvals, errors, tool servers, plugin jobs, chat bridges, queues, database size, backup age
+  and uptime; optional OpenTelemetry traces over OTLP/HTTP JSON (sampled per reply, collector headers
+  in the vault, no message text, prompts, files or keys in any span); a public readiness probe
+  `/api/health/ready`; a sample Grafana dashboard (`docs/monitoring/grafana-dashboard.json`). No new
+  dependency and no paid service.
+- **One audit trail with export (EC4, `docs/AUDIT_AND_POLICY.md`):** Settings → Household → Audit
+  trail lists every sensitive change, sign-in, decided approval card and background run for you, your
+  companions and household members (who, what, where, outcome, policy revision; field names, never
+  values, keys or chat text). Rows are SHA-256 chained (*Check the chain* names the first bad row), can
+  be filtered, exported as JSONL or CSV in a ZIP with a hashed, signed manifest, and kept 30/90/365
+  days or for good; unsettled delivery rows are never pruned. Owner only; apps with a device code and
+  household members can't read it.
+- **Policy profiles (EC5):** Settings → Household → Policy pins rules for everyone on the server
+  (allowed provider kinds, Always ask / Never ceilings for commands and tool servers, Always allow off,
+  adult mode off, no internet for commands, private local mode on, Store signed-only or off, audit
+  retention). Pinned settings show *Set by your admin* and the server refuses changes (409, naming the
+  policy) from the app, the API and every route, the owner included; the tool ceiling beats *Always
+  allow this tool* and a tool server's *Everything*. Policy changes and imports are audited; JSON
+  export/import for repeatable setups; the safety check-up reports drift. No policy = no change.
+- **Company sign-in for business instances (EC2, on branch `hermes/ec2`):** organizations can let
+  people sign in with Microsoft Entra ID, Google Workspace, Okta, Keycloak or another OpenID Connect
+  provider next to passkeys. Authorization code flow with PKCE, signed ID tokens checked with Node's
+  own crypto (RS256/ES256, key rotation, issuer/audience/expiry/nonce), an email-domain allowlist,
+  groups mapped to administrator or member, invitation-bound first sign-in by default with optional
+  just-in-time accounts, a session length and a regular session check so a person disabled at the
+  provider loses access. The setup person's passkey always works as a break-glass sign-in. The admin
+  page shows the redirect URL to copy and plain setup steps per provider; the client secret stays in
+  the operator vault. Personal and household installs are unchanged. Guide: `docs/BUSINESS.md`.
+
+- **Slack (EC1, `docs/SLACK.md`):** talk to her in Slack through a small Slack app you create from a
+  manifest the new *Settings → Chat apps → Slack* card shows (copy, paste at api.slack.com). Socket Mode,
+  so Sara needs no public address. Her DM is your own chat with tools, pictures and files both ways and a
+  progress message with ⏹; her requests for your OK come as **Allow / Deny** buttons that only you can
+  answer. DM threads are their own sessions; in channels you switch on she answers mentions in a thread
+  (no tools unless *Owners can use her tools in groups*). `/sara` commands, Slack's rate limits waited
+  out, reconnects with backoff, token errors in plain words. Both tokens live in Sara's vault and go when
+  the plugin is removed. Comes with Sara as a plugin, off until you add it. Tested against a stand-in
+  Slack; a real workspace is an owner check.
+- **Plugins (EC1):** a chat plugin may connect to one named public domain and its subdomains
+  (`"host": "domain:slack.com"`, always encrypted, shown on the review card), and may show her approval
+  requests as Allow / Deny buttons (`permissions.bridgeApprovals`, on the review card; Sara checks that
+  the owner pressed it). A thread turn in a plugin chat now answers in its thread.
+- **Docs:** the GitHub front page and its five translations show the 2.79/2.80 look: a Docker one-liner
+  at the top, real screenshots of the new UI (chat in Night and Day, an approval card with *Always allow
+  this tool*, All settings, Ctrl K, Appearance, Pictures from her, Get more, Today, Planner, a phone) in
+  `docs/screenshots/v3-*.webp`, new art, a Look and navigation row and two developer rows. The 2.8.3
+  animated demo is retired.
+
 ## 2.80.0 (2026-11-07): every installer checked end to end
 
 - **Updating a tool server keeps your settings (Q-ADDONS, `docs/ops/Q_ADDONS_MCP.md`):** the update card

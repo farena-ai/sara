@@ -21,6 +21,8 @@ const PATTERNS: [RegExp, Replacement][] = [
   [/\bAKIA[0-9A-Z]{16}\b/g, '[REDACTED]'],
   [/\bAIza[0-9A-Za-z_-]{35}\b/g, '[REDACTED]'],
   [/\bxox[abposr]-[A-Za-z0-9-]{10,}/g, '[REDACTED]'],
+  // EC1: Slack app-level tokens (Socket Mode).
+  [/\bxapp-[A-Za-z0-9-]{10,}/g, '[REDACTED]'],
   [/\bhf_[A-Za-z0-9]{30,}/g, '[REDACTED]'],
   // Phase 122 (WHATSAPP §7.1): Meta access tokens (System User and user tokens start EAA).
   [/\bEAA[A-Za-z0-9]{20,}/g, '[REDACTED]'],

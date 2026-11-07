@@ -94,6 +94,9 @@ export class BusinessAuth {
   readonly #claim: FirstClaim;
   readonly #ceremonies = new Map<string, Ceremony>();
   readonly #sessionInvalidations = new Set<() => void>();
+  /** EC2: undefined = not an SSO session; false = closed; number = absolute SSO expiry (ms). */
+  #sessionGate: (identityId: string, sessionId: string) => number | false | undefined = () => undefined;
+  #passkeyGate: (identityId: string) => boolean = () => true;
   constructor(profile: BusinessProfile, identities: IdentityDirectory) {
     this.#profile = profile;
     this.#identities = identities;
@@ -115,6 +118,22 @@ export class BusinessAuth {
       appendAudit(db, { action: 'identity.signin', actorId: identity.id, revision: identity.authEpoch });
       db.exec('COMMIT'); return session;
     } catch (error) { db.exec('ROLLBACK'); throw error; }
+  }
+  /** EC2 seams owned by BusinessSso: SSO session lifetime/revocation and *members must use SSO*. */
+  setSsoGates(gates: { session: (identityId: string, sessionId: string) => number | false | undefined; passkey: (identityId: string) => boolean }): void {
+    this.#sessionGate = gates.session; this.#passkeyGate = gates.passkey;
+  }
+  /** A browser session capped at the SSO session length (OwnerAuth's own expiry still applies). */
+  ssoSession(identity: BusinessIdentity, lifetimeSeconds: number): BusinessSession {
+    const session = this.#session(identity);
+    const expiresAt = Math.min(session.principal.expiresAt, Date.now() + lifetimeSeconds * 1000);
+    return { ...session, maxAgeSeconds: Math.min(session.maxAgeSeconds, lifetimeSeconds), principal: { ...session.principal, expiresAt } };
+  }
+  /** Close one session (SSO revocation) and notify live transports, like an explicit sign-out. */
+  endSession(identityId: string, authEpoch: number, sessionId: string): void {
+    const identity = this.#identities.get(identityId);
+    if (identity && identity.authEpoch === authEpoch) { try { this.#auth(identity)?.signOut(sessionId); } catch { /* The SSO gate already refuses it. */ } }
+    for (const listener of this.#sessionInvalidations) { try { listener(); } catch { /* Session removal has already completed. */ } }
   }
   get claimCode(): string | undefined { return this.#claim.code; }
   claimStatus() { return this.#claim.status(); }
@@ -164,8 +183,12 @@ export class BusinessAuth {
     if (!identity || identity.status !== 'active' || String(identity.authEpoch) !== epoch) return undefined;
     try {
       const sessionId = this.#auth(identity)?.sessionId(cookie.join('.'));
-      const expiresAt = Number(cookie[0]);
-      return sessionId && Number.isSafeInteger(expiresAt) ? { identityId: id, authEpoch: identity.authEpoch, sessionId, expiresAt, credentialKind: 'browser' } : undefined;
+      let expiresAt = Number(cookie[0]);
+      if (!sessionId || !Number.isSafeInteger(expiresAt)) return undefined;
+      const gate = this.#sessionGate(id, sessionId);
+      if (gate === false || (typeof gate === 'number' && gate <= Date.now())) return undefined;
+      if (typeof gate === 'number') expiresAt = Math.min(expiresAt, gate);
+      return { identityId: id, authEpoch: identity.authEpoch, sessionId, expiresAt, credentialKind: 'browser' };
     } catch {
       // Damaged or imported auth material never becomes a legacy sign-in migration.
       return undefined;
@@ -175,6 +198,8 @@ export class BusinessAuth {
   isPrincipalActive(principal: BusinessPrincipal): boolean {
     const identity = this.#identities.get(principal.identityId);
     if (!identity || identity.status !== 'active' || identity.authEpoch !== principal.authEpoch || principal.credentialKind !== 'browser' || !Number.isSafeInteger(principal.expiresAt) || principal.expiresAt <= Date.now()) return false;
+    const gate = this.#sessionGate(principal.identityId, principal.sessionId);
+    if (gate === false || (typeof gate === 'number' && gate <= Date.now())) return false;
     try {
       const device = this.#auth(identity)?.devices().find(device => device.id === principal.sessionId && device.kind === 'browser');
       return !!device;
@@ -237,7 +262,7 @@ export class BusinessAuth {
     if (typeof input.id !== 'string' || typeof input.authenticatorData !== 'string' || typeof input.signature !== 'string') throw new Error('Invalid passkey response.');
     const auth = this.#auth(identity)!;
     const key = auth.passkey(input.id);
-    if (!key) throw new Error('Sign-in failed.');
+    if (!key || !this.#passkeyGate(identity.id)) throw new Error('Sign-in failed.');
     auth.usedPasskey(key.id, verifyAssertion({ id: input.id, clientDataJSON: input.clientDataJSON, authenticatorData: input.authenticatorData, signature: input.signature }, key, want));
     return this.#session(identity);
   }

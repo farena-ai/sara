@@ -76,6 +76,7 @@ const APPS: Record<string, { page: string; box: string; file: string }> = {
   whatsapp: { page: 'co-whatsapp', box: 'wa-box', file: 'whatsapp.js' },
   matrix: { page: 'co-matrix', box: 'mx-box', file: 'matrix.js' },
   imessage: { page: 'co-imessage', box: 'im-box', file: 'imessage.js' },
+  slack: { page: 'co-slack', box: 'sl-box', file: 'slack.js' },
   signal: { page: 'co-signal', box: 'sig-box', file: 'signal.js' },
   email: { page: 'co-email', box: 'em-box', file: 'email.js' },
   telegram: { page: 'co-telegram', box: 'tg-setup', file: 'telegram-setup.js' },
@@ -222,7 +223,7 @@ test('128a.3 N2: the consent step and the page wiring', async () => {
   await det.fire('toggle');
   assert.equal(detailed?.needsTrust, false);
   // The pages: Start goes through startFirstParty; the server gets `consent`, never a page-made "first-party".
-  for (const f of ['whatsapp.js', 'matrix.js', 'imessage.js', 'signal.js', 'email.js']) assert.match(web(f), /startFirstParty\('(whatsapp|matrix|imessage|signal|email)'/, f);
+  for (const f of ['whatsapp.js', 'matrix.js', 'imessage.js', 'signal.js', 'email.js', 'slack.js']) assert.match(web(f), /startFirstParty\('(whatsapp|matrix|imessage|signal|email|slack)'/, f);
   const sc = web('setup-card.js');
   assert.match(sc, /body: \{ review: review\.id, consent: true \}/);
   assert.match(sc, /consentKind\(review\) === 'full'\) return void \(await o\.full\(id\)\)/, 'anything else: the full card');
@@ -286,7 +287,7 @@ test('128a.4 N3: Signal steps have an install line for Windows, macOS and Linux 
 });
 
 test('128a.5 C3: the shared helpers are imported, not copied', () => {
-  for (const f of ['whatsapp.js', 'matrix.js', 'imessage.js', 'signal.js', 'email.js', 'telegram-setup.js']) {
+  for (const f of ['whatsapp.js', 'matrix.js', 'imessage.js', 'signal.js', 'email.js', 'slack.js', 'telegram-setup.js']) {
     const js = web(f);
     assert.doesNotMatch(js, /function (copyRow|diagLine|field|okLine)\b/, f);
     assert.match(js, /from '\.\/setup-card\.js';/, f);

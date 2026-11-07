@@ -1,92 +1,151 @@
 {
- "_about": "Pictures used by the READMEs and docs. Taken on a throwaway test server with a local model (qwen3.8 27B on Ollama), signed in as the example user Alex; no real data. test/phase114d.test.ts checks every referenced picture is listed here, exists and stays small.",
- "taken": "2026-11-01",
- "method": "Throwaway server (SARA_SETUP=off, a fresh SARA_DATA), Night look, 1440×900 desktop and 390×844 phone at 2×, cropped and saved as WebP (quality 80–82).",
+ "_about": "Pictures used by the READMEs and docs. Taken on a throwaway test server with a scripted model (no real model or data), signed in as the example user Alex. test/phase114d.test.ts checks every referenced picture is listed here, exists and stays small.",
+ "taken": "2026-11-07",
+ "method": "Throwaway server from the 2.80.0 source (fresh SARA_DATA, deleted afterwards), a scripted OpenAI/Ollama-compatible model on 127.0.0.1 standing in for Ollama on this computer, made-up data for the example user Alex (a habit-tracker workspace with 6 real node --test tests, a made-up book-club PDF); the default Night look; 1440x900 desktop (dialogs cropped to the dialog), 390x844 phone at 2x; WebP quality 82.",
  "files": {
   "first-run.webp": {
-   "ui": "2.47.2",
+   "ui": "2.80.0",
    "what": "Setup step 1: your name and the Company / Coding / Both question",
-   "bytes": 17418
+   "bytes": 14410
   },
   "connect-brain.webp": {
-   "ui": "2.47.2",
-   "what": "Setup step 3: Connect a brain, with the picked-for-you model and Connected",
-   "bytes": 32898
+   "ui": "2.80.0",
+   "what": "Setup step 3: Connect a brain, with Ollama found, the picked-for-you model and Connected",
+   "bytes": 25160
   },
   "getting-started.webp": {
-   "ui": "2.47.2",
+   "ui": "2.80.0",
    "what": "Today with the Getting started list (company order)",
-   "bytes": 61754
+   "bytes": 73002
   },
   "companion.webp": {
-   "ui": "2.47.2",
-   "what": "A companion chat: a reminder and two to-dos as cards, with the step line",
-   "bytes": 61804
+   "ui": "2.80.0",
+   "what": "A companion chat: two to-dos and a reminder as cards, with the step line",
+   "bytes": 71218
   },
   "today.webp": {
-   "ui": "2.47.2",
+   "ui": "2.80.0",
    "what": "Today on a desktop (1440 wide)",
-   "bytes": 60380
+   "bytes": 66834
   },
   "phone.webp": {
-   "ui": "2.47.2",
+   "ui": "2.80.0",
    "what": "Today and a chat on a phone (390 wide), side by side",
-   "bytes": 73086
+   "bytes": 91710
   },
   "planner.webp": {
-   "ui": "2.47.2",
+   "ui": "2.80.0",
    "what": "Planner, To-do tab",
-   "bytes": 22482
+   "bytes": 33432
   },
   "dials.webp": {
-   "ui": "2.47.2",
+   "ui": "2.80.0",
    "what": "Name and personality: the personality dials with their sample lines",
-   "bytes": 46174
+   "bytes": 53822
   },
   "howto.webp": {
-   "ui": "2.47.2",
+   "ui": "2.80.0",
    "what": "The How do I…? box, open, on Name and personality",
-   "bytes": 44268
+   "bytes": 58130
   },
   "work-dials.webp": {
-   "ui": "2.47.2",
+   "ui": "2.80.0",
    "what": "Coding projects: the While you code dials",
-   "bytes": 41212
+   "bytes": 47992
   },
   "ask-first.webp": {
-   "ui": "2.47.2",
-   "what": "A coding chat waiting for Allow before node --test",
-   "bytes": 68046
+   "ui": "2.80.0",
+   "what": "A coding chat waiting for your OK (Try it in a copy) before node --test",
+   "bytes": 53744
   },
   "coding.webp": {
-   "ui": "2.47.2",
-   "what": "A coding chat: a failing test run, the fix, then all 6 tests green",
-   "bytes": 85936
+   "ui": "2.80.0",
+   "what": "A coding chat: a failing test run, the fix, then all 6 tests green (1440x1320)",
+   "bytes": 77180
   },
   "command-bar.webp": {
-   "ui": "2.47.2",
-   "what": "The Ctrl+K command bar over Today",
-   "bytes": 30306
+   "ui": "2.80.0",
+   "what": "The Ctrl+K command bar over Today, typing pla",
+   "bytes": 30386
   },
-  "demo.png": {
-   "ui": "2.8.3",
-   "what": "The animated hero demo (APNG; kept from the 2.8.3 recording)",
-   "bytes": 2695495
+  "library.webp": {
+   "ui": "2.80.0",
+   "what": "Library: the page she cited in a book-club answer, opened from the chat",
+   "bytes": 38394
   },
-  "library.png": {
-   "ui": "2.8.3",
-   "what": "Library: an answer that cites the page, beside the page",
-   "bytes": 259787
-  },
-  "voice.png": {
-   "ui": "2.8.3",
+  "voice.webp": {
+   "ui": "2.80.0",
    "what": "Settings, Voice",
-   "bytes": 146867
+   "bytes": 47808
   },
-  "everywhere.png": {
-   "ui": "2.8.3",
+  "everywhere.webp": {
+   "ui": "2.80.0",
    "what": "A phone answering a book-club question from her library",
-   "bytes": 164733
+   "bytes": 27392
+  },
+  "v3-chat-dark.webp": {
+   "ui": "2.80.0",
+   "what": "A companion chat in Graphite with Full decoration: plan, to-do and reminder cards, her panel",
+   "bytes": 70248
+  },
+  "v3-chat-light.webp": {
+   "ui": "2.80.0",
+   "what": "The same chat in the Day look",
+   "bytes": 71090
+  },
+  "v3-coding.webp": {
+   "ui": "2.80.0",
+   "what": "A coding project chat: files read, an edit with its diff, security pass and threat model",
+   "bytes": 61880
+  },
+  "v3-approval.webp": {
+   "ui": "2.80.0",
+   "what": "An approval card with Allow, Always allow this tool and Deny",
+   "bytes": 64322
+  },
+  "v3-launcher.webp": {
+   "ui": "2.80.0",
+   "what": "The Ctrl K launcher searching for look",
+   "bytes": 24824
+  },
+  "v3-settings.webp": {
+   "ui": "2.80.0",
+   "what": "Settings opened on the All settings home",
+   "bytes": 79468
+  },
+  "v3-appearance.webp": {
+   "ui": "2.80.0",
+   "what": "Settings, Appearance: palette cards, Night or Day, colour, decoration, preview",
+   "bytes": 53054
+  },
+  "v3-pictures.webp": {
+   "ui": "2.80.0",
+   "what": "Settings, Pictures from her: engine choice and pictures on her own",
+   "bytes": 42684
+  },
+  "v3-addons.webp": {
+   "ui": "2.80.0",
+   "what": "Add-ons, Get more: the signed Sara Store",
+   "bytes": 53666
+  },
+  "v3-today.webp": {
+   "ui": "2.80.0",
+   "what": "Today on a desktop with Getting started and routines",
+   "bytes": 72180
+  },
+  "v3-planner.webp": {
+   "ui": "2.80.0",
+   "what": "The Planner, To-do tab",
+   "bytes": 40614
+  },
+  "v3-phone.webp": {
+   "ui": "2.80.0",
+   "what": "A chat and Today on a phone (390 wide), side by side",
+   "bytes": 61500
   }
+ },
+ "v3": {
+  "taken": "2026-11-07",
+  "method": "Throwaway server from the 2.80.0 source (fresh SARA_DATA, deleted afterwards), a scripted OpenAI-compatible model on 127.0.0.1 and made-up data for the example user Alex; Graphite, Full decoration, the owner defaults; 1440x900 desktop, 390x844 phone at 2x; WebP quality 82. The v3-* pictures show the 2.79/2.80 look."
  }
 }

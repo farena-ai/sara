@@ -1,5 +1,6 @@
 // Tool registry, permissions and approvals.
 import { randomUUID } from 'node:crypto';
+import { policy } from '../policy-profile.ts';
 import { BUILTIN_TOOLS } from './builtin.ts';
 import type { Permission, Tool } from './types.ts';
 
@@ -48,8 +49,9 @@ export class ToolRegistry {
   /** E7 (A2): a tool server's remembered choice for its tools that have no setting of their own. */
   policyFor?: (name: string) => Permission | undefined;
 
+  /** EC5: the admin's ceiling (src/policy-profile.ts) beats the owner's setting, the server choice and Always allow. */
   permission(name: string, overrides: Record<string, Permission> | undefined): Permission {
-    return overrides?.[name] ?? this.policyFor?.(name) ?? this.defaultFor(this.#tools.get(name));
+    return policy().clamp(name, overrides?.[name] ?? this.policyFor?.(name) ?? this.defaultFor(this.#tools.get(name)), this.get(name));
   }
 
   /** Tools the model may see (anything not set to "never"). */

@@ -120,6 +120,30 @@ button.rt-setup-first:hover { background: var(--accent-soft); filter: none; }
 .wt-card-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
 #planner .wt-add .rt-field input[type="checkbox"] { flex: none; width: 22px; height: 22px; min-height: 22px; }
 
+/* EC4/EC5 (web/governance.js): the audit trail, the policy page, and "Set by your admin". */
+.au-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: var(--s-2) var(--s-3); margin: var(--s-2) 0; }
+.au-filters label { display: flex; flex-direction: column; gap: 4px; }
+.au-list { display: flex; flex-direction: column; gap: 6px; margin: var(--s-2) 0 var(--s-3); max-height: 60vh; overflow: auto; }
+.au-row { display: grid; grid-template-columns: minmax(150px, auto) 1fr auto auto; gap: 4px var(--s-3); align-items: baseline; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-control); background: var(--surface-2); }
+.au-row .au-keys { grid-column: 1 / -1; overflow-wrap: anywhere; }
+.au-row .au-what { overflow-wrap: anywhere; }
+.au-row .au-when, .au-row .au-who { color: var(--muted); font-size: 0.88em; }
+.au-outcome { font-size: 0.85em; font-weight: 600; padding: 1px 8px; border-radius: var(--r-pill); border: 1px solid var(--line); }
+.au-row[data-outcome="ok"] .au-outcome { color: var(--success); border-color: var(--success); }
+.au-row[data-outcome="refused"] .au-outcome, .au-row[data-outcome="failed"] .au-outcome { color: var(--danger); border-color: var(--danger); }
+.au-row[data-outcome="pending"] .au-outcome { color: var(--warn); border-color: var(--warn); }
+@media (max-width: 640px) {
+  .au-row { grid-template-columns: 1fr auto; }
+  .au-row .au-what { grid-column: 1 / -1; }
+}
+.po-kinds { display: flex; flex-direction: column; gap: 2px; margin-bottom: var(--s-2); }
+.po-kinds label { display: flex; align-items: center; justify-content: flex-start; gap: 8px; min-height: 36px; }
+.po-kinds input { flex: 0 0 auto; width: auto; margin: 0; }
+.po-page label.row, .au-page label.row { justify-content: flex-start; flex-wrap: wrap; }
+.po-page label.row select, .po-page label.row input[type="text"], .au-page label.row select { flex: 0 1 320px; min-width: 0; }
+.po-lock { display: inline-flex; align-items: center; margin-left: var(--s-2); padding: 1px 8px; border-radius: var(--r-pill); border: 1px solid var(--warn); color: var(--warn); font-size: 0.8em; font-weight: 600; white-space: nowrap; }
+.po-banner { border: 1px solid var(--warn); border-radius: var(--r-card); padding: 8px 12px; margin: 0 0 var(--s-2); }
+
 /* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
    Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
    specificity: each ties the rule it replaces and wins by coming later); decoration by

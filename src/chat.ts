@@ -1,5 +1,7 @@
 // One conversational turn: disclosure, safety checks, provider routing, then the agent loop
 // (model → tool calls → results → model …) with streaming and persistence.
+import { audit } from './audit-trail.ts';
+import { policy } from './policy-profile.ts';
 import { captureToolScope, assertCurrentScope, assertToolAdmission, ToolAdmissionError } from './tool-admission.ts';
 import { legacyInnerConversation, ownerEvidenceConversation } from './owner-evidence.ts';
 import { packPaused } from './packs/install.ts';
@@ -418,6 +420,8 @@ export function resolveProvider(app: AppContext, providerId: string | null, mode
   if (!id) throw new Error('No model provider is set up yet. Open Settings and add one.');
   const config = s.providers.find((p) => p.id === id);
   if (!config) throw new Error(`Provider "${id}" is not configured.`);
+  // EC5: a provider kind the admin's policy doesn't allow is never used (chat, jobs, bridges, the API).
+  policy().checkProvider(config);
   const chosen = model ?? (providerId ? undefined : s.defaultModel) ?? config.defaultModel;
   if (!chosen) throw new Error(`Choose a model for ${config.label} in Settings.`);
   // Phase 71: a household member only uses the models the owner allowed, within their daily limits.
@@ -3181,13 +3185,15 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
             const { id, decision } = app.approvals.request(conv.id, signal);
             const stops = (turnContradictions.get(call.id) ?? []).filter((c) => c.act === 'stop');
             // E7 (A1): "Always allow this tool" only on a plain ask in the owner's own app (the tool's own setting is Ask).
-            const alwaysOk = set === 'ask' && permission === 'ask' && !stopFor && !advisoryStop && !redteamCard && !pluginAsk && !gate && !prepComputer && !prepSkill && !prep?.ask && !tool?.asksFirst?.(call.arguments) && !opts.untrusted && !opts.outside && !opts.externalApp && !external && !conv.partner && !app.member && !app.demo && !app.offRecord;
+            const alwaysOk = set === 'ask' && permission === 'ask' && !stopFor && !advisoryStop && !redteamCard && !pluginAsk && !gate && !prepComputer && !prepSkill && !prep?.ask && !tool?.asksFirst?.(call.arguments) && !opts.untrusted && !opts.outside && !opts.externalApp && !external && !conv.partner && !app.member && !app.demo && !app.offRecord && policy().alwaysAllowOn;
             yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(alwaysOk ? { alwaysOk: true } : {}), ...(prepDetail ? { detail: prepDetail } : {}), ...(prepComputer ? { computer: prepComputer } : {}), ...(prepSkill ? { skill: prepSkill } : {}), ...(stopFor ? { contradiction: cardOf(stopFor, stops.filter((c) => c !== stopFor)) } : {}), ...(gate ? { sandboxFirst: { label: gate.isolation.label, isolated: gate.isolation.isolated } } : {}), ...(advisoryStop ? { advisory: advisoryStop } : {}), ...(redteamCard ? { redteam: redteamCard } : {}), ...(pluginAsk ? { plugin: { name: pluginAsk.name, reason: pluginAsk.reason } } : {}), ...(opts.untrusted ? { untrusted: true } : {}) };
             allowed = await decision;
             explicitlyApproved = allowed;
             approval = allowed ? 'allowed' : 'denied';
             const how = app.approvals.takeHow(id);
             admit();
+            // EC4: one audit row per decided card (the tool, the answer, where; the summary only as redacted content).
+            audit({ action: 'approval.decided', target: call.name, role: app.member ? 'member' : 'owner', who: app.member ? 'member' : 'owner', channel: conv.channel || 'web', outcome: allowed ? 'ok' : signal.aborted ? 'failed' : 'refused', ...(how ? { keys: [how] } : {}), content: summary });
             if (how === 'tool' && allowed && alwaysOk && !signal.aborted) app.settings.update({ toolPermissions: { ...(app.settings.get().toolPermissions ?? {}), [call.name]: 'auto' } });
             // Phase 88: "Allow for this task" / "Always on this site" on a computer-use card.
             if (!signal.aborted) prep?.answered?.(allowed, how);

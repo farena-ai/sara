@@ -30,6 +30,8 @@
 //   register,send-test,unmute} (src/plugins/whatsapp-setup.ts); removing a plugin removes its bridge hook.
 // Phase 122 part 2 (BRIDGES4 §8.2): GET /api/plugins/matrix/setup and POST …/{terms,login,token,check,fix}
 //   (src/plugins/matrix-setup.ts); her password is passed once to the plugin and never stored or logged.
+// EC1 (docs/ops/EC1_DESIGN.md): GET /api/plugins/slack/setup and POST …/{tokens,check,fix} (src/plugins/slack-setup.ts);
+//   both tokens go to the vault as secret settings and never come back to the page.
 // Phase 122 part 3 (BRIDGES4 §8.2): GET /api/plugins/imessage/setup and POST …/{terms,address,password,check,fix}
 //   (src/plugins/imessage-setup.ts); the BlueBubbles password goes to the vault and is never sent back.
 // PL2a (POLISH2 N3): POST /api/plugins/signal/probe { address, onOtherMachine? } → { ok, version | code }
@@ -49,6 +51,7 @@ import { PLUGIN_LIMITS } from '../plugins/manager.ts';
 import { checkServerFolder } from '../skill-store.ts';
 import { hookBase, runCheck, setupState, WA } from '../plugins/whatsapp-setup.ts';
 import * as matrix from '../plugins/matrix-setup.ts';
+import * as slack from '../plugins/slack-setup.ts';
 import * as imessage from '../plugins/imessage-setup.ts';
 import { linkQr, probeDaemon, SIGNAL } from '../plugins/signal-setup.ts';
 import { bridgeWindowOpen } from '../plugins/bridge-db.ts';
@@ -257,6 +260,23 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
         if (c === 'password') return send(res, 200, await imessage.setPassword(app, pm, co, body.password));
         if (c === 'check') return send(res, 200, await imessage.runCheck(app, pm, co, String(body.step ?? '')));
         return send(res, 200, await imessage.runFix(app, pm, co, String(body.fix ?? ''), body));
+      } catch (err) {
+        return asHttp(err);
+      }
+    }
+
+    // EC1: the Slack setup card.
+    if (b === slack.SL && c && ['setup', 'tokens', 'check', 'fix'].includes(c) && !d) {
+      const q = new URL(req.url ?? '/', 'http://x').searchParams;
+      if (c === 'setup' && method === 'GET') return send(res, 200, await slack.setupState(app, pm, companion(q.get('companion'))));
+      if (method !== 'POST') throw new HttpError(405, 'Method not allowed');
+      const body = await readJson(req);
+      const co = companion(body.companion);
+      if (!pm.store.get(slack.SL)) throw new HttpError(400, 'Add Slack first.');
+      try {
+        if (c === 'tokens') return send(res, 200, await slack.useTokens(app, pm, co, body.botToken, body.appToken));
+        if (c === 'check') return send(res, 200, await slack.runCheck(app, pm, co, String(body.step ?? '')));
+        return send(res, 200, await slack.runFix(app, pm, co, String(body.fix ?? '')));
       } catch (err) {
         return asHttp(err);
       }

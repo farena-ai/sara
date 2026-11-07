@@ -14,6 +14,7 @@ let refreshManagement;
 let previewNonce = 0, reviewedInvite;
 let selectionNonce = 0, mountedEditor = '';
 let refreshNonce = 0;
+let ssoEnabled = false;
 let backgroundRefresh = true;
 const text = (id, value) => { $(id).textContent = value; };
 const notice = value => text('notice', value);
@@ -52,8 +53,8 @@ async function api(path, data, signal) {
   catch (error) { if (error.name === 'AbortError') throw error; throw Object.assign(new Error('connection'), { status: 0 }); }
   const value = await response.json();
   if (!response.ok) {
-    if (value.error === 'Business session changed.' && self?.principal.sessionId === expectedSession) { backgroundRefresh = false; clearProtected(true); self = undefined; $('auth').hidden = false; $('logout').hidden = true; $('join-team').hidden = true; updateAuthMode(); }
-    if (response.status === 401 && self && self.principal.sessionId === expectedSession) { backgroundRefresh = false; clearProtected(true); self = undefined; $('auth').hidden = false; $('logout').hidden = true; $('join-team').hidden = true; updateAuthMode(); }
+    if (value.error === 'Business session changed.' && self?.principal.sessionId === expectedSession) { backgroundRefresh = false; clearProtected(true); self = undefined; $('auth').hidden = false; $('logout').hidden = true; $('sso-link').hidden = true; $('join-team').hidden = true; updateAuthMode(); }
+    if (response.status === 401 && self && self.principal.sessionId === expectedSession) { backgroundRefresh = false; clearProtected(true); self = undefined; $('auth').hidden = false; $('logout').hidden = true; $('sso-link').hidden = true; $('join-team').hidden = true; updateAuthMode(); }
     throw Object.assign(new Error(value.error || value.state), { status: response.status, value });
   }
   // Successful delayed responses still belong to the session that requested them.
@@ -120,7 +121,7 @@ async function boot(preserveView = false) {
   try { current = await api('/me'); } catch (error) {
     if (version !== epoch || refresh !== refreshNonce) return;
     if (error.status === 401 && !oldIdentity) {
-      $('auth').hidden = false; $('logout').hidden = true; $('join-team').hidden = true; notice('');
+      $('auth').hidden = false; $('logout').hidden = true; $('sso-link').hidden = true; $('join-team').hidden = true; notice('');
     } else unavailable(error);
     return;
   }
@@ -130,19 +131,20 @@ async function boot(preserveView = false) {
     managementEpoch++; managementAuthority = ''; $('management-body').replaceChildren();
     if (previousScreen === 'management' && previousManagement === 'org') showPanel('content');
   }
-  if (!self) { clearProtected(); $('auth').hidden = false; $('logout').hidden = true; return; }
+  if (!self) { clearProtected(); $('auth').hidden = false; $('logout').hidden = true; $('sso-link').hidden = true; return; }
   if (oldIdentity && (oldIdentity !== self.principal.identityId || oldSession !== self.principal.sessionId)) clearProtected(true);
   const draftKey = `business-drafts:${self.principal.identityId}:${self.principal.sessionId}`;
   if (!drafts?.active || drafts.key !== draftKey) drafts = new BusinessDrafts(sessionStorage, self.principal.identityId, self.principal.sessionId);
   $('auth').hidden = !(preserveView && authWasVisible && oldIdentity === self.principal.identityId && oldSession === self.principal.sessionId); $('logout').hidden = false; $('join-team').hidden = false; updateAuthMode();
+  $('sso-link').hidden = !ssoEnabled || self.signIn === 'sso';
   clearTimeout(expiry);
   const expire = () => {
     if (!self) return;
     if (self.principal.expiresAt > Date.now()) { expiry = setTimeout(expire, Math.min(self.principal.expiresAt - Date.now(), 2_147_483_647)); return; }
-    backgroundRefresh = false; clearProtected(true); self = undefined; $('auth').hidden = false; $('logout').hidden = true; $('join-team').hidden = true; updateAuthMode(); notice(t('Your sign-in expired. Sign in again with your passkey.'));
+    backgroundRefresh = false; clearProtected(true); self = undefined; $('auth').hidden = false; $('logout').hidden = true; $('sso-link').hidden = true; $('join-team').hidden = true; updateAuthMode(); notice(t('Your sign-in expired. Sign in again with your passkey.'));
   };
   expire();
-  if (!self.passkeyEnrolled) { clearProtected(!!oldIdentity && oldSession === self.principal.sessionId); $('enroll').hidden = false; return; }
+  if (!self.passkeyEnrolled && self.signIn !== 'sso') { clearProtected(!!oldIdentity && oldSession === self.principal.sessionId); $('enroll').hidden = false; return; }
   $('enroll').hidden = true;
   if (!self.organization || self.recovering) {
     clearProtected(true);
@@ -323,12 +325,13 @@ document.documentElement.dataset.theme = sessionStorage.getItem('business-theme'
 $('theme').onclick = () => { const theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = theme; sessionStorage.setItem('business-theme', theme); };
 $('signin').onclick = event => run(async () => { const version = epoch; await passkey(api, 'login'); if (version !== epoch) return; clearProtected(true); self = undefined; backgroundRefresh = true; authentication.postMessage('changed'); await boot(); }, event.currentTarget);
 $('register').onclick = event => run(async () => { const session = self?.principal.sessionId; await passkey(api, 'register'); if (session !== self?.principal.sessionId) return; authentication.postMessage('changed'); await boot(); }, event.currentTarget);
-$('logout').onclick = () => run(async () => { const signingOut = api('/logout', {}); backgroundRefresh = false; clearProtected(true); self = undefined; refreshNonce++; $('auth').hidden = false; $('logout').hidden = true; $('join-team').hidden = true; updateAuthMode(); history.replaceState(null, '', '/'); try { await signingOut; } finally { authentication.postMessage('changed'); } });
+$('logout').onclick = () => run(async () => { const session = self?.principal.sessionId; const signingOut = fetch('/api/business/logout', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', ...(session ? { 'x-sara-business-session': session } : {}) }, body: '{}' }).then(response => response.ok ? response.json() : {}); backgroundRefresh = false; clearProtected(true); self = undefined; refreshNonce++; $('auth').hidden = false; $('logout').hidden = true; $('sso-link').hidden = true; $('join-team').hidden = true; updateAuthMode(); history.replaceState(null, '', '/'); let result; try { result = await signingOut; } finally { authentication.postMessage('changed'); } if (result?.endSession && /^https?:\/\//.test(result.endSession)) location.assign(result.endSession); });
 $('refresh').onclick = () => run(boot);
 function updateAuthMode() {
   const mode = $('auth-mode').value; const needsName = mode !== 'reenroll' && !(mode === 'join' && self); const needsAdult = !(mode === 'join' && self);
   for (const [id, needed] of [['person-name', needsName], ['adult', needsAdult]]) { const control = $(id); control.closest('label').hidden = !needed; control.disabled = !needed; control.required = needed; }
   $('preview-invite').hidden = mode !== 'join';
+  $('sso-join').hidden = !ssoEnabled || mode !== 'join' || !!self;
   text('auth-guidance', mode === 'claim' ? t('First setup: use the host operator’s short setup code, confirm your name and age, then create your individual passkey.') : mode === 'reenroll' ? t('Recover your existing account with the host operator’s private re-enrollment code, confirm your age, then create a fresh passkey. Your name stays unchanged.') : self ? t('Accept while signed in as the intended account. An organization invitation and a workspace invitation grant different access; review the scope before accepting.') : t('New colleague: first accept an organization invitation and create your passkey. A manager then invites your active account to a specific workspace.'));
 }
 function validCode(mode, code) {
@@ -381,6 +384,40 @@ addEventListener('hashchange', () => { if (backgroundRefresh) void run(boot); })
 // Hints can revalidate an active session, but cannot reopen a session already closed here.
 authentication.onmessage = () => { if (backgroundRefresh) void run(() => boot(true)); };
 addEventListener('focus', () => { if (backgroundRefresh && self) void run(() => boot(true)); });
+// EC2: company sign-in (OpenID Connect). The provider sends the browser back with ?sso=<reason> on refusal.
+const SSO_REASONS = {
+  denied: () => t('Your organization’s sign-in service refused or cancelled the sign-in. Try again, or ask your IT administrator whether you are assigned to Sara.'),
+  state: () => t('That sign-in took too long or was started in another browser or tab. Start again from this page.'),
+  failed: () => t('Sara could not verify the answer from your organization’s sign-in service, so nobody was signed in. Ask an administrator to use Test connection under Company sign-in.'),
+  domain: () => t('The email domain of this account is not allowed here. Use your work account, or ask an organization administrator.'),
+  group: () => t('This account is not in a group allowed to use Sara. Ask your IT administrator to add you.'),
+  no_account: () => t('No Sara account is linked to this company account yet. Ask an administrator for an invitation, then choose Join with your company account.'),
+  adult: () => t('Your first company sign-in creates an account. Confirm that you are 18 or older under Set up, join or recover access, then sign in again.'),
+  disabled: () => t('This account is disabled here. Ask an organization administrator.'),
+  invite: () => t('This invitation is unavailable, expired or already used. Ask for a new one.'),
+  unavailable: () => t('Company sign-in is unavailable right now. Try again later, or sign in with your passkey.'),
+  linked: () => t('That company account belongs to another Sara account, or yours is already linked to a different one.'),
+};
+async function companySignIn(body) { const { url } = await api('/sso/start', body); location.assign(url); }
+$('sso-signin').onclick = event => run(() => companySignIn({ confirm18: $('adult').checked }), event.currentTarget);
+$('sso-join').onclick = event => run(async () => {
+  const code = $('code').value.trim(); if (!validCode('join', code)) return;
+  if (!$('adult').checked) { notice(t('Confirm that you are 18 or older to continue.')); return; }
+  await companySignIn({ code, confirm18: true });
+}, event.currentTarget);
+$('sso-link').onclick = event => run(() => companySignIn({ link: true }), event.currentTarget);
+async function loadCompanySignIn() {
+  try { const response = await fetch('/api/business/sso/status', { credentials: 'same-origin' }); ssoEnabled = response.ok && (await response.json()).enabled === true; } catch { ssoEnabled = false; }
+  for (const id of ['sso-signin', 'sso-hint']) $(id).hidden = !ssoEnabled;
+  updateAuthMode();
+  const reason = new URLSearchParams(location.search).get('sso');
+  if (reason) {
+    history.replaceState(null, '', location.pathname + location.hash);
+    notice((SSO_REASONS[reason] || SSO_REASONS.failed)());
+    if (reason === 'adult' || reason === 'no_account') { $('auth').querySelector('details').open = true; $('auth-mode').value = 'join'; updateAuthMode(); }
+  }
+}
+await loadCompanySignIn();
 updateAuthMode();
 await run(boot);
 if (/^(?:[0-9.]+|\[.*\])$/.test(location.hostname)) {

@@ -36,7 +36,10 @@ Tick **Releases**, untick **Packages** until the Docker image is published, unti
 ## Social preview
 
 Settings → General → **Social preview** → *Edit* → *Upload an image* →
-[`docs/social-preview.png`](../social-preview.png) (1280×640, under 1 MB).
+[`docs/images/brand/sara-social-preview.jpg`](../images/brand/sara-social-preview.jpg) (1280×640,
+under 1 MB: Sara with the wordmark, the tagline and github.com/farena-ai/sara, matching the README
+hero). GitHub has no API for this, so it is a one-time upload by the owner. The older
+[`docs/social-preview.png`](../social-preview.png) stays as the alternative.
 
 To change it, edit [`social-preview.html`](social-preview.html) and take a new screenshot at
 1280×640, for example:

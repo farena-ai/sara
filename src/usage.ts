@@ -5,6 +5,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { DatabaseSync } from 'node:sqlite';
 import type { Budget } from './budget.ts';
+import { hub } from './telemetry/hub.ts';
 import { SUBSCRIPTION_KINDS, type ChatRequest, type Provider, type ProviderConfig, type StreamEvent } from './providers/types.ts';
 
 /** How a call is paid for. */
@@ -392,13 +393,16 @@ export function metered(provider: Provider, store: UsageStore, tag: { purpose?: 
         throw err;
       } finally {
         if (!seen && scope) scope.unreported = (scope.unreported ?? 0) + 1;
+        const info: CallInfo = { model: req.model, provider: provider.config.label, providerId: provider.config.id, billing: billingOf(provider.config), in: row?.input ?? 0, out: row?.output ?? 0, cached: row?.cached ?? 0, usd: row ? row.usd : null, reported: seen, ms: Date.now() - t0, ...(first !== undefined ? { firstMs: first } : {}), ok, ...(error ? { error } : {}) };
         if (onCall) {
           try {
-            onCall({ model: req.model, provider: provider.config.label, providerId: provider.config.id, billing: billingOf(provider.config), in: row?.input ?? 0, out: row?.output ?? 0, cached: row?.cached ?? 0, usd: row ? row.usd : null, reported: seen, ms: Date.now() - t0, ...(first !== undefined ? { firstMs: first } : {}), ok, ...(error ? { error } : {}) });
+            onCall(info);
           } catch {
             /* recording never breaks a call */
           }
         }
+        // EC3: metrics and traces (src/telemetry/hub.ts); a listener never breaks the call.
+        hub.modelCall({ ...info, startedAt: t0, purpose: scope?.purpose ?? tag.purpose ?? 'other' });
       }
     },
   };

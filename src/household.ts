@@ -531,10 +531,12 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'hands', 'computer',
   // Phase 113: Report a problem and My reports (their own tickets in their own space; the check-in settings answer ownerOnly)
   'hub',
+  // EC5: what the owner's policy pins (read-only: Settings shows "Set by your admin")
+  'policy',
 ]);
 
 /** Families a member may write to only partly: GET-only for members. */
-const MEMBER_READ_ONLY: ReadonlySet<string> = new Set(['providers', 'setup', 'safety', 'usage']);
+const MEMBER_READ_ONLY: ReadonlySet<string> = new Set(['providers', 'setup', 'safety', 'usage', 'policy']);
 /** Phase 83: the run routes that branch, compare or change something (owner-only inside the member family `runs`). */
 export const BRANCH_ACTIONS: ReadonlySet<string> = new Set(['branch', 'diff', 'use', 'apply', 'discard', 'stop']);
 /** While being removed: only what's needed to take their data and leave. */

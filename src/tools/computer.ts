@@ -26,6 +26,7 @@
 //   only\");
 // - one task per computer at a time, a budget of actions and minutes per task, and everything she
 //   reads is data, never instructions.
+import { policy } from '../policy-profile.ts';
 import type { AppContext } from '../chat.ts';
 import { readFileSync, statSync } from 'node:fs';
 import { basename, isAbsolute, relative, resolve as resolvePath } from 'node:path';
@@ -491,7 +492,7 @@ export function createComputerTools(app: AppContext): Tool[] {
       return { refuse: 'Error: The Sara browser has no web page open: pc_browser_open first.' };
     }
     const cu = app.settings.get().computerUse ?? {};
-    const base = actionVerdict({ kind, site, target: found as never, page: page as never, ...(extra.text ? { text: extra.text } : {}), level: actLevel(cu.level), taskSites: actSitesOf(ctx.conversationId), always: cu.always ?? [] });
+    const base = actionVerdict({ kind, site, target: found as never, page: page as never, ...(extra.text ? { text: extra.text } : {}), level: policy().alwaysAllowOn || actLevel(cu.level) !== 'always' ? actLevel(cu.level) : 'task', taskSites: actSitesOf(ctx.conversationId), always: policy().alwaysAllowOn ? (cu.always ?? []) : [] });
     // M8 "Re-plan from here": a branch never repeats her actions on its own; each new one asks (once).
     const verdict = ctx.replay && base.act !== 'block' ? { act: 'ask' as const, risk: base.risk, why: 're-planned from an earlier step: every action asks', choices: ['once' as const] } : base;
     const target = describe(found);
@@ -507,7 +508,7 @@ export function createComputerTools(app: AppContext): Tool[] {
       answered: (ok, how) => {
         if (!ok) return;
         if (how === 'task' && verdict.choices.includes('task')) actSitesOf(conversationId).add(site);
-        if (how === 'always' && verdict.choices.includes('always')) {
+        if (how === 'always' && verdict.choices.includes('always') && policy().alwaysAllowOn) {
           const now = app.settings.get().computerUse ?? {};
           const list = (now.always ?? []).filter((a) => !(a.site === site && a.kind === kind));
           app.settings.update({ computerUse: { ...now, always: [...list, { site, kind, at: new Date().toISOString() }].slice(-200) } });

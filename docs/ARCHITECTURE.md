@@ -589,6 +589,16 @@ No request content is retained. Existing rotated logs receive only UUID/family/s
 `src/routes/operations.ts` is owner-only and reads current-space queue/SQLite evidence; process
 RSS/lag and server-data backups are explicitly different scopes. No provider probe is performed.
 
+EC3 telemetry (`src/telemetry/`, `docs/ops/EC3_DESIGN.md`) is off by default. `hub.ts` is the
+observer list the meter (`metered()` in `src/usage.ts`) and the plugin manager announce to;
+`metrics.ts` holds the counters/histograms (`prom.ts`: hand-rolled text format, safe labels, 200
+series per metric) and reads gauges at scrape time from the operations snapshot, MCP connections,
+plugin jobs and bridges. `runTracked` in `src/server.ts` feeds a `TurnWatch` with each turn's events
+and iterates the turn inside an `AsyncLocalStorage` scope so model calls join the turn's trace
+(`otlp.ts`: OTLP/HTTP JSON over `fetch`, after the turn, 5 s limit, never throws). `/metrics`
+(`endpoint.ts`) is served before `/api`; `/api/health/ready` is public; `src/routes/telemetry.ts` is
+the owner-only settings API (scrape token and collector headers in the vault).
+
 Delivery archive uses `archived_at` in the same SQLite row, indexes and bounded immediate
 transactions. Eligibility checks both old transport/resolution dates, terminal evidence and
 absent review payload. Compaction clears destination/refs/reason, preserves dedup identities;

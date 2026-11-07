@@ -54,7 +54,7 @@ test('existing Settings APIs expose every local candidate and inert twenty-one M
   assert.equal(readFileSync(join(dir, 'settings.json'), 'utf8'), disk);
   assert.equal(app.vault.get('synthetic-discovery-sentinel'), 'synthetic-value');
   assert.deepEqual(pm.list(), []); assert.equal(app.providerCalls, 0);
-  assert.equal((await api('/api/plugins/builtin')).body.builtin.length, 5);
+  assert.equal((await api('/api/plugins/builtin')).body.builtin.length, 6); // EC1: + Slack
   assert.equal((await api('/api/mcp/presets')).body.length, 2);
   const text = JSON.stringify([candidates.body, mcp.body]);
   assert.doesNotMatch(text, /outputs[\\/]|docs[\\/]ops|[A-Z]:[\\/]|synthetic-value/);

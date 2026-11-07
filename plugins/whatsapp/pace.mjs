@@ -15,6 +15,9 @@
 //   - iMessage (docs/design/BRIDGES4.md §4.10): per chat, bursts of at most 4, then one message every
 //     2 s; at most 150 an hour and 600 a day, so a new Apple ID never floods Apple (over the cap the rest
 //     stays in the app with one notice). Typing (with the Private API) is renewed every 20 s.
+//   - Slack (docs/ops/EC1_DESIGN.md): per channel bursts of at most 3, then about one message a second
+//     (Slack's chat.postMessage pace). A `429 ratelimited` waits Retry-After (else 5 s) and the same
+//     message is sent again. At most 600 an hour and 3,000 a day.
 //   - Signal (docs/design/BRIDGES3.md §4.10): at most one message a second per chat, 20 a minute per
 //     group, 60 an hour and 400 a day in all; she only writes to someone who wrote to her in the last
 //     24 hours (or called her in a group), never first; a rate-limit error pauses that chat for an hour,
@@ -23,6 +26,7 @@
 export const LIMITS = {
   whatsapp: { name: 'WhatsApp', everyMs: 6_000, burst: 5, perHour: 200, perDay: 1_000, retry: 'backoff', maxRetryMs: 5 * 60_000 },
   matrix: { name: 'Matrix', everyMs: 1_000, burst: 5, perHour: 600, perDay: 3_000, retry: 'server', maxRetryMs: 5 * 60_000, defaultRetryMs: 5_000, typingMs: 25_000 },
+  slack: { name: 'Slack', everyMs: 1_000, burst: 3, perHour: 600, perDay: 3_000, retry: 'server', maxRetryMs: 5 * 60_000, defaultRetryMs: 5_000 },
   imessage: { name: 'iMessage', everyMs: 2_000, burst: 4, perHour: 150, perDay: 600, retry: 'none', typingMs: 20_000 },
   signal: { name: 'Signal', perChatGapMs: 1_000, groupPerMinute: 20, perHour: 60, perDay: 400, replyWindowMs: 24 * 3600_000, pauseChatMs: 3600_000, pauseAllMs: 6 * 3600_000 },
 };

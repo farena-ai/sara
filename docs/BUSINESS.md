@@ -81,6 +81,59 @@ Organization administration does not silently grant content access. A host admin
 technically access server storage; membership privacy is an application boundary, not encryption
 against the person running the machine.
 
+## Company sign-in (single sign-on)
+
+*On branch `hermes/ec2`, not released.* A business instance can let people sign in with the
+organization's own account through OpenID Connect: Microsoft Entra ID, Google Workspace, Okta,
+Keycloak, Authentik or any other provider with a discovery document. Passkeys keep working next to
+it. Personal and household installs have no such setting and are unchanged. Design notes:
+[`ops/EC2_DESIGN.md`](ops/EC2_DESIGN.md).
+
+**For colleagues.** Choose **Sign in with your company account** on the sign-in page and sign in at
+your organization's page. The first time you also need either an invitation (open *Set up, join or
+recover access*, paste the code, tick *I confirm I am 18 or older*, then **Join with your company
+account**) or, if your administrator allows it, only the 18+ confirmation. Already have a passkey
+account? Sign in with it and choose **Link my company account** once. If Sara refuses, the page says
+why (wrong email domain, no allowed group, no invitation, expired attempt) and nobody is signed in.
+
+**For organization administrators** (*Organization administration*, section *Company sign-in*):
+
+1. Copy the **Redirect URL** shown there (`<your business origin>/api/business/sso/callback`).
+2. Register an app at your provider. The page shows the steps for the provider you pick:
+   - *Microsoft Entra ID*: App registrations, New registration, platform Web, paste the redirect URL;
+     copy the Application (client) ID; create a client secret. Issuer URL:
+     `https://login.microsoftonline.com/<tenant ID>/v2.0`. Optional: Token configuration, add a
+     groups claim (Entra sends group object IDs).
+   - *Google Workspace*: Google Auth Platform, Clients, Create client, Web application, add the
+     redirect URL; audience Internal. Issuer URL `https://accounts.google.com`. Google sends no
+     groups, so use the email-domain rule.
+   - *Okta*: Applications, Create App Integration, OIDC, Web Application; add the redirect URL, tick
+     Refresh Token, assign people or groups. Issuer URL `https://<your-org>.okta.com`.
+   - *Keycloak*: a confidential OpenID Connect client with the redirect URL; issuer
+     `https://<host>/realms/<realm>`; allow offline access for session checks.
+3. Enter the issuer URL, client ID and client secret, pick the rules, **Save**, then **Test
+   connection** (it reads the discovery document and the signing keys).
+
+Rules: **Allowed email domains** (the verified email must end in one of them); **Administrator
+groups** and **Member groups** (the group claim maps people to organization administrator or member
+at every sign-in and session check; anyone in no listed group is refused); **Create accounts on first
+sign-in** (off by default: a new person needs an invitation); **Members must use company sign-in**
+(refuses passkeys for everyone except the break-glass account); **Session length** (1-168 hours,
+default 12) and **Session check** (5-60 minutes, default 15). At each check Sara uses the refresh
+token at your provider: a person disabled or removed there loses access at the next check. Without
+refresh tokens only the session length applies. Changing the issuer or client ID, or turning company
+sign-in off, ends every company sign-in session.
+
+**Break-glass.** The passkey of the person who set up the instance always signs in, even with company
+sign-in required or broken. Keep that passkey safe; it is how you fix a wrong setting.
+
+**What Sara keeps.** The client secret is stored encrypted in the operator vault and never shown
+again (leave the field empty to keep it). Refresh tokens are encrypted in `business/sso/` and are not
+part of backups. The audit shows *Company sign-in settings changed*, *Signed in with a company
+account*, *Company sign-in refused*, *Company sign-in ended by the session check* and *Company account
+linked*, with account ids only: no emails, tokens or secrets. In private-local mode the provider must
+be on this computer or the local network.
+
 ## Separate-instance startup and identity
 
 The profile is selected with `SARA_PROFILE=business`. `SARA_DATA` must name a fresh separate root;
@@ -123,7 +176,8 @@ does not grant workspace access by itself.
 B1 implements independent identity, workspace permissions, scoped content, shared chat/documents,
 conservative recovery and the business desk. Synthetic engineering qualification is complete;
 acceptance on a real installation remains separate. Shared workspaces come first; private business
-workspaces, guests, enterprise SSO and action-taking integrations are later work.
+workspaces, guests and action-taking integrations are later work; company sign-in (OpenID Connect)
+is described above.
 
 Model providers and spending ceilings are configured by the instance operator. Cloud use requires
 explicit configuration; no paid provider is silently selected. Conversation content is sent to

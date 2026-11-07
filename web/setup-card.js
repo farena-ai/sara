@@ -199,6 +199,13 @@ export const INTROS = {
       tick: 'mx-terms-tick',
     },
   }),
+  slack: () => ({
+    title: t('Set up Slack'),
+    lead: t('Talk to her in Slack: her DMs, and channels you choose when someone mentions her. You make a small Slack app from a manifest Sara gives you. Free, about 10 minutes, once.'),
+    need: [t('A Slack workspace where you may add apps (a free one of your own works)'), t('Slack open on a computer'), t('About 10 minutes')],
+    time: t('About 10 minutes, once'),
+    cost: t('Free'),
+  }),
   imessage: () => ({
     title: t('Set up iMessage'),
     lead: t('Text her from Messages on your iPhone, through BlueBubbles on a Mac. Free, about 40 minutes at the Mac, once.'),

@@ -72,6 +72,9 @@ const PERM = {
   // Phase 122 (WHATSAPP §4.13): a bridge hook Sara checks and hands over.
   'Receives messages from Meta at a public web address Sara gives it': () => t('Receives messages from Meta at a public web address Sara gives it'),
   'Is woken by its app on your network; checks every message with that app before reading it': () => t('Is woken by its app on your network; checks every message with that app before reading it'),
+  // EC1: a named public domain (Slack) and her approvals as buttons in its chats.
+  'Connects to {domain} and its subdomains (ports {ports}, always encrypted)': (p) => t('Connects to {domain} and its subdomains (ports {ports}, always encrypted)', p),
+  'Shows her requests for your OK in its chats, with Allow and Deny (only you can answer)': () => t('Shows her requests for your OK in its chats, with Allow and Deny (only you can answer)'),
 };
 export const permText = (l) => (PERM[l.key] ? PERM[l.key](l.params ?? {}) : l.key);
 const lines = (ls) => (ls ?? []).map((l) => ({ id: l.id, text: permText(l), risk: l.risk }));
@@ -138,7 +141,7 @@ export async function loadPlugins() {
 
 // ---------- Phase 117 (P3): plugins that come with Sara ----------
 
-const CHAT_APP_PAGE = { email: 'co-email', signal: 'co-signal', whatsapp: 'co-whatsapp', matrix: 'co-matrix', imessage: 'co-imessage' };
+const CHAT_APP_PAGE = { email: 'co-email', signal: 'co-signal', whatsapp: 'co-whatsapp', matrix: 'co-matrix', imessage: 'co-imessage', slack: 'co-slack' };
 async function renderBuiltin() {
   const box = $('#plg-builtin');
   if (!box) return;

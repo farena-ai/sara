@@ -376,6 +376,16 @@ name first (`Sara new`, because Element eats unknown `/commands`); long jobs get
 she edits (react ⏹ to stop her); she joins only your invites, and in rooms with other people answers
 when mentioned. Sessions file into the *Matrix* project.
 
+## Slack (unreleased, EC1)
+
+Slack comes with Sara as a plugin (Settings → Chat apps → Slack), off until you add it: see
+[SLACK.md](SLACK.md). You create a small Slack app of your own from a manifest the card shows; it uses
+Socket Mode, so Sara needs no public address. Her DM is your own chat (tools, files both ways, a progress
+message with ⏹); her requests for your OK come as **Allow / Deny** buttons only you can answer. A thread in
+her DM is its own session. In channels you switch on (*Answer here*) she answers mentions in a thread,
+without tools unless *Owners can use her tools in groups* is on. `/sara help`, `/sara new` and the other
+commands work. Sessions file into the *Slack* project.
+
 ## iMessage (2.55.2)
 
 iMessage comes with Sara as a plugin (Settings → Chat apps → iMessage), off until you add it: see

@@ -1,7 +1,7 @@
 <p align="center"><a href="README.md">English</a> · <a href="README.es.md">Español</a> · <a href="README.fr.md">Français</a> · <a href="README.de.md">Deutsch</a> · <a href="README.pt-BR.md">Português (Brasil)</a> · <b>Italiano</b></p>
 
 <p align="center">
-  <img src="docs/images/brand/sara-hero.webp" alt="Sara: una donna illustrata con capelli ramati mossi, lentiggini e un maglione color crema sorride accanto al suo sigillo dipinto e alle parole in inglese Your companion. Your coding partner. Your server. (La tua compagna. La tua partner di codice. Il tuo server.)" width="100%">
+  <img src="docs/images/brand/sara-hero.webp" alt="Sara: una donna illustrata con capelli ramati mossi, lentiggini e un maglione color crema sorride accanto al logo Sara e alle parole in inglese Your companion. Your coding partner. Your server. (La tua compagna. La tua partner di codice. Il tuo server.) e Self-hosted AI companion &amp; agent harness" width="100%">
 </p>
 
 <p align="center"><b>Sara è una compagna IA che ospiti tu, con una personalità che plasmi e una memoria che controlli, e un vero ambiente di programmazione che chiede prima dei passi rischiosi e mostra cosa è stato eseguito davvero.</b></p>
@@ -24,7 +24,7 @@
 
 **Aggiornare:** su un server Linux `sudo sara update` (prima fa un backup e torna indietro se lei non risponde) · Docker: `sudo git pull && sudo docker compose up -d --build` · app per Windows e Mac: Impostazioni → Dati e salute → Aggiornamenti · Android: Google Play. [Come aggiornare](docs/INSTALL.md#upgrading).
 
-> **Stato:** 2.80.0, [Ogni installatore verificato da cima a fondo](https://github.com/farena-ai/sara/releases/tag/v2.80.0). Ogni server di strumenti e componente installato, usato e rimosso su Linux e Windows reali; le impostazioni salvate sopravvivono agli aggiornamenti. [Scopri le novità](#novità)
+> **Stato:** 2.81.0, [Pronta per il lavoro e i team](https://github.com/farena-ai/sara/releases/tag/v2.81.0). Slack, accesso unico per le istanze aziendali, una traccia di audit esportabile, criteri di amministrazione e monitoraggio con Prometheus/OpenTelemetry. [Scopri le novità](#novità)
 >
 > Installer Windows: non firmato ([guida SmartScreen](docs/INSTALL.md)). Il processo di rilascio macOS richiede download firmati e autenticati da Apple; ogni build viene verificata separatamente. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web nella schermata Home](docs/PHONE.md).
 
@@ -52,7 +52,7 @@ Prima il nuovo aspetto in immagini, poi una riga per area; ogni link porta alla 
 
 ### Il nuovo aspetto
 
-<img src="docs/images/brand/sara-new-look.webp" alt="Illustration: Sara smiling at her desk in the evening beside a large monitor that shows a dark app with a sidebar, chat bubbles, small cards and a side panel" width="860">
+<img src="docs/images/brand/sara-new-look.webp" alt="Illustrazione con l’etichetta Sara · the new look: Sara sorride alla sua scrivania la sera accanto a un grande monitor con un’app scura: barra laterale, fumetti di chat, schede e un pannello laterale" width="860">
 
 La 2.79 ha portato una home *Tutte le impostazioni* con ogni pagina a un clic, un launcher Ctrl K, un aspetto vetro più raffinato, una pagina Aspetto più ricca e foto di lei come le manderebbe una persona; la 2.80 ha poi verificato dall’inizio alla fine l’installer di ogni server di strumenti e componente aggiuntivo delle Impostazioni su Linux e Windows reali.
 
@@ -84,7 +84,7 @@ La 2.79 ha portato una home *Tutte le impostazioni* con ogni pagina a un clic, u
 
 ### Per farti compagnia
 
-<img src="docs/images/brand/sara-for-company.webp" alt="Illustrazione: Sara su un divano con una tazza di tè, un’agenda e il telefono accanto, nella luce calda di una lampada" width="860">
+<img src="docs/images/brand/sara-for-company.webp" alt="Illustrazione con l’etichetta Sara · for company: Sara ride su un divano con una tazza di tè, un’agenda e il telefono accanto, nella luce calda di una lampada" width="860">
 
 | Area | Cosa ottieni |
 |---|---|
@@ -96,7 +96,7 @@ La 2.79 ha portato una home *Tutte le impostazioni* con ogni pagina a un clic, u
 
 ### Per programmare
 
-<img src="docs/images/brand/sara-for-coding.webp" alt="Illustrazione: Sara a una scrivania con un portatile e un caffè, sorride al suo lavoro sotto una lampada da tavolo" width="860">
+<img src="docs/images/brand/sara-for-coding.webp" alt="Illustrazione con l’etichetta Sara · for coding: Sara a una scrivania di notte, il mento sulla mano, sorride al codice sul portatile accanto a un caffè e una lampada da tavolo" width="860">
 
 | Area | Cosa ottieni |
 |---|---|
@@ -107,7 +107,7 @@ La 2.79 ha portato una home *Tutte le impostazioni* con ogni pagina a un clic, u
 
 ### Per entrambe le cose
 
-<img src="docs/images/brand/sara-everywhere.webp" alt="Illustrazione: Sara cammina per una strada di città al tramonto, sorride al telefono con un tablet sotto il braccio" width="860">
+<img src="docs/images/brand/sara-everywhere.webp" alt="Illustrazione con l’etichetta Sara · everywhere: Sara cammina per una strada di città al tramonto con gli auricolari, sorride al telefono, con un tablet nell’altra mano" width="860">
 
 | Area | Cosa ottieni |
 |---|---|
@@ -136,7 +136,7 @@ La guida completa, con immagini: **[Start here](docs/START_HERE.md)**. Tutte le 
 
 ### Sono qui per programmare
 
-<img src="docs/screenshots/connect-brain.webp" alt="Passo 3 di 4, Collega un cervello: quattro schede (Su questo computer, Un altro computer di casa, Nel cloud, Il mio abbonamento) e una scheda Scelto per te con il modello locale qwen3.8 27B, un'etichetta Buono per programmare e Collegato" width="560">
+<img src="docs/screenshots/connect-brain.webp" alt="Passo 3 di 4, Collega un cervello: quattro schede (Su questo computer, Un altro computer di casa, Nel cloud, Il mio abbonamento), Ollama trovato su questo computer con 2 modelli e una scheda Scelto per te con il modello locale gemma4:12b e Collegato" width="560">
 
 1. **Scegli *Programmazione*** nella configurazione: ti propone un modello bravo con il codice (*Buono per programmare*) o il tuo piano Claude Code, Codex o Grok Build.
 2. **Apri un progetto** con *+ Progetto*: una cartella di lavoro dove ha file, una shell e git.
@@ -167,20 +167,21 @@ Versioni recenti · 6 novembre 2026. [Registro completo](CHANGELOG.md) · [Tutti
 
 | Versione | Cosa cambia per te |
 |---|---|
+| **[2.81.0](https://github.com/farena-ai/sara/releases/tag/v2.81.0)** | **[Pronta per il lavoro e i team](docs/SLACK.md)** — Sara arriva su Slack con messaggi diretti, menzioni, thread, pulsanti Consenti e Nega e file in entrambe le direzioni. Le istanze aziendali possono accedere con Entra ID, Google Workspace, Okta o Keycloak (solo su invito per impostazione predefinita; la passkey del proprietario funziona sempre). Un'unica traccia di audit a prova di manomissione si esporta in CSV o JSONL, un amministratore può bloccare impostazioni che il server fa rispettare e gli operatori hanno metriche Prometheus e tracce OpenTelemetry senza testo della chat. |
 | **[2.80.0](https://github.com/farena-ai/sara/releases/tag/v2.80.0)** | **[Ogni installatore verificato da cima a fondo](docs/ADDONS_LIBRARY.md)** — Ogni server di strumenti e componente nativo delle Impostazioni è stato installato, configurato, collegato, usato e rimosso su un vero server Linux e un vero PC Windows. Aggiornare un server di strumenti mantiene le sue impostazioni, il server Files parte nell’isolamento di Linux, gli errori di accesso e di connessione sono spiegati in parole semplici, un componente dello Store rimosso si può reinstallare e ritirare una compagna appena aggiunta non ferma più il server. |
 | **[2.79.0](https://github.com/farena-ai/sara/releases/tag/v2.79.0)** | **[Aspetto avanzato e immagini come una persona](docs/PHOTOS.md)** — Una home Tutte le impostazioni con ogni pagina a un clic, percorsi di navigazione, un avvio Ctrl K, un aspetto raffinato di vetro e luce e una pagina Aspetto più ricca. *Consenti sempre questo strumento* sulle schede di approvazione e un’unica scelta di approvazioni per server di strumenti; le sue foto con Grok, OpenAI, il tuo flusso ComfyUI o un altro strumento di immagini, e ogni tanto un’immagine di sua iniziativa se lo attivi. Le immagini dei server di strumenti arrivano in chat e non dice più di aver mandato qualcosa mai allegato. |
 | **[2.78.0](https://github.com/farena-ai/sara/releases/tag/v2.78.0)** | **[Aspetto professionale completo e più componenti](docs/APPEARANCE.md)** — L’aspetto professionale è completo: nome, ora e durata su ogni turno, un’unica etichetta modello · spazio di lavoro con indicatore del contesto, Impostazioni come pannello a tutta altezza, Progetti nella barra laterale e tabelle vere per uso ed esecuzioni. Documentation Doctor, Release Readiness e Repository Onboarding eseguono i comandi documentati come lavori che approvi in una copia usa e getta; su Windows un lavoro fermato termina subito. |
 | **[2.77.0](https://github.com/farena-ai/sara/releases/tag/v2.77.0)** | **[Un aspetto professionale](docs/APPEARANCE.md)** — Un aspetto sobrio, denso e preciso (Impostazioni → Tu → Aspetto): 9 palette in Notte e Giorno, un colore d’accento tuo, spaziatura compatta e Meno decorazioni; Sara Classic mantiene l’aspetto di oggi. Inoltre: i feed in Leggere insieme, Test Doctor e Flaky Test Lab, 2 connessioni locali per sviluppatori, e le approvazioni tardive dei plugin non eseguono più nulla. |
 | **[2.76.0](https://github.com/farena-ai/sara/releases/tag/v2.76.0)** | **[Componenti per sviluppatori](docs/ADDONS_LIBRARY.md)** — Diciannove componenti per sviluppatori si aggiungono ai dodici flussi in Impostazioni → Plugin (scanner di segreti, verificatore di accessibilità, generatore di SBOM, guardiano dei contratti API, banco HTTP e webhook e altro); li esamini uno per uno e si installano spenti. Gli avvisi sui file possono arrivare anche nella tua chat Telegram o Discord (spento per impostazione predefinita). |
-| **[2.75.0](https://github.com/farena-ai/sara/releases/tag/v2.75.0)** | **[Le chiamate come la chat](docs/VIDEO_CALLS.md#what-she-knows-and-can-do-on-a-call)** — In una chiamata vocale o video ha gli stessi ricordi, il contesto delle altre chat e la regola della modalità adulti di quando scrivi, e le chiamate dal vivo possono usare i suoi strumenti (niente comandi, mani o SSH). Ciò che richiede il tuo OK mostra una scheda sullo schermo della chiamata a cui risponde solo un tocco; riattaccare o parlarle sopra la annulla. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versioni 2.6x precedenti</b>: dalla 2.74.0 alla 2.61.5</summary>
+<summary><b>Versioni 2.6x precedenti</b>: dalla 2.75.0 alla 2.61.5</summary>
 
 | Versione | Cosa cambia per te |
 |---|---|
+| **[2.75.0](https://github.com/farena-ai/sara/releases/tag/v2.75.0)** | **[Le chiamate come la chat](docs/VIDEO_CALLS.md#what-she-knows-and-can-do-on-a-call)** — In una chiamata vocale o video ha gli stessi ricordi, il contesto delle altre chat e la regola della modalità adulti di quando scrivi, e le chiamate dal vivo possono usare i suoi strumenti (niente comandi, mani o SSH). Ciò che richiede il tuo OK mostra una scheda sullo schermo della chiamata a cui risponde solo un tocco; riattaccare o parlarle sopra la annulla. |
 | **[2.74.0](https://github.com/farena-ai/sara/releases/tag/v2.74.0)** | **[Leggere insieme](docs/LIBRARY.md#read-together)** — Apri un documento di testo o Markdown della tua biblioteca, premi Condividi questo passaggio (o attiva Segui il punto in cui sono) e lei commenta esattamente quel testo in quella versione; se è cambiato te lo dice. Ferma lo interrompe subito. Inoltre: le schede dei suggerimenti ora mostrano che la pressione è in corso. |
 | **[2.73.0](https://github.com/farena-ai/sara/releases/tag/v2.73.0)** | **[Sorvegliare un file](docs/WATCHES.md)** — Scegli un log o un file in uno dei tuoi spazi di lavoro (o il suo log) e alcune parole come ERROR; Sara invia una scheda in chat e una notifica quando compare una nuova riga corrispondente, al massimo 12 al giorno. Controlla ora, Pausa e Ferma; la lettura non usa modelli e non corregge mai nulla da sola. |
 | **[2.72.0](https://github.com/farena-ai/sara/releases/tag/v2.72.0)** | **[Verifiche visive oneste](docs/FOR_CODERS.md#web-pages-look-fix-look-again)** — Nel lavoro web Sara modifica, mostra l’anteprima, fa screenshot desktop e telefono, corregge ciò che appare sbagliato e ricontrolla. Dire di aver controllato la larghezza telefono richiede uno screenshot a quella larghezza, e "è risolto" richiede una verifica dopo l’ultima modifica; altrimenti la risposta è segnata come non verificata. |
@@ -317,7 +318,7 @@ Consulta il [piano pubblico](docs/ROADMAP.md) per il lavoro rimasto e [Discussio
 
 ## Per sviluppatori
 
-<img src="docs/images/brand/sara-for-developers.webp" alt="Illustrazione: Sara a un banco da lavoro mentre inserisce pezzi di puzzle luminosi e ingranaggi d’ottone in una piccola macchina" width="860">
+<img src="docs/images/brand/sara-for-developers.webp" alt="Illustrazione con l’etichetta Sara · for developers: Sara a un banco da officina mentre inserisce pezzi di puzzle luminosi e ingranaggi d’ottone in una piccola macchina" width="860">
 
 Piccola e leggibile: TypeScript che Node esegue direttamente, nessuna fase di build, zero dipendenze a runtime, costruita da zero (non basata su Hermes Agent né su OpenClaw).
 

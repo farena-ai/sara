@@ -18,6 +18,7 @@ import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { deflateRawSync, inflateRawSync } from 'node:zlib';
+import { audit } from './audit-trail.ts';
 import type { ChatMessage, Provider } from './providers/types.ts';
 import type { ToolCall } from './providers/types.ts';
 import { billingOf, costOf, findPrice, priceTable, type Billing, type CallInfo, type UsageStore } from './usage.ts';
@@ -433,6 +434,9 @@ export class RunStore {
     this.#db
       .prepare('UPDATE runs SET status = ?, ended_at = ?, steps = ?, tokens_in = ?, tokens_out = ?, usd = ?, unpriced = ?, unreported = ?, ms = ?, bytes = ? WHERE id = ?')
       .run(status, this.#now().toISOString(), Number(t.n), Number(t.i), Number(t.o), Math.round(Number(t.u) * 1e8) / 1e8, Number(t.up), Number(t.ur), Math.max(0, Date.now() - startedMs), Math.max(bytes, Number(t.b)), id);
+    // EC4: background work (jobs, team tasks, evals, red-team and security runs) closes with one audit row; chat turns are covered by their approvals.
+    const kind = String((this.#db.prepare('SELECT kind FROM runs WHERE id = ?').get(id) as Row | undefined)?.kind ?? '');
+    if (kind && kind !== 'turn') audit({ action: `run.${kind}`, target: `run${id}`, role: 'system', who: 'sara', channel: 'system', outcome: status === 'ok' ? 'ok' : status === 'running' ? 'pending' : status === 'blocked' || status === 'stopped' ? 'refused' : 'failed', keys: [status] });
   }
 
   // ---- reads ----

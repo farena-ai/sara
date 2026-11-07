@@ -275,8 +275,8 @@ test('128c.6 N13: Sara’s own plugin on Windows shows one calm line; a third-pa
 test('128c.7 N14: the Plugins page opens without the amber box; Comes with Sara chat apps link to their own page', () => {
   const plugins = web('plugins.js');
   assert.match(plugins, /\$\('#plg-fence-note'\)\.hidden = state\.fence !== 'node-only' \|\| !\(state\.plugins \?\? \[\]\)\.some\(\(p\) => p\.origin && p\.origin !== 'builtin' && p\.origin !== 'store'\);/);
-  assert.match(plugins, /const CHAT_APP_PAGE = \{ email: 'co-email', signal: 'co-signal', whatsapp: 'co-whatsapp', matrix: 'co-matrix', imessage: 'co-imessage' \};/);
-  for (const id of ['co-email', 'co-signal', 'co-whatsapp', 'co-matrix', 'co-imessage']) assert.match(html, new RegExp(`data-page="${id}"`));
+  assert.match(plugins, /const CHAT_APP_PAGE = \{ email: 'co-email', signal: 'co-signal', whatsapp: 'co-whatsapp', matrix: 'co-matrix', imessage: 'co-imessage', slack: 'co-slack' \};/);
+  for (const id of ['co-email', 'co-signal', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-slack']) assert.match(html, new RegExp(`data-page="${id}"`));
   assert.match(plugins, /t\('Set up in Chat apps → \{name\}', \{ name: b\.name \}\)/);
 });
 
