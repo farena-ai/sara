@@ -20,6 +20,8 @@
   <sub>Free &amp; open source · Self-hosted · Bring your own models. Sara is free; your hardware, hosting and optional model providers may cost money. <a href="docs/COSTS.md">What it costs</a>.</sub>
 </p>
 
+**Run it now:** Docker `git clone https://github.com/farena-ai/sara && cd sara && sudo docker compose up -d` (image `ghcr.io/farena-ai/sara`, amd64 and ARM) · a Linux server in one command, Windows, macOS and phones: [install guide](docs/INSTALL.md) · installers: [latest release](https://github.com/farena-ai/sara/releases/latest).
+
 **Update:** on a Linux server `sudo sara update` (backs up first, rolls back if she doesn't answer) · Docker: `sudo git pull && sudo docker compose up -d --build` · Windows and Mac apps: Settings → Data & health → Updates · Android: Google Play. [Upgrading](docs/INSTALL.md#upgrading).
 
 > **Status:** 2.80.0, [Every installer checked end to end](https://github.com/farena-ai/sara/releases/tag/v2.80.0). Every tool server and add-on installed, used and removed on real Linux and Windows; saved settings survive updates. [See what changed](#whats-new)
@@ -38,12 +40,44 @@ Sara is AI. Read the [disclosures](docs/DISCLOSURES.md) before using or sharing 
 ## What Sara does
 
 <p align="center">
-  <img src="docs/screenshots/demo.png" alt="Animated demo: the user says it was a rough week; Sara answers warmly and suggests three tiny things to build; she writes a module and its test, asks before running a command, finds a real bug through a failing test, fixes it and gets all 7 tests green" width="860">
+  <img src="docs/screenshots/v3-chat-dark.webp" alt="A companion chat in the 2.79 Graphite look with Full decoration: Sara suggests a calmer week, then adds two to-dos and a reminder as cards; her panel on the right shows her mood, today and this conversation" width="860">
   <br>
-  <sub>A real session on a local model (qwen3.8 27B on Ollama, one RTX 5090) on a throwaway test server, in the Night look: she cheers the user up, writes a small app and its test as the model streams them, asks before running a command, catches a real bug with a failing test and fixes it until all 7 tests pass. Frames picked from the recording; nothing in them was edited.</sub>
+  <sub>The 2.79 look (Graphite, Full decoration). Real screenshots from a throwaway test server with a scripted model and made-up data: she plans a calmer week and adds the to-dos and a reminder as cards; her panel shows her mood, today and this conversation.</sub>
 </p>
 
-One line per area; each link goes to the guide. With screenshots: **[Feature tour](docs/FEATURES.md)**.
+First the new look in pictures, then one line per area; each link goes to the guide. More screenshots: **[Feature tour](docs/FEATURES.md)**.
+
+### The new look
+
+<img src="docs/images/brand/sara-new-look.webp" alt="Illustration: Sara smiling at her desk in the evening beside a large monitor that shows a dark app with a sidebar, chat bubbles, small cards and a side panel" width="860">
+
+2.79 brought an *All settings* home with every page one click away, a Ctrl K launcher, a refined glass look, a richer Appearance page and pictures from her the way a person would send them; 2.80 then checked the installer of every tool server and add-on in Settings end to end on real Linux and Windows.
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-chat-light.webp" alt="The same companion chat in the Day look: light sidebar, chat and her panel, with the to-do and reminder cards" width="420"><br><sub>The Day look follows your system</sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-coding.webp" alt="A coding project chat: Sara reads two files, edits src/duration.js, shows the diff, and a security pass and threat model report nothing found" width="420"><br><sub>A coding project: she reads, fixes, shows the diff; a security pass checks the change</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-approval.webp" alt="An approval card for a git commit with three buttons, Allow, Always allow this tool and Deny, and the same request in her panel" width="420"><br><sub>Approval cards: <i>Allow</i>, <i>Always allow this tool</i> or <i>Deny</i></sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-launcher.webp" alt="The Ctrl K launcher with look typed: a matching conversation, settings such as Look and Appearance, and the action Reset the look to the defaults" width="420"><br><sub>Ctrl K: places, chats, settings and actions in one box</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-settings.webp" alt="Settings opened on All settings: every page listed under its group (Her, You, Add-ons, Coding) with a line on what each page does" width="420"><br><sub><i>All settings</i>: every page under its group, one click away</sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-appearance.webp" alt="The Appearance page: palette cards (Graphite, Midnight, Slate, Nord, Solarized, Paper, Ember, High contrast, Sara Classic), Night or Day, colour swatches, decoration and a live preview" width="420"><br><sub>Appearance: palette cards, Night or Day, your colour, a live preview</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-pictures.webp" alt="Pictures from her: her portraits and new pictures, a picture engine choice, and Pictures on her own with how often and a monthly limit" width="420"><br><sub>Pictures from her: Grok, OpenAI, ComfyUI or another image tool</sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-addons.webp" alt="Add-ons, Get more: the signed Sara Store with Weather alerts, Focus, ComfyUI and Webhook notes cards, each with a Get button" width="420"><br><sub>Add-ons → Get more: the signed Sara Store; nothing switches on by itself</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-today.webp" alt="Today: a greeting with her portrait, Getting started, routines to add and your day" width="420"><br><sub>Today: your day, what needs you, routines and Getting started</sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-planner.webp" alt="The Planner on the To-do tab: tasks with due dates and priorities, plus Board, Reminders, Notes, Her plans, Repeats and Routines tabs" width="420"><br><sub>Planner: to-dos, board, reminders, notes and routines</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="docs/screenshots/v3-phone.webp" alt="Two phone screens side by side: the chat with to-do and reminder cards, and Today with the Now card, both with the bottom bar" width="420"><br><sub>On a phone: the chat and Today</sub></td>
+  </tr>
+</table>
 
 ### For company
 
@@ -51,7 +85,7 @@ One line per area; each link goes to the guide. With screenshots: **[Feature tou
 
 | Area | What you get |
 |---|---|
-| **Companion** | Any name, she/he/they and a look, a personality from simple dials or a starter character, moods, her own day, running jokes, and memories of what you told her that you can see, correct and forget. [Start here](docs/START_HERE.md) · [People](docs/PEOPLE.md) · [Moments](docs/MOMENTS.md) |
+| **Companion** | Any name, she/he/they and a look, a personality from simple dials or a starter character, moods, her own day, running jokes, and memories of what you told her that you can see, correct and forget. She can send photos of herself made with Grok, OpenAI, your ComfyUI workflow or another image tool, and now and then one on her own if you switch it on. [Start here](docs/START_HERE.md) · [People](docs/PEOPLE.md) · [Moments](docs/MOMENTS.md) · [Pictures](docs/PHOTOS.md) |
 | **Voice and calls** | Live calls you can interrupt, video calls with her moving portrait, "Hey Sara" hands-free in the Windows app, and Alexa, Google Home or your Android assistant. [Video calls](docs/VIDEO_CALLS.md) · [Hey Sara](docs/HEY_SARA.md) · [Voice assistants](docs/VOICE_ASSISTANTS.md) |
 | **Planner, routines and watches** | To-dos, notes and reminders from plain sentences, a board, Today as your home screen, a routines gallery (morning briefing, weekly review…), reminders for when a person or topic comes up, and opt-in alerts when a log shows a line like ERROR. [Today](docs/TODAY.md) · [Routines](docs/ROUTINES.md) · [Board](docs/BOARD.md) · [Watch a file](docs/WATCHES.md) |
 | **Library and reading** | PDFs (scans too, and books of 500 to 1,000 pages), Word, Excel, PowerPoint, e-books, web pages and notes; answers say which document and page they came from. [Library](docs/LIBRARY.md) |
@@ -63,7 +97,7 @@ One line per area; each link goes to the guide. With screenshots: **[Feature tou
 
 | Area | What you get |
 |---|---|
-| **Coding projects** | A sandboxed workspace per project with files, shell and git; she writes the code, asks before running a command, and shows test results as cards; live previews she tests in her own browser. Risky commands can run in a sandbox copy first. [For coders](docs/FOR_CODERS.md) |
+| **Coding projects** | A sandboxed workspace per project with files, shell and git; she writes the code, asks before running a command, and shows test results as cards; live previews she tests in her own browser. Risky commands can run in a sandbox copy first. Approval cards offer *Always allow this tool* once you trust a tool, and each tool server has one approvals choice. [For coders](docs/FOR_CODERS.md) |
 | **Work that proves itself** | A line under each reply shows every command and its output, and a check compares what she *says* she did with what actually ran. Goals end only when your own check passes, her edits are type-checked, visual claims need a screenshot, and stale checks are re-run. [Goals](docs/GOALS.md) · [Checks](docs/CHECKS.md) · [Visual checks](docs/FOR_CODERS.md#web-pages-look-fix-look-again) |
 | **Long and shared work** | Background jobs, a team of helpers (plan → build → test → review), project checkpoints, budgets that stop a long task where you say, and your other servers over SSH. [Project checkpoints](docs/FOR_CODERS.md#project-checkpoints) · [Servers over SSH](docs/SSH.md) |
 | **In your tools** | GitHub, `sara-chat` in any terminal, a VS Code panel, MCP for Claude Code and Cursor, and an OpenAI-compatible API, all with her own memory and personality. [Apps and clients](docs/clients.md) · [Other apps](docs/OTHER_APPS.md) |
@@ -75,9 +109,10 @@ One line per area; each link goes to the guide. With screenshots: **[Feature tou
 | Area | What you get |
 |---|---|
 | **Apps on every platform** | Web app and installable PWA, Windows and Mac apps with quick ask on a shortcut, [Android on Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara), the iPhone home-screen web app, Telegram, Discord, Signal and email, and WhatsApp, Matrix and iMessage as optional plugins. [Desktop apps](docs/desktop.md) · [Your phone](docs/PHONE.md) · [Chat commands](docs/CHATS.md) |
-| **Add-ons** | Plugins, skills and tool servers (MCP) from the signed Sara Store or your own folder; each goes through a review card and stays off until you switch it on. [Sara Store](docs/STORE.md) · [Add-ons library](docs/ADDONS_LIBRARY.md) · [Skills](docs/SKILLS.md) |
+| **Add-ons** | Plugins, skills and tool servers (MCP) from the signed Sara Store or your own folder; each goes through a review card and stays off until you switch it on. Browse and install them in Settings → Add-ons → Get more; for 2.80 every tool server and add-on was installed, used and removed on real Linux and Windows. [Sara Store](docs/STORE.md) · [Add-ons library](docs/ADDONS_LIBRARY.md) · [Skills](docs/SKILLS.md) |
 | **Household and business** | Household mode gives each adult you live with their own space on your server; business workspaces are a separate installation with passkeys, roles and shared workspaces. [Household](docs/HOUSEHOLD.md) · [Business](docs/BUSINESS.md) |
 | **Privacy, local models and safety** | Any model: local (Ollama, vLLM, llama.cpp), cloud (OpenAI, Anthropic, xAI, OpenRouter) or the plans you already pay for (ChatGPT, Claude Pro/Max, SuperGrok / X Premium+). One owner per server; chats, memories and keys stay there. One switch keeps everything on one computer; ships with **no credentials of any kind**; a safety layer that cannot be switched off. [Private local mode](docs/PRIVATE_LOCAL.md) · [Choosing a model](docs/CHOOSING_A_MODEL.md) · [Safety check-up](docs/SAFETY_CHECKUP.md) |
+| **Look and navigation** | An *All settings* home with every page one click away and breadcrumbs, Ctrl K to jump to any place, chat, setting or action, nine palettes in Night and Day (Graphite by default), your own accent colour, compact spacing and Full or Reduced decoration, with a live preview. [Appearance](docs/APPEARANCE.md) |
 | **Help and moving in** | A *How do I…?* box on every page, short guided tours, and moving in from ChatGPT, Claude, Character.AI, SillyTavern, Replika, Nomi, Kindroid, Hermes Agent or OpenClaw, reviewed before anything is saved. [How do I…?](docs/HOW_DO_I.md) · [Bring her from another app](docs/IMPORT.md) · [Move-in guide](docs/MOVE_IN_GUIDE.md) |
 
 ## Start here
@@ -287,6 +322,8 @@ Small and readable: TypeScript that Node runs directly, no build step, zero runt
 |---|---|
 | See how it fits together | [Architecture](docs/ARCHITECTURE.md), module by module (diagram below) |
 | Add a tool, bridge, character, MCP server, language, starter or model provider | [Extending Sara](docs/EXTENDING.md) |
+| Build a Store add-on or a tool-server recipe | [Add-ons library](docs/ADDONS_LIBRARY.md) · [Sara Store: submit your own](docs/STORE.md) · [Plugins](docs/PLUGINS.md) |
+| Run the checks | `npm run check` (typecheck and every test, with a scripted model and no provider calls) · `node scripts/check-links.ts` · [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Write a plugin or a skill | [Plugins](docs/PLUGINS.md) (`sara-plugin.json`, hooks, fenced processes) · [Skills](docs/SKILLS.md) (the open Agent Skills format) · [Submit to the Store](docs/STORE.md) |
 | Call Sara from your own code | [Other apps](docs/OTHER_APPS.md): OpenAI-compatible API and MCP server · [Other agents (A2A)](docs/A2A.md) · [Webhooks](docs/WEBHOOKS.md) |
 | Check the numbers | [Results](docs/RESULTS.md): benchmarks and evals, and how to re-run them |

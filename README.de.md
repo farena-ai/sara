@@ -20,6 +20,8 @@
   <sub>Kostenlos und quelloffen · Selbst gehostet · Mit deinen eigenen Modellen. Sara ist kostenlos; Hardware, Hosting und optionale Modellanbieter können Geld kosten. <a href="docs/COSTS.md">Was es kostet</a>.</sub>
 </p>
 
+**Gleich ausprobieren:** Docker `git clone https://github.com/farena-ai/sara && cd sara && sudo docker compose up -d` (Image `ghcr.io/farena-ai/sara`, amd64 und ARM) · ein Linux-Server mit einem Befehl, Windows, macOS und Handys: [Installationsanleitung](docs/INSTALL.md) · Installer: [neueste Version](https://github.com/farena-ai/sara/releases/latest).
+
 **Aktualisieren:** auf einem Linux-Server `sudo sara update` (sichert zuerst und rollt zurück, wenn sie nicht antwortet) · Docker: `sudo git pull && sudo docker compose up -d --build` · Apps für Windows und Mac: Einstellungen → Daten und Zustand → Updates · Android: Google Play. [Upgrade](docs/INSTALL.md#upgrading).
 
 > **Status:** 2.80.0, [Jeder Installer von Anfang bis Ende geprüft](https://github.com/farena-ai/sara/releases/tag/v2.80.0). Jeder Werkzeug-Server und jedes Add-on auf echtem Linux und Windows installiert, genutzt und entfernt; gespeicherte Einstellungen überstehen Updates. [Was ist neu?](#was-ist-neu)
@@ -41,12 +43,44 @@ Sara ist eine KI. Lies die [Hinweise](docs/DISCLOSURES.md), bevor du sie nutzt o
 ## Was Sara kann
 
 <p align="center">
-  <img src="docs/screenshots/demo.png" alt="Animated demo: the user says it was a rough week; Sara answers warmly and suggests three tiny things to build; she writes a module and its test, asks before running a command, finds a real bug through a failing test, fixes it and gets all 7 tests green" width="860">
+  <img src="docs/screenshots/v3-chat-dark.webp" alt="A companion chat in the 2.79 Graphite look with Full decoration: Sara suggests a calmer week, then adds two to-dos and a reminder as cards; her panel on the right shows her mood, today and this conversation" width="860">
   <br>
-  <sub>Eine echte Sitzung mit einem lokalen Modell (qwen3.8 27B auf Ollama, eine RTX 5090) auf einem Wegwerf-Testserver, im Nacht-Look: Sie muntert ihr Gegenüber auf, schreibt eine kleine App samt Test, während das Modell sie streamt, fragt, bevor sie einen Befehl ausführt, findet über einen fehlschlagenden Test einen echten Fehler und behebt ihn, bis alle 7 Tests grün sind. Ausgewählte Bilder aus der Aufnahme; nichts darin wurde bearbeitet.</sub>
+  <sub>Das Aussehen von 2.79 (Graphite, volle Dekoration). Echte Screenshots von einem Wegwerf-Testserver mit einem geskripteten Modell und erfundenen Daten: Sie plant eine ruhigere Woche und legt die Aufgaben und eine Erinnerung als Karten an; ihr Panel zeigt ihre Stimmung, den Tag und dieses Gespräch.</sub>
 </p>
 
-Eine Zeile pro Bereich; jeder Link führt zur Anleitung. Mit Screenshots: **[Die Funktionen im Überblick](docs/FEATURES.md)**.
+Zuerst das neue Aussehen in Bildern, dann eine Zeile pro Bereich; jeder Link führt zur Anleitung. Mehr Screenshots: **[Die Funktionen im Überblick](docs/FEATURES.md)**.
+
+### Das neue Aussehen
+
+<img src="docs/images/brand/sara-new-look.webp" alt="Illustration: Sara smiling at her desk in the evening beside a large monitor that shows a dark app with a sidebar, chat bubbles, small cards and a side panel" width="860">
+
+2.79 brachte eine Startseite *Alle Einstellungen* mit jeder Seite einen Klick entfernt, einen Ctrl-K-Starter, einen verfeinerten Glas-Look, eine reichere Seite Darstellung und Fotos von ihr, wie ein Mensch sie schicken würde; 2.80 hat dann den Installer jedes Werkzeugservers und jeder Erweiterung in den Einstellungen auf echtem Linux und Windows von Anfang bis Ende geprüft.
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-chat-light.webp" alt="The same companion chat in the Day look: light sidebar, chat and her panel, with the to-do and reminder cards" width="420"><br><sub>Das Tag-Aussehen folgt deinem System</sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-coding.webp" alt="A coding project chat: Sara reads two files, edits src/duration.js, shows the diff, and a security pass and threat model report nothing found" width="420"><br><sub>Ein Coding-Projekt: sie liest, behebt, zeigt den Diff; eine Sicherheitsprüfung kontrolliert die Änderung</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-approval.webp" alt="An approval card for a git commit with three buttons, Allow, Always allow this tool and Deny, and the same request in her panel" width="420"><br><sub>Freigabekarten: <i>Erlauben</i>, <i>Dieses Werkzeug immer erlauben</i> oder <i>Ablehnen</i></sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-launcher.webp" alt="The Ctrl K launcher with look typed: a matching conversation, settings such as Look and Appearance, and the action Reset the look to the defaults" width="420"><br><sub>Ctrl K: Orte, Chats, Einstellungen und Aktionen in einem Feld</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-settings.webp" alt="Settings opened on All settings: every page listed under its group (Her, You, Add-ons, Coding) with a line on what each page does" width="420"><br><sub><i>Alle Einstellungen</i>: jede Seite in ihrer Gruppe, einen Klick entfernt</sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-appearance.webp" alt="The Appearance page: palette cards (Graphite, Midnight, Slate, Nord, Solarized, Paper, Ember, High contrast, Sara Classic), Night or Day, colour swatches, decoration and a live preview" width="420"><br><sub>Darstellung: Palettenkarten, Nacht oder Tag, deine Farbe, Live-Vorschau</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-pictures.webp" alt="Pictures from her: her portraits and new pictures, a picture engine choice, and Pictures on her own with how often and a monthly limit" width="420"><br><sub>Bilder von ihr: Grok, OpenAI, ComfyUI oder ein anderes Bildwerkzeug</sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-addons.webp" alt="Add-ons, Get more: the signed Sara Store with Weather alerts, Focus, ComfyUI and Webhook notes cards, each with a Get button" width="420"><br><sub>Erweiterungen → Mehr holen: der signierte Sara Store; nichts schaltet sich selbst ein</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-today.webp" alt="Today: a greeting with her portrait, Getting started, routines to add and your day" width="420"><br><sub>Heute: dein Tag, was dich braucht, Routinen und Erste Schritte</sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-planner.webp" alt="The Planner on the To-do tab: tasks with due dates and priorities, plus Board, Reminders, Notes, Her plans, Repeats and Routines tabs" width="420"><br><sub>Planer: Aufgaben, Board, Erinnerungen, Notizen und Routinen</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="docs/screenshots/v3-phone.webp" alt="Two phone screens side by side: the chat with to-do and reminder cards, and Today with the Now card, both with the bottom bar" width="420"><br><sub>Auf dem Handy: der Chat und Heute</sub></td>
+  </tr>
+</table>
 
 ### Für Gesellschaft
 
@@ -54,7 +88,7 @@ Eine Zeile pro Bereich; jeder Link führt zur Anleitung. Mit Screenshots: **[Die
 
 | Bereich | Was du bekommst |
 |---|---|
-| **Begleiterin** | Jeder Name, sie/er/they und ein Aussehen, eine Persönlichkeit aus einfachen Reglern oder einer Startfigur, Stimmungen, ein eigener Tag, Running Gags und Erinnerungen an das, was du ihr erzählt hast, die du sehen, korrigieren und löschen kannst. [Hier anfangen](docs/START_HERE.md) · [Personen](docs/PEOPLE.md) · [Momente](docs/MOMENTS.md) |
+| **Begleiterin** | Jeder Name, sie/er/they und ein Aussehen, eine Persönlichkeit aus einfachen Reglern oder einer Startfigur, Stimmungen, ein eigener Tag, Running Gags und Erinnerungen an das, was du ihr erzählt hast, die du sehen, korrigieren und löschen kannst. Sie kann dir Fotos von sich schicken, gemacht mit Grok, OpenAI, deinem ComfyUI-Workflow oder einem anderen Bildwerkzeug, und wenn du es einschaltest, ab und zu eines von sich aus. [Hier anfangen](docs/START_HERE.md) · [Personen](docs/PEOPLE.md) · [Momente](docs/MOMENTS.md) · [Bilder](docs/PHOTOS.md) |
 | **Stimme und Anrufe** | Live-Anrufe, die du unterbrechen kannst, Videoanrufe mit ihrem bewegten Porträt, „Hey Sara“ freihändig in der Windows-App, und Alexa, Google Home oder dein Android-Assistent. [Videoanrufe](docs/VIDEO_CALLS.md) · [Hey Sara](docs/HEY_SARA.md) · [Sprachassistenten](docs/VOICE_ASSISTANTS.md) |
 | **Planer, Routinen und Beobachtung** | To-dos, Notizen und Erinnerungen aus ganz normalen Sätzen, ein Board, Heute als Startbildschirm, eine Routinen-Galerie (Morgenbriefing, Wochenrückblick…), Erinnerungen für den Moment, in dem eine Person oder ein Thema zur Sprache kommt, und optionale Hinweise, wenn ein Log eine Zeile wie ERROR zeigt. [Heute](docs/TODAY.md) · [Routinen](docs/ROUTINES.md) · [Board](docs/BOARD.md) · [Datei beobachten](docs/WATCHES.md) |
 | **Bibliothek und Lesen** | PDFs (auch Scans, und Bücher mit 500 bis 1.000 Seiten), Word, Excel, PowerPoint, E-Books, Webseiten und Notizen; Antworten nennen das Dokument und die Seite, aus denen sie stammen. [Bibliothek](docs/LIBRARY.md) |
@@ -66,7 +100,7 @@ Eine Zeile pro Bereich; jeder Link führt zur Anleitung. Mit Screenshots: **[Die
 
 | Bereich | Was du bekommst |
 |---|---|
-| **Coding-Projekte** | Ein abgeschotteter Arbeitsbereich pro Projekt mit Dateien, Shell und Git; sie schreibt den Code, fragt, bevor sie einen Befehl ausführt, und zeigt Testergebnisse als Karten; Live-Vorschauen, die sie in ihrem eigenen Browser testet. Riskante Befehle können zuerst in einer Sandbox-Kopie laufen. [Für Programmierer](docs/FOR_CODERS.md) |
+| **Coding-Projekte** | Ein abgeschotteter Arbeitsbereich pro Projekt mit Dateien, Shell und Git; sie schreibt den Code, fragt, bevor sie einen Befehl ausführt, und zeigt Testergebnisse als Karten; Live-Vorschauen, die sie in ihrem eigenen Browser testet. Riskante Befehle können zuerst in einer Sandbox-Kopie laufen. Freigabekarten bieten *Dieses Werkzeug immer erlauben*, sobald du einem Werkzeug vertraust, und jeder Werkzeugserver hat eine einzige Freigabe-Einstellung. [Für Programmierer](docs/FOR_CODERS.md) |
 | **Arbeit, die sich belegt** | Eine Zeile unter jeder Antwort zeigt jeden Befehl und seine Ausgabe, und eine Prüfung vergleicht, was sie *sagt*, mit dem, was wirklich lief. Ziele enden erst, wenn deine eigene Prüfung besteht, ihre Änderungen werden typgeprüft, optische Aussagen brauchen einen Screenshot, und veraltete Prüfungen laufen erneut. [Ziele](docs/GOALS.md) · [Prüfungen](docs/CHECKS.md) · [Optische Prüfungen](docs/FOR_CODERS.md#web-pages-look-fix-look-again) |
 | **Lange und gemeinsame Arbeit** | Hintergrundjobs, ein Team von Helfern (planen → bauen → testen → prüfen), Projekt-Checkpoints, Budgets, die eine lange Aufgabe dort stoppen, wo du es sagst, und deine anderen Server per SSH. [Projekt-Checkpoints](docs/FOR_CODERS.md#project-checkpoints) · [Server per SSH](docs/SSH.md) |
 | **In deinen Werkzeugen** | GitHub, `sara-chat` in jedem Terminal, ein VS-Code-Panel, MCP für Claude Code und Cursor und eine OpenAI-kompatible API, alle mit ihrem eigenen Gedächtnis und ihrer Persönlichkeit. [Apps und Clients](docs/clients.md) · [Andere Apps](docs/OTHER_APPS.md) |
@@ -78,9 +112,10 @@ Eine Zeile pro Bereich; jeder Link führt zur Anleitung. Mit Screenshots: **[Die
 | Bereich | Was du bekommst |
 |---|---|
 | **Apps auf jeder Plattform** | Web-App und installierbare PWA, Apps für Windows und Mac mit Schnellfrage per Tastenkürzel, [Android bei Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara), die Web-App auf dem iPhone-Home-Bildschirm, Telegram, Discord, Signal und E-Mail, dazu WhatsApp, Matrix und iMessage als optionale Plugins. [Desktop-Apps](docs/desktop.md) · [Dein Handy](docs/PHONE.md) · [Chat-Befehle](docs/CHATS.md) |
-| **Erweiterungen** | Plugins, Skills und Werkzeugserver (MCP) aus dem signierten Sara Store oder deinem eigenen Ordner; jede geht über eine Prüfkarte und bleibt aus, bis du sie einschaltest. [Sara Store](docs/STORE.md) · [Erweiterungsbibliothek](docs/ADDONS_LIBRARY.md) · [Skills](docs/SKILLS.md) |
+| **Erweiterungen** | Plugins, Skills und Werkzeugserver (MCP) aus dem signierten Sara Store oder deinem eigenen Ordner; jede geht über eine Prüfkarte und bleibt aus, bis du sie einschaltest. Durchsuchen und installieren in Einstellungen → Erweiterungen → Mehr holen; für 2.80 wurde jeder Werkzeugserver und jede Erweiterung auf echtem Linux und Windows installiert, benutzt und entfernt. [Sara Store](docs/STORE.md) · [Erweiterungsbibliothek](docs/ADDONS_LIBRARY.md) · [Skills](docs/SKILLS.md) |
 | **Haushalt und Unternehmen** | Der Haushaltsmodus gibt jedem Erwachsenen, mit dem du lebst, einen eigenen Bereich auf deinem Server; Unternehmens-Arbeitsbereiche sind eine separate Installation mit Passkeys, Rollen und gemeinsamen Arbeitsbereichen. [Haushalt](docs/HOUSEHOLD.md) · [Unternehmen](docs/BUSINESS.md) |
 | **Datenschutz, lokale Modelle und Sicherheit** | Jedes Modell: lokal (Ollama, vLLM, llama.cpp), in der Cloud (OpenAI, Anthropic, xAI, OpenRouter) oder die Abos, die du schon bezahlst (ChatGPT, Claude Pro/Max, SuperGrok / X Premium+). Ein Besitzer pro Server; Chats, Erinnerungen und Schlüssel bleiben dort. Ein Schalter hält alles auf einem Computer; kommt **ganz ohne Zugangsdaten**; eine Sicherheitsschicht, die sich nicht abschalten lässt. [Privater lokaler Modus](docs/PRIVATE_LOCAL.md) · [Ein Modell wählen](docs/CHOOSING_A_MODEL.md) · [Sicherheits-Check](docs/SAFETY_CHECKUP.md) |
+| **Aussehen und Navigation** | Eine Startseite *Alle Einstellungen* mit jeder Seite einen Klick entfernt und Brotkrumen, Ctrl K, um zu jedem Ort, Chat, jeder Einstellung oder Aktion zu springen, neun Paletten in Nacht und Tag (standardmäßig Graphite), deine eigene Akzentfarbe, kompakte Abstände und volle oder reduzierte Dekoration, mit Live-Vorschau. [Darstellung](docs/APPEARANCE.md) |
 | **Hilfe und Umzug** | Ein *Wie mache ich…?*-Feld auf jeder Seite, kurze geführte Touren und der Umzug von ChatGPT, Claude, Character.AI, SillyTavern, Replika, Nomi, Kindroid, Hermes Agent oder OpenClaw, geprüft, bevor irgendetwas gespeichert wird. [Wie mache ich…?](docs/HOW_DO_I.md) · [Hol sie aus einer anderen App](docs/IMPORT.md) · [Umzugsanleitung](docs/MOVE_IN_GUIDE.md) |
 
 ## Hier anfangen
@@ -290,6 +325,8 @@ Klein und lesbar: TypeScript, das Node direkt ausführt, kein Build-Schritt, nul
 |---|---|
 | Sehen, wie alles zusammenpasst | [Architektur](docs/ARCHITECTURE.md), Modul für Modul (Diagramm unten) |
 | Ein Werkzeug, eine Brücke, eine Figur, einen MCP-Server, eine Sprache, ein Startprojekt oder einen Modellanbieter hinzufügen | [Sara erweitern](docs/EXTENDING.md) |
+| Eine Store-Erweiterung oder ein Werkzeugserver-Rezept bauen | [Erweiterungsbibliothek](docs/ADDONS_LIBRARY.md) · [Sara Store: eigene einreichen](docs/STORE.md) · [Plugins](docs/PLUGINS.md) |
+| Die Prüfungen laufen lassen | `npm run check` (Typprüfung und alle Tests, mit einem geskripteten Modell und ohne Anbieteraufrufe) · `node scripts/check-links.ts` · [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Ein Plugin oder einen Skill schreiben | [Plugins](docs/PLUGINS.md) (`sara-plugin.json`, Hooks, abgeschottete Prozesse) · [Skills](docs/SKILLS.md) (das offene Agent-Skills-Format) · [Im Store einreichen](docs/STORE.md) |
 | Sara aus deinem eigenen Code aufrufen | [Andere Apps](docs/OTHER_APPS.md): OpenAI-kompatible API und MCP-Server · [Andere Agenten (A2A)](docs/A2A.md) · [Webhooks](docs/WEBHOOKS.md) |
 | Die Zahlen prüfen | [Ergebnisse](docs/RESULTS.md): Benchmarks und Evals, und wie man sie wiederholt |
