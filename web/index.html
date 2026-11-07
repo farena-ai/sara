@@ -39,12 +39,15 @@
   <link rel="stylesheet" href="/begin.css">
   <link rel="stylesheet" href="/refs.css">
   <link rel="stylesheet" href="/recall.css">
+  <link rel="stylesheet" href="/pro.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
   <!-- 2.8: the slow aurora behind the glass (web/polish.css; still with reduced motion) -->
   <div id="aurora" class="aurora" aria-hidden="true"><i class="au-1"></i><i class="au-2"></i><i class="au-3"></i><i class="au-grain"></i></div>
   <div id="shell-drag" class="shell-drag" aria-hidden="true"></div>
+  <!-- V1: shown once to people who used Sara before the new look. -->
+  <div id="v1-notice" class="v1-notice" role="status" hidden><span><strong>New look.</strong> Sara now uses the Graphite theme. Change it any time in Settings → You → Appearance.</span><button id="v1-classic" type="button" class="ghost small">Switch back to Sara Classic</button><button id="v1-notice-close" type="button" class="ghost small">Keep the new look</button></div>
   <!-- Sign in -->
   <section id="login" class="screen card-screen" hidden>
     <form id="login-form" class="card">
@@ -299,13 +302,21 @@
       </div>
       <!-- R1C2: other owner chats active on this project (web/project-now.js). -->
       <div id="project-now" class="project-now small" role="region" aria-label="Also active on this project" hidden></div>
-      <!-- E5: read together (web/read-together.js): a document from her library above the chat. -->
+      <!-- E5: read together (web/read-together.js): a document from her library above the chat. E6: or one public feed (Feed tab). -->
       <section id="rt-panel" class="rt-panel" aria-label="Read together" hidden>
         <div class="rt-bar"><span id="rt-now" class="rt-now" data-raw></span> <button id="rt-stop" type="button" class="danger small">Stop</button> <button type="button" class="tip" data-tip="Stop ends sharing at once: her next reply won’t see the passage. A message already sent can’t be unsent.">?</button></div>
-        <div class="rt-tools"><label class="rt-follow small"><input id="rt-follow" type="checkbox"> Follow my place</label> <button type="button" class="tip" data-tip="Off by default. When on, the passage at the top of the view goes to her once you stop scrolling, so your next message is about it. With a cloud model, your place leaves this computer with each message.">?</button> <button id="rt-share" type="button" class="small" hidden>Share this passage</button></div>
+        <div id="rt-tabs" class="rt-tabs" role="tablist" aria-label="What you read together"><button id="rt-tab-doc" type="button" role="tab" class="ghost small" aria-selected="true">Document</button><button id="rt-tab-feed" type="button" role="tab" class="ghost small" aria-selected="false">Feed</button></div>
         <p id="rt-note" class="rt-note small muted" role="status"></p>
         <p id="rt-private" class="rt-note small" hidden>Reading together needs a model on this computer while private mode is on.</p>
-        <div id="rt-text" class="rt-text lib-text" data-raw></div>
+        <div id="rt-doc-pane" class="rt-pane">
+          <div class="rt-tools"><label class="rt-follow small"><input id="rt-follow" type="checkbox"> Follow my place</label> <button type="button" class="tip" data-tip="Off by default. When on, the passage at the top of the view goes to her once you stop scrolling, so your next message is about it. With a cloud model, your place leaves this computer with each message.">?</button> <button id="rt-share" type="button" class="small" hidden>Share this passage</button></div>
+          <div id="rt-text" class="rt-text lib-text" data-raw></div>
+        </div>
+        <div id="rt-feed-pane" class="rt-pane" hidden>
+          <div class="rt-feed-open"><input id="rt-feed-url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://example.com/feed.xml" aria-label="Feed address"> <button id="rt-feed-go" type="button" class="small">Open</button> <button id="rt-feed-reload" type="button" class="ghost small" hidden>Reload</button> <button type="button" class="tip" data-tip="Paste the address of an RSS or Atom feed and press Open. Sara fetches it once, only when you press Open or Reload, and remembers nothing. Share one item and she sees only that item’s text, never the linked page.">?</button></div>
+          <p id="rt-feed-title" class="rt-feed-title small" data-raw hidden></p>
+          <ul id="rt-feed-items" class="rt-feed-items" data-raw></ul>
+        </div>
       </section>
       <div id="messages" aria-live="polite"></div>
       <div id="activity" hidden aria-live="polite">
@@ -1510,6 +1521,7 @@
         </div>
         <p id="lib-upload-status" class="small" role="status"></p>
         <progress id="lib-upload-bar" class="lib-progress" max="1" value="0" hidden></progress>
+        <p class="small"><button id="lib-feed-together" type="button" class="ghost small" title="Opens a public RSS or Atom feed above your chat so you can share one of its items with her." data-owner-only>Read a feed together</button></p>
         <div class="lib-tools" data-nodirty>
           <input id="lib-q" type="search" placeholder="Search her library">
         </div>
@@ -2309,7 +2321,7 @@
       <p id="v-local" class="muted small"></p>
       <p id="v-install-row" class="small" hidden><button id="v-install" type="button" class="ghost">Install hearing and voices on this computer</button> <button type="button" class="tip" data-tip="Downloads her own hearing and voices (about 650 MB) so they work without the internet, and with “Nothing leaves this computer” on. Checked before use.">?</button> <span id="v-install-status" class="muted small" role="status"></span></p>
       <div class="add-row">
-        <label>Expressive voice <button type="button" class="tip" data-tip="With Grok voice she laughs, sighs, breathes and whispers where it fits: when she writes &quot;haha&quot; or *sighs*, and on live calls. Subtle keeps it occasional; Lively lets more through. The sounds are only in her voice: never in the chat text or captions. Other voices read the words without the stage directions.">?</button> <select id="v-expressive"><option value="subtle">Subtle</option><option value="lively">Lively</option><option value="off">Off</option></select></label>
+        <label>Expressive voice <button type="button" class="tip" data-tip="With Grok voice or an ElevenLabs v3 model she laughs, sighs and whispers where it fits: when she writes &quot;haha&quot; or *sighs*, and on live calls. Subtle keeps it occasional; Lively lets more through. Never in chat text or captions; other voices read plain words.">?</button> <select id="v-expressive"><option value="subtle">Subtle</option><option value="lively">Lively</option><option value="off">Off</option></select></label>
         <label>Tone <button type="button" class="tip" data-tip="How her voice sounds overall. Grok voice and the speech API follow it (warm and calm speak softer, bright a little quicker); other voices change speed only. Pitch can't be changed with these voices.">?</button> <select id="v-tone"><option value="natural">Natural</option><option value="warm">Warm and soft</option><option value="calm">Calm and slow</option><option value="bright">Bright</option></select></label>
         <button id="v-expressive-try" type="button" class="ghost">▶ Hear a sample</button>
       </div>
@@ -2654,31 +2666,6 @@
         </label>
       </div>
       <p class="muted small">Her character stays the same in every language, and what she remembers stays in the words it was said in. Grok voice and the speech API hear and speak these languages; voices made on this server (Piper, Kokoro) speak English only.</p>
-      <h3>Appearance (this device)</h3>
-      <div class="row-grid">
-        <label>Theme
-          <select id="ap-theme"><option value="dark">Night (default)</option><option value="light">Day</option><option value="system">Follow the system</option></select>
-        </label>
-        <label>Her replies appear
-          <select id="ap-typing"><option value="instant">As fast as they arrive</option><option value="human">Typed, like a person</option></select>
-        </label>
-        <label>Text size in chat
-          <select id="ap-size"><option value="14">Small</option><option value="15">Normal</option><option value="17">Large</option><option value="19">Larger</option></select>
-        </label>
-        <label>Colour
-          <select id="ap-accent"><option value="rose">Rose</option><option value="lavender">Lavender</option><option value="ocean">Ocean</option><option value="forest">Forest</option><option value="amber">Amber</option><option value="mono">Graphite</option></select>
-        </label>
-        <label>Chat background
-          <select id="ap-chatbg"><option value="none">Plain</option><option value="glow">Soft glow</option><option value="dusk">Dusk</option><option value="dots">Dots</option><option value="stars">Night sky</option></select>
-        </label>
-        <label>Layout
-          <select id="ap-density"><option value="comfy">Comfortable</option><option value="compact">Compact (more on screen)</option></select>
-        </label>
-        <label>Sessions shown
-          <select id="ap-sessions"><option value="5" data-raw>5</option><option value="8">8 (the default)</option><option value="10" data-raw>10</option></select>
-        </label>
-      </div>
-      <div class="ap-swatches" id="ap-swatches" aria-hidden="true"></div>
       <div id="ti-card" class="tidy-card tidy-stack ti-card">
         <h3>Session titles</h3>
         <label class="row"><input id="ti-auto" type="checkbox"> <span>Titles that grow <button type="button" class="tip" data-tip="She renames a chat from what it actually covered after a few messages, and again when the topic clearly changes. A title you type yourself is never changed.">?</button></span></label>
@@ -2709,6 +2696,48 @@
         </label>
         <p id="wb-state" class="muted small" role="status"></p>
       </div>
+        </section>
+        <!-- V1 (docs/ops/V1_DESIGN.md): Appearance is its own page; every choice is kept on this device. -->
+        <section class="settings-page" data-page="you-appearance" data-group="You" data-title="Appearance" hidden>
+      <p class="muted small">How Sara looks on this device. Each device keeps its own choice.</p>
+      <div class="ap-pals" id="ap-pals" role="radiogroup" aria-label="Palette"></div>
+      <div class="row-grid">
+        <label>Palette
+          <select id="ap-palette"><option value="graphite">Graphite (default)</option><option value="midnight">Midnight</option><option value="slate">Slate</option><option value="nord">Nord</option><option value="solarized">Solarized</option><option value="paper">Paper</option><option value="ember">Ember</option><option value="contrast">High contrast</option><option value="classic">Sara Classic</option></select>
+        </label>
+        <label>Night or Day
+          <select id="ap-theme"><option value="dark">Night (default)</option><option value="light">Day</option><option value="system">Follow the system</option></select>
+        </label>
+        <label>Colour
+          <select id="ap-accent"><option value="rose">Theme colour (default)</option><option value="blue">Blue</option><option value="cyan">Cyan</option><option value="green">Green</option><option value="amber">Amber</option><option value="red">Red</option><option value="pink">Rose</option><option value="violet">Violet</option><option value="grey">Grey</option><option value="custom">Custom</option></select>
+        </label>
+        <label id="ap-custom-row" class="ap-custom-row" hidden>Your colour
+          <span class="ap-custom-pick"><input id="ap-accent-custom" type="color" value="#3b82f6"><input id="ap-accent-hex" maxlength="7" spellcheck="false" autocomplete="off" placeholder="#3b82f6"></span>
+        </label>
+        <label>Decoration
+          <select id="ap-decor"><option value="off">Reduced: flat, no glow or blur</option><option value="on">Full: glow, glass and moving light</option></select>
+        </label>
+        <label>Her picture in work views
+          <select id="ap-portrait"><option value="small">Small (default)</option><option value="large">Large</option><option value="hidden">Hidden</option></select>
+        </label>
+        <label>Layout
+          <select id="ap-density"><option value="comfy">Comfortable</option><option value="compact">Compact (more on screen)</option></select>
+        </label>
+        <label>Text size in chat
+          <select id="ap-size"><option value="14">Small</option><option value="15">Normal</option><option value="17">Large</option><option value="19">Larger</option></select>
+        </label>
+        <label>Her replies appear
+          <select id="ap-typing"><option value="instant">As fast as they arrive</option><option value="human">Typed, like a person</option></select>
+        </label>
+        <label class="ap-classic-only">Chat background
+          <select id="ap-chatbg"><option value="none">Plain</option><option value="glow">Soft glow</option><option value="dusk">Dusk</option><option value="dots">Dots</option><option value="stars">Night sky</option></select>
+        </label>
+        <label>Sessions shown
+          <select id="ap-sessions"><option value="5" data-raw>5</option><option value="8">8 (the default)</option><option value="10" data-raw>10</option></select>
+        </label>
+      </div>
+      <div class="ap-swatches" id="ap-swatches" aria-hidden="true"></div>
+      <p class="small ap-sync-row"><button id="ap-sync" type="button" class="ghost">Use on all my devices</button> <span id="ap-sync-state" class="muted small" role="status"></span></p>
         </section>
         <section class="settings-page" data-page="you-briefing" data-group="You" data-title="Morning briefing" hidden>
       <p class="muted small page-lead">Once a day at the time you pick, Sara sends a short message with the weather and what's on your list (due to-dos and reminders). It arrives like her other messages: in chat, as a notification and on Telegram/Discord if linked. Weather comes from Open-Meteo (free, no account).</p>
@@ -3698,6 +3727,7 @@
       <div id="hh-charts" class="hh-charts"></div>
       <h3>Recent problems</h3>
       <ul id="log-problems" class="log-list"></ul>
+      <p class="small"><label>Log level <button type="button" class="tip" data-tip="How much she writes to her log. Info is the default; Debug adds detail when tracking down a problem (bigger log); Warnings or Errors only keep it short. Secrets stay hidden. SARA_LOG_LEVEL on the server, if set, wins.">?</button> <select id="log-level"><option value="debug">Debug (most detail)</option><option value="info">Info (default)</option><option value="warn">Warnings and errors</option><option value="error">Errors only</option></select></label> <span id="log-level-env" class="muted small" hidden></span></p>
       <p class="small"><a id="log-download" href="/api/logs/download" download>Download the log</a> <span class="muted small">Secrets are hidden in it. Useful when asking for help.</span></p>
         </section>
         <section class="settings-page" data-page="dh-operations" data-group="Data & health" data-title="Operations" data-owner-only hidden>

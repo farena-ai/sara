@@ -5,7 +5,10 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { Log, logOptions, RotatingFile } from '../src/log.ts';
 import { Redactor } from '../src/redact.ts';
-import { tempDir } from './helpers.ts';
+import type { AddressInfo } from 'node:net';
+import { OwnerAuth } from '../src/auth.ts';
+import { createSaraServer } from '../src/server.ts';
+import { makeApp, ROOT, tempDir } from './helpers.ts';
 
 const at = () => new Date('2026-10-28T12:00:00Z');
 
@@ -123,4 +126,50 @@ test('rotating file: one line bigger than the limit still gets written', (t) => 
   f.write('next\n');
   assert.equal(readFileSync(join(dir, 'a.log'), 'utf8'), 'next\n');
   assert.equal(readFileSync(join(dir, 'a.log.1'), 'utf8'), '0123456789abcdef\n');
+});
+
+test('log level from Settings: applied at once, env SARA_LOG_LEVEL still wins', () => {
+  const tmp = tempDir();
+  try {
+    const log = new Log(tmp.dir, undefined, at, logOptions({}));
+    assert.equal(log.wants('debug'), false);
+    log.useSaved('debug');
+    assert.equal(log.level, 'debug');
+    assert.equal(log.wants('debug'), true);
+    log.useSaved(undefined);
+    assert.equal(log.level, 'info', 'no saved level = the default');
+    const pinned = new Log(tmp.dir, undefined, at, logOptions({ SARA_LOG_LEVEL: 'warn' }));
+    pinned.useSaved('debug');
+    assert.equal(pinned.level, 'warn', 'the environment wins over the saved setting');
+    assert.equal(pinned.options.levelFromEnv, true);
+  } finally {
+    tmp.cleanup();
+  }
+});
+
+test('log level route: owner reads and changes it, saved in settings, bad values refused', async (t) => {
+  const tmp = tempDir();
+  t.after(() => tmp.cleanup());
+  const now = new Date('2026-10-28T12:00:00Z');
+  const app = makeApp(tmp.dir, { now });
+  app.log = new Log(tmp.dir, undefined, at, logOptions({}));
+  const auth = new OwnerAuth(tmp.dir, () => now);
+  const server = createSaraServer({ app, auth, webDir: join(ROOT, 'web') });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  t.after(() => server.close());
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const H = { authorization: `Bearer ${auth.newToken}`, 'content-type': 'application/json' };
+  const api = (method: string, body?: unknown) => fetch(`${base}/api/logs/level`, { method, headers: H, ...(body ? { body: JSON.stringify(body) } : {}) });
+  assert.deepEqual(await (await api('GET')).json(), { level: 'info', saved: null, env: null, choices: ['debug', 'info', 'warn', 'error'] });
+  assert.equal((await api('PUT', { level: 'loud' })).status, 400);
+  const set = await (await api('PUT', { level: 'debug' })).json();
+  assert.equal(set.level, 'debug');
+  assert.equal(set.saved, 'debug');
+  assert.equal(app.settings.get().logLevel, 'debug');
+  assert.equal(app.log.wants('debug'), true);
+  assert.equal((await fetch(`${base}/api/logs/level`)).status, 401, 'signed out: nothing');
+  // With SARA_LOG_LEVEL set the saved choice is kept but the environment's level stays in force.
+  app.log = new Log(tmp.dir, undefined, at, logOptions({ SARA_LOG_LEVEL: 'error' }));
+  const pinned = await (await api('PUT', { level: 'info' })).json();
+  assert.deepEqual([pinned.level, pinned.saved, pinned.env], ['error', 'info', 'error']);
 });

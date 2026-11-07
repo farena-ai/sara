@@ -2,7 +2,8 @@
 // nodes from it with textContent only, so model output can never inject HTML or scripts.
 // Supported: paragraphs, line breaks, # headings, - / * / 1. lists (one nesting level by indent),
 // > quotes, ``` code fences (language label), --- rules, `code`, **bold**, *italic* / _italic_,
-// ~~strike~~, [links](https://…) and bare https:// links. Anything else stays plain text.
+// ~~strike~~, [links](https://…) and bare https:// links, and | pipe | tables | (V1: a header row,
+// a --- separator row, optional :--: alignment). Anything else stays plain text.
 
 /** @typedef {{ t: string, [k: string]: any }} Node */
 
@@ -12,6 +13,40 @@ const RULE = /^ {0,3}([-*_])(\s*\1){2,}\s*$/;
 const BULLET = /^(\s*)([-*+])\s+(.*)$/;
 const ORDERED = /^(\s*)(\d{1,9})[.)]\s+(.*)$/;
 const QUOTE = /^ {0,3}>\s?(.*)$/;
+// A table's separator row: | --- | :--: | --: | (outer pipes optional, at least one inner pipe or an outer one).
+const TABLE_SEP = /^ {0,3}\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+
+/** The cells of one table row: split on pipes that are not escaped and not inside a code span. */
+function cells(line) {
+  let s = line.trim();
+  if (s.startsWith('|')) s = s.slice(1);
+  if (s.endsWith('|') && !s.endsWith('\\|')) s = s.slice(0, -1);
+  const out = [];
+  let cur = '';
+  let tick = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === '\\' && s[i + 1] === '|') {
+      cur += tick ? '\\|' : '|';
+      i++;
+    } else if (c === '`') {
+      tick = tick ? 0 : 1;
+      cur += c;
+    } else if (c === '|' && !tick) {
+      out.push(cur.trim());
+      cur = '';
+    } else cur += c;
+  }
+  out.push(cur.trim());
+  return out;
+}
+/** True when lines[i] is a table header: it has a pipe and the next line is a separator row with the same cells. */
+function tableAt(lines, i) {
+  const head = lines[i];
+  const sep = lines[i + 1];
+  if (!head || sep === undefined || !head.includes('|') || !TABLE_SEP.test(sep) || !sep.includes('|') && !/\|/.test(head)) return false;
+  return cells(sep).length === cells(head).length;
+}
 
 /** Block-level parse. An unclosed fence (still streaming) becomes an open code block. */
 export function parse(text) {
@@ -53,6 +88,19 @@ export function parse(text) {
       out.push({ t: 'quote', kids: parse(body.join('\n')) });
       continue;
     }
+    if (tableAt(lines, i)) {
+      const head = cells(lines[i]);
+      const align = cells(lines[i + 1]).map((c) => (c.startsWith(':') && c.endsWith(':') ? 'center' : c.endsWith(':') ? 'right' : c.startsWith(':') ? 'left' : ''));
+      const rows = [];
+      i += 2;
+      while (i < lines.length && lines[i].trim() && lines[i].includes('|')) {
+        const r = cells(lines[i++]).slice(0, head.length);
+        while (r.length < head.length) r.push('');
+        rows.push(r.map((c) => inline(c)));
+      }
+      out.push({ t: 'table', align, head: head.map((c) => inline(c)), rows });
+      continue;
+    }
     if (BULLET.test(line) || ORDERED.test(line)) {
       const [list, next] = parseList(lines, i);
       out.push(list);
@@ -60,7 +108,7 @@ export function parse(text) {
       continue;
     }
     const para = [];
-    while (i < lines.length && lines[i].trim() && !FENCE.test(lines[i]) && !HEADING.test(lines[i]) && !QUOTE.test(lines[i]) && !RULE.test(lines[i]) && !(para.length && (BULLET.test(lines[i]) || ORDERED.test(lines[i])))) {
+    while (i < lines.length && lines[i].trim() && !FENCE.test(lines[i]) && !HEADING.test(lines[i]) && !QUOTE.test(lines[i]) && !RULE.test(lines[i]) && !tableAt(lines, i) && !(para.length && (BULLET.test(lines[i]) || ORDERED.test(lines[i])))) {
       para.push(lines[i++]);
     }
     out.push({ t: 'p', kids: inlineLines(para) });
@@ -206,7 +254,7 @@ export function inline(s) {
 
 /** Plain text of a tree (for copy/speech fallbacks and tests). */
 export function plain(nodes) {
-  return nodes.map((n) => (n.t === 'text' || n.t === 'code' ? n.text : n.t === 'br' ? '\n' : n.kids ? plain(n.kids) : '')).join('');
+  return nodes.map((n) => (n.t === 'table' ? [n.head, ...n.rows].map((r) => r.map((c) => plain(c)).join('\t')).join('\n') : n.t === 'text' || n.t === 'code' ? n.text : n.t === 'br' ? '\n' : n.kids ? plain(n.kids) : '')).join('');
 }
 
 /**
@@ -264,6 +312,29 @@ function node(n, doc, opts) {
         list.append(li);
       }
       return list;
+    }
+    case 'table': {
+      // Wide tables scroll sideways inside their own box (phones), never the whole reply.
+      const wrap = doc.createElement('div');
+      wrap.className = 'md-table';
+      const table = doc.createElement('table');
+      const row = (list, tag) => {
+        const tr = doc.createElement('tr');
+        list.forEach((kids, i) => {
+          const c = el(doc, tag, kids, opts);
+          if (n.align[i]) c.className = `ta-${n.align[i]}`;
+          if (tag === 'th') c.setAttribute?.('scope', 'col');
+          tr.append(c);
+        });
+        return tr;
+      };
+      const thead = doc.createElement('thead');
+      thead.append(row(n.head, 'th'));
+      const tbody = doc.createElement('tbody');
+      for (const r of n.rows) tbody.append(row(r, 'td'));
+      table.append(thead, tbody);
+      wrap.append(table);
+      return wrap;
     }
     case 'code': {
       if (!('lang' in n)) {

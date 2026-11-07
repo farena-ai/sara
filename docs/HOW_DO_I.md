@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 181 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 183 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -365,6 +365,18 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Pick a Language for the app.
 2. Pick Talk to me in for her replies.
+
+### Appearance
+
+**How do I change the colours of the app?**
+
+1. Pick a palette card at the top of this page.
+2. Night or Day picks light or dark for it.
+
+**How do I get the old rose and violet look back?**
+
+1. Pick Sara Classic as the palette.
+2. Decoration turns the glow and moving light back on.
 
 ### Morning briefing
 

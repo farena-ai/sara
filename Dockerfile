@@ -80,6 +80,11 @@ COPY store/plugins/accessibility-auditor ./store/plugins/accessibility-auditor
 COPY store/plugins/build-cache-inspector ./store/plugins/build-cache-inspector
 COPY store/plugins/api-contract-guard ./store/plugins/api-contract-guard
 COPY store/plugins/http-webhook-workbench ./store/plugins/http-webhook-workbench
+COPY store/plugins/performance-regression-lab ./store/plugins/performance-regression-lab
+COPY store/plugins/code-migration-studio ./store/plugins/code-migration-studio
+COPY store/plugins/build-reproducibility-inspector ./store/plugins/build-reproducibility-inspector
+COPY store/plugins/test-doctor ./store/plugins/test-doctor
+COPY store/plugins/flaky-test-lab ./store/plugins/flaky-test-lab
 # Phase 87: the shared page agent her testing browser reads pages with (also in the desktop apps).
 COPY desktop/shared/page-agent.js ./desktop/shared/page-agent.js
 # Phase 104: the move-in collector Sara serves (Settings → Data & health → Move in from another agent).

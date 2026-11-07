@@ -1,0 +1,62 @@
+{
+  "en": {
+    "title": "Build Reproducibility Inspector",
+    "description": "Build a staged fixture twice independently, compare artifact hashes and explain timestamp or path differences.",
+    "planned": "Plan ready. Nothing has been built yet.",
+    "reproducible": "Reproducible: both builds are byte-identical.",
+    "explained": "Not reproducible; every difference is explained by time or path.",
+    "unexplained": "Not reproducible; some differences are unexplained.",
+    "files": "Files",
+    "differing": "Differing"
+  },
+  "es": {
+    "title": "Inspector de reproducibilidad de compilaciones",
+    "description": "Compila dos veces de forma independiente un proyecto preparado, compara los hashes de los artefactos y explica diferencias de hora o ruta.",
+    "planned": "Plan listo. Todavía no se ha compilado nada.",
+    "reproducible": "Reproducible: ambas compilaciones son idénticas byte a byte.",
+    "explained": "No reproducible; cada diferencia se explica por la hora o la ruta.",
+    "unexplained": "No reproducible; algunas diferencias no tienen explicación.",
+    "files": "Archivos",
+    "differing": "Distintos"
+  },
+  "fr": {
+    "title": "Inspection de la reproductibilité des builds",
+    "description": "Compile deux fois de façon indépendante un projet préparé, compare les empreintes des artefacts et explique les écarts d’heure ou de chemin.",
+    "planned": "Plan prêt. Rien n’a encore été compilé.",
+    "reproducible": "Reproductible : les deux builds sont identiques octet par octet.",
+    "explained": "Non reproductible ; chaque écart s’explique par l’heure ou le chemin.",
+    "unexplained": "Non reproductible ; certains écarts restent inexpliqués.",
+    "files": "Fichiers",
+    "differing": "Différents"
+  },
+  "de": {
+    "title": "Build-Reproduzierbarkeitsprüfung",
+    "description": "Baut ein vorbereitetes Projekt zweimal unabhängig, vergleicht die Artefakt-Hashes und erklärt Zeit- oder Pfadunterschiede.",
+    "planned": "Plan bereit. Noch wurde nichts gebaut.",
+    "reproducible": "Reproduzierbar: beide Builds sind byte-identisch.",
+    "explained": "Nicht reproduzierbar; jeder Unterschied ist durch Zeit oder Pfad erklärt.",
+    "unexplained": "Nicht reproduzierbar; einige Unterschiede sind ungeklärt.",
+    "files": "Dateien",
+    "differing": "Abweichend"
+  },
+  "pt-BR": {
+    "title": "Inspetor de reprodutibilidade de build",
+    "description": "Compila duas vezes de forma independente um projeto preparado, compara os hashes dos artefatos e explica diferenças de horário ou caminho.",
+    "planned": "Plano pronto. Nada foi compilado ainda.",
+    "reproducible": "Reprodutível: os dois builds são idênticos byte a byte.",
+    "explained": "Não reprodutível; cada diferença é explicada por horário ou caminho.",
+    "unexplained": "Não reprodutível; algumas diferenças não têm explicação.",
+    "files": "Arquivos",
+    "differing": "Diferentes"
+  },
+  "it": {
+    "title": "Ispettore della riproducibilità delle build",
+    "description": "Compila due volte in modo indipendente un progetto preparato, confronta gli hash degli artefatti e spiega le differenze di orario o percorso.",
+    "planned": "Piano pronto. Non è stato ancora compilato nulla.",
+    "reproducible": "Riproducibile: le due build sono identiche byte per byte.",
+    "explained": "Non riproducibile; ogni differenza è spiegata da orario o percorso.",
+    "unexplained": "Non riproducibile; alcune differenze non sono spiegate.",
+    "files": "File",
+    "differing": "Diversi"
+  }
+}

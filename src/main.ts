@@ -399,6 +399,8 @@ const redactor = new Redactor(() => vaultSecretValues(vault.values()));
 // Phase 30: a copy of everything Sara prints goes to <data>/logs/sara.log (secrets hidden).
 // Phase 63: SARA_LOG_FORMAT / SARA_LOG_LEVEL / SARA_LOG_FILE (+ _MAX_MB, _KEEP), see src/log.ts.
 const log = new Log(dataDir, (s) => redactor.redact(s), undefined, logOptions());
+// Settings → Data & health may save a level; SARA_LOG_LEVEL, when set, wins.
+log.useSaved(settings.get().logLevel);
 log.captureConsole();
 const isDemo = process.env.SARA_DEMO === '1';
 // The demo lets anyone in without signing in, so it must never run on a real owner's data.

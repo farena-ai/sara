@@ -360,6 +360,14 @@ textarea { resize: vertical; }
 .msg .md h3, .msg .md h4, .msg .md h5, .msg .md h6, .msg .md h7, .msg .md h8 { margin: .8em 0 .3em; font-size: 1.05em; }
 .msg .md h3 { font-size: 1.15em; }
 .msg .md ul, .msg .md ol { margin: 0 0 .6em; padding-left: 1.4em; }
+/* V1: markdown tables (they used to show as raw | text |). Hairline rows, tabular numbers, own scroll. */
+.msg .md .md-table { overflow-x: auto; margin: 0 0 .7em; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; }
+.msg .md .md-table table { border-collapse: collapse; width: 100%; font-size: .93em; font-variant-numeric: tabular-nums; }
+.msg .md .md-table th, .msg .md .md-table td { padding: 6px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.msg .md .md-table th { color: var(--text-2); font-weight: 600; background: var(--surface-2); white-space: nowrap; }
+.msg .md .md-table tbody tr:last-child td { border-bottom: 0; }
+.msg .md .md-table .ta-right { text-align: right; }
+.msg .md .md-table .ta-center { text-align: center; }
 .msg .md li { margin: .15em 0; }
 .msg .md blockquote { margin: 0 0 .6em; padding: 2px 0 2px 12px; border-left: 3px solid var(--border); color: var(--muted); }
 .msg .md hr { border: 0; border-top: 1px solid var(--border); margin: .8em 0; }

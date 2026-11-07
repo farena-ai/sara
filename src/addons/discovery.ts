@@ -4,7 +4,11 @@ import { discoveryData } from './discovery-data.ts';
 
 export const NATIVE_CANDIDATE_IDS = Object.freeze(['daily-briefing', 'meeting-assistant', 'document-desk', 'research-notebook', 'project-handoff', 'weekly-review', 'inbox-triage', 'content-studio', 'image-workshop', 'spreadsheet-assistant', 'travel-planner', 'home-dashboard',
   // A2: developer add-ons from the add-ons session, through the same local-candidate path.
-  'secret-scanner', 'license-auditor', 'sbom-builder', 'artifact-provenance-verifier', 'coverage-explorer', 'log-explorer', 'incident-workbench', 'environment-config-doctor', 'database-fixture-studio', 'data-contract-validator', 'change-impact-analyzer', 'architecture-guard', 'sql-migration-reviewer', 'visual-regression', 'localization-qa', 'accessibility-auditor', 'build-cache-inspector', 'api-contract-guard', 'http-webhook-workbench'] as const);
+  'secret-scanner', 'license-auditor', 'sbom-builder', 'artifact-provenance-verifier', 'coverage-explorer', 'log-explorer', 'incident-workbench', 'environment-config-doctor', 'database-fixture-studio', 'data-contract-validator', 'change-impact-analyzer', 'architecture-guard', 'sql-migration-reviewer', 'visual-regression', 'localization-qa', 'accessibility-auditor', 'build-cache-inspector', 'api-contract-guard', 'http-webhook-workbench',
+  // Lab add-ons (N09, N25, N28): staged-snapshot execution, same local-candidate path.
+  'performance-regression-lab', 'code-migration-studio', 'build-reproducibility-inspector',
+  // H_EXEC add-ons (N03, N04): an owner-approved job in a disposable copy, same local-candidate path.
+  'test-doctor', 'flaky-test-lab'] as const);
 export type CandidateId = typeof NATIVE_CANDIDATE_IDS[number];
 export type CostTier = 'local-only' | 'mixed' | 'provider' | 'unconfirmed';
 export type QualificationState = 'in-testing' | 'tested' | 'needs-account' | 'blocked';
@@ -51,7 +55,7 @@ const GUIDES = ['everyday-assistant', 'research-documents', 'developer', 'creato
 // These legacy references are navigation identities, never availability claims.
 const GUIDE_REFERENCES: readonly string[] = [...NATIVE_CANDIDATE_IDS, ...PREVIEWS, ...BLOCKED, 'focus', 'weather-alerts', 'filesystem', 'reading-list', 'github', 'context7', 'playwright', 'comfyui', 'blender'];
 const COMMON = ['id', 'kind', 'name', 'summary', 'description', 'status', 'costTier', 'source', 'documentation', 'qualification', 'prerequisites', 'permissions', 'limitations', 'cost', 'privacy'];
-const TOOLS = ['brief', 'extract', 'inspect', 'notebook', 'snapshot', 'review', 'workflow', 'workflow', 'workflow', 'workflow', 'workflow', 'workflow', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'rehearse', 'compare', 'check', 'audit', 'inspect', 'compare', 'request'];
+const TOOLS = ['brief', 'extract', 'inspect', 'notebook', 'snapshot', 'review', 'workflow', 'workflow', 'workflow', 'workflow', 'workflow', 'workflow', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'rehearse', 'compare', 'check', 'audit', 'inspect', 'compare', 'request', 'compare', 'migrate', 'inspect', 'diagnose', 'repeat'];
 // Pinned manifest versions; every other candidate is 1.0.0.
 const VERSIONS: Readonly<Record<string, string>> = { 'api-contract-guard': '0.1.0' };
 const COSTS: readonly CostTier[] = ['local-only', 'mixed', 'provider', 'unconfirmed'];

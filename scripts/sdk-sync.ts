@@ -2,6 +2,7 @@
 //   sara-plugin.mjs  from examples/plugins/sara-plugin.mjs  (every example, first-party and store plugin)
 //   http1.mjs        from plugins/whatsapp/http1.mjs         (the plugins that take webhooks)
 //   pace.mjs         from plugins/whatsapp/pace.mjs          (the chat-app plugins that send; per-app limits inside)
+//   sara-job.mjs     from src/plugins/sara-job.mjs           (plugins with permissions.run)
 // `node scripts/sdk-sync.ts` writes the copies; `--check` only lists the ones that differ (exit 1).
 // test/phase128d.test.ts runs the same comparison.
 import { createHash } from 'node:crypto';
@@ -14,6 +15,8 @@ export const SDK_SOURCES: Record<string, string> = {
   'sara-plugin.mjs': 'examples/plugins/sara-plugin.mjs',
   'http1.mjs': 'plugins/whatsapp/http1.mjs',
   'pace.mjs': 'plugins/whatsapp/pace.mjs',
+  // H_EXEC: the job helper (channel op job.run) beside sara-plugin.mjs in plugins that run jobs.
+  'sara-job.mjs': 'src/plugins/sara-job.mjs',
 };
 const SKIP = new Set(['node_modules', 'outputs', '.git']);
 

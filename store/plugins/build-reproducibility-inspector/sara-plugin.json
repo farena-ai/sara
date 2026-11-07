@@ -1,0 +1,54 @@
+{
+  "manifest": 1,
+  "id": "build-reproducibility-inspector",
+  "name": "Build Reproducibility Inspector",
+  "version": "1.0.0",
+  "description": "Build a staged fixture twice in fenced contexts, compare artifact hashes and explain timestamp or path nondeterminism.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "inspect"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Build Reproducibility Inspector": "Inspector de reproducibilidad de compilaciones",
+      "Build a staged fixture twice in fenced contexts, compare artifact hashes and explain timestamp or path nondeterminism.": "Compila dos veces un proyecto preparado en contextos aislados, compara los hashes de los artefactos y explica diferencias de hora o ruta."
+    },
+    "fr": {
+      "Build Reproducibility Inspector": "Inspection de la reproductibilité des builds",
+      "Build a staged fixture twice in fenced contexts, compare artifact hashes and explain timestamp or path nondeterminism.": "Compile deux fois un projet préparé dans des contextes isolés, compare les empreintes des artefacts et explique les écarts d’heure ou de chemin."
+    },
+    "de": {
+      "Build Reproducibility Inspector": "Build-Reproduzierbarkeitsprüfung",
+      "Build a staged fixture twice in fenced contexts, compare artifact hashes and explain timestamp or path nondeterminism.": "Baut ein vorbereitetes Projekt zweimal in abgegrenzten Kontexten, vergleicht die Artefakt-Hashes und erklärt Zeit- oder Pfadunterschiede."
+    },
+    "pt-BR": {
+      "Build Reproducibility Inspector": "Inspetor de reprodutibilidade de build",
+      "Build a staged fixture twice in fenced contexts, compare artifact hashes and explain timestamp or path nondeterminism.": "Compila duas vezes um projeto preparado em contextos isolados, compara os hashes dos artefatos e explica diferenças de horário ou caminho."
+    },
+    "it": {
+      "Build Reproducibility Inspector": "Ispettore della riproducibilità delle build",
+      "Build a staged fixture twice in fenced contexts, compare artifact hashes and explain timestamp or path nondeterminism.": "Compila due volte un progetto preparato in contesti isolati, confronta gli hash degli artefatti e spiega le differenze di orario o percorso."
+    }
+  }
+}

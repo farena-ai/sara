@@ -13,6 +13,9 @@ button {
 }
 button:hover { background: var(--btn-fill); filter: brightness(1.1); }
 button:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+/* V1 bug fix: headings focused by the app for screen readers (tabindex="-1": a Settings page title, a
+   window's heading) draw no focus box; keyboard focus on controls is unchanged. */
+:is(h1, h2, h3, h4)[tabindex="-1"]:focus, :is(h1, h2, h3, h4)[tabindex="-1"]:focus-visible { outline: none; }
 button.ghost {
   background: color-mix(in srgb, var(--surface-2) 55%, transparent);
   border: 1px solid var(--hairline-strong);

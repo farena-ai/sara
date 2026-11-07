@@ -6,6 +6,18 @@
 import { isIP } from 'node:net';
 
 export const MANIFEST_FILE = 'sara-plugin.json';
+
+/** H_EXEC: the programs and sources a plugin job may use (src/plugins/exec-job.ts runs them). */
+export type JobProgram = 'node' | 'npm';
+export type JobSource = 'data' | 'workspace';
+export const JOB_PROGRAMS: readonly JobProgram[] = ['node', 'npm'];
+export const JOB_SOURCES: readonly JobSource[] = ['data', 'workspace'];
+/** `permissions.run` of a manifest. */
+export interface RunPermission {
+  programs: JobProgram[];
+  sources: JobSource[];
+  network: boolean;
+}
 export const MANIFEST_VERSION = 1;
 
 /** The hook points a plugin may ask for (§6.4). */
@@ -64,6 +76,11 @@ export interface PluginPermissions {
   webhookKinds: ('meta' | 'url')[];
   /** B2: an unsigned (`url`) bridge hook only wakes the plugin with the event and ids, never the body. */
   doorbell: boolean;
+  /**
+   * H_EXEC (docs/ops/H_EXEC_DESIGN.md): jobs Sara runs for it in a disposable copy, each one
+   * approved by the owner (`job.run`). Null = none.
+   */
+  run: RunPermission | null;
 }
 
 /**
@@ -110,7 +127,22 @@ export class ManifestError extends Error {
 }
 
 const TOP_KEYS = new Set(['manifest', 'id', 'name', 'version', 'description', 'author', 'license', 'homepage', 'sara', 'main', 'permissions', 'schedules', 'settings', 'i18n', '$schema']);
-const PERMISSION_KEYS = new Set(['hooks', 'tools', 'callTools', 'network', 'files', 'settings', 'cards', 'bridges', 'bridgeFiles', 'model', 'memory', 'connect', 'webhooks', 'webhookKinds', 'doorbell']);
+const PERMISSION_KEYS = new Set(['hooks', 'tools', 'callTools', 'network', 'files', 'settings', 'cards', 'bridges', 'bridgeFiles', 'model', 'memory', 'connect', 'webhooks', 'webhookKinds', 'doorbell', 'run']);
+
+function parseRun(v: unknown): RunPermission | null {
+  if (v === undefined || v === null) return null;
+  if (typeof v !== 'object' || Array.isArray(v)) throw new ManifestError('permissions.run must be { programs, sources, network }.');
+  const r = v as Record<string, unknown>;
+  for (const k of Object.keys(r)) if (!['programs', 'sources', 'network'].includes(k)) throw new ManifestError(`Unknown permission "run.${k}".`);
+  const programs = [...new Set(list(r.programs, 'run.programs', JOB_PROGRAMS.length).map(String))];
+  for (const p of programs) if (!(JOB_PROGRAMS as readonly string[]).includes(p)) throw new ManifestError(`run.programs may be ${JOB_PROGRAMS.join(' or ')} (not "${p.slice(0, 30)}").`);
+  if (!programs.length) throw new ManifestError('permissions.run needs at least one program.');
+  const sources = [...new Set(list(r.sources ?? ['data'], 'run.sources', JOB_SOURCES.length).map(String))];
+  for (const s of sources) if (!(JOB_SOURCES as readonly string[]).includes(s)) throw new ManifestError(`run.sources may be data or workspace (not "${s.slice(0, 30)}").`);
+  if (!sources.length) throw new ManifestError('permissions.run needs at least one source.');
+  if (r.network !== undefined && typeof r.network !== 'boolean') throw new ManifestError('run.network must be true or false.');
+  return { programs: programs.sort() as JobProgram[], sources: sources.sort() as JobSource[], network: r.network === true };
+}
 export const ID_RE = /^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$/;
 const SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const TOOL_RE = /^[a-z][a-z0-9_]{0,39}$/;
@@ -299,7 +331,7 @@ function parsePermissions(v: unknown): PluginPermissions {
   }
   if (webhooks !== 'none' && webhooks !== 'bridge') throw new ManifestError('permissions.webhooks may be none or bridge.');
   if (webhooks === 'bridge' && !bridges.length) throw new ManifestError('permissions.webhooks "bridge" needs a bridge in permissions.bridges.');
-  return { hooks, tools, callTools, network, files, settings: bool('settings'), cards: bool('cards'), bridges, bridgeFiles, model, memory, connect, webhooks: webhooks as 'none' | 'bridge', webhookKinds, doorbell };
+  return { hooks, tools, callTools, network, files, settings: bool('settings'), cards: bool('cards'), bridges, bridgeFiles, model, memory, connect, webhooks: webhooks as 'none' | 'bridge', webhookKinds, doorbell, run: parseRun(p.run) };
 }
 
 function parseConnect(v: unknown): ConnectEndpoint[] {
@@ -505,6 +537,11 @@ export function permissionLines(m: PluginManifest, toolLabel: (name: string) => 
   for (const h of p.network) out.push({ id: `network:${h}`, key: 'Can reach {host}', params: { host: h }, risk: 'high' });
   for (const c of p.connect) out.push(connectLine(m, c));
   for (const t of p.callTools) out.push({ id: `call:${t}`, key: 'Can ask her to use {tool} (asks you first)', params: { tool: toolLabel(t) }, risk: 'high' });
+  for (const id of runIds(p.run)) {
+    const [, programs, source] = id.split(':');
+    if (source === 'network') out.push({ id, key: 'Its jobs may use the network (you approve each job)', risk: 'high' });
+    else out.push({ id, key: source === 'workspace' ? 'Can run {programs} in a disposable copy of your main workspace (asks you first, every time)' : 'Can run {programs} in a disposable copy of its own files (asks you first, every time)', params: { programs: programs.split(',').join(', ') }, risk: 'high' });
+  }
   if (p.model.callsPerDay > 0) out.push({ id: 'model', key: 'Can use her model up to {n} times a day (billed to you)', params: { n: p.model.callsPerDay, tokens: p.model.tokensPerDay }, risk: 'high' });
   if (p.files.read.includes('workspace')) out.push({ id: 'files:workspace', key: 'Can read your main workspace (read only)', risk: 'high' });
   if (p.memory === 'shared-notes') out.push({ id: 'memory', key: 'Can read the notes about you that other apps may see (read only)', risk: 'high' });
@@ -535,6 +572,13 @@ function connectLine(m: PluginManifest, c: ConnectEndpoint): PermissionLine {
   return { id: connectId(c), key: 'Connects to the server you give it in {setting} (ports {ports}, always encrypted)', params: { setting: label, ports: (c.ports as number[]).join(', ') }, risk: 'high' };
 }
 
+/** H_EXEC: `run:<programs>:<source>` per source, and `run:<programs>:network` (a new program, source or network is an addition). */
+function runIds(r: RunPermission | null): string[] {
+  if (!r) return [];
+  const programs = r.programs.join(',');
+  return [...r.sources.map((s) => `run:${programs}:${s}`), ...(r.network ? [`run:${programs}:network`] : [])];
+}
+
 /** The stable permission ids (what an update is compared by). */
 export function permissionIds(m: PluginManifest): string[] {
   const p = m.permissions;
@@ -542,6 +586,7 @@ export function permissionIds(m: PluginManifest): string[] {
     ...p.network.map((h) => `network:${h}`),
     ...p.connect.map(connectId),
     ...p.callTools.map((t) => `call:${t}`),
+    ...runIds(p.run),
     ...(p.model.callsPerDay > 0 ? [`model:${p.model.callsPerDay}:${p.model.tokensPerDay}`] : []),
     ...p.files.read.map((f) => `read:${f}`),
     ...p.files.write.map((f) => `write:${f}`),

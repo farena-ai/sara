@@ -6,7 +6,7 @@
 import { serverText, t } from './naming.js';
 import { emptyState } from './tidy.js';
 import { choices } from './kit.js';
-import { openReadTogether } from './read-together.js';
+import { openReadFeed, openReadTogether } from './read-together.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -531,6 +531,19 @@ $('#lib-doc-together').addEventListener('click', async () => {
   if (!note) return;
   $('#library').showModal();
   $('#lib-doc-state').textContent = note;
+});
+// E6: a public feed instead of a document (the Feed tab of Read together).
+$('#lib-feed-together').addEventListener('click', async () => {
+  $('#library').close();
+  let note = '';
+  try {
+    if (!(await openReadFeed())) note = t('Open a chat with her first.');
+  } catch (err) {
+    note = err.message;
+  }
+  if (!note) return;
+  $('#library').showModal();
+  $('#lib-upload-status').textContent = note;
 });
 $('#lib-doc-keep').addEventListener('click', async () => {
   await api(`/library/${current}`, { method: 'PATCH', body: { keep: true } });

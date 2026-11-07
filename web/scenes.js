@@ -281,11 +281,51 @@ export function renderSceneChip(conv) {
   let chip = wrap.querySelector('#scene-chip');
   const scene = ownerView() ? conv?.scene : undefined;
   if (!scene) { chip?.remove(); return; }
-  if (!chip) { chip = el('span', 'status-chip scene-chip'); chip.id = 'scene-chip'; wrap.querySelector('#chat-title')?.after(chip); }
+  if (!chip) {
+    chip = el('button', 'status-chip scene-chip'); chip.type = 'button'; chip.id = 'scene-chip';
+    chip.addEventListener('click', () => openSceneCard(Number(chip.dataset.scene)));
+    wrap.querySelector('#chat-title')?.after(chip);
+  }
+  chip.dataset.scene = String(scene.id);
   chip.dataset.raw = '';
   chip.textContent = scene.status === 'paused' ? t('In scene: {title} (paused)', { title: scene.title }) : t('In scene: {title}', { title: scene.title });
   // The full name stays readable where the header cuts the chip short (phone width).
   chip.title = `${chip.textContent}. ${scene.audience === 'room' ? t('This shared room is linked to a shared scene. Only you see this chip.') : t('This chat is linked to a shared scene. Only you see this chip.')}`;
+}
+
+/** Opens Settings → Chat apps → Session continuity at this scene's card. */
+async function openSceneCard(id) {
+  if (!ctx?.openSettings || !Number.isInteger(id)) return;
+  await ctx.openSettings('co-continuity');
+  const host = $('#scenes-box');
+  if (!host) return;
+  await openScene(host, id);
+  host.scrollIntoView?.({ block: 'start' });
+}
+const sceneButton = (text, sceneId, cls) => {
+  const chip = el('button', `status-chip ${cls}`, text);
+  chip.type = 'button';
+  chip.dataset.raw = '';
+  chip.title = t('Open the scene card');
+  chip.addEventListener('click', () => void openSceneCard(sceneId));
+  return chip;
+};
+
+/** Her own canon write (the scene_canon tool) as a chip in the transcript (owner only). */
+export function canonChip(m, conv) {
+  const scene = ownerView() ? conv?.scene : undefined;
+  const args = m?.meta?.args;
+  if (!scene || m?.role !== 'tool' || m.meta?.name !== 'scene_canon' || (m.meta?.status ?? 'ok') !== 'ok' || typeof args?.key !== 'string') return undefined;
+  if (args.action === 'set') return sceneButton(t('Saved to the scene: {key}', { key: args.key }), scene.id, 'canon-chip');
+  if (args.action === 'retire') return sceneButton(t('Removed from the scene: {key}', { key: args.key }), scene.id, 'canon-chip');
+  return undefined;
+}
+
+/** A line of this chat that is current canon (picked with Add to scene) gets a small chip. */
+export function lineCanonChip(m, conv) {
+  const scene = ownerView() ? conv?.scene : undefined;
+  const hit = scene && Array.isArray(scene.lines) ? scene.lines.find((l) => l.messageId === m?.id) : undefined;
+  return hit ? sceneButton(t('Canon: {key}', { key: hit.key }), scene.id, 'canon-chip line-canon') : undefined;
 }
 
 /** The message-menu action for a line of a linked conversation (owner only; user and her lines). */

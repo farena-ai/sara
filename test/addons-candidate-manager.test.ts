@@ -243,7 +243,7 @@ test('candidate source rejects unsafe identities and missing/changed/mismatched/
   writeFileSync(join(dest, 'sara-plugin.json'), original);
   writeFileSync(join(dest, 'extra.txt'), 'unexpected'); fail(); rmSync(join(dest, 'extra.txt'));
   writeFileSync(join(dest, 'oversize.txt'), Buffer.alloc(PLUGIN_LIMITS.maxFileBytes + 1)); fail(); rmSync(join(dest, 'oversize.txt'));
-  const list = pm.candidateList(); assert.equal(list.length, 31); assert.equal(list.filter(x => x.availability === 'local-candidate').length, 1);
+  const list = pm.candidateList(); assert.equal(list.length, 36); assert.equal(list.filter(x => x.availability === 'local-candidate').length, 1);
   assert.equal(list.find(x => x.id === 'daily-briefing')!.updateAvailable, false);
 });
 

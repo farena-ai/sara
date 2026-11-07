@@ -76,6 +76,15 @@ CREATE TABLE IF NOT EXISTS chunk_vectors (
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT);
 `;
 // Word search: identifiers stay whole ("disclosure_text"), their parts are in "words".
+/**
+ * A statement whose run() result is never read: rowids come back as BigInt, so a value above
+ * Number.MAX_SAFE_INTEGER (contentless FTS5 deletes on Node 26) cannot throw a RangeError.
+ */
+export function writeOnly<S extends { setReadBigInts(on: boolean): void }>(stmt: S): S {
+  stmt.setReadBigInts(true);
+  return stmt;
+}
+
 const FTS = `CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(path, symbol, text, words, content='', contentless_delete=1, tokenize="porter unicode61 tokenchars '_'")`;
 
 export interface FileRow {
@@ -172,6 +181,13 @@ export function normRel(p: string): string {
 export class CodeMapStore {
   readonly root: string;
   readonly db: DatabaseSync;
+  /**
+   * Every write statement (issue #9): after an FTS5 write the connection's last insert rowid can be
+   * above 2^53, and Node 26 then throws a RangeError from any later run(). BigInt results avoid it.
+   */
+  #write(sql: string) {
+    return writeOnly(this.db.prepare(sql));
+  }
   #scan: ScanState | undefined;
   #goModule: string | null | undefined;
   #vecCache: { model: string; rows: { id: number; vec: Float32Array }[] } | undefined;
@@ -210,7 +226,7 @@ export class CodeMapStore {
   }
 
   #setMeta(k: string, v: string): void {
-    this.db.prepare('INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v').run(k, v);
+    this.#write('INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v').run(k, v);
   }
 
   // ---------- scanning ----------
@@ -323,8 +339,8 @@ export class CodeMapStore {
         for (const [path, k] of st.known) {
           if (st.seen.has(path)) continue;
           this.#dropFile(k.id);
-          this.db.prepare('DELETE FROM files WHERE id = ?').run(k.id);
-          this.db.prepare('UPDATE imports SET resolved = NULL WHERE resolved = ?').run(path);
+          this.#write('DELETE FROM files WHERE id = ?').run(k.id);
+          this.#write('UPDATE imports SET resolved = NULL WHERE resolved = ?').run(path);
           st.report.removed.push(path);
         }
         if (st.report.reindexed.length || st.report.removed.length || !this.ready) this.#resolveAll();
@@ -357,15 +373,15 @@ export class CodeMapStore {
 
   #dropFile(fileId: number): void {
     const ids = (this.db.prepare('SELECT id FROM chunks WHERE file_id = ?').all(fileId) as { id: number }[]).map((r) => r.id);
-    const del = this.db.prepare('DELETE FROM chunks_fts WHERE rowid = ?');
-    const delVec = this.db.prepare('DELETE FROM chunk_vectors WHERE chunk_id = ?');
+    const del = this.#write('DELETE FROM chunks_fts WHERE rowid = ?');
+    const delVec = this.#write('DELETE FROM chunk_vectors WHERE chunk_id = ?');
     for (const id of ids) {
       del.run(id);
       delVec.run(id);
     }
-    this.db.prepare('DELETE FROM chunks WHERE file_id = ?').run(fileId);
-    this.db.prepare('DELETE FROM symbols WHERE file_id = ?').run(fileId);
-    this.db.prepare('DELETE FROM imports WHERE file_id = ?').run(fileId);
+    this.#write('DELETE FROM chunks WHERE file_id = ?').run(fileId);
+    this.#write('DELETE FROM symbols WHERE file_id = ?').run(fileId);
+    this.#write('DELETE FROM imports WHERE file_id = ?').run(fileId);
   }
 
   #indexFile(st: ScanState, rel: string, size: number, mtime: number): void {
@@ -387,7 +403,7 @@ export class CodeMapStore {
     const hash = createHash('sha1').update(buf).digest('hex');
     if (k && k.hash === hash) {
       // Touched but not changed: only the size and time are updated.
-      this.db.prepare('UPDATE files SET size = ?, mtime = ? WHERE id = ?').run(size, mtime, k.id);
+      this.#write('UPDATE files SET size = ?, mtime = ? WHERE id = ?').run(size, mtime, k.id);
       return;
     }
     const lang = langOf(rel) ?? 'text';
@@ -398,18 +414,18 @@ export class CodeMapStore {
     let fileId: number;
     if (k) {
       this.#dropFile(k.id);
-      this.db.prepare('UPDATE files SET lang = ?, size = ?, mtime = ?, hash = ?, lines = ?, indexed_at = ? WHERE id = ?').run(lang, size, mtime, hash, lines.length, now, k.id);
+      this.#write('UPDATE files SET lang = ?, size = ?, mtime = ?, hash = ?, lines = ?, indexed_at = ? WHERE id = ?').run(lang, size, mtime, hash, lines.length, now, k.id);
       fileId = k.id;
     } else {
-      fileId = Number(this.db.prepare('INSERT INTO files (path, lang, size, mtime, hash, lines, indexed_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(rel, lang, size, mtime, hash, lines.length, now).lastInsertRowid);
+      fileId = Number(this.#write('INSERT INTO files (path, lang, size, mtime, hash, lines, indexed_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(rel, lang, size, mtime, hash, lines.length, now).lastInsertRowid);
     }
     st.known.set(rel, { id: fileId, mtime, size, hash });
-    const putSym = this.db.prepare('INSERT INTO symbols (file_id, name, kind, line, end_line, signature, exported, parent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    const putSym = this.#write('INSERT INTO symbols (file_id, name, kind, line, end_line, signature, exported, parent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     for (const s of ex.symbols) putSym.run(fileId, s.name, s.kind, s.line, Math.max(s.line, s.end), s.signature, s.exported ? 1 : 0, s.parent ?? null);
-    const putImp = this.db.prepare('INSERT INTO imports (file_id, spec, line, names, resolved) VALUES (?, ?, ?, ?, ?)');
+    const putImp = this.#write('INSERT INTO imports (file_id, spec, line, names, resolved) VALUES (?, ?, ?, ?, ?)');
     for (const i of ex.imports) putImp.run(fileId, i.spec, i.line, i.names ?? null, this.#resolve(lang, i, rel));
-    const putChunk = this.db.prepare('INSERT INTO chunks (file_id, start_line, end_line, symbol, text) VALUES (?, ?, ?, ?, ?)');
-    const putFts = this.db.prepare('INSERT INTO chunks_fts (rowid, path, symbol, text, words) VALUES (?, ?, ?, ?, ?)');
+    const putChunk = this.#write('INSERT INTO chunks (file_id, start_line, end_line, symbol, text) VALUES (?, ?, ?, ?, ?)');
+    const putFts = this.#write('INSERT INTO chunks_fts (rowid, path, symbol, text, words) VALUES (?, ?, ?, ?, ?)');
     const pathWords = identWords(rel.replace(/[/.\-]/g, ' '));
     for (const c of chunkLines(lines.length, ex.symbols, lines)) {
       const body = lines.slice(c.start - 1, c.end).join('\n');
@@ -513,7 +529,7 @@ export class CodeMapStore {
   /** Imports that pointed nowhere are tried again (their target may have been added since). */
   #resolveAll(): void {
     const rows = this.db.prepare('SELECT i.id, i.spec, f.path, f.lang FROM imports i JOIN files f ON f.id = i.file_id WHERE i.resolved IS NULL LIMIT 50000').all() as Row[];
-    const put = this.db.prepare('UPDATE imports SET resolved = ? WHERE id = ?');
+    const put = this.#write('UPDATE imports SET resolved = ? WHERE id = ?');
     for (const r of rows) {
       const spec = String(r.spec);
       // Packages from outside the workspace can't resolve: skip the disk checks for them.
@@ -667,7 +683,7 @@ export class CodeMapStore {
     try {
       const doc = (t: string) => (/nomic-embed/i.test(target.model) ? `search_document: ${t}` : t);
       const vecs = await embedTexts(target, todo.map((c) => doc(`${c.path}${c.symbol ? ` · ${c.symbol}` : ''}\n${String(c.text).slice(0, 3000)}`)), signal);
-      const put = this.db.prepare('INSERT INTO chunk_vectors (chunk_id, model, vec) VALUES (?, ?, ?) ON CONFLICT(chunk_id) DO UPDATE SET model = excluded.model, vec = excluded.vec');
+      const put = this.#write('INSERT INTO chunk_vectors (chunk_id, model, vec) VALUES (?, ?, ?) ON CONFLICT(chunk_id) DO UPDATE SET model = excluded.model, vec = excluded.vec');
       // The chunks may have been re-indexed while the model was working: keep only those still here.
       const still = this.db.prepare('SELECT 1 FROM chunks WHERE id = ?');
       this.db.exec('BEGIN');

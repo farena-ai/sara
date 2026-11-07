@@ -1,0 +1,116 @@
+{
+  "id": "qdrant",
+  "version": "1.0.0",
+  "name": "Qdrant (local)",
+  "category": "coding",
+  "tags": [
+    "coding",
+    "mcp"
+  ],
+  "summary": "Search a local Qdrant collection by meaning.",
+  "description": "Search a local Qdrant collection by meaning. Available capabilities depend on the provider and the explicitly granted permissions.",
+  "about": [
+    "Search a local Qdrant collection by meaning. Available capabilities depend on the provider and the explicitly granted permissions.",
+    "Official mcp-server-qdrant 0.8.1 (Apache-2.0) with an embedded on-disk collection in the server's own folder. No Qdrant account, cloud cluster or API key.",
+    "Windows fixture acceptance: the pinned server stored three synthetic notes, then a separate read-only start listed only qdrant-find and returned the expected note first, with the stored collection unchanged.",
+    "The first start downloads the pinned embedding model from Hugging Face; no account is needed. Dependencies below the top-level pin are not locked.",
+    "Read-only mode is on by default and removes the store tool. Turn it off only on purpose; qdrant-store then writes to the collection."
+  ],
+  "license": "Apache-2.0",
+  "source": "https://raw.githubusercontent.com/qdrant/mcp-server-qdrant/v0.8.1/README.md",
+  "needs": [
+    "uvx"
+  ],
+  "works": [],
+  "mcp": {
+    "transport": "stdio",
+    "name": "qdrant",
+    "command": "uvx",
+    "args": [
+      "--python=3.12",
+      "mcp-server-qdrant==0.8.1"
+    ],
+    "fields": [
+      {
+        "key": "QDRANT_LOCAL_PATH",
+        "kind": "text",
+        "label": "Collection folder",
+        "tip": "Folder for the embedded collection, relative to this server's own folder. Keep the default unless you copy in a collection you made yourself.",
+        "default": "qdrant-store"
+      },
+      {
+        "key": "COLLECTION_NAME",
+        "kind": "text",
+        "label": "Collection name",
+        "tip": "The one collection this server searches. The search tool cannot pick a different collection.",
+        "default": "sara-notes"
+      },
+      {
+        "key": "QDRANT_READ_ONLY",
+        "kind": "choice",
+        "label": "Read-only",
+        "tip": "true removes the store tool so the collection cannot be changed. Choose false only when you want Sara to add notes, each one approved.",
+        "choices": [
+          "true",
+          "false"
+        ],
+        "default": "true"
+      },
+      {
+        "key": "EMBEDDING_MODEL",
+        "kind": "choice",
+        "label": "Embedding model",
+        "tip": "The qualified local embedding model. It is downloaded once from Hugging Face on first start; no account is needed.",
+        "choices": [
+          "sentence-transformers/all-MiniLM-L6-v2"
+        ],
+        "default": "sentence-transformers/all-MiniLM-L6-v2"
+      },
+      {
+        "key": "FASTEMBED_CACHE_PATH",
+        "kind": "text",
+        "label": "Model cache folder",
+        "tip": "Where the downloaded embedding model is kept, relative to this server's own folder.",
+        "default": "fastembed-cache"
+      },
+      {
+        "key": "HF_HUB_DISABLE_TELEMETRY",
+        "kind": "choice",
+        "label": "Model download telemetry",
+        "tip": "1 turns off Hugging Face download telemetry for the model download.",
+        "choices": [
+          "1"
+        ],
+        "default": "1"
+      }
+    ],
+    "secrets": [],
+    "reaches": [
+      "huggingface.co once, to download the embedding model",
+      "PyPI and Python downloads through uv at installation"
+    ],
+    "needs": [
+      "uvx"
+    ],
+    "tools": {
+      "readOnly": [],
+      "ask": [
+        "qdrant-find",
+        "qdrant-store"
+      ]
+    },
+    "guide": [
+      "Requires uv/uvx. The recipe asks uv for Python 3.12 because the default Python 3.14 has no prebuilt pydantic-core wheel for this pin and tries a source build.",
+      "Qualified: official mcp-server-qdrant 0.8.1 against an embedded synthetic collection on Windows. Qdrant Cloud, a Qdrant server URL and API keys are not part of this recipe.",
+      "Keep Read-only at true. qdrant-find then is the only tool; set it to Ask me first. If you choose false, set qdrant-store to Ask me first.",
+      "The first start downloads about 90 MB of model files from Hugging Face. Dependencies below the top-level pin are not locked; review them before use with private notes.",
+      "After discovery, open Settings → Coding → Tools and approvals. Set every tool in this server's group to Ask me first or Off before sending any request.",
+      "Save, leave and reopen the page; read back every tool setting. Repeat after restart, update or newly discovered tools. Stop if settings cannot be confirmed."
+    ]
+  },
+  "changes": [
+    "First connection recipe. Fixture-qualified on Windows; not published."
+  ],
+  "tested": [],
+  "reviewNotes": "Connection preview, not a live vendor screenshot. Windows fixture: pinned official server stored three synthetic notes, then a read-only start listed only qdrant-find and returned the expected note first; collection bytes unchanged."
+}

@@ -76,6 +76,8 @@ export const APPROVAL_HOWS: readonly ApprovalHow[] = ['override', 'deny', 'updat
 export class ApprovalBroker {
   readonly #pending = new Map<string, Pending>();
   readonly #how = new Map<string, ApprovalHow>();
+  /** Requests that ended unanswered (their turn, task step or call ended, or the wait ran out). */
+  readonly #expired = new Map<string, number>();
   readonly #timeoutMs: number;
 
   constructor(timeoutMs = 10 * 60 * 1000) {
@@ -85,19 +87,37 @@ export class ApprovalBroker {
   request(conversationId: string, signal: AbortSignal): { id: string; decision: Promise<boolean> } {
     const id = randomUUID();
     const decision = new Promise<boolean>((resolve) => {
-      const done = (v: boolean) => {
+      const done = (v: boolean, ended = false) => {
         const p = this.#pending.get(id);
         if (!p) return;
         clearTimeout(p.timer);
         this.#pending.delete(id);
         signal.removeEventListener('abort', onAbort);
+        if (ended) this.#expire(id);
         resolve(v);
       };
-      const onAbort = () => done(false);
+      // The wait belongs to its caller: when the caller ends, the request ends with it at once.
+      const onAbort = () => done(false, true);
+      if (signal.aborted) {
+        this.#expire(id);
+        resolve(false);
+        return;
+      }
       signal.addEventListener('abort', onAbort, { once: true });
-      this.#pending.set(id, { conversationId, resolve: done, timer: setTimeout(() => done(false), this.#timeoutMs) });
+      this.#pending.set(id, { conversationId, resolve: done, timer: setTimeout(() => done(false, true), this.#timeoutMs) });
     });
     return { id, decision };
+  }
+
+  #expire(id: string): void {
+    const t = Date.now();
+    for (const [k, at] of this.#expired) if (t - at > this.#timeoutMs || this.#expired.size > 500) this.#expired.delete(k);
+    this.#expired.set(id, t);
+  }
+
+  /** 'waiting', 'expired' (its caller ended or the wait ran out; a late answer runs nothing) or 'unknown'. */
+  state(id: string): 'waiting' | 'expired' | 'unknown' {
+    return this.#pending.has(id) ? 'waiting' : this.#expired.has(id) ? 'expired' : 'unknown';
   }
 
   decide(id: string, approved: boolean, how?: ApprovalHow): boolean {

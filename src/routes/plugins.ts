@@ -77,7 +77,7 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
     const companion = (v: unknown) => String(v ?? app.companionId ?? 'main');
 
     if (!b && method === 'GET') {
-      return send(res, 200, { plugins: pm.list(), fence: pm.fence, waiting: pm.waiting(), companions: (app.companions?.all() ?? []).map((x) => ({ id: x.id, name: x.app.persona.name })), version: pm.version });
+      return send(res, 200, { plugins: pm.list(), fence: pm.fence, waiting: pm.waiting(), jobs: pm.jobs(), companions: (app.companions?.all() ?? []).map((x) => ({ id: x.id, name: x.app.persona.name })), version: pm.version });
     }
 
     if (b === 'builtin' && !c && method === 'GET') return send(res, 200, { builtin: pm.builtinList() });
@@ -400,9 +400,17 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
     } catch (err) {
       return asHttp(err);
     }
+    if (c === 'jobs' && d && method === 'POST') {
+      // H_EXEC: the owner's Stop on a running plugin job.
+      if (!pm.jobs().some((j) => j.id === d && j.plugin === id) || !pm.stopJob(d)) throw new HttpError(404, 'That job is no longer running.');
+      return send(res, 200, { ok: true });
+    }
     if (c === 'calls' && d && method === 'POST') {
       const body = await readJson(req);
-      if (!pm.decideCall(d, body.approved === true)) throw new HttpError(404, 'That request is no longer waiting.');
+      const r = pm.callDecision(d, body.approved === true);
+      // Same status as "no longer waiting" (clients rely on 404); the words say it expired and nothing ran.
+      if (r === 'expired') throw new HttpError(404, 'That request expired with the plugin task that asked for it. Nothing ran.');
+      if (r !== 'decided') throw new HttpError(404, 'That request is no longer waiting.');
       return send(res, 200, { ok: true });
     }
     if (c === 'action' && method === 'POST') {

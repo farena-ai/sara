@@ -250,26 +250,37 @@ export function isPrivateAddress(ip: string): boolean {
   return false;
 }
 
+/** Why checkPublicTarget refused an address (E6: callers show their own wording for each). */
+export type TargetRefusal = 'invalid' | 'userinfo' | 'https' | 'private' | 'dns' | 'private-name';
+const refuseTarget = (code: TargetRefusal, message: string): never => {
+  throw Object.assign(new Error(message), { code });
+};
+
 /**
  * Phase 102: checks an owner-typed address for an outgoing webhook before anything is sent. It must
  * be https (http only to this computer when `allowLoopback`), carry no user:password, and every
  * address its name resolves to must be public; with `allowLoopback` (SARA_HOOKS_LOCAL_TARGETS=1,
  * for local testing only) a literal loopback address passes too. Private local mode applies as for
- * every request. Returns the parsed URL or throws with the reason.
+ * every request. Returns the parsed URL or throws with the reason (`code`: a TargetRefusal).
+ * E6: `what` names the request in the messages (default an outgoing webhook; 'feed' for Read together).
  */
-export async function checkPublicTarget(target: string, opts: { allowLoopback?: boolean; lookup?: (host: string) => Promise<string[]> } = {}): Promise<URL> {
+export async function checkPublicTarget(target: string, opts: { allowLoopback?: boolean; lookup?: (host: string) => Promise<string[]>; what?: 'webhook' | 'feed' } = {}): Promise<URL> {
+  const feed = opts.what === 'feed';
+  const label = feed ? 'feed' : 'outgoing webhook';
+  const only = feed ? 'Sara only opens feeds at public addresses' : 'Sara only sends webhooks to public addresses';
   const u = toUrl(target);
-  if (!u) throw new Error('That address is not valid.');
-  if (u.username || u.password) throw new Error('The address may not contain a user name or password.');
-  const loop = isLoopbackHost(u.hostname);
-  if (loop && opts.allowLoopback && (u.protocol === 'http:' || u.protocol === 'https:')) {
-    checkOutbound(u, 'outgoing webhook');
-    return u;
+  if (!u) refuseTarget('invalid', 'That address is not valid.');
+  const url = u!;
+  if (url.username || url.password) refuseTarget('userinfo', 'The address may not contain a user name or password.');
+  const loop = isLoopbackHost(url.hostname);
+  if (loop && opts.allowLoopback && (url.protocol === 'http:' || url.protocol === 'https:')) {
+    checkOutbound(url, label);
+    return url;
   }
-  if (u.protocol !== 'https:') throw new Error('Use an https:// address.');
-  let host = u.hostname;
+  if (url.protocol !== 'https:') refuseTarget('https', 'Use an https:// address.');
+  let host = url.hostname;
   if (host.startsWith('[') && host.endsWith(']')) host = host.slice(1, -1);
-  if (isPrivateAddress(host) || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) throw new Error('Sara only sends webhooks to public addresses (not this computer, the home network or Tailscale).');
+  if (isPrivateAddress(host) || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) refuseTarget('private', `${only} (not this computer, the home network or Tailscale).`);
   const literal = /^[\d.]+$/.test(host) || host.includes(':');
   if (!literal) {
     const lookup = opts.lookup ?? (async (h: string) => (await import('node:dns/promises')).lookup(h, { all: true, verbatim: true }).then((r) => r.map((x) => x.address)));
@@ -277,12 +288,12 @@ export async function checkPublicTarget(target: string, opts: { allowLoopback?: 
     try {
       addrs = await lookup(host);
     } catch {
-      throw new Error(`Couldn't find ${host}.`);
+      refuseTarget('dns', `Couldn't find ${host}.`);
     }
-    if (!addrs.length || addrs.some(isPrivateAddress)) throw new Error('That name points to a private address; Sara only sends webhooks to public addresses.');
+    if (!addrs.length || addrs.some(isPrivateAddress)) refuseTarget('private-name', `That name points to a private address; ${only}.`);
   }
-  checkOutbound(u, 'outgoing webhook');
-  return u;
+  checkOutbound(url, label);
+  return url;
 }
 
 const guardedGlobal = (input: string | URL | Request, init?: RequestInit): Promise<Response> => netFetch(input, init);

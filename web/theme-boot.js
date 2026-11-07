@@ -37,6 +37,32 @@
   // The other per-device looks, so they don't change after the first paint either.
   var looks = { accent: 'rose', chatbg: 'none', density: 'comfy' };
   for (var k in looks) root.setAttribute('data-' + k, get('sara.' + k) || looks[k]);
+  // V1 (docs/ops/V1_DESIGN.md): the palette (Graphite unless picked; unknown names too), decoration
+  // (off for every palette but Sara Classic unless picked; the system's reduced transparency forces it
+  // off), her portrait in work views (small unless picked; Sara Classic keeps it large) and a custom accent's three colours, which
+  // app.js worked out when it was saved (no maths before the first paint).
+  var pal = get('sara.palette');
+  if (!/^(graphite|midnight|slate|nord|solarized|paper|ember|contrast|classic)$/.test(pal || '')) pal = 'graphite';
+  root.setAttribute('data-palette', pal);
+  var decor = get('sara.decor');
+  if (decor !== 'on' && decor !== 'off') decor = pal === 'classic' ? 'on' : 'off';
+  if (window.matchMedia && matchMedia('(prefers-reduced-transparency: reduce)').matches) decor = 'off';
+  root.setAttribute('data-decor', decor);
+  var portrait = get('sara.portrait');
+  if (!/^(large|small|hidden)$/.test(portrait || '')) portrait = pal === 'classic' ? 'large' : 'small';
+  root.setAttribute('data-portrait', portrait);
+  if (get('sara.accent') === 'custom') {
+    try {
+      var c = JSON.parse(get('sara.accentCustom') || 'null')[light ? 'light' : 'dark'];
+      var ok = function (v) { return /^#[0-9a-f]{6}$/i.test(v); };
+      if (c && ok(c.fill) && ok(c.text) && ok(c.on)) {
+        var set = { '--accent-solid': c.fill, '--accent-text': c.text, '--on-accent': c.on, '--accent': c.fill, '--accent-2': c.text, '--btn-fill': c.fill, '--on-btn': c.on };
+        for (var v in set) root.style.setProperty(v, set[v]);
+      }
+    } catch (e) {
+      /* a broken value: the palette's own accent */
+    }
+  }
 
   var shell = window.saraShell;
   var q = /[?&]shell=(windows|mac)\b/.exec(location.search);

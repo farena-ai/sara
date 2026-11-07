@@ -16,9 +16,11 @@ Every entry in the library appears in Sara once, in the place it can actually be
 | **Add-ons → Get more** | Signed Store plugins, tool servers and the four starter companions | 16 |
 | **Plugins → Workflow candidates** | Twelve supplied-data workflows and nineteen developer add-ons (see [Developer add-ons](DEVELOPER_ADDONS.md)); review the exact files, install, then switch on per companion | 31 |
 | **Other programs (MCP) → Connection investigations** | Seven read-only recipe previews (Tavily, Firecrawl and Linear need your own account) and fourteen blocked investigations, each with its reason | 21 |
+| **Other programs (MCP) → Developer connections** | Thirty developer targets: two fixture-tested recipes (Storybook, local Qdrant) you can copy into the add form, twenty-two held until you supply an account, key or service, and six blocked, each with its reason | 30 |
 
 Nothing installs, connects or switches on by itself. Held previews and blocked entries have no
-install button. Developer targets that are still in development are not listed until they qualify.
+install button. A fixture-tested developer connection only fills the existing add form, switched
+off; it is saved and started only when you press *Save and connect* with *Enabled* ticked. Developer targets that are still in development are not listed until they qualify.
 
 ## Native workflow scope
 
@@ -70,6 +72,18 @@ Seven prepared recipe sources cover MarkItDown, Tavily, Firecrawl, Chrome DevToo
 - The pinned draw.io preview can open the default browser. Keep browser-opening/editing tools Off until separately qualified; no link-only guarantee is made.
 - MarkItDown can access files and URLs available to its OS user. A selected file is not a filesystem/network sandbox.
 - Generic hosted MCP OAuth is not implemented by this connection tier. Provider-maintained hosted services may therefore remain blocked pending a reviewed authorization path. A static-token alternative must be verified separately, not guessed.
+
+### Developer connections
+
+The developer MCP targets (Local Git through CircleCI) are listed separately with one of three
+states. **Fixture-tested**: Storybook (`@storybook/addon-mcp` 10.6.6 in your own Storybook on
+127.0.0.1:6006) and local Qdrant (`mcp-server-qdrant==0.8.1`, embedded collection, read-only by
+default) ran through Sara against owned fixtures with no account. **Needs account**: a real
+upstream exists, but its first test needs your own account, key, running service or spending; the
+card names the exact owner step. **Blocked**: no pinnable trustworthy upstream, a licence problem
+or an unsafe tool surface (for example MongoDB's row cap bypass or Local Git running repository
+configuration). Fixture-tested is not production qualification: chat approval, an OS sandbox and
+other platforms remain untested, and dependencies below the top-level pin are not locked.
 
 No new MCP preview should be presented as a one-click production integration until its host permissions, runtime, scopes, account behavior and relevant platform have been qualified.
 

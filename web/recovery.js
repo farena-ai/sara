@@ -1,4 +1,17 @@
-import { t } from './naming.js';
+import { locale, t } from './naming.js';
+
+/** A receipt time for people: "5 minutes ago" (or the date) with the full local time on hover; the exact ISO stays in datetime. */
+export function receiptTime(iso, now = Date.now(), loc = locale()) {
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) return { text: String(iso), title: String(iso) };
+  const title = new Intl.DateTimeFormat(loc, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(ms));
+  const sec = Math.round((ms - now) / 1000);
+  const abs = Math.abs(sec);
+  if (abs >= 7 * 86_400) return { text: title, title };
+  const rtf = new Intl.RelativeTimeFormat(loc, { numeric: 'auto' });
+  const [n, unit] = abs < 60 ? [sec, 'second'] : abs < 3600 ? [Math.round(sec / 60), 'minute'] : abs < 86_400 ? [Math.round(sec / 3600), 'hour'] : [Math.round(sec / 86_400), 'day'];
+  return { text: rtf.format(n, unit), title };
+}
 
 // Recovery reviews are data previews. Only the normal chat Send path may execute a new request.
 export function createRecovery(ctx) {
@@ -14,6 +27,13 @@ export function createRecovery(ctx) {
     const n = document.createElement(tag);
     n.className = cls;
     n.textContent = text;
+    return n;
+  };
+  const timeNode = (iso) => {
+    const { text, title } = receiptTime(iso);
+    const n = node('time', text);
+    n.setAttribute('datetime', String(iso));
+    n.setAttribute('title', title);
     return n;
   };
   const note = node('p', '', 'muted recovery-status');
@@ -132,8 +152,8 @@ export function createRecovery(ctx) {
   function deliveryRow(item) {
     const row = node('article', '', 'recovery-card');
     row.append(node('h3', `${item.bridge ?? ''} · ${stateLabel(item.state, item.held)}`));
-    if (item.archivedAt) row.append(node('p', t('Archived') + ' · ' + String(item.archivedAt)));
-    if (item.createdAt) row.append(node('p', String(item.createdAt), 'muted small'));
+    if (item.archivedAt) { const p = node('p', t('Archived') + ' · '); p.append(timeNode(item.archivedAt)); row.append(p); }
+    if (item.createdAt) { const p = node('p', '', 'muted small'); p.append(timeNode(item.createdAt)); row.append(p); }
     if (item.state === 'outcome_unknown' || item.state === 'attempted') row.append(node('p', t('It may have arrived. Check the destination before asking Sara to send again.')));
     if (item.state === 'queued' && item.held === true) row.append(node('p', t('Held after interruption. This page never resends queued work.')));
     const queuedWarning = item.state === 'queued' && item.held !== true ? t('This message is still in the live queue and may send. Check before creating another request.') : '';

@@ -247,6 +247,39 @@ test('store: incremental re-index (only the changed file; touched-but-same is no
   assert.equal(store.findSymbols('readPdfPages').total, 0);
 });
 
+test('store: Node 26 range errors (issue #9): writes never read a rowid as a JS number', (t) => {
+  // Node 26 throws ERR_OUT_OF_RANGE when run() reports a rowid above 2^53. After a contentless FTS5
+  // write the connection's last insert rowid is such a value, so any later run() can throw.
+  // Simulate that on any Node: once an FTS write ran, a write without BigInt results throws.
+  const { ws, maps } = project(t);
+  const store = maps.get(ws);
+  const prepare = store.db.prepare.bind(store.db);
+  let ftsWritten = false;
+  (store.db as { prepare: unknown }).prepare = (sql: string) => {
+    const stmt = prepare(sql);
+    if (!/^\s*(INSERT|DELETE|UPDATE)/i.test(sql)) return stmt;
+    let big = false;
+    const setReadBigInts = stmt.setReadBigInts.bind(stmt);
+    const run = stmt.run.bind(stmt);
+    return Object.assign(stmt, {
+      setReadBigInts: (on: boolean) => { big = on; setReadBigInts(on); },
+      run: (...args: never[]) => {
+        const r = run(...args);
+        if (/chunks_fts/.test(sql)) ftsWritten = true;
+        if (ftsWritten && !big) throw Object.assign(new RangeError('Value is too large to be represented as a JavaScript number: 9007336693694464'), { code: 'ERR_OUT_OF_RANGE' });
+        return r;
+      },
+    });
+  };
+  assert.equal(store.refreshAll().reindexed.length, 7);
+  const greet = join(ws, 'src', 'greet.ts');
+  writeFileSync(greet, `${readFileSync(greet, 'utf8')}\nexport const bye = 1;\n`);
+  assert.deepEqual(store.refreshAll().reindexed, ['src/greet.ts'], 're-index drops the old rows without a range error');
+  assert.ok(store.findSymbols('bye').hits.some((s) => s.path === 'src/greet.ts'));
+  rmSync(join(ws, 'src', 'pdf-reader.ts'));
+  assert.deepEqual(store.refreshAll().removed, ['src/pdf-reader.ts']);
+});
+
 test('store: a scan with a tiny budget stops and carries on (never one long block)', (t) => {
   const { ws, maps } = project(t);
   const store = maps.get(ws);

@@ -1604,6 +1604,8 @@ function scopeTools(app: AppContext, conv: Conversation, opts: TurnOptions, x: S
   let tools = x.noModel || conv.partner || opts.noTools ? [] : app.tools.enabled(app.settings.get().toolPermissions).filter((t) => !((conv.private || privateLocalOn()) && OFFSERVER_TOOL(t.spec.name)));
   // Hardening M3: with her tools allowed for other apps, her look-back over every past conversation stays out.
   if (opts.externalApp) tools = tools.filter((t) => t.spec.name !== 'recall');
+  // E6: while an item of a public feed is shared in this chat, nothing that reaches outside (strangers' text may ask for it).
+  if (app.readTogether?.get(conv.id)?.source === 'feed') tools = tools.filter((t) => !OFFSERVER_TOOL(t.spec.name));
   // Phase 100: an outside request gets only the tools its policy lists (default none).
   if (opts.outside) {
     const allowed = new Set(opts.outside.tools);
@@ -2643,6 +2645,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // Nothing leaves this computer on (or a private chat), only a model on this computer sees it.
     const readTogether = readTogetherSection(app, conv, { ...nowGate, local: !(privateLocalOn() || conv.private) || onThisComputer(provider.config, model) });
     if (readTogether) messages.push({ role: 'system', content: readTogether });
+    // E6: a feed item shared mid-turn drops her outward tools from the next round on too.
+    if (app.readTogether?.get(conv.id)?.source === 'feed') tools = tools.filter((t) => !OFFSERVER_TOOL(t.spec.name));
     yield { type: 'context', used: historySize(hist.messages), budget, dropped: hist.dropped };
     if (hist.dropped && activeFold) {
       messages.push({ role: 'user', content: '[Note from the app: even after the tidied part, this conversation is long, so some messages after it are left out here.]' });

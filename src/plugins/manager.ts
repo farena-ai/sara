@@ -35,6 +35,7 @@ import { ToolError, type Permission, type Tool } from '../tools/types.ts';
 import { workspaceDir } from '../tools/workspace.ts';
 import { addedPermissions, hostAllowed, localize, MANIFEST_FILE, ManifestError, parseManifest, permissionIds, permissionLines, pluginToolName, type PermissionLine, type PluginManifest, type PluginSetting, compareSemver, everyMinutes } from './manifest.ts';
 import { fenceFor, type Fence, type InMessage, PluginProcess, prepareDataDir, spawnSpec } from './runtime.ts';
+import { commandLine, FENCE_LABELS, jobFenceFor, JobRefused, parsePlan, runJob, type JobFence, type JobPlan, type JobSource } from './exec-job.ts';
 import { PluginStore, type PluginRow } from './store.ts';
 import * as netModule from './net.ts';
 import * as bridgeDbModule from './bridge-db.ts';
@@ -44,6 +45,8 @@ import type { Settings, SettingsStore } from '../settings.ts';
 export const PLUGIN_LIMITS: PackageLimits = { maxZipBytes: 10 * 1024 * 1024, maxFiles: 500, maxTotalBytes: 30 * 1024 * 1024, maxFileBytes: 5 * 1024 * 1024, maxDepth: 10 };
 const REVIEW_MS = 60 * 60_000;
 const CALL_WAIT_MS = 10 * 60_000;
+/** H_EXEC: a job approval holds its invocation open at most this long. */
+const JOB_APPROVAL_MS = 2 * 60_000;
 const FETCH_MAX = 1024 * 1024;
 const FETCHES_PER_MINUTE = 30;
 const TOOL_MS = 30_000;
@@ -162,6 +165,19 @@ export interface WaitingCall {
   tool: string;
   summary: string;
   args: Record<string, unknown>;
+  at: string;
+  /** H_EXEC: a job (`tool` is "job"): the exact command and where and how it runs. */
+  job?: { command: string; source: JobSource; cwd: string; network: boolean; timeoutS: number; fence: JobFence; fenceLabel: string };
+}
+
+/** H_EXEC: a plugin job running now (the owner can stop it). */
+export interface RunningJob {
+  id: string;
+  plugin: string;
+  name: string;
+  companion: string;
+  command: string;
+  fence: JobFence;
   at: string;
 }
 
@@ -382,6 +398,12 @@ export interface ManagerOptions {
   httpGet?: typeof pinnedGet;
   /** Tests: the backoff and time limits are the real ones unless set. */
   execPath?: string;
+  /** Tests: the plugin tool invocation limit (default 30 s). */
+  toolMs?: number;
+  /** Tests: the fence for plugin jobs (default: bubblewrap where the shell sandbox is, else Node's). */
+  jobFence?: JobFence;
+  /** Tests: how long a job approval may hold its invocation open (default 2 minutes). */
+  jobApprovalMs?: number;
   /** Phase 115: the progress message's clock (tests drive a fake one). */
   clock?: import('../bridges/sendq.ts').Clock;
   /** Phase 117 (P1): tests trust their own CA for the socket broker's TLS (no setting loosens it). */
@@ -462,7 +484,10 @@ export class PluginManager {
   readonly #mutating = new Set<string>();
   readonly #settingsObservers = new Map<SettingsStore, { prior: SettingsStore['onUpdated']; handler: NonNullable<SettingsStore['onUpdated']>; companions: Set<string> }>();
   readonly #attached = new Map<string, Attached>();
-  readonly #waiting = new Map<string, { call: WaitingCall; resolve: (ok: boolean) => void; timer: NodeJS.Timeout }>();
+  readonly #waiting = new Map<string, { call: WaitingCall; resolve: (ok: boolean) => void; timer: NodeJS.Timeout; end: (why: string) => void }>();
+  readonly #jobs = new Map<string, { job: RunningJob; ctl: AbortController }>();
+  /** Approvals that ended unanswered (their invocation ended): a late answer is told "expired". */
+  readonly #expired = new Map<string, number>();
   #tick: NodeJS.Timeout | undefined;
   /** Phase 115: the pacer for plugin bridges' progress messages. */
   #bridgeQueue: import('../bridges/sendq.ts').SendQueue | undefined;
@@ -1202,10 +1227,11 @@ export class PluginManager {
         if (run.proc.state !== 'ready' || !this.#current(a, run)) throw new ToolError(`The plugin ${label} is no longer available.`);
         const bad = checkArgs(parameters, args);
         if (bad) throw new ToolError(`${label}: ${bad}.`);
-        const res = await run.proc.request('tool', { name, args }, TOOL_MS);
+        const toolMs = this.opts.toolMs ?? TOOL_MS;
+        const res = await run.proc.request('tool', { name, args }, toolMs);
         if (!this.#current(a, run)) throw new ToolError(`The plugin ${label} is no longer available.`);
         if (!res) {
-          this.store.log(run.row.id, a.id, 'timeout', `tool ${name}: no answer within ${TOOL_MS / 1000} s`);
+          this.store.log(run.row.id, a.id, 'timeout', `tool ${name}: no answer within ${toolMs / 1000} s`);
           throw new ToolError(`The plugin ${label} didn't answer in time.`);
         }
         if (res.type === 'error') throw new ToolError(`${label}: ${cut(String(res.error ?? 'error'), 300)}`);
@@ -1234,12 +1260,8 @@ export class PluginManager {
     a.procs.delete(id);
     this.#unregister(a, run);
     run.net?.dispose();
-    for (const [k, w] of this.#waiting) {
-      if (w.call.plugin === id && w.call.companion === a.id) {
-        clearTimeout(w.timer);
-        this.#waiting.delete(k);
-        w.resolve(false);
-      }
+    for (const w of [...this.#waiting.values()]) {
+      if (w.call.plugin === id && w.call.companion === a.id) w.end('the plugin stopped before the owner answered');
     }
     await run.proc.stop();
   }
@@ -1314,7 +1336,7 @@ export class PluginManager {
     if (!run || run.proc.state !== 'ready') throw new ManifestError("That plugin isn't running.");
     const name = run.tools.find((t) => t === tool) ? tool.slice(tool.indexOf('__') + 2) : '';
     if (!name) throw new ManifestError('That button calls a tool the plugin does not have.');
-    const res = await run.proc.request('tool', { name, args, button: true }, TOOL_MS);
+    const res = await run.proc.request('tool', { name, args, button: true }, this.opts.toolMs ?? TOOL_MS);
     if (!res || res.type === 'error') throw new ManifestError(`The plugin ${run.manifest.name} didn't answer.`);
     const card = res.card !== undefined ? cleanCard(res.card, { id, name: run.manifest.name, tools: run.tools }) : undefined;
     return { content: cut(String(res.content ?? ''), 4000), ...(card ? { card } : {}) };
@@ -1341,19 +1363,38 @@ export class PluginManager {
         if (!t || t.source?.startsWith('Plugin: ')) return deny(`there is no Sara tool "${cut(tool, 60)}" here`);
         if (a.app.tools.permission(tool, a.app.settings.get().toolPermissions) === 'never') return deny(`${tool} is switched off`);
         const args = msg.args && typeof msg.args === 'object' && !Array.isArray(msg.args) ? (msg.args as Record<string, unknown>) : {};
-        const ok = await this.#ask(a, run, tool, t.summarize(args), args);
-        if (!ok) {
-          this.store.log(id, a.id, 'call', `${tool}: the owner said no (or didn't answer)`);
-          return { ok: false, content: 'The owner declined this.' };
-        }
+        // The call is made on behalf of the Sara → plugin requests running now; its approval and
+        // its run end with them (a late Allow after a timeout, a finished tool or a stop runs nothing).
+        const life = this.#lifetime(run);
+        if (!life) return deny(`${tool}: no request from Sara is running, so nothing can ask the owner`);
         try {
-          const out = await t.run(args, { workspaceDir: workspaceDir(this.opts.dataDir, 'main'), signal: AbortSignal.timeout(120_000), sandbox: a.app.sandbox, companionName: a.app.persona.name });
-          this.store.log(id, a.id, 'call', `${tool}: ran (the owner allowed it)`);
-          return { ok: true, content: cut(this.opts.scrub(out), 16 * 1024) };
-        } catch (err) {
-          return { ok: false, content: cut(this.opts.scrub((err as Error).message), 1000) };
+          const ok = await this.#ask(a, run, tool, t.summarize(args), args, life);
+          if (!ok) {
+            this.store.log(id, a.id, 'call', `${tool}: the owner said no (or didn't answer)`);
+            return { ok: false, content: 'The owner declined this.' };
+          }
+          // The wait may have changed things: rechecked after the answer, before anything runs.
+          if (life.signal.aborted) {
+            this.store.log(id, a.id, 'call', `${tool}: the request ended before it could run; nothing ran`);
+            return { ok: false, content: 'The request ended before this could run. Nothing ran.' };
+          }
+          if (!this.#current(a, run) || a.app.tools.get(tool) !== t || a.app.tools.permission(tool, a.app.settings.get().toolPermissions) === 'never') {
+            this.store.log(id, a.id, 'call', `${tool}: no longer allowed after the owner's answer; nothing ran`);
+            return { ok: false, content: 'This is no longer allowed. Nothing ran.' };
+          }
+          try {
+            const out = await t.run(args, { workspaceDir: workspaceDir(this.opts.dataDir, 'main'), signal: AbortSignal.any([life.signal, AbortSignal.timeout(120_000)]), sandbox: a.app.sandbox, companionName: a.app.persona.name });
+            this.store.log(id, a.id, 'call', `${tool}: ran (the owner allowed it)`);
+            return { ok: true, content: cut(this.opts.scrub(out), 16 * 1024) };
+          } catch (err) {
+            return { ok: false, content: cut(this.opts.scrub((err as Error).message), 1000) };
+          }
+        } finally {
+          life.dispose();
         }
       }
+      case 'job.run':
+        return this.#job(a, run, msg, deny);
       case 'notify': {
         const text = cut(this.opts.scrub(String(msg.text ?? '').trim()), 300);
         if (!text) return deny('an empty notification');
@@ -1418,33 +1459,170 @@ export class PluginManager {
     }
   }
 
+  /**
+   * The lifetime of a plugin → Sara call: the Sara → plugin requests (tool, button, hook, schedule,
+   * event, bridge checks) running when it arrived. Its signal aborts when all of them have ended,
+   * when the process stops, or at once if none is running (undefined then). The channel carries no
+   * request id on calls, so a call is bound to every invocation live at that moment.
+   */
+  #lifetime(run: Running): { signal: AbortSignal; dispose: () => void; ids: string[] } | undefined {
+    const live = new Set(run.proc.live());
+    if (!live.size) return undefined;
+    const ids = [...live];
+    const ctl = new AbortController();
+    const off = run.proc.onSettled((rid) => {
+      if (!live.delete(rid) || live.size) return;
+      off();
+      ctl.abort(new Error('the plugin request ended'));
+    });
+    return { signal: ctl.signal, dispose: off, ids };
+  }
+
+  /** H_EXEC (docs/ops/H_EXEC_DESIGN.md): one approved job in a disposable copy. */
+  async #job(a: Attached, run: Running, msg: InMessage, deny: (why: string) => never): Promise<Record<string, unknown>> {
+    const id = run.row.id;
+    const perm = run.manifest.permissions.run;
+    if (!perm) return deny('it has no run permission');
+    const fence = this.opts.jobFence ?? jobFenceFor(this.opts.sandbox);
+    let plan: JobPlan;
+    try {
+      plan = parsePlan(msg.plan, perm, fence);
+    } catch (err) {
+      if (err instanceof JobRefused) return deny(`job: ${err.message}`);
+      throw err;
+    }
+    let sourceDir: string;
+    if (plan.source === 'workspace') sourceDir = workspaceDir(this.opts.dataDir, 'main');
+    else {
+      const root = this.dataDirFor(id, a.id);
+      sourceDir = plan.from === '.' ? root : join(root, ...plan.from.split('/'));
+      // No link anywhere on the way (a staged junction could point at the owner's files).
+      for (let p = sourceDir; p.length >= root.length; p = dirname(p)) {
+        if (!existsSync(p) || lstatSync(p).isSymbolicLink()) return deny(`job: the folder "${plan.from}" isn't in its data folder`);
+        if (p === root) break;
+      }
+      if (!lstatSync(sourceDir).isDirectory()) return deny(`job: "${plan.from}" isn't a folder`);
+    }
+    if (!existsSync(sourceDir)) return deny('job: the workspace folder does not exist');
+    const life = this.#lifetime(run);
+    if (!life) return deny('job: no request from Sara is running, so nothing can ask the owner');
+    try {
+      const command = commandLine(plan);
+      const where = plan.source === 'workspace' ? 'a disposable copy of your main workspace' : 'a disposable copy of its own files';
+      const card = { command, source: plan.source, cwd: plan.cwd, network: plan.network, timeoutS: plan.timeoutS, fence, fenceLabel: FENCE_LABELS[fence] };
+      // While the owner decides, the request that asked stays open (up to 2 minutes).
+      const askMs = this.opts.jobApprovalMs ?? JOB_APPROVAL_MS;
+      run.proc.extend(life.ids, askMs + 5_000);
+      const decided = AbortSignal.any([life.signal, AbortSignal.timeout(askMs)]);
+      const ok = await this.#ask(a, run, 'job', `run ${command} in ${where}${plan.cwd !== '.' ? ` (folder ${plan.cwd})` : ''}, ${plan.network ? 'with' : 'without'} network, up to ${plan.timeoutS} s; ${FENCE_LABELS[fence]}`, { ...card }, { signal: decided }, card);
+      if (!ok) {
+        this.store.log(id, a.id, 'call', 'job: the owner said no (or didn\'t answer); nothing ran');
+        return { ok: false, content: 'The owner declined this. Nothing ran.' };
+      }
+      if (life.signal.aborted) return { ok: false, content: 'The request ended before this could run. Nothing ran.' };
+      if (!this.#current(a, run) || JSON.stringify(run.manifest.permissions.run) !== JSON.stringify(perm)) return { ok: false, content: 'This is no longer allowed. Nothing ran.' };
+      run.proc.extend(life.ids, plan.timeoutS * 1000 + 15_000);
+      const jobId = randomUUID();
+      const ctl = new AbortController();
+      this.#jobs.set(jobId, { ctl, job: { id: jobId, plugin: id, name: run.manifest.name, companion: a.id, command, fence, at: this.#now().toISOString() } });
+      this.#changed();
+      try {
+        const r = await runJob(plan, { sourceDir, cacheDir: join(this.opts.dataDir, 'cache', 'plugin-jobs'), fence, signal: AbortSignal.any([life.signal, ctl.signal]), ...(plan.source === 'workspace' ? { depsFrom: sourceDir } : {}) });
+        this.store.log(id, a.id, 'call', `job: ${cut(command, 200)}: ${r.error ? `not run (${cut(r.error, 200)})` : r.cancelled ? 'stopped' : r.timedOut ? `stopped after ${plan.timeoutS} s` : `exit ${r.exitCode ?? r.signal}`} (${fence}; copy ${r.deleted ? 'deleted' : 'NOT deleted'})`);
+        // The answer must fit one channel line (1 MB) after JSON escaping.
+        // (`id` is the channel's call id: the run's own id goes back as `jobId`.)
+        const { id: runId, ...rest } = r;
+        const out: Record<string, unknown> = { ok: !r.error, jobId: runId, ...rest, stdout: this.opts.scrub(r.stdout), stderr: this.opts.scrub(r.stderr) };
+        for (let i = 0; i < 8 && JSON.stringify(out).length > 900_000; i++) {
+          for (const k of ['stdout', 'stderr'] as const) {
+            const v = out[k] as string;
+            if (v.length > 1024) {
+              out[k] = v.slice(0, Math.floor(v.length / 2));
+              out[`${k}Truncated`] = true;
+            }
+          }
+        }
+        return out;
+      } finally {
+        this.#jobs.delete(jobId);
+        this.#changed();
+      }
+    } finally {
+      life.dispose();
+    }
+  }
+
+  /** H_EXEC: plugin jobs running now. */
+  jobs(): RunningJob[] {
+    return [...this.#jobs.values()].map((j) => j.job);
+  }
+  /** H_EXEC: the owner's Stop on a running job. */
+  stopJob(jobId: string): boolean {
+    const j = this.#jobs.get(jobId);
+    if (!j) return false;
+    j.ctl.abort();
+    this.store.log(j.job.plugin, j.job.companion, 'call', 'job: stopped by the owner');
+    return true;
+  }
+
   /** A plugin → Sara tool call: it always asks the owner (an outside request; never "always allowed"). */
-  #ask(a: Attached, run: Running, tool: string, summary: string, args: Record<string, unknown>): Promise<boolean> {
-    const call: WaitingCall = { id: randomUUID(), plugin: run.row.id, name: run.manifest.name, companion: a.id, tool, summary: this.opts.scrub(summary), args: a.app.redactor.redactValue(args) as Record<string, unknown>, at: this.#now().toISOString() };
+  #ask(a: Attached, run: Running, tool: string, summary: string, args: Record<string, unknown>, life: { signal: AbortSignal }, job?: WaitingCall['job']): Promise<boolean> {
+    const call: WaitingCall = { id: randomUUID(), plugin: run.row.id, name: run.manifest.name, companion: a.id, tool, summary: this.opts.scrub(summary), args: a.app.redactor.redactValue(args) as Record<string, unknown>, at: this.#now().toISOString(), ...(job ? { job } : {}) };
     return new Promise((resolveAsk) => {
-      const timer = setTimeout(() => {
+      const end = (why: string) => {
+        const w = this.#waiting.get(call.id);
+        if (!w) return;
+        clearTimeout(w.timer);
+        life.signal.removeEventListener('abort', onEnd);
         this.#waiting.delete(call.id);
+        this.#expire(call.id);
+        this.store.log(run.row.id, a.id, 'call', `${tool}: ${why}; nothing ran`);
         this.#changed();
         resolveAsk(false);
-      }, CALL_WAIT_MS);
+      };
+      const onEnd = () => end('the request ended before the owner answered');
+      if (life.signal.aborted) {
+        resolveAsk(false);
+        return;
+      }
+      const timer = setTimeout(() => end('no answer within 10 minutes'), CALL_WAIT_MS);
       timer.unref?.();
-      this.#waiting.set(call.id, { call, resolve: resolveAsk, timer });
+      life.signal.addEventListener('abort', onEnd, { once: true });
+      this.#waiting.set(call.id, {
+        call,
+        timer,
+        end,
+        resolve: (ok) => {
+          clearTimeout(timer);
+          life.signal.removeEventListener('abort', onEnd);
+          resolveAsk(ok);
+        },
+      });
       void a.app.push?.sendAll({ title: run.manifest.name, body: `${run.manifest.name} asks to ${summary}. Settings → Plugins.`, url: '/#view=settings:ab-plugins', tag: `plugin-${run.row.id}` }).catch(() => undefined);
       this.#changed();
     });
   }
 
+  #expire(callId: string): void {
+    const t = Date.now();
+    for (const [k, at] of this.#expired) if (t - at > CALL_WAIT_MS || this.#expired.size > 500) this.#expired.delete(k);
+    this.#expired.set(callId, t);
+  }
+
   waiting(): WaitingCall[] {
     return [...this.#waiting.values()].map((w) => w.call);
   }
-  decideCall(callId: string, approved: boolean): boolean {
+  /** The owner's answer: 'decided', 'expired' (its request already ended; nothing runs) or 'unknown'. */
+  callDecision(callId: string, approved: boolean): 'decided' | 'expired' | 'unknown' {
     const w = this.#waiting.get(callId);
-    if (!w) return false;
-    clearTimeout(w.timer);
+    if (!w) return this.#expired.has(callId) ? 'expired' : 'unknown';
     this.#waiting.delete(callId);
     w.resolve(approved);
     this.#changed();
-    return true;
+    return 'decided';
+  }
+  decideCall(callId: string, approved: boolean): boolean {
+    return this.callDecision(callId, approved) === 'decided';
   }
 
   async #fetch(a: Attached, run: Running, msg: InMessage, deny: (why: string) => never): Promise<Record<string, unknown>> {

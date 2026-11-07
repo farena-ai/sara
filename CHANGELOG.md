@@ -5,6 +5,79 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.77.0 (2026-11-06): a professional new look
+
+- **Two developer add-ons that really run tests (N03, N04), as local candidates:** Test Doctor
+  runs one named test once as a job you approve and points at the real failing assertion
+  (expected, actual, line) and the source it calls; timeouts, todo failures and non-assertion
+  errors get no root cause. Flaky Test Lab repeats one test up to 20 times in one approved job and
+  calls it flaky only when it both passed and failed, with every seed's outcome. Both run in a
+  throwaway copy of what you staged; not OS-sandboxed on Windows.
+- **Plugin jobs (H_EXEC):** a plugin that declares `permissions.run` can ask Sara to run `node`
+  (or `npm` where bubblewrap exists) for it. You approve each job on the Plugins page, with the
+  exact command; it runs in a throwaway copy of its own files or your main workspace (no `.git`,
+  links or dependency folders), returns the real exit code, output and changed files, and the copy
+  is deleted. Nothing is written back to your workspace. On Linux with bubblewrap it is sandboxed
+  without network; on Windows and elsewhere it is **not OS-sandboxed** (Node's permission model
+  only, limited to the copy). A job stops when you press Stop, when the plugin is switched off,
+  when its time is up or when the plugin's request ends. See [Plugins](docs/PLUGINS.md).
+- **Fixed: a plugin's tool request could still run after the plugin gave up.** When a plugin asks
+  to use one of her tools, the approval now lasts only as long as the plugin task that asked: when
+  that task times out, finishes, fails or the plugin stops, the card disappears at once and a late
+  Allow answers *expired* (nothing runs). A plugin can no longer ask outside a task Sara started.
+  Chat, team and live-call approvals likewise report *expired* when their turn, step or call ended.
+- **Read a feed together (E6):** in the Library press *Read a feed together*, paste the address of
+  a public RSS or Atom feed and press *Open*. Sara fetches it once (only on *Open* or *Reload*) and
+  lists the items as plain text; press *Share* on one and she comments on exactly that item. If you
+  reload and it changed or vanished she says so. *Stop* ends it; nothing is remembered. Feed text
+  is treated as written by strangers, and her outward tools are off while an item is shared. Owner
+  only; not in private mode. See [A feed together](docs/LIBRARY.md#a-feed-together).
+- **A professional new look and real themes (V1, [design](docs/ops/V1_DESIGN.md)):** Sara now looks
+  like a calm, dense work tool. *Settings → You → Appearance* (its own page now) picks a palette:
+  Graphite (the new default), Midnight, Slate, Nord, Solarized, Paper, Ember, High contrast or
+  **Sara Classic** (the rose and violet look, unchanged), each in Night and Day; a colour (the
+  palette's own, eight presets, or any colour: Sara adjusts its shade so text stays readable);
+  *Layout* (compact sizes now apply app-wide); *Decoration* (aurora, glows, glass and blur: on for
+  Sara Classic, off for the rest); and her picture size in work views (small by default). Chat is a
+  transcript instead of bubbles; buttons, fields, tabs, cards and windows are flat with small radii
+  and system fonts only. *Use on all my devices* saves the look for new devices. People who used Sara
+  before see one notice with *Switch back to Sara Classic*. Every palette's text and accent pairs pass
+  WCAG AA (checked by a test).
+- **Fixed:** markdown tables in her replies show as tables instead of raw `| a | b |` text, and a
+  Settings page title no longer gets a focus box when the page opens.
+- **Expressive voice per engine (R2d):** each voice now gets only the sounds its maker documents.
+  ElevenLabs with an `eleven_v3` model laughs, sighs and whispers too; Grok voice no longer gets a
+  tag it does not know; other voices read the plain words. Not yet confirmed by ear (owner check).
+- **Recovery times in your language:** delivery cards show "5 minutes ago" (or the date after a
+  week) instead of a raw ISO timestamp; hover for the full local date and time. Stored times are unchanged.
+- **Log level in Settings:** Settings → Data & health → Health → *Log level* (owner only) picks how
+  much goes into her log, saved and applied at once. `SARA_LOG_LEVEL` on the server still wins and
+  the page says so. See [Logs](docs/INSTALL.md#logs).
+- **Scene chips in the chat (shared scenes follow-up):** the *In scene* chip now opens the scene
+  card; a fact she saves shows *Saved to the scene: …* in the chat, and a line you picked with Add
+  to scene shows *Canon: …*. Both open the card. Owner only. See [Shared scenes](docs/SCENES.md).
+- **Fixed: the code map on Node 26 (issue #9).** Re-indexing a changed or deleted file stopped with
+  "Value is too large to be represented as a JavaScript number"; every code-map write now reads
+  SQLite's row numbers safely.
+- **Fixed: buttons that waited with several Sara tabs open.** Each tab kept its own live-updates
+  connection, and over plain HTTP a browser opens only six per server, so with six tabs (or five
+  and a streaming reply) every press, such as Allow on a proposal card, waited. All tabs of a
+  browser now share one connection; when that tab closes, another takes over.
+- **Three lab developer add-ons as local candidates (N09, N25, N28):** Performance Regression Lab
+  measures staged baseline/candidate benchmarks interleaved and keeps raw samples (noisy or small
+  runs stay inconclusive, without a percentage); Code Migration Studio previews a scope-aware AST
+  import rename and applies only the approved hash-bound patch to a staged workspace copy; Build
+  Reproducibility Inspector builds a staged fixture twice and explains time/path differences from
+  the artifacts. Off until enabled, tool access Ask, no network or model. Not signed or listed yet.
+  Offline and PWA Auditor (N18) and Mobile Device Lab (N30) stay held. See
+  [Developer add-ons](docs/DEVELOPER_ADDONS.md).
+- **Developer connections in Other programs (MCP):** the thirty developer MCP targets (Local Git
+  through CircleCI) now appear with a plain state. Storybook and local Qdrant passed a real
+  fixture test with pinned upstreams and no account; *Copy into the add form* fills the normal
+  form switched off, and nothing starts until you save it enabled. Twenty-two others show the
+  exact account or service step they need first, and six are blocked with their reason; neither
+  has an install action. See [Developer add-ons](docs/DEVELOPER_ADDONS.md).
+
 ## 2.76.0 (2026-11-06): developer add-ons
 
 - **Watch alerts on Telegram or Discord, and in the chat you pick (E4 follow-up):** each watch has

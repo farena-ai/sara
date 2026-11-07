@@ -61,7 +61,7 @@ const WAS_WORDS = { Abilities: () => t('Abilities'), Connections: () => t('Conne
 // The order of the pages inside each group. Page ids stay the same: links, tips, tours and tests use them.
 const SETTINGS_ORDER = [
   'her-character', 'her-relationship', 'her-look', 'her-pictures', 'her-voice', 'her-hey', 'her-calls', 'her-companions', 'her-import',
-  'you-about', 'you-briefing', 'you-leave-by', 'ab-when', 'you-adult',
+  'you-about', 'you-appearance', 'you-briefing', 'you-leave-by', 'ab-when', 'you-adult',
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
   'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-pickup', 'co-continuity',
   'ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-recipes',

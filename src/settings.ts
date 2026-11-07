@@ -134,6 +134,8 @@ export interface Settings {
   /** Phase 98 (ST3): plugins switched on for this companion, their settings (secrets live in the vault). */
   plugins?: import('./plugins/manager.ts').CompanionPluginSettings;
   runs?: Partial<import('./runs.ts').RunSettings>;
+  /** Settings → Data & health: the log level (SARA_LOG_LEVEL, when set, wins). Missing = info. */
+  logLevel?: import('./log.ts').LogLevel;
   /**
    * Phase 79: per-reply budgets (Settings → Coding → Budgets): coding chats and everyday chats
    * (tokens, steps, optional $ and minutes, on/off), the quick-model step and what happens at the limit.
@@ -208,6 +210,8 @@ export interface Settings {
   talkLanguage?: string;
   /** Phase 53, per companion: the yearly look back on the anniversary of the first message (off by default). */
   story?: { yearly?: boolean; lastYear?: number };
+  /** V1: the look a new device starts from ("Use on all my devices"; src/appearance.ts). */
+  appearance?: import('./appearance.ts').Appearance;
   /** Phase 70: "Our moments": which photos enter the album by themselves (per companion). */
   moments?: Partial<import('./moments.ts').MomentsSettings>;
   /**

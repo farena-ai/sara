@@ -729,6 +729,11 @@ dialog:not(.settings-dialog) .settings-body > :is(.error, p[role="status"]):empt
 /* R1B3: the shared room confirm card, the "In scene" chip and the Add to scene dialog. */
 .scene-room-confirm ul { margin: 0; padding-left: 1.2em; }
 .scene-room-confirm li { overflow-wrap: anywhere; }
+/* R1B3 follow-up: the chip opens the scene card; canon chips in the transcript. */
+button.status-chip { font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.canon-line { display: flex; }
+.canon-chip { margin-left: 0; font-size: 11.5px; padding: 0 var(--s-2); }
+.msg .line-canon { margin-top: var(--s-1); }
 #chat-head .scene-chip { margin-left: 0; align-self: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; padding: 0 var(--s-2); }
 .scene-add-dialog { width: min(520px, calc(100vw - 24px)); box-sizing: border-box; }
 .scene-add-line { margin: 0; padding: var(--s-2) var(--s-3); border-left: 3px solid var(--hairline-strong); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 30vh; overflow: auto; }

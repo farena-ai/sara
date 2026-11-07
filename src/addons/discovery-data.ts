@@ -1024,6 +1024,172 @@ export const discoveryData ={
       "tool": "request",
       "contentSha": "cafef41c0d07665c6f676f049024e5d0dd2cda92d24bbfced230f02d50db7d45"
     }
+,
+    {
+      "id": "performance-regression-lab",
+      "kind": "plugin",
+      "name": "Performance Regression Lab",
+      "summary": "Run staged baseline and candidate benchmarks interleaved in a fenced context and report regressions from raw samples.",
+      "description": "Measure staged baseline and candidate benchmark scripts with interleaved warm-up and samples, return every raw sample and call a regression only when the interval clears your threshold.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Tested on Windows (Node 24.20.0) against the current development source: official package smoke, real manager approval, explicit enablement, registered execution on synthetic staged fixtures, invocation cards and disablement passed for the exact package bytes. Not Linux, signed-release or ordinary chat-approval acceptance.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model.",
+        "With the plugin disabled, a trusted operator stages self-contained baseline.js and candidate.js benchmark scripts in its own native data home; stage only code you trust."
+      ],
+      "permissions": [
+        "Adds compare tool (Ask)",
+        "Own plugin-data read only; no writes or selected-project access.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Runs staged scripts in a Node vm context inside the permission-limited plugin process; Node vm is not a security boundary and Windows node-only mode is not an OS sandbox. No compilers, commands or project access.",
+        "5–60 samples per side, 20 s worst case, 256 KiB per script. Noisy or underpowered runs are inconclusive without a percentage; one machine's timings do not predict other hardware.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "compare",
+      "contentSha": "d020d786c5ee513488d2e03e4a44c2c5450065d26f2695aa2cdf5ff486312bef"
+    },
+{
+      "id": "code-migration-studio",
+      "kind": "plugin",
+      "name": "Code Migration Studio",
+      "summary": "Preview an AST-based import rename in an operator-staged workspace and apply only the approved hash-bound patch.",
+      "description": "Preview a scope-aware AST rename of one named import across explicitly selected files, then apply only that exact hash-bound patch and verify every written file.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Tested on Windows (Node 24.20.0) against the current development source: official package smoke, real manager approval, explicit enablement, registered execution on synthetic staged fixtures, invocation cards and disablement passed for the exact package bytes. Not Linux, signed-release or ordinary chat-approval acceptance.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model.",
+        "With the plugin disabled, a trusted operator stages a disposable copy of the project in its own native data home; compile and test the migrated copy before taking changes back."
+      ],
+      "permissions": [
+        "Adds migrate tool (Ask)",
+        "Reads and writes only its own plugin data (the staged workspace copy); no main-workspace or selected-project access.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "One versioned codemod (rename-named-import v1) for .js/.mjs files; namespace imports, re-exports, dynamic imports, reassignment and name conflicts refuse. Not TypeScript or general refactoring.",
+        "Up to 32 selected files of 256 KiB; links, unselected files, stale hashes and syntax errors refuse without writes. The plugin runs no compiler or tests itself.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "migrate",
+      "contentSha": "b9c701b12d67bda7633c863ffa44f286ab582a2ba1c1d13e1596a534bb5de63c"
+    },
+{
+      "id": "build-reproducibility-inspector",
+      "kind": "plugin",
+      "name": "Build Reproducibility Inspector",
+      "summary": "Build a staged fixture twice in fenced contexts, compare artifact hashes and explain timestamp or path nondeterminism.",
+      "description": "Run a staged fixture build twice in fresh contexts with different clocks and build roots, compare per-file and tree hashes and explain timestamp or path differences from the artifacts.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Tested on Windows (Node 24.20.0) against the current development source: official package smoke, real manager approval, explicit enablement, registered execution on synthetic staged fixtures, invocation cards and disablement passed for the exact package bytes. Not Linux, signed-release or ordinary chat-approval acceptance.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model.",
+        "With the plugin disabled, a trusted operator stages build.js and a source folder in its own native data home; stage only build code you trust."
+      ],
+      "permissions": [
+        "Adds inspect tool (Ask)",
+        "Own plugin-data read only; no writes or selected-project access.",
+        "No network, model, shell, delegated tools, schedules or independent card posts. Invocation-scoped result cards only."
+      ],
+      "limitations": [
+        "Runs a staged JavaScript build function in Node vm contexts inside the permission-limited plugin process, not compilers, package managers or child processes; Node vm is not a security boundary.",
+        "64 source files of 1 MiB total and 64 outputs of 4 MiB. Only clock and build-root variation is explained; other differences stay unexplained with the first differing byte.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "inspect",
+      "contentSha": "f60aab7f3aed849ad2700e237f87da6109b55b13faf1ac329c82d1ae5fccc951"
+    },
+{
+      "id": "test-doctor",
+      "kind": "plugin",
+      "name": "Test Doctor",
+      "summary": "Run one exactly named test of a staged project in a disposable copy and point at its failing assertion and the source it calls.",
+      "description": "Run one exactly named test of a staged project once in a disposable copy you approve, read the real test report and point at the failing assertion, its expected and actual values and the source it calls.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Tested on Windows (Node 24.20.0) against the current development source: official package smoke, real manager approval, explicit enablement, registered execution on synthetic staged fixtures, invocation cards and disablement passed for the exact package bytes. Not Linux, signed-release or ordinary chat-approval acceptance.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model.",
+        "With the plugin disabled, a trusted operator stages the project as plain files under projects/<name> in its own native data home; stage only code you trust to run."
+      ],
+      "permissions": [
+        "Adds diagnose tool (Ask)",
+        "Own plugin-data read only; no writes or selected-project access.",
+        "Each run asks Sara for one job you approve: node in a disposable copy of its staged project, no network; the copy is deleted afterwards. No model, shell or delegated tools."
+      ],
+      "limitations": [
+        "Not OS-sandboxed on Windows or macOS: Node's permission model limits the job to the disposable copy (no child processes). OS-sandboxed with bubblewrap on Linux.",
+        "Node test files only, one exactly named test per run. Timeouts, todo (expected) failures and non-assertion errors get no root cause; the called source is located by import name, not proven to be the fix.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "diagnose",
+      "contentSha": "eaa0f3634a34a5e7bcc6e0cc54bd7954b4e6c30fbac270d65d2b33a1718b1346"
+    },
+{
+      "id": "flaky-test-lab",
+      "kind": "plugin",
+      "name": "Flaky Test Lab",
+      "summary": "Repeat one exactly named test of a staged project in a disposable copy and tell flaky from stable failures, with every seed's outcome.",
+      "description": "Repeat one exactly named test of a staged project up to 20 times in one job you approve, keep every seed's outcome and duration, and call it flaky only when it both passed and failed.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Tested on Windows (Node 24.20.0) against the current development source: official package smoke, real manager approval, explicit enablement, registered execution on synthetic staged fixtures, invocation cards and disablement passed for the exact package bytes. Not Linux, signed-release or ordinary chat-approval acceptance.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model.",
+        "With the plugin disabled, a trusted operator stages the project as plain files under projects/<name> in its own native data home; stage only code you trust to run."
+      ],
+      "permissions": [
+        "Adds repeat tool (Ask)",
+        "Reads and writes only its own plugin data (the staged workspace copy); no main-workspace or selected-project access.",
+        "Each run asks Sara for one job you approve: node in a disposable copy of its staged project, no network; the copy is deleted afterwards. No model, shell or delegated tools."
+      ],
+      "limitations": [
+        "Not OS-sandboxed on Windows or macOS: Node's permission model limits the job to the disposable copy (no child processes). OS-sandboxed with bubblewrap on Linux.",
+        "2–20 repetitions as fresh module imports seeded through globalThis.SARA_FLAKY_SEED; state outside the module is shared between repetitions. Stopped, timed-out or incomplete runs give no verdict.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "repeat",
+      "contentSha": "53fc914fc8b50a90c4962c21317c06496ce2bf9afed091da0834de35a90893de"
+    }
   ],
   "investigations": [
     {

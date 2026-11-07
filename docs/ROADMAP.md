@@ -75,6 +75,14 @@ or cost previews and blocked investigations stay visibly held. Each install stay
 enable it. Watch alerts can also go to your own Telegram or Discord chat (off by default). See
 [developer add-ons](DEVELOPER_ADDONS.md) and the [add-ons library](ADDONS_LIBRARY.md).
 
+## A professional new look in 2.77.0
+
+A calm, dense, precise design with nine palettes in Night and Day, your own accent colour,
+compact spacing and Reduce decoration (Settings → You → Appearance); Sara Classic keeps the
+previous look. Read together can share one item from a news feed you paste. Two developer
+add-ons run tests in a disposable copy you approve, and two local developer connections
+(Storybook, Qdrant) can be added from Settings. See [Appearance](APPEARANCE.md).
+
 ## Next
 
 The add-ons library pages are being restyled to match the main site. Expressive speech on calls
@@ -260,6 +268,7 @@ In build order; one release per phase. The computer use track is complete (2.20�
 | 126 | "Hey Sara" on desktop and Android | 2.59 |
 | 127 | Companion packs to share | 2.60 |
 | 128 | A second polish pass | 2.61 |
+| V1 | A professional new look: palettes (Graphite, Midnight, Slate, Nord, Solarized, Paper, Ember, High contrast, Sara Classic) in Night and Day, your own accent colour, compact layout | next |
 
 Ideas and requests are welcome in [Discussions](https://github.com/farena-ai/sara/discussions)
 and [issues](https://github.com/farena-ai/sara/issues). See [CONTRIBUTING.md](../CONTRIBUTING.md).

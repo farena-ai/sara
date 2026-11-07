@@ -2,13 +2,15 @@
 // opens above the chat; select some text and press Share this passage, or switch on Follow my place.
 // Only positions and hashes go to the server; it reads the text from the library itself and says
 // when the passage changed. Stop ends sharing at once.
+// E6: the Feed tab opens one public RSS/Atom feed (fetched by the server only on Open or Reload) and
+// shares one item by its key and hash. Items are drawn as text only: no images, no page HTML.
 import { t } from './naming.js';
 
 const $ = (sel) => document.querySelector(sel);
 const MAX_PASSAGES = 3;
 const MAX_CHARS = 4000;
 let deps = null;
-/** The open document: { conv, doc, passages: Map(ord → passage), sent: ord of the last follow update } */
+/** The open view: { conv, doc (or null), passages: Map(ord → passage), sent: ord of the last follow update, feed (E6, or null), shared: { key, textSha } of the shared feed item } */
 let open = null;
 let followTimer = 0;
 let lastFollowAt = 0;
@@ -61,6 +63,7 @@ function where(p) {
 }
 
 function showBar(place) {
+  if (!open?.doc) return void ($('#rt-now').textContent = t('Read together'));
   $('#rt-now').textContent = place ? t('Reading together: {doc} · {place}', { doc: open.doc.name, place }) : t('Reading together: {doc}', { doc: open.doc.name });
 }
 
@@ -69,6 +72,10 @@ async function send(body, label) {
     const r = await deps.api(`/read-together/${encodeURIComponent(open.conv)}`, { method: 'PUT', body });
     showBar(label);
     $('#rt-private').hidden = !r.privateLocal;
+    if (open.shared) {
+      open.shared = null; // one share per chat: the passage replaced the feed item
+      drawFeed();
+    }
     return true;
   } catch (err) {
     const reason = err.data?.reason;
@@ -142,6 +149,137 @@ function close() {
   $('#rt-panel').hidden = true;
   $('#rt-text').replaceChildren();
   $('#rt-follow').checked = false;
+  // E6: nothing is remembered: the address and the list go with the view.
+  $('#rt-feed-url').value = '';
+  drawFeed();
+}
+
+/** E6: the Document or the Feed tab. */
+function tab(which) {
+  const feed = which === 'feed' || !open?.doc;
+  $('#rt-tabs').hidden = !open?.doc; // a feed alone needs no tabs
+  $('#rt-tab-doc').setAttribute('aria-selected', String(!feed));
+  $('#rt-tab-feed').setAttribute('aria-selected', String(feed));
+  $('#rt-doc-pane').hidden = feed;
+  $('#rt-feed-pane').hidden = !feed;
+}
+
+function feedDate(p) {
+  if (!p) return '';
+  const d = new Date(p);
+  return Number.isNaN(d.getTime()) ? p : d.toLocaleDateString();
+}
+
+function feedBar(name) {
+  $('#rt-now').textContent = t('Reading together: {item} · {feed}', { item: name || t('(no title)'), feed: open.feed?.title ?? '' });
+}
+
+/** The open feed's items drawn as plain text (title, date and site), a link that opens only when clicked, and Share. */
+function drawFeed() {
+  const list = $('#rt-feed-items');
+  list.replaceChildren();
+  const f = open?.feed;
+  $('#rt-feed-reload').hidden = !f;
+  $('#rt-feed-title').hidden = !f;
+  if (!f) return;
+  $('#rt-feed-title').textContent = t('{feed} · {count} items', { feed: f.title, count: f.items.length });
+  for (const item of f.items) {
+    const li = document.createElement('li');
+    li.className = 'rt-feed-item';
+    li.classList.toggle('rt-shared', open.shared?.key === item.key);
+    const title = document.createElement('span');
+    title.className = 'rt-feed-name';
+    title.textContent = item.title || t('(no title)');
+    const meta = document.createElement('span');
+    meta.className = 'muted small';
+    meta.textContent = [feedDate(item.published), f.host].filter(Boolean).join(' · ');
+    li.append(title, meta);
+    if (item.link && /^https?:\/\//i.test(item.link)) {
+      const a = document.createElement('a');
+      a.href = item.link;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.className = 'small';
+      a.textContent = t('Open link');
+      li.append(a);
+    }
+    const share = document.createElement('button');
+    share.type = 'button';
+    share.className = 'small';
+    share.textContent = open.shared?.key === item.key ? t('Shared') : t('Share');
+    share.addEventListener('click', () => void shareItem(item));
+    li.append(share);
+    list.append(li);
+  }
+}
+
+/** Open or Reload: the only place a feed is fetched (by the server, once). */
+async function loadFeed(url) {
+  if (!open) return;
+  if (!url?.trim()) return note(t('Paste the address of a feed first.'), { error: true });
+  const conv = open.conv;
+  note(t('Opening the feed…'));
+  $('#rt-feed-go').disabled = true;
+  $('#rt-feed-reload').disabled = true;
+  try {
+    const r = await deps.api(`/read-together/${encodeURIComponent(conv)}/feed`, { method: 'POST', body: { url: url.trim() } });
+    if (open?.conv !== conv) return;
+    open.feed = r.feed;
+    $('#rt-feed-url').value = r.feed.url;
+    $('#rt-private').hidden = !r.privateLocal;
+    const s = open.shared;
+    const still = s && r.feed.items.some((i) => i.key === s.key && (!s.textSha || i.textSha === s.textSha));
+    if (s && !still) open.shared = { ...s, changed: true };
+    drawFeed();
+    if (s && !still) note(t('The item you shared changed or is no longer in the feed. Share it again.'), { error: true });
+    else if (!r.feed.items.length) note(t('This feed has no items right now.'));
+    else note(t('Press Share on one item. Nothing is shared until you do.'));
+  } catch (err) {
+    note(err.message, { error: true });
+  } finally {
+    $('#rt-feed-go').disabled = false;
+    $('#rt-feed-reload').disabled = false;
+  }
+}
+
+/** Share one item: its key and hashes only; the server reads the text from what it fetched. */
+async function shareItem(item) {
+  if (!open?.feed) return;
+  try {
+    const r = await deps.api(`/read-together/${encodeURIComponent(open.conv)}`, { method: 'PUT', body: { source: 'feed', rev: open.feed.rev, key: item.key, textSha: item.textSha } });
+    open.shared = { key: item.key, textSha: item.textSha };
+    open.sent = null;
+    $('#rt-follow').checked = false;
+    feedBar(item.title);
+    $('#rt-private').hidden = !r.privateLocal;
+    drawFeed();
+    note(t('Shared with her. Ask about it in your next message.'));
+  } catch (err) {
+    note(err.message, { error: true });
+  }
+}
+
+/** E6: opens the Feed tab above the current chat (from the Library's Read a feed together). */
+export async function openReadFeed() {
+  const conv = deps?.current();
+  if (!conv) return false;
+  if (open && open.conv !== conv) await stopReadTogether();
+  if (!open) {
+    const state = await deps.api(`/read-together/${encodeURIComponent(conv)}`).catch(() => ({ share: null, feed: null }));
+    const feedShare = state.share?.source === 'feed' ? state.share : null;
+    open = { conv, doc: null, passages: new Map(), sent: null, feed: state.feed ?? null, shared: feedShare ? { key: feedShare.key, textSha: state.feed?.items.find((i) => i.key === feedShare.key)?.textSha } : null };
+    $('#rt-text').replaceChildren();
+    $('#rt-private').hidden = !state.privateLocal;
+    if (feedShare) feedBar(feedShare.name);
+    else showBar('');
+    if (feedShare?.mismatch) note(t('The item you shared changed or is no longer in the feed. Share it again.'), { error: true });
+    else note(t('Paste the address of an RSS or Atom feed and press Open.'));
+  }
+  tab('feed');
+  drawFeed();
+  $('#rt-panel').hidden = false;
+  $('#rt-feed-url').focus();
+  return true;
 }
 
 /** Stop: ends sharing at once and closes the view. */
@@ -159,7 +297,8 @@ export async function openReadTogether(doc) {
   if (open && open.conv !== conv) await stopReadTogether();
   const r = await deps.api(`/library/${doc.id}/passages?from=0&limit=200`);
   const state = await deps.api(`/read-together/${encodeURIComponent(conv)}`).catch(() => ({ share: null }));
-  open = { conv, doc, passages: new Map(r.passages.map((p) => [p.ord, p])), sent: null };
+  const kept = open?.conv === conv ? { feed: open.feed, shared: open.shared } : { feed: state.feed ?? null, shared: null };
+  open = { conv, doc, passages: new Map(r.passages.map((p) => [p.ord, p])), sent: null, ...kept };
   const box = $('#rt-text');
   box.replaceChildren();
   let lastHead = null;
@@ -182,6 +321,8 @@ export async function openReadTogether(doc) {
   if (state.share?.mismatch) note(t('This passage changed. Share it again.'), { error: true });
   else note(t('Select some text and press Share this passage. Nothing is shared until you do.'));
   $('#rt-share').hidden = true;
+  tab('doc');
+  drawFeed();
   $('#rt-panel').hidden = false;
   return true;
 }
@@ -200,11 +341,21 @@ export function initReadTogether(d) {
   $('#rt-follow').addEventListener('change', () => {
     if ($('#rt-follow').checked) return void sendPlace();
     // Off: her next message no longer gets your place (nothing is shared until you press Share).
-    if (open) void deps.api(`/read-together/${encodeURIComponent(open.conv)}`, { method: 'DELETE', raw: true }).catch(() => {});
+    if (open) void deps.api(`/read-together/${encodeURIComponent(open.conv)}?only=share`, { method: 'DELETE', raw: true }).catch(() => {});
     if (open) open.sent = null;
     if (open) showBar('');
     note(t('Follow is off. Nothing is shared until you press Share this passage.'));
   });
   document.addEventListener('selectionchange', onSelection);
+  $('#rt-tab-doc').addEventListener('click', () => tab('doc'));
+  $('#rt-tab-feed').addEventListener('click', () => tab('feed'));
+  $('#rt-feed-go').addEventListener('click', () => void loadFeed($('#rt-feed-url').value));
+  $('#rt-feed-reload').addEventListener('click', () => void loadFeed(open?.feed?.url));
+  $('#rt-feed-url').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void loadFeed($('#rt-feed-url').value);
+    }
+  });
 }
 

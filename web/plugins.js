@@ -92,7 +92,7 @@ const STATE = {
   stopped: () => t('Off'),
 };
 
-let state = { plugins: [], companions: [], waiting: [], fence: 'node-only' };
+let state = { plugins: [], companions: [], waiting: [], jobs: [], fence: 'node-only' };
 let pending = null;
 let editing = null;
 let focusPlugin = null;
@@ -218,7 +218,28 @@ function renderWaiting() {
       }),
     ),
   );
-  $('#plg-waiting-head').hidden = !state.waiting.length;
+  // H_EXEC: jobs running now, each with Stop.
+  for (const j of state.jobs ?? []) {
+    box.append(
+      proposalCard({
+        title: t('{plugin} is running: {what}', { plugin: j.name, what: j.command }),
+        source: t('From a plugin'),
+        why: [t('It runs in a disposable copy and is deleted afterwards; nothing is written to your workspace.')],
+        buttons: [{ label: t('Stop'), cls: 'ghost', onClick: (b) => void stopJob(j, b) }],
+      }),
+    );
+  }
+  $('#plg-waiting-head').hidden = !state.waiting.length && !(state.jobs ?? []).length;
+}
+
+async function stopJob(j, b) {
+  b.disabled = true;
+  try {
+    await api(`/plugins/${enc(j.plugin)}/jobs/${enc(j.id)}`, { method: 'POST', body: {} });
+  } catch (err) {
+    status(err.message);
+  }
+  await loadPlugins();
 }
 
 async function decideCall(w, approved, b) {

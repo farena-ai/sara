@@ -365,6 +365,30 @@
       "Compact fits more on the screen; Comfortable has more space.",
       "start"
     ],
+    "ap-palette": [
+      "The colours of the whole app on this device. Graphite is the calm default; High contrast is the easiest to read; Sara Classic is the rose and violet look from before. Night or Day still picks light or dark.",
+      "start"
+    ],
+    "ap-decor": [
+      "Reduced keeps the app flat: no moving background, glows, blur or gradients. Full brings them back. Sara Classic starts with Full, every other palette with Reduced.",
+      "start"
+    ],
+    "ap-portrait": [
+      "How big her picture is in chats, projects and Settings. Her own page and calls always show her full size.",
+      "start"
+    ],
+    "ap-accent-custom": [
+      "Pick any colour. Sara adjusts its shade for Night and for Day so text on it and next to it stays easy to read.",
+      "start"
+    ],
+    "ap-accent-hex": [
+      "The same colour as a code, like #3b82f6. Sara adjusts the shade so it stays readable.",
+      "start"
+    ],
+    "ap-sync": [
+      "Saves this device's look to your account, so a new phone or computer starts with it. Each device can still change its own look afterwards.",
+      "start"
+    ],
     "br-enabled": [
       "A daily message with the weather and what's on your list. Turn off any time.",
       "planner"
@@ -1500,7 +1524,11 @@
       "brain"
     ],
     "you-about": [
-      "Your name, time zone, and how the app looks on this device (theme, colour, text size, layout).",
+      "Your name, time zone, language and what you mostly do with her.",
+      "start"
+    ],
+    "you-appearance": [
+      "How the app looks on this device: palette, Night or Day, colour, layout, decoration and her picture.",
       "start"
     ],
     "you-briefing": [

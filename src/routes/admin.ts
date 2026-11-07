@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { PUBLIC_MCP_INVESTIGATIONS } from '../addons/discovery.ts';
+import { PUBLIC_DEVELOPER_CONNECTIONS } from '../addons/developer-connections.ts';
 import { createBackupAsync } from '../backup-async.ts';
 
 const activeBackupFiles = new Set<string>();
@@ -9,11 +10,13 @@ import { createReadStream, existsSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { backupName, BACKUPS_DIR, DEFAULT_BACKUP, listBackups } from '../backup.ts';
 import { HISTORY_BUDGET_CHARS } from '../chat.ts';
+import { cleanAppearance } from '../appearance.ts';
 import { checklist } from '../checklist.ts';
 import { appMenu } from '../bridges/commands.ts';
 import { CONTRADICT_MODES, type ContradictMode, contradictSettings } from '../contradict.ts';
 import { runDoctor } from '../doctor.ts';
 import { healthReport } from '../health.ts';
+import { LOG_LEVELS, type LogLevel } from '../log.ts';
 import { as400, HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
 import { appLanguage, toLang } from '../i18n.ts';
 import { mcpSecrets, mergeSecrets, searchConfig } from '../integrations.ts';
@@ -76,6 +79,8 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           appLanguage: appLanguage(s),
           talkLanguage: s.talkLanguage ?? 'auto',
           storyYearly: s.story?.yearly === true,
+          // V1: the look a new device starts from (null until "Use on all my devices").
+          appearance: s.appearance ?? null,
           // Phase 114 (PL1b): company, coding or both (this companion's; 'both' when never chosen).
           usePath: usePathOf(s.usePath),
           usePathChosen: s.usePath !== undefined,
@@ -109,6 +114,7 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           if (!USE_PATHS.includes(body.usePath as UsePath)) throw new HttpError(400, 'Pick company, coding or both.');
           patch.usePath = body.usePath as UsePath;
         }
+        if (body.appearance !== undefined) patch.appearance = cleanAppearance(body.appearance);
         if (body.storyYearly !== undefined) patch.story = { ...app.settings.get().story, yearly: Boolean(body.storyYearly) };
         if (body.historyBudgetChars !== undefined) {
           const n = Number(body.historyBudgetChars);
@@ -301,7 +307,7 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
 
     if (a === 'mcp' && b === 'discovery' && c === 'previews' && parts.length === 3) {
       if (method !== 'GET') throw new HttpError(405, 'Method not allowed');
-      return send(res, 200, { investigations: PUBLIC_MCP_INVESTIGATIONS });
+      return send(res, 200, { investigations: PUBLIC_MCP_INVESTIGATIONS, developer: PUBLIC_DEVELOPER_CONNECTIONS });
     }
     if (a === 'mcp' && b === 'presets' && method === 'GET') return send(res, 200, MCP_PRESETS);
     if (a === 'mcp') {
@@ -357,6 +363,18 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       const h = app.healthHistory;
       if (!h) return send(res, 200, { buckets: [], up: 0 });
       return send(res, 200, days ? h.history({ days: Math.min(31, Math.max(1, Number(days) || 7)) }) : h.history({ hours: 24 }));
+    }
+    // Settings → Data & health: the log level, saved in settings; SARA_LOG_LEVEL (when set) still wins.
+    if (a === 'logs' && b === 'level' && !c) {
+      const view = () => ({ level: app.log?.level ?? 'info', saved: app.settings.get().logLevel ?? null, env: app.log?.options.levelFromEnv ? app.log.options.level : null, choices: LOG_LEVELS });
+      if (method === 'GET') return send(res, 200, view());
+      if (method === 'PUT') {
+        const level = String(((await readJson(req)) as { level?: unknown }).level ?? '') as LogLevel;
+        if (!LOG_LEVELS.includes(level)) throw new HttpError(400, 'Pick debug, info, warn or error.');
+        app.settings.update({ logLevel: level });
+        app.log?.useSaved(level);
+        return send(res, 200, view());
+      }
     }
     if (a === 'logs' && method === 'GET') {
       const log = app.log;

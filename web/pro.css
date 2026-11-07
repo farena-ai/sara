@@ -1,0 +1,198 @@
+/* V1 (docs/ops/V1_DESIGN.md §6): the new look's rules, loaded last. Each section is scoped so Sara
+   Classic keeps today's shapes: decoration by html[data-decor="off"], components and screens by
+   :root:not([data-palette="classic"]). Colours only through the theme tokens (web/theme.css). */
+
+/* ---------- 1. Appearance page (every palette, Classic too) ---------- */
+.ap-pals { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; margin: 4px 0 16px; }
+.ap-pal { display: grid; gap: 6px; padding: 6px; background: var(--surface-1); color: var(--text-1); border: 1px solid var(--line); border-radius: 8px; text-align: left; font-weight: 500; font-size: 13px; min-height: 44px; box-shadow: none; }
+.ap-pal:hover { background: var(--surface-2); border-color: var(--text-3); }
+.ap-pal[aria-checked="true"] { border-color: var(--accent-solid); box-shadow: 0 0 0 1px var(--accent-solid); }
+.ap-pal:focus-visible { outline: 2px solid var(--focus, var(--accent-text)); outline-offset: 2px; }
+.ap-pal-pv { display: grid; grid-template-columns: 1fr 1fr; height: 44px; border-radius: 5px; overflow: hidden; border: 1px solid var(--hairline); }
+.ap-pal-pv i { position: relative; display: block; }
+.ap-pal-pv .pv-d { background: var(--pv-d0); }
+.ap-pal-pv .pv-l { background: var(--pv-l0); }
+/* A text line and an accent button in each half, in that palette's own colours. */
+.ap-pal-pv i::before { content: ""; position: absolute; left: 8px; top: 10px; width: 55%; height: 4px; border-radius: 2px; }
+.ap-pal-pv i::after { content: ""; position: absolute; left: 8px; bottom: 9px; width: 28%; height: 9px; border-radius: 3px; }
+.ap-pal-pv .pv-d::before { background: var(--pv-dt); }
+.ap-pal-pv .pv-l::before { background: var(--pv-lt); }
+.ap-pal-pv .pv-d::after { background: var(--pv-da); }
+.ap-pal-pv .pv-l::after { background: var(--pv-la); }
+.ap-pal-name { padding: 0 2px 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ap-custom-pick { display: flex; gap: 8px; align-items: center; }
+.ap-custom-pick input[type="color"] { width: 44px; min-width: 44px; height: 36px; padding: 2px; }
+.ap-custom-pick input:not([type="color"]) { font-family: var(--font-mono); text-transform: lowercase; }
+:root:not([data-palette="classic"]) .ap-classic-only { display: none; }
+.ap-sync-row { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+/* The one-time "New look" notice: a toast at the bottom right (above the phone bar on phones). */
+.v1-notice { position: fixed; right: 16px; bottom: calc(16px + var(--safe-b)); z-index: 60; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; max-width: min(520px, calc(100vw - 32px)); padding: 12px 14px; background: var(--surface-2); color: var(--text-1); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--elev-2); font-size: 14px; }
+.v1-notice > span { flex: 1 1 260px; }
+@media (max-width: 720px) {
+  .v1-notice { left: 12px; right: 12px; bottom: calc(var(--bbar-h, 76px) + 8px); max-width: none; }
+}
+
+/* ---------- 2. Reduce decoration: html[data-decor="off"] (default outside Sara Classic) ----------
+   No moving background, grain, halo, sparkles, glow or blur; surfaces lose their tinted gradients. */
+html[data-decor="off"] .aurora { display: none; }
+/* !important: one switch for the ~50 backdrop-filters spread over the component sheets. */
+html[data-decor="off"] *, html[data-decor="off"] *::before, html[data-decor="off"] *::after, html[data-decor="off"] dialog::backdrop { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html[data-decor="off"] :is(.td-face-btn, .hp-glow, .head-face-btn)::after,
+html[data-decor="off"] .td-face-btn::before,
+html[data-decor="off"] .hp-glow::before,
+html[data-decor="off"] #today .td-warm::after { display: none; }
+html[data-decor="off"] .hp-glow, html[data-decor="off"] .hp-glow:hover { background: var(--surface-3); box-shadow: 0 0 0 1px var(--line); transform: none; }
+html[data-decor="off"] .hp-name { background: none; color: var(--text-1); -webkit-text-fill-color: currentColor; }
+html[data-decor="off"] :is(.her-panel.mode-side, .her-panel.mode-overlay, .her-panel.mode-sheet) { background: var(--surface-1); }
+html[data-decor="off"] dialog { background: var(--surface-1); }
+html[data-decor="off"] :is(.tip, .rcard, .pick-card, .look-card, .gallery-cards > *, .cmp-card, .start-item, #setup .su-pick) { background: var(--surface-1); }
+html[data-decor="off"] :is(.pick-card[aria-checked="true"], .look-card.current) { background: color-mix(in srgb, var(--accent-solid) 10%, var(--surface-1)); }
+html[data-decor="off"] :is(#today .today-start, #today .td-tile) { background: var(--surface-1); }
+html[data-decor="off"] :is(#today .td-warm, .td-nowcard) { background: color-mix(in srgb, var(--accent-solid) 8%, var(--surface-1)); }
+html[data-decor="off"] .td-dev.on { background: color-mix(in srgb, var(--warn) 10%, var(--surface-1)); }
+html[data-decor="off"] .rcard.ok::after { background: var(--success); }
+html[data-decor="off"] .rcard.bad::after { background: var(--danger); }
+/* The chat background picker belongs to Sara Classic; other palettes keep the chat plain. */
+:root:not([data-palette="classic"])[data-chatbg] #messages { background: transparent; }
+
+/* ---------- 3. Base components (docs/ops/V1_DESIGN.md §5), every palette except Sara Classic ----------
+   Scoped with :where(), so each rule has the specificity of the rule it replaces and wins only by
+   loading last; a component's own, more specific rule still wins. Classic never matches.
+   [cascade] button.ghost skips the ghost buttons whose own rule has the same specificity
+   (agenda.css button.ag-src / button.td-ag-item, begin.css button.rt-setup-first, look.css
+   button.msg-more): those used to beat screens.css by file order and must keep winning. */
+:where(:root:not([data-palette="classic"])) body { line-height: var(--lh-ui); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) :is(code, kbd, samp, pre) { font-family: var(--font-mono); }
+:where(:root:not([data-palette="classic"])) :is(h1, h2, h3, h4) { font-family: var(--font-ui); letter-spacing: -0.01em; }
+:where(:root:not([data-palette="classic"])) kbd { display: inline-block; min-width: 18px; padding: 0 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: var(--r-1); background: var(--surface-2); color: var(--text-2); font-size: 11px; line-height: 16px; text-align: center; }
+/* Focus: a 2 px ring, keyboard only. */
+:where(:root:not([data-palette="classic"])) :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Buttons: one solid primary, secondary = surface-2 + line, ghost toolbars; no gradient, no glow. */
+:where(:root:not([data-palette="classic"])) button { border-radius: var(--r-2); font-weight: 550; box-shadow: none; filter: none; transition: background-color var(--dur-2) var(--ease-std), border-color var(--dur-2) var(--ease-std), color var(--dur-2) var(--ease-std); }
+:where(:root:not([data-palette="classic"])) button:hover { background: color-mix(in srgb, var(--btn-fill) 86%, var(--text-1)); filter: none; }
+:where(:root:not([data-palette="classic"])) button.ghost:where(:not(.ag-src, .td-ag-item, .rt-setup-first, .msg-more)) { background: var(--surface-2); border: 1px solid var(--line); color: var(--text-1); font-weight: 500; }
+:where(:root:not([data-palette="classic"])) button.ghost:where(:not(.ag-src, .td-ag-item, .rt-setup-first, .msg-more)):hover { background: var(--surface-3); border-color: var(--line); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) button:disabled, :where(:root:not([data-palette="classic"])) button:disabled:hover { background: var(--btn-off-fill); color: var(--btn-off-text); border: 1px solid var(--btn-off-line); opacity: 1; }
+:where(:root:not([data-palette="classic"])) .button-link { border-radius: var(--r-2); background: var(--btn-fill); }
+:where(:root:not([data-palette="classic"])) .button-link.ghost { background: var(--surface-2); border: 1px solid var(--line); }
+/* Fields: page fill, 1 px line, accent border and a 3 px soft ring on focus. */
+:where(:root:not([data-palette="classic"])) :is(input, select, textarea) { background: var(--surface-0); border: 1px solid var(--line); border-radius: var(--r-2); }
+:where(:root:not([data-palette="classic"])) :is(input, select, textarea):hover { border-color: color-mix(in srgb, var(--text-3) 55%, var(--line)); }
+:where(:root:not([data-palette="classic"])) :is(input, select, textarea):focus { outline: none; border-color: var(--accent-solid); box-shadow: 0 0 0 3px var(--accent-soft); }
+:where(:root:not([data-palette="classic"])) :is(input[type="checkbox"], input[type="radio"], input[type="range"], input[type="color"]):focus { box-shadow: none; }
+@media (pointer: fine) {
+  :where(:root:not([data-palette="classic"])) :is(select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"])) { min-height: var(--h-control); padding-top: 4px; padding-bottom: 4px; }
+}
+/* The ? tip: a small outlined glyph (the tap area stays bigger on touch screens). */
+:where(:root:not([data-palette="classic"])) .tip { background: transparent; border: 1px solid color-mix(in srgb, var(--text-3) 70%, transparent); color: var(--text-3); font-weight: 600; box-shadow: none; }
+:where(:root:not([data-palette="classic"])) .tip:hover, :where(:root:not([data-palette="classic"])) .tip.open { background: transparent; color: var(--accent-text); border-color: var(--accent-text); }
+/* Cards: flat surface-1, 1 px line, radius 8. */
+:where(:root:not([data-palette="classic"])) :is(.card, .tidy-card, .rcard, .pick-card, .look-card, .cmp-card, .start-item) { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-3); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) :is(.pick-card[aria-checked="true"], .look-card.current) { border-color: var(--accent-solid); background: color-mix(in srgb, var(--accent-solid) 8%, var(--surface-1)); }
+/* Chips and badges: radius 4-6, the soft tint for the picked one. */
+:where(:root:not([data-palette="classic"])) :is(.chip, .tag-chip) { border-radius: var(--r-2); border-color: var(--line); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) :is(.chip[aria-checked="true"], .chip.on, .tag-chip.on) { background: var(--accent-soft); border-color: var(--accent-line); color: var(--text-1); }
+/* Tabs: underline tabs (2 px accent under the current one), no pills. */
+:where(:root:not([data-palette="classic"])) .tabs { gap: 2px; border-bottom: 1px solid var(--line); }
+:where(:root:not([data-palette="classic"])) .tabs .tab { background: transparent; border: 0; border-bottom: 2px solid transparent; border-radius: 0; color: var(--text-2); padding: 6px 10px; margin-bottom: -1px; box-shadow: none; }
+:where(:root:not([data-palette="classic"])) .tabs .tab:hover { background: transparent; color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .tabs .tab.active, :where(:root:not([data-palette="classic"])) .tabs .tab[aria-selected="true"] { background: transparent; color: var(--text-1); border-bottom-color: var(--accent-solid); box-shadow: none; }
+/* Tables: a header row in text-3, rows of --h-row, tabular numbers, hover surface-2. */
+:where(:root:not([data-palette="classic"])) table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) th { color: var(--text-3); font-size: 12px; font-weight: 600; text-align: left; height: 32px; }
+:where(:root:not([data-palette="classic"])) :is(th, td) { border-bottom: 1px solid var(--line); }
+:where(:root:not([data-palette="classic"])) tbody tr:hover { background: var(--surface-2); }
+/* Windows: radius 12, one elevation, a plain scrim; the title in the UI face. */
+:where(:root:not([data-palette="classic"])) dialog { border: 1px solid var(--line); border-radius: var(--r-4); background: var(--surface-1); box-shadow: var(--elev-3); }
+:where(:root:not([data-palette="classic"])) dialog::backdrop { background: var(--scrim); }
+:where(:root:not([data-palette="classic"])) .dialog-top > .dialog-x { background: transparent; border: 1px solid transparent; color: var(--text-2); }
+:where(:root:not([data-palette="classic"])) .dialog-top > .dialog-x:hover { background: var(--surface-2); color: var(--text-1); }
+
+/* ---------- 4. Shell: sidebar, header, her panel (portrait), command bar, phone bar ----------
+   Same selectors as the rules they replace, behind :where() (Classic never matches). */
+:where(:root:not([data-palette="classic"])) #conversations a.active { background: var(--surface-3); color: var(--text-1); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) #conversations a:hover:not(.active) { background: var(--surface-2); }
+:where(:root:not([data-palette="classic"])) .side-go.is-open { background: var(--surface-3); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .side-go.is-open svg { color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) :is(.side-go, .side-more):hover { background: var(--surface-2); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .settings-nav-item[aria-current="true"], :where(:root:not([data-palette="classic"])) .settings-nav-item[aria-current="true"]:hover { background: var(--surface-3); color: var(--text-1); box-shadow: none; font-weight: 600; }
+:where(:root:not([data-palette="classic"])) .settings-nav-item:hover { background: var(--surface-2); }
+:where(:root:not([data-palette="classic"])) .cmd-item[aria-selected="true"] { background: var(--surface-3); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) .cmd-item[aria-selected="true"] .cmd-icon { background: var(--surface-2); }
+:where(:root:not([data-palette="classic"])) dialog#cmdbar { border-radius: var(--r-4); box-shadow: var(--elev-3); }
+:where(:root:not([data-palette="classic"])) #chat-head { background: var(--surface-0); box-shadow: inset 0 -1px 0 var(--line); }
+/* Her portrait in work views (sara.portrait): small by default outside Classic; her own page, the
+   call screen and Today keep the large picture. */
+:root[data-portrait="small"] .hp-glow { width: 72px; height: 72px; margin: 6px 0 2px; padding: 2px; }
+:root[data-portrait="small"] .hp-glow::after { inset: -5px; }
+:root[data-portrait="hidden"] .hp-glow { display: none; }
+@media (max-width: 720px) {
+  /* The phone bar: a flat bar with a top hairline; the accent only on the current icon. */
+  :root:not([data-palette="classic"]) { --bbar-h: calc(61px + var(--safe-b)); }
+  :where(:root:not([data-palette="classic"])) .bottom-bar { margin: 0; padding: 4px 6px calc(4px + var(--safe-b)); border: 0; border-top: 1px solid var(--line); border-radius: 0; background: var(--surface-1); box-shadow: none; }
+  :where(:root:not([data-palette="classic"])) .bottom-bar::before { display: none; }
+  :where(:root:not([data-palette="classic"])) .bb-btn { border-radius: var(--r-2); color: var(--text-2); }
+  :where(:root:not([data-palette="classic"])) .bb-btn[aria-current="page"] { color: var(--accent-text); }
+  :where(:root:not([data-palette="classic"])) .bb-btn[aria-current="page"] svg { filter: none; }
+  :where(:root:not([data-palette="classic"])) .bb-btn[aria-current="page"]::before { content: none; }
+  :where(:root:not([data-palette="classic"])) html:not(.kb-up) #composer { margin-bottom: 6px; }
+}
+
+/* ---------- 5. Chat: a document transcript (turns separated by hairlines, no bubbles) ---------- */
+:where(:root:not([data-palette="classic"])) #messages { gap: 10px; padding: 20px max(16px, calc((100% - 824px) / 2)) 24px; }
+/* Your turns: not filled, a hairline above, a small neutral avatar where hers has her face. */
+:where(:root:not([data-palette="classic"])) .msg.user { align-self: stretch; max-width: 780px; margin: 6px 0 0 44px; padding: 12px 0 2px; border-top: 1px solid var(--hairline); border-radius: 0; background: none; color: var(--text-1); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) .msg.user::before { content: ""; position: absolute; left: -38px; top: 12px; width: 24px; height: 24px; border-radius: var(--r-round); background: var(--surface-3); box-shadow: inset 0 0 0 1px var(--line); }
+:where(:root:not([data-palette="classic"])) .msg.user + .msg-actions { align-self: flex-start; margin: -4px 0 2px 44px; }
+:where(:root:not([data-palette="classic"])) .msg.assistant.her { max-width: 780px; margin-left: 44px; padding: 0; line-height: var(--lh-read); }
+:where(:root:not([data-palette="classic"])) .msg.assistant.her::before { display: none; }
+:where(:root:not([data-palette="classic"])) :is(.msg.her.unverified, .msg.her.reminder, .msg.her.proactive, .msg.her.from-companion)::before { display: block; left: -8px; width: 2px; opacity: 1; }
+:where(:root:not([data-palette="classic"])) .msg-face { left: -38px; top: 1px; width: 24px; height: 24px; box-shadow: 0 0 0 1px var(--line); }
+@media (hover: none) {
+  :where(:root:not([data-palette="classic"])) button.msg-more { background: transparent; border: 0; }
+}
+@media (max-width: 720px) {
+  :where(:root:not([data-palette="classic"])) .msg.user { margin-left: 34px; }
+  :where(:root:not([data-palette="classic"])) .msg.user::before { left: -30px; width: 22px; height: 22px; }
+  :where(:root:not([data-palette="classic"])) .msg.assistant.her { margin-left: 34px; max-width: calc(100% - 34px); padding-left: 0; }
+  :where(:root:not([data-palette="classic"])) .msg-face { left: -30px; width: 22px; height: 22px; }
+  /* The ⋯ of each turn sits under its avatar, clear of the picture. */
+  :where(:root:not([data-palette="classic"])) .msg.her > .msg-more, :where(:root:not([data-palette="classic"])) .msg.her:not(.run-start) > .msg-more { left: -42px; top: 24px; }
+  :where(:root:not([data-palette="classic"])) .msg.user > .msg-more { left: -42px; top: 36px; }
+}
+/* Code: a header with the language and Copy, the body on surface-1, radius 8. */
+:where(:root:not([data-palette="classic"])) .msg .md .code-block { border: 1px solid var(--line); border-radius: var(--r-3); background: var(--surface-1); overflow: hidden; }
+:where(:root:not([data-palette="classic"])) .msg .md .code-head { background: var(--surface-2); border-bottom: 1px solid var(--line); color: var(--text-2); font-family: var(--font-mono); font-size: 12px; }
+:where(:root:not([data-palette="classic"])) .msg .md code { background: var(--surface-2); border-radius: var(--r-1); font-size: .9em; }
+/* The step line: a compact trace row. */
+:where(:root:not([data-palette="classic"])) .steps-sum { border-radius: var(--r-2); border-color: var(--line); background: transparent; box-shadow: none; font-size: 13px; }
+:where(:root:not([data-palette="classic"])) .steps-sum:hover { background: var(--surface-2); }
+/* Approvals: a warn-tinted bar. */
+:where(:root:not([data-palette="classic"])) .approval { border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); border-radius: var(--r-3); background: var(--warn-soft); box-shadow: none; }
+/* The message box: a flat field with the accent ring on focus; Send is a square solid button. */
+:where(:root:not([data-palette="classic"])) #composer { border: 1px solid var(--line); border-radius: var(--r-3); background: var(--surface-1); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) #composer:focus-within { border-color: var(--accent-solid); box-shadow: 0 0 0 3px var(--accent-soft); }
+:where(:root:not([data-palette="classic"])) #composer > button.icon, :where(:root:not([data-palette="classic"])) #composer-plus { border-radius: var(--r-2); }
+:where(:root:not([data-palette="classic"])) #composer #send { border-radius: var(--r-2); box-shadow: none; background: var(--btn-fill); color: var(--on-btn); }
+:where(:root:not([data-palette="classic"])) #composer #send:hover { filter: none; transform: none; background: color-mix(in srgb, var(--btn-fill) 86%, var(--text-1)); }
+:where(:root:not([data-palette="classic"])) #composer #stop { border-radius: var(--r-2); }
+
+/* ---------- 6. Screens: Settings, Today, Planner and the other windows ---------- */
+/* Settings: page titles in the UI face; the Allowed / Ask / Off legend gets a status dot, not a rail. */
+:where(:root:not([data-palette="classic"])) .settings-body h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.015em; }
+:where(:root:not([data-palette="classic"])) .settings-body h3 { font-size: 14px; font-weight: 600; }
+:where(:root:not([data-palette="classic"])) .perm-card { border-left-width: 1px; border-color: var(--line); border-radius: var(--r-3); background: var(--surface-1); }
+:where(:root:not([data-palette="classic"])) .perm-card strong { display: flex; align-items: center; gap: 8px; }
+:where(:root:not([data-palette="classic"])) .perm-card strong::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: var(--r-round); background: var(--text-3); }
+:where(:root:not([data-palette="classic"])) .perm-auto strong::before { background: var(--success); }
+:where(:root:not([data-palette="classic"])) .perm-ask strong::before { background: var(--warn); }
+:where(:root:not([data-palette="classic"])) .sng-count { color: var(--text-3); font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) .settings-nav-head { color: var(--text-2); }
+/* Today: a calm greeting in the UI face and plain section titles. */
+:where(:root:not([data-palette="classic"])) #td-greeting { font-size: clamp(24px, 2.4vw, 30px); font-weight: 600; line-height: 1.2; letter-spacing: -0.02em; }
+:where(:root:not([data-palette="classic"])) :is(#today .today-start-head h3, #today .td-tile-head h3) { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+:where(:root:not([data-palette="classic"])) #today .td-tile { border-color: var(--line); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) .td-date { color: var(--text-3); letter-spacing: .08em; font-size: 11px; }
+/* Window titles (Planner, Library, Memory…) in the UI face at 20 px. */
+:where(:root:not([data-palette="classic"])) :is(dialog .settings-body > h2, dialog form > h2:first-child, dialog > h2:first-of-type) { font-size: 22px; font-weight: 600; letter-spacing: -0.015em; line-height: 1.25; }

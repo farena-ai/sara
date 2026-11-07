@@ -1,0 +1,66 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "operation",
+    "codemod",
+    "version",
+    "module",
+    "from",
+    "to",
+    "files"
+  ],
+  "properties": {
+    "operation": {
+      "type": "string",
+      "enum": [
+        "preview",
+        "apply"
+      ],
+      "description": "preview computes the AST patch without writing; apply writes exactly that hash-bound patch."
+    },
+    "codemod": {
+      "type": "string",
+      "enum": [
+        "rename-named-import"
+      ]
+    },
+    "version": {
+      "type": "integer",
+      "enum": [
+        1
+      ]
+    },
+    "module": {
+      "type": "string",
+      "pattern": "^(?:@?[A-Za-z0-9_][A-Za-z0-9._-]{0,127}/){0,7}[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$",
+      "description": "Workspace-relative module path (relative imports are resolved per file) or bare package name."
+    },
+    "from": {
+      "type": "string",
+      "pattern": "^[A-Za-z_$][A-Za-z0-9_$]{0,63}$",
+      "description": "Imported name to rename."
+    },
+    "to": {
+      "type": "string",
+      "pattern": "^[A-Za-z_$][A-Za-z0-9_$]{0,63}$",
+      "description": "New imported name; conflicting bindings refuse."
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(?:[A-Za-z0-9_][A-Za-z0-9._-]{0,127}/){0,7}[A-Za-z0-9_][A-Za-z0-9._-]{0,127}\\.(?:m?js)$"
+      },
+      "description": "Selected .js/.mjs files, relative to the operator-staged workspace. Only these can change."
+    },
+    "planSha": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Required for apply: planSha from preview. Any changed byte or selection invalidates it."
+    }
+  }
+}

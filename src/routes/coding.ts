@@ -550,7 +550,10 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
       const body = await readJson(req);
       // Phase 77: a contradiction card says how (Do it anyway / Don't / Update the note).
       const how = APPROVAL_HOWS.includes(body.how as ApprovalHow) ? (body.how as ApprovalHow) : undefined;
-      if (!app.approvals.decide(b, body.approved === true, how)) throw new HttpError(404, 'That request is no longer waiting.');
+      if (!app.approvals.decide(b, body.approved === true, how)) {
+        if (app.approvals.state(b) === 'expired') throw new HttpError(404, 'That request expired: the task that asked for it ended. Nothing ran.');
+        throw new HttpError(404, 'That request is no longer waiting.');
+      }
       return send(res, 200, { ok: true });
     }
     // Phase 13: background jobs (list, stop) and the GitHub token used for pushing.

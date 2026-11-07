@@ -518,11 +518,13 @@ export function sceneCanonPreview(app: AppContext, conv: Partial<Conversation>):
 }
 
 /** R1B3: the "In scene" chip of the owner's conversation view (owner only; seats only; reads only). */
-export function sceneChipFor(app: AppContext, conversationId: string): { id: number; title: string; status: SceneStatus; adult: boolean; revision: number; audience: 'owner' | 'room'; enabled: boolean } | undefined {
+export function sceneChipFor(app: AppContext, conversationId: string): { id: number; title: string; status: SceneStatus; adult: boolean; revision: number; audience: 'owner' | 'room'; enabled: boolean; lines: { messageId: number; key: string }[] } | undefined {
   if (!owner(app) || typeof conversationId !== 'string' || !conversationId) return undefined;
   const store = records(app);
   const seat = store.seatOf(conversationId);
   const scene = seat ? store.scene(seat.sceneId) : undefined;
   if (!seat || !scene) return undefined;
-  return { id: scene.id, title: scene.title, status: scene.status, adult: scene.adult, revision: scene.revision, audience: seat.audience, enabled: scenesEnabled(app) };
+  // The lines of this chat that are current canon (picked with Add to scene), for a chip on each line.
+  const lines = store.canon(scene.id).filter((e) => !e.retired && e.author !== 'owner-turn' && e.source?.conversationId === conversationId).map((e) => ({ messageId: e.source!.messageId, key: e.key }));
+  return { id: scene.id, title: scene.title, status: scene.status, adult: scene.adult, revision: scene.revision, audience: seat.audience, enabled: scenesEnabled(app), lines };
 }

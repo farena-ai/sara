@@ -161,6 +161,33 @@ function mcpCard(item) {
   disclosure.append(el('p', 'skl-warn small', MANUAL()), el('p', 'muted small', t('Generic hosted OAuth is unqualified. A recipe preview does not establish real-account access or Sara-host qualification.')), pageLink(t('Tools and approvals'), 'ab-tools'));
   node.append(disclosure); return node;
 }
+// Developer connections (M01-M30): only a fixture-tested recipe can be copied into the normal add
+// form, switched off. Nothing is saved, started or connected until the owner presses Save there.
+function copyToAddForm(item) {
+  const recipe = item.recipePreview; const form = document.querySelector('#mcp-add');
+  if (!form || !recipe) return false;
+  const set = (id, value) => { const input = document.querySelector(id); if (input) input.value = value; };
+  set('#mcp-preset', ''); document.querySelector('#mcp-preset-help')?.setAttribute('hidden', '');
+  set('#mcp-name', item.id);
+  set('#mcp-transport', recipe.transport);
+  document.querySelector('#mcp-transport')?.dispatchEvent(new Event('change'));
+  set('#mcp-command', recipe.transport === 'stdio' ? recipe.command : '');
+  set('#mcp-args', recipe.transport === 'stdio' ? recipe.args.join(' ') : '');
+  set('#mcp-url', recipe.transport === 'http' ? recipe.url : '');
+  set('#mcp-secrets', (recipe.environment ?? []).map(value => `${value.name}=${value.publicValue}`).join('\n'));
+  const enabled = document.querySelector('#mcp-enabled'); if (enabled) enabled.checked = false;
+  form.open = true; form.scrollIntoView({ block: 'start', behavior: 'smooth' }); document.querySelector('#mcp-name')?.focus();
+  return true;
+}
+function developerCard(item) {
+  const node = mcpCard(item);
+  if (item.status === 'tested' && item.recipePreview) {
+    const actions = el('div', 'add-row'); const note = el('p', 'muted small'); note.setAttribute('role', 'status');
+    actions.append(button(t('Copy into the add form'), () => { note.textContent = copyToAddForm(item) ? t('Copied into the add form below, switched off. Review it, then press Save and connect yourself.') : t('The add form is not available on this page.'); }));
+    node.insertBefore(actions, node.querySelector('details')); node.insertBefore(note, node.querySelector('details'));
+  } else node.insertBefore(el('p', 'skl-warn small', item.status === 'blocked' ? t('Blocked: no install action. See the reason under Limits.') : t('Held: needs your own account, key or service first. No install action.')), node.querySelector('details'));
+  return node;
+}
 function guides(box, packs, candidates, investigations, shelf) {
   const section = details(t('Starter guides'));
   section.id = 'plg-starter-guides';
@@ -212,5 +239,10 @@ export async function loadMcpDiscovery() {
     const data = await read('/mcp/discovery/previews');
     box.replaceChildren(el('h3', '', t('Connection investigations')), el('p', 'muted small', t('Seven recipe previews and fourteen blocked investigations. These are preparation notes, not installable releases or account connections.')), el('p', 'skl-warn small', MANUAL()));
     filters(box, 'mcp-discovery', data.investigations, mcpCard);
+    const developer = data.developer ?? [];
+    if (developer.length) {
+      box.append(el('h3', '', t('Developer connections')), el('p', 'muted small', t('Fixture-tested recipes can be copied into the add form below, switched off; nothing saves or starts until you press Save and connect. Held entries need your own account, key or service, and blocked entries list their reason. Neither has an install action.')));
+      filters(box, 'mcp-developer', developer, developerCard);
+    }
   }, loadMcpDiscovery);
 }

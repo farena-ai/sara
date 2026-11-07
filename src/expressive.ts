@@ -14,9 +14,48 @@ export const WRAP_TAGS = ['whisper', 'soft', 'laugh-speak'] as const;
 const INLINE_RE = new RegExp(`\\[(?:${INLINE_TAGS.join('|')}|long-pause|giggle|exhale|inhale|cough|gasp)\\]`, 'gi');
 const WRAP_RE = new RegExp(`</?(?:${WRAP_TAGS.join('|')}|emphasis|sing|slow|fast|loud|quiet)>`, 'gi');
 
+/** ElevenLabs v3 audio tags we may send (bracketed words). */
+const EL_RE = /\[(?:laughs|sighs|exhales|whispers|softly)\]/gi;
+
 /** Removes any speech tags (for captions, transcripts and saved text). */
 export function stripTags(text: string): string {
-  return text.replace(INLINE_RE, '').replace(WRAP_RE, '').replace(/[ \t]{2,}/g, ' ').replace(/ +([,.!?…])/g, '$1').trim();
+  return text.replace(INLINE_RE, '').replace(WRAP_RE, '').replace(EL_RE, '').replace(/[ \t]{2,}/g, ' ').replace(/ +([,.!?…])/g, '$1').trim();
+}
+
+/**
+ * R2d: which of our tags each voice engine documents. Grok voice: xAI's /v1/tts tag list
+ * (docs.x.ai → Text to Speech → Speech tags). ElevenLabs Eleven v3/v4 audio tags (elevenlabs.io →
+ * Best practices → Audio tags): our tag → their word; chuckle and pause have no documented tag.
+ * OpenAI speech takes delivery instructions, not tags; the local Kokoro/Piper voices read tags as
+ * words. Engines without an entry get plain words.
+ */
+export interface EngineTags { inline: Record<string, string>; wrap: Record<string, string> }
+const XAI_TAGS: EngineTags = {
+  inline: { laugh: '[laugh]', chuckle: '[chuckle]', sigh: '[sigh]', breath: '[breath]', pause: '[pause]' },
+  wrap: { whisper: '<whisper>', soft: '<soft>' },
+};
+const ELEVEN_V3_TAGS: EngineTags = {
+  inline: { laugh: '[laughs]', sigh: '[sighs]', breath: '[exhales]' },
+  wrap: { whisper: '[whispers]', soft: '[softly]' },
+};
+
+export function engineTags(tts: string, model = ''): EngineTags | undefined {
+  if (tts === 'xai') return XAI_TAGS;
+  if (tts === 'elevenlabs' && /^eleven_v[34]\b/.test(model)) return ELEVEN_V3_TAGS;
+  return undefined;
+}
+
+/** Tagged text (from addTags) made right for one engine: its own tags kept or renamed, the rest dropped. */
+export function forEngine(text: string, tts: string, model = ''): string {
+  const tags = engineTags(tts, model);
+  let t = text.replace(/\[([a-z-]+)\]/gi, (_m, name: string) => (tags?.inline[name.toLowerCase()] ? ` ${tags.inline[name.toLowerCase()]} ` : ' '));
+  t = t.replace(/<(\/?)([a-z-]+)>/gi, (_m, close: string, name: string) => {
+    const tag = tags?.wrap[name.toLowerCase()];
+    if (!tag) return ' ';
+    if (tag.startsWith('[')) return close ? ' ' : ` ${tag} `; // ElevenLabs: a lead-in tag, no closing one
+    return close ? `</${tag.slice(1)}` : tag;
+  });
+  return t.replace(/[ \t]{2,}/g, ' ').replace(/ +([,.!?…])/g, '$1').replace(/(<\w[\w-]*>) /g, '$1').replace(/ (<\/)/g, '$1').trim();
 }
 
 /** Stage directions she may write: *laughs*, (sighs), *whispers* … */

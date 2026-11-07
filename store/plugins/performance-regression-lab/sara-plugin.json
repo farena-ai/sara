@@ -1,0 +1,54 @@
+{
+  "manifest": 1,
+  "id": "performance-regression-lab",
+  "name": "Performance Regression Lab",
+  "version": "1.0.0",
+  "description": "Run staged baseline and candidate benchmarks interleaved in a fenced context and report regressions from raw samples.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "compare"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Performance Regression Lab": "Laboratorio de regresiones de rendimiento",
+      "Run staged baseline and candidate benchmarks interleaved in a fenced context and report regressions from raw samples.": "Ejecuta de forma intercalada pruebas preparadas de referencia y candidata en un contexto aislado e informa de regresiones a partir de las muestras."
+    },
+    "fr": {
+      "Performance Regression Lab": "Laboratoire de régressions de performance",
+      "Run staged baseline and candidate benchmarks interleaved in a fenced context and report regressions from raw samples.": "Exécute en alternance des tests préparés de référence et candidat dans un contexte isolé et signale les régressions à partir des mesures brutes."
+    },
+    "de": {
+      "Performance Regression Lab": "Performance-Regressionslabor",
+      "Run staged baseline and candidate benchmarks interleaved in a fenced context and report regressions from raw samples.": "Führt vorbereitete Basis- und Kandidaten-Benchmarks abwechselnd in einem abgegrenzten Kontext aus und meldet Regressionen anhand der Rohmessungen."
+    },
+    "pt-BR": {
+      "Performance Regression Lab": "Laboratório de regressão de desempenho",
+      "Run staged baseline and candidate benchmarks interleaved in a fenced context and report regressions from raw samples.": "Executa de forma intercalada benchmarks preparados de referência e candidato em um contexto isolado e aponta regressões a partir das amostras brutas."
+    },
+    "it": {
+      "Performance Regression Lab": "Laboratorio di regressione delle prestazioni",
+      "Run staged baseline and candidate benchmarks interleaved in a fenced context and report regressions from raw samples.": "Esegue in modo alternato benchmark preparati di riferimento e candidato in un contesto isolato e segnala regressioni dai campioni grezzi."
+    }
+  }
+}

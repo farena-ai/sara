@@ -1,0 +1,44 @@
+{
+  "en": {
+    "title": "Code Migration Studio",
+    "description": "Preview an AST-based rename of a named import across selected files, then apply only that exact hash-bound patch.",
+    "previewed": "Preview only. No files were changed.",
+    "applied": "Approved patch applied to the selected files and verified.",
+    "files": "Changed files"
+  },
+  "es": {
+    "title": "Estudio de migración de código",
+    "description": "Previsualiza el cambio de nombre de una importación con un análisis AST en los archivos seleccionados y aplica solo ese parche exacto vinculado por hash.",
+    "previewed": "Solo vista previa. No se cambió ningún archivo.",
+    "applied": "Parche aprobado aplicado a los archivos seleccionados y verificado.",
+    "files": "Archivos cambiados"
+  },
+  "fr": {
+    "title": "Atelier de migration de code",
+    "description": "Prévisualise le renommage d’un import nommé par analyse AST dans les fichiers choisis, puis applique uniquement ce correctif exact lié par empreinte.",
+    "previewed": "Aperçu uniquement. Aucun fichier n’a été modifié.",
+    "applied": "Correctif approuvé appliqué aux fichiers choisis et vérifié.",
+    "files": "Fichiers modifiés"
+  },
+  "de": {
+    "title": "Code-Migrationsstudio",
+    "description": "Zeigt eine AST-basierte Umbenennung eines benannten Imports in ausgewählten Dateien an und wendet nur genau diesen hashgebundenen Patch an.",
+    "previewed": "Nur Vorschau. Keine Datei wurde geändert.",
+    "applied": "Genehmigter Patch auf die ausgewählten Dateien angewendet und geprüft.",
+    "files": "Geänderte Dateien"
+  },
+  "pt-BR": {
+    "title": "Estúdio de migração de código",
+    "description": "Mostra a renomeação de uma importação nomeada por análise AST nos arquivos selecionados e aplica apenas esse patch exato vinculado por hash.",
+    "previewed": "Somente prévia. Nenhum arquivo foi alterado.",
+    "applied": "Patch aprovado aplicado aos arquivos selecionados e verificado.",
+    "files": "Arquivos alterados"
+  },
+  "it": {
+    "title": "Studio di migrazione del codice",
+    "description": "Mostra in anteprima la ridenominazione di un import con analisi AST nei file selezionati, poi applica solo quella patch esatta vincolata da hash.",
+    "previewed": "Solo anteprima. Nessun file è stato modificato.",
+    "applied": "Patch approvata applicata ai file selezionati e verificata.",
+    "files": "File modificati"
+  }
+}

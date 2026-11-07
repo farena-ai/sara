@@ -118,6 +118,30 @@ Open a text or Markdown document she keeps and press **Read together**. It opens
   replayed), `src/routes/read-together.ts` (`GET`/`PUT`/`DELETE /api/read-together/<chat>`),
   `web/read-together.js`.
 
+### A feed together
+
+In the Library press **Read a feed together** (or use the **Feed** tab of an open Read together
+view). Paste the address of a public RSS or Atom feed (a blog, a news site, a podcast's show notes)
+and press **Open**.
+
+- Sara's server fetches that one feed **once**, only when you press **Open** or **Reload**: never in
+  the background, never while she writes a reply. Nothing is remembered: not the address, not the
+  items (closing the view, **Stop** or a restart drops them).
+- The list shows each item's title, date and site as plain text, with a link that opens only when you
+  click it. No pictures, no embedded pages. Press **Share** on one item and your next message comes
+  with that item's text (at most 4,000 characters; a longer one ends in a visible *(cut)*). She never
+  sees the linked page.
+- If you **Reload** and the shared item changed or is gone, she gets no text, only a note to ask you
+  to share it again.
+- Limits: https only, public addresses only (not this computer, the home network or Tailscale; every
+  redirect is checked again, at most 3), 10 seconds, 2 MB, 50 items. With *Nothing leaves this
+  computer* on, or in a private chat, a feed can't be opened.
+- Feed text is written by strangers: she gets it as quoted data with a note to ignore any
+  instructions in it, and on a turn with a shared feed item her tools that reach outside (web,
+  mail, calendar, GitHub, home, MCP, sending files) are off.
+- Code: `src/feed-together.ts` (the guarded fetch and the RSS/Atom/RDF reader),
+  `POST /api/read-together/<chat>/feed`; the share and section as above.
+
 ## Where things are
 
 | What | Where |

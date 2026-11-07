@@ -73,7 +73,7 @@ is refused (type the fact yourself instead). Editing, regenerating or forgetting
 removing its chat from the scene, erases the fact; facts you typed stay. Such facts show **From a
 line in the shared room** (or **From a line in a linked chat**).
 
-The chat header shows **In scene: <title>** for a linked chat, to you only.
+The chat header shows **In scene: <title>** for a linked chat, to you only; tap it to open the scene card. In the chat, a fact she saved (*Saved to the scene: inn*) and a line you picked with Add to scene (*Canon: well*) show a small chip that opens the card too.
 
 ## Canon
 

@@ -4,6 +4,7 @@ import { LiveCall } from './live.js';
 import { VideoCallView } from './video-call.js';
 import { CallApprovals } from './call-approvals.js';
 import { parse as parseMd, toDom } from './markdown.js';
+import { customAccent } from './accent.js';
 import { Presence, setLookVersion } from './presence.js';
 import { openLightbox } from './lightbox.js';
 import { dialRows as dialRowsOf, refreshDials, soFarText } from './dials.js';
@@ -73,7 +74,7 @@ import { openRunView } from './run-view.js';
 import { recallChip, recallKindWords } from './recall-view.js';
 import { initWhen, loadWhenList, loadWhenSettings, saveWhenSettings, whenChip, whenFor } from './recall-when.js';
 import { initSessionContinuity, loadSessionContinuitySettings, saveSessionContinuitySettings, loadConversationContinuity } from './session-continuity.js';
-import { addToSceneAction, initScenes, loadSceneSettings, renderSceneChip, saveSceneSettings } from './scenes.js';
+import { addToSceneAction, canonChip, initScenes, lineCanonChip, loadSceneSettings, renderSceneChip, saveSceneSettings } from './scenes.js';
 import { initPickup, loadPickupSettings, pickupAfterReply, pickupNotice, pickupOpen, savePickupSettings } from './pickup.js';
 import { initEvals, onEvalEvent, openEvals } from './evals-view.js';
 import { renderCard, renderCards } from './result-cards.js';
@@ -89,6 +90,7 @@ import { renderProjectCheckpoint } from './project-checkpoints.js';
 import { projectNowOpen } from './project-now.js';
 import { buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintElsewhere, paintSettingsResults, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
 import { closeOpenDialogs, initTours, offerFirstTour, queueTourOffer, runTour, tourFromHash } from './tours.js';
+import { sharedEvents } from './shared-events.js';
 import { initSidebar } from './sidebar.js';
 import { initSetupWizard, openModelSetup, openSetup } from './setup-wizard.js';
 import { ring as progressRing, share as shareOf } from './viz.js';
@@ -211,7 +213,11 @@ async function boot() {
   // 2.18: "Sara was updated to X", the on-open update check and the version watch (web/update-check.js).
   initUpdates(session);
   startEvents();
-  void api('/settings').then((s) => applyAdminHelp(s.admin), () => {});
+  void api('/settings').then((s) => {
+    applyAdminHelp(s.admin);
+    // V1: a device that never chose starts from "Use on all my devices"; otherwise the one-time notice.
+    if (!adoptAppearance(s.appearance)) offerV1Notice(state.conversations.length > 0 || localStorage.getItem('sara.theme') !== null);
+  }, () => {});
   // Phase 116: what a message does while she works (Settings → You → While she's working).
   if (!session.demo) void api('/chats/while-busy').then((v) => setBusyDefault(v.settings.whileBusy), () => {});
   await Promise.all([loadConversations(), loadProviders()]);
@@ -1793,6 +1799,13 @@ function renderMessages(messages, opts = {}) {
     if (m.role === 'tool' && m.meta?.guard?.kind) els.push(guardLine({ kind: m.meta.guard.kind, count: m.meta.guard.count ?? 3, paused: false }));
     // Phase 120: the first-time card of a project (Check her edits here / Not now / Never).
     if (m.role === 'tool' && m.meta?.checksCard) els.push(checksCard(m.meta.checksCard, state.currentId));
+    // R1B3 follow-up: her own canon write in a scene chat, as a chip that opens the scene card.
+    const canon = m.role === 'tool' ? canonChip(m, state.conv) : undefined;
+    if (canon) {
+      const row = el('div', 'canon-line');
+      row.append(canon);
+      els.push(row);
+    }
     if (m.role === 'tool') {
       addStep((turn.steps ??= newSteps()), { id: m.meta?.toolCallId, name: m.meta?.name, summary: m.meta?.summary ?? m.meta?.name, args: m.meta?.args, status: m.meta?.status ?? 'ok', output: m.content, ms: m.meta?.ms, snapshotId: m.meta?.snapshotId });
       const card = (m.meta?.status ?? 'ok') === 'ok' ? m.meta?.card : null;
@@ -1872,6 +1885,9 @@ function renderMessages(messages, opts = {}) {
       // Phase 120: what his @-references attached, and the checks chip under her reply.
       if (m.role === 'user' && Array.isArray(m.meta?.refs) && m.meta.refs.length) b.append(refChipsSent(m.meta.refs, m.id));
       if (m.role === 'assistant' && m.meta?.checks?.state) b.append(checksChip(m.meta.checks));
+      // R1B3 follow-up: a line picked into the scene's canon says so.
+      const lineCanon = lineCanonChip(m, state.conv);
+      if (lineCanon) b.append(lineCanon);
       // Phase 79: a reply that ran on extra budget the owner gave says so.
       const extra = m.role === 'assistant' ? overrideNote(m.meta?.budget) : null;
       if (extra) b.append(extra);
@@ -5481,6 +5497,7 @@ async function loadHealth() {
   void loadHealthHistory();
   void loadProblems();
   void loadRuns();
+  void loadLogLevel();
   $('#health-info').textContent = `Sara ${h.version}${h.revision ? ` (${h.revision})` : ''} · Node ${h.node} · ${t('up {time}', { time: up })} · ${t('database {size}', { size: fmtBytes(h.data.databaseBytes) })} · ${h.pushDevices === 1 ? t('1 notification device') : t('{n} notification devices', { n: h.pushDevices })}`;
 }
 // ---------- Phase 30: health history and recent problems ----------
@@ -5545,6 +5562,21 @@ async function loadRuns() {
   $('#runs-keep').value = String(r.keepDays);
   $('#runs-keep').dataset.loaded = '1';
   $('#runs-stats').textContent = t('Runs: {n}, {mb} MB', { n: r.stats.runs.toLocaleString(locale()), mb: r.stats.mb.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: r.stats.mb < 0.1 ? 2 : 1 }) });
+}
+// Settings → Data & health: the log level (owner only; SARA_LOG_LEVEL on the server wins).
+function showLogLevel(r) {
+  $('#log-level').value = r.saved ?? r.level;
+  $('#log-level').dataset.loaded = '1';
+  $('#log-level-env').hidden = !r.env;
+  $('#log-level-env').textContent = r.env ? t('SARA_LOG_LEVEL={level} is set on the server and wins until it is removed.', { level: r.env }) : '';
+}
+async function loadLogLevel() {
+  const r = await api('/logs/level').catch(() => null);
+  if (r) showLogLevel(r);
+}
+async function saveLogLevel() {
+  if (!$('#log-level').dataset.loaded) return;
+  showLogLevel(await api('/logs/level', { method: 'PUT', body: { level: $('#log-level').value } }));
 }
 async function saveRuns() {
   // Only a value read from the server is sent back (never the list's first choice by accident).
@@ -6308,7 +6340,8 @@ $('#cl-test').addEventListener('click', async () => {
 // ---------- live events (reminders, proactive messages) ----------
 function startEvents() {
   if (state.events) return;
-  const es = new EventSource('/api/events');
+  // B1 follow-up: one stream for all tabs (browsers allow six connections per server).
+  const es = sharedEvents('/api/events');
   state.events = es;
   es.addEventListener('message', async (e) => {
     const ev = JSON.parse(e.data);
@@ -8025,7 +8058,7 @@ const SETTINGS_SAVERS = {
   'co-discord': [saveDiscord, () => saveChatCommands('dc'), () => saveChatMedia('dc')],
   'co-phone': [savePush],
   'dh-usage': [saveUsage],
-  'dh-health': [saveRuns],
+  'dh-health': [saveRuns, saveLogLevel],
   'ab-budgets': [saveBudgets],
   'ab-persist': [savePersistSettings],
   'ab-precise': [savePreciseSettings],
@@ -8645,6 +8678,33 @@ const themePick = () => {
   const v = localStorage.getItem('sara.theme');
   return v === 'light' || v === 'system' ? v : 'dark';
 };
+// V1 (docs/ops/V1_DESIGN.md → Themes): palette × Night/Day. Graphite unless picked on this device.
+const PALETTES = ['graphite', 'midnight', 'slate', 'nord', 'solarized', 'paper', 'ember', 'contrast', 'classic'];
+const palettePick = () => {
+  const v = localStorage.getItem('sara.palette');
+  return PALETTES.includes(v) ? v : 'graphite';
+};
+// Decoration (aurora, glows, glass) is on only for Sara Classic unless picked.
+const decorPick = (pal = palettePick()) => {
+  const v = localStorage.getItem('sara.decor');
+  return v === 'on' || v === 'off' ? v : pal === 'classic' ? 'on' : 'off';
+};
+// Her portrait in work views: small unless picked (Sara Classic keeps it large, as before).
+const portraitPick = (pal = palettePick()) => {
+  const v = localStorage.getItem('sara.portrait');
+  return v === 'large' || v === 'small' || v === 'hidden' ? v : pal === 'classic' ? 'large' : 'small';
+};
+// The old colour names show as the presets they map onto (their stored value keeps working).
+const ACCENT_NOW = { lavender: 'violet', ocean: 'cyan', forest: 'green', mono: 'grey' };
+const ACCENT_VARS = [['--accent-solid', 'fill'], ['--accent-text', 'text'], ['--on-accent', 'on'], ['--accent', 'fill'], ['--accent-2', 'text'], ['--btn-fill', 'fill'], ['--on-btn', 'on']];
+function readCustomAccent() {
+  try {
+    const c = JSON.parse(localStorage.getItem('sara.accentCustom') ?? 'null');
+    return c?.dark && c?.light ? c : null;
+  } catch {
+    return null;
+  }
+}
 function applyAppearance() {
   const theme = themePick();
   const light = theme === 'light' || (theme === 'system' && matchMedia('(prefers-color-scheme: light)').matches);
@@ -8655,6 +8715,16 @@ function applyAppearance() {
   // The Windows/Mac app follows: its title bar, backdrop and first paint (web/theme-boot.js).
   if (root.classList.contains('shell') && !root.classList.contains('shell-test')) window.saraShellSay?.({ type: 'theme', theme: theme === 'light' ? 'day' : theme === 'system' ? 'system' : 'night' });
   for (const k of Object.keys(AP_DEFAULTS)) root.dataset[k] = localStorage.getItem(`sara.${k}`) ?? AP_DEFAULTS[k];
+  // V1: palette, decoration, her portrait and a custom accent (the same rules as web/theme-boot.js).
+  const pal = palettePick();
+  root.dataset.palette = pal;
+  root.dataset.decor = matchMedia('(prefers-reduced-transparency: reduce)').matches ? 'off' : decorPick(pal);
+  root.dataset.portrait = portraitPick();
+  const custom = root.dataset.accent === 'custom' ? readCustomAccent()?.[light ? 'light' : 'dark'] : null;
+  for (const [v, k] of ACCENT_VARS) {
+    if (custom) root.style.setProperty(v, custom[k]);
+    else root.style.removeProperty(v);
+  }
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', getComputedStyle(root).getPropertyValue('--surface-0').trim() || (light ? '#faf7f5' : '#0f0d17'));
   root.style.setProperty('--chat-size', `${localStorage.getItem('sara.textSize') ?? '15'}px`);
 }
@@ -8674,14 +8744,117 @@ $('#ap-size').addEventListener('change', () => {
 });
 for (const k of Object.keys(AP_DEFAULTS)) {
   const sel = $(`#ap-${k}`);
-  sel.value = localStorage.getItem(`sara.${k}`) ?? AP_DEFAULTS[k];
+  const stored = localStorage.getItem(`sara.${k}`) ?? AP_DEFAULTS[k];
+  sel.value = k === 'accent' ? (ACCENT_NOW[stored] ?? stored) : stored;
   sel.addEventListener('change', () => {
+    if (k === 'accent' && sel.value === 'custom' && !readCustomAccent()) return void setCustomAccent($('#ap-accent-custom').value);
     localStorage.setItem(`sara.${k}`, sel.value);
+    applyAppearance();
+    showAppearance();
+  });
+}
+// V1: palette cards (a preview of each palette's Night and Day), decoration and her portrait.
+for (const o of $('#ap-palette').options) {
+  const b = el('button', 'ap-pal');
+  b.type = 'button';
+  b.dataset.pal = o.value;
+  b.setAttribute('role', 'radio');
+  const pv = el('span', 'ap-pal-pv');
+  pv.setAttribute('aria-hidden', 'true');
+  pv.append(el('i', 'pv-d'), el('i', 'pv-l'));
+  b.append(pv, el('span', 'ap-pal-name', o.textContent));
+  b.addEventListener('click', () => {
+    $('#ap-palette').value = o.value;
+    $('#ap-palette').dispatchEvent(new Event('change'));
+  });
+  $('#ap-pals').append(b);
+}
+function showAppearance() {
+  const pal = palettePick();
+  $('#ap-palette').value = pal;
+  for (const b of $('#ap-pals').children) b.setAttribute('aria-checked', String(b.dataset.pal === pal));
+  $('#ap-decor').value = decorPick(pal);
+  $('#ap-portrait').value = portraitPick(pal);
+  $('#ap-custom-row').hidden = $('#ap-accent').value !== 'custom';
+  const c = readCustomAccent();
+  if (c) $('#ap-accent-custom').value = $('#ap-accent-hex').value = c.hex;
+}
+$('#ap-palette').addEventListener('change', () => {
+  localStorage.setItem('sara.palette', $('#ap-palette').value);
+  applyAppearance();
+  showAppearance();
+});
+for (const k of ['decor', 'portrait']) {
+  $(`#ap-${k}`).addEventListener('change', () => {
+    localStorage.setItem(`sara.${k}`, $(`#ap-${k}`).value);
     applyAppearance();
   });
 }
+// Custom accent: worked out once on save (web/accent.js), copied by theme-boot.js before paint.
+function setCustomAccent(hex) {
+  const c = customAccent(hex);
+  if (!c) return false;
+  localStorage.setItem('sara.accentCustom', JSON.stringify(c));
+  localStorage.setItem('sara.accent', 'custom');
+  $('#ap-accent').value = 'custom';
+  applyAppearance();
+  showAppearance();
+  return true;
+}
+$('#ap-accent-custom').addEventListener('change', () => setCustomAccent($('#ap-accent-custom').value));
+$('#ap-accent-hex').addEventListener('change', () => {
+  const v = $('#ap-accent-hex').value.trim();
+  if (!setCustomAccent(v.startsWith('#') ? v : `#${v}`)) $('#ap-accent-hex').value = readCustomAccent()?.hex ?? '';
+});
+showAppearance();
+// "Use on all my devices": the owner's settings keep the set; a device that never chose starts from it.
+function currentAppearance() {
+  const decor = localStorage.getItem('sara.decor');
+  return {
+    palette: palettePick(), theme: themePick(), accent: localStorage.getItem('sara.accent') ?? 'rose', density: localStorage.getItem('sara.density') ?? 'comfy', portrait: portraitPick(),
+    ...(decor ? { decor } : {}), ...(localStorage.getItem('sara.accent') === 'custom' ? { accentCustom: readCustomAccent() } : {}),
+  };
+}
+$('#ap-sync').addEventListener('click', async () => {
+  try {
+    await api('/settings', { method: 'PUT', body: { appearance: currentAppearance() } });
+    $('#ap-sync-state').textContent = t('Saved. A new device starts with this look.');
+  } catch (err) {
+    $('#ap-sync-state').textContent = err.message;
+  }
+});
+function adoptAppearance(a) {
+  if (!a || localStorage.getItem('sara.palette')) return false;
+  const keys = { palette: 'sara.palette', theme: 'sara.theme', accent: 'sara.accent', density: 'sara.density', portrait: 'sara.portrait', decor: 'sara.decor' };
+  for (const [k, key] of Object.entries(keys)) if (a[k]) localStorage.setItem(key, a[k]);
+  if (a.accentCustom) localStorage.setItem('sara.accentCustom', JSON.stringify(a.accentCustom));
+  localStorage.setItem('sara.v1Notice', 'seen');
+  applyAppearance();
+  $('#ap-theme').value = themePick();
+  $('#ap-accent').value = ACCENT_NOW[a.accent] ?? a.accent ?? 'rose';
+  $('#ap-density').value = a.density ?? 'comfy';
+  showAppearance();
+  return true;
+}
+// The one-time notice for people who used Sara before the new look (new installs never see it).
+function offerV1Notice(existing) {
+  if (localStorage.getItem('sara.palette') || localStorage.getItem('sara.v1Notice')) return;
+  localStorage.setItem('sara.v1Notice', 'seen');
+  if (existing) $('#v1-notice').hidden = false;
+}
+$('#v1-classic').addEventListener('click', () => {
+  localStorage.setItem('sara.palette', 'classic');
+  $('#v1-notice').hidden = true;
+  applyAppearance();
+  showAppearance();
+});
+$('#v1-notice-close').addEventListener('click', () => {
+  localStorage.setItem('sara.palette', palettePick());
+  $('#v1-notice').hidden = true;
+});
 // Colour swatches: tap one instead of using the list.
 for (const o of $('#ap-accent').options) {
+  if (o.value === 'custom') continue;
   const b = document.createElement('button');
   b.type = 'button';
   b.className = 'ap-swatch';
@@ -8949,7 +9122,7 @@ initSlash({
 });
 initWhen({ api, el });
 initSessionContinuity({ api });
-initScenes({ api });
+initScenes({ api, openSettings: (page) => openSettings(page) });
 initPickup({ api, el, state, reload: (id) => void openConversation(id) });
 initLearning();
 initBoard({ fmtDue: (iso) => fmtDue(iso, false), openConversation: (id) => openConversation(id), openPlanner: async (tab) => {

@@ -1,0 +1,57 @@
+{
+  "id": "storybook",
+  "version": "1.0.0",
+  "name": "Storybook",
+  "category": "coding",
+  "tags": [
+    "coding",
+    "mcp"
+  ],
+  "summary": "Find the stories for a component in your own running Storybook.",
+  "description": "Find the stories for a component in your own running Storybook and get preview links. Available capabilities depend on the provider and the explicitly granted permissions.",
+  "about": [
+    "Find the stories for a component in your own running Storybook and get preview links. Available capabilities depend on the provider and the explicitly granted permissions.",
+    "Connects to the MCP endpoint of @storybook/addon-mcp 10.6.6 (MIT) inside your own Storybook dev server on this computer. No account.",
+    "Windows fixture acceptance: an owned two-story component was found by file, both stories were previewed and rendered with their real label and disabled state, and an unknown story ID was refused.",
+    "Install the addon in your own project at the exact version; this recipe cannot pin your project's packages. Docs and test toolsets were not qualified."
+  ],
+  "license": "MIT",
+  "source": "https://raw.githubusercontent.com/storybookjs/storybook/v10.6.6/code/addons/mcp/README.md",
+  "needs": [
+    "app:Your Storybook 10.6.6 with @storybook/addon-mcp 10.6.6"
+  ],
+  "works": [],
+  "mcp": {
+    "transport": "http",
+    "name": "storybook",
+    "url": "http://127.0.0.1:6006/mcp",
+    "fields": [],
+    "secrets": [],
+    "reaches": [
+      "only your Storybook dev server on 127.0.0.1:6006"
+    ],
+    "needs": [
+      "app:Your Storybook 10.6.6 with @storybook/addon-mcp 10.6.6"
+    ],
+    "tools": {
+      "readOnly": [],
+      "ask": [
+        "stories-find-by-component",
+        "stories-preview"
+      ]
+    },
+    "guide": [
+      "In your own project add storybook@10.6.6 and @storybook/addon-mcp@10.6.6 at exact versions, list the addon in .storybook/main, and run storybook dev -p 6006 --host 127.0.0.1.",
+      "Qualified: the dev toolset only (stories-find-by-component, stories-preview, get-storybook-story-instructions). Docs and test toolsets are not part of this recipe; keep them off in the addon options.",
+      "A client header can ask for other toolsets; that is not server-side authorization. Choose the addon toolsets in main, not in Sara.",
+      "Preview links point at your local Storybook. Open them only in a browser you trust with that project.",
+      "After discovery, open Settings → Coding → Tools and approvals. Set every tool in this server's group to Ask me first or Off before sending any request.",
+      "Save, leave and reopen the page; read back every tool setting. Repeat after restart, update or newly discovered tools. Stop if settings cannot be confirmed."
+    ]
+  },
+  "changes": [
+    "First connection recipe. Fixture-qualified on Windows; not published."
+  ],
+  "tested": [],
+  "reviewNotes": "Connection preview, not a live vendor screenshot. Windows fixture: owned component found by file, both stories previewed and rendered with their real label and disabled state; unknown story ID refused."
+}

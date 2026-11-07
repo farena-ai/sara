@@ -620,7 +620,7 @@ of it; `node_modules` and similar rebuildable folders in workspaces are left out
 | `SARA_BACKUP_PASSPHRASE` | (none) | Passphrase for restoring an encrypted `.enc` off-server copy without being asked (Docker, Mac) |
 | `SARA_TOOLS_USER` | (none; `sara-tools` in Docker) | A separate user her commands run as when there's no bubblewrap (set by the Docker image) |
 | `SARA_LOG_FORMAT` | `text` | How her log lines look on the console (the journal, `docker logs`): `text` (the message, as always) or `json` (one JSON object per line: `t`, `level`, `msg`). See [Logs](#logs) |
-| `SARA_LOG_LEVEL` | `info` | Quietest lines kept: `debug`, `info`, `warn` or `error`. Applies to the console and every log file |
+| `SARA_LOG_LEVEL` | `info` | Quietest lines kept: `debug`, `info`, `warn` or `error`. Applies to the console and every log file. Without it the owner picks the level in Settings → Data & health → Health → *Log level*; when set, it wins |
 | `SARA_LOG_FILE` / `SARA_LOG_MAX_MB` / `SARA_LOG_KEEP` | (none) / `10` / `5` | An extra log file (in `SARA_LOG_FORMAT`), rotated by Sara herself when it reaches the size, keeping that many older files (`.1` newest) |
 | `SARA_DEMO` / `SARA_DEMO_DAILY` | (off) / `300` | Demo server mode and its daily message limit (set by `install-demo.sh`) |
 | `SARA_DEMO_CALL_CODE` / `SARA_DEMO_CALL_MINUTES_PER_DAY` | (off) / `30` | Demo: reviewer code that unlocks live calls (unset = no calls in the demo), and call minutes a day for everyone |
@@ -725,7 +725,7 @@ On a systemd installation, you can also check the service journal with `sudo jou
 | Setting | What it does |
 |---|---|
 | `SARA_LOG_FORMAT=json` | The console gets one JSON object per line (`{"t":"…","level":"warn","msg":"…"}`) for log collectors (Loki, Vector, Datadog, `jq`). Default `text`: the message as before (journald and Docker add their own timestamps) |
-| `SARA_LOG_LEVEL=warn` | Leaves out quieter lines everywhere. `debug` shows extra detail, `info` is the default, `error` only failures |
+| `SARA_LOG_LEVEL=warn` | Leaves out quieter lines everywhere. `debug` shows extra detail, `info` is the default, `error` only failures. The same choice is in Settings → Data & health → Health → *Log level* (saved, applied at once); the environment variable wins while it is set |
 | `SARA_LOG_FILE=/var/log/sara/sara.log` | Also writes every line to this file (text lines with a timestamp and level, or JSON with `SARA_LOG_FORMAT=json`). Sara rotates it herself: at `SARA_LOG_MAX_MB` (default 10) it becomes `sara.log.1`, older ones move up to `SARA_LOG_KEEP` (default 5) and the oldest is deleted. The folder must be writable by her user (`sudo mkdir /var/log/sara && sudo chown sara /var/log/sara`) |
 
 - **systemd (Linux):** the console goes to the journal, which rotates and limits itself (`journalctl --disk-usage`; limits in `/etc/systemd/journald.conf`, `SystemMaxUse=`). Nothing else is needed; `SARA_LOG_FORMAT=json` makes `journalctl -u sara -o cat | jq` work.

@@ -253,6 +253,26 @@
    ]
   }
  ],
+ "you-appearance": [
+  {
+   "id": "palette",
+   "q": "How do I change the colours of the app?",
+   "steps": [
+    "Pick a palette card at the top of this page.",
+    "Night or Day picks light or dark for it."
+   ],
+   "show": "#ap-pals"
+  },
+  {
+   "id": "classic",
+   "q": "How do I get the old rose and violet look back?",
+   "steps": [
+    "Pick Sara Classic as the palette.",
+    "Decoration turns the glow and moving light back on."
+   ],
+   "show": "#ap-palette"
+  }
+ ],
  "you-briefing": [
   {
    "id": "on",

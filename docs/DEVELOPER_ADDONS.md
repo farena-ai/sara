@@ -52,6 +52,33 @@ The actual public signed downloads were verified and installed through StoreClie
 with first-party consent, Off-by-default installation and explicit enable/disable checks. This
 does not claim complete application/chat approval or macOS qualification.
 
+## Lab add-ons: local candidates, not yet released
+
+Three further packages appear in **Settings → Plugins → Workflow candidates** only. They are
+host-tested on Windows against the current development source (official package smoke, real
+manager trust/enable/run/result card/disable on synthetic staged fixtures); they are not signed,
+Store-listed, Linux-qualified or chat-approval accepted. Each runs only what a trusted operator
+staged in its own native data home while it was disabled, and only after a `plan`/`preview` hash
+is passed back unchanged.
+
+| Add-on | Useful work performed | Scope you must not assume |
+|---|---|---|
+| Performance Regression Lab | Runs staged `baseline.js`/`candidate.js` benchmarks with warm-up and ABBA-interleaved samples, returns every raw sample, bootstrap interval and Mann-Whitney z; calls a regression only past your threshold | Noisy (relative MAD over 0.25) or under-10-sample runs are inconclusive with no percentage; one host's timings only |
+| Code Migration Studio | `rename-named-import` v1: scope-aware Babel AST preview over selected `.js`/`.mjs` files, then applies only that hash-bound patch to the staged workspace copy and verifies every written file | Refuses namespace imports, re-exports, dynamic imports, conflicts, links, unselected or stale files and syntax errors; never touches the real project; runs no compiler/tests (do that on the copy) |
+| Build Reproducibility Inspector | Executes a staged `build(inputs, env)` twice in fresh contexts with different clocks and build roots; compares per-file/tree SHA-256 and explains timestamp/path differences with line evidence | JavaScript build functions only, not compilers, package managers or child processes; other differences stay unexplained |
+
+Staged scripts run in `node:vm` contexts (string code generation and WebAssembly off, no host
+objects, per-call timeouts) inside the permission-limited plugin process. That is not an OS sandbox
+on Windows node-only mode: stage only code you trust. Tests:
+`node --test --test-concurrency=2 test/developer-performance-regression-lab*.test.ts test/developer-code-migration-studio*.test.ts test/developer-build-reproducibility-inspector*.test.ts`.
+
+**Held:** Offline and PWA Auditor (N18) needs a real browser engine with an isolated profile and
+offline control; native plugins have no child-process or browser authority and fenced host
+execution (H3) has no browser or device authority (plugin jobs run only `node`/`npm`), so an emulated service worker or recorded trace would not meet its
+acceptance. Mobile Device Lab (N30) needs a real build, install and log on a dedicated emulator or
+explicitly selected test device, owner device consent and the same H3 execution authority; a
+protocol fixture cannot produce those receipts.
+
 ## Typed local workbench foundation
 
 `tools/developer-workbench/` exposes only `contract_diff` and `repo_map` over real stdio MCP.
@@ -62,6 +89,56 @@ or unindexed data, unsafe paths, links and exhausted budgets.
 This is not complete Repository Onboarding: it does not execute a documented build. A server's
 own data-home mount is not a selected-project grant. There is no installable Store recipe until
 saved disabled/Ask defaults and other runtime requirements are guaranteed.
+
+## Run/build/test add-ons on the host job (H_EXEC)
+
+These add-ons promise to actually run a documented build, test, gate or command. Until now none
+could: a plugin process cannot start programs (Node permission model: `ERR_ACCESS_DENIED`), and the
+only route, Sara's `shell` tool through `callTools`, runs in the owner's main workspace (no sandbox
+on Windows) and, until this fix, still ran when approved after the plugin's 30-second invocation
+had expired. Now a plugin with `permissions.run` can ask for an **owner-approved, cancellable job
+in a disposable copy** (`job.run`, [ops/H_EXEC_DESIGN.md](ops/H_EXEC_DESIGN.md)): the card shows the
+exact command; the copy has no `.git`, links or dependency folders and is deleted afterwards;
+nothing is written back. On Linux with bubblewrap the job is OS-sandboxed without network; on
+Windows and elsewhere it is **not OS-sandboxed** (Node's permission model only, `node` only, no
+child processes). Approvals and jobs end with the plugin request that asked for them.
+
+Two are built as local candidates (Settings → Plugins → Workflow candidates; not signed,
+Store-listed, Linux-qualified or chat-approval accepted; the operator stages a project under
+`projects/<name>` in the plugin's data home while it is switched off):
+
+| Add-on | Useful work performed | Scope you must not assume |
+|---|---|---|
+| Test Doctor (N03) | Runs one exactly named test once (`node --test`, TAP) as an approved job, then reports the real failing assertion (operator, expected, actual, line) and the source of the imported functions that line calls | Timeouts, todo (expected) failures and non-assertion errors get no root cause; runtime frames are never blamed; Node test files only |
+| Flaky Test Lab (N04) | Repeats one named test 2–20 times in **one** approved job (fresh imports seeded through `globalThis.SARA_FLAKY_SEED`), keeps every seed's outcome and duration, a 95% interval, and says *flaky* only for mixed outcomes | Always-pass/always-fail are not flaky; stopped, timed-out or incomplete runs give no verdict; state outside the module is shared |
+
+Tests: `node --test --test-concurrency=2 test/developer-test-doctor*.test.ts test/developer-flaky-test-lab*.test.ts test/plugin-exec-job*.test.ts test/plugin-late-approval.test.ts`.
+
+**Still held:** Repository Onboarding (build step, N01), Release Readiness (N10) and Documentation
+Doctor (N24) can now be built on the job but were not built in this slice. Dependency Upgrade
+Workbench (N07) needs `npm`, which plugin jobs refuse without an OS sandbox, plus an offline
+fixture registry; it waits for Linux/bubblewrap qualification. No supplied-text stand-ins are
+offered in their place.
+
+## Developer MCP connections (M01–M30)
+
+Settings → Add-ons → Other programs (MCP) → **Developer connections** lists all thirty MCP
+targets: 2 fixture-tested, 22 needing your account or service, 6 blocked.
+
+| State | Targets | What you can do |
+|---|---|---|
+| Fixture-tested | Storybook, Qdrant (local) | *Copy into the add form* (switched off), review, then *Save and connect* |
+| Needs account | Postman, AWS, Azure, Google Cloud, Terraform, Kubernetes, Argo CD, Netlify, Redis, Elasticsearch/OpenSearch, ClickHouse, Snowflake, Neon, Pinecone, Datadog, Grafana, New Relic, PostHog, LaunchDarkly, Auth0, Jenkins, Buildkite | Read the owner step on the card; no install action |
+| Blocked | Local Git, Pulumi, Vercel, MongoDB, Stripe, CircleCI | Read the reason; no install action |
+
+Storybook connects to the MCP endpoint of `@storybook/addon-mcp` 10.6.6 inside your own Storybook
+(`storybook dev -p 6006 --host 127.0.0.1`), dev toolset only. Qdrant runs
+`uvx --python=3.12 mcp-server-qdrant==0.8.1` with an embedded collection in the server's own
+folder; read-only is on by default, which leaves only `qdrant-find`. Its first start downloads a
+small embedding model from Hugging Face. After either connects, set every tool to *Ask me first* or
+*Off* in Tools and approvals and read the settings back. Pins, integrity values, licences and the
+fixture evidence are in the private qualification ledger; the opt-in acceptance test is
+`test/developer-mcp-batch-host.test.ts` (`MCP_BATCH_QUALIFY=1`).
 
 ## Local Git is still blocked for project use
 

@@ -240,16 +240,31 @@ Calls a plugin may make (`op`):
 | op | Fields → answer | Rules |
 |---|---|---|
 | `fetch` | `url` → `status`, `contentType`, `body`, `truncated` | GET only in v1; the network rules above |
-| `tool` | `name`, `args` → `ok`, `content` | only names in `callTools`; **every call asks the owner** on the Plugins page (*Allow once* / *Don't*, 10 minutes); a tool set to *never* is refused |
+| `tool` | `name`, `args` → `ok`, `content` | only names in `callTools`; **every call asks the owner** on the Plugins page (*Allow once* / *Don't*, at most 10 minutes); only while a request from Sara (tool, button, hook, schedule, event) is running: the approval ends with that request, a late *Allow* is *expired* and runs nothing; a tool set to *never* is refused |
 | `notify` | `text` (≤ 300) → `ok` | a notification and a labelled note in the owner's latest chat |
 | `card` | `card` → `ok` | needs `cards`; posted labelled in the owner's latest chat |
 | `model` | `prompt`, `maxTokens` → `text` | needs `model`; counted against `callsPerDay`/`tokensPerDay` (the budget ledger, `plugin:<id>`) |
+| `job.run` | `plan` → the job's result | needs `permissions.run`; the owner approves each job (the card shows the exact command); it runs in a disposable copy, never the real workspace (below) |
 | `kv.get` / `kv.set` | `key`, `value` | its own small store: 200 keys, 64 KB a value |
 | `memory.notes` | → `notes` | needs `memory: "shared-notes"`: facts that other apps may see, read only |
 | `bridge.inbound` | `bridge`, `chatId`, `from`, `text` → `ok`, `conversation` | needs the bridge in `bridges` (§8) |
 
 Caps: **1 MB per line** (longer lines are dropped whole), **100 calls a minute**, **8 calls in
 flight**; unknown types are dropped; a line that isn't JSON is dropped and logged.
+
+### Jobs (`permissions.run`, H_EXEC)
+
+`"run": { "programs": ["node"], "sources": ["data"], "network": false }` lets a plugin ask Sara to
+run a program for it. Each `job.run` waits for the owner (*Allow once* / *Don't*, at most 2 minutes,
+and only while the request that asked is running), then runs in a **disposable copy** of the
+plugin's own files (`from`, a folder in its data folder) or of the main workspace (source
+`workspace`): no `.git`, links or dependency folders, deleted afterwards. The result carries the
+real exit code, capped stdout/stderr (truncation stated) and the changed-file list; nothing is
+written back. On Linux with bubblewrap the job is OS-sandboxed (no network unless declared and
+approved); elsewhere it is **not OS-sandboxed**: only `node` runs, under Node's permission model,
+limited to the copy (no child processes; `npm` is refused). The owner can stop a running job
+(`POST /api/plugins/<plugin>/jobs/<id>`). Copy `src/plugins/sara-job.mjs` beside `sara-plugin.mjs` and call
+`runJob(plan)`. Plan fields, limits and the refusal list: [ops/H_EXEC_DESIGN.md](ops/H_EXEC_DESIGN.md).
 
 ### The helper (`sara-plugin.mjs`)
 
