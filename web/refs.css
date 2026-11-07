@@ -51,3 +51,12 @@
   .ref-menu { left: 4px; right: 4px; }
   .ref-chip .ref-chip-text { max-width: 52vw; }
 }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+@media (pointer: fine) {
+  /* [cascade] not in style.css: must come after refs.css `.pc-checker input` */
+  :where(:root:not([data-palette="classic"])) :is(select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"])) { min-height: var(--h-control); padding-top: 4px; padding-bottom: 4px; }
+}

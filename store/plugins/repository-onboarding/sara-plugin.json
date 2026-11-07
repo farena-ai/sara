@@ -1,0 +1,64 @@
+{
+  "manifest": 1,
+  "id": "repository-onboarding",
+  "name": "Repository Onboarding",
+  "version": "1.0.0",
+  "description": "Map a staged repository and reproduce its documented build, exactly as documented, in a disposable copy when you ask.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "onboard"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none",
+    "run": {
+      "programs": [
+        "node",
+        "npm"
+      ],
+      "sources": [
+        "data"
+      ],
+      "network": false
+    }
+  },
+  "i18n": {
+    "es": {
+      "Repository Onboarding": "Incorporación al repositorio",
+      "Map a staged repository and reproduce its documented build, exactly as documented, in a disposable copy when you ask.": "Mapea un repositorio preparado y reproduce su compilación documentada, exactamente como está documentada, en una copia desechable cuando lo pides."
+    },
+    "fr": {
+      "Repository Onboarding": "Prise en main du dépôt",
+      "Map a staged repository and reproduce its documented build, exactly as documented, in a disposable copy when you ask.": "Cartographie un dépôt préparé et reproduit sa compilation documentée, exactement comme documentée, dans une copie jetable quand tu le demandes."
+    },
+    "de": {
+      "Repository Onboarding": "Repository-Einstieg",
+      "Map a staged repository and reproduce its documented build, exactly as documented, in a disposable copy when you ask.": "Kartiert ein vorbereitetes Repository und reproduziert seinen dokumentierten Build genau wie dokumentiert in einer Wegwerfkopie, wenn du es möchtest."
+    },
+    "pt-BR": {
+      "Repository Onboarding": "Integração ao repositório",
+      "Map a staged repository and reproduce its documented build, exactly as documented, in a disposable copy when you ask.": "Mapeia um repositório preparado e reproduz o build documentado, exatamente como documentado, em uma cópia descartável quando você pede."
+    },
+    "it": {
+      "Repository Onboarding": "Introduzione al repository",
+      "Map a staged repository and reproduce its documented build, exactly as documented, in a disposable copy when you ask.": "Mappa un repository preparato e riproduce la build documentata, esattamente come documentata, in una copia usa e getta quando lo chiedi."
+    }
+  }
+}

@@ -59,3 +59,12 @@
   #setup .su-path-icon { grid-row: 1 / 3; }
   #messages .empty-start { max-width: 100%; padding: 0 var(--s-4); }
 }
+
+/* ---------- V2 · first run (V1 §5): calm cards without emoji tiles outside Sara Classic ---------- */
+:where(:root:not([data-palette="classic"])) #setup .su-path-icon { display: none; }
+:where(:root:not([data-palette="classic"])) #setup .su-path-card { min-height: 72px; align-content: start; }
+:where(:root:not([data-palette="classic"])) #setup .su-path-card[aria-checked="true"] { border-color: var(--accent-solid); background: var(--accent-soft); }
+:where(:root:not([data-palette="classic"])) #setup .su-pick { border-color: var(--line); border-radius: var(--r-3); }
+@media (max-width: 720px) {
+  :where(:root:not([data-palette="classic"])) #setup .su-path-card { min-height: 56px; grid-template-columns: minmax(0, 1fr); }
+}

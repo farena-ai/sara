@@ -94,6 +94,7 @@ import { sharedEvents } from './shared-events.js';
 import { initSidebar } from './sidebar.js';
 import { initSetupWizard, openModelSetup, openSetup } from './setup-wizard.js';
 import { ring as progressRing, share as shareOf } from './viz.js';
+import { durationWords, turnHeads } from './turn-meta.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let hubReady = false;
 // Phase 114 (PL1b, F2): one first-run queue: the check-in notice, the hub's notice and the tour offer
@@ -832,6 +833,9 @@ function renderConversations() {
     );
   const loose = live.filter((c) => c.projectId === null || !known.has(c.projectId));
   const parts = [...channelGroups, ...groups, group('none', projects.some((p) => !p.builtin) ? t('No project') : t('Conversations'), loose, { dropProject: null, ...paging('none', 'none') })];
+  // V1 §5: a Projects section above the conversations (the same projects, each opens its page).
+  const own = projects.filter((p) => !p.builtin && !p.hidden);
+  if (own.length) parts.unshift(projectsSection(own, live));
   if (archived.length || (!state.tagFilter && state.unloaded?.archived)) parts.push(group('archived', t('Archived'), archived, paging('archived', 'archived')));
   const hidden = projects.filter((p) => p.hidden);
   if (hidden.length) parts.push(hiddenGroup(hidden, live));
@@ -843,6 +847,33 @@ function renderConversations() {
     }
   }
   nav.replaceChildren(...parts);
+}
+
+/** V1 §5: the sidebar's Projects section (Sara Classic hides it: its project groups stay as they are). */
+function projectsSection(own, live) {
+  const box = el('section', 'side-projects');
+  box.setAttribute('aria-labelledby', 'side-projects-h');
+  const h = el('h3', 'side-sec-h', t('Projects'));
+  h.id = 'side-projects-h';
+  const list = el('ul', 'side-proj-list');
+  for (const p of own) {
+    const n = live.filter((c) => c.projectId === p.id).length;
+    const b = el('button', 'side-proj');
+    b.type = 'button';
+    b.title = t('Project page: conversations, to-dos, notes and files');
+    b.setAttribute('aria-label', `${p.name}: ${n === 1 ? t('1 conversation') : t('{n} conversations', { n })}`);
+    const name = el('span', 'side-proj-name', p.name);
+    name.dataset.raw = '';
+    const count = el('span', 'side-proj-n', String(n));
+    count.setAttribute('aria-hidden', 'true');
+    b.append(icon('folder') ?? '', name, count);
+    b.addEventListener('click', () => openProjectPage(p.id));
+    const li = el('li');
+    li.append(b);
+    list.append(li);
+  }
+  box.append(h, list);
+  return box;
 }
 
 // Phase 22: tags.
@@ -1703,6 +1734,30 @@ function herFace(div, start) {
   div.prepend(img);
 }
 const isHerBubble = (n) => n?.classList?.contains('msg') && n.classList.contains('assistant');
+/**
+ * V1 §5: the header's conversation chip. Sara Classic shows the long summary (mode · folder ·
+ * model); the new look shows one model · workspace chip (CSS picks the span).
+ */
+function setConvSummary(full, chip) {
+  $('#conv-summary').replaceChildren(el('span', 'cs-full', full), el('span', 'cs-chip', chip ?? full));
+}
+/** V1 §5: a turn's head line: name, the time (machine-readable) and how long she took. */
+function turnHead(h) {
+  const head = el('div', 'msg-head');
+  head.dataset.raw = '';
+  const time = document.createElement('time');
+  time.className = 'msg-head-time';
+  time.setAttribute('datetime', h.iso);
+  time.textContent = msgTime(h.iso);
+  head.append(el('strong', 'msg-head-name', h.name), time);
+  const took = durationWords(h.ms, t);
+  if (took) {
+    const dur = el('span', 'msg-head-dur', took);
+    dur.title = t('How long she took to answer');
+    head.append(dur);
+  }
+  return head;
+}
 
 /** True when the conversation ends without Sara's answer (restart, error, Stop). */
 function unfinished(messages) {
@@ -1940,6 +1995,16 @@ function renderMessages(messages, opts = {}) {
     const m = b._msg;
     const solo = !isGroup(state.conv);
     msgActions(b, m, { last: solo && m === lastAssistant && lastAssistant.id > (lastUser?.id ?? 0), lastUser: solo && m === lastUser && !m.meta?.forgotten && !state.conv?.partner, other: Boolean(m.meta?.groupFrom) });
+  }
+  // V1 §5: name · time · how long she took, on your turns and the first part of each of her replies.
+  const heads = turnHeads(messages, { herName: currentIdentity().name || t('Sara'), youName: t('You') });
+  const at = new Map(messages.map((m, i) => [m, i]));
+  for (const b of els) {
+    const h = b._msg && !isGroup(state.conv) ? heads.get(at.get(b._msg)) : null;
+    if (!h) continue;
+    const face = b.querySelector(':scope > .msg-face');
+    if (face) face.after(turnHead(h));
+    else b.prepend(turnHead(h));
   }
   if (!opts.busy && !state.conv?.partner && !isGroup(state.conv) && unfinished(messages)) box.append(continueBar());
   if (state.conv?.earlier) {
@@ -3463,7 +3528,7 @@ function renderConvSummary() {
   input.placeholder = isGroup(c) ? t('Message the group…') : input.dataset.solo;
   if (isGroup(c)) {
     const style = { fits: t('Whoever fits'), everyone: t('Everyone answers'), turns: t('Take turns'), mention: t('@mention only') }[c.group?.turnStyle] ?? '';
-    $('#conv-summary').textContent = `${groupTag(c)} · ${style}${c.group?.banter ? ` · ${t('Banter: {n}', { n: c.group.banter })}` : ''}`;
+    setConvSummary(`${groupTag(c)} · ${style}${c.group?.banter ? ` · ${t('Banter: {n}', { n: c.group.banter })}` : ''}`);
     panelConv();
     return;
   }
@@ -3479,8 +3544,9 @@ function renderConvSummary() {
   const plan = kind === 'chatgpt' ? ` · ${t('Using ChatGPT plan')}` : kind === 'claude-code' ? ` · ${t('Claude subscription')}` : kind === 'grok-cli' ? ` · ${t('Grok subscription')}` : '';
   // L11: "main" is the main folder of her workspaces.
   // Phase 71: members have no workspace folders (the file tools are the owner's), so no folder part.
-  const folder = isMember() ? '' : `${c.workspace === 'main' ? t('main folder') : c.workspace} · `;
-  $('#conv-summary').textContent = `${c.mode === 'coding' ? `${t('Coding')} · ` : ''}${folder}${model || label}${plan}`;
+  const ws = c.workspace === 'main' ? t('main folder') : c.workspace;
+  const folder = isMember() ? '' : `${ws} · `;
+  setConvSummary(`${c.mode === 'coding' ? `${t('Coding')} · ` : ''}${folder}${model || label}${plan}`, [model || label, isMember() ? '' : ws].filter(Boolean).join(' · '));
   panelConv();
 }
 
@@ -8095,17 +8161,56 @@ autoSave($('#settings'));
 
 // ---------- Phase 52: usage and costs ----------
 /** The server's usage line ("12.3k tokens (12k in, 300 out) · local") in the app's language. */
-function usageWords(x) {
-  if (!x?.calls) return t('No model usage recorded yet.');
-  const k = (n) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
+const kTokens = (n) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
+function usageCost(x) {
   const billing = x.billing ?? [];
   const usd = (v) => `$${v < 0.01 && v > 0 ? v.toFixed(4) : v.toFixed(2)}`;
-  const cost = billing.includes('api')
+  return billing.includes('api')
     ? x.usd > 0 || !x.unpriced
       ? x.unpriced ? t('about {usd} + calls with no price', { usd: usd(x.usd) }) : t('about {usd}', { usd: usd(x.usd) })
       : t('cost unknown (no price for this model)')
     : billing.includes('subscription') ? t('$0 (subscription)') : t('local');
+}
+function usageWords(x) {
+  if (!x?.calls) return t('No model usage recorded yet.');
+  const k = kTokens;
+  const cost = usageCost(x);
   return `${t('{tokens} tokens ({input} in, {output} out)', { tokens: k(x.tokens), input: k(x.input), output: k(x.output) })} · ${cost}`;
+}
+/**
+ * V1 §5: the same rows as a real table (header in text-3, right-aligned tabular numbers), right
+ * after the list. Sara Classic shows the list, the new look the table (screens.css).
+ */
+function usageTable(list, first, rows) {
+  const id = `${list.id}-table`;
+  const table = document.getElementById(id) ?? el('table', 'usage-table');
+  table.id = id;
+  const head = el('tr');
+  for (const [text, num] of [[first, false], [t('Calls'), true], [t('Tokens in'), true], [t('Tokens out'), true], [t('Cost'), true]]) {
+    const th = el('th', num ? 'num' : '', text);
+    th.scope = 'col';
+    head.append(th);
+  }
+  const thead = el('thead');
+  thead.append(head);
+  const tbody = el('tbody');
+  for (const [name, x] of rows) {
+    const tr = el('tr');
+    const who = el('th', '', name);
+    who.scope = 'row';
+    who.dataset.raw = '';
+    tr.append(who, el('td', 'num', String(x.calls)), el('td', 'num', kTokens(x.input ?? 0)), el('td', 'num', kTokens(x.output ?? 0)), el('td', 'num', usageCost(x)));
+    tbody.append(tr);
+  }
+  if (!rows.length) {
+    const none = el('td', 'muted small', '—');
+    none.colSpan = 5;
+    const tr = el('tr');
+    tr.append(none);
+    tbody.append(tr);
+  }
+  table.replaceChildren(thead, tbody);
+  if (!table.isConnected) list.after(table);
 }
 let usageData = null;
 /** "About $0.12 so far, part on this computer": what it cost in words, before any token counts. */
@@ -8140,6 +8245,9 @@ function renderUsage() {
   if (several) $('#usage-companions').replaceChildren(...r.byCompanion.map((c) => row(c.name, c)));
   $('#usage-models').replaceChildren(...(r.byModel.length ? r.byModel.map((m) => row(`${m.model} (${m.providerLabel || m.providerId})`, m)) : [el('li', 'muted small', '—')]));
   $('#usage-purposes').replaceChildren(...(r.byPurpose.length ? r.byPurpose.map((m) => row(purposeWord(m.purpose), m)) : [el('li', 'muted small', '—')]));
+  if (several) usageTable($('#usage-companions'), t('Companion'), r.byCompanion.map((c) => [c.name, c]));
+  usageTable($('#usage-models'), t('Model'), r.byModel.map((m) => [`${m.model} (${m.providerLabel || m.providerId})`, m]));
+  usageTable($('#usage-purposes'), t('For'), r.byPurpose.map((m) => [purposeWord(m.purpose), m]));
 }
 function priceRow(p = {}) {
   // Not an .add-row: its ✕ button would make the boxes "wait for their own button" instead of saving.

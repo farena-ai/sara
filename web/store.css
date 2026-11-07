@@ -107,3 +107,23 @@
 .plg-calm { margin: 0; }
 @media (max-width: 900px) { .sto-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .sto-row { grid-template-columns: minmax(0, 1fr); } .sto-seg { display: flex; } .sto-seg button { flex: 1 1 0; padding: 0 8px; } }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+/* [cascade] not in screens.css: must come after store.css `.store-notice span` */
+.v1-notice > span { flex: 1 1 260px; }
+
+/* ---------- V2 · add-ons and the Sara Store (V1 §5) ----------
+   Outside Sara Classic: underline tabs instead of the pill switch, small radii on icons and shots. */
+:where(:root:not([data-palette="classic"])) .sto-seg { display: flex; gap: 2px; padding: 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; }
+:where(:root:not([data-palette="classic"])) .sto-seg button { margin-bottom: -1px; padding: 0 12px; border-bottom: 2px solid transparent; border-radius: 0; color: var(--text-2); font-weight: 550; }
+:where(:root:not([data-palette="classic"])) .sto-seg button:hover { background: transparent; color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .sto-seg button[aria-selected="true"] { background: transparent; color: var(--text-1); border-bottom-color: var(--accent-solid); box-shadow: none; }
+@media (pointer: fine) {
+  :where(:root:not([data-palette="classic"])) .sto-seg button { min-height: var(--h-control); }
+}
+:where(:root:not([data-palette="classic"])) .sto-icon { border-radius: var(--r-2); }
+:where(:root:not([data-palette="classic"])) :is(.stp-shot, .stp-msg) { border-radius: var(--r-3); }
+:where(:root:not([data-palette="classic"])) .stp-cmd { border-radius: var(--r-2); font-family: var(--font-mono); font-size: 12px; }

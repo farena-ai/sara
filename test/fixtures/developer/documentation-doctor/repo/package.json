@@ -1,0 +1,8 @@
+{
+  "name": "recipe-box",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "docs": "node scripts/build-docs.mjs"
+  }
+}

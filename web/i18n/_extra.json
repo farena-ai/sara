@@ -1014,6 +1014,24 @@
   "Each run asks Sara for one job you approve: node in a disposable copy of its staged project, no network; the copy is deleted afterwards. No model, shell or delegated tools.",
   "Not OS-sandboxed on Windows or macOS: Node's permission model limits the job to the disposable copy (no child processes). OS-sandboxed with bubblewrap on Linux.",
   "Node test files only, one exactly named test per run. Timeouts, todo (expected) failures and non-assertion errors get no root cause; the called source is located by import name, not proven to be the fix.",
-  "2–20 repetitions as fresh module imports seeded through globalThis.SARA_FLAKY_SEED; state outside the module is shared between repetitions. Stopped, timed-out or incomplete runs give no verdict."
+  "2–20 repetitions as fresh module imports seeded through globalThis.SARA_FLAKY_SEED; state outside the module is shared between repetitions. Stopped, timed-out or incomplete runs give no verdict.",
+  "Documentation Doctor",
+  "Check a staged project's Markdown links and documented commands, and run one documented command in a disposable copy when you ask.",
+  "Check a staged project's Markdown links and heading anchors without fetching anything, list the commands its documentation shows, and run one of them only when you ask, as a job you approve.",
+  "Adds docs tool (Ask)",
+  "Each run asks Sara for one job you approve: node or npm in a disposable copy of its staged project, no network; the copy is deleted afterwards. No model, shell or delegated tools.",
+  "Not OS-sandboxed on Windows or macOS: Node's permission model limits the job to the disposable copy (no child processes). npm commands run only inside bubblewrap on Linux and are held elsewhere.",
+  "Local links and anchors only; external links are listed, not fetched. Only node or npm commands in shell code blocks without shell syntax can run; documentation text is never run automatically.",
+  "Release Readiness",
+  "Run a staged project's configured local release gates, each as a job you approve in a disposable copy, and block the release when a required gate fails.",
+  "Run a staged project's versioned local release gates (tests, checks, link checks) as jobs you approve, collect each gate's real exit code and output hash, and say ready only when every gate passed.",
+  "Adds gates tool (Ask)",
+  "Each gate asks Sara for one job you approve: node or npm in a disposable copy of its staged project, no network; the copy is deleted afterwards. No model, shell or delegated tools.",
+  "Local gates only: publish, sign, upload, deploy or CI gates refuse before anything runs. A held, declined or stopped gate leaves the verdict incomplete, never ready.",
+  "Repository Onboarding",
+  "Map a staged repository and reproduce its documented build, exactly as documented, in a disposable copy when you ask.",
+  "Map a staged repository's manifests, lockfiles, languages and documented prerequisites without running anything, then reproduce the build its README documents, exactly as written, as a job you approve.",
+  "Adds onboard tool (Ask)",
+  "Only commands in the README Build section run, exactly as written; invented commands and missing documented files or Node versions refuse. Prerequisites Sara cannot check are listed as unverified."
  ]
 }

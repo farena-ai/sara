@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "gates": [
+    {
+      "id": "tests",
+      "requirement": "Unit tests pass",
+      "program": "node",
+      "args": [
+        "--test",
+        "test/cart.test.mjs"
+      ]
+    },
+    {
+      "id": "publish",
+      "requirement": "Publish the package",
+      "program": "node",
+      "args": [
+        "scripts/publish.mjs"
+      ]
+    }
+  ]
+}

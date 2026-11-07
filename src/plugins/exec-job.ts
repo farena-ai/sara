@@ -10,7 +10,7 @@
 //
 // Never the real workspace: the snapshot is copied (no .git, links or dependency folders), hashed
 // before and after for the changed-file list, and deleted at the end. Cancellable at any point.
-import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { constants, copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
@@ -259,6 +259,9 @@ export interface RunJobOptions {
   /** Source `workspace` under bubblewrap: its dependency folders, bound read-only. */
   depsFrom?: string;
   onStart?: (pid: number) => void;
+  /** Test hooks for the stop escalation (defaults STOP_RETRY_MS / STOP_GIVE_UP_MS). */
+  stopRetryMs?: number;
+  stopGiveUpMs?: number;
 }
 
 function npmCli(execPath: string): string | undefined {
@@ -267,11 +270,27 @@ function npmCli(execPath: string): string | undefined {
   return undefined;
 }
 
-function killTree(child: ChildProcess): void {
+/** Ends the job's process tree without blocking Sara. On Windows the job itself is terminated at
+ * once (the node-only fence lets it start no children), and the tree kill for anything else runs
+ * in the background: a synchronous taskkill can take seconds on a busy machine, during which the
+ * job would keep running. Elsewhere the whole process group is killed. */
+export function killTree(child: ChildProcess, treeKill: (pid: number) => void = backgroundTaskkill): void {
   if (!child.pid) return;
+  if (process.platform === 'win32') {
+    try {
+      child.kill('SIGKILL');
+    } catch {
+      /* gone */
+    }
+    try {
+      treeKill(child.pid);
+    } catch {
+      /* the direct kill above already ended the job */
+    }
+    return;
+  }
   try {
-    if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore', timeout: 10_000 });
-    else process.kill(-child.pid, 'SIGKILL');
+    process.kill(-child.pid, 'SIGKILL');
   } catch {
     try {
       child.kill('SIGKILL');
@@ -280,6 +299,17 @@ function killTree(child: ChildProcess): void {
     }
   }
 }
+
+function backgroundTaskkill(pid: number): void {
+  const k = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+  k.on('error', () => {});
+  k.unref();
+}
+
+/** After a stop, how long to wait for the job to end before trying again, and before giving up
+ * waiting (the result then says it did not confirm the stop, and the gate is never held open). */
+export const STOP_RETRY_MS = 5_000;
+export const STOP_GIVE_UP_MS = 20_000;
 
 function removeRun(dir: string): boolean {
   for (let i = 0; i < 20; i++) {
@@ -390,10 +420,33 @@ export async function runJob(plan: JobPlan, o: RunJobOptions): Promise<JobResult
     };
     child.stdout!.on('data', take(0));
     child.stderr!.on('data', take(1));
+    let settled = false;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let giveUp: ReturnType<typeof setTimeout> | undefined;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      clearTimeout(retry);
+      clearTimeout(giveUp);
+      o.signal.removeEventListener('abort', onAbort);
+      done();
+    };
     const stop = (why: 'timeout' | 'cancel') => {
+      if (settled || retry) return;
       if (why === 'timeout') res.timedOut = true;
       else res.cancelled = true;
       killTree(child);
+      // A child that survives the first kill (or whose pipes stay open through a grandchild) must
+      // never hold the job, and with it the plugin call and the approval, open forever.
+      retry = setTimeout(() => killTree(child), o.stopRetryMs ?? STOP_RETRY_MS);
+      giveUp = setTimeout(() => {
+        res.error = 'It did not confirm the stop in time; it was killed again and the result ends here.';
+        child.stdout?.destroy();
+        child.stderr?.destroy();
+        killTree(child);
+        settle();
+      }, o.stopGiveUpMs ?? STOP_GIVE_UP_MS);
     };
     const timer = setTimeout(() => stop('timeout'), plan.timeoutS * 1000);
     const onAbort = () => stop('cancel');
@@ -402,11 +455,9 @@ export async function runJob(plan: JobPlan, o: RunJobOptions): Promise<JobResult
       res.error = `It could not start: ${err.message}`;
     });
     child.on('close', (code, sig) => {
-      clearTimeout(timer);
-      o.signal.removeEventListener('abort', onAbort);
       res.exitCode = code;
       res.signal = sig;
-      done();
+      settle();
     });
   });
   res.stdout = Buffer.concat(out[0].buf).toString('utf8');

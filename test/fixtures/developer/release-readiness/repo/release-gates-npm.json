@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "gates": [
+    {
+      "id": "tests",
+      "requirement": "The package's own test script passes",
+      "program": "npm",
+      "args": [
+        "test"
+      ]
+    },
+    {
+      "id": "links",
+      "requirement": "Every relative Markdown link resolves",
+      "program": "node",
+      "args": [
+        "scripts/check-links.mjs"
+      ]
+    }
+  ]
+}

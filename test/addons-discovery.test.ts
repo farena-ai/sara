@@ -9,7 +9,7 @@ import { fromFolder, hashFiles, stripTop } from '../src/packages.ts';
 const moduleUrl = new URL('../src/addons/discovery.ts', import.meta.url);
 // A2 adds the developer add-ons through the same candidate path (host-tested, pinned versions).
 const devIds = ['secret-scanner', 'license-auditor', 'sbom-builder', 'artifact-provenance-verifier', 'coverage-explorer', 'log-explorer', 'incident-workbench', 'environment-config-doctor', 'database-fixture-studio', 'data-contract-validator', 'change-impact-analyzer', 'architecture-guard', 'sql-migration-reviewer', 'visual-regression', 'localization-qa', 'accessibility-auditor', 'build-cache-inspector', 'api-contract-guard', 'http-webhook-workbench',
-  'performance-regression-lab', 'code-migration-studio', 'build-reproducibility-inspector', 'test-doctor', 'flaky-test-lab'];
+  'performance-regression-lab', 'code-migration-studio', 'build-reproducibility-inspector', 'test-doctor', 'flaky-test-lab', 'documentation-doctor', 'release-readiness', 'repository-onboarding'];
 const nativeIds = ['daily-briefing', 'meeting-assistant', 'document-desk', 'research-notebook', 'project-handoff', 'weekly-review', 'inbox-triage', 'content-studio', 'image-workshop', 'spreadsheet-assistant', 'travel-planner', 'home-dashboard', ...devIds];
 const previewIds = ['markitdown', 'tavily', 'firecrawl', 'chrome-devtools', 'dbhub', 'drawio', 'linear'];
 const blockedIds = ['notion', 'serena', 'supabase', 'figma', 'google-workspace', 'microsoft-365', 'slack', 'atlassian', 'home-assistant', 'obsidian', 'sentry', 'cloudflare', 'docker', 'gitlab'];

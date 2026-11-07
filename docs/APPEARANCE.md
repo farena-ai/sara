@@ -18,5 +18,10 @@ Every palette meets WCAG AA contrast for text and the accent colour (checked by
 `test/v1-theme.test.ts`). The look is applied before the page first paints, so there is no flash,
 and *Reduce motion* in your system settings is respected.
 
+Outside Sara Classic each chat turn shows who wrote it, when, and how long she took; the header
+shows one *model · workspace* chip with a small meter of how full the conversation is; Settings
+opens as a full-height panel listing every page; usage and a run's model calls are tables; and the
+sidebar lists your projects above the conversations. Sara Classic keeps its earlier layout.
+
 When you first open 2.77.0 after using an earlier version, a one-time notice offers
 **Switch back to Sara Classic**. You can change palettes any time.

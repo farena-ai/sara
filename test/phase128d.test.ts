@@ -54,14 +54,14 @@ test('128d.3 N38: the new guide sections resolve to unique ids, and every # link
 
 test('128d.4 C4: every sara-plugin.mjs, http1.mjs and pace.mjs (outside node_modules and outputs) has its source\'s hash', () => {
   const copies = sdkCopies();
-  assert.equal(copies['sara-plugin.mjs'].length, 51, copies['sara-plugin.mjs'].join(', '));
-  assert.deepEqual(copies['sara-job.mjs'], ['src/plugins/sara-job.mjs', 'store/plugins/flaky-test-lab/sara-job.mjs', 'store/plugins/test-doctor/sara-job.mjs']);
+  assert.equal(copies['sara-plugin.mjs'].length, 54, copies['sara-plugin.mjs'].join(', '));
+  assert.deepEqual(copies['sara-job.mjs'], ['src/plugins/sara-job.mjs', 'store/plugins/documentation-doctor/sara-job.mjs', 'store/plugins/flaky-test-lab/sara-job.mjs', 'store/plugins/release-readiness/sara-job.mjs', 'store/plugins/repository-onboarding/sara-job.mjs', 'store/plugins/test-doctor/sara-job.mjs']);
   for (const id of ['daily-briefing', 'meeting-assistant', 'document-desk', 'research-notebook', 'project-handoff', 'weekly-review', 'inbox-triage', 'content-studio', 'image-workshop', 'spreadsheet-assistant', 'travel-planner', 'home-dashboard']) {
     assert.ok(copies['sara-plugin.mjs'].includes(`store/plugins/${id}/sara-plugin.mjs`), `${id}: standalone SDK remains hash-checked`);
   }
   assert.ok(copies['sara-plugin.mjs'].includes('plugins/whatsapp/sara-plugin.mjs') && copies['sara-plugin.mjs'].includes('store/plugins/focus/sara-plugin.mjs'));
   for (const id of ['api-contract-guard', 'secret-scanner', 'license-auditor', 'sbom-builder', 'artifact-provenance-verifier', 'coverage-explorer', 'log-explorer', 'incident-workbench', 'environment-config-doctor', 'database-fixture-studio', 'data-contract-validator', 'change-impact-analyzer', 'architecture-guard', 'sql-migration-reviewer', 'visual-regression', 'localization-qa', 'accessibility-auditor', 'build-cache-inspector', 'http-webhook-workbench',
-    'performance-regression-lab', 'code-migration-studio', 'build-reproducibility-inspector', 'test-doctor', 'flaky-test-lab']) {
+    'performance-regression-lab', 'code-migration-studio', 'build-reproducibility-inspector', 'test-doctor', 'flaky-test-lab', 'documentation-doctor', 'release-readiness', 'repository-onboarding']) {
     assert.ok(copies['sara-plugin.mjs'].includes(`store/plugins/${id}/sara-plugin.mjs`), `${id}: developer candidate SDK remains hash-checked`);
   }
   assert.deepEqual(copies['http1.mjs'], ['plugins/imessage/http1.mjs', 'plugins/matrix/http1.mjs', 'plugins/whatsapp/http1.mjs']);

@@ -82,7 +82,18 @@ function lineIcon(d, cls = '') {
   s.append(path);
   return s;
 }
+/** V1 §5: the desktop sheet outside Sara Classic lists every page under flat headings (no accordion). */
+export const flatNav = () => typeof matchMedia === 'function' && document.documentElement.dataset.palette !== 'classic' && matchMedia('(min-width: 721px)').matches;
+function syncFlatNav() {
+  const flat = flatNav();
+  const list = document.getElementById('settings-nav-list');
+  if (!list) return;
+  const current = list.querySelector('.settings-nav-item[aria-current="true"]')?.closest('.settings-nav-group');
+  for (const g of list.querySelectorAll('.settings-nav-group')) setGroupOpen(g, flat || g === current, false);
+}
+if (typeof matchMedia === 'function') matchMedia('(min-width: 721px)').addEventListener?.('change', syncFlatNav);
 export function setGroupOpen(box, open, remember = true) {
+  if (flatNav()) open = true;
   // Phase 114 (PL1c, S1): an accordion: opening a group closes the others (one scrollbar, never two).
   if (open && remember) for (const g of document.querySelectorAll('#settings-nav-list .settings-nav-group.open')) if (g !== box) setGroupOpen(g, false, false);
   box.classList.toggle('open', open);
@@ -122,6 +133,9 @@ export function buildSettingsNav() {
       head.setAttribute('aria-controls', listId);
       const info = SETTINGS_GROUPS.find((x) => x.name === g);
       head.append(lineIcon(info?.icon ?? 'M4 6h16M4 12h16M4 18h16', 'sng-icon'), el('span', 'sng-name', t(g)), el('span', 'sng-count', String(secs.length)), lineIcon('M9 6l6 6-6 6', 'sng-chev'));
+      // V1 §5: outside Sara Classic the desktop sheet shows every page under a flat caps heading
+      // (screens.css shows either this heading or the accordion button, never both).
+      const cap = el('h3', 'settings-nav-cap', t(g));
       const items = el('div', 'settings-nav-items');
       items.id = listId;
       head.addEventListener('click', () => setGroupOpen(box, !box.classList.contains('open')));
@@ -139,7 +153,7 @@ export function buildSettingsNav() {
         });
         items.append(b);
       }
-      box.append(head, items);
+      box.append(cap, head, items);
       setGroupOpen(box, false, false);
       return box;
     }),

@@ -64,7 +64,7 @@ CANDIDATE_PLUGINS=(
   visual-regression localization-qa accessibility-auditor build-cache-inspector api-contract-guard
   http-webhook-workbench
   performance-regression-lab code-migration-studio build-reproducibility-inspector
-  test-doctor flaky-test-lab
+  test-doctor flaky-test-lab documentation-doctor release-readiness repository-onboarding
 )
 mkdir -p "$STAGE/server/store/plugins"
 for id in "${CANDIDATE_PLUGINS[@]}"; do

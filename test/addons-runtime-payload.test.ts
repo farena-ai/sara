@@ -11,7 +11,7 @@ const ROOT = resolve(import.meta.dirname, '..');
 const IDS = ['daily-briefing', 'meeting-assistant', 'document-desk', 'research-notebook', 'project-handoff', 'weekly-review', 'inbox-triage', 'content-studio', 'image-workshop', 'spreadsheet-assistant', 'travel-planner', 'home-dashboard',
   // A2 developer add-ons ship beside the A1 candidates so their reviews are not held as missing.
   ...['secret-scanner', 'license-auditor', 'sbom-builder', 'artifact-provenance-verifier', 'coverage-explorer', 'log-explorer', 'incident-workbench', 'environment-config-doctor', 'database-fixture-studio', 'data-contract-validator', 'change-impact-analyzer', 'architecture-guard', 'sql-migration-reviewer', 'visual-regression', 'localization-qa', 'accessibility-auditor', 'build-cache-inspector', 'api-contract-guard', 'http-webhook-workbench',
-    'performance-regression-lab', 'code-migration-studio', 'build-reproducibility-inspector', 'test-doctor', 'flaky-test-lab']];
+    'performance-regression-lab', 'code-migration-studio', 'build-reproducibility-inspector', 'test-doctor', 'flaky-test-lab', 'documentation-doctor', 'release-readiness', 'repository-onboarding']];
 const BUILTINS = ['email', 'imessage', 'matrix', 'signal', 'whatsapp'];
 const read = (path: string) => readFileSync(join(ROOT, path), 'utf8').replaceAll('\r\n', '\n');
 const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash';

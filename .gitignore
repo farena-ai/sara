@@ -1,6 +1,8 @@
 node_modules/
 # Runtime data: conversations, settings, encrypted secrets, master key, owner token.
 data/
+# Test fixtures that model a repository's own data folder are source, not runtime data.
+!test/fixtures/**/data/
 # Umbrel needs the app's empty bind-mount folder committed (sara/data/.gitkeep).
 !packaging/umbrel/data/
 *.db

@@ -76,7 +76,7 @@ test('runtime recipes preserve builtin plugins and never copy broad store author
     assert.match(storeSources[0], /^"\$(?:ROOT|SRC_DIR)\/store\/plugins\/\$id"$/, `${path}: no raw catalog, website or whole-store source`);
   }
   const storeCopies = read('Dockerfile').split(/\r?\n/).filter(line => /^COPY\s+store(?:\/|\s)/.test(line));
-  assert.equal(storeCopies.length, 36, 'image copies exactly thirty-six package roots (12 A1 + 24 A2 candidates)');
+  assert.equal(storeCopies.length, 39, 'image copies exactly thirty-nine package roots (12 A1 + 27 A2 candidates)');
   for (const line of storeCopies) assert.match(line, /^COPY store\/plugins\/([a-z-]+) \.\/store\/plugins\/\1$/, 'explicit package-directory copy only');
 });
 

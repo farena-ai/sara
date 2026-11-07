@@ -2,7 +2,7 @@
 // palettes (every token, every text/accent pair at WCAG AA), the no-flash boot attributes, the custom
 // accent maths, the Appearance page, and the two bugs the design audit found. No browser here.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { createHash } from 'node:crypto';
@@ -16,6 +16,10 @@ import { makeApp, ROOT, tempDir } from './helpers.ts';
 
 const web = (f: string) => readFileSync(join(ROOT, 'web', f), 'utf8');
 const html = web('index.html');
+const SHEETS = [...html.matchAll(/<link rel="stylesheet" href="\/([\w-]+\.css)">/g)].map((m) => m[1]);
+const FOLD = '/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css';
+/** Slice 7: the new-look rules, folded into the end of each screen's own sheet, in load order. */
+const newLook = () => SHEETS.map((f) => { const css = web(f); const at = css.indexOf(FOLD); const end = css.indexOf('/* ---------- V2 ', at); return at < 0 ? '' : css.slice(at, end < 0 ? undefined : end); }).join('\n');
 const theme = web('theme.css');
 
 const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
@@ -80,6 +84,15 @@ test('V1 contrast: every palette text/accent/state pair at WCAG AA, and every ac
       if (contrast(x['accent-solid'], t['surface-0']) < 3) rows.push(`${p} ${mode} preset ${a} fill`);
       if (contrast(x['on-accent'], x['accent-solid']) < 4.5) rows.push(`${p} ${mode} preset ${a} on-accent`);
     }
+  }
+  // V2 surfaces: text on the soft accent tint (selected cards: 16% of the fill over surface-1), and
+  // the context meter's fills against its surface-0 track (non-text, WCAG 1.4.11: 3:1).
+  const mix = (a: string, b: string, w: number) => '#' + hex(a).map((x, i) => Math.round((x * w + hex(b)[i] * (1 - w)) * 255).toString(16).padStart(2, '0')).join('');
+  for (const p of PALETTES) for (const mode of ['dark', 'light']) {
+    const t = palette(p, mode);
+    const soft = mix(t['accent-solid'], t['surface-1'], 0.16);
+    for (const k of ['text-1', 'text-2']) if (contrast(t[k], soft) < 4.5) rows.push(`${p} ${mode} ${k} on accent-soft: ${contrast(t[k], soft).toFixed(2)}`);
+    for (const k of ['accent-solid', 'warn', 'danger']) if (contrast(t[k], t['surface-0']) < 3) rows.push(`${p} ${mode} meter ${k} on its track: ${contrast(t[k], t['surface-0']).toFixed(2)}`);
   }
   assert.deepEqual(rows, [], rows.join('\n'));
   // High contrast is really high: body text at 15:1 or more, meta text 10:1.
@@ -221,8 +234,10 @@ test('V1 Appearance page: its own Settings page under You with the same ids, the
 });
 
 test('V1 slice 2: Reduce decoration hides the aurora, halos, sparkles, blur and glows, and flattens the gradients', () => {
-  const pro = web('pro.css');
-  assert.match(html, /<link rel="stylesheet" href="\/recall.css">\s*<link rel="stylesheet" href="\/pro.css">\s*<script type="module" src="\/app.js"><\/script>/, 'pro.css loads after every other sheet');
+  const pro = newLook();
+  // Slice 7: pro.css is gone; its rules live at the end of the screens' own sheets.
+  assert.doesNotMatch(html, /pro\.css/);
+  assert.equal(existsSync(join(ROOT, 'web', 'pro.css')), false);
   assert.match(pro, /html\[data-decor="off"\] \.aurora \{ display: none; \}/);
   assert.match(pro, /html\[data-decor="off"\] \*, html\[data-decor="off"\] \*::before, html\[data-decor="off"\] \*::after, html\[data-decor="off"\] dialog::backdrop \{ -webkit-backdrop-filter: none !important; backdrop-filter: none !important; \}/);
   assert.match(pro, /html\[data-decor="off"\] :is\(\.td-face-btn, \.hp-glow, \.head-face-btn\)::after,/);
@@ -253,8 +268,9 @@ test('V1 slice 2: Reduce decoration hides the aurora, halos, sparkles, blur and 
 });
 
 test('V1 slice 3: base components are scoped with :where() outside Sara Classic (no specificity bumps), Classic keeps its serif', () => {
-  const pro = web('pro.css');
-  const s3 = pro.slice(pro.indexOf('/* ---------- 3.'), pro.indexOf('/* ---------- 4.') > 0 ? pro.indexOf('/* ---------- 4.') : undefined);
+  const pro = newLook();
+  const s3 = pro;
+  const base = /(?:^|\n)\s*(?:\/\*[\s\S]*?\*\/\s*)*([^{}@]+)\{[^{}]*\}/g;
   const rules = [...s3.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}@]+)\{[^{}]*\}/g)].map((m) => m[1].trim()).filter((x) => x && !x.startsWith('@'));
   assert.ok(rules.length > 20);
   const top = (sel: string) => {
@@ -267,16 +283,18 @@ test('V1 slice 3: base components are scoped with :where() outside Sara Classic 
     }
     return [...out, cur];
   };
-  for (const sel of rules) for (const part of top(sel)) assert.match(part.trim(), /^:where\(:root:not\(\[data-palette="classic"\]\)\) /, part);
+  void base;
+  // Every folded rule is scoped: :where() outside Classic, the decoration switch, or a :root attribute.
+  for (const sel of rules) for (const part of top(sel)) assert.match(part.trim(), /^(:where\(:root:not\(\[data-palette="classic"\]\)\) |html\[data-decor="off"\] |:root\[data-portrait="(small|hidden)"\] |:root:not\(\[data-palette="classic"\]\)(\[data-chatbg\])? |:root:not\(\[data-palette="classic"\]\)$|\.ap-|\.v1-notice)/, part);
   for (const [what, re] of [['solid primary', /button \{[^}]*box-shadow: none; filter: none;/], ['secondary', /button\.ghost:where\([^{]*\) \{ background: var\(--surface-2\); border: 1px solid var\(--line\)/], ['focus ring', /:focus-visible \{ outline: 2px solid var\(--focus\); outline-offset: 2px; \}/], ['field focus', /:focus \{ outline: none; border-color: var\(--accent-solid\); box-shadow: 0 0 0 3px var\(--accent-soft\); \}/], ['underline tabs', /\.tabs \.tab\.active[^{]*\{ background: transparent; color: var\(--text-1\); border-bottom-color: var\(--accent-solid\);/], ['flat cards', /\.cmp-card, \.start-item\) \{ background: var\(--surface-1\); border: 1px solid var\(--line\); border-radius: var\(--r-3\); box-shadow: none; \}/], ['dialogs', /dialog \{ border: 1px solid var\(--line\); border-radius: var\(--r-4\);/]] as const) assert.match(s3, re, what);
   // Fields grow to --h-control only with a mouse; touch keeps the 44 px rules of the other sheets.
-  assert.match(s3, /@media \(pointer: fine\) \{\s*:where\(:root:not\(\[data-palette="classic"\]\)\) :is\(select, input/);
+  assert.match(s3, /@media \(pointer: fine\) \{\s*(\/\*[^*]*\*\/\s*)?:where\(:root:not\(\[data-palette="classic"\]\)\) :is\(select, input/);
   assert.equal(vars(':root:not([data-palette="classic"]) {')['font-display'], 'var(--font-ui-v1)');
 });
 
 test('V1 slice 4: shell without pink rails, the portrait setting, the flat phone bar', () => {
-  const pro = web('pro.css');
-  const s4 = pro.slice(pro.indexOf('/* ---------- 4.'));
+  const pro = newLook();
+  const s4 = pro;
   for (const sel of ['#conversations a.active', '.settings-nav-item[aria-current="true"]', '.cmd-item[aria-selected="true"]']) {
     const rule = new RegExp(`${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^{]*\\{[^}]*background: var\\(--surface-3\\);[^}]*box-shadow: none;`);
     assert.match(s4, rule, `${sel}: selected = surface-3, no rail`);
@@ -290,8 +308,8 @@ test('V1 slice 4: shell without pink rails, the portrait setting, the flat phone
 });
 
 test('V1 slice 5: chat is a transcript (no bubbles, no rails), flat composer; the markdown table is styled', () => {
-  const pro = web('pro.css');
-  const s5 = pro.slice(pro.indexOf('/* ---------- 5.'));
+  const pro = newLook();
+  const s5 = pro;
   assert.match(s5, /\.msg\.user \{ align-self: stretch; max-width: 780px;[^}]*border-top: 1px solid var\(--hairline\); border-radius: 0; background: none; color: var\(--text-1\); box-shadow: none; \}/, 'your turns are not filled');
   assert.match(s5, /\.msg\.assistant\.her::before \{ display: none; \}/, 'no accent rail on her turns');
   assert.match(s5, /\.msg-face \{ left: -38px; top: 1px; width: 24px; height: 24px;/, 'a 24 px avatar');
@@ -303,7 +321,7 @@ test('V1 slice 5: chat is a transcript (no bubbles, no rails), flat composer; th
 });
 
 test('V1 slice 6: Settings legend uses status dots, Today and window titles use the UI face', () => {
-  const s6 = web('pro.css').slice(web('pro.css').indexOf('/* ---------- 6.'));
+  const s6 = newLook();
   assert.match(s6, /\.perm-card \{ border-left-width: 1px;/, 'no coloured left rail');
   assert.match(s6, /\.perm-auto strong::before \{ background: var\(--success\); \}/);
   assert.match(s6, /#td-greeting \{ font-size: clamp\(24px, 2\.4vw, 30px\); font-weight: 600;/);

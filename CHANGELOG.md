@@ -5,6 +5,25 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.78.0 (2026-11-07): a finished professional look and five run-and-check add-ons
+
+- **More developer add-ons that really run things, as local candidates:** Documentation Doctor (N24)
+  finds broken local links and headings in a staged project's Markdown and runs one documented
+  command only when you pick it, as a job you approve, with its real exit code and output; text in
+  the documentation is never run on its own. Release Readiness (N10) runs a project's configured
+  local release gates, one approved job each, and says ready only when every gate really passed; a
+  failing gate blocks, and publish, sign, upload or CI gates are refused. Repository Onboarding (N01)
+  maps a staged repository and reproduces the build its README documents, exactly as written, with
+  a real exit-code and output receipt; invented commands and missing documented prerequisites are
+  refused. `npm` commands, gates and builds are held on Windows (bubblewrap only).
+- **New look, the rest of the design:** each chat turn shows name, time and how long she took; one
+  model · workspace chip with a small context meter in the header; Settings as a full-height panel
+  listing every page under plain headings; usage and a run's model calls as real tables; a Projects
+  section at the top of the sidebar; calmer add-ons/store tabs, first-run cards and offline page.
+  Sara Classic is unchanged.
+- **Under the hood:** `web/pro.css` folded into the screens' own stylesheets (no visual change,
+  checked value by value).
+
 ## 2.77.0 (2026-11-06): a professional new look
 
 - **Two developer add-ons that really run tests (N03, N04), as local candidates:** Test Doctor

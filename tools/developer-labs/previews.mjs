@@ -1,7 +1,7 @@
 // Real bounded handler results on synthetic fixtures, for clearly labelled preview images.
 import {mkdtempSync,mkdirSync,copyFileSync,writeFileSync,rmSync,cpSync} from 'node:fs';import {tmpdir} from 'node:os';import {dirname,join} from 'node:path';import {fileURLToPath,pathToFileURL} from 'node:url';
 const root=join(dirname(fileURLToPath(import.meta.url)),'../..'),fx=id=>join(root,'test/fixtures/developer',id),out=[];
-const ENGINES={'test-doctor':'doctor.mjs','flaky-test-lab':'lab.mjs'};
+const ENGINES={'test-doctor':'doctor.mjs','flaky-test-lab':'lab.mjs','documentation-doctor':'docs.mjs','release-readiness':'gates.mjs','repository-onboarding':'onboard.mjs'};
 const engine=id=>import(pathToFileURL(join(root,'store/plugins',id,ENGINES[id]??'engine.mjs')).href);
 // H_EXEC add-ons: the host's real plan check and job runner (Node fence, a disposable copy) stand in for Sara.
 const hostRun=async(home,raw,perm={programs:['node'],sources:['data'],network:false})=>{const {parsePlan,runJob}=await import(pathToFileURL(join(root,'src/plugins/exec-job.ts')).href);const plan=parsePlan(raw,perm,'node-only');return {ok:true,...await runJob(plan,{sourceDir:join(home,...plan.from.split('/')),cacheDir:join(home,'..',`${home.split(/[\\/]/).pop()}-jobs`),fence:'node-only',signal:new AbortController().signal})};};
@@ -14,6 +14,12 @@ const setups={
   const plan=JSON.parse((await handle({operation:'plan',...a},'en',run,home)).content);return handle({operation:'run',...a,planSha:plan.planSha},'en',run,home);},
  'flaky-test-lab':async(home,{handle})=>{cpSync(join(fx('flaky-test-lab'),'repo'),join(home,'projects/cart'),{recursive:true});const a={project:'cart',file:'test/cart.test.mjs',test:'intermittent stock check',runs:20},run=raw=>hostRun(home,raw);
   const plan=JSON.parse((await handle({operation:'plan',...a},'en',run,home)).content);return handle({operation:'run',...a,planSha:plan.planSha},'en',run,home);},
+ 'documentation-doctor':async(home,{handle})=>{cpSync(join(fx('documentation-doctor'),'repo'),join(home,'projects/recipes'),{recursive:true});const run=raw=>hostRun(home,raw,{programs:['node','npm'],sources:['data'],network:false});
+  const c=JSON.parse((await handle({operation:'check',project:'recipes'},'en',run,home)).content),d=c.commands[0];return handle({operation:'run',project:'recipes',command:d.command,planSha:d.planSha},'en',run,home);},
+ 'release-readiness':async(home,{handle})=>{cpSync(join(fx('release-readiness'),'repo'),join(home,'projects/cart'),{recursive:true});const a={project:'cart'},run=raw=>hostRun(home,raw,{programs:['node','npm'],sources:['data'],network:false});
+  const plan=JSON.parse((await handle({operation:'plan',...a},'en',run,home)).content);return handle({operation:'run',...a,planSha:plan.planSha},'en',run,home);},
+ 'repository-onboarding':async(home,{handle})=>{cpSync(join(fx('repository-onboarding'),'repo'),join(home,'projects/cards'),{recursive:true});const run=raw=>hostRun(home,raw,{programs:['node','npm'],sources:['data'],network:false});
+  const m=JSON.parse((await handle({operation:'map',project:'cards'},'en',run,home)).content),d=m.build.commands[0];return handle({operation:'build',project:'cards',command:d.command,planSha:d.planSha},'en',run,home);},
  'code-migration-studio':async(home,{handle})=>{cpSync(join(fx('code-migration-studio'),'workspace'),join(home,'migration-v1/workspace'),{recursive:true});
   return handle({operation:'preview',codemod:'rename-named-import',version:1,module:'lib/math.mjs',from:'add',to:'sum',files:['src/report.mjs','src/alias.mjs','src/shadow.mjs','main.mjs']});},
 };

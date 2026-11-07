@@ -83,6 +83,15 @@ previous look. Read together can share one item from a news feed you paste. Two 
 add-ons run tests in a disposable copy you approve, and two local developer connections
 (Storybook, Qdrant) can be added from Settings. See [Appearance](APPEARANCE.md).
 
+## A finished professional look in 2.78.0
+
+Every turn shows who spoke, when and how long she took; one model · workspace chip with a context
+meter replaces the separate header controls; Settings opens as a full-height sheet; Projects have
+their own sidebar section; usage and runs are real tables. Documentation Doctor, Release Readiness
+and Repository Onboarding run documented commands as jobs you approve in a disposable copy (npm
+steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
+[developer add-ons](DEVELOPER_ADDONS.md).
+
 ## Next
 
 The add-ons library pages are being restyled to match the main site. Expressive speech on calls

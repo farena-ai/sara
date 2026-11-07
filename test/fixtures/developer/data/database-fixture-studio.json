@@ -1,0 +1,103 @@
+{
+  "synthetic": true,
+  "args": {
+    "seed": 42,
+    "tables": [
+      {
+        "name": "parent",
+        "rows": 3,
+        "columns": [
+          {
+            "name": "id",
+            "type": "integer",
+            "primaryKey": true
+          },
+          {
+            "name": "code",
+            "type": "text",
+            "unique": true,
+            "notNull": true,
+            "maxLength": 24
+          }
+        ]
+      },
+      {
+        "name": "child",
+        "rows": 5,
+        "columns": [
+          {
+            "name": "id",
+            "type": "integer",
+            "primaryKey": true
+          },
+          {
+            "name": "parent_id",
+            "type": "integer",
+            "notNull": true,
+            "references": {
+              "table": "parent",
+              "column": "id"
+            }
+          },
+          {
+            "name": "score",
+            "type": "integer",
+            "notNull": true,
+            "min": 2,
+            "max": 7
+          }
+        ]
+      }
+    ]
+  },
+  "report": {
+    "synthetic": true,
+    "dialect": "sqlite",
+    "seed": 42,
+    "tables": {
+      "parent": [
+        {
+          "id": 1,
+          "code": "s16_hx9wg1_0"
+        },
+        {
+          "id": 2,
+          "code": "s16_69cfzg_1"
+        },
+        {
+          "id": 3,
+          "code": "s16_150689n_2"
+        }
+      ],
+      "child": [
+        {
+          "id": 1,
+          "parent_id": 1,
+          "score": 5
+        },
+        {
+          "id": 2,
+          "parent_id": 2,
+          "score": 7
+        },
+        {
+          "id": 3,
+          "parent_id": 2,
+          "score": 7
+        },
+        {
+          "id": 4,
+          "parent_id": 3,
+          "score": 3
+        },
+        {
+          "id": 5,
+          "parent_id": 3,
+          "score": 3
+        }
+      ]
+    },
+    "sql": "PRAGMA foreign_keys=ON;\nBEGIN;\nCREATE TABLE \"parent\" (\"id\" INTEGER PRIMARY KEY, \"code\" TEXT NOT NULL UNIQUE CHECK (length(\"code\")<=24));\nINSERT INTO \"parent\" (\"id\",\"code\") VALUES (1,'s16_hx9wg1_0');\nINSERT INTO \"parent\" (\"id\",\"code\") VALUES (2,'s16_69cfzg_1');\nINSERT INTO \"parent\" (\"id\",\"code\") VALUES (3,'s16_150689n_2');\nCREATE TABLE \"child\" (\"id\" INTEGER PRIMARY KEY, \"parent_id\" INTEGER NOT NULL REFERENCES \"parent\"(\"id\"), \"score\" INTEGER NOT NULL CHECK (\"score\">=2) CHECK (\"score\"<=7));\nINSERT INTO \"child\" (\"id\",\"parent_id\",\"score\") VALUES (1,1,5);\nINSERT INTO \"child\" (\"id\",\"parent_id\",\"score\") VALUES (2,2,7);\nINSERT INTO \"child\" (\"id\",\"parent_id\",\"score\") VALUES (3,2,7);\nINSERT INTO \"child\" (\"id\",\"parent_id\",\"score\") VALUES (4,3,3);\nINSERT INTO \"child\" (\"id\",\"parent_id\",\"score\") VALUES (5,3,3);\nCOMMIT;",
+    "message": "Local analysis complete."
+  }
+}

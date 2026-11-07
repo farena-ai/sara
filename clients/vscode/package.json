@@ -2,7 +2,7 @@
   "name": "sara-vscode",
   "displayName": "Sara",
   "description": "Sara, your self-hosted companion and coding partner, in VS Code: the same memory and personality, with the open file and selection as context.",
-  "version": "0.77.0",
+  "version": "0.78.0",
   "publisher": "sara-local",
   "private": true,
   "license": "MIT",

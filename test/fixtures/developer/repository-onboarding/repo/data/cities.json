@@ -1,0 +1,5 @@
+[
+  { "city": "Oslo", "high": 4, "sky": "cloudy" },
+  { "city": "Lisbon", "high": 19, "sky": "sunny" },
+  { "city": "Austin", "high": 24, "sky": "clear" }
+]

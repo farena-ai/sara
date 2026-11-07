@@ -6,7 +6,8 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
-import { commandLine, JobRefused, jobFenceFor, parsePlan, runJob, type RunPermission } from '../src/plugins/exec-job.ts';
+import { commandLine, JobRefused, jobFenceFor, killTree, parsePlan, runJob, type RunPermission } from '../src/plugins/exec-job.ts';
+import { spawn } from 'node:child_process';
 import { tempDir } from './helpers.ts';
 
 const NODE: RunPermission = { programs: ['node'], sources: ['data'], network: false };
@@ -175,6 +176,43 @@ test('job: bubblewrap fence on Linux: no network, only the copy writable', { ski
     assert.match(r.stdout, /^(EROFS|ENOENT|EACCES) net:(ENETUNREACH|EAI_AGAIN|ECONNREFUSED)/m);
     assert.equal(existsSync(join(dir, 'outside.txt')), false);
     assert.equal(r.deleted, true);
+  } finally {
+    cleanup();
+  }
+});
+
+// A busy machine can make the tree kill (taskkill on Windows) fail or time out; the stop must
+// still reach the job, and a job must never hold its plugin call open forever.
+test('stop: on Windows the job dies at once even when the tree kill does nothing', { skip: process.platform !== 'win32' && 'the taskkill route is Windows-only' }, async () => {
+  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore', windowsHide: true });
+  await new Promise<void>((r) => child.once('spawn', () => r()));
+  const exited = new Promise<void>((r) => child.once('exit', () => r()));
+  const t0 = Date.now();
+  let treeCalls = 0;
+  killTree(child, () => void treeCalls++);
+  await Promise.race([exited, new Promise((_, no) => setTimeout(() => no(new Error('the job was not killed')), 5_000))]);
+  assert.ok(Date.now() - t0 < 2_000, 'the stop does not wait for a slow tree kill');
+  assert.equal(treeCalls, 1, 'the tree kill still runs for anything the job started');
+});
+
+test('stop: with short escalation timers a timed-out job still ends promptly and its process is gone', async () => {
+  const { dir, cleanup } = tempDir();
+  try {
+    const src = join(dir, 'staged');
+    mkdirSync(src, { recursive: true });
+    writeFileSync(join(src, 'hold.mjs'), "setInterval(() => {}, 1000);\n");
+    const cache = join(dir, 'cache');
+    const t0 = Date.now();
+    let pid = 0;
+    const r = await runJob({ ...base, program: 'node', args: ['hold.mjs'], timeoutS: 1 }, { sourceDir: src, cacheDir: cache, fence: 'node-only', signal: new AbortController().signal, stopRetryMs: 200, stopGiveUpMs: 1_500, onStart: (p) => (pid = p) });
+    assert.equal(r.timedOut, true);
+    assert.ok(Date.now() - t0 < 12_000, 'the result arrives within the stop deadline');
+    assert.ok(pid > 0);
+    let alive = true;
+    for (let i = 0; i < 40 && alive; i++) {
+      try { process.kill(pid, 0); await new Promise((w) => setTimeout(w, 100)); } catch { alive = false; }
+    }
+    assert.equal(alive, false, 'the job process is gone');
   } finally {
     cleanup();
   }

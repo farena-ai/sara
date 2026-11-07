@@ -91,3 +91,10 @@
 .rt-feed-item.rt-shared .rt-feed-name { color: var(--accent-solid); }
 .rt-feed-name { flex: 1 1 100%; overflow-wrap: anywhere; }
 @media (max-width: 600px) { .rt-feed-items { max-height: 28vh; } }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+/* [cascade] not in style.css: must come after persist.css `.ps-preset.on` */
+:where(:root:not([data-palette="classic"])) :is(.chip[aria-checked="true"], .chip.on, .tag-chip.on) { background: var(--accent-soft); border-color: var(--accent-line); color: var(--text-1); }

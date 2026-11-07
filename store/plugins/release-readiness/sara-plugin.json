@@ -1,0 +1,64 @@
+{
+  "manifest": 1,
+  "id": "release-readiness",
+  "name": "Release Readiness",
+  "version": "1.0.0",
+  "description": "Run a staged project's configured local release gates, each as a job you approve in a disposable copy, and block the release when a required gate fails.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "gates"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none",
+    "run": {
+      "programs": [
+        "node",
+        "npm"
+      ],
+      "sources": [
+        "data"
+      ],
+      "network": false
+    }
+  },
+  "i18n": {
+    "es": {
+      "Release Readiness": "Preparación de versión",
+      "Run a staged project's configured local release gates, each as a job you approve in a disposable copy, and block the release when a required gate fails.": "Ejecuta las comprobaciones locales de versión configuradas de un proyecto preparado, cada una como un trabajo que apruebas en una copia desechable, y bloquea la versión cuando falla una obligatoria."
+    },
+    "fr": {
+      "Release Readiness": "Prêt pour la version",
+      "Run a staged project's configured local release gates, each as a job you approve in a disposable copy, and block the release when a required gate fails.": "Exécute les contrôles locaux de version configurés d'un projet préparé, chacun comme une tâche que tu approuves dans une copie jetable, et bloque la version quand un contrôle obligatoire échoue."
+    },
+    "de": {
+      "Release Readiness": "Release-Bereitschaft",
+      "Run a staged project's configured local release gates, each as a job you approve in a disposable copy, and block the release when a required gate fails.": "Führt die eingerichteten lokalen Release-Prüfungen eines vorbereiteten Projekts aus, jede als Auftrag, den du in einer Wegwerfkopie genehmigst, und blockiert das Release, wenn eine Pflichtprüfung fehlschlägt."
+    },
+    "pt-BR": {
+      "Release Readiness": "Prontidão de versão",
+      "Run a staged project's configured local release gates, each as a job you approve in a disposable copy, and block the release when a required gate fails.": "Executa as verificações locais de versão configuradas de um projeto preparado, cada uma como um trabalho que você aprova em uma cópia descartável, e bloqueia a versão quando uma obrigatória falha."
+    },
+    "it": {
+      "Release Readiness": "Prontezza al rilascio",
+      "Run a staged project's configured local release gates, each as a job you approve in a disposable copy, and block the release when a required gate fails.": "Esegue i controlli locali di rilascio configurati di un progetto preparato, ciascuno come un lavoro che approvi in una copia usa e getta, e blocca il rilascio quando un controllo obbligatorio fallisce."
+    }
+  }
+}

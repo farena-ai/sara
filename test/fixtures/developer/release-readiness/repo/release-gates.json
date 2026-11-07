@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "gates": [
+    {
+      "id": "tests",
+      "requirement": "Unit tests pass",
+      "program": "node",
+      "args": [
+        "--test",
+        "test/cart.test.mjs"
+      ]
+    },
+    {
+      "id": "typecheck",
+      "requirement": "TypeScript sources pass type stripping (syntax gate, not a full type check)",
+      "program": "node",
+      "args": [
+        "scripts/typecheck.mjs"
+      ]
+    },
+    {
+      "id": "links",
+      "requirement": "Every relative Markdown link resolves",
+      "program": "node",
+      "args": [
+        "scripts/check-links.mjs"
+      ]
+    }
+  ]
+}

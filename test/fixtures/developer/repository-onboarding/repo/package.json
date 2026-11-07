@@ -1,0 +1,14 @@
+{
+  "name": "weather-cards",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test test/build.test.mjs"
+  },
+  "devDependencies": {}
+}

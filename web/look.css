@@ -735,3 +735,84 @@ dialog.branch-sheet { width: min(1040px, 96vw); }
   .ck-sugg { grid-template-columns: auto minmax(0, 1fr); }
   .ck-sugg .ck-do, .ck-sugg .ck-how { grid-column: 1 / -1; width: 100%; }
 }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+/* Scoped with :where(), so each rule has the specificity of the rule it replaces and wins only by
+  loading last; a component's own, more specific rule still wins. Classic never matches.
+  [cascade] button.ghost skips the ghost buttons whose own rule has the same specificity
+  (agenda.css button.ag-src / button.td-ag-item, begin.css button.rt-setup-first, look.css
+  button.msg-more): those used to beat screens.css by file order and must keep winning. */
+/* [cascade] not in style.css: must come after look.css `body` */
+:where(:root:not([data-palette="classic"])) body { line-height: var(--lh-ui); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-variant-numeric: tabular-nums; }
+/* Same selectors as the rules they replace, behind :where() (Classic never matches). */
+/* [cascade] not in style.css: must come after look.css `#conversations a.active` */
+:where(:root:not([data-palette="classic"])) #conversations a.active { background: var(--surface-3); color: var(--text-1); box-shadow: none; }
+/* [cascade] not in style.css: must come after look.css `#conversations a:hover:not(.active)` */
+:where(:root:not([data-palette="classic"])) #conversations a:hover:not(.active) { background: var(--surface-2); }
+/* [cascade] not in style.css: must come after look.css `.side-go.is-open` */
+:where(:root:not([data-palette="classic"])) .side-go.is-open { background: var(--surface-3); color: var(--text-1); }
+/* [cascade] not in style.css: must come after `:where(:root:not([data-palette="classic"])) .side-go.is-open` (moved here too) */
+:where(:root:not([data-palette="classic"])) :is(.side-go, .side-more):hover { background: var(--surface-2); color: var(--text-1); }
+/* */
+:where(:root:not([data-palette="classic"])) #messages { gap: 10px; padding: 20px max(16px, calc((100% - 824px) / 2)) 24px; }
+/* Your turns: not filled, a hairline above, a small neutral avatar where hers has her face. */
+:where(:root:not([data-palette="classic"])) .msg.user { align-self: stretch; max-width: 780px; margin: 6px 0 0 44px; padding: 12px 0 2px; border-top: 1px solid var(--hairline); border-radius: 0; background: none; color: var(--text-1); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) .msg.user::before { content: ""; position: absolute; left: -38px; top: 12px; width: 24px; height: 24px; border-radius: var(--r-round); background: var(--surface-3); box-shadow: inset 0 0 0 1px var(--line); }
+:where(:root:not([data-palette="classic"])) .msg.user + .msg-actions { align-self: flex-start; margin: -4px 0 2px 44px; }
+:where(:root:not([data-palette="classic"])) .msg.assistant.her::before { display: none; }
+:where(:root:not([data-palette="classic"])) :is(.msg.her.unverified, .msg.her.reminder, .msg.her.proactive, .msg.her.from-companion)::before { display: block; left: -8px; width: 2px; opacity: 1; }
+:where(:root:not([data-palette="classic"])) .msg-face { left: -38px; top: 1px; width: 24px; height: 24px; box-shadow: 0 0 0 1px var(--line); }
+@media (max-width: 720px) {
+  :where(:root:not([data-palette="classic"])) .msg.user { margin-left: 34px; }
+  :where(:root:not([data-palette="classic"])) .msg.user::before { left: -30px; width: 22px; height: 22px; }
+  :where(:root:not([data-palette="classic"])) .msg-face { left: -30px; width: 22px; height: 22px; }
+  /* The ⋯ of each turn sits under its avatar, clear of the picture. */
+  :where(:root:not([data-palette="classic"])) .msg.her > .msg-more, :where(:root:not([data-palette="classic"])) .msg.her:not(.run-start) > .msg-more { left: -42px; top: 24px; }
+  :where(:root:not([data-palette="classic"])) .msg.user > .msg-more { left: -42px; top: 36px; }
+}
+/* Code: a header with the language and Copy, the body on surface-1, radius 8. */
+:where(:root:not([data-palette="classic"])) .msg .md .code-block { border: 1px solid var(--line); border-radius: var(--r-3); background: var(--surface-1); overflow: hidden; }
+:where(:root:not([data-palette="classic"])) .msg .md .code-head { background: var(--surface-2); border-bottom: 1px solid var(--line); color: var(--text-2); font-family: var(--font-mono); font-size: 12px; }
+:where(:root:not([data-palette="classic"])) .msg .md code { background: var(--surface-2); border-radius: var(--r-1); font-size: .9em; }
+:where(:root:not([data-palette="classic"])) .steps-sum:hover { background: var(--surface-2); }
+/* [cascade] not in style.css: must come after look.css `#composer > button.icon` */
+:where(:root:not([data-palette="classic"])) #composer > button.icon, :where(:root:not([data-palette="classic"])) #composer-plus { border-radius: var(--r-2); }
+/* [cascade] not in style.css: must come after look.css `#composer #send` */
+:where(:root:not([data-palette="classic"])) #composer #send { border-radius: var(--r-2); box-shadow: none; background: var(--btn-fill); color: var(--on-btn); }
+/* [cascade] not in style.css: must come after look.css `#composer #send:hover` */
+:where(:root:not([data-palette="classic"])) #composer #send:hover { filter: none; transform: none; background: color-mix(in srgb, var(--btn-fill) 86%, var(--text-1)); }
+/* [cascade] not in style.css: must come after look.css `#composer #stop` */
+:where(:root:not([data-palette="classic"])) #composer #stop { border-radius: var(--r-2); }
+
+/* ---------- V2 · chat turns (V1 §5): each turn's head line (web/turn-meta.js) ----------
+   Name, time and how long she took, in text-3 with tabular figures; Sara Classic keeps its bubbles
+   without it (the hover row keeps who and when there). */
+.msg-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 0 0 2px; font-size: 12px; line-height: 24px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.msg-head-name { color: var(--text-1); font-size: 13px; font-weight: 600; }
+.msg-head-dur::before { content: "·"; margin-right: 8px; }
+:root[data-palette="classic"] .msg-head { display: none; }
+:where(:root:not([data-palette="classic"])) .msg-actions .msg-meta { display: none; }
+
+/* ---------- V2 · header (V1 §5): one model · workspace chip and a 64 px context meter ----------
+   #chat-head scoping keeps her panel's ring as it is; Sara Classic keeps the ring and long summary. */
+:root[data-palette="classic"] #conv-summary .cs-chip { display: none; }
+:where(:root:not([data-palette="classic"])) #conv-summary .cs-full { display: none; }
+:where(:root:not([data-palette="classic"])) #conv-summary .cs-chip { font-family: var(--font-mono); font-size: 12px; }
+:where(:root:not([data-palette="classic"])) #chat-head .ctx-ring { --ctx-fill: var(--accent-solid); display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 64px; height: 28px; padding: 0 6px; border: 1px solid var(--line); border-radius: var(--r-2); background: var(--surface-1); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) #chat-head .ctx-ring:hover { background: var(--surface-2); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) #chat-head .ctx-ring::before { content: none; }
+:where(:root:not([data-palette="classic"])) #chat-head .ctx-ring.high { --ctx-fill: var(--warn); }
+:where(:root:not([data-palette="classic"])) #chat-head .ctx-ring.full { --ctx-fill: var(--danger); }
+:where(:root:not([data-palette="classic"])) #chat-head .ctx-ring .ctx-dial { display: block; flex: none; width: 24px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--ctx-fill) calc(var(--ctx) * 1%), var(--surface-0) 0); box-shadow: inset 0 0 0 1px var(--line); }
+:where(:root:not([data-palette="classic"])) #chat-head .ctx-pct { font-size: 12px; font-weight: 500; letter-spacing: 0; color: var(--text-2); }
+@media (pointer: coarse) {
+  :where(:root:not([data-palette="classic"])) #chat-head .ctx-ring { height: 44px; }
+}
+/* Phones: a narrower meter so the title keeps its room (the tap area stays 44 px high). */
+@media (max-width: 720px) {
+  :where(:root:not([data-palette="classic"])) #chat-head .ctx-ring { width: auto; min-width: 44px; gap: 4px; padding: 0 6px; border-color: transparent; background: transparent; }
+  :where(:root:not([data-palette="classic"])) #chat-head .ctx-ring .ctx-dial { width: 12px; }
+}

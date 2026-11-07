@@ -418,3 +418,109 @@ button:disabled:not(.ghost, .tip, .linkish, .icon, .tab), button:disabled:not(.g
   cursor: not-allowed;
 }
 button.ghost:disabled, button.ghost:disabled:hover { color: var(--btn-off-text); border-color: var(--btn-off-line); opacity: 1; cursor: not-allowed; }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+/* */
+.ap-pals { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; margin: 4px 0 16px; }
+.ap-pal { display: grid; gap: 6px; padding: 6px; background: var(--surface-1); color: var(--text-1); border: 1px solid var(--line); border-radius: 8px; text-align: left; font-weight: 500; font-size: 13px; min-height: 44px; box-shadow: none; }
+.ap-pal:hover { background: var(--surface-2); border-color: var(--text-3); }
+.ap-pal[aria-checked="true"] { border-color: var(--accent-solid); box-shadow: 0 0 0 1px var(--accent-solid); }
+.ap-pal:focus-visible { outline: 2px solid var(--focus, var(--accent-text)); outline-offset: 2px; }
+.ap-pal-pv { display: grid; grid-template-columns: 1fr 1fr; height: 44px; border-radius: 5px; overflow: hidden; border: 1px solid var(--hairline); }
+.ap-pal-pv .pv-d { background: var(--pv-d0); }
+.ap-pal-pv .pv-l { background: var(--pv-l0); }
+/* A text line and an accent button in each half, in that palette's own colours. */
+.ap-pal-pv i::before { content: ""; position: absolute; left: 8px; top: 10px; width: 55%; height: 4px; border-radius: 2px; }
+.ap-pal-pv i::after { content: ""; position: absolute; left: 8px; bottom: 9px; width: 28%; height: 9px; border-radius: 3px; }
+.ap-pal-pv .pv-d::before { background: var(--pv-dt); }
+.ap-pal-pv .pv-l::before { background: var(--pv-lt); }
+.ap-pal-pv .pv-d::after { background: var(--pv-da); }
+.ap-pal-pv .pv-l::after { background: var(--pv-la); }
+.ap-pal-name { padding: 0 2px 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ap-custom-pick { display: flex; gap: 8px; align-items: center; }
+.ap-custom-pick input:not([type="color"]) { font-family: var(--font-mono); text-transform: lowercase; }
+:root:not([data-palette="classic"]) .ap-classic-only { display: none; }
+.ap-sync-row { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+/* The one-time "New look" notice: a toast at the bottom right (above the phone bar on phones). */
+.v1-notice { position: fixed; right: 16px; bottom: calc(16px + var(--safe-b)); z-index: 60; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; max-width: min(520px, calc(100vw - 32px)); padding: 12px 14px; background: var(--surface-2); color: var(--text-1); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--elev-2); font-size: 14px; }
+@media (max-width: 720px) {
+  .v1-notice { left: 12px; right: 12px; bottom: calc(var(--bbar-h, 76px) + 8px); max-width: none; }
+}
+/* Buttons: one solid primary, secondary = surface-2 + line, ghost toolbars; no gradient, no glow. */
+/* [cascade] not in style.css: must come after screens.css `button` */
+:where(:root:not([data-palette="classic"])) button { border-radius: var(--r-2); font-weight: 550; box-shadow: none; filter: none; transition: background-color var(--dur-2) var(--ease-std), border-color var(--dur-2) var(--ease-std), color var(--dur-2) var(--ease-std); }
+/* [cascade] not in style.css: must come after screens.css `.button-link` */
+:where(:root:not([data-palette="classic"])) .button-link { border-radius: var(--r-2); background: var(--btn-fill); }
+/* Fields: page fill, 1 px line, accent border and a 3 px soft ring on focus. */
+/* [cascade] not in style.css: must come after screens.css `input` */
+:where(:root:not([data-palette="classic"])) :is(input, select, textarea) { background: var(--surface-0); border: 1px solid var(--line); border-radius: var(--r-2); }
+/* [cascade] not in style.css: must come after screens.css `input:focus` */
+:where(:root:not([data-palette="classic"])) :is(input, select, textarea):hover { border-color: color-mix(in srgb, var(--text-3) 55%, var(--line)); }
+/* [cascade] not in style.css: must come after screens.css `.tip:hover` */
+:where(:root:not([data-palette="classic"])) .tip:hover, :where(:root:not([data-palette="classic"])) .tip.open { background: transparent; color: var(--accent-text); border-color: var(--accent-text); }
+/* [cascade] not in style.css: must come after screens.css `.pick-card:hover` */
+:where(:root:not([data-palette="classic"])) :is(.pick-card[aria-checked="true"], .look-card.current) { border-color: var(--accent-solid); background: color-mix(in srgb, var(--accent-solid) 8%, var(--surface-1)); }
+/* [cascade] not in style.css: must come after screens.css `.tabs .tab` */
+:where(:root:not([data-palette="classic"])) .tabs .tab { background: transparent; border: 0; border-bottom: 2px solid transparent; border-radius: 0; color: var(--text-2); padding: 6px 10px; margin-bottom: -1px; box-shadow: none; }
+/* [cascade] not in style.css: must come after screens.css `.tabs .tab.active` */
+:where(:root:not([data-palette="classic"])) .tabs .tab:hover { background: transparent; color: var(--text-1); }
+/* [cascade] not in style.css: must come after `:where(:root:not([data-palette="classic"])) .tabs .tab:hover` (moved here too) */
+:where(:root:not([data-palette="classic"])) .tabs .tab.active, :where(:root:not([data-palette="classic"])) .tabs .tab[aria-selected="true"] { background: transparent; color: var(--text-1); border-bottom-color: var(--accent-solid); box-shadow: none; }
+/* [cascade] not in style.css: must come after screens.css `.dialog-top > .dialog-x:hover` */
+:where(:root:not([data-palette="classic"])) .dialog-top > .dialog-x:hover { background: var(--surface-2); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .settings-nav-item[aria-current="true"], :where(:root:not([data-palette="classic"])) .settings-nav-item[aria-current="true"]:hover { background: var(--surface-3); color: var(--text-1); box-shadow: none; font-weight: 600; }
+:where(:root:not([data-palette="classic"])) .settings-nav-item:hover { background: var(--surface-2); }
+/* Approvals: a warn-tinted bar. */
+/* [cascade] not in look.css: must come after screens.css `.approval` */
+:where(:root:not([data-palette="classic"])) .approval { border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); border-radius: var(--r-3); background: var(--warn-soft); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) .perm-card { border-left-width: 1px; border-color: var(--line); border-radius: var(--r-3); background: var(--surface-1); }
+:where(:root:not([data-palette="classic"])) .perm-card strong { display: flex; align-items: center; gap: 8px; }
+:where(:root:not([data-palette="classic"])) .perm-card strong::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: var(--r-round); background: var(--text-3); }
+:where(:root:not([data-palette="classic"])) .perm-auto strong::before { background: var(--success); }
+:where(:root:not([data-palette="classic"])) .perm-ask strong::before { background: var(--warn); }
+:where(:root:not([data-palette="classic"])) .sng-count { color: var(--text-3); font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) .settings-nav-head { color: var(--text-2); }
+
+/* ---------- V2 · Settings (V1 §5): a full-height sheet on desktop, flat group headings ----------
+   Outside Sara Classic and wider than a phone, Settings slides in as a sheet the height of the
+   window on the right, and the nav lists every page under caps headings (no accordion, no counts;
+   settings-nav.js flatNav() keeps every group open there).
+   Sara Classic and phones keep the centred window and the accordion. */
+.settings-nav-cap { display: none; }
+@media (min-width: 721px) {
+  :where(:root:not([data-palette="classic"])) dialog.settings-dialog { width: min(1120px, calc(100vw - 72px)); height: 100dvh; max-height: 100dvh; max-width: none; margin: 0 0 0 auto; border: 0; border-left: 1px solid var(--line); border-radius: 0; }
+  :where(:root:not([data-palette="classic"])) .settings-nav .settings-nav-head { display: none; }
+  :where(:root:not([data-palette="classic"])) .settings-nav-items { padding: 0 0 4px; }
+  :where(:root:not([data-palette="classic"])) .settings-nav-cap { display: block; margin: 14px 0 4px; padding: 0 10px; font-size: 11px; font-weight: 600; line-height: 16px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+  :where(:root:not([data-palette="classic"])) .settings-nav-group:first-child .settings-nav-cap { margin-top: 4px; }
+  :where(:root:not([data-palette="classic"])) .settings-nav .settings-nav-group { border-top: 0; padding: 0; }
+}
+/* Dense rows with a mouse (touch keeps kit.css's 44 px). */
+@media (min-width: 721px) and (pointer: fine) {
+  :where(:root:not([data-palette="classic"])) .settings-nav .settings-nav-items .settings-nav-item { min-height: var(--h-row); padding-top: 4px; padding-bottom: 4px; }
+}
+
+/* ---------- V2 · tables (V1 §5): usage and a run's model calls as real tables; jobs aligned ----------
+   app.js / run-view.js render both the list and the table; Sara Classic shows the list. */
+:root[data-palette="classic"] :is(.usage-table, .run-calls-table) { display: none; }
+:where(:root:not([data-palette="classic"])) :is(#usage-companions, #usage-models, #usage-purposes, .run-calls) { display: none; }
+:where(:root:not([data-palette="classic"])) :is(.usage-table, .run-calls-table) { width: 100%; margin: 4px 0 12px; font-size: 13px; }
+:where(:root:not([data-palette="classic"])) :is(.usage-table, .run-calls-table) :is(th, td) { height: var(--h-row); padding: 0 10px; vertical-align: middle; }
+:where(:root:not([data-palette="classic"])) :is(.usage-table, .run-calls-table) tbody th { color: var(--text-1); font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+:where(:root:not([data-palette="classic"])) :is(.usage-table, .run-calls-table) .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) .run-calls-table tr.bad th { color: var(--danger); }
+/* Background jobs above the message box: one aligned row per job (label, time, last line, Stop). */
+:where(:root:not([data-palette="classic"])) .jobs-strip .job-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.4fr) auto; align-items: center; gap: 12px; min-height: var(--h-row); border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) .jobs-strip .job-row .job-last { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); }
+@media (max-width: 720px) {
+  :where(:root:not([data-palette="classic"])) :is(.usage-table, .run-calls-table) :is(th, td) { padding: 0 6px; }
+  :where(:root:not([data-palette="classic"])) .jobs-strip .job-row { grid-template-columns: minmax(0, 1fr) auto auto; }
+  :where(:root:not([data-palette="classic"])) .jobs-strip .job-row .job-last { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* ---------- V2 · notes on the add-on pages (V1 §5): a quiet info row, not an accent box ---------- */
+:where(:root:not([data-palette="classic"])) .skl-note { border-color: var(--line); border-radius: var(--r-3); background: var(--surface-1); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .skl-note::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: var(--r-round); background: var(--info); }

@@ -412,3 +412,17 @@ html.shell #chat-head .head-icon, html.shell #chat-head .head-face-btn { app-reg
 /* Phase 128 (PL2b, N25): Tidy this chat on the panel line from 70% full. */
 .hp-ctx-tidy { min-height: 44px; margin-top: 6px; }
 .hp-ctx { flex-wrap: wrap; }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+/* [cascade] not in look.css: must come after her-panel.css `.cmd-item[aria-selected="true"]` */
+:where(:root:not([data-palette="classic"])) .cmd-item[aria-selected="true"] { background: var(--surface-3); box-shadow: none; }
+/* [cascade] not in look.css: must come after her-panel.css `.cmd-item[aria-selected="true"] .cmd-icon` */
+:where(:root:not([data-palette="classic"])) .cmd-item[aria-selected="true"] .cmd-icon { background: var(--surface-2); }
+/* Her portrait in work views (sara.portrait): small by default outside Classic; her own page, the
+  call screen and Today keep the large picture. */
+:root[data-portrait="small"] .hp-glow { width: 72px; height: 72px; margin: 6px 0 2px; padding: 2px; }
+:root[data-portrait="small"] .hp-glow::after { inset: -5px; }
+:root[data-portrait="hidden"] .hp-glow { display: none; }

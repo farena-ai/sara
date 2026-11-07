@@ -1189,6 +1189,105 @@ export const discoveryData ={
       "version": "1.0.0",
       "tool": "repeat",
       "contentSha": "53fc914fc8b50a90c4962c21317c06496ce2bf9afed091da0834de35a90893de"
+    },
+{
+      "id": "documentation-doctor",
+      "kind": "plugin",
+      "name": "Documentation Doctor",
+      "summary": "Check a staged project's Markdown links and documented commands, and run one documented command in a disposable copy when you ask.",
+      "description": "Check a staged project's Markdown links and heading anchors without fetching anything, list the commands its documentation shows, and run one of them only when you ask, as a job you approve.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Tested on Windows (Node 24.20.0) against the current development source: official package smoke, real manager approval, explicit enablement, registered execution on synthetic staged fixtures, invocation cards and disablement passed for the exact package bytes. Not Linux, signed-release or ordinary chat-approval acceptance.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model.",
+        "With the plugin disabled, a trusted operator stages the project as plain files under projects/<name> in its own native data home; stage only code you trust to run."
+      ],
+      "permissions": [
+        "Adds docs tool (Ask)",
+        "Own plugin-data read only; no writes or selected-project access.",
+        "Each run asks Sara for one job you approve: node or npm in a disposable copy of its staged project, no network; the copy is deleted afterwards. No model, shell or delegated tools."
+      ],
+      "limitations": [
+        "Not OS-sandboxed on Windows or macOS: Node's permission model limits the job to the disposable copy (no child processes). npm commands run only inside bubblewrap on Linux and are held elsewhere.",
+        "Local links and anchors only; external links are listed, not fetched. Only node or npm commands in shell code blocks without shell syntax can run; documentation text is never run automatically.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "docs",
+      "contentSha": "850a861cfd47de933f7d54a6dd68c97ca7995c0449ea5afaef8821d1548bd2c4"
+    },
+{
+      "id": "release-readiness",
+      "kind": "plugin",
+      "name": "Release Readiness",
+      "summary": "Run a staged project's configured local release gates, each as a job you approve in a disposable copy, and block the release when a required gate fails.",
+      "description": "Run a staged project's versioned local release gates (tests, checks, link checks) as jobs you approve, collect each gate's real exit code and output hash, and say ready only when every gate passed.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Tested on Windows (Node 24.20.0) against the current development source: official package smoke, real manager approval, explicit enablement, registered execution on synthetic staged fixtures, invocation cards and disablement passed for the exact package bytes. Not Linux, signed-release or ordinary chat-approval acceptance.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model.",
+        "With the plugin disabled, a trusted operator stages the project as plain files under projects/<name> in its own native data home; stage only code you trust to run."
+      ],
+      "permissions": [
+        "Adds gates tool (Ask)",
+        "Own plugin-data read only; no writes or selected-project access.",
+        "Each gate asks Sara for one job you approve: node or npm in a disposable copy of its staged project, no network; the copy is deleted afterwards. No model, shell or delegated tools."
+      ],
+      "limitations": [
+        "Not OS-sandboxed on Windows or macOS: Node's permission model limits the job to the disposable copy (no child processes). npm commands run only inside bubblewrap on Linux and are held elsewhere.",
+        "Local gates only: publish, sign, upload, deploy or CI gates refuse before anything runs. A held, declined or stopped gate leaves the verdict incomplete, never ready.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "gates",
+      "contentSha": "b0764bfccd8cc475cb85800c06e11b0791c6813976f1f6cfd4bb6fcacffe123c"
+    },
+{
+      "id": "repository-onboarding",
+      "kind": "plugin",
+      "name": "Repository Onboarding",
+      "summary": "Map a staged repository and reproduce its documented build, exactly as documented, in a disposable copy when you ask.",
+      "description": "Map a staged repository's manifests, lockfiles, languages and documented prerequisites without running anything, then reproduce the build its README documents, exactly as written, as a job you approve.",
+      "status": "tested",
+      "costTier": "local-only",
+      "source": "https://backstagecoding.com/sara/store/",
+      "documentation": "https://backstagecoding.com/sara/store/",
+      "qualification": "Pinned source scope: Tested on Windows (Node 24.20.0) against the current development source: official package smoke, real manager approval, explicit enablement, registered execution on synthetic staged fixtures, invocation cards and disablement passed for the exact package bytes. Not Linux, signed-release or ordinary chat-approval acceptance.",
+      "prerequisites": [
+        "Sara >=2.68.0 <3.0.0; Node 24+",
+        "Review installation trust and explicitly enable for the intended companion; tool access defaults Ask.",
+        "Supply only authorized, bounded inputs; tool arguments may be retained in host review/history or shared with its configured model.",
+        "With the plugin disabled, a trusted operator stages the project as plain files under projects/<name> in its own native data home; stage only code you trust to run."
+      ],
+      "permissions": [
+        "Adds onboard tool (Ask)",
+        "Own plugin-data read only; no writes or selected-project access.",
+        "Each run asks Sara for one job you approve: node or npm in a disposable copy of its staged project, no network; the copy is deleted afterwards. No model, shell or delegated tools."
+      ],
+      "limitations": [
+        "Not OS-sandboxed on Windows or macOS: Node's permission model limits the job to the disposable copy (no child processes). npm commands run only inside bubblewrap on Linux and are held elsewhere.",
+        "Only commands in the README Build section run, exactly as written; invented commands and missing documented files or Node versions refuse. Prerequisites Sara cannot check are listed as unverified.",
+        "Local qualification is separate from signed release and current availability; check Sara after publication."
+      ],
+      "cost": "No model or API requests. Local machine resources only.",
+      "privacy": "local",
+      "version": "1.0.0",
+      "tool": "onboard",
+      "contentSha": "338772a37d3ecbb178cbe7c2d5444462adf055a5b1c9c0ec6c5c2d2417c1dac6"
     }
   ],
   "investigations": [

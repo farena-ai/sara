@@ -162,7 +162,27 @@ function stepCard(run, step, api, named, branchable, ctx, replan = false) {
         if (!c.ok) li.append(el('span', 'run-err small', ` ${t('failed')}: ${c.error ?? ''}`));
         ul.append(li);
       }
-      body.append(section(t('Model calls'), ul));
+      // V1 §5: the same calls as a real table (Sara Classic keeps the list; screens.css picks one).
+      const table = el('table', 'run-calls-table');
+      const head = el('tr');
+      for (const [text, num] of [[t('Model'), false], [t('Provider'), false], [t('Tokens in'), true], [t('Tokens out'), true], [t('Cost'), true], [t('Time'), true]]) {
+        const th = el('th', num ? 'num' : '', text);
+        th.scope = 'col';
+        head.append(th);
+      }
+      const thead = el('thead');
+      thead.append(head);
+      const tbody = el('tbody');
+      for (const c of step.calls) {
+        const tr = el('tr', c.ok ? '' : 'bad');
+        const model = el('th', '', c.model);
+        model.scope = 'row';
+        if (!c.ok) model.append(el('span', 'run-err small', ` ${t('failed')}: ${c.error ?? ''}`));
+        tr.append(model, el('td', 'muted', c.provider), el('td', 'num', tokens(c.in)), el('td', 'num', tokens(c.out)), el('td', 'num', costWords([c])), el('td', 'num', fmtDuration(c.ms)));
+        tbody.append(tr);
+      }
+      table.append(thead, tbody);
+      body.append(section(t('Model calls'), ul, table));
     }
     if (step.memoryPicks.length) {
       const ul = el('ul', 'run-picks');

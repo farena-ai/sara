@@ -119,3 +119,18 @@ button.rt-setup-first:hover { background: var(--accent-soft); filter: none; }
 .wt-card { display: flex; flex-direction: column; gap: 6px; }
 .wt-card-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
 #planner .wt-add .rt-field input[type="checkbox"] { flex: none; width: 22px; height: 22px; min-height: 22px; }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+/* [cascade] not in style.css: must come after begin.css `button.rt-setup-first` */
+:where(:root:not([data-palette="classic"])) button:hover { background: color-mix(in srgb, var(--btn-fill) 86%, var(--text-1)); filter: none; }
+/* [cascade] not in style.css: must come after `:where(:root:not([data-palette="classic"])) button:hover` (moved here too) */
+:where(:root:not([data-palette="classic"])) button.ghost:where(:not(.ag-src, .td-ag-item, .rt-setup-first, .msg-more)) { background: var(--surface-2); border: 1px solid var(--line); color: var(--text-1); font-weight: 500; }
+/* [cascade] not in style.css: must come after `:where(:root:not([data-palette="classic"])) button:hover` (moved here too) */
+:where(:root:not([data-palette="classic"])) button:disabled, :where(:root:not([data-palette="classic"])) button:disabled:hover { background: var(--btn-off-fill); color: var(--btn-off-text); border: 1px solid var(--btn-off-line); opacity: 1; }
+@media (hover: none) {
+  /* [cascade] not in look.css: must come after `:where(:root:not([data-palette="classic"])) button:hover` (moved here too) */
+  :where(:root:not([data-palette="classic"])) button.msg-more { background: transparent; border: 0; }
+}

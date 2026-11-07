@@ -1,0 +1,64 @@
+{
+  "manifest": 1,
+  "id": "documentation-doctor",
+  "name": "Documentation Doctor",
+  "version": "1.0.0",
+  "description": "Check a staged project's Markdown links and documented commands, and run one documented command in a disposable copy when you ask.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "docs"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none",
+    "run": {
+      "programs": [
+        "node",
+        "npm"
+      ],
+      "sources": [
+        "data"
+      ],
+      "network": false
+    }
+  },
+  "i18n": {
+    "es": {
+      "Documentation Doctor": "Doctor de documentación",
+      "Check a staged project's Markdown links and documented commands, and run one documented command in a disposable copy when you ask.": "Comprueba los enlaces Markdown y los comandos documentados de un proyecto preparado y ejecuta un comando documentado en una copia desechable cuando lo pides."
+    },
+    "fr": {
+      "Documentation Doctor": "Docteur de la documentation",
+      "Check a staged project's Markdown links and documented commands, and run one documented command in a disposable copy when you ask.": "Vérifie les liens Markdown et les commandes documentées d'un projet préparé et exécute une commande documentée dans une copie jetable quand tu le demandes."
+    },
+    "de": {
+      "Documentation Doctor": "Dokumentationsdoktor",
+      "Check a staged project's Markdown links and documented commands, and run one documented command in a disposable copy when you ask.": "Prüft die Markdown-Links und dokumentierten Befehle eines vorbereiteten Projekts und führt auf Wunsch einen dokumentierten Befehl in einer Wegwerfkopie aus."
+    },
+    "pt-BR": {
+      "Documentation Doctor": "Médico de documentação",
+      "Check a staged project's Markdown links and documented commands, and run one documented command in a disposable copy when you ask.": "Verifica os links Markdown e os comandos documentados de um projeto preparado e executa um comando documentado em uma cópia descartável quando você pede."
+    },
+    "it": {
+      "Documentation Doctor": "Dottore della documentazione",
+      "Check a staged project's Markdown links and documented commands, and run one documented command in a disposable copy when you ask.": "Controlla i link Markdown e i comandi documentati di un progetto preparato ed esegue un comando documentato in una copia usa e getta quando lo chiedi."
+    }
+  }
+}

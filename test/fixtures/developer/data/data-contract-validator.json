@@ -1,0 +1,36 @@
+{
+  "synthetic": true,
+  "args": {
+    "format": "json-schema",
+    "before": "{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"integer\"}},\"required\":[\"id\"],\"additionalProperties\":false}",
+    "after": "{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"}},\"required\":[\"id\"],\"additionalProperties\":false}",
+    "payloads": [
+      "{\"id\":1}",
+      "{\"id\":\"synthetic\"}"
+    ]
+  },
+  "report": {
+    "format": "json-schema",
+    "compatible": false,
+    "breaking": [
+      "$.id: type narrowed"
+    ],
+    "payloads": [
+      {
+        "valid": false,
+        "errors": [
+          {
+            "path": "/id",
+            "keyword": "type"
+          }
+        ]
+      },
+      {
+        "valid": true,
+        "errors": []
+      }
+    ],
+    "validator": "Ajv 8.17.1 / bounded draft-07 subset",
+    "message": "Local analysis complete."
+  }
+}

@@ -1741,3 +1741,37 @@ button.conv-see-more, button.conv-show-less { min-height: 44px; padding: 0 10px;
   .addon-head { display: block; }
   .addon-head .skl-chips { margin-top: .45rem; }
 }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+:where(:root:not([data-palette="classic"])) :is(code, kbd, samp, pre) { font-family: var(--font-mono); }
+:where(:root:not([data-palette="classic"])) :is(h1, h2, h3, h4) { font-family: var(--font-ui); letter-spacing: -0.01em; }
+:where(:root:not([data-palette="classic"])) kbd { display: inline-block; min-width: 18px; padding: 0 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: var(--r-1); background: var(--surface-2); color: var(--text-2); font-size: 11px; line-height: 16px; text-align: center; }
+/* The ? tip: a small outlined glyph (the tap area stays bigger on touch screens). */
+:where(:root:not([data-palette="classic"])) .tip { background: transparent; border: 1px solid color-mix(in srgb, var(--text-3) 70%, transparent); color: var(--text-3); font-weight: 600; box-shadow: none; }
+/* Tabs: underline tabs (2 px accent under the current one), no pills. */
+:where(:root:not([data-palette="classic"])) .tabs { gap: 2px; border-bottom: 1px solid var(--line); }
+/* Tables: a header row in text-3, rows of --h-row, tabular numbers, hover surface-2. */
+:where(:root:not([data-palette="classic"])) table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) th { color: var(--text-3); font-size: 12px; font-weight: 600; text-align: left; height: 32px; }
+:where(:root:not([data-palette="classic"])) :is(th, td) { border-bottom: 1px solid var(--line); }
+:where(:root:not([data-palette="classic"])) tbody tr:hover { background: var(--surface-2); }
+@media (max-width: 720px) {
+  /* The phone bar: a flat bar with a top hairline; the accent only on the current icon. */
+  :root:not([data-palette="classic"]) { --bbar-h: calc(61px + var(--safe-b)); }
+}
+
+/* ---------- V2 · sidebar Projects (V1 §5): its own section above the conversations ----------
+   Rows like the places below (34/28 px, text-2, the count as a neutral badge); Classic hides it. */
+:root[data-palette="classic"] .side-projects { display: none; }
+.side-projects { margin: 4px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.side-sec-h { margin: 6px 10px 4px; font-size: 11px; font-weight: 600; line-height: 16px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.side-proj-list { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
+.side-proj { display: flex; align-items: center; gap: 8px; width: 100%; min-height: var(--h-row); padding: 0 10px; border: 0; border-radius: var(--r-2); background: transparent; color: var(--text-2); font-size: 14px; font-weight: 500; text-align: left; box-shadow: none; }
+.side-proj:hover { background: var(--surface-2); color: var(--text-1); }
+.side-proj svg { flex: none; width: 16px; height: 16px; }
+.side-proj-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-proj-n { flex: none; min-width: 20px; padding: 0 6px; border-radius: var(--r-1); background: var(--surface-2); color: var(--text-3); font-size: 11px; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums; }
+@media (pointer: coarse) { .side-proj { min-height: 44px; } }

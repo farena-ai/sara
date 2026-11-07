@@ -86,7 +86,8 @@ An administrator stages reviewed fixture snapshots into its own home; remote cal
 choose arbitrary host roots or commands. Mapping returns real file hashes and refuses changed
 or unindexed data, unsafe paths, links and exhausted budgets.
 
-This is not complete Repository Onboarding: it does not execute a documented build. A server's
+It does not execute a documented build; the native Repository Onboarding add-on above does that
+as an approved job. A server's
 own data-home mount is not a selected-project grant. There is no installable Store recipe until
 saved disabled/Ask defaults and other runtime requirements are guaranteed.
 
@@ -103,7 +104,7 @@ nothing is written back. On Linux with bubblewrap the job is OS-sandboxed withou
 Windows and elsewhere it is **not OS-sandboxed** (Node's permission model only, `node` only, no
 child processes). Approvals and jobs end with the plugin request that asked for them.
 
-Two are built as local candidates (Settings → Plugins → Workflow candidates; not signed,
+These are built as local candidates (Settings → Plugins → Workflow candidates; not signed,
 Store-listed, Linux-qualified or chat-approval accepted; the operator stages a project under
 `projects/<name>` in the plugin's data home while it is switched off):
 
@@ -111,12 +112,13 @@ Store-listed, Linux-qualified or chat-approval accepted; the operator stages a p
 |---|---|---|
 | Test Doctor (N03) | Runs one exactly named test once (`node --test`, TAP) as an approved job, then reports the real failing assertion (operator, expected, actual, line) and the source of the imported functions that line calls | Timeouts, todo (expected) failures and non-assertion errors get no root cause; runtime frames are never blamed; Node test files only |
 | Flaky Test Lab (N04) | Repeats one named test 2–20 times in **one** approved job (fresh imports seeded through `globalThis.SARA_FLAKY_SEED`), keeps every seed's outcome and duration, a 95% interval, and says *flaky* only for mixed outcomes | Always-pass/always-fail are not flaky; stopped, timed-out or incomplete runs give no verdict; state outside the module is shared |
+| Documentation Doctor (N24) | Checks the staged Markdown's local links and heading anchors (file and line; external links listed, never fetched) and lists the commands shown in shell code blocks; runs one of them only when you choose it, as an approved job, and reports its real exit code and output | Only `node`/`npm` commands without shell syntax; comments, inline code and prose are never run. `npm` commands are **held on Windows** (no OS sandbox for npm) and run only inside bubblewrap on Linux (guarded test, not yet run on a Linux host) |
+| Release Readiness (N10) | Reads the staged project's versioned gate profile (`release-gates.json`: id, requirement, node/npm command), runs **one approved job per gate** and returns each real exit code, output SHA-256 and tail; *ready* only when every gate passed, *blocked* naming the failing requirement, *incomplete* when a gate was held, declined or stopped | Local gates only: publish, sign, upload, deploy or CI gates refuse before anything runs. `npm` gates are **held on Windows** (bubblewrap only; Linux guarded test not yet run on a Linux host) |
+| Repository Onboarding (N01) | Maps the staged repository without running anything (languages, folders, `package.json` manifests, lockfiles, docs, the README's prerequisites as met/missing/unverified and its Build-section commands), then reproduces one documented build as an approved job with a receipt: real exit code, output tail and SHA-256, files created in the copy | Only README Build-section commands, exactly as written; invented commands and missing documented files or Node versions refuse. `npm` builds are **held on Windows** (bubblewrap only; Linux guarded test not yet run on a Linux host). The workbench `repo_map` below is unchanged |
 
-Tests: `node --test --test-concurrency=2 test/developer-test-doctor*.test.ts test/developer-flaky-test-lab*.test.ts test/plugin-exec-job*.test.ts test/plugin-late-approval.test.ts`.
+Tests: `node --test --test-concurrency=2 test/developer-test-doctor*.test.ts test/developer-flaky-test-lab*.test.ts test/developer-documentation-doctor*.test.ts test/developer-release-readiness*.test.ts test/developer-repository-onboarding*.test.ts test/plugin-exec-job*.test.ts test/plugin-late-approval.test.ts`.
 
-**Still held:** Repository Onboarding (build step, N01), Release Readiness (N10) and Documentation
-Doctor (N24) can now be built on the job but were not built in this slice. Dependency Upgrade
-Workbench (N07) needs `npm`, which plugin jobs refuse without an OS sandbox, plus an offline
+**Still held:** Dependency Upgrade Workbench (N07) needs `npm`, which plugin jobs refuse without an OS sandbox, plus an offline
 fixture registry; it waits for Linux/bubblewrap qualification. No supplied-text stand-ins are
 offered in their place.
 
