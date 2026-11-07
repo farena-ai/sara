@@ -722,3 +722,51 @@ html.ios-short-view { --safe-b: 0px; }
    (white text at 5:1+), as one solid colour. */
 :root[data-palette="classic"][data-decor="off"] { --mine-grad: linear-gradient(#a8456d, #a8456d); }
 :root[data-palette="classic"][data-decor="off"][data-theme="light"] { --mine-grad: linear-gradient(#b8436a, #b8436a); }
+
+/* ---------- V3 Full decoration outside Sara Classic (docs/ops/V3_DESIGN.md §3) ----------
+   A premium layer, not the Classic aurora: solid accent (no gradients), translucent glass only on the
+   edge chrome and floating layers, a faint accent glow on the primary action, and two very slow, very
+   low-contrast washes of the accent behind the app. The percentages are read by test/v3-design.test.ts
+   (text on each glass surface over the brightest point of the light stays at AA). High contrast stays
+   solid; reduced transparency forces decoration off (web/theme-boot.js). */
+:root:not([data-palette="classic"])[data-decor="on"] {
+  --v3-glass: 80%;
+  --v3-glass-strong: 90%;
+  --v3-light: 9%;
+  --accent-to: var(--accent-from);
+  --accent-grad: linear-gradient(var(--accent-solid), var(--accent-solid));
+  --glass: color-mix(in srgb, var(--surface-1) var(--v3-glass), transparent);
+  --glass-strong: color-mix(in srgb, var(--surface-1) var(--v3-glass-strong), transparent);
+  --glass-filter: blur(20px) saturate(140%);
+  --glass-fill: linear-gradient(var(--glass), var(--glass));
+  --glass-fill-strong: linear-gradient(var(--glass-strong), var(--glass-strong));
+  --glass-edge: linear-gradient(var(--line), var(--line));
+  --glass-hi: inset 0 1px 0 color-mix(in srgb, var(--text-1) 5%, transparent);
+  --glass-tint: transparent;
+  --btn-glow: 0 0 0 1px color-mix(in srgb, var(--accent-solid) 30%, transparent), 0 6px 20px -8px color-mix(in srgb, var(--accent-solid) 60%, transparent);
+  --v3-ring-glow: 0 0 0 3px color-mix(in srgb, var(--accent-solid) 16%, transparent), 0 0 24px -6px color-mix(in srgb, var(--accent-solid) 40%, transparent);
+  --aurora-base: linear-gradient(var(--surface-0), var(--surface-0));
+  --aurora-1: color-mix(in srgb, var(--accent-solid) var(--v3-light), transparent);
+  --aurora-2: color-mix(in srgb, var(--accent-text) calc(var(--v3-light) * .6), transparent);
+  --aurora-3: transparent;
+  --aurora-speed: 1.6;
+  --grain-opacity: 0;
+  --spark-a: transparent;
+  --accent-glow: color-mix(in srgb, var(--accent-solid) 22%, transparent);
+  --violet-glow: transparent;
+}
+:root:not([data-palette="classic"])[data-decor="on"][data-theme="light"] {
+  --v3-glass: 84%;
+  --v3-glass-strong: 94%;
+  --v3-light: 6%;
+  --btn-glow: 0 0 0 1px color-mix(in srgb, var(--accent-solid) 22%, transparent), 0 6px 16px -8px color-mix(in srgb, var(--accent-solid) 45%, transparent);
+}
+:root[data-palette="contrast"][data-decor="on"] {
+  --glass: var(--surface-1);
+  --glass-strong: var(--surface-1);
+  --glass-filter: none;
+  --btn-glow: none;
+  --v3-ring-glow: 0 0 0 0 transparent;
+  --aurora-1: transparent;
+  --aurora-2: transparent;
+}

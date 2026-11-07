@@ -83,6 +83,16 @@ previous look. Read together can share one item from a news feed you paste. Two 
 add-ons run tests in a disposable copy you approve, and two local developer connections
 (Storybook, Qdrant) can be added from Settings. See [Appearance](APPEARANCE.md).
 
+## An advanced look and pictures like a person in 2.79.0
+
+A sidebar that starts with your places, an All settings home with every page one click away,
+breadcrumbs, a Ctrl K launcher for everything, a refined glass-and-light look and a richer
+Appearance page with new defaults. Approval cards gain *Always allow this tool*, and each tool
+server gets one approvals choice. Her photos can come from Grok, OpenAI, your ComfyUI workflow or
+another image tool, and she can send a picture on her own now and then (off by default, at most one
+a day, monthly limit). Pictures from tool servers now reach the chat, and she no longer says she
+sent something that was never attached. See [Appearance](APPEARANCE.md) and [Photos](PHOTOS.md).
+
 ## A finished professional look in 2.78.0
 
 Every turn shows who spoke, when and how long she took; one model · workspace chip with a context
@@ -94,8 +104,10 @@ steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 
 ## Next
 
-The add-ons library pages are being restyled to match the main site. Expressive speech on calls
-(laughter and sighs where the voice supports it) follows after listening tests.
+Every add-on and tool server in Settings gets an end-to-end check on a real install (add, settings
+saved, connect, its main action, remove); entries that do not pass are fixed or held with the
+reason. Expressive speech on calls (laughter and sighs where the voice supports it) follows after
+listening tests.
 
 ## Business setup and administration in 2.65.0
 

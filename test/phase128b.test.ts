@@ -78,7 +78,8 @@ test('128b.2 OLD_TABS, every openSettings / showSettingsTab / settings: link, th
     const src = web(f);
     for (const m of src.matchAll(/(?:openSettings|showSettingsTab|openSettingsPage)\(\s*'([\w-]+)'/g)) {
       n++;
-      assert.ok(ids.has(m[1]) || ids.has(oldTabs.get(m[1]) ?? ''), `${f}: openSettings('${m[1]}')`);
+      // V3: 'home' is the Settings home (every page under its group), not a page.
+      assert.ok(ids.has(m[1]) || m[1] === 'home' || ids.has(oldTabs.get(m[1]) ?? ''), `${f}: openSettings('${m[1]}')`);
     }
     for (const m of src.matchAll(/['`]settings:([\w-]+)['`]/g)) assert.ok(ids.has(m[1]), `${f}: settings:${m[1]}`);
   }

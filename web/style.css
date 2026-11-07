@@ -1775,3 +1775,10 @@ button.conv-see-more, button.conv-show-less { min-height: 44px; padding: 0 10px;
 .side-proj-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .side-proj-n { flex: none; min-width: 20px; padding: 0 6px; border-radius: var(--r-1); background: var(--surface-2); color: var(--text-3); font-size: 11px; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums; }
 @media (pointer: coarse) { .side-proj { min-height: 44px; } }
+
+/* E7: per-server approvals choice (Settings → Tools, Other programs) and the card's Always allow line. */
+.tool-policy { display: grid; gap: 4px; padding: 8px 12px; border-top: 1px solid var(--border); }
+.tool-policy-label { display: flex !important; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
+.tool-policy-label select { width: auto; max-width: 100%; }
+.tool-policy-list p { margin: 4px 0; overflow-wrap: anywhere; }
+.approval-always { margin: 0; }

@@ -336,6 +336,31 @@ export interface LeanInput {
   goal?: boolean;
   /** Forced: 'off' (today's list), 'on' (lean whatever the size). */
   force?: 'off' | 'on';
+  /** The tool's permission as the owner has it (falls back to the tool's default). */
+  permission?: (name: string) => string;
+}
+
+// B2: when only part of a big server's tools fit, read-only and status tools come first.
+/** Tools that install, download, restart, remove or file things publicly (short names). */
+const RISKY_TOOL = /^(install|download|restart|delete|uninstall|deploy|publish)_|^report_issue$|_(remove|delete)$/;
+/** His message asks whether something is there or working. */
+const STATUS_INTENT = /\b(check|checking|see|running|status|health|healthy|installed|installation|working|online|connected|reachable|alive|up)\b/;
+const STATUS_NAME = /stat|health|status|system/;
+
+/** A family's tools in the order to offer them: what his words name, read-only before ask, installers last. */
+export function rankFamily(members: Tool[], text: string, permission?: (name: string) => string): string[] {
+  const hit = new Map(searchTools(members, text).map((h) => [h.tool.spec.name, h.score]));
+  const status = STATUS_INTENT.test(fold(text));
+  const score = (t: Tool): number => {
+    const short = t.spec.name.replace(/^mcp_[^_]+_/, '');
+    let s = hit.get(t.spec.name) ?? 0;
+    if ((permission?.(t.spec.name) ?? t.defaultPermission) === 'auto') s += 4;
+    if (RISKY_TOOL.test(short)) s -= 4;
+    if (status && STATUS_NAME.test(short)) s += 8;
+    else if (status && STATUS_NAME.test(fold((t.spec.description ?? '').slice(0, 200)))) s += 2;
+    return s;
+  };
+  return members.map((t, i) => ({ n: t.spec.name, s: score(t), i })).sort((a, b) => b.s - a.s || a.i - b.i).map((x) => x.n);
 }
 
 export class TurnTools {
@@ -543,7 +568,7 @@ export function leanFor(set: LeanSettings['tools'], eligible: Tool[], input: Lea
     const members = eligible.filter((t) => familyOf(t).id === fam || (fam === 'github' && familyOf(t).id === 'mcp:github') || (fam === 'browser' && familyOf(t).id === 'mcp:playwright'));
     if (!members.length) continue;
     if (members.length <= 12) tt.add(members.map((t) => t.spec.name), 'asked');
-    else tt.add(searchTools(members, input.text).slice(0, 12).map((h) => h.tool.spec.name).concat(members.length && !searchTools(members, input.text).length ? members.slice(0, 12).map((t) => t.spec.name) : []), 'asked');
+    else tt.add(rankFamily(members, input.text, input.permission).slice(0, 12), 'asked');
   }
   // 3. @-references
   if (/@url:/i.test(input.text)) tt.add(['web_fetch'], 'ref');
@@ -586,6 +611,21 @@ export function findToolsTool(): Tool {
 /** A schema line for an eligible tool she called without having it ("Here are the fields it takes"). */
 export function schemaHint(tool: Tool): string {
   return `Here are the fields it takes: ${JSON.stringify(tool.spec.parameters ?? {}).slice(0, 1000)}`;
+}
+
+// B2: an argument error that lists allowed values (zod's "expected one of", JSON-schema enum errors).
+const ENUM_ERROR = /expected one of|one of the allowed values|invalid enum value|must be one of|allowed values:/i;
+export const ARG_RETRY = 'Your arguments were invalid and nothing ran. Fix them using the allowed values above and call the tool again, or use find_tools for a better tool, before answering.';
+
+/** The failing field's allowed values from the tool's own schema, then the retry line ('' for other errors). */
+export function argErrorHint(tool: Tool, output: string): string {
+  if (!ENUM_ERROR.test(output)) return '';
+  const path = (/\bat ([A-Za-z_][\w.]*)\s*$/m.exec(output)?.[1]?.split('.') ?? /(?:\bat |data|instancePath["': ]*)\/([\w/]+)/.exec(output)?.[1]?.split('/') ?? []).filter((k) => k && !/^\d+$/.test(k));
+  let node = rec(tool.spec.parameters);
+  for (const k of path) node = rec(rec(node.properties)[k] ?? rec(rec(node.items).properties)[k]);
+  const allowed = Array.isArray(node.enum) ? node.enum : [];
+  const line = path.length && allowed.length ? `Allowed values for "${path.join('.')}": ${allowed.map((v) => JSON.stringify(v)).join(', ')}.\n` : '';
+  return `${line}${ARG_RETRY}`;
 }
 
 // ---------------------------------------------------------------------------------------------

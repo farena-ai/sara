@@ -13,10 +13,10 @@ export const PAGE_STEP = 20;
 export const PAGE_SIZES = [5, 8, 10];
 export const PAGE_KEY = 'sara.pageSize';
 
-/** Sessions shown per group before See more (this device's choice; 8 when unset). */
+/** Sessions shown per group before See more (this device's choice; 5 when unset: V3, the owner's default). */
 export function pageSize(storage) {
   const n = Number(storage?.getItem?.(PAGE_KEY));
-  return PAGE_SIZES.includes(n) ? n : 8;
+  return PAGE_SIZES.includes(n) ? n : 5;
 }
 
 /** Newest first, then id: the same order as the server's pages, so nothing repeats or goes missing. */

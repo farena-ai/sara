@@ -76,7 +76,7 @@ export class LinkedToolRegistry extends ToolRegistry {
     this.#base.unsandboxed = v;
   }
   override permission(name: string, overrides: Record<string, Permission> | undefined): Permission {
-    return overrides?.[name] ?? this.defaultFor(this.get(name));
+    return overrides?.[name] ?? this.policyFor?.(name) ?? this.defaultFor(this.get(name));
   }
   override enabled(overrides: Record<string, Permission> | undefined): Tool[] {
     return this.list().filter((t) => (t.isAvailable?.() ?? true) && this.permission(t.spec.name, overrides) !== 'never');

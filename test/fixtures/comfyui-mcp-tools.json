@@ -1,0 +1,466 @@
+{
+ "source": "comfyui-mcp@0.52.206 tools/list (recorded 2026-11-07; descriptions cut to 1000 characters, full input schemas kept for install_comfyui and get_system_stats only)",
+ "tools": [
+  {
+   "name": "comfy_cli",
+   "description": "Drive the official comfy-cli (envelope/1 JSON contract) for the selected ComfyUI environment. The MCP resolves `comfy` from COMFY_CLI_PATH, PATH, or the selected workspace's .venv/venv. Driven by the `action` parameter:\n- action:\"status\" — Inspect the comfy-cli integration and selected environment (`comfy which` / `comfy env`); `detail` selects version/which/env/discover (default env). Call this before local CLI operations when workspace or server routing is uncertain.\n- action:\"server_start\" / \"server_stop\" / \"server_restart\" — Manage a local ComfyUI through comfy-cli background process management. Restart performs `comfy stop` followed by `comfy launch --background`; extra launch arguments go in `launchArgs`.\n- action:\"jobs_list\" — List local or Comfy Cloud jobs (`limit` optional). Local jobs include CLI-tracked async submissions plus the ComfyUI queue/history.\n- action:\"jobs_status\" / \"jobs_watch\" / \"jobs_cancel\" — Inspect, watch, or cancel one job; `promptId` required.\n- action:\"jo",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "enqueue_workflow",
+   "description": "Submit work to the ComfyUI execution queue — the primary way an agent starts a render. Driven by the `action` parameter:\n- action:\"enqueue\" — Submit an API-format workflow you are already holding (one you built with create_workflow, loaded with get_workflow, or edited with create_workflow action:\"modify\"). Returns immediately with the prompt_id and queue position; does NOT wait for completion. Seed values in the workflow are used EXACTLY as supplied — they are NOT re-randomized, so a run is reproducible by resubmitting the same workflow (for a fresh-seed re-run of a past job, use action:\"rerun\"). `workflow` is required. Use queue (action:\"status\") to check progress later, or get_history (action:\"list\") to retrieve results and images after completion.\n- action:\"rerun\" — Re-run the workflow behind a PREVIOUS generation. Retrieves the prompt graph from execution history (by `prompt_id`, or the most recent run when omitted — chosen by ComfyUI's queue number, same logic as get_history) and ",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "get_system_stats",
+   "description": "Inspect the connected ComfyUI server: what it is running on, what it has logged, and whether it is healthy enough to dispatch work to. All three actions are READ-ONLY — nothing here mutates anything. Driven by the `action` parameter:\n- action:\"stats\" — Get system information from the connected ComfyUI server: GPU device(s), total/free VRAM, ComfyUI/Python/PyTorch versions, and OS details. Requires a running ComfyUI server (works against local or remote targets); read-only, takes no parameters. Returns the raw /system_stats JSON. Use to confirm connectivity and check available VRAM before enqueuing large workflows. Errors if the server is unreachable.\n- action:\"logs\" — Get ComfyUI server runtime logs. Useful for debugging execution errors, model loading issues, missing nodes, and Python tracebacks. `max_lines` tails the end (default 100), `keyword` filters case-insensitively.\n- action:\"health\" — Pre-flight diagnostic for the connected ComfyUI: one call that aggregates the signals an age",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "stats",
+       "logs",
+       "health"
+      ],
+      "description": "Which read to perform. \"stats\" takes no other parameters; \"logs\" takes `max_lines`/`keyword`; \"health\" takes `model_categories`/`recent_errors`. None of them is required."
+     },
+     "max_lines": {
+      "description": "action:\"logs\" — maximum number of log lines to return from the end (default: 100).",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2000
+     },
+     "keyword": {
+      "description": "action:\"logs\" — filter log lines containing this keyword (case-insensitive). Examples: 'error', 'warning', 'VRAM', a node name.",
+      "type": "string"
+     },
+     "model_categories": {
+      "description": "action:\"health\" — override the model categories to poll (defaults to checkpoints, diffusion_models, loras, vae, text_encoders, controlnet).",
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "recent_errors": {
+      "description": "action:\"health\" — how many recent error/traceback lines to include from /internal/logs (default 20, max 200).",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 200
+     }
+    },
+    "required": [
+     "action"
+    ]
+   }
+  },
+  {
+   "name": "visualize_workflow",
+   "description": "DRAW a diagram of, or convert, workflow JSON you PASS IN (a JSON string or object) — it does NOT read the user's live canvas, so for 'show me what's on the canvas' / the CURRENTLY-OPEN graph use panel_graph_outline instead. Driven by the `action` parameter:\n- action:\"render\" — Mermaid flowchart of the whole graph: nodes grouped by category, connections labeled by data type.\n- action:\"render_hierarchical\" — the same graph SECTIONED rather than flat, which is what you want past ~20 nodes. `view` picks a compact overview, one section in detail, a text listing, or an AI-oriented structured summary.\n- action:\"mermaid\" — the INVERSE of render: a Mermaid flowchart back into executable API-format workflow JSON, wired from /object_info schemas.\n- action:\"to_dsl\" — API-format JSON into the compact, human/LLM-readable authoring DSL: `key <- nodeId.outputIndex` for connections, `key = <JSON>` for literals. Round-trips losslessly. (Experimental.)\n- action:\"from_dsl\" — that DSL back into executable ",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "create_workflow",
+   "description": "Author and check ComfyUI workflow JSON. Driven by the `action` parameter:\n- action:\"create\" — Create a ready-to-run API-format workflow from a built-in template (txt2img, img2img, upscale, inpaint, controlnet, ip_adapter, ace_step_15, stable_audio_3, remove_background, ltx_video). Pure local generation — does not contact ComfyUI and has no side effects. Returns the complete workflow JSON; pass it to action:\"validate\" or enqueue_workflow. Unsupplied `params` fall back to template defaults, so the result may reference checkpoints/models that must exist on your ComfyUI server before it will execute.\n- action:\"modify\" — Apply modification `operations` to an existing workflow. Supports: set_input, add_node, remove_node, connect, insert_between. Returns the modified workflow JSON and IDs of any newly added nodes.\n- action:\"validate\" — Validate a workflow WITHOUT executing it. Checks for missing node types, broken connections, invalid output indices, missing models, and other issues. Returns ",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "queue",
+   "description": "Inspect and manage the ComfyUI execution queue. Driven by the `action` parameter:\n- action:\"list\" — The job running now plus all pending jobs, each with its prompt_id and position. Read-only; requires a reachable ComfyUI server (works against local or remote --comfyui-url). Omits queued workflow payloads by default to keep output small; set include_workflows:true when you need to inspect or edit the exact pending payload. Use this before action:\"cancel\" (running), action:\"cancel_queued\"/action:\"clear\" (pending), action:\"move\", or action:\"edit\".\n- action:\"status\" — Check ONE job by its prompt_id (the id returned by enqueue_workflow). Queries the connected ComfyUI server; requires it to be running. Returns JSON with running, pending, and done booleans, plus optional status_str, error details, and execution_stats from ComfyUI history once the job is done. If the prompt is neither running nor queued AND /history has no record of it (a restart wipes both), it returns done:false + found:fals",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "search_custom_nodes",
+   "description": "Discover ComfyUI custom node PACKS in the public ComfyUI Registry (registry.comfy.org). Read-only and network-only: queries the hosted registry over HTTP and does NOT require a running ComfyUI or COMFYUI_PATH. This searches node PACKS, not models (use download_model action:\"search\") and not local installs (use list_local_models action:\"list\"). To actually install what you find, or to manage packs already installed, use install_custom_node. Driven by the `action` parameter:\n- action:\"search\" — Search by keyword; `query` required. Returns a ranked list of packs with id, name, author, install count, and latest version. The keyword search ranks a fixed window of packs client-side, so when it matches nothing the query is also tried as an exact registry id automatically (e.g. 'comfyui kjnodes' → 'comfyui-kjnodes'). Pass a returned id to action:\"details\" for full info, or to install_custom_node (action:\"install\").\n- action:\"details\" — Full details for ONE pack by its exact registry id: descri",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "download_model",
+   "description": "Find model weights and get them onto the connected ComfyUI, and track the transfers. Driven by the `action` parameter:\n- action:\"download\" — Download a model file to the connected ComfyUI's models directory from a URL (HuggingFace, direct HTTP(S), s3://, or Azure Blob). Requires `url` + `target_subfolder`. PREFER this over a raw shell download (curl/wget) for model weights: it lands the file in the right models/ subfolder. LOCAL ComfyUI: streams to disk and surfaces live progress in the panel download tray. REMOTE ComfyUI: dispatches the fetch to the ComfyUI host via the ComfyUI-Manager install-model HTTP API (downloaded server-side; a per-request `auth` header can't be forwarded). This requires the host's Manager to run with network_mode=personal_cloud (or loopback) and a permissive security level — a stricter gate silently rejects the download, and Manager reports the queue task 'done' even on failure, so a remote dispatch does not guarantee the file landed. target_subfolder accepts ",
+   "annotations": {
+    "destructiveHint": true,
+    "openWorldHint": true,
+    "idempotentHint": false
+   },
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "list_local_models",
+   "description": "Inspect what models this ComfyUI has installed, and where it looks for them. Driven by the `action` parameter:\n- action:\"list\" — List model files available to the connected ComfyUI, grouped by type. Read-only. Queries ComfyUI's /models REST endpoint first (works with remote ComfyUI and respects extra_model_paths.yaml — symlinked / mounted dirs the install-path filesystem scan would miss). LOCAL ComfyUI then falls back to a filesystem scan of COMFYUI_PATH/models/ when the REST endpoint is unavailable; REMOTE ComfyUI never scans this MCP host's local path, so an unavailable remote listing is returned as undetermined rather than another machine's inventory. Size and modified time are only available on the local filesystem fallback path. Use to see which models are already available before generating or downloading; use download_model action:\"search\" to discover new models on HuggingFace, then action:\"download\" to fetch them. For models fetched via download_model action:\"download_civitai\",",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "get_history",
+   "description": "Read what has already been generated on this machine — execution history, why a run failed, and the settings your past renders actually used. Driven by the `action` parameter:\n- action:\"list\" — Execution history for a ComfyUI prompt: status, timing, cached nodes, and output details (media filenames for get_image action:\"get\"). Also carries the raw error/traceback. To diagnose WHY a run FAILED or what is missing, prefer action:\"diagnose\" — it returns the same failure info PLUS missing models (with the file + widget) and missing node types, which this action does not. Use action:\"list\" when you need the run's OUTPUTS or timing for a specific prompt_id.\n- action:\"diagnose\" — WHY DID MY RENDER FAIL / WHAT IS MISSING? Explains a failed run in ONE call, without needing a canvas — the headless counterpart to the panel's panel_get_errors (\"why is this red?\"), so mobile/remote sessions get the same answer. Returns: the failed node (id, type) with its `exception_type` + message and a trimmed tra",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "runpod",
+   "description": "Deploy, start, stop, inspect and connect to RunPod cloud GPU pods, and switch rendering between your local machine and a pod. Driven by the `action` parameter. SPENDS MONEY: action:\"create\" and action:\"start\" put a pod into a billing state; action:\"stop\" ends GPU billing. Confirm with the user before creating or starting a pod, and stop pods when the work is done.\n- action:\"create\" — Deploy a BRAND-NEW RunPod pod from our comfyui-mcp template (image with the panel + Manager + our nodes preinstalled), then it can be started/connected like any pod. One-tap alternative to the console deploy link for a user who already has a RunPod account + API key. Because our template is used, the agent can install the user's exact custom nodes/LoRAs + download models on it → full canvas parity. Tries several GPU types until one has capacity (on-demand availability fluctuates). NOTE: this bills GPU-time as soon as the pod boots — confirm with the user first, and stop it (action:\"stop\") when done. Create",
+   "annotations": {
+    "destructiveHint": true,
+    "openWorldHint": true,
+    "idempotentHint": false
+   },
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "runpod_watch",
+   "description": "Watch a RunPod pod's live status in the control panel, stop watching it, or diagnose why it isn't usable. Driven by the `action` parameter. None of these actions DEPLOYS or resumes a pod — the runpod tool does that. One of them CAN stop one, though: action:\"watch\" arms the idle auto-stop, so a watched pod whose ComfyUI sits idle past the configured timeout is stopped to save cost. Do not watch a pod that is deliberately idle but must stay up.\n- action:\"watch\" — Start broadcasting a pod's LIVE status to the control panel (desktop + mobile) — status, GPU/VRAM utilization, uptime, $/hr, and an idle-auto-stop countdown — refreshed every ~15s. runpod action:\"connect\" already starts this for the pod it connects to; call this to watch a pod WITHOUT retargeting comfyui-mcp at it (e.g. monitor a pod that's still booting). While watched, if the pod's ComfyUI sits idle past the configured timeout it is auto-stopped to save cost.\n- action:\"unwatch\" — Stop broadcasting a pod's live status to the co",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "get_workflow",
+   "description": "Return, list, summarize or query a SAVED workflow FILE — files on disk, named from the library or given as a path/JSON — NOT the graph open on the user's canvas (that is panel_graph_outline). Every action here is READ-ONLY; saving and locking are save_workflow. Driven by the `action` parameter:\n- action:\"get\" — the full JSON of one saved workflow FILE named from the library. Defaults to converted API format; pass format:'ui' for the raw on-disk UI JSON. Use action:\"analyze\" instead if you just need to UNDERSTAND the workflow — it returns a structured summary without flooding context with JSON. Use action:\"get\" only when you need the actual JSON for enqueue_workflow, create_workflow (action:\"modify\"), or save_workflow.\n- action:\"list\" — the workflows saved in the connected ComfyUI server's user library (the same ones visible in the ComfyUI web UI), INCLUDING the ones filed in subfolders. Requires a running ComfyUI server. Takes no other parameters. Returns a numbered list of library nam",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "save_workflow",
+   "description": "WRITE to the ComfyUI user library: persist a workflow, or capture/verify its provenance lock. This is the only tool here that writes — reading is get_workflow. Driven by the `action` parameter:\n- action:\"save\" — Save a workflow JSON to the connected ComfyUI server's user library so it appears in the ComfyUI web UI. Requires a running ComfyUI server; this writes to that server's userdata and OVERWRITES any existing file with the same filename without confirmation. Web-UI-format JSON ({ nodes: [], links: [] }) is saved as-is and is the preferred input — when re-saving an existing workflow, load it with get_workflow (action:\"get\", format='ui') and modify THAT. API-format graphs ({ '1': { class_type, inputs } }) are AUTO-CONVERTED to Web UI format with a generated layout so the saved file always opens in the ComfyUI canvas (the canvas cannot open raw API format). Returns a confirmation message (noting the conversion and any warnings), or the HTTP status and error text on failure.\n- action:",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "restart_comfyui",
+   "description": "Control the lifecycle of the ComfyUI server process. Driven by the `action` parameter:\n- action:\"restart\" — Restart ComfyUI: stops the running process (capturing its config), waits for the port to free, relaunches with the same arguments, and polls the API for bounded readiness. Also works against a REMOTE/tunnelled ComfyUI (via --comfyui-url) by rebooting through ComfyUI-Manager over HTTP and polling for it to come back (requires ComfyUI-Manager present and its security level permitting the reboot). When COMFYUI_RESTART_COMMAND is set, a LOCAL restart runs that command instead of kill+relaunch — the recovery path for an externally managed install (a container, a systemd unit, a launcher) whose launch path cannot be proven from here. This is the normal way to reload newly installed custom nodes, and the escalation when queue (action:\"cancel\") reports a job WEDGED.\n- action:\"start\" — Start ComfyUI using process info saved from a previous action:\"stop\" call. Supports both Desktop app and",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "get_image",
+   "description": "Fetch, browse and inspect ComfyUI images and registered assets. Driven by the `action` parameter:\n- action:\"get\" — Fetch a generated image from ComfyUI by FILENAME and return it as an inline image. Video/audio outputs (e.g. a VHS_VideoCombine .mp4) and allowlisted mesh/material attachments (.obj, .glb, .gltf, .fbx, .ply, .stl, .mtl) are saved to save_dir with their original extension instead of being rendered inline. Works with remote ComfyUI instances — does not require COMFYUI_PATH. Use get_history (action:\"list\") first to obtain the filename; if it returns `subfolder/filename`, pass that relative path as-is and get_image will split it automatically.\n- action:\"view\" — Fetch a registered asset's bytes by ASSET ID and return them as an inline image so the agent can see the result. Use this after a render completes (asset_id is included in the completion notification) to inspect, critique, or compare generated images. Only supports image mime types (PNG/JPEG/WebP); audio/video assets mu",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "upload_image",
+   "description": "Put a file where ComfyUI (or cloud storage) can read it. Driven by the `action` parameter:\n- action:\"image\" — Upload a local image file to the connected ComfyUI's input/ directory via the HTTP /upload/image endpoint so it can be referenced in LoadImage nodes. Works for both local and remote ComfyUI. Nested filenames that LoadImage does not enumerate are re-registered at the input root; the returned filename is the one a LoadImage combo can select.\n- action:\"video\" — Upload a local video file (.mp4, .mov, .webm, .avi, .mkv, .m4v) to the connected ComfyUI's input/ directory via the HTTP /upload/image endpoint for use in video-loading nodes such as VHS_LoadVideo (ComfyUI-VideoHelperSuite). Works for both local and remote ComfyUI. Returns the stored filename.\n- action:\"audio\" — Upload a local audio file (.wav, .mp3, .flac, .ogg, .m4a, .aac) to the connected ComfyUI's input/ directory via the HTTP /upload/image endpoint for use in audio-conditioned workflows (e.g. LoadAudio). Works for both",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "clear_vram",
+   "description": "Free GPU VRAM by unloading cached models from ComfyUI. Use this between generation runs with different model families (e.g. switching from SDXL to Flux) or when running low on VRAM. Optionally unload only models or only memory.",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "get_defaults",
+   "description": "Read and write settings — either OUR generation defaults or ComfyUI's own frontend UI settings. These are two SEPARATE stores and the `action` says which one you mean:\n- action:\"get\" — Return the merged view of OUR generation defaults with per-source attribution. Precedence (lowest → highest): config file → COMFYUI_DEFAULT_* env vars → runtime overrides via action:\"set\". Per-call MCP tool args always win over these defaults when consumed by a workflow-construction tool. Read-only, and works even with no ComfyUI running.\n- action:\"set\" — Update OUR generation defaults from `values`. By default updates the in-memory runtime layer (lost on restart); pass persist:true to also write the change into the config file (~/.config/comfyui-mcp/config.json by default). Use this to avoid repeating common values like width, height, steps, cfg, sampler, checkpoint.\n- action:\"get_ui\" — Read COMFYUI's OWN per-user frontend UI settings (the Comfy.* ids its Settings panel writes, served by the frontend us",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "generate_image",
+   "description": "Generate media from a prompt or an existing image — the high-level entry points that build the graph for you. Every action enqueues on the connected ComfyUI and returns the prompt_id immediately; the resulting asset_id arrives in the completion notification. Driven by the `action` parameter:\n- action:\"image\" — Text-to-image. Builds a txt2img workflow, filling any unspecified parameter from your configured defaults (get_defaults (action:\"set\") / COMFYUI_DEFAULT_* / config file), auto-selecting a local checkpoint when none is given — checkpoints known to lack a text encoder (e.g. video models) are skipped. `prompt` is required. For full control over the node graph, use create_workflow + enqueue_workflow instead.\n- action:\"audio\" — Text-to-audio, supporting the ACE Step 1.5 and Stable Audio 3 model families. Builds the appropriate workflow graph, filling unspecified parameters from your defaults and auto-selecting local models. `model_family`, `prompt` and `duration` are required. Require",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "node_snapshot",
+   "description": "Custom-node snapshots via ComfyUI-Manager (mirrors `comfy node save-snapshot` / `restore-snapshot`). Driven by the `action` parameter:\n- action:\"list\" — List the snapshots ComfyUI-Manager knows about. No other parameters. Read-only.\n- action:\"save\" — Save the current custom-node and version state. With no `name`, Manager assigns a timestamped snapshot (works against remote instances). Providing `name` writes a custom-named snapshot file, which requires a local ComfyUI install root (COMFYUI_PATH or a saved default workspace — see the workspace tool) and is unavailable against a genuinely remote ComfyUI.\n- action:\"restore\" — Restore a previously saved snapshot by `name` (required). ComfyUI-Manager applies the custom-node changes on the next ComfyUI restart; use action:\"list\" to find available names.",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "bisect",
+   "description": "Binary-search (git-bisect style) over installed ComfyUI custom nodes to find which one causes a problem. A state machine driven by the `action` parameter:\n- action:\"start\" — Begin a session over all currently-enabled custom nodes. Enables half and disables the rest for the first test round, then guide the search with good/bad. Prefers the ComfyUI-Manager HTTP API; falls back to toggling .disabled directory suffixes for local installs. A ComfyUI restart may be needed for changes to take effect.\n- action:\"good\" — Mark the currently enabled set as GOOD (the problem is absent with this set). Narrows the search to the disabled candidates and enables the next subset. Resolves and reports the culprit when one node remains.\n- action:\"bad\" — Mark the currently enabled set as BAD (the problem is present with this set). Narrows the search to the enabled subset and enables the next subset. Resolves and reports the culprit when one node remains.\n- action:\"reset\" — Re-enable all custom nodes and cle",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "install_custom_node",
+   "description": "Install, repair, enable/disable and remove ComfyUI custom node packs on this ComfyUI. To FIND a pack in the public registry first, use search_custom_nodes. Driven by the `action` parameter:\n- action:\"install\" — Install a pack by registry id, git URL, or name. Local installs prefer official comfy-cli when available; remote or CLI-unavailable installs use the ComfyUI-Manager HTTP API. A ComfyUI restart may be required. Targeting the comfyui-mcp sidebar panel pack ('comfyui-agent-panel' / 'comfyui-mcp-panel') is routed through the verified install_comfyui(action:'panel') path (the version is re-read from disk afterwards) and is REFUSED while the panel is version-pinned.\n- action:\"update\" — Update an installed pack, or pass id:'all' to update every installed pack. Local operations prefer official comfy-cli; remote operations use Manager HTTP. Targeting the sidebar panel pack is routed through the verified install_comfyui(action:'panel') path. While the panel is version-pinned, BOTH a direc",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "report_issue",
+   "description": "DISABLED — issue reporting remains off during limited maintenance. This tool files NOTHING and contacts no service. It returns the reporting status, without a prefilled issue link. Kept registered for older prompts and skills; continue helping with the task, without retrying or filing through another tool.",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "install_comfyui",
+   "description": "Install, update and configure the local ComfyUI installation, its sidebar panel, and this MCP server itself. Driven by the `action` parameter:\n- action:\"install\" — Install ComfyUI locally: git-clone it into `target_path`, create a dedicated workspace virtualenv (<target>/.venv), and install Python requirements INTO that venv (never the Python running this MCP server) via pip or uv. ComfyUI-Manager is installed from manager_requirements.txt when present, else git-cloned as a fallback. Mirrors `comfy-cli install`. LOCAL, subprocess-only and independent of any remote --comfyui-url target; the target dir must be empty or non-existent (an existing install is never overwritten). Runs SYNCHRONOUSLY and can take several minutes (large git clone + full torch/dependency install); the call blocks until done. On success returns a JSON report { installed, targetPath, venvPath, comfyuiUrl, managerInstalled, managerVia, version, pythonInstaller, steps[] }. Does NOT start ComfyUI. `target_path` is REQ",
+   "annotations": {
+    "destructiveHint": true,
+    "openWorldHint": true,
+    "idempotentHint": false
+   },
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "install",
+       "update",
+       "update_all",
+       "panel",
+       "self_update",
+       "environment",
+       "configure_manager"
+      ],
+      "description": "Which install/environment operation to perform. action:\"update\", action:\"update_all\" and action:\"environment\" take no other parameters; action:\"install\" requires `target_path`; action:\"panel\" takes `panel_action` (+ `version`/`reason` for a pin); action:\"self_update\" takes `self_update_action`; action:\"configure_manager\" requires `manager_setting` (+ `value`)."
+     },
+     "target_path": {
+      "description": "action:\"install\" — REQUIRED absolute path to the workspace directory to install ComfyUI into. Must be empty or non-existent.",
+      "type": "string",
+      "minLength": 1
+     },
+     "skip_manager": {
+      "description": "action:\"install\" — if true, do not clone/install ComfyUI-Manager. Default false (Manager is installed).",
+      "type": "boolean"
+     },
+     "use_uv": {
+      "description": "action:\"install\" — if true, prefer `uv pip install` over plain pip when uv is available on PATH. Falls back to pip if uv is missing. Default false.",
+      "type": "boolean"
+     },
+     "version": {
+      "description": "action:\"install\" — ComfyUI version to install (comfy-cli semantics): \"nightly\" (default-branch HEAD), \"latest\" (newest release tag), or a semantic version like \"0.3.40\" (checked out as tag v0.3.40). Raw git refs/branches are rejected. Omit to track the default branch HEAD. ALSO used by action:\"panel\" + panel_action:\"pin\", where it is the PANEL version to hold at, e.g. '0.11.20' (take it from the installedVersion that panel_action:\"status\" reports).",
+      "type": "string"
+     },
+     "panel_action": {
+      "default": "status",
+      "description": "action:\"panel\" — which sidebar-panel operation to run. status: report installed/version/dev-symlink/pin plus a sync assessment (never errors). sync: bring the panel up to what this orchestrator needs — no-ops when already current, WARNS ONLY when pinned, and reports the version re-read from disk afterwards. install: add the panel (nightly). update: pull the latest nightly. Works on either install shape — a git checkout is fast-forwarded, and a Comfy Registry ZIP install (which has no .git) is replaced with a verified fresh clone, keeping the previous copy outside custom_nodes. Success is always re-read from disk. reinstall: uninstall + reinstall (nightly). pin: hold the panel at a version (requires `version`). unpin: clear the pin so a sync can proceed. unlock: recover from a crashed/killed orchestrator's leftover panel operation lock — reclaims it ONLY when it is provably abandoned (older than the stale threshold AND its recorded owner process is dead), and refuses with the observed state otherwise. install/update/reinstall/sync refuse on a dev symlink or an active pin, and require a local workspace (COMFYUI_PATH or the saved default workspace).",
+      "type": "string",
+      "enum": [
+       "status",
+       "install",
+       "update",
+       "reinstall",
+       "sync",
+       "pin",
+       "unpin",
+       "unlock"
+      ]
+     },
+     "reason": {
+      "description": "action:\"panel\" + panel_action:\"pin\" only: why the user is pinning (stored with the pin).",
+      "type": "string"
+     },
+     "self_update_action": {
+      "default": "status",
+      "description": "action:\"self_update\" — status: report install mode + current vs latest version + dev-link note (never errors). update: update to the latest published version (refuses on a dev link; no-op when already up to date or for npx).",
+      "type": "string",
+      "enum": [
+       "status",
+       "update"
+      ]
+     },
+     "manager_setting": {
+      "description": "action:\"configure_manager\" — REQUIRED. Which ComfyUI-Manager setting to change. HTTP API: set_preview_method, set_db_mode, set_component_policy, set_update_policy, set_channel, reset_queue. config.ini fallback: set_network_mode, set_security_level.",
+      "type": "string",
+      "enum": [
+       "set_preview_method",
+       "set_db_mode",
+       "set_component_policy",
+       "set_update_policy",
+       "set_channel",
+       "reset_queue",
+       "set_network_mode",
+       "set_security_level"
+      ]
+     },
+     "value": {
+      "description": "action:\"configure_manager\" — value for the chosen `manager_setting` (omit only for reset_queue). Allowed values per setting — set_preview_method: auto | latent2rgb | taesd | none; set_db_mode: local | cache | remote; set_component_policy: workflow | higher | mine; set_update_policy: stable-comfyui | nightly-comfyui; set_channel: a channel name (e.g. default); set_network_mode: public | private | offline; set_security_level: strong | normal | normal- | weak. HTTP-API settings take effect live; the config.ini ones (set_network_mode, set_security_level) apply only after a ComfyUI restart.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "action"
+    ]
+   }
+  },
+  {
+   "name": "model_metadata",
+   "description": "Curate a model file's embedded .safetensors metadata (Model Explorer). Driven by the `action` parameter:\n- action:\"read\" — Read a model file's CURRENT embedded metadata + evidence, for curating it. Returns classify (asset_type/base/precision/rank), the current model_card and prompt_director namespaces, read-only modelspec, top training tags (ss_tag_frequency), the Civitai description, and example prompts. Call this FIRST when the user wants to improve/curate a model's embedded .safetensors metadata, so you propose from real data. NOTE: this is the embedded-in-the-tensor metadata (model_card/prompt_director/modelspec/ss_*) — NOT the separate lora_catalog. `category` = ComfyUI model folder ('loras','checkpoints','vae',…); `name` = filename incl. .safetensors — BOTH required for read/propose, e.g. {action:\"read\", category:\"loras\", name:\"my_model.safetensors\"}. DEPENDENCY: the curated read proxies the OPTIONAL 'comfyui-model-explorer' custom node. When that node is absent but the model fil",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "workspace",
+   "description": "Inspect and manage ComfyUI workspaces (local installs). Driven by the `action` parameter:\n- action:\"get\" — Report the active ComfyUI workspace (mirrors `comfy-cli which`): the local installation path being used (from COMFYUI_PATH or auto-detection), the source of that path, any persisted default workspace, and the resolved API target the MCP server talks to.\n- action:\"set_default\" — Persist a default ComfyUI workspace path to the MCP config file (mirrors `comfy-cli set-default`). The value is stored under the OS config dir (e.g. ~/.config/comfyui-mcp/workspace.json) and reported by action:\"get\"/action:\"list\". Does NOT change the live API target. `path` is REQUIRED, e.g. {action:\"set_default\", path:\"/opt/ComfyUI\"}.\n- action:\"list\" — List known/auto-detected ComfyUI installations on this machine. Scans common install locations across macOS, Linux, and Windows and marks which one is active and which is the saved default.",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "list_api_nodes",
+   "description": "Discover and run hosted partner/API nodes on the connected ComfyUI (e.g. Flux/BFL, Ideogram, Kling, Stability). These call external image/video providers and run server-side, requiring a Comfy account/API key configured on the ComfyUI server — they spend PAID api credits, unlike a local-GPU render. Driven by the `action` parameter:\n- action:\"list\" — List the API/partner nodes available on the connected ComfyUI, optionally narrowed by `filter`. Returns an empty list if the server has no API nodes (or they are disabled). Start here to find a class_type.\n- action:\"schema\" — Return the input schema for one API/partner node (`class_type`) from the connected ComfyUI's /object_info. Lists visible inputs (with types/defaults/options), hidden inputs (server-filled auth), and outputs. Use action:\"list\" first to find a class_type.\n- action:\"generate\" — Build a minimal single-node workflow that runs a chosen API/partner node (`class_type`) with the provided `inputs` and enqueue it. Returns immedia",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "node_pack",
+   "description": "Author, edit, test and publish YOUR OWN ComfyUI custom-node pack under the custom_nodes/ directory the running ComfyUI actually scans. LOCAL-ONLY: it acts on the local filesystem and is meaningless for a remote --comfyui-url target. Every file-touching action (list_files, read, search, write, patch, git) is jailed to custom_nodes/ under the directory the running ComfyUI actually scans — the server's own --base-directory when it reports one (on ComfyUI Desktop that is NOT the code install root), else the live main.py checkout on a split install that has no --base-directory (the data workspace is not scanned unless the flag said so), else COMFYUI_PATH, else the saved default workspace, else the running LOCAL server's own install root; the one exception is action:\"publish\", which also accepts an explicit `path` to a pack directory ANYWHERE on this machine and therefore works without COMFYUI_PATH. To INSTALL or update someone else's pack use install_custom_node instead. Driven by the `acti",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "apply_manifest",
+   "description": "Apply a ComfyUI setup manifest from an inline object or .json/.yaml/.yml file. Composes custom-node installs and model downloads, installs pip packages, and reports apt entries as skipped (system packages need manual/root installation). LOCAL ComfyUI: model downloads use the connected server's live/data model roots; pip uses the serving checkout (live main.py root, then COMFYUI_CODE_PATH, then COMFYUI_PATH); filesystem custom-node fallbacks use the live data/base root (live --base-directory, then COMFYUI_PATH). REMOTE ComfyUI: custom_nodes and models are routed through the ComfyUI-Manager HTTP API (handled on the host), while pip and apt entries are reported as skipped (no remote equivalent). Each item reports applied/skipped/failed/pending independently. success is true only when nothing failed AND nothing is still pending. A PARTIAL INSTALL (custom_nodes left unsubmitted when the time budget elapsed) is named in the partial field — a drained Manager queue / panel_node_queue_status do",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "list_packs",
+   "description": "Bundled ComfyUI knowledge — installer packs, model-family skills, workflow templates — plus the two workflow-readiness checks. Driven by the `action` parameter:\n- action:\"list\" — List the bundled installer packs under packs/: one-command setups for a model family (custom nodes + model weights via manifest.yaml) PLUS a ready workflow.json graph. Each entry reports its family/kind, its runtime (these packs are LOCAL-GPU / FREE — they run on the user's own GPU and never spend paid API credits), whether it has a ready workflow + manifest, and the manifest path for install_comfyui apply_manifest. When asked to \"set up / build a <model-family> workflow\", PREFER applying the matching pack and loading its ready workflow (panel_load_workflow pack:<name>) over building a generic graph from scratch. Read the ready graph with action:\"read_workflow\", and inspect its install manifest with action:\"read_manifest\".\n- action:\"read_workflow\" — Return a bundled pack's ready workflow.json graph by pack nam",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "calculate",
+   "description": "Evaluate a batch of math expressions exactly — no ComfyUI connection needed, so it works even in cloud mode or when ComfyUI is down. A safe, zero-dependency expression evaluator (no eval): numbers only, no strings/arrays/property access. Handy for the arithmetic agents get wrong token-by-token.\n\nEach line is one expression. `name = expr` assigns a variable that persists into later lines. Lines are separated by newlines or semicolons ONLY — commas are argument separators (e.g. min(a, b)), never expression separators.\n\nOperators: + - * / // (floor div) % (modulo) ** (power, right-assoc), comparisons < <= > >= == != (return 1/0), unary minus. Constants: pi, e, tau. Functions: abs round min max pow sqrt floor ceil sin cos tan asin acos atan atan2 sinh cosh tanh exp log log10 log2 hypot radians degrees sign trunc clamp(x,lo,hi), plus seeded RNG rand() random() uniform(a,b) randint(a,b) (inclusive). Pass `seed` for reproducible RNG; it is echoed back when omitted.\n\nExamples:\n• SDXL-legal res",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "train_prepare_dataset",
+   "description": "Stage and curate the training DATASETS a LoRA run consumes — the images and their captions. Datasets are keyed by `name`; the jobs that train on them live in the separate `train_start` tool and are keyed by `id`. Driven by the `action` parameter:\n- action:\"prepare\" — Stage training images + captions into a dataset dir the trainer consumes. Each item is an image (absolute `path`, OR a ComfyUI `ref` {filename,subfolder?,type?} resolved against the connected ComfyUI's output/input dirs — how phone/panel pickers hand over selections) with an optional caption (a missing caption falls back to defaultCaption — typically the trigger word). Requires `name` + `items`. Returns the datasetPath to pass to train_start (action:\"start\"). Character LoRA guidance: 10-30 varied images; caption what changes between images, keep the trigger word constant.\n- action:\"list\" — List staged datasets, newest-first, with image/caption counts. Read-only, takes no other parameters. Pair with action:\"detail\" to see o",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "train_start",
+   "description": "Run and inspect LoRA training JOBS — launch a run, poll it, stop it, delete it, and read back the settings behind it. Jobs are keyed by `id`; the datasets they train on live in the separate `train_prepare_dataset` tool and are keyed by `name`. Driven by the `action` parameter:\n- action:\"start\" — Start a LoRA training job: target 'local' builds the config and launches the GPU trainer container (docker run --gpus all); target 'pod' ssh-drives pod-native training on a connected RunPod pod (pod_id, or the connector's currently connected pod). Requires `name` + `datasetPath`. Returns a job id for action:\"status\"/action:\"cancel\". Long-running — returns immediately; poll action:\"status\". On completion the LoRA is delivered per deliverTo (pod/local/both) and cataloged when local. Run train_doctor first if unsure the image/docker/GPU (local) or bootstrap (pod) are ready.\n- action:\"status\" — Check training progress: pass an `id` for one job (step/total, loss, recent samples, log tail, result pat",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "train_doctor",
+   "description": "Preflight and set up the TRAINER ITSELF — the docker/GPU/venv machinery every training job needs. Touches no dataset and no job. Driven by the `action` parameter:\n- action:\"doctor\" — Preflight the local trainer: docker daemon reachable, `--gpus all` GPU passthrough working (NVIDIA Container Toolkit), trainer image built. Read-only, takes no other parameters. Returns per-check booleans + setup hints. Also reports the training data root and whether HF_TOKEN is set (needed to download FLUX.1-dev on first run), the native (dockerless) bootstrap status, and the connected pod. Run this first when a training start fails.\n- action:\"bootstrap\" — Set up the NATIVE (dockerless) trainer on this machine (`target` 'local', the default) or on a pod (`target` 'pod', optional `pod_id`): clone ai-toolkit at the pinned commit, create its venv, install torch + requirements. One-time per machine/pod (~10 min fresh, idempotent; a pod's /workspace persists it across restarts). Needed before a target 'pod' tr",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "apps",
+   "description": "Micro-apps on this ComfyUI (panel Apps feature): named workflows packaged for one-click runs. Driven by the `action` parameter:\n- action:\"list\" — List every registered app. Each entry is the app's manifest: id, name, description, appMode {inputs, outputs}, deps, hideWorkflow, published. No other parameters. Read-only.\n- action:\"get\" — One app's manifest + bundle facts (has_workflow/has_prompt/has_thumbnail) by `app_id`. The manifest's appMode.inputs is the app's run form: each input has nodeId, widget, label, kind (text|number|combo|toggle|image|model), optional choices and default. Read-only.\n- action:\"run\" — Run one app: patches `values` (keys '<nodeId>.<widget>', e.g. {\"6.text\": \"a cat\"}) into the app's stored prompt snapshot and queues it on ComfyUI. Returns the prompt_id — poll action:\"run_status\". Only pass values for inputs listed in appMode.inputs; omitted inputs keep their conversion-time defaults.\n- action:\"run_status\" — Check one run by `app_id` + `prompt_id`: status (pendin",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "batch",
+   "description": "Run MANY ComfyUI workflows under one durable batch_id. Driven by the `action` parameter:\n- action:\"submit\" — Enqueue a batch. Provide EITHER `workflows` (array of API-format workflows) OR one `workflow` plus a `sweep` (array of flat input-override sets — each set produces one job, applied to every node that already has that input, like create_workflow (action:\"modify\")). Reuses the enqueue_workflow path (seeds re-randomized unless disable_random_seed). Returns { batch_id, count, prompt_ids }; the mapping is persisted to disk and stays valid across server restarts.\n- action:\"status\" — Per-job status for `batch_id`: each prompt_id's state (pending/running/done/error/unknown) plus rollup counts and all_terminal. Same status source as queue (action:\"status\").\n- action:\"output\" — Collected outputs for the batch's COMPLETED jobs: for each done prompt_id, the raw ComfyUI history `outputs` (node id → images/videos/audio filenames, same data get_history reports — feed filenames to get_image act",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "kitchen",
+   "description": "See what comfy-kitchen can do on this GPU, find where a graph is leaving it on the table, and apply the faster path. Driven by `action`:\n- action:\"status\" — kitchen version, backends (hip/cuda/triton/eager), INT8 attention, GPU fp8/NVFP4/MXFP8, launch flags (--use-ck-attention, --enable-triton-backend, --fast fp8_matrix_mult). Local gets log + /system_stats + an import probe when COMFYUI_PATH is set; remote gets log + /system_stats only and reports model.quant / the probe as unknown. A failed probe is unknown, never a no.\n- action:\"assess\" — walk the workflow JSON's UNETLoaders and emit a recommendation only when every fact it needs is known: (1) weight_dtype default on a bf16 UNETLoader + GPU fp8 + kitchen present → fp8_e4m3fn_fast (widget, no restart); (2) no --use-sage-attention, sageattention not installed, kitchen INT8 available → --use-ck-attention (restart, confirm); (3) Blackwell + local NVFP4 sibling → model swap; (4) ROCm + triton ≥ 3.7 + kitchen, triton backend off → --enabl",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "list_tools",
+   "description": "List every comfyui-mcp capability as a token-light catalog: tool names with one-line summaries, grouped by category. Start here. Then use describe_tool to get a tool's parameters and call_tool to run it.",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "describe_tool",
+   "description": "Get the full description and JSON Schema of one tool from the catalog. Always call this before the first call_tool of a tool you haven't used in this session.",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  },
+  {
+   "name": "call_tool",
+   "description": "Execute a tool from the catalog by name. Pass its parameters in `args` (object). The result is exactly what the underlying tool returns.",
+   "parameters": {
+    "type": "object",
+    "properties": {}
+   }
+  }
+ ]
+}

@@ -41,7 +41,7 @@
         "label": "ComfyUI address",
         "default": "http://127.0.0.1:8188",
         "where": "local",
-        "tip": "Where ComfyUI is running. On the same computer as Sara it's usually http://127.0.0.1:8188."
+        "tip": "Where ComfyUI is running. On the same computer as Sara it's usually http://127.0.0.1:8188. If Sara runs on a server and ComfyUI on another computer, use that computer's address, e.g. its Tailscale address (http://my-pc:8188)."
       }
     ],
     "secrets": [],
@@ -64,12 +64,21 @@
         "enqueue_workflow",
         "generate_image",
         "upload_image",
+        "save_workflow",
         "install_custom_node",
         "download_model",
         "restart_comfyui",
         "install_comfyui",
         "report_issue",
-        "runpod"
+        "runpod",
+        "runpod_watch",
+        "node_pack",
+        "apply_manifest",
+        "node_snapshot",
+        "bisect",
+        "train_prepare_dataset",
+        "train_start",
+        "train_doctor"
       ]
     },
     "needs": [
@@ -78,11 +87,13 @@
     ],
     "guide": [
       "Start ComfyUI.",
-      "Add this tool server, then press Test."
+      "Add this tool server, then press Test.",
+      "If Sara runs on a server and ComfyUI on another computer, put that computer's address (e.g. its Tailscale address) in ComfyUI address. Tools that install, download, restart or write files act on the computer where Sara runs, not where ComfyUI runs."
     ]
   },
   "changes": [
-    "First listing."
+    "First listing.",
+    "Explains a ComfyUI on another computer; tools that install, download, restart, train or write files ask first."
   ],
   "tested": [
     {

@@ -22,7 +22,7 @@ export const SETTINGS_KEYWORDS = {
   'her-companions': ['companion packs', 'pack', 'packs', 'share her', 'character card', 'charx', 'tavern', 'store companions'],
   'her-import': ['character card', 'import her', 'bring her'],
   'you-about': ['use path', 'company or coding', 'language', 'time zone'],
-  'you-appearance': ['appearance', 'theme', 'palette', 'dark mode', 'light mode', 'night', 'day', 'colour', 'color', 'accent', 'high contrast', 'classic', 'compact', 'density', 'font size', 'portrait', 'decoration'],
+  'you-appearance': ['appearance', 'theme', 'palette', 'dark mode', 'light mode', 'night', 'day', 'colour', 'color', 'accent', 'high contrast', 'classic', 'compact', 'density', 'font size', 'portrait', 'decoration', 'glass', 'glow', 'blur', 'text size', 'sessions shown', 'reset look', 'look and feel'],
   'ab-when': ['when it comes up', 'mention', 'mentions', 'person comes up', 'remind me when'],
   'models-default': ['connect model', 'connect an ai model', 'compact', 'tidy long chats', 'long conversations', 'summary', 'context'],
   'co-telegram': ['botfather', 'bot token', 'chat app', 'chat apps', 'progress message', 'voice notes'],
@@ -33,7 +33,9 @@ export const SETTINGS_KEYWORDS = {
   'co-matrix': ['element', 'homeserver', 'tailscale', 'funnel', 'chat app', 'chat apps'],
   'co-imessage': ['bluebubbles', 'apple', 'imessages', 'chat app', 'chat apps', 'mac'],
   'co-pickup': ['continue', 'pick up', 'pickup', 'other app', 'carry on', 'switch apps'],
-  'ab-store': ['store', 'sara store', 'shop', 'get more', 'add-ons', 'addons', 'takedown', 'pulled', 'submit yours', 'my add-ons', 'tool servers', 'marketplace'],
+  'ab-store': ['store', 'sara store', 'add-on store', 'addon store', 'shop', 'get more', 'add-ons', 'addons', 'takedown', 'pulled', 'submit yours', 'my add-ons', 'tool servers', 'marketplace'],
+  'ab-library': ['documents', 'document', 'pdf', 'files she knows', 'knowledge'],
+  'ab-projects': ['projects', 'project', 'workspace', 'workspaces', 'repository'],
   'ab-skills': ['recipes', 'skill', 'skills', 'learned skills'],
   'ab-plugins': ['plugin', 'plugins', 'sdk', 'comes with sara'],
   'ab-mcp': ['mcp', 'tool server', 'tool servers', 'model context protocol'],
@@ -46,7 +48,7 @@ export const SETTINGS_KEYWORDS = {
   'dh-privacy': ['privacy', 'store data', 'what leaves'],
   'dh-reports': ['report', 'bug', 'idea', 'takedown', 'report an add-on'],
   'co-phone': ['notifications', 'push', 'phone app', 'android', 'iphone', 'talk tile'],
-  'desktop-app': ['windows app', 'desktop app', 'tray', 'shortcut'],
+  'desktop-app': ['windows app', 'desktop app', 'mac app', 'tray', 'shortcut'],
 };
 
 /**

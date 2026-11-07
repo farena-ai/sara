@@ -22,7 +22,7 @@
 
 **Update:** on a Linux server `sudo sara update` (backs up first, rolls back if she doesn't answer) · Docker: `sudo git pull && sudo docker compose up -d --build` · Windows and Mac apps: Settings → Data & health → Updates · Android: Google Play. [Upgrading](docs/INSTALL.md#upgrading).
 
-> **Status:** 2.78.0, [Finished pro look, more developer add-ons](https://github.com/farena-ai/sara/releases/tag/v2.78.0). Name, time and duration on each turn, a model · workspace header, Projects in the sidebar, real tables; plus Documentation Doctor, Release Readiness and Repository Onboarding. [See what changed](#whats-new)
+> **Status:** 2.79.0, [Advanced look, pictures like a person](https://github.com/farena-ai/sara/releases/tag/v2.79.0). A Settings home with every page one click away, a Ctrl K launcher, a refined glass look; Always allow for tool servers; she can send a picture on her own. [See what changed](#whats-new)
 >
 > Windows installer: unsigned ([SmartScreen guidance](docs/INSTALL.md)). The macOS release process requires signed and notarized downloads; each build is qualified separately. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [home-screen web app](docs/PHONE.md).
 
@@ -129,20 +129,21 @@ Recent releases · 6 November 2026. [Full changelog](CHANGELOG.md) · [All downl
 
 | Release | What changed for you |
 |---|---|
+| **[2.79.0](https://github.com/farena-ai/sara/releases/tag/v2.79.0)** | **[Advanced look, pictures like a person](docs/PHOTOS.md)** — An All settings home with every page one click away, breadcrumbs, a Ctrl K launcher, a refined glass-and-light look and a richer Appearance page. *Always allow this tool* on approval cards and one approvals choice per tool server; her photos from Grok, OpenAI, your ComfyUI workflow or another image tool, and an opt-in picture on her own now and then. Tool-server pictures reach the chat, and she no longer claims a send that never happened. |
 | **[2.78.0](https://github.com/farena-ai/sara/releases/tag/v2.78.0)** | **[Finished pro look, more developer add-ons](docs/APPEARANCE.md)** — The professional look is complete: name, time and duration on every turn, one model · workspace chip with a context meter, Settings as a full-height sheet, Projects in the sidebar, real tables for usage and runs. Documentation Doctor, Release Readiness and Repository Onboarding run documented commands as jobs you approve in a disposable copy; stopped jobs now end at once on Windows. |
 | **[2.77.0](https://github.com/farena-ai/sara/releases/tag/v2.77.0)** | **[A professional new look](docs/APPEARANCE.md)** — A calm, dense, precise look (Settings → You → Appearance): 9 palettes in Night and Day, an accent colour of your own, compact spacing and Reduce decoration; Sara Classic keeps today's look. Also: feeds in Read together, Test Doctor and Flaky Test Lab, 2 local developer connections, and late plugin approvals can no longer run anything. |
 | **[2.76.0](https://github.com/farena-ai/sara/releases/tag/v2.76.0)** | **[Developer add-ons](docs/ADDONS_LIBRARY.md)** — Nineteen developer add-ons join the twelve workflows in Settings → Plugins (secret scanner, accessibility auditor, SBOM builder, API contract guard, HTTP and webhook workbench and more); each is reviewed by you and installs Off. Watch alerts can also go to your own Telegram or Discord chat (off by default). |
 | **[2.75.0](https://github.com/farena-ai/sara/releases/tag/v2.75.0)** | **[Calls work like the chat](docs/VIDEO_CALLS.md#what-she-knows-and-can-do-on-a-call)** — On a voice or video call she has the same memories, other-chat context and Adult-mode rule as typing, and live calls can use her tools (not commands, her hands or SSH). Anything that needs your OK shows a card on the call screen that only a tap answers; hanging up or talking over her cancels it. |
 | **[2.74.0](https://github.com/farena-ai/sara/releases/tag/v2.74.0)** | **[Read together](docs/LIBRARY.md#read-together)** — Open a text or Markdown document from your library, press Share this passage (or turn on Follow my place) and she comments on exactly that text at that version; if it changed she says so. Stop ends it at once. Also: suggestion cards now show when a press is being handled. |
-| **[2.73.0](https://github.com/farena-ai/sara/releases/tag/v2.73.0)** | **[Watch a file](docs/WATCHES.md)** — Pick a log or file in one of your workspaces (or her own log) and a few words like ERROR; Sara sends a chat card and notification when a new matching line appears, at most 12 a day. Check now, Pause and Stop; reading uses no model and she never fixes anything by herself. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Earlier 2.6x releases</b>: 2.72.0 back to 2.61.5</summary>
+<summary><b>Earlier 2.6x releases</b>: 2.73.0 back to 2.61.5</summary>
 
 | Release | What changed for you |
 |---|---|
+| **[2.73.0](https://github.com/farena-ai/sara/releases/tag/v2.73.0)** | **[Watch a file](docs/WATCHES.md)** — Pick a log or file in one of your workspaces (or her own log) and a few words like ERROR; Sara sends a chat card and notification when a new matching line appears, at most 12 a day. Check now, Pause and Stop; reading uses no model and she never fixes anything by herself. |
 | **[2.72.0](https://github.com/farena-ai/sara/releases/tag/v2.72.0)** | **[Honest visual checks](docs/FOR_CODERS.md#web-pages-look-fix-look-again)** — In web work Sara edits, previews, takes desktop and phone screenshots, fixes what looks wrong and checks again. A phone-width claim needs a phone-width screenshot, and "it's fixed" needs a check after her last edit; otherwise the reply is marked unverified. |
 | **[2.71.0](https://github.com/farena-ai/sara/releases/tag/v2.71.0)** | **[Project continuity](docs/FOR_CODERS.md#project-now-other-chats-and-current-checks)** — Your coding chats on the same project see what the others are doing (titles and files, never message text), and every check, goal and checkpoint result says current, stale or basis unknown. Sara re-runs a stale check before saying it passes. |
 | **[2.70.0](https://github.com/farena-ai/sara/releases/tag/v2.70.0)** | **[Shared roleplay scenes](docs/SCENES.md)** — One story across your own web, Telegram and Discord chats plus one shared room, with versioned canon facts you add, edit or retire. Guests keep every partner rule; their words count only when you pick Add to scene. Deleting or forgetting a line erases what came from it; the safety checks apply to every scene. |

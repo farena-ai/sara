@@ -57,6 +57,8 @@ export interface Settings {
   usePath?: UsePath;
   /** Per-tool permission overrides (tool name → auto/ask/never). */
   toolPermissions?: Record<string, Permission>;
+  /** E7 (A2): one choice per tool server (Ask me first / safe ones / everything / Never). */
+  mcpPolicy?: Record<string, import('./tool-policy.ts').ServerPolicy>;
   /** Allow shell commands network access inside the sandbox. Default true. */
   shellNetwork?: boolean;
   /** Web search backend (key, if any, is in the vault under search:<provider>). */

@@ -5,6 +5,48 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.79.0 (2026-11-07): an advanced look and pictures like a person
+
+- **Easier to find everything (V3, `docs/ops/V3_DESIGN.md`):** the sidebar starts with *Go to* (Today,
+  Planner, Library, a new *Add-ons* place for the store, Moments, More), then Projects, then the
+  conversations, with Help and Settings in a footer row and a Ctrl K hint by the search box. Settings
+  opens on *All settings*: every page under its group with a line on what the group is for, one click
+  away, and *Settings › group › page* above each page. Search knows more words for pages ("store",
+  "projects", "documents", "glass"…). Ctrl+K also finds projects and has *All settings*, *Appearance*,
+  *Find a setting* and *Reset the look to the defaults*.
+- **A more advanced look:** *Full* decoration outside Sara Classic is now a refined layer: soft glass on
+  the sidebar, header and windows only, a faint glow on the main button, a thin accent ring around her
+  face instead of the halo and sparkles, and a very slow, faint light behind the app; solid where blur
+  can't be drawn, with Reduce transparency, in forced colours and in High contrast. Text on every glass
+  surface stays at WCAG AA (tested).
+- **Appearance page:** three groups (Theme, Layout and text, Chat behaviour), palette cards and colour
+  swatches as the controls, short choices as segmented buttons, a live preview and *Reset to defaults*.
+- **New defaults (the owner's):** Follow the system, Blue, Full decoration and 5 sessions shown, for
+  every choice not made yet on a device (Graphite, small picture, Comfortable, Normal text and replies
+  as fast as they arrive stay). Choices you made stay; Sara Classic keeps its earlier defaults.
+- **Fixed: "can you see ComfyUI?" ended with a false answer (B2).** When only part of a big tool
+  server fits, read-only and status tools come first (installers, downloads, restarts and
+  report_issue last), so she gets ComfyUI's health check. A tool error that lists allowed values now
+  names the field's values and tells her nothing ran and to try again or use find_tools. After a tool
+  error she no longer guesses a cause or asks you to install something before checking; a reply that
+  says something isn't installed or running after only failed calls, or that she sent a picture or
+  file when nothing was attached, is marked as not checked.
+- **Fixed: pictures from tool servers were dropped.** An image a tool server returns (ComfyUI's
+  get_image) is attached to her reply like her photos (PNG, JPEG, WebP or GIF, up to 8 MB, 4 a call);
+  otherwise the result says why not.
+- **Fixed: the edit form of a Store tool server looked empty.** Settings → Other programs shows its
+  saved settings (secrets as Saved, with Replace), keeps vault values you don't change and keeps the
+  Store's type. An address that answers like a web page says so in plain words. The ComfyUI recipe
+  explains a ComfyUI on another computer (e.g. its Tailscale address), that installing tools act on
+  the computer where Sara runs, and asks before installing, training, snapshot and file-writing tools.
+- **Pictures like a person (E7):** she can send a picture on her own now and then (off by default;
+  rarely, sometimes or often, never more than one a day, inside her own-message rules and a monthly
+  limit), made with the engine you pick: Grok Imagine, OpenAI images, a ComfyUI workflow (paste it in
+  API format, pick the prompt node) or another image tool. **Send one now** tests it.
+- **Always allow:** an approval card can allow a tool for good (with Undo), and each tool server has
+  one choice: Ask me first, Always allow the safe ones, Always allow everything, or Never.
+  Installing, downloading, restarting, removing and training keep asking. Guide: docs/PHOTOS.md.
+
 ## 2.78.0 (2026-11-07): a finished professional look and five run-and-check add-ons
 
 - **More developer add-ons that really run things, as local candidates:** Documentation Doctor (N24)

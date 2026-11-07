@@ -99,6 +99,7 @@ import { gmailTodayHook, todayChanged } from './today.ts';
 import { LeaveByWorker } from './leaveby.ts';
 import { ReviewWorker } from './review.ts';
 import { createPhotoTools, DEFAULT_IMAGE_MODEL, photoSettings, xaiImageKey } from './photos.ts';
+import { policyResolver } from './tool-policy.ts';
 import { LookBuilder, PLACES } from './look.ts';
 import { createWardrobeTool, WardrobeWorker } from './wardrobe.ts';
 import { createSharedListTool, TogetherStore } from './together.ts';
@@ -756,6 +757,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   const settingsC = main ? space.settings : new CompanionSettings(dir, space.settings);
   const tools = isMember ? new ToolRegistry([]) : main ? mainTools : new LinkedToolRegistry(mainTools);
   if (!isMember) tools.add(createWebSearchTool(() => searchConfig(settingsC, vault)));
+  // E7 (A2): a tool server's remembered choice covers its tools that have no setting of their own.
+  if (!isMember) tools.policyFor = policyResolver(() => settingsC.get(), mcp);
   const store = new Store(join(dir, 'sara.db'));
   // Phase 116 (BR2 §5.3): messages that waited when Sara stopped become 'stale': shown, never run by themselves.
   const pending = new PendingInputs(store.db);
@@ -807,6 +810,14 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       return { wear: meta.wear, place: meta.place ? (PLACES[meta.place]?.prompt ?? meta.place) : undefined, style: meta.style };
     },
     faceRef: () => app.look?.faceRef(),
+    // E7 (B1): other picture engines (OpenAI images with the OpenAI provider's key; ComfyUI and image tools).
+    engines: {
+      tools: { get: (n) => tools.get(n), permission: (n) => tools.permission(n, settingsC.get().toolPermissions) },
+      openaiKey: () => {
+        const p = settingsC.get().providers.find((x) => /api\.openai\.com/.test(x.baseUrl) && x.kind === 'openai-compatible');
+        return p ? spaceVault.get(vaultKeyFor(p.id)) : undefined;
+      },
+    },
     customPortrait: () => {
       // Phase 36: her current look (the outfit she's wearing now), then an uploaded picture.
       const lookFile = app.look?.fileFor('sara-portrait.jpg');

@@ -98,6 +98,57 @@ const which = (cmd: string, pathVar: string | undefined, platform: NodeJS.Platfo
   return (pathVar ?? '').split(platform === 'win32' ? ';' : delimiter).filter(Boolean).some((d) => exts.some((e) => existsSync(join(d, cmd + e))));
 };
 
+/** The server's config from a recipe and the owner's values (templates filled, ${home} its own folder). */
+export function recipeConfig(dataDir: string, recipe: McpRecipe, name: string, values: Record<string, string>): McpServerConfig {
+  const home = join(dataDir, 'mcp', name);
+  const fill = (s: string) => s.replace(/\$\{setting:([^}]+)\}/g, (_m, k: string) => values[k] ?? '').replace(/\$\{home\}/g, home);
+  // An optional field left empty drops an argument that was only that field.
+  const args = (recipe.args ?? []).flatMap((a) => (/^\$\{setting:[^}]+\}$/.test(a) && !fill(a) ? [] : [fill(a)]));
+  const raw = recipe.transport === 'stdio' ? { transport: 'stdio', command: recipe.command, args } : { transport: 'http', url: fill(recipe.url ?? '') };
+  return validateMcpConfig(raw as Record<string, unknown>, name);
+}
+
+/**
+ * B2: Settings → Other programs edits a Store-installed server through its recipe's fields. A field
+ * left empty keeps what the vault has (or the default); secrets are only replaced, never shown.
+ */
+export function recipeEdit(dataDir: string, recipe: McpRecipe, name: string, cur: { env?: Record<string, string>; headers?: Record<string, string> }, fields: Record<string, unknown>): { cfg: McpServerConfig; env: Record<string, string>; headers: Record<string, string> } {
+  const secretKeys = new Set([...recipe.secrets, ...recipe.fields.filter((x) => x.kind === 'secret')].map((f) => f.key));
+  const given = (k: string) => String(fields[k] ?? '').trim();
+  const env: Record<string, string> = {};
+  const headers: Record<string, string> = {};
+  const values: Record<string, string> = {};
+  for (const f of recipe.fields) {
+    if (secretKeys.has(f.key)) continue;
+    const v = given(f.key) || cur.env?.[f.key] || f.default || '';
+    if (!v) {
+      if (!f.optional) throw new InstallError(400, 'field', `${f.label}: fill this in.`);
+      continue;
+    }
+    if (f.kind === 'url') {
+      try {
+        const u = new URL(v);
+        if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('');
+      } catch {
+        throw new InstallError(400, 'field', `${f.label}: that isn't a web address.`);
+      }
+    }
+    if (f.kind === 'number' && !Number.isFinite(Number(v))) throw new InstallError(400, 'field', `${f.label}: a number, please.`);
+    if (f.kind === 'choice' && f.choices && !f.choices.includes(v)) throw new InstallError(400, 'field', `${f.label}: pick one of the choices.`);
+    values[f.key] = v.slice(0, 2000);
+    if (given(f.key) && recipe.transport === 'stdio') env[f.key] = values[f.key];
+  }
+  for (const f of [...recipe.secrets, ...recipe.fields.filter((x) => x.kind === 'secret')]) {
+    const v = given(f.key).slice(0, 4000);
+    if (!v) continue;
+    if (recipe.transport === 'stdio') env[f.key] = v;
+    else headers[f.header ?? f.key] = `${f.prefix ?? ''}${v}`;
+    values[f.key] = v;
+  }
+  const cfg = recipeConfig(dataDir, recipe, name, { ...(cur.env ?? {}), ...values });
+  return { cfg, env, headers };
+}
+
 export class StoreInstaller {
   readonly d: InstallerDeps;
   constructor(d: InstallerDeps) {
@@ -242,12 +293,7 @@ export class StoreInstaller {
 
   /** The server's config from a recipe and the owner's values (templates filled, ${home} its own folder). */
   configFrom(recipe: McpRecipe, name: string, values: Record<string, string>): McpServerConfig {
-    const home = join(this.d.app.dataDir, 'mcp', name);
-    const fill = (s: string) => s.replace(/\$\{setting:([^}]+)\}/g, (_m, k: string) => values[k] ?? '').replace(/\$\{home\}/g, home);
-    // An optional field left empty drops an argument that was only that field.
-    const args = (recipe.args ?? []).flatMap((a) => (/^\$\{setting:[^}]+\}$/.test(a) && !fill(a) ? [] : [fill(a)]));
-    const raw = recipe.transport === 'stdio' ? { transport: 'stdio', command: recipe.command, args } : { transport: 'http', url: fill(recipe.url ?? '') };
-    return validateMcpConfig(raw as Record<string, unknown>, name);
+    return recipeConfig(this.d.app.dataDir, recipe, name, values);
   }
 
   #checkValues(recipe: McpRecipe, values: Record<string, unknown>, secrets: Record<string, unknown>, keepSecrets: string[]): { values: Record<string, string>; secrets: Record<string, string> } {

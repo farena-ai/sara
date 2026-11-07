@@ -39,6 +39,7 @@
   <link rel="stylesheet" href="/begin.css">
   <link rel="stylesheet" href="/refs.css">
   <link rel="stylesheet" href="/recall.css">
+  <link rel="stylesheet" href="/v3.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -176,11 +177,12 @@
         <button id="new-offrecord" type="button" class="ghost small" title="A conversation that is never saved: no memory, not in backups, gone when you close it"><i class="ic" data-icon="offrecord"></i>Off the record</button>
         <button id="new-group" type="button" class="ghost small" title="A group chat with two to four of your companions" hidden><i class="ic" data-icon="group"></i>Group</button>
       </div>
-      <div class="side-search"><input id="conv-search" type="search" placeholder="Search everything" autocomplete="off" aria-label="Search conversations, memories, notes, to-dos and files"></div>
+      <div class="side-search"><input id="conv-search" type="search" placeholder="Search everything" autocomplete="off" aria-label="Search conversations, memories, notes, to-dos and files"><button id="side-cmd" type="button" class="side-cmd" title="Jump to any page, setting, chat or project (Ctrl+K)" aria-label="Jump to anything"><kbd>Ctrl K</kbd></button></div>
       <div id="tag-filter" class="tag-filter" hidden></div>
       <nav id="conversations"></nav>
       <!-- Sidebar navigation: pinned places, the rest under More (web/nav.js), her and Settings/Help below -->
       <nav id="side-nav" class="side-nav" aria-label="Sara">
+        <h3 id="side-go-h" class="side-sec-h side-go-h">Go to</h3>
         <div id="side-pinned" class="side-pinned"></div>
         <button id="side-more" type="button" class="side-more" aria-haspopup="true" aria-expanded="false" aria-controls="side-more-menu" title="More places: memory, scrapbook, your story…"><i class="ic" data-icon="more"></i><span>More</span><i id="more-dot" class="side-dot" hidden></i><i class="ic side-chev" data-icon="chevron-right"></i></button>
         <div id="side-more-menu" class="side-more-menu" role="group" aria-label="More places" hidden>
@@ -196,6 +198,7 @@
           <div class="side-dest" data-dest="team" data-owner-only><button class="side-go" id="open-team" type="button" data-owner-only title="Team: helpers she leads on bigger jobs"><i class="ic" data-icon="team"></i><span>Team</span><i id="team-dot" class="side-dot" hidden></i></button></div>
           <div class="side-dest" data-dest="findings" data-owner-only><button class="side-go" id="open-findings" type="button" data-owner-only title="Findings: what her security pass found in your code, and fixes on their own branch"><i class="ic" data-icon="shield"></i><span>Findings</span></button></div>
           <div class="side-dest" data-dest="evals" data-owner-only><button class="side-go" id="open-evals" type="button" data-owner-only title="Evals: try other settings on your own past tasks and see which does better"><i class="ic" data-icon="flask"></i><span>Evals</span></button></div>
+          <div class="side-dest" data-dest="addons" data-owner-only><button class="side-go" id="open-addons" type="button" data-owner-only title="Add-ons: the store, skills, plugins and tools"><i class="ic" data-icon="puzzle"></i><span>Add-ons</span></button></div>
           </div>
           <p id="side-more-empty" class="muted small side-more-note" hidden>Everything is pinned to your sidebar.</p>
           <p class="muted small side-more-note">Use the pin to keep a place in your sidebar. Pins are saved on this device.</p>
@@ -1967,11 +1970,13 @@
         <header class="settings-page-head">
           <button id="settings-back" type="button" class="ghost small" aria-label="All settings">‹ All settings</button>
           <button id="settings-results-back" type="button" class="ghost small" hidden>Back to results</button>
+          <nav id="settings-crumbs" class="settings-crumbs" aria-label="Breadcrumb"></nav>
           <h2 id="settings-page-title" tabindex="-1"></h2>
         </header>
         <p id="settings-page-desc" class="settings-page-desc" hidden><span id="settings-help-text"></span> <a id="settings-help-link" href="/help" target="_blank" rel="noopener">Read the guide ↗</a></p>
         <div id="settings-howto" class="settings-howto"></div>
         <div class="settings-pages settings-body">
+        <section id="settings-home" class="settings-home" aria-labelledby="settings-page-title" hidden></section>
         <div id="settings-results" class="settings-results" aria-live="polite" hidden></div>
         <div id="settings-elsewhere" class="settings-elsewhere" aria-live="polite" hidden></div>
         <section class="settings-page" data-page="her-character" data-group="Her" data-title="Name and personality" hidden>
@@ -2451,7 +2456,7 @@
       <p id="cl-note" class="muted small">Android: switch on Instant notifications (Connections → Phone and notifications) so the phone can ring. iPhone: rings while the app is open; otherwise a “Sara is calling” notification (needs your Apple push key, Settings → Phone and notifications).</p>
         </section>
         <section class="settings-page" data-page="her-pictures" data-group="Her" data-title="Pictures from her" hidden>
-      <p class="muted small page-lead">Sara can send you photos of herself. Her own portraits cost nothing. New pictures are made with xAI Grok Imagine from her look, using your Grok subscription (or an xAI API key); she asks first unless you change <em>take_photo</em> above.</p>
+      <p class="muted small page-lead">Sara can send you photos of herself. Her own portraits cost nothing. New pictures are made with the picture engine you pick here; in a chat she asks first unless you change “Take a new photo” in Tools.</p>
       <label>Pictures
         <select id="ph-mode">
           <option value="off">Off</option>
@@ -2460,9 +2465,39 @@
         </select>
       </label>
       <div id="ph-new" hidden>
+        <label>Picture engine <button type="button" class="tip" data-tip="What makes her new pictures. Grok edits her own portrait, so her face stays the same. The others draw her from her description each time, so her face can vary a little.">?</button>
+          <select id="ph-engine">
+            <option value="grok">Grok Imagine (keeps her face)</option>
+            <option value="openai">OpenAI images</option>
+            <option value="comfyui">A ComfyUI workflow</option>
+            <option value="tool">Another image tool</option>
+          </select></label>
+        <div id="ph-grok">
         <label>xAI API key (optional) <input id="ph-key" type="password" autocomplete="off"></label>
         <label>Image model <input id="ph-model" placeholder="grok-imagine-image-quality"></label>
+        </div>
         <p id="ph-status" class="muted small"></p>
+        <div id="ph-comfy" hidden>
+          <label>ComfyUI tool server <button type="button" class="tip" data-tip="The connected ComfyUI tool server (Settings → Add-ons → Other programs (MCP)). Her pictures come back through it.">?</button> <select id="ph-comfy-server"></select></label>
+          <label>Workflow (API format) <button type="button" class="tip" data-tip="In ComfyUI open your workflow, then Workflow → Export (API) and paste the file here. Sara keeps a copy; leave it empty to keep the one saved.">?</button> <textarea id="ph-comfy-wf" rows="4" spellcheck="false"></textarea></label>
+          <label>Node that takes the prompt <button type="button" class="tip" data-tip="The text box her description goes into, usually the positive CLIP Text Encode. Her name, look, clothes and the scene are written there each time.">?</button> <select id="ph-comfy-node"></select></label>
+          <label class="row"><input id="ph-comfy-seed" type="checkbox"> New random seed each time <button type="button" class="tip" data-tip="On: every seed in the workflow is new for each picture, so no two pictures are the same. Off: the seeds stay as saved.">?</button></label>
+        </div>
+        <div id="ph-tool" hidden>
+          <label>Image tool <button type="button" class="tip" data-tip="Any connected tool that returns a picture. It must send the picture back to Sara, not only save it somewhere.">?</button> <select id="ph-tool-name"></select></label>
+          <label>Its prompt setting <button type="button" class="tip" data-tip="The name of the tool's setting that takes the description, as the tool lists it (often prompt).">?</button> <input id="ph-tool-arg"></label>
+        </div>
+        <h4>Pictures on her own</h4>
+        <label class="row"><input id="ph-own-on" type="checkbox"> She sends pictures on her own <button type="button" class="tip" data-tip="Now and then she sends you a picture of what she's doing, with one line, like a person would. Only in your own chat here, never at quiet hours, and it counts as one of her own messages for the day.">?</button></label>
+        <label>How often <button type="button" class="tip" data-tip="Never more than one a day. She skips it when you haven't written for a week or didn't answer her last message of her own.">?</button>
+          <select id="ph-own-often">
+            <option value="rarely">Rarely (about once a week)</option>
+            <option value="sometimes">Sometimes (2 or 3 a week)</option>
+            <option value="often">Often (about once a day)</option>
+          </select></label>
+        <label>Monthly limit <button type="button" class="tip" data-tip="At most this many pictures on her own in a month, also with Send one now. 0 stops them.">?</button> <input id="ph-own-cap" type="number" min="0" max="31" step="1"></label>
+        <p id="ph-own-cost" class="muted small"></p>
+        <p class="small"><button id="ph-own-test" type="button" data-noauto>Send one now</button> <span id="ph-own-status" class="muted small" role="status"></span></p>
       </div>
       <div id="ph-taken" class="ph-taken"></div>
         </section>
@@ -2699,43 +2734,74 @@
         <!-- V1 (docs/ops/V1_DESIGN.md): Appearance is its own page; every choice is kept on this device. -->
         <section class="settings-page" data-page="you-appearance" data-group="You" data-title="Appearance" hidden>
       <p class="muted small">How Sara looks on this device. Each device keeps its own choice.</p>
-      <div class="ap-pals" id="ap-pals" role="radiogroup" aria-label="Palette"></div>
+      <!-- V3 (docs/ops/V3_DESIGN.md §4): three groups and a live preview; the same ids and lists underneath. -->
+      <div class="ap-layout">
+      <div class="ap-main">
+      <div class="ap-group" role="group" aria-labelledby="ap-g-theme">
+        <div class="ap-group-h"><h3 id="ap-g-theme">Theme</h3><button id="ap-reset" type="button" class="ghost small">Reset to defaults</button></div>
       <div class="row-grid">
+        <div class="ap-pal-row">
         <label>Palette
           <select id="ap-palette"><option value="graphite">Graphite (default)</option><option value="midnight">Midnight</option><option value="slate">Slate</option><option value="nord">Nord</option><option value="solarized">Solarized</option><option value="paper">Paper</option><option value="ember">Ember</option><option value="contrast">High contrast</option><option value="classic">Sara Classic</option></select>
         </label>
+          <div class="ap-pals" id="ap-pals" role="radiogroup" aria-label="Palette"></div>
+        </div>
         <label>Night or Day
-          <select id="ap-theme"><option value="dark">Night (default)</option><option value="light">Day</option><option value="system">Follow the system</option></select>
+          <select id="ap-theme"><option value="dark">Night</option><option value="light">Day</option><option value="system">Follow the system (default)</option></select>
         </label>
+        <div class="ap-colour-row">
         <label>Colour
-          <select id="ap-accent"><option value="rose">Theme colour (default)</option><option value="blue">Blue</option><option value="cyan">Cyan</option><option value="green">Green</option><option value="amber">Amber</option><option value="red">Red</option><option value="pink">Rose</option><option value="violet">Violet</option><option value="grey">Grey</option><option value="custom">Custom</option></select>
+          <select id="ap-accent"><option value="rose">Theme colour</option><option value="blue">Blue (default)</option><option value="cyan">Cyan</option><option value="green">Green</option><option value="amber">Amber</option><option value="red">Red</option><option value="pink">Rose</option><option value="violet">Violet</option><option value="grey">Grey</option><option value="custom">Custom</option></select>
         </label>
+          <div class="ap-swatches" id="ap-swatches" aria-hidden="true"></div>
+        </div>
         <label id="ap-custom-row" class="ap-custom-row" hidden>Your colour
           <span class="ap-custom-pick"><input id="ap-accent-custom" type="color" value="#3b82f6"><input id="ap-accent-hex" maxlength="7" spellcheck="false" autocomplete="off" placeholder="#3b82f6"></span>
         </label>
         <label>Decoration
-          <select id="ap-decor"><option value="off">Reduced: flat, no glow or blur</option><option value="on">Full: glow, glass and moving light</option></select>
+          <select id="ap-decor"><option value="off">Reduced: flat, no glow or blur</option><option value="on">Full: glow, glass and moving light (default)</option></select>
         </label>
-        <label>Her picture in work views
-          <select id="ap-portrait"><option value="small">Small (default)</option><option value="large">Large</option><option value="hidden">Hidden</option></select>
-        </label>
+      </div>
+      </div>
+      <div class="ap-group" role="group" aria-labelledby="ap-g-layout">
+        <div class="ap-group-h"><h3 id="ap-g-layout">Layout and text</h3></div>
+      <div class="row-grid">
         <label>Layout
           <select id="ap-density"><option value="comfy">Comfortable</option><option value="compact">Compact (more on screen)</option></select>
         </label>
         <label>Text size in chat
           <select id="ap-size"><option value="14">Small</option><option value="15">Normal</option><option value="17">Large</option><option value="19">Larger</option></select>
         </label>
+        <label>Her picture in work views
+          <select id="ap-portrait"><option value="small">Small (default)</option><option value="large">Large</option><option value="hidden">Hidden</option></select>
+        </label>
+      </div>
+      </div>
+      <div class="ap-group" role="group" aria-labelledby="ap-g-chat">
+        <div class="ap-group-h"><h3 id="ap-g-chat">Chat behaviour</h3></div>
+      <div class="row-grid">
         <label>Her replies appear
           <select id="ap-typing"><option value="instant">As fast as they arrive</option><option value="human">Typed, like a person</option></select>
+        </label>
+        <label>Sessions shown
+          <select id="ap-sessions"><option value="5">5 (the default)</option><option value="8" data-raw>8</option><option value="10" data-raw>10</option></select>
         </label>
         <label class="ap-classic-only">Chat background
           <select id="ap-chatbg"><option value="none">Plain</option><option value="glow">Soft glow</option><option value="dusk">Dusk</option><option value="dots">Dots</option><option value="stars">Night sky</option></select>
         </label>
-        <label>Sessions shown
-          <select id="ap-sessions"><option value="5" data-raw>5</option><option value="8">8 (the default)</option><option value="10" data-raw>10</option></select>
-        </label>
       </div>
-      <div class="ap-swatches" id="ap-swatches" aria-hidden="true"></div>
+      </div>
+      </div>
+      <aside id="ap-preview" class="ap-preview" aria-label="Preview">
+        <p class="ap-preview-h">Preview</p>
+        <div class="ap-pv-box">
+          <div class="ap-pv-turn"><img class="avatar ap-pv-face" src="/sara-avatar.jpg" alt=""><span class="ap-pv-name">Sara</span> <span class="ap-pv-meta">now · 2 s</span></div>
+          <p class="ap-pv-text">Here is the plan for today. The build passed, so we can ship the alerts fix.</p>
+          <div class="ap-pv-card"><span class="ap-pv-dot"></span><span><strong>Build passed</strong> <span class="ap-pv-meta">142 tests · 38 s</span></span></div>
+          <div class="ap-pv-actions"><span class="ap-pv-btn ap-pv-primary">Ship it</span><span class="ap-pv-btn">Later</span><span class="ap-pv-chip" data-raw>fast-model · main</span></div>
+        </div>
+      </aside>
+      </div>
       <p class="small ap-sync-row"><button id="ap-sync" type="button" class="ghost">Use on all my devices</button> <span id="ap-sync-state" class="muted small" role="status"></span></p>
         </section>
         <section class="settings-page" data-page="you-briefing" data-group="You" data-title="Morning briefing" hidden>
@@ -3297,10 +3363,11 @@
       <div id="mcp-list"></div>
       <details id="mcp-add" data-noauto>
         <summary>Add or update an MCP server</summary>
-        <label>Start from <select id="mcp-preset"><option value="">Blank</option></select></label>
+        <label id="mcp-preset-row">Start from <select id="mcp-preset"><option value="">Blank</option></select></label>
         <p id="mcp-preset-help" class="muted small" hidden></p>
         <label>Name <input id="mcp-name" placeholder="e.g. github" pattern="[a-z0-9][a-z0-9\-]*"></label>
-        <label>Type
+        <div id="mcp-recipe-fields" class="mcp-recipe-fields" hidden></div>
+        <label id="mcp-transport-row">Type
           <select id="mcp-transport">
             <option value="stdio">Command on this server (stdio)</option>
             <option value="http">Remote URL (streamable HTTP)</option>
@@ -3309,7 +3376,7 @@
         <label id="mcp-command-row">Command <input id="mcp-command" placeholder="npx"></label>
         <label id="mcp-args-row">Arguments <input id="mcp-args" placeholder="-y @modelcontextprotocol/server-github"></label>
         <label id="mcp-url-row" hidden>URL <input id="mcp-url" placeholder="https://example.com/mcp"></label>
-        <label>Secrets <textarea id="mcp-secrets" rows="3" placeholder="One per line: NAME=value (environment variables)&#10;header:Authorization=Bearer …&#10;Leave empty to keep current; NAME= deletes."></textarea></label>
+        <label id="mcp-secrets-row">Secrets <textarea id="mcp-secrets" rows="3" placeholder="One per line: NAME=value (environment variables)&#10;header:Authorization=Bearer …&#10;Leave empty to keep current; NAME= deletes."></textarea></label>
         <label class="row"><input id="mcp-enabled" type="checkbox" checked> Enabled</label>
         <button id="mcp-save" type="button">Save and connect</button>
       </details>

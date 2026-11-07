@@ -130,14 +130,15 @@ function boot(store: Record<string, string>, media: Record<string, boolean> = {}
   return { attrs, props };
 }
 
-test('V1 boot: Graphite by default (and for unknown names), decoration off except Classic, small portrait, custom accent before paint', () => {
+test('V1 boot: Graphite by default (and for unknown names), V3 defaults (Full, Blue, the system), small portrait, custom accent before paint', () => {
   const plain = boot({});
-  assert.deepEqual([plain.attrs['data-palette'], plain.attrs['data-decor'], plain.attrs['data-portrait'], plain.attrs['data-accent'], plain.attrs['data-theme']], ['graphite', 'off', 'small', 'rose', 'dark']);
+  // V3 (docs/ops/V3_DESIGN.md §5, the owner's defaults): Full decoration, Blue, Follow the system (a dark system here).
+  assert.deepEqual([plain.attrs['data-palette'], plain.attrs['data-decor'], plain.attrs['data-portrait'], plain.attrs['data-accent'], plain.attrs['data-theme']], ['graphite', 'on', 'small', 'blue', 'dark']);
   assert.equal(boot({ 'sara.palette': 'nonsense' }).attrs['data-palette'], 'graphite');
   for (const p of [...PALETTES, 'classic']) assert.equal(boot({ 'sara.palette': p }).attrs['data-palette'], p);
   assert.equal(boot({ 'sara.palette': 'classic' }).attrs['data-decor'], 'on', 'Classic keeps its decoration');
   assert.equal(boot({ 'sara.palette': 'classic', 'sara.decor': 'off' }).attrs['data-decor'], 'off');
-  assert.equal(boot({ 'sara.decor': 'on' }).attrs['data-decor'], 'on', 'a picked value wins');
+  assert.equal(boot({ 'sara.decor': 'off' }).attrs['data-decor'], 'off', 'a picked value wins');
   assert.equal(boot({ 'sara.palette': 'classic' }, { 'reduced-transparency': true }).attrs['data-decor'], 'off', 'the system can force it off');
   assert.equal(boot({ 'sara.portrait': 'large' }).attrs['data-portrait'], 'large');
   assert.equal(boot({ 'sara.portrait': 'weird' }).attrs['data-portrait'], 'small');
@@ -188,7 +189,7 @@ test('V1 custom accent: any colour becomes a readable fill, text shade and on-co
 
 test('V1 "Use on all my devices": the owner settings keep one clean look; a new device starts from it', async (t) => {
   assert.equal(cleanAppearance(null), undefined, 'null clears it');
-  assert.deepEqual(cleanAppearance({ palette: 'evil', theme: 'x', accent: 'custom', density: 'tiny', portrait: 'huge', decor: 'maybe' }), { palette: 'graphite', theme: 'dark', accent: 'rose', density: 'comfy', portrait: 'small' }, 'unknown values fall back; custom without its colours is the theme colour');
+  assert.deepEqual(cleanAppearance({ palette: 'evil', theme: 'x', accent: 'custom', density: 'tiny', portrait: 'huge', decor: 'maybe' }), { palette: 'graphite', theme: 'system', accent: 'rose', density: 'comfy', portrait: 'small' }, 'unknown values fall back (V3: Follow the system); custom without its colours is the theme colour');
   const shade = { fill: '#ff8800', text: '#ffa040', on: '#0b0b0c' };
   assert.deepEqual(cleanAppearance({ palette: 'paper', theme: 'light', accent: 'custom', accentCustom: { hex: '#ff8800', dark: shade, light: shade, extra: 1 }, density: 'compact', portrait: 'hidden', decor: 'on' }), { palette: 'paper', theme: 'light', accent: 'custom', accentCustom: { hex: '#ff8800', dark: shade, light: shade }, density: 'compact', portrait: 'hidden', decor: 'on' });
   const temp = tempDir();
@@ -216,7 +217,8 @@ test('V1 Appearance page: its own Settings page under You with the same ids, the
   const about = /data-page="you-about"[\s\S]*?<\/section>/.exec(html)![0];
   assert.doesNotMatch(about, /id="ap-/, 'moved out of About you');
   assert.match(page, /<select id="ap-palette"><option value="graphite">Graphite \(default\)<\/option><option value="midnight">Midnight<\/option><option value="slate">Slate<\/option><option value="nord">Nord<\/option><option value="solarized">Solarized<\/option><option value="paper">Paper<\/option><option value="ember">Ember<\/option><option value="contrast">High contrast<\/option><option value="classic">Sara Classic<\/option><\/select>/);
-  assert.match(page, /<select id="ap-accent"><option value="rose">Theme colour \(default\)<\/option>[\s\S]*?<option value="custom">Custom<\/option><\/select>/);
+  // V3 (docs/ops/V3_DESIGN.md §5): Blue is the default colour; Theme colour stays the first choice.
+  assert.match(page, /<select id="ap-accent"><option value="rose">Theme colour<\/option><option value="blue">Blue \(default\)<\/option>[\s\S]*?<option value="custom">Custom<\/option><\/select>/);
   assert.match(page, /<select id="ap-portrait"><option value="small">Small \(default\)<\/option><option value="large">Large<\/option><option value="hidden">Hidden<\/option><\/select>/);
   assert.match(page, /class="ap-classic-only"[^>]*>Chat background/, 'the chat background only for Sara Classic');
   const tips = JSON.parse(web('tips.json')).tips ?? JSON.parse(web('tips.json'));

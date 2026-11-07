@@ -143,8 +143,8 @@ test('Q2 keyboard result navigation focuses a focusable heading and Try a messag
  const node=(id:string)=>({hidden:false,textContent:'',scrollTop:0,value:'',classList:{add(){}},toggleAttribute(){},focus(){
    if(source('index.html').includes(`id="${id}" tabindex="-1"`)) focused=id;
  }});
- const nodes:any={'#settings-page-title':node('settings-page-title'),'.settings-pages':node('settings-pages'),'#settings-empty':node('settings-empty'),'#settings':node('settings'),'.settings-actions':node('settings-actions'),'#settings-search':node('settings-search')};
- runInNewContext(app.slice(start,end)+"\nshowSettingsTab('dh-backups',{focus:true});",{OLD_TABS:{},settingsPages:()=>[section],$:(q:string)=>nodes[q],document:{querySelectorAll:()=>[]},t:(s:string)=>s,showSettingsHelp(){},openGroupOf(){},localStorage:{setItem(){}}});
+ const nodes:any={'#settings-page-title':node('settings-page-title'),'.settings-pages':node('settings-pages'),'#settings-empty':node('settings-empty'),'#settings':node('settings'),'.settings-actions':node('settings-actions'),'#settings-search':node('settings-search'),'#settings-home':node('settings-home')};
+ runInNewContext(app.slice(start,end)+"\nshowSettingsTab('dh-backups',{focus:true});",{OLD_TABS:{},settingsPages:()=>[section],$:(q:string)=>nodes[q],document:{querySelectorAll:()=>[]},t:(s:string)=>s,showSettingsHelp(){},openGroupOf(){},paintCrumbs(){},localStorage:{setItem(){}}});
  assert.equal(focused,'settings-page-title');
 });
 test('Q2 Try a message clears Today inert synchronously and preserves drafts', async () => {

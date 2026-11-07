@@ -139,7 +139,8 @@ test('sidebar: every place keeps its button id, More holds the rest, her and Set
   const dests = [...html.matchAll(/class="side-dest" data-dest="(\w+)"/g)].map((m) => m[1]);
   const listed = /export const DESTS = \[([^\]]+)\]/.exec(nav)![1].match(/\w+/g);
   assert.deepEqual(dests, listed, 'nav.js lists every place in the page');
-  assert.match(nav, /export const DEFAULT_PINS = \['today', 'planner', 'library', 'moments'\]/);
+  // V3 (docs/ops/V3_DESIGN.md §2): Add-ons became a place, pinned on new devices.
+  assert.match(nav, /export const DEFAULT_PINS = \['today', 'planner', 'library', 'addons', 'moments'\]/);
   // The More button says what it does; icon-only buttons have names.
   assert.match(html, /id="side-more"[^>]*aria-expanded="false"[^>]*aria-controls="side-more-menu"/);
   assert.match(html, /id="open-help"[^>]*aria-label="Help"/);

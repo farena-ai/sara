@@ -26,6 +26,7 @@ import { loadEmailPage } from './email.js';
 import { renderTelegramSetup } from './telegram-setup.js';
 import { initAgents, loadAgents } from './agents.js';
 import { hookNotice, initHooks, loadHooks } from './hooks.js';
+import { alwaysAllowButton, serverPolicyRows } from './tool-policy.js';
 import { initMoveIn, loadMoveIn, moveInEvent } from './movein.js';
 import { boardEvent, initBoard, openCardOnBoard, plannerView, rememberView } from './board.js';
 import { agendaEvent, agendaNotice, agendaWhy, initAgenda, loadAgenda, openHerPlans, renderPlansTile } from './agenda.js';
@@ -54,7 +55,7 @@ import { initReadTogether, readTogetherSwitched } from './read-together.js';
 import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-check.js';
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
-import { initNav, relabelNav, setMore } from './nav.js';
+import { initNav, placeRail, relabelNav, setMore } from './nav.js';
 import { initGetMore, initStore, loadGetMore, loadStorePrivacy } from './store.js';
 import { decorateCompanionRows, initPacks } from './packs.js';
 import { loadWakePage, renderVoiceInstall, wakeEvent } from './wake.js';
@@ -88,7 +89,7 @@ import { createRecovery } from './recovery.js';
 import { createOperations } from './operations.js';
 import { renderProjectCheckpoint } from './project-checkpoints.js';
 import { projectNowOpen } from './project-now.js';
-import { buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintElsewhere, paintSettingsResults, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
+import { buildSettingsHome, buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintCrumbs, paintElsewhere, paintSettingsResults, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
 import { closeOpenDialogs, initTours, offerFirstTour, queueTourOffer, runTour, tourFromHash } from './tours.js';
 import { sharedEvents } from './shared-events.js';
 import { initSidebar } from './sidebar.js';
@@ -1340,7 +1341,7 @@ const placeSub = (btn) => {
 };
 const placeKey = { today: 'Alt+T', planner: 'Alt+P', memory: 'Alt+M', library: 'Alt+L', scrapbook: 'Alt+B', story: 'Alt+Y' };
 // 2.8: icon names from web/icons.js (the command bar draws them as line icons).
-const PLACE_ICON = { today: 'today', planner: 'planner', memory: 'memory', library: 'library', scrapbook: 'scrapbook', moments: 'moments', story: 'story', team: 'team' };
+const PLACE_ICON = { today: 'today', planner: 'planner', memory: 'memory', library: 'library', scrapbook: 'scrapbook', moments: 'moments', story: 'story', team: 'team', addons: 'puzzle', findings: 'shield', evals: 'flask' };
 initCommandBar({
   api,
   places: () => [
@@ -1359,6 +1360,8 @@ initCommandBar({
       .filter((c) => !String(c.channel ?? '').startsWith('import-'))
       .sort((a, b) => Number(Boolean(a.archivedAt)) - Number(Boolean(b.archivedAt)))
       .map((c) => ({ key: `conv:${c.id}`, icon: c.offRecord ? 'offrecord' : isGroup(c) ? 'group' : 'chat', label: c.title || t('New conversation'), sub: c.archivedAt ? t('Archived') : '', raw: true, run: () => { closeSidebar(); return openConversation(c.id); } })),
+  // V3 §2: every project (its page), like the sidebar's Projects section.
+  projects: () => (state.projects ?? []).filter((p) => !p.builtin && !p.hidden).map((p) => ({ key: `project:${p.id}`, icon: 'folder', label: p.name, sub: t('Project'), raw: true, run: () => { closeSidebar(); return openProjectPage(p.id); } })),
   settings: () => settingsPages().map((p) => ({ key: `settings:${p.dataset.page}`, icon: 'settings', label: t(p.dataset.title), sub: t(p.dataset.group), run: () => openSettings(p.dataset.page) })),
   // The Settings window's own tiered search for pages, plus every setting's label on its own.
   searchSettings: (q) => {
@@ -1412,6 +1415,17 @@ initCommandBar({
       sel.dispatchEvent(new Event('change'));
     }, '', t('switch theme dark light'));
     add('panel', 'panel', panelOpen() ? t('Fold her panel away') : t('Show her panel'), () => togglePanel(), 'Ctrl+\\');
+    // V3 §2: the Settings home, Appearance and Find a setting, wherever you are.
+    add('settings-home', 'settings', t('All settings'), () => openSettings('home'), 'Ctrl+,', t('settings home index every page'));
+    add('appearance', 'sliders', t('Appearance'), () => openSettings('you-appearance'), '', t('theme palette colour dark light look'));
+    add('reset-look', 'undo', t('Reset the look to the defaults'), async () => {
+      await openSettings('you-appearance');
+      $('#ap-reset').click();
+    }, '', t('appearance theme defaults'));
+    add('find-setting', 'search', t('Find a setting'), async () => {
+      await openSettings('home');
+      $('#settings-search').focus();
+    });
     if (usable($('#server-btn'))) add('servers', 'server', t('Open Your Saras'), () => $('#server-btn').click(), '', t('servers switch'));
     add('search', 'search', t('Search messages, memories and notes'), () => {
       sidebarUI.open();
@@ -3056,6 +3070,8 @@ function approvalCard(ev, block) {
   no.textContent = c ? t("Don't") : adv ? t("Don't install") : ev.budget ? t('Wrap up') : t('Deny');
   no.addEventListener('click', () => decide(false, c || adv ? 'deny' : undefined));
   row.append(yes, no);
+  // E7 (A1): a plain ask can be answered once for good (Undo on the card, or Settings → Tools).
+  if (ev.alwaysOk && !c && !adv && !rtg && !ev.budget && !ev.sandboxFirst) yes.after(alwaysAllowButton(ev, card));
   if (rtg && !c && !adv && rtg.mode === 'ask') {
     const first = document.createElement('button');
     first.type = 'button';
@@ -3484,7 +3500,7 @@ async function loadTools() {
       const lab = el('label', 'tool-group-set-label');
       lab.append(el('span', 'muted small', t('Whole group:')), set);
       bar.append(lab);
-      box.append(bar, ...byGroup.get(g).map(toolRow));
+      box.append(bar, ...(g === 'mcp' ? serverPolicyRows(data.servers, loadTools) : []), ...byGroup.get(g).map(toolRow));
       box.addEventListener('toggle', () => {
         const now = toolGroupsOpen();
         if (box.open) now.add(g);
@@ -7394,11 +7410,55 @@ async function saveSearch() {
 // ---------- MCP settings ----------
 function mcpRows() {
   const http = $('#mcp-transport').value === 'http';
-  $('#mcp-command-row').hidden = http;
-  $('#mcp-args-row').hidden = http;
-  $('#mcp-url-row').hidden = !http;
+  const recipe = Boolean($('#mcp-add').dataset.recipe);
+  $('#mcp-command-row').hidden = http || recipe;
+  $('#mcp-args-row').hidden = http || recipe;
+  $('#mcp-url-row').hidden = !http || recipe;
+  for (const id of ['#mcp-preset-row', '#mcp-transport-row', '#mcp-secrets-row']) $(id).hidden = recipe;
+  $('#mcp-recipe-fields').hidden = !recipe;
+}
+
+// B2: a server from the Sara Store is edited through its own settings (saved values shown; secrets as
+// "Saved" with Replace); its type and command stay the Store's.
+function mcpRecipeForm(m) {
+  const box = $('#mcp-recipe-fields');
+  if (!m?.recipe) {
+    delete $('#mcp-add').dataset.recipe;
+    box.replaceChildren();
+    mcpRows();
+    return;
+  }
+  $('#mcp-add').dataset.recipe = m.name;
+  const note = el('p', 'muted small', t('This one came from the Sara Store: change its settings here. Its type and command stay as the Store set them.'));
+  const rows = m.recipe.fields.map((f) => {
+    const label = el('label', 'mcp-field');
+    label.append(document.createTextNode(`${f.label} `));
+    const input = document.createElement('input');
+    input.dataset.key = f.key;
+    if (f.secret) {
+      input.type = 'password';
+      input.autocomplete = 'new-password';
+      if (f.saved) {
+        input.hidden = true;
+        const saved = el('span', 'muted', t('Saved'));
+        const replace = el('button', 'ghost', t('Replace'));
+        replace.type = 'button';
+        replace.addEventListener('click', () => { saved.hidden = true; replace.hidden = true; input.hidden = false; input.focus(); });
+        label.append(saved, replace);
+      }
+    } else {
+      input.type = f.kind === 'url' ? 'url' : 'text';
+      input.value = f.value ?? '';
+    }
+    label.append(input);
+    if (f.tip) label.append(el('small', 'muted', f.tip));
+    return label;
+  });
+  box.replaceChildren(note, ...rows);
+  mcpRows();
 }
 $('#mcp-transport').addEventListener('change', mcpRows);
+$('#mcp-name').addEventListener('input', () => { if ($('#mcp-add').dataset.recipe && $('#mcp-add').dataset.recipe !== $('#mcp-name').value.trim()) mcpRecipeForm(null); });
 
 function renderMcp(list) {
   const box = $('#mcp-list');
@@ -7410,6 +7470,7 @@ function renderMcp(list) {
     ...list.map((m) => {
       const card = document.createElement('div');
       card.className = 'mcp';
+      card.dataset.server = m.name;
       const row = document.createElement('div');
       row.className = 'row';
       const name = document.createElement('span');
@@ -7431,7 +7492,7 @@ function renderMcp(list) {
         $('#mcp-enabled').checked = m.enabled;
         $('#mcp-secrets').value = '';
         $('#mcp-secrets').placeholder = `Saved: ${[...m.envKeys, ...m.headerKeys.map((h) => `header:${h}`)].join(', ') || 'none'}\nNAME=value to add/replace, NAME= to delete.`;
-        mcpRows();
+        mcpRecipeForm(m);
       });
       const restart = document.createElement('button');
       restart.type = 'button';
@@ -7455,12 +7516,19 @@ function renderMcp(list) {
       card.append(row);
       if (m.error) {
         const err = document.createElement('small');
-        err.textContent = m.error;
+        const page = 'That address answered like a web page, not a tool server. If this program needs an address of another service (like ComfyUI), put it in that setting instead.';
+        err.textContent = m.error.startsWith(page) ? `${t('That address answered like a web page, not a tool server. If this program needs an address of another service (like ComfyUI), put it in that setting instead.')}${m.error.slice(page.length)}` : m.error;
         card.append(err);
       }
       return card;
     }),
   );
+  // E7 (A2): the same per-server approvals choice as in Tools, on each server's card.
+  void api('/tools')
+    .then((d) => {
+      for (const r of serverPolicyRows(d.servers, async () => { await loadTools(); renderMcp(await api('/mcp')); })) box.querySelector(`.mcp[data-server="${CSS.escape(r.querySelector('select').dataset.server)}"]`)?.append(r);
+    })
+    .catch(() => {});
 }
 
 async function loadMcp() {
@@ -7492,9 +7560,11 @@ $('#mcp-save').addEventListener('click', async () => {
     const { env, headers } = parseSecrets($('#mcp-secrets').value);
     $('#mcp-save').disabled = true;
     $('#mcp-save').textContent = t('Connecting…');
+    const recipe = $('#mcp-add').dataset.recipe === name;
+    const fields = Object.fromEntries([...$('#mcp-recipe-fields').querySelectorAll('input[data-key]')].map((i) => [i.dataset.key, i.value.trim()]));
     const list = await api(`/mcp/${encodeURIComponent(name)}`, {
       method: 'PUT',
-      body: {
+      body: recipe ? { fields, enabled: $('#mcp-enabled').checked } : {
         transport: $('#mcp-transport').value,
         command: $('#mcp-command').value.trim(),
         args: $('#mcp-args').value,
@@ -7506,6 +7576,7 @@ $('#mcp-save').addEventListener('click', async () => {
     });
     $('#mcp-secrets').value = '';
     $('#mcp-add').open = false;
+    mcpRecipeForm(null);
     renderMcp(list);
     await loadTools();
   } catch (err) {
@@ -7921,12 +7992,15 @@ function showSettingsTab(page, opts = {}) {
     clearSettingsSearch();
   }
   page = OLD_TABS[page] ?? page;
+  if (page === 'home' || page?.startsWith('home:')) return void showSettingsHome(page.slice(5), opts);
+  $('#settings-home').hidden = true;
   const pages = settingsPages();
   const pick = pages.some((p) => p.dataset.page === page) ? page : pages[0].dataset.page;
   for (const p of pages) p.hidden = p.dataset.page !== pick;
   for (const b of document.querySelectorAll('#settings-nav-list [data-page]')) b.setAttribute('aria-current', String(b.dataset.page === pick));
   const sec = pages.find((p) => p.dataset.page === pick);
   $('#settings-page-title').textContent = t(sec.dataset.title);
+  paintCrumbs(sec);
   showSettingsHelp(pick, opts.howto ?? '');
   // S15: "Changes save by themselves" only where there is something to change.
   $('.settings-actions').toggleAttribute('data-quiet', !sec.querySelector('input:not([type=hidden]):not([type=file]), select, textarea'));
@@ -7981,6 +8055,26 @@ function showSettingsTab(page, opts = {}) {
   if (opts.focus) $('#settings-page-title').focus({ preventScroll: true });
 }
 
+// V3 (docs/ops/V3_DESIGN.md §2): the Settings home, where Settings opens outside Sara Classic.
+// Sara Classic opens the last page, as before.
+const SETTINGS_START = () => (document.documentElement.dataset.palette === 'classic' ? (localStorage.getItem('sara.settingsPage') ?? 'her-character') : 'home');
+function showSettingsHome(group = '', opts = {}) {
+  for (const p of document.querySelectorAll('#settings .settings-page')) p.hidden = true;
+  buildSettingsHome();
+  $('#settings-home').hidden = false;
+  for (const b of document.querySelectorAll('#settings-nav-list [data-page]')) b.setAttribute('aria-current', String(b.dataset.page === 'home'));
+  $('#settings-page-title').textContent = t('All settings');
+  paintCrumbs(null);
+  $('#settings-page-desc').hidden = true;
+  $('#settings-howto').replaceChildren();
+  $('#settings-empty').hidden = true;
+  $('.settings-actions').toggleAttribute('data-quiet', true);
+  $('#settings').classList.add('page-open');
+  $('.settings-pages').scrollTop = 0;
+  if (group) document.querySelector(`#settings-home .sh-group[data-group="${CSS.escape(group)}"]`)?.scrollIntoView({ block: 'start' });
+  if (opts.focus) $('#settings-page-title').focus({ preventScroll: true });
+}
+
 async function openSearchPlace(id) {
   const [kind, what] = id.split(':');
   if ($('#settings').open) $('#settings').close();
@@ -8012,7 +8106,7 @@ async function openSettings(tab, opts = {}) {
   restoreSettingsOrder();
   void loadSlash(); // PL2b: Elsewhere in search lists the chat commands
   clearSettingsSearch();
-  showSettingsTab(typeof tab === 'string' ? tab : (localStorage.getItem('sara.settingsPage') ?? 'her-character'), { howto: opts.howto ?? '' });
+  showSettingsTab(typeof tab === 'string' ? tab : SETTINGS_START(), { howto: opts.howto ?? '' });
   // On a phone, opening Settings from the menu starts at the list of pages.
   if (typeof tab !== 'string') $('#settings').classList.remove('page-open');
   modelCache.clear();
@@ -8066,6 +8160,15 @@ async function rerenderAfterLanguage() {
   await initVoice().catch(() => {}); // call buttons and the live-call notes
 }
 $('#open-settings').addEventListener('click', openSettings);
+// V3 §2: Add-ons is a place in the sidebar (the store page), and Ctrl K sits next to the search box.
+$('#open-addons').addEventListener('click', () => {
+  closeSidebar();
+  void openSettings('ab-store');
+});
+$('#side-cmd').addEventListener('click', () => {
+  closeSidebar();
+  openCommandBar();
+});
 // Phase 114 (PL1b): the use choice, changeable here any time (Getting started, the tour offered and the chips follow it).
 $('#use-path').addEventListener('change', async () => {
   const v = normPath($('#use-path').value);
@@ -8605,7 +8708,7 @@ document.addEventListener('keydown', (e) => {
 
 // Links that open a view: /#view=today|planner|memory|scrapbook|her|settings[:page] (Phase 19).
 window.saraCompanionCount = () => state.companions?.companions.length ?? 1;
-const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click() };
+const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), addons: () => $('#open-addons').click() };
 function openViewFromHash() {
   const v = /#view=([\w:-]+)/.exec(location.hash)?.[1];
   if (!v || !$('#main') || $('#main').hidden) return false;
@@ -8780,22 +8883,26 @@ $('#conv-search').addEventListener('keydown', (e) => {
 // ---------- appearance (per device) ----------
 // Phase 21: colour, chat background and layout too.
 const AP_DEFAULTS = { accent: 'rose', chatbg: 'none', density: 'comfy' };
-// Phase 75: Night is the default for everyone who hasn't picked Day (or "Follow the system") on
-// this device; web/theme-boot.js applies the same rule before the first paint.
-const themePick = () => {
+/** V3: the segmented controls' sync functions (filled in below, once the lists are on the page). */
+let apSegSync = [];
+// V3 (docs/ops/V3_DESIGN.md §5, the owner's defaults): Follow the system unless picked on this device
+// (Sara Classic keeps Night); web/theme-boot.js applies the same rules before the first paint.
+const themePick = (pal = palettePick()) => {
   const v = localStorage.getItem('sara.theme');
-  return v === 'light' || v === 'system' ? v : 'dark';
+  return v === 'light' || v === 'system' || v === 'dark' ? v : pal === 'classic' ? 'dark' : 'system';
 };
+// Colour: Blue unless picked (Sara Classic keeps its own rose: the stored "rose" = the palette's own).
+const accentPick = (pal = palettePick()) => localStorage.getItem('sara.accent') ?? (pal === 'classic' ? 'rose' : 'blue');
 // V1 (docs/ops/V1_DESIGN.md → Themes): palette × Night/Day. Graphite unless picked on this device.
 const PALETTES = ['graphite', 'midnight', 'slate', 'nord', 'solarized', 'paper', 'ember', 'contrast', 'classic'];
 const palettePick = () => {
   const v = localStorage.getItem('sara.palette');
   return PALETTES.includes(v) ? v : 'graphite';
 };
-// Decoration (aurora, glows, glass) is on only for Sara Classic unless picked.
-const decorPick = (pal = palettePick()) => {
+// V3: Full decoration unless picked (outside Sara Classic it is the refined glass and light, v3.css).
+const decorPick = () => {
   const v = localStorage.getItem('sara.decor');
-  return v === 'on' || v === 'off' ? v : pal === 'classic' ? 'on' : 'off';
+  return v === 'on' || v === 'off' ? v : 'on';
 };
 // Her portrait in work views: small unless picked (Sara Classic keeps it large, as before).
 const portraitPick = (pal = palettePick()) => {
@@ -8822,9 +8929,9 @@ function applyAppearance() {
   root.classList.toggle('theme-night', !light);
   // The Windows/Mac app follows: its title bar, backdrop and first paint (web/theme-boot.js).
   if (root.classList.contains('shell') && !root.classList.contains('shell-test')) window.saraShellSay?.({ type: 'theme', theme: theme === 'light' ? 'day' : theme === 'system' ? 'system' : 'night' });
-  for (const k of Object.keys(AP_DEFAULTS)) root.dataset[k] = localStorage.getItem(`sara.${k}`) ?? AP_DEFAULTS[k];
-  // V1: palette, decoration, her portrait and a custom accent (the same rules as web/theme-boot.js).
   const pal = palettePick();
+  for (const k of Object.keys(AP_DEFAULTS)) root.dataset[k] = k === 'accent' ? accentPick(pal) : (localStorage.getItem(`sara.${k}`) ?? AP_DEFAULTS[k]);
+  // V1: palette, decoration, her portrait and a custom accent (the same rules as web/theme-boot.js).
   root.dataset.palette = pal;
   root.dataset.decor = matchMedia('(prefers-reduced-transparency: reduce)').matches ? 'off' : decorPick(pal);
   root.dataset.portrait = portraitPick();
@@ -8835,6 +8942,7 @@ function applyAppearance() {
   }
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', getComputedStyle(root).getPropertyValue('--surface-0').trim() || (light ? '#faf7f5' : '#0f0d17'));
   root.style.setProperty('--chat-size', `${localStorage.getItem('sara.textSize') ?? '15'}px`);
+  placeRail(pal !== 'classic');
 }
 applyAppearance();
 matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyAppearance);
@@ -8852,7 +8960,7 @@ $('#ap-size').addEventListener('change', () => {
 });
 for (const k of Object.keys(AP_DEFAULTS)) {
   const sel = $(`#ap-${k}`);
-  const stored = localStorage.getItem(`sara.${k}`) ?? AP_DEFAULTS[k];
+  const stored = k === 'accent' ? accentPick() : (localStorage.getItem(`sara.${k}`) ?? AP_DEFAULTS[k]);
   sel.value = k === 'accent' ? (ACCENT_NOW[stored] ?? stored) : stored;
   sel.addEventListener('change', () => {
     if (k === 'accent' && sel.value === 'custom' && !readCustomAccent()) return void setCustomAccent($('#ap-accent-custom').value);
@@ -8881,8 +8989,11 @@ function showAppearance() {
   const pal = palettePick();
   $('#ap-palette').value = pal;
   for (const b of $('#ap-pals').children) b.setAttribute('aria-checked', String(b.dataset.pal === pal));
-  $('#ap-decor').value = decorPick(pal);
+  $('#ap-decor').value = decorPick();
   $('#ap-portrait').value = portraitPick(pal);
+  $('#ap-theme').value = themePick(pal);
+  $('#ap-accent').value = ACCENT_NOW[accentPick(pal)] ?? accentPick(pal);
+  for (const f of apSegSync) f();
   $('#ap-custom-row').hidden = $('#ap-accent').value !== 'custom';
   const c = readCustomAccent();
   if (c) $('#ap-accent-custom').value = $('#ap-accent-hex').value = c.hex;
@@ -8919,7 +9030,7 @@ showAppearance();
 function currentAppearance() {
   const decor = localStorage.getItem('sara.decor');
   return {
-    palette: palettePick(), theme: themePick(), accent: localStorage.getItem('sara.accent') ?? 'rose', density: localStorage.getItem('sara.density') ?? 'comfy', portrait: portraitPick(),
+    palette: palettePick(), theme: themePick(), accent: accentPick(), density: localStorage.getItem('sara.density') ?? 'comfy', portrait: portraitPick(),
     ...(decor ? { decor } : {}), ...(localStorage.getItem('sara.accent') === 'custom' ? { accentCustom: readCustomAccent() } : {}),
   };
 }
@@ -8939,7 +9050,7 @@ function adoptAppearance(a) {
   localStorage.setItem('sara.v1Notice', 'seen');
   applyAppearance();
   $('#ap-theme').value = themePick();
-  $('#ap-accent').value = ACCENT_NOW[a.accent] ?? a.accent ?? 'rose';
+  $('#ap-accent').value = ACCENT_NOW[accentPick()] ?? accentPick();
   $('#ap-density').value = a.density ?? 'comfy';
   showAppearance();
   return true;
@@ -8975,6 +9086,80 @@ for (const o of $('#ap-accent').options) {
   $('#ap-swatches').append(b);
 }
 $('#ap-swatches').removeAttribute('aria-hidden');
+// V3 (docs/ops/V3_DESIGN.md §4): Custom sits in the swatch row too, and the swatch row is the Colour
+// control (its list stays underneath for Sara Classic, tips and links).
+{
+  const b = el('button', 'ap-swatch ap-swatch-custom');
+  b.type = 'button';
+  b.dataset.accent = 'custom';
+  b.title = t('Custom');
+  b.append(icon('plus') ?? '');
+  b.addEventListener('click', () => {
+    $('#ap-accent').value = 'custom';
+    $('#ap-accent').dispatchEvent(new Event('change'));
+  });
+  $('#ap-swatches').append(b);
+  for (const s of $('#ap-swatches').children) s.setAttribute('aria-label', s.title);
+}
+/**
+ * V3 §4: a segmented control for a short list (Night or Day, Layout, Text size, Her picture, Decoration,
+ * Sessions shown). It drives the list it stands for: the same value, the same change event, the same
+ * tip; screens.css/v3.css show the list in Sara Classic and the segments everywhere else.
+ */
+function apSegment(id) {
+  const sel = $(`#${id}`);
+  const seg = el('span', 'ap-seg');
+  seg.setAttribute('role', 'radiogroup');
+  seg.setAttribute('aria-label', sel.closest('label')?.firstChild?.textContent?.trim() || id);
+  const sync = () => {
+    for (const b of seg.children) b.setAttribute('aria-checked', String(b.dataset.value === sel.value));
+  };
+  for (const o of sel.options) {
+    const b = el('button', 'ap-seg-opt');
+    b.type = 'button';
+    b.dataset.value = o.value;
+    b.setAttribute('role', 'radio');
+    const [head, ...rest] = o.textContent.split(': ');
+    if (rest.length) {
+      seg.classList.add('ap-seg-cards');
+      b.append(el('b', '', head), el('span', '', rest.join(': ')));
+    } else b.textContent = o.textContent;
+    if ('raw' in o.dataset) b.dataset.raw = '';
+    b.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (sel.value === o.value) return;
+      sel.value = o.value;
+      sel.dispatchEvent(new Event('change'));
+      sync();
+    });
+    seg.append(b);
+  }
+  sel.addEventListener('change', sync);
+  sel.closest('label')?.classList.add('ap-has-seg');
+  sel.after(seg);
+  sync();
+  return sync;
+}
+apSegSync = ['ap-theme', 'ap-decor', 'ap-density', 'ap-size', 'ap-portrait', 'ap-sessions'].map(apSegment);
+// Reset to defaults: forgets this device's look (the owner's defaults apply; docs/APPEARANCE.md).
+const AP_KEYS = ['sara.palette', 'sara.theme', 'sara.accent', 'sara.accentCustom', 'sara.decor', 'sara.portrait', 'sara.density', 'sara.chatbg', 'sara.textSize', 'sara.typing', PAGE_KEY];
+$('#ap-reset').addEventListener('click', () => {
+  if (!confirm(t('Reset how Sara looks on this device to the defaults?'))) return;
+  for (const k of AP_KEYS) localStorage.removeItem(k);
+  // Leaving the default palette must not bring back the one-time new-look notice.
+  localStorage.setItem('sara.v1Notice', 'seen');
+  applyAppearance();
+  showAppearance();
+  $('#ap-density').value = 'comfy';
+  $('#ap-chatbg').value = 'none';
+  $('#ap-size').value = localStorage.getItem('sara.textSize') ?? '15';
+  $('#ap-typing').value = localStorage.getItem('sara.typing') ?? 'instant';
+  $('#ap-sessions').value = String(pageSize(localStorage));
+  for (const f of apSegSync) f();
+  shownRows.clear();
+  renderConversations();
+  $('#ap-sync-state').textContent = t('Back to the defaults on this device.');
+});
 
 // ---------- project page ----------
 let pageProject = null;
@@ -9278,6 +9463,7 @@ $('#pp-ch-unfile').addEventListener('click', async () => {
 });
 // Phase 108: Settings → Appearance → Sessions shown (5 / 8 / 10, this device).
 $('#ap-sessions').value = String(pageSize(localStorage));
+for (const f of apSegSync) f();
 $('#ap-sessions').addEventListener('change', () => {
   localStorage.setItem(PAGE_KEY, $('#ap-sessions').value);
   shownRows.clear();
@@ -10056,6 +10242,7 @@ function renderPhotos(p) {
   $('#ph-key').placeholder = p.hasKey ? t('saved (leave empty to keep)') : p.providerKey ? t('leave empty to use the xAI key from Models') : 'xai-…';
   $('#ph-key').placeholder = p.hasKey ? t('saved (leave empty to keep)') : p.grokSubscription ? t('not needed: uses your Grok subscription') : p.providerKey ? t('leave empty to use the xAI key from Models') : 'xai-…';
   $('#ph-status').textContent = p.mode !== 'new' ? '' : p.hasKey ? t('Uses the xAI API key saved here (billed per picture).') : p.grokSubscription ? t('Uses your Grok subscription: counts toward your weekly Grok usage (Imagine).') : p.providerKey ? t("Uses your xAI model provider's API key (billed per picture).") : t('Sign in to Grok (Models → Subscriptions) or add an xAI API key to let her take new pictures.');
+  renderPhotoEngine(p);
   $('#ph-taken').replaceChildren(
     ...p.taken.map((t) => {
       const img = document.createElement('img');
@@ -10074,12 +10261,95 @@ async function loadPhotos() {
   }
 }
 async function savePhotos() {
-  const body = { mode: $('#ph-mode').value, model: $('#ph-model').value };
+  const body = { mode: $('#ph-mode').value, model: $('#ph-model').value, ...photoEngineBody() };
   if ($('#ph-key').value.trim()) body.key = $('#ph-key').value.trim();
   renderPhotos(await api('/photos', { method: 'PUT', body }));
   $('#ph-key').value = '';
 }
 $('#ph-mode').addEventListener('change', () => ($('#ph-new').hidden = $('#ph-mode').value !== 'new'));
+
+// E7: the picture engine (Grok, OpenAI, a ComfyUI workflow, an image tool) and pictures on her own.
+function renderPhotoEngine(p) {
+  const engine = p.engine ?? 'grok';
+  $('#ph-engine').value = engine;
+  const opt = (v, label) => new Option(label, v);
+  $('#ph-comfy-server').replaceChildren(...(p.comfyServers ?? []).map((s) => opt(s, s)));
+  if (p.comfy?.server) $('#ph-comfy-server').value = p.comfy.server;
+  $('#ph-comfy-wf').value = '';
+  $('#ph-comfy-wf').placeholder = p.comfy ? t('Saved: leave empty to keep it, or paste a new one.') : '{ "3": { "class_type": "KSampler", … } }';
+  photoNodes(p.comfy?.nodes ?? [], p.comfy ? `${p.comfy.node}|${p.comfy.input}` : '');
+  $('#ph-comfy-seed').checked = p.comfy?.seed ?? true;
+  $('#ph-tool-name').replaceChildren(...(p.imageTools ?? []).map((n) => opt(n, n)));
+  if (p.tool?.name) $('#ph-tool-name').value = p.tool.name;
+  $('#ph-tool-arg').value = p.tool?.arg ?? '';
+  $('#ph-own-on').checked = Boolean(p.own?.on);
+  $('#ph-own-often').value = p.own?.often ?? 'rarely';
+  $('#ph-own-cap').value = String(p.own?.monthlyCap ?? 8);
+  const est = p.estimate;
+  $('#ph-own-cost').textContent = !est ? '' : est.dollars === undefined ? t('About {n} pictures a month; the cost depends on the tool.', { n: est.pictures }) : est.dollars === 0 ? t('About {n} pictures a month, no cost per picture.', { n: est.pictures }) : t('About {n} pictures a month, roughly ${d} (an estimate; check your provider).', { n: est.pictures, d: est.dollars.toFixed(2) });
+  photoEngineShow(p);
+}
+function photoEngineShow(p = {}) {
+  const e = $('#ph-engine').value;
+  $('#ph-grok').hidden = e !== 'grok';
+  $('#ph-comfy').hidden = e !== 'comfyui';
+  $('#ph-tool').hidden = e !== 'tool';
+  if (e !== 'grok') $('#ph-status').textContent = e === 'openai' ? (p.openaiKey === false ? t('Add OpenAI in Settings → Models first; pictures are billed by OpenAI.') : t('Uses your OpenAI key from Models (billed per picture). Her face can vary.')) : e === 'comfyui' ? (p.comfyServers?.length === 0 ? t('Connect the ComfyUI tool server first (Other programs).') : t('Runs on your ComfyUI. For pictures on her own, allow its safe tools in Tools.')) : t('For pictures on her own, this tool must be Always allowed in Tools.');
+}
+function photoNodes(nodes, current) {
+  $('#ph-comfy-node').replaceChildren(...nodes.map((n) => new Option(n.label, `${n.id}|${n.input}`)));
+  if (current) $('#ph-comfy-node').value = current;
+}
+/** Prompt nodes of a pasted API workflow (the server checks it again on save). */
+function pastedNodes(text) {
+  try {
+    const wf = JSON.parse(text);
+    return Object.entries(wf).flatMap(([id, n]) => Object.entries(n?.inputs ?? {}).filter(([k, v]) => typeof v === 'string' && /^(text|prompt|positive|text_g|text_l|string)$/.test(k)).map(([k]) => ({ id, input: k, label: `${id} · ${n._meta?.title ?? n.class_type ?? 'node'} · ${k}` })));
+  } catch {
+    return [];
+  }
+}
+function photoEngineBody() {
+  const engine = $('#ph-engine').value;
+  const body = { engine, own: { on: $('#ph-own-on').checked, often: $('#ph-own-often').value, monthlyCap: Number($('#ph-own-cap').value) } };
+  if (engine === 'comfyui' && ($('#ph-comfy-wf').value.trim() || $('#ph-comfy-node').value)) {
+    const [node, input] = ($('#ph-comfy-node').value || '|').split('|');
+    body.comfy = { server: $('#ph-comfy-server').value || 'comfyui', ...($('#ph-comfy-wf').value.trim() ? { workflow: $('#ph-comfy-wf').value.trim() } : {}), ...(node ? { node, input } : {}), seed: $('#ph-comfy-seed').checked };
+  }
+  if (engine === 'tool' && $('#ph-tool-name').value) body.tool = { name: $('#ph-tool-name').value, arg: $('#ph-tool-arg').value.trim() || 'prompt' };
+  return body;
+}
+/** Why "Send one now" sent nothing, in plain words. */
+function ownSkip(why) {
+  if (why === 'new pictures off') return t('new pictures are switched off above.');
+  if (why === 'no picture engine') return t('the picture engine is not set up yet.');
+  if (why === 'monthly limit') return t('the monthly limit is reached.');
+  if (why === 'never talked') return t('write to her first.');
+  if (why === 'no chat') return t('there is no chat with her here yet.');
+  if (why === 'busy') return t('she is busy answering right now.');
+  if (why === 'model chose not to') return t('nothing felt natural to her right now; try again later.');
+  if (why === 'failed checks') return t('the picture idea did not pass the safety checks.');
+  if (why === 'no picture') return t('no picture came back from the engine.');
+  if (why === 'not here') return t('only on your own server.');
+  return why.replace(/^no picture: /, '');
+}
+$('#ph-engine').addEventListener('change', () => photoEngineShow());
+$('#ph-comfy-wf').addEventListener('input', () => photoNodes(pastedNodes($('#ph-comfy-wf').value), ''));
+$('#ph-own-test').addEventListener('click', async () => {
+  const b = $('#ph-own-test');
+  b.disabled = true;
+  $('#ph-own-status').textContent = t('Making a picture…');
+  try {
+    await savePhotos();
+    const r = await api('/photos/own/test', { method: 'POST', body: {} });
+    const why = String(r.skipped ?? '');
+    $('#ph-own-status').textContent = r.sent ? t('Sent to your chat: “{caption}”', { caption: r.sent.caption }) : t('Not sent: {why}', { why: ownSkip(why) });
+  } catch (err) {
+    $('#ph-own-status').textContent = err.message;
+  } finally {
+    b.disabled = false;
+  }
+});
 
 // ---------- scrapbook ----------
 function sbTab(which) {

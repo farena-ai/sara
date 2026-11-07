@@ -56,7 +56,7 @@ import { checkpointAllowed, checkpointSection } from './project-checkpoints.ts';
 import { librarySection } from './library/use.ts';
 import { recipesSection } from './recipes.ts';
 import { loadedSkills, SKILL_KEEP_MESSAGES, skillsSection } from './skill-tools.ts';
-import { ensureLeanTables, familyOf, FIND_TOOLS, findToolsTool, leanFor, leanOff, leanSettings, loadRows, schemaHint, writeLoad, type TurnTools } from './lean.ts';
+import { ensureLeanTables, familyOf, FIND_TOOLS, findToolsTool, leanFor, leanOff, leanSettings, loadRows, schemaHint, argErrorHint, writeLoad, type TurnTools } from './lean.ts';
 import { autoFold, foldFor } from './compact.ts';
 import { RECALL_MARK, recallHooks, recallMode } from './triggers.ts';
 import { CHANGES_FILES } from './codemap/tools.ts';
@@ -341,7 +341,7 @@ export type ChatEvent =
   /** Phase 63: a tool call the model is still writing (throttled; see src/tool-stream.ts). Shown only, never run. */
   | ToolBuilding
   /** Phase 77: `contradiction` = the card's \"This goes against something you decided\" section (a stop). */
-  | { type: 'approval'; approvalId: string; id: string; name: string; summary: string; args: Record<string, unknown>; detail?: ApprovalDetail; computer?: import('./tools/types.ts').ComputerApproval; skill?: import('./tools/types.ts').SkillCard; contradiction?: ContradictionCard; budget?: BudgetState; sandbox?: SandboxCard; sandboxFirst?: { label: string; isolated: boolean }; advisory?: AdvisoryCard; redteam?: import('./redteam.ts').RedTeamGateCard; plugin?: { name: string; reason: string }; untrusted?: boolean }
+  | { type: 'approval'; approvalId: string; id: string; name: string; summary: string; args: Record<string, unknown>; detail?: ApprovalDetail; computer?: import('./tools/types.ts').ComputerApproval; skill?: import('./tools/types.ts').SkillCard; contradiction?: ContradictionCard; budget?: BudgetState; sandbox?: SandboxCard; sandboxFirst?: { label: string; isolated: boolean }; advisory?: AdvisoryCard; redteam?: import('./redteam.ts').RedTeamGateCard; plugin?: { name: string; reason: string }; untrusted?: boolean; alwaysOk?: boolean }
   /** Phase 81: the install check's outcome for a call (not checked offline, installed anyway, not installed). */
   | { type: 'advisory'; id: string; state: 'offline' | 'override' | 'declined'; packages: string[] }
   | { type: 'redteam'; id: string; runId: number; workspace: string }
@@ -2163,6 +2163,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   let answered = false;
   // Pictures Sara sends during this turn go on her next saved message.
   const pendingImages: string[] = [];
+  /** B2: pictures and files tools attached this turn (a "sent you the picture" claim needs one). */
+  let attachedThisTurn = 0;
   // Phase 49: screenshots from her testing browser go on her final reply as a proof strip.
   const pendingProof: string[] = [];
   // Phase 115 (BR1): files she shared with send_file ride on her reply too (the web app's file chips).
@@ -2434,7 +2436,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     const recentMsgs = store.messages(conv.id).slice(-SKILL_KEEP_MESSAGES);
     const skillText = [String((userMsg.meta?.autoSkill as { text?: string } | undefined)?.text ?? ''), ...recentMsgs.filter((m) => m.role === 'tool' && typeof m.meta?.skill === 'string').map((m) => m.content)].join('\n');
     const ownerTurnIds = store.messages(conv.id).filter((m) => m.role === 'user' && !m.meta?.steer).map((m) => m.id).reverse();
-    turnTools = leanFor(leanSet, leanPlace ? tools : tools.filter((t) => t.spec.name !== FIND_TOOLS), { text, mode: conv.mode === 'coding' || isWorkChannel(conv.channel) ? 'coding' : 'chat', local: provider.config.local === true && !isCloudModelName(model), turnId: userMsg.id, ownerTurnIds, skillText, goal: Boolean(opts.persist), ...(!leanPlace || chatOff || opts.replay ? { force: 'off' as const } : {}) }, loads, loads.filter((r) => r.pinned).map((r) => r.tool));
+    turnTools = leanFor(leanSet, leanPlace ? tools : tools.filter((t) => t.spec.name !== FIND_TOOLS), { text, mode: conv.mode === 'coding' || isWorkChannel(conv.channel) ? 'coding' : 'chat', local: provider.config.local === true && !isCloudModelName(model), turnId: userMsg.id, ownerTurnIds, skillText, goal: Boolean(opts.persist), permission: (n: string) => app.tools.permission(n, app.settings.get().toolPermissions), ...(!leanPlace || chatOff || opts.replay ? { force: 'off' as const } : {}) }, loads, loads.filter((r) => r.pinned).map((r) => r.tool));
     if (!turnTools.lean) tools = tools.filter((t) => t.spec.name !== FIND_TOOLS);
   }
   /** Writes this turn's loads (asked, ref, skill, find, used) to tool_loads; `n` = how many are written. */
@@ -2985,7 +2987,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // Phase 120 (PRECISE §4.4): a check still running is waited for once before her reply counts.
       if (checks) await checks.settle();
       const claimReceipts = checks ? [...receipts, ...checks.receipts()] : receipts;
-      let claims = checkClaims(reply, claimReceipts, priorReceipts);
+      let claims = checkClaims(reply, claimReceipts, priorReceipts, { attached: attachedThisTurn > 0 });
       if (!claims.length) claims = await judgeUnsure(app, reply, receipts, priorReceipts, { private: Boolean(conv.private) }, rec);
       if (!claims.length) claims = await judgeClaims(app, reply, receipts, priorReceipts, rec);
       if (!claims.length) {
@@ -3178,12 +3180,15 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           if (firstCard) {
             const { id, decision } = app.approvals.request(conv.id, signal);
             const stops = (turnContradictions.get(call.id) ?? []).filter((c) => c.act === 'stop');
-            yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(prepDetail ? { detail: prepDetail } : {}), ...(prepComputer ? { computer: prepComputer } : {}), ...(prepSkill ? { skill: prepSkill } : {}), ...(stopFor ? { contradiction: cardOf(stopFor, stops.filter((c) => c !== stopFor)) } : {}), ...(gate ? { sandboxFirst: { label: gate.isolation.label, isolated: gate.isolation.isolated } } : {}), ...(advisoryStop ? { advisory: advisoryStop } : {}), ...(redteamCard ? { redteam: redteamCard } : {}), ...(pluginAsk ? { plugin: { name: pluginAsk.name, reason: pluginAsk.reason } } : {}), ...(opts.untrusted ? { untrusted: true } : {}) };
+            // E7 (A1): "Always allow this tool" only on a plain ask in the owner's own app (the tool's own setting is Ask).
+            const alwaysOk = set === 'ask' && permission === 'ask' && !stopFor && !advisoryStop && !redteamCard && !pluginAsk && !gate && !prepComputer && !prepSkill && !prep?.ask && !tool?.asksFirst?.(call.arguments) && !opts.untrusted && !opts.outside && !opts.externalApp && !external && !conv.partner && !app.member && !app.demo && !app.offRecord;
+            yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(alwaysOk ? { alwaysOk: true } : {}), ...(prepDetail ? { detail: prepDetail } : {}), ...(prepComputer ? { computer: prepComputer } : {}), ...(prepSkill ? { skill: prepSkill } : {}), ...(stopFor ? { contradiction: cardOf(stopFor, stops.filter((c) => c !== stopFor)) } : {}), ...(gate ? { sandboxFirst: { label: gate.isolation.label, isolated: gate.isolation.isolated } } : {}), ...(advisoryStop ? { advisory: advisoryStop } : {}), ...(redteamCard ? { redteam: redteamCard } : {}), ...(pluginAsk ? { plugin: { name: pluginAsk.name, reason: pluginAsk.reason } } : {}), ...(opts.untrusted ? { untrusted: true } : {}) };
             allowed = await decision;
             explicitlyApproved = allowed;
             approval = allowed ? 'allowed' : 'denied';
             const how = app.approvals.takeHow(id);
             admit();
+            if (how === 'tool' && allowed && alwaysOk && !signal.aborted) app.settings.update({ toolPermissions: { ...(app.settings.get().toolPermissions ?? {}), [call.name]: 'auto' } });
             // Phase 88: "Allow for this task" / "Always on this site" on a computer-use card.
             if (!signal.aborted) prep?.answered?.(allowed, how);
             if (redteamCard && how === 'redteam' && !signal.aborted) {
@@ -3313,8 +3318,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
                 sandbox,
                 conversationId: conv.id,
                 companionName: app.persona.name,
-                attachImage: (id) => pendingImages.push(id),
+                attachImage: (id) => { attachedThisTurn++; pendingImages.push(id); },
+                ...(app.uploads ? { saveImage: (b: Buffer) => app.uploads!.saveBytes(b).id } : {}),
                 attachFile: (f) => {
+                  attachedThisTurn++;
                   pendingFiles.push(f);
                   newFiles.push(f);
                 },
@@ -3414,6 +3421,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         turnTools.load([call.name], 'used');
         if (status === 'error') output = `${output}\n${schemaHint(tool)}`;
       }
+      // B2: an argument error with allowed values: say nothing ran and how to go on (last, so she reads it).
+      if (status === 'error' && tool) { const hint = argErrorHint(tool, output); if (hint) output = `${output}\n${hint}`; }
       if (turnTools.lean && ranTool && call.name !== FIND_TOOLS) {
         const why = turnTools.offered.get(call.name);
         if (why && why !== 'core' && why !== 'safety' && why !== 'pinned') {

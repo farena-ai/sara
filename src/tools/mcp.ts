@@ -2,6 +2,7 @@
 // tools and exposes them through the tool registry as mcp_<server>_<tool>. Stdio servers run in the
 // same bubblewrap sandbox as shell commands, with their own home directory.
 import { clearSizes } from '../lean.ts';
+import { en } from '../i18n.ts';
 import { netFetch, privateLocalOn } from '../net-guard.ts';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -10,7 +11,7 @@ import { delimiter, dirname, extname, isAbsolute, join } from 'node:path';
 import { sseEvents } from '../sse.ts';
 import type { ToolRegistry } from './registry.ts';
 import { bwrapArgs, commandPath, prepareForToolsUser, PRIVATE_LOCAL_ENV, RUNTIME_MOUNT, runtimeMountArgs, SANDBOX_EXEC, seatbeltProfile, type SandboxInfo } from './sandbox.ts';
-import { clip, ToolError, type Tool } from './types.ts';
+import { clip, ToolError, type Tool, type ToolContext } from './types.ts';
 
 export const MCP_PROTOCOL_VERSION = '2025-06-18';
 export const MCP_NAME_RE = /^[a-z0-9][a-z0-9-]{0,30}$/;
@@ -211,10 +212,12 @@ class HttpTransport implements Transport {
   async request(method: string, params: unknown, signal: AbortSignal): Promise<unknown> {
     const id = this.#nextId++;
     const res = await this.#post({ jsonrpc: '2.0', id, method, params }, signal);
+    const type = res.headers.get('content-type') ?? '';
+    // B2: a web page (ComfyUI's own address, say) answers 405 or HTML, not JSON-RPC.
+    if (res.status === 405 || /text\/html/i.test(type)) throw new Error(`${WEB_PAGE_ANSWER} (HTTP ${res.status})`);
     if (!res.ok) throw new Error(`MCP HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 300)}`);
     const session = res.headers.get('mcp-session-id');
     if (session) this.#session = session;
-    const type = res.headers.get('content-type') ?? '';
     let msg: JsonRpcResponse | undefined;
     if (type.includes('text/event-stream') && res.body) {
       for await (const ev of sseEvents(res.body)) {
@@ -229,7 +232,9 @@ class HttpTransport implements Transport {
         }
       }
     } else {
-      msg = (await res.json()) as JsonRpcResponse;
+      const body = await res.text();
+      try { msg = JSON.parse(body) as JsonRpcResponse; } catch { msg = undefined; }
+      if (!msg || typeof msg !== 'object' || (msg as { jsonrpc?: unknown }).jsonrpc !== '2.0') throw new Error(`${WEB_PAGE_ANSWER} (HTTP ${res.status})`);
     }
     if (!msg) throw new Error('MCP server sent no response.');
     if (msg.error) throw new Error(msg.error.message);
@@ -327,17 +332,19 @@ export class McpConnection {
     return new StdioTransport(file, args, { ...baseEnv, HOME: home }, home);
   }
 
-  async callTool(name: string, args: Record<string, unknown>, signal: AbortSignal): Promise<string> {
+  async callTool(name: string, args: Record<string, unknown>, signal: AbortSignal, ctx?: Pick<ToolContext, 'attachImage' | 'saveImage'>): Promise<string> {
     if (!this.#transport || this.status !== 'ready') throw new ToolError(`MCP server "${this.config.name}" is not connected${this.error ? `: ${this.error}` : ''}.`);
-    let r: { content?: { type: string; text?: string; mimeType?: string; resource?: { uri?: string; text?: string } }[]; isError?: boolean; structuredContent?: unknown };
+    let r: { content?: { type: string; text?: string; data?: string; mimeType?: string; resource?: { uri?: string; text?: string } }[]; isError?: boolean; structuredContent?: unknown };
     try {
       r = (await this.#transport.request('tools/call', { name, arguments: args }, AbortSignal.any([signal, AbortSignal.timeout(10 * 60_000)]))) as typeof r;
     } catch (err) {
       throw new ToolError((err as Error).message);
     }
+    let images = 0;
     const parts = (r.content ?? []).map((c) => {
       if (c.type === 'text') return c.text ?? '';
       if (c.type === 'resource') return c.resource?.text ?? `[resource ${c.resource?.uri ?? ''}]`;
+      if (c.type === 'image' && typeof c.data === 'string') return imageBlock(c.data, c.mimeType ?? '', ++images, ctx);
       return `[${c.type}${c.mimeType ? ` ${c.mimeType}` : ''} omitted]`;
     });
     if (!parts.length && r.structuredContent !== undefined) parts.push(JSON.stringify(r.structuredContent, null, 2));
@@ -351,6 +358,27 @@ export class McpConnection {
     this.#transport = undefined;
     this.status = 'stopped';
   }
+}
+
+/** B2: what an HTTP test says when the address is a web page, not a tool server. */
+export const WEB_PAGE_ANSWER = en('That address answered like a web page, not a tool server. If this program needs an address of another service (like ComfyUI), put it in that setting instead.');
+
+/** B2: what Sara may show from an MCP image block: like her photos (uploads.ts), at most 4 a call. */
+const MCP_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+const MCP_IMAGE_BYTES = 8 * 1024 * 1024;
+const MCP_IMAGES_PER_CALL = 4;
+function imageBlock(data: string, mime: string, n: number, ctx?: Pick<ToolContext, 'attachImage' | 'saveImage'>): string {
+  if (!ctx?.attachImage || !ctx.saveImage) return "Image not attached: pictures from tools can't be shown here.";
+  if (!MCP_IMAGE_TYPES.includes(mime.toLowerCase())) return `Image not attached: ${mime || 'this'} pictures can't be shown; only PNG, JPEG, WebP or GIF.`;
+  if (n > MCP_IMAGES_PER_CALL) return `Image not attached: at most ${MCP_IMAGES_PER_CALL} pictures per tool call.`;
+  const bytes = Buffer.from(data, 'base64');
+  if (bytes.length > MCP_IMAGE_BYTES) return `Image not attached: it is ${(bytes.length / 1024 / 1024).toFixed(1)} MB; pictures can be up to ${MCP_IMAGE_BYTES / 1024 / 1024} MB.`;
+  try {
+    ctx.attachImage(ctx.saveImage(bytes));
+  } catch (err) {
+    return `Image not attached: ${(err as Error).message}`;
+  }
+  return `Image attached to your reply (${Math.max(1, Math.round(bytes.length / 1024))} KB). It is shown to the owner with your message.`;
 }
 
 export function mcpToolName(server: string, tool: string): string {
@@ -416,7 +444,7 @@ export class McpManager {
         parameters: t.inputSchema && typeof t.inputSchema === 'object' ? t.inputSchema : { type: 'object', properties: {} },
       },
       summarize: (a) => `${conn.config.name}: ${t.name} ${clip(JSON.stringify(a), 160)}`,
-      run: (args, ctx) => conn.callTool(t.name, args, ctx.signal),
+      run: (args, ctx) => conn.callTool(t.name, args, ctx.signal, ctx),
     };
   }
 }

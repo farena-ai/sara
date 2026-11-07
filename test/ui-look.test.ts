@@ -95,11 +95,11 @@ test('theme: loaded first, no flash: the boot script sets the theme before any s
   assert.match(head, /interactive-widget=resizes-content/, 'phones: the composer stays above the keyboard');
   assert.match(head, /viewport-fit=cover/, 'phones: safe areas');
   assert.doesNotMatch(html, /\sstyle="/, 'no inline style attributes');
-  // The setting: Night (default) / Day / Follow the system, on the same per-device key.
-  assert.match(html, /<select id="ap-theme"><option value="dark">Night \(default\)<\/option><option value="light">Day<\/option><option value="system">Follow the system<\/option><\/select>/);
+  // The setting: Night / Day / Follow the system (V3, docs/ops/V3_DESIGN.md §5: the owner's default), on the same per-device key.
+  assert.match(html, /<select id="ap-theme"><option value="dark">Night<\/option><option value="light">Day<\/option><option value="system">Follow the system \(default\)<\/option><\/select>/);
   const tips = JSON.parse(web('tips.json'));
-  assert.match(JSON.stringify(tips), /"ap-theme":\["Night \(dark\) is the default\./);
-  assert.match(app, /const themePick = \(\) => \{\s*const v = localStorage\.getItem\('sara\.theme'\);\s*return v === 'light' \|\| v === 'system' \? v : 'dark';/);
+  assert.match(JSON.stringify(tips), /"ap-theme":\["Follow the system is the default/);
+  assert.match(app, /const themePick = \(pal = palettePick\(\)\) => \{\s*const v = localStorage\.getItem\('sara\.theme'\);\s*return v === 'light' \|\| v === 'system' \|\| v === 'dark' \? v : pal === 'classic' \? 'dark' : 'system';/);
 });
 
 /** Runs web/theme-boot.js against a fake page. */
@@ -124,15 +124,16 @@ function boot({ stored, light = false, search = '', shell, classes = [] as strin
   return { attrs, props, cls, window, posted };
 }
 
-test('theme-boot: Night unless Day (or the system, when light) was picked; the native strip', () => {
-  assert.equal(boot({}).attrs['data-theme'], 'dark', 'nobody chose: Night');
-  assert.equal(boot({ light: true }).attrs['data-theme'], 'dark', 'a light system alone does not switch');
+test('theme-boot: Follow the system unless Night or Day was picked (V3, the owner default); the native strip', () => {
+  assert.equal(boot({}).attrs['data-theme'], 'dark', 'nobody chose, a dark system: Night');
+  assert.equal(boot({ light: true }).attrs['data-theme'], 'light', 'nobody chose, a light system: Day (V3)');
+  assert.equal(boot({ stored: 'dark', light: true }).attrs['data-theme'], 'dark', 'a picked Night stays');
   assert.equal(boot({ stored: 'light' }).attrs['data-theme'], 'light');
   assert.equal(boot({ stored: 'system', light: true }).attrs['data-theme'], 'light');
   assert.equal(boot({ stored: 'system', light: false }).attrs['data-theme'], 'dark');
-  assert.equal(boot({ stored: 'nonsense', light: true }).attrs['data-theme'], 'dark');
+  assert.equal(boot({ stored: 'nonsense', light: true }).attrs['data-theme'], 'light', 'unknown values: the default (the system)');
   assert.ok(boot({}).cls.has('theme-night'));
-  assert.equal(boot({}).attrs['data-accent'], 'rose');
+  assert.equal(boot({}).attrs['data-accent'], 'blue', 'V3: Blue by default');
   // Normal browsers: nothing changes.
   const plain = boot({});
   assert.ok(!plain.cls.has('shell'));

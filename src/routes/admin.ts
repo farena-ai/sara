@@ -30,7 +30,10 @@ import { onThisComputer } from '../private-local.ts';
 import { qrSvg } from '../qr.ts';
 import { ROUTE_PURPOSES, type RoutePurpose, type Settings, USE_PATHS, type UsePath, usePathOf } from '../settings.ts';
 import { MCP_PRESETS, type McpServerConfig, mcpVaultKey, validateMcpConfig } from '../tools/mcp.ts';
+import { recipeEdit } from '../store/install.ts';
+import { parseRecipe, type McpRecipe } from '../store/format.ts';
 import { noSandboxNote } from '../tools/sandbox.ts';
+import { applyServerPolicy, coverage, SERVER_POLICIES, type ServerPolicy, serverTools } from '../tool-policy.ts';
 import { SEARCH_PROVIDERS, type SearchProvider, searchVaultKey } from '../tools/search.ts';
 import { type Permission, PERMISSIONS } from '../tools/types.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
@@ -244,6 +247,8 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           // Phase 77: check her plans against what you decided (switch + strictness).
           contradict: contradictSettings(s),
           // Phase 49: the browser she tests web apps with.
+          // E7 (A2): one choice per tool server, with exactly which tools each choice covers.
+          servers: (s.mcpServers ?? []).map((m) => ({ name: m.name, policy: s.mcpPolicy?.[m.name] ?? null, ...coverage(m.name, serverTools(app.mcp, m.name)) })),
           browser: app.browsers ? (({ found, name, how }) => ({ found, name: name ?? null, how }))(new URL(req.url ?? '/', 'http://x').searchParams.get('recheck') ? app.browsers.refresh() : app.browsers.status()) : { found: false, name: null, how: 'Not available on this server.' },
         });
       }
@@ -270,6 +275,19 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
         app.settings.update(patch);
         return send(res, 200, { ok: true });
       }
+    }
+
+    // E7 (A2): "Always allow the safe ones" (or everything but destructive, Ask, Never) for one server.
+    if (a === 'tools' && b === 'policy' && method === 'PUT') {
+      if (opts.demo || app.demo || app.member) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+      const body = await readJson(req);
+      const server = String(body.server ?? '');
+      const s = app.settings.get();
+      if (!(s.mcpServers ?? []).some((m) => m.name === server)) throw new HttpError(400, 'Unknown tool server {name}', { params: { name: server } });
+      if (!SERVER_POLICIES.includes(body.policy as ServerPolicy)) throw new HttpError(400, 'Pick Ask me first, the safe ones, everything or Never.');
+      const policy = body.policy as ServerPolicy;
+      app.settings.update({ toolPermissions: applyServerPolicy(s.toolPermissions ?? {}, policy, server, serverTools(app.mcp, server)), mcpPolicy: { ...(s.mcpPolicy ?? {}), [server]: policy } });
+      return send(res, 200, { ok: true, server, policy, ...coverage(server, serverTools(app.mcp, server)) });
     }
 
     if (a === 'search' && !b) {
@@ -311,12 +329,25 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
     }
     if (a === 'mcp' && b === 'presets' && method === 'GET') return send(res, 200, MCP_PRESETS);
     if (a === 'mcp') {
+      // B2: a server the Store installed is edited through its recipe's fields (saved values shown, secrets as saved).
+      const recipeOf = (name: string): { item: string; recipe: McpRecipe } | undefined => {
+        const row = app.storeInstalls?.byRef('mcp', name);
+        if (!row?.recipe) return undefined;
+        try { const { version: _v, ...raw } = JSON.parse(row.recipe) as Record<string, unknown>; return { item: row.item, recipe: parseRecipe(raw) }; } catch { return undefined; }
+      };
       const view = () =>
         (app.settings.get().mcpServers ?? []).map((cfg) => {
           const conn = app.mcp?.get(cfg.name);
           const sec = mcpSecrets(app.vault, cfg.name);
+          const r = recipeOf(cfg.name);
+          const secretKeys = new Set(r ? [...r.recipe.secrets, ...r.recipe.fields.filter((x) => x.kind === 'secret')].map((f) => f.key) : []);
           return {
             ...cfg,
+            ...(r ? { recipe: { item: r.item, fields: [...r.recipe.fields, ...r.recipe.secrets].map((f) => {
+              const secret = secretKeys.has(f.key);
+              const saved = r.recipe.transport === 'stdio' ? sec.env?.[f.key] : undefined;
+              return { key: f.key, label: f.label, tip: f.tip, kind: f.kind, optional: Boolean(f.optional), secret, saved: secret ? Boolean(saved ?? sec.headers?.[f.header ?? f.key]) : Boolean(saved), ...(secret ? {} : { value: saved ?? f.default ?? '' }) };
+            }) } } : {}),
             status: cfg.enabled ? (conn?.status ?? 'stopped') : 'disabled',
             error: conn?.error ?? '',
             tools: conn?.tools.map((t) => t.name) ?? [],
@@ -328,6 +359,23 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       if (b && !c && method === 'PUT') {
         const body = await readJson(req);
         let cfg: McpServerConfig;
+        const r = recipeOf(b);
+        if (r && body.fields && typeof body.fields === 'object') {
+          try {
+            const cur = mcpSecrets(app.vault, b);
+            const out = recipeEdit(app.dataDir, r.recipe, b, cur, body.fields as Record<string, unknown>);
+            cfg = { ...out.cfg, enabled: body.enabled !== false };
+            app.vault.set(mcpVaultKey(b), JSON.stringify({ env: mergeSecrets(cur.env, out.env), headers: mergeSecrets(cur.headers, out.headers) }));
+          } catch (err) {
+            throw as400(err);
+          }
+          const servers = (app.settings.get().mcpServers ?? []).filter((s) => s.name !== b).concat(cfg);
+          app.settings.update({ mcpServers: servers });
+          await app.mcp?.start(cfg);
+          return send(res, 200, await view());
+        }
+        // B2: a Store server keeps the recipe's type; its settings are edited instead (fields above).
+        if (r && body.transport !== undefined && body.transport !== r.recipe.transport) throw new HttpError(400, 'This tool server came from the Sara Store: change its settings (like the ComfyUI address) instead of its type.');
         try {
           cfg = validateMcpConfig(body, b);
           const cur = mcpSecrets(app.vault, b);

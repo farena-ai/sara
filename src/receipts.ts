@@ -14,9 +14,11 @@ export interface Receipt {
 
 /**
  * 'send': sent, emailed or replied to a message (Phase 62); 'schedule': put something in a
- * calendar (Phase 62); 'action': found by the optional local judge (any kind of action).
+ * calendar (Phase 62); 'action': found by the optional local judge (any kind of action); 'status':
+ * "it isn't installed / running, set it up on your end" after a failed call and no successful one (B2);
+ * 'attach': "I sent you the picture", "here it is" while nothing was attached to her reply (B2).
  */
-export type ClaimKind = 'write' | 'run' | 'tests_pass' | 'types_clean' | 'commit' | 'web' | 'remind' | 'planner' | 'browser' | 'send' | 'schedule' | 'action';
+export type ClaimKind = 'write' | 'run' | 'tests_pass' | 'types_clean' | 'commit' | 'web' | 'remind' | 'planner' | 'browser' | 'send' | 'schedule' | 'action' | 'status' | 'attach';
 
 export interface Claim {
   kind: ClaimKind;
@@ -246,6 +248,20 @@ const FIXED_NOW = [
   /\b(?:I(?:'ve| have)?|I just)\s+(?:also\s+)?fixed\b|\b(?:it's|it is|that's|that is|is|are)\s+(?:now\s+)?fixed\b|\b(?:looks?|fits?|works?)\s+(?:(?:right|good|fine|correct|properly)\s+)?now\b|\bnow (?:looks|fits|works)\b/i,
   w("arreglad[oa]s?|corregid[oa]s?|se ve bien|corrigée?s?|réparée?s?|s'affiche bien|behoben|repariert|korrigiert|sieht (?:jetzt )?gut aus|corrigid[oa]s?|consertad[oa]s?|sistemat[oa]|corrett[oa]|risolt[oa]"),
 ];
+/** B2: a cause she can only know from a check: not installed / not running, or "set it up on your end". */
+const NOT_THERE = [
+  /\b(?:is|are|isn't|aren't|is not|are not|wasn't|was not|not)\s+(?:yet\s+|even\s+|actually\s+)?(?:installed|running|set up|configured|started|reachable|available|connected)\b|\b(?:install|set up|configure|start)\b[^.!?]{0,60}\bon your (?:end|side|computer|pc|machine)\b|\bget (?:it|that|them|comfyui|this) (?:installed|set up|configured|running)\b/i,
+  w('no está (?:instalad[oa]|funcionando|en marcha|configurad[oa])|instálalo|n.est pas (?:installée?|lancée?|configurée?)|ne tourne pas|installe-le|nicht installiert|läuft nicht|nicht eingerichtet|installier(?:e|en sie)? es|não está (?:instalad[oa]|rodando|funcionando|configurad[oa])|instale-o|non è (?:installat[oa]|in esecuzione|configurat[oa])|installalo'),
+];
+/** B2: "I sent / attached / shared the picture", "here it is", in the six languages: needs an attachment this turn. */
+const MEDIA = /\b(?:photos?|pictures?|pics?|images?|files?|screenshots?|selfies?|renders?)\b/i;
+const MEDIA_I18N = w('fotos?|imagen(?:es)?|imágenes|archivos?|ficheros?|photos?|images?|fichiers?|bilder?|dateien?|datei|imagens?|arquivos?|immagin[ei]|file');
+const ATTACHED = [
+  /\b(?:I(?:'ve| have)?|I just)\s+(?:also\s+)?(?:sent|attached|shared|uploaded|dropped)\b[^.!?]{0,40}\b(?:photos?|pictures?|pics?|images?|files?|screenshots?|selfies?|renders?|it|them|you)\b|\b(?:photos?|pictures?|images?|files?) (?:is|are) (?:now )?attached\b|\bhere(?:'s| is| are)\s+(?:the|your|my|a)\s+(?:new\s+|latest\s+|last\s+)?(?:photos?|pictures?|pics?|images?|files?|screenshots?|selfies?|renders?)\b/i,
+  w("te (?:he )?(?:envié|mandé|enviado|mandado)|aquí (?:tienes|está) (?:la|tu|el) (?:foto|imagen|archivo)|je t.ai (?:envoyé|partagé)|voici (?:la|ta|le|ton) (?:photo|image|fichier)|ich habe dir .{0,40}(?:geschickt|gesendet)|hier ist (?:das|dein) (?:foto|bild)|te (?:enviei|mandei)|aqui está (?:a|sua) (?:foto|imagem)|ti ho (?:mandato|inviato)|ecco (?:la|il) (?:foto|immagine|file)"),
+];
+/** "Here it is" / "here you go" counts when the reply is about a picture or file. */
+const HERE_IT_IS = [/\bhere (?:it is|they are|you go)\b/i, w('aquí (?:está|lo tienes|la tienes)|le voilà|la voilà|hier ist es|aqui está|eccola|eccolo')];
 /** E3: phone = "phone"/"mobile" or an explicit width up to 480 px; desktop = the default, "desktop" or 1024 px and up. */
 export function shotWidth(r: Receipt): 'phone' | 'desktop' | undefined {
   const v = r.args.width;
@@ -347,6 +363,7 @@ function backing(receipts: Receipt[]) {
     // Anything that did something (not just reading) backs the judge's generic "action".
     hasAny: ok.some((r) => !READ_ONLY.test(r.name)),
     typeChecks: receipts.filter((r) => r.name === 'diagnostics'),
+    failedOnly: receipts.some((r) => r.status === 'error') && !ok.length,
     testRuns: shells.filter((r) => /\b(test|jest|vitest|pytest|mocha|go test|cargo test|npm t\b|node --test|make check|npm run check)\b/i.test(cmd(r))),
   };
 }
@@ -354,7 +371,13 @@ function backing(receipts: Receipt[]) {
 const isQuestion = (s: string) => /[?¿]\s*$/.test(s) || /^\s*¿/.test(s);
 const isEarlier = (s: string) => EARLIER.test(s) || I18N.earlier.test(s);
 
-export function checkClaims(reply: string, receipts: Receipt[], prior: Receipt[] = []): Claim[] {
+/** B2: what chat.ts knows beyond receipts; `attached` = a tool attached a picture or file to her reply this turn. */
+export interface ClaimContext {
+  attached?: boolean;
+}
+
+export function checkClaims(reply: string, receipts: Receipt[], prior: Receipt[] = [], cx: ClaimContext = {}): Claim[] {
+  const aboutMedia = MEDIA.test(visibleText(reply)) || MEDIA_I18N.test(visibleText(reply));
   const b = backing(receipts);
   const claims: Claim[] = [];
   const seen = new Set<string>();
@@ -396,6 +419,10 @@ export function checkClaims(reply: string, receipts: Receipt[], prior: Receipt[]
       const width = PHONE.test(s) ? 'phone' : DESKTOP.test(s) ? 'desktop' : undefined;
       if (!b.lookedAfterEdit() || (width && !b.lookedAfterEdit(width))) add('browser', s, 'missing');
     }
+    // B2: after a failed call, with nothing that worked, a guessed cause is not something she saw.
+    if (b.failedOnly && NOT_THERE.some((r) => r.test(s))) add('status', s, 'missing');
+    // B2: "I sent you the picture" while no tool attached anything to her reply.
+    if (cx.attached === false && (claimed(s, ATTACHED) || (aboutMedia && claimed(s, HERE_IT_IS)))) add('attach', s, 'missing');
   }
   return claims;
 }
@@ -432,6 +459,8 @@ function isBacked(sentence: string, kind: ClaimKind, receipts: Receipt[], prior:
     send: b.hasSend,
     schedule: b.hasSchedule,
     action: b.hasAny,
+    status: ok.length > 0,
+    attach: false,
   };
   return backed[kind];
 }
@@ -566,7 +595,7 @@ export const CLAIM_JUDGE_TIMEOUT_MS = 8_000;
 
 export function correctionNote(claims: Claim[]): string {
   const lines = claims.map((c) =>
-    c.problem === 'contradicted' ? `- "${c.sentence}": your own tool output says otherwise (the last test run did not exit 0).` : `- "${c.sentence}": no tool did this in this turn.`,
+    c.problem === 'contradicted' ? `- "${c.sentence}": your own tool output says otherwise (the last test run did not exit 0).` : c.kind === 'attach' ? `- "${c.sentence}": nothing was attached to your reply in this turn; attach it with a tool, or say plainly that you couldn't send it.` : c.kind === 'status' ? `- "${c.sentence}": a tool failed and nothing you ran checked this; check with a read-only tool, or say only that the call failed.` : `- "${c.sentence}": no tool did this in this turn.`,
   );
   return `Receipt check failed. Your last reply made claims that the tool log does not support:\n${lines.join('\n')}\nReceipts are the truth. Correct yourself now, briefly and in character: either actually do it with your tools, or say plainly that it didn't happen (or failed). Do not repeat an unsupported claim.`;
 }

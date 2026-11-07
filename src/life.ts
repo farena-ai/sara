@@ -23,6 +23,7 @@ import { identityOf } from './persona.ts';
 import type { Conversation } from './store.ts';
 import { usageScope } from './usage.ts';
 import { ownerEvidenceConversation, ownerEventMemory, pendingOwnerEvents } from './owner-evidence.ts';
+import { maybeOwnPhoto, type OwnPhotoResult } from './own-photos.ts';
 
 export interface ProactiveSettings {
   enabled: boolean;
@@ -226,11 +227,11 @@ export class LifeWorker {
     if (this.#timer) clearInterval(this.#timer);
   }
 
-  tick(): Promise<{ day?: string; proactive?: string; skipped?: string; agenda?: import('./agenda.ts').TickResult }> {
+  tick(): Promise<{ day?: string; proactive?: string; skipped?: string; agenda?: import('./agenda.ts').TickResult; picture?: string }> {
     return usageScope.run({ purpose: 'her-life' }, () => this.#tick());
   }
 
-  async #tick(): Promise<{ day?: string; proactive?: string; skipped?: string; agenda?: import('./agenda.ts').TickResult }> {
+  async #tick(): Promise<{ day?: string; proactive?: string; skipped?: string; agenda?: import('./agenda.ts').TickResult; picture?: string }> {
     // Phase 103 (ST8): with her plans on, one agenda step per tick (before her spontaneous message,
     // under the same daily cap). With them off nothing here runs and the old behaviour is unchanged.
     const agendaOn = Boolean(this.#app.agenda?.enabled());
@@ -254,7 +255,9 @@ export class LifeWorker {
         this.#holdUntil = this.#app.now().getTime() + 60 * 60_000;
         return { skipped: `error: ${err.message}` };
       });
-      return { ...(day ? { day } : {}), ...pro, ...(agenda ? { agenda } : {}) };
+      // E7 (B2s): a picture on her own, now and then (off by default), under the same daily limit.
+      const picture = 'proactive' in pro && pro.proactive ? undefined : await maybeOwnPhoto(this.#app, { random: this.#random }).catch((err: Error): OwnPhotoResult => ({ skipped: `error: ${err.message}` }));
+      return { ...(day ? { day } : {}), ...pro, ...(agenda ? { agenda } : {}), ...(picture?.sent ? { picture: picture.sent.caption } : {}) };
     } finally {
       this.#running = false;
     }

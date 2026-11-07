@@ -342,7 +342,7 @@
       "start"
     ],
     "ap-theme": [
-      "Night (dark) is the default. Day is the light look. Follow the system switches with this device's own light or dark setting.",
+      "Follow the system is the default: it switches with this device's own light or dark setting. Night is the dark look, Day the light one.",
       "start"
     ],
     "ap-typing": [
@@ -354,7 +354,7 @@
       "start"
     ],
     "ap-accent": [
-      "The app's highlight colour on this device.",
+      "The app's highlight colour on this device. Blue is the default; Theme colour uses the palette's own.",
       "start"
     ],
     "ap-chatbg": [
@@ -370,7 +370,7 @@
       "start"
     ],
     "ap-decor": [
-      "Reduced keeps the app flat: no moving background, glows, blur or gradients. Full brings them back. Sara Classic starts with Full, every other palette with Reduced.",
+      "Full (the default) adds soft glass, a faint glow and a slow light behind the app. Reduced keeps it flat. Reduce transparency in your system settings turns it off.",
       "start"
     ],
     "ap-portrait": [

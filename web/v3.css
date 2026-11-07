@@ -1,0 +1,155 @@
+/* V3 (docs/ops/V3_DESIGN.md): the navigation, Settings home, the refined Full decoration and the
+   Appearance page. Everything here is outside Sara Classic: rules are scoped with
+   :where(:root:not([data-palette="classic"])) (zero specificity, they win by loading last), and the
+   new elements are hidden in Classic, so Sara Classic looks exactly as before. Colours only through
+   the theme tokens. */
+
+/* ---------- V3 slice 1: the sidebar rail (Go to · Projects · Conversations · footer) ---------- */
+.side-go-h, .side-cmd { display: none; }
+:where(:root:not([data-palette="classic"])) #sidebar.rail .side-nav { margin-top: 0; padding: 2px 8px 6px; border-top: 0; border-bottom: 1px solid var(--line); }
+:where(:root:not([data-palette="classic"])) #sidebar.rail .side-go-h { display: block; margin: 4px 10px 2px; }
+:where(:root:not([data-palette="classic"])) #sidebar.rail #conversations { padding-top: 6px; }
+:where(:root:not([data-palette="classic"])) #sidebar.rail .side-more-menu { position: static; max-height: none; margin: 2px 0 4px; padding: 2px 0 2px 10px; background: transparent; border: 0; border-left: 1px solid var(--line); border-radius: 0; box-shadow: none; }
+:where(:root:not([data-palette="classic"])) #sidebar.rail .side-more-head { display: none; }
+:where(:root:not([data-palette="classic"])) .side-foot { margin-top: auto; padding: 4px 8px 8px; border-top: 1px solid var(--line); }
+:where(:root:not([data-palette="classic"])) .side-foot .side-foot-row { margin-top: 0; padding-top: 4px; border-top: 0; }
+:where(:root:not([data-palette="classic"])) .side-search { position: relative; }
+:where(:root:not([data-palette="classic"])) .side-search input { padding-right: 64px; }
+:where(:root:not([data-palette="classic"])) .side-cmd { display: inline-flex; position: absolute; right: 16px; top: 50%; transform: translateY(calc(-50% - 3px)); align-items: center; height: 22px; padding: 0; background: transparent; border: 0; cursor: pointer; }
+:where(:root:not([data-palette="classic"])) .side-cmd kbd { font: 500 11px/1 var(--font-mono); color: var(--text-3); padding: 3px 5px; border: 1px solid var(--line); border-radius: var(--r-1, 4px); background: var(--surface-2); }
+:where(:root:not([data-palette="classic"])) .side-cmd:hover kbd { color: var(--text-1); }
+@media (pointer: coarse) {
+  :where(:root:not([data-palette="classic"])) .side-cmd { display: none; }
+  :where(:root:not([data-palette="classic"])) .side-search input { padding-right: 10px; }
+}
+
+/* ---------- V3 slice 2: Settings home, breadcrumbs, All settings ---------- */
+.settings-crumbs, .settings-nav-home { display: none; }
+:where(:root:not([data-palette="classic"])) .settings-nav-home { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+:where(:root:not([data-palette="classic"])) .settings-nav-home .sng-icon { width: 16px; height: 16px; flex: none; color: var(--text-3); }
+:where(:root:not([data-palette="classic"])) .settings-nav-home[aria-current="true"] .sng-icon { color: var(--accent-text); }
+:where(:root:not([data-palette="classic"])) .settings-crumbs:not(:empty) { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; width: 100%; margin: 0 0 2px; font-size: 12px; line-height: 18px; color: var(--text-3); }
+:where(:root:not([data-palette="classic"])) .settings-crumbs .sc-link { min-height: 0; height: auto; padding: 0 2px; background: none; border: 0; border-radius: var(--r-1, 4px); color: var(--text-2); font: inherit; cursor: pointer; }
+:where(:root:not([data-palette="classic"])) .settings-crumbs .sc-link:hover { color: var(--text-1); text-decoration: underline; text-underline-offset: 2px; }
+:where(:root:not([data-palette="classic"])) .settings-crumbs .sc-here { color: var(--text-3); }
+:where(:root:not([data-palette="classic"])) .settings-page-head:has(.settings-crumbs:not(:empty)) { flex-wrap: wrap; row-gap: 0; }
+:where(:root:not([data-palette="classic"])) .settings-home:not([hidden]) { display: block; }
+:where(:root:not([data-palette="classic"])) .sh-intro { margin: 0 0 16px; color: var(--text-2); max-width: 64ch; }
+:where(:root:not([data-palette="classic"])) .sh-grid { columns: 3 280px; column-gap: 12px; }
+:where(:root:not([data-palette="classic"])) .sh-group { break-inside: avoid; display: inline-block; width: 100%; margin: 0 0 12px; padding: 12px 12px 6px; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-3, 8px); }
+:where(:root:not([data-palette="classic"])) .sh-head { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 600; color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .sh-icon { width: 16px; height: 16px; flex: none; color: var(--accent-text); }
+:where(:root:not([data-palette="classic"])) .sh-desc { margin: 2px 0 8px; font-size: 12.5px; line-height: 1.4; color: var(--text-3); }
+:where(:root:not([data-palette="classic"])) .sh-list { list-style: none; margin: 0; padding: 0; }
+:where(:root:not([data-palette="classic"])) .sh-list li + li { border-top: 1px solid var(--hairline); }
+:where(:root:not([data-palette="classic"])) .sh-link { display: grid; grid-template-columns: minmax(0, 1fr) 14px; grid-template-areas: "t c" "l c"; align-items: center; column-gap: 8px; width: 100%; min-height: 0; height: auto; padding: 6px 4px; background: transparent; border: 0; border-radius: var(--r-2, 6px); color: var(--text-2); font: inherit; text-align: left; cursor: pointer; transition: background-color 90ms cubic-bezier(.2, 0, 0, 1), color 90ms cubic-bezier(.2, 0, 0, 1); }
+:where(:root:not([data-palette="classic"])) .sh-link:hover { background: var(--surface-2); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .sh-title { grid-area: t; font-size: 13.5px; font-weight: 500; }
+:where(:root:not([data-palette="classic"])) .sh-lead { grid-area: l; overflow: hidden; font-size: 12px; line-height: 1.35; color: var(--text-3); white-space: nowrap; text-overflow: ellipsis; }
+:where(:root:not([data-palette="classic"])) .sh-chev { grid-area: c; width: 14px; height: 14px; color: var(--text-3); }
+@media (max-width: 720px) {
+  :where(:root:not([data-palette="classic"])) .sh-grid { columns: 1; }
+  :where(:root:not([data-palette="classic"])) .sh-link { min-height: 44px; }
+}
+
+/* ---------- V3 slice 4: the refined Full decoration (tokens in theme.css) ---------- */
+/* Her face: a thin accent ring instead of the Classic halo and sparkles. */
+:where(:root:not([data-palette="classic"])[data-decor="on"]) :is(.td-face-btn, .hp-glow, .head-face-btn)::after,
+:where(:root:not([data-palette="classic"])[data-decor="on"]) :is(.td-face-btn, .hp-glow)::before { display: none; }
+:where(:root:not([data-palette="classic"])[data-decor="on"]) :is(.head-face, .side-face, .brand .avatar) { box-shadow: 0 0 0 1px var(--accent-line); }
+:where(:root:not([data-palette="classic"])[data-decor="on"]) :is(.hp-glow, .hp-glow:hover) { background: var(--surface-3); box-shadow: 0 0 0 1px var(--accent-line), 0 8px 28px -12px var(--accent-glow); transform: none; }
+:where(:root:not([data-palette="classic"])[data-decor="on"]) .hp-name { background: none; color: var(--text-1); -webkit-text-fill-color: currentColor; }
+/* Glass on the edge chrome and the floating layers only; the reading surfaces stay solid. */
+:where(:root:not([data-palette="classic"])[data-decor="on"]) :is(#sidebar, #chat-head, #her-panel.mode-side) { background: var(--glass); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); }
+:where(:root:not([data-palette="classic"])[data-decor="on"]) :is(dialog.settings-dialog, #cmdbar, .head-pop, .composer-menu, .side-more-menu, .toast) { background: var(--glass-strong); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); }
+:where(:root:not([data-palette="classic"])[data-decor="on"]) :is(dialog.settings-dialog, #cmdbar) { box-shadow: var(--elev-3), var(--glass-hi); }
+/* The one primary action per region gets the soft glow; focus and the composer get a soft ring. */
+:where(:root:not([data-palette="classic"])[data-decor="on"]) :is(#new-chat, #send, .su-next, #setup .primary) { box-shadow: var(--btn-glow); }
+:where(:root:not([data-palette="classic"])[data-decor="on"]) #composer:focus-within { box-shadow: var(--v3-ring-glow); }
+:where(:root:not([data-palette="classic"])[data-decor="on"]) .settings-nav-item[aria-current="true"] { box-shadow: inset 2px 0 0 var(--accent-solid); }
+/* Micro-interactions: quick, colour and transform only (reduced motion turns them off below). */
+:where(:root:not([data-palette="classic"])) :is(.side-go, .side-proj, .settings-nav-item, .sh-link, .cmd-item, .ap-pal, .ap-swatch, .ap-seg-opt, .ap-card) { transition: background-color 90ms cubic-bezier(.2, 0, 0, 1), color 90ms cubic-bezier(.2, 0, 0, 1), box-shadow 140ms cubic-bezier(.2, 0, 0, 1), border-color 140ms cubic-bezier(.2, 0, 0, 1); }
+:where(:root:not([data-palette="classic"])) :is(.ap-swatch, .ap-pal):active { transform: scale(.97); }
+@media (prefers-reduced-motion: reduce) {
+  :where(:root:not([data-palette="classic"])) :is(.side-go, .side-proj, .settings-nav-item, .sh-link, .cmd-item, .ap-pal, .ap-swatch, .ap-seg-opt, .ap-card) { transition: none; }
+  :where(:root:not([data-palette="classic"])) :is(.ap-swatch, .ap-pal):active { transform: none; }
+}
+/* No blur where it can't be drawn, where the system asks for less transparency, or in forced colours. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :where(:root:not([data-palette="classic"])[data-decor="on"]) :is(#sidebar, #chat-head, #her-panel.mode-side) { background: var(--surface-1); }
+  :where(:root:not([data-palette="classic"])[data-decor="on"]) :is(dialog.settings-dialog, #cmdbar, .head-pop, .composer-menu, .side-more-menu, .toast) { background: var(--surface-1); }
+}
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  :where(:root:not([data-palette="classic"])) :is(#sidebar, #chat-head, #her-panel.mode-side, dialog.settings-dialog, #cmdbar, .head-pop, .composer-menu, .side-more-menu, .toast) { background: var(--surface-1); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+:where(:root[data-palette="contrast"]) .aurora { display: none; }
+
+/* ---------- V3 slice 5: the Appearance page (groups, segmented controls, swatches, live preview) ---------- */
+/* Sara Classic keeps the plain stack: the new pieces are hidden there and the groups lay out as before. */
+#ap-preview, .ap-seg, #ap-reset, .ap-swatch-custom, .ap-group-h { display: none; }
+:where(:root:not([data-palette="classic"])) .ap-layout { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 16px; align-items: start; }
+:where(:root:not([data-palette="classic"])) .ap-group { margin: 0 0 12px; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-3, 8px); }
+:where(:root:not([data-palette="classic"])) .ap-group-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; padding: 0 12px 0 16px; border-bottom: 1px solid var(--line); }
+:where(:root:not([data-palette="classic"])) .ap-group-h h3 { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) #ap-reset { display: inline-flex; }
+:where(:root:not([data-palette="classic"])) .ap-group .ap-pal-row { display: grid; gap: 8px; padding: 12px 16px; }
+:where(:root:not([data-palette="classic"])) .ap-group .ap-pal-row > label { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; color: var(--text-2); }
+:where(:root:not([data-palette="classic"])) .ap-group .ap-pal-row > label > select { display: none; }
+:where(:root:not([data-palette="classic"])) .ap-group .ap-pal-row > .ap-pals { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; margin: 0; }
+:where(:root:not([data-palette="classic"])) .ap-group .row-grid > .ap-pal-row + label { border-top: 1px solid var(--hairline); }
+:where(:root:not([data-palette="classic"])) .ap-group .row-grid { display: block; margin: 0; }
+:where(:root:not([data-palette="classic"])) .ap-group .row-grid > label { display: grid; grid-template-columns: minmax(120px, 30%) minmax(0, 1fr); align-items: center; gap: 12px; margin: 0; padding: 10px 16px; border-top: 1px solid var(--hairline); font-size: 13px; color: var(--text-2); }
+:where(:root:not([data-palette="classic"])) .ap-group .row-grid > label:first-child { border-top: 0; }
+:where(:root:not([data-palette="classic"])) .ap-group .row-grid > label[hidden] { display: none; }
+:where(:root:not([data-palette="classic"])) .ap-group .row-grid > label > select { max-width: 280px; }
+:where(:root:not([data-palette="classic"])) .ap-group .row-grid > label > :is(select, .ap-seg, .ap-swatches, .ap-custom-pick) { grid-column: 2; }
+:where(:root:not([data-palette="classic"])) .ap-has-seg > select { display: none; }
+:where(:root:not([data-palette="classic"])) .ap-seg { display: inline-flex; flex-wrap: nowrap; max-width: 100%; overflow-x: auto; justify-self: start; gap: 2px; padding: 2px; background: var(--surface-0); border: 1px solid var(--line); border-radius: var(--r-2, 6px); }
+:where(:root:not([data-palette="classic"])) .ap-seg-opt { min-height: 0; height: 28px; padding: 0 10px; white-space: nowrap; background: transparent; border: 0; border-radius: var(--r-1, 4px); color: var(--text-2); font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; cursor: pointer; box-shadow: none; }
+:where(:root:not([data-palette="classic"])) .ap-seg-opt:hover { color: var(--text-1); background: var(--surface-2); }
+:where(:root:not([data-palette="classic"])) .ap-seg-opt[aria-checked="true"] { background: var(--surface-3); color: var(--text-1); box-shadow: var(--elev-1); }
+:where(:root:not([data-palette="classic"])) .ap-seg-opt:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+:where(:root:not([data-palette="classic"])) .ap-seg.ap-seg-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 0; background: none; border: 0; width: 100%; max-width: 460px; }
+:where(:root:not([data-palette="classic"])) .ap-seg-cards .ap-seg-opt { display: grid; gap: 2px; height: auto; white-space: normal; padding: 8px 10px; text-align: left; background: var(--surface-0); border: 1px solid var(--line); border-radius: var(--r-3, 8px); }
+:where(:root:not([data-palette="classic"])) .ap-seg-cards .ap-seg-opt b { font-weight: 600; color: var(--text-1); text-transform: capitalize; }
+:where(:root:not([data-palette="classic"])) .ap-seg-cards .ap-seg-opt span { font-size: 12px; line-height: 1.35; color: var(--text-3); }
+:where(:root:not([data-palette="classic"])) .ap-seg-cards .ap-seg-opt[aria-checked="true"] { background: var(--surface-0); border-color: var(--accent-solid); box-shadow: 0 0 0 1px var(--accent-solid); }
+/* Colour: the swatch row is the control; the list stays for Classic. */
+:where(:root:not([data-palette="classic"])) .ap-group .ap-colour-row { display: grid; grid-template-columns: minmax(120px, 30%) minmax(0, 1fr); align-items: center; gap: 12px; padding: 10px 16px; border-top: 1px solid var(--hairline); }
+:where(:root:not([data-palette="classic"])) .ap-group .ap-colour-row > label { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; color: var(--text-2); }
+:where(:root:not([data-palette="classic"])) .ap-group .ap-colour-row > label > select { display: none; }
+:where(:root:not([data-palette="classic"])) .ap-group .row-grid > .ap-colour-row + label { border-top: 1px solid var(--hairline); }
+:where(:root:not([data-palette="classic"])) .ap-group .ap-swatches { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+:where(:root:not([data-palette="classic"])) .ap-group .ap-swatch { width: 24px; height: 24px; min-height: 0; border: 0; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-1) 18%, transparent); cursor: pointer; }
+:where(:root:not([data-palette="classic"])) .ap-group .ap-swatch:hover { transform: scale(1.08); }
+:where(:root:not([data-palette="classic"])) .ap-swatch-custom { display: inline-grid; place-items: center; background: var(--surface-2); color: var(--text-2); }
+:where(:root:not([data-palette="classic"])) .ap-swatch-custom svg { width: 14px; height: 14px; }
+:where(:root:not([data-palette="classic"])[data-accent="custom"]) .ap-swatch-custom { box-shadow: 0 0 0 2px var(--surface-1), 0 0 0 4px var(--accent-solid); }
+/* The live preview: real tokens, so it follows every change at once. */
+:where(:root:not([data-palette="classic"])) #ap-preview { display: block; position: sticky; top: 0; }
+:where(:root:not([data-palette="classic"])) .ap-preview-h { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+:where(:root:not([data-palette="classic"])) .ap-pv-box { display: grid; gap: 10px; padding: 14px; background: var(--surface-0); border: 1px solid var(--line); border-radius: var(--r-4, 12px); box-shadow: var(--elev-2); }
+:where(:root:not([data-palette="classic"])) .ap-pv-turn { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+:where(:root:not([data-palette="classic"])) .ap-pv-face { width: 22px; height: 22px; border-radius: 50%; }
+:where(:root:not([data-palette="classic"])) .ap-pv-name { font-weight: 600; color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .ap-pv-meta { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) .ap-pv-text { margin: 0; font-size: var(--chat-size, 15px); line-height: 1.55; color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .ap-pv-card { display: flex; align-items: center; gap: 8px; padding: 8px 10px; font-size: 13px; color: var(--text-1); background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-3, 8px); }
+:where(:root:not([data-palette="classic"])) .ap-pv-dot { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--success); }
+:where(:root:not([data-palette="classic"])) .ap-pv-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+:where(:root:not([data-palette="classic"])) .ap-pv-btn { display: inline-flex; align-items: center; height: var(--h-control, 34px); padding: 0 12px; font-size: 13px; font-weight: 500; color: var(--text-1); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-2, 6px); }
+:where(:root:not([data-palette="classic"])) .ap-pv-primary { color: var(--on-accent); background: var(--accent-solid); border-color: transparent; box-shadow: var(--btn-glow); }
+:where(:root:not([data-palette="classic"])) .ap-pv-chip { font: 500 11.5px/1 var(--font-mono); color: var(--text-2); padding: 5px 7px; border: 1px solid var(--line); border-radius: var(--r-2, 6px); }
+@media (max-width: 1180px) {
+  :where(:root:not([data-palette="classic"])) .ap-layout { grid-template-columns: minmax(0, 1fr); }
+  :where(:root:not([data-palette="classic"])) #ap-preview { position: static; order: -1; }
+}
+@media (max-width: 720px) {
+  :where(:root:not([data-palette="classic"])) .ap-group .row-grid > label { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  :where(:root:not([data-palette="classic"])) .ap-group .row-grid > label > :is(select, .ap-seg, .ap-swatches, .ap-custom-pick) { grid-column: 1; }
+  :where(:root:not([data-palette="classic"])) .ap-group .ap-colour-row { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  :where(:root:not([data-palette="classic"])) .ap-seg { flex-wrap: wrap; }
+  :where(:root:not([data-palette="classic"])) #ap-preview { display: none; }
+  :where(:root:not([data-palette="classic"])) .ap-seg-opt { height: 40px; }
+  :where(:root:not([data-palette="classic"])) .ap-group .ap-swatch { width: 32px; height: 32px; }
+}

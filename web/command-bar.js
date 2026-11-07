@@ -77,11 +77,13 @@ function allItems() {
     places: c.places().map((x) => ({ ...x, group: 'places' })),
     convs: c.conversations().map((x) => ({ ...x, group: 'convs' })),
     settings: c.settings().map((x) => ({ ...x, group: 'settings' })),
+    // V3 (docs/ops/V3_DESIGN.md §2): projects too.
+    projects: (c.projects?.() ?? []).map((x) => ({ ...x, group: 'projects' })),
     actions: c.actions().map((x) => ({ ...x, group: 'actions' })),
   };
 }
 
-const groupName = (id) => ({ recent: t('Recent'), places: t('Places'), convs: t('Conversations'), settings: t('Settings'), actions: t('Actions') })[id] ?? id;
+const groupName = (id) => ({ recent: t('Recent'), places: t('Places'), projects: t('Projects'), convs: t('Conversations'), settings: t('Settings'), actions: t('Actions') })[id] ?? id;
 
 function pick(list, q, n = PER_GROUP) {
   return list
@@ -96,13 +98,14 @@ function pick(list, q, n = PER_GROUP) {
 function results(q) {
   const all = allItems();
   if (!q.trim()) {
-    const byKey = new Map([...all.places, ...all.convs, ...all.settings, ...all.actions].map((x) => [x.key, x]));
+    const byKey = new Map([...all.places, ...all.projects, ...all.convs, ...all.settings, ...all.actions].map((x) => [x.key, x]));
     const recent = readRecent().map((k) => byKey.get(k)).filter(Boolean).map((x) => ({ ...x, group: 'recent' }));
     const seen = new Set(recent.map((x) => x.key));
     return [
       ['recent', recent],
       ['actions', all.actions.filter((x) => !seen.has(x.key)).slice(0, 5)],
       ['places', all.places.filter((x) => !seen.has(x.key)).slice(0, 5)],
+      ['projects', all.projects.filter((x) => !seen.has(x.key)).slice(0, 4)],
       ['convs', all.convs.filter((x) => !seen.has(x.key)).slice(0, 4)],
     ];
   }
@@ -114,6 +117,7 @@ function results(q) {
   const settings = ui.ctx.searchSettings(q).slice(0, PER_GROUP);
   return [
     ['places', pick(all.places, q)],
+    ['projects', pick(all.projects, q)],
     ['convs', [...titles, ...inside]],
     ['settings', settings.map((x) => ({ ...x, group: 'settings' }))],
     ['actions', pick(all.actions, q)],
