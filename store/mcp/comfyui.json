@@ -1,6 +1,6 @@
 {
   "id": "comfyui",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "name": "ComfyUI (image workflows)",
   "category": "creative",
   "tags": [
@@ -92,8 +92,7 @@
     ]
   },
   "changes": [
-    "First listing.",
-    "Explains a ComfyUI on another computer; tools that install, download, restart, train or write files ask first."
+    "Explains a ComfyUI on another computer (for example over Tailscale); tools that install, download, restart, train or write files ask first."
   ],
   "tested": [
     {

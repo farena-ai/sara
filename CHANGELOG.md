@@ -5,6 +5,30 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.80.0 (2026-11-07): every installer checked end to end
+
+- **Updating a tool server keeps your settings (Q-ADDONS, `docs/ops/Q_ADDONS_MCP.md`):** the update card
+  from Get more now shows the values you saved (for example your ComfyUI address on another computer)
+  instead of the recipe's defaults, and an update that leaves a value out keeps the saved one instead
+  of resetting it. Secrets are still never shown.
+- **ComfyUI recipe 1.0.1 (prepared for the Sara Store):** the B2 tip about a ComfyUI on another
+  computer and the ask-first installers reach existing installs as an update.
+- **Files tool server on Linux:** the folder you pick for it is now reachable inside the tool sandbox
+  (bubblewrap); it refused to start before ("None of the specified directories are accessible").
+- **Plain words for HTTP tool servers:** a refused key says to check the key or token saved for it,
+  and an address where nothing answers says to check that the program is running (were "MCP HTTP
+  401" and "fetch failed").
+- **Playwright recipe 1.0.1 (prepared for the Sara Store):** says it needs Google Chrome on the computer
+  where Sara runs; it never downloads one.
+- **Fix: a Store plugin removed from its Plugins card can be added again (Q-ADDONS):** *Remove* on
+  the Plugins card left the Store's record of it behind, so *Get* in Get more then refused it with
+  "The saved store association no longer matches the installed plugin". Removing it now also forgets
+  that record when it matches the removed version exactly (test/phase125.test.ts).
+- **Fix: retiring a companion right after adding her no longer stops Sara (Q-ADDONS):** her delayed
+  start-up work (resuming a history import after 20 seconds, the first search-index pass) still ran
+  after *Retire her* had closed her data, and the "database is not open" error stopped the whole
+  server. Retiring now cancels it (test/q-addons-retire.test.ts).
+
 ## 2.79.0 (2026-11-07): an advanced look and pictures like a person
 
 - **Easier to find everything (V3, `docs/ops/V3_DESIGN.md`):** the sidebar starts with *Go to* (Today,

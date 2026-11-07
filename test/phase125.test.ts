@@ -516,6 +516,22 @@ test('1 · Get on a plugin: the normal review with the store strip, origin store
   assert.ok(((r.pm.list() as Any[]).find((p) => p.id === 'focus')?.companions ?? []).every((c: Any) => c.state !== 'ready' && c.state !== 'running'), 'installing switches nothing on');
 });
 
+test('Q-ADDONS: Remove on the Plugins card also drops the exact Store association, so Get works again', async (t) => {
+  const r = await rig(t);
+  pluginVersion(r.shelf, FOCUS);
+  await r.check();
+  const review = (await r.api('POST', '/api/store/install', { id: 'focus' })).json.review;
+  assert.equal((await r.api('POST', '/api/plugins/focus/approve', { review: review.id, trust: true })).status, 200);
+  assert.ok(r.installs.get('focus'));
+  assert.equal((await r.api('DELETE', '/api/plugins/focus')).status, 200);
+  assert.equal(r.pm.store.get('focus'), undefined);
+  assert.equal(r.installs.get('focus'), undefined, 'no stale association left behind');
+  const item = (await r.api('GET', '/api/store')).json.items.find((x: Any) => x.id === 'focus');
+  assert.equal(item.installed, false); assert.equal(item.installHeld, undefined);
+  const again = await r.api('POST', '/api/store/install', { id: 'focus' });
+  assert.equal(again.status, 200, JSON.stringify(again.json));
+});
+
 test('2 · a host that can\'t fence plugins in needs the trust tick, for any trust level', async (t) => {
   const r = await rig(t);
   pluginVersion(r.shelf, FOCUS);
@@ -856,4 +872,31 @@ test('15 · the hub checker CLI writes result.json for a job (the same checks), 
   assert.equal(out.ready, true, JSON.stringify(out.report?.results?.filter((x: Any) => !x.ok)));
   assert.equal(out.contentSha, pack.report.contentSha);
   rmSync(job, { recursive: true, force: true });
+});
+
+test('Q-ADDONS: a tool server update keeps the saved field values (the card shows them; a value left out is not reset to the default)', async (t) => {
+  const r = await rig(t);
+  mcpVersion(r.shelf, '1.0.0');
+  await r.check();
+  mkdirSync(join(r.dir, 'mcp', 'hello'), { recursive: true });
+  cpSync(join(ROOT, 'examples', 'mcp', 'hello-mcp-server.mjs'), join(r.dir, 'mcp', 'hello', 'hello.mjs'));
+  const c1 = (await r.api('POST', '/api/store/install', { id: 'hello-mcp' })).json.review;
+  assert.equal((await r.api('POST', `/api/store/mcp/${c1.id}/approve`, { values: { GREETING: 'Howdy from the other PC' }, secrets: { HELLO_TOKEN: 'x' }, trust: true })).status, 200);
+  // 1.0.1 only changes a tip (like the ComfyUI recipe's B2 text): an update review, values kept.
+  mcpVersion(r.shelf, '1.0.1', { recipe: { fields: [{ key: 'GREETING', kind: 'text', label: 'Greeting', default: 'Hi', tip: 'A new tip.' }] } });
+  await r.check();
+  const c2 = (await r.api('POST', '/api/store/update', { item: 'hello-mcp' })).json.review;
+  assert.equal(c2.mode, 'update');
+  assert.equal(c2.from, '1.0.0');
+  assert.deepEqual(c2.saved, { GREETING: 'Howdy from the other PC' }, 'the update card fills in what is saved, not the default');
+  assert.equal(JSON.stringify(c2).includes('"x"'), false, 'secrets are never sent back');
+  const ok = await r.api('POST', `/api/store/mcp/${c2.id}/approve`, { trust: true });
+  assert.equal(ok.status, 200, JSON.stringify(ok.json));
+  assert.equal(r.installs.get('hello-mcp')!.version, '1.0.1');
+  const vault = JSON.parse(r.app.vault.get('mcp:hello') ?? '{}');
+  assert.equal(vault.env.GREETING, 'Howdy from the other PC');
+  assert.equal(vault.env.HELLO_TOKEN, 'x');
+  const form = (await r.api('GET', '/api/mcp')).json.find((x: Any) => x.name === 'hello');
+  assert.equal(form.recipe.fields.find((f: Any) => f.key === 'GREETING').value, 'Howdy from the other PC');
+  assert.equal(form.recipe.fields.find((f: Any) => f.key === 'GREETING').tip, 'A new tip.');
 });

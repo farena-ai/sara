@@ -102,11 +102,17 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Every installer checked end to end in 2.80.0
+
+Every tool server and native add-on in Settings was installed, configured, connected, used and
+removed on a real Linux server and a real Windows PC. Fixes: updating a tool server keeps its saved
+settings; the Files server can start inside the Linux sandbox; sign-in and connection errors from
+tool servers are explained in plain words; a Store add-on removed from its card can be installed
+again; retiring a companion right after adding her no longer stops the server.
+
 ## Next
 
-Every add-on and tool server in Settings gets an end-to-end check on a real install (add, settings
-saved, connect, its main action, remove); entries that do not pass are fixed or held with the
-reason. Expressive speech on calls (laughter and sighs where the voice supports it) follows after
+Expressive speech on calls (laughter and sighs where the voice supports it) follows after
 listening tests.
 
 ## Business setup and administration in 2.65.0

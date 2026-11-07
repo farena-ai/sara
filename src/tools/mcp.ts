@@ -7,10 +7,10 @@ import { netFetch, privateLocalOn } from '../net-guard.ts';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { existsSync, mkdirSync } from 'node:fs';
-import { delimiter, dirname, extname, isAbsolute, join } from 'node:path';
+import { delimiter, dirname, extname, isAbsolute, join, relative, resolve, win32 } from 'node:path';
 import { sseEvents } from '../sse.ts';
 import type { ToolRegistry } from './registry.ts';
-import { bwrapArgs, commandPath, prepareForToolsUser, PRIVATE_LOCAL_ENV, RUNTIME_MOUNT, runtimeMountArgs, SANDBOX_EXEC, seatbeltProfile, type SandboxInfo } from './sandbox.ts';
+import { bwrapArgs, commandPath, prepareForToolsUser, PRIVATE_LOCAL_ENV, RUNTIME_MOUNT, runtimeMountArgs, SANDBOX_EXEC, seatbeltProfile, type Bind, type SandboxInfo } from './sandbox.ts';
 import { clip, ToolError, type Tool, type ToolContext } from './types.ts';
 
 export const MCP_PROTOCOL_VERSION = '2025-06-18';
@@ -25,6 +25,11 @@ export interface McpServerConfig {
   args?: string[];
   /** http: streamable HTTP endpoint. */
   url?: string;
+  /**
+   * Q-ADDONS: folders the owner chose for this server (a Store recipe's folder fields). The tool
+   * sandbox makes each existing one visible at its own path; nothing else outside its folder.
+   */
+  folders?: string[];
 }
 
 /** Secret values for a server, stored in the vault as JSON under mcp:<name>. */
@@ -211,10 +216,18 @@ class HttpTransport implements Transport {
 
   async request(method: string, params: unknown, signal: AbortSignal): Promise<unknown> {
     const id = this.#nextId++;
-    const res = await this.#post({ jsonrpc: '2.0', id, method, params }, signal);
+    let res: Response;
+    try {
+      res = await this.#post({ jsonrpc: '2.0', id, method, params }, signal);
+    } catch (err) {
+      // Q-ADDONS: "fetch failed" said nothing; a program that is not running (Storybook, say) is named.
+      if (!signal.aborted && err instanceof TypeError) throw new Error(`${HTTP_UNREACHABLE} (${this.#url})`);
+      throw err;
+    }
     const type = res.headers.get('content-type') ?? '';
     // B2: a web page (ComfyUI's own address, say) answers 405 or HTML, not JSON-RPC.
     if (res.status === 405 || /text\/html/i.test(type)) throw new Error(`${WEB_PAGE_ANSWER} (HTTP ${res.status})`);
+    if (res.status === 401 || res.status === 403) throw new Error(`${HTTP_KEY_REFUSED} (HTTP ${res.status})`);
     if (!res.ok) throw new Error(`MCP HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 300)}`);
     const session = res.headers.get('mcp-session-id');
     if (session) this.#session = session;
@@ -316,7 +329,7 @@ export class McpConnection {
     };
     const net = !privateLocalOn();
     if (opts.sandbox.mode === 'bwrap') {
-      return new StdioTransport('bwrap', [...bwrapArgs(home, net), c.command, ...(c.args ?? [])], { ...baseEnv, HOME: '/workspace' }, home);
+      return new StdioTransport('bwrap', [...bwrapArgs(home, net, mcpBinds(c, opts.dataDir)), c.command, ...(c.args ?? [])], { ...baseEnv, HOME: '/workspace' }, home);
     }
     if (opts.sandbox.mode === 'seatbelt') {
       // macOS: the add-on runs inside the sandbox too, with its own folder as home (network on).
@@ -362,6 +375,10 @@ export class McpConnection {
 
 /** B2: what an HTTP test says when the address is a web page, not a tool server. */
 export const WEB_PAGE_ANSWER = en('That address answered like a web page, not a tool server. If this program needs an address of another service (like ComfyUI), put it in that setting instead.');
+/** Q-ADDONS: what a test says when an HTTP tool server refuses the key (or none was saved). */
+export const HTTP_KEY_REFUSED = en('The tool server refused the sign-in. Check the key or token saved for it (or add one).');
+/** Q-ADDONS: what a test says when nothing answers at an HTTP tool server's address. */
+export const HTTP_UNREACHABLE = en('Nothing answered at this address. Check that the program is running and the address is right.');
 
 /** B2: what Sara may show from an MCP image block: like her photos (uploads.ts), at most 4 a call. */
 const MCP_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
@@ -454,6 +471,7 @@ export function validateMcpConfig(input: Record<string, unknown>, name: string):
   const transport = input.transport === 'http' ? 'http' : input.transport === 'stdio' ? 'stdio' : undefined;
   if (!transport) throw new Error('transport must be stdio or http');
   const cfg: McpServerConfig = { name, transport, enabled: input.enabled !== false };
+  const folders = Array.isArray(input.folders) ? input.folders.map((f) => String(f).trim()).filter((f) => (isAbsolute(f) || win32.isAbsolute(f)) && !/^([A-Za-z]:)?[\\/]*$/.test(f)).slice(0, 8) : [];
   if (transport === 'http') {
     let u: URL;
     try {
@@ -469,8 +487,19 @@ export function validateMcpConfig(input: Record<string, unknown>, name: string):
     cfg.command = command;
     const args = Array.isArray(input.args) ? input.args.map(String) : typeof input.args === 'string' ? splitArgs(input.args) : [];
     cfg.args = args;
+    if (folders.length) cfg.folders = folders;
   }
   return cfg;
+}
+
+/** The sandbox binds for a server's granted folders: existing ones only, never inside Sara's data. */
+export function mcpBinds(cfg: McpServerConfig, dataDir: string): Bind[] {
+  const data = resolve(dataDir);
+  return (cfg.folders ?? []).filter((f) => {
+    const rel = relative(data, resolve(f));
+    const inData = rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+    return !inData && existsSync(f);
+  }).map((f) => ({ src: f, dest: f, rw: true }));
 }
 
 /** Splits a command-line string into arguments, honouring simple quotes. */

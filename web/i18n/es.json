@@ -13327,5 +13327,7 @@
 "no picture came back from the engine.": "no volvió ninguna imagen del motor.",
 "only on your own server.": "solo en tu propio servidor.",
 "Sent to your chat: “{caption}”": "Enviada a tu chat: “{caption}”",
-"Not sent: {why}": "No enviada: {why}"
+"Not sent: {why}": "No enviada: {why}",
+"The tool server refused the sign-in. Check the key or token saved for it (or add one).": "El servidor de herramientas rechazó el inicio de sesión. Revisa la clave o el token guardado para él (o añade uno).",
+"Nothing answered at this address. Check that the program is running and the address is right.": "Nada respondió en esta dirección. Comprueba que el programa esté en marcha y que la dirección sea correcta."
 }

@@ -565,7 +565,9 @@ export function mcpCard(r) {
       input.placeholder = r.mode === 'update' ? '••••' : '';
     } else {
       input.type = f.kind === 'number' ? 'number' : f.kind === 'url' ? 'url' : 'text';
-      if (f.default) input.value = f.default;
+      // Q-ADDONS: an update shows the saved value (e.g. the ComfyUI address), not the default.
+      const value = r.saved?.[f.key] ?? f.default;
+      if (value) input.value = value;
     }
     lab.append(head, input);
     if (secret) {

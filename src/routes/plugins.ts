@@ -306,6 +306,9 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
         await pm.remove(id);
         // Phase 122: a plugin's bridge hooks (and their vault entries) go with it.
         if (!pm.store.get(id)) app.hooks?.removeForPlugin(id);
+        // Q-ADDONS: and the Store's record of exactly these bytes, or Get would refuse it as stale.
+        const association = app.storeInstalls?.get(id);
+        if (!pm.store.get(id) && association?.kind === 'plugin' && association.local_ref === id && association.content_sha === row.approved_sha && association.version === row.version) app.storeInstalls!.delete(id);
       } catch (err) {
         return asHttp(err);
       }

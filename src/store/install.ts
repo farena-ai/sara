@@ -68,6 +68,8 @@ export interface McpReview {
   /** An update: the marked lines (a changed command or version, new fields and secrets, tools now auto). */
   changes: string[];
   from?: string;
+  /** Q-ADDONS: an update's saved field values (never secrets), so the card shows them instead of the defaults. */
+  saved?: Record<string, string>;
   expires: number;
 }
 interface Staged {
@@ -104,7 +106,9 @@ export function recipeConfig(dataDir: string, recipe: McpRecipe, name: string, v
   const fill = (s: string) => s.replace(/\$\{setting:([^}]+)\}/g, (_m, k: string) => values[k] ?? '').replace(/\$\{home\}/g, home);
   // An optional field left empty drops an argument that was only that field.
   const args = (recipe.args ?? []).flatMap((a) => (/^\$\{setting:[^}]+\}$/.test(a) && !fill(a) ? [] : [fill(a)]));
-  const raw = recipe.transport === 'stdio' ? { transport: 'stdio', command: recipe.command, args } : { transport: 'http', url: fill(recipe.url ?? '') };
+  // Q-ADDONS: the folders the owner picked are granted to the tool sandbox (src/tools/mcp.ts mcpBinds).
+  const folders = recipe.fields.filter((f) => f.kind === 'folder').map((f) => values[f.key] ?? '').filter(Boolean);
+  const raw = recipe.transport === 'stdio' ? { transport: 'stdio', command: recipe.command, args, ...(folders.length ? { folders } : {}) } : { transport: 'http', url: fill(recipe.url ?? '') };
   return validateMcpConfig(raw as Record<string, unknown>, name);
 }
 
@@ -252,6 +256,9 @@ export class StoreInstaller {
     for (const n of recipe.needs ?? []) if (!needs.some((x) => x.what === n)) needs.push({ what: n, found: n.startsWith('app:') ? null : which(n, pathVar, plat) });
     const fence = this.#fence();
     const changes = updating && row.recipe ? recipeDiff(JSON.parse(row.recipe) as McpRecipe, recipe) : [];
+    const secretKeys = new Set([...recipe.secrets, ...recipe.fields.filter((x) => x.kind === 'secret')].map((f) => f.key));
+    const env = updating && recipe.transport === 'stdio' ? (mcpSecrets(this.d.app.vault, name).env ?? {}) : {};
+    const saved = Object.fromEntries(recipe.fields.filter((f) => !secretKeys.has(f.key) && typeof env[f.key] === 'string').map((f) => [f.key, env[f.key]]));
     const review: McpReview = {
       id: randomUUID(),
       kind: 'mcp',
@@ -276,7 +283,7 @@ export class StoreInstaller {
       guide: recipe.guide ?? [],
       ...(recipe.registry ? { registry: recipe.registry } : {}),
       changes,
-      ...(updating ? { from: row.version } : {}),
+      ...(updating ? { from: row.version, saved } : {}),
       expires: Date.now() + MCP_REVIEW_MS,
     };
     for (const [k, s] of staged) if (s.review.expires < Date.now()) staged.delete(k);
@@ -296,10 +303,11 @@ export class StoreInstaller {
     return recipeConfig(this.d.app.dataDir, recipe, name, values);
   }
 
-  #checkValues(recipe: McpRecipe, values: Record<string, unknown>, secrets: Record<string, unknown>, keepSecrets: string[]): { values: Record<string, string>; secrets: Record<string, string> } {
+  #checkValues(recipe: McpRecipe, values: Record<string, unknown>, secrets: Record<string, unknown>, keepSecrets: string[], saved: Record<string, string> = {}): { values: Record<string, string>; secrets: Record<string, string> } {
     const out: Record<string, string> = {};
     for (const f of recipe.fields) {
-      const v = String(values[f.key] ?? f.default ?? '').trim();
+      // An update keeps what was saved (e.g. the ComfyUI address) unless the owner typed something else.
+      const v = String(values[f.key] ?? saved[f.key] ?? f.default ?? '').trim();
       if (!v) {
         if (!f.optional) throw new InstallError(400, 'field', `${f.label}: fill this in.`);
         continue;
@@ -337,7 +345,7 @@ export class StoreInstaller {
     const name = review.serverName;
     const cur = mcpSecrets(app.vault, name);
     const kept = [...Object.keys(cur.env ?? {}), ...Object.keys(cur.headers ?? {})];
-    const { values, secrets } = this.#checkValues(recipe, body.values ?? {}, body.secrets ?? {}, review.mode === 'update' ? kept : []);
+    const { values, secrets } = this.#checkValues(recipe, body.values ?? {}, body.secrets ?? {}, review.mode === 'update' ? kept : [], review.mode === 'update' ? (review.saved ?? {}) : {});
     const cfg = this.configFrom(recipe, name, { ...Object.fromEntries(Object.entries(cur.env ?? {})), ...values, ...secrets });
     // Fields and secrets live where Sara keeps a server's environment today: the vault (mcp:<name>).
     const env = recipe.transport === 'stdio' ? { ...values, ...secrets } : {};

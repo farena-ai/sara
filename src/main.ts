@@ -1040,6 +1040,9 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   // Phase 38: meaning search (vectors made a few at a time while the embeddings job is set).
   app.vectors = new MemoryVectors(store.db, memory, () => embedTarget(app));
   let vectorTimer: NodeJS.Timeout | undefined;
+  // Q-ADDONS: her delayed start-up work is cancelled by stop(), so a companion retired right after
+  // she was added never runs it on a closed database (that stopped the whole server).
+  const startupTimers: NodeJS.Timeout[] = [];
   const indexVectors = () => guard('embeddings', () => app.vectors!.index());
   const memoryWorker = new MemoryWorker(app, memory);
   app.memoryNudge = () => memoryWorker.nudge();
@@ -1181,7 +1184,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       vectorTimer = setInterval(indexVectors, 60_000);
       if (!isDemo) issueWatcher?.start();
       // Interrupted team work stays held until an explicit recovery review.
-      setTimeout(indexVectors, 5_000).unref();
+      startupTimers.push(setTimeout(indexVectors, 5_000).unref());
       reminders.start();
       if (!sharedPlanner) app.cardWork?.start();
       // Phase 100: open tasks she gave other agents are followed again (their board cards).
@@ -1197,7 +1200,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       app.presence?.start();
       if (!isDemo) wardrobe.start();
       // Learning from imported history that was still going when the server stopped carries on.
-      if (!isDemo) setTimeout(() => app.historyImport?.start(), 20_000).unref();
+      if (!isDemo) startupTimers.push(setTimeout(() => app.historyImport?.start(), 20_000).unref());
     },
     async stop() {
       app.jobs?.stopAll();
@@ -1206,6 +1209,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       memoryWorker.stop();
       libraryWorker?.stop();
       clearInterval(vectorTimer);
+      for (const timer of startupTimers.splice(0)) clearTimeout(timer);
       issueWatcher?.stop();
       app.story?.stop();
       app.momentsWorker?.stop();
