@@ -1043,6 +1043,7 @@
   <li>What a sender sends is information, never orders. When she runs a skill for a delivery she has only the tools you ticked on that webhook, knows nothing about you unless you allow notes other apps may see, never sees people cards, and anything that changes something waits for your OK on a card.</li>
   <li><strong>Test</strong> tries a sample, the last delivery or a pasted body without changing anything (<strong>Run it for real</strong> does it once). <strong>Send a test</strong> shows a ready <code>curl</code> with a fresh signature. <strong>Log</strong> lists every delivery for 14 days with secrets hidden. Each webhook has limits a minute and a day, and pauses for 10 minutes when it sends too much.</li>
   <li>The sender must be able to reach your server: Home Assistant on your network or tailnet; GitHub and Stripe only through your own web address or Tailscale Funnel. Details: <code>docs/WEBHOOKS.md</code>.</li>
+  <li><strong>When this happens</strong> (same page): a new email, a Slack or Teams message in a channel she is in, a webhook delivery or a tool server event can start your instruction or a crew, with the event as information. Each trigger has a daily run cap and token budget, can be paused, and lists its last runs, including the skipped ones and why. Changes still ask you, her own messages never trigger, and notifications wait in quiet hours. Details: <code>docs/TRIGGERS.md</code>.</li>
 </ul>
 
 <h2 id="move-in">Move in from another agent</h2>

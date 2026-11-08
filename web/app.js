@@ -30,6 +30,7 @@ import { loadEmailPage } from './email.js';
 import { renderTelegramSetup } from './telegram-setup.js';
 import { initAgents, loadAgents } from './agents.js';
 import { hookNotice, initHooks, loadHooks } from './hooks.js';
+import { initEventTriggers, loadEventTriggers } from './event-triggers.js';
 import { alwaysAllowButton, serverPolicyRows } from './tool-policy.js';
 import { initMoveIn, loadMoveIn, moveInEvent } from './movein.js';
 import { boardEvent, initBoard, openCardOnBoard, plannerView, rememberView } from './board.js';
@@ -82,6 +83,7 @@ import { NEXT_HIDDEN_KEY, nextSteps } from './next-steps.js';
 import { choices } from './kit.js';
 import { addStep, finishStep, hasSteps, memoryStep, pluginStep, recallStep, runLink, runStep, setBudget, skillStep, stepLine, waitStep } from './steps.js';
 import { budgetCard, budgetMeter, fillBudgetSelect, overrideNote } from './budget-view.js';
+import { loadLearnBudget, saveLearnBudget } from './learn.js';
 import { sandboxButtons, sandboxFirstNote, sandboxFlag, sandboxSection, teamSandboxRow } from './sandbox-view.js';
 import { advisoryFlag, advisorySection, initFindings, openFindings, openRedTeam, redteamFlag, redteamGateSection, refreshFindings, securityCard, threatCard } from './findings-view.js';
 import { openRunView } from './run-view.js';
@@ -1210,6 +1212,20 @@ async function setPinned(m, on, btn) {
   }
 }
 
+// C3: an app in the chat asked for something that needs the owner's OK: its approval card is shown
+// (the same card as her own steps; answered through /approvals like every other).
+window.addEventListener('sara-mcp-app-asked', async () => {
+  if (!state.currentId) return;
+  try {
+    const c = await api(`/conversations/${state.currentId}?limit=1`);
+    for (const ev of c.activity?.approvals ?? []) {
+      if (!document.querySelector(`.approval[data-call="${CSS.escape(ev.id)}"]`)) append(approvalCard(ev));
+    }
+  } catch {
+    /* the app hears how it went */
+  }
+});
+
 // Follows a turn that is running on the server without our own stream (after a reload or from
 // another device): polls the conversation until Sara is done.
 function watchConversation(conv) {
@@ -2136,7 +2152,9 @@ function commandNotice(m) {
 // Phase 113: /bug and /idea open the report sheet (the server answers with what to fill in).
 // Phase 123: /compact and /tools.
 // Phase 128 (PL2b): /problems from the / menu too.
-const CHAT_COMMAND = /^\/(new|reset|stop|status|help|model|remember|bug|idea|when|continue|compact|tools|problems)(?:\s[\s\S]*)?$/i;
+const CHAT_COMMAND = /^\/(new|reset|stop|status|help|model|remember|bug|idea|when|continue|compact|tools|problems|learn)(?:\s[\s\S]*)?$/i;
+/** C6: "learn about X" / "keep up with X" is /learn X (the server reads it the same way: learnAsk in src/learn.ts). */
+const LEARN_ASK = /^\s*(?:(?:hey\s+\w+,?\s+)?(?:please\s+|can you\s+|could you\s+|would you\s+)?)(?:learn(?: all| everything)? about|keep up(?: to date)? (?:with|on)|study up on|read up on)\s+(.{2,200}?)\s*[.!?]*\s*$/i;
 async function runChatCommand(text) {
   if (!state.currentId) {
     const conv = await api('/conversations', { method: 'POST', body: {} });
@@ -2216,7 +2234,7 @@ async function send(text) {
     return persistCmd[1].toLowerCase() === 'goal' ? openGoalCard((persistCmd[2] ?? '').trim()) : openLoopCard((persistCmd[2] ?? '').trim());
   }
   // Phase 107: a command never goes to her as a message (photos and documents need a real one).
-  if (CHAT_COMMAND.test(text.trim()) && !state.editing && !state.photos.length && !state.docs.length) return runChatCommand(text.trim());
+  if ((CHAT_COMMAND.test(text.trim()) || LEARN_ASK.test(text)) && !state.editing && !state.photos.length && !state.docs.length && !state.conv?.partner) return runChatCommand(text.trim());
   if (!state.currentId) {
     const conv = await api('/conversations', { method: 'POST', body: {} });
     state.conversations.unshift(conv);
@@ -5865,6 +5883,7 @@ async function loadBudgets() {
   $('#bud-quick-note').textContent = r.quickSet ? t('Uses your quick model from Which model does what.') : t('No quick model is set (Models → Which model does what), so this step is skipped.');
   $('#ab-budgets-form').dataset.loaded = '1';
   budgetLinesShown();
+  void loadLearnBudget();
 }
 /** A switched-off kind greys out its pick-lists. */
 function budgetLinesShown() {
@@ -6502,6 +6521,10 @@ function startEvents() {
   // Phase 102: a webhook got a delivery or changed: the Webhooks page refreshes.
   es.addEventListener('hooks', () => {
     if (document.querySelector('[data-page="co-hooks"]:not([hidden])')) void loadHooks();
+  });
+  // C4: a trigger ran or skipped: the "When this happens" list refreshes.
+  es.addEventListener('triggers', () => {
+    if (document.querySelector('[data-page="co-hooks"]:not([hidden])')) void loadEventTriggers();
   });
   es.addEventListener('library', () => window.dispatchEvent(new Event('sara:library')));
   // Phase 53: a look back is ready (or failed).
@@ -7529,6 +7552,7 @@ function renderMcp(list) {
         $('#mcp-args').value = (m.args ?? []).map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(' ');
         $('#mcp-url').value = m.url ?? '';
         $('#mcp-enabled').checked = m.enabled;
+        $('#mcp-apps').checked = m.apps !== false;
         $('#mcp-secrets').value = '';
         $('#mcp-secrets').placeholder = `Saved: ${[...m.envKeys, ...m.headerKeys.map((h) => `header:${h}`)].join(', ') || 'none'}\nNAME=value to add/replace, NAME= to delete.`;
         mcpRecipeForm(m);
@@ -7607,12 +7631,13 @@ $('#mcp-save').addEventListener('click', async () => {
     const fields = Object.fromEntries([...$('#mcp-recipe-fields').querySelectorAll('input[data-key]')].map((i) => [i.dataset.key, i.value.trim()]));
     const list = await api(`/mcp/${encodeURIComponent(name)}`, {
       method: 'PUT',
-      body: recipe ? { fields, enabled: $('#mcp-enabled').checked } : {
+      body: recipe ? { fields, enabled: $('#mcp-enabled').checked, apps: $('#mcp-apps').checked } : {
         transport: $('#mcp-transport').value,
         command: $('#mcp-command').value.trim(),
         args: $('#mcp-args').value,
         url: $('#mcp-url').value.trim(),
         enabled: $('#mcp-enabled').checked,
+        apps: $('#mcp-apps').checked,
         env,
         headers,
       },
@@ -8094,7 +8119,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'ab-library') void loadLibrarySettings();
   if (pick === 'co-apps') void Promise.all([loadOtherApps(), loadAlexa()]);
   if (pick === 'co-agents') void loadAgents();
-  if (pick === 'co-hooks') void loadHooks();
+  if (pick === 'co-hooks') void Promise.all([loadHooks(), loadEventTriggers()]);
   if (pick === 'co-computer') void loadComputer();
   if (pick === 'her-import') void loadImport();
   if (pick === 'dh-movein') void loadMoveIn();
@@ -8286,7 +8311,7 @@ const SETTINGS_SAVERS = {
   'co-phone': [savePush],
   'dh-usage': [saveUsage],
   'dh-health': [saveRuns, saveLogLevel],
-  'ab-budgets': [saveBudgets],
+  'ab-budgets': [saveBudgets, saveLearnBudget],
   'ab-persist': [savePersistSettings],
   'ab-precise': [savePreciseSettings],
   'ab-when': [saveWhenSettings],
@@ -11139,6 +11164,15 @@ initOtherApps({ copyText, confirmProof });
 // Phase 100: Settings → Connections → Other agents (A2A).
 initAgents({
   copyText,
+  openConversation: (id) => {
+    if ($('#settings').open) $('#settings').close();
+    void openConversation(id);
+  },
+});
+// C4: Settings → Connections → Webhooks → When this happens.
+initEventTriggers({
+  api,
+  el,
   openConversation: (id) => {
     if ($('#settings').open) $('#settings').close();
     void openConversation(id);

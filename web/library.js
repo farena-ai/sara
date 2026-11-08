@@ -8,6 +8,7 @@ import { emptyState } from './tidy.js';
 import { choices } from './kit.js';
 import { openReadFeed, openReadTogether } from './read-together.js';
 import { closeResearch, openResearch } from './research.js';
+import { closeLearned, openLearned } from './learn.js';
 import { closeMeetings, openMeetings } from './meetings.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -358,6 +359,7 @@ function showText(passages) {
 function showHome() {
   current = null;
   closeResearch();
+  closeLearned();
   closeMeetings();
   $('#lib-doc').hidden = true;
   $('#lib-home').hidden = false;
@@ -513,6 +515,9 @@ $('#lib-research-open').addEventListener('click', () => void openResearch());
 $('#lib-meetings-open').addEventListener('click', () => void openMeetings());
 $('#lib-m-back').addEventListener('click', showHome);
 $('#lib-r-back').addEventListener('click', showHome);
+// C6: What she has learned (web/learn.js).
+$('#lib-topics-open').addEventListener('click', () => void openLearned());
+$('#lib-t-back').addEventListener('click', showHome);
 $('#lib-file').addEventListener('change', async () => {
   await addFiles($('#lib-file').files);
   $('#lib-file').value = '';

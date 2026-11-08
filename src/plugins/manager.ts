@@ -1839,6 +1839,13 @@ export class PluginManager {
       this.#unaligned(a, run, bridge, channel, chatId, fromId);
       return { ok: false, reason: 'sender check' };
     }
+    // C4 (docs/ops/C4_DESIGN.md): "When this happens" sees every message that reached her on email,
+    // Slack or Teams (a chat or channel she is in), before the pairing rules decide on a reply.
+    const trigSource = bridge === 'email' || bridge === 'slack' || bridge === 'teams' ? bridge : undefined;
+    if (trigSource && !action && text && a.app.eventTriggers) {
+      const subject = trigSource === 'email' ? cleanThread(msg.thread)?.subject : undefined;
+      void a.app.eventTriggers.observe({ source: trigSource, text, from: fromId ?? from, channel: chatId, ...(chatInfo?.title ? { channelName: cut(String(chatInfo.title), 80) } : {}), ...(messageId ? { id: messageId } : {}), ...(subject ? { subject } : {}), ...(auth ? { verified: auth.result === 'aligned' } : {}), ...(msg.self === true || msg.fromHer === true ? { self: true } : {}) }).catch(() => undefined);
+    }
     // EC1 (docs/ops/EC1_DESIGN.md): Allow or Deny tapped on an approval it showed. Only the linked
     // owner decides (his own id when the platform gives one), and only an approval sent to this chat.
     if (action === 'decide') return this.#bridgeDecide(a, run, { chatId, group, owner: !paused && (ownerSender || (!group && !fromId && owner)), approval: String(msg.approval ?? ''), allow: msg.allow === true, lang: msg.lang, fromId });

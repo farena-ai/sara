@@ -47,6 +47,8 @@ export interface ToolContext {
    * the owner's own hardware (pictures marked local-only never go to one that doesn't).
    */
   screenModel?: { local: boolean; describe: (img: { mime: string; data: string }) => Promise<string | undefined> };
+  /** C3: an MCP tool's app (MCP Apps), shown with the result in the web chat. */
+  attachAppCard?: (card: import('./mcp.ts').McpAppCard) => void;
   /** Phase 98: a plugin tool's own card (data in Sara's card schema) shown under the step. */
   attachCard?: (card: import('../hooks.ts').PluginCard) => void;
   /** Phase 123 (LEAN §4.7): this turn's lean tool list (find_tools loads into it). */

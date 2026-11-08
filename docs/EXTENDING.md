@@ -206,6 +206,31 @@ name: hello   transport: stdio   command: node   arguments: /path/to/sara/exampl
 Any MCP server works the same way (for example the official GitHub or filesystem servers), as long
 as its program is installed on the server.
 
+**Protocol versions (C3).** Sara speaks the current revision, **2026-07-28** (stateless: no
+handshake, no session; every request carries its version in `_meta`), and the older handshake
+revisions (2025-11-25, 2025-06-18, 2025-03-26). She first asks a server `server/discover`; a server
+that doesn't know it (most servers today, like ComfyUI or Playwright) gets the usual `initialize`
+handshake instead, with the newest version it accepts. Nothing to set: both kinds just work.
+
+### Apps from tool servers (MCP Apps)
+
+Some servers send a small interactive panel with a result (a chart, a form, a viewer): the
+[MCP Apps](https://modelcontextprotocol.io/extensions/apps/overview) extension. Sara shows it in
+the web chat, under the step that made it.
+
+- **Walled off.** The panel runs in a sandboxed frame with its own blank origin: it can't read your
+  cookies, Sara's data, the chat page or Sara's API, can't open windows or submit forms, and loads
+  nothing from the internet unless the server declared a plain `https://` address for it. Pages
+  over 512 KB are refused (you get the text result only).
+- **It can only ask.** Buttons in the panel can call that same server's tools that are open to apps,
+  nothing else. Each call follows the tool's permission in **Tools and approvals**: *Off* refuses
+  it, *Ask* shows the usual approval card in the chat (nothing runs until **Allow**), and only tools
+  set to run on their own (read-only ones by default) run straight away. What happened is noted in
+  the conversation.
+- **Turn off per server:** **Settings → Add-ons → Other programs (MCP)** → edit the server →
+  untick **Show its apps in the chat**. Sara then doesn't offer apps to that server at all.
+- Apps live in memory: after Sara restarts, an old panel says it is no longer open; ask again.
+
 The other way round, Sara is an MCP server herself (`/mcp`, for Claude Code, Cursor, Claude
 Desktop) and speaks the OpenAI chat API (`/v1`, for SillyTavern, Open WebUI and scripts); she also
 imports and exports character cards. See [OTHER_APPS.md](OTHER_APPS.md).

@@ -267,3 +267,40 @@ test('scim ui: the settings module is served, translated, tipped within 260 char
     assert.equal(script.status, 200); assert.match(await script.text(), /renderScimSettings/);
   } finally { await f.close(); }
 });
+
+test('scim: RFC 7643/7644 points a real SCIM client found (C1: scim2-cli 0.7.1 / scim2-tester 0.6.4)', async () => {
+  const { f, scim, json } = await setup();
+  try {
+    // Discovery by id (RFC 7644 §4): clients build their models from these.
+    assert.equal((await json(await scim('GET', `/Schemas/${USER}`), 200)).id, USER);
+    assert.equal((await json(await scim('GET', `/Schemas/${GROUP}`), 200)).id, GROUP);
+    assert.equal((await json(await scim('GET', '/ResourceTypes/User'), 200)).endpoint, '/Users');
+    assert.equal((await json(await scim('GET', '/ResourceTypes/Group'), 200)).endpoint, '/Groups');
+    assert.equal((await scim('GET', '/Schemas/urn:nope')).status, 404);
+    assert.deepEqual((await json(await scim('GET', `/Schemas/${USER}`), 200)).schemas, ['urn:ietf:params:scim:schemas:core:2.0:Schema']);
+    for (const path of ['/Schemas', '/ResourceTypes/User', '/ServiceProviderConfig']) assert.equal((await scim('POST', path, {})).status, 405, path);
+    // Every sub-attribute Sara returns is declared, so a strict client accepts its answers.
+    const schemas = (await json(await scim('GET', '/Schemas'), 200)).Resources as { id: string; attributes: { name: string; subAttributes?: { name: string }[] }[] }[];
+    const subs = (schema: string, attr: string) => schemas.find(s => s.id === schema)!.attributes.find(a => a.name === attr)!.subAttributes!.map(a => a.name).sort();
+    assert.deepEqual(subs(USER, 'groups'), ['$ref', 'display', 'type', 'value']);
+    assert.deepEqual(subs(GROUP, 'members'), ['$ref', 'display', 'type', 'value']);
+    const u = await json(await scim('POST', '/Users', { schemas: [USER], userName: 'pat@example.com', externalId: 'x-pat', name: { givenName: 'Pat', familyName: 'Lee' }, emails: [{ value: 'pat@example.com', type: 'work', primary: true }] }), 201);
+    await json(await scim('POST', '/Groups', { schemas: [GROUP], displayName: 'Ops', members: [{ value: u.id }] }), 201);
+    // attributes / excludedAttributes (RFC 7644 §3.4.2.5); id and schemas are always returned.
+    const only = await json(await scim('GET', `/Users/${u.id}?attributes=userName`), 200);
+    assert.deepEqual(Object.keys(only).filter(k => k !== 'meta').sort(), ['id', 'schemas', 'userName']);
+    const sub = await json(await scim('GET', `/Users/${u.id}?attributes=name.givenName`), 200);
+    assert.deepEqual(sub.name, { givenName: 'Pat' });
+    const without = await json(await scim('GET', `/Users/${u.id}?excludedAttributes=emails,name`), 200);
+    assert.equal(without.emails, undefined); assert.equal(without.name, undefined); assert.equal(without.userName, 'pat@example.com');
+    const list = await json(await scim('GET', '/Users?attributes=externalId'), 200);
+    assert.deepEqual(Object.keys(list.Resources[0]).filter(k => k !== 'meta').sort(), ['externalId', 'id', 'schemas']);
+    const groups = await json(await scim('GET', '/Groups?attributes=displayName'), 200);
+    assert.equal(groups.Resources[0].members, undefined); assert.equal(groups.Resources[0].displayName, 'Ops');
+    assert.equal((await json(await scim('GET', '/Groups?excludedAttributes=displayName'), 200)).Resources[0].displayName, undefined);
+    // PUT replaces the whole group: displayName is required.
+    const g = (await json(await scim('GET', '/Groups'), 200)).Resources[0];
+    const put = await json(await scim('PUT', `/Groups/${g.id}`, { schemas: [GROUP], members: [] }), 400);
+    assert.equal(put.scimType, 'invalidValue');
+  } finally { await f.close(); }
+});

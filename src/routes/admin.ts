@@ -372,7 +372,7 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           try {
             const cur = mcpSecrets(app.vault, b);
             const out = recipeEdit(app.dataDir, r.recipe, b, cur, body.fields as Record<string, unknown>);
-            cfg = { ...out.cfg, enabled: body.enabled !== false };
+            cfg = { ...out.cfg, enabled: body.enabled !== false, ...(body.apps === false ? { apps: false } : {}) };
             app.vault.set(mcpVaultKey(b), JSON.stringify({ env: mergeSecrets(cur.env, out.env), headers: mergeSecrets(cur.headers, out.headers) }));
           } catch (err) {
             throw as400(err);

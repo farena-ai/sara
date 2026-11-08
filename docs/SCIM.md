@@ -38,7 +38,10 @@ PATCH, DELETE). Filters: `userName eq "…"`, `externalId eq "…"` (users), `di
 `externalId eq "…"` (groups); paging with `startIndex`/`count` (at most 200). PATCH accepts
 `add`/`replace`/`remove` in any case, paths such as `active`, `name.familyName`,
 `emails[type eq "work"].value`, `members`, `members[value eq "…"]`, or a value object; Entra's
-string booleans (`"False"`) are understood. No bulk, sort, ETags or password changes.
+string booleans (`"False"`) are understood. `attributes` and `excludedAttributes` work on every
+GET; `/Schemas/<id>` and `/ResourceTypes/<name>` answer. No bulk, sort, ETags, `POST /.search` or
+password changes. Sara keeps one work e-mail and always keeps `active`, so a PATCH that adds a second
+e-mail or removes `active` is not stored as sent (checked with scim2-tester, docs/ops/C1_PROOF.md).
 
 Limits: 1,000 requests a minute per instance, 20 wrong tokens a minute per address (then 429 with
 `Retry-After: 60`), 64 KiB bodies, 5,000 users, 500 groups, 5,000 members per group.

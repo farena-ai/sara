@@ -124,6 +124,8 @@ export interface ContainerSpec {
   user?: string;
   /** Inside /workspace (default /workspace). */
   workdir?: string;
+  /** `sara-eg-…-proxy:<IPv4>` (Podman's internal networks have no DNS, so the proxy is named here). */
+  hosts?: string[];
   argv: string[];
 }
 
@@ -150,10 +152,12 @@ export function containerRunArgv(s: ContainerSpec): string[] {
   for (const n of s.env) if (!ENV_RE.test(n)) throw new ContainerRefused(`"${n.slice(0, 40)}" isn't a variable name.`);
   if (s.user !== undefined && s.user !== 'keep-id' && !/^\d{1,10}:\d{1,10}$/.test(s.user)) throw new ContainerRefused('The user is keep-id or uid:gid.');
   if (!s.argv.length || s.argv.some((a) => typeof a !== 'string' || a.includes('\0'))) throw new ContainerRefused('Nothing to run.');
+  for (const h of s.hosts ?? []) if (!/^sara-[a-z0-9-]{1,60}:(\d{1,3}\.){3}\d{1,3}$/.test(h)) throw new ContainerRefused('A host entry names a Sara proxy and its address.');
   const mounts = (s.mounts ?? []).map((m) => `type=bind,source=${hostPath(m.src)},target=${innerPath(m.dest)}${m.rw ? '' : ',readonly'}`);
   return [
     'run', '--rm', '--init', '--pull=never', '--name', s.name,
     ...(s.network === 'default' ? [] : ['--network', s.network]),
+    ...(s.hosts ?? []).flatMap((h) => ['--add-host', h]),
     '--read-only', '--tmpfs', '/tmp:rw,exec,nosuid,size=512m',
     '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
     '--pids-limit', '512', '--memory', '2g',
@@ -177,11 +181,15 @@ export function containerUser(c: Pick<EngineInfo, 'engine' | 'rootless'>, platfo
 
 export const EGRESS_PORT = 3128;
 /** The egress sidecar for one run: an internal network whose only way out is the proxy container. */
-export function egressPlan(o: { id: string; image: string; proxyFile: string }): { network: string; proxyName: string; proxyUrl: string; create: string[]; sidecar: string[]; connect: string[]; logs: string[]; cleanup: string[][] } {
+export function egressPlan(o: { id: string; image: string; proxyFile: string; engine?: Engine }): { network: string; proxyName: string; proxyUrl: string; create: string[]; sidecar: string[]; connect: string[]; address?: string[]; logs: string[]; cleanup: string[][] } {
   if (!/^[a-z0-9]{1,40}$/.test(o.id)) throw new ContainerRefused('Bad run id.');
   checkImage(o.image);
   const network = `sara-eg-${o.id}`;
   const proxyName = `${network}-proxy`;
+  // C1, real rootless Podman 4.9 (CNI): `network connect` refuses a container on slirp4netns, and an
+  // internal network has no DNS. So Podman starts the proxy on both networks at once (its default
+  // network "podman" is the way out) and the run is told the proxy's address with --add-host.
+  const podman = o.engine === 'podman';
   return {
     network,
     proxyName,
@@ -189,12 +197,14 @@ export function egressPlan(o: { id: string; image: string; proxyFile: string }):
     create: ['network', 'create', '--internal', network],
     sidecar: [
       'run', '-d', '--rm', '--init', '--pull=never', '--name', proxyName,
+      ...(podman ? ['--network', network, '--network', 'podman'] : []),
       '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--pids-limit', '64', '--memory', '128m',
       '--mount', `type=bind,source=${hostPath(o.proxyFile)},target=/sara/egress.ts,readonly`,
       '-e', 'SARA_EGRESS_ALLOW', '-e', 'SARA_EGRESS_PORT', '-e', 'SARA_EGRESS_SECRETS',
       o.image, 'node', '/sara/egress.ts', 'serve',
     ],
-    connect: ['network', 'connect', network, proxyName],
+    connect: podman ? [] : ['network', 'connect', network, proxyName],
+    ...(podman ? { address: ['inspect', '--format', `{{(index .NetworkSettings.Networks "${network}").IPAddress}}`, proxyName] } : {}),
     logs: ['logs', proxyName],
     cleanup: [['rm', '-f', proxyName], ['network', 'rm', network]],
   };

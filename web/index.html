@@ -1548,6 +1548,7 @@
         <progress id="lib-upload-bar" class="lib-progress" max="1" value="0" hidden></progress>
         <p class="small"><button id="lib-feed-together" type="button" class="ghost small" title="Opens a public RSS or Atom feed above your chat so you can share one of its items with her." data-owner-only>Read a feed together</button></p>
         <p class="small"><button id="lib-research-open" type="button" class="ghost small" data-owner-only>Research a question…</button> <button type="button" class="tip" data-tip="She plans the searches with you, reads public pages, lists every page she read or couldn't read, and writes a report where each sentence links its page. Kept here; downloads as PDF or Word.">?</button></p>
+        <p class="small"><button id="lib-topics-open" type="button" class="ghost small" data-owner-only>What she has learned…</button> <button type="button" class="tip" data-tip="Point her at a topic or a website: she reads public pages, keeps what she learned with its sources and dates, can refresh it every day, week or month, and answers your questions from it.">?</button></p>
         <p class="small"><button id="lib-meetings-open" type="button" class="ghost small" data-owner-only>Meetings…</button> <button type="button" class="tip" data-tip="She listens in a room you start (everyone is told first) or reads a recorded meeting, then writes a summary, decisions and action items. Notes are kept here; to-dos go to the Planner only when you add them.">?</button></p>
         <div class="lib-tools" data-nodirty>
           <input id="lib-q" type="search" placeholder="Search her library">
@@ -1563,6 +1564,12 @@
           <div id="la-list" class="la-list"></div>
         </section>
         <label id="lib-shared-row" class="row small" hidden data-nodirty><input id="lib-shared" type="checkbox"> One library for all companions (takes effect after a restart)</label>
+      </section>
+      <!-- C6 (docs/LEARN.md): what she has learned (web/learn.js). -->
+      <section id="lib-topics" hidden>
+        <p><button id="lib-t-back" type="button" class="ghost small">← All documents</button></p>
+        <h2>What she has learned <button type="button" class="tip" data-tip="Topics and sites she studied for you, each kept as a skill with its sources and the date she read them. Ask her about one any time; refreshes show what changed.">?</button></h2>
+        <div id="lib-t-body" class="rs-body" data-nodirty></div>
       </section>
       <!-- EC6 (docs/RESEARCH.md): research runs with a report (web/research.js). -->
       <section id="lib-research" hidden>
@@ -3139,6 +3146,9 @@
       <p id="bud-quick-note" class="muted small"></p>
       <label>At the limit <select id="bud-on-limit"><option value="wrap">Wrap up and tell me what's left</option><option value="ask">Ask me before going on</option></select></label>
       <p class="muted small">On a subscription (a ChatGPT, Claude or Grok sign-in) a spending limit can't be counted: you don't pay per token there. Tokens, steps and time still apply.</p>
+      <h3>Learning a topic <button type="button" class="tip" data-tip="The most she may spend each month on learning and refreshing topics (Library → What she has learned), counted as an estimate. When it is used up, new topics and refreshes wait for next month.">?</button></h3>
+      <label>Monthly learning budget <select id="learn-monthly"></select></label>
+      <p id="learn-used" class="muted small"></p>
       </div>
         </section>
                 <!-- Phase 119 (RECALL §3.3, §4.10): when it comes up (web/recall-when.js). -->
@@ -3492,6 +3502,7 @@
         <label id="mcp-url-row" hidden>URL <input id="mcp-url" placeholder="https://example.com/mcp"></label>
         <label id="mcp-secrets-row">Secrets <textarea id="mcp-secrets" rows="3" placeholder="One per line: NAME=value (environment variables)&#10;header:Authorization=Bearer …&#10;Leave empty to keep current; NAME= deletes."></textarea></label>
         <label class="row"><input id="mcp-enabled" type="checkbox" checked> Enabled</label>
+        <label class="row"><input id="mcp-apps" type="checkbox" checked> <span>Show its apps in the chat <button type="button" class="tip" data-tip="Some tool servers send a small interactive panel with a result (MCP Apps). It runs walled off from Sara: it can't see your data, and anything it asks to change waits for your OK. Turn off to get plain text only.">?</button></span></label>
         <button id="mcp-save" type="button">Save and connect</button>
       </details>
       <h3>Programs add-ons need</h3>
@@ -3883,6 +3894,9 @@
       <div id="hk-list" class="skl-list"></div>
       <div class="hk-keep" data-nodirty data-noauto><label><span>Keep the delivery log <button type="button" class="tip" data-tip="How long each webhook's log of deliveries is kept. Bodies are stored with secrets hidden and cut to 16 KB; older entries are deleted.">?</button></span> <select id="hk-keep"><option value="3">for 3 days</option><option value="7">for 7 days</option><option value="14" selected>for 14 days</option><option value="30">for 30 days</option><option value="90">for 90 days</option></select></label></div>
       <p id="hk-status" class="muted small" role="status"></p>
+      <!-- C4 (docs/ops/C4_DESIGN.md): "When this happens" event triggers (web/event-triggers.js). -->
+      <h3 id="et-h">When this happens <button type="button" class="tip" data-tip="A new email, a Slack or Teams message, a webhook delivery or a tool server event can start her work: your instruction or a crew, with the event as information. Daily caps and budgets apply, and changes still ask you.">?</button></h3>
+      <div id="et" class="et-box" data-nodirty data-noauto aria-labelledby="et-h"></div>
         </section>
         <!-- Phase 121 (BEGIN §5.10): the safety check-up (web/safety-check.js). Read-only until a fix is tapped. -->
         <section class="settings-page" data-page="dh-safety" data-group="Data & health" data-title="Safety check-up" data-owner-only hidden>
@@ -3978,6 +3992,7 @@
         <label class="row"><input id="po-local" type="checkbox"> Keep private local mode on <button type="button" class="tip" data-tip="Once Nothing leaves this computer is on, it can't be turned off. If it's off now, the safety check-up says so until you turn it on.">?</button></label>
         <label class="row">Sara Store <select id="po-store"><option value="">No limit</option><option value="official">Signed Store items only</option><option value="off">No installs</option></select> <button type="button" class="tip" data-tip="Signed Store items only: no community items. No installs: nothing can be installed or updated from the Store.">?</button></label>
         <label class="row">Replies at the same time <select id="po-parallel"><option value="">No limit</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="6">6</option><option value="8">8</option></select> <button type="button" class="tip" data-tip="The most chats one person's model can work on at once. They can choose fewer in Session continuity, never more. Busy chats wait their turn.">?</button></label>
+        <label class="row"><input id="po-learning" type="checkbox"> Turn off Learn a topic <button type="button" class="tip" data-tip="Sara learns no new topics or websites on this server and refreshes none. What she already learned stays as skills.">?</button></label>
         <label class="row"><input id="po-phone" type="checkbox"> Turn off Phone as a helper <button type="button" class="tip" data-tip="Sara can never ask a phone or browser for its camera, location or screen on this server, and no device can be switched on for it.">?</button></label>
         <label class="row"><input id="po-workmode" type="checkbox"> Keep work mode on everywhere <button type="button" class="tip" data-tip="Every chat on this server is a work chat, for every companion: work name and tone, work tools and work memory only, no moods, romance, adult content or pictures on her own.">?</button></label>
         <label class="row"><input id="po-codemode" type="checkbox"> Turn off Code mode <button type="button" class="tip" data-tip="No one on this server can turn on Code mode: she always calls her tools one at a time.">?</button></label>
@@ -3985,6 +4000,7 @@
         <label class="row"><input id="po-sharing" type="checkbox"> Turn off shared links <button type="button" class="tip" data-tip="No one can make a link to share a conversation, and links already made stop opening until this is unticked.">?</button></label>
         <label class="row">Program installs <select id="po-programs"><option value="">No limit</option><option value="ask">Ask first</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Programs add-ons need (Chrome, uv, Docker…). Ask first: Sara always shows the commands and waits. Off: Sara never installs programs on this server.">?</button></label>
         <label class="row"><input id="po-editors" type="checkbox"> Turn off editors <button type="button" class="tip" data-tip="Code editors such as Zed and JetBrains can't use Sara as their coding agent: new editor sessions and editor turns are refused. Sara's own coding chats keep working.">?</button></label>
+        <label class="row"><input id="po-triggers" type="checkbox"> Turn off event triggers <button type="button" class="tip" data-tip="No &quot;When this happens&quot; triggers can be made or changed on this server, and none run. Owners can still pause them.">?</button></label>
         <label class="row">Crews <select id="po-crews"><option value="">No limit</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Off: no crews can be made, run, scheduled or started by mail on this server.">?</button></label>
         <label class="row">Overnight memory tidy <select id="po-tidy"><option value="">No limit</option><option value="local">Models on this computer only</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Models on this computer only: the tidy never sends notes to a cloud model. Off: no overnight tidy for anyone on this server.">?</button></label>
         <label class="row"><input id="po-hold" type="checkbox"> Keep the whole server on legal hold <button type="button" class="tip" data-tip="Nothing on this server can be deleted (chats, memories, files, people, audit rows) until this pin is removed. Retention waits too.">?</button></label>

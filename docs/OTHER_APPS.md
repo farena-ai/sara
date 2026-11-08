@@ -109,6 +109,44 @@ console.log(reply.choices[0].message.content);
 
 Sara doesn't depend on these packages; they are only for your own scripts.
 
+## Open Responses (`/v1/responses`)
+
+Sara also speaks [Open Responses](https://www.openresponses.org), the open version of OpenAI's
+Responses API, with the same API key, rate limit and rules as above.
+
+| | |
+|---|---|
+| `POST /v1/responses` | One turn. `input` is a string or a list of items: messages with `input_text`, `output_text` and `input_image` parts (pictures as `data:` URLs; she never fetches a picture from a web address). `instructions`, `previous_response_id`, `store` and `stream` are honoured; `temperature`, `top_p` and the like are echoed back but she uses your model choices. |
+| `GET /v1/responses/{id}` | A stored response (kept 30 days, at most 500 per key, readable only with the key that made it). |
+| `DELETE /v1/responses/{id}` | Deletes a stored response. Her conversation in Sara keeps its messages. |
+
+- **History:** the earlier items in `input` are the history for this turn (like
+  `X-Sara-History: client`); system/developer items and `instructions` become the low-priority
+  note after her own instructions. With `previous_response_id`, that response's input and her
+  answer come first, then your new input; the turn continues in the same conversation in Sara.
+  `store: false` keeps nothing to continue from (her conversation in Sara still records the turn).
+- **Streaming** (`"stream": true`) sends the spec's events with `event:` names: `response.created`,
+  `response.in_progress`, `response.output_item.added`, `response.content_part.added`,
+  `response.output_text.delta` … `.done`, `response.content_part.done`,
+  `response.output_item.done`, then `response.completed` (or `response.failed`) and `data: [DONE]`.
+- **Her own tools** (only with *Let other apps use her tools*) appear as `sara:tool_call` output
+  items (`name`, `summary`, `status`, `result`). When an action needs your OK, the stream sends a
+  `sara:approval` event (`approval_id`, `summary`); answer it in Sara and the reply goes on.
+- **Not offered:** function tools defined by the app (ignored, as on chat completions, so
+  `tools` comes back empty), `/v1/responses/compact`, the WebSocket transport and background mode.
+
+```js
+import OpenAI from 'openai';
+
+const client = new OpenAI({ baseURL: 'https://sara.example.ts.net/v1', apiKey: process.env.SARA_KEY });
+const first = await client.responses.create({ model: 'sara', input: 'My favourite colour is green.' });
+const next = await client.responses.create({ model: 'sara', previous_response_id: first.id, input: 'Which colour?' });
+console.log(next.output_text);
+```
+
+The SDK has the same as `sara.v1.responses.create / stream / get / delete`
+(`packages/sara-sdk/examples/responses.mjs`).
+
 ### SillyTavern
 
 1. API Connections (the plug icon) → **Chat Completion**.

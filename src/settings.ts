@@ -150,6 +150,8 @@ export interface Settings {
    * Phase 79: per-reply budgets (Settings → Coding → Budgets): coding chats and everyday chats
    * (tokens, steps, optional $ and minutes, on/off), the quick-model step and what happens at the limit.
    */
+  /** C6: Learn a topic (src/learn.ts): the monthly learning budget in estimated tokens. */
+  learn?: { monthlyTokens?: number };
   turnBudgets?: Partial<Omit<import('./budget.ts').TurnBudgetSettings, 'coding' | 'chat'>> & { coding?: Partial<import('./budget.ts').TurnLimits>; chat?: Partial<import('./budget.ts').TurnLimits> };
   /**
    * Phase 80: "Try commands in a sandbox first" (Settings → Coding → Coding projects): off, only

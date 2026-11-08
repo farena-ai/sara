@@ -28,6 +28,7 @@ export type HubEvent = (
   | { type: 'board'; boardId: number | string; taskId?: number | string; what?: string }
   /** Phase 102 (ST7): a webhook got a delivery or changed: the Webhooks page refreshes. Ids only, never what was sent. */
   | { type: 'hooks'; hookId?: string }
+  | { type: 'triggers' }
   /** Phase 103 (ST8): her plans changed (planned, sent, edited, switched). Nothing of what they say. */
   | { type: 'agenda' }
   /** Phase 111 (TD1): a part of Today changed (mail organised, a switch pressed…): open pages reload that part. */

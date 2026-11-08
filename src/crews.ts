@@ -22,7 +22,7 @@ import { usageLine } from './usage.ts';
 
 export const CREW = { maxCrews: 12, maxMembers: 4, minMembers: 1, missedSlotMs: 6 * 3600_000 } as const;
 export type CrewSchedule = { kind: 'manual' } | { kind: 'daily'; time: string } | { kind: 'weekly'; day: number; time: string };
-export type CrewWhy = 'manual' | 'schedule' | 'mail';
+export type CrewWhy = 'manual' | 'schedule' | 'mail' | 'trigger';
 export type CrewRunStatus = 'running' | 'done' | 'failed' | 'stopped' | 'limit' | 'interrupted';
 export interface CrewMember {
   helper: string;
@@ -320,7 +320,8 @@ CREATE INDEX IF NOT EXISTS crew_runs_crew ON crew_runs(crew_id, id);
   }
 
   /** Starts a run: one card per member, then the team task with the members as the plan. */
-  run(id: number, why: CrewWhy): CrewRun {
+  /** C4: `input` (an event trigger's fenced event) goes to every member as data, never as orders. */
+  run(id: number, why: CrewWhy, o: { input?: string } = {}): CrewRun {
     this.#pinned();
     const c = this.get(id);
     if (!c) throw new CrewError(404, en('Crew not found'));
@@ -342,7 +343,7 @@ CREATE INDEX IF NOT EXISTS crew_runs_crew ON crew_runs(crew_id, id);
       }
     }
     this.#db.prepare('UPDATE crew_runs SET cards = ? WHERE id = ?').run(JSON.stringify(cards), runId);
-    const plan = c.members.map((m) => ({ helper: m.helper, title: clip(m.task, 160), instructions: `${m.task}\n\nThe crew's brief (what the whole crew delivers): ${c.brief}` }));
+    const plan = c.members.map((m) => ({ helper: m.helper, title: clip(m.task, 160), instructions: `${m.task}\n\nThe crew's brief (what the whole crew delivers): ${c.brief}${o.input ? `\n\n${clip(o.input, 9000)}` : ''}` }));
     let taskId: number;
     try {
       taskId = team.start(c.conversationId, `${c.name}: ${c.brief}`, { plan, limits: c.limits }).id;

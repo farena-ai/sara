@@ -167,6 +167,25 @@ test('/v1: models and chat (plain and streamed) with an API key', async () => {
   await assert.rejects(new Sara({ server: base, token: 'wrong' }).v1.models(), (e: unknown) => e instanceof SaraError && e.status === 401);
 });
 
+test('C5 /v1/responses through the SDK: create, continue with previous_response_id while streaming, get, delete', async () => {
+  const sara = new Sara({ server: base, token: auth.createApiKey('SDK responses').token });
+  app.script.push(text('Green, noted.'));
+  const first = await sara.v1.responses.create({ model: 'sara', input: 'My favourite colour is green.' });
+  assert.equal(first.status, 'completed');
+  app.script.push(text('It is ', 'green.'));
+  let words = '';
+  let last: string | undefined;
+  for await (const ev of sara.v1.responses.stream({ model: 'sara', previous_response_id: first.id, input: 'Which colour?' })) {
+    if (ev.type === 'response.output_text.delta') words += ev.delta;
+    last = ev.type;
+  }
+  assert.match(words, /It is green\.$/);
+  assert.equal(last, 'response.completed');
+  assert.equal((await sara.v1.responses.get(first.id)).id, first.id);
+  assert.equal((await sara.v1.responses.delete(first.id)).deleted, true);
+  await assert.rejects(sara.v1.responses.get(first.id), (e: unknown) => e instanceof SaraError && e.status === 404);
+});
+
 test('webhooks: Sara\'s signature verifies; a changed body, a stale stamp or another secret do not', async () => {
   const secret = `whsec_${btoa('0123456789abcdef0123456789abcdef')}`;
   const body = JSON.stringify({ event: 'reply', text: 'hi' });

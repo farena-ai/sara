@@ -149,6 +149,15 @@ test('egress sidecar plan: an internal network, the proxy as its only way out, c
   assert.deepEqual(p.logs, ['logs', 'sara-eg-abc123-proxy']);
   assert.deepEqual(p.cleanup, [['rm', '-f', 'sara-eg-abc123-proxy'], ['network', 'rm', 'sara-eg-abc123']]);
   assert.throws(() => egressPlan({ id: 'A;B', image: IMAGE, proxyFile: '/x' }), ContainerRefused);
+  // Podman: both networks at start, no connect step, the proxy's address read back for --add-host.
+  const q = egressPlan({ id: 'abc123', image: IMAGE, proxyFile: '/sara/src/egress.ts', engine: 'podman' });
+  assert.deepEqual(q.sidecar.filter((a, i) => q.sidecar[i - 1] === '--network'), ['sara-eg-abc123', 'podman']);
+  assert.deepEqual(q.connect, []);
+  assert.deepEqual(q.address, ['inspect', '--format', '{{(index .NetworkSettings.Networks "sara-eg-abc123").IPAddress}}', 'sara-eg-abc123-proxy']);
+  assert.equal(p.address, undefined, 'Docker keeps network connect and its DNS');
+  const argv = containerRunArgv({ name: 'sara-x', image: IMAGE, workspace: '/w', network: 'sara-eg-abc123', env: [], hosts: ['sara-eg-abc123-proxy:10.89.0.2'], argv: ['true'] });
+  assert.deepEqual(argv.slice(argv.indexOf('--add-host'), argv.indexOf('--add-host') + 2), ['--add-host', 'sara-eg-abc123-proxy:10.89.0.2']);
+  assert.throws(() => containerRunArgv({ name: 'sara-x', image: IMAGE, workspace: '/w', network: 'none', env: [], hosts: ['evil.com:1.2.3.4 --privileged'], argv: ['true'] }), ContainerRefused);
 });
 
 // ---- running through the engine (a fake CLI) ----
@@ -219,13 +228,18 @@ test('egress allowlist in a container: internal network, proxy sidecar, refusals
   const r = await runCommand('npm view left-pad', f.ws, f.sb, { timeoutMs: 20_000, signal: new AbortController().signal });
   assert.equal(r.exitCode, 0, r.output);
   const calls = f.calls().map((c) => c.args);
-  const kinds = calls.filter((a) => a[0] !== 'logs').map((a) => (a[0] === 'run' ? (a.includes('-d') ? 'sidecar' : 'run') : a.slice(0, 2).join(' ')));
-  assert.deepEqual(kinds, ['network create', 'sidecar', 'network connect', 'run', 'rm -f', 'network rm']);
+  const kinds = calls.filter((a) => a[0] !== 'logs').map((a) => (a[0] === 'run' ? (a.includes('-d') ? 'sidecar' : 'run') : a[0] === 'inspect' ? 'inspect' : a.slice(0, 2).join(' ')));
+  // C1 (real rootless Podman 4.9, CNI): `network connect` fails on a slirp4netns container and internal
+  // networks have no DNS, so Podman joins both networks at start and the run gets the proxy as --add-host.
+  assert.deepEqual(kinds, ['network create', 'sidecar', 'inspect', 'run', 'rm -f', 'network rm']);
   const net = calls[0][3];
   assert.match(net, /^sara-eg-[a-f0-9]{12}$/);
   assert.deepEqual(calls[0], ['network', 'create', '--internal', net]);
   const run = f.calls().find((c) => c.args[0] === 'run' && !c.args.includes('-d'))!;
   assert.deepEqual(run.args.slice(run.args.indexOf('--network'), run.args.indexOf('--network') + 2), ['--network', net]);
+  assert.deepEqual(run.args.slice(run.args.indexOf('--add-host'), run.args.indexOf('--add-host') + 2), ['--add-host', `${net}-proxy:10.89.0.2`]);
+  const side = calls.find((a) => a[0] === 'run' && a.includes('-d'))!;
+  assert.deepEqual(side.filter((a, i) => side[i - 1] === '--network'), [net, 'podman'], 'the sidecar starts on the internal network and the default one');
   assert.match(run.envFile!, new RegExp(`^HTTPS_PROXY=http://${net}-proxy:3128$`, 'm'));
   const rows = trail.list({ action: 'egress.refused' });
   assert.equal(rows.length, 1);

@@ -123,6 +123,18 @@ test('EC10 Vault/OpenBao KV v2: token header, namespace, data.data[key], rotatio
   }
 });
 
+test('EC10 Vault/OpenBao: the real multi-error body ("1 error occurred:\\n\\t* permission denied") reads as one plain line', async () => {
+  // C1: a real OpenBao 2.7.2 dev server answers a policy refusal with this exact body.
+  const { url, server } = await fake((_req, res) => json(res, 403, { errors: ['1 error occurred:\n\t* permission denied\n\n'] }));
+  try {
+    const s = new SecretSources({ env: { VAULT_ADDR: url, VAULT_TOKEN: 's.weak-token' } });
+    const msg = await s.resolve(parseReference('vault:secret/sara#openai')![0]).catch((e: Error) => e.message);
+    assert.equal(msg, 'Vault refused secret/sara (403: permission denied). Check the token and its policy.');
+  } finally {
+    await close(server);
+  }
+});
+
 test('EC10 1Password Connect: vault, item and field by name or id, section, errors', async () => {
   const auth: Array<string | undefined> = [];
   const { url, server } = await fake((req, res) => {

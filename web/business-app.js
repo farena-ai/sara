@@ -422,5 +422,8 @@ updateAuthMode();
 await run(boot);
 if (/^(?:[0-9.]+|\[.*\])$/.test(location.hostname)) {
   notice(t('Passkeys require a hostname. Ask the host operator to configure a matching HTTPS hostname and business origin, or localhost for local use, then restart this business instance before setup.'));
-  for (const control of $('auth').querySelectorAll('input,select,button')) control.disabled = true;
+  // C1: company sign-in needs no passkey, so a LAN/loopback instance with a local IdP keeps it usable.
+  const SSO_CONTROLS = ['sso-signin', 'sso-join', 'auth-mode', 'code', 'adult'];
+  const passkeyOnly = control => !ssoEnabled || !SSO_CONTROLS.includes(control.id);
+  for (const control of $('auth').querySelectorAll('input,select,button')) if (passkeyOnly(control)) control.disabled = true;
 }

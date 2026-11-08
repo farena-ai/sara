@@ -12,3 +12,12 @@
 .rs-report-text { border: 1px solid var(--border); border-radius: 10px; padding: 4px 14px; margin: 8px 0; max-height: 52vh; overflow-y: auto; overflow-wrap: anywhere; }
 .rs-list { margin: 4px 0 8px; padding-left: 22px; display: grid; gap: 4px; overflow-wrap: anywhere; }
 .rs-url { overflow-wrap: anywhere; }
+
+/* C6 (docs/LEARN.md): What she has learned (web/learn.js). */
+.lnt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px 14px; align-items: end; }
+.lnt-grid select { width: 100%; min-height: 44px; }
+.lnt-form input[type="text"] { width: 100%; min-height: 44px; }
+.lnt-row { display: flex; flex-direction: column; gap: 2px; }
+.lnt-stale, .lnt-failed { color: var(--danger, var(--accent)); }
+.lnt-changes { border-left: 3px solid var(--accent); padding: 2px 12px; margin: 10px 0; }
+.lnt-changes h4, .lnt-topic h4 { margin: 8px 0 4px; }

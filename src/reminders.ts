@@ -61,6 +61,8 @@ export class ReminderScheduler {
     this.#app.goals?.tick(now.getTime());
     // E4: file/log watches ride the same tick (a plain read; no model, no timer of their own).
     this.#app.watches?.due(now);
+    // C6: due topic refreshes join the learning queue; a waiting "learned something new" goes out.
+    this.#app.learnTopics?.due(now);
     // EC12/EC13: crews' slots and the overnight memory tidy ride the same tick.
     this.#app.crews?.due(now);
     void this.#app.memoryTidy?.due(now).catch((err: Error) => console.warn(`memory tidy: ${err.message}`));

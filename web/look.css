@@ -319,6 +319,11 @@ li.step { animation: step-in var(--dur-slow) var(--ease-out) both; }
   animation: step-in var(--dur-slow) var(--ease-out) both;
 }
 .rcard-weather { width: min(380px, calc(100% - 60px)); }
+/* C3: an MCP App (sandboxed frame; the bridge sets its height within 80-720 px). */
+.rcard-mcp-app { width: min(720px, calc(100% - 60px)); }
+.rcard-mcp-app .rcard-meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+.mcp-app-frame { display: block; width: 100%; min-height: 80px; max-height: 720px; border: 1px solid var(--hairline-strong); border-radius: var(--r-3); background: var(--surface-1); }
+.mcp-app-note { margin: 0; }
 .rcard.ok { border-color: color-mix(in srgb, var(--success) 40%, var(--hairline-strong)); }
 .rcard.bad { border-color: color-mix(in srgb, var(--danger) 50%, var(--hairline-strong)); }
 .rcard-head { display: flex; align-items: center; gap: 8px; font-size: var(--fs-meta); font-weight: 600; color: var(--text-2); }

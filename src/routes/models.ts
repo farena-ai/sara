@@ -390,6 +390,13 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
         if (typeof body.apiKey === 'string') {
           if (body.apiKey) app.vault.set(vaultKeyFor(b), body.apiKey.trim());
           else app.vault.delete(vaultKeyFor(b));
+          // C1 (real OpenBao): an external reference resolves before Save answers (up to 5 s), so the
+          // next chat has the key instead of "needs an API key" while it is still being read.
+          if (app.vault.reference(vaultKeyFor(b))) {
+            let timer: NodeJS.Timeout | undefined;
+            await Promise.race([app.vault.check(vaultKeyFor(b)).catch(() => undefined), new Promise<void>((r) => (timer = setTimeout(r, 5000)))]);
+            clearTimeout(timer);
+          }
         }
         // Phase 56: a new provider, a new key or a new address: check its model list now.
         // UX 15: wait for that first check (up to 5 s) so the card shows its result, not "not checked yet".

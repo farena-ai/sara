@@ -432,7 +432,7 @@ export async function runJob(plan: JobPlan, o: RunJobOptions): Promise<JobResult
     writeFileSync(envFile, `${Object.entries(inner).map(([k, v]) => `${k}=${v}`).join('\n')}\n`, { mode: 0o600 });
     file = c.exe;
     try {
-      args = [...(c.pre ?? []), ...containerRunArgv({ name: containerName, image: c.image, workspace: ws, mounts, network: eg?.network ?? (network ? 'default' : 'none'), env: [], envFile, workdir: plan.cwd === '.' ? '/workspace' : `/workspace/${plan.cwd}`, ...(containerUser(c) ? { user: containerUser(c) } : {}), argv: ['/bin/sh', '-c', `${cpuLimit}; exec "$@"`, 'sara-job', plan.program, ...plan.args] })];
+      args = [...(c.pre ?? []), ...containerRunArgv({ name: containerName, image: c.image, workspace: ws, mounts, network: eg?.network ?? (network ? 'default' : 'none'), ...(eg?.hosts ? { hosts: eg.hosts } : {}), env: [], envFile, workdir: plan.cwd === '.' ? '/workspace' : `/workspace/${plan.cwd}`, ...(containerUser(c) ? { user: containerUser(c) } : {}), argv: ['/bin/sh', '-c', `${cpuLimit}; exec "$@"`, 'sara-job', plan.program, ...plan.args] })];
     } catch (err) {
       await closeEgress();
       res.error = (err as Error).message;

@@ -85,7 +85,7 @@ sudo git clone https://github.com/farena-ai/sara /opt/sara-src
 sudo /opt/sara-src/deploy/install.sh
 ```
 
-Containers and hosts without systemd: use [Docker Compose](#docker-compose).
+Containers and hosts without systemd: use [Docker Compose](#docker-compose). Kubernetes clusters: the single-replica Helm chart, see [KUBERNETES.md](KUBERNETES.md).
 
 `bubblewrap` is optional but recommended: with it, her shell runs in a sandbox that can only see her
 workspace (Ubuntu 24.04 needs one extra step, see [Troubleshooting](#troubleshooting); the one-command

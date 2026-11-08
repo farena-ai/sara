@@ -95,6 +95,8 @@ export interface EgressSetup {
   sandbox: SandboxInfo;
   /** container: the per-run internal network. */
   network?: string;
+  /** container (Podman): `--add-host` entries naming the proxy on that network. */
+  hosts?: string[];
   /** seatbelt: the proxy port the profile allows. */
   proxyPort?: number;
   close(): Promise<void>;
@@ -117,7 +119,8 @@ export async function openEgress(sandbox: SandboxInfo, entries: EgressEntry[], o
   const enforcement = enforcementFor(sandbox.mode);
   if (sandbox.mode === 'container' && sandbox.container) {
     const c = sandbox.container;
-    const plan = egressPlan({ id: randomUUID().replace(/-/g, '').slice(0, 12), image: c.image, proxyFile: EGRESS_FILE });
+    const plan = egressPlan({ id: randomUUID().replace(/-/g, '').slice(0, 12), image: c.image, proxyFile: EGRESS_FILE, engine: c.engine });
+    const hosts: string[] = [];
     const base = engineEnv();
     const secrets: Record<string, string> = {};
     for (const e of entries) if (e.key && secretOf(e.key)) secrets[e.key] = secretOf(e.key)!;
@@ -145,7 +148,12 @@ export async function openEgress(sandbox: SandboxInfo, entries: EgressEntry[], o
     try {
       await step(plan.create);
       await step(plan.sidecar, { ...base, SARA_EGRESS_ALLOW: JSON.stringify(entries.map((e) => ({ host: `${e.wildcard ? '*.' : ''}${e.host}${e.port ? `:${e.port}` : ''}`, ...(e.key ? { key: e.key } : {}) }))), SARA_EGRESS_PORT: String(EGRESS_PORT), SARA_EGRESS_SECRETS: JSON.stringify(secrets) });
-      await step(plan.connect);
+      if (plan.connect.length) await step(plan.connect);
+      if (plan.address) {
+        const ip = (await engineCall(c, plan.address, base)).out.trim();
+        if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) throw new Error('The egress network could not be set up: the proxy has no address on it.');
+        hosts.push(`${plan.proxyName}:${ip}`);
+      }
       let ready = false;
       for (let i = 0; i < 50 && !ready; i++) {
         ready = /SARA-EGRESS-READY/.test((await engineCall(c, plan.logs, base, 5000)).out);
@@ -156,7 +164,7 @@ export async function openEgress(sandbox: SandboxInfo, entries: EgressEntry[], o
       await cleanup();
       throw err;
     }
-    return { enforcement, env: proxyEnv(plan.proxyUrl), binds: [], sandbox, network: plan.network, close: cleanup };
+    return { enforcement, env: proxyEnv(plan.proxyUrl), binds: [], sandbox, network: plan.network, ...(hosts.length ? { hosts } : {}), close: cleanup };
   }
   const proxyOpts = { entries, onRefused, secret: (k: string) => secretOf(k), outboundAllowed: (t: string) => outboundAllowed(t), ...overrides };
   if (sandbox.mode === 'bwrap') {

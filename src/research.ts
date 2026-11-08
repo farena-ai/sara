@@ -173,6 +173,34 @@ export function checkClaims(text: string, sources: { n: number; url: string; tex
   return { text: final.join('\n').trim(), kept, dropped, cited };
 }
 
+export type FetchedPage = { ok: true; url: string; title: string; text: string; links: string[] } | { ok: false; reason: FailReason; detail: string | null };
+
+/**
+ * One public page through web_fetch's guarded fetcher (EC6; C6 learning reuses it): the page's
+ * text (at least RESEARCH.minChars), title and links, or why it failed. 'aborted' when `signal` ended it.
+ */
+export async function fetchPage(url: string, signal: AbortSignal, seams?: GuardedGetSeams): Promise<FetchedPage | 'aborted'> {
+  let r: Awaited<ReturnType<typeof guardedGet>>;
+  try {
+    r = await guardedGet(new URL(url), { signal, allowPrivate: false, ...(seams ? { seams } : {}) });
+  } catch (err) {
+    if (signal.aborted) return 'aborted';
+    const e = err as Error;
+    if (e instanceof PrivateLocalError) return { ok: false, reason: 'private-local', detail: null };
+    if (/private or local address|Only http and https/.test(e.message)) return { ok: false, reason: 'blocked', detail: null };
+    if (e.name === 'TimeoutError' || /timed? ?out|aborted/i.test(e.message)) return { ok: false, reason: 'timeout', detail: null };
+    return { ok: false, reason: 'unreachable', detail: e.message };
+  }
+  if (r.status < 200 || r.status >= 300) return { ok: false, reason: 'http', detail: `HTTP ${r.status}` };
+  const type = r.contentType.split(';')[0].trim().toLowerCase();
+  if (!/^text\/|html|json|xml/.test(type)) return { ok: false, reason: 'not-text', detail: type || null };
+  let body = r.text.replace(/\s+/g, ' ').trim();
+  // A <title> outside <head> stays in the page text; it is listed as the title already.
+  if (r.title && body.startsWith(r.title)) body = body.slice(r.title.length).trim();
+  if (body.length < RESEARCH.minChars) return { ok: false, reason: 'too-short', detail: null };
+  return { ok: true, url: r.url.href, title: r.title ?? '', text: body, links: r.links ?? [] };
+}
+
 type Row = Record<string, unknown>;
 
 export class Research {
@@ -404,31 +432,13 @@ export class Research {
   /** Reads one page; records it as read (returns true) or failed with the reason. */
   async #fetchOne(id: number, step: number, url: string, fallbackTitle: string, signal: AbortSignal, n: number): Promise<boolean> {
     const at = this.#now();
-    const fail = (reason: FailReason, detail: string | null) => {
-      if (this.#closed) return false;
-      this.#db.prepare(`INSERT INTO research_sources (run_id, step, url, title, status, reason, detail, at) VALUES (?, ?, ?, ?, 'failed', ?, ?, ?)`).run(id, step, url, oneLine(fallbackTitle, 200) || url, reason, detail ? oneLine(detail, 200) : null, at);
+    const r = await fetchPage(url, signal, researchDeps.seams);
+    if (this.#closed || r === 'aborted') return false; // not read: he cut reading short
+    if (!r.ok) {
+      this.#db.prepare(`INSERT INTO research_sources (run_id, step, url, title, status, reason, detail, at) VALUES (?, ?, ?, ?, 'failed', ?, ?, ?)`).run(id, step, url, oneLine(fallbackTitle, 200) || url, r.reason, r.detail ? oneLine(r.detail, 200) : null, at);
       return false;
-    };
-    let r: Awaited<ReturnType<typeof guardedGet>>;
-    try {
-      r = await guardedGet(new URL(url), { signal, allowPrivate: false, ...(researchDeps.seams ? { seams: researchDeps.seams } : {}) });
-    } catch (err) {
-      if (signal.aborted) return false; // not read: he cut reading short
-      const e = err as Error;
-      if (e instanceof PrivateLocalError) return fail('private-local', null);
-      if (/private or local address|Only http and https/.test(e.message)) return fail('blocked', null);
-      if (e.name === 'TimeoutError' || /timed? ?out|aborted/i.test(e.message)) return fail('timeout', null);
-      return fail('unreachable', e.message);
     }
-    if (r.status < 200 || r.status >= 300) return fail('http', `HTTP ${r.status}`);
-    const type = r.contentType.split(';')[0].trim().toLowerCase();
-    if (!/^text\/|html|json|xml/.test(type)) return fail('not-text', type || null);
-    let body = r.text.replace(/\s+/g, ' ').trim();
-    // A <title> outside <head> stays in the page text; it is listed as the title already.
-    if (r.title && body.startsWith(r.title)) body = body.slice(r.title.length).trim();
-    if (body.length < RESEARCH.minChars) return fail('too-short', null);
-    if (this.#closed) return false;
-    this.#db.prepare(`INSERT INTO research_sources (run_id, n, step, url, title, status, chars, text, at) VALUES (?, ?, ?, ?, ?, 'read', ?, ?, ?)`).run(id, n, step, r.url.href, oneLine(r.title || fallbackTitle, 200) || r.url.host, body.length, body.slice(0, RESEARCH.sourceChars), at);
+    this.#db.prepare(`INSERT INTO research_sources (run_id, n, step, url, title, status, chars, text, at) VALUES (?, ?, ?, ?, ?, 'read', ?, ?, ?)`).run(id, n, step, r.url, oneLine(r.title || fallbackTitle, 200) || new URL(r.url).host, r.text.length, r.text.slice(0, RESEARCH.sourceChars), at);
     return true;
   }
 

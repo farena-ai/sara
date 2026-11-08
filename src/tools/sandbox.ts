@@ -337,6 +337,55 @@ export function windowsShell(env: NodeJS.ProcessEnv = process.env, exists: (p: s
   return { file: env.ComSpec ?? 'cmd.exe', args: (cmd) => ['/d', '/s', '/c', cmd], sh: false };
 }
 
+/** C2: Windows process ids of the members of MSYS process group `pgid`, from Git Bash's `ps`
+ * (columns PID PPID PGID WINPID ...). Never Sara herself or her parent, never group 0. */
+export function msysGroupWinPids(psOutput: string, pgid: number, me: { self: number; parent: number } = { self: process.pid, parent: process.ppid }): number[] {
+  if (!Number.isSafeInteger(pgid) || pgid <= 0) return [];
+  const out: number[] = [];
+  for (const line of psOutput.split(/\r?\n/)) {
+    const c = line.trim().split(/\s+/);
+    if (/^[A-Z]$/.test(c[0] ?? '')) c.shift(); // a status letter (S stopped, I waiting for input, O output)
+    if (c.length < 4 || !/^\d+$/.test(c[2]) || !/^\d+$/.test(c[3])) continue;
+    const win = Number(c[3]);
+    if (Number(c[2]) === pgid && win > 0 && win !== me.self && win !== me.parent) out.push(win);
+  }
+  return out;
+}
+
+/** C2: ends every process of the Git Bash shell's own process group (the shell wrote its id to
+ * `mark`). `ps` is Git's own (no WMI), so this stays quick on a busy PC. Best effort. */
+async function stopShellGroup(bashFile: string, mark: string): Promise<void> {
+  let pgid = NaN;
+  for (let i = 0; i < 20 && !(pgid > 0); i++) {
+    try {
+      pgid = Number(readFileSync(mark, 'utf8').trim());
+    } catch {
+      await new Promise((r) => setTimeout(r, 50)); // stopped before the shell got that far
+    }
+  }
+  if (!(pgid > 0)) return;
+  const ps = win32.join(win32.dirname(win32.dirname(bashFile)), 'usr', 'bin', 'ps.exe');
+  const out = await new Promise<string>((res) => {
+    try {
+      const p = spawn(ps, [], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+      let text = '';
+      p.stdout.on('data', (d: Buffer) => (text += d.toString('utf8')));
+      const timer = setTimeout(() => p.kill(), 10_000);
+      p.on('close', () => (clearTimeout(timer), res(text)));
+      p.on('error', () => (clearTimeout(timer), res('')));
+    } catch {
+      res('');
+    }
+  });
+  for (const w of msysGroupWinPids(out, pgid)) {
+    try {
+      process.kill(w, 'SIGKILL');
+    } catch {
+      /* already gone */
+    }
+  }
+}
+
 /**
  * The environment of a command on Windows (no sandbox there). Keeps what programs need to find
  * themselves (LOCALAPPDATA/APPDATA: Python, npm and Git look there; without them the Python install
@@ -487,13 +536,13 @@ export async function runCommand(command: string, workspace: string, sandbox: Sa
     return refusedRun(`The egress allowlist could not be set up, so the command did not run: ${(err as Error).message}`);
   }
   try {
-    return await runPrepared(`${eg.prefix ?? ''}${command}`, workspace, eg.sandbox, { ...opts, env: { ...opts.env, ...eg.env }, binds: [...(opts.binds ?? []), ...eg.binds] }, { ...(eg.network ? { network: eg.network } : {}), ...(eg.proxyPort ? { proxyPort: eg.proxyPort } : {}) });
+    return await runPrepared(`${eg.prefix ?? ''}${command}`, workspace, eg.sandbox, { ...opts, env: { ...opts.env, ...eg.env }, binds: [...(opts.binds ?? []), ...eg.binds] }, { ...(eg.network ? { network: eg.network } : {}), ...(eg.hosts ? { hosts: eg.hosts } : {}), ...(eg.proxyPort ? { proxyPort: eg.proxyPort } : {}) });
   } finally {
     await eg.close();
   }
 }
 
-function runPrepared(command: string, workspace: string, sandbox: SandboxInfo, opts: RunOptions, extra: { network?: string; proxyPort?: number }): Promise<RunResult> {
+function runPrepared(command: string, workspace: string, sandbox: SandboxInfo, opts: RunOptions, extra: { network?: string; hosts?: string[]; proxyPort?: number }): Promise<RunResult> {
   // Phase 67: private local mode: no network for any command, whatever the caller asked for.
   const noNet = privateLocalOn();
   if (noNet) sandbox = { ...sandbox, network: false };
@@ -522,6 +571,11 @@ function runPrepared(command: string, workspace: string, sandbox: SandboxInfo, o
       runTmp = undefined;
     }
   }
+  // C2: Windows with Git Bash: the shell writes its own process id (its process group) where Stop
+  // can read it. The command could rewrite it, but there it already runs as the owner, unsandboxed.
+  // Kept next to the run's temp folder, not in it: the command's temp folder starts empty.
+  const shellMark = winShell?.sh && runTmp ? `${runTmp}.shell` : undefined;
+  if (shellMark) command = `printf %s $$ > '${shellMark.replaceAll("'", "'\\''")}' 2>/dev/null; ${command}`;
   const tmpEnv = runTmp && sandbox.mode !== 'container' ? (process.platform === 'win32' ? { TMPDIR: runTmp, TEMP: runTmp, TMP: runTmp } : { TMPDIR: runTmp }) : {};
   if (sandbox.mode === 'bwrap') {
     file = 'bwrap';
@@ -549,7 +603,7 @@ function runPrepared(command: string, workspace: string, sandbox: SandboxInfo, o
     const envFile = join(runTmp ?? mkdtempSync(join(tmpdir(), 'sara-run-')), 'env');
     writeFileSync(envFile, Object.entries(inner).filter(([k, v]) => /^[A-Za-z_]\w*$/.test(k) && !/[\r\n\0]/.test(v)).map(([k, v]) => `${k}=${v}`).join('\n') + '\n', { mode: 0o600 });
     file = c.exe;
-    args = [...(c.pre ?? []), ...containerRunArgv({ name: containerName, image: c.image, workspace, mounts: (opts.binds ?? []).map((b) => ({ src: b.src, dest: b.dest, ...(b.rw ? { rw: true } : {}) })), network: extra.network ?? (sandbox.network ? 'default' : 'none'), env: [], envFile, ...(containerUser(c) ? { user: containerUser(c) } : {}), argv: ['/bin/sh', '-c', command] })];
+    args = [...(c.pre ?? []), ...containerRunArgv({ name: containerName, image: c.image, workspace, mounts: (opts.binds ?? []).map((b) => ({ src: b.src, dest: b.dest, ...(b.rw ? { rw: true } : {}) })), network: extra.network ?? (sandbox.network ? 'default' : 'none'), ...(extra.hosts ? { hosts: extra.hosts } : {}), env: [], envFile, ...(containerUser(c) ? { user: containerUser(c) } : {}), argv: ['/bin/sh', '-c', command] })];
     cwd = workspace;
     env = engineEnv();
   } else if (process.platform === 'win32') {
@@ -611,6 +665,10 @@ function runPrepared(command: string, workspace: string, sandbox: SandboxInfo, o
           const direct = () => { if (alive()) child.kill('SIGKILL'); };
           const tree = (again: boolean) => spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }).on('error', direct).on('exit', (code) => { if (code !== 0 && alive()) { if (again) tree(false); else direct(); } });
           tree(true);
+          // C2: taskkill goes through WMI and on a loaded PC took 15-25 s, often failing. Git Bash
+          // lists its own processes without WMI: end the shell's process group directly (started
+          // after taskkill so it has already begun walking the tree for native grandchildren).
+          if (shellMark && winShell?.sh) void stopShellGroup(winShell.file, shellMark);
         } else child.kill('SIGKILL');
       } catch {
         // already gone
@@ -636,6 +694,7 @@ function runPrepared(command: string, workspace: string, sandbox: SandboxInfo, o
       if (runTmp) {
         try {
           rmSync(runTmp, { recursive: true, force: true, maxRetries: 3 });
+          if (shellMark) rmSync(shellMark, { force: true });
         } catch {
           // a program still holds a file in it (Windows): the system cleans its temp folder
         }

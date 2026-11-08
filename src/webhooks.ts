@@ -454,6 +454,8 @@ export interface ManagerOptions {
   onBridge?: (h: Hook) => void;
   /** EC7: the Bot Framework JWT check for Teams bridge hooks (tests give a loopback stand-in). */
   botFramework?: BotFrameworkAuth;
+  /** C4: every accepted delivery, for the "When this happens" triggers that name this hook. */
+  onAccepted?: (d: { hookId: string; deliveryId: string | null; event: string; text: string }) => void;
 }
 
 /** What a delivery would do or did (the test button and the log). */
@@ -904,6 +906,11 @@ export class HookManager {
     this.store.count(hook.id, 'accepted');
     this.#answer(res, 202, { ok: true });
     this.#track(this.#act(inc, rowId));
+    try {
+      this.opts.onAccepted?.({ hookId: hook.id, deliveryId, event, text: this.opts.scrub(text).slice(0, 12_000) });
+    } catch {
+      // a trigger never breaks a delivery
+    }
   }
 
   /**

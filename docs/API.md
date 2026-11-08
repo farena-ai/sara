@@ -31,6 +31,9 @@ route on a throwaway server, so this list matches what Sara serves.
 | `POST /api/library` | device | `files.upload` |
 | `GET /v1/models` | api-key | `v1.models` |
 | `POST /v1/chat/completions` | api-key | `v1.chat` |
+| `POST /v1/responses` | api-key | `v1.responses` |
+| `GET /v1/responses/:id` | api-key | `v1.responses.get` |
+| `DELETE /v1/responses/:id` | api-key | `v1.responses.delete` |
 
 ## POST /api/device/start
 
@@ -144,3 +147,28 @@ OpenAI-compatible: one turn with her memory and character (`stream: true` for ch
 - Body: `{ model: string; messages: { role, content }[]; stream?: boolean; user?: string }`
 - Returns: `chat.completion | text/event-stream of chat.completion.chunk`
 - SDK: `sara.v1.chat`
+
+## POST /v1/responses
+
+Open Responses (openresponses.org): one turn from `input` items (text, `input_image` data URLs); `previous_response_id` continues a stored response; `stream: true` sends the spec's semantic events. Her own tool steps are `sara:tool_call` items, approval cards a `sara:approval` event (answered in Sara).
+
+- Auth: API key (`Authorization: Bearer <key>`, Settings → Connections → Other apps)
+- Body: `{ model: string; input: string | Item[]; instructions?: string; previous_response_id?: string; store?: boolean; stream?: boolean }`
+- Returns: `Response | text/event-stream of response.* events`
+- SDK: `sara.v1.responses`
+
+## GET /v1/responses/:id
+
+A stored response (kept 30 days, this key only).
+
+- Auth: API key (`Authorization: Bearer <key>`, Settings → Connections → Other apps)
+- Returns: `Response`
+- SDK: `sara.v1.responses.get`
+
+## DELETE /v1/responses/:id
+
+Delete a stored response (her conversation in Sara keeps its messages).
+
+- Auth: API key (`Authorization: Bearer <key>`, Settings → Connections → Other apps)
+- Returns: `{ id; object: "response.deleted"; deleted: true }`
+- SDK: `sara.v1.responses.delete`

@@ -60,5 +60,7 @@ export interface RouteCtx {
   liveCall: LiveCall | undefined;
   demoAccepted: Set<string>;
   isAuthed: (req: IncomingMessage) => boolean;
+  /** Phase 57 / C3: an approval card for a change another app (or an MCP App) asked for. */
+  requestApproval: (conversationId: string, name: string, summary: string, args: Record<string, unknown>, run: () => Promise<string>, onDone?: (r: { ok: boolean; status: string; text: string }) => void) => void;
   offApp: AppContext;
 }

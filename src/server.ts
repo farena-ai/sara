@@ -75,8 +75,11 @@ import { createReadinessRoutes } from './routes/readiness.ts';
 import { createRoutineRoutes } from './routes/routines.ts';
 import { createWatchRoutes } from './routes/watches.ts';
 import { createResearchRoutes } from './routes/research.ts';
+import { createLearnRoutes } from './routes/learn.ts';
+import { learnAskCommand } from './learn.ts';
 import { createMeetingRoutes } from './routes/meetings.ts';
 import { createCrewRoutes } from './routes/crews.ts';
+import { createTriggerRoutes } from './routes/triggers.ts';
 import { createMemoryTidyRoutes } from './routes/memory-tidy.ts';
 import { createReadTogetherRoutes } from './routes/read-together.ts';
 import { createRecallRoutes } from './routes/recall.ts';
@@ -94,6 +97,7 @@ import { createConnectionsRoutes, createHomeAssistantApi } from './routes/connec
 import { createAdminRoutes } from './routes/admin.ts';
 import { createGovernanceRoutes } from './routes/governance.ts';
 import { createSharePublic, createShareRoutes } from './routes/share.ts';
+import { createMcpAppRoutes } from './routes/mcp-apps.ts';
 import { createEditorRoutes } from './routes/editor.ts';
 import { cleanEditorLink } from './editor-link.ts';
 import { policy } from './policy-profile.ts';
@@ -384,12 +388,12 @@ export function createSaraServer(opts: ServerOptions): Server {
   const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports', 'boards']);
   /** Security review: routes an app signed in with a device code may not use (sign-in settings, devices, approving apps). */
   // Phase 100: 'agents' (A2A keys and peers) too. EC4/EC5: the audit trail and the policy.
-  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews', 'secrets', 'data-rights', 'readiness', 'phone-helper']);
+  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews', 'triggers', 'secrets', 'data-rights', 'readiness', 'phone-helper']);
   /**
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'memory-tidy', 'readiness']);
+  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'triggers', 'memory-tidy', 'readiness']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -603,7 +607,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   // approval card in that app's conversation, like her own actions. It runs only after Allow, and
   // what happened is posted there (and fed to her as an app note).
   const externalTurns = new Map<string, number>();
-  function requestApproval(conversationId: string, name: string, summary: string, args: Record<string, unknown>, run: () => Promise<string>): void {
+  // C3: `onDone` hears how it ended (MCP Apps hand the result back to the app that asked).
+  function requestApproval(conversationId: string, name: string, summary: string, args: Record<string, unknown>, run: () => Promise<string>, onDone?: (r: { ok: boolean; status: string; text: string }) => void): void {
     let turn = active.get(conversationId);
     if (turn && !externalTurns.has(conversationId)) throw new Error(me('Sara is busy in that conversation: try again when she has answered.'));
     if (!turn) {
@@ -634,6 +639,7 @@ export function createSaraServer(opts: ServerOptions): Server {
         }
         const msg = app.store.addMessage(conversationId, 'notice', `job:${text}`, { status });
         app.events?.publish({ type: 'message', conversationId, message: { id: msg.id, role: msg.role, content: msg.content, createdAt: msg.createdAt, meta: { status } }, reason: 'job' });
+        onDone?.({ ok: status === 'ok', status, text });
       })
       .finally(() => {
         t.approvals.delete(callId);
@@ -923,6 +929,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     demoAccepted,
     isAuthed,
     offApp,
+    requestApproval,
   };
   const libraryRoutes = createLibraryRoutes(ctx);
   const codingRoutes = createCodingRoutes(ctx);
@@ -947,10 +954,14 @@ export function createSaraServer(opts: ServerOptions): Server {
   const watchRoutes = createWatchRoutes(ctx);
   // EC6: research runs with a report, the owner's only (src/routes/research.ts).
   const researchRoutes = createResearchRoutes(ctx);
+  // C6: learn a topic, the owner's only (src/routes/learn.ts).
+  const learnRoutes = createLearnRoutes(ctx);
   // EC19: meeting rooms and meeting notes, the owner's only (src/routes/meetings.ts).
   const meetingRoutes = createMeetingRoutes(ctx);
   // EC12: crews, the owner's only (src/routes/crews.ts).
   const crewRoutes = createCrewRoutes(ctx);
+  // C4: "When this happens" event triggers, the owner's only (src/routes/triggers.ts).
+  const triggerRoutes = createTriggerRoutes(ctx);
   // EC13: the overnight memory tidy of this space (src/routes/memory-tidy.ts).
   const tidyRoutes = createMemoryTidyRoutes(ctx);
   // E5: read together, the owner's only (src/routes/read-together.ts).
@@ -974,6 +985,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const governanceRoutes = createGovernanceRoutes(ctx);
   // EC11: shared conversation links (src/routes/share.ts); the public page is /s/<token>.
   const shareRoutes = createShareRoutes(ctx);
+  // C3: MCP Apps in the chat (src/routes/mcp-apps.ts).
+  const mcpAppRoutes = createMcpAppRoutes(ctx);
   // EC14: editors (ACP): editor sessions and the editor's answers (src/routes/editor.ts).
   const editorRoutes = createEditorRoutes(ctx);
   // EC15: usage and cost reports and budgets (src/routes/usage-report.ts).
@@ -1343,6 +1356,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await adminRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await governanceRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await shareRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await mcpAppRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await editorRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await deliveryRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await operationsRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1369,8 +1383,10 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await routineRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await watchRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await researchRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await learnRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await meetingRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await crewRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await triggerRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await tidyRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await readTogetherRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await recallRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1944,7 +1960,7 @@ export function createSaraServer(opts: ServerOptions): Server {
         if ((c === 'new' || c === 'command') && !parts[3] && method === 'POST') {
           if (opts.demo || offRecord) throw new HttpError(400, "Commands don't work in this conversation.");
           const body = await readJson(req);
-          const cmd = c === 'new' ? { name: 'new' as const, args: '', form: 'native' as const } : parseCommand(String(body.text ?? ''), { herName: app.persona.name, namePrefix: false });
+          const cmd = c === 'new' ? { name: 'new' as const, args: '', form: 'native' as const } : (parseCommand(String(body.text ?? ''), { herName: app.persona.name, namePrefix: false }) ?? learnAskCommand(String(body.text ?? '')));
           if (!cmd) throw new HttpError(400, 'That is not one of her commands. Send /help to see them.');
           if (opts.member && (cmd.name === 'model' || cmd.name === 'remember' || cmd.name === 'goal' || cmd.name === 'loop')) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
           // An ended bridge session: the command acts on the chat's open one.

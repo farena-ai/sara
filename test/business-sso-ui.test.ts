@@ -43,3 +43,16 @@ test('sso ui: every refusal reason the server sends has a message in the sign-in
   assert.ok(reasons.length >= 10);
   for (const reason of reasons) assert.match(app, new RegExp(`\\b${reason}: \\(\\) => t\\(`), reason);
 });
+
+test('sso ui: on an IP-address origin only the passkey controls are switched off; company sign-in stays usable (C1, real Keycloak)', () => {
+  // C1 found that a LAN or loopback business instance (http://192.168.x.y) with a local Keycloak could not
+  // use company sign-in at all: the "passkeys need a hostname" guard disabled every sign-in control.
+  const app = web('business-app.js');
+  const guard = app.slice(app.indexOf('if (/^(?:[0-9.]+|'));
+  const block = guard.slice(0, guard.indexOf('\n}\n') + 3);
+  assert.match(block, /ssoEnabled/, 'the guard knows whether company sign-in is on');
+  assert.match(block, /passkeyOnly|#signin/, 'it targets the passkey controls');
+  const keep = block.match(/SSO_CONTROLS\s*=\s*\[([^\]]*)\]/) ?? app.match(/SSO_CONTROLS\s*=\s*\[([^\]]*)\]/);
+  assert.ok(keep, 'a list of controls company sign-in needs');
+  for (const id of ['sso-signin', 'sso-join', 'auth-mode', 'code', 'adult']) assert.match(keep[1], new RegExp(`'${id}'`), id);
+});

@@ -20,8 +20,8 @@ test('EC10 UI: the box sits on the Operations page, owner only, hidden until loa
   const js = readFileSync(join(ROOT, 'web', 'secret-sources.js'), 'utf8');
   assert.ok(!/\.style\b|innerHTML/.test(js), 'no inline styles or HTML strings');
   assert.ok(/id="po-secrets"/.test(html), 'the policy page has the pin');
-  const gov = readFileSync(join(ROOT, 'web', 'governance.js'), 'utf8');
-  assert.match(gov, /externalSecrets: true/);
+  const pins = readFileSync(join(ROOT, 'web', 'policy-pins.js'), 'utf8');
+  assert.match(pins, /key: 'externalSecrets', .*form: '#po-secrets', kind: 'flag', value: true/);
 });
 
 test('EC10 UI: status lines are translated from the template the server sends', async () => {

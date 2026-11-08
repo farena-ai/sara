@@ -13,15 +13,23 @@ test('official pack/smoke and real manager trust/enable/plan/run/result.card/dis
   const spec=spawnSpec({fence:'node-only',pluginDir:row.dir,dataDir:home,main:'main.mjs'});assert.equal(spec.cwd,home);assert.ok(!spec.args.some(a=>a.includes('allow-child-process')));
   const full=pluginToolName(id,'compare'),cards:any[]=[],ctx={workspaceDir:dir,sandbox:app.sandbox,signal:AbortSignal.timeout(20000),attachCard:(c:any)=>cards.push(c)};
   const p={benchmark:'injected',samples:30,warmup:4,minEffectPercent:20,sampleTimeoutMs:250};
+  const statuses:string[]=[];
   for(const language of ['en','es','fr','de','pt-BR','it']){
    app.settings.update({language} as never);await pm.setEnabled(id,'main',true);await until(()=>app.tools.get(full)?.isAvailable?.()===true);const tool=app.tools.get(full)!;
    assert.deepEqual(tool.spec.parameters,JSON.parse(readFileSync(join(source,'schema.json'),'utf8')));assert.equal(tool.defaultPermission,'ask');assert.equal(pm.enabledFor(id,'other'),false);
    const plan=JSON.parse(await tool.run({operation:'plan',...p},ctx));const run=JSON.parse(await tool.run({operation:'run',...p,planSha:plan.planSha},ctx));
-   assert.equal(run.status,'regression',JSON.stringify({reason:run.reason,ci:run.ratioCi,noise:run.relativeMad,medianNs:run.medianNs}));assert.equal(run.rawSamplesNs.candidate.length,30);assert.equal(run.planSha,plan.planSha);
+   // C2: judged by the run's own repeat spread, not by how busy the host was: within the lab's noise
+   // limit the injected slowdown must read as a regression; beyond it the only honest answer is 'noisy'.
+   const why=JSON.stringify({reason:run.reason,ci:run.ratioCi,noise:run.relativeMad,medianNs:run.medianNs});
+   if(run.relativeMad.some((x:number)=>x>0.25)){assert.equal(run.status,'inconclusive',why);assert.equal(run.reason,'noisy',why);}
+   else assert.equal(run.status,'regression',why);
+   statuses.push(run.status);
+   assert.equal(run.rawSamplesNs.candidate.length,30);assert.equal(run.planSha,plan.planSha);
    await assert.rejects(tool.run({operation:'run',...p,planSha:'0'.repeat(64)},ctx));
-   const labels=JSON.parse(readFileSync(join(source,'labels.json'),'utf8'))[language];assert.equal(cards.at(-1).title,labels.title);assert.equal(cards.at(-1).lines[0],labels.regression);
+   const labels=JSON.parse(readFileSync(join(source,'labels.json'),'utf8'))[language];assert.equal(cards.at(-1).title,labels.title);assert.equal(cards.at(-1).lines[0],labels[run.status]);
    await pm.setEnabled(id,'main',false);assert.equal(app.tools.get(full),undefined);
   }
+  assert.ok(statuses.includes('regression'),`at least one of the six runs was quiet enough to show the regression: ${statuses}`);
   assert.equal(cards.length,12);assert.equal(app.providerCalls,0);assert.deepEqual(pm.waiting(),[]);
  }finally{await pm.stopAll();app.store.close();cleanup();await until(()=>{cleanup();return !existsSync(dir);});}
 });

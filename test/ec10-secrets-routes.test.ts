@@ -53,3 +53,23 @@ test('EC10 routes: the list shows sources and status, never a value; Check now r
   assert.equal(cd.sources.find((s: { name: string }) => s.name === 'provider:openai').refs[1].ok, true);
   assert.equal((await fetch(base + '/api/secrets')).status, 401, 'signed in only');
 });
+
+test('EC10 routes: a Vault reference saved as a provider key is resolved before the save answers (C1, real OpenBao)', async () => {
+  // A real OpenBao answers in a few milliseconds; the first chat right after Save used to say
+  // "needs an API key" because the reference was still resolving in the background.
+  const { createServer } = await import('node:http');
+  const bao = createServer((req, res) => setTimeout(() => {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ data: { data: { openai: 'sk-from-bao-42' } } }));
+  }, 150));
+  await new Promise<void>((r) => bao.listen(0, '127.0.0.1', r));
+  setSecretSources(new SecretSources({ env: { VAULT_ADDR: `http://127.0.0.1:${(bao.address() as AddressInfo).port}`, VAULT_TOKEN: 'root' } }));
+  try {
+    const r = await fetch(base + '/api/providers/baoed', { method: 'PUT', headers: { authorization: `Bearer ${token}`, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ label: 'Bao', kind: 'openai-compatible', baseUrl: 'http://127.0.0.1:9/v1', defaultModel: 'm', needsKey: true, apiKey: 'vault:secret/sara#openai' }) });
+    assert.equal(r.status, 200);
+    assert.equal(app.vault.get('provider:baoed'), 'sk-from-bao-42', 'usable at once, not after a background refresh');
+  } finally {
+    setSecretSources(new SecretSources({ env }));
+    await new Promise<void>((r) => bao.close(() => r()));
+  }
+});

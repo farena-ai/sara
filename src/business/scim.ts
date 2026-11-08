@@ -16,6 +16,7 @@ import type { BusinessControlStore } from './store.ts';
 import type { BusinessPrincipal } from './types.ts';
 
 const USER = 'urn:ietf:params:scim:schemas:core:2.0:User';
+const SCHEMA = 'urn:ietf:params:scim:schemas:core:2.0:Schema';
 const GROUP = 'urn:ietf:params:scim:schemas:core:2.0:Group';
 const LIST = 'urn:ietf:params:scim:api:messages:2.0:ListResponse';
 const ERROR = 'urn:ietf:params:scim:api:messages:2.0:Error';
@@ -45,6 +46,35 @@ const bool = (value: unknown): boolean => {
 interface UserRow { identity_id: string; user_name: string; external_id: string | null; display_name: string | null; given_name: string | null; family_name: string | null; email: string | null; active: number; created_at: string; modified_at: string }
 interface GroupRow { id: string; display_name: string; external_id: string | null; created_at: string; modified_at: string }
 interface UserFields { userName: string; externalId: string | null; displayName: string | null; givenName: string | null; familyName: string | null; email: string | null; active: boolean }
+
+/** RFC 7644 §3.4.2.5: `attributes` keeps only the named ones, `excludedAttributes` drops them; `id`, `schemas`
+ * and `meta` always stay. Paths may name a sub-attribute (`name.givenName`). Case-insensitive, like SCIM names. */
+export function project(resource: Record<string, unknown>, params: URLSearchParams): Record<string, unknown> {
+  const names = (key: string) => (params.get(key) ?? '').split(',').map(s => s.trim().replace(/^urn:[^.]*:(?=[A-Za-z]+(\.|$))/i, '').toLowerCase()).filter(Boolean);
+  const keep = names('attributes'); const drop = names('excludedAttributes');
+  if (!keep.length && !drop.length) return resource;
+  const always = new Set(['id', 'schemas', 'meta']);
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(resource)) {
+    const k = key.toLowerCase();
+    if (always.has(k)) { out[key] = value; continue; }
+    if (keep.length) {
+      if (keep.includes(k)) { out[key] = value; continue; }
+      const subs = keep.filter(n => n.startsWith(k + '.')).map(n => n.slice(k.length + 1));
+      if (!subs.length || !value || typeof value !== 'object') continue;
+      const pick = (v: Record<string, unknown>) => Object.fromEntries(Object.entries(v).filter(([sk]) => subs.includes(sk.toLowerCase())));
+      out[key] = Array.isArray(value) ? value.map(v => pick(v as Record<string, unknown>)) : pick(value as Record<string, unknown>);
+      continue;
+    }
+    if (drop.includes(k)) continue;
+    const subs = drop.filter(n => n.startsWith(k + '.')).map(n => n.slice(k.length + 1));
+    if (subs.length && value && typeof value === 'object') {
+      const omit = (v: Record<string, unknown>) => Object.fromEntries(Object.entries(v).filter(([sk]) => !subs.includes(sk.toLowerCase())));
+      out[key] = Array.isArray(value) ? value.map(v => omit(v as Record<string, unknown>)) : omit(value as Record<string, unknown>);
+    } else out[key] = value;
+  }
+  return out;
+}
 
 export class BusinessScim {
   readonly #profile: BusinessProfile;
@@ -127,13 +157,15 @@ export class BusinessScim {
       if (extra !== undefined) throw new ScimError(404, 'Not found.');
       const method = req.method ?? 'GET';
       if (method === 'GET' && !id && resource === 'ServiceProviderConfig') return send(200, this.#serviceProviderConfig());
-      if (method === 'GET' && !id && resource === 'ResourceTypes') return send(200, this.#list(this.#resourceTypes(), 1));
-      if (method === 'GET' && !id && resource === 'Schemas') return send(200, this.#list(this.#schemas(), 1));
+      if (method !== 'GET' && ['ServiceProviderConfig', 'ResourceTypes', 'Schemas'].includes(resource)) throw new ScimError(405, 'Discovery is read-only.');
+      if (method === 'GET' && resource === 'ResourceTypes') return send(200, id ? this.#one(this.#resourceTypes(), decodeURIComponent(id)) : this.#list(this.#resourceTypes(), 1));
+      if (method === 'GET' && resource === 'Schemas') return send(200, id ? this.#one(this.#schemas(), decodeURIComponent(id)) : this.#list(this.#schemas(), 1));
       if (resource !== 'Users' && resource !== 'Groups') throw new ScimError(404, 'Not found.');
       const users = resource === 'Users';
       if (method === 'GET') {
-        if (id) return send(200, users ? this.#user(this.#userRow(id)) : this.#group(this.#groupRow(id), url.searchParams));
-        return send(200, users ? this.#listUsers(url.searchParams) : this.#listGroups(url.searchParams));
+        if (id) return send(200, project(users ? this.#user(this.#userRow(id)) : this.#group(this.#groupRow(id), url.searchParams), url.searchParams));
+        const listed = users ? this.#listUsers(url.searchParams) : this.#listGroups(url.searchParams);
+        return send(200, { ...listed, Resources: listed.Resources.map(r => project(r as Record<string, unknown>, url.searchParams)) });
       }
       if (method === 'DELETE' && id) { if (users) this.#deleteUser(id); else this.#deleteGroup(id); return send(204); }
       if (!['POST', 'PUT', 'PATCH'].includes(method) || (method === 'POST') === !!id) throw new ScimError(404, 'Not found.');
@@ -167,17 +199,25 @@ export class BusinessScim {
       authenticationSchemes: [{ type: 'oauthbearertoken', name: 'Bearer token', description: 'The token from Organization administration > Provisioning (SCIM).', primary: true }],
       meta: { resourceType: 'ServiceProviderConfig', location: `${this.baseUrl}/ServiceProviderConfig` } };
   }
+  /** A discovery entry by id (RFC 7644 §4: /Schemas/{id}, /ResourceTypes/{name}). */
+  #one(list: { id: string }[], id: string) {
+    const found = list.find(x => x.id === id);
+    if (!found) throw new ScimError(404, 'Not found.');
+    return found;
+  }
   #resourceTypes() {
     return [['User', 'Users', USER], ['Group', 'Groups', GROUP]].map(([name, endpoint, schema]) => ({ schemas: ['urn:ietf:params:scim:schemas:core:2.0:ResourceType'], id: name, name, endpoint: `/${endpoint}`, schema, meta: { resourceType: 'ResourceType', location: `${this.baseUrl}/ResourceTypes/${name}` } }));
   }
   #schemas() {
     const attr = (name: string, type = 'string', extra: Record<string, unknown> = {}) => ({ name, type, multiValued: false, required: false, caseExact: false, mutability: 'readWrite', returned: 'default', uniqueness: 'none', ...extra });
+    // C1: every sub-attribute Sara returns is declared (strict clients such as scim2-cli refuse undeclared ones).
+    const ref = (to: string, mutability: string) => [attr('value', 'string', { mutability }), attr('$ref', 'reference', { mutability, referenceTypes: [to] }), attr('display', 'string', { mutability: 'readOnly' }), attr('type', 'string', { mutability })];
     return [
-      { id: USER, name: 'User', description: 'A person in this organization.', attributes: [attr('userName', 'string', { required: true, uniqueness: 'server' }), attr('externalId', 'string', { caseExact: true }), attr('displayName'),
+      { schemas: [SCHEMA], id: USER, name: 'User', description: 'A person in this organization.', attributes: [attr('userName', 'string', { required: true, uniqueness: 'server' }), attr('externalId', 'string', { caseExact: true }), attr('displayName'),
         attr('name', 'complex', { subAttributes: [attr('givenName'), attr('familyName'), attr('formatted')] }), attr('emails', 'complex', { multiValued: true, subAttributes: [attr('value'), attr('type'), attr('primary', 'boolean')] }), attr('active', 'boolean'),
-        attr('groups', 'complex', { multiValued: true, mutability: 'readOnly' })], meta: { resourceType: 'Schema', location: `${this.baseUrl}/Schemas/${USER}` } },
-      { id: GROUP, name: 'Group', description: 'A group; its name can map to a Sara role.', attributes: [attr('displayName', 'string', { required: true }), attr('externalId', 'string', { caseExact: true }),
-        attr('members', 'complex', { multiValued: true, subAttributes: [attr('value'), attr('display')] })], meta: { resourceType: 'Schema', location: `${this.baseUrl}/Schemas/${GROUP}` } },
+        attr('groups', 'complex', { multiValued: true, mutability: 'readOnly', subAttributes: ref('Group', 'readOnly') })], meta: { resourceType: 'Schema', location: `${this.baseUrl}/Schemas/${USER}` } },
+      { schemas: [SCHEMA], id: GROUP, name: 'Group', description: 'A group; its name can map to a Sara role.', attributes: [attr('displayName', 'string', { required: true }), attr('externalId', 'string', { caseExact: true }),
+        attr('members', 'complex', { multiValued: true, subAttributes: ref('User', 'immutable') })], meta: { resourceType: 'Schema', location: `${this.baseUrl}/Schemas/${GROUP}` } },
     ];
   }
   #list(resources: unknown[], startIndex: number, total = resources.length) {
@@ -358,7 +398,7 @@ export class BusinessScim {
   #replaceGroup(id: string, body: Record<string, unknown>) {
     const row = this.#groupRow(id);
     const members = body.members === undefined ? [] : this.#memberIds(body.members);
-    return this.#group(this.#groupRow(this.#saveGroup(id, text(body.displayName ?? row.display_name, 256, 'displayName'), body.externalId !== undefined ? optional(body.externalId, 256, 'externalId') : row.external_id, members, new Set())));
+    return this.#group(this.#groupRow(this.#saveGroup(id, text(body.displayName, 256, 'displayName'), body.externalId !== undefined ? optional(body.externalId, 256, 'externalId') : row.external_id, members, new Set())));
   }
   #patchGroup(id: string, body: Record<string, unknown>, params: URLSearchParams) {
     const row = this.#groupRow(id);

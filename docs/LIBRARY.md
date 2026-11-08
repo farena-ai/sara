@@ -148,6 +148,12 @@ and press **Open**.
 writes a report where every sentence links a page she read; the report is kept here and downloads
 as PDF or Word. See [Research a question](RESEARCH.md).
 
+## What she has learned
+
+*What she has learned…* lists the topics and websites she studied for you (`/learn`, "learn about X"),
+with their status, what changed at the last refresh and the notes she keeps, with sources. See
+[Learn a topic](LEARN.md).
+
 ## Meetings
 
 *Meetings…* in the Library window listens in a meeting room you start (everyone is told first) or

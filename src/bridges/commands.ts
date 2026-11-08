@@ -23,7 +23,7 @@ import { pickupsFor, placeName } from '../pickup.ts';
 import { leanSettings as leanSettingsOf } from '../lean.ts';
 import { compactAllowed as compactAllowedOf, getFold as getFoldSync, undoFold as undoFoldSync } from '../compact.ts';
 
-export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea' | 'progress' | 'steer' | 'queue' | 'btw' | 'goal' | 'loop' | 'when' | 'continue' | 'problems' | 'compact' | 'tools';
+export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea' | 'progress' | 'steer' | 'queue' | 'btw' | 'goal' | 'loop' | 'when' | 'continue' | 'problems' | 'compact' | 'tools' | 'learn';
 /** Where the line was written: his DM, someone else's DM, a shared room, a room where he works with her. */
 export type Place = 'owner-dm' | 'partner-dm' | 'room' | 'work-room';
 /** Who wrote it (decided by the bridge from the platform user id, never by a name). */
@@ -40,8 +40,8 @@ export const BUSY_COMMANDS = ['steer', 'queue', 'btw'] as const;
 // Phase 118 (PERSIST §4.10, §5.8): /goal and /loop, typed, owner only, never in someone else's chat.
 export const PERSIST_COMMANDS = ['goal', 'loop'] as const;
 /** Phase 119: owner-only commands that don't exist for anyone else (their line stays a normal message). */
-export const OWNER_ONLY_COMMANDS: ReadonlySet<CommandName> = new Set(['when', 'continue', 'problems']);
-const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea', 'progress', ...BUSY_COMMANDS, ...PERSIST_COMMANDS, 'when', 'problems', 'tools'];
+export const OWNER_ONLY_COMMANDS: ReadonlySet<CommandName> = new Set(['when', 'continue', 'problems', 'learn']);
+const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea', 'progress', ...BUSY_COMMANDS, ...PERSIST_COMMANDS, 'when', 'problems', 'tools', 'learn'];
 export const isCommandName = (s: string): s is CommandName => (ALL as readonly string[]).includes(s);
 
 /** One line per command (menus and /help). The owner's /status says more than the one others get. */
@@ -68,6 +68,7 @@ export const DESCRIPTIONS: Record<CommandName, string> = {
   problems: en('The latest type errors in this chat’s project (check, on, off)'),
   compact: en('Tidy the older part of this chat into a summary (undo, show)'),
   tools: en('Which tools she has in this chat (all, lean, +name, -name)'),
+  learn: en('Learn a topic or a website, with sources (add daily, weekly or monthly to keep it fresh)'),
 };
 /** /status as others see it (no model, no budget). */
 export const PUBLIC_STATUS = en('How full this chat is');
@@ -146,6 +147,7 @@ export const APP_MENU: readonly { name: CommandName; args?: boolean; own?: boole
   { name: 'compact', own: true },
   { name: 'tools', own: true },
   { name: 'when', args: true, own: true },
+  { name: 'learn', args: true, own: true },
   { name: 'continue', own: true },
   { name: 'btw', args: true, member: true },
   { name: 'queue', args: true, member: true },
@@ -409,6 +411,30 @@ export async function runCommand(c: CommandContext): Promise<CommandReply> {
       return compactCommand(c, conv);
     case 'tools':
       return toolsCommand(c, conv);
+    case 'learn':
+      return learnCommand(c);
+  }
+}
+
+/** C6 (docs/LEARN.md): /learn <topic or address> [quick|standard|deep] [daily|weekly|monthly] · /learn alone lists them. */
+async function learnCommand(c: CommandContext): Promise<CommandReply> {
+  const { app } = c;
+  const tr = (text: string, params?: Record<string, unknown>) => say(app, c.lang, text, params);
+  if (c.place === 'partner-dm' || c.place === 'room') return { text: tr('Only the person who runs me can use that here.'), refused: true };
+  if (!app.learnTopics) return { text: tr('Learning isn’t available here.'), refused: true };
+  const { LearnError, parseLearnArgs } = await import('../learn.ts');
+  const args = parseLearnArgs(c.cmd.args);
+  if (!args.subject && !args.site) {
+    const list = app.learnTopics.list();
+    if (!list.length) return { text: tr('Nothing learned yet. Send /learn and a topic or a web address.') };
+    return { text: [tr('What she has learned:'), ...list.slice(0, 15).map((t) => `- ${t.subject} (${t.status})`)].join('\n') };
+  }
+  try {
+    const t = app.learnTopics.create(args, { channel: c.bridge });
+    return { text: tr('Learning about {topic} now. It will be in Library → What she has learned; ask me about it any time.', { topic: t.subject }) };
+  } catch (err) {
+    if (err instanceof LearnError) return { text: tr(err.message), refused: true };
+    throw err;
   }
 }
 

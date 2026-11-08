@@ -62,8 +62,10 @@ import { Goals } from './goals.ts';
 import { Loops } from './loops.ts';
 import { Watches } from './watch.ts';
 import { Research } from './research.ts';
+import { Learning } from './learn.ts';
 import { Meetings } from './meetings.ts';
 import { Crews } from './crews.ts';
+import { broadcastEvent, EventTriggers, mcpEventOf, registerTriggers, subscribeWanted } from './event-triggers.ts';
 import { MemoryTidy } from './memory-tidy.ts';
 import { ReminderScheduler } from './reminders.ts';
 import { CompanionHub, EventHub } from './events.ts';
@@ -506,6 +508,12 @@ sandboxListeners.push((s) => {
   console.log(`Tool sandbox: ${s.mode} (${s.detail})`);
 });
 const mcp = new McpManager(mainTools, { dataDir, sandbox, secrets: (name) => mcpSecrets(vault, name) });
+// C4: tool-server events reach the owner's triggers; watched resources are subscribed on connect.
+mcp.onNotification = (server, method, params) => {
+  const ev = mcpEventOf(server, method, params);
+  if (ev) broadcastEvent(ev);
+};
+mcp.onReady = (conn) => subscribeWanted(conn);
 // Phase 73: the owner's other servers over SSH (docs/SSH.md). Owner only: not in household members'
 // spaces, and not on the demo server.
 const sshManager = isDemo ? undefined : new SshManager({ dir: dataDir, vault });
@@ -590,7 +598,7 @@ const hookManager = isDemo
   : (() => {
       const d = new DatabaseSync(join(dataDir, 'sara.db'));
       d.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;');
-      return new HookManager({ db: d, vault, scrub: (s) => redactor.redact(s), allowLocalTargets: process.env.SARA_HOOKS_LOCAL_TARGETS === '1', keepDays: () => settings.get().hooks?.keepDays ?? 14 });
+      return new HookManager({ db: d, vault, scrub: (s) => redactor.redact(s), allowLocalTargets: process.env.SARA_HOOKS_LOCAL_TARGETS === '1', keepDays: () => settings.get().hooks?.keepDays ?? 14, onAccepted: (d) => broadcastEvent({ source: 'webhook', hookId: d.hookId, event: d.event, text: d.text, ...(d.deliveryId ? { id: d.deliveryId } : {}) }) });
     })();
 let a2aServer: A2AServer | undefined;
 let a2aClient: A2AClient | undefined;
@@ -1029,6 +1037,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.watches = new Watches(app, store.db);
     // EC6: research runs; one that was working before the restart becomes a stopped report.
     app.research = new Research(app, store.db);
+    // C6: learn a topic; a run that was working before the restart starts again.
+    app.learnTopics = new Learning(app, store.db);
     // EC19: meeting rooms and notes; a room live before the restart is ended (notes can be written).
     app.meetings = new Meetings(app, store.db);
     const g = app.goals.startupSweep();
@@ -1215,6 +1225,11 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isMember) app.team = new TeamManager(app, store.db);
   // EC12: crews (standing helpers the lead hands board cards to; the owner's only, never the demo).
   if (!isMember && !isDemo) app.crews = new Crews(app, store.db);
+  // C4: "When this happens" event triggers (the owner's only, never the demo or a member's space).
+  if (!isMember && !isDemo) {
+    app.eventTriggers = new EventTriggers(app, store.db);
+    registerTriggers(app.eventTriggers);
+  }
   // EC13: the overnight memory tidy (each space and companion tidies only its own notes; off until turned on).
   if (!isDemo) app.memoryTidy = new MemoryTidy(app, store.db);
   if (!isMember) for (const t of createTeamTools(() => app)) tools.add(t);

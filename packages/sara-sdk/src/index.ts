@@ -115,6 +115,27 @@ export interface V1Completion {
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
 }
 
+export interface V1ResponsesInput {
+  model: string;
+  input: string | { type?: 'message'; role: 'system' | 'developer' | 'user' | 'assistant'; content: string | ({ type: 'input_text' | 'output_text'; text: string } | { type: 'input_image'; image_url: string })[] }[];
+  instructions?: string;
+  previous_response_id?: string;
+  /** false: not kept, so it can't be continued or read back. */
+  store?: boolean;
+}
+export interface V1Response {
+  id: string;
+  object: 'response';
+  status: 'completed' | 'failed' | 'in_progress' | string;
+  model: string;
+  previous_response_id: string | null;
+  output: ({ type: 'message'; id: string; status: string; role: 'assistant'; content: { type: 'output_text'; text: string }[] } | { type: 'sara:tool_call'; id: string; status: string; name: string; summary: string; result: string | null } | { type: string; id: string; status: string })[];
+  error: { code: string; message: string } | null;
+  usage: { input_tokens: number; output_tokens: number; total_tokens: number } | null;
+  [k: string]: unknown;
+}
+export type V1ResponseEvent = { type: string; sequence_number: number; delta?: string; response?: V1Response; approval_id?: string; summary?: string; [k: string]: unknown };
+
 const sleep = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
     const t = setTimeout(resolve, ms);
@@ -288,6 +309,18 @@ export class Sara {
         const piece = e.choices?.[0]?.delta?.content;
         if (piece) yield piece;
       }
+    },
+    /** Open Responses (`/v1/responses`): create, stream the semantic events, read or delete a stored one. */
+    responses: {
+      create: (i: V1ResponsesInput): Promise<V1Response> => self.#json<V1Response>('v1.responses', { json: { ...i, stream: false } }),
+      /** Streams the events (`response.output_text.delta`, `sara:approval`, …); the last one is terminal. */
+      async *stream(i: V1ResponsesInput, signal?: AbortSignal): AsyncGenerator<V1ResponseEvent> {
+        const res = await self.request('v1.responses', { json: { ...i, stream: true }, ...(signal ? { signal } : {}) });
+        if (!res.body) return;
+        for await (const ev of sseData(res.body, signal)) yield ev as V1ResponseEvent;
+      },
+      get: (id: string): Promise<V1Response> => self.#json<V1Response>('v1.responses.get', { params: { id } }),
+      delete: (id: string): Promise<{ id: string; object: 'response.deleted'; deleted: true }> => self.#json('v1.responses.delete', { params: { id } }),
     },
   }))(this);
 }

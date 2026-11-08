@@ -30,5 +30,5 @@ test('ec19 ui: Meetings in the Library with consent, notices, tips and no inline
   for (const p of ['/join', '/audio?speaker=', '/end', '/notes', '/todos', '/recording', '/meetings/file?']) assert.ok(js.includes(p), p);
   assert.match(web('library.js'), /openMeetings\(\)/);
   assert.match(html, /<input id="po-meetings" type="checkbox"> Turn off meetings <button type="button" class="tip" data-tip="[^"]{20,260}">\?<\/button>/);
-  assert.match(web('governance.js'), /meetings: false/);
+  assert.match(web('policy-pins.js'), /key: 'meetings', .*form: '#po-meetings', kind: 'flag', value: false/);
 });

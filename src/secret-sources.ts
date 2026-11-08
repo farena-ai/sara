@@ -364,7 +364,9 @@ export class SecretSources {
     const { status, body } = await this.#get('Vault', `${addr}/v1/${encodeURIComponent(ref.mount!)}/data/${path}`, headers);
     if (status === 404) fail(en('Vault has no secret at {where} (404).'), { where });
     if (status === 401 || status === 403) {
-      const said = (body as { errors?: unknown[] } | undefined)?.errors?.find((x): x is string => typeof x === 'string' && x.length < 120 && !x.includes(token!));
+      // Vault and OpenBao wrap errors as "1 error occurred:\n\t* permission denied\n\n" (C1, real OpenBao 2.7.2).
+      const plain = (x: string) => x.replace(/^\s*\d+ errors? occurred:\s*/i, '').split(/\n/).map((l) => l.replace(/^\s*\*\s*/, '').trim()).filter(Boolean).join('; ');
+      const said = (body as { errors?: unknown[] } | undefined)?.errors?.filter((x): x is string => typeof x === 'string').map(plain).find((x) => x && x.length < 120 && !x.includes(token!));
       fail(said ? en('Vault refused {where} ({status}: {said}). Check the token and its policy.') : en('Vault refused {where} ({status}). Check the token and its policy.'), { where, status, said });
     }
     if (status !== 200) fail(en('Vault answered {status} for {where}.'), { status, where });

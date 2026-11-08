@@ -38,6 +38,8 @@ export interface PolicyPins {
   sharing?: false;
   /** EC12: off: no crews are made, run, scheduled or started by mail. */
   crews?: 'off';
+  /** C4: false: no event triggers are made or run ("When this happens"). */
+  triggers?: false;
   /** EC13: local: the overnight memory tidy uses only models on this computer; off: no tidy. */
   memoryTidy?: 'local' | 'off';
   /** EC10: server keys (providers, bridges, sign-in, voice…) only as references to external sources. */
@@ -58,9 +60,11 @@ export interface PolicyPins {
   phoneHelper?: false;
   /** EC26: true = work mode everywhere (every chat on this server is a work chat). */
   workMode?: true;
+  /** C6: false = she learns no new topics or sites and refreshes none (learned skills stay). */
+  learning?: false;
 }
 export type PinKey = keyof PolicyPins;
-export const PIN_KEYS: readonly PinKey[] = ['providers', 'tools', 'alwaysAllow', 'adultMode', 'shellNetwork', 'privateLocal', 'store', 'auditRetentionDays', 'programInstalls', 'containerSandbox', 'egressAllowlist', 'sharing', 'crews', 'memoryTidy', 'externalSecrets', 'editors', 'legalHold', 'personDelete', 'codeMode', 'parallelReplies', 'meetings', 'phoneHelper', 'workMode'];
+export const PIN_KEYS: readonly PinKey[] = ['providers', 'tools', 'alwaysAllow', 'adultMode', 'shellNetwork', 'privateLocal', 'store', 'auditRetentionDays', 'programInstalls', 'containerSandbox', 'egressAllowlist', 'sharing', 'crews', 'memoryTidy', 'externalSecrets', 'editors', 'legalHold', 'personDelete', 'codeMode', 'parallelReplies', 'meetings', 'phoneHelper', 'workMode', 'triggers', 'learning'];
 export interface Policy {
   version: 1;
   name: string;
@@ -107,6 +111,8 @@ export function validatePolicy(input: unknown): { name: string; pins: PolicyPins
       case 'codeMode':
       case 'meetings':
       case 'phoneHelper':
+      case 'triggers':
+      case 'learning':
         if (v !== false) throw new HttpError(400, '{key} can only be pinned off.', { params: { key: k } });
         pins[k] = false;
         break;

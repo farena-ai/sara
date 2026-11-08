@@ -7,7 +7,7 @@ const root=process.cwd(),engine=join(root,'store/plugins/performance-regression-
 const median=(v:number[])=>{const s=[...v].sort((a,b)=>a-b),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;};
 async function lab(){assert.ok(existsSync(engine),'performance lab engine has not been implemented');const p='../store/plugins/performance-regression-lab/engine.mjs';return import(p);}
 function stage(home:string,id:string,base:string,cand:string){const d=join(home,'perf-lab-v1',id);mkdirSync(d,{recursive:true});copyFileSync(join(fx,base),join(d,'baseline.js'));copyFileSync(join(fx,cand),join(d,'candidate.js'));return d;}
-const params=(benchmark:string,samples=30)=>({benchmark,samples,warmup:4,minEffectPercent:20,sampleTimeoutMs:250});
+const params=(benchmark:string,samples=30)=>({benchmark,samples,warmup:4,minEffectPercent:20,sampleTimeoutMs:290});
 async function measure(handle:any,p:any){const plan=JSON.parse((await handle({operation:'plan',...p})).content);return JSON.parse((await handle({operation:'run',...p,planSha:plan.planSha})).content);}
 test('detects an injected regression from repeatable interleaved measurements and retained raw samples',{timeout:60000},async()=>{
  const {handle}=await lab();const home=mkdtempSync(join(tmpdir(),'perf-lab-'));
@@ -15,9 +15,14 @@ test('detects an injected regression from repeatable interleaved measurements an
   stage(home,'injected','baseline.js','candidate-injected.js');stage(home,'control','baseline.js','baseline.js');process.chdir(home);
   const plan=JSON.parse((await handle({operation:'plan',...params('injected')})).content);
   assert.match(plan.planSha,/^[a-f0-9]{64}$/);assert.match(plan.baselineSha256,/^[a-f0-9]{64}$/);assert.notEqual(plan.baselineSha256,plan.candidateSha256);assert.equal(plan.executed,false);
-  // Repeatability: two independent runs both see the regression.
-  for(let i=0;i<2;i++){
+  // Repeatability: two independent quiet runs both see the regression. C2: a run is judged by its own
+  // repeat spread, not by how busy the host was: beyond the lab's noise limit the only honest answer
+  // is 'noisy' with no percentage (then it runs again, at most six times).
+  let quiet=0;
+  for(let i=0;i<6&&quiet<2;i++){
    const r=JSON.parse((await handle({operation:'run',...params('injected'),planSha:plan.planSha})).content);
+   if(r.relativeMad.some((x:number)=>x>0.25)){assert.equal(r.status,'inconclusive');assert.equal(r.reason,'noisy');assert.equal(Object.hasOwn(r,'slowdownPercent'),false);continue;}
+   quiet++;
    assert.equal(r.status,'regression',JSON.stringify({reason:r.reason,ci:r.ratioCi}));assert.equal(r.order,'interleaved-abba');
    assert.equal(r.rawSamplesNs.baseline.length,30);assert.equal(r.rawSamplesNs.candidate.length,30);
    for(const v of [...r.rawSamplesNs.baseline,...r.rawSamplesNs.candidate])assert.match(v,/^[1-9][0-9]*$/);
@@ -25,6 +30,7 @@ test('detects an injected regression from repeatable interleaved measurements an
    assert.equal(r.slowdownPercent,Math.round((median(c)/median(b)-1)*1000)/10,'percentage is derived from the returned raw samples');
    assert.ok(r.slowdownPercent>20&&r.ratioCi[0]>1.2);assert.equal(r.planSha,plan.planSha);assert.equal(typeof r.hardware.cpus,'number');
   }
+  assert.equal(quiet,2,'two of six runs were quiet enough to judge');
  }finally{process.chdir(root);rmSync(home,{recursive:true,force:true});}
 });
 test('control and negative oracles: identical code never regresses; noisy or underpowered runs are inconclusive without a percentage',{timeout:60000},async()=>{
@@ -34,6 +40,8 @@ test('control and negative oracles: identical code never regresses; noisy or und
   const control=await measure(handle,params('control'));assert.notEqual(control.status,'regression');
   if(control.status==='no-regression')assert.ok(control.ratioCi[1]<1.2);else assert.equal(Object.hasOwn(control,'slowdownPercent'),false);
   const noisy=await measure(handle,params('noisy'));assert.equal(noisy.status,'inconclusive');assert.equal(noisy.reason,'noisy');
+  // C2: the verdict comes from the fixture's own paced spread (a fixed 6..96 ms ladder), which host load can only widen.
+  assert.ok(noisy.relativeMad[1]>0.25,JSON.stringify(noisy.relativeMad));
   const small=await measure(handle,params('small',5));assert.equal(small.status,'inconclusive');assert.equal(small.reason,'underpowered');
   for(const r of [noisy,small]){assert.equal(Object.hasOwn(r,'slowdownPercent'),false);assert.equal(Object.hasOwn(r,'ratioCi'),false);assert.ok(r.rawSamplesNs.baseline.length>0);}
  }finally{process.chdir(root);rmSync(home,{recursive:true,force:true});}

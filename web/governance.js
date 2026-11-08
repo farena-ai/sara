@@ -2,6 +2,7 @@
 // "Set by your admin" locks on the pages a policy pins. The server enforces every pin; the locks
 // only say so before a change is refused.
 import { t } from './naming.js';
+import { fillPins, PINS, readPins } from './policy-pins.js';
 
 const $ = (s) => document.querySelector(s);
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement, openSettings: (page: string) => void } | null} */
@@ -141,66 +142,12 @@ export async function loadPolicy() {
   const pins = p.pins ?? {};
   $('#po-state').textContent = p.rev ? t('Policy “{name}”, revision {rev}, saved {time}.', { name: p.name, rev: p.rev, time: p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '?' }) : t('No policy yet: nothing is pinned.');
   $('#po-name').value = p.name ?? '';
-  for (const box of document.querySelectorAll('.po-kinds input[data-kind]')) box.checked = (pins.providers ?? []).includes(box.dataset.kind);
-  $('#po-commands').value = pins.tools?.['group:commands'] ?? '';
-  $('#po-mcp').value = pins.tools?.['group:mcp'] ?? '';
-  $('#po-always').checked = pins.alwaysAllow === false;
-  $('#po-adult').checked = pins.adultMode === false;
-  $('#po-net').checked = pins.shellNetwork === false;
-  $('#po-local').checked = pins.privateLocal === true;
-  $('#po-store').value = pins.store ?? '';
-  $('#po-retention').value = pins.auditRetentionDays === undefined ? '' : String(pins.auditRetentionDays);
-  $('#po-programs').value = pins.programInstalls ?? '';
-  $('#po-container').checked = pins.containerSandbox === true;
-  $('#po-secrets').checked = pins.externalSecrets === true;
-  $('#po-egress-on').checked = Array.isArray(pins.egressAllowlist);
-  $('#po-egress').value = (pins.egressAllowlist ?? []).map((h) => (typeof h === 'string' ? h : h.host)).join('\n');
-  if ($('#po-sharing')) $('#po-sharing').checked = pins.sharing === false;
-  if ($('#po-editors')) $('#po-editors').checked = pins.editors === false;
-  $('#po-codemode').checked = pins.codeMode === false;
-  if ($('#po-parallel')) $('#po-parallel').value = pins.parallelReplies === undefined ? '' : String(pins.parallelReplies);
-  $('#po-meetings').checked = pins.meetings === false;
-  if ($('#po-phone')) $('#po-phone').checked = pins.phoneHelper === false;
-  if ($('#po-workmode')) $('#po-workmode').checked = pins.workMode === true;
-  $('#po-crews').value = pins.crews ?? '';
-  $('#po-tidy').value = pins.memoryTidy ?? '';
-  if ($('#po-hold')) $('#po-hold').checked = pins.legalHold === true;
-  if ($('#po-nodelete')) $('#po-nodelete').checked = pins.personDelete === false;
+  fillPins(pins, (sel) => $(sel), (sel) => document.querySelectorAll(sel));
   for (const c of document.querySelectorAll('.po-page input, .po-page select, .po-page button')) c.disabled = !d.canEdit;
 }
 
 function readForm() {
-  const prev = pol?.policy?.pins ?? {};
-  // Tool ceilings set in an imported file (single tools) stay; the two group rows come from the form.
-  const tools = Object.fromEntries(Object.entries(prev.tools ?? {}).filter(([k]) => k !== 'group:commands' && k !== 'group:mcp'));
-  if ($('#po-commands').value) tools['group:commands'] = $('#po-commands').value;
-  if ($('#po-mcp').value) tools['group:mcp'] = $('#po-mcp').value;
-  const providers = [...document.querySelectorAll('.po-kinds input[data-kind]:checked')].map((b) => b.dataset.kind);
-  const pins = {
-    ...(providers.length ? { providers } : {}),
-    ...(Object.keys(tools).length ? { tools } : {}),
-    ...($('#po-always').checked ? { alwaysAllow: false } : {}),
-    ...($('#po-adult').checked ? { adultMode: false } : {}),
-    ...($('#po-net').checked ? { shellNetwork: false } : {}),
-    ...($('#po-local').checked ? { privateLocal: true } : {}),
-    ...($('#po-sharing')?.checked ? { sharing: false } : {}),
-    ...($('#po-editors')?.checked ? { editors: false } : {}),
-    ...($('#po-codemode').checked ? { codeMode: false } : {}),
-    ...($('#po-parallel')?.value ? { parallelReplies: Number($('#po-parallel').value) } : {}),
-    ...($('#po-meetings').checked ? { meetings: false } : {}),
-    ...($('#po-phone')?.checked ? { phoneHelper: false } : {}),
-    ...($('#po-workmode')?.checked ? { workMode: true } : {}),
-    ...($('#po-store').value ? { store: $('#po-store').value } : {}),
-    ...($('#po-retention').value !== '' ? { auditRetentionDays: Number($('#po-retention').value) } : {}),
-    ...($('#po-programs').value ? { programInstalls: $('#po-programs').value } : {}),
-    ...($('#po-container').checked ? { containerSandbox: true } : {}),
-    ...($('#po-secrets').checked ? { externalSecrets: true } : {}),
-    ...($('#po-egress-on').checked ? { egressAllowlist: $('#po-egress').value.split(/\r?\n/).map((l) => l.trim()).filter(Boolean) } : {}),
-    ...($('#po-crews').value ? { crews: $('#po-crews').value } : {}),
-    ...($('#po-tidy').value ? { memoryTidy: $('#po-tidy').value } : {}),
-    ...($('#po-hold')?.checked ? { legalHold: true } : {}),
-    ...($('#po-nodelete')?.checked ? { personDelete: false } : {}),
-  };
+  const pins = readPins(pol?.policy?.pins ?? {}, (sel) => $(sel), (sel) => document.querySelectorAll(sel));
   return { name: $('#po-name').value.trim() || t('Policy'), pins };
 }
 
@@ -233,23 +180,9 @@ async function importFile() {
 }
 
 // ---------- "Set by your admin" on the pages a pin covers ----------
-const LOCKS = {
-  adultMode: ['#adult-on'],
-  shellNetwork: ['#shell-network'],
-  privateLocal: ['#pl-on'],
-  store: ['#sto-community'],
-  alwaysAllow: ['#cu-level option[value="always"]'],
-  auditRetentionDays: ['#au-keep'],
-  programInstalls: ['#prq-installs'],
-  containerSandbox: ['#iso-backend'],
-  egressAllowlist: ['#eg-mode', '#eg-hosts', '#eg-save'],
-  memoryTidy: ['#mt-model'],
-  codeMode: ['#lean-codemode'],
-  meetings: ['#lib-meetings-open'],
-  phoneHelper: ['#hd-on'],
-  workMode: ['#atw-on'],
-};
-const NOTES = { providers: 'models-providers', tools: 'ab-tools' };
+// The controls each pin locks elsewhere, and the pages it notes, come from the one table.
+const LOCKS = Object.fromEntries(PINS.filter((p) => p.locks).map((p) => [p.key, p.locks]));
+const NOTES = Object.fromEntries(PINS.filter((p) => p.note).map((p) => [p.key, p.note]));
 
 function lock(control, on) {
   if (!control) return;

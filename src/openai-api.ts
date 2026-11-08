@@ -10,11 +10,13 @@
 // then become a low-priority note after her own instructions. Either way her character, the AI
 // disclosure, crisis help and the minors block apply, and tools/function calls from the app are
 // ignored (her own tools only when the owner allows it, with her normal approval rules).
+// C5: POST /v1/responses (Open Responses) lives in open-responses.ts on the same key and limits.
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { OwnerAuth } from './auth.ts';
 import type { AppContext } from './chat.ts';
 import type { CompanionManager } from './companions.ts';
+import { handleResponses } from './open-responses.ts';
 import { appConversation, callerOf, companionForModel, contentText, conversationKey, corsAllowed, externalTurn, KeyLimiter, modelIds, otherAppsSettings, type Caller } from './other-apps.ts';
 
 export interface OpenAIDeps {
@@ -26,7 +28,7 @@ export interface OpenAIDeps {
 }
 
 const MAX_BODY = 4 * 1024 * 1024;
-const BASE_HEADERS = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' };
+export const BASE_HEADERS = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' };
 
 /** An error in OpenAI's shape: { error: { message, type, param, code } }. */
 export function sendError(res: ServerResponse, status: number, message: string, type: string, code: string | null = null, extra: Record<string, string> = {}): void {
@@ -35,12 +37,12 @@ export function sendError(res: ServerResponse, status: number, message: string, 
   res.end(JSON.stringify({ error: { message, type, param: null, code } }));
 }
 
-function sendJson(res: ServerResponse, body: unknown): void {
+export function sendJson(res: ServerResponse, body: unknown): void {
   res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', ...BASE_HEADERS });
   res.end(JSON.stringify(body));
 }
 
-async function readBody(req: IncomingMessage): Promise<Record<string, unknown> | string> {
+export async function readBody(req: IncomingMessage): Promise<Record<string, unknown> | string> {
   if (Number(req.headers['content-length'] ?? 0) > MAX_BODY) return 'Request body too large.';
   const chunks: Buffer[] = [];
   let size = 0;
@@ -104,7 +106,7 @@ export async function handleOpenAI(req: IncomingMessage, res: ServerResponse, pa
     parts = path.split('/').filter(Boolean).map((p) => decodeURIComponent(p));
   } catch {
     // Hardening L6: a broken %-sequence is an unknown address, not a server error.
-    return sendError(res, 404, `Unknown endpoint ${method} ${path.slice(0, 80)}. Sara offers GET /v1/models and POST /v1/chat/completions.`, 'invalid_request_error', 'unknown_url');
+    return sendError(res, 404, `Unknown endpoint ${method} ${path.slice(0, 80)}. Sara offers GET /v1/models, POST /v1/chat/completions and POST /v1/responses.`, 'invalid_request_error', 'unknown_url');
   }
   const created = Math.floor(Date.parse(deps.app.store.firstOwnerMessageAt()?.toISOString() ?? '2026-01-01T00:00:00Z') / 1000);
   if (parts[1] === 'models' && method === 'GET') {
@@ -122,7 +124,9 @@ export async function handleOpenAI(req: IncomingMessage, res: ServerResponse, pa
     if (method !== 'POST') return sendError(res, 405, 'Use POST.', 'invalid_request_error', 'method_not_allowed');
     return chatCompletions(req, res, deps, caller);
   }
-  return sendError(res, 404, `Unknown endpoint ${method} ${path.slice(0, 80)}. Sara offers GET /v1/models and POST /v1/chat/completions.`, 'invalid_request_error', 'unknown_url');
+  // C5: Open Responses.
+  if (parts[1] === 'responses') return handleResponses(req, res, parts.slice(2), deps, caller);
+  return sendError(res, 404, `Unknown endpoint ${method} ${path.slice(0, 80)}. Sara offers GET /v1/models, POST /v1/chat/completions and POST /v1/responses.`, 'invalid_request_error', 'unknown_url');
 }
 
 async function chatCompletions(req: IncomingMessage, res: ServerResponse, deps: OpenAIDeps, caller: Caller): Promise<void> {

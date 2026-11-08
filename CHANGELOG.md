@@ -5,6 +5,64 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.86.0 (2026-11-08): learn a topic, triggers and tool apps
+
+- **Stop works at once on a busy Windows PC (C2):** stopping a background job or command used to wait
+  for `taskkill`, which on a loaded PC took 15-25 seconds and often failed, so the job ran on until it
+  ended by itself. Sara now ends the Git Bash shell's own processes directly (read from Git's `ps`, no
+  WMI); `taskkill` stays as the backstop for anything those started.
+- **Records match reality (C2):** ROADMAP and OWNER_CHECKS say which release shipped each item instead
+  of "on branch, not merged"; BACKLOG lost its duplicates and the entries 2.85.0 fixed. The policy pins
+  are one table in Settings code (`web/policy-pins.js`: key, label, control, locks), checked by a test
+  against the server's pin list and the Policy page. The performance-lab tests judge each run by its own
+  repeat spread, so a busy host can no longer flip them.
+### Fixed (C1 proof sprint: real Keycloak, OpenBao, Podman, Prometheus/Grafana, scim2-cli)
+
+- Company sign-in works on a business instance reached by IP address (a LAN server with a local
+  Keycloak): the "passkeys need a hostname" guard now switches off only the passkey controls.
+- SCIM: `/Schemas/{id}` and `/ResourceTypes/{id}`, every returned sub-attribute declared (`groups` and
+  `members` with `value`, `$ref`, `display`, `type`), `attributes`/`excludedAttributes` on Users and
+  Groups, 405 on writes to discovery, and a group `PUT` without `displayName` is refused. A strict SCIM
+  client (scim2-cli) could not create a group or read a user before; scim2-tester errors 49 → 12.
+- Container sandbox on rootless Podman: the allowed-sites proxy now starts on both networks at once
+  and the command reaches it by address (`network connect` fails on rootless Podman and its internal
+  networks have no DNS), so *Only the sites listed* works with Podman, not just Docker.
+- Vault/OpenBao references: a key typed as `vault:…` is read before Settings → Models answers, so
+  the next chat has it (it said "needs an API key" for a moment), and OpenBao's refusal reads as
+  one plain line ("permission denied").
+### Added
+
+- **Open Responses (`/v1/responses`, C5):** apps that speak the Open Responses / OpenAI Responses API
+  (the official `openai` package's `responses.create`) can talk to her with an API key: input items
+  with text and pictures, `previous_response_id` to continue, streaming with the spec's events, stored
+  responses you can read back or delete. Her own tool steps show as `sara:tool_call` items and
+  approval cards as `sara:approval` events, answered in Sara. Same keys, limits and safety layer as
+  `/v1/chat/completions`. See docs/OTHER_APPS.md.
+- **Kubernetes (C5):** a single-replica Helm chart in `deploy/helm/sara` (the published GHCR image,
+  a kept volume for her data, health probes, non-root by default, optional ingress). See
+  docs/KUBERNETES.md.
+### Added
+
+- **MCP 2026-07-28 and MCP Apps (C3).** Sara's tool-server client speaks the current stateless MCP
+  revision (per-request `_meta`, `server/discover`, `Mcp-Method`/`Mcp-Name` headers, no session) and
+  falls back to the handshake revisions for older servers (ComfyUI, Playwright and the rest keep
+  working). Tool servers' apps (interactive panels, `ui://` pages) now show in the web chat in a
+  sandboxed frame (opaque origin, strict CSP, 512 KB cap); a panel can only call its own server's
+  app tools, through the normal approvals. Per-server switch: *Show its apps in the chat*. Guide:
+  `docs/EXTENDING.md` → *Apps from tool servers*.
+### Added
+
+- **When this happens** (event triggers, C4): a new email, a Slack or Teams message in a channel she
+  is in, a webhook delivery or a tool server's resource update or event can start her work, either
+  your instruction or one of your crews, with the event as information. Each trigger has a filter,
+  a daily run cap and token budget, pause and resume, and a *Last runs* list. Approvals still apply,
+  her own messages never trigger, repeats are skipped, notifications wait in quiet hours, and every
+  run is in the audit trail. Admins can pin `triggers: false`. Settings → Connections → Webhooks;
+  guide [docs/TRIGGERS.md](docs/TRIGGERS.md).
+### Added
+
+- **Learn a topic** (C6, [LEARN.md](docs/LEARN.md)): `/learn <topic or website>`, "learn about X" or Library → *What she has learned*. She researches the topic (or one site, following robots.txt, same site only, page cap, rate-limited), keeps a knowledge skill with a summary, dated key facts, a glossary and its sources with fetch dates, refreshes it daily, weekly or monthly with *What changed since <date>* (older versions kept, one optional message outside quiet hours, *Out of date* when a refresh fails), and answers questions about it citing the pages. Monthly learning budget in Settings → Budgets; policy pin `learning: false`; owner only.
+
 ## 2.85.0 (2026-11-08): meetings, phone helper and her at work
 
 ### Added

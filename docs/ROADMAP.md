@@ -102,6 +102,17 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Learn a topic, triggers and tool apps in 2.86.0
+
+Learn a topic: ask her to learn about something, or give her a website; she researches it with
+cited sources, keeps what she learned as a skill, and can refresh it daily, weekly or monthly and
+tell you what changed. "When this happens" triggers start a job or a crew from an email, a Slack or
+Teams message, a webhook or a tool-server event, with caps, budgets and approvals. Her tool
+connection speaks MCP 2026-07-28 and shows tool apps in the chat, sealed off from the page. Other
+apps can use the Open Responses API (`/v1/responses`), and a single-replica Helm chart is included.
+Company sign-in, SCIM, metrics, secret sources, the container sandbox and share links were proven
+against the real software (Keycloak, Prometheus and Grafana, OpenBao, Podman).
+
 ## Meetings, phone helper and her at work in 2.85.0
 
 Meetings: a room inside Sara where she announces she is an AI taking notes, answers briefly when
@@ -375,6 +386,7 @@ In build order; one release per phase. The computer use track is complete (2.20â
 | 127 | Companion packs to share | 2.60 |
 | 128 | A second polish pass | 2.61 |
 | V1 | A professional new look: palettes (Graphite, Midnight, Slate, Nord, Solarized, Paper, Ember, High contrast, Sara Classic) in Night and Day, your own accent colour, compact layout | next |
+| C5 | Open Responses (`/v1/responses`) for apps on the Responses API, and a single-replica Helm chart for Kubernetes | next |
 
 Ideas and requests are welcome in [Discussions](https://github.com/farena-ai/sara/discussions)
 and [issues](https://github.com/farena-ai/sara/issues). See [CONTRIBUTING.md](../CONTRIBUTING.md).

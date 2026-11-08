@@ -43,9 +43,8 @@ test('EC24 Settings: the switch on Devices and sign-in, hidden until loaded, sho
   const po = /<label class="row"><input id="po-phone"[\s\S]*?<\/label>/.exec(html)!;
   assert.ok(po, 'the policy page can pin it off');
   for (const m of po[0].matchAll(/data-tip="([^"]+)"/g)) assert.ok(m[1].length <= 260);
-  const gov = readFileSync(join(ROOT, 'web', 'governance.js'), 'utf8');
-  assert.match(gov, /phoneHelper: false/);
-  assert.match(gov, /phoneHelper: \['#hd-on'\]/, 'the switch shows the lock');
+  const pins = readFileSync(join(ROOT, 'web', 'policy-pins.js'), 'utf8');
+  assert.match(pins, /key: 'phoneHelper', .*form: '#po-phone', kind: 'flag', value: false, locks: \['#hd-on'\]/, 'the switch shows the lock');
 });
 
 test('EC24 the words: what she gets for each kind, and the seconds left', async () => {
