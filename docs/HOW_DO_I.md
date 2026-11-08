@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 198 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 205 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -1029,7 +1029,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. It prints the same rows, the fix for each, and exits 0 (safe), 1 (tighten) or 2 (fix first).
 3. The command line never changes anything; fixes are on this page.
 
-### Recovery
+### Readiness and recovery
 
 **How do I review an interrupted job?**
 
@@ -1089,6 +1089,12 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Pick where under Copy backups to.
 2. Fill in the folder or bucket and a passphrase.
 3. Press Copy the latest backup now, then Test restore now.
+
+**How do I prove a backup really restores?**
+
+1. Open Readiness and recovery (Data & health) and press Run a restore drill.
+2. Sara restores the newest backup into a throwaway copy, checks it, starts it and deletes it; your live data is not touched.
+3. Read the result: how long it took, what it counted and how much a restore now would lose.
 
 ### Export and import
 
@@ -1195,6 +1201,19 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Enter dollars or tokens for the month.
 3. Pick when to warn and press Add budget.
 
+### Trust report
+
+**How do I see what Sara claimed against what ran?**
+
+1. Open Settings → Household → Trust report.
+2. Pick A week, One run or One project.
+3. Press Show and read Claims checked and Failed tools.
+
+**How do I give the report to a reviewer?**
+
+1. Show the report you want.
+2. Press Markdown, PDF or Word under Download.
+
 ### Shared links
 
 **How do I share a conversation?**
@@ -1233,6 +1252,32 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Press Check the chain.
 2. It says the chain is fine, or the first row that was changed, removed or cut off.
+
+### Retention and legal hold
+
+**How do I delete old chats automatically?**
+
+1. Open Settings → Household → Retention and legal hold.
+2. Under Keep, pick how long chats, memories and files stay.
+3. It runs on the hourly check. Pinned memories always stay.
+
+**How do I make sure nothing is deleted?**
+
+1. Open Settings → Household → Retention and legal hold.
+2. Tick Hold next to a person, or Hold everything on this server.
+3. Nothing of theirs can be deleted until you untick it, not even by them.
+
+**How do I give someone a copy of their data?**
+
+1. Open Settings → Household → Retention and legal hold.
+2. Press Download their data next to the person.
+3. Give them the ZIP: it holds only their chats, memories, photos and files.
+
+**How do I delete one person's data for good?**
+
+1. Release any hold on them first.
+2. Press Delete their data next to the person and confirm.
+3. The receipt (what was deleted, and when) is in the audit trail.
 
 ### Policy
 

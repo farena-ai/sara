@@ -1710,6 +1710,17 @@ button.conv-see-more, button.conv-show-less { min-height: 44px; padding: 0 10px;
 .mon-wide { display: block; width: 100%; max-width: 32rem; margin-top: 4px; box-sizing: border-box; }
 .mon-pre { font-family: var(--font-mono); font-size: 0.85em; padding: 8px 10px; border-radius: var(--r-control); background: var(--surface-2); overflow-x: auto; white-space: pre; max-width: 100%; }
 .mon-token { margin-block: 8px; }
+/* EC10: Secret sources (web/secret-sources.js). */
+.ss-box { border-top: 1px solid var(--border); margin-top: 20px; padding-top: 8px; }
+.ss-list, .ss-refs, .ss-syntax { list-style: none; margin: 8px 0; padding: 0; }
+.ss-item { padding: 6px 0; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.ss-refs { flex-basis: 100%; margin: 2px 0 0; }
+.ss-ref { display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; padding: 2px 0; }
+.ss-ref code, .ss-name, .ss-syntax code { overflow-wrap: anywhere; font-size: 0.85em; }
+.ss-kind { color: var(--muted); }
+.ss-active { padding: 0 6px; border-radius: var(--r-control); background: var(--surface-2); }
+.ss-ref[data-ok="false"] .ss-state { color: var(--error); }
+.ss-syntax li { display: flex; flex-wrap: wrap; gap: 2px 8px; padding: 2px 0; }
 .operations-grid dd { margin: 0 0 12px; overflow-wrap: anywhere; }
 .operations-grid > p { grid-column: 1 / -1; }
 .archive-controls input { width: 100%; min-width: 0; font-family: monospace; }

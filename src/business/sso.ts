@@ -49,6 +49,8 @@ export class BusinessSso {
   #timer?: ReturnType<typeof setInterval>;
   #closed = false;
   #checking?: Promise<void>;
+  /** EC16: an unlinked first sign-in may match a SCIM-provisioned account by email (scim.ts). */
+  #provisioned: (email: string) => string | undefined = () => undefined;
 
   constructor(options: { profile: BusinessProfile; control: BusinessControlStore; auth: BusinessAuth; origin: string; privateLocal?: boolean; fetch?: typeof fetch }) {
     this.#profile = options.profile; this.#control = options.control; this.#auth = options.auth; this.#origin = options.origin;
@@ -59,6 +61,14 @@ export class BusinessSso {
         expires_at INTEGER NOT NULL, next_check_at INTEGER NOT NULL, ended_at INTEGER, PRIMARY KEY(identity_id,session_id));`);
     this.#auth.setSsoGates({ session: (identityId, sessionId) => this.#gate(identityId, sessionId), passkey: identityId => this.#passkeyAllowed(identityId) });
   }
+
+  setProvisionedLookup(lookup: (email: string) => string | undefined): void { this.#provisioned = lookup; }
+  /** EC16: SCIM deactivated or removed someone: end every company sign-in session of theirs now. */
+  endIdentity(identityId: string): void {
+    for (const row of this.#control.database.prepare('SELECT session_id,auth_epoch FROM business_sso_sessions WHERE identity_id=? AND ended_at IS NULL').all(identityId)) this.#end(identityId, String(row.session_id), Number(row.auth_epoch), false);
+  }
+  /** EC16: SCIM deleted the account: drop its company sign-in link so a new account can be provisioned. */
+  unlinkIdentity(identityId: string): void { this.#control.database.prepare('DELETE FROM business_sso_links WHERE identity_id=?').run(identityId); }
 
   get redirectUrl(): string { return `${this.#origin}/api/business/sso/callback`; }
 
@@ -180,6 +190,12 @@ export class BusinessSso {
     return { ok: true, ...(role ? { role } : {}), name };
   }
 
+  #provisionedFor(config: SsoConfig, claims: OidcClaims): string | undefined {
+    const email = typeof claims.email === 'string' ? claims.email : config.preset === 'entra' && typeof claims.preferred_username === 'string' && claims.preferred_username.includes('@') ? claims.preferred_username : undefined;
+    const id = email ? this.#provisioned(email) : undefined;
+    // Never re-point an account that is already linked to someone else at this provider.
+    return id && !this.#control.database.prepare('SELECT 1 FROM business_sso_links WHERE issuer=? AND identity_id=?').get(claims.iss, id) ? id : undefined;
+  }
   #link(issuer: string, subject: string): string | undefined {
     const row = this.#control.database.prepare('SELECT identity_id FROM business_sso_links WHERE issuer=? AND subject=?').get(issuer, subject);
     return row ? String(row.identity_id) : undefined;
@@ -217,6 +233,13 @@ export class BusinessSso {
       } else if (linked) {
         const identity = this.#control.identities.get(linked); const member = this.#control.organizationMembership(linked);
         if (!identity || identity.status !== 'active' || !member || member.status !== 'active') return this.#refuse('disabled', linked);
+        session = this.#session(identity, config);
+      } else if (pending.code === undefined && claims.email_verified !== false && this.#provisionedFor(config, claims)) {
+        const id = this.#provisionedFor(config, claims)!;
+        const identity = this.#control.identities.get(id); const member = this.#control.organizationMembership(id);
+        if (!identity || identity.status !== 'active' || !member || member.status !== 'active') return this.#refuse('disabled', id);
+        if (!pending.confirm18) return this.#refuse('adult');
+        this.#insertLink(claims.iss, claims.sub, id); appendAudit(this.#control.database, { action: 'sso.link', actorId: id, subjectId: id });
         session = this.#session(identity, config);
       } else if (pending.code !== undefined) {
         if (!pending.confirm18) return this.#refuse('adult');

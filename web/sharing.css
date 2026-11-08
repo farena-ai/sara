@@ -25,3 +25,18 @@
 .settings-page[data-page="dh-usage-report"], .settings-page[data-page="dh-shares"], .ur-page, .sl-page { min-width: 0; max-width: 100%; }
 .ur-table-wrap { width: 100%; }
 .ur-budget > * { min-width: 0; overflow-wrap: anywhere; }
+/* EC17: Retention and legal hold (web/data-rights.js) reuses the Shared links rows. */
+.settings-page[data-page="dh-retention"], .dr-page { min-width: 0; max-width: 100%; }
+.dr-page label.row { display: flex; align-items: center; gap: 8px; justify-content: flex-start; flex-wrap: wrap; }
+.dr-page label.row select { flex: 0 1 320px; min-width: 0; }
+.dr-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+/* EC25: the trust report (web/trust-report.js). */
+.tr-filters { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin: 8px 0; }
+.tr-page, .settings-page[data-page="dh-trust"] { min-width: 0; max-width: 100%; }
+.tr-report { display: grid; gap: 12px; }
+.tr-card { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.tr-card h4 { margin: 0 0 6px; }
+.tr-card ul { margin: 0; padding-left: 18px; }
+.tr-card li { overflow-wrap: anywhere; margin: 2px 0; }
+.tr-nums { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.tr-flag { color: var(--danger); font-weight: 600; }

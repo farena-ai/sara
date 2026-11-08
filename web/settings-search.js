@@ -14,8 +14,8 @@ export const foldText = (s) => String(s ?? '').toLowerCase().normalize('NFD').re
  * too). Arrays, not sentences: these are search words, never shown.
  */
 export const SETTINGS_KEYWORDS = {
-  'dh-operations': ['monitoring', 'metrics', 'prometheus', 'grafana', 'opentelemetry', 'otel', 'otlp', 'traces', 'tracing', 'scrape'],
-  'dh-recovery': ['recovery', 'restart', 'interrupted', 'resume', 'outbox', 'delivery', 'unknown', 'held'],
+  'dh-operations': ['monitoring', 'metrics', 'prometheus', 'grafana', 'opentelemetry', 'otel', 'otlp', 'traces', 'tracing', 'scrape', 'secret sources', 'secrets', 'hashicorp vault', 'openbao', '1password', 'keychain', 'environment variable'],
+  'dh-recovery': ['readiness', 'ready', 'restore drill', 'drill', 'disaster', 'recovery', 'restart', 'interrupted', 'resume', 'outbox', 'delivery', 'unknown', 'held'],
   'dh-backups': ['backup', 'backups', 'restore', 'restore backup', 'keep a copy'],
   'her-character': ['personality', 'dials', 'sliders', 'name', 'character', 'archetype'],
   'her-hey': ['hey sara', 'wake word', 'wakeword', 'push to talk', 'push-to-talk', 'talk tile', 'hands free', 'hotword'],
@@ -48,8 +48,10 @@ export const SETTINGS_KEYWORDS = {
   'ab-ssh': ['ssh', 'server', 'servers', 'cpanel', 'deploy', 'host key'],
   'dh-safety': ['safety', 'check-up', 'checkup', 'security check'],
   'dh-usage-report': ['usage report', 'cost report', 'spending per person', 'csv export', 'monthly budget', 'budget alert'],
+  'dh-trust': ['trust report', 'what she claimed', 'receipts', 'claims', 'failed tools', 'reviewer', 'export pdf'],
   'dh-shares': ['share', 'share link', 'shared links', 'revoke link', 'public link'],
   'dh-audit': ['audit', 'audit log', 'audit trail', 'who changed', 'export log', 'compliance'],
+  'dh-retention': ['retention', 'legal hold', 'litigation hold', 'delete my data', 'export person', 'gdpr', 'data deletion', 'keep chats'],
   'dh-policy': ['policy', 'admin', 'pinned', 'managed settings', 'lock settings'],
   'dh-privacy': ['privacy', 'store data', 'what leaves'],
   'dh-reports': ['report', 'bug', 'idea', 'takedown', 'report an add-on'],

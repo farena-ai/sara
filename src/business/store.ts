@@ -178,6 +178,44 @@ export class BusinessControlStore {
       return true;
     });
   }
+  /**
+   * EC16 SCIM provisioning in one control transaction: create, rename, deactivate (identity disabled and
+   * auth epoch bumped, so every session ends now), re-activate (old sessions stay closed, workspace grants
+   * are closed again) or remove. `write` stores the SCIM row inside the same transaction.
+   */
+  scimProvision(change: { identityId?: string; name: string; active: boolean; remove?: boolean }, write: (identityId: string) => void): { identityId: string; ended: boolean } {
+    return this.transaction(() => {
+      let ended = false; let identityId = change.identityId;
+      if (!identityId) {
+        const identity = this.identities.create(change.name); identityId = identity.id;
+        this.database.prepare("INSERT INTO organization_members(identity_id,role,status,revision) VALUES (?,'user','active',1)").run(identityId);
+        this.#event({ action: 'organization.member', actorId: identityId, subjectId: identityId, revision: 1 });
+      } else {
+        const identity = this.identities.get(identityId); if (!identity) throw new BusinessAccessError(404);
+        if (identity.name !== change.name) this.database.prepare('UPDATE business_identities SET name=? WHERE id=?').run(change.name, identityId);
+      }
+      const identity = this.identities.get(identityId)!; const member = this.organizationMembership(identityId);
+      if (!member || member.status === 'removed') throw new BusinessAccessError(404);
+      const open = identity.status === 'active' && member.status === 'active';
+      const target = change.remove ? 'removed' : change.active ? 'active' : 'disabled';
+      if (target !== 'active' && member.role === 'orgadmin' && member.status === 'active' && !this.database.prepare("SELECT m.identity_id FROM organization_members m JOIN business_identities i ON i.id=m.identity_id WHERE m.role='orgadmin' AND m.status='active' AND i.status='active' AND m.identity_id<>? LIMIT 1").get(identityId)) throw new BusinessAccessError(409, 'An organization needs another active administrator.');
+      if (target !== 'active' && (identity.status === 'active' || member.status !== target)) {
+        if (identity.status === 'active') { this.database.prepare("UPDATE business_identities SET status='disabled',auth_epoch=auth_epoch+1 WHERE id=?").run(identityId); ended = open; }
+        this.database.prepare('UPDATE organization_members SET status=?,revision=revision+1 WHERE identity_id=?').run(target, identityId);
+        this.#event({ action: 'organization.member', actorId: identityId, subjectId: identityId, revision: this.organizationMembership(identityId)!.revision });
+      } else if (target === 'active' && !open) {
+        for (const grant of this.database.prepare("SELECT workspace_id,revision FROM workspace_members WHERE identity_id=? AND status='active'").all(identityId)) {
+          this.database.prepare("UPDATE workspace_members SET status='removed',revision=revision+1 WHERE workspace_id=? AND identity_id=?").run(grant.workspace_id, identityId);
+          this.#event({ action: 'workspace.member', actorId: identityId, workspaceId: String(grant.workspace_id), subjectId: identityId, revision: Number(grant.revision) + 1 });
+        }
+        this.database.prepare("UPDATE business_identities SET status='active' WHERE id=?").run(identityId);
+        this.database.prepare("UPDATE organization_members SET status='active',revision=revision+1 WHERE identity_id=?").run(identityId);
+        this.#event({ action: 'organization.member', actorId: identityId, subjectId: identityId, revision: this.organizationMembership(identityId)!.revision });
+      }
+      write(identityId);
+      return { identityId, ended };
+    });
+  }
   createWorkspace(principal: BusinessPrincipal, input: unknown): BusinessWorkspace {
     exactFields(input, ['name', 'visibility']);
     if (typeof input.name !== 'string' || !input.name.trim() || input.name.length > 120 || (input.visibility !== undefined && input.visibility !== 'shared')) throw new BusinessAccessError(400);

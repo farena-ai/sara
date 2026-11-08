@@ -64,6 +64,7 @@ export const PRIVATE = [/^AGENTS\.md$/, /^docs\/handoffs\//, /^docs\/SOURCE_OF_T
   /^test\/addons-(?:site|mcp)\.test\.ts$/,
   /^test\/addons-discovery-parity\.test\.ts$/,
   /^test\/developer-catalog-site\.test\.ts$/,
+  /^test\/ec27-addons-site\.test\.ts$/,
   // A2's per-entry inventory test reads private authoring records (docs/ops, store/addons).
   /^test\/addons-a2-inventory\.test\.ts$/,
   /^store\/addons\//,

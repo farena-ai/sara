@@ -616,6 +616,7 @@ of it; `node_modules` and similar rebuildable folders in workspaces are left out
 | `SARA_BROWSER` | (found by itself) | Path to a Chromium-family browser for testing previews |
 | `SARA_REPORT_TO` | the developer's report inbox | Where a reply you report with ⚑ is also sent (`https://sara.backstagecoding.com/api/public/report`). `off` = never send reports anywhere; they stay on your server |
 | `SARA_PRIVATE_LOCAL` | unset | Phase 67: `1` = *Nothing leaves this computer* is always on (can't be turned off in the app); `start` = on until the owner turns it off in Settings → Models → On this computer. Only this computer (`127.0.0.1`, `::1`, `localhost`) is reached. See [PRIVATE_LOCAL.md](PRIVATE_LOCAL.md) |
+| `SARA_RESTORE_DRILL` | unset | EC28, internal: set only by the restore drill (`src/restore-drill.ts`) on the throwaway copy it boots. `1` = answer health and sign-in but start no workers, chat apps, plugins, tool servers or backups. Never set it on a real server. See [RECOVERY.md](RECOVERY.md) |
 | `SARA_PERSONA` | `persona/sara.json` | The character file a new install starts from |
 | `SARA_BACKUP_PASSPHRASE` | (none) | Passphrase for restoring an encrypted `.enc` off-server copy without being asked (Docker, Mac) |
 | `SARA_TOOLS_USER` | (none; `sara-tools` in Docker) | A separate user her commands run as when there's no bubblewrap (set by the Docker image) |

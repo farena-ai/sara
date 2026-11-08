@@ -53,6 +53,7 @@ sara-chat send manual.pdf --library         # keep it in her library
 sara-chat approve                           # answer approvals she's waiting for
 sara-chat status
 sara-chat logout
+sara-chat acp                               # Sara as your editor's coding agent (Zed, JetBrains): see EDITORS.md
 ```
 
 - Her reply streams as she writes it. **Ctrl+C** while she replies stops her reply (what she

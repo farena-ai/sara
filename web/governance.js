@@ -152,11 +152,16 @@ export async function loadPolicy() {
   $('#po-retention').value = pins.auditRetentionDays === undefined ? '' : String(pins.auditRetentionDays);
   $('#po-programs').value = pins.programInstalls ?? '';
   $('#po-container').checked = pins.containerSandbox === true;
+  $('#po-secrets').checked = pins.externalSecrets === true;
   $('#po-egress-on').checked = Array.isArray(pins.egressAllowlist);
   $('#po-egress').value = (pins.egressAllowlist ?? []).map((h) => (typeof h === 'string' ? h : h.host)).join('\n');
   if ($('#po-sharing')) $('#po-sharing').checked = pins.sharing === false;
+  if ($('#po-editors')) $('#po-editors').checked = pins.editors === false;
+  $('#po-codemode').checked = pins.codeMode === false;
   $('#po-crews').value = pins.crews ?? '';
   $('#po-tidy').value = pins.memoryTidy ?? '';
+  if ($('#po-hold')) $('#po-hold').checked = pins.legalHold === true;
+  if ($('#po-nodelete')) $('#po-nodelete').checked = pins.personDelete === false;
   for (const c of document.querySelectorAll('.po-page input, .po-page select, .po-page button')) c.disabled = !d.canEdit;
 }
 
@@ -175,13 +180,18 @@ function readForm() {
     ...($('#po-net').checked ? { shellNetwork: false } : {}),
     ...($('#po-local').checked ? { privateLocal: true } : {}),
     ...($('#po-sharing')?.checked ? { sharing: false } : {}),
+    ...($('#po-editors')?.checked ? { editors: false } : {}),
+    ...($('#po-codemode').checked ? { codeMode: false } : {}),
     ...($('#po-store').value ? { store: $('#po-store').value } : {}),
     ...($('#po-retention').value !== '' ? { auditRetentionDays: Number($('#po-retention').value) } : {}),
     ...($('#po-programs').value ? { programInstalls: $('#po-programs').value } : {}),
     ...($('#po-container').checked ? { containerSandbox: true } : {}),
+    ...($('#po-secrets').checked ? { externalSecrets: true } : {}),
     ...($('#po-egress-on').checked ? { egressAllowlist: $('#po-egress').value.split(/\r?\n/).map((l) => l.trim()).filter(Boolean) } : {}),
     ...($('#po-crews').value ? { crews: $('#po-crews').value } : {}),
     ...($('#po-tidy').value ? { memoryTidy: $('#po-tidy').value } : {}),
+    ...($('#po-hold')?.checked ? { legalHold: true } : {}),
+    ...($('#po-nodelete')?.checked ? { personDelete: false } : {}),
   };
   return { name: $('#po-name').value.trim() || t('Policy'), pins };
 }
@@ -226,6 +236,7 @@ const LOCKS = {
   containerSandbox: ['#iso-backend'],
   egressAllowlist: ['#eg-mode', '#eg-hosts', '#eg-save'],
   memoryTidy: ['#mt-model'],
+  codeMode: ['#lean-codemode'],
 };
 const NOTES = { providers: 'models-providers', tools: 'ab-tools' };
 

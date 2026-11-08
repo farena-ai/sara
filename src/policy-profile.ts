@@ -40,9 +40,19 @@ export interface PolicyPins {
   crews?: 'off';
   /** EC13: local: the overnight memory tidy uses only models on this computer; off: no tidy. */
   memoryTidy?: 'local' | 'off';
+  /** EC10: server keys (providers, bridges, sign-in, voice…) only as references to external sources. */
+  externalSecrets?: true;
+  /** EC14: false = no editors (ACP): new editor sessions and editor-linked turns are refused. */
+  editors?: false;
+  /** EC17: true = the whole-server legal hold stays on (no delete path runs, retention waits). */
+  legalHold?: true;
+  /** EC17: false = no per-person delete from Retention and legal hold. */
+  personDelete?: false;
+  /** EC21: false = no code mode (run_code) for anyone on this server. */
+  codeMode?: false;
 }
 export type PinKey = keyof PolicyPins;
-export const PIN_KEYS: readonly PinKey[] = ['providers', 'tools', 'alwaysAllow', 'adultMode', 'shellNetwork', 'privateLocal', 'store', 'auditRetentionDays', 'programInstalls', 'containerSandbox', 'egressAllowlist', 'sharing', 'crews', 'memoryTidy'];
+export const PIN_KEYS: readonly PinKey[] = ['providers', 'tools', 'alwaysAllow', 'adultMode', 'shellNetwork', 'privateLocal', 'store', 'auditRetentionDays', 'programInstalls', 'containerSandbox', 'egressAllowlist', 'sharing', 'crews', 'memoryTidy', 'externalSecrets', 'editors', 'legalHold', 'personDelete', 'codeMode'];
 export interface Policy {
   version: 1;
   name: string;
@@ -84,12 +94,16 @@ export function validatePolicy(input: unknown): { name: string; pins: PolicyPins
       case 'adultMode':
       case 'shellNetwork':
       case 'sharing':
+      case 'editors':
+      case 'personDelete':
+      case 'codeMode':
         if (v !== false) throw new HttpError(400, '{key} can only be pinned off.', { params: { key: k } });
         pins[k] = false;
         break;
       case 'privateLocal':
+      case 'legalHold':
         if (v !== true) throw new HttpError(400, '{key} can only be pinned on.', { params: { key: k } });
-        pins.privateLocal = true;
+        pins[k] = true;
         break;
       case 'store':
         if (v !== 'off' && v !== 'official') throw new HttpError(400, 'store must be off or official.');
@@ -102,6 +116,10 @@ export function validatePolicy(input: unknown): { name: string; pins: PolicyPins
       case 'containerSandbox':
         if (v !== true) throw new HttpError(400, '{key} can only be pinned on.', { params: { key: k } });
         pins.containerSandbox = true;
+        break;
+      case 'externalSecrets':
+        if (v !== true) throw new HttpError(400, '{key} can only be pinned on.', { params: { key: k } });
+        pins.externalSecrets = true;
         break;
       case 'egressAllowlist':
         try {
@@ -223,6 +241,14 @@ export class PolicyStore {
   /** EC11: shared conversation links are allowed (no `sharing: false` pin). */
   get sharingOn(): boolean {
     return this.#cur.pins.sharing !== false;
+  }
+  /** EC14: editors (ACP) may link turns to their files and terminal (no `editors: false` pin). */
+  get editorsOn(): boolean {
+    return this.#cur.pins.editors !== false;
+  }
+  /** EC21: code mode may be used (no `codeMode: false` pin). */
+  get codeModeOn(): boolean {
+    return this.#cur.pins.codeMode !== false;
   }
   get alwaysAllowOn(): boolean {
     return this.#cur.pins.alwaysAllow !== false;

@@ -9,6 +9,7 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { writeFileAtomic } from './fs-util.ts';
+import { assertDirNotHeld } from './legal-hold.ts';
 import type { IncomingMessage } from 'node:http';
 import { join } from 'node:path';
 import type { AppContext } from './chat.ts';
@@ -286,6 +287,8 @@ export class HouseholdStore {
   deleteMember(id: string): void {
     const dir = this.dirOf(id);
     if (!this.#file.members.some((m) => m.id === id)) throw new HouseholdError(404, en('No such member.'));
+    // EC17: a legal hold on this person (or the whole server) keeps the space.
+    assertDirNotHeld(dir);
     rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     this.#file.members = this.#file.members.filter((m) => m.id !== id);
     this.#save();

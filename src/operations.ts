@@ -191,6 +191,8 @@ export class OperationsMonitor {
       process: {
         scope: 'process-wide' as const,
         rssBytes: process.memoryUsage().rss,
+        // EC18: cumulative CPU time of this process (scripts/load-test.ts turns it into a percentage).
+        cpu: { userMs: Math.round(process.cpuUsage().user / 1000), systemMs: Math.round(process.cpuUsage().system / 1000) },
         eventLoop: {
           sampleCount: finite(this.#lag.count),
           p95Ms: this.#lag.count ? finite(this.#lag.percentile(95) / 1e6) : 0,

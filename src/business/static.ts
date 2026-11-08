@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 const assets = new Map<string, string[]>([
   ['/', ['business.html', 'text/html']], ['/business.html', ['business.html', 'text/html']],
-  ...['business-app.js', 'business-auth.js', 'business-i18n.js', 'business-state.js', 'business-admin.js', 'business-sso.js'].map(file => ['/' + file, [file, 'text/javascript']] as [string, string[]]),
+  ...['business-app.js', 'business-auth.js', 'business-i18n.js', 'business-state.js', 'business-admin.js', 'business-sso.js', 'business-scim.js'].map(file => ['/' + file, [file, 'text/javascript']] as [string, string[]]),
   ...['business.css', 'theme.css'].map(file => ['/' + file, [file, 'text/css']] as [string, string[]]),
   ...['en', 'es', 'fr', 'de', 'pt-BR', 'it'].map(lang => ['/i18n/' + lang + '.json', ['i18n/' + lang + '.json', 'application/json']] as [string, string[]]),
 ]);

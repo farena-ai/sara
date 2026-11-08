@@ -15,7 +15,7 @@ import { hostname, homedir, platform } from 'node:os';
 import { basename, join, relative, resolve, sep } from 'node:path';
 import { createInterface, type Interface } from 'node:readline';
 
-export const VERSION = '0.83.0';
+export const VERSION = '0.84.0';
 
 // ---------- output ----------
 export interface Io {
@@ -499,6 +499,7 @@ export const HELP = `sara-chat ${VERSION}: Sara in your terminal
   sara-chat approve                 answer approvals she's waiting for (y/n)
   sara-chat status                  who you're signed in as, and where
   sara-chat logout                  sign this computer out of the server in use (others stay)
+  sara-chat acp                     Sara as your editor's coding agent (Zed, JetBrains; docs/EDITORS.md)
 
 Several Saras (each keeps its own sign-in):
   sara-chat servers                 list them (* = the one in use)
@@ -830,7 +831,11 @@ export function lineAsker(rl: Interface): (q: string) => Promise<string | undefi
 }
 
 const isMain = process.argv[1] && /sara(-chat)?(\.ts|\.mjs|\.js)?$/.test(process.argv[1].replace(/\\/g, '/').split('/').pop() ?? '') && import.meta.url.endsWith('/sara.ts');
-if (isMain) {
+if (isMain && process.argv[2] === 'acp') {
+  // EC14: the editor agent (Agent Client Protocol over stdio): clients/cli/acp.ts.
+  // Not awaited at the top level: acp.ts imports this file, which has to finish loading first.
+  void import('./acp.ts').then(({ runAcp }) => runAcp(process.argv.slice(3))).then((code) => void (process.exitCode = code));
+} else if (isMain) {
   const tty = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR;
   const args = process.argv.slice(2);
   const parsed = parseArgs(args);

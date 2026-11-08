@@ -2,6 +2,7 @@
 // Rows hold who, what, where and the outcome: names and ids only, never values, secrets or chat
 // text. The only free text (`content`, an approval card's summary) is redacted before it is kept and
 // is left out of views and exports unless the owner asks for it.
+import { anyHold } from './legal-hold.ts';
 import { createHash, createHmac } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -189,7 +190,8 @@ export class AuditTrail {
    * head keeps an anchor (the last dropped row's seq and hash). Returns how many rows went.
    */
   prune(days = this.retentionDays): number {
-    if (!days) return 0;
+    // EC17: while anyone is under a legal hold the trail is kept whole.
+    if (!days || anyHold()) return 0;
     const cutoff = this.#now().getTime() - days * 86_400_000;
     const rows = this.#rows();
     let n = 0;

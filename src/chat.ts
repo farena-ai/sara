@@ -1,5 +1,6 @@
 // One conversational turn: disclosure, safety checks, provider routing, then the agent loop
 // (model → tool calls → results → model …) with streaming and persistence.
+import { withKeyRotation } from './key-rotation.ts';
 import { audit } from './audit-trail.ts';
 import { policy } from './policy-profile.ts';
 import { captureToolScope, assertCurrentScope, assertToolAdmission, ToolAdmissionError } from './tool-admission.ts';
@@ -58,7 +59,8 @@ import { checkpointAllowed, checkpointSection } from './project-checkpoints.ts';
 import { librarySection } from './library/use.ts';
 import { recipesSection } from './recipes.ts';
 import { loadedSkills, SKILL_KEEP_MESSAGES, skillsSection } from './skill-tools.ts';
-import { ensureLeanTables, familyOf, FIND_TOOLS, findToolsTool, leanFor, leanOff, leanSettings, loadRows, schemaHint, argErrorHint, writeLoad, type TurnTools } from './lean.ts';
+import { CodeRun, codeOutput, RUN_CODE, runCodeSpec, runCodeTool } from './code-mode.ts';
+import { codeModeOffer, ensureLeanTables, familyOf, FIND_TOOLS, findToolsTool, leanFor, leanOff, leanSettings, loadRows, schemaHint, argErrorHint, writeLoad, type TurnTools } from './lean.ts';
 import { autoFold, foldFor } from './compact.ts';
 import { RECALL_MARK, recallHooks, recallMode } from './triggers.ts';
 import { CHANGES_FILES } from './codemap/tools.ts';
@@ -116,6 +118,7 @@ import { declinedInstallOutput, type AdvisoryCard } from './security/advisories.
 import { recordTurnFindings, type FindingStore } from './security/findings.ts';
 import { pendingFor } from './pending.ts';
 import { blockedOutput, LOOP_NOTE, LoopGuard, toolsPausedNote, type GuardHit } from './loop-guard.ts';
+import { EDITOR_TOOLS, editorCalls, editorNote, editorTools, type EditorLink } from './editor-link.ts';
 
 export interface AppContext {
   store: Store;
@@ -365,6 +368,8 @@ export type ChatEvent =
   | { type: 'recall'; item: import('./triggers.ts').RecallItem }
   /** Phase 96: a skill that fits the message was loaded up front (the step line's "Used skill"). */
   | { type: 'skill'; name: string; scope: string; how: 'auto' }
+  /** EC14: an editor turn's tool call for the editor to run (answer: POST /api/editor/calls/:callId). `approved`: her card already asked. */
+  | { type: 'editor_call'; callId: string; id: string; name: string; summary: string; args: Record<string, unknown>; approved: boolean }
   /** An approved tool has started running. */
   | { type: 'tool_running'; id: string; name: string; summary: string }
   /** Phase 75: `card` is a small structured result (src/cards.ts) the app draws as a result card. */
@@ -439,7 +444,8 @@ export function resolveProvider(app: AppContext, providerId: string | null, mode
   if (config.needsKey && !key) throw new Error(`${config.label} needs an API key. Add it in Settings.`);
   const factory = app.providerFactory ?? createProvider;
   // Phase 56: an Ollama Cloud model not yet on this Ollama is added right before its first use.
-  const raw = factory(config, key, app.subscriptions);
+  // EC10: several keys in the vault entry rotate when the provider refuses the one in use.
+  const raw = withKeyRotation(app.vault, vaultKeyFor(config.id), (k) => factory(config, k, app.subscriptions));
   const provider = app.modelCatalog ? app.modelCatalog.wrap(raw) : raw;
   // Phase 52: the token counts each call reports are recorded (cost and token meter).
   return { provider: app.usage ? metered(provider, app.usage, tag) : provider, model: chosen };
@@ -1008,6 +1014,12 @@ export interface TurnOptions {
   videoCall?: boolean;
   /** Phase 57: turns from other apps run without her tools unless the owner allowed them. */
   noTools?: boolean;
+  /**
+   * EC14: the turn is linked to the owner's code editor (ACP, `sara acp`): only the editor's file and
+   * command tools are offered, and after her normal approval checks they run in the editor (the
+   * `editor_call` event, answered through /api/editor/calls). Her own workspace is not touched.
+   */
+  editor?: EditorLink;
   /** Phase 72: answer with the quick model (Alexa allows about 8 seconds for a reply). */
   quickModel?: boolean;
   /**
@@ -1445,6 +1457,11 @@ export function preflight(text: string, who: import('./safety.ts').MinorCheckOpt
   return { minor: minorSexualMatch(text, who), crisis: detectCrisis(text) };
 }
 
+/** EC21: how one call ended ('end': the turn is over: deleted, stopped, out of scope). */
+type CallEnd = 'end' | { status: 'ok' | 'error' | 'denied'; output: string; summary: string; ms: number };
+/** EC21: one call a run_code script made (on the run_code message: its receipts list). */
+type CodeInner = { name: string; status: 'ok' | 'error' | 'denied'; summary: string; ms: number };
+
 export async function* runTurn(app: AppContext, conversationId: string, userText: string, signal: AbortSignal = new AbortController().signal, opts: TurnOptions = {}): AsyncGenerator<ChatEvent> {
   chatTurns.running++;
   for (const f of chatTurns.onStart) f();
@@ -1646,6 +1663,8 @@ function scopeTools(app: AppContext, conv: Conversation, opts: TurnOptions, x: S
   if (!x.pluginTurn) tools = tools.filter((t) => !t.source?.startsWith('Plugin: '));
   // Phase 121: the safety report and the routine card are the owner's own chats' only (never other apps, agents, groups, partner chats).
   if (opts.externalApp || x.external || opts.group || opts.outside || conv.partner) tools = tools.filter((t) => t.spec.name !== 'safety_report' && t.spec.name !== 'suggest_routine');
+  // EC14: an editor turn offers the editor's file and command tools (and the read-only web ones) only.
+  if (opts.editor) tools = editorTools(tools, opts.editor);
   // Phase 66: group chats get read-only tools only, and only those that run without asking (no approvals mid-round).
   if (opts.group) tools = tools.filter((t) => GROUP_TOOLS.has(t.spec.name) && app.tools.permission(t.spec.name, app.settings.get().toolPermissions) === 'auto');
   return tools;
@@ -2021,6 +2040,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const noTools = app.noToolModels ?? (app.noToolModels = new Set());
   // Phase 123: find_tools lives in the registry (Settings shows it; the gate finds it).
   if (!app.tools.get(FIND_TOOLS)) app.tools.add(findToolsTool());
+  // EC21: run_code in the registry (Settings shows it); available only with the setting on and no policy pin.
+  if (!app.tools.get(RUN_CODE)) app.tools.add(runCodeTool(() => leanSettings(app).tools.codeMode && policy().codeModeOn));
   const checkpointExternal = external || Boolean(opts.externalApp || opts.outside || opts.clientHistory || opts.clientNote || opts.roomNote || opts.roomNow || opts.roomId !== undefined || opts.recorder);
   // R1B2: scene_canon only with a host-bound capability for an eligible owner seat; never on a crisis turn.
   const sceneCanon = sceneDatabase && !safetyNotes.includes(CRISIS_SYSTEM_NOTE) ? sceneCanonForTurn(app, conv.id, opts, adultOn) : undefined;
@@ -2181,6 +2202,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const pendingFiles: { id: string; name: string; mime: string; bytes: number; caption?: string }[] = [];
   const takeImages = (): Record<string, unknown> => ({ ...(pendingImages.length ? { images: pendingImages.splice(0) } : {}), ...(pendingProof.length ? { proof: pendingProof.splice(0) } : {}), ...(pendingFiles.length ? { files: pendingFiles.splice(0) } : {}) });
   const receipts: Receipt[] = [];
+  // EC21: the model's own tool calls so far this turn (code mode is offered from the second on).
+  let callsThisTurn = 0;
   // Earlier tool receipts in this conversation (for recaps that name the same files).
   const priorReceipts: Receipt[] = store
     .messages(conv.id)
@@ -2292,7 +2315,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // OK needed first, so approvals, 'never', the plan check and the budget all still apply.
   const gitName = app.persona.name && app.persona.name !== 'Sara' ? app.persona.name : undefined;
   const sandboxHook: TurnHooks | undefined =
-    app.sandboxGate && conv.mode === 'coding' && !opts.group && !conv.partner
+    app.sandboxGate && conv.mode === 'coding' && !opts.group && !conv.partner && !opts.editor
       ? {
           beforeTool(c) {
             const plan = app.sandboxGate!.plan({ tool: c.call.name, args: c.call.arguments, coding: true, permission: c.permission, workspaceDir: wsDir, network: sandbox.network, ...(gitName ? { gitName } : {}) });
@@ -2516,6 +2539,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     }
   };
   for (let step = 0; step < maxSteps; step++) {
+    // EC21: the tools a run_code script may call in this step (the ones offered to the model now).
+    let codeNames: string[] = [];
     try { currentScope(); } catch (err) {
       if (!(err instanceof ToolAdmissionError)) throw err;
       yield { type: 'error', message: signal.aborted ? 'Stopped.' : err.message };
@@ -2649,7 +2674,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       projectNowRef = await workspaceRef(nowPath === '.' ? wsDir : join(wsDir, nowPath)).catch((err: Error) => ({ error: String(err.message).slice(0, 200) }));
     }
     const checkpointText = checkpointSection(app, conv, { ...nowGate, ...(nowPath ? { now: projectNowRef } : {}) });
-    const messages: ChatMessage[] = [{ role: 'system', content: (opts.clientNote?.text.trim() ? system + clientNoteSection(opts.clientNote) : system) + (checkpointText ? '\n\n' + checkpointText : '') + (opts.roomNow?.trim() ? (conv.partner ? roomNowSection(opts.roomNow) : roomNoteSection(opts.roomNow, undefined, true)) : opts.roomNote?.trim() ? roomNoteSection(opts.roomNote) : '') }];
+    const messages: ChatMessage[] = [{ role: 'system', content: (opts.clientNote?.text.trim() ? system + clientNoteSection(opts.clientNote) : system) + (opts.editor ? '\n\n' + editorNote(opts.editor) : '') + (checkpointText ? '\n\n' + checkpointText : '') + (opts.roomNow?.trim() ? (conv.partner ? roomNowSection(opts.roomNow) : roomNoteSection(opts.roomNow, undefined, true)) : opts.roomNote?.trim() ? roomNoteSection(opts.roomNote) : '') }];
     // R1C2: Project now (quoted titles, times, paths and check labels; its own mark, never replayed).
     const projectNow = nowPath ? projectNowSection(app, conv, { ...nowGate, now: projectNowRef }) : undefined;
     if (projectNow) messages.push({ role: 'system', content: projectNow });
@@ -2877,7 +2902,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     try {
       const p = provider;
       const m = model;
-      const offered = turnTools.offeredSpecs(tools);
+      // EC21: run_code when the turn needs many calls, carrying the typed API of what is offered now.
+      const baseSpecs = turnTools.offeredSpecs(tools).filter((sp) => sp.name !== RUN_CODE);
+      codeNames = baseSpecs.map((sp) => sp.name).filter((n) => n !== FIND_TOOLS);
+      const codeOffered = tools.some((t) => t.spec.name === RUN_CODE) && codeModeOffer({ on: true, mode: conv.mode === 'coding' || isWorkChannel(conv.channel) ? 'coding' : 'chat', callsThisTurn, partner: Boolean(conv.partner), group: Boolean(opts.group) });
+      const offered = codeOffered ? [...baseSpecs, runCodeSpec(baseSpecs.filter((sp) => sp.name !== FIND_TOOLS))] : baseSpecs;
       providerStarted = true;
       for await (const ev of streamWithin((sig) => p.stream({ model: m, messages, tools: offered, signal: sig, ...(callMax ? { maxTokens: callMax } : {}), ...(callThink ? { reasoning: callThink } : {}) }), signal, fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }))) {
         if (ev.type === 'text') {
@@ -3029,7 +3058,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     if (rec.workspaceDir) await rec.settled();
     // Phase 120 (§4.4): the step's last file-changing call is known before the loop (one check per step).
     const lastChangeIdx = calls.findLastIndex((c) => CHANGES_FILES(c.name));
-    for (const [callIdx, call] of calls.entries()) {
+    /** EC21: one call through the whole path: each of the model's calls, and each call a run_code script makes (`parent`). */
+    const oneCall = async function* (call: ToolCall, callIdx: number, parent?: string): AsyncGenerator<ChatEvent, CallEnd> {
       const tool = tools.find(t => t.spec.name === call.name) ?? app.tools.get(call.name);
       let summary = app.redactor.redact(tool?.summarize(call.arguments) ?? call.name);
       if (SESSION_TOOLS.has(call.name) || call.name === SCENE_CANON_TOOL) summary = trOwner(summary, app.settings.get());
@@ -3058,6 +3088,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       let redteamNote = '';
       // Phase 98: a plugin tool's own card.
       let pluginCard: PluginCard | undefined;
+      // EC21: the calls a run_code script made (kept on its message: the receipts list).
+      let codeInner: CodeInner[] | undefined;
 
       const currentAdmission = () => {
         currentScope();
@@ -3102,7 +3134,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const permission3 = untrustedAsk || mentionHeld ? 'ask' : permission2;
       // Phase 118 (PERSIST §5.4): in a loop tick nobody is watching: what would ask is refused (unless allowed once ahead).
       // The sandbox gate's card counts as an ask too (a risky command would wait for a card nobody sees).
-      const gateWouldAsk = Boolean(!admissionFailure && opts.persist?.unattended && tool && permission3 === 'auto' && app.sandboxGate && conv.mode === 'coding' && !opts.group && !conv.partner && app.sandboxGate.plan({ tool: call.name, args: call.arguments, coding: true, permission: 'auto', workspaceDir: wsDir, network: sandbox.network }));
+      const gateWouldAsk = Boolean(!admissionFailure && opts.persist?.unattended && tool && permission3 === 'auto' && app.sandboxGate && conv.mode === 'coding' && !opts.group && !conv.partner && !opts.editor && app.sandboxGate.plan({ tool: call.name, args: call.arguments, coding: true, permission: 'auto', workspaceDir: wsDir, network: sandbox.network }));
       const unattendedKey = opts.persist?.unattended && (permission3 === 'ask' || gateWouldAsk) && tool ? guard.keyOf(call.name, call.arguments) : undefined;
       const allowedAhead = Boolean(unattendedKey && opts.persist?.allowOnce?.includes(unattendedKey));
       const unattendedNo = Boolean(unattendedKey) && !allowedAhead;
@@ -3324,7 +3356,17 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
             ranTool = true;
             checks?.before(call.name, call.arguments);
             try {
-              output = await tool.run(call.arguments, {
+              // EC14: in an editor turn her file and command tools run in the editor, after the checks above.
+              const editorAsk = call.name !== RUN_CODE && opts.editor && EDITOR_TOOLS.has(call.name) ? editorCalls.open(conv.id, signal) : undefined;
+              if (editorAsk) yield { type: 'editor_call', callId: editorAsk.id, id: call.id, name: call.name, summary, args: call.arguments, approved: explicitlyApproved };
+              if (call.name === RUN_CODE && !parent) {
+                // EC21: the script's calls come back through oneCall (the same path as hers).
+                const r = yield* codeCall(call);
+                if (r === 'end') return 'end';
+                output = r.output;
+                codeInner = r.inner;
+                if (!r.ok) status = 'error';
+              } else output = editorAsk ? await editorAsk.result : await tool.run(call.arguments, {
                 workspaceDir: wsDir,
                 signal,
                 sandbox,
@@ -3399,7 +3441,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           output = err.message;
         }
       }
-      if (!store.getConversation(conv.id)) return;
+      if (!store.getConversation(conv.id)) return 'end';
       const ms = Date.now() - started;
       let scopeValid = true;
       try { currentScope(); } catch (err) {
@@ -3461,8 +3503,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const loadedSkill = call.name === 'skill_use' && status === 'ok' ? /^<skill name="([^"]+)"/.exec(output)?.[1] : undefined;
       if (loadedSkill) turnSkills.add(loadedSkill);
       if (status !== 'denied' && WORKSPACE_TOOLS.test(call.name)) projectRefDue = true;
-      if (!store.getConversation(conv.id)) return;
-      const toolMsg = store.addMessage(conv.id, 'tool', stored, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status, ms, ...(loadedSkill ? { skill: loadedSkill } : {}), ...(snapshotId ? { snapshotId } : {}), ...(shown.length ? { images: shown } : {}), ...(card ? { card } : {}), ...(flagged?.length ? { contradiction: flagged[0] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(advisoryStop ? { advisory: { ...advisoryStop, ...(advisoryAnswer ? { answer: advisoryAnswer } : {}) } } : {}), ...(guardRec ? { guard: { kind: guardRec.kind, quote: guardRec.quote } } : {}), ...(checksCard ? { checksCard } : {}), ...(checkBlock ? { checked: true } : {}) });
+      if (!store.getConversation(conv.id)) return 'end';
+      const toolMsg = store.addMessage(conv.id, 'tool', stored, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status, ms, ...(loadedSkill ? { skill: loadedSkill } : {}), ...(snapshotId ? { snapshotId } : {}), ...(shown.length ? { images: shown } : {}), ...(card ? { card } : {}), ...(flagged?.length ? { contradiction: flagged[0] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(advisoryStop ? { advisory: { ...advisoryStop, ...(advisoryAnswer ? { answer: advisoryAnswer } : {}) } } : {}), ...(guardRec ? { guard: { kind: guardRec.kind, quote: guardRec.quote } } : {}), ...(checksCard ? { checksCard } : {}), ...(checkBlock ? { checked: true } : {}), ...(codeInner ? { inner: codeInner } : {}), ...(parent ? { codeOf: parent } : {}) });
       receipts.push({ name: call.name, status, args: call.arguments, output });
       if (checkBlock && rec.on) rec.tool({ id: `${call.id}-diagnostics`, name: 'diagnostics', summary: 'Checked her edits', args: { files: [...(checks?.touched ?? [])] }, status: 'ok', output: app.redactor.redact(checkBlock), ms: 0, messageId: toolMsg.id });
       // Phase 78 seam 3: the call is done (the recorder keeps the scrubbed result).
@@ -3483,15 +3525,48 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       try { currentScope(); } catch (err) {
         if (!(err instanceof ToolAdmissionError)) throw err;
         yield { type: 'error', message: signal.aborted ? 'Stopped.' : err.message };
-        return;
+        return 'end';
       }
       for (const img of pendingImages) yield { type: 'image', id: img };
       for (const img of newProof) yield { type: 'proof', id: img };
       for (const f of newFiles.splice(0)) yield { type: 'file', ...f };
       if (signal.aborted) {
-        yield { type: 'error', message: 'Stopped.' };
-        return;
+        if (!parent) yield { type: 'error', message: 'Stopped.' };
+        return 'end';
       }
+      return { status, output, summary, ms };
+    };
+    /** EC21: a run_code script: it runs fenced; every call it makes goes through oneCall and its answer goes back. */
+    const codeCall = async function* (call: ToolCall): AsyncGenerator<ChatEvent, 'end' | { ok: boolean; output: string; inner: CodeInner[] }> {
+      const names = codeNames;
+      const inner: CodeInner[] = [];
+      const run = new CodeRun({ code: String(call.arguments.code ?? ''), lang: call.arguments.language === 'ts' ? 'ts' : 'js', tools: names, signal, sandbox });
+      let n = 0;
+      try {
+        for (;;) {
+          const st = await run.next();
+          if (st.type === 'done') {
+            // EC4: one row per script run (how many calls, the fence, why it stopped; never the code).
+            audit({ action: 'code.run', target: RUN_CODE, role: app.member ? 'member' : 'owner', who: app.member ? 'member' : 'owner', channel: conv.channel || 'web', outcome: st.result.ok ? 'ok' : 'failed', keys: [`calls:${st.result.calls}`, `fence:${st.result.fence}`, ...(st.result.reason ? [`stopped:${st.result.reason}`] : [])] });
+            return { ok: st.result.ok, output: codeOutput(st.result, inner), inner };
+          }
+          if (!names.includes(st.name)) {
+            run.answer(st.id, { status: 'denied', output: `The ${st.name} tool isn't available to scripts here.` });
+            continue;
+          }
+          n++;
+          const r = yield* oneCall({ id: `${call.id}~${n}`, name: st.name, arguments: st.args }, -1, call.id);
+          if (r === 'end') return 'end';
+          inner.push({ name: st.name, status: r.status, summary: r.summary, ms: r.ms });
+          run.answer(st.id, { status: r.status, output: r.output });
+        }
+      } finally {
+        run.cancel();
+      }
+    };
+    for (const [callIdx, call] of calls.entries()) {
+      callsThisTurn++;
+      if ((yield* oneCall(call, callIdx)) === 'end') return;
     }
     if (step === maxSteps - 1 && !meter?.final) {
       rec.stopped('steps');

@@ -2936,6 +2936,7 @@
             <option value="20">20 of your messages</option>
           </select>
         </label>
+        <label class="row"><input id="lean-codemode" type="checkbox"> Code mode: one script for many tool calls <button type="button" class="tip" data-tip="She writes one short script that calls several tools at once and gets back only the result. Every call in it still asks you or is refused exactly as you set here. The script can't reach the internet or your files.">?</button></label>
         <label class="row"><input id="lean-localcore" type="checkbox"> Smaller list on models on this computer <button type="button" class="tip" data-tip="Models on this computer have the least room. With this on, her everyday list starts with 7 tools there; the rest is one look-up away.">?</button></label>
       </div>
       <div class="perm-legend" role="note" aria-label="What the three choices mean">
@@ -3872,6 +3873,23 @@
         <label class="row">Keep the audit trail <select id="au-keep"><option value="30">for 30 days</option><option value="90">for 90 days</option><option value="365">for a year</option><option value="0">until I change this</option></select> <button type="button" class="tip" data-tip="Older rows are deleted after this. A row still waiting (a delivery not settled yet) and everything after it is always kept. Your admin's policy can pin this.">?</button></label>
       </div>
         </section>
+        <!-- EC17 (docs/ops/EC1617_DESIGN.md): retention, legal hold, one person's export and delete (web/data-rights.js). -->
+        <section class="settings-page" data-page="dh-retention" data-group="Household" data-title="Retention and legal hold" data-owner-only hidden>
+      <div class="dr-page" data-noauto data-nodirty>
+        <p class="muted small page-lead">How long chats, memories and files are kept, a legal hold that stops every deletion, and a copy or deletion of one person's data. <button type="button" class="tip" data-tip="Nothing is deleted by default: every kind is kept until you change it. A hold beats everything here, including retention, the memory tidy and people deleting their own chats.">?</button></p>
+        <p id="dr-pinned" class="muted small" hidden>Your admin's policy keeps the whole server on hold.</p>
+        <h3>Keep</h3>
+        <label class="row">Keep chats <select id="dr-chats"><option value="0">until I change this</option><option value="30">for 30 days</option><option value="90">for 90 days</option><option value="365">for a year</option><option value="730">for two years</option></select> <button type="button" class="tip" data-tip="Conversations nobody has written in for this long are deleted on the hourly check, with their messages. Everyone on this server gets the same rule.">?</button></label>
+        <label class="row">Keep memories <select id="dr-memories"><option value="0">until I change this</option><option value="30">for 30 days</option><option value="90">for 90 days</option><option value="365">for a year</option><option value="730">for two years</option></select> <button type="button" class="tip" data-tip="Notes she has not changed or used for this long are deleted. Pinned memories are always kept.">?</button></label>
+        <label class="row">Keep files and photos <select id="dr-files"><option value="0">until I change this</option><option value="30">for 30 days</option><option value="90">for 90 days</option><option value="365">for a year</option><option value="730">for two years</option></select> <button type="button" class="tip" data-tip="Library files and chat photos added longer ago than this are deleted. Room archives stay.">?</button></label>
+        <p class="muted small">The audit trail has its own setting. <button id="dr-audit" type="button" class="ghost">Open the audit trail</button></p>
+        <h3>Legal hold <button type="button" class="tip" data-tip="While a hold is on, nothing of that person can be deleted: not by them, not by you, not by retention or the memory tidy. The audit trail is kept whole while any hold is on.">?</button></h3>
+        <label class="row"><input id="dr-instance" type="checkbox"> Hold everything on this server <button type="button" class="tip" data-tip="Every person's chats, memories and files, and the audit trail, are kept until you switch this off. Use it when you must preserve everything.">?</button></label>
+        <h3>People</h3>
+        <div id="dr-people" class="sl-list"></div>
+        <p id="dr-status" class="muted small" role="status"></p>
+      </div>
+        </section>
         <!-- EC5: the policy profile (web/governance.js). Pins only tighten; the server enforces them. -->
         <section class="settings-page" data-page="dh-policy" data-group="Household" data-title="Policy" data-owner-only hidden>
       <div class="po-page" data-noauto data-nodirty>
@@ -3893,15 +3911,20 @@
         <h3>Safety</h3>
         <label class="row"><input id="po-adult" type="checkbox"> Keep adult mode off <button type="button" class="tip" data-tip="Adult mode is turned off for everyone now and can't be turned on.">?</button></label>
         <label class="row"><input id="po-net" type="checkbox"> No internet for her commands <button type="button" class="tip" data-tip="Her shell commands never reach the internet (builds that download packages then fail).">?</button></label>
+        <label class="row"><input id="po-secrets" type="checkbox"> Server keys only from secret sources <button type="button" class="tip" data-tip="Model, chat app, voice and sign-in keys can only be references (env:, file:, vault:, op://, keychain:), never pasted into Sara's own vault. Keys already pasted keep working until replaced.">?</button></label>
         <label class="row"><input id="po-container" type="checkbox"> Require the container sandbox <button type="button" class="tip" data-tip="Commands and add-on jobs run only in a container (Podman or Docker). Without a working one they are refused, never run unisolated.">?</button></label>
         <label class="row"><input id="po-egress-on" type="checkbox"> Only these sites for sandboxed work <button type="button" class="tip" data-tip="Commands and add-on jobs reach only the sites listed here, whatever the owner chooses. An empty list means no internet for them at all.">?</button></label>
         <label>Sites, one per line <textarea id="po-egress" rows="3" placeholder="registry.npmjs.org"></textarea> <button type="button" class="tip" data-tip="One site per line: example.com, or *.example.com for its subdomains, or example.com:8443 for another port.">?</button></label>
         <label class="row"><input id="po-local" type="checkbox"> Keep private local mode on <button type="button" class="tip" data-tip="Once Nothing leaves this computer is on, it can't be turned off. If it's off now, the safety check-up says so until you turn it on.">?</button></label>
         <label class="row">Sara Store <select id="po-store"><option value="">No limit</option><option value="official">Signed Store items only</option><option value="off">No installs</option></select> <button type="button" class="tip" data-tip="Signed Store items only: no community items. No installs: nothing can be installed or updated from the Store.">?</button></label>
+        <label class="row"><input id="po-codemode" type="checkbox"> Turn off Code mode <button type="button" class="tip" data-tip="No one on this server can turn on Code mode: she always calls her tools one at a time.">?</button></label>
         <label class="row"><input id="po-sharing" type="checkbox"> Turn off shared links <button type="button" class="tip" data-tip="No one can make a link to share a conversation, and links already made stop opening until this is unticked.">?</button></label>
         <label class="row">Program installs <select id="po-programs"><option value="">No limit</option><option value="ask">Ask first</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Programs add-ons need (Chrome, uv, Docker…). Ask first: Sara always shows the commands and waits. Off: Sara never installs programs on this server.">?</button></label>
+        <label class="row"><input id="po-editors" type="checkbox"> Turn off editors <button type="button" class="tip" data-tip="Code editors such as Zed and JetBrains can't use Sara as their coding agent: new editor sessions and editor turns are refused. Sara's own coding chats keep working.">?</button></label>
         <label class="row">Crews <select id="po-crews"><option value="">No limit</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Off: no crews can be made, run, scheduled or started by mail on this server.">?</button></label>
         <label class="row">Overnight memory tidy <select id="po-tidy"><option value="">No limit</option><option value="local">Models on this computer only</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Models on this computer only: the tidy never sends notes to a cloud model. Off: no overnight tidy for anyone on this server.">?</button></label>
+        <label class="row"><input id="po-hold" type="checkbox"> Keep the whole server on legal hold <button type="button" class="tip" data-tip="Nothing on this server can be deleted (chats, memories, files, people, audit rows) until this pin is removed. Retention waits too.">?</button></label>
+        <label class="row"><input id="po-nodelete" type="checkbox"> No deleting one person's data <button type="button" class="tip" data-tip="Retention and legal hold can't delete a household member's data. Removing them from the household still follows its own steps.">?</button></label>
         <label class="row">Audit trail retention <select id="po-retention"><option value="">Not pinned</option><option value="30">30 days</option><option value="90">90 days</option><option value="365">A year</option><option value="0">Keep everything</option></select> <button type="button" class="tip" data-tip="Pins how long the audit trail is kept. Not pinned: you choose on the Audit trail page.">?</button></label>
         <div class="add-row"><button id="po-save" type="button" class="primary">Save the policy</button> <button id="po-export" type="button" class="ghost">Export JSON</button> <button id="po-import" type="button" class="ghost">Import JSON</button> <button type="button" class="tip" data-tip="Export saves this policy as a JSON file; Import applies one, for setting up another server the same way. Importing replaces every pin.">?</button> <input id="po-file" type="file" accept="application/json,.json" hidden></div>
         <p id="po-status" class="small" role="status"></p>
@@ -3953,8 +3976,39 @@
             <p class="small"><button id="mon-test" type="button" class="ghost small">Send a test trace</button> <span id="mon-last" class="muted" role="status"></span></p>
             <p id="mon-status" class="small error" role="alert"></p>
           </div>
+          <!-- EC10 (docs/ops/EC10_DESIGN.md): where each server key comes from (web/secret-sources.js). Never a value. -->
+          <div id="ss-box" class="ss-box" data-nodirty hidden>
+            <h3>Secret sources <button type="button" class="tip" data-tip="Keys can live outside Sara: an environment variable, a mounted file, Vault or OpenBao, 1Password Connect or this computer's keychain. Type a reference such as env:OPENAI_KEY in any key field instead of the key.">?</button></h3>
+            <p class="muted small">Where each server key comes from and whether it can be read now. Values are never shown, kept in a backup or written to the log.</p>
+            <p id="ss-summary" class="muted small"></p>
+            <ul id="ss-list" class="ss-list"></ul>
+            <p class="small"><button id="ss-check" type="button" class="ghost small">Check now</button> <button type="button" class="tip" data-tip="Reads every reference again at once, for example after you changed a key in Vault or 1Password. Otherwise Sara reads them again by herself after a few minutes.">?</button> <span id="ss-status" class="muted" role="status"></span></p>
+            <details class="small ss-how"><summary>How to write a reference</summary>
+              <ul class="ss-syntax">
+                <li><code>env:OPENAI_KEY</code> <span>An environment variable of the server.</span></li>
+                <li><code>file:/run/secrets/openai</code> <span>A file, for example a Docker or Kubernetes secret.</span></li>
+                <li><code>vault:secret/sara#openai</code> <span>HashiCorp Vault or OpenBao (KV version 2), with VAULT_ADDR and VAULT_TOKEN set on the server.</span></li>
+                <li><code>op://Servers/OpenAI/credential</code> <span>1Password Connect, with OP_CONNECT_HOST and OP_CONNECT_TOKEN set on the server.</span></li>
+                <li><code>keychain:sara/openai</code> <span>This computer's keychain (service and account).</span></li>
+                <li><code>cmd:op read op://Servers/OpenAI/credential</code> <span>A command that prints the key (only when the server allows commands).</span></li>
+                <li><code>env:KEY_A | env:KEY_B</code> <span>Several keys: when the provider refuses one, the next is used.</span></li>
+              </ul>
+            </details>
+          </div>
         </section>
-        <section class="settings-page" data-page="dh-recovery" data-group="Data & health" data-title="Recovery" data-owner-only hidden>
+        <!-- EC28 (docs/ops/EC1828_DESIGN.md): readiness on top (web/readiness.js), interrupted work below (web/recovery.js). -->
+        <section class="settings-page" data-page="dh-recovery" data-group="Data & health" data-title="Readiness and recovery" data-owner-only hidden>
+          <div id="rd-box" class="rd-page" data-noauto data-nodirty hidden>
+            <p class="muted small">It only reads; nothing changes until you tap a fix. <button type="button" class="tip" data-tip="Built from Health, the safety check-up, Backups, Operations and the audit trail. Listing the model's models is the only call it makes, and it costs nothing.">?</button></p>
+            <div class="add-row"><button id="rd-again" type="button" class="ghost">Check again</button> <span id="rd-status" class="muted small" role="status"></span></div>
+            <div id="rd-verdict" class="sc-verdict rd-verdict" role="status"></div>
+            <ul id="rd-list" class="rd-list"></ul>
+            <h3>Restore drill <button type="button" class="tip" data-tip="Restores the newest backup into a throwaway folder, checks every database and the vault, starts the copy on this computer only with everything that acts switched off, then deletes it. Your live data is never touched.">?</button></h3>
+            <p class="muted small">Proof, not a promise: how long a restore takes and how much a restore now would lose.</p>
+            <div class="add-row"><button id="rd-drill" type="button" class="primary">Run a restore drill</button> <span id="rd-drill-status" class="muted small" role="status"></span></div>
+            <p id="rd-drill-last" class="small"></p>
+          </div>
+          <h3>Interrupted work</h3>
           <p class="page-lead">Review interrupted work and uncertain native message outcomes before deciding what to do next.</p>
           <div id="recovery-content" aria-live="polite"></div>
         </section>
@@ -4173,6 +4227,23 @@
           </div>
           <p id="ur-b-error" class="error" role="alert"></p>
         </div>
+      </div>
+        </section>
+        <!-- EC25: the trust report (web/trust-report.js). Owner only. -->
+        <section class="settings-page" data-page="dh-trust" data-group="Household" data-title="Trust report" data-owner-only hidden>
+      <div class="tr-page" data-noauto data-nodirty>
+        <p class="muted small page-lead">What Sara said, set against what actually ran: flagged claims, tool calls and their outcomes, approvals, refusals, the sandbox, sources and the audit trail. <button type="button" class="tip" data-tip="Built from the run records, the receipts check, research runs and the audit trail Sara already keeps. Nothing is sent anywhere. Message text is left out except a flagged sentence.">?</button></p>
+        <div class="tr-filters">
+          <label>Report on <select id="tr-scope"><option value="week">A week</option><option value="run">One run</option><option value="project">One project</option></select> <button type="button" class="tip" data-tip="A week: everything from the day you pick, for seven days. One run: one chat turn, job or team task by its number. One project: every chat in that project.">?</button></label>
+          <label id="tr-from-box">From <input id="tr-from" type="date"> <button type="button" class="tip" data-tip="The first day of the week. Empty: the last seven days, today included.">?</button></label>
+          <label id="tr-run-box" hidden>Run number <input id="tr-run" type="number" min="1" step="1" class="num-narrow"> <button type="button" class="tip" data-tip="The number shown in a reply's run details (Inspect this reply).">?</button></label>
+          <label id="tr-project-box" hidden>Project <select id="tr-project"></select> <button type="button" class="tip" data-tip="Runs from every chat in this project. Background jobs outside a chat show in a week's report.">?</button></label>
+          <button id="tr-show" type="button">Show</button>
+        </div>
+        <p id="tr-status" class="small" role="status"></p>
+        <div id="tr-report" class="tr-report"></div>
+        <h3>Download <button type="button" class="tip" data-tip="The same report as one document for a reviewer, in English. Each download is written to the audit trail.">?</button></h3>
+        <div class="add-row"><button id="tr-md" type="button" class="ghost">Markdown</button> <button id="tr-pdf" type="button" class="ghost">PDF</button> <button id="tr-docx" type="button" class="ghost">Word</button></div>
       </div>
         </section>
         <section class="settings-page" data-page="dh-usage" data-group="Data & health" data-title="Usage and costs" data-owner-only hidden>

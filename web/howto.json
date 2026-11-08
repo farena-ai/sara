@@ -1282,6 +1282,27 @@
    "show": "#ur-b-add"
   }
  ],
+ "dh-trust": [
+  {
+   "id": "report",
+   "q": "How do I see what Sara claimed against what ran?",
+   "steps": [
+    "Open Settings → Household → Trust report.",
+    "Pick A week, One run or One project.",
+    "Press Show and read Claims checked and Failed tools."
+   ],
+   "show": "#tr-scope"
+  },
+  {
+   "id": "export",
+   "q": "How do I give the report to a reviewer?",
+   "steps": [
+    "Show the report you want.",
+    "Press Markdown, PDF or Word under Download."
+   ],
+   "show": "#tr-pdf"
+  }
+ ],
  "dh-shares": [
   {
    "id": "share",
@@ -1342,6 +1363,46 @@
     "It says the chain is fine, or the first row that was changed, removed or cut off."
    ],
    "show": "#au-verify"
+  }
+ ],
+ "dh-retention": [
+  {
+   "id": "keep",
+   "q": "How do I delete old chats automatically?",
+   "steps": [
+    "Open Settings → Household → Retention and legal hold.",
+    "Under Keep, pick how long chats, memories and files stay.",
+    "It runs on the hourly check. Pinned memories always stay."
+   ],
+   "show": "#dr-chats"
+  },
+  {
+   "id": "hold",
+   "q": "How do I make sure nothing is deleted?",
+   "steps": [
+    "Open Settings → Household → Retention and legal hold.",
+    "Tick Hold next to a person, or Hold everything on this server.",
+    "Nothing of theirs can be deleted until you untick it, not even by them."
+   ],
+   "show": "#dr-instance"
+  },
+  {
+   "id": "export",
+   "q": "How do I give someone a copy of their data?",
+   "steps": [
+    "Open Settings → Household → Retention and legal hold.",
+    "Press Download their data next to the person.",
+    "Give them the ZIP: it holds only their chats, memories, photos and files."
+   ]
+  },
+  {
+   "id": "delete",
+   "q": "How do I delete one person's data for good?",
+   "steps": [
+    "Release any hold on them first.",
+    "Press Delete their data next to the person and confirm.",
+    "The receipt (what was deleted, and when) is in the audit trail."
+   ]
   }
  ],
  "dh-policy": [
@@ -1497,6 +1558,15 @@
    ],
    "show": "#os-now",
    "start": "backup"
+  },
+  {
+   "id": "drill",
+   "q": "How do I prove a backup really restores?",
+   "steps": [
+    "Open Readiness and recovery (Data & health) and press Run a restore drill.",
+    "Sara restores the newest backup into a throwaway copy, checks it, starts it and deletes it; your live data is not touched.",
+    "Read the result: how long it took, what it counted and how much a restore now would lose."
+   ]
   }
  ],
  "dh-data": [

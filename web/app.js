@@ -61,7 +61,9 @@ import { initReadTogether, readTogetherSwitched } from './read-together.js';
 import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-check.js';
 import { initGovernance } from './governance.js';
 import { initSharing, openShare } from './sharing.js';
+import { initDataRights } from './data-rights.js';
 import { initUsageReport } from './usage-report.js';
+import { initTrustReport } from './trust-report.js';
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
 import { initNav, placeRail, relabelNav, setMore } from './nav.js';
@@ -97,6 +99,8 @@ import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, p
 import { createRecovery } from './recovery.js';
 import { createOperations } from './operations.js';
 import { createMonitoring } from './monitoring.js';
+import { createSecretSources } from './secret-sources.js';
+import { createReadiness } from './readiness.js';
 import { renderProjectCheckpoint } from './project-checkpoints.js';
 import { projectNowOpen } from './project-now.js';
 import { buildSettingsHome, buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintCrumbs, paintElsewhere, paintSettingsResults, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
@@ -7973,6 +7977,10 @@ let HELP = {};
 const operations = createOperations({ root: $('#operations-content'), api, isOwner: () => !isMember() && !document.body.classList.contains('demo') });
 // EC3: monitoring for operators (Prometheus metrics, OpenTelemetry traces) under Operations.
 const monitoring = createMonitoring({ api, isOwner: () => !isMember() && !document.body.classList.contains('demo'), copyText });
+// EC10: where each server key comes from (references to external secret sources) under Operations.
+const secretSourcesView = createSecretSources({ api, el, isOwner: () => !isMember() && !document.body.classList.contains('demo') });
+// EC28: readiness and the restore drill, on top of the Recovery page.
+const readiness = createReadiness({ api, el, isOwner: () => !isMember() && !document.body.classList.contains('demo'), openSettings: (page) => void openSettings(page), copyText });
 const recovery = createRecovery({
   root: $('#recovery-content'), api,
   isOwner: () => !isMember() && !document.body.classList.contains('demo'),
@@ -8041,10 +8049,14 @@ function showSettingsTab(page, opts = {}) {
   openGroupOf(pick);
   if (pick === 'dh-updates') void loadUpdates();
   if (pick === 'dh-safety') void loadSafetyCheck();
-  if (pick === 'dh-recovery') void recovery.refresh();
+  if (pick === 'dh-recovery') {
+    void readiness.refresh();
+    void recovery.refresh();
+  }
   if (pick === 'dh-operations') {
     void operations.refresh();
     void monitoring.refresh();
+    void secretSourcesView.refresh();
   }
   if (pick === 'ab-skills') {
     void loadSkills();
@@ -9432,7 +9444,11 @@ initSafetyCheck({ api, el, openSettings: (page) => void openSettings(page) });
 initGovernance({ api, el, openSettings: (page) => void openSettings(page) });
 // EC11 + EC15: shared links and usage reports (web/sharing.js, web/usage-report.js).
 initSharing({ api, el });
+// EC17: Retention and legal hold (web/data-rights.js).
+initDataRights({ api, el, openSettings: (page) => void openSettings(page) });
 initUsageReport({ api, el, isMember });
+// EC25: Settings → Household → Trust report (web/trust-report.js).
+initTrustReport({ api, el });
 // Phase 120: the @ menu and chips; who may use references here is decided again by the server.
 initRefs({
   api, state, el, openSettings: (page) => void openSettings(page),

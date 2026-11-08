@@ -3,7 +3,8 @@
 // are accepted (checked by their first bytes, not by what the browser claims).
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { assertDirNotHeld, heldDir } from './legal-hold.ts';
 
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 export const MAX_IMAGES_PER_MESSAGE = 4;
@@ -62,6 +63,7 @@ export class UploadStore {
 
   /** Phase 115: deletes one stored photo now (a refused picture from someone else, an expired one). */
   remove(id: string): boolean {
+    assertDirNotHeld(dirname(this.dir));
     const f = this.get(id);
     if (!f) return false;
     rmSync(f.path, { force: true });
@@ -85,7 +87,7 @@ export class UploadStore {
 
   /** Removes photos no message refers to any more. */
   prune(inUse: Set<string>): number {
-    if (!existsSync(this.dir)) return 0;
+    if (!existsSync(this.dir) || heldDir(dirname(this.dir))) return 0;
     let n = 0;
     for (const name of readdirSync(this.dir)) {
       if (!inUse.has(name)) {

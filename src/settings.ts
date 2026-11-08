@@ -267,6 +267,8 @@ export interface Settings {
   wake?: import('./wake.ts').WakeSettings;
   /** Phase 126: owner only (OWNER_SETTINGS): may devices on this server listen at all, and members too. */
   wakeServer?: { allowed?: boolean; members?: boolean };
+  /** EC28: the last restore drill (src/restore-drill.ts). */
+  readiness?: { drill?: import('./restore-drill.ts').DrillRecord };
   safetyCheck?: { weekly?: boolean; last?: { at: string; statuses: Record<string, 'green' | 'amber' | 'red' | 'skip'> }; accepted?: Record<string, string> };
   /**
    * Phase 72: her Alexa skill (server-wide, the owner's): the skill id from the Alexa developer

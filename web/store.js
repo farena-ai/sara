@@ -139,6 +139,21 @@ const tipBtn = (text) => {
   return b;
 };
 const enc = encodeURIComponent;
+// EC27: the Qualified badge (src/store/qualified.ts): when and where this version last passed a real install.
+const OS_NAME = { windows: () => 'Windows', linux: () => 'Linux', macos: () => 'Mac' };
+const CHECK_NAME = { install: () => t('install'), settings: () => t('settings saved'), run: () => t('main action'), write: () => t('approved write'), update: () => t('update'), add: () => t('add her'), retire: () => t('retire her'), remove: () => t('remove'), connect: () => t('connect'), 'signed-hash': () => t('signed download') };
+const andList = (xs) => {
+  try {
+    return new Intl.ListFormat(document.documentElement.lang || 'en', { type: 'conjunction' }).format(xs);
+  } catch {
+    return xs.join(', ');
+  }
+};
+function qualifiedLine(q) {
+  if (!q) return '';
+  const base = t('Checked on {systems} · {day} · Sara {version}', { systems: andList(q.pass.map((o) => OS_NAME[o]?.() ?? o)), day: q.at, version: q.sara });
+  return q.partial?.length ? `${base} · ${t('partly on {systems}', { systems: andList(q.partial.map((o) => OS_NAME[o]?.() ?? o)) })}` : base;
+}
 const KIND = { plugin: () => t('Plugin'), skill: () => t('Skill'), mcp: () => t('Tool server'), companion: () => t('Companion') };
 // PL2c (N10, N31): a line icon per kind (web/icons.js), on every card, instead of one generic square.
 export const KIND_ICON = { plugin: 'plug', skill: 'book', mcp: 'tool', companion: 'heart' };
@@ -252,6 +267,7 @@ function card(i) {
   head.append(icon(i), el('strong', 'sto-name', i.name));
   c.dataset.item = i.id;
   open.append(head, el('span', 'sto-summary small', i.summary), kindTag(i.kind), el('span', `sto-badge small trust-${i.trust}`, TRUST[i.trust]?.() ?? i.trust));
+  if (i.qualified) open.append(el('span', 'sto-qualified small', qualifiedLine(i.qualified)));
   const a = actionFor(i);
   const act = btn(a.label, a.go === 'get' ? '' : 'ghost', (b) => (a.go === 'update' ? void update(i.id, b) : void get(i.id, b)));
   act.disabled = Boolean(a.off) || !g.shelf?.installAllowed;
@@ -390,6 +406,9 @@ export async function openItem(id, o = {}) {
   who.append(el('strong', '', i.name), el('span', 'muted small', t('{kind} · version {version} · {license}', { kind: KIND[i.kind]?.() ?? i.kind, version: r.version, license: r.entry.license ?? '' })), el('span', `sto-badge small trust-${i.trust}`, TRUST[i.trust]?.() ?? ''), el('span', 'muted small', t('By {name}', { name: i.author.name })));
   head.append(who);
   nodes.push(head);
+  if (r.qualified) {
+    nodes.push(el('p', 'sto-qualified small', qualifiedLine(r.qualified)), el('p', 'muted small', t('Checks that ran: {list}', { list: r.qualified.checks.map((c) => CHECK_NAME[c]?.() ?? c).join(', ') })));
+  }
   if (r.held) nodes.push(el('p', 'skl-warn', t('Being checked by the Sara team')));
   if (r.installed?.state === 'blocked') nodes.push(el('p', 'skl-warn', t('{name} was pulled from the Sara Store: {reason} Sara switched it off. Nothing was deleted.', { name: i.name, reason: r.installed.note ?? '' })));
   else if (r.installed?.state === 'yanked') nodes.push(el('p', 'skl-warn', t('This version was pulled from the store: {reason}', { reason: r.installed.note ?? '' })));

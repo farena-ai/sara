@@ -19,6 +19,7 @@ import { STORE_KEYS } from './keys.ts';
 import { STORE_COMPANION_LIMITS } from '../packs/format.ts';
 import { acceptIndex, checkPackage, checkPinned, indexFresh, sha256, signatureOk, StoreRefused } from './verify.ts';
 import { LOCALE_LIMITS, listingFor, parseLocales, type ListingText, type StoreLocales } from './locales.ts';
+import { parseQualified, QUALIFIED_LIMITS, qualifiedFor, type QualifiedView, type StoreQualified } from './qualified.ts';
 
 export const STORE_DEFAULT = 'https://backstagecoding.com/sara/store';
 export const STORE_UA = 'Sara';
@@ -131,6 +132,7 @@ export class StoreClient {
   #state: StoreState | undefined;
   #cache: { index: StoreIndex; skipped: string[] } | null | undefined;
   #locales: { seq: number; l: StoreLocales | null } | undefined;
+  #qualified: { seq: number; q: StoreQualified | null } | undefined;
   #timer: ReturnType<typeof setTimeout> | undefined;
   #busy: Promise<CheckResult> | undefined;
   /** Called with every list that checked out (fresh or, at start, from the cache). */
@@ -259,6 +261,7 @@ export class StoreClient {
         this.#save({ checkedAt: now, failures: 0, lastError: undefined });
         await this.#readHeld();
         if (had) await this.#fetchLocales(had.index.seq);
+        if (had) await this.#fetchQualified(had.index.seq);
         if (had) await this.onIndex?.(had.index);
         return { ok: true, changed: false };
       }
@@ -272,6 +275,7 @@ export class StoreClient {
       this.#cache = { index: acc.index, skipped: acc.skipped };
       await this.#readHeld();
       await this.#fetchLocales(acc.index.seq);
+      await this.#fetchQualified(acc.index.seq);
       await this.onIndex?.(acc.index);
       return { ok: true, changed };
     } catch (err) {
@@ -304,6 +308,53 @@ export class StoreClient {
       rmSync(ls, { force: true });
     }
     this.#locales = undefined;
+  }
+  /**
+   * EC27: the qualification records (src/store/qualified.ts), the second signed sidecar, fetched the
+   * same way: a missing, unreachable or refused file only means no badges, never a failed check.
+   */
+  async #fetchQualified(seq: number): Promise<void> {
+    const qj = join(this.dir, 'qualified.json');
+    const qs = join(this.dir, 'qualified.sig');
+    try {
+      const json = await this.#get('qualified.json', QUALIFIED_LIMITS.bytes);
+      const sig = await this.#get('qualified.sig', SIG_CAP);
+      signatureOk(json.body, sig.body, this.keys, this.state().revokedKeys ?? []);
+      parseQualified(json.body.toString('utf8'), seq);
+      writeFileAtomic(qs, sig.body);
+      writeFileAtomic(qj, json.body);
+    } catch (err) {
+      if (!/404/.test((err as Error).message)) this.#o.log?.(`store: qualification records not used (${(err as Error).message})`);
+      rmSync(qj, { force: true });
+      rmSync(qs, { force: true });
+    }
+    this.#qualified = undefined;
+  }
+  /** EC27: the badge per item of the current list (only latest versions that passed somewhere). */
+  qualified(): Record<string, QualifiedView> {
+    const cur = this.current();
+    if (!cur) return {};
+    if (this.#qualified?.seq !== cur.index.seq) {
+      let q: StoreQualified | null = null;
+      try {
+        const qj = join(this.dir, 'qualified.json');
+        const qs = join(this.dir, 'qualified.sig');
+        if (existsSync(qj) && existsSync(qs)) {
+          const bytes = readFileSync(qj);
+          signatureOk(bytes, readFileSync(qs), this.keys, this.state().revokedKeys ?? []);
+          q = parseQualified(bytes.toString('utf8'), cur.index.seq);
+        }
+      } catch {
+        q = null;
+      }
+      this.#qualified = { seq: cur.index.seq, q };
+    }
+    const out: Record<string, QualifiedView> = {};
+    for (const it of cur.index.items) {
+      const v = qualifiedFor(this.#qualified.q ?? undefined, it.id, it.latest);
+      if (v) out[it.id] = v;
+    }
+    return out;
   }
   /** The verified translations for the current list ({} for English, none published, or none valid). */
   translations(lang: string | undefined): Record<string, ListingText> {
@@ -579,6 +630,7 @@ export function pluginInstallation(plugins: Pick<PluginManager, 'store'> | undef
 /** The read model of GET /api/store (§6.2). */
 export function shelfView(client: StoreClient, o: { saraVersion: string; platform?: NodeJS.Platform; installs?: StoreInstalls; plugins?: Pick<PluginManager, 'store'>; on: boolean; community: boolean; adultAny?: boolean; lang?: string }): Record<string, unknown> {
   const tr = client.translations(o.lang);
+  const qual = client.qualified();
   const blocked = client.blocked();
   const cur = client.current();
   const st = client.state();
@@ -605,6 +657,7 @@ export function shelfView(client: StoreClient, o: { saraVersion: string; platfor
       kind: it.kind,
       name: it.name,
       summary: tr[it.id]?.summary ?? it.summary,
+      ...(qual[it.id] ? { qualified: qual[it.id] } : {}),
       trust: it.trust,
       category: it.category ?? 'more',
       tags: it.tags ?? [],

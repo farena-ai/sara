@@ -30,7 +30,7 @@ Node 24+, zero runtime dependencies, no build step. Other ways to install: [docs
    Cursor, or the OpenAI-compatible address ([clients](clients.md), [other apps](OTHER_APPS.md)).
 7. **Set a budget** (*Settings → Coding → Budgets*) so a long task stops where you want.
 
-After interruption, use **Settings → Data & health → Recovery**. A job restart is a reviewed new
+After interruption, use **Settings → Data & health → Readiness and recovery**. A job restart is a reviewed new
 request, not continuation from a shell instruction offset. Team completed steps are preserved, but
 unfinished effects need explicit review; publication may require manual reconciliation. Current
 approval/privacy rules still apply. [Recovery details](RECOVERY.md).

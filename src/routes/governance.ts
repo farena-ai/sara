@@ -7,6 +7,9 @@ import { audit, auditTrail, type AuditFilter, RETENTION_CHOICES } from '../audit
 import { HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
 import { egressSettings, enforcementNote, isolation, isolationPatch, isolationSettings } from '../isolation.ts';
 import { policy, PIN_KEYS, PROVIDER_KINDS } from '../policy-profile.ts';
+import { secretSources } from '../secret-sources.ts';
+import type { SecretSourceStatus } from '../vault.ts';
+import { dataRights } from '../data-rights.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 function filters(req: IncomingMessage): AuditFilter & { content: boolean } {
@@ -47,6 +50,15 @@ export function createGovernanceRoutes(ctx: RouteCtx): RouteHandler {
       }
       throw new HttpError(404, 'Not found');
     }
+    // EC10: where each server secret comes from (Settings → Data & health → Secret sources). Never a value.
+    if (a === 'secrets') {
+      ownerOnly();
+      const env = process.env;
+      const view = (sources: SecretSourceStatus[]) => ({ sources, pinned: Boolean(policy().pins.externalSecrets), ttlSeconds: Math.round(secretSources().ttlMs / 1000), commands: env.SARA_SECRET_COMMANDS === '1', configured: { vault: Boolean(env.VAULT_ADDR), onepassword: Boolean(env.OP_CONNECT_HOST && env.OP_CONNECT_TOKEN) }, platform: process.platform });
+      if (!b && method === 'GET') return send(res, 200, view(app.vault.sources()));
+      if (b === 'check' && method === 'POST') return send(res, 200, view(await app.vault.check()));
+      throw new HttpError(404, 'Not found');
+    }
     if (a === 'audit') {
       ownerOnly();
       const trail = auditTrail();
@@ -74,6 +86,25 @@ export function createGovernanceRoutes(ctx: RouteCtx): RouteHandler {
         const { zip } = trail.exportZip(format, f, { content });
         res.writeHead(200, { 'content-type': 'application/zip', 'content-disposition': `attachment; filename="sara-audit-${new Date().toISOString().slice(0, 10)}.zip"`, 'cache-control': 'no-store', ...SECURITY_HEADERS });
         return void res.end(zip);
+      }
+      throw new HttpError(404, 'Not found');
+    }
+    // EC17: retention, legal hold, per-person export and delete (owner only; docs/DATA_RIGHTS.md).
+    if (a === 'data-rights') {
+      ownerOnly();
+      const d = dataRights();
+      if (!d) throw new HttpError(404, 'Not available');
+      if (!b && method === 'GET') return send(res, 200, { ...d.view(), auditRetentionDays: policy().pins.auditRetentionDays ?? auditTrail()?.retentionDays ?? 0 });
+      if (b === 'retention' && method === 'PUT') return send(res, 200, { retention: d.setRetention(await readJson(req)) });
+      if (b === 'holds' && method === 'PUT') return send(res, 200, { holds: d.setHolds(await readJson(req)) });
+      if (b === 'export' && method === 'GET') {
+        const { zip, name } = d.exportPerson(new URL(req.url ?? '/', 'http://x').searchParams.get('person'));
+        res.writeHead(200, { 'content-type': 'application/zip', 'content-disposition': `attachment; filename="${name}"`, 'cache-control': 'no-store', ...SECURITY_HEADERS });
+        return void res.end(zip);
+      }
+      if (b === 'delete' && method === 'POST') {
+        const body = await readJson(req);
+        return send(res, 200, { receipt: await d.deletePerson(body.person, body.confirm) });
       }
       throw new HttpError(404, 'Not found');
     }

@@ -1,6 +1,7 @@
 // Phase 3 "dumb path" memory: dated conversation summaries and a few owner facts, each tied to its
 // source turn, searched with SQLite FTS5 and injected under a small fixed budget. No embeddings, no
 // second model.
+import { assertNotHeld } from './legal-hold.ts';
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
 import { ownerEvidenceConversation, pendingOwnerEvents, type OwnerEvidenceTurn } from './owner-evidence.ts';
@@ -345,6 +346,7 @@ export class MemoryStore {
   }
 
   delete(id: number): boolean {
+    assertNotHeld(this.db);
     return Number(this.db.prepare('DELETE FROM memories WHERE id = ?').run(id).changes) > 0;
   }
 
@@ -373,6 +375,7 @@ export class MemoryStore {
 
   /** Forgets everything learned from one conversation (when the owner deletes it and asks to forget). */
   deleteForConversation(conversationId: string): number {
+    assertNotHeld(this.db);
     this.db.prepare('DELETE FROM memory_state WHERE conversation_id = ?').run(conversationId);
     return Number(this.db.prepare('DELETE FROM memories WHERE conversation_id = ?').run(conversationId).changes);
   }

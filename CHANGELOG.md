@@ -5,6 +5,73 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.84.0 (2026-11-07): enterprise controls, editors and code mode
+
+### Added
+
+- **Secret sources (EC10):** a server key (model provider, chat app, voice, Home Assistant, the
+  business sign-in secret and operator keys) can live outside Sara: type a reference such as
+  `env:OPENAI_KEY`, `file:/run/secrets/openai`, `vault:secret/sara#openai` (HashiCorp Vault or OpenBao,
+  KV v2), `op://Servers/OpenAI/credential` (1Password Connect), `keychain:sara/openai` or, when the
+  server allows it, `cmd:op read …` in the key field. Sara reads it at use time, keeps it in memory for
+  five minutes, never writes it back, hides it in logs and output, and backups hold only the
+  reference. Several keys (`env:A | env:B`) rotate when the provider refuses one. Settings → Data &
+  health → Operations → *Secret sources* shows each key's source and status (never the value) with
+  *Check now*; audit rows for source changes, rotations and failures; policy pin *Server keys only
+  from secret sources*. Guide: `docs/SECRET_SOURCES.md`.
+- **Sara in your code editor (ACP):** Zed, JetBrains IDEs and other editors that speak the Agent
+  Client Protocol (version 1) can use Sara as their coding agent: `sara-chat acp` (or `sara acp`
+  on the server's computer) with a one-time sign-in. Each editor thread is a coding chat; she reads
+  the editor's files (unsaved changes too), her edits are written by the editor as a diff, commands
+  run in the editor's terminal, and every write and command asks in the editor first (her own
+  approval cards show there too). Files outside the folder, env files and keys are never touched.
+  A policy pin turns editors off; each new editor session is an audit row. Guide: docs/EDITORS.md.
+- **Provisioning with SCIM 2.0 (business instances):** Microsoft Entra ID, Okta or any SCIM client
+  creates, updates, disables and removes accounts. Disabling someone ends their sessions at once;
+  groups map to administrator or member like company sign-in; a provisioned person's first company
+  sign-in needs no invitation. Token shown once, kept as a hash in the operator vault; rate limits;
+  audit rows. Organization administration → Provisioning (SCIM). See docs/SCIM.md.
+- **Retention, legal hold and one person's data:** Settings → Household → Retention and legal hold.
+  Keep chats, memories and files until you change it (the default) or for 30, 90, 365 or 730 days;
+  a legal hold on one person or the whole server stops every way their data could be deleted
+  (enforced in the database); download one person's data as a ZIP with a checksum manifest, or
+  delete a household member's data with a receipt in the audit trail. Policy pins *Keep the whole
+  server on legal hold* and *No deleting one person's data*. See docs/DATA_RIGHTS.md.
+- **Trust report** (EC25): Settings → Household → Trust report sets what Sara said against what ran,
+  for a week, one run or one project: flagged claims, tool calls and failures, approvals, policy and
+  loop-guard refusals, sandbox tries, sources cited and the audit rows of the window. Download as
+  Markdown, PDF or Word (each download is audited). Owner only. Guide: `docs/TRUST_REPORT.md`.
+- **Qualified badge** (EC27): Get more shows when and where each Store entry last passed a real
+  install ("Checked on Linux and Windows · 2026-11-07 · Sara 2.81.0", "partly on" where only part
+  worked) and which checks ran, from a second signed Store sidecar (`v1/qualified.json`) that older
+  Saras never read; the store website shows the same line. Owners fold new
+  `scripts/qualify-addons-native.mjs` results in with `sara addons requalify`.
+- Store list 7 is live with the listing translations and the qualification records (no add-on changed).
+- **Readiness and recovery (EC28):** Settings → Data & health → Recovery is now *Readiness and
+  recovery*. On top, one verdict (Ready / Needs attention / Not ready) and twelve areas (backups, the
+  last proven restore, off-computer copy, disk space, model answers, chat apps connected, paused work,
+  updates, HTTPS and who can reach her, sign-in, admin policy, monitoring and audit), each with one
+  fix. **Run a restore drill** restores the newest backup into a throwaway folder, checks every
+  database and the vault, starts the copy on this computer only with everything that acts switched
+  off, deletes it, and reports the measured time and the data a restore now would lose (one audit
+  row per drill). `GET /api/readiness`, `POST /api/readiness/drill`, `POST /api/readiness/probe`
+  (owner only). Interrupted work stays below on the same page. Guide: `docs/RECOVERY.md`.
+- **Scale evidence (EC18):** `scripts/load-test.ts` drives N concurrent users (chats, tool calls,
+  library uploads, Telegram messages) against a throwaway Sara with a fake model and a fake Telegram,
+  and reports p50/p95, errors, CPU, memory, event-loop lag and SQLite contention. Results and the
+  single-server limits found: `docs/ops/SCALE.md`. The operations snapshot now includes the process's
+  CPU time.
+- **Code mode** (EC21, off by default): with many tool calls ahead, she can write one short script
+  (JavaScript or TypeScript) that calls her tools and returns only the result. Every call inside goes
+  through the same approvals, policy, safety checks and audit trail as a direct call: a tool that
+  asks shows its card and the script waits. The script runs in a fenced Node process (no files, no
+  network, no programs; inside bubblewrap or a container when you have one) with time, memory and
+  call limits. Settings → Tools and approvals; admins can pin it off. Guide: docs/CODE_MODE.md.
+- **Embedding SDK** (EC22): `packages/sara-sdk`, a small dependency-free TypeScript client for apps
+  and scripts (Node 18+ and browsers): device-code sign-in, conversations, streamed replies,
+  answering approval cards, file upload, the OpenAI-compatible `/v1` and webhook signature checks,
+  with an example app. The REST reference `docs/API.md` is generated from its route table.
+
 ## 2.83.0 (2026-11-07): research, Teams, crews and safer sandboxes
 
 ### Added

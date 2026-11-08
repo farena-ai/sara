@@ -17,13 +17,14 @@ import { continuityAllowed, continuityForTurn } from './session-continuity.ts';
 import { SESSION_TOOLS } from './session-continuity-tools.ts';
 import { SCENE_CANON_TOOL } from './shared-scenes-tools.ts';
 import { sceneCanonPreview } from './shared-scenes-policy.ts';
+import { policy } from './policy-profile.ts';
 
 // ---------------------------------------------------------------------------------------------
 // Settings (owner-only; `lean` in OWNER_SETTINGS), §3.3
 // ---------------------------------------------------------------------------------------------
 
 export interface LeanSettings {
-  tools: { mode: 'auto' | 'always' | 'off'; aboveTokens: number; pins: string[]; stickyTurns: number; maxLoaded: number; perFind: number; findsPerTurn: number; localCore: boolean };
+  tools: { mode: 'auto' | 'always' | 'off'; aboveTokens: number; pins: string[]; stickyTurns: number; maxLoaded: number; perFind: number; findsPerTurn: number; localCore: boolean; codeMode: boolean };
   compact: { auto: boolean; at: number; keepTurns: number; model: 'auto' | 'local' | 'quick' | 'plain'; dailyCap: { runs: number; tokens: number }; crisisKeepHours: number; partners: boolean };
 }
 
@@ -43,7 +44,7 @@ export const LEAN_CHOICES = {
 } as const;
 
 export const DEFAULT_LEAN: LeanSettings = {
-  tools: { mode: 'auto', aboveTokens: 6_000, pins: [], stickyTurns: 10, maxLoaded: 20, perFind: 5, findsPerTurn: 4, localCore: true },
+  tools: { mode: 'auto', aboveTokens: 6_000, pins: [], stickyTurns: 10, maxLoaded: 20, perFind: 5, findsPerTurn: 4, localCore: true, codeMode: false },
   compact: { auto: true, at: 0.85, keepTurns: 6, model: 'auto', dailyCap: { runs: 40, tokens: 500_000 }, crisisKeepHours: 24, partners: false },
 };
 
@@ -67,6 +68,8 @@ export function normLean(raw: unknown, base: LeanSettings = DEFAULT_LEAN): LeanS
       perFind: pick(t.perFind, LEAN_CHOICES.perFind, base.tools.perFind as 5),
       findsPerTurn: pick(t.findsPerTurn, LEAN_CHOICES.findsPerTurn, base.tools.findsPerTurn as 4),
       localCore: b(t.localCore, base.tools.localCore),
+      // EC21: code mode (run_code), off unless the owner turns it on.
+      codeMode: b(t.codeMode, base.tools.codeMode),
     },
     compact: {
       auto: b(c.auto, base.compact.auto),
@@ -99,6 +102,9 @@ export function mergeLean(app: AppContext, body: unknown): LeanSettings {
     known.add(familyOf(t).id);
   }
   next.tools.pins = next.tools.pins.filter((p) => known.has(p));
+  // EC5/EC21: the policy pin `codeMode: false` refuses turning code mode on (server side).
+  if (rec(b.tools).codeMode === true) policy().guard('codeMode', true);
+  if (!policy().codeModeOn) next.tools.codeMode = false;
   app.settings.update({ lean: next } as never);
   return next;
 }
@@ -585,6 +591,15 @@ export function leanFor(set: LeanSettings['tools'], eligible: Tool[], input: Lea
   // 7. find_tools last
   tt.add([FIND_TOOLS], 'core');
   return tt;
+}
+
+/**
+ * EC21: whether run_code is offered in this step: the setting is on (and no policy pin), not a
+ * partner or group chat, and the turn needs many tool calls: a coding chat, or 2+ calls already.
+ */
+export function codeModeOffer(o: { on: boolean; mode: 'chat' | 'coding'; callsThisTurn: number; partner?: boolean; group?: boolean }): boolean {
+  if (!o.on || o.partner || o.group) return false;
+  return o.mode === 'coding' || o.callsThisTurn >= 2;
 }
 
 /** The find_tools tool (family help, runs on its own; offered only in lean turns). */

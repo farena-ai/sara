@@ -43,10 +43,15 @@ companion and every household member. They only make things stricter:
 | Sara Store | *Signed Store items only* (no community items) or *No installs*. |
 | Audit trail retention | Fixes how long the trail is kept. |
 | Turn off shared links | No one can share a conversation as a link, and existing links stop opening while it is on. See [SHARING.md](SHARING.md). |
+| Legal hold (EC17) | Keeps the whole-server legal hold on: nothing can be deleted until the pin goes. See [DATA_RIGHTS.md](DATA_RIGHTS.md). |
+| No per-person deletion (EC17) | *Delete their data* under Retention and legal hold is refused. |
 | Program installs | *Ask first* (Sara always shows the commands and waits) or *Off* (Sara never installs programs add-ons need). See [PREREQUISITES.md](PREREQUISITES.md). |
 | Require the container sandbox | Commands and add-on jobs run only in a container (Podman or Docker); without a working one they are refused. JSON: `"containerSandbox": true`. See [SANDBOX_AND_EGRESS.md](SANDBOX_AND_EGRESS.md). |
 | Only these sites for sandboxed work | Sandboxed work with internet reaches only the listed sites (empty: none). JSON: `"egressAllowlist": ["registry.npmjs.org"]`. Refusals are `egress.refused` rows. |
+| Server keys only from secret sources | Model, chat app, voice, picture and business keys can only be saved as references (`env:`, `file:`, `vault:`, `op://`, `keychain:`, `cmd:`), never pasted. JSON: `"externalSecrets": true`. Source changes, rotations and failures are `secret.source`, `secret.rotate` and `secret.resolve` rows. See [SECRET_SOURCES.md](SECRET_SOURCES.md). |
+| Turn off editors | Code editors (Zed, JetBrains and other ACP editors) can't use Sara as their coding agent: new editor sessions and editor turns are refused. JSON: `"editors": false`. Each new editor session is an `editor.session` row. See [EDITORS.md](EDITORS.md). |
 | Crews | *Off*: no crews can be made, run, scheduled or started by mail. See [CREWS.md](CREWS.md). |
+| Turn off Code mode | No one can turn on Code mode; `run_code` is never offered. JSON: `"codeMode": false`. Each script run is a `code.run` row (call count, fence, why it stopped; never the script). See [CODE_MODE.md](CODE_MODE.md). |
 | Overnight memory tidy | *Models on this computer only* or *Off*. See [MEMORY_TIDY.md](MEMORY_TIDY.md). |
 
 A pinned setting shows **Set by your admin** in Settings. The server refuses a change with

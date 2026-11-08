@@ -1,3 +1,4 @@
+import { withKeyRotation } from '../key-rotation.ts';
 import { withBusinessWriter, type BusinessWriter } from './lifecycle.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { initializeAudit, appendAudit } from './audit.ts';
@@ -61,6 +62,10 @@ export function operatorVault(profile: BusinessProfile): Vault {
   for (const name of ['master.key', 'secrets.enc']) if (existsSync(join(dir, name))) safeFile(join(dir, name));
   return new Vault(dir);
 }
+/** EC10: reads the operator vault's references to external sources before the business server answers. */
+export async function primeOperatorSecrets(profile: BusinessProfile): Promise<void> {
+  if (existsSync(join(profile.businessDir, 'operator', 'secrets.enc'))) await operatorVault(profile).ready();
+}
 /** Local operator entry only. Organization and workspace HTTP roles never receive this capability. */
 export function configureBusinessModels(profile: BusinessProfile, input: unknown, keys: Record<string, string> = {}, writer?: BusinessWriter): void {
   return withBusinessWriter(profile, () => configure(profile, input, keys), writer);
@@ -113,9 +118,11 @@ export class BusinessModels {
   }
   provider(workspaceId: string, plan: BusinessModelPlan): Provider {
     this.revalidate(workspaceId, plan);
-    const key = operatorVault(this.#profile).get(`business-provider:${plan.model.provider.id}`);
-    if (plan.model.provider.needsKey && !key) throw new BusinessAdmissionError('Business model configuration is unavailable.');
-    return createProvider(plan.model.provider, key);
+    const vault = operatorVault(this.#profile);
+    const name = `business-provider:${plan.model.provider.id}`;
+    if (plan.model.provider.needsKey && !vault.get(name)) throw new BusinessAdmissionError('Business model configuration is unavailable.');
+    // EC10: several keys in the operator vault entry rotate when the provider refuses one.
+    return withKeyRotation(vault, name, (key) => createProvider(plan.model.provider, key));
   }
   protectOutput(text: string): void {
     this.#admission();

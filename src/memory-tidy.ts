@@ -14,6 +14,7 @@
 // `memoryTidy: 'local'` keeps it local; 'off' turns it off). Each space tidies only its own store.
 //
 // Tables (additive, the space's own store.db): memory_tidy_runs, memory_tidy_log.
+import { dbHeld } from './legal-hold.ts';
 import type { DatabaseSync } from 'node:sqlite';
 import { resolveChain, streamWithin, type AppContext } from './chat.ts';
 import { en, trOwner } from './i18n.ts';
@@ -222,6 +223,8 @@ CREATE INDEX IF NOT EXISTS memory_tidy_log_run ON memory_tidy_log(run_id, id);
     if (policy().pins.memoryTidy === 'off') throw new TidyError(403, en('The overnight memory tidy is turned off by your admin.'));
     const mem = this.#app.memory;
     if (!mem) throw new TidyError(404, en('Memory is not available here.'));
+    // EC17: a tidy merges and archives notes; under a legal hold it waits until the hold is released.
+    if (dbHeld(this.#app.store.db)) throw new TidyError(409, en('These memories are under a legal hold. The tidy waits until the hold is released.'));
     if (this.#busy) throw new TidyError(409, en('The memory tidy is already running.'));
     this.#busy = true;
     try {

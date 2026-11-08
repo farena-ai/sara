@@ -1,4 +1,5 @@
 // Conversation storage on SQLite (built into Node 24). One owner per server.
+import { assertNotHeld, installHold } from './legal-hold.ts';
 import { ensureLeanTables } from './lean.ts';
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
@@ -253,6 +254,7 @@ export class Store {
       migrate(this.db);
       installSessionHandoffSchema(this.db);
       installSharedSceneSchema(this.db);
+      installHold(this.db);
     } catch (err) {
       const e = err as Error & { code?: string; errcode?: number };
       throw new StartupError(
@@ -523,6 +525,7 @@ export class Store {
   }
 
   deleteConversation(id: string): boolean {
+    assertNotHeld(this.db);
     // Phase 123: its tool loads and folds go with it.
     this.db.prepare('DELETE FROM tool_loads WHERE conversation_id = ?').run(id);
     this.db.prepare('DELETE FROM compactions WHERE conversation_id = ?').run(id);
@@ -571,6 +574,7 @@ export class Store {
 
   /** Deletes a message and everything after it in its conversation (regenerate / edit). */
   deleteMessagesFrom(conversationId: string, fromId: number): number {
+    assertNotHeld(this.db);
     // Phase 123 (LEAN §5.8): a fold covering a deleted message is dropped (its summary erased).
     this.db.prepare("UPDATE compactions SET undone_at = ?, undo_reason = 'deleted', summary = NULL WHERE conversation_id = ? AND through_id >= ? AND undone_at IS NULL").run(this.#now().toISOString(), conversationId, fromId);
     return Number(this.db.prepare('DELETE FROM messages WHERE conversation_id = ? AND id >= ?').run(conversationId, fromId).changes);

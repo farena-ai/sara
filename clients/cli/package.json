@@ -1,6 +1,6 @@
 {
   "name": "sara-chat",
-  "version": "0.83.0",
+  "version": "0.84.0",
   "private": true,
   "description": "Sara in your terminal: chat, ask about a folder, send a file. Signs in with a device code.",
   "type": "module",
@@ -13,6 +13,7 @@
   },
   "files": [
     "sara.ts",
+    "acp.ts",
     "bin/"
   ]
 }

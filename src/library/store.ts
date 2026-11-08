@@ -3,6 +3,7 @@
 // again by their words (SQLite FTS5, always) and by meaning (vectors, when the Meaning search job is
 // set). A document is either kept in her library (searchable from any of the owner's chats) or
 // "read once" for a single conversation (found only there, gone with that conversation).
+import { assertNotHeld } from '../legal-hold.ts';
 import { createHash } from 'node:crypto';
 import { closeSync, copyFileSync, createReadStream, existsSync, mkdirSync, openSync, readFileSync, readSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -956,6 +957,7 @@ export class LibraryStore {
 
   /** Removes a document, its passages and (if nothing else uses it) the original file. */
   delete(id: number): boolean {
+    assertNotHeld(this.db);
     const doc = this.get(id);
     if (!doc) return false;
     const ext = (this.db.prepare('SELECT ext FROM library_docs WHERE id = ?').get(id) as { ext: string }).ext;

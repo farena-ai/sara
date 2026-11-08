@@ -1,4 +1,5 @@
 // HTTP API + static web UI. No framework; node:http only.
+import { assertNotHeld, isLegalHold, LegalHoldError } from './legal-hold.ts';
 import { countModels } from './model-names.ts';
 import { usePathOf } from './settings.ts';
 import { clearTodayCache } from './today.ts';
@@ -69,6 +70,7 @@ import { createLeanRoutes } from './routes/lean.ts';
 import { compactNow, foldView, listFolds } from './compact.ts';
 import { ensureLeanTables, setChatPin, setLeanOff, toolsView } from './lean.ts';
 import { createSafetyCheckRoutes } from './routes/safety-check.ts';
+import { createReadinessRoutes } from './routes/readiness.ts';
 import { createRoutineRoutes } from './routes/routines.ts';
 import { createWatchRoutes } from './routes/watches.ts';
 import { createResearchRoutes } from './routes/research.ts';
@@ -90,8 +92,12 @@ import { createConnectionsRoutes, createHomeAssistantApi } from './routes/connec
 import { createAdminRoutes } from './routes/admin.ts';
 import { createGovernanceRoutes } from './routes/governance.ts';
 import { createSharePublic, createShareRoutes } from './routes/share.ts';
+import { createEditorRoutes } from './routes/editor.ts';
+import { cleanEditorLink } from './editor-link.ts';
+import { policy } from './policy-profile.ts';
 import { shares } from './share.ts';
 import { createUsageReportRoutes } from './routes/usage-report.ts';
+import { createTrustReportRoutes } from './routes/trust-report.ts';
 import type { ReportSource, UsageBudgets } from './usage-report.ts';
 import { createModelsRoutes } from './routes/models.ts';
 import { createHerRoutes } from './routes/her.ts';
@@ -375,12 +381,12 @@ export function createSaraServer(opts: ServerOptions): Server {
   const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports', 'boards']);
   /** Security review: routes an app signed in with a device code may not use (sign-in settings, devices, approving apps). */
   // Phase 100: 'agents' (A2A keys and peers) too. EC4/EC5: the audit trail and the policy.
-  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews']);
+  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews', 'secrets', 'data-rights', 'readiness']);
   /**
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'memory-tidy']);
+  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'memory-tidy', 'readiness']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -962,11 +968,17 @@ export function createSaraServer(opts: ServerOptions): Server {
   const governanceRoutes = createGovernanceRoutes(ctx);
   // EC11: shared conversation links (src/routes/share.ts); the public page is /s/<token>.
   const shareRoutes = createShareRoutes(ctx);
+  // EC14: editors (ACP): editor sessions and the editor's answers (src/routes/editor.ts).
+  const editorRoutes = createEditorRoutes(ctx);
   // EC15: usage and cost reports and budgets (src/routes/usage-report.ts).
   const usageReportRoutes = createUsageReportRoutes(ctx);
+  // EC25: the trust report (src/routes/trust-report.ts).
+  const trustReportRoutes = createTrustReportRoutes(ctx);
   const sharePublic = createSharePublic({ opts, ownerLang: () => appLanguage(app.settings.get()) });
   const deliveryRoutes = createDeliveryRoutes(ctx);
   const operationsRoutes = createOperationsRoutes(ctx, operations);
+  // EC28: the readiness and recovery center (src/routes/readiness.ts).
+  const readinessRoutes = createReadinessRoutes(ctx, operations);
   const telemetryRoutes = createTelemetryRoutes(ctx, telemetry);
   const modelsRoutes = createModelsRoutes(ctx);
   const herRoutes = createHerRoutes(ctx);
@@ -1316,13 +1328,16 @@ export function createSaraServer(opts: ServerOptions): Server {
 
     // Models: providers, model jobs, subscriptions, local models, private local mode, usage: src/routes/models.ts.
     if ((await usageReportRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await trustReportRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await modelsRoutes(req, res, method, parts)) !== NEXT) return;
     // Admin: settings, backups, logs, doctor, status, health history, updates, access, desktop apps, safety stats, search, tools, MCP, checklist: src/routes/admin.ts.
     if ((await adminRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await governanceRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await shareRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await editorRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await deliveryRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await operationsRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await readinessRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await telemetryRoutes(req, res, method, parts)) !== NEXT) return;
 
     // Coding: workspaces, approvals, jobs, starters, GitHub, code projects, code map, recipes, team, previews, SSH: src/routes/coding.ts.
@@ -2029,9 +2044,11 @@ export function createSaraServer(opts: ServerOptions): Server {
           );
         }
         if (!c && method === 'DELETE') {
+          // EC17: refuse before anything stops or is cleared when this chat is under a legal hold.
+          const grp = roomOf(conv);
+          for (const db of [cx.store.db, ...(grp?.members ?? []).map((m) => m.app.store.db)]) assertNotHeld(db);
           active.get(b)?.controller.abort();
           // Phase 66: deleting a group chat deletes it for every companion in it (and what each learned there, if asked).
-          const grp = roomOf(conv);
           if (grp) {
             const forget = new URL(req.url ?? '/', 'http://x').searchParams.get('forget') === '1';
             let forgotten = 0;
@@ -2138,6 +2155,14 @@ export function createSaraServer(opts: ServerOptions): Server {
           if (!content) throw new HttpError(400, 'Message is empty');
           if (content.length > 100_000) throw new HttpError(413, 'Message too long');
           demoTurnAllowed(req);
+          // EC14: a turn linked to an editor (ACP): her file and command tools run in the editor.
+          // The owner's only; the policy can pin editors off. It shares like another app (G21).
+          const editor = body.editor !== undefined ? cleanEditorLink(body.editor) : undefined;
+          if (editor) {
+            if (opts.member || cx.member || opts.demo) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+            if (!policy().editorsOn) throw policy().refusal('editors');
+          }
+          const editorOpts = editor ? { editor, externalApp: true } : {};
           // Phase 69: a classic video call: the newest camera picture goes with this message (in memory
           // only, never saved), unless the camera was paused by a safety block meanwhile.
           const blockedAt = cx.store.lastSafetyEventAt('minor_sexual_block', b)?.getTime();
@@ -2161,7 +2186,7 @@ export function createSaraServer(opts: ServerOptions): Server {
             void runBackground(b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}) });
             return send(res, 202, { ok: true });
           }
-          return streamChat(req, res, b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}), ...liveFrame });
+          return streamChat(req, res, b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}), ...liveFrame, ...editorOpts });
         }
         // Regenerate the last reply, or edit the last owner message and answer it again.
         if (c === 'retry' && method === 'POST') {
@@ -2268,9 +2293,11 @@ export function createSaraServer(opts: ServerOptions): Server {
       }
     } catch (err) {
       // Phase 71: a member's attempt to change the owner's keys (src/household.ts memberVault) is a 403.
-      const status = err instanceof HttpError ? err.status : err instanceof HouseholdError ? err.status : 500;
+      // EC17: a delete refused by a legal hold (our check or the database trigger) is a 409.
+      const held = isLegalHold(err);
+      const status = held ? 409 : err instanceof HttpError ? err.status : err instanceof HouseholdError ? err.status : 500;
       if (status === 500) console.error(err);
-      if (!res.headersSent) send(res, status, { error: status === 500 ? en('Internal error') : (err as Error).message, ...(err instanceof HttpError ? err.extra : err instanceof HouseholdError ? { ownerOnly: true } : {}) });
+      if (!res.headersSent) send(res, status, { error: held ? new LegalHoldError().message : status === 500 ? en('Internal error') : (err as Error).message, ...(held ? { legalHold: true } : {}), ...(err instanceof HttpError ? err.extra : err instanceof HouseholdError ? { ownerOnly: true } : {}) });
       else res.end();
     }
   });

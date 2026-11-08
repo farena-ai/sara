@@ -3,7 +3,7 @@
 ## Common questions
 
 **What happens if Sara stops during a job or message send?**
-Open Settings → Data & health → Recovery. Jobs offer review of a fresh restart; teams remain held
+Open Settings → Data & health → Readiness and recovery. Jobs offer review of a fresh restart; teams remain held
 until explicit recovery. An uncertain native message stays unknown instead of being blindly sent
 again. Check the destination first. See [Recovery](RECOVERY.md) for supported paths and limits.
 

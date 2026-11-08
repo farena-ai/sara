@@ -26,7 +26,7 @@ import { createSafetyReportTool, sweepUndo, weeklySafetyTick, type SafetyDeps } 
 import { createSuggestRoutineTool } from './routines.ts';
 import { decryptBackup, isEncrypted } from './offsite.ts';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { OwnerAuth } from './auth.ts';
 import { claimModeFrom, claimWindowMs, FirstClaim, formatClaimCode } from './claim.ts';
 import { vaultKeyFor, type AppContext } from './chat.ts';
@@ -115,6 +115,8 @@ import { createMomentsTool, MomentsStore, MomentsWorker } from './moments.ts';
 import { migrateProviderLabels, type Settings, SettingsStore, StartupError } from './settings.ts';
 import { AuditTrail, setAuditTrail } from './audit-trail.ts';
 import { PolicyStore, setPolicy } from './policy-profile.ts';
+import { DataRights, dataRights, setDataRights } from './data-rights.ts';
+import { assertDirNotHeld } from './legal-hold.ts';
 import { setShares, ShareStore } from './share.ts';
 import { budgetAlerter, UsageBudgets, type ReportSource } from './usage-report.ts';
 import { Store } from './store.ts';
@@ -200,7 +202,29 @@ const host = process.env.SARA_HOST ?? '127.0.0.1';
 const port = Number(process.env.SARA_PORT ?? 7860);
 const defaultPersonaPath = resolve(process.env.SARA_PERSONA ?? join(root, 'persona', 'sara.json'));
 
+// EC27: `sara addons requalify --from <results.json> --index <index.json>` folds qualification runs
+// into store/qualified.json (scripts/addons-requalify.ts). Touches no data folder.
+if (process.argv[2] === 'addons' && process.argv[3] === 'requalify') {
+  const { requalify } = await import('./store/requalify-cli.ts');
+  try {
+    for (const line of requalify(process.argv.slice(4))) console.log(line);
+    process.exit(0);
+  } catch (err) {
+    console.error(`requalify: ${(err as Error).message}`);
+    process.exit(1);
+  }
+}
 // Dispatch before constructing owner auth, stores, tools, or background workers.
+// EC14: `sara acp` is a client (the editor agent over stdio): it never opens the data folder.
+if (process.argv[2] === 'acp') {
+  const acpFile = join(root, 'clients', 'cli', 'acp.ts');
+  if (!existsSync(acpFile)) {
+    process.stderr.write('sara acp is part of sara-chat here: install sara-chat on the editor\'s computer and use "sara-chat acp" (docs/EDITORS.md).\n');
+    process.exit(2);
+  }
+  const { runAcp } = (await import(pathToFileURL(acpFile).href)) as typeof import('../clients/cli/acp.ts');
+  process.exit(await runAcp(process.argv.slice(3)));
+}
 if (process.argv[2]?.startsWith('--business-')) {
   try { const { runBusinessCli } = await import('./business/cli.ts'); const code = await runBusinessCli(process.argv.slice(2), process.env); if (typeof code === 'number') process.exitCode = code; }
   catch { process.stderr.write('Business operator command refused. Check isolated paths, writer ownership, generation and required reconciliation.\n'); process.exitCode = 1; }
@@ -329,6 +353,8 @@ const settings = new SettingsStore(dataDir);
   if (!settings.get().adultMode) settings.update({ adultMode: settings.get().disclosureAcceptedAt ? { on: false, ask: true } : { on: false } });
 }
 const vault = new Vault(dataDir, process.env.SARA_MASTER_KEY);
+// EC10: references to external secret sources are read before anything uses them (10 s at most each).
+await vault.ready();
 // Phase 121: `sara doctor [--safety]` and `node src/main.ts doctor --safety` mean --doctor.
 if (process.argv[2] === 'doctor' && !process.argv.includes('--doctor')) process.argv.push('--doctor');
 if (process.argv.includes('--doctor')) {
@@ -416,6 +442,9 @@ const log = new Log(dataDir, (s) => redactor.redact(s), undefined, logOptions())
 log.useSaved(settings.get().logLevel);
 log.captureConsole();
 const isDemo = process.env.SARA_DEMO === '1';
+// EC28: a restore drill boots a throwaway copy of a backup (src/restore-drill.ts): it answers
+// /api/health and sign-in, but starts no workers, bridges, plugins, tool servers or backups.
+const isDrill = process.env.SARA_RESTORE_DRILL === '1';
 // EC5: the admin's policy profile (<data>/policy.json; none = no pins). EC4: the server's one audit trail.
 const policyStore = new PolicyStore(isDemo ? undefined : dataDir);
 setPolicy(policyStore);
@@ -494,7 +523,7 @@ const companions = new CompanionManager(dataDir);
 // Phase 98 (ST3, docs/PLUGINS.md): the owner's plugins (one manager for the server; enabled per
 // companion; never in household members' spaces, never on the demo). Its tables live in the owner's
 // database; each enabled plugin runs in its own fenced process.
-const pluginManager = isDemo
+const pluginManager = isDemo || isDrill
   ? undefined
   : (() => {
       const pdb = new DatabaseSync(join(dataDir, 'sara.db'));
@@ -619,6 +648,18 @@ const usageSources = (): ReportSource[] => [
 // Phase 99 (ST4, docs/BOARD.md): household boards shared by choice, in one shared store (never on the
 // demo). A change is pushed to the event hub of each of the board's people only.
 const sharedBoards = isDemo ? undefined : new SharedBoardStore(join(dataDir, 'shared', 'boards.db'));
+// EC17 (docs/DATA_RIGHTS.md): retention, legal hold and per-person export/delete (never on the demo).
+setDataRights(
+  isDemo
+    ? undefined
+    : new DataRights(dataDir, {
+        spaces: () => [
+          { person: 'owner', name: settings.get().ownerName || 'Owner', dir: dataDir, apps: () => ownerSpace.companions.all().map((c) => c.app) },
+          ...[...memberSpaces.values()].map((sp) => ({ person: sp.id, name: household.get(sp.id)?.name ?? sp.id, dir: sp.dir, apps: () => sp.companions.all().map((c) => c.app) })),
+        ],
+        deleteMember: (id) => deleteMemberSpace(id),
+      }),
+);
 const spaceOf = (person: string): Space | undefined => (person === 'owner' ? ownerSpace : memberSpaces.get(person));
 sharedBoards?.listeners.add((ev) => {
   for (const p of ev.people) spaceOf(p)?.events.publish({ type: 'board', boardId: ev.boardId, what: ev.what });
@@ -1237,6 +1278,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     hookManager.attach(id, app);
   }
   deliveryFor(app); // Recover delivery evidence once per store; never dispatch on boot.
+  dataRights()?.apply([{ dir, app }]); // EC17: a held space's database refuses deletes from the start.
   const server = createSaraServer({ ...serverOpts, app, auth: space.auth, companions: space.companions, spaceId: space.id, ...(isMember ? { member: memberHooksFor(space) } : isDemo ? {} : { household: householdHooks, usageSources, usageBudgets }) });
   return {
     id,
@@ -1345,6 +1387,7 @@ function buildMemberSpace(member: MemberRecord, dir: string, givenAuth?: OwnerAu
 }
 /** Stops a member's space and deletes it for good (Delete now, Delete my account, or after removal). */
 async function deleteMemberSpace(id: string): Promise<void> {
+  assertDirNotHeld(household.dirOf(id)); // EC17: a legal hold keeps the space (and it keeps running).
   const sp = memberSpaces.get(id);
   memberSpaces.delete(id);
   hubSpaces.delete(id);
@@ -1415,6 +1458,7 @@ notifyFrom(ownerSpace);
 
 let backupTickRunning: Promise<void> | undefined;
 function backupTick(): Promise<void> {
+  if (isDrill) return Promise.resolve();
   if (isDemo || shuttingDown) return Promise.resolve();
   if (backupTickRunning) return backupTickRunning;
   backupTickRunning = (async () => {
@@ -1451,6 +1495,13 @@ setTimeout(() => void backupTick(), 120_000).unref();
 function householdSweep(): void {
   household.sweepInvites();
   for (const m of household.due()) void deleteMemberSpace(m.id).catch((err: Error) => console.warn(`Household: ${err.message}`));
+  // EC17: retention per data kind runs on the same hourly tick (held spaces are skipped).
+  try {
+    const r = dataRights()?.runRetention();
+    if (r && (r.chats || r.memories || r.files)) console.log(`Retention: deleted ${r.chats} chats, ${r.memories} memories, ${r.files} files.`);
+  } catch (err) {
+    console.warn(`Retention: ${(err as Error).message}`);
+  }
 }
 // Phase 84: "Re-check monthly" for evals. OFF by default (the owner's explicit yes in Settings);
 // when on, it runs only when nobody has talked to her for 20 minutes, within its own token budget.
@@ -1568,6 +1619,10 @@ server.listen(port, host, () => {
   }
   console.log(`Sara is listening on http://${host}:${port} (data: ${dataDir})${isDemo ? ' [DEMO]' : ''}`);
   if (privateLocal.get().on) console.log(`Private local mode is on: nothing leaves this computer (only 127.0.0.1 / ::1 / localhost)${privateLocal.get().locked ? ' [SARA_PRIVATE_LOCAL=1]' : ''}.`);
+  if (isDrill) {
+    console.log('Restore drill: a throwaway copy; nothing is started.');
+    return;
+  }
   for (const c of companions.all()) c.start();
   for (const sp of memberSpaces.values()) for (const c of sp.companions.all()) c.start();
   codemaps.start();

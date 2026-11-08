@@ -15,13 +15,15 @@ import { BusinessRetrieval } from './retrieval.ts';
 import { BusinessEvents } from './events.ts';
 import { createBusinessContentRouter } from './content-routes.ts';
 import { BusinessBudget } from './budget.ts';
-import { BusinessModels, configureBusinessModels } from './model-config.ts';
+import { BusinessModels, configureBusinessModels, primeOperatorSecrets } from './model-config.ts';
 import { BusinessDocuments } from './documents.ts';
 import { BusinessChat } from './chat.ts';
 import { createBusinessWriteRouter } from './write-routes.ts';
 import { envMode } from '../private-local.ts';
 import { BusinessSso } from './sso.ts';
 import { SSO_BINDING_COOKIE, ssoRoutes } from './sso-routes.ts';
+import { BusinessScim } from './scim.ts';
+import { BusinessAccessError } from './policy.ts';
 import type { BusinessMutation } from './types.ts';
 
 const MAX_BODY = 65_536;
@@ -76,6 +78,7 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
     const documents = new BusinessDocuments(control, workspaces);
     const chat = new BusinessChat({ control, workspaces, retrieval, budget, models }); activeChat = chat;
     const sso = new BusinessSso({ profile: options.profile, control, auth, origin, privateLocal: options.privateLocal });
+    const scim = new BusinessScim({ profile: options.profile, control, sso, origin });
     const ssoLimiter = new LoginLimiter(30);
     const ssoStarts = new LoginLimiter(100);
     const unsubscribeAuth = auth.onSessionInvalidated(() => { workspaceEvents.revalidateAll(); chat.revalidateActive(); });
@@ -109,12 +112,18 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
           if ('reason' in result) { ssoLimiter.fail(ip); return back(`/?sso=${result.reason}`); }
           return back('/', [`${BUSINESS_COOKIE}=${result.session.value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${result.session.maxAgeSeconds}${origin.startsWith('https:') ? '; Secure' : ''}`]);
         }
+        // EC16: SCIM is server to server (no Origin, no cookie); the bearer token authenticates it.
+        if (path === '/scim/v2' || path.startsWith('/scim/v2/')) {
+          if (recoveryMode(control.database)) return json(res, 503, { error: 'Business recovery requires reconciliation.' });
+          return scim.handle(req, res, path, clientIp(req, options.trustProxy));
+        }
         if ( (req.headers.origin && req.headers.origin !== origin) || req.headers['sec-fetch-site'] === 'cross-site') return json(res, 403, { error: 'Origin denied.' });
         if (path === '/api/health' && req.method === 'GET') return json(res, 200, { ok: true, profile: 'business' });
         if (recoveryMode(control.database) && !['/api/business/reenroll', '/api/business/me', '/api/business/logout', '/api/business/passkeys/register/options', '/api/business/passkeys/register/finish', '/api/business/passkeys/login/options', '/api/business/passkeys/login/finish'].includes(path)) return json(res, 503, { error: 'Business recovery requires reconciliation.' });
         if (path === '/api/business/claim' && req.method === 'GET') return json(res, 200, auth.claimStatus());
         const allowed = new Set(['/api/business/reenroll', '/api/business/claim', '/api/business/me', '/api/business/logout', '/api/business/passkeys/register/options', '/api/business/passkeys/register/finish', '/api/business/passkeys/login/options', '/api/business/passkeys/login/finish']);
         if (path === '/api/business/org/audit') allowed.add(path);
+        if (path === '/api/business/scim/config' || path === '/api/business/scim/token') allowed.add(path);
         if (['/api/business/sso/status', '/api/business/sso/start', '/api/business/sso/config', '/api/business/sso/test'].includes(path)) allowed.add(path);
         if (!allowed.has(path) && !management.matches(path) && !content.matches(path) && !writes.matches(path)) return json(res, 404, { error: 'Not found.' });
         if (req.method !== 'GET' && (req.method !== 'POST' || req.headers.origin !== origin)) return json(res, 403, { error: 'Origin denied.' });
@@ -129,6 +138,15 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
         if (path === '/api/business/org/audit' && req.method === 'GET') {
           try { if (!principal) return json(res, 401, { error: 'Sign-in required.' }); return json(res, 200, audit.organization(principal)); }
           catch { return json(res, 403, { error: 'Request denied.' }); }
+        }
+        if (path.startsWith('/api/business/scim/')) {
+          try {
+            if (!principal || !auth.isPrincipalActive(principal)) return json(res, 401, { error: 'Sign-in required.' });
+            if (path === '/api/business/scim/config' && req.method === 'GET') return json(res, 200, scim.view(principal));
+            if (req.method !== 'POST') return json(res, 404, { error: 'Not found.' });
+            const data = await body(req);
+            return json(res, 200, path.endsWith('/token') ? scim.rotateToken(principal, data) : scim.save(principal, data));
+          } catch (error) { return json(res, error instanceof BusinessAccessError ? error.status : 400, { error: error instanceof BusinessAccessError ? error.message : 'Request denied.' }); }
         }
         if (path.startsWith('/api/business/sso/')) return ssoRoutes({ req, res, path, principal, sso, auth, body, json, origin, limiter: ssoStarts, ip: clientIp(req, options.trustProxy) });
         if (path === '/api/business/me' && req.method === 'GET') {
@@ -197,7 +215,7 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
     };
     sso.startTimer();
     let closing: Promise<void> | undefined;
-    return { sso, configureModels: (input: unknown, keys: Record<string, string> = {}) => configureBusinessModels(options.profile, input, keys, writer), backup: (file: string, passphrase: string) => createBusinessBackup(options.profile, control, file, passphrase), lifecycle, audit, server, auth, identities, control, policy: control.policy, workspaces, retrieval, events: workspaceEvents, budget, models, documents, chat, origin, close(): Promise<void> {
+    return { sso, scim, configureModels: (input: unknown, keys: Record<string, string> = {}) => configureBusinessModels(options.profile, input, keys, writer), backup: (file: string, passphrase: string) => createBusinessBackup(options.profile, control, file, passphrase), lifecycle, audit, server, auth, identities, control, policy: control.policy, workspaces, retrieval, events: workspaceEvents, budget, models, documents, chat, origin, close(): Promise<void> {
       if (closing) return closing;
       lifecycle.closeAdmission(); unsubscribeAuth(); chat.close(); workspaceEvents.close(); sso.close();
       closing = (async () => {
@@ -222,6 +240,7 @@ export async function startBusinessFromEnv(env: NodeJS.ProcessEnv) {
   const port = Number(env.SARA_PORT ?? 7860);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid SARA_PORT.');
   const profile = openBusinessProfile(env.SARA_DATA);
+  await primeOperatorSecrets(profile);
   const runtime = createBusinessRuntime({ profile, origin: env.SARA_BUSINESS_ORIGIN, trustProxy: proxyTrust(env, profile.businessDir), privateLocal: envMode(env.SARA_PRIVATE_LOCAL) !== undefined });
   try { await new Promise<void>((ready, reject) => { runtime.server.once('error', reject); runtime.server.listen(port, env.SARA_HOST ?? '127.0.0.1', ready); }); }
   catch (error) { await runtime.close(); throw error; }

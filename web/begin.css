@@ -85,6 +85,22 @@
 .sc-fix > .tip, .sc-acts > .tip { align-self: center; flex: 0 0 auto; }
 .sc-fix button:not(.tip), .sc-acts button:not(.tip) { min-height: 44px; }
 .sc-cmd { display: block; font-family: var(--font-mono); font-size: 0.9em; padding: 6px 8px; border-radius: var(--r-control); background: var(--surface-2); overflow-wrap: anywhere; flex: 1 1 100%; }
+/* EC28: readiness and recovery (web/readiness.js): one row per area, the fix under it. */
+.rd-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.rd-row { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-1); padding: 8px 12px; margin: 0 0 8px; }
+.rd-row.rd-attention { border-color: var(--warn); }
+.rd-row.rd-not-ready { border-color: var(--danger); }
+.rd-row p { margin: 0 0 4px; }
+.rd-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rd-mark { font-weight: 700; }
+.rd-ready .rd-mark { color: var(--success); }
+.rd-attention .rd-mark { color: var(--warn); }
+.rd-not-ready .rd-mark { color: var(--danger); }
+.rd-fix { display: flex; flex-wrap: wrap; gap: 6px; }
+.rd-cmd { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 100%; }
+.rd-verdict[data-verdict="ready"] { border-color: var(--success); }
+.rd-verdict[data-verdict="attention"] { border-color: var(--warn); }
+.rd-verdict[data-verdict="not-ready"] { border-color: var(--danger); }
 .sc-confirm { flex: 1 1 100%; border: 1px dashed var(--line); border-radius: var(--r-card); padding: 6px 10px; }
 .sc-more summary { list-style: none; cursor: pointer; min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .sc-fine summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }

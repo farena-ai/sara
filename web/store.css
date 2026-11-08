@@ -48,6 +48,8 @@
 .sto-glyph { display: inline-flex; align-items: center; justify-content: center; background: var(--panel-2); font-size: 1.2rem; }
 .sto-badge { color: var(--muted); }
 .sto-badge.trust-community { color: var(--warn); }
+/* EC27: the Qualified badge. */
+.sto-qualified { color: var(--ok, var(--muted)); overflow-wrap: anywhere; }
 .sto-why { overflow-wrap: anywhere; }
 .sto-community { margin: 12px 0 4px; }
 .store-panel { width: min(860px, calc(100vw - 32px)); }

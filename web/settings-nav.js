@@ -69,7 +69,7 @@ const SETTINGS_ORDER = [
   'ab-projects', 'ab-precise', 'ab-persist', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-tools',
   'co-phone', 'co-computer', 'desktop-app', 'co-apps', 'co-agents', 'co-hooks',
   'dh-safety', 'dh-health', 'dh-operations', 'dh-recovery', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
-  'household', 'dh-usage-report', 'dh-shares', 'dh-policy', 'dh-audit', 'account',
+  'household', 'dh-usage-report', 'dh-trust', 'dh-shares', 'dh-policy', 'dh-audit', 'dh-retention', 'account',
 ];
 // A small heading inside a group, before the first of these pages (none since the Coding group).
 const SETTINGS_SUB = {};

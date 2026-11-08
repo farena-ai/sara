@@ -102,6 +102,17 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Enterprise controls, editors and code mode in 2.84.0
+
+Keys can live in HashiCorp Vault, 1Password, environment variables, mounted secret files or the
+system keychain. Zed, JetBrains and other editors that speak the Agent Client Protocol can use Sara
+as their coding agent, with approvals inside the editor. Business instances accept SCIM
+provisioning from Microsoft Entra ID or Okta; retention, legal hold and per-person export or delete
+cover every delete path. A trust report sets what she said against what actually ran, Store entries
+show where they were last checked, and a readiness page with a one-click restore drill says whether
+an install is ready for real use. Code mode lets her run one short sandboxed script instead of many
+tool calls, still through every approval, and a zero-dependency TypeScript SDK covers her API.
+
 ## Research, Teams, crews and safer sandboxes in 2.83.0
 
 Research a question: Sara drafts a plan you can edit, lists the pages she read and the ones that
@@ -169,8 +180,9 @@ After that: a container sandbox so Windows and Mac get real isolation, a network
 work, secrets from your password manager or Vault, read-only share links, standing crews of helpers
 with their own schedules and budgets, an overnight memory tidy you approve, editor support through
 ACP, and usage reports per person and project. Later, as demand shows: directory sync (SCIM),
-retention and legal hold, measured scale-out, voice rooms and meeting notes, and a trust report that
-puts what she claimed next to what actually ran.
+retention and legal hold, measured scale-out, and voice rooms and meeting notes. In development: a
+trust report that puts what she claimed next to what actually ran, and a Qualified badge on every Store
+entry saying when and where it last passed a real install.
 
 ## Business setup and administration in 2.65.0
 

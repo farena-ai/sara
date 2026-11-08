@@ -223,6 +223,8 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
         size: hit.v.size ?? null,
         entry: { description, about, license: entry.license, source: entry.source ?? null, contact: entry.author.contact ?? null, shots: entry.shots.map((s) => ({ sha: s.sha256, alt: s.alt })), changes: entry.changes, checks: entry.checks, review: entry.review ?? null, tested: entry.tested ?? [], needs: entry.needs ?? [], works: entry.works ?? [], ...(entry.mcp ? { mcp: entry.mcp } : {}), ...(entry.companion ? { companion: entry.companion } : {}) },
         lines,
+        // EC27: when and where this version last passed a real install (the signed sidecar).
+        qualified: client.qualified()[c] ?? null,
         ...(error ? { linesError: error } : {}),
         installed: source ? source.installed ? { version: source.version, origin: source.origin, state: row?.state ?? null, note: row?.state_note ?? null } : null : row ? { version: row.version, state: row.state, note: row.state_note } : null,
         ...(source?.installHeld ? { installHeld: source.installHeld, installHeldCode: source.installHeldCode } : {}),

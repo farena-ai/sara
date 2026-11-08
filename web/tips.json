@@ -1464,7 +1464,7 @@
   },
   "pages": {
     "dh-recovery": [
-      "Review interrupted jobs, teams and native message outcomes. Nothing restarts or resends automatically.",
+      "Is this install ready for real use: each area ready, needs attention or not ready, with one fix, and a restore drill that proves a backup opens. Below, interrupted work to review; nothing restarts by itself.",
       "recovery"
     ],
     "her-import": [
@@ -1671,8 +1671,16 @@
       "Tokens and estimated cost by day, week or month, split by person, workspace, project and model. Download it as CSV and set monthly budgets that warn you early.",
       "usage"
     ],
+    "dh-trust": [
+      "What Sara said against what actually ran, for a week, one run or one project: flagged claims, tool calls, failures, approvals, refusals, sandbox, sources and audit rows. Download it for a reviewer.",
+      "security"
+    ],
     "dh-shares": [
       "Conversations you shared as read-only links: when each expires and how often it was opened. Revoke a link to end it at once, and choose whether private chats may be shared.",
+      "security"
+    ],
+    "dh-retention": [
+      "How long chats, memories and files are kept, a legal hold for one person or the whole server that stops every deletion, and one person's data as a download or deleted with a receipt.",
       "security"
     ],
     "dh-audit": [
