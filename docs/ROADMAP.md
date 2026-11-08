@@ -102,6 +102,16 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Every page in the new look in 3.0.1
+
+Today, Planner, Memory, Library, Scrapbook, Moments, Your story, Team, Findings, Evals and Settings in
+the 3.0 look, with her presence orb on Today in place of the large portrait. One project list in the
+sidebar: folders that open to show their chats with a status dot each, chat apps like Telegram
+included, and a separate button for the project page. Her picture can be the orb, her portrait or your
+own picture with a living ring. Run cards under her replies fold to one line (open on their own for an
+approval, a problem or a run still going), and the memory line says how many memories she used.
+Leaving Sara Classic now switches its rose colour to blue.
+
 ## Sara 3.0: a living-system look in 3.0.0
 
 A new look over every page, with nothing removed. A live status strip shows what she is doing now

@@ -25,20 +25,42 @@ const FOLD_KEY = () => `sara.v4.runFold.${who}`;
 export function setRunUser(key) {
   who = String(key || 'owner').replace(/[^\w:-]/g, '').slice(0, 40) || 'owner';
 }
+/** V4d: Settings → Appearance → Show run details on this device: folded (the default) or open. */
 function foldPref() {
   try {
-    const v = localStorage.getItem(FOLD_KEY());
+    return localStorage.getItem('sara.runDetails') === 'open' ? 'open' : 'folded';
+  } catch {
+    return 'folded';
+  }
+}
+/** V4d: a card's own open/folded choice, for this session (per person, per run). */
+const cardKey = (box) => (box._runId ? `sara.v4.runFold.${who}.${box._runId}` : '');
+function cardPref(box) {
+  try {
+    const k = cardKey(box);
+    const v = k ? sessionStorage.getItem(k) : '';
     return v === 'open' || v === 'folded' ? v : '';
   } catch {
     return '';
   }
 }
-function saveFold(open) {
+function saveFold(box) {
   try {
-    localStorage.setItem(FOLD_KEY(), open ? 'open' : 'folded');
+    const k = cardKey(box);
+    if (k) sessionStorage.setItem(k, box.open ? 'open' : 'folded');
   } catch {
     /* private mode */
   }
+}
+/**
+ * V4d: whether a run card shows its steps. Folded unless the setting says open or the person opened
+ * this card; always open while it runs, waits for an approval or has a failed or denied step, so
+ * nothing that needs the person is hidden.
+ */
+export function foldStart({ pref = 'folded', card = '', live = false, waiting = false, errors = 0 } = {}) {
+  if (live || waiting || errors > 0) return true;
+  if (card) return card === 'open';
+  return pref === 'open';
 }
 
 function setOpen(box, open) {
@@ -75,7 +97,11 @@ function update(box) {
   bar.classList.toggle('live', m.live);
   bar.classList.toggle('bad', !m.live && m.errors > 0);
   bar.style.setProperty('--p', m.progress === null ? '0' : String(m.progress));
-  box.querySelector('.v4-run-fold').textContent = box.open ? t('Fold') : t('Show steps');
+  // Something needs the person (live, an approval, a failure): open once when it starts to.
+  const need = m.live || m.waiting || m.errors > 0 ? `${m.waiting ? 'w' : ''}${m.errors}${m.live ? 'l' : ''}` : '';
+  if (need && need !== box._need) setOpen(box, foldStart({ pref: foldPref(), card: cardPref(box), live: m.live, waiting: m.waiting, errors: m.errors }));
+  box._need = need;
+  foldWords(box);
   // Marks: verified only from the evidence; everything else stays a plain done.
   for (const s of box._steps) {
     if (!s.li) continue;
@@ -119,28 +145,36 @@ export function runTimeline(box, { api, live = false } = {}) {
   const prog = el('span', 'v4-run-prog');
   prog.setAttribute('aria-hidden', 'true');
   prog.append(el('i'));
-  head.append(el('span', 'v4-run-count num'), prog, el('span', 'v4-run-fold'));
+  const chev = el('span', 'v4-run-chev');
+  chev.setAttribute('aria-hidden', 'true');
+  head.append(el('span', 'v4-run-count num'), prog, el('span', 'v4-run-fold'), chev);
   sum?.append(head);
   const foot = el('div', 'v4-run-foot');
   foot.hidden = true;
   box.append(foot);
-  const pref = foldPref();
-  setOpen(box, pref ? pref === 'open' : live);
+  setOpen(box, foldStart({ pref: foldPref(), live }));
   box.addEventListener('toggle', () => {
-    if (!box._quiet) saveFold(box.open);
-    box.querySelector('.v4-run-fold').textContent = box.open ? t('Fold') : t('Show steps');
+    if (!box._quiet) saveFold(box);
+    foldWords(box);
   });
   box._after = update;
   update(box);
   return box;
 }
 
-/** The newest run of a chat starts open unless the person chose to fold runs. */
+/** The newest run of a chat: its own choice this session, else the setting (folded by default). */
 export function runLatest(box) {
-  if (box?._timeline && foldPref() !== 'folded') {
-    setOpen(box, true);
-    update(box);
-  }
+  if (!box?._timeline) return;
+  const m = timelineModel(box._steps, box._evidence);
+  setOpen(box, foldStart({ pref: foldPref(), card: cardPref(box), live: m.live, waiting: m.waiting, errors: m.errors }));
+  update(box);
+}
+
+/** The fold words and the summary's expanded state (the whole one-line head is the button). */
+function foldWords(box) {
+  box.querySelector('.v4-run-fold').textContent = box.open ? t('Fold') : t('Show steps');
+  const sum = box.querySelector('.steps-sum');
+  if (sum) sum.setAttribute('aria-expanded', String(box.open));
 }
 
 /** Evidence for the marks: a sandbox record for a call, or the turn's checks chip. */

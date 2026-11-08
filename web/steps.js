@@ -171,17 +171,29 @@ export function finishStep(box, { id, status, output, ms, snapshotId }) {
 }
 
 /** The memories she used in this reply (ids from the reply's meta), as the first step. */
-export function memoryStep(box, count) {
+// V4d: the notes she already had and used for this reply (recalled, not saved this turn: the
+// owner read "Remembered n things" as new notes). `ids` (the reply's meta.memoryIds) open exactly
+// those notes; without them the link opens Memory.
+export function memoryStep(box, count, { ids = [], open } = {}) {
   if (!count || box._steps.some((s) => s.kind === 'memory')) return;
-  const done = count === 1 ? t('Remembered 1 thing') : t('Remembered {n} things', { n: count });
+  const done = count === 1 ? t('Used 1 memory') : t('Used {n} memories', { n: count });
+  const why = t('Things she already knew about you that shaped this reply.');
   const step = { kind: 'memory', name: 'memory', now: done, done, icon: 'memory', status: 'ok' };
   const li = el('li', 'step ok memory');
   const row = el('div', 'step-head');
-  row.append(stepIcon('memory'), el('span', 'step-verb', done));
+  const verb = el('span', 'step-verb', done);
+  verb.title = why;
+  row.append(stepIcon('memory'), verb);
   const link = el('a', 'step-link small', t('See what she remembers'));
   link.href = '/#view=memory';
+  if (ids.length && open) {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      open(ids);
+    });
+  }
   row.append(link);
-  li.append(row);
+  li.append(row, el('p', 'step-sub muted small', why));
   step.li = li;
   box.querySelector('.steps-list').prepend(li);
   box._steps.unshift(step);

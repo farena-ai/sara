@@ -389,6 +389,14 @@
       "A very faint light moves behind the app, a little faster while she is working. Off keeps it still. Your system's reduce motion setting always stops it.",
       "start"
     ],
+    "ap-herpic": [
+      "In the new look she shows as her presence orb. Pick Her portrait or Your picture to see a round picture instead, with a thin ring that moves with her. Upload your picture on her page.",
+      "start"
+    ],
+    "ap-runs": [
+      "What she did for a reply (memories, steps, cost) sits in a card under it. Folded shows one line you can open; Open shows every step. Approvals, failures and work still running always open.",
+      "start"
+    ],
     "ap-portrait": [
       "How big her picture is in chats, projects and Settings. Her own page and calls always show her full size.",
       "start"

@@ -4,7 +4,8 @@ import { LiveCall } from './live.js';
 import { VideoCallView } from './video-call.js';
 import { CallApprovals } from './call-approvals.js';
 import { parse as parseMd, toDom } from './markdown.js';
-import { customAccent } from './accent.js';
+import { accentOnPaletteChange, customAccent } from './accent.js';
+import { herPictureMode } from './v4-picture.js';
 import { Presence, setLookVersion } from './presence.js';
 import { openLightbox } from './lightbox.js';
 import { dialRows as dialRowsOf, refreshDials, soFarText } from './dials.js';
@@ -523,6 +524,8 @@ function convRow(c, o = {}) {
   a.className = `conv${c.id === state.currentId ? ' active' : ''}${o.isEarlier ? ' conv-earlier-row' : ''}`;
   a.draggable = true;
   a.dataset.id = c.id;
+  // V4d: the row's state for its dot in the new look (working, ended, open, idle).
+  a.dataset.state = c.working ? 'working' : c.endedAt ? 'ended' : c.id === state.currentId ? 'open' : 'idle';
   // Phase 108: inside its channel project a session drops the channel's name from its title ("Telegram: Maria" → "Maria").
   let shown = o.inChannel ? channelTitle(c) : c.title;
   // Under its room's heading (Group by room) a session named after the room says when it started instead.
@@ -671,19 +674,33 @@ function group(key, label, convs, opts = {}) {
   const box = el('div', `conv-group${opts.builtin ? ' group-builtin' : ''}`);
   const head = el('div', 'group-head');
   const isCollapsed = collapsed.has(key);
-  const toggle = el('button', 'group-toggle', `${isCollapsed ? '▸' : '▾'} `);
+  // V4d: one row per group. Sara Classic shows the arrow and capitals as before; the new look shows a
+  // chevron, the folder (or channel) icon, the name and the count (v4-pages.css hides the other set).
+  const toggle = el('button', 'group-toggle');
   toggle.type = 'button';
   toggle.setAttribute('aria-expanded', String(!isCollapsed));
-  const ic = opts.icon ? icon(opts.icon, 'group-icon') : null;
+  toggle.append(el('span', 'group-arrow', isCollapsed ? '▸' : '▾'), document.createTextNode(' '), icon('chevron-down', 'group-chev') ?? '');
+  const ic = opts.icon ? icon(opts.icon, 'group-icon') : opts.folder ? icon(opts.folder, 'group-icon group-folder') : null;
   if (ic) toggle.append(ic);
-  toggle.append(document.createTextNode(label));
+  // Sara Classic keeps the plain label (its row is laid out exactly as before).
+  const nameEl = el('span', 'group-name', label);
+  nameEl.dataset.raw = '';
+  toggle.append(localStorage.getItem('sara.palette') === 'classic' ? document.createTextNode(label) : nameEl);
   const unloaded = opts.groupKey ? (state.unloaded?.[opts.groupKey] ?? 0) : 0;
-  toggle.append(el('small', 'muted', ` ${convs.length + unloaded}`));
-  toggle.addEventListener('click', () => {
+  toggle.append(el('small', 'muted group-n', ` ${convs.length + unloaded}`));
+  const flip = () => {
     collapsed.has(key) ? collapsed.delete(key) : collapsed.add(key);
     saveCollapsed();
     renderConversations();
     document.querySelector(`#conversations .conv-group[data-key="${CSS.escape(key)}"] .group-toggle`)?.focus();
+  };
+  toggle.addEventListener('click', flip);
+  // Arrow keys as in a tree: right opens a folded group, left folds an open one.
+  toggle.addEventListener('keydown', (e) => {
+    if ((e.key === 'ArrowRight' && collapsed.has(key)) || (e.key === 'ArrowLeft' && !collapsed.has(key))) {
+      e.preventDefault();
+      flip();
+    }
   });
   box.dataset.key = key;
   head.append(toggle);
@@ -805,6 +822,15 @@ function hiddenGroup(hidden, live) {
   return box;
 }
 
+/** V4d: the project page button of a group row (▤ in Sara Classic, an icon in the new look). */
+function pageBtn(p) {
+  const b = smallBtn('▤', t('Project page: conversations, to-dos, notes and files'), () => openProjectPage(p.id));
+  b.setAttribute('aria-label', t('Open the page of {name}', { name: p.name }));
+  const ic = icon('project', 'gb-ic');
+  if (ic) b.append(ic);
+  return b;
+}
+
 function smallBtn(label, title, fn) {
   const b = el('button', 'ghost small group-btn', label);
   b.type = 'button';
@@ -862,7 +888,7 @@ function renderConversations() {
         dropProject: p.id,
         byRoom: byRoomOn(p.id),
         ...paging(`p${p.id}`, p.id),
-        buttons: [smallBtn('▤', t('Project page: conversations, to-dos, notes and files'), () => openProjectPage(p.id)), menuBtn],
+        buttons: [pageBtn(p), menuBtn],
       });
     })
     .filter(Boolean);
@@ -870,18 +896,18 @@ function renderConversations() {
     .filter((p) => !p.builtin)
     .map((p) =>
       group(`p${p.id}`, p.name, live.filter((c) => c.projectId === p.id), {
+        folder: 'folder',
         dropProject: p.id,
         empty: t('Empty: drag a conversation here, or press +.'),
         ...paging(`p${p.id}`, p.id),
-        buttons: [smallBtn('+', t('New conversation in {name}', { name: p.name }), () => newConversation(p.id)), smallBtn('▤', t('Project page: conversations, to-dos, notes and files'), () => openProjectPage(p.id))],
+        buttons: [smallBtn('+', t('New conversation in {name}', { name: p.name }), () => newConversation(p.id)), pageBtn(p)],
       }),
     );
   const loose = live.filter((c) => c.projectId === null || !known.has(c.projectId));
-  const parts = [...channelGroups, ...groups, group('none', projects.some((p) => !p.builtin) ? t('No project') : t('Conversations'), loose, { dropProject: null, ...paging('none', 'none') })];
-  // V1 §5: a Projects section above the conversations (the same projects, each opens its page).
-  const own = projects.filter((p) => !p.builtin && !p.hidden);
-  if (own.length) parts.unshift(projectsSection(own, live));
-  if (archived.length || (!state.tagFilter && state.unloaded?.archived)) parts.push(group('archived', t('Archived'), archived, paging('archived', 'archived')));
+  const parts = [...channelGroups, ...groups, group('none', projects.some((p) => !p.builtin) ? t('No project') : t('Conversations'), loose, { folder: 'chat', dropProject: null, ...paging('none', 'none') })];
+  // V4d: the V1 Projects section is gone: it listed his projects a second time (page only, no
+  // channels, no No project). Each group above is that project's one row.
+  if (archived.length || (!state.tagFilter && state.unloaded?.archived)) parts.push(group('archived', t('Archived'), archived, { folder: 'archive', ...paging('archived', 'archived') }));
   const hidden = projects.filter((p) => p.hidden);
   if (hidden.length) parts.push(hiddenGroup(hidden, live));
   for (const [k, init] of [['archived', 'archived-init'], ['hidden', 'hidden-init']]) {
@@ -892,33 +918,6 @@ function renderConversations() {
     }
   }
   nav.replaceChildren(...parts);
-}
-
-/** V1 §5: the sidebar's Projects section (Sara Classic hides it: its project groups stay as they are). */
-function projectsSection(own, live) {
-  const box = el('section', 'side-projects');
-  box.setAttribute('aria-labelledby', 'side-projects-h');
-  const h = el('h3', 'side-sec-h', t('Projects'));
-  h.id = 'side-projects-h';
-  const list = el('ul', 'side-proj-list');
-  for (const p of own) {
-    const n = live.filter((c) => c.projectId === p.id).length;
-    const b = el('button', 'side-proj');
-    b.type = 'button';
-    b.title = t('Project page: conversations, to-dos, notes and files');
-    b.setAttribute('aria-label', `${p.name}: ${n === 1 ? t('1 conversation') : t('{n} conversations', { n })}`);
-    const name = el('span', 'side-proj-name', p.name);
-    name.dataset.raw = '';
-    const count = el('span', 'side-proj-n', String(n));
-    count.setAttribute('aria-hidden', 'true');
-    b.append(icon('folder') ?? '', name, count);
-    b.addEventListener('click', () => openProjectPage(p.id));
-    const li = el('li');
-    li.append(b);
-    list.append(li);
-  }
-  box.append(h, list);
-  return box;
 }
 
 // Phase 22: tags.
@@ -1976,7 +1975,7 @@ function renderMessages(messages, opts = {}) {
   const newTurn = () => ({ steps: null, files: [], filesSlot: null, mem: new Set(), runId: 0, budget: null, budgetMsg: null });
   const flush = () => {
     if (!turn) return;
-    if (turn.mem.size) memoryStep((turn.steps ??= newSteps()), turn.mem.size);
+    if (turn.mem.size) memoryStep((turn.steps ??= newSteps()), turn.mem.size, { ids: [...turn.mem], open: (ids) => void openMemory({ focusIds: ids }) });
     // Phase 79: the reply's budget meter on its step line.
     if (turn.budget && turn.steps) setBudget(turn.steps, budgetMeter(turn.budget, { compact: true }));
     // Phase 78: "Show the run" (not on the demo, which keeps no run history for visitors).
@@ -3984,7 +3983,10 @@ $('#sara-status').addEventListener('click', () => openSara());
 
 // Her picture follows her mood (or the owner's own picture).
 function setFace(st) {
-  const custom = st.customAvatar;
+  const own = st.customAvatar;
+  // V4d: Her portrait (Appearance) shows her mood pictures even when one of yours is uploaded.
+  const pic = localStorage.getItem('sara.palette') === 'classic' ? (own ? 'own' : 'orb') : herPictureMode(localStorage.getItem('sara.herPicture'), Boolean(own));
+  const custom = pic === 'portrait' ? null : own;
   const x = st.expression && st.expression !== 'default' ? st.expression : null;
   // The look's version, so a new look is fetched instead of the copy the page already holds.
   const v = state.lookVersion ? `?v=${state.lookVersion}` : '';
@@ -3992,12 +3994,15 @@ function setFace(st) {
   const portrait = custom ? avatar : x ? `/sara/portrait-${x}.jpg${v}` : `/sara-portrait.jpg${v}`;
   for (const img of document.querySelectorAll('img.avatar')) if (!img.src.endsWith(avatar)) img.src = avatar;
   state.expression = x ?? 'default';
-  state.customAvatar = custom ? avatar : null;
-  document.documentElement.classList.toggle('v4-own-face', Boolean(custom));
+  state.customAvatar = own ? `/api/sara/avatar?t=${Date.now() >> 16}` : null;
+  document.documentElement.classList.toggle('v4-own-face', pic !== 'orb');
+  document.documentElement.style.setProperty('--her-pic', `url("${avatar}")`);
+  state.lastFace = st;
+  if (!localStorage.getItem('sara.herPicture') && $('#ap-herpic')) $('#ap-herpic').value = pic;
   panelFace({ avatar, portrait, expression: state.expression });
   for (const pr of [sdPresence, callPresence]) pr.setExpression(state.expression, state.customAvatar);
   if (videoView.open) videoView.backdrop();
-  $('#avatar-reset').hidden = !custom;
+  $('#avatar-reset').hidden = !own;
 }
 // M10: "Add documents", "Import a file"… are buttons that open their hidden file picker.
 document.addEventListener('click', (e) => {
@@ -7292,6 +7297,8 @@ $('#import-file').addEventListener('change', async (e) => {
 async function openMemory(opts = {}) {
   $('#mem-error').textContent = '';
   // Phase 77: "Update the note" / "Open the note" open the list on that note.
+  // V4d: "See what she remembers" under a reply opens the notes it used (focusIds).
+  if (opts.focusIds?.length && !opts.focus) opts = { ...opts, focus: opts.focusIds[0] };
   if (opts.focus) {
     $('#mem-q').value = '';
     $('#mem-kind').value = '';
@@ -7319,6 +7326,11 @@ async function openMemory(opts = {}) {
   if (!$('#memory').open) $('#memory').showModal();
   if (opts.focus) {
     const card = document.querySelector(`#mem-list .mem[data-mem="${opts.focus}"]`);
+    for (const id of opts.focusIds ?? []) {
+      const c = document.querySelector(`#mem-list .mem[data-mem="${id}"]`);
+      c?.classList.add('highlight');
+      if (c) setTimeout(() => c.classList.remove('highlight'), 4000);
+    }
     if (card) {
       card.scrollIntoView({ block: 'center' });
       card.classList.add('highlight');
@@ -9212,6 +9224,8 @@ for (const k of Object.keys(AP_DEFAULTS)) {
   sel.addEventListener('change', () => {
     if (k === 'accent' && sel.value === 'custom' && !readCustomAccent()) return void setCustomAccent($('#ap-accent-custom').value);
     localStorage.setItem(`sara.${k}`, sel.value);
+    // V4d: an explicit pick remembers the palette it was made in (leaving Classic keeps it, see below).
+    if (k === 'accent') localStorage.setItem('sara.accentPicked', palettePick());
     applyAppearance();
     showAppearance();
   });
@@ -9245,8 +9259,30 @@ function showAppearance() {
   const c = readCustomAccent();
   if (c) $('#ap-accent-custom').value = $('#ap-accent-hex').value = c.hex;
 }
+// V4d: her picture (orb, her portrait or yours) and how run cards start (folded or open), this device.
+for (const [id, key, def] of [['ap-herpic', 'sara.herPicture', ''], ['ap-runs', 'sara.runDetails', 'folded']]) {
+  const sel = $(`#${id}`);
+  sel.value = localStorage.getItem(key) ?? (def || (state.customAvatar ? 'own' : 'orb'));
+  sel.addEventListener('change', () => {
+    localStorage.setItem(key, sel.value);
+    if (id === 'ap-herpic' && state.lastFace) setFace(state.lastFace);
+  });
+}
+$('#ap-herpic-upload').addEventListener('click', () => {
+  $('#settings').close();
+  void openSara();
+});
+$('#avatar-ap-link').addEventListener('click', () => {
+  $('#sara-dialog').close();
+  void openSettings('you-appearance');
+});
 $('#ap-palette').addEventListener('change', () => {
-  localStorage.setItem('sara.palette', $('#ap-palette').value);
+  const from = palettePick();
+  const to = $('#ap-palette').value;
+  localStorage.setItem('sara.palette', to);
+  // V4d: leaving Sara Classic with its own rose (never picked for another palette) gives the V4 default, Blue.
+  const swap = accentOnPaletteChange(from, to, localStorage.getItem('sara.accent'), localStorage.getItem('sara.accentPicked'));
+  if (swap) localStorage.setItem('sara.accent', swap);
   applyAppearance();
   showAppearance();
 });
@@ -9262,6 +9298,7 @@ function setCustomAccent(hex) {
   if (!c) return false;
   localStorage.setItem('sara.accentCustom', JSON.stringify(c));
   localStorage.setItem('sara.accent', 'custom');
+  localStorage.setItem('sara.accentPicked', palettePick());
   $('#ap-accent').value = 'custom';
   applyAppearance();
   showAppearance();
@@ -9389,7 +9426,7 @@ function apSegment(id) {
 }
 apSegSync = ['ap-theme', 'ap-motion', 'ap-decor', 'ap-density', 'ap-size', 'ap-portrait', 'ap-sessions'].map(apSegment);
 // Reset to defaults: forgets this device's look (the owner's defaults apply; docs/APPEARANCE.md).
-const AP_KEYS = ['sara.palette', 'sara.theme', 'sara.accent', 'sara.accentCustom', 'sara.decor', 'sara.portrait', 'sara.density', 'sara.chatbg', 'sara.textSize', 'sara.typing', PAGE_KEY];
+const AP_KEYS = ['sara.palette', 'sara.theme', 'sara.accent', 'sara.accentPicked', 'sara.herPicture', 'sara.runDetails', 'sara.accentCustom', 'sara.decor', 'sara.portrait', 'sara.density', 'sara.chatbg', 'sara.textSize', 'sara.typing', PAGE_KEY];
 $('#ap-reset').addEventListener('click', () => {
   if (!confirm(t('Reset how Sara looks on this device to the defaults?'))) return;
   for (const k of AP_KEYS) localStorage.removeItem(k);

@@ -220,6 +220,6 @@ test('orb: mounted in the header, sidebar brand, her messages, the call screen, 
   assert.match(qa, /<span id="orb" role="img" aria-label="Sara: here">/);
   assert.match(qa, /prefers-reduced-motion: reduce/);
   // Her own picture is never removed: with a custom face the orb is a badge.
-  assert.match(app, /classList\.toggle\('v4-own-face', Boolean\(custom\)\)/);
+  assert.match(app, /classList\.toggle\('v4-own-face', pic !== 'orb'\)/); // V4d: Appearance → Her picture
   assert.match(read('web', 'v4-living.css'), /:root\[data-palette="classic"\] \.v4-orb \{ display: none; \}/);
 });

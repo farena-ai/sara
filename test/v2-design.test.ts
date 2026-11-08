@@ -95,18 +95,10 @@ test('V2 tables: usage and a run\'s model calls as real tables (scoped header ce
   for (const l of LANGS) for (const k of ['Calls', 'Tokens in', 'Tokens out', 'Cost', 'Model', 'Provider', 'Time', 'For', 'Companion']) assert.ok(i18n(l)[k], `${l}: ${k}`);
 });
 
-test('V2 sidebar: a Projects section above the conversations, from the same projects data and pages', () => {
+test('V2 sidebar (V4d): one project list; the V2 Projects section was folded into the groups (test/v4d-sidebar.test.ts)', () => {
   const app = web('app.js');
-  assert.match(app, /const own = projects\.filter\(\(p\) => !p\.builtin && !p\.hidden\);\s*if \(own\.length\) parts\.unshift\(projectsSection\(own, live\)\);/);
-  const fn = /function projectsSection\(own, live\) \{[\s\S]*?\n\}/.exec(app)?.[0] ?? '';
-  assert.match(fn, /el\('section', 'side-projects'\)[\s\S]*?setAttribute\('aria-labelledby', 'side-projects-h'\)/, 'a labelled section');
-  assert.match(fn, /b\.addEventListener\('click', \(\) => openProjectPage\(p\.id\)\);/, 'the existing project page');
-  assert.match(fn, /b\.type = 'button';/);
-  assert.doesNotMatch(fn, /api\(/, 'no new data: the projects already loaded');
-  const css = web('style.css');
-  assert.match(css, /:root\[data-palette="classic"\] \.side-projects \{ display: none; \}/);
-  assert.match(css, /@media \(pointer: coarse\) \{ \.side-proj \{ min-height: 44px; \} \}/);
-  for (const l of LANGS) for (const k of ['Projects', '1 conversation', '{n} conversations']) assert.ok(i18n(l)[k], `${l}: ${k}`);
+  assert.doesNotMatch(app, /parts\.unshift\(projectsSection\(/, 'no second list of the same projects');
+  for (const l of LANGS) for (const k of ['Projects']) assert.ok(i18n(l)[k], `${l}: ${k}`);
 });
 
 test('V2 styling pass: add-ons and the store (underline tabs, quiet notes), first run (no emoji tiles), offline (flat card)', () => {

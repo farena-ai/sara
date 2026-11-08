@@ -45,6 +45,7 @@
   <link rel="stylesheet" href="/sharing.css">
   <link rel="stylesheet" href="/v4.css">
   <link rel="stylesheet" href="/v4-living.css">
+  <link rel="stylesheet" href="/v4-pages.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -443,7 +444,7 @@
               <p class="td-actions"><button id="td-ask" type="button">Plan my day with her</button> <button id="td-refresh" type="button" class="ghost small td-hbtn"><i class="ic" data-icon="update"></i><span class="td-btn-text">Refresh</span></button> <button id="td-custom-open" type="button" class="ghost small td-hbtn" aria-haspopup="dialog" aria-controls="td-custom"><i class="ic" data-icon="sliders"></i><span class="td-btn-text">Customise</span></button> <span id="td-fresh" class="td-fresh muted small"></span> <span id="td-status" class="muted small" role="status"></span></p>
             </div>
             <div class="td-face-wrap">
-              <button id="td-face-btn" class="td-face-btn" type="button" aria-label="Her page: her day, mood and character"><img id="td-face" class="td-face" src="/sara-portrait.jpg" alt=""></button>
+              <button id="td-face-btn" class="td-face-btn" type="button" aria-label="Her page: her day, mood and character"><img id="td-face" class="td-face" src="/sara-portrait.jpg" alt=""><span class="v4-orb td-orb" data-orb-size="112"></span></button>
               <span class="ai-badge td-ai" title="Sara is an AI companion">AI companion</span>
             </div>
           </header>
@@ -1058,7 +1059,7 @@
     <form method="dialog" class="settings-body">
       <div class="portrait" id="sd-presence" role="img" aria-label="Sara"></div>
       <h2 id="sd-title">Sara</h2>
-      <p class="small muted">Her picture changes with her mood. <button type="button" class="file-btn" data-pick="avatar-file">Use my own picture</button><input id="avatar-file" type="file" accept="image/jpeg,image/png,image/webp" hidden> <button id="avatar-reset" type="button" class="ghost small" hidden>Back to her pictures</button></p>
+      <p class="small muted">Her picture changes with her mood. <button type="button" class="file-btn" data-pick="avatar-file">Use my own picture</button><input id="avatar-file" type="file" accept="image/jpeg,image/png,image/webp" hidden> <button id="avatar-reset" type="button" class="ghost small" hidden>Back to her pictures</button> <button id="avatar-ap-link" type="button" class="linkish">Where her picture shows: Appearance</button></p>
       <p id="sd-status" class="muted"></p>
       <div id="sd-day-box" class="tidy-stack">
         <h3>Her day</h3>
@@ -3028,6 +3029,13 @@
         </label>
         <label>Text size in chat
           <select id="ap-size"><option value="14">Small</option><option value="15">Normal</option><option value="17">Large</option><option value="19">Larger</option></select>
+        </label>
+        <label>Her picture
+          <select id="ap-herpic"><option value="orb">Presence orb (default)</option><option value="portrait">Her portrait</option><option value="own">Your picture</option></select>
+        </label>
+        <p class="small muted ap-herpic-note">A picture shows round, with a thin ring that moves with her like the orb. <button id="ap-herpic-upload" type="button" class="linkish">Upload your picture of her</button></p>
+        <label>Show run details
+          <select id="ap-runs"><option value="folded">Folded (default)</option><option value="open">Open</option></select>
         </label>
         <label>Her picture in work views
           <select id="ap-portrait"><option value="small">Small (default)</option><option value="large">Large</option><option value="hidden">Hidden</option></select>

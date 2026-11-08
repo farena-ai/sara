@@ -5,6 +5,27 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.0.1 (2026-11-08): every page in the new look
+
+- **Every page in the new look:** Today, Planner, Memory, Library, Scrapbook, Moments, Your story, Team,
+  Findings, Evals and Settings now match the 3.0 chat. Today opens with her live presence orb next to
+  the greeting (her portrait stays as a small picture, or large, or hidden, as you set it), glass cards
+  with quiet headings, and the weather and usage lines in your colour. Every card, setting, Customise
+  option and button is still there. Sara Classic looks exactly as before.
+- **Leaving Sara Classic:** if you never picked a colour yourself, Sara now switches from Classic's rose
+  to Blue when you pick another palette. A colour you picked stays.
+- **Projects listed once in the sidebar:** each project (Telegram and the other chat apps too, No
+  project, Archived and Hidden) is one folder row that opens to show its chats; its page, a new chat
+  and the ⋯ menu sit at the end of the row. Each chat has a dot for what it is doing (working, open,
+  done, ended). Arrow keys open and close a row. Classic keeps its old list.
+- **Her picture:** Settings → Appearance → Her picture: the presence orb (default), her portrait, or the
+  picture you uploaded, shown round with a thin ring that moves with her (listening, thinking,
+  speaking). Upload a picture on her page.
+- **Clearer run cards:** "Remembered 16 things" now reads "Used 16 memories" (what she already knew that
+  shaped the reply) and opens those notes. The card under a reply is folded to one line until you open
+  it (Settings → Appearance → Show run details), but always opens for an approval, a failed step or work
+  still running.
+
 ## 3.0.0 (2026-11-08): a living-system look
 
 - **Android app for Google Play (3.0.0, versionCode 30000):** place reminders now
