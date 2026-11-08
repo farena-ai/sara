@@ -114,5 +114,8 @@ the launcher's shape.
 - The app's name on the home screen is "Sara"; inside the app and on the widget she uses the name
   you gave her.
 - Google Play: the app uses two kinds of foreground service, which the Play Console asks about
-  (Phase 19): *microphone* (live calls) and *remote messaging* (instant notifications).
+  (Phase 19): *microphone* (live calls and Hey Sara) and *remote messaging* (instant notifications).
+  Place reminders need *Allow all the time*: before any location prompt the app shows its own
+  disclosure (*Place reminders use your location*, Play's prominent-disclosure rule; tested in
+  `test/c18-android-release.test.ts`). Play answers and videos: `docs/ops/PLAY_SUBMIT_2880.md`.
 - iPhone: see `ios/README.md`.

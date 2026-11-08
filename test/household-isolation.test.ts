@@ -413,6 +413,16 @@ test('people (Phase 101): each person\'s cards are their own; no one reaches ano
   for (const p of [owner, ana, ben]) assert.equal((await call(p, 'DELETE', `/api/people/${ids.get(p)}?memories=1`)).status, 200);
 });
 
+test('memory map (V4b): each person\'s map holds only their own notes', async () => {
+  for (const p of [owner, ana, ben]) assert.equal((await call(p, 'POST', '/api/memories', { kind: 'fact', content: `Map note ${p.marker}` })).status, 201);
+  for (const p of [owner, ana, ben]) {
+    const r = await call(p, 'GET', '/api/memories/map');
+    assert.equal(r.status, 200, `${p.name}: ${r.text}`);
+    assert.ok(r.text.includes(p.marker), `${p.name} sees their own note on the map`);
+    for (const o of [owner, ana, ben].filter((x) => x !== p)) assert.ok(!r.text.includes(o.marker), `${p.name} never sees ${o.name}'s notes on the map`);
+  }
+});
+
 test('her plans (Phase 103): each person\'s own agenda, off by default; no one reaches another\'s plans', async () => {
   const ids = new Map<Person, number>();
   for (const p of [owner, ana, ben]) {

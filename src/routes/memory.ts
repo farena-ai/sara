@@ -10,6 +10,7 @@ import { as400, fromPhoneApp, HttpError, readJson, SECURITY_HEADERS, send } from
 import { forgetMemory, localDate, type MemorySettings, memorySettings } from '../memory-worker.ts';
 import { clampDecay, decayPolicy, explainPolicy, FADE_PRESETS, type FadePreset } from '../memory-rank.ts';
 import { type Memory, MEMORY_KINDS, type MemoryKind, parseOnDate } from '../memory.ts';
+import { buildMemoryMap } from '../memory-map.ts';
 import { captionModel, deletePhotoEverywhere, handEligible, type Moment, MOMENTS_MODES, type MomentsMode, momentsSettings } from '../moments.ts';
 import { DEFAULT_IMAGE_MODEL, PHOTO_KEY_VAULT, photoSettings } from '../photos.ts';
 import { adultModeOn } from '../settings.ts';
@@ -114,6 +115,15 @@ export function createMemoryRoutes(ctx: RouteCtx): RouteHandler {
           if (!app.weekly) throw new HttpError(404, 'Not available');
           const result = await app.weekly.reflect(true);
           return send(res, 200, { result });
+        }
+        // V4b (docs/ops/V4_DESIGN.md): the memory map: this space's own notes, how they fade and
+        // what links them (src/memory-map.ts). Open contradictions come from the memory tidy.
+        if (b === 'map' && method === 'GET' && !c) {
+          const today = localDate(app.now().toISOString(), app.settings.get().timeZone);
+          const pairs: [number, number][] = [];
+          const tidy = app.memoryTidy;
+          if (tidy) for (const r of tidy.runs(10)) for (const ch of tidy.view(r.id)?.changes ?? []) if (ch.kind === 'contradiction' && (ch.state === 'open' || ch.state === 'kept-both')) pairs.push([ch.a.id, ch.b.id]);
+          return send(res, 200, buildMemoryMap(mem.listAll(), { policy: decayPolicy(memorySettings(app)), today, contradictions: pairs }, mem));
         }
         const id = Number(b);
         if (!Number.isInteger(id)) throw new HttpError(404, 'Not found');

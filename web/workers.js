@@ -4,6 +4,7 @@
 // dropped; a worker that needs you sends one alert. Export a worker (and the workers it leads) as a
 // file; import shows what it may do before anything is made. Nothing here calls a model by itself.
 import { t } from './naming.js';
+import { orbMount } from './orb.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement, openConversation?: (id: string) => Promise<void> } | null} */
 let ctx = null;
@@ -83,7 +84,8 @@ async function act(path, method = 'POST', body = {}) {
 function workerRow(w) {
   const row = el('div', `rt-row wr-row${w.state === 'on' ? '' : ' rt-off'}`);
   const head = el('div', 'rt-row-head');
-  head.append(el('span', 'rt-title', w.name), el('span', `wt-state wt-${w.state === 'on' ? 'active' : 'paused'}`, w.state === 'on' ? t('On') : t('Paused')));
+  // V4b: a small orb per worker: swirling while it works on a job, still otherwise.
+  head.append(orbMount(16, { state: w.running ? 'thinking' : 'idle', cls: 'wr-orb', name: w.name }), el('span', 'rt-title', w.name), el('span', `wt-state wt-${w.state === 'on' ? 'active' : 'paused'}`, w.state === 'on' ? t('On') : t('Paused')));
   if (w.needsYou) head.append(el('span', 'chip waiting', t('Needs you')));
   row.append(head);
   if (w.character) row.append(el('p', 'muted small wr-char', w.character));

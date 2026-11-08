@@ -84,10 +84,10 @@
     <string name="lock_prompt">Sara entsperren</string>
     <string name="lock_needs_screen_lock">Richte zuerst eine Displaysperre in den Einstellungen deines Handys ein.</string>
     <!-- Place reminders and saved pictures -->
-    <string name="places_title">Standort immer erlauben?</string>
-    <string name="places_message">Damit Sara dich erinnern kann, wenn du irgendwo ankommst, muss sie deine Ankunft auch bei geschlossener App bemerken. Wähle auf dem nächsten Bildschirm \"Immer zulassen\". Dein Standort bleibt auf diesem Handy: Sara sagt deinem Server nur \"angekommen bei Laden\".</string>
+    <string name="places_title">Ortserinnerungen nutzen deinen Standort</string>
+    <string name="places_message">Sara erfasst Standortdaten für Ortserinnerungen, auch wenn die App geschlossen ist oder nicht verwendet wird. So kann sie dich erinnern, wenn du an einem gespeicherten Ort ankommst oder ihn verlässt (\"erinnere mich, wenn ich zu Hause bin\"). Dein Standort wird auf diesem Handy geprüft: Sara meldet deinem eigenen Sara-Server nur \"bei Zuhause angekommen\" oder \"Arbeit verlassen\", und die gespeicherten Orte liegen auf diesem Server. Als Nächstes fragt Android: Wähle \"Immer zulassen\". Du kannst Ortserinnerungen jederzeit in den Einstellungen ausschalten.</string>
     <string name="places_continue">Weiter</string>
-    <string name="places_not_now">Nicht jetzt</string>
+    <string name="places_not_now">Nein danke</string>
     <string name="places_no_service">Dieses Handy hat keinen Standortdienst.</string>
     <string name="places_need_permission">Sara braucht die Standortberechtigung, um einen Ort zu speichern.</string>
     <string name="places_need_permission_watch">Sara braucht die Standortberechtigung, um einen Ort zu speichern oder darauf zu achten.</string>

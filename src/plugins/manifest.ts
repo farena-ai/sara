@@ -220,6 +220,18 @@ export function satisfies(version: string, range: string): boolean {
   });
 }
 
+/**
+ * Checks Sara's own version against an add-on's or store item's `sara` range. Sara 3.0 changed the
+ * look, not the add-on interface, so a range capped at "<3.0.0" (how 2.x add-ons were written)
+ * also accepts 3.x. Floors and any other cap are kept as written.
+ */
+export function saraSatisfies(version: string, range: string): boolean {
+  if (satisfies(version, range)) return true;
+  if (parseSemver(version)?.[0] !== 3) return false;
+  const widened = String(range ?? '').replace(/<\s*v?3(?:\.0(?:\.0)?)?(?=\s|\||$)/g, '<4.0.0');
+  return widened !== range && satisfies(version, widened);
+}
+
 // ---------------------------------------------------------------------------------------------
 // hosts
 // ---------------------------------------------------------------------------------------------
@@ -488,7 +500,7 @@ export function parseManifest(raw: unknown, opts: { saraVersion: string; files?:
   const homepage = opt('homepage', 300);
   if (homepage && !/^https:\/\/[^\s]+$/.test(homepage)) throw new ManifestError('The homepage must be an https:// address.');
   const sara = opt('sara', 100);
-  if (sara && !satisfies(opts.saraVersion, sara)) throw new ManifestError(`It needs Sara ${sara}; this server runs ${opts.saraVersion}.`);
+  if (sara && !saraSatisfies(opts.saraVersion, sara)) throw new ManifestError(`It needs Sara ${sara}; this server runs ${opts.saraVersion}.`);
   const main = str(m.main, 'main', 120).replace(/\\/g, '/');
   if (!/\.(mjs|js)$/.test(main) || main.startsWith('/') || main.split('/').some((s) => s === '..' || s === '') || /^[A-Za-z]:/.test(main)) throw new ManifestError('main must be a .mjs or .js file inside the plugin folder.');
   if (opts.files && !opts.files.includes(main)) throw new ManifestError(`main says ${main}, but there is no such file in the plugin.`);

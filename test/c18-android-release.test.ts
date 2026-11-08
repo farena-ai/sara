@@ -45,3 +45,93 @@ test('C18: the manifest asks only for the permissions the Play release notes dec
   const doc = read('docs', 'ops', 'C18_PLAY_RELEASE.md');
   for (const p of perms) assert.ok(doc.includes(p!), `C18_PLAY_RELEASE.md covers ${p}`);
 });
+
+// Play 2.88: background location needs the app's own prominent disclosure BEFORE Android's prompt,
+// saying the app collects location data, for which feature, and "even when the app is closed or not
+// in use" (Google's wording), in every language the app ships.
+test('Play 2.88: place reminders show the prominent disclosure before any location prompt', () => {
+  const ask = main.slice(main.indexOf('private void askPlacePermissions()'), main.indexOf('private void placeResult('));
+  const disclose = ask.indexOf('showPlacesDisclosure();');
+  assert.ok(disclose > 0, 'askPlacePermissions shows the disclosure');
+  const firstRequest = ask.indexOf('requestPermissions(');
+  assert.ok(firstRequest > disclose, 'the disclosure comes before the first location request');
+  assert.match(ask, /if \(!placesDisclosed\) \{\s+showPlacesDisclosure\(\);\s+return;/);
+  // The background request is reached only after Continue (placesDisclosed = true in the dialog).
+  assert.match(ask, /setPositiveButton\(R\.string\.places_continue, \(d, w\) -> \{\s+placesDisclosed = true;\s+askPlacePermissions\(\);/);
+  assert.match(ask, /setCancelable\(false\)/);
+  assert.match(ask, /ACCESS_BACKGROUND_LOCATION\}, REQ_PLACES_BG/);
+  // The toggle and the Fix button both go through it.
+  assert.match(main, /if \(on\) askPlacePermissions\(\);/);
+  assert.match(main, /public void fixPlacePermissions\(\) \{\s+runOnUiThread\(MainActivity\.this::askPlacePermissions\)/);
+  // Nothing else in the app asks for background location.
+  assert.equal(main.split('ACCESS_BACKGROUND_LOCATION}').length - 1, 1);
+
+  const need: Record<string, RegExp[]> = {
+    values: [/collects location data/, /place reminders/, /even when the app is closed or not in use/, /Allow all the time/],
+    'values-es': [/recopila datos de ubicación/, /recordatorios por lugar/, /incluso cuando la app está cerrada o no se está usando/],
+    'values-fr': [/collecte des données de localisation/, /rappels de lieu/, /même lorsque l\\'app est fermée ou n\\'est pas utilisée/],
+    'values-de': [/erfasst Standortdaten/, /Ortserinnerungen/, /auch wenn die App geschlossen ist oder nicht verwendet wird/],
+    'values-pt-rBR': [/coleta dados de localização/, /lembretes por lugar/, /mesmo quando o app está fechado ou não está em uso/],
+    'values-it': [/raccoglie dati sulla posizione/, /promemoria di luogo/, /anche quando l\\'app è chiusa o non in uso/],
+  };
+  for (const [dir, res] of Object.entries(need)) {
+    const xml = read('android', 'app', 'src', 'main', 'res', dir, 'strings.xml');
+    const msg = /<string name="places_message">([\s\S]*?)<\/string>/.exec(xml)?.[1] ?? '';
+    for (const re of res) assert.match(msg, re, `${dir}: places_message ${re}`);
+  }
+});
+
+// Play 2.88 (found while recording the microphone video): the first time Hey Sara is switched on, Android's
+// microphone prompt came back to nothing and the service never started. The answer now starts it.
+test('Play 2.88: allowing the microphone for Hey Sara starts the service (switch, tile, resume)', () => {
+  const res = main.slice(main.indexOf('public void onRequestPermissionsResult('));
+  assert.match(res, /if \(code == REQ_WAKE_MIC\) \{[\s\S]*?if \(has\(Manifest\.permission\.RECORD_AUDIO\)\) WakeService\.start\(this, action\);/);
+  // Denied from the switch: the switch goes back off (nothing listens).
+  assert.match(res, /else if \(WakeService\.ACTION_START\.equals\(action\)\) WakeService\.prefs\(this\)\.edit\(\)\.putBoolean\("on", false\)/);
+  const asks = [...main.matchAll(/requestPermissions\(new String\[\]\{android\.Manifest\.permission\.RECORD_AUDIO\}, (\w+)\)/g)].map((m) => m[1]);
+  assert.ok(asks.length >= 2);
+  for (const code of asks) assert.equal(code, 'REQ_WAKE_MIC');
+  assert.equal((main.match(/pendingWake = /g) ?? []).length >= 3, true, 'each ask remembers what to start');
+});
+
+// Play 2.88 (also found on the emulator): switching Hey Sara off while nothing listened went through
+// startForegroundService without startForeground, and Android killed the app.
+test('Play 2.88: switching Hey Sara off never uses startForegroundService', () => {
+  const wake = read('android', 'app', 'src', 'main', 'java', 'com', 'backstagecoding', 'sara', 'WakeService.java');
+  const start = wake.slice(wake.indexOf('static void start(Context c, String action)'), wake.indexOf('static volatile boolean running'));
+  const stop = start.indexOf('if (ACTION_STOP.equals(action))');
+  const fgs = start.indexOf('c.startForegroundService(i)');
+  assert.ok(stop > 0 && fgs > stop, 'Stop is handled before startForegroundService');
+  assert.match(start.slice(stop, fgs), /if \(!running\) \{[\s\S]*?return;\s*\}/);
+  assert.match(start.slice(stop, fgs), /c\.startService\(i\)/);
+  assert.match(wake, /onStartCommand\(Intent intent, int flags, int startId\) \{\s+channels\(\);\s+running = true;/);
+  assert.match(wake, /public void onDestroy\(\) \{\s+running = false;/);
+});
+
+// Play 2.88 (found recording the Hey Sara video): POST /api/wake/model only unpacked the word list, so the
+// four model files phones fetch from GET /api/wake/model/<file> never appeared ("Getting the speech model
+// from your server…" forever). The same pinned tarball now gives both, each file checked before it's kept.
+test('Play 2.88: the server unpacks the phone keyword model with the word list, each file checked', () => {
+  const wake = read('src', 'routes', 'wake.ts');
+  const fn = wake.slice(wake.indexOf('async function fetchLexicon('));
+  const body = fn.slice(0, fn.indexOf('\n}\n'));
+  assert.match(body, /runTar\(systemTar\(\)\)\(tarFile, tmp, \[LEXICON\.inTar, \.\.\.MODEL_FILES\.map\(\(f\) => f\.inTar\)\]\)/);
+  assert.match(body, /for \(const f of MODEL_FILES\) \{[\s\S]*?buf\.length !== f\.size \|\| createHash\('sha256'\)\.update\(buf\)\.digest\('hex'\) !== f\.sha256\) throw[\s\S]*?renameSync\(part, join\(modelDir, f\.name\)\)/);
+  // Where the GET route looks for them: <lexicon dir>/model/<name>.
+  assert.match(wake, /const modelFile = \(name: string\) => join\(lexFile\(\), '\.\.', 'model', name\)/);
+  assert.match(body, /const modelDir = join\(dir, 'model'\)/);
+});
+
+// Play 2.88 (found recording the call video): over plain http (a server at home) the page has no secure
+// context, so the call button stayed hidden in the Android app although the app runs calls natively.
+test('Play 2.88: the phone app offers live calls on http servers too (native calls), web-only parts stay hidden', () => {
+  const app = read('web', 'app.js');
+  const init = app.slice(app.indexOf('async function initVoice()'), app.indexOf('syncCallButton();', app.indexOf('async function initVoice()')));
+  assert.match(init, /voice\.nativeCalls = Boolean\(window\.SaraPhone\?\.startCall\)/);
+  assert.match(init, /voice\.callShown = \(micOk && \(voice\.live \|\| \(canHear && canSpeak\)\)\) \|\| \(voice\.nativeCalls && voice\.live\)/);
+  // Voice notes and video calls record in the page: still only with a secure context.
+  assert.match(init, /\$\('#mic'\)\.hidden = !\(canHear && micOk\)/);
+  assert.match(app, /\$\('#video-call-btn'\)\.hidden = \$\('#call'\)\.hidden \|\| voice\.webMic === false/);
+  // A live call in the app goes to the native call (not getUserMedia).
+  assert.match(app, /if \(window\.SaraPhone\?\.startCall && !video\) \{/);
+});

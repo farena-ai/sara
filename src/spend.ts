@@ -112,6 +112,20 @@ export function spentNow(usage: UsageStore | undefined, now: Date, tz: string | 
   return { day: d.usd, month: m.usd, toolDay: d.toolUsd, toolMonth: m.toolUsd, dayTokens: d.tokens };
 }
 
+/**
+ * V4a (docs/ops/V4_DESIGN.md): today's spend as a line for the at-a-glance card. One point per hour
+ * since the day started (in the owner's time zone), each the total spent by then; the last point is
+ * now. Empty when nothing is metered here.
+ */
+export function spendHours(usage: UsageStore | undefined, now: Date, tz: string | undefined): number[] {
+  if (!usage) return [];
+  const start = Date.parse(periodStarts(now, tz).dayStart);
+  const day = usage.spentSince(new Date(start).toISOString()).usd;
+  const out: number[] = [];
+  for (let at = start + 3600_000; at < now.getTime(); at += 3600_000) out.push(Math.round((day - usage.spentSince(new Date(at).toISOString()).usd) * 10000) / 10000);
+  return [0, ...out, Math.round(day * 10000) / 10000];
+}
+
 export interface SpendStop {
   /** An English template (translated with trOwner and `params` where shown). */
   message: string;

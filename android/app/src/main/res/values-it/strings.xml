@@ -84,10 +84,10 @@
     <string name="lock_prompt">Sblocca Sara</string>
     <string name="lock_needs_screen_lock">Prima imposta un blocco schermo nelle impostazioni del telefono.</string>
     <!-- Place reminders and saved pictures -->
-    <string name="places_title">Consentire sempre la posizione?</string>
-    <string name="places_message">Per ricordarti qualcosa quando arrivi in un posto, Sara deve accorgersi che arrivi anche ad app chiusa. Nella schermata successiva scegli \"Consenti sempre\". La tua posizione resta su questo telefono: Sara dice al tuo server solo \"arrivato a Negozio\".</string>
+    <string name="places_title">I promemoria di luogo usano la tua posizione</string>
+    <string name="places_message">Sara raccoglie dati sulla posizione per i promemoria di luogo, anche quando l\'app è chiusa o non in uso. Così può ricordarti qualcosa quando arrivi in un luogo salvato o lo lasci (\"ricordamelo quando arrivo a casa\"). La tua posizione viene controllata su questo telefono: Sara dice al tuo server Sara solo \"arrivato a Casa\" o \"uscito dal Lavoro\", e i luoghi salvati restano su quel server. Ora Android te lo chiede: scegli \"Consenti sempre\". Puoi disattivare i promemoria di luogo quando vuoi in Impostazioni.</string>
     <string name="places_continue">Continua</string>
-    <string name="places_not_now">Non ora</string>
+    <string name="places_not_now">No, grazie</string>
     <string name="places_no_service">Questo telefono non ha un servizio di localizzazione.</string>
     <string name="places_need_permission">Sara ha bisogno del permesso di posizione per salvare un luogo.</string>
     <string name="places_need_permission_watch">Sara ha bisogno del permesso di posizione per salvare un luogo o tenerlo d\'occhio.</string>

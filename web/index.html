@@ -43,11 +43,15 @@
   <link rel="stylesheet" href="/recall.css">
   <link rel="stylesheet" href="/v3.css">
   <link rel="stylesheet" href="/sharing.css">
+  <link rel="stylesheet" href="/v4.css">
+  <link rel="stylesheet" href="/v4-living.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
   <!-- 2.8: the slow aurora behind the glass (web/polish.css; still with reduced motion) -->
   <div id="aurora" class="aurora" aria-hidden="true"><i class="au-1"></i><i class="au-2"></i><i class="au-3"></i><i class="au-grain"></i></div>
+  <!-- V4a (docs/ops/V4_DESIGN.md): the ambient field, very faint; faster while she works (web/v4.js). -->
+  <canvas id="v4-field" class="v4-field" aria-hidden="true"></canvas>
   <div id="shell-drag" class="shell-drag" aria-hidden="true"></div>
   <!-- V1: shown once to people who used Sara before the new look. -->
   <div id="v1-notice" class="v1-notice" role="status" hidden><span><strong>New look.</strong> Sara now uses the Graphite theme. Change it any time in Settings → You → Appearance.</span><button id="v1-classic" type="button" class="ghost small">Switch back to Sara Classic</button><button id="v1-notice-close" type="button" class="ghost small">Keep the new look</button></div>
@@ -171,10 +175,20 @@
   <!-- App -->
   <section id="main" class="screen" hidden>
     <a id="skip-main" class="skip-main" href="#chat">Skip to main content</a>
+    <!-- V4a: the live status strip. Every chip is something real she is doing; a chip with nothing to
+         show is hidden (web/v4.js). The .v4-orb spans are V4b's mount points for her presence orb. -->
+    <header id="v4-strip" class="v4-strip" aria-label="What she is doing now">
+      <button id="v4-word" class="v4-word" type="button" title="Her page: her day, mood, character (Alt+H)"><span class="v4-orb" data-orb-size="18"></span><span class="v4-word-name">Sara</span></button>
+      <div id="v4-chips" class="v4-chips" role="list" aria-label="Running now"></div>
+      <span class="v4-grow"></span>
+      <button id="v4-cmd" class="v4-cmd" type="button" title="Jump to any page, setting, chat or project, or ask her (Ctrl+K)"><i class="ic" data-icon="search"></i><span class="v4-cmd-text">Ask or do anything…</span><kbd>Ctrl K</kbd></button>
+      <button id="v4-glance-btn" class="v4-icon" type="button" aria-controls="v4-glance" aria-pressed="false" title="At a glance: spend, workers, memory and today" aria-label="At a glance"><i class="ic" data-icon="panel"></i></button>
+      <button id="v4-settings" class="v4-icon" type="button" title="Settings (Ctrl+,)" aria-label="Settings"><i class="ic" data-icon="settings"></i></button>
+    </header>
     <div id="other-note" class="other-note" role="status" hidden><span id="other-note-text"></span> <button id="other-note-go" type="button" class="small"></button> <button id="other-note-x" type="button" class="ghost small" aria-label="Dismiss"><i class="ic" data-icon="close"></i></button></div>
     <aside id="sidebar">
       <div class="side-head">
-        <button id="brand-today" class="brand" type="button" title="Today (Alt+T)"><img class="avatar" src="/sara-avatar.jpg" alt=""><span class="brand-name">Sara</span></button>
+        <button id="brand-today" class="brand" type="button" title="Today (Alt+T)"><img class="avatar" src="/sara-avatar.jpg" alt=""><span class="v4-orb v4-orb-face" data-orb-size="30"></span><span class="brand-name">Sara</span></button>
         <button id="companion-switch" type="button" class="ghost small" hidden aria-haspopup="menu" aria-expanded="false" title="Talk to another companion"><i class="ic" data-icon="switch"></i></button>
         <div id="companion-menu" class="companion-menu" role="menu" hidden></div>
         <button id="new-chat" title="New conversation (not in a project)">+ New</button>
@@ -224,7 +238,7 @@
     <main id="chat" tabindex="-1">
       <header id="chat-head">
         <button id="toggle-sidebar" class="ghost" aria-label="Conversations"><i class="ic" data-icon="menu"></i></button>
-        <button id="her-face" class="head-face-btn" type="button" aria-label="Her mood and what she is doing now" aria-controls="her-panel" aria-expanded="false"><img class="avatar head-face" src="/sara-avatar.jpg" alt=""></button>
+        <button id="her-face" class="head-face-btn" type="button" aria-label="Her mood and what she is doing now" aria-controls="her-panel" aria-expanded="false"><img class="avatar head-face" src="/sara-avatar.jpg" alt=""><span class="v4-orb v4-orb-face" data-orb-size="38"></span></button>
         <div class="title-wrap">
           <h2 id="chat-title">Sara</h2>
           <button id="sara-status" class="sara-status" type="button" title="How Sara is doing (open Sara's page)" hidden></button>
@@ -274,6 +288,7 @@
       </dialog>
       <div id="call-panel" class="call-panel" hidden>
         <div id="call-presence"></div>
+        <span class="v4-orb v4-orb-call" data-orb-size="56"></span>
         <p id="call-status" class="call-status">Listening…</p>
         <div class="call-actions">
           <button id="call-to-video" type="button" class="ghost small" title="See her full size while you talk"><i class="ic" data-icon="video"></i>Video</button>
@@ -547,6 +562,31 @@
           <h2 id="hp-name" class="hp-name" data-raw>Sara</h2>
           <button id="hp-close" class="ghost icon hp-close" type="button" aria-label="Fold her panel away" title="Fold her panel away"><i class="ic" data-icon="chevron-right"></i></button>
         </div>
+        <!-- V4a: At a glance (1180 px and wider; folds, remembered on this device). Real data only, an
+             empty line when there is nothing (web/v4.js). #v4-mem-slot is V4b's memory map. -->
+        <section id="v4-glance" class="v4-glance" aria-labelledby="v4-glance-h">
+          <h3 class="hp-h v4-glance-h"><button id="v4-glance-h" class="hp-fold" type="button" aria-expanded="true" aria-controls="v4-glance-body"><span>At a glance</span><span class="hp-fold-chev" aria-hidden="true"></span></button></h3>
+          <div id="v4-glance-body" class="v4-glance-body">
+            <div class="v4-card" id="v4-g-spend">
+              <h4>Spend today <button id="v4-g-spend-go" class="hp-link" type="button">Limits</button></h4>
+              <div id="v4-g-spend-big" class="v4-big num"></div>
+              <p id="v4-g-spend-sub" class="v4-muted"></p>
+              <div id="v4-g-spark" class="v4-spark" aria-hidden="true"></div>
+            </div>
+            <div class="v4-card" id="v4-g-workers">
+              <h4>Workers <button id="v4-g-workers-go" class="hp-link" type="button">Team</button></h4>
+              <div id="v4-g-workers-list" class="v4-workers"></div>
+            </div>
+            <div class="v4-card" id="v4-g-mem">
+              <h4>Memory <button id="v4-g-mem-go" class="hp-link" type="button">Open</button></h4>
+              <div id="v4-mem-slot" class="v4-mem-slot"></div>
+            </div>
+            <div class="v4-card" id="v4-g-today">
+              <h4>Today <button id="v4-g-today-go" class="hp-link" type="button">Planner</button></h4>
+              <dl id="v4-g-today-list" class="v4-kv"></dl>
+            </div>
+          </div>
+        </section>
         <div class="hp-her">
           <button id="hp-open-her" class="hp-glow" type="button" data-mood="default" aria-label="Her page: her day, mood and character"><img id="hp-portrait" class="hp-portrait" src="/sara-portrait.jpg" alt=""></button>
           <p class="hp-mood"><span class="hp-dot" aria-hidden="true"></span><span id="hp-mood-text"></span></p>
@@ -604,7 +644,11 @@
       <input id="search-cmd-q" class="cmd-q" type="text" role="combobox" aria-expanded="true" aria-controls="cmd-list" aria-autocomplete="list" aria-label="Search places, conversations, settings and actions" placeholder="Search places, chats, settings, actions…" autocomplete="off" spellcheck="false">
       <button id="cmd-close" class="ghost small cmd-close" type="button" aria-label="Close"><i class="ic" data-icon="close"></i></button>
     </div>
-    <div id="cmd-list" class="cmd-list" role="listbox" aria-label="Results"></div>
+    <div class="cmd-res">
+      <div id="cmd-list" class="cmd-list" role="listbox" aria-label="Results"></div>
+      <!-- V4a: what the highlighted row will do, before you pick it (web/command-bar.js). -->
+      <div id="cmd-pv" class="cmd-pv" aria-live="polite"></div>
+    </div>
     <p class="cmd-foot muted small" aria-hidden="true"><span>↑↓ move</span><span>Enter open</span><span>Esc close</span></p>
     <p id="cmd-status" class="cmd-sr" role="status" aria-live="polite"></p>
   </dialog>
@@ -1496,6 +1540,24 @@
   </dialog>
 
   <!-- Phase 53: your story together -->
+  <!-- V4b (docs/ops/V4_DESIGN.md): the memory map (web/memory-map.js), opened from Memory. -->
+  <dialog id="memmap" class="memmap" aria-labelledby="mm-title">
+    <form method="dialog" class="settings-body memmap-body">
+      <h2 id="mm-title">Memory map</h2>
+      <p class="muted small">What she remembers and how it connects: notes that share words, came from the same conversation, replaced one another, or disagree. Dim notes are fading. Point at a note to read it; click it to open it in Memory.</p>
+      <p id="mm-status" class="muted small" role="status"></p>
+      <div class="mm-stage">
+        <canvas id="mm-canvas" class="mm-canvas" role="img"></canvas>
+        <div id="mm-card" class="mm-card" role="status" hidden></div>
+      </div>
+      <ul class="mm-legend muted small">
+        <li><i class="mm-k mm-k-note"></i>A note</li>
+        <li><i class="mm-k mm-k-hub"></i>Most connected</li>
+        <li><i class="mm-k mm-k-fade"></i>Fading</li>
+        <li><i class="mm-k mm-k-bad"></i>They disagree</li>
+      </ul>
+    </form>
+  </dialog>
   <dialog id="story" aria-label="Your story">
     <form method="dialog" class="settings-body story">
       <h2>Your story together</h2>
@@ -1686,6 +1748,7 @@
       <p class="muted small">Everything she remembers, in one place: what she knows about you, dates that matter, what you decided together, promises (yours and hers), moments in your story, things she noticed, notes from your conversations, and what she said about her own life. Each keeps a link to the exact words. <strong>Correct</strong> fixes a note. <strong>Delete</strong> removes it. <strong>Forget</strong> also hides the original message from her for good.</p>
       <div class="mem-tools">
         <button id="mem-timeline" type="button" class="ghost small" title="Your story: your time together, in order">🕰 Your story</button>
+        <button id="mem-map" type="button" class="ghost small" title="Memory map: what she remembers and how it connects">Memory map</button>
         <select id="mem-kind">
           <option value="">Everything</option>
           <option value="fact">About you</option>
@@ -2942,12 +3005,15 @@
         </label>
         <div class="ap-colour-row">
         <label>Colour
-          <select id="ap-accent"><option value="rose">Theme colour</option><option value="blue">Blue (default)</option><option value="cyan">Cyan</option><option value="green">Green</option><option value="amber">Amber</option><option value="red">Red</option><option value="pink">Rose</option><option value="violet">Violet</option><option value="grey">Grey</option><option value="custom">Custom</option></select>
+          <select id="ap-accent"><option value="rose">Theme colour</option><option value="blue">Blue (default)</option><option value="pink">Rose</option><option value="violet">Violet</option><option value="emerald">Emerald</option><option value="amber">Amber</option><option value="cyan">Cyan</option><option value="green">Green</option><option value="red">Red</option><option value="grey">Grey</option><option value="custom">Custom</option></select>
         </label>
           <div class="ap-swatches" id="ap-swatches" aria-hidden="true"></div>
         </div>
         <label id="ap-custom-row" class="ap-custom-row" hidden>Your colour
           <span class="ap-custom-pick"><input id="ap-accent-custom" type="color" value="#3b82f6"><input id="ap-accent-hex" maxlength="7" spellcheck="false" autocomplete="off" placeholder="#3b82f6"></span>
+        </label>
+        <label>Background motion
+          <select id="ap-motion"><option value="on">On: a faint light that moves with how busy she is (default)</option><option value="off">Off: still</option></select>
         </label>
         <label>Decoration
           <select id="ap-decor"><option value="off">Reduced: flat, no glow or blur</option><option value="on">Full: glow, glass and moving light (default)</option></select>

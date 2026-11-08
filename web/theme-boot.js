@@ -56,6 +56,18 @@
   var portrait = get('sara.portrait');
   if (!/^(large|small|hidden)$/.test(portrait || '')) portrait = pal === 'classic' ? 'large' : 'small';
   root.setAttribute('data-portrait', portrait);
+  // V4 (docs/ops/V4_DESIGN.md): the background field moves unless turned off here (reduced motion
+  // stops it too, in web/v4.js and the CSS).
+  root.setAttribute('data-motion', get('sara.motion') === 'off' ? 'off' : 'on');
+  function hexHsl(hex) {
+    var r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255;
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), h = 0, s = 0, l = (mx + mn) / 2, d = mx - mn;
+    if (d) {
+      s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+      h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    }
+    return [Math.round(h * 60), Math.round(s * 100), Math.round(l * 100)];
+  }
   if (get('sara.accent') === 'custom') {
     try {
       var c = JSON.parse(get('sara.accentCustom') || 'null')[light ? 'light' : 'dark'];
@@ -63,6 +75,11 @@
       if (c && ok(c.fill) && ok(c.text) && ok(c.on)) {
         var set = { '--accent-solid': c.fill, '--accent-text': c.text, '--on-accent': c.on, '--accent': c.fill, '--accent-2': c.text, '--btn-fill': c.fill, '--on-btn': c.on };
         for (var v in set) root.style.setProperty(v, set[v]);
+        // V4: the same colour's hue for the glows and the background field (decorative only).
+        var hsl = hexHsl(c.fill);
+        root.style.setProperty('--acc-h', String(hsl[0]));
+        root.style.setProperty('--acc-s', hsl[1] + '%');
+        root.style.setProperty('--acc-l', hsl[2] + '%');
       }
     } catch (e) {
       /* a broken value: the palette's own accent */

@@ -84,10 +84,10 @@
     <string name="lock_prompt">Déverrouiller Sara</string>
     <string name="lock_needs_screen_lock">Configurez d\'abord un verrouillage de l\'écran dans les réglages du téléphone.</string>
     <!-- Place reminders and saved pictures -->
-    <string name="places_title">Autoriser la localisation en permanence ?</string>
-    <string name="places_message">Pour vous rappeler quelque chose en arrivant quelque part, Sara doit remarquer votre arrivée même quand l\'app est fermée. Sur l\'écran suivant, choisissez \"Toujours autoriser\". Votre position reste sur ce téléphone : Sara dit seulement à votre serveur \"arrivé à Magasin\".</string>
+    <string name="places_title">Les rappels de lieu utilisent votre position</string>
+    <string name="places_message">Sara collecte des données de localisation pour les rappels de lieu, même lorsque l\'app est fermée ou n\'est pas utilisée. C\'est ainsi qu\'elle peut vous rappeler quelque chose quand vous arrivez à un lieu enregistré ou le quittez (\"rappelle-moi quand j\'arrive à la maison\"). Votre position est vérifiée sur ce téléphone : Sara indique seulement à votre propre serveur Sara \"arrivé à Maison\" ou \"parti du Travail\", et les lieux enregistrés restent sur ce serveur. Android va vous demander : choisissez \"Toujours autoriser\". Vous pouvez désactiver les rappels de lieu à tout moment dans Réglages.</string>
     <string name="places_continue">Continuer</string>
-    <string name="places_not_now">Pas maintenant</string>
+    <string name="places_not_now">Non merci</string>
     <string name="places_no_service">Ce téléphone n\'a pas de service de localisation.</string>
     <string name="places_need_permission">Sara a besoin de l\'autorisation de localisation pour enregistrer un lieu.</string>
     <string name="places_need_permission_watch">Sara a besoin de l\'autorisation de localisation pour enregistrer un lieu ou le surveiller.</string>

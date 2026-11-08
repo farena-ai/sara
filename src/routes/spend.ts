@@ -1,9 +1,9 @@
 // C8 (docs/ops/C8_DESIGN.md, docs/COSTS.md): spend limits and Token Saver, the owner's only.
-//   GET /api/spend   {spend, tokenSaver, saver, spent, cap, priced}
+//   GET /api/spend   {spend, tokenSaver, saver, spent, hours (V4a: today's running total per hour), cap, priced}
 //   PUT /api/spend   {spend?: {dayUsd, monthUsd, perTool, prices}, tokenSaver?: {mode, dailyTokens}} → the same
 import { HttpError, readJson, send } from '../http.ts';
 import { policy } from '../policy-profile.ts';
-import { mergeSpend, priceTagFor, saverNow, saverSettings, spendSettings, spentNow, SAVER_MODES, SAVER_TOKEN_CHOICES } from '../spend.ts';
+import { mergeSpend, priceTagFor, saverNow, saverSettings, spendHours, spendSettings, spentNow, SAVER_MODES, SAVER_TOKEN_CHOICES } from '../spend.ts';
 import { audit } from '../audit-trail.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
@@ -18,7 +18,7 @@ export function createSpendRoutes(ctx: RouteCtx): RouteHandler {
         return tag ? [{ name: t.spec.name, usd: tag.usd, source: tag.source }] : [];
       })
       .slice(0, 100);
-    return { spend: spendSettings(s), tokenSaver: saverSettings(s), saver: saverNow(app), spent: spentNow(app.usage, app.now(), s.timeZone), cap: policy().get().pins.spendCap ?? null, priced, modes: SAVER_MODES, tokenChoices: SAVER_TOKEN_CHOICES };
+    return { spend: spendSettings(s), tokenSaver: saverSettings(s), saver: saverNow(app), spent: spentNow(app.usage, app.now(), s.timeZone), hours: spendHours(app.usage, app.now(), s.timeZone), cap: policy().get().pins.spendCap ?? null, priced, modes: SAVER_MODES, tokenChoices: SAVER_TOKEN_CHOICES };
   };
   return async (req, res, method, parts) => {
     const [a, b] = parts;

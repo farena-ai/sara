@@ -385,6 +385,10 @@
       "Full (the default) adds soft glass, a faint glow and a slow light behind the app. Reduced keeps it flat. Reduce transparency in your system settings turns it off.",
       "start"
     ],
+    "ap-motion": [
+      "A very faint light moves behind the app, a little faster while she is working. Off keeps it still. Your system's reduce motion setting always stops it.",
+      "start"
+    ],
     "ap-portrait": [
       "How big her picture is in chats, projects and Settings. Her own page and calls always show her full size.",
       "start"
@@ -1780,7 +1784,7 @@
       "plugins"
     ],
     "her-hey": [
-      "Say “Hey Sara” and talk, hands-free, in the Windows app (on Android, use the Talk button for now). A small model on the device listens only for her words; nothing is sent until then. Off until you switch it on, per device.",
+      "Say “Hey Sara” and talk, hands-free, in the Windows, Mac or Android app. A small model on the device listens only for her words; nothing is sent until then. Off until you switch it on, per device.",
       "voice"
     ],
     "dh-operations": [

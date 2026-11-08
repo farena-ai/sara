@@ -6,6 +6,9 @@
 // off the record, a call, switching companion or theme, Your Saras…). Empty: what you opened
 // recently first, then the usual places and actions. Keys: ↑ ↓ (Home/End), Enter, Escape. Built as a
 // combobox + listbox for screen readers (aria-activedescendant follows the highlighted row).
+// V4a (docs/ops/V4_DESIGN.md): a preview pane beside the results shows what the highlighted row will
+// do before you pick it: a setting change as before → after, a place with its counts, a question as
+// "she answers in this chat" (the Ask row appears for any typed text).
 import { t } from './naming.js';
 import { icon as lineIcon } from './icons.js';
 
@@ -83,7 +86,22 @@ function allItems() {
   };
 }
 
-const groupName = (id) => ({ recent: t('Recent'), places: t('Places'), projects: t('Projects'), convs: t('Conversations'), settings: t('Settings'), actions: t('Actions') })[id] ?? id;
+const groupName = (id) => ({ recent: t('Recent'), places: t('Places'), projects: t('Projects'), convs: t('Conversations'), settings: t('Settings'), actions: t('Actions'), ask: t('Ask') })[id] ?? id;
+const KIND = { recent: () => t('Recent'), places: () => t('Place'), projects: () => t('Project'), convs: () => t('Conversation'), settings: () => t('Setting'), actions: () => t('Action'), ask: () => t('Ask') };
+
+/**
+ * V4a: the preview of one row. An item may bring its own `preview()` ({ kind, change: { from, to },
+ * kv: [[label, value]], lines: [text] }, or a promise of one); otherwise its group says what it is.
+ */
+export function previewSpec(it, own = null) {
+  const base = { title: it.label, raw: Boolean(it.raw), kind: (KIND[it.group] ?? (() => ''))(), lines: it.sub ? [it.sub] : [], change: null, kv: [] };
+  if (!own) {
+    if (it.group === 'convs') base.lines = [...base.lines, t('Opens this conversation.')];
+    if (it.group === 'projects') base.lines = [t('Opens the project: its chats, to-dos, notes and files.')];
+    return base;
+  }
+  return { ...base, ...own, lines: own.lines ?? base.lines, kv: own.kv ?? [], change: own.change ?? null };
+}
 
 function pick(list, q, n = PER_GROUP) {
   return list
@@ -115,12 +133,15 @@ function results(q) {
   const inside = ui.found.filter((x) => !have.has(x.key)).slice(0, Math.max(0, PER_GROUP - titles.length));
   // Settings: the tiered page search (app.js matchSettings) plus each setting's own label.
   const settings = ui.ctx.searchSettings(q).slice(0, PER_GROUP);
+  const ask = ui.ctx.ask?.(q.trim());
   return [
     ['places', pick(all.places, q)],
     ['projects', pick(all.projects, q)],
     ['convs', [...titles, ...inside]],
     ['settings', settings.map((x) => ({ ...x, group: 'settings' }))],
     ['actions', pick(all.actions, q)],
+    // V4a: any typed text can be a question for her (last; the only row when nothing else fits).
+    ['ask', ask ? [{ ...ask, group: 'ask' }] : []],
   ];
 }
 
@@ -195,6 +216,7 @@ function render() {
     list.append(empty);
   }
   input.setAttribute('aria-activedescendant', ui.items.length ? `cmd-o-${ui.active}` : '');
+  renderPreview();
   $('#cmd-status').textContent = ui.q.trim() ? (ui.items.length === 1 ? t('One result') : t('Results: {n}', { n: ui.items.length })) : '';
 }
 
@@ -204,6 +226,60 @@ function setActive(i, scroll = true) {
   for (const r of document.querySelectorAll('#cmd-list .cmd-item')) r.setAttribute('aria-selected', String(r.id === `cmd-o-${ui.active}`));
   $('#search-cmd-q').setAttribute('aria-activedescendant', `cmd-o-${ui.active}`);
   if (scroll) document.getElementById(`cmd-o-${ui.active}`)?.scrollIntoView({ block: 'nearest' });
+  renderPreview();
+}
+
+let pvSeq = 0;
+function drawPreview(spec) {
+  const pv = $('#cmd-pv');
+  if (!pv) return;
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
+  const parts = [];
+  if (spec.kind) parts.push(el('span', 'pv-kind', spec.kind));
+  const h = el('h5', '', spec.title);
+  if (spec.raw) h.dataset.raw = '';
+  parts.push(h);
+  if (spec.change) {
+    const row = el('p', 'pv-change');
+    row.append(el('span', 'pv-from', spec.change.from), el('span', 'pv-arrow', '→'), el('span', 'pv-to', spec.change.to));
+    row.setAttribute('aria-label', t('{from} becomes {to}', { from: spec.change.from, to: spec.change.to }));
+    parts.push(row);
+  }
+  if (spec.kv?.length) {
+    const dl = el('dl', 'pv-kv');
+    for (const [k, v] of spec.kv) dl.append(el('dt', '', k), el('dd', '', String(v)));
+    parts.push(dl);
+  }
+  for (const line of spec.lines ?? []) {
+    const p = el('p', '', line);
+    if (spec.raw) p.dataset.raw = '';
+    parts.push(p);
+  }
+  parts.push(el('p', 'pv-foot', t('Enter to do it · Esc to close')));
+  pv.replaceChildren(...parts);
+}
+/** The highlighted row's preview; an async one (counts) fills in when it arrives. */
+function renderPreview() {
+  const pv = $('#cmd-pv');
+  if (!pv) return;
+  const it = ui.items[ui.active];
+  const seq = ++pvSeq;
+  if (!it) return void pv.replaceChildren();
+  let own = null;
+  try {
+    own = it.preview?.() ?? null;
+  } catch {
+    own = null;
+  }
+  if (own && typeof own.then === 'function') {
+    drawPreview(previewSpec(it));
+    own.then((x) => seq === pvSeq && drawPreview(previewSpec(it, x)), () => {});
+  } else drawPreview(previewSpec(it, own));
 }
 
 function choose(i) {

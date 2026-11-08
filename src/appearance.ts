@@ -3,7 +3,7 @@
 // Appearance saves the set here so a device that never chose starts from it.
 
 export const PALETTES = ['graphite', 'midnight', 'slate', 'nord', 'solarized', 'paper', 'ember', 'contrast', 'classic'] as const;
-export const ACCENTS = ['rose', 'blue', 'cyan', 'green', 'amber', 'red', 'pink', 'violet', 'grey', 'lavender', 'ocean', 'forest', 'mono', 'custom'] as const;
+export const ACCENTS = ['rose', 'blue', 'cyan', 'green', 'amber', 'red', 'pink', 'violet', 'grey', 'emerald', 'lavender', 'ocean', 'forest', 'mono', 'custom'] as const;
 
 export interface AccentShade { fill: string; text: string; on: string }
 export interface Appearance {

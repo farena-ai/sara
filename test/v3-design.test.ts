@@ -212,7 +212,7 @@ test('V3 slice 5: Appearance in three groups with a live preview, swatches in th
   assert.doesNotMatch(page, /<section/, 'no nested sections (the page is one section)');
   assert.match(page, /<button id="ap-reset" type="button" class="ghost small">Reset to defaults<\/button>/);
   const app = web('app.js');
-  assert.match(app, /apSegSync = \['ap-theme', 'ap-decor', 'ap-density', 'ap-size', 'ap-portrait', 'ap-sessions'\]\.map\(apSegment\);/);
+  assert.match(app, /apSegSync = \['ap-theme', 'ap-motion', 'ap-decor', 'ap-density', 'ap-size', 'ap-portrait', 'ap-sessions'\]\.map\(apSegment\);/);
   // A segment drives its list (same value, same change event), so saving, tips and tests are unchanged.
   assert.match(app, /sel\.value = o\.value;\n\s*sel\.dispatchEvent\(new Event\('change'\)\);/);
   // Reset forgets exactly the look's keys on this device, never the notice.

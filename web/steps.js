@@ -119,6 +119,8 @@ function render(box) {
   box.classList.toggle('live', Boolean(running));
   box.classList.toggle('has-error', steps.some((s) => s.status === 'error'));
   box.querySelector('.steps-sum').setAttribute('aria-label', `${t('What she did')}: ${parts.join(', ')}`);
+  // V4b: the run timeline (web/run-timeline.js) redraws its head, marks and footer.
+  box._after?.(box);
 }
 
 /** A tool call starts (or comes from history with its result already). */
@@ -126,7 +128,7 @@ export function addStep(box, { id, name, summary, args, status = 'running', outp
   const named = box._named(name) || '';
   const [now, done, icon] = stepWords(name, args, named);
   const command = name === 'shell' ? String(args?.command ?? '') : '';
-  const step = { kind: 'tool', id, name, now, done, icon, status, what: command || summary || name, output, ms };
+  const step = { kind: 'tool', id, name, args, now, done, icon, status, what: command || summary || name, output, ms };
   rowFor(box, step);
   box._steps.push(step);
   fillRow(step);
@@ -257,6 +259,7 @@ export function runLink(box, runId, open) {
   });
   li.append(btn);
   box.querySelector('.steps-list').append(li);
+  box._after?.(box);
 }
 
 /**

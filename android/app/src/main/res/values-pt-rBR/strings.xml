@@ -84,10 +84,10 @@
     <string name="lock_prompt">Desbloquear a Sara</string>
     <string name="lock_needs_screen_lock">Primeiro configure um bloqueio de tela nas configurações do celular.</string>
     <!-- Place reminders and saved pictures -->
-    <string name="places_title">Permitir a localização o tempo todo?</string>
-    <string name="places_message">Para lembrar você quando chegar a algum lugar, a Sara precisa perceber que você chegou mesmo com o app fechado. Na próxima tela escolha \"Permitir o tempo todo\". Sua localização fica neste celular: a Sara só avisa o seu servidor \"chegou a Loja\".</string>
+    <string name="places_title">Os lembretes por lugar usam sua localização</string>
+    <string name="places_message">A Sara coleta dados de localização para os lembretes por lugar, mesmo quando o app está fechado ou não está em uso. É assim que ela pode lembrar você ao chegar a um lugar salvo ou sair dele (\"me lembre quando eu chegar em casa\"). Sua localização é verificada neste celular: a Sara só informa ao seu próprio servidor da Sara \"chegou em Casa\" ou \"saiu do Trabalho\", e os lugares salvos ficam nesse servidor. Em seguida o Android pergunta: escolha \"Permitir o tempo todo\". Você pode desativar os lembretes por lugar quando quiser em Configurações.</string>
     <string name="places_continue">Continuar</string>
-    <string name="places_not_now">Agora não</string>
+    <string name="places_not_now">Não, obrigado</string>
     <string name="places_no_service">Este celular não tem serviço de localização.</string>
     <string name="places_need_permission">A Sara precisa da permissão de localização para salvar um lugar.</string>
     <string name="places_need_permission_watch">A Sara precisa da permissão de localização para salvar um lugar ou ficar de olho nele.</string>

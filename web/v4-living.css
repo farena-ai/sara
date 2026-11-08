@@ -1,0 +1,147 @@
+/* V4b (docs/ops/V4_DESIGN.md → Living parts): her presence orb (web/orb.js), the live run timeline
+   (web/run-timeline.js over web/steps.js) and the memory map (web/memory-map.js). Colours come from
+   the accent tokens only (V4's --acc-* when set, else the palette's --accent-*). Sara Classic keeps
+   her portrait and the old step line. Reduced motion stops every animation here. */
+
+/* ---------- presence orb ---------- */
+.v4-orb { display: inline-block; flex: none; position: relative; border-radius: 50%; line-height: 0; vertical-align: middle; }
+.v4-orb[data-orb-size="16"] { width: 16px; height: 16px; }
+.v4-orb[data-orb-size="28"] { width: 28px; height: 28px; }
+.v4-orb[data-orb-size="30"] { width: 30px; height: 30px; }
+.v4-orb[data-orb-size="38"] { width: 38px; height: 38px; }
+.v4-orb[data-orb-size="56"] { width: 56px; height: 56px; }
+.v4-orb-canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
+
+/* Sara Classic: her portrait, no orbs. */
+:root[data-palette="classic"] .v4-orb { display: none; }
+
+/* The new look: the orb is her face unless you picked a picture of her (then it is a small badge). */
+:where(:root:not([data-palette="classic"]):not(.v4-own-face)) :is(#her-face, #brand-today) > img.avatar,
+:where(:root:not([data-palette="classic"]):not(.v4-own-face)) .msg > img.msg-face { display: none; }
+:where(:root:not([data-palette="classic"])) #her-face { position: relative; }
+:where(:root:not([data-palette="classic"])) .msg > .msg-orb { position: absolute; left: -40px; top: -1px; }
+:where(:root.v4-own-face:not([data-palette="classic"])) :is(#her-face, #brand-today) { position: relative; }
+:where(:root.v4-own-face:not([data-palette="classic"])) :is(#her-face, #brand-today) > .v4-orb-face { position: absolute; width: 16px; height: 16px; right: -4px; bottom: -4px; }
+:where(:root.v4-own-face:not([data-palette="classic"])) #brand-today > .v4-orb-face { left: 16px; right: auto; }
+:where(:root.v4-own-face:not([data-palette="classic"])) .msg > .msg-orb { display: none; }
+@media (max-width: 760px) {
+  :where(:root:not([data-palette="classic"])) .msg > .msg-orb { left: -30px; width: 22px; height: 22px; }
+  :where(:root:not([data-palette="classic"])) #her-face > .v4-orb-face { width: 30px; height: 30px; }
+}
+/* Call screen: the orb sits under her portrait and says the same thing as the status line. */
+.call-panel .v4-orb-call { display: block; margin: 4px auto 0; }
+/* Worker rows: a small orb before the name. */
+.rt-row-head .wr-orb { margin-inline-end: 6px; }
+
+/* ---------- live run timeline (web/run-timeline.js over web/steps.js) ---------- */
+:where(:root:not([data-palette="classic"])) .steps.v4-run {
+  width: min(700px, calc(100% - 60px));
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-1) 72%, transparent);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  overflow: hidden;
+}
+:where(:root:not([data-palette="classic"])) .steps.v4-run > .steps-sum {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+:where(:root:not([data-palette="classic"])) .steps.v4-run[open] > .steps-sum { border-bottom: 1px solid var(--hairline); }
+:where(:root:not([data-palette="classic"])) .steps.v4-run > .steps-sum::after { display: none; }
+:where(:root:not([data-palette="classic"])) .steps.v4-run .steps-text { flex: 1; }
+.v4-run-head { display: none; }
+:where(:root:not([data-palette="classic"])) .v4-run-head { display: inline-flex; align-items: center; gap: 10px; margin-inline-start: auto; flex: none; }
+.v4-run-count { color: var(--text-3); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.v4-waiting .v4-run-count { color: var(--warn); }
+.v4-run-prog { position: relative; width: 96px; height: 3px; border-radius: 3px; background: var(--surface-3, var(--hairline-strong)); overflow: hidden; }
+.v4-run-prog > i { position: absolute; inset: 0 auto 0 0; width: calc(var(--p, 0) * 100%); border-radius: inherit; background: linear-gradient(90deg, var(--acc, var(--accent-solid)), var(--acc-2, var(--accent-to, var(--accent-solid)))); box-shadow: 0 0 10px var(--accent-glow); transition: width .6s cubic-bezier(.2, .8, .2, 1); }
+.v4-run-prog.live > i { width: 40%; animation: v4-work 1.8s ease-in-out infinite; }
+.v4-run-prog.bad > i { background: var(--warn); box-shadow: none; }
+@keyframes v4-work { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+.v4-run-fold { color: var(--text-2); font-size: 12px; padding: 2px 8px; border-radius: 7px; white-space: nowrap; }
+.steps-sum:hover .v4-run-fold { background: var(--surface-2); color: var(--text-1); }
+
+/* The steps: a rail with a mark per step (done, active, failed), verified only with evidence. */
+:where(:root:not([data-palette="classic"])) .v4-run .steps-list { margin: 0; padding: 8px 14px 10px; border-left: 0; gap: 0; }
+:where(:root:not([data-palette="classic"])) .v4-run li.step { position: relative; padding-inline-start: 30px; }
+/* V4c: long step lines and links never push the run past its card (phones). */
+:where(:root:not([data-palette="classic"])) .v4-run .steps-list { grid-template-columns: minmax(0, 1fr); }
+:where(:root:not([data-palette="classic"])) .v4-run li.step { min-width: 0; }
+:where(:root:not([data-palette="classic"])) .v4-run .step-head { min-width: 0; }
+:where(:root:not([data-palette="classic"])) .v4-run .step-head > * { min-width: 0; }
+:where(:root:not([data-palette="classic"])) .v4-run .step-link { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where(:root:not([data-palette="classic"])) .v4-run li.step::before {
+  content: ""; position: absolute; left: 0; top: 7px; width: 20px; height: 20px; border-radius: 50%;
+  border: 1px solid var(--hairline-strong); background: var(--surface-1); box-sizing: border-box; z-index: 1;
+}
+:where(:root:not([data-palette="classic"])) .v4-run li.step::after { content: ""; position: absolute; left: 9.5px; top: 27px; bottom: -7px; width: 1px; background: var(--hairline-strong); }
+:where(:root:not([data-palette="classic"])) .v4-run li.step:last-child::after, :where(:root:not([data-palette="classic"])) .v4-run li.step-run::before, :where(:root:not([data-palette="classic"])) .v4-run li.step-run::after { display: none; }
+:where(:root:not([data-palette="classic"])) .v4-run li.step.ok::before {
+  border-color: color-mix(in srgb, var(--accent-solid) 45%, transparent); background: var(--accent-soft) center / 12px no-repeat;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='3'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E");
+}
+:where(:root:not([data-palette="classic"])) .v4-run li.step.ok::after { background: color-mix(in srgb, var(--accent-solid) 40%, transparent); }
+:where(:root:not([data-palette="classic"])) .v4-run li.step.v4-verified::before { border-color: color-mix(in srgb, var(--success) 60%, transparent); background-color: color-mix(in srgb, var(--success) 14%, transparent); }
+:where(:root:not([data-palette="classic"])) .v4-run li.step:is(.running, .waiting)::before { border-color: var(--accent-solid); box-shadow: 0 0 0 3px var(--accent-soft), 0 0 14px var(--accent-glow); background: radial-gradient(circle, var(--accent-solid) 0 3.5px, var(--surface-1) 4px); animation: v4-breathe 1.4s ease-in-out infinite; }
+:where(:root:not([data-palette="classic"])) .v4-run li.step:is(.error, .denied)::before { border-color: color-mix(in srgb, var(--danger) 60%, transparent); background: color-mix(in srgb, var(--danger) 12%, var(--surface-1)); }
+:where(:root:not([data-palette="classic"])) .v4-run li.step.running .step-verb {
+  background: linear-gradient(90deg, var(--text-1) 0%, var(--text-1) 40%, var(--accent-text) 50%, var(--text-1) 60%, var(--text-1) 100%);
+  background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: v4-shimmer 2.2s linear infinite;
+}
+@keyframes v4-shimmer { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+@keyframes v4-breathe { 0%, 100% { box-shadow: 0 0 0 3px var(--accent-soft), 0 0 8px var(--accent-glow); } 50% { box-shadow: 0 0 0 4px var(--accent-soft), 0 0 16px var(--accent-glow); } }
+.v4-rcpt { display: inline-flex; align-items: center; gap: 4px; flex: none; font-size: 11px; color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 35%, transparent); border-radius: 999px; padding: 0 7px; }
+.v4-rcpt::before { content: "✓"; }
+:root[data-palette="classic"] .v4-rcpt { display: none; }
+
+/* Her approval card inside the run, and the footer. */
+:where(:root:not([data-palette="classic"])) .v4-run > .approval.v4-run-approval {
+  margin: 2px 14px 12px; max-width: none; width: auto; border: 1px solid color-mix(in srgb, var(--accent-solid) 45%, transparent); border-radius: 12px;
+  background: linear-gradient(180deg, var(--accent-soft), transparent 140%); animation: v4-rise .45s cubic-bezier(.2, .8, .2, 1) both;
+}
+@keyframes v4-rise { from { opacity: 0; transform: translateY(6px) scale(.98); } }
+.v4-run-foot { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 8px 14px; border-top: 1px solid var(--hairline); font-size: 12px; color: var(--text-3); }
+.v4-run-foot[hidden] { display: none; }
+.v4-run-foot .num { font-variant-numeric: tabular-nums; }
+:root[data-palette="classic"] .v4-run-foot { display: none; }
+@media (max-width: 760px) {
+  :where(:root:not([data-palette="classic"])) .steps.v4-run { width: calc(100% - 48px); }
+  .v4-run-prog { display: none; }
+  :where(:root:not([data-palette="classic"])) .steps.v4-run .steps-text { display: none; }
+  :where(:root:not([data-palette="classic"])) .v4-run-head { margin-inline-start: 0; flex: 1; justify-content: space-between; }
+}
+
+/* ---------- memory map (web/memory-map.js) ---------- */
+dialog.memmap { width: min(980px, 96vw); max-width: 96vw; }
+.memmap-body { display: grid; gap: 8px; }
+.mm-stage { position: relative; border: 1px solid var(--hairline); border-radius: 14px; background: radial-gradient(120% 90% at 50% 40%, var(--accent-soft), transparent 70%), var(--surface-0); overflow: hidden; }
+.mm-canvas { display: block; width: 100%; height: min(62vh, 560px); outline: none; }
+.mm-canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--accent-solid); }
+.mm-canvas.mm-pointer { cursor: pointer; }
+.mm-card { position: absolute; left: 12px; bottom: 12px; max-width: min(360px, calc(100% - 24px)); padding: 10px 12px; border: 1px solid var(--hairline-strong); border-radius: 12px; background: color-mix(in srgb, var(--surface-1) 92%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--shadow-2); pointer-events: none; }
+.mm-card[hidden] { display: none; }
+.mm-card-head { font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--accent-text); }
+.mm-card-text { margin: 4px 0; color: var(--text-1); font-size: 13px; line-height: 1.45; }
+.mm-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; list-style: none; margin: 0; padding: 0; }
+.mm-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.mm-k { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--text-2); }
+.mm-k-hub { background: var(--accent-solid); box-shadow: 0 0 8px var(--accent-glow); }
+.mm-k-fade { background: var(--text-3); opacity: .45; }
+.mm-k-bad { width: 16px; height: 0; border-radius: 0; border-top: 2px dashed var(--warn); background: none; }
+#v4-mem-slot canvas.mm-mini { display: block; width: 100%; height: 150px; cursor: pointer; border-radius: 10px; }
+#v4-mem-slot canvas.mm-mini:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 2px; }
+@media (max-width: 760px) { .mm-canvas { height: 58vh; } .mm-card { left: 8px; right: 8px; max-width: none; } }
+
+/* ---------- reduced motion: still frames, no shimmer, no moving bar ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .v4-run-prog.live > i, .v4-run li.step, .v4-run li.step::before, .v4-run .step-verb, .v4-run > .approval { animation: none !important; transition: none !important; }
+  .v4-run-prog.live > i { width: 100%; opacity: .5; }
+  :where(:root:not([data-palette="classic"])) .v4-run li.step.running .step-verb { color: var(--accent-text); background: none; }
+}
+:root[data-motion="off"] .v4-run-prog.live > i, :root[data-motion="off"] .v4-run li.step::before, :root[data-motion="off"] .v4-run .step-verb { animation: none !important; }

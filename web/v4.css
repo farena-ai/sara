@@ -1,0 +1,197 @@
+/* V4a (docs/ops/V4_DESIGN.md): the "living system" shell. A visual layer over every existing page:
+   nothing here removes a control. Outside Sara Classic only: rules are scoped with
+   :where(:root:not([data-palette="classic"])) (zero specificity, they win by loading last); the new
+   elements (status strip, at a glance, the field, the command bar's preview) are hidden in Classic.
+   Colours only through the theme tokens; the --acc-* hue tokens only for glows and haze (never text).
+   Glass only where something really floats over something else (the strip, the composer, menus). */
+
+/* ---------- hidden in Sara Classic, and V4b's empty mount points take no room ---------- */
+.v4-strip, .v4-glance, .v4-field, .cmd-pv { display: none; }
+.cmd-res { display: contents; }
+.v4-orb:empty { display: none; }
+
+/* ---------- the field: behind everything, above the aurora (the same layer, later in the page) ---------- */
+:where(:root:not([data-palette="classic"])) .v4-field { display: block; position: fixed; inset: 0; z-index: -1; width: 100%; height: 100%; pointer-events: none; }
+:where(:root:not([data-palette="classic"])) :is(.num, .cmd-kbd, .ctx-pct, .v4-big, .v4-kv dd) { font-variant-numeric: tabular-nums; }
+
+/* ---------- the live status strip ---------- */
+:where(:root:not([data-palette="classic"])) #main:not([hidden]) { padding-top: calc(var(--safe-t) + var(--titlebar, 0px) + var(--v4-strip-h)); }
+:where(:root:not([data-palette="classic"])) #main:not([hidden]) > .v4-strip {
+  display: flex; align-items: center; gap: 8px; position: fixed; z-index: 9; top: 0; left: 0; right: 0;
+  height: calc(var(--safe-t) + var(--titlebar, 0px) + var(--v4-strip-h)); padding: calc(var(--safe-t) + var(--titlebar, 0px)) 12px 0;
+  min-width: 0; overflow: hidden; border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-1) 82%, transparent); -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
+}
+:where(:root:not([data-palette="classic"])) .v4-word { display: inline-flex; align-items: center; gap: 8px; flex: none; height: 26px; min-height: 0; margin-right: 2px; padding: 0 12px 0 2px; border: 0; border-right: 1px solid var(--line); border-radius: 0; background: none; color: var(--text-1); font: 600 15px/1 var(--font-ui); letter-spacing: -.01em; box-shadow: none; }
+:where(:root:not([data-palette="classic"])) .v4-word:hover { background: none; color: var(--accent-text); }
+:where(:root:not([data-palette="classic"])) .v4-word .v4-orb:empty + .v4-word-name::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--accent-solid); box-shadow: 0 0 10px var(--acc-glow); vertical-align: 1px; }
+:where(:root:not([data-palette="classic"])) .v4-chips { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
+:where(:root:not([data-palette="classic"])) .v4-chip { display: inline-flex; align-items: center; gap: 7px; flex: none; height: 26px; min-height: 0; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 12.5px; font-weight: 500; white-space: nowrap; box-shadow: none; transition: border-color var(--dur-2) var(--ease-std), color var(--dur-2); }
+:where(:root:not([data-palette="classic"])) .v4-chip:hover { border-color: color-mix(in srgb, var(--line) 50%, var(--text-3)); background: var(--surface-2); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .v4-dot { position: relative; width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--text-3); }
+:where(:root:not([data-palette="classic"])) .v4-chip.live .v4-dot { background: var(--accent-solid); box-shadow: 0 0 8px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) .v4-chip.live .v4-dot::after { content: ""; position: absolute; inset: -4px; border: 1px solid var(--accent-solid); border-radius: 50%; opacity: 0; animation: v4-ping 2.2s var(--ease-std) infinite; }
+:where(:root:not([data-palette="classic"])) .v4-chip.second .v4-dot { background: var(--acc-second); }
+:where(:root:not([data-palette="classic"])) .v4-chip.ok .v4-dot { background: var(--success); }
+:where(:root:not([data-palette="classic"])) .v4-chip.warn { border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+:where(:root:not([data-palette="classic"])) .v4-chip.warn .v4-dot { background: var(--warn); }
+@keyframes v4-ping { 0% { transform: scale(.6); opacity: .9; } 80%, 100% { transform: scale(2.2); opacity: 0; } }
+:where(:root:not([data-palette="classic"])) .v4-grow { flex: 1; min-width: 8px; }
+:where(:root:not([data-palette="classic"])) .v4-cmd { display: inline-flex; align-items: center; gap: 8px; flex: none; min-width: 230px; height: 28px; min-height: 0; padding: 0 6px 0 10px; border: 1px solid var(--line); border-radius: var(--r-3); background: var(--surface-2); color: var(--text-3); font-size: 12.5px; font-weight: 400; box-shadow: none; }
+:where(:root:not([data-palette="classic"])) .v4-cmd:hover { background: var(--surface-2); color: var(--text-2); border-color: color-mix(in srgb, var(--line) 50%, var(--text-3)); }
+:where(:root:not([data-palette="classic"])) .v4-cmd .ic { width: 14px; height: 14px; }
+:where(:root:not([data-palette="classic"])) .v4-cmd-text { flex: 1; text-align: left; }
+:where(:root:not([data-palette="classic"])) .v4-cmd kbd { font: 11px var(--font-mono); color: var(--text-3); padding: 1px 5px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-1); }
+:where(:root:not([data-palette="classic"])) .v4-icon { display: grid; place-items: center; flex: none; width: 30px; height: 30px; min-height: 0; padding: 0; border: 1px solid transparent; border-radius: var(--r-3); background: none; color: var(--text-2); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) .v4-icon:hover, :where(:root:not([data-palette="classic"])) .v4-icon[aria-pressed="true"] { background: var(--surface-3); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .v4-icon .ic { width: 16px; height: 16px; }
+/* The native apps: the strip is the window's drag strip; the old title strip paddings go. */
+html.shell:where(:not([data-palette="classic"])) .v4-strip { app-region: drag; -webkit-app-region: drag; }
+html.shell:where(:not([data-palette="classic"])) .v4-strip :is(button, a) { app-region: no-drag; -webkit-app-region: no-drag; }
+html.shell:where(:not([data-palette="classic"])) :is(#chat-head, .side-head) { padding-top: 10px; }
+html.shell:where(:not([data-palette="classic"])) .shell-drag { display: none; }
+
+/* ---------- sidebar ---------- */
+:where(:root:not([data-palette="classic"])) #sidebar { background: color-mix(in srgb, var(--surface-1) 70%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-right: 1px solid var(--line); }
+:where(:root:not([data-palette="classic"])) .side-head { gap: 10px; padding: 14px 14px 8px; }
+:where(:root:not([data-palette="classic"])) .side-head .brand { gap: 10px; }
+:where(:root:not([data-palette="classic"])) .side-head .brand-name { font: 600 16px var(--font-ui); letter-spacing: -.01em; }
+:where(:root:not([data-palette="classic"])) #new-chat { height: 30px; min-height: 0; padding: 0 12px; border: 0; border-radius: var(--r-3); background: var(--btn-fill); color: var(--on-btn); font-size: 13px; font-weight: 600; box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-solid) 30%, transparent) inset, 0 6px 20px -8px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) #new-chat:hover { filter: brightness(1.08); }
+:where(:root:not([data-palette="classic"])) .side-tools { gap: 4px; padding: 0 10px 8px; }
+:where(:root:not([data-palette="classic"])) .side-tools button { height: 26px; min-height: 0; padding: 0 8px; border-color: transparent; background: none; color: var(--text-2); font-size: 12px; box-shadow: none; }
+:where(:root:not([data-palette="classic"])) .side-tools button:hover { background: var(--surface-3); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .side-search input { height: 32px; min-height: 0; border: 1px solid var(--line); border-radius: var(--r-3); background: var(--surface-0); font-size: 13px; }
+:where(:root:not([data-palette="classic"])) :is(.side-sec-h, .side-go-h) { color: var(--text-3); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+:where(:root:not([data-palette="classic"])) :is(#conversations a, .side-go, .side-more) { position: relative; border-radius: 7px; color: var(--text-2); font-size: 13px; }
+:where(:root:not([data-palette="classic"])) :is(#conversations a, .side-go, .side-more):hover { background: var(--surface-3); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) :is(#conversations a.active, .side-go[aria-current="page"], .side-go.active) { background: var(--accent-soft); color: var(--text-1); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) :is(#conversations a.active, .side-go[aria-current="page"], .side-go.active)::before { content: ""; position: absolute; left: -6px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: var(--accent-solid); box-shadow: 0 0 10px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) :is(.side-go, .side-more) .ic { color: var(--text-3); }
+:where(:root:not([data-palette="classic"])) .side-go:hover .ic { color: var(--text-2); }
+
+/* ---------- conversation header ---------- */
+:where(:root:not([data-palette="classic"])) #chat-head { gap: 12px; padding: 12px 22px; border-bottom: 1px solid var(--line); background: transparent; }
+:where(:root:not([data-palette="classic"])) #chat-title { font: 600 16px var(--font-ui); letter-spacing: -.01em; }
+:where(:root:not([data-palette="classic"])) #chat-head :is(#conv-settings-btn, .ai-badge) { border-color: var(--line); border-radius: 999px; background: none; color: var(--text-3); font-size: 12px; box-shadow: none; }
+:where(:root:not([data-palette="classic"])) #chat-head #conv-settings-btn:hover { border-color: color-mix(in srgb, var(--line) 50%, var(--text-3)); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .head-face { box-shadow: 0 0 0 1px var(--line), 0 0 18px -4px var(--acc-glow); }
+:where(:root:not([data-palette="classic"]))[data-busy="answering"] .head-face { box-shadow: 0 0 0 2px var(--acc-line), 0 0 22px -2px var(--acc-glow); }
+
+/* ---------- the transcript ---------- */
+:where(:root:not([data-palette="classic"])) #messages { scrollbar-width: thin; scrollbar-color: var(--surface-3) transparent; }
+/* V4c: your turns get a quiet person mark in the avatar circle (drawn from theme tokens, so it
+   follows Night, Day and every palette) instead of an empty disc. */
+:where(:root:not([data-palette="classic"])) .msg.user::before { background: radial-gradient(circle at 50% 40%, var(--text-3) 0 17%, transparent 19%), radial-gradient(ellipse 36% 26% at 50% 96%, var(--text-3) 0 96%, transparent 100%), var(--surface-3); }
+/* V4c: an empty project group says so on one quiet line (the full words stay as its tooltip). */
+:where(:root:not([data-palette="classic"])) .group-empty { overflow: hidden; color: var(--text-3); text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- composer ---------- */
+:where(:root:not([data-palette="classic"])) #composer { max-width: 780px; margin: 0 auto 18px; width: calc(100% - 48px); padding: 8px 8px 8px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--glass); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: none; transition: border-color var(--dur-3), box-shadow var(--dur-3); }
+:where(:root:not([data-palette="classic"])) #composer:focus-within { border-color: var(--acc-line); box-shadow: 0 0 0 4px var(--accent-soft), 0 12px 40px -18px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) #composer #input { border: 0; background: none; box-shadow: none; font-size: 14px; }
+:where(:root:not([data-palette="classic"])) #composer #input:focus { box-shadow: none; outline: none; }
+:where(:root:not([data-palette="classic"])) #composer #send { width: 34px; height: 34px; min-height: 0; border-radius: 10px; background: var(--btn-fill); color: var(--on-btn); box-shadow: 0 6px 18px -8px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) :is(#composer > button.icon, #composer-plus) { border-color: transparent; border-radius: var(--r-3); background: none; color: var(--text-2); }
+:where(:root:not([data-palette="classic"])) :is(#composer > button.icon, #composer-plus):hover { background: var(--surface-3); color: var(--text-1); }
+
+/* ---------- buttons, inputs, cards (the base look, everywhere) ---------- */
+:where(:root:not([data-palette="classic"])) :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), select, textarea):focus-visible { border-color: var(--accent-solid); box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--acc-glow); outline: none; }
+:where(:root:not([data-palette="classic"])) .hp-sec { border: 1px solid var(--line); border-radius: 14px; background: var(--glass); padding: 12px 14px; }
+:where(:root:not([data-palette="classic"])) .hp-h { color: var(--text-3); font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
+:where(:root:not([data-palette="classic"])) .hp-link { color: var(--accent-text); font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+:where(:root:not([data-palette="classic"])) .her-panel.mode-side { background: color-mix(in srgb, var(--surface-1) 55%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-left: 1px solid var(--line); }
+
+/* ---------- At a glance (her panel, 1180 px and wider) ---------- */
+@media (min-width: 1180px) {
+  :where(:root:not([data-palette="classic"])) .her-panel.mode-side .v4-glance { display: grid; gap: 10px; }
+}
+:where(:root:not([data-palette="classic"])) .v4-glance-h { margin: 0; }
+:where(:root:not([data-palette="classic"])) .v4-glance-h .hp-fold { width: 100%; justify-content: space-between; }
+:where(:root:not([data-palette="classic"])) .v4-glance-body { display: grid; gap: 10px; }
+:where(:root:not([data-palette="classic"])) .v4-glance-body[hidden] { display: none; }
+:where(:root:not([data-palette="classic"])) .v4-card { border: 1px solid var(--line); border-radius: 14px; background: var(--glass); padding: 12px 14px; }
+:where(:root:not([data-palette="classic"])) .v4-card[hidden] { display: none; }
+:where(:root:not([data-palette="classic"])) .v4-card h4 { display: flex; align-items: center; justify-content: space-between; margin: 0 0 2px; color: var(--text-3); font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
+:where(:root:not([data-palette="classic"])) .v4-big { font-size: 24px; font-weight: 600; letter-spacing: -.02em; color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .v4-muted { margin: 0; color: var(--text-3); font-size: 12px; }
+:where(:root:not([data-palette="classic"])) .v4-spark { display: block; width: 100%; height: 46px; margin-top: 6px; }
+:where(:root:not([data-palette="classic"])) .v4-spark svg { display: block; width: 100%; height: 100%; }
+:where(:root:not([data-palette="classic"])) .v4-spark[hidden] { display: none; }
+:where(:root:not([data-palette="classic"])) .v4-spark-line { fill: none; stroke: var(--accent-solid); stroke-width: 1.6; }
+:where(:root:not([data-palette="classic"])) .v4-spark-area { fill: var(--acc-haze); stroke: none; }
+:where(:root:not([data-palette="classic"])) .v4-workers { display: grid; }
+:where(:root:not([data-palette="classic"])) .v4-worker { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 8px; width: 100%; min-height: 0; padding: 7px 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; color: var(--text-2); font-size: 12.5px; font-weight: 400; text-align: left; box-shadow: none; }
+:where(:root:not([data-palette="classic"])) .v4-worker:first-child { border-top: 0; }
+:where(:root:not([data-palette="classic"])) .v4-worker.on { color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .v4-worker:hover { background: none; color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .v4-worker .v4-orb:empty { display: block; width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--text-3); }
+:where(:root:not([data-palette="classic"])) .v4-worker.on .v4-orb:empty { border-color: transparent; background: var(--accent-solid); box-shadow: 0 0 8px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) .v4-worker-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where(:root:not([data-palette="classic"])) .v4-bar { grid-column: 2 / 4; height: 2px; overflow: hidden; border-radius: 2px; background: var(--surface-3); }
+:where(:root:not([data-palette="classic"])) .v4-bar i { display: block; width: 40%; height: 100%; background: var(--accent-solid); animation: v4-work 3.6s ease-in-out infinite; }
+@keyframes v4-work { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
+/* V4b fills #v4-mem-slot with the memory map; until then the card waits out of sight. */
+:where(:root:not([data-palette="classic"])) #v4-g-mem:has(.v4-mem-slot:empty) { display: none; }
+:where(:root:not([data-palette="classic"])) .v4-kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; margin: 6px 0 0; color: var(--text-2); font-size: 12.5px; }
+:where(:root:not([data-palette="classic"])) .v4-kv dt { margin: 0; }
+/* V4c: one Today card. While the glance shows, her panel's next-three list sits in this card
+   (web/v4.js placeToday) and the panel's own Today section steps aside. */
+#hp-today.v4-merged { display: none; }
+:where(:root:not([data-palette="classic"])) #v4-g-today.v4-has-next .hp-list { margin: 8px -6px 0; padding-top: 6px; border-top: 1px solid var(--line); }
+:where(:root:not([data-palette="classic"])) #v4-g-today .hp-row { padding-block: 5px; font-size: 12.5px; }
+:where(:root:not([data-palette="classic"])) .v4-kv dd { max-width: 170px; min-width: 0; margin: 0; overflow: hidden; color: var(--text-1); font-weight: 600; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- the command bar: results beside a live preview ---------- */
+:where(:root:not([data-palette="classic"])) dialog#cmdbar { width: min(760px, calc(100vw - 24px)); border-color: color-mix(in srgb, var(--line) 50%, var(--text-3)); border-radius: 16px; background: color-mix(in srgb, var(--surface-1) 92%, transparent); box-shadow: var(--elev-3), 0 0 0 1px var(--accent-soft); }
+:where(:root:not([data-palette="classic"])) .cmd-res { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); flex: 1; min-height: 240px; overflow: hidden; }
+:where(:root:not([data-palette="classic"])) .cmd-res .cmd-list { border-right: 1px solid var(--line); }
+:where(:root:not([data-palette="classic"])) .cmd-item[aria-selected="true"] { background: var(--accent-soft); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) .cmd-pv { display: block; min-width: 0; overflow-y: auto; padding: 16px 18px; color: var(--text-2); font-size: 13px; }
+:where(:root:not([data-palette="classic"])) .cmd-pv h5 { margin: 0 0 6px; color: var(--text-1); font-size: 14px; font-weight: 600; }
+:where(:root:not([data-palette="classic"])) .cmd-pv p { margin: 0 0 8px; }
+:where(:root:not([data-palette="classic"])) .cmd-pv .pv-kind { display: inline-block; margin-bottom: 10px; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--text-3); font-size: 11px; }
+:where(:root:not([data-palette="classic"])) .cmd-pv .pv-change { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 10px; }
+:where(:root:not([data-palette="classic"])) .cmd-pv :is(.pv-from, .pv-to) { padding: 3px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--text-2); }
+:where(:root:not([data-palette="classic"])) .cmd-pv .pv-to { border-color: var(--acc-line); background: var(--accent-soft); color: var(--text-1); font-weight: 600; }
+:where(:root:not([data-palette="classic"])) .cmd-pv .pv-arrow { color: var(--text-3); }
+:where(:root:not([data-palette="classic"])) .cmd-pv .pv-kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; margin: 6px 0 10px; }
+:where(:root:not([data-palette="classic"])) .cmd-pv .pv-kv :is(dt, dd) { margin: 0; }
+:where(:root:not([data-palette="classic"])) .cmd-pv .pv-kv dd { color: var(--text-1); font-weight: 600; font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) .cmd-pv .pv-foot { margin-top: 14px; color: var(--text-3); font-size: 12px; }
+
+/* ---------- phones: a compact strip, only when something is running ---------- */
+@media (max-width: 760px) {
+  :where(:root:not([data-palette="classic"])) { --v4-strip-h: 36px; }
+  :where(:root:not([data-palette="classic"])) :is(.v4-cmd-text, .v4-cmd kbd, #v4-glance-btn, #v4-settings, .v4-word-name) { display: none; }
+  :where(:root:not([data-palette="classic"])) .v4-cmd { min-width: 0; width: 32px; padding: 0 8px; }
+  :where(:root:not([data-palette="classic"])) .v4-word { display: none; }
+  :where(:root:not([data-palette="classic"])) .v4-chip:nth-child(n+3) { display: none; }
+  :where(:root:not([data-palette="classic"])) .v4-chips { overflow-x: auto; scrollbar-width: none; }
+  :where(:root:not([data-palette="classic"])) .v4-chip { height: 24px; padding: 0 8px; font-size: 12px; }
+  html:not(.v4-has-chips):where(:not([data-palette="classic"])) #main:not([hidden]) > .v4-strip { display: none; }
+  html:not(.v4-has-chips):where(:not([data-palette="classic"])) #main:not([hidden]) { padding-top: var(--safe-t); }
+  :where(:root:not([data-palette="classic"])) #composer { width: calc(100% - 16px); margin-bottom: max(8px, var(--safe-b)); }
+  :where(:root:not([data-palette="classic"])) #chat-head { gap: 6px; padding: 10px 12px; }
+  :where(:root:not([data-palette="classic"])) .cmd-res { grid-template-columns: minmax(0, 1fr); }
+  :where(:root:not([data-palette="classic"])) .cmd-pv { display: none; }
+}
+/* V4c: narrow phones give the chat title room. The AI badge shows as a short "AI" pill (its full
+   words stay for screen readers and in the title; the chat's AI notice is unchanged). */
+@media (max-width: 480px) {
+  /* :not(#_) outweighs the header rule above, whose :is() carries an id. */
+  :where(:root:not([data-palette="classic"])) #chat-head .ai-badge:not(#_) { gap: 0; padding: 0 8px; font-size: 0; }
+  :where(:root:not([data-palette="classic"])) #chat-head .ai-badge::before { content: "AI"; font-size: 11px; font-weight: 600; letter-spacing: .04em; }
+  :where(:root:not([data-palette="classic"])):lang(de) #chat-head .ai-badge::before { content: "KI"; }
+  :where(:root:not([data-palette="classic"])):is(:lang(es), :lang(fr), :lang(it), :lang(pt)) #chat-head .ai-badge::before { content: "IA"; }
+  :where(:root:not([data-palette="classic"])) #chat-head .title-wrap { flex: 1 1 auto; min-width: 72px; }
+  /* How full the chat is moves to her panel's "This conversation" (the same dial and Tidy button). */
+  :where(:root:not([data-palette="classic"])) #chat-head .ctx-wrap { display: none; }
+}
+
+/* ---------- motion: off with the setting (the field stands still) or the system (all of it) ---------- */
+:root[data-motion="off"] .v4-chip .v4-dot::after, :root[data-motion="off"] .v4-bar i { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .v4-chip .v4-dot::after, .v4-bar i { animation: none !important; }
+  .v4-field { display: none !important; }
+}

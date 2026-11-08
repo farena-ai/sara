@@ -40,7 +40,7 @@ function vars(selector: string): Record<string, string> {
   return Object.fromEntries([...body.matchAll(/--([\w-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]));
 }
 export const PALETTES = ['graphite', 'midnight', 'slate', 'nord', 'solarized', 'paper', 'ember', 'contrast'];
-const PRESETS = ['blue', 'cyan', 'green', 'amber', 'red', 'pink', 'violet', 'grey'];
+const PRESETS = ['blue', 'cyan', 'green', 'amber', 'red', 'pink', 'violet', 'grey', 'emerald'];
 const COLOUR_TOKENS = ['surface-0', 'surface-1', 'surface-2', 'surface-3', 'line', 'text-1', 'text-2', 'text-3', 'accent-solid', 'accent-text', 'on-accent', 'success', 'warn', 'danger', 'info', 'danger-fill', 'update-accent', 'btn-off-fill', 'btn-off-text', 'btn-off-line'];
 const palette = (p: string, mode: string) => vars(`:root[data-palette="${p}"][data-theme="${mode}"] {`);
 

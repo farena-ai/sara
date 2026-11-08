@@ -84,68 +84,68 @@
    "bytes": 27392
   },
   "v3-chat-dark.webp": {
-   "ui": "2.80.0",
-   "what": "A companion chat in Graphite with Full decoration: plan, to-do and reminder cards, her panel",
-   "bytes": 70248
+   "ui": "3.0.0",
+   "what": "A companion chat in the 3.0 look (graphite, default Blue accent): status strip, presence orb, to-do and reminder cards, At a glance with spend, workers, memory map and today",
+   "bytes": 65342
   },
   "v3-chat-light.webp": {
-   "ui": "2.80.0",
+   "ui": "3.0.0",
    "what": "The same chat in the Day look",
-   "bytes": 71090
+   "bytes": 66018
   },
   "v3-coding.webp": {
-   "ui": "2.80.0",
-   "what": "A coding project chat: files read, an edit with its diff, security pass and threat model",
-   "bytes": 61880
+   "ui": "3.0.0",
+   "what": "A coding project chat: the edit with its diff, security pass and threat model",
+   "bytes": 60082
   },
   "v3-approval.webp": {
-   "ui": "2.80.0",
-   "what": "An approval card with Allow, Always allow this tool and Deny",
-   "bytes": 64322
+   "ui": "3.0.0",
+   "what": "An approval card for a git commit with Allow, Always allow this tool and Deny; the run waiting for your OK",
+   "bytes": 60248
   },
   "v3-launcher.webp": {
-   "ui": "2.80.0",
-   "what": "The Ctrl K launcher searching for look",
-   "bytes": 24824
+   "ui": "3.0.0",
+   "what": "The Ctrl K command bar searching for look, with the live preview pane",
+   "bytes": 26180
   },
   "v3-settings.webp": {
-   "ui": "2.80.0",
+   "ui": "3.0.0",
    "what": "Settings opened on the All settings home",
-   "bytes": 79468
+   "bytes": 80694
   },
   "v3-appearance.webp": {
-   "ui": "2.80.0",
-   "what": "Settings, Appearance: palette cards, Night or Day, colour, decoration, preview",
-   "bytes": 53054
+   "ui": "3.0.0",
+   "what": "Settings, Appearance: palette cards, Night or Day, accent colours, background motion, preview",
+   "bytes": 55026
   },
   "v3-pictures.webp": {
-   "ui": "2.80.0",
+   "ui": "3.0.0",
    "what": "Settings, Pictures from her: engine choice and pictures on her own",
-   "bytes": 42684
+   "bytes": 44512
   },
   "v3-addons.webp": {
-   "ui": "2.80.0",
+   "ui": "3.0.0",
    "what": "Add-ons, Get more: the signed Sara Store",
-   "bytes": 53666
+   "bytes": 67794
   },
   "v3-today.webp": {
-   "ui": "2.80.0",
+   "ui": "3.0.0",
    "what": "Today on a desktop with Getting started and routines",
-   "bytes": 72180
+   "bytes": 70962
   },
   "v3-planner.webp": {
-   "ui": "2.80.0",
+   "ui": "3.0.0",
    "what": "The Planner, To-do tab",
-   "bytes": 40614
+   "bytes": 41274
   },
   "v3-phone.webp": {
-   "ui": "2.80.0",
+   "ui": "3.0.0",
    "what": "A chat and Today on a phone (390 wide), side by side",
-   "bytes": 61500
+   "bytes": 61838
   }
  },
  "v3": {
-  "taken": "2026-11-07",
-  "method": "Throwaway server from the 2.80.0 source (fresh SARA_DATA, deleted afterwards), a scripted OpenAI-compatible model on 127.0.0.1 and made-up data for the example user Alex; Graphite, Full decoration, the owner defaults; 1440x900 desktop, 390x844 phone at 2x; WebP quality 82. The v3-* pictures show the 2.79/2.80 look."
+  "taken": "2026-11-08",
+  "method": "Retaken for 3.0.0 (the V4 look) on a throwaway server from the 3.0 source (fresh SARA_DATA, deleted afterwards), a scripted OpenAI-compatible model on 127.0.0.1 and made-up data for the example user Alex (a habit-tracker workspace with a made-up duration parser, two idle workers, ten made-up memories); Graphite, the default Blue accent, the owner defaults; 1440x900 desktop, 390x844 phone at 2x; WebP quality 82. The file names stay v3-* so links keep working."
  }
 }

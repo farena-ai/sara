@@ -105,6 +105,7 @@ import { gmailApproval, gmailQuestion } from './gmail-view.js';
 import { initLook, setContextRing, setLookBusy } from './look.js';
 import { closePanel, initHerPanel, openPanel, panelConv, panelFace, panelJobs, panelMessages, panelMood, panelNow, panelOpen, togglePanel } from './her-panel.js';
 import { initCommandBar, openCommandBar, score as cmdScore } from './command-bar.js';
+import { initV4, v4Kick } from './v4.js';
 import { icon, paintIcons, setIcon, TOOL_ICONS } from './icons.js';
 import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, pageOf, pageSize } from './session-list.js';
 import { createRecovery } from './recovery.js';
@@ -121,6 +122,10 @@ import { initSidebar } from './sidebar.js';
 import { initSetupWizard, openModelSetup, openSetup } from './setup-wizard.js';
 import { ring as progressRing, share as shareOf } from './viz.js';
 import { durationWords, turnHeads } from './turn-meta.js';
+// V4b (docs/ops/V4_DESIGN.md): her presence orb and the live run timeline.
+import { initOrbs, orbMount, orbSignal } from './orb.js';
+import { runApproval, runEvidence, runLatest, runTimeline, setRunUser } from './run-timeline.js';
+import { initMemoryMap } from './memory-map.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let hubReady = false;
 // Phase 114 (PL1b, F2): one first-run queue: the check-in notice, the hub's notice and the tour offer
@@ -221,6 +226,7 @@ async function boot() {
   }
   // Phase 71: the owner, or a household member in their own space.
   document.body.classList.toggle('member', session.role === 'member');
+  setRunUser(session.role === 'member' ? `m${session.member?.id ?? ''}` : 'owner');
   buildSettingsNav(); // the nav was built before we knew who signed in: owner or member pages
   // C15: a device waiting for approval right now gets its prompt here.
   if (session.role === 'owner') void checkDevicePrompts();
@@ -699,7 +705,11 @@ function group(key, label, convs, opts = {}) {
     });
   }
   if (!isCollapsed) {
-    if (!convs.length && !unloaded && opts.empty) box.append(el('p', 'muted small group-empty', opts.empty));
+    if (!convs.length && !unloaded && opts.empty) {
+      const hint = el('p', 'muted small group-empty', opts.empty);
+      hint.title = opts.empty;
+      box.append(hint);
+    }
     const o = { inChannel: Boolean(opts.builtin), label, project: opts.project, groupKey: opts.groupKey };
     // Phase 108: Group by room: a heading per room, each with its own See more.
     if (opts.byRoom && convs.length) {
@@ -1303,6 +1313,7 @@ function fmtSecs(ms) {
 
 function setActivity(status, detail = '', startedAt) {
   const bar = $('#activity');
+  orbSignal({ type: 'activity', status: status || '' });
   if (!status) {
     bar.hidden = true;
     clearInterval(activity.timer);
@@ -1353,6 +1364,8 @@ initNav();
 initTidy();
 void loadHowto().then(() => mountViewHowtos(t));
 initLook();
+initOrbs();
+initMemoryMap({ api, openNote: (id) => void openMemory({ focus: id }) });
 // Phase 75 (stage 2): her panel (web/her-panel.js) and the command bar (web/command-bar.js).
 initHerPanel({
   api,
@@ -1389,6 +1402,28 @@ const placeSub = (btn) => {
 };
 const placeKey = { today: 'Alt+T', planner: 'Alt+P', memory: 'Alt+M', library: 'Alt+L', scrapbook: 'Alt+B', story: 'Alt+Y' };
 // 2.8: icon names from web/icons.js (the command bar draws them as line icons).
+/** V4a: a setting's current value for the command bar's preview (a list, a box, a switch). */
+function settingPreview(n) {
+  const c = n.querySelector('input, select, textarea') ?? n.nextElementSibling?.querySelector?.('input, select, textarea');
+  if (!c) return null;
+  const now = c.tagName === 'SELECT' ? (c.selectedOptions[0]?.textContent ?? '') : c.type === 'checkbox' ? (c.checked ? t('On') : t('Off')) : c.type === 'password' ? (c.value ? '••••' : t('Not set')) : (c.value || t('Not set'));
+  return { kv: [[t('Now'), now.trim().slice(0, 60)]], lines: [t('Opens it with this setting highlighted.')] };
+}
+/** V4a: what a place holds, for the command bar's preview (only counts the app can read cheaply). */
+async function placePreview(dest) {
+  if (dest === 'today' || dest === 'planner') {
+    const r = await api('/today?parts=day').catch(() => null);
+    if (!r?.agenda) return null;
+    return { kv: [[t('To-dos open'), r.agenda.tasks?.length ?? 0], [t('Reminders today'), r.agenda.reminders?.length ?? 0], [t('Done today'), r.agenda.doneToday ?? 0]] };
+  }
+  if (dest === 'team' && !isMember()) {
+    const r = await api('/workers').catch(() => null);
+    if (!r) return null;
+    return { kv: [[t('Workers'), r.workers?.length ?? 0], [t('Working now'), (r.workers ?? []).filter((w) => w.running).length], [t('Failed jobs'), r.failed?.length ?? 0]] };
+  }
+  if (dest === 'memory' || dest === 'library') return { kv: [[t('Conversations'), state.conversations.filter((c) => !c.archivedAt).length], [t('Projects'), (state.projects ?? []).filter((p) => !p.builtin && !p.hidden).length]] };
+  return null;
+}
 const PLACE_ICON = { today: 'today', planner: 'planner', memory: 'memory', library: 'library', scrapbook: 'scrapbook', moments: 'moments', story: 'story', team: 'team', addons: 'puzzle', findings: 'shield', evals: 'flask' };
 initCommandBar({
   api,
@@ -1396,7 +1431,7 @@ initCommandBar({
     ...[...document.querySelectorAll('#side-nav .side-dest')]
       .map((row) => ({ row, btn: row.querySelector('.side-go') }))
       .filter(({ row, btn }) => btn && !(isMember() && row.hasAttribute('data-owner-only')) && getComputedStyle(row).display !== 'none')
-      .map(({ row, btn }) => ({ key: `place:${row.dataset.dest}`, icon: PLACE_ICON[row.dataset.dest] ?? 'dot', label: btn.querySelector('span')?.textContent?.trim() || row.dataset.dest, sub: placeSub(btn), hint: placeKey[row.dataset.dest] ?? '', run: () => btn.click() })),
+      .map(({ row, btn }) => ({ key: `place:${row.dataset.dest}`, icon: PLACE_ICON[row.dataset.dest] ?? 'dot', label: btn.querySelector('span')?.textContent?.trim() || row.dataset.dest, sub: placeSub(btn), hint: placeKey[row.dataset.dest] ?? '', run: () => btn.click(), preview: () => placePreview(row.dataset.dest) })),
     { key: 'place:her', icon: 'heart', label: t('Her page'), sub: t('Her day, mood and character'), hint: 'Alt+H', run: () => openSara() },
     { key: 'place:settings', icon: 'settings', label: t('Settings'), hint: 'Ctrl+,', run: () => openSettings() },
     { key: 'place:help', icon: 'help', label: t('Help'), sub: t('Tours and the guide'), run: () => $('#open-help').click() },
@@ -1430,7 +1465,7 @@ initCommandBar({
         const sc = cmdScore(q, text);
         if (!sc) continue;
         seen.add(text);
-        labels.push({ sc, key: `settings:${p.dataset.page}`, icon: 'sliders', label: text, sub: `${t(p.dataset.group)} → ${t(p.dataset.title)}`, run: async () => {
+        labels.push({ sc, key: `settings:${p.dataset.page}`, icon: 'sliders', label: text, sub: `${t(p.dataset.group)} → ${t(p.dataset.title)}`, preview: () => settingPreview(n), run: async () => {
           await openSettings(p.dataset.page);
           n.scrollIntoView({ block: 'center' });
           (n.querySelector('input, select, textarea') ?? n.nextElementSibling?.querySelector?.('input, select, textarea'))?.focus({ preventScroll: true });
@@ -1446,9 +1481,14 @@ initCommandBar({
     const elsewhere = rankElsewhere(q, isMember() ? [] : slashCommands()).slice(0, 2).map((h) => ({ key: `elsewhere:${h.id}`, icon: h.id.startsWith('planner') ? 'calendar' : 'chat', label: h.label.map((x) => (x.startsWith('/') ? x : t(x))).join(' → '), sub: h.detail ?? t('Elsewhere'), run: () => openSearchPlace(h.id) }));
     return [...named.slice(0, 3).map(pageItem), ...elsewhere, ...strong.slice(0, 4), ...tiered.slice(0, 2).map(pageItem), ...weak].slice(0, 6);
   },
+  // V4a: any typed text can go to her as a message from the bar.
+  ask: (q) => (q && !state.conv?.readOnly ? { key: 'ask', icon: 'chat', label: t('Ask {name}: “{q}”', { name: currentIdentity().name, q }), raw: true, preview: () => ({ lines: [t('She answers in this chat.')] }), run: async () => {
+    await askInChat(q);
+    $('#composer').requestSubmit();
+  } } : null),
   actions: () => {
     const list = [];
-    const add = (key, icon, label, run, hint = '', words = '') => list.push({ key: `action:${key}`, icon, label, run, hint, words });
+    const add = (key, icon, label, run, hint = '', words = '', preview = undefined) => list.push({ key: `action:${key}`, icon, label, run, hint, words, ...(preview ? { preview } : {}) });
     if (usable($('#new-chat'))) add('new', 'edit', t('New conversation'), () => $('#new-chat').click(), 'Alt+N');
     if (usable($('#new-project'))) add('project', 'project', t('New project'), () => $('#new-project').click());
     if (usable($('#new-offrecord'))) add('offrecord', 'offrecord', t('Off the record'), () => $('#new-offrecord').click(), '', t('private conversation not saved'));
@@ -1461,8 +1501,29 @@ initCommandBar({
       const sel = $('#ap-theme');
       sel.value = light ? 'dark' : 'light';
       sel.dispatchEvent(new Event('change'));
-    }, '', t('switch theme dark light'));
-    add('panel', 'panel', panelOpen() ? t('Fold her panel away') : t('Show her panel'), () => togglePanel(), 'Ctrl+\\');
+    }, '', t('switch theme dark light'), () => ({ change: { from: light ? t('Day') : t('Night'), to: light ? t('Night') : t('Day') }, lines: [t('The whole app on this device, at once.')] }));
+    add('panel', 'panel', panelOpen() ? t('Fold her panel away') : t('Show her panel'), () => togglePanel(), 'Ctrl+\\', '', () => ({ change: { from: panelOpen() ? t('Shown') : t('Folded away'), to: panelOpen() ? t('Folded away') : t('Shown') } }));
+    // V4a: the background field's motion (this device) and Token Saver (the owner's spend setting).
+    const still = document.documentElement.dataset.motion === 'off';
+    add('motion', 'sliders', still ? t('Turn background motion on') : t('Turn background motion off'), () => {
+      const sel = $('#ap-motion');
+      sel.value = still ? 'on' : 'off';
+      sel.dispatchEvent(new Event('change'));
+    }, '', t('background field animation motion still calm'), () => ({ change: { from: still ? t('Off') : t('On'), to: still ? t('On') : t('Off') }, lines: [t('The faint light behind the app. Your system’s reduce motion setting always stops it.')] }));
+    if (!isMember() && !document.body.classList.contains('demo')) {
+      add('saver', 'sliders', t('Token Saver on or off'), async () => {
+        const r = await api('/spend');
+        await api('/spend', { method: 'PUT', body: { tokenSaver: { mode: r.saver?.on ? 'off' : 'on' } } });
+        $('#cmd-status').textContent = r.saver?.on ? t('Token Saver is off.') : t('Token Saver is on.');
+      }, '', t('token saver cheaper shorter replies spend cost'), async () => {
+        const r = await api('/spend');
+        return { change: { from: r.saver?.on ? t('On') : t('Off'), to: r.saver?.on ? t('Off') : t('On') }, lines: [t('Shorter replies, a smaller history and a cheaper route. Change it any time in Data and health → Usage and costs.')] };
+      });
+    }
+    add('colour', 'sliders', t('Change her colour'), async () => {
+      await openSettings('you-appearance');
+      $('#ap-swatches')?.scrollIntoView({ block: 'center' });
+    }, '', t('accent colour color hue her colour'), () => ({ kv: [[t('Now'), $('#ap-accent')?.selectedOptions?.[0]?.textContent ?? '']], lines: [t('One colour for the whole app, her glow and the background. Text stays readable whatever you pick.')] }));
     // V3 §2: the Settings home, Appearance and Find a setting, wherever you are.
     add('settings-home', 'settings', t('All settings'), () => openSettings('home'), 'Ctrl+,', t('settings home index every page'));
     add('appearance', 'sliders', t('Appearance'), () => openSettings('you-appearance'), '', t('theme palette colour dark light look'));
@@ -1485,6 +1546,38 @@ initCommandBar({
 });
 // Navigation keeps focus with the page or dialog it opens.
 const closeSidebar = () => sidebarUI.close({ restoreFocus: false });
+// V4a (docs/ops/V4_DESIGN.md): the live status strip, At a glance and the background field (web/v4.js).
+initV4({
+  api,
+  isMember,
+  demo: () => document.body.classList.contains('demo'),
+  messages: () => state.messages,
+  conv: () => state.conv,
+  streaming: () => Boolean(state.streaming || state.watch),
+  // The model this chat uses (the same as her panel's This conversation → Model).
+  model: () => {
+    const c = state.conv;
+    const s = state.providers;
+    if (!c || !s) return null;
+    const prov = c.providerId ?? s.defaultProviderId;
+    const name = c.model ?? (c.providerId ? null : s.defaultModel) ?? '';
+    return name ? { name, provider: s.providers?.find((p) => p.id === prov)?.label ?? '' } : null;
+  },
+  panelOpen: () => panelOpen(),
+  openPanel: () => openPanel({ focus: false }),
+  openTeam: () => $('#open-team').click(),
+  openResearch: async () => {
+    await openLibrary();
+    (await import('./research.js')).openResearch();
+  },
+  openConversation: (id) => openConversation(id),
+  openRun: (id) => showRun(id),
+  openSettings: (page) => openSettings(page),
+  openSara: () => openSara(),
+  openPlanner: () => $('#open-planner').click(),
+  openMemory: () => openMemory(),
+  openCommandBar: () => openCommandBar(),
+});
 // Phase 75 (stage 3): Today's tiles (web/today.js) and the phone's bottom bar (web/bottom-bar.js).
 /** Phase 111: Today's date words, set once loadToday's helpers exist (initToday runs before them). */
 const TODAY_FMT_LATE = { fmtDue: (iso) => fmtDue(iso), inDaysWords: (n) => inDaysWords(n) };
@@ -1781,7 +1874,7 @@ const msgTime = (iso) => {
 
 // ---------- Phase 75: her messages, step lines and result cards ----------
 const toolNamed = (name) => (TOOL_NAME[name] ? t(TOOL_NAME[name]) : '');
-const newSteps = () => stepLine({ named: toolNamed, undo: addUndo });
+const newSteps = (live = false) => runTimeline(stepLine({ named: toolNamed, undo: addUndo }), { api, live });
 /** Phase 78: the Run view of one reply's run. */
 const showRun = (runId) => void openRunView(runId, { api, named: toolNamed });
 /** Her small face at the start of a run of her messages (one companion; groups show the speaker). */
@@ -1793,9 +1886,25 @@ function herFace(div, start) {
   img.className = 'avatar msg-face';
   img.alt = '';
   img.src = document.querySelector('#chat-head .head-face')?.getAttribute('src') || '/sara-avatar.jpg';
-  div.prepend(img);
+  div.prepend(img, orbMount(28, { cls: 'v4-orb-face msg-orb' }));
 }
 const isHerBubble = (n) => n?.classList?.contains('msg') && n.classList.contains('assistant');
+// V4c: a rename shows at once on this chat's earlier lines too (her name over her replies, the
+// reply meta line and the AI notice); a reload draws them from the server the same way.
+let shownHerName = '';
+document.addEventListener('sara-identity', (e) => {
+  const next = e.detail?.name;
+  const prev = shownHerName;
+  shownHerName = next || shownHerName;
+  if (!prev || !next || prev === next) return;
+  const swap = (s) => s.split(prev).join(next);
+  for (const n of document.querySelectorAll('#messages .msg.assistant .msg-head-name')) if (n.textContent === prev) n.textContent = next;
+  for (const n of document.querySelectorAll('#messages .msg.assistant .msg-meta')) if (n.textContent.startsWith(prev)) n.textContent = next + n.textContent.slice(prev.length);
+  for (const n of document.querySelectorAll('#messages .msg.notice.disclosure')) {
+    const walk = document.createTreeWalker(n, NodeFilter.SHOW_TEXT);
+    for (let tn = walk.nextNode(); tn; tn = walk.nextNode()) if (tn.nodeValue.includes(prev)) tn.nodeValue = swap(tn.nodeValue);
+  }
+});
 /**
  * V1 §5: the header's conversation chip. Sara Classic shows the long summary (mode · folder ·
  * model); the new look shows one model · workspace chip (CSS picks the span).
@@ -1879,6 +1988,7 @@ function renderMessages(messages, opts = {}) {
       else els.splice(at, 1);
     }
     if (hasSteps(turn.steps)) els.push(turn.steps);
+    if (turn.last && hasSteps(turn.steps)) runLatest(turn.steps);
     // Phase 79: "Budget reached" with what was dropped; Continue only on the latest reply (it answers the last message again).
     if (turn.budget?.stage === 'reached') {
       const latest = turn.budgetMsg === lastAssistant && lastAssistant.id > (lastUser?.id ?? 0) && !document.body.classList.contains('demo') && !isGroup(state.conv);
@@ -1892,6 +2002,9 @@ function renderMessages(messages, opts = {}) {
     turn ??= newTurn();
     if (m.role === 'assistant' && Array.isArray(m.meta?.memoryIds)) for (const id of m.meta.memoryIds) turn.mem.add(id);
     if (m.role === 'assistant' && m.meta?.runId) turn.runId = m.meta.runId;
+    if (m === lastAssistant) turn.last = true;
+    // V4b: the turn's clean checks verify the files she wrote (web/run-model.js).
+    if (m.role === 'assistant' && m.meta?.checks?.state && turn.steps) runEvidence(turn.steps, 'checks', m.meta.checks);
     // Phase 96: a skill loaded up front for this reply.
     if (m.role === 'assistant' && typeof m.meta?.autoSkill === 'string') skillStep((turn.steps ??= newSteps()), m.meta.autoSkill);
     // Phase 98: what plugins did in this turn ("Weather alerts added a note").
@@ -1925,6 +2038,7 @@ function renderMessages(messages, opts = {}) {
     }
     if (m.role === 'tool') {
       addStep((turn.steps ??= newSteps()), { id: m.meta?.toolCallId, name: m.meta?.name, summary: m.meta?.summary ?? m.meta?.name, args: m.meta?.args, status: m.meta?.status ?? 'ok', output: m.content, ms: m.meta?.ms, snapshotId: m.meta?.snapshotId });
+      if (m.meta?.sandbox?.decision) runEvidence(turn.steps, 'sandbox', m.meta.sandbox, m.meta.toolCallId);
       const card = (m.meta?.status ?? 'ok') === 'ok' ? m.meta?.card : null;
       if (card?.kind === 'file') {
         turn.files.push(card);
@@ -2494,7 +2608,7 @@ async function runStream(path, body, userBubble) {
   };
   const ensureSteps = () => {
     if (!steps) {
-      steps = newSteps();
+      steps = newSteps(true);
       append(steps);
     }
     return steps;
@@ -2507,6 +2621,7 @@ async function runStream(path, body, userBubble) {
   };
   const controller = new AbortController();
   state.streaming = controller;
+  v4Kick();
   setComposerBusy(true);
   setActivity('thinking');
   // Phase 66: in a group chat each reply starts with a "speaker" event (who is answering now).
@@ -2608,7 +2723,8 @@ async function runStream(path, body, userBubble) {
         } else if (ev.type === 'approval') {
           if (steps && !ev.budget) waitStep(steps, ev.id);
           const card = approvalCard(ev);
-          place(card);
+          // V4b: her approval card sits inside the run it belongs to.
+          if (ev.budget || !runApproval(steps, card)) place(card);
           card.scrollIntoView({ block: 'nearest' });
           setActivity('waiting', ev.summary);
           if (voice.call?.active) callApprovals.shown(ev.id, card);
@@ -2637,6 +2753,7 @@ async function runStream(path, body, userBubble) {
           const target = document.querySelector(`#messages .msg.assistant[data-id="${ev.messageId}"]`) ?? reply;
           if (target) target.append(checksChip(ev.chip));
           else place(checksChip(ev.chip));
+          runEvidence(steps, 'checks', ev.chip);
         } else if (ev.type === 'mentions') {
           // Phase 119: reminders that came up in this reply (the ⏰ chip).
           for (const it of ev.items ?? []) place(whenChip(it));
@@ -2654,6 +2771,7 @@ async function runStream(path, body, userBubble) {
         } else if (ev.type === 'sandbox') {
           // Phase 80: what the try showed and what you chose, under her step.
           place(sandboxFlag({ ...ev.record, callId: ev.id }));
+          runEvidence(steps, 'sandbox', ev.record, ev.id);
         } else if (ev.type === 'advisory') {
           // Phase 81: the install check's outcome (installed anyway, not installed, not checked: offline).
           place(advisoryFlag(ev));
@@ -2760,6 +2878,7 @@ async function runStream(path, body, userBubble) {
     endReply();
     speaker.voice = null;
     state.streaming = null;
+    v4Kick();
     setActivity(null);
     setComposerBusy(false);
     await loadConversations();
@@ -3603,7 +3722,7 @@ async function saveTools() {
 function syncCallButton() {
   $('#call').hidden = !voice.callShown || (voice.live && Boolean(state.conv?.private));
   // Phase 69: a video call is the same call with her picture full size (not in group chats: CSS).
-  $('#video-call-btn').hidden = $('#call').hidden;
+  $('#video-call-btn').hidden = $('#call').hidden || voice.webMic === false;
 }
 function renderConvSummary() {
   const c = state.conv;
@@ -3874,6 +3993,7 @@ function setFace(st) {
   for (const img of document.querySelectorAll('img.avatar')) if (!img.src.endsWith(avatar)) img.src = avatar;
   state.expression = x ?? 'default';
   state.customAvatar = custom ? avatar : null;
+  document.documentElement.classList.toggle('v4-own-face', Boolean(custom));
   panelFace({ avatar, portrait, expression: state.expression });
   for (const pr of [sdPresence, callPresence]) pr.setExpression(state.expression, state.customAvatar);
   if (videoView.open) videoView.backdrop();
@@ -4329,12 +4449,16 @@ async function initVoice() {
   const canHear = v.stt === 'openai' || (v.stt === 'local' && local.stt);
   const canSpeak = v.tts === 'openai' || v.tts === 'elevenlabs' || v.tts === 'xai' || (v.tts === 'local' && local.tts);
   const micOk = Boolean(navigator.mediaDevices?.getUserMedia) && window.isSecureContext;
+  // Play 2.88: the phone apps run live calls natively (SaraPhone.startCall), so a server at home on
+  // plain http (no secure context, no web microphone) still offers the call there.
+  voice.nativeCalls = Boolean(window.SaraPhone?.startCall);
   $('#mic').hidden = !(canHear && micOk);
   // Live calls (Grok or OpenAI realtime voice) when available and chosen; otherwise classic calls.
   const live = await api('/live').catch(() => ({ available: false }));
   voice.live = live.available && (v.calls ?? 'live') === 'live';
   const engineName = live.engine === 'openai' ? 'OpenAI' : 'Grok voice';
-  voice.callShown = micOk && (voice.live || (canHear && canSpeak));
+  voice.callShown = (micOk && (voice.live || (canHear && canSpeak))) || (voice.nativeCalls && voice.live);
+  voice.webMic = micOk;
   syncCallButton();
   $('#call').title = voice.live ? t('Live call: just talk, interrupt any time ({engineName})', { engineName }) : t('Hands-free call: just talk, interrupt her any time');
   $('#v-calls-note').textContent = live.available
@@ -4508,6 +4632,7 @@ function openVideo() {
 new MutationObserver(() => ($('#sara-dialog')?.open ? sdPresence.start() : sdPresence.stop())).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
 speaker.onState = ((prev) => (on) => {
   prev?.(on);
+  orbSignal({ type: 'speaking', on });
   if (on) callPresence.ctx?.resume?.();
   if (voice.call?.active && !state.streaming) $('#call-status').textContent = on ? t('Speaking…') : t('Listening…');
   if (voice.call?.active && videoView.active) videoView.status(on ? t('Speaking…') : t('Listening…'));
@@ -4523,6 +4648,7 @@ function showCallPanel(on, video = false) {
   } else {
     callPresence.stop();
     videoView.hide();
+    orbSignal({ type: 'speaking', on: false });
   }
 }
 $('#call-to-video').addEventListener('click', () => openVideo());
@@ -4593,6 +4719,7 @@ async function startLiveCall(ringId, { video = false } = {}) {
       if (ev.type === 'status') {
         $('#call-status').textContent = LIVE_STATUS[ev.state] ?? '';
         setActivity(ev.state === 'speaking' ? 'writing' : ev.state === 'hearing' ? 'hearing' : 'listening', t('Live call'));
+        orbSignal({ type: 'speaking', on: ev.state === 'speaking' });
       } else if (ev.type === 'notice') append(bubble('notice', ev.text, ev.kind));
       else if (ev.type === 'you') {
         // Live caption of what you're saying; the final words replace it.
@@ -6639,7 +6766,10 @@ function startEvents() {
   // Phase 84: an eval moved on (a replay finished, the judge, the result).
   es.addEventListener('eval', (e) => onEvalEvent(JSON.parse(e.data)));
   // Phase 39: a team task moved on.
-  es.addEventListener('team', (e) => onTeamEvent(JSON.parse(e.data).task));
+  es.addEventListener('team', (e) => {
+    onTeamEvent(JSON.parse(e.data).task);
+    v4Kick();
+  });
   // Phase 52: an app (terminal, VS Code) asks to sign in: the Devices page shows it.
   es.addEventListener('device', (e) => {
     const { pending } = JSON.parse(e.data);
@@ -9257,7 +9387,7 @@ function apSegment(id) {
   sync();
   return sync;
 }
-apSegSync = ['ap-theme', 'ap-decor', 'ap-density', 'ap-size', 'ap-portrait', 'ap-sessions'].map(apSegment);
+apSegSync = ['ap-theme', 'ap-motion', 'ap-decor', 'ap-density', 'ap-size', 'ap-portrait', 'ap-sessions'].map(apSegment);
 // Reset to defaults: forgets this device's look (the owner's defaults apply; docs/APPEARANCE.md).
 const AP_KEYS = ['sara.palette', 'sara.theme', 'sara.accent', 'sara.accentCustom', 'sara.decor', 'sara.portrait', 'sara.density', 'sara.chatbg', 'sara.textSize', 'sara.typing', PAGE_KEY];
 $('#ap-reset').addEventListener('click', () => {

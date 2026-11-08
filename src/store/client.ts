@@ -12,7 +12,7 @@ import { writeFileAtomic } from '../fs-util.ts';
 import { isLoopbackHost, netFetch, outboundAllowed, privateLocalOn } from '../net-guard.ts';
 import type { PackageFile } from '../packages.ts';
 import type { PluginManager } from '../plugins/manager.ts';
-import { compareSemver, satisfies } from '../plugins/manifest.ts';
+import { compareSemver, saraSatisfies } from '../plugins/manifest.ts';
 import { COMPANION_PACKAGE_MAX, parseEntry, type StoreBlock, type StoreEntry, type StoreIndex, type StoreItem, type StorePlatform, type StoreVersion } from './format.ts';
 import type { StoreInstallRow, StoreInstalls } from './installs.ts';
 import { STORE_KEYS } from './keys.ts';
@@ -647,7 +647,7 @@ export function shelfView(client: StoreClient, o: { saraVersion: string; platfor
     const v = listed.find((x) => x.version === it.latest) ?? listed[0];
     if (!v) continue;
     let why: ShelfItem['why'];
-    if (!satisfies(o.saraVersion, v.sara)) why = { code: 'sara', text: 'Needs Sara {version}', params: { version: rangeFloor(v.sara) ?? v.sara } };
+    if (!saraSatisfies(o.saraVersion, v.sara)) why = { code: 'sara', text: 'Needs Sara {version}', params: { version: rangeFloor(v.sara) ?? v.sara } };
     else if (it.works && (plat === 'other' || !it.works.includes(plat))) why = { code: 'platform', text: 'Not for this computer' };
     const row = rows.get(it.id);
     const plugin = it.kind === 'plugin' ? pluginInstallation(o.plugins, it.id, row) : undefined;

@@ -92,8 +92,28 @@ public class WakeService extends Service {
     /** Only from a visible screen (Android 14+ won't start a microphone service from the background). */
     static void start(Context c, String action) {
         Intent i = new Intent(c, WakeService.class).setAction(action);
+        if (ACTION_STOP.equals(action)) {
+            // Play 2.88: Stop never goes through startForegroundService. A service started that way
+            // must call startForeground, and Stop doesn't, so switching off while nothing listened
+            // crashed the app (ForegroundServiceDidNotStartInTimeException).
+            prefs(c).edit().putBoolean("on", false).apply();
+            if (!running) {
+                state = "off";
+                reason = "";
+                return;
+            }
+            try {
+                c.startService(i);
+            } catch (IllegalStateException e) {
+                c.stopService(new Intent(c, WakeService.class));
+            }
+            return;
+        }
         c.startForegroundService(i);
     }
+
+    /** Is the service up (between onCreate and onDestroy)? */
+    static volatile boolean running;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -172,6 +192,7 @@ public class WakeService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         channels();
+        running = true;
         String a = intent == null ? ACTION_START : String.valueOf(intent.getAction());
         if (ACTION_STOP.equals(a)) {
             prefs(this).edit().putBoolean("on", false).apply();
@@ -207,6 +228,7 @@ public class WakeService extends Service {
 
     @Override
     public void onDestroy() {
+        running = false;
         state = "off";
         listener = null;
         if (power != null) {

@@ -5,6 +5,57 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.0.0 (2026-11-08): a living-system look
+
+- **Android app for Google Play (3.0.0, versionCode 30000):** place reminders now
+  show Google's prominent disclosure (*Place reminders use your location*: Sara collects location data
+  to enable place reminders, even when the app is closed or not in use) before any location prompt,
+  in all six languages. Fixed on the emulator: the first time Hey Sara was switched on, allowing the
+  microphone didn't start it; switching Hey Sara off while nothing listened crashed the app.
+- **Hey Sara for phones (server):** *Get the speech model* now also unpacks the four keyword-model
+  files phones download from the server (before, only the word list was unpacked and Android waited
+  for the model forever).
+- **Live calls in the phone apps on http servers:** the call button shows in the Android app for a
+  server at home on plain http too (the app runs the call itself); voice notes and video calls still
+  need https there.
+- **V4a, the "living system" shell (3.0.0 look):** a live status strip across the top (workers running,
+  runs and research going, triggers armed, the model answering this chat, spend today against your limit;
+  each chip opens its page and only shows when there is something real), *At a glance* at the top of her
+  panel on wide screens (spend today with its line, workers, today: tasks done, waiting on you, what a
+  trigger watches for; folds and is remembered), a very faint background light in her colour that moves a
+  little faster while she works (Settings → Appearance → Background motion; still with reduced motion),
+  and a command bar that previews the highlighted row (a setting's value, before → after for changes,
+  place counts, *Ask her* for any text). One accent: Blue, Rose, Violet, Emerald (new), Amber, Cyan or any
+  colour, always kept readable. Graphite gets the deeper V4 surfaces in Night and Day. A renamed companion's
+  name follows everywhere at once; "Sara Classic" stays the palette's name. Nothing was removed.
+  Design: docs/ops/V4_DESIGN.md.
+- **V4b living parts (the 3.0.0 look):** her **presence orb** in the chat header, the sidebar, her
+  messages, the call screen, the Hey Sara quick-ask window and worker rows: idle, listening (follows the
+  microphone level), thinking (a turn or a tool step running) and speaking (her voice playing), each
+  from the real signal, in your accent colour, with "<her name>: <state>" for screen readers. A picture
+  you chose for her stays; the orb becomes a small badge on it. The step line under her replies becomes
+  a **live run timeline**: the step she is on, a progress bar, Fold / Show steps (remembered), her
+  approval card inside the run, a "verified" mark only when a sandbox try or a clean checks run really
+  checked that step, and the run's tokens, cost and sandbox tries from the run record. Memory →
+  **Memory map**: her notes as a graph (shared words, same conversation, replaced, they disagree;
+  fading notes dimmer, at most 150), point to read a note, click to open it. Reduced motion stops all
+  of it. Sara Classic keeps the portrait and the old step line. Design: docs/ops/V4_DESIGN.md.
+- **V4c, the 3.0.0 look put together:** her memory map now fills the *Memory* card in *At a glance*
+  (redrawn when the panel opens, after a reply and when Memory closes; the card stays hidden while she
+  remembers nothing). One *Today* card: while *At a glance* shows, her next three things (events,
+  reminders, to-dos) sit in its Today card under the counts instead of a second Today further down; they
+  move back when the glance folds or the window narrows. Worker orbs carry the worker's own name and
+  state for screen readers; every orb label, her name over earlier replies and the AI notice follow a
+  rename at once (no reload). On phones the chat title gets the room: the AI badge becomes a short
+  *AI* pill (the full words stay for screen readers; *KI* / *IA* in German, Spanish, French, Italian
+  and Portuguese) and the chat's fullness dial lives in her panel's *This conversation*. Run steps no
+  longer run past their card on phones; your turns show a quiet person mark instead of an empty circle;
+  an empty project's hint stays on one line. Settings → Hey Sara now says Windows, Mac or Android (it
+  still said to use the Talk button on Android). README: the lead picture and *The new look* gallery
+  are retaken in the 3.0 look (same file names) and all six READMEs describe it. Sara Classic is
+  unchanged.
+- Add-ons and store items written for Sara 2.x ("below 3.0.0") keep installing, loading and listing on 3.x: 3.0 changed the look, not the add-on interface.
+
 ## 2.88.0 (2026-11-08): coding workspace, Spotify, team pages and Hey Sara everywhere
 
 - **Team pages (C16, business instance):** a *Pages* tab in each workspace. Markdown pages with search

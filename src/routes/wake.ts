@@ -551,9 +551,19 @@ async function fetchLexicon(file: string, fetchImpl?: typeof fetch): Promise<voi
   const tarFile = join(tmp, 'model.tar.bz2');
   try {
     await downloadPinned(LEXICON.tar.url, LEXICON.tar.sha256, tarFile, { fetch: fetchImpl });
-    await runTar(systemTar())(tarFile, tmp, [LEXICON.inTar]);
+    // Play 2.88: the phone's (and the Mac's) keyword model comes from the same pinned tarball, so it is
+    // unpacked here too (before, only the word list was, and phones waited for the model forever).
+    await runTar(systemTar())(tarFile, tmp, [LEXICON.inTar, ...MODEL_FILES.map((f) => f.inTar)]);
     const got = join(tmp, LEXICON.inTar);
     if (createHash('sha256').update(readFileSync(got)).digest('hex') !== LEXICON.sha256) throw new Error("The word list didn't match what Sara expects, so it wasn't kept.");
+    const modelDir = join(dir, 'model');
+    mkdirSync(modelDir, { recursive: true });
+    for (const f of MODEL_FILES) {
+      const part = join(tmp, f.inTar);
+      const buf = readFileSync(part);
+      if (buf.length !== f.size || createHash('sha256').update(buf).digest('hex') !== f.sha256) throw new Error("The speech model didn't match what Sara expects, so it wasn't kept.");
+      renameSync(part, join(modelDir, f.name));
+    }
     renameSync(got, file);
   } finally {
     rmSync(tmp, { recursive: true, force: true });

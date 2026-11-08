@@ -73,6 +73,10 @@ public class MainActivity extends Activity {
     private static final int REQ_UNLOCK = 5;
     private static final int REQ_PLACES = 6;
     private static final int REQ_PLACES_BG = 7;
+    /** Hey Sara: the microphone prompt from the switch, the tile or the "turn it back on" note. */
+    private static final int REQ_WAKE_MIC = 126;
+    /** What to start once the microphone is allowed (the service starts here, on a visible screen). */
+    private String pendingWake;
     private String pendingPlaceName;
     /** With the app lock on, it locks again after this long in the background. */
     private static final long RELOCK_MS = 30_000;
@@ -1009,8 +1013,10 @@ public class MainActivity extends Activity {
         }
         // Phase 126: the Talk to Sara tile and the "turn it back on" notification (a visible screen starts the service).
         if (WakeService.ACTION_TALK.equals(intent.getAction()) || WakeService.ACTION_RESUME.equals(intent.getAction())) {
-            if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO}, 126);
-            else WakeService.start(this, intent.getAction());
+            if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                pendingWake = intent.getAction();
+                requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO}, REQ_WAKE_MIC);
+            } else WakeService.start(this, intent.getAction());
             intent.setAction(null);
             return false;
         }
@@ -1147,20 +1153,46 @@ public class MainActivity extends Activity {
 
     // ---------- Phase 29: place reminders ----------
 
-    /** Location while using the app, then "Allow all the time" (needed to notice arriving later). */
+    /**
+     * Location while using the app, then "Allow all the time" (needed to notice arriving later).
+     * Google Play (background location): the app's own prominent disclosure comes first, before
+     * any of Android's location prompts in this flow; nothing is asked unless she taps Continue.
+     */
+    private boolean placesDisclosed;
+
     private void askPlacePermissions() {
+        boolean needBackground = Build.VERSION.SDK_INT >= 29 && !has(Manifest.permission.ACCESS_BACKGROUND_LOCATION);
+        if (!has(Manifest.permission.ACCESS_FINE_LOCATION) || needBackground) {
+            if (!placesDisclosed) {
+                showPlacesDisclosure();
+                return;
+            }
+        }
         if (!has(Manifest.permission.ACCESS_FINE_LOCATION)) {
             requestPermissions(new String[] {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, REQ_PLACES);
             return;
         }
-        if (Build.VERSION.SDK_INT >= 29 && !has(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
-            new android.app.AlertDialog.Builder(this)
-                    .setTitle(R.string.places_title)
-                    .setMessage(R.string.places_message)
-                    .setPositiveButton(R.string.places_continue, (d, w) -> requestPermissions(new String[] {Manifest.permission.ACCESS_BACKGROUND_LOCATION}, REQ_PLACES_BG))
-                    .setNegativeButton(R.string.places_not_now, null)
-                    .show();
+        if (needBackground) {
+            placesDisclosed = false; // the next time she turns it on, the disclosure shows again
+            requestPermissions(new String[] {Manifest.permission.ACCESS_BACKGROUND_LOCATION}, REQ_PLACES_BG);
         }
+    }
+
+    /** The prominent disclosure for place reminders (Play's background-location policy). */
+    private void showPlacesDisclosure() {
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.places_title)
+                .setMessage(R.string.places_message)
+                .setCancelable(false)
+                .setPositiveButton(R.string.places_continue, (d, w) -> {
+                    placesDisclosed = true;
+                    askPlacePermissions();
+                })
+                .setNegativeButton(R.string.places_not_now, (d, w) -> {
+                    placesDisclosed = false;
+                    web.evaluateJavascript("window.saraPlacesChanged&&window.saraPlacesChanged()", null);
+                })
+                .show();
     }
 
     private void placeResult(boolean ok, String message) {
@@ -1337,7 +1369,10 @@ public class MainActivity extends Activity {
                     String key = a.optString("key"), v = a.optString("value");
                     if ("on".equals(key)) {
                         if ("1".equals(v)) {
-                            if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) runOnUiThread(() -> requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO}, 126));
+                            if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) runOnUiThread(() -> {
+                                pendingWake = WakeService.ACTION_START;
+                                requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO}, REQ_WAKE_MIC);
+                            });
                             else runOnUiThread(() -> WakeService.start(MainActivity.this, WakeService.ACTION_START));
                             p.edit().putBoolean("on", true).apply();
                         } else {
@@ -1582,6 +1617,14 @@ public class MainActivity extends Activity {
 
     @Override
     public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
+        if (code == REQ_WAKE_MIC) {
+            String action = pendingWake;
+            pendingWake = null;
+            if (action == null) return;
+            if (has(Manifest.permission.RECORD_AUDIO)) WakeService.start(this, action);
+            else if (WakeService.ACTION_START.equals(action)) WakeService.prefs(this).edit().putBoolean("on", false).apply();
+            return;
+        }
         if (code == REQ_HELPER_FIX && pendingHelperFix != null) {
             boolean precise = pendingHelperFix;
             pendingHelperFix = null;
@@ -1609,6 +1652,7 @@ public class MainActivity extends Activity {
             String name = pendingPlaceName;
             pendingPlaceName = null;
             if (!has(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                placesDisclosed = false;
                 placeResult(false, getString(R.string.places_need_permission_watch));
                 return;
             }

@@ -39,6 +39,12 @@ header{display:flex;align-items:center;gap:10px;padding:12px 14px 6px;app-region
 header button,header .badge{app-region:no-drag;-webkit-app-region:no-drag}
 #face{width:28px;height:28px;border-radius:50%;flex:0 0 auto;background:var(--panel-2);box-shadow:0 0 0 1.5px rgba(240,138,165,.45),0 0 14px rgba(155,107,255,.35);object-fit:cover}
 #face[hidden]{display:none}
+/* V4b: her presence orb (the same states as the main window's web/orb.js, drawn here inline). Her
+   own picture, when she has one, keeps the face spot and the orb becomes a small badge on it. */
+#orb{position:relative;width:28px;height:28px;flex:0 0 auto;border-radius:50%;line-height:0}
+#orb canvas{width:100%;height:100%;display:block}
+header.own-face #orb{width:14px;height:14px;margin:16px 0 0 -18px}
+header:not(.own-face) #face{display:none}
 .who{flex:1;min-width:0;line-height:1.2}
 .who b{font-weight:600;font-size:14px;letter-spacing:-.01em}
 .who span{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -89,6 +95,7 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
 <div id="box"><div id="inner">
   <header>
     <img id="face" alt="" hidden>
+    <span id="orb" role="img" aria-label="Sara: here"><canvas id="orb-c" width="56" height="56" aria-hidden="true"></canvas></span>
     <div class="who"><b id="name">Sara</b><span id="mood"></span></div>
     <span class="badge" id="private" hidden title="Private local mode: nothing leaves this computer">🔒 Only this computer</span>
     <button id="open" hidden title="Continue this conversation in the main window">Open in Sara</button>
@@ -285,6 +292,7 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
       const faceImg = $('face');
       faceImg.src = url;
       faceImg.hidden = false;
+      faceImg.closest('header').classList.toggle('own-face', Boolean(her && her.customAvatar));
       post({ a: 'state', online: true, signedIn: true, demo: false, name, mood, face, now: lines.slice(0, 10).join('\n'), asks: asks.slice(0, 10).join('\n'), busy: working.length > 0 });
       checkVoice();
     })().finally(() => { refreshing = null; });
@@ -705,6 +713,88 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
   fit();
   post({ a: 'ready' });
   refresh().then(listen);
+})();
+// V4b: her presence orb (web/orb.js, inline here: this page loads no other code). States come from
+// body[data-state] (thinking / speaking / listening, set by the code above); ≤ 30 fps, paused while
+// the window is hidden; reduced motion draws one still frame. Colours follow --accent.
+(() => {
+  'use strict';
+  const wrap = document.getElementById('orb');
+  const c = document.getElementById('orb-c');
+  const ctx = c && c.getContext('2d');
+  if (!ctx) return;
+  const reduce = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+  const WORDS = { idle: 'here', listening: 'listening', thinking: 'thinking', speaking: 'speaking' };
+  let acc = { h: 345, s: 80, l: 74 };
+  const readAcc = () => {
+    const m = /^#([0-9a-f]{6})$/i.exec(getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
+    if (!m) return;
+    const v = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16) / 255);
+    const mx = Math.max(...v), mn = Math.min(...v), l = (mx + mn) / 2;
+    let h = 0, s = 0;
+    if (mx !== mn) {
+      const d = mx - mn;
+      s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+      h = mx === v[0] ? (v[1] - v[2]) / d + (v[1] < v[2] ? 6 : 0) : mx === v[1] ? (v[2] - v[0]) / d + 2 : (v[0] - v[1]) / d + 4;
+    }
+    acc = { h: Math.round(h * 60), s: Math.round(s * 100), l: Math.round(l * 100) };
+  };
+  const col = (a, dh, l) => 'hsl(' + (acc.h + (dh || 0)) + ' ' + acc.s + '% ' + (l || Math.max(55, acc.l)) + '% / ' + a + ')';
+  const stateNow = () => { const s = document.body.dataset.state; return s === 'thinking' || s === 'speaking' || s === 'listening' ? s : 'idle'; };
+  let last = 0, drawn = '';
+  const draw = (tk) => {
+    const st = stateNow(), still = reduce.matches, m = still ? 0 : 1, W = c.width, R = W / 2;
+    ctx.clearRect(0, 0, W, W);
+    const br = 1 + m * (st === 'idle' ? 0.03 * Math.sin(tk / 900) : st === 'speaking' ? 0.05 * Math.abs(Math.sin(tk / 160)) : 0.015 * Math.sin(tk / 500));
+    const r = R * 0.62 * br;
+    let g = ctx.createRadialGradient(R, R, r * 0.2, R, R, R);
+    g.addColorStop(0, col(0.35)); g.addColorStop(1, col(0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(R, R, R, 0, 7); ctx.fill();
+    g = ctx.createRadialGradient(R - r * 0.35, R - r * 0.45, r * 0.1, R, R, r);
+    g.addColorStop(0, 'rgba(255,255,255,.22)'); g.addColorStop(0.35, col(0.18)); g.addColorStop(1, 'rgba(10,12,16,.85)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(R, R, r, 0, 7); ctx.fill();
+    ctx.save(); ctx.beginPath(); ctx.arc(R, R, r * 0.98, 0, 7); ctx.clip();
+    g = ctx.createRadialGradient(R, R + r * 0.25, 0, R, R + r * 0.25, r * 0.9);
+    g.addColorStop(0, col(0.95, 0, 72)); g.addColorStop(0.4, col(0.4)); g.addColorStop(1, col(0));
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, W);
+    ctx.lineWidth = 1.5;
+    if (st === 'thinking') {
+      for (let k = 0; k < 3; k++) {
+        ctx.strokeStyle = k % 2 ? col(0.55, 38, 70) : col(0.6); ctx.beginPath();
+        for (let a = 0; a < 6.9; a += 0.1) {
+          const rr = (a / 6.9) * r * 0.92, an = a + (tk / (700 + k * 140)) * m + k * 1.25;
+          const x = R + Math.cos(an) * rr, y = R + Math.sin(an) * rr * 0.85;
+          if (a === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    }
+    if (st === 'listening') {
+      ctx.strokeStyle = col(0.95, 0, 80);
+      for (let i = 0; i < 7; i++) {
+        const x = R - r * 0.7 + (i / 6) * r * 1.4, env = 1 - Math.abs(i - 3) / 3;
+        const h = r * 0.6 * env * (still ? 0.6 : 0.5 + 0.5 * Math.abs(Math.sin(tk / 120 + i * 1.7))) + r * 0.05;
+        ctx.beginPath(); ctx.moveTo(x, R - h); ctx.lineTo(x, R + h); ctx.stroke();
+      }
+    }
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(R, R, r, 0, 7); ctx.stroke();
+    if (st === 'speaking') { ctx.strokeStyle = col(0.85, 0, 82); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(R, R + r * 0.1, Math.min(R * 0.98, r * 1.32 * br), r * 0.34 * br, 0, 0, 7); ctx.stroke(); }
+    drawn = st;
+    const name = (document.getElementById('name') || {}).textContent || 'Sara';
+    const label = name + ': ' + WORDS[st];
+    if (wrap.getAttribute('aria-label') !== label) wrap.setAttribute('aria-label', label);
+  };
+  const loop = (now) => {
+    if (document.hidden) return;
+    if (now - last >= 33) { last = now; if (!reduce.matches || drawn !== stateNow()) draw(now); }
+    requestAnimationFrame(loop);
+  };
+  readAcc(); draw(0);
+  new MutationObserver(() => { readAcc(); draw(performance.now()); }).observe(document.documentElement, { attributes: true });
+  new MutationObserver(() => draw(performance.now())).observe(document.body, { attributes: true, attributeFilter: ['data-state'] });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) requestAnimationFrame(loop); });
+  requestAnimationFrame(loop);
 })();
 </script>
 </body>

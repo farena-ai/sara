@@ -102,6 +102,17 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Sara 3.0: a living-system look in 3.0.0
+
+A new look over every page, with nothing removed. A live status strip shows what she is doing now
+(workers, runs, triggers armed, the model answering, spend against your limit). Her presence orb
+breathes when idle, ripples while listening, swirls while thinking and pulses while speaking. Tool
+runs show as a live timeline in her reply, with approvals inside the run and a verified mark only
+where a check really passed. A memory map shows what she knows and how it connects. One accent
+colour of your choice, her chosen name everywhere, background motion that follows how busy she is
+(or none), and Sara Classic unchanged. Android: Hey Sara works on the phone, Google Play's
+background-location notice comes before any prompt, and calls work with a server on plain http.
+
 ## Coding workspace, Spotify, team pages and Hey Sara everywhere in 2.88.0
 
 Coding tasks can run in their own branch and folder (Merge, Open PR or Discard at the end), with
