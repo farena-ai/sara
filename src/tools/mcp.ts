@@ -8,9 +8,10 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { existsSync, mkdirSync } from 'node:fs';
 import { delimiter, dirname, extname, isAbsolute, join, relative, resolve, win32 } from 'node:path';
+import { egressAllowlist, openEgress, sandboxNode, type EgressSetup } from '../egress-run.ts';
 import { sseEvents } from '../sse.ts';
 import type { ToolRegistry } from './registry.ts';
-import { bwrapArgs, commandPath, prepareForToolsUser, PRIVATE_LOCAL_ENV, RUNTIME_MOUNT, runtimeMountArgs, SANDBOX_EXEC, seatbeltProfile, type Bind, type SandboxInfo } from './sandbox.ts';
+import { bwrapArgs, commandPath, nativeOf, prepareForToolsUser, PRIVATE_LOCAL_ENV, RUNTIME_MOUNT, runtimeMountArgs, SANDBOX_EXEC, seatbeltProfile, type Bind, type SandboxInfo } from './sandbox.ts';
 import { clip, ToolError, type Tool, type ToolContext } from './types.ts';
 
 export const MCP_PROTOCOL_VERSION = '2025-06-18';
@@ -274,16 +275,24 @@ export class McpConnection {
   error = '';
   tools: McpToolInfo[] = [];
   #transport: Transport | undefined;
+  #egress: EgressSetup | undefined;
 
   constructor(config: McpServerConfig) {
     this.config = config;
   }
 
-  async connect(secrets: McpSecrets, opts: { dataDir: string; sandbox: SandboxInfo; timeoutMs?: number }): Promise<void> {
+  async connect(secrets: McpSecrets, o: { dataDir: string; sandbox: SandboxInfo; timeoutMs?: number }): Promise<void> {
+    // EC8: tool servers keep the computer's own sandbox when commands use a container.
+    const opts = { ...o, sandbox: nativeOf(o.sandbox) };
     this.status = 'connecting';
     this.error = '';
     const timeout = AbortSignal.timeout(opts.timeoutMs ?? 60_000);
     try {
+      // EC9: under bubblewrap or the macOS sandbox a tool server with network reaches only the
+      // allowlist's hosts (the same proxy as commands; refusals are audited as mcp:<name>).
+      const allow = !privateLocalOn() && (opts.sandbox.mode === 'bwrap' || opts.sandbox.mode === 'seatbelt') && this.config.transport !== 'http' ? egressAllowlist() : undefined;
+      this.#egress?.close().catch(() => {});
+      this.#egress = allow ? await openEgress({ ...opts.sandbox, network: true }, allow, { who: `mcp:${this.config.name}`.slice(0, 60), node: sandboxNode(process.execPath, runtimeMountArgs().length > 0, RUNTIME_MOUNT) }) : undefined;
       this.#transport = this.#makeTransport(secrets, opts);
       await this.#transport.request(
         'initialize',
@@ -326,14 +335,17 @@ export class McpConnection {
       // Phase 67: private local mode: the add-on gets no network where the sandbox can enforce it
       // (bubblewrap, macOS) and the no-network settings everywhere else (best effort).
       ...(privateLocalOn() ? PRIVATE_LOCAL_ENV : {}),
+      ...(this.#egress?.env ?? {}),
     };
-    const net = !privateLocalOn();
+    const eg = this.#egress;
+    const net = !privateLocalOn() && !eg;
     if (opts.sandbox.mode === 'bwrap') {
-      return new StdioTransport('bwrap', [...bwrapArgs(home, net, [...mcpBinds(c, opts.dataDir), ...mcpBrowserBinds()]), c.command, ...(c.args ?? [])], { ...baseEnv, HOME: '/workspace' }, home);
+      const cmd = eg?.prefix ? ['/bin/sh', '-c', `${eg.prefix}exec "$@"`, 'sara-mcp', c.command, ...(c.args ?? [])] : [c.command, ...(c.args ?? [])];
+      return new StdioTransport('bwrap', [...bwrapArgs(home, net, [...mcpBinds(c, opts.dataDir), ...mcpBrowserBinds(), ...(eg?.binds ?? [])]), ...cmd], { ...baseEnv, HOME: '/workspace' }, home);
     }
     if (opts.sandbox.mode === 'seatbelt') {
       // macOS: the add-on runs inside the sandbox too, with its own folder as home (network on).
-      const profile = seatbeltProfile({ workspace: home, tmp: tmpdir(), ...(opts.sandbox.dataDir ? { dataDir: opts.sandbox.dataDir } : {}) }, net);
+      const profile = seatbeltProfile({ workspace: home, tmp: tmpdir(), ...(opts.sandbox.dataDir ? { dataDir: opts.sandbox.dataDir } : {}), ...(eg?.proxyPort ? { proxyPort: eg.proxyPort } : {}) }, net);
       return new StdioTransport(SANDBOX_EXEC, ['-p', profile, c.command, ...(c.args ?? [])], { ...baseEnv, HOME: home }, home);
     }
     if (opts.sandbox.mode === 'user') {
@@ -369,6 +381,8 @@ export class McpConnection {
   close(): void {
     this.#transport?.close();
     this.#transport = undefined;
+    this.#egress?.close().catch(() => {});
+    this.#egress = undefined;
     this.status = 'stopped';
   }
 }

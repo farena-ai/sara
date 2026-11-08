@@ -386,6 +386,17 @@ her DM is its own session. In channels you switch on (*Answer here*) she answers
 without tools unless *Owners can use her tools in groups* is on. `/sara help`, `/sara new` and the other
 commands work. Sessions file into the *Slack* project.
 
+## Microsoft Teams (unreleased, EC7)
+
+Microsoft Teams comes with Sara as a plugin (Settings → Chat apps → Microsoft Teams), off until you add
+it: see [TEAMS.md](TEAMS.md). You make a free Azure Bot and upload a Teams app package the card builds.
+Teams must reach Sara at a public https address (your domain, or the Tailscale Funnel door or a tunnel;
+the card says which); Sara checks Microsoft's signature on every call. Her personal chat is your own chat
+(tools, files both ways, a progress card with ⏹); her requests for your OK come as an Adaptive Card with
+**Allow / Deny** only you can answer. In channels and group chats you switch on (*Answer here*) she
+answers mentions in their thread, without tools unless *Owners can use her tools in groups* is on.
+Sessions file into the *Teams* project.
+
 ## iMessage (2.55.2)
 
 iMessage comes with Sara as a plugin (Settings → Chat apps → iMessage), off until you add it: see

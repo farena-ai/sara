@@ -1643,6 +1643,10 @@
       "Talk to her in Slack through a small Slack app you create from a manifest: her DMs, and mentions in channels you switch on. A guided setup that checks each step; no public address needed.",
       "slack"
     ],
+    "co-teams": [
+      "Talk to her in Microsoft Teams through a free Azure Bot and a Teams app package Sara builds: her personal chat, and mentions in channels you switch on. Teams needs a public https address for Sara.",
+      "teams"
+    ],
     "co-apps": [
       "Use her from other apps (SillyTavern, Open WebUI, Claude Code, Cursor, Claude Desktop) with an API key.",
       "clients"
@@ -1662,6 +1666,14 @@
     "co-computer": [
       "Let her use web pages on this computer in her own browser window: look, read, click and type. Off until you turn it on, and you can stop her any time.",
       "computer"
+    ],
+    "dh-usage-report": [
+      "Tokens and estimated cost by day, week or month, split by person, workspace, project and model. Download it as CSV and set monthly budgets that warn you early.",
+      "usage"
+    ],
+    "dh-shares": [
+      "Conversations you shared as read-only links: when each expires and how often it was opened. Revoke a link to end it at once, and choose whether private chats may be shared.",
+      "security"
     ],
     "dh-audit": [
       "Who changed what, when and from where: settings, sign-ins, approvals and background work. Names only, never values or chat text. Filter, check the chain and export it.",

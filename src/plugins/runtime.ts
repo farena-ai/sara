@@ -20,7 +20,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { bwrapArgs, SANDBOX_EXEC, seatbeltProfile, type SandboxInfo } from '../tools/sandbox.ts';
+import { bwrapArgs, nativeOf, SANDBOX_EXEC, seatbeltProfile, type SandboxInfo } from '../tools/sandbox.ts';
 
 export const HOST_FILE = resolve(dirname(fileURLToPath(import.meta.url)), 'plugin-host.mjs');
 export const MAX_LINE = 1024 * 1024;
@@ -36,7 +36,9 @@ const READY_MS = 15_000;
 export type Fence = 'bwrap' | 'seatbelt' | 'node-only';
 
 /** The fence this server can put around a plugin (the sandbox detected at start). */
-export function fenceFor(sandbox: Pick<SandboxInfo, 'mode'>): Fence {
+export function fenceFor(sb: Pick<SandboxInfo, 'mode' | 'native'>): Fence {
+  // EC8: plugin processes keep the computer's own fence when commands use a container.
+  const sandbox = nativeOf(sb as SandboxInfo);
   return sandbox.mode === 'bwrap' ? 'bwrap' : sandbox.mode === 'seatbelt' ? 'seatbelt' : 'node-only';
 }
 

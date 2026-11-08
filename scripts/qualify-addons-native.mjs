@@ -17,6 +17,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node
 import { createServer } from 'node:http';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { latestVersion } from './store-latest.ts';
 
 const argv = process.argv.slice(2);
 const opt = (name, fallback) => { const i = argv.indexOf(`--${name}`); return i >= 0 ? argv[i + 1] : fallback; };
@@ -140,7 +141,7 @@ async function state(id) { const v = await pluginsView(); return v.plugins.find(
 async function until(fn, ms = 30_000, what = 'condition') { const end = Date.now() + ms; for (;;) { const v = await fn(); if (v) return v; if (Date.now() > end) throw new Error(`timed out waiting for ${what}`); await sleep(150); } }
 async function storeHash(id) {
   const index = json(join(DATA, 'store/index.json'));
-  const item = index.items.find((x) => x.id === id); const v = item.versions.at(-1);
+  const item = index.items.find((x) => x.id === id); const v = latestVersion(item);
   const base = (await api('GET', '/api/store')).url ?? 'https://backstagecoding.com/sara/store';
   const zip = Buffer.from(await (await fetch(`${base.replace(/\/+$/, '')}/v1/${v.package}`)).arrayBuffer());
   const sha = createHash('sha256').update(zip).digest('hex');

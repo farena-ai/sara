@@ -1031,6 +1031,22 @@ export class TelegramBridge {
     }
   }
 
+  /** EC12: a crew's deliverable file to the owner's own private chat only (crews he turned it on for). */
+  async fileToOwner(path: string, name: string, caption: string): Promise<boolean> {
+    if (!this.ownerLinked()) return false;
+    try {
+      const form = new FormData();
+      form.append('chat_id', String(telegramSettings(this.#app).ownerChatId));
+      form.append('document', new Blob([new Uint8Array(readFileSync(path))], { type: 'text/markdown' }), name);
+      form.append('caption', caption.slice(0, 1024));
+      await this.#sendUpload('sendDocument', form);
+      return true;
+    } catch (err) {
+      this.#error = (err as Error).message;
+      return false;
+    }
+  }
+
   /** Reminders and messages she starts herself also go to the owner's Telegram. */
   async #mirror(ev: HubEvent): Promise<void> {
     if (ev.type !== 'message' || ev.message.role === 'notice') return;

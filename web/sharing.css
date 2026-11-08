@@ -1,0 +1,27 @@
+/* EC11 + EC15: the share dialog, Shared links and Usage reports (web/sharing.js, web/usage-report.js). */
+.share-dialog { width: min(720px, 96vw); }
+.shd-options { display: flex; flex-direction: column; gap: 6px; }
+.shd-preview { max-height: 40vh; overflow: auto; border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+.shd-msg { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.shd-msg:last-child { border-bottom: 0; }
+.shd-who { display: block; font-size: 0.8rem; }
+.shd-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.9rem; }
+.shd-tool .shd-text { font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem; }
+.shd-result { display: flex; gap: 8px; align-items: end; margin-top: 8px; }
+.shd-result label { flex: 1; }
+.shd-result input { width: 100%; }
+.sl-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.sl-row, .ur-budget { display: flex; gap: 10px; align-items: center; justify-content: space-between; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; flex-wrap: wrap; }
+.sl-info { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.ur-filters, .ur-by { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin: 8px 0; }
+.ur-table-wrap { overflow-x: auto; max-width: 100%; }
+.ur-table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+.ur-table th, .ur-table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.ur-table td:nth-last-child(-n + 3), .ur-table th:nth-last-child(-n + 3) { text-align: right; }
+.ur-budgets { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.ur-budget[data-level="near"] .ur-level { color: var(--warn); font-weight: 600; }
+.ur-budget[data-level="reached"] .ur-level { color: var(--danger); font-weight: 600; }
+/* The wide table scrolls inside its box; the page itself never gets wider than the window. */
+.settings-page[data-page="dh-usage-report"], .settings-page[data-page="dh-shares"], .ur-page, .sl-page { min-width: 0; max-width: 100%; }
+.ur-table-wrap { width: 100%; }
+.ur-budget > * { min-width: 0; overflow-wrap: anywhere; }

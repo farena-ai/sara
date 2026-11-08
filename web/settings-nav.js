@@ -64,12 +64,12 @@ const SETTINGS_ORDER = [
   'her-character', 'her-relationship', 'her-look', 'her-pictures', 'her-voice', 'her-hey', 'her-calls', 'her-companions', 'her-import',
   'you-about', 'you-appearance', 'you-briefing', 'you-leave-by', 'ab-when', 'you-adult',
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
-  'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-slack', 'co-pickup', 'co-continuity',
+  'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-slack', 'co-teams', 'co-pickup', 'co-continuity',
   'ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-recipes',
   'ab-projects', 'ab-precise', 'ab-persist', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-tools',
   'co-phone', 'co-computer', 'desktop-app', 'co-apps', 'co-agents', 'co-hooks',
   'dh-safety', 'dh-health', 'dh-operations', 'dh-recovery', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
-  'household', 'dh-policy', 'dh-audit', 'account',
+  'household', 'dh-usage-report', 'dh-shares', 'dh-policy', 'dh-audit', 'account',
 ];
 // A small heading inside a group, before the first of these pages (none since the Coding group).
 const SETTINGS_SUB = {};

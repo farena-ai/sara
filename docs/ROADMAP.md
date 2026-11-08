@@ -102,6 +102,17 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Research, Teams, crews and safer sandboxes in 2.83.0
+
+Research a question: Sara drafts a plan you can edit, lists the pages she read and the ones that
+failed, and writes a report in which every sentence cites a page she actually read (PDF, Word or
+Markdown, with a 'What is missing' section). Microsoft Teams joins Slack. Crews are standing
+helper teams with a lead, schedules and three starter crews; an optional overnight memory tidy
+merges duplicates and asks about contradictions, with Undo for every change. Commands and jobs can
+run in a rootless Podman or Docker container, sandboxed work can be limited to a list of allowed
+sites, conversations can be shared as read-only expiring links, and usage and cost reports cover
+every person, workspace and project.
+
 ## One-click programs and 21 companions in 2.82.0
 
 When an add-on needs a program the computer lacks (Google Chrome, uv, Node, Python, Blender, ffmpeg),
@@ -131,6 +142,10 @@ tool servers are explained in plain words; a Store add-on removed from its card 
 again; retiring a companion right after adding her no longer stops the server.
 
 ## Next
+
+Read-only share links for a conversation (expiring, revocable, scrubbed, never indexed) and usage
+and cost reports per person, workspace and project with CSV export and monthly budget warnings are
+built and come with the next release.
 
 Expressive speech on calls (laughter and sighs where the voice supports it) follows after
 listening tests.

@@ -120,6 +120,25 @@ button.rt-setup-first:hover { background: var(--accent-soft); filter: none; }
 .wt-card-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
 #planner .wt-add .rt-field input[type="checkbox"] { flex: none; width: 22px; height: 22px; min-height: 22px; }
 
+/* EC12: Team → Crews (web/crews.js). */
+.crews-box { margin: 12px 0; }
+.crew-members { margin: 4px 0; padding-left: 18px; }
+.crew-member-rows { display: flex; flex-direction: column; gap: 6px; }
+.crew-member-rows .add-row input[type="text"] { flex: 1 1 200px; min-width: 0; }
+#team .rt-field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#team .rt-field > span:first-child { min-width: 11rem; }
+#team .rt-field input, #team .rt-field select, #team .rt-field textarea { flex: 1 1 12rem; min-height: 44px; width: auto; min-width: 0; }
+#team .rt-field input[type="checkbox"] { flex: none; width: 22px; height: 22px; min-height: 22px; }
+.crew-add .rt-more-acts, .crews-box > div > .rt-more-acts { align-items: center; }
+@media (max-width: 600px) {
+  #team .rt-field > span:first-child { min-width: 0; flex: 1 1 100%; }
+}
+/* EC13: the overnight memory tidy's morning card (web/memory-tidy.js). */
+.mt-changes { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mt-change { border-top: 1px solid var(--line); padding-top: 4px; }
+.mt-change p { margin: 2px 0; overflow-wrap: anywhere; }
+.msg.notice.mem-tidy, .msg.notice.crew { text-align: left; }
+
 /* EC4/EC5 (web/governance.js): the audit trail, the policy page, and "Set by your admin". */
 .au-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: var(--s-2) var(--s-3); margin: var(--s-2) 0; }
 .au-filters label { display: flex; flex-direction: column; gap: 4px; }

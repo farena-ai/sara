@@ -144,9 +144,11 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
     // Phase 127: explicit companions show only where Adult mode is on for at least one of his companions.
     const adultAny = () => (ctx.opts.companions?.all().map((x) => x.app) ?? [app]).some((x) => adultModeOn(x.settings.get()));
     const saraVersion = app.pluginManager?.version ?? SARA_VERSION;
+    // Listing translations (src/store/locales.ts) follow the owner's language setting.
+    const ownerLang = () => String((app.settings.get() as { language?: string }).language ?? 'en');
     const view = () => {
       if (!client) return { ...settings(), blocked: 'demo', freshness: 'none', items: [], held: [], notices: [] };
-      return shelfView(client, { saraVersion, installs: app.storeInstalls, plugins: app.pluginManager, ...settings(), adultAny: adultAny() });
+      return shelfView(client, { saraVersion, installs: app.storeInstalls, plugins: app.pluginManager, ...settings(), adultAny: adultAny(), lang: ownerLang() });
     };
     const installer = () => {
       if (!client || !app.storeInstalls) throw new HttpError(404, en('The Sara Store is not available here.'));
@@ -210,12 +212,16 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
       const source = hit.item.kind === 'plugin' ? pluginInstallation(app.pluginManager, c, row) : undefined;
       const { lines, error } = entryLines(entry, saraVersion);
       const held = client.held().some((h) => h.id === c);
+      // A translated listing: the tagline (summary, the entry's description) and the longer text (about[0]).
+      const tr = client.translations(ownerLang())[c];
+      const description = tr?.summary ?? entry.description;
+      const about = tr?.description ? [tr.description, ...entry.about.slice(1)] : entry.about;
       return send(res, 200, {
-        item: { id: hit.item.id, kind: hit.item.kind, name: hit.item.name, summary: hit.item.summary, trust: hit.item.trust, category: hit.item.category ?? 'more', author: { name: hit.item.author.name, key: shortKey(hit.item.author.key) }, ...(hit.item.iconSha ? { icon: hit.item.iconSha } : {}), ...(hit.item.kind === 'companion' ? { rating: hit.item.rating, romance: hit.item.romance } : {}) },
+        item: { id: hit.item.id, kind: hit.item.kind, name: hit.item.name, summary: tr?.summary ?? hit.item.summary, trust: hit.item.trust, category: hit.item.category ?? 'more', author: { name: hit.item.author.name, key: shortKey(hit.item.author.key) }, ...(hit.item.iconSha ? { icon: hit.item.iconSha } : {}), ...(hit.item.kind === 'companion' ? { rating: hit.item.rating, romance: hit.item.romance } : {}) },
         version: hit.v.version,
         versions: hit.item.versions.map((v) => ({ version: v.version, published: v.published, ...(v.yanked ? { yanked: v.yanked } : {}) })),
         size: hit.v.size ?? null,
-        entry: { description: entry.description, about: entry.about, license: entry.license, source: entry.source ?? null, contact: entry.author.contact ?? null, shots: entry.shots.map((s) => ({ sha: s.sha256, alt: s.alt })), changes: entry.changes, checks: entry.checks, review: entry.review ?? null, tested: entry.tested ?? [], needs: entry.needs ?? [], works: entry.works ?? [], ...(entry.mcp ? { mcp: entry.mcp } : {}), ...(entry.companion ? { companion: entry.companion } : {}) },
+        entry: { description, about, license: entry.license, source: entry.source ?? null, contact: entry.author.contact ?? null, shots: entry.shots.map((s) => ({ sha: s.sha256, alt: s.alt })), changes: entry.changes, checks: entry.checks, review: entry.review ?? null, tested: entry.tested ?? [], needs: entry.needs ?? [], works: entry.works ?? [], ...(entry.mcp ? { mcp: entry.mcp } : {}), ...(entry.companion ? { companion: entry.companion } : {}) },
         lines,
         ...(error ? { linesError: error } : {}),
         installed: source ? source.installed ? { version: source.version, origin: source.origin, state: row?.state ?? null, note: row?.state_note ?? null } : null : row ? { version: row.version, state: row.state, note: row.state_note } : null,

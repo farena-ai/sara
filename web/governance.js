@@ -151,6 +151,12 @@ export async function loadPolicy() {
   $('#po-store').value = pins.store ?? '';
   $('#po-retention').value = pins.auditRetentionDays === undefined ? '' : String(pins.auditRetentionDays);
   $('#po-programs').value = pins.programInstalls ?? '';
+  $('#po-container').checked = pins.containerSandbox === true;
+  $('#po-egress-on').checked = Array.isArray(pins.egressAllowlist);
+  $('#po-egress').value = (pins.egressAllowlist ?? []).map((h) => (typeof h === 'string' ? h : h.host)).join('\n');
+  if ($('#po-sharing')) $('#po-sharing').checked = pins.sharing === false;
+  $('#po-crews').value = pins.crews ?? '';
+  $('#po-tidy').value = pins.memoryTidy ?? '';
   for (const c of document.querySelectorAll('.po-page input, .po-page select, .po-page button')) c.disabled = !d.canEdit;
 }
 
@@ -168,9 +174,14 @@ function readForm() {
     ...($('#po-adult').checked ? { adultMode: false } : {}),
     ...($('#po-net').checked ? { shellNetwork: false } : {}),
     ...($('#po-local').checked ? { privateLocal: true } : {}),
+    ...($('#po-sharing')?.checked ? { sharing: false } : {}),
     ...($('#po-store').value ? { store: $('#po-store').value } : {}),
     ...($('#po-retention').value !== '' ? { auditRetentionDays: Number($('#po-retention').value) } : {}),
     ...($('#po-programs').value ? { programInstalls: $('#po-programs').value } : {}),
+    ...($('#po-container').checked ? { containerSandbox: true } : {}),
+    ...($('#po-egress-on').checked ? { egressAllowlist: $('#po-egress').value.split(/\r?\n/).map((l) => l.trim()).filter(Boolean) } : {}),
+    ...($('#po-crews').value ? { crews: $('#po-crews').value } : {}),
+    ...($('#po-tidy').value ? { memoryTidy: $('#po-tidy').value } : {}),
   };
   return { name: $('#po-name').value.trim() || t('Policy'), pins };
 }
@@ -212,6 +223,9 @@ const LOCKS = {
   alwaysAllow: ['#cu-level option[value="always"]'],
   auditRetentionDays: ['#au-keep'],
   programInstalls: ['#prq-installs'],
+  containerSandbox: ['#iso-backend'],
+  egressAllowlist: ['#eg-mode', '#eg-hosts', '#eg-save'],
+  memoryTidy: ['#mt-model'],
 };
 const NOTES = { providers: 'models-providers', tools: 'ab-tools' };
 

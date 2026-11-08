@@ -1167,6 +1167,28 @@
    "show": "#sl-box"
   }
  ],
+ "co-teams": [
+  {
+   "id": "connect",
+   "q": "How do I talk to her in Microsoft Teams?",
+   "steps": [
+    "Press Start on the Microsoft Teams card and make the free Azure Bot it describes.",
+    "Paste the App ID, the tenant ID and a client secret, give Teams a public address and paste the messaging endpoint into the bot.",
+    "Download the Teams app package, upload it in Teams, then press Link my Teams and send her the code."
+   ],
+   "show": "#te-chip"
+  },
+  {
+   "id": "channel",
+   "q": "How do I let her answer in a Teams channel?",
+   "steps": [
+    "Add her app to the team (Apps → her app → Add to a team).",
+    "Mention her once in the channel, then press Answer here next to it in Settings → Chat apps → Microsoft Teams.",
+    "Mention her again; she answers in that thread."
+   ],
+   "show": "#te-box"
+  }
+ ],
  "co-apps": [
   {
    "id": "editor",
@@ -1227,6 +1249,68 @@
     "Open the webhook's card.",
     "Look at its deliveries."
    ]
+  }
+ ],
+ "dh-usage-report": [
+  {
+   "id": "report",
+   "q": "How do I see who used how much?",
+   "steps": [
+    "Open Settings → Household → Usage reports.",
+    "Pick Daily, Weekly or Monthly.",
+    "Tick Who, Workspace, Project or Model to split the rows."
+   ],
+   "show": "#ur-period"
+  },
+  {
+   "id": "csv",
+   "q": "How do I get the numbers into a spreadsheet?",
+   "steps": [
+    "Set the period and what to split by.",
+    "Press Download CSV."
+   ],
+   "show": "#ur-csv"
+  },
+  {
+   "id": "budget",
+   "q": "How do I get warned before a budget runs out?",
+   "steps": [
+    "Under Monthly budgets, pick a person or a workspace.",
+    "Enter dollars or tokens for the month.",
+    "Pick when to warn and press Add budget."
+   ],
+   "show": "#ur-b-add"
+  }
+ ],
+ "dh-shares": [
+  {
+   "id": "share",
+   "q": "How do I share a conversation?",
+   "steps": [
+    "Open the chat and its settings.",
+    "Press Share….",
+    "Check the preview, pick how long the link works and press Make link.",
+    "Copy the link and send it privately."
+   ]
+  },
+  {
+   "id": "revoke",
+   "q": "How do I stop a link from working?",
+   "steps": [
+    "Open Settings → Household → Shared links.",
+    "Press Revoke next to the link."
+   ],
+   "show": "#sl-list"
+  },
+  {
+   "id": "private",
+   "q": "How do I share a private chat?",
+   "steps": [
+    "Open Settings → Household → Shared links.",
+    "Tick Allow sharing private chats.",
+    "Share it from the chat as usual."
+   ],
+   "show": "#sl-private"
   }
  ],
  "dh-audit": [

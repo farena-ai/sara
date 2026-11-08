@@ -10,7 +10,7 @@ import { OwnerAuth } from '../src/auth.ts';
 import { memberRouteCheck, type MemberRecord } from '../src/household.ts';
 import { setPrivateLocal } from '../src/net-guard.ts';
 import { policy, PolicyStore, setPolicy } from '../src/policy-profile.ts';
-import { PrereqService, installerEnv, spawnStep, type InstallsSetting, type StepRunner } from '../src/prereqs/service.ts';
+import { PrereqService, installerEnv, setPrereqOverrides, spawnStep, type InstallsSetting, type StepRunner } from '../src/prereqs/service.ts';
 import { usePrereqService } from '../src/routes/prereqs.ts';
 import { createSaraServer } from '../src/server.ts';
 import { StoreInstaller } from '../src/store/install.ts';
@@ -267,4 +267,26 @@ test('prq store: the card offers the missing program; after the install the re-c
   assert.equal(done.server, 'playwright', 'Continue install adds the tool server');
   assert.equal(upserts.length, 1);
   assert.equal(ins.mcpRecheck('gone'), undefined);
+});
+
+test('prq store: an install card built without the server\'s service (a companion\'s suggested add-on, a plugin\'s Store install) still detects Chrome through the catalog, on Linux too, never found: null', async () => {
+  const recipe = { transport: 'stdio', command: 'npx', args: ['-y', '@playwright/mcp@0.0.84'], name: 'playwright', fields: [], secrets: [], reaches: ['the web pages she opens'], tools: { readOnly: [], ask: [] }, needs: ['node', 'app:Google Chrome'], guide: [] };
+  const entry = { name: 'Browser (Playwright)', mcp: recipe, tested: [] };
+  // A fake Linux computer (the throwaway-instance hook): only these files exist.
+  const files = new Set<string>();
+  setPrereqOverrides({ exists: (f) => files.has(f.replace(/\\/g, '/')), list: () => [] });
+  try {
+    const card = async () => {
+      const ins = new StoreInstaller({ app, client: { entry: async () => entry } as never, installs: { get: () => undefined, upsert: () => {} } as never, platform: 'linux', pathVar: '/usr/local/bin:/usr/bin' });
+      return (await ins.mcpReview({ id: 'playwright', trust: 'first-party' } as never, { version: '1.0.1', entrySha: 'x' } as never)).needs.find((n) => n.what === 'app:Google Chrome');
+    };
+    assert.deepEqual(await card(), { what: 'app:Google Chrome', found: false, program: 'chrome' }, 'not there: false, with the catalog program (Install it for me)');
+    files.add('/opt/google/chrome/chrome');
+    assert.deepEqual(await card(), { what: 'app:Google Chrome', found: true, program: 'chrome' }, "Google's package folder");
+    files.clear();
+    files.add('/usr/bin/google-chrome-stable');
+    assert.deepEqual(await card(), { what: 'app:Google Chrome', found: true, program: 'chrome' }, 'google-chrome-stable on PATH');
+  } finally {
+    setPrereqOverrides({});
+  }
 });

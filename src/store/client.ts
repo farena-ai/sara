@@ -17,7 +17,8 @@ import { COMPANION_PACKAGE_MAX, parseEntry, type StoreBlock, type StoreEntry, ty
 import type { StoreInstallRow, StoreInstalls } from './installs.ts';
 import { STORE_KEYS } from './keys.ts';
 import { STORE_COMPANION_LIMITS } from '../packs/format.ts';
-import { acceptIndex, checkPackage, checkPinned, indexFresh, sha256, StoreRefused } from './verify.ts';
+import { acceptIndex, checkPackage, checkPinned, indexFresh, sha256, signatureOk, StoreRefused } from './verify.ts';
+import { LOCALE_LIMITS, listingFor, parseLocales, type ListingText, type StoreLocales } from './locales.ts';
 
 export const STORE_DEFAULT = 'https://backstagecoding.com/sara/store';
 export const STORE_UA = 'Sara';
@@ -129,6 +130,7 @@ export class StoreClient {
   readonly #o: StoreClientOptions;
   #state: StoreState | undefined;
   #cache: { index: StoreIndex; skipped: string[] } | null | undefined;
+  #locales: { seq: number; l: StoreLocales | null } | undefined;
   #timer: ReturnType<typeof setTimeout> | undefined;
   #busy: Promise<CheckResult> | undefined;
   /** Called with every list that checked out (fresh or, at start, from the cache). */
@@ -256,6 +258,7 @@ export class StoreClient {
       if (r.status === 304) {
         this.#save({ checkedAt: now, failures: 0, lastError: undefined });
         await this.#readHeld();
+        if (had) await this.#fetchLocales(had.index.seq);
         if (had) await this.onIndex?.(had.index);
         return { ok: true, changed: false };
       }
@@ -268,6 +271,7 @@ export class StoreClient {
       this.#save({ seq: acc.index.seq, sha: acc.sha, etag: r.etag, fetchedAt: now, checkedAt: now, revokedKeys: acc.revokedKeys, failures: 0, lastError: undefined });
       this.#cache = { index: acc.index, skipped: acc.skipped };
       await this.#readHeld();
+      await this.#fetchLocales(acc.index.seq);
       await this.onIndex?.(acc.index);
       return { ok: true, changed };
     } catch (err) {
@@ -277,6 +281,55 @@ export class StoreClient {
       this.#o.log?.(`store: ${refused ? "the store's list didn't check out, so Sara kept the last good one" : "couldn't reach the store"} (${(err as Error).message})`);
       return { ok: false, reason: refused ? 'refused' : 'unreachable', message };
     }
+  }
+
+  /**
+   * Listing translations (src/store/locales.ts): the signed sidecar for this list, fetched after the
+   * list itself. Never fails a check: a missing (404), unreachable or refused sidecar only means the
+   * English text, and an old one is dropped.
+   */
+  async #fetchLocales(seq: number): Promise<void> {
+    const lj = join(this.dir, 'locales.json');
+    const ls = join(this.dir, 'locales.sig');
+    try {
+      const json = await this.#get('locales.json', LOCALE_LIMITS.bytes);
+      const sig = await this.#get('locales.sig', SIG_CAP);
+      signatureOk(json.body, sig.body, this.keys, this.state().revokedKeys ?? []);
+      parseLocales(json.body.toString('utf8'), seq);
+      writeFileAtomic(ls, sig.body);
+      writeFileAtomic(lj, json.body);
+    } catch (err) {
+      if (!/\b404\b/.test((err as Error).message)) this.#o.log?.(`store: listing translations not used (${(err as Error).message})`);
+      rmSync(lj, { force: true });
+      rmSync(ls, { force: true });
+    }
+    this.#locales = undefined;
+  }
+  /** The verified translations for the current list ({} for English, none published, or none valid). */
+  translations(lang: string | undefined): Record<string, ListingText> {
+    const cur = this.current();
+    if (!cur || !lang || lang === 'en' || lang.startsWith('en-')) return {};
+    if (this.#locales?.seq !== cur.index.seq) {
+      let l: StoreLocales | null = null;
+      try {
+        const lj = join(this.dir, 'locales.json');
+        const ls = join(this.dir, 'locales.sig');
+        if (existsSync(lj) && existsSync(ls)) {
+          const bytes = readFileSync(lj);
+          signatureOk(bytes, readFileSync(ls), this.keys, this.state().revokedKeys ?? []);
+          l = parseLocales(bytes.toString('utf8'), cur.index.seq);
+        }
+      } catch {
+        l = null;
+      }
+      this.#locales = { seq: cur.index.seq, l };
+    }
+    const out: Record<string, ListingText> = {};
+    for (const it of cur.index.items) {
+      const t = listingFor(this.#locales.l ?? undefined, it.id, lang);
+      if (t) out[it.id] = t;
+    }
+    return out;
   }
 
   async #readHeld(): Promise<void> {
@@ -524,7 +577,8 @@ export function pluginInstallation(plugins: Pick<PluginManager, 'store'> | undef
 }
 
 /** The read model of GET /api/store (§6.2). */
-export function shelfView(client: StoreClient, o: { saraVersion: string; platform?: NodeJS.Platform; installs?: StoreInstalls; plugins?: Pick<PluginManager, 'store'>; on: boolean; community: boolean; adultAny?: boolean }): Record<string, unknown> {
+export function shelfView(client: StoreClient, o: { saraVersion: string; platform?: NodeJS.Platform; installs?: StoreInstalls; plugins?: Pick<PluginManager, 'store'>; on: boolean; community: boolean; adultAny?: boolean; lang?: string }): Record<string, unknown> {
+  const tr = client.translations(o.lang);
   const blocked = client.blocked();
   const cur = client.current();
   const st = client.state();
@@ -550,7 +604,7 @@ export function shelfView(client: StoreClient, o: { saraVersion: string; platfor
       id: it.id,
       kind: it.kind,
       name: it.name,
-      summary: it.summary,
+      summary: tr[it.id]?.summary ?? it.summary,
       trust: it.trust,
       category: it.category ?? 'more',
       tags: it.tags ?? [],

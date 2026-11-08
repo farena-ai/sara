@@ -43,6 +43,8 @@ export class FakeSlack {
     this.uploaded = new Map();
     this.downloads = [];
     this.errors = [];
+    /** method → ms: answer that Web API method this much later (after recording it), as a slow Slack. */
+    this.slow = new Map();
     this.files = new Map();
     this.tickets = new Set();
     this.conns = [];
@@ -149,7 +151,9 @@ export class FakeSlack {
       return send(200, { ok: true, url: `wss://wss-primary.slack.com/link/?ticket=${ticket}&app_id=A0FAKE` });
     }
     if (kind !== 'bot') return send(200, { ok: false, error: 'not_allowed_token_type' });
-    return send(200, this.#method(method, args));
+    const answer = this.#method(method, args);
+    if (this.slow.has(method)) await new Promise((r) => setTimeout(r, this.slow.get(method)));
+    return send(200, answer);
   }
 
   #method(method, a) {

@@ -71,6 +71,7 @@ const PERM = {
   'Connects to the server you give it in {setting} (ports {ports}, always encrypted)': (p) => t('Connects to the server you give it in {setting} (ports {ports}, always encrypted)', p),
   // Phase 122 (WHATSAPP §4.13): a bridge hook Sara checks and hands over.
   'Receives messages from Meta at a public web address Sara gives it': () => t('Receives messages from Meta at a public web address Sara gives it'),
+  'Receives messages from Microsoft Teams at a public web address Sara gives it (Sara checks Microsoft’s signature first)': () => t('Receives messages from Microsoft Teams at a public web address Sara gives it (Sara checks Microsoft’s signature first)'),
   'Is woken by its app on your network; checks every message with that app before reading it': () => t('Is woken by its app on your network; checks every message with that app before reading it'),
   // EC1: a named public domain (Slack) and her approvals as buttons in its chats.
   'Connects to {domain} and its subdomains (ports {ports}, always encrypted)': (p) => t('Connects to {domain} and its subdomains (ports {ports}, always encrypted)', p),
@@ -141,7 +142,7 @@ export async function loadPlugins() {
 
 // ---------- Phase 117 (P3): plugins that come with Sara ----------
 
-const CHAT_APP_PAGE = { email: 'co-email', signal: 'co-signal', whatsapp: 'co-whatsapp', matrix: 'co-matrix', imessage: 'co-imessage', slack: 'co-slack' };
+const CHAT_APP_PAGE = { email: 'co-email', signal: 'co-signal', whatsapp: 'co-whatsapp', matrix: 'co-matrix', imessage: 'co-imessage', slack: 'co-slack', teams: 'co-teams' };
 async function renderBuiltin() {
   const box = $('#plg-builtin');
   if (!box) return;

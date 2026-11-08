@@ -54,6 +54,7 @@ import {
   type Sender,
   type VerifyKind,
 } from './webhook-verify.ts';
+import { BotFrameworkAuth } from './plugins/botframework-auth.ts';
 
 export const HOOK_CHANNEL = 'webhook';
 export const HOOKS_PROJECT = 'Hooks';
@@ -451,6 +452,8 @@ export interface ManagerOptions {
   keepDays?: () => number;
   /** Phase 122: called after a bridge hook's handshake or accepted delivery (the setup card refreshes). */
   onBridge?: (h: Hook) => void;
+  /** EC7: the Bot Framework JWT check for Teams bridge hooks (tests give a loopback stand-in). */
+  botFramework?: BotFrameworkAuth;
 }
 
 /** What a delivery would do or did (the test button and the log). */
@@ -481,7 +484,7 @@ const vaultKey = (id: string) => `webhook:${id}`;
 const verifyKey = (id: string) => `webhook:${id}:verify`;
 const urlKey = (id: string) => `webhook:${id}:url`;
 /** The plugin's name on the locked row (Settings → Webhooks). */
-const PLUGIN_HOOK_NAMES: Record<string, string> = { whatsapp: 'WhatsApp', imessage: 'iMessage' };
+const PLUGIN_HOOK_NAMES: Record<string, string> = { whatsapp: 'WhatsApp', imessage: 'iMessage', teams: 'Microsoft Teams' };
 const outKey = (id: string) => `webhook-out:${id}`;
 
 export class HookManager {
@@ -538,7 +541,7 @@ export class HookManager {
     const name = cleanName(input.name);
     if (!name) throw new HttpError(400, 'Name the webhook (for example "GitHub CI").');
     const sender = (['github', 'stripe', 'home-assistant', 'other'] as const).find((s) => s === input.sender) ?? 'other';
-    const verifyKind = (VERIFY_KINDS as readonly string[]).includes(String(input.verify)) && input.verify !== 'meta' ? (input.verify as VerifyKind) : sender === 'github' ? 'github' : sender === 'stripe' ? 'stripe' : sender === 'home-assistant' ? 'header' : 'standard';
+    const verifyKind = (VERIFY_KINDS as readonly string[]).includes(String(input.verify)) && input.verify !== 'meta' && input.verify !== 'botframework' ? (input.verify as VerifyKind) : sender === 'github' ? 'github' : sender === 'stripe' ? 'stripe' : sender === 'home-assistant' ? 'header' : 'standard';
     const preset = typeof input.preset === 'string' ? presetById(input.preset) : undefined;
     const action = cleanAction(input.action ?? { kind: 'tell', ...(preset ? { template: preset.template } : {}) });
     this.#checkAction(verifyKind, action, input.allowRuns === true);
@@ -655,7 +658,7 @@ export class HookManager {
    * goes to the hook's vault entry (only Sara's signature check reads it; the plugin never has it);
    * Sara makes the verify token (128 bits). A second call with `appSecret` replaces the secret only.
    */
-  ensureBridgeHook(plugin: string, companion: string, appSecret?: string, kind: 'meta' | 'url' = 'meta'): { hook: Hook; path: string; verifyToken: string; created: boolean } {
+  ensureBridgeHook(plugin: string, companion: string, appSecret?: string, kind: 'meta' | 'url' | 'botframework' = 'meta'): { hook: Hook; path: string; verifyToken: string; created: boolean } {
     let h = this.bridgeHookFor(plugin, companion);
     // Phase 122 part 3 (BRIDGES4 B1): a hook of the other kind is made again (its old URL stops working).
     if (h && h.verify !== kind) {
@@ -864,8 +867,15 @@ export class HookManager {
       this.store.count(hook.id, 'rejected');
       return this.#answer(res, 413, { error: 'Too big (256 KB at most)' });
     }
-    // The signature, over the raw bytes, before anything parses them.
-    const v = verify(hook.verify, raw, req.headers, this.opts.vault.get(vaultKey(hook.id)), Math.floor(nowMs / 1000));
+    // EC7: a Teams hook in private local mode fetches no keys and reads nothing (Teams tries again).
+    if (hook.verify === 'botframework' && privateLocalOn()) {
+      this.store.log({ hookId: hook.id, verdict: 'error', deliveryId: null, sender: ip, event: 'activity', size: raw.length, body: null, result: { error: 'private local mode is on' } });
+      res.writeHead(503, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'retry-after': '60', ...SECURITY_HEADERS });
+      return void res.end(JSON.stringify({ error: 'Not now' }));
+    }
+    // The signature, over the raw bytes, before anything parses them (EC7: a Teams hook's Bot
+    // Framework token is in the header; only the activity's channelId and serviceUrl are read for it).
+    const v = hook.verify === 'botframework' ? await this.#botFramework(raw, req.headers, hook) : verify(hook.verify, raw, req.headers, this.opts.vault.get(vaultKey(hook.id)), Math.floor(nowMs / 1000));
     if (!v.ok) {
       this.store.log({ hookId: hook.id, verdict: 'bad-signature', deliveryId: null, sender: ip, event: event0, size: raw.length, body: null, result: { error: v.why ?? 'bad signature' } });
       this.store.count(hook.id, 'rejected');
@@ -908,7 +918,10 @@ export class HookManager {
     let ids: string[] = [];
     if (type === 'application/json') {
       try {
-        ids = metaDeliveryIds(JSON.parse(raw.toString('utf8')) as unknown);
+        const parsed = JSON.parse(raw.toString('utf8')) as unknown;
+        // EC7: a Teams activity is one delivery, its id the key.
+        const aid = hook.verify === 'botframework' ? (parsed as { id?: unknown } | null)?.id : undefined;
+        ids = hook.verify === 'botframework' ? (typeof aid === 'string' && aid.length <= 200 ? [aid] : []) : metaDeliveryIds(parsed);
       } catch {
         ids = [];
       }
@@ -933,6 +946,23 @@ export class HookManager {
     this.opts.onBridge?.(hook);
     return this.#answer(res, 200, { ok: true });
   }
+
+  /** EC7: the Bot Framework token of a Teams hook (audience = the App ID kept as the hook's sender secret). */
+  async #botFramework(raw: Buffer, h: IncomingMessage['headers'], hook: Hook): Promise<{ ok: boolean; why?: string; deliveryId?: string }> {
+    const appId = this.opts.vault.get(vaultKey(hook.id));
+    if (!appId) return { ok: false, why: 'this hook has no App ID yet (paste it on the Teams card)' };
+    let act: { channelId?: unknown; serviceUrl?: unknown } = {};
+    try {
+      const parsed = JSON.parse(raw.toString('utf8')) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) act = parsed as typeof act;
+    } catch {
+      return { ok: false, why: 'not an activity' };
+    }
+    const auth = (this.#bf ??= this.opts.botFramework ?? new BotFrameworkAuth());
+    const header = h.authorization;
+    return auth.check(Array.isArray(header) ? header[0] : header, act, appId);
+  }
+  #bf?: BotFrameworkAuth;
 
   /**
    * Phase 122 part 3 (BRIDGES4 §3.1 B2, the doorbell rule): an unsigned bridge hook (kind `url`,

@@ -216,6 +216,12 @@ export interface AppContext {
   loops?: import('./loops.ts').Loops;
   /** E4: the owner's file/log watches (owner space only; src/watch.ts). Checked on the reminder tick. */
   watches?: import('./watch.ts').Watches;
+  /** EC6: the owner's research runs (owner space only; src/research.ts). */
+  research?: import('./research.ts').Research;
+  /** EC12: the owner's crews (src/crews.ts). Checked on the reminder tick. */
+  crews?: import('./crews.ts').Crews;
+  /** EC13: the overnight memory tidy of this space (src/memory-tidy.ts). Checked on the reminder tick. */
+  memoryTidy?: import('./memory-tidy.ts').MemoryTidy;
   /** Phase 99: shared household boards (src/shared-boards.ts) and who this space is. Never on the demo. */
   sharedBoards?: import('./shared-boards.ts').SharedBoardsAccess;
   /** Set by the server: stops the turn running in a conversation (a card's Stop). */

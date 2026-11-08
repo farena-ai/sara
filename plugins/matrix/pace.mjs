@@ -27,6 +27,8 @@ export const LIMITS = {
   whatsapp: { name: 'WhatsApp', everyMs: 6_000, burst: 5, perHour: 200, perDay: 1_000, retry: 'backoff', maxRetryMs: 5 * 60_000 },
   matrix: { name: 'Matrix', everyMs: 1_000, burst: 5, perHour: 600, perDay: 3_000, retry: 'server', maxRetryMs: 5 * 60_000, defaultRetryMs: 5_000, typingMs: 25_000 },
   slack: { name: 'Slack', everyMs: 1_000, burst: 3, perHour: 600, perDay: 3_000, retry: 'server', maxRetryMs: 5 * 60_000, defaultRetryMs: 5_000 },
+  // EC7: Teams allows 7 a second per chat and 1,800 an hour; Sara stays well under (3 then 1 a second).
+  teams: { name: 'Microsoft Teams', everyMs: 1_000, burst: 3, perHour: 600, perDay: 3_000, retry: 'server', maxRetryMs: 5 * 60_000, defaultRetryMs: 5_000 },
   imessage: { name: 'iMessage', everyMs: 2_000, burst: 4, perHour: 150, perDay: 600, retry: 'none', typingMs: 20_000 },
   signal: { name: 'Signal', perChatGapMs: 1_000, groupPerMinute: 20, perHour: 60, perDay: 400, replyWindowMs: 24 * 3600_000, pauseChatMs: 3600_000, pauseAllMs: 6 * 3600_000 },
 };

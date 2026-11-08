@@ -1,0 +1,145 @@
+{
+  "manifest": 1,
+  "id": "teams",
+  "name": "Microsoft Teams",
+  "version": "1.0.0",
+  "description": "Talk to her in Microsoft Teams: her personal chat, and the channels and group chats you choose when someone mentions her.",
+  "author": "The Sara team",
+  "license": "MIT",
+  "sara": ">=2.83.0",
+  "main": "main.mjs",
+  "permissions": {
+    "bridges": [
+      "teams"
+    ],
+    "bridgeFiles": true,
+    "bridgeApprovals": true,
+    "settings": true,
+    "webhooks": {
+      "bridge": [
+        "botframework"
+      ]
+    },
+    "connect": [
+      {
+        "id": "login",
+        "host": "domain:login.microsoftonline.com",
+        "ports": [
+          443
+        ],
+        "where": "public",
+        "tls": "required"
+      },
+      {
+        "id": "connector",
+        "host": "domain:smba.trafficmanager.net",
+        "ports": [
+          443
+        ],
+        "where": "public",
+        "tls": "required"
+      },
+      {
+        "id": "files",
+        "host": "domain:sharepoint.com",
+        "ports": [
+          443
+        ],
+        "where": "public",
+        "tls": "required"
+      }
+    ],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    }
+  },
+  "settings": [
+    {
+      "key": "appId",
+      "type": "text",
+      "label": "App ID",
+      "tip": "The Microsoft App ID of your Azure Bot (Configuration page). It looks like 8-4-4-4-12 letters and digits."
+    },
+    {
+      "key": "tenantId",
+      "type": "text",
+      "label": "Directory (tenant) ID",
+      "tip": "Your Microsoft 365 directory: Azure Bot → Configuration → App Tenant ID. Leave empty only for an older multi-tenant bot."
+    },
+    {
+      "key": "appPassword",
+      "type": "secret",
+      "label": "Client secret",
+      "tip": "The Value of a client secret (Manage Password → Certificates & secrets), not its Secret ID. Kept encrypted in Sara's vault and never shown again."
+    },
+    {
+      "key": "mirror",
+      "type": "switch",
+      "label": "Send reminders and messages she starts to my Teams chat too",
+      "default": false,
+      "tip": "Her reminders also come to your personal chat with her in Teams. Never to channels or other people."
+    }
+  ],
+  "i18n": {
+    "es": {
+      "Talk to her in Microsoft Teams: her personal chat, and the channels and group chats you choose when someone mentions her.": "Habla con ella en Microsoft Teams: su chat personal y, cuando alguien la menciona, los canales y chats de grupo que elijas.",
+      "App ID": "App ID",
+      "The Microsoft App ID of your Azure Bot (Configuration page). It looks like 8-4-4-4-12 letters and digits.": "El Microsoft App ID de tu Azure Bot (página Configuration). Tiene la forma 8-4-4-4-12 letras y cifras.",
+      "Directory (tenant) ID": "ID de directorio (tenant)",
+      "Your Microsoft 365 directory: Azure Bot → Configuration → App Tenant ID. Leave empty only for an older multi-tenant bot.": "Tu directorio de Microsoft 365: Azure Bot → Configuration → App Tenant ID. Déjalo vacío solo para un bot multiinquilino antiguo.",
+      "Client secret": "Secreto de cliente",
+      "The Value of a client secret (Manage Password → Certificates & secrets), not its Secret ID. Kept encrypted in Sara's vault and never shown again.": "El Value de un secreto de cliente (Manage Password → Certificates & secrets), no su Secret ID. Se guarda cifrado en la bóveda de Sara y no se vuelve a mostrar.",
+      "Send reminders and messages she starts to my Teams chat too": "Enviar también a mi chat de Teams los recordatorios y mensajes que ella inicia",
+      "Her reminders also come to your personal chat with her in Teams. Never to channels or other people.": "Sus recordatorios también llegan a tu chat personal con ella en Teams. Nunca a canales ni a otras personas."
+    },
+    "fr": {
+      "Talk to her in Microsoft Teams: her personal chat, and the channels and group chats you choose when someone mentions her.": "Parlez-lui dans Microsoft Teams : sa conversation personnelle et, quand quelqu'un la mentionne, les canaux et conversations de groupe que vous choisissez.",
+      "App ID": "App ID",
+      "The Microsoft App ID of your Azure Bot (Configuration page). It looks like 8-4-4-4-12 letters and digits.": "Le Microsoft App ID de votre Azure Bot (page Configuration). Il a la forme 8-4-4-4-12 lettres et chiffres.",
+      "Directory (tenant) ID": "ID de l'annuaire (tenant)",
+      "Your Microsoft 365 directory: Azure Bot → Configuration → App Tenant ID. Leave empty only for an older multi-tenant bot.": "Votre annuaire Microsoft 365 : Azure Bot → Configuration → App Tenant ID. Laissez vide seulement pour un ancien bot multilocataire.",
+      "Client secret": "Secret client",
+      "The Value of a client secret (Manage Password → Certificates & secrets), not its Secret ID. Kept encrypted in Sara's vault and never shown again.": "La Value d'un secret client (Manage Password → Certificates & secrets), pas son Secret ID. Gardé chiffré dans le coffre de Sara et plus jamais affiché.",
+      "Send reminders and messages she starts to my Teams chat too": "Envoyer aussi dans ma conversation Teams les rappels et les messages qu'elle commence",
+      "Her reminders also come to your personal chat with her in Teams. Never to channels or other people.": "Ses rappels arrivent aussi dans votre conversation personnelle avec elle dans Teams. Jamais dans des canaux ni à d'autres personnes."
+    },
+    "de": {
+      "Talk to her in Microsoft Teams: her personal chat, and the channels and group chats you choose when someone mentions her.": "Sprich mit ihr in Microsoft Teams: ihr persönlicher Chat und, wenn jemand sie erwähnt, die Kanäle und Gruppenchats, die du wählst.",
+      "App ID": "App-ID",
+      "The Microsoft App ID of your Azure Bot (Configuration page). It looks like 8-4-4-4-12 letters and digits.": "Die Microsoft App ID deines Azure Bot (Seite Configuration). Sie hat die Form 8-4-4-4-12 Buchstaben und Ziffern.",
+      "Directory (tenant) ID": "Verzeichnis-ID (Tenant)",
+      "Your Microsoft 365 directory: Azure Bot → Configuration → App Tenant ID. Leave empty only for an older multi-tenant bot.": "Dein Microsoft-365-Verzeichnis: Azure Bot → Configuration → App Tenant ID. Nur für einen älteren mandantenfähigen Bot leer lassen.",
+      "Client secret": "Geheimer Clientschlüssel",
+      "The Value of a client secret (Manage Password → Certificates & secrets), not its Secret ID. Kept encrypted in Sara's vault and never shown again.": "Der Value eines geheimen Clientschlüssels (Manage Password → Certificates & secrets), nicht seine Secret ID. Verschlüsselt in Saras Tresor gespeichert und nie wieder angezeigt.",
+      "Send reminders and messages she starts to my Teams chat too": "Erinnerungen und Nachrichten, die sie beginnt, auch in meinen Teams-Chat senden",
+      "Her reminders also come to your personal chat with her in Teams. Never to channels or other people.": "Ihre Erinnerungen kommen auch in deinen persönlichen Chat mit ihr in Teams. Nie in Kanäle oder an andere."
+    },
+    "pt-BR": {
+      "Talk to her in Microsoft Teams: her personal chat, and the channels and group chats you choose when someone mentions her.": "Converse com ela no Microsoft Teams: o chat pessoal dela e, quando alguém a menciona, os canais e chats em grupo que você escolher.",
+      "App ID": "App ID",
+      "The Microsoft App ID of your Azure Bot (Configuration page). It looks like 8-4-4-4-12 letters and digits.": "O Microsoft App ID do seu Azure Bot (página Configuration). Tem a forma 8-4-4-4-12 letras e dígitos.",
+      "Directory (tenant) ID": "ID do diretório (tenant)",
+      "Your Microsoft 365 directory: Azure Bot → Configuration → App Tenant ID. Leave empty only for an older multi-tenant bot.": "Seu diretório do Microsoft 365: Azure Bot → Configuration → App Tenant ID. Deixe vazio só para um bot multilocatário antigo.",
+      "Client secret": "Segredo do cliente",
+      "The Value of a client secret (Manage Password → Certificates & secrets), not its Secret ID. Kept encrypted in Sara's vault and never shown again.": "O Value de um segredo do cliente (Manage Password → Certificates & secrets), não o Secret ID. Fica criptografado no cofre da Sara e nunca é mostrado de novo.",
+      "Send reminders and messages she starts to my Teams chat too": "Enviar também para meu chat do Teams os lembretes e mensagens que ela começa",
+      "Her reminders also come to your personal chat with her in Teams. Never to channels or other people.": "Os lembretes dela também chegam ao seu chat pessoal com ela no Teams. Nunca a canais nem a outras pessoas."
+    },
+    "it": {
+      "Talk to her in Microsoft Teams: her personal chat, and the channels and group chats you choose when someone mentions her.": "Parla con lei in Microsoft Teams: la sua chat personale e, quando qualcuno la menziona, i canali e le chat di gruppo che scegli.",
+      "App ID": "App ID",
+      "The Microsoft App ID of your Azure Bot (Configuration page). It looks like 8-4-4-4-12 letters and digits.": "Il Microsoft App ID del tuo Azure Bot (pagina Configuration). Ha la forma 8-4-4-4-12 lettere e cifre.",
+      "Directory (tenant) ID": "ID della directory (tenant)",
+      "Your Microsoft 365 directory: Azure Bot → Configuration → App Tenant ID. Leave empty only for an older multi-tenant bot.": "La tua directory di Microsoft 365: Azure Bot → Configuration → App Tenant ID. Lascia vuoto solo per un vecchio bot multi-tenant.",
+      "Client secret": "Segreto client",
+      "The Value of a client secret (Manage Password → Certificates & secrets), not its Secret ID. Kept encrypted in Sara's vault and never shown again.": "Il Value di un segreto client (Manage Password → Certificates & secrets), non il suo Secret ID. Custodito cifrato nella cassaforte di Sara e mai più mostrato.",
+      "Send reminders and messages she starts to my Teams chat too": "Invia anche alla mia chat di Teams i promemoria e i messaggi che inizia lei",
+      "Her reminders also come to your personal chat with her in Teams. Never to channels or other people.": "I suoi promemoria arrivano anche nella tua chat personale con lei in Teams. Mai nei canali o ad altre persone."
+    }
+  }
+}

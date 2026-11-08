@@ -30,6 +30,8 @@
 //   register,send-test,unmute} (src/plugins/whatsapp-setup.ts); removing a plugin removes its bridge hook.
 // Phase 122 part 2 (BRIDGES4 §8.2): GET /api/plugins/matrix/setup and POST …/{terms,login,token,check,fix}
 //   (src/plugins/matrix-setup.ts); her password is passed once to the plugin and never stored or logged.
+// EC7 (docs/ops/EC7_DESIGN.md): GET /api/plugins/teams/{setup,app-package} and POST …/{credentials,door-url,check,fix}
+//   (src/plugins/teams-setup.ts).
 // EC1 (docs/ops/EC1_DESIGN.md): GET /api/plugins/slack/setup and POST …/{tokens,check,fix} (src/plugins/slack-setup.ts);
 //   both tokens go to the vault as secret settings and never come back to the page.
 // Phase 122 part 3 (BRIDGES4 §8.2): GET /api/plugins/imessage/setup and POST …/{terms,address,password,check,fix}
@@ -52,6 +54,7 @@ import { checkServerFolder } from '../skill-store.ts';
 import { hookBase, runCheck, setupState, WA } from '../plugins/whatsapp-setup.ts';
 import * as matrix from '../plugins/matrix-setup.ts';
 import * as slack from '../plugins/slack-setup.ts';
+import * as teams from '../plugins/teams-setup.ts';
 import * as imessage from '../plugins/imessage-setup.ts';
 import { linkQr, probeDaemon, SIGNAL } from '../plugins/signal-setup.ts';
 import { bridgeWindowOpen } from '../plugins/bridge-db.ts';
@@ -260,6 +263,30 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
         if (c === 'password') return send(res, 200, await imessage.setPassword(app, pm, co, body.password));
         if (c === 'check') return send(res, 200, await imessage.runCheck(app, pm, co, String(body.step ?? '')));
         return send(res, 200, await imessage.runFix(app, pm, co, String(body.fix ?? ''), body));
+      } catch (err) {
+        return asHttp(err);
+      }
+    }
+
+    // EC7: the Microsoft Teams setup card (and the app package he uploads in Teams).
+    if (b === teams.TE && c && ['setup', 'app-package', 'credentials', 'door-url', 'check', 'fix'].includes(c) && !d) {
+      const q = new URL(req.url ?? '/', 'http://x').searchParams;
+      if (c === 'setup' && method === 'GET') return send(res, 200, await teams.setupState(app, pm, companion(q.get('companion'))));
+      if (c === 'app-package' && method === 'GET') {
+        if (!pm.store.get(teams.TE)) throw new HttpError(400, 'Add Microsoft Teams first.');
+        const zip = teams.appPackage(app, pm, companion(q.get('companion')));
+        res.writeHead(200, { 'content-type': 'application/zip', 'content-length': zip.length, 'content-disposition': 'attachment; filename="sara-teams.zip"', 'cache-control': 'no-store', ...SECURITY_HEADERS });
+        return void res.end(zip);
+      }
+      if (method !== 'POST') throw new HttpError(405, 'Method not allowed');
+      const body = await readJson(req);
+      const co = companion(body.companion);
+      if (!pm.store.get(teams.TE)) throw new HttpError(400, 'Add Microsoft Teams first.');
+      try {
+        if (c === 'credentials') return send(res, 200, await teams.useCredentials(app, pm, co, body));
+        if (c === 'door-url') return send(res, 200, teams.useDoorUrl(pm, co, body.url));
+        if (c === 'check') return send(res, 200, await teams.runCheck(app, pm, co, String(body.step ?? '')));
+        return send(res, 200, await teams.runFix(app, pm, co, String(body.fix ?? '')));
       } catch (err) {
         return asHttp(err);
       }

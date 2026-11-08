@@ -17,7 +17,7 @@ test('official pack/smoke and real manager trust/enable/plan/run/result.card/dis
    app.settings.update({language} as never);await pm.setEnabled(id,'main',true);await until(()=>app.tools.get(full)?.isAvailable?.()===true);const tool=app.tools.get(full)!;
    assert.deepEqual(tool.spec.parameters,JSON.parse(readFileSync(join(source,'schema.json'),'utf8')));assert.equal(tool.defaultPermission,'ask');assert.equal(pm.enabledFor(id,'other'),false);
    const plan=JSON.parse(await tool.run({operation:'plan',...p},ctx));const run=JSON.parse(await tool.run({operation:'run',...p,planSha:plan.planSha},ctx));
-   assert.equal(run.status,'regression');assert.equal(run.rawSamplesNs.candidate.length,30);assert.equal(run.planSha,plan.planSha);
+   assert.equal(run.status,'regression',JSON.stringify({reason:run.reason,ci:run.ratioCi,noise:run.relativeMad,medianNs:run.medianNs}));assert.equal(run.rawSamplesNs.candidate.length,30);assert.equal(run.planSha,plan.planSha);
    await assert.rejects(tool.run({operation:'run',...p,planSha:'0'.repeat(64)},ctx));
    const labels=JSON.parse(readFileSync(join(source,'labels.json'),'utf8'))[language];assert.equal(cards.at(-1).title,labels.title);assert.equal(cards.at(-1).lines[0],labels.regression);
    await pm.setEnabled(id,'main',false);assert.equal(app.tools.get(full),undefined);

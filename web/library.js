@@ -7,6 +7,7 @@ import { serverText, t } from './naming.js';
 import { emptyState } from './tidy.js';
 import { choices } from './kit.js';
 import { openReadFeed, openReadTogether } from './read-together.js';
+import { closeResearch, openResearch } from './research.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -355,6 +356,7 @@ function showText(passages) {
 
 function showHome() {
   current = null;
+  closeResearch();
   $('#lib-doc').hidden = true;
   $('#lib-home').hidden = false;
   void loadList();
@@ -504,6 +506,9 @@ $('#lib-speed').addEventListener('input', speedLabel);
 
 $('#open-library').addEventListener('click', () => void openLibrary());
 $('#lib-back').addEventListener('click', showHome);
+// EC6: Research a question (web/research.js), inside the Library window.
+$('#lib-research-open').addEventListener('click', () => void openResearch());
+$('#lib-r-back').addEventListener('click', showHome);
 $('#lib-file').addEventListener('change', async () => {
   await addFiles($('#lib-file').files);
   $('#lib-file').value = '';

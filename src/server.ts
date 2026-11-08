@@ -71,6 +71,9 @@ import { ensureLeanTables, setChatPin, setLeanOff, toolsView } from './lean.ts';
 import { createSafetyCheckRoutes } from './routes/safety-check.ts';
 import { createRoutineRoutes } from './routes/routines.ts';
 import { createWatchRoutes } from './routes/watches.ts';
+import { createResearchRoutes } from './routes/research.ts';
+import { createCrewRoutes } from './routes/crews.ts';
+import { createMemoryTidyRoutes } from './routes/memory-tidy.ts';
 import { createReadTogetherRoutes } from './routes/read-together.ts';
 import { createRecallRoutes } from './routes/recall.ts';
 import { createSessionContinuityRoutes } from './routes/session-continuity.ts';
@@ -86,6 +89,10 @@ import { createRoomRoutes } from './routes/rooms.ts';
 import { createConnectionsRoutes, createHomeAssistantApi } from './routes/connections.ts';
 import { createAdminRoutes } from './routes/admin.ts';
 import { createGovernanceRoutes } from './routes/governance.ts';
+import { createSharePublic, createShareRoutes } from './routes/share.ts';
+import { shares } from './share.ts';
+import { createUsageReportRoutes } from './routes/usage-report.ts';
+import type { ReportSource, UsageBudgets } from './usage-report.ts';
 import { createModelsRoutes } from './routes/models.ts';
 import { createHerRoutes } from './routes/her.ts';
 import { createVoiceRoutes } from './routes/voice.ts';
@@ -115,7 +122,7 @@ function tagsOrThrow(v: unknown): string[] {
   }
 }
 
-export interface ServerOptions {
+export interface ServerOptions extends UsageReportOptions {
   app: AppContext;
   auth: OwnerAuth;
   webDir: string;
@@ -176,6 +183,12 @@ export interface ServerOptions {
 }
 
 /** Phase 71: what a member's space needs from main.ts. */
+/** EC15: what the owner's space reads for usage reports (every person), set by main.ts. */
+export interface UsageReportOptions {
+  usageSources?: () => ReportSource[];
+  usageBudgets?: UsageBudgets;
+}
+
 export interface MemberHooks {
   record: () => MemberRecord | undefined;
   /** Every companion of this member, for their own export and usage. */
@@ -362,12 +375,12 @@ export function createSaraServer(opts: ServerOptions): Server {
   const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports', 'boards']);
   /** Security review: routes an app signed in with a device code may not use (sign-in settings, devices, approving apps). */
   // Phase 100: 'agents' (A2A keys and peers) too. EC4/EC5: the audit trail and the policy.
-  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs']);
+  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews']);
   /**
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit']);
+  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'memory-tidy']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -922,6 +935,12 @@ export function createSaraServer(opts: ServerOptions): Server {
   const routineRoutes = createRoutineRoutes(ctx);
   // E4: file/log watches, the owner's only (src/routes/watches.ts).
   const watchRoutes = createWatchRoutes(ctx);
+  // EC6: research runs with a report, the owner's only (src/routes/research.ts).
+  const researchRoutes = createResearchRoutes(ctx);
+  // EC12: crews, the owner's only (src/routes/crews.ts).
+  const crewRoutes = createCrewRoutes(ctx);
+  // EC13: the overnight memory tidy of this space (src/routes/memory-tidy.ts).
+  const tidyRoutes = createMemoryTidyRoutes(ctx);
   // E5: read together, the owner's only (src/routes/read-together.ts).
   const readTogetherRoutes = createReadTogetherRoutes(ctx);
   // Phase 119: when it comes up, and picking a chat up in another app (src/routes/recall.ts).
@@ -941,6 +960,11 @@ export function createSaraServer(opts: ServerOptions): Server {
   const adminRoutes = createAdminRoutes(ctx);
   // EC4/EC5: the audit trail and the policy profile (src/routes/governance.ts).
   const governanceRoutes = createGovernanceRoutes(ctx);
+  // EC11: shared conversation links (src/routes/share.ts); the public page is /s/<token>.
+  const shareRoutes = createShareRoutes(ctx);
+  // EC15: usage and cost reports and budgets (src/routes/usage-report.ts).
+  const usageReportRoutes = createUsageReportRoutes(ctx);
+  const sharePublic = createSharePublic({ opts, ownerLang: () => appLanguage(app.settings.get()) });
   const deliveryRoutes = createDeliveryRoutes(ctx);
   const operationsRoutes = createOperationsRoutes(ctx, operations);
   const telemetryRoutes = createTelemetryRoutes(ctx, telemetry);
@@ -1291,10 +1315,12 @@ export function createSaraServer(opts: ServerOptions): Server {
     }
 
     // Models: providers, model jobs, subscriptions, local models, private local mode, usage: src/routes/models.ts.
+    if ((await usageReportRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await modelsRoutes(req, res, method, parts)) !== NEXT) return;
     // Admin: settings, backups, logs, doctor, status, health history, updates, access, desktop apps, safety stats, search, tools, MCP, checklist: src/routes/admin.ts.
     if ((await adminRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await governanceRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await shareRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await deliveryRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await operationsRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await telemetryRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1317,6 +1343,9 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await safetyCheckRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await routineRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await watchRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await researchRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await crewRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await tidyRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await readTogetherRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await recallRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await sessionContinuityRoutes(req, res, method, parts)) !== NEXT) return;
@@ -2029,6 +2058,8 @@ export function createSaraServer(opts: ServerOptions): Server {
             app.planner?.forgetMentionsOf(b);
           }
           cx.store.deleteConversation(b);
+          // EC11: its shared links stop working.
+          shares()?.revokeConversation(spaceId, cx.companionId ?? 'main', b);
           // Documents read once in it go too (kept ones stay in her library).
           cx.library?.deleteForConversation(b);
           // Phase 115 (BR1): the pictures and files that crossed a chat app in it go too.
@@ -2223,6 +2254,8 @@ export function createSaraServer(opts: ServerOptions): Server {
       }
       // Phase 104: the move-in collector, plain source (the Move in page shows its SHA-256). Not on the demo.
       if (url.pathname === '/movein/sara-movein.py' && (method === 'GET' || method === 'HEAD') && !opts.demo) return serveCollector(res);
+      // EC11: a shared conversation (read-only, no sign-in, never indexed).
+      if (url.pathname.startsWith('/s/') && sharePublic(req, res, url.pathname)) return;
       if (url.pathname.startsWith('/api/')) {
         const parts = url.pathname.slice(5).split('/').filter(Boolean).map(safeDecode);
         // EC4: one audit row per sensitive change (who, what, where, outcome; field names, never values).

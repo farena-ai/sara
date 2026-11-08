@@ -22,6 +22,7 @@ import type { StoreInstallRow, StoreInstalls } from './installs.ts';
 import { StoreRefused } from './verify.ts';
 import { programFor, type ProgramId } from '../prereqs/catalog.ts';
 import type { Detection } from '../prereqs/detect.ts';
+import { PrereqService, prereqOverrides } from '../prereqs/service.ts';
 
 export const MCP_REVIEW_MS = 3600_000;
 export const TEST_MS = 30_000;
@@ -296,6 +297,14 @@ export class StoreInstaller {
     staged.set(review.id, { review, recipe, entrySha: v.entrySha });
     return review;
   }
+  /**
+   * PRQ: an installer built without the server's service (a companion's suggested add-on, a plugin's
+   * Store install, a block) still detects catalog programs the catalog's way (known folders such as
+   * /opt/google/chrome on Linux, not only PATH), so no card says "not checked" for Chrome.
+   */
+  #ownPrograms(platform: NodeJS.Platform, pathVar: string | undefined): { detect(id: ProgramId): Detection } {
+    return new PrereqService({ platform, env: { ...process.env, PATH: pathVar ?? '' }, tmpRoot: '', setting: () => 'off', ...prereqOverrides() });
+  }
   /** What a recipe needs on this computer; catalog programs are detected (PRQ), the rest looked up on PATH. */
   #needs(recipe: McpRecipe): Need[] {
     const plat = this.#platform;
@@ -304,8 +313,8 @@ export class StoreInstaller {
     const add = (what: string) => {
       const id = programFor(what);
       if (needs.some((x) => x.what === what || (id && x.program === id))) return;
-      if (id && this.d.programs) {
-        const d = this.d.programs.detect(id);
+      if (id) {
+        const d = (this.d.programs ?? this.#ownPrograms(plat, pathVar)).detect(id);
         needs.push({ what, found: d.found && !d.old, program: id, ...(d.old ? { old: true } : {}) });
       } else needs.push({ what, found: what.startsWith('app:') ? null : which(what, pathVar, plat) });
     };

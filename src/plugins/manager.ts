@@ -36,7 +36,7 @@ import { ToolError, type Permission, type Tool } from '../tools/types.ts';
 import { workspaceDir } from '../tools/workspace.ts';
 import { addedPermissions, hostAllowed, localize, MANIFEST_FILE, ManifestError, parseManifest, permissionIds, permissionLines, pluginToolName, type PermissionLine, type PluginManifest, type PluginSetting, compareSemver, everyMinutes } from './manifest.ts';
 import { fenceFor, type Fence, type InMessage, PluginProcess, prepareDataDir, spawnSpec } from './runtime.ts';
-import { commandLine, FENCE_LABELS, jobFenceFor, JobRefused, parsePlan, runJob, type JobFence, type JobPlan, type JobSource } from './exec-job.ts';
+import { commandLine, FENCE_LABELS, jobFenceFor, JobRefused, npmCli, parsePlan, runJob, type JobFence, type JobPlan, type JobSource } from './exec-job.ts';
 import { PluginStore, type PluginRow } from './store.ts';
 import * as netModule from './net.ts';
 import * as bridgeDbModule from './bridge-db.ts';
@@ -605,17 +605,29 @@ export class PluginManager {
     if (!candidate) throw new ManifestError('Unknown local workflow candidate.');
     return this.stage(this.#candidateFiles(id), { kind: 'candidate', where: candidate.id });
   }
+  /**
+   * PRQ: the programs a candidate's jobs run beyond Sara's own Node, as the card's "It needs" line.
+   * Today that is npm, which a job takes from beside Sara's Node (src/plugins/exec-job.ts), so no
+   * *Install it for me* is offered: a Node.js installed elsewhere would not be the one the job uses.
+   */
+  #jobNeeds(files: PackageFile[]): { what: string; found: boolean }[] {
+    const mf = files.find(f => f.path === MANIFEST_FILE);
+    const run = mf ? parseManifest(mf.data.toString('utf8'), { saraVersion: this.version, files: files.map(f => f.path) }).permissions.run : null;
+    return (run?.programs ?? []).filter(p => p === 'npm').map(p => ({ what: p, found: Boolean(npmCli(process.execPath)) }));
+  }
   candidateList() {
     return PUBLIC_NATIVE_CANDIDATES.map(candidate => {
       const row = this.store.get(candidate.id);
       let heldReason: string | undefined;
+      let needs: { what: string; found: boolean }[] = [];
       try {
-        this.#idle(candidate.id); this.#candidateFiles(candidate.id);
+        this.#idle(candidate.id);
+        needs = this.#jobNeeds(this.#candidateFiles(candidate.id));
         this.#candidateTransition(row, { kind: 'candidate', where: candidate.id });
       } catch (err) { heldReason = (err as Error).message; }
       let installedOrigin: string | undefined;
       try { installedOrigin = row ? (JSON.parse(row.origin ?? '{}') as Origin).kind : undefined; } catch { /* old source */ }
-      return { ...candidate, availability: heldReason ? 'held' as const : 'local-candidate' as const, ...(heldReason ? { heldReason } : {}), installed: Boolean(row), ...(row ? { installedVersion: row.version, installedOrigin } : {}), updateAvailable: Boolean(row && !heldReason && compareSemver(candidate.version, row.version) > 0) };
+      return { ...candidate, needs, availability: heldReason ? 'held' as const : 'local-candidate' as const, ...(heldReason ? { heldReason } : {}), installed: Boolean(row), ...(row ? { installedVersion: row.version, installedOrigin } : {}), updateAvailable: Boolean(row && !heldReason && compareSemver(candidate.version, row.version) > 0) };
     });
   }
 
@@ -1489,6 +1501,8 @@ export class PluginManager {
     const id = run.row.id;
     const perm = run.manifest.permissions.run;
     if (!perm) return deny('it has no run permission');
+    // EC8: the admin requires the container sandbox and none works: no job runs.
+    if (this.opts.sandbox.refuse) return deny(`job: ${this.opts.sandbox.refuse}`);
     const fence = this.opts.jobFence ?? jobFenceFor(this.opts.sandbox);
     let plan: JobPlan;
     try {
@@ -1534,7 +1548,7 @@ export class PluginManager {
       this.#jobs.set(jobId, { ctl, job: { id: jobId, plugin: id, name: run.manifest.name, companion: a.id, command, fence, at: this.#now().toISOString() } });
       this.#changed();
       try {
-        const r = await runJob(plan, { sourceDir, cacheDir: join(this.opts.dataDir, 'cache', 'plugin-jobs'), fence, signal: AbortSignal.any([life.signal, ctl.signal]), ...(plan.source === 'workspace' ? { depsFrom: sourceDir } : {}) });
+        const r = await runJob(plan, { sourceDir, cacheDir: join(this.opts.dataDir, 'cache', 'plugin-jobs'), fence, signal: AbortSignal.any([life.signal, ctl.signal]), ...(plan.source === 'workspace' ? { depsFrom: sourceDir } : {}), ...(fence === 'container' && this.opts.sandbox.container ? { container: this.opts.sandbox.container } : {}) });
         // EC3: plugin job outcomes for the metrics (src/telemetry/hub.ts).
         hub.pluginJob(r.error ? 'failed' : r.cancelled ? 'stopped' : r.timedOut ? 'timeout' : r.exitCode === 0 ? 'ok' : 'failed');
         this.store.log(id, a.id, 'call', `job: ${cut(command, 200)}: ${r.error ? `not run (${cut(r.error, 200)})` : r.cancelled ? 'stopped' : r.timedOut ? `stopped after ${plan.timeoutS} s` : `exit ${r.exitCode ?? r.signal}`} (${fence}; copy ${r.deleted ? 'deleted' : 'NOT deleted'})`);
@@ -2062,6 +2076,8 @@ export class PluginManager {
   async #bridgeTake(a: Attached, run: Running, m: BridgeTurn, explicit?: 'steer' | 'queue'): Promise<Record<string, unknown>> {
     const { pendingFor, whileBusySettings, PENDING_LINES } = await import('../pending.ts');
     const { say } = await import('../bridges/commands.ts');
+    // EC12: a crew's mail rule (the owner's own verified mail to her mailbox; only its subject is read).
+    if (m.owner && m.thread && !explicit) a.app.crews?.onMail({ subject: m.thread.subject ?? m.conv.title, owner: true });
     const pend = pendingFor(a.app);
     const runner = (item?: { id: string; kind: string }) => this.#bridgeTurn(a, run, m, item);
     if (!pend.busy(m.conv.id)) {

@@ -11,7 +11,7 @@
 //   evals (countFindings); UI files, translations, tips, the service worker.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, linkSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -432,9 +432,9 @@ test('attacker scripts with OS isolation run without waiting (still validated); 
 });
 
 /** Runs the driver itself on a plan in `dir` (no sandbox) and returns its events. */
-function driveHere(dir: string, plan: Record<string, unknown>, files: Record<string, string> = {}) {
+function driveHere(dir: string, plan: Record<string, unknown>, files: Record<string, string> = {}, env?: NodeJS.ProcessEnv) {
   writeFiles(dir, { '.sara-redteam/driver.mjs': DRIVER_SOURCE, '.sara-redteam/plan.json': JSON.stringify({ startMs: 30_000, reqMs: 2_500, scriptMs: 20_000, deadlineMs: 60_000, probes: [], scripts: [], ...plan }), ...files });
-  const r = spawnSync(process.execPath, ['.sara-redteam/driver.mjs'], { cwd: dir, encoding: 'utf8', timeout: 120_000 });
+  const r = spawnSync(process.execPath, ['.sara-redteam/driver.mjs'], { cwd: dir, encoding: 'utf8', timeout: 180_000, ...(env ? { env } : {}) });
   return driverEvents(r.stdout ?? '');
 }
 
@@ -485,6 +485,49 @@ test('the small app\'s state-dependent /order break counts per copy, so a restar
     const probes = [1, 2, 3, 4].map((n) => ({ type: 'http', id: `O${n}`, entry: 'E', kind: 'baseline', method: 'GET', path: `/order?id=${n}`, label: '' }));
     const ev = driveHere(dir, { mode: 'repro', fresh: true, port: PORT_BASE + 9, start: { lang: 'node', file: 'server.js', portFrom: 'env' }, probes });
     assert.deepEqual(ev.filter((e) => e.t === 'x').map((e) => [e.probe, e.status]), [['O1', 200], ['O2', 200], ['O3', 200], ['O4', 500]], JSON.stringify(ev));
+  } finally {
+    cleanup();
+  }
+});
+
+test('a slow taskkill (seconds just to start on a busy Windows PC) still stops the app, so the fresh restart finds its port free (load-proof)', { skip: process.platform !== 'win32' }, () => {
+  const { dir, cleanup } = tempDir();
+  try {
+    // The root cause of the intermittent phase86 misses: the driver ran taskkill with spawnSync and a
+    // 10 s limit; on a busy PC taskkill itself took 4–12 s, was stopped first, the app lived on, the
+    // fresh restart found its own old app on the port and the reproduction dropped a real break.
+    // A stand-in taskkill (node under that name) that needs 12 s before it does the real job.
+    const bin = join(dir, 'slowbin');
+    mkdirSync(bin);
+    try {
+      linkSync(process.execPath, join(bin, 'taskkill.exe'));
+    } catch {
+      copyFileSync(process.execPath, join(bin, 'taskkill.exe'));
+    }
+    writeFileSync(join(dir, 'slow-taskkill.cjs'), "if (/taskkill\\.exe$/i.test(process.execPath)) { const t = Date.now(); while (Date.now() - t < 12000); require('child_process').spawnSync(process.env.SystemRoot + '\\\\System32\\\\taskkill.exe', ['/PID', ...process.argv.slice(2)], { stdio: 'ignore' }); process.exit(0); }\n");
+    const app = "require('http').createServer((q, s) => s.end('up')).listen(Number(process.env.PORT), '127.0.0.1');";
+    const probes = [1, 2].map((n) => ({ type: 'http', id: `P${n}`, entry: 'E', kind: 'baseline', method: 'GET', path: '/x', label: '' }));
+    const env = { ...process.env, PATH: `${bin};${process.env.PATH ?? ''}`, NODE_OPTIONS: `--require "${join(dir, 'slow-taskkill.cjs').replace(/\\/g, '/')}"` };
+    const ev = driveHere(dir, { mode: 'repro', fresh: true, port: PORT_BASE + 9, start: { lang: 'node', file: 'app.js', portFrom: 'env' }, deadlineMs: 150_000, probes }, { 'app.js': app }, env);
+    assert.deepEqual(ev.filter((e) => e.t === 'x').map((e) => [e.probe, e.status, e.error ?? null]), [['P1', 200, null], ['P2', 200, null]], JSON.stringify(ev).slice(0, 2000));
+  } finally {
+    cleanup();
+  }
+});
+
+test('an app that prints its fatal error and only exits a moment later is still an exit, not just an error in the log (load-proof)', () => {
+  const { dir, cleanup } = tempDir();
+  try {
+    // Answers, then throws outside the handler. Node prints the error and its "Node.js v…" footer and
+    // then exits; on a loaded machine the exit event can land well after the text. Modelled here by
+    // printing the same text and exiting 1.2 s later: the 200 ms pause saw the error, not the exit.
+    const app = "process.on('uncaughtException', (e) => { process.stderr.write(e.stack + '\\n\\nNode.js ' + process.version + '\\n'); setTimeout(() => process.exit(1), 1200); });\nrequire('http').createServer((q, s) => { s.end('saved'); setTimeout(() => { throw new RangeError('note too long'); }, 0); }).listen(Number(process.env.PORT), '127.0.0.1');";
+    const probe = { type: 'http', id: 'N', entry: 'E', kind: 'baseline', method: 'GET', path: '/note', label: '' };
+    const ev = driveHere(dir, { mode: 'repro', fresh: true, port: PORT_BASE + 9, start: { lang: 'node', file: 'app.js', portFrom: 'env' }, probes: [probe] }, { 'app.js': app });
+    const x = ev.find((e) => e.t === 'x') as unknown as Exchange | undefined;
+    assert.ok(x, JSON.stringify(ev));
+    assert.deepEqual(breaksIn(x), ['exit'], JSON.stringify(x).slice(0, 1500));
+    assert.ok(x.log.some((l) => /RangeError: note too long/.test(l)), 'the error text is on the exchange');
   } finally {
     cleanup();
   }

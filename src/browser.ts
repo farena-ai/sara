@@ -15,7 +15,7 @@ import { dirname, join } from 'node:path';
 import { BrowserGuard, PREVIEW_HOST } from './browser-guard.ts';
 import { CdpClient, type CdpEvent } from './cdp.ts';
 import type { PreviewManager } from './preview.ts';
-import { bwrapArgs, SANDBOX_EXEC, seatbeltProfile, type SandboxInfo } from './tools/sandbox.ts';
+import { bwrapArgs, nativeOf, SANDBOX_EXEC, seatbeltProfile, type SandboxInfo } from './tools/sandbox.ts';
 
 export const IDLE_MS = 5 * 60_000;
 const MAX_SESSIONS = 2;
@@ -110,7 +110,9 @@ export interface LaunchedBrowser {
 export type Launcher = (info: BrowserInfo, sandbox: SandboxInfo, guardPort: number) => Promise<LaunchedBrowser>;
 
 /** Starts the browser (in the command sandbox where there is one) and waits for its DevTools address. */
-export const launchBrowser: Launcher = async (info, sandbox, guardPort) => {
+export const launchBrowser: Launcher = async (info, sb, guardPort) => {
+  // EC8: the testing browser keeps the computer's own sandbox when commands use a container.
+  const sandbox = nativeOf(sb);
   if (!info.found || !info.path) throw new Error(`No browser for testing on this server. ${info.how}`);
   const profile = mkdtempSync(join(tmpdir(), 'sara-browser-'));
   let file = info.path;

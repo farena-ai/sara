@@ -5,6 +5,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { audit, RETENTION_CHOICES } from './audit-trail.ts';
+import { EgressError, parseAllowlist, type EgressInput } from './egress.ts';
 import { writeFileAtomic } from './fs-util.ts';
 import { HttpError } from './http.ts';
 import type { ProviderKind } from './providers/types.ts';
@@ -29,9 +30,19 @@ export interface PolicyPins {
   auditRetentionDays?: (typeof RETENTION_CHOICES)[number];
   /** PRQ: installing programs add-ons need (Settings → Add-ons): ask first, or off. */
   programInstalls?: 'ask' | 'off';
+  /** EC8: commands and plugin jobs only in a container (refused when no engine works). */
+  containerSandbox?: true;
+  /** EC9: sandboxed work reaches only these hosts (an empty list: none). */
+  egressAllowlist?: EgressInput[];
+  /** EC11: false = no shared conversation links (new ones refused, existing ones stop answering). */
+  sharing?: false;
+  /** EC12: off: no crews are made, run, scheduled or started by mail. */
+  crews?: 'off';
+  /** EC13: local: the overnight memory tidy uses only models on this computer; off: no tidy. */
+  memoryTidy?: 'local' | 'off';
 }
 export type PinKey = keyof PolicyPins;
-export const PIN_KEYS: readonly PinKey[] = ['providers', 'tools', 'alwaysAllow', 'adultMode', 'shellNetwork', 'privateLocal', 'store', 'auditRetentionDays', 'programInstalls'];
+export const PIN_KEYS: readonly PinKey[] = ['providers', 'tools', 'alwaysAllow', 'adultMode', 'shellNetwork', 'privateLocal', 'store', 'auditRetentionDays', 'programInstalls', 'containerSandbox', 'egressAllowlist', 'sharing', 'crews', 'memoryTidy'];
 export interface Policy {
   version: 1;
   name: string;
@@ -72,6 +83,7 @@ export function validatePolicy(input: unknown): { name: string; pins: PolicyPins
       case 'alwaysAllow':
       case 'adultMode':
       case 'shellNetwork':
+      case 'sharing':
         if (v !== false) throw new HttpError(400, '{key} can only be pinned off.', { params: { key: k } });
         pins[k] = false;
         break;
@@ -86,6 +98,27 @@ export function validatePolicy(input: unknown): { name: string; pins: PolicyPins
       case 'programInstalls':
         if (v !== 'ask' && v !== 'off') throw new HttpError(400, 'programInstalls must be ask or off.');
         pins.programInstalls = v;
+        break;
+      case 'containerSandbox':
+        if (v !== true) throw new HttpError(400, '{key} can only be pinned on.', { params: { key: k } });
+        pins.containerSandbox = true;
+        break;
+      case 'egressAllowlist':
+        try {
+          parseAllowlist(v);
+        } catch (err) {
+          if (err instanceof EgressError) throw new HttpError(400, err.message);
+          throw err;
+        }
+        pins.egressAllowlist = (v as EgressInput[]).map((x) => (typeof x === 'string' ? x.trim().toLowerCase() : { host: x.host.trim().toLowerCase(), ...(x.key ? { key: x.key } : {}) }));
+        break;
+      case 'crews':
+        if (v !== 'off') throw new HttpError(400, '{key} can only be pinned off.', { params: { key: k } });
+        pins.crews = 'off';
+        break;
+      case 'memoryTidy':
+        if (v !== 'local' && v !== 'off') throw new HttpError(400, 'memoryTidy must be local or off.');
+        pins.memoryTidy = v;
         break;
       case 'auditRetentionDays':
         if (!(RETENTION_CHOICES as readonly unknown[]).includes(v)) throw new HttpError(400, 'Pick 30, 90 or 365 days, or keep everything.');
@@ -187,12 +220,16 @@ export class PolicyStore {
   checkProvider(p: { kind: string; label?: string }): void {
     if (!this.providerAllowed(p.kind)) throw this.refusal('providers');
   }
+  /** EC11: shared conversation links are allowed (no `sharing: false` pin). */
+  get sharingOn(): boolean {
+    return this.#cur.pins.sharing !== false;
+  }
   get alwaysAllowOn(): boolean {
     return this.#cur.pins.alwaysAllow !== false;
   }
 
   /** Settings looser than a pin (for the safety check-up): pin keys with what drifted. */
-  drift(s: { providers?: { id: string; kind: string }[]; toolPermissions?: Record<string, Permission>; adultMode?: { on?: boolean }; shellNetwork?: boolean; store?: { on?: boolean; community?: boolean } }, o: { privateLocal?: boolean; tool?: (name: string) => Pick<Tool, 'runsCommands'> | undefined } = {}): { key: PinKey; items: string[] }[] {
+  drift(s: { providers?: { id: string; kind: string }[]; toolPermissions?: Record<string, Permission>; adultMode?: { on?: boolean }; shellNetwork?: boolean; store?: { on?: boolean; community?: boolean }; isolation?: { backend?: string }; egress?: { mode?: string } }, o: { privateLocal?: boolean; tool?: (name: string) => Pick<Tool, 'runsCommands'> | undefined; sandboxMode?: string } = {}): { key: PinKey; items: string[] }[] {
     const p = this.#cur.pins;
     const out: { key: PinKey; items: string[] }[] = [];
     const add = (key: PinKey, items: string[]) => void (items.length && out.push({ key, items }));
@@ -201,6 +238,9 @@ export class PolicyStore {
     if (p.adultMode === false && s.adultMode?.on) add('adultMode', ['on']);
     if (p.shellNetwork === false && s.shellNetwork !== false) add('shellNetwork', ['on']);
     if (p.privateLocal && o.privateLocal === false) add('privateLocal', ['off']);
+    // EC8/EC9: the pin is enforced anyway; drift says the owner's own choice (or this computer) differs.
+    if (p.containerSandbox && (s.isolation?.backend !== 'container' || (o.sandboxMode && o.sandboxMode !== 'container'))) add('containerSandbox', [o.sandboxMode && o.sandboxMode !== 'container' ? 'no-engine' : 'backend']);
+    if (p.egressAllowlist && s.egress?.mode !== 'allowlist') add('egressAllowlist', ['open']);
     return out;
   }
 }

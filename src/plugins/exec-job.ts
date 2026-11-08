@@ -12,8 +12,12 @@
 // before and after for the changed-file list, and deleted at the end. Cancellable at any point.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { constants, copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { constants, copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { containerRunArgv, containerUser } from '../container.ts';
+import { egressAllowlist, engineEnv, openEgress, sandboxNode, type EgressSetup } from '../egress-run.ts';
+import { privateLocalOn } from '../net-guard.ts';
 import { SANDBOX_HEAVY } from '../sandbox-run.ts';
 import { bwrapArgs, PRIVATE_LOCAL_ENV, runtimeMountArgs, RUNTIME_MOUNT, type Bind, type SandboxInfo } from '../tools/sandbox.ts';
 
@@ -34,11 +38,14 @@ export interface JobPlan {
   network: boolean;
 }
 
-export type JobFence = 'bwrap' | 'node-only';
+export type JobFence = 'bwrap' | 'container' | 'node-only';
 export const FENCE_LABELS: Record<JobFence, string> = {
   bwrap: 'OS sandbox (bubblewrap): only the disposable copy is writable',
-  'node-only': 'not OS-sandboxed on this computer: Node permission model only, limited to a disposable copy',
+  container: 'container sandbox (Podman or Docker): only the disposable copy is mounted',
+  'node-only': 'not OS-sandboxed on this computer: Node permission model and a Node network guard, limited to a disposable copy',
 };
+/** EC9: the preload that closes the network for Node-only jobs (only the egress proxy, if any). */
+export const JOB_NET_GUARD = join(dirname(fileURLToPath(import.meta.url)), 'job-net-guard.mjs');
 
 export class JobRefused extends Error {}
 
@@ -55,7 +62,7 @@ const WIN_DEVICE = /^(con|prn|aux|nul|com\d|lpt\d)(\..*)?$/i;
 
 /** The bubblewrap fence where the shell sandbox is bubblewrap; the Node fence everywhere else. */
 export function jobFenceFor(sandbox: SandboxInfo): JobFence {
-  return sandbox.mode === 'bwrap' ? 'bwrap' : 'node-only';
+  return sandbox.mode === 'bwrap' ? 'bwrap' : sandbox.mode === 'container' && sandbox.container ? 'container' : 'node-only';
 }
 
 /** A relative path inside a folder: forward slashes, no `..`/`.`, drive, UNC, device or ADS forms. */
@@ -111,7 +118,7 @@ function checkNodeArgs(args: string[], fence: JobFence): void {
       const name = eq < 0 ? a : a.slice(0, eq);
       const ok = eq < 0 ? NODE_FLAGS.has(name) : NODE_VALUE_FLAGS.has(name) && a.length > eq + 1;
       if (!ok) throw new JobRefused(`"${a.slice(0, 60)}" isn't an allowed node option for a plugin job.`);
-      if (name === '--test-isolation' && a.slice(eq + 1) !== 'none' && fence !== 'bwrap') throw new JobRefused('Test isolation in separate processes needs an OS sandbox; use --test-isolation=none here.');
+      if (name === '--test-isolation' && a.slice(eq + 1) !== 'none' && fence === 'node-only') throw new JobRefused('Test isolation in separate processes needs an OS sandbox; use --test-isolation=none here.');
       continue;
     }
     // The script (or a test file / glob for --test): inside the copy. Everything after belongs to it.
@@ -121,7 +128,7 @@ function checkNodeArgs(args: string[], fence: JobFence): void {
 }
 
 function checkNpmArgs(args: string[], fence: JobFence): void {
-  if (fence !== 'bwrap') throw new JobRefused('npm runs lifecycle scripts as child processes: it needs an OS sandbox, which this computer does not have for plugin jobs.');
+  if (fence === 'node-only') throw new JobRefused('npm runs lifecycle scripts as child processes: it needs an OS sandbox, which this computer does not have for plugin jobs.');
   const [cmd, script, ...rest] = args;
   if (cmd === 'test') {
     if (script !== undefined && script !== '--') throw new JobRefused('After "npm test" only "--" and the script\'s own arguments may follow.');
@@ -246,6 +253,8 @@ export interface JobResult {
   deleted: boolean;
   /** Why nothing ran (a copy refusal). */
   error?: string;
+  /** EC9: how the job's network was limited: off, open, or the allowlist and how it was enforced. */
+  egress: 'off' | 'open' | EgressSetup['enforcement'];
 }
 
 export interface RunJobOptions {
@@ -259,12 +268,15 @@ export interface RunJobOptions {
   /** Source `workspace` under bubblewrap: its dependency folders, bound read-only. */
   depsFrom?: string;
   onStart?: (pid: number) => void;
+  /** EC8: the container engine for the `container` fence. */
+  container?: SandboxInfo['container'];
   /** Test hooks for the stop escalation (defaults STOP_RETRY_MS / STOP_GIVE_UP_MS). */
   stopRetryMs?: number;
   stopGiveUpMs?: number;
 }
 
-function npmCli(execPath: string): string | undefined {
+/** npm's own script beside Sara's Node (what an `npm` job runs), or undefined. */
+export function npmCli(execPath: string): string | undefined {
   const root = dirname(dirname(execPath));
   for (const c of [join(dirname(execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js'), join(root, 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js')]) if (existsSync(c)) return c;
   return undefined;
@@ -332,7 +344,7 @@ export async function runJob(plan: JobPlan, o: RunJobOptions): Promise<JobResult
   const ws = join(runDir, 'ws');
   const tmp = join(runDir, 'tmp');
   const execPath = o.execPath ?? process.execPath;
-  const res: JobResult = { id, started: false, exitCode: null, signal: null, timedOut: false, cancelled: false, stdout: '', stderr: '', stdoutTruncated: false, stderrTruncated: false, changed: { added: [], changed: [], removed: [] }, fence: o.fence, fenceLabel: FENCE_LABELS[o.fence], isolated: o.fence === 'bwrap', snapshot: { files: 0, bytes: 0, skipped: 0 }, ms: 0, deleted: false };
+  const res: JobResult = { id, started: false, exitCode: null, signal: null, timedOut: false, cancelled: false, stdout: '', stderr: '', stdoutTruncated: false, stderrTruncated: false, changed: { added: [], changed: [], removed: [] }, fence: o.fence, fenceLabel: FENCE_LABELS[o.fence], isolated: o.fence !== 'node-only', egress: 'off', snapshot: { files: 0, bytes: 0, skipped: 0 }, ms: 0, deleted: false };
   const finish = () => {
     res.deleted = removeRun(runDir);
     res.ms = Date.now() - t0;
@@ -360,6 +372,29 @@ export async function runJob(plan: JobPlan, o: RunJobOptions): Promise<JobResult
   let file: string;
   let args: string[];
   let env: Record<string, string>;
+  // EC9: a job with network under the allowlist reaches only listed hosts, through the proxy.
+  const network = plan.network && !privateLocalOn();
+  const allow = network ? egressAllowlist() : undefined;
+  res.egress = network ? 'open' : 'off';
+  let eg: EgressSetup | undefined;
+  if (allow) {
+    const base: SandboxInfo = o.fence === 'bwrap' ? { mode: 'bwrap', network: true, detail: '' } : o.fence === 'container' && o.container ? { mode: 'container', network: true, detail: '', container: o.container } : { mode: 'none', network: true, detail: '' };
+    try {
+      eg = await openEgress(base, allow, { who: 'plugin-job', node: sandboxNode(execPath, runtimeMountArgs(execPath).length > 0, RUNTIME_MOUNT) });
+    } catch (err) {
+      res.error = `The egress allowlist could not be set up: ${(err as Error).message}`;
+      return finish();
+    }
+    res.egress = o.fence === 'node-only' ? 'node-guard' : eg.enforcement;
+  }
+  const closeEgress = async () => {
+    try {
+      await eg?.close();
+    } catch {
+      /* torn down as far as possible */
+    }
+  };
+  let containerName: string | undefined;
   const cpuLimit = `ulimit -t ${plan.cpuS} 2>/dev/null; ulimit -f 4194304 2>/dev/null; ulimit -c 0 2>/dev/null`;
   if (o.fence === 'bwrap') {
     // Node inside: under /usr as is, Sara's private runtime at RUNTIME_MOUNT, else its folder read-only.
@@ -378,28 +413,50 @@ export async function runJob(plan: JobPlan, o: RunJobOptions): Promise<JobResult
       const cli = npmCli(execPath);
       if (!cli) {
         res.error = 'npm was not found beside Sara\'s Node.';
+        await closeEgress();
         return finish();
       }
       argv = [inner, cli.startsWith(root) && inner !== execPath ? posix.join(RUNTIME_MOUNT, cli.slice(root.length).split('\\').join('/')) : cli, ...plan.args];
     }
     const innerCwd = plan.cwd === '.' ? '/workspace' : `/workspace/${plan.cwd}`;
     file = 'bwrap';
-    args = [...bwrapArgs(ws, plan.network, binds), '--setenv', 'TMPDIR', '/tmp', '--', '/bin/sh', '-c', `${cpuLimit}; cd "$1" || exit 126; shift; exec "$@"`, 'sara-job', innerCwd, ...argv];
-    env = { PATH: `${posix.dirname(inner)}:/usr/local/bin:/usr/bin:/bin`, HOME: '/workspace', TMPDIR: '/tmp', LANG: 'C.UTF-8', TERM: 'dumb', NO_COLOR: '1', ...(plan.network ? {} : PRIVATE_LOCAL_ENV) };
+    args = [...bwrapArgs(ws, network && !eg, [...binds, ...(eg?.binds ?? [])]), '--setenv', 'TMPDIR', '/tmp', '--', '/bin/sh', '-c', `${eg?.prefix ?? ''}${cpuLimit}; cd "$1" || exit 126; shift; exec "$@"`, 'sara-job', innerCwd, ...argv];
+    env = { PATH: `${posix.dirname(inner)}:/usr/local/bin:/usr/bin:/bin`, HOME: '/workspace', TMPDIR: '/tmp', LANG: 'C.UTF-8', TERM: 'dumb', NO_COLOR: '1', ...(network ? {} : PRIVATE_LOCAL_ENV), ...(eg?.env ?? {}) };
+  } else if (o.fence === 'container' && o.container) {
+    // EC8: the image's own node/npm; only the copy mounted; dependency folders read-only.
+    const c = o.container;
+    const mounts = plan.source === 'workspace' && o.depsFrom ? readdirSync(o.depsFrom, { withFileTypes: true }).filter((e) => e.isDirectory() && SANDBOX_HEAVY.has(e.name)).map((e) => ({ src: join(o.depsFrom!, e.name), dest: `/workspace/${e.name}` })) : [];
+    containerName = `sara-job-${id.replace(/[^a-z0-9-]/g, '')}`.slice(0, 60);
+    const inner: Record<string, string> = { HOME: '/workspace', TMPDIR: '/tmp', LANG: 'C.UTF-8', TERM: 'dumb', NO_COLOR: '1', ...(network ? {} : PRIVATE_LOCAL_ENV), ...(eg?.env ?? {}) };
+    const envFile = join(tmp, 'env');
+    writeFileSync(envFile, `${Object.entries(inner).map(([k, v]) => `${k}=${v}`).join('\n')}\n`, { mode: 0o600 });
+    file = c.exe;
+    try {
+      args = [...(c.pre ?? []), ...containerRunArgv({ name: containerName, image: c.image, workspace: ws, mounts, network: eg?.network ?? (network ? 'default' : 'none'), env: [], envFile, workdir: plan.cwd === '.' ? '/workspace' : `/workspace/${plan.cwd}`, ...(containerUser(c) ? { user: containerUser(c) } : {}), argv: ['/bin/sh', '-c', `${cpuLimit}; exec "$@"`, 'sara-job', plan.program, ...plan.args] })];
+    } catch (err) {
+      await closeEgress();
+      res.error = (err as Error).message;
+      return finish();
+    }
+    env = engineEnv();
   } else {
     // The Node permission model: reads and writes only in the copy and this run's temp folder.
     const nodeArgs = [...plan.args];
     if (nodeArgs.includes('--test') && !nodeArgs.some((a) => a.startsWith('--test-isolation='))) nodeArgs.unshift('--test-isolation=none');
+    // EC9: the network guard: everything closed when the job has no network, only the egress proxy
+    // under the allowlist, nothing extra when its network is open.
+    const guard = !network || Boolean(eg);
+    const proxy = eg?.env.HTTP_PROXY ? new URL(eg.env.HTTP_PROXY).host : '';
     file = execPath;
-    args = ['--permission', `--allow-fs-read=${ws}`, `--allow-fs-read=${tmp}`, `--allow-fs-write=${ws}`, `--allow-fs-write=${tmp}`, '--max-old-space-size=512', '--disable-warning=ExperimentalWarning', '--disable-warning=SecurityWarning', ...nodeArgs];
-    env = { PATH: dirname(execPath), HOME: tmp, USERPROFILE: tmp, TMPDIR: tmp, TEMP: tmp, TMP: tmp, LANG: 'C.UTF-8', TERM: 'dumb', NO_COLOR: '1', ...(process.platform === 'win32' ? { SystemRoot: process.env.SystemRoot ?? 'C:\\Windows' } : {}), ...(plan.network ? {} : PRIVATE_LOCAL_ENV) };
+    args = ['--permission', `--allow-fs-read=${ws}`, `--allow-fs-read=${tmp}`, `--allow-fs-write=${ws}`, `--allow-fs-write=${tmp}`, ...(guard ? [`--allow-fs-read=${JOB_NET_GUARD}`, `--import=${pathToFileURL(JOB_NET_GUARD).href}`] : []), '--max-old-space-size=512', '--disable-warning=ExperimentalWarning', '--disable-warning=SecurityWarning', ...nodeArgs];
+    env = { PATH: dirname(execPath), HOME: tmp, USERPROFILE: tmp, TMPDIR: tmp, TEMP: tmp, TMP: tmp, LANG: 'C.UTF-8', TERM: 'dumb', NO_COLOR: '1', ...(process.platform === 'win32' ? { SystemRoot: process.env.SystemRoot ?? 'C:\\Windows' } : {}), ...(network ? {} : PRIVATE_LOCAL_ENV), ...(eg?.env ?? {}), ...(guard ? { SARA_NET_ALLOW: proxy } : {}) };
   }
   const cap = plan.maxOutputKB * 1024;
   const out: { buf: Buffer[]; n: number; cut: boolean }[] = [{ buf: [], n: 0, cut: false }, { buf: [], n: 0, cut: false }];
   await new Promise<void>((done) => {
     let child: ChildProcess;
     try {
-      child = spawn(file, args, { cwd: o.fence === 'bwrap' ? ws : cwdAbs, env, detached: process.platform !== 'win32', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      child = spawn(file, args, { cwd: o.fence === 'node-only' ? cwdAbs : ws, env, shell: false, detached: process.platform !== 'win32', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (err) {
       res.error = `It could not start: ${(err as Error).message}`;
       done();
@@ -437,6 +494,14 @@ export async function runJob(plan: JobPlan, o: RunJobOptions): Promise<JobResult
       if (why === 'timeout') res.timedOut = true;
       else res.cancelled = true;
       killTree(child);
+      if (containerName && o.container) {
+        const c = o.container;
+        try {
+          spawn(c.exe, [...(c.pre ?? []), 'kill', containerName], { stdio: 'ignore', windowsHide: true, shell: false, env: engineEnv() }).on('error', () => {});
+        } catch {
+          /* the CLI is killed above */
+        }
+      }
       // A child that survives the first kill (or whose pipes stay open through a grandchild) must
       // never hold the job, and with it the plugin call and the approval, open forever.
       retry = setTimeout(() => killTree(child), o.stopRetryMs ?? STOP_RETRY_MS);
@@ -465,5 +530,6 @@ export async function runJob(plan: JobPlan, o: RunJobOptions): Promise<JobResult
   res.stdoutTruncated = out[0].cut;
   res.stderrTruncated = out[1].cut;
   res.changed = diff(before, hashTree(ws));
+  await closeEgress();
   return finish();
 }

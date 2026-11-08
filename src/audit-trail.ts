@@ -235,14 +235,15 @@ export class AuditTrail {
 }
 
 const CSV_COLS = ['seq', 'at', 'who', 'role', 'action', 'target', 'channel', 'outcome', 'keys', 'policyRev', 'prev', 'hash'] as const;
-function cell(v: unknown): string {
+/** One CSV cell: quoted when needed; a leading = + - @ (a spreadsheet formula) gets a ' first. */
+export function csvCell(v: unknown): string {
   let s = Array.isArray(v) ? v.join(' ') : v === undefined || v === null ? '' : String(v);
   if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 export function toCsv(rows: readonly AuditRow[], content = false): string {
   const cols: string[] = [...CSV_COLS, ...(content ? ['content'] : [])];
-  return [cols.join(','), ...rows.map((r) => cols.map((c) => cell((r as unknown as Record<string, unknown>)[c])).join(','))].join('\r\n') + '\r\n';
+  return [cols.join(','), ...rows.map((r) => cols.map((c) => csvCell((r as unknown as Record<string, unknown>)[c])).join(','))].join('\r\n') + '\r\n';
 }
 
 // ---- the server's one trail (set by main.ts; tests set their own). Unset = nothing is written. ----

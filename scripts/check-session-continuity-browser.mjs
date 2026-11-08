@@ -27,7 +27,7 @@ try {
   const chatApps = page.locator('#settings-nav-list .settings-nav-group[data-group="Chat apps"]');
   const chatAppsHeading = chatApps.locator('.settings-nav-head');
   if ((await chatAppsHeading.getAttribute('aria-expanded')) !== 'true') await chatAppsHeading.click();
-  assert.deepEqual(await chatApps.locator('.settings-nav-item').evaluateAll(items => items.map(item => item.dataset.page)), ['co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-slack', 'co-pickup', 'co-continuity']);
+  assert.deepEqual(await chatApps.locator('.settings-nav-item').evaluateAll(items => items.map(item => item.dataset.page)), ['co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-slack', 'co-teams', 'co-pickup', 'co-continuity']);
   await chatApps.locator('[data-page="co-continuity"]').click();
   const toggle = page.getByLabel('Use context across my sessions', { exact: true });
   await toggle.waitFor(); assert.equal(await toggle.isChecked(), true);

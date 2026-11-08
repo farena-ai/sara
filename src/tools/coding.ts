@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import type { AppContext } from '../chat.ts';
 import { MAX_JOB_MS } from '../jobs.ts';
-import { runCommand, type Bind } from './sandbox.ts';
+import { nativeOf, runCommand, type Bind } from './sandbox.ts';
 import { clip, num, str, ToolError, type Tool, type ToolContext } from './types.ts';
 import { resolveInside } from './workspace.ts';
 import { cleanBudget, type UsageNumbers } from '../usage.ts';
@@ -42,7 +42,7 @@ export async function git(ctx: ToolContext, args: string[], opts: { env?: Record
   if (a[0] === '-C') {
     const real = resolveInside(ctx.workspaceDir, a[1] ?? '.');
     const rel = relative(ctx.workspaceDir, real).split(sep).join('/') || '.';
-    a[1] = ctx.sandbox.mode === 'bwrap' ? `/workspace/${rel}` : real;
+    a[1] = ctx.sandbox.mode === 'bwrap' || ctx.sandbox.mode === 'container' ? `/workspace/${rel}` : real;
   }
   const r = await runCommand(`git ${[...GIT_SAFE, ...(opts.extra ?? []), ...a].map(shq).join(' ')}`, ctx.workspaceDir, { ...ctx.sandbox, network: opts.network ?? false }, {
     timeoutMs: opts.timeoutMs ?? 60_000,
@@ -245,7 +245,9 @@ export function createCodingTools(app: AppContext): Tool[] {
       writeFileSync(join(ctx.workspaceDir, promptName), task, { mode: 0o600, flag: 'wx' });
       // Inside the sandbox: the agent's program (read only) and its own sign-in folder.
       const binDir = rt.bin.includes('/') ? rt.bin.slice(0, rt.bin.lastIndexOf('/')) : '';
-      const inBwrap = ctx.sandbox.mode === 'bwrap';
+      // EC8: coding agents are not in the container image: they keep the computer's own sandbox.
+      const agentSb = nativeOf(app.sandbox);
+      const inBwrap = agentSb.mode === 'bwrap';
       const agentsRoot = binDir.endsWith('/bin') ? binDir.slice(0, -4) : binDir;
       const binds: Bind[] = inBwrap ? [...(agentsRoot && existsSync(agentsRoot) ? [{ src: agentsRoot, dest: agentsRoot }] : []), { src: rt.home, dest: rt.home, rw: true }] : [];
       const promptPath = inBwrap ? `/workspace/${promptName}` : join(ctx.workspaceDir, promptName);
@@ -269,7 +271,7 @@ export function createCodingTools(app: AppContext): Tool[] {
         timeoutMs: Math.min(MAX_JOB_MS, minutes * 60_000),
         env,
         binds,
-        sandbox: { ...app.sandbox, network: true },
+        sandbox: { ...agentSb, network: true },
         ...(budget.tokens || budget.usd ? { budget } : {}),
         ...(kind === 'claude' ? { meter: { config: PROVIDER_PRESETS.find((p) => p.id === 'claude-sub')!, model: 'claude-code', parse: claudeUsageParser() } } : {}),
         before: () => ({ undo: app.snapshots.take(workspace, ctx.workspaceDir, `before ${name}: ${task.slice(0, 120)}`, conversationId).id }),

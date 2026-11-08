@@ -122,6 +122,7 @@ const ALLOWED: Record<string, string> = {
   'src/apns.ts': "iPhone notifications over HTTP/2: calls checkOutbound() before connecting",
   'src/tunnel.ts': "Phase 89 dev tunnel: connects only to 127.0.0.1, to a port her own job listens on, after checkOutbound()",
   'src/ssh-easy.ts': "2.52.1 SSH Connect: the port greeting read and the anonymous cPanel TLS look call checkOutbound() before connecting (the manager also refuses non-loopback hosts first)",
+  'src/egress.ts': "EC9 egress proxy for sandboxed work: only allowlisted host names, never a private address, and Sara's outboundAllowed() (private local mode) before every connection",
   'src/plugins/net.ts': "Phase 117 plugin socket broker: hosts only from the owner's plugin settings, refused in private local mode (assertOnline) and checked with checkOutbound() before connecting",
 };
 

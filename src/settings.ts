@@ -61,6 +61,10 @@ export interface Settings {
   mcpPolicy?: Record<string, import('./tool-policy.ts').ServerPolicy>;
   /** Allow shell commands network access inside the sandbox. Default true. */
   shellNetwork?: boolean;
+  /** EC8: the native sandbox or a container (Podman/Docker) for commands and plugin jobs. */
+  isolation?: Partial<import('./isolation.ts').IsolationSettings>;
+  /** EC9: open network, or only the listed hosts, for sandboxed work that has network. */
+  egress?: Partial<import('./isolation.ts').EgressSettings>;
   /** Web search backend (key, if any, is in the vault under search:<provider>). */
   search?: { provider: SearchProvider; url?: string };
   /** MCP servers (secrets for env/headers are in the vault under mcp:<name>). */
@@ -91,6 +95,8 @@ export interface Settings {
   helpers?: import('./team.ts').CustomHelper[];
   /** Phase 39: default limits for a team task. */
   teamLimits?: Partial<import('./team.ts').TeamLimits>;
+  /** EC13: the overnight memory tidy (off until turned on; models on this computer unless 'any'). */
+  memoryTidy?: { on?: boolean; model?: 'local' | 'any' };
   /** Phase 99 (ST4): the board (how many cards she works at once; 2 by default). */
   board?: { concurrent?: number };
   /** Phase 52: the owner's own model prices (USD per 1M tokens; they win over the shipped defaults). */

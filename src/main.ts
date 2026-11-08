@@ -61,6 +61,9 @@ import { fileChannelChats } from './bridges/rooms.ts';
 import { Goals } from './goals.ts';
 import { Loops } from './loops.ts';
 import { Watches } from './watch.ts';
+import { Research } from './research.ts';
+import { Crews } from './crews.ts';
+import { MemoryTidy } from './memory-tidy.ts';
 import { ReminderScheduler } from './reminders.ts';
 import { CompanionHub, EventHub } from './events.ts';
 import { InnerStore } from './inner.ts';
@@ -77,6 +80,8 @@ import { appInfo } from './health.ts';
 import { DiscordBridge } from './bridges/discord.ts';
 import { McpManager } from './tools/mcp.ts';
 import { detectSandbox, lockDataDir, type SandboxInfo, type SandboxPreference } from './tools/sandbox.ts';
+import { effectiveEgress, isolationSettings, IsolationService, setIsolation } from './isolation.ts';
+import { setEgressSource } from './egress-run.ts';
 import { FindingStore } from './security/findings.ts';
 import { OsvClient } from './security/advisories.ts';
 import { SecurityPass } from './security/pass.ts';
@@ -110,6 +115,8 @@ import { createMomentsTool, MomentsStore, MomentsWorker } from './moments.ts';
 import { migrateProviderLabels, type Settings, SettingsStore, StartupError } from './settings.ts';
 import { AuditTrail, setAuditTrail } from './audit-trail.ts';
 import { PolicyStore, setPolicy } from './policy-profile.ts';
+import { setShares, ShareStore } from './share.ts';
+import { budgetAlerter, UsageBudgets, type ReportSource } from './usage-report.ts';
 import { Store } from './store.ts';
 import { Vault } from './vault.ts';
 import { guard, Log, logOptions } from './log.ts';
@@ -331,6 +338,8 @@ if (process.argv.includes('--doctor')) {
   } catch (err) {
     sb = { mode: 'none', network: true, detail: (err as Error).message };
   }
+  // EC8: the doctor reports the sandbox commands really get (a container where one is used).
+  new IsolationService({ native: { ...sb }, target: sb, settings: () => isolationSettings(settings.get()), image: () => sandboxGateSettings(settings.get()).dockerImage, required: () => new PolicyStore(dataDir).pins.containerSandbox === true }).recheck();
   const tools = new ToolRegistry();
   tools.unsandboxed = sb.mode === 'none';
   // Phase 121: the safety check-up (read-only here: nothing is fixed or written from the CLI).
@@ -418,6 +427,24 @@ const auditTrailMain = isDemo
       policyRev: () => policyStore.get().rev,
     });
 setAuditTrail(auditTrailMain);
+// EC8 + EC9 (docs/ops/EC89_DESIGN.md): a container (Podman/Docker) where the owner chooses it, the
+// admin requires it or nothing else isolates; `sandbox` is updated in place, so every holder sees it.
+const sandboxListeners: ((s: SandboxInfo) => void)[] = [];
+const isolationSvc = new IsolationService({
+  native: { ...sandbox },
+  target: sandbox,
+  settings: () => (sandboxPref === 'none' ? { ...isolationSettings(settings.get()), backend: 'native' } : isolationSettings(settings.get())),
+  image: () => sandboxGateSettings(settings.get()).dockerImage,
+  required: () => policyStore.pins.containerSandbox === true,
+  onChange: (s) => {
+    for (const f of sandboxListeners) f(s);
+  },
+});
+setIsolation(isolationSvc);
+isolationSvc.recheck();
+setEgressSource(() => effectiveEgress(settings.get(), policyStore.pins), (name) => vault.get(name));
+// EC11: shared conversation links, one store per server (never on the demo).
+if (!isDemo) setShares(new ShareStore(dataDir));
 const pruneAudit = () => auditTrailMain?.prune(policyStore.pins.auditRetentionDays ?? auditTrailMain.retentionDays);
 // The demo lets anyone in without signing in, so it must never run on a real owner's data.
 if (isDemo && existsSync(join(dataDir, 'sara.db'))) {
@@ -442,6 +469,10 @@ const webDir = join(root, 'web');
 const mainTools = new ToolRegistry();
 // Phase 46: no sandbox (Windows, or none found): commands ask first unless the owner chose otherwise.
 mainTools.unsandboxed = sandbox.mode === 'none';
+sandboxListeners.push((s) => {
+  mainTools.unsandboxed = s.mode === 'none';
+  console.log(`Tool sandbox: ${s.mode} (${s.detail})`);
+});
 const mcp = new McpManager(mainTools, { dataDir, sandbox, secrets: (name) => mcpSecrets(vault, name) });
 // Phase 73: the owner's other servers over SSH (docs/SSH.md). Owner only: not in household members'
 // spaces, and not on the demo server.
@@ -566,6 +597,8 @@ ownerSpace.hands = handsFor(ownerSpace, false);
 const memberSpaces = new Map<string, Space>();
 // EC5: a saved policy brings every companion's and member's settings in line (only ever tighter).
 policyStore.onApply = (p) => {
+  // EC8: a container pin (or its removal) takes effect at once.
+  isolationSvc.recheck();
   for (const sp of [ownerSpace, ...memberSpaces.values()]) {
     for (const c of sp.companions.all()) {
       const s = c.app.settings.get();
@@ -577,6 +610,12 @@ policyStore.onApply = (p) => {
   }
 };
 const household = new HouseholdStore(dataDir);
+// EC15: usage reports read every person's companions (the owner's space only); budgets warn early.
+const usageBudgets = new UsageBudgets(dataDir);
+const usageSources = (): ReportSource[] => [
+  ...companions.all().map((c) => ({ person: 'owner', personName: settings.get().ownerName || 'Owner', db: c.app.store.db })),
+  ...[...memberSpaces.entries()].flatMap(([id, sp]) => sp.companions.all().map((c) => ({ person: id, personName: household.get(id)?.name ?? id, db: c.app.store.db }))),
+];
 // Phase 99 (ST4, docs/BOARD.md): household boards shared by choice, in one shared store (never on the
 // demo). A change is pushed to the event hub of each of the board's people only.
 const sharedBoards = isDemo ? undefined : new SharedBoardStore(join(dataDir, 'shared', 'boards.db'));
@@ -935,6 +974,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.loops = new Loops(app, store.db);
     // E4: file/log watches (the owner's only); they come back paused after a restart.
     app.watches = new Watches(app, store.db);
+    // EC6: research runs; one that was working before the restart becomes a stopped report.
+    app.research = new Research(app, store.db);
     const g = app.goals.startupSweep();
     const l = app.loops.startupSweep();
     if (g || l) console.log(`Keep going and repeats: ${g} goal(s) and ${l} repeat(s) from before the restart are paused.`);
@@ -1112,6 +1153,10 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isMember && !isDemo) app.presence = new PresenceWorker(app);
   // Phase 39: team tasks she leads (helpers with their own models, tools and approvals).
   if (!isMember) app.team = new TeamManager(app, store.db);
+  // EC12: crews (standing helpers the lead hands board cards to; the owner's only, never the demo).
+  if (!isMember && !isDemo) app.crews = new Crews(app, store.db);
+  // EC13: the overnight memory tidy (each space and companion tidies only its own notes; off until turned on).
+  if (!isDemo) app.memoryTidy = new MemoryTidy(app, store.db);
   if (!isMember) for (const t of createTeamTools(() => app)) tools.add(t);
   // Phase 99 (ST4): the board over the planner, her card tools and the card worker (in the space that
   // owns the planner; companions sharing it use the main companion's worker).
@@ -1192,7 +1237,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     hookManager.attach(id, app);
   }
   deliveryFor(app); // Recover delivery evidence once per store; never dispatch on boot.
-  const server = createSaraServer({ ...serverOpts, app, auth: space.auth, companions: space.companions, spaceId: space.id, ...(isMember ? { member: memberHooksFor(space) } : isDemo ? {} : { household: householdHooks }) });
+  const server = createSaraServer({ ...serverOpts, app, auth: space.auth, companions: space.companions, spaceId: space.id, ...(isMember ? { member: memberHooksFor(space) } : isDemo ? {} : { household: householdHooks, usageSources, usageBudgets }) });
   return {
     id,
     app,
@@ -1342,6 +1387,8 @@ companions.build = (id, dir) => buildCompanion(ownerSpace, id, dir);
 companions.add(buildCompanion(ownerSpace, MAIN_ID, dataDir));
 // The other companions (not on the demo server).
 if (!isDemo) for (const c of companionDirs(dataDir)) companions.add(buildCompanion(ownerSpace, c.id, c.dir));
+// EC15: a budget that goes up a level this month tells the owner once (after model calls).
+if (!isDemo) budgetAlerter({ budgets: usageBudgets, sources: usageSources, tz: () => settings.get().timeZone || 'UTC', lang: () => appLanguage(settings.get()), notify: (title, line) => void companions.all()[0]?.app.push?.notifyOwner(title, line, '', 'usage-budget').catch(() => {}) });
 // Phase 71: household members' spaces (never on the demo server).
 if (!isDemo) {
   for (const m of memberDirs(dataDir, household)) {

@@ -484,7 +484,7 @@ export async function runSafetyCheck(d: SafetyDeps, by: 'page' | 'cli' | 'weekly
   // Accepted ambers count as fine (red can't be hidden).
   // EC5: settings looser than the admin's policy (drift). Only when a policy pins something.
   if (policy().get().rev) {
-    const drift = policy().drift(s, { privateLocal: privateLocalOn(), tool: (n) => app.tools.get(n) });
+    const drift = policy().drift(s, { privateLocal: privateLocalOn(), tool: (n) => app.tools.get(n), sandboxMode: (d.sandbox ?? app.sandbox).mode });
     const name = policy().get().name || 'Policy';
     add({ id: 'policy', title: T(en('Your admin\'s policy')), status: drift.length ? 'amber' : 'green', line: drift.length ? T(en('Some settings are looser than the policy “{name}” allows: {list}.'), { name, list: drift.map((x) => `${x.key} (${x.items.slice(0, 3).join(', ')})`).join('; ') }) : T(en('Every setting is within the policy “{name}”.'), { name }), why: T(en('Pinned rules are enforced anyway; a looser setting left over from before the policy is shown here so you can tidy it.')), ...(drift.length ? { fixes: [{ id: 'open-policy', label: T(en('Open the policy')), kind: 'guided', undo: 'none', changes: T(en('Opens Household → Policy.')), open: 'settings:dh-policy' }] } : {}) });
   }

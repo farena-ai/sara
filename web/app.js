@@ -20,9 +20,11 @@ import { loadWhatsAppPage } from './whatsapp.js';
 import { loadMatrixPage } from './matrix.js';
 import { loadIMessagePage } from './imessage.js';
 import { loadSlackPage } from './slack.js';
+import { loadTeamsPage } from './teams.js';
 import { initPlugins, loadPlugins, pluginAskLine, pluginNotice, pluginResultCard, pluginStepWords } from './plugins.js';
 import { loadMcpDiscovery } from './addons-discovery.js';
 import { loadPrograms, wirePrograms } from './prereqs.js';
+import { loadIsolation, wireIsolation } from './isolation.js';
 import { loadSignalPage } from './signal.js';
 import { loadEmailPage } from './email.js';
 import { renderTelegramSetup } from './telegram-setup.js';
@@ -53,9 +55,13 @@ import { compactNotice, dimFolded, initLean, loadLean, paintSheet } from './lean
 import { initPersist, loadPersistSettings, loadRepeats, openGoalCard, openLoopCard, persistEvent, persistMessage, persistOpen, savePersistSettings } from './persist.js';
 import { initRoutines, loadRoutines, openRoutinesAt, setRoutinesOpener, todayRoutineCards } from './routines.js';
 import { initWatches, watchNotice } from './watches.js';
+import { crewNotice, initCrews, loadCrews } from './crews.js';
+import { initMemoryTidy, loadMemoryTidy, memoryTidyNotice } from './memory-tidy.js';
 import { initReadTogether, readTogetherSwitched } from './read-together.js';
 import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-check.js';
 import { initGovernance } from './governance.js';
+import { initSharing, openShare } from './sharing.js';
+import { initUsageReport } from './usage-report.js';
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
 import { initNav, placeRail, relabelNav, setMore } from './nav.js';
@@ -1930,6 +1936,12 @@ function renderMessages(messages, opts = {}) {
     } else if (m.role === 'notice' && m.kind === 'watch') {
       // E4: a watched file's new matching line (or a paused watch), labelled as the app's (web/watches.js).
       els.push(watchNotice(m));
+    } else if (m.role === 'notice' && m.kind === 'crew') {
+      // EC12: a crew run's card (web/crews.js): its status, cards, receipts and the report file.
+      els.push(crewNotice(m));
+    } else if (m.role === 'notice' && m.kind === 'tidy') {
+      // EC13: the overnight memory tidy's morning card (web/memory-tidy.js): Undo per change.
+      els.push(memoryTidyNotice(m));
     } else if (m.role === 'notice' && m.kind === 'call') {
       els.push(bubble('notice', `📞 ${t('Sara called you')}: ${m.content}`, 'call', m.id));
     } else if (m.role === 'assistant' && !m.content.trim() && !m.meta?.proof?.length) {
@@ -3461,6 +3473,8 @@ async function loadTools() {
   $('#sandbox-note').hidden = !data.sandbox.note;
   $('#sandbox-note').textContent = data.sandbox.note ? t('{note} You can still set a tool to Allowed below; then her commands run on this computer without asking.', { note: t(data.sandbox.note) }) : '';
   $('#shell-network').checked = data.shellNetwork;
+  // EC8 + EC9: the sandbox backend and the sites sandboxed work may reach.
+  void loadIsolation();
   // Phase 77: check her plans against what you decided.
   $('#contradict-on').checked = data.contradict?.on !== false;
   $('#contradict-mode').value = data.contradict?.mode ?? 'stop';
@@ -3744,6 +3758,10 @@ autoSave($('#conv-settings'));
 $('#cs-archive').addEventListener('click', async () => {
   $('#conv-settings').close();
   await moveConversation(state.conv.id, { archived: !state.conv.archivedAt });
+});
+$('#cs-share')?.addEventListener('click', () => {
+  $('#conv-settings').close();
+  void openShare(state.conv);
 });
 $('#cs-delete').addEventListener('click', () => {
   $('#conv-settings').close();
@@ -6442,6 +6460,8 @@ function startEvents() {
       if (ev.message.meta?.call) b.classList.add('missed-call');
       if (ev.message.role === 'notice' && ev.message.content.startsWith('agenda:')) append(agendaNotice(ev.message));
       else if (ev.message.role === 'notice' && ev.message.content.startsWith('watch:')) append(watchNotice({ ...ev.message, content: ev.message.content.slice(6) }));
+      else if (ev.message.role === 'notice' && ev.message.content.startsWith('crew:')) append(crewNotice({ ...ev.message, content: ev.message.content.slice(5) }));
+      else if (ev.message.role === 'notice' && ev.message.content.startsWith('tidy:')) append(memoryTidyNotice({ ...ev.message, content: ev.message.content.slice(5) }));
       else if (ev.message.role === 'notice' && ev.message.content.startsWith('job:')) {
         append(jobCard(ev.message.content.slice(4), ev.message.meta?.status, ev.message.meta));
         const rc = ev.message.meta?.card ? renderCard(ev.message.meta.card) : null;
@@ -6469,6 +6489,7 @@ function startEvents() {
     if (document.querySelector('[data-page="co-matrix"]:not([hidden])')) void loadMatrixPage();
     if (document.querySelector('[data-page="co-imessage"]:not([hidden])')) void loadIMessagePage();
     if (document.querySelector('[data-page="co-slack"]:not([hidden])')) void loadSlackPage();
+    if (document.querySelector('[data-page="co-teams"]:not([hidden])')) void loadTeamsPage();
   });
   // Phase 102: a webhook got a delivery or changed: the Webhooks page refreshes.
   es.addEventListener('hooks', () => {
@@ -7081,6 +7102,8 @@ async function openMemory(opts = {}) {
     $('#mem-kind').value = '';
   }
   const s = await api('/memory/settings');
+  // EC13: Overnight tidy (web/memory-tidy.js).
+  void loadMemoryTidy();
   $('#mem-enabled').checked = s.enabled;
   $('#mem-quiet').value = String([10, 30, 60, 120].reduce((b, v) => (Math.abs(v - s.quietMinutes) < Math.abs(b - s.quietMinutes) ? v : b), 30));
   $('#mem-fade').value = s.fade ?? 'never';
@@ -7544,6 +7567,7 @@ async function loadMcp() {
   await loadMcpDiscovery();
 }
 wirePrograms();
+wireIsolation();
 
 function parseSecrets(text) {
   const env = {};
@@ -8037,6 +8061,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'co-matrix') void loadMatrixPage();
   if (pick === 'co-imessage') void loadIMessagePage();
   if (pick === 'co-slack') void loadSlackPage();
+  if (pick === 'co-teams') void loadTeamsPage();
   if (pick === 'ab-budgets') void loadBudgets();
   if (pick === 'ab-persist') void loadPersistSettings();
   // Phase 123: the Short tool list and Tidy long chats cards.
@@ -9384,6 +9409,10 @@ initRoutines({ api, el, openConversation: (id) => { $('#planner').close(); void 
 // E5: Read together (web/read-together.js): the Library's Read together opens beside this chat.
 initReadTogether({ api, current: () => state.currentId });
 // E4: Watch a file (web/watches.js): Ask about this puts his own question in the message box of the watch's chat.
+// EC12: Team → Crews (web/crews.js); its chat card opens the Team dialog or the crew's chat.
+initCrews({ api, el, openConversation: (id) => openConversation(id), openTeam: () => openTeam() });
+// EC13: Memory → Overnight tidy and its morning card (web/memory-tidy.js).
+initMemoryTidy({ api, el, openMemory: () => $('#open-memory').click() });
 initWatches({
   api,
   el,
@@ -9401,6 +9430,9 @@ initWatches({
 });
 initSafetyCheck({ api, el, openSettings: (page) => void openSettings(page) });
 initGovernance({ api, el, openSettings: (page) => void openSettings(page) });
+// EC11 + EC15: shared links and usage reports (web/sharing.js, web/usage-report.js).
+initSharing({ api, el });
+initUsageReport({ api, el, isMember });
 // Phase 120: the @ menu and chips; who may use references here is decided again by the server.
 initRefs({
   api, state, el, openSettings: (page) => void openSettings(page),
@@ -13070,6 +13102,8 @@ const STATUS_WORDS = { planning: 'Planning', running: 'Working', waiting: 'Waiti
 const chip = (s) => el('span', `chip ${s}`, t(STATUS_WORDS[s] ?? s));
 async function openTeam(taskId) {
   await loadTeam();
+  // EC12: the Crews section of the Team dialog (web/crews.js).
+  void loadCrews();
   if (taskId) team.current = taskId;
   else team.current ??= team.data?.tasks[0]?.id ?? null;
   await renderTeamDetail();

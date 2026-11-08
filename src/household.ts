@@ -308,7 +308,7 @@ export function memberDirs(dataDir: string, h: HouseholdStore): { member: Member
  * Settings only the owner has (server, accounts, bridges, tools, imports). A member's settings never
  * contain them, and a member's change never writes them.
  */
-export const OWNER_SETTINGS: readonly (keyof Settings)[] = ['providers', 'prices', 'mcpServers', 'search', 'offsite', 'backup', 'discord', 'telegram', 'chats', 'home', 'githubWatch', 'helpers', 'teamLimits', 'jobBudget', 'turnBudgets', 'sandboxGate', 'securityPass', 'threatModel', 'redteam', 'computerUse', 'evalSchedule', 'shellNetwork', 'modelLists', 'modelAutoSwitch', 'safetyClassifier', 'claimJudge', 'toolPermissions', 'mcpPolicy', 'alexa', 'presence', 'libraryLimits', 'plugins', 'a2a', 'hooks', 'safetyCheck', 'lean', 'store', 'wakeServer'];
+export const OWNER_SETTINGS: readonly (keyof Settings)[] = ['providers', 'prices', 'mcpServers', 'search', 'offsite', 'backup', 'discord', 'telegram', 'chats', 'home', 'githubWatch', 'helpers', 'teamLimits', 'jobBudget', 'turnBudgets', 'sandboxGate', 'securityPass', 'threatModel', 'redteam', 'computerUse', 'evalSchedule', 'shellNetwork', 'isolation', 'egress', 'modelLists', 'modelAutoSwitch', 'safetyClassifier', 'claimJudge', 'toolPermissions', 'mcpPolicy', 'alexa', 'presence', 'libraryLimits', 'plugins', 'a2a', 'hooks', 'safetyCheck', 'lean', 'store', 'wakeServer'];
 
 /**
  * A member's settings: their own file, with the owner's providers (for the server code that runs
@@ -507,7 +507,7 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   // her
   'persona', 'look', 'sara', 'character', 'gallery', 'companions', 'groups', 'adult', 'photos',
   // memory and life
-  'memories', 'memory', 'scrapbook', 'moments', 'story', 'together',
+  'memories', 'memory', 'memory-tidy', 'scrapbook', 'moments', 'story', 'together',
   // Phase 101 (ST6): their own people cards (each person's space, per companion; nothing shared)
   'people', 'person-facts',
   // Phase 103 (ST8): their own agenda (her plans in their space, per companion; the owner can't read it)

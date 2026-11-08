@@ -73,9 +73,10 @@ export interface PluginPermissions {
   webhooks: 'none' | 'bridge';
   /**
    * Phase 122 part 3 (BRIDGES4 §3.1 B1): the kinds its bridge hook may be (`"bridge"` alone = `['meta']`;
-   * `{"bridge": ["url"], "doorbell": true}` for a platform that can't sign: BlueBubbles).
+   * `{"bridge": ["url"], "doorbell": true}` for a platform that can't sign: BlueBubbles; EC7
+   * `["botframework"]`: Teams, Sara checks the Bot Framework JWT).
    */
-  webhookKinds: ('meta' | 'url')[];
+  webhookKinds: ('meta' | 'url' | 'botframework')[];
   /** B2: an unsigned (`url`) bridge hook only wakes the plugin with the event and ids, never the body. */
   doorbell: boolean;
   /**
@@ -316,21 +317,22 @@ function parsePermissions(v: unknown): PluginPermissions {
   const connect = parseConnect(p.connect);
   // Phase 122 part 3 (B1): `{"bridge": ["url"], "doorbell": true}` names the kinds; an unsigned `url`
   // hook needs `doorbell` (the plugin is woken with ids only and fetches each message itself).
-  let webhookKinds: ('meta' | 'url')[] = [];
+  let webhookKinds: ('meta' | 'url' | 'botframework')[] = [];
+  const KIND = (k: unknown) => k === 'meta' || k === 'url' || k === 'botframework';
   let doorbell = false;
   let webhooks: unknown = p.webhooks === undefined || p.webhooks === 'none' ? 'none' : p.webhooks;
   if (webhooks && typeof webhooks === 'object' && !Array.isArray(webhooks)) {
     const w = webhooks as { bridge?: unknown; doorbell?: unknown };
     const kinds = Array.isArray(w.bridge) ? w.bridge : [];
-    if (!kinds.length || kinds.some((k) => k !== 'meta' && k !== 'url') || Object.keys(w).some((k) => k !== 'bridge' && k !== 'doorbell')) throw new ManifestError('permissions.webhooks.bridge must list "meta" or "url".');
-    webhookKinds = [...new Set(kinds as ('meta' | 'url')[])];
+    if (!kinds.length || kinds.some((k) => !KIND(k)) || Object.keys(w).some((k) => k !== 'bridge' && k !== 'doorbell')) throw new ManifestError('permissions.webhooks.bridge must list "meta", "url" or "botframework".');
+    webhookKinds = [...new Set(kinds as ('meta' | 'url' | 'botframework')[])];
     doorbell = w.doorbell === true;
     if (webhookKinds.includes('url') && !doorbell) throw new ManifestError('permissions.webhooks: an unsigned "url" bridge hook needs "doorbell": true.');
     webhooks = 'bridge';
   } else if (webhooks === 'bridge') {
     // The parsed form read back (`webhooks: "bridge"` with its `webhookKinds` and `doorbell`) means the same.
     const back = Array.isArray(p.webhookKinds) ? (p.webhookKinds as unknown[]) : [];
-    webhookKinds = back.length && back.every((k) => k === 'meta' || k === 'url') ? [...new Set(back as ('meta' | 'url')[])] : ['meta'];
+    webhookKinds = back.length && back.every(KIND) ? [...new Set(back as ('meta' | 'url' | 'botframework')[])] : ['meta'];
     doorbell = p.doorbell === true;
     if (webhookKinds.includes('url') && !doorbell) throw new ManifestError('permissions.webhooks: an unsigned "url" bridge hook needs "doorbell": true.');
   }
@@ -558,6 +560,7 @@ export function permissionLines(m: PluginManifest, toolLabel: (name: string) => 
   if (p.bridgeFiles) out.push({ id: 'bridgeFiles', key: 'Can send and receive pictures and files in its chats', risk: 'high' });
   if (p.bridgeApprovals) out.push({ id: 'bridgeApprovals', key: 'Shows her requests for your OK in its chats, with Allow and Deny (only you can answer)', risk: 'high' });
   if (p.webhooks === 'bridge' && p.doorbell) out.push({ id: 'webhooks:doorbell', key: 'Is woken by its app on your network; checks every message with that app before reading it', risk: 'high' });
+  else if (p.webhooks === 'bridge' && p.webhookKinds.includes('botframework')) out.push({ id: 'webhooks:botframework', key: 'Receives messages from Microsoft Teams at a public web address Sara gives it (Sara checks Microsoft’s signature first)', risk: 'high' });
   else if (p.webhooks === 'bridge') out.push({ id: 'webhooks:bridge', key: 'Receives messages from Meta at a public web address Sara gives it', risk: 'high' });
   for (const h of p.hooks) if (HOOK_WORDS[h]) out.push({ id: `hook:${h}`, key: HOOK_WORDS[h], risk: h === 'turn.before' || h === 'reply.after' || h === 'tool.after' ? 'medium' : 'low' });
   for (const s of m.schedules) out.push(scheduleWords(s));
@@ -605,7 +608,7 @@ export function permissionIds(m: PluginManifest): string[] {
     ...p.bridges.map((b) => `bridge:${b}`),
     ...(p.bridgeFiles ? ['bridgeFiles'] : []),
     ...(p.bridgeApprovals ? ['bridgeApprovals'] : []),
-    ...(p.webhooks === 'bridge' ? [p.doorbell ? 'webhooks:doorbell' : 'webhooks:bridge'] : []),
+    ...(p.webhooks === 'bridge' ? [p.doorbell ? 'webhooks:doorbell' : p.webhookKinds.includes('botframework') ? 'webhooks:botframework' : 'webhooks:bridge'] : []),
     ...p.hooks.map((h) => `hook:${h}`),
     ...m.schedules.map((s) => `schedule:${s.id}:${s.every}:${s.at ?? ''}`),
     ...p.tools.map((t) => `tool:${t}`),

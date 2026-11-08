@@ -340,9 +340,13 @@ test('the progress message: one message with ⏹, edited in place; his ⏹ stops
   r.slack.dm('start something');
   assert.ok(await until(() => texts(r, DM).includes('ok')));
   const run = (r.pm as Any).processOf('slack', 'main');
+  // A slow Slack (as under load): the post is recorded at once but answered 1.5 s later. An edit that
+  // arrives before the answer must wait for the post's ts, not be dropped (the flake's root cause).
+  r.slack.slow.set('chat.postMessage', 1500);
   run.send({ v: 1, type: 'bridge.send', bridge: 'slack', chatId: DM, ref: 'p-9', text: 'Working… step 1' });
   const prog = () => r.slack.sentTo(DM).find((p: Any) => /step 1/.test(p.text));
   assert.ok(await until(() => Boolean(prog())), 'the progress message is up');
+  r.slack.slow.delete('chat.postMessage');
   assert.equal(prog().blocks.find((b: Any) => b.type === 'actions').elements[0].action_id, 'st:p-9');
   run.send({ v: 1, type: 'bridge.edit', bridge: 'slack', chatId: DM, ref: 'p-9', text: 'Working… step 2' });
   assert.ok(await until(() => r.slack.updates.some((u: Any) => u.ts === prog().ts && /step 2/.test(u.text) && u.blocks.some((b: Any) => b.type === 'actions'))), 'edited in place, ⏹ kept');

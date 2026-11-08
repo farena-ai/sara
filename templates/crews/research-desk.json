@@ -1,0 +1,30 @@
+{
+  "id": "research-desk",
+  "name": "Research desk",
+  "blurb": "A researcher finds what is new on your topic with sources; a writer turns it into a one-page brief. Every Friday morning.",
+  "crew": {
+    "name": "Research desk",
+    "template": "research-desk",
+    "brief": "A one-page research brief on the topic below, with a source for every fact. Topic: (write your topic here)",
+    "members": [
+      {
+        "helper": "researcher",
+        "task": "Find what is new this week on the topic, with a source for each fact"
+      },
+      {
+        "helper": "writer",
+        "task": "Write a one-page brief from the researcher's findings, keeping the sources"
+      }
+    ],
+    "limits": {
+      "minutes": 20,
+      "tokens": 150000,
+      "steps": 4
+    },
+    "schedule": {
+      "kind": "weekly",
+      "day": 5,
+      "time": "08:00"
+    }
+  }
+}

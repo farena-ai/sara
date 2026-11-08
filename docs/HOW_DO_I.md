@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 190 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 198 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -662,6 +662,20 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. In Settings → Chat apps → Slack, press Answer here next to that channel.
 3. Mention her in the channel; she answers in a thread.
 
+### Microsoft Teams
+
+**How do I talk to her in Microsoft Teams?**
+
+1. Press Start on the Microsoft Teams card and make the free Azure Bot it describes.
+2. Paste the App ID, the tenant ID and a client secret, give Teams a public address and paste the messaging endpoint into the bot.
+3. Download the Teams app package, upload it in Teams, then press Link my Teams and send her the code.
+
+**How do I let her answer in a Teams channel?**
+
+1. Add her app to the team (Apps → her app → Add to a team).
+2. Mention her once in the channel, then press Answer here next to it in Settings → Chat apps → Microsoft Teams.
+3. Mention her again; she answers in that thread.
+
 ## Settings → Add-ons
 
 ### Get more
@@ -1161,6 +1175,45 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. RSS and event-loop lag are process-wide, including other spaces and HTTP servers in this process. They are not current-space usage.
 
 ## Settings → Household
+
+### Usage reports
+
+**How do I see who used how much?**
+
+1. Open Settings → Household → Usage reports.
+2. Pick Daily, Weekly or Monthly.
+3. Tick Who, Workspace, Project or Model to split the rows.
+
+**How do I get the numbers into a spreadsheet?**
+
+1. Set the period and what to split by.
+2. Press Download CSV.
+
+**How do I get warned before a budget runs out?**
+
+1. Under Monthly budgets, pick a person or a workspace.
+2. Enter dollars or tokens for the month.
+3. Pick when to warn and press Add budget.
+
+### Shared links
+
+**How do I share a conversation?**
+
+1. Open the chat and its settings.
+2. Press Share….
+3. Check the preview, pick how long the link works and press Make link.
+4. Copy the link and send it privately.
+
+**How do I stop a link from working?**
+
+1. Open Settings → Household → Shared links.
+2. Press Revoke next to the link.
+
+**How do I share a private chat?**
+
+1. Open Settings → Household → Shared links.
+2. Tick Allow sharing private chats.
+3. Share it from the chat as usual.
 
 ### Audit trail
 

@@ -5,6 +5,7 @@
 import type { IncomingMessage } from 'node:http';
 import { audit, auditTrail, type AuditFilter, RETENTION_CHOICES } from '../audit-trail.ts';
 import { HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
+import { egressSettings, enforcementNote, isolation, isolationPatch, isolationSettings } from '../isolation.ts';
 import { policy, PIN_KEYS, PROVIDER_KINDS } from '../policy-profile.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
@@ -22,6 +23,30 @@ export function createGovernanceRoutes(ctx: RouteCtx): RouteHandler {
   };
   return async (req, res, method, parts) => {
     const [a, b] = parts;
+    // EC8 + EC9: the sandbox backend and the egress allowlist (server-wide; owner only).
+    if (a === 'isolation') {
+      ownerOnly();
+      const svc = isolation();
+      const view = () => {
+        const s = app.settings.get();
+        const e = egressSettings(s);
+        const pins = policy().pins;
+        return { ...(svc ? svc.status() : { ...isolationSettings(s), sandbox: { mode: app.sandbox.mode, detail: app.sandbox.detail, isolated: app.sandbox.mode !== 'none', refused: Boolean(app.sandbox.refuse) }, tried: [], image: '', checkedAt: null }), egress: { mode: pins.egressAllowlist ? 'allowlist' : e.mode, hosts: pins.egressAllowlist ?? e.hosts, ...enforcementNote(app.sandbox) }, pinned: { containerSandbox: Boolean(pins.containerSandbox), egressAllowlist: Boolean(pins.egressAllowlist) }, platform: process.platform };
+      };
+      if (!b && method === 'GET') return send(res, 200, view());
+      if (!b && method === 'PUT') {
+        const body = await readJson(req);
+        const patch = isolationPatch(body, app.settings.get(), policy().pins, (k) => policy().refusal(k));
+        app.settings.update(patch);
+        if (patch.isolation) svc?.recheck();
+        return send(res, 200, view());
+      }
+      if (b === 'recheck' && method === 'POST') {
+        svc?.recheck();
+        return send(res, 200, view());
+      }
+      throw new HttpError(404, 'Not found');
+    }
     if (a === 'audit') {
       ownerOnly();
       const trail = auditTrail();

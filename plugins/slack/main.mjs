@@ -39,6 +39,9 @@ const users = new Map();
 const channels = new Map();
 const threadOf = new Map();
 const refs = new Map();
+// ref → its progress message's send while it is still being posted: an edit that arrives before Slack
+// answered (a slow Slack, a busy PC) waits for the ts instead of being dropped.
+const posting = new Map();
 const asks = new Map();
 const outFiles = new Map();
 let capNoticeDay = '';
@@ -345,6 +348,7 @@ async function onSend(m) {
 
 /** The progress message: chat.update, keeping the ⏹ until the ✅ summary. */
 async function onEdit(m) {
+  if (!refs.has(m.ref)) await posting.get(m.ref);
   const target = refs.get(m.ref);
   if (!target) return;
   const mrk = toMrkdwn(String(m.text ?? ''));
@@ -460,7 +464,14 @@ sara = plugin({
   bridge: { files: true, edit: true, places: true, react: true, threads: true, link: true, editEveryMs: 3000, textMax: TEXT_MAX, ack: 'react', buttons: 3, maxBytes: OWNER_FILE_MAX },
   bridges: {
     [BRIDGE]: {
-      send: (m) => onSend(m),
+      send: (m) => {
+        const p = onSend(m);
+        if (m.ref) {
+          posting.set(m.ref, p);
+          p.finally(() => posting.get(m.ref) === p && posting.delete(m.ref));
+        }
+        return p;
+      },
       edit: (m) => onEdit(m),
       file: (m) => onFile(m),
       react: (m) => onReact(m),

@@ -12,7 +12,7 @@ const IDS = ['daily-briefing', 'meeting-assistant', 'document-desk', 'research-n
   // A2 developer add-ons ship beside the A1 candidates so their reviews are not held as missing.
   ...['secret-scanner', 'license-auditor', 'sbom-builder', 'artifact-provenance-verifier', 'coverage-explorer', 'log-explorer', 'incident-workbench', 'environment-config-doctor', 'database-fixture-studio', 'data-contract-validator', 'change-impact-analyzer', 'architecture-guard', 'sql-migration-reviewer', 'visual-regression', 'localization-qa', 'accessibility-auditor', 'build-cache-inspector', 'api-contract-guard', 'http-webhook-workbench',
     'performance-regression-lab', 'code-migration-studio', 'build-reproducibility-inspector', 'test-doctor', 'flaky-test-lab', 'documentation-doctor', 'release-readiness', 'repository-onboarding']];
-const BUILTINS = ['email', 'imessage', 'matrix', 'signal', 'slack', 'whatsapp'];
+const BUILTINS = ['email', 'imessage', 'matrix', 'signal', 'slack', 'teams', 'whatsapp'];
 const read = (path: string) => readFileSync(join(ROOT, path), 'utf8').replaceAll('\r\n', '\n');
 const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash';
 const sorted = (values: readonly string[]) => [...values].sort();

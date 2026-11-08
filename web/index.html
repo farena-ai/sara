@@ -38,8 +38,10 @@
   <link rel="stylesheet" href="/packs.css">
   <link rel="stylesheet" href="/begin.css">
   <link rel="stylesheet" href="/refs.css">
+  <link rel="stylesheet" href="/research.css">
   <link rel="stylesheet" href="/recall.css">
   <link rel="stylesheet" href="/v3.css">
+  <link rel="stylesheet" href="/sharing.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -624,6 +626,11 @@
         <ul id="team-tasks" class="team-tasks" aria-label="Team tasks"></ul>
         <section id="team-detail" class="team-detail" aria-live="polite"></section>
       </div>
+      <!-- EC12 (docs/ops/EC1213_DESIGN.md): crews of standing helpers (web/crews.js). -->
+      <section class="crews-box">
+        <h3 id="crews-h">Crews <button type="button" class="tip" data-tip="A crew is a few of your helpers with standing parts, a brief, a budget and a time (by hand, every day or every week). The lead hands each one a board card, checks the work and sends one summary with a report file.">?</button></h3>
+        <div id="crews" aria-labelledby="crews-h"></div>
+      </section>
       <details class="jobs-more">
         <summary>Helpers and limits</summary>
         <div id="team-helpers" class="team-helpers"></div>
@@ -1524,6 +1531,7 @@
         <p id="lib-upload-status" class="small" role="status"></p>
         <progress id="lib-upload-bar" class="lib-progress" max="1" value="0" hidden></progress>
         <p class="small"><button id="lib-feed-together" type="button" class="ghost small" title="Opens a public RSS or Atom feed above your chat so you can share one of its items with her." data-owner-only>Read a feed together</button></p>
+        <p class="small"><button id="lib-research-open" type="button" class="ghost small" data-owner-only>Research a question…</button> <button type="button" class="tip" data-tip="She plans the searches with you, reads public pages, lists every page she read or couldn't read, and writes a report where each sentence links its page. Kept here; downloads as PDF or Word.">?</button></p>
         <div class="lib-tools" data-nodirty>
           <input id="lib-q" type="search" placeholder="Search her library">
         </div>
@@ -1538,6 +1546,12 @@
           <div id="la-list" class="la-list"></div>
         </section>
         <label id="lib-shared-row" class="row small" hidden data-nodirty><input id="lib-shared" type="checkbox"> One library for all companions (takes effect after a restart)</label>
+      </section>
+      <!-- EC6 (docs/RESEARCH.md): research runs with a report (web/research.js). -->
+      <section id="lib-research" hidden>
+        <p><button id="lib-r-back" type="button" class="ghost small">← All documents</button></p>
+        <h2>Research a question <button type="button" class="tip" data-tip="A plan you approve or edit, then she searches and reads. Write the report now stops reading early; Stop still gives a report of what was found and what is missing.">?</button></h2>
+        <div id="lib-r-body" class="rs-body" data-nodirty></div>
       </section>
       <section id="lib-doc" hidden>
         <p><button id="lib-back" type="button" class="ghost small">← All documents</button></p>
@@ -1627,6 +1641,11 @@
       </div>
       <div id="mem-list"></div>
       <p class="muted small">Once a week she looks back over your conversations: she may notice a pattern, and marks notes that newer ones replace (they stay here). <button id="mem-reflect" type="button" class="ghost small">Look back now</button> <span id="mem-reflect-status"></span></p>
+      <!-- EC13 (docs/ops/EC1213_DESIGN.md): the overnight memory tidy (web/memory-tidy.js). -->
+      <h3 id="mt-h">Overnight tidy <button type="button" class="tip" data-tip="While you sleep she merges duplicate notes, asks you about notes that disagree and sums up old threads. She never deletes: each change has Undo on the morning card.">?</button></h3>
+      <label class="row"><input id="mt-on" type="checkbox"> Tidy her memory at night <button type="button" class="tip" data-tip="Off until you turn it on. Once a night, in your quiet hours, when nobody has written for half an hour. A short card in your chat in the morning says what changed.">?</button></label>
+      <label>Which model <select id="mt-model"><option value="local">Models on this computer only</option><option value="any">Any model</option></select> <button type="button" class="tip" data-tip="Models on this computer only: your notes never leave it. Any model: ordinary notes may go to your usual model; notes from private chats or about people's health, money or love life never leave this computer.">?</button></label>
+      <div class="add-row"><button id="mt-now" type="button" class="ghost small">Tidy now</button> <span id="mt-status" class="muted small" role="status"></span></div>
       <h3>Settings</h3>
       <label class="row"><input id="mem-enabled" type="checkbox"> Remember conversations <button type="button" class="tip" data-tip="Off: she forgets each conversation once it's over (she still sees the conversation you're in). On is what makes her feel like the same person every day.">?</button></label>
       <label>Write notes when a conversation goes quiet for <button type="button" class="tip" data-tip="She also writes notes as soon as you start a new conversation, and every 40 messages in a long one, so this rarely matters. Shorter = notes sooner but more background work for your model.">?</button> <select id="mem-quiet"><option value="10">10 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option><option value="120">2 hours</option></select></label>
@@ -1870,8 +1889,33 @@
       <p class="muted small cs-summary">Sara writes a dated summary of this conversation after it's been quiet for a while. <button id="cs-remember" type="button" class="ghost small">Write summary now</button></p>
       <p id="cs-error" class="error" role="alert"></p>
       <div class="actions tidy-foot">
+        <button id="cs-share" type="button" class="ghost" data-owner-only>Share…</button>
         <button id="cs-archive" type="button" class="ghost">Archive</button>
         <button id="cs-delete" type="button" class="ghost danger-text">Delete…</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- EC11 (docs/ops/EC1115_DESIGN.md): share a conversation as a read-only link (web/sharing.js). -->
+  <dialog id="share-dialog" class="share-dialog" aria-labelledby="shd-heading">
+    <form method="dialog" class="settings-body" data-nodirty data-noauto>
+      <h2 id="shd-heading">Share this conversation</h2>
+      <p class="muted small">Anyone with the link can read a copy of this chat until it expires or you revoke it. They can't reply or see anything else. Check the preview first. <button type="button" class="tip" data-tip="The link shows a frozen copy made now. Keys, passwords, e-mail addresses and phone numbers are hidden. Search engines are told not to index it.">?</button></p>
+      <div class="shd-options">
+        <label class="row"><input id="shd-tools" type="checkbox"> Include tool results <button type="button" class="tip" data-tip="Off: only your messages and her replies. On: what her tools returned (searches, files, commands) is added, scrubbed and cut short.">?</button></label>
+        <label class="row"><input id="shd-pictures" type="checkbox"> Include pictures <button type="button" class="tip" data-tip="Off: pictures in the chat are left out. On: up to 12 pictures are copied into the link.">?</button></label>
+        <label class="row">The link works for <select id="shd-expires"><option value="1h">1 hour</option><option value="1d">1 day</option><option value="7d" selected>7 days</option><option value="30d">30 days</option></select> <button type="button" class="tip" data-tip="After this the link stops working by itself. You can revoke it sooner in Settings → Household → Shared links.">?</button></label>
+      </div>
+      <h3>Preview</h3>
+      <p id="shd-hidden" class="muted small" role="status"></p>
+      <div id="shd-preview" class="shd-preview"></div>
+      <div id="shd-result" class="shd-result" hidden>
+        <label>Link <button type="button" class="tip" data-tip="Send it privately. The link is shown only now: copy it before you close this window. Revoke it any time in Shared links.">?</button> <input id="shd-link" type="text" readonly></label>
+        <button id="shd-copy" type="button" class="ghost">Copy</button>
+      </div>
+      <p id="shd-error" class="error" role="alert"></p>
+      <div class="actions">
+        <button id="shd-create" type="button" class="primary">Make link</button>
       </div>
     </form>
   </dialog>
@@ -2902,6 +2946,18 @@
       <p class="muted small">Open a group to see each thing she can do, or set the whole group at once.</p>
       <div id="tool-list"></div>
       <label class="row"><input id="shell-network" type="checkbox"> Allow internet access for shell commands</label>
+      <h3>Isolation <button type="button" class="tip" data-tip="Where her commands and add-on jobs run. A container (Podman or Docker) sees only the workspace: not Sara's data, your files or the rest of the system. Linux keeps bubblewrap unless you pick a container.">?</button></h3>
+      <p id="iso-status" class="muted small" role="status"></p>
+      <label>Sandbox for commands and add-on jobs <select id="iso-backend"><option value="auto">Automatic</option><option value="native">This computer's own sandbox</option><option value="container">A container (Podman or Docker)</option></select> <button type="button" class="tip" data-tip="Automatic: bubblewrap on Linux, the macOS sandbox on a Mac, a container where neither exists (Windows). The container image must already be on this computer; Sara never downloads it.">?</button></label>
+      <p id="iso-engines" class="muted small"></p>
+      <div class="add-row"><button id="iso-recheck" type="button" class="ghost small">Look again</button><button id="iso-install" type="button" class="small" hidden>Install Docker for me</button></div>
+      <div id="iso-host" class="prq-host"></div>
+      <h3>Sites sandboxed work may reach <button type="button" class="tip" data-tip="With a list, commands and add-on jobs that have internet reach only these sites; every other site is refused and written to the audit trail. A key named after a site is added by Sara, so it never enters the sandbox.">?</button></h3>
+      <label>Which sites <select id="eg-mode"><option value="open">Any site</option><option value="allowlist">Only the sites listed below</option></select> <button type="button" class="tip" data-tip="Any site keeps today's behaviour. Only the sites listed: an empty list means no internet at all for sandboxed work.">?</button></label>
+      <label>Allowed sites, one per line <textarea id="eg-hosts" rows="4" placeholder="registry.npmjs.org"></textarea> <button type="button" class="tip" data-tip="One site per line: example.com, *.example.com for its subdomains, example.com:8443 for another port. Add key=name to have Sara add the saved key of that name (send plain http:// to that site).">?</button></label>
+      <p id="eg-note" class="muted small"></p>
+      <div class="add-row"><button id="eg-save" type="button">Save</button></div>
+      <p id="iso-msg" class="muted small" role="status"></p>
       <h3>Your decisions</h3>
       <label class="row"><input id="contradict-on" type="checkbox"> Check her plans against what you decided</label>
       <label>When a plan goes against a decision <select id="contradict-mode"><option value="stop">Stop on clear conflicts</option><option value="mention">Only mention them</option></select></label>
@@ -3595,6 +3651,14 @@
       <div id="sl-box" class="wa-box"></div>
       </div>
         </section>
+        <!-- EC7: Microsoft Teams, a first-party plugin over the Bot Framework (web/teams.js). -->
+        <section class="settings-page" data-page="co-teams" data-group="Chat apps" data-title="Microsoft Teams" data-owner-only hidden>
+      <p class="muted small page-lead">Talk to her in Microsoft Teams: her personal chat, and the channels and group chats you choose when someone mentions her. You make a free Azure Bot and upload a small Teams app package Sara builds. Teams has to reach Sara at a public https address; the card helps if you have none. It comes with Sara as a plugin, is off until you add it, and the card checks each step with you. <a href="/help#teams" target="_blank" rel="noopener">How Teams works</a></p>
+      <div class="kit-card">
+      <div class="card-head"><h3>Microsoft Teams</h3><span id="te-chip" class="status-chip" role="status">Not set up</span></div>
+      <div id="te-box" class="wa-box"></div>
+      </div>
+        </section>
         <!-- Owner session continuity settings. -->
         <section class="settings-page" data-page="co-continuity" data-group="Chat apps" data-title="Session continuity" data-owner-only hidden>
           <p class="muted small page-lead">Keep context between your own sessions with this companion. This is separate from Pick up across apps and While she's working.</p>
@@ -3829,9 +3893,15 @@
         <h3>Safety</h3>
         <label class="row"><input id="po-adult" type="checkbox"> Keep adult mode off <button type="button" class="tip" data-tip="Adult mode is turned off for everyone now and can't be turned on.">?</button></label>
         <label class="row"><input id="po-net" type="checkbox"> No internet for her commands <button type="button" class="tip" data-tip="Her shell commands never reach the internet (builds that download packages then fail).">?</button></label>
+        <label class="row"><input id="po-container" type="checkbox"> Require the container sandbox <button type="button" class="tip" data-tip="Commands and add-on jobs run only in a container (Podman or Docker). Without a working one they are refused, never run unisolated.">?</button></label>
+        <label class="row"><input id="po-egress-on" type="checkbox"> Only these sites for sandboxed work <button type="button" class="tip" data-tip="Commands and add-on jobs reach only the sites listed here, whatever the owner chooses. An empty list means no internet for them at all.">?</button></label>
+        <label>Sites, one per line <textarea id="po-egress" rows="3" placeholder="registry.npmjs.org"></textarea> <button type="button" class="tip" data-tip="One site per line: example.com, or *.example.com for its subdomains, or example.com:8443 for another port.">?</button></label>
         <label class="row"><input id="po-local" type="checkbox"> Keep private local mode on <button type="button" class="tip" data-tip="Once Nothing leaves this computer is on, it can't be turned off. If it's off now, the safety check-up says so until you turn it on.">?</button></label>
         <label class="row">Sara Store <select id="po-store"><option value="">No limit</option><option value="official">Signed Store items only</option><option value="off">No installs</option></select> <button type="button" class="tip" data-tip="Signed Store items only: no community items. No installs: nothing can be installed or updated from the Store.">?</button></label>
+        <label class="row"><input id="po-sharing" type="checkbox"> Turn off shared links <button type="button" class="tip" data-tip="No one can make a link to share a conversation, and links already made stop opening until this is unticked.">?</button></label>
         <label class="row">Program installs <select id="po-programs"><option value="">No limit</option><option value="ask">Ask first</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Programs add-ons need (Chrome, uv, Docker…). Ask first: Sara always shows the commands and waits. Off: Sara never installs programs on this server.">?</button></label>
+        <label class="row">Crews <select id="po-crews"><option value="">No limit</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Off: no crews can be made, run, scheduled or started by mail on this server.">?</button></label>
+        <label class="row">Overnight memory tidy <select id="po-tidy"><option value="">No limit</option><option value="local">Models on this computer only</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Models on this computer only: the tidy never sends notes to a cloud model. Off: no overnight tidy for anyone on this server.">?</button></label>
         <label class="row">Audit trail retention <select id="po-retention"><option value="">Not pinned</option><option value="30">30 days</option><option value="90">90 days</option><option value="365">A year</option><option value="0">Keep everything</option></select> <button type="button" class="tip" data-tip="Pins how long the audit trail is kept. Not pinned: you choose on the Audit trail page.">?</button></label>
         <div class="add-row"><button id="po-save" type="button" class="primary">Save the policy</button> <button id="po-export" type="button" class="ghost">Export JSON</button> <button id="po-import" type="button" class="ghost">Import JSON</button> <button type="button" class="tip" data-tip="Export saves this policy as a JSON file; Import applies one, for setting up another server the same way. Importing replaces every pin.">?</button> <input id="po-file" type="file" accept="application/json,.json" hidden></div>
         <p id="po-status" class="small" role="status"></p>
@@ -4062,6 +4132,48 @@
       <p class="small"><a id="up-whatsnew" href="https://github.com/farena-ai/sara/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">What's new in each version ↗</a></p>
       <p id="up-download-row" hidden><a id="up-download" class="button" target="_blank" rel="noopener noreferrer" href="https://github.com/farena-ai/sara/releases/latest">Download the new version</a></p>
       <p id="up-manual" class="muted small" hidden><span data-admin-when="known">To update her: <code data-admin="update">sudo sara update</code>.</span><span data-admin-when="unknown">This server updates from the command line. On the server run <code>sudo sara update</code> (Docker: <code>docker compose pull &amp;&amp; docker compose up -d</code>).</span></p>
+        </section>
+        <!-- EC11: links the owner shared (web/sharing.js). -->
+        <section class="settings-page" data-page="dh-shares" data-group="Household" data-title="Shared links" data-owner-only hidden>
+      <div class="sl-page" data-noauto data-nodirty>
+        <p class="muted small page-lead">Conversations you shared as read-only links. Revoke a link and it stops working at once. <button type="button" class="tip" data-tip="Make a link from a chat's settings (Share…). Each link is a copy made when you shared it; it expires by itself.">?</button></p>
+        <p id="sl-pinned" class="muted small" hidden>Shared links are turned off by your admin's policy.</p>
+        <label class="row"><input id="sl-private" type="checkbox"> Allow sharing private chats <button type="button" class="tip" data-tip="Off: private chats, and every chat while private local mode is on, can't be shared. Off-the-record chats and chats with other people are never shared.">?</button></label>
+        <div id="sl-list" class="sl-list"></div>
+      </div>
+        </section>
+        <!-- EC15: usage and cost reports (web/usage-report.js). Members see only their own. -->
+        <section class="settings-page" data-page="dh-usage-report" data-group="Household" data-title="Usage reports" hidden>
+      <div class="ur-page" data-noauto data-nodirty>
+        <p class="muted small page-lead">Tokens and estimated cost from every model call, by day, week or month. <button type="button" class="tip" data-tip="Counted from the same records as Usage and costs. Costs are estimates from your price table; local and subscription models count as $0. Household members only see their own.">?</button></p>
+        <div class="ur-filters">
+          <label>Show <select id="ur-period"><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select> <button type="button" class="tip" data-tip="One row per day, per week (starting Monday) or per month, in your time zone.">?</button></label>
+          <label>From <input id="ur-from" type="date"> <button type="button" class="tip" data-tip="Empty: the last 30 days.">?</button></label>
+          <label>To <input id="ur-to" type="date"> <button type="button" class="tip" data-tip="Empty: up to now.">?</button></label>
+        </div>
+        <h3>Split by <button type="button" class="tip" data-tip="Tick what each row is split by. Workspace and project come from the chat a call was made in; work outside a chat shows as none.">?</button></h3>
+        <div class="ur-by">
+          <label><input type="checkbox" data-by="person" checked> Who</label>
+          <label><input type="checkbox" data-by="workspace"> Workspace</label>
+          <label><input type="checkbox" data-by="project"> Project</label>
+          <label><input type="checkbox" data-by="model"> Model</label>
+        </div>
+        <p id="ur-total" class="small" role="status"></p>
+        <div class="ur-table-wrap"><table id="ur-table" class="ur-table"></table></div>
+        <p><button id="ur-csv" type="button" class="ghost">Download CSV</button></p>
+        <div id="ur-budgets-box" data-owner-only hidden>
+          <h3>Monthly budgets <button type="button" class="tip" data-tip="A budget per person or workspace for each calendar month. You get a notification when it is nearly used and when it is reached. Daily limits for household members still stop them.">?</button></h3>
+          <div id="ur-budgets" class="ur-budgets"></div>
+          <div class="add-row">
+            <label>For <select id="ur-b-key"></select></label>
+            <label>$ <input id="ur-b-usd" type="number" min="0" step="1" class="num-narrow" placeholder="none"></label>
+            <label>or tokens <input id="ur-b-tokens" type="number" min="0" step="100000" class="num-narrow" placeholder="none"></label>
+            <label>Warn at <select id="ur-b-alert"><option value="0.5">50%</option><option value="0.75">75%</option><option value="0.8" selected>80%</option><option value="0.9">90%</option></select> <button type="button" class="tip" data-tip="You are told once when this share of the budget is used, and once more when it is reached.">?</button></label>
+            <button id="ur-b-add" type="button" class="ghost">Add budget</button>
+          </div>
+          <p id="ur-b-error" class="error" role="alert"></p>
+        </div>
+      </div>
         </section>
         <section class="settings-page" data-page="dh-usage" data-group="Data & health" data-title="Usage and costs" data-owner-only hidden>
       <div class="add-row" data-nodirty>

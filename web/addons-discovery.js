@@ -1,6 +1,7 @@
 // Inert discovery inside the existing Settings pages. All mutation authority stays with
 // the normal plugin review and MCP forms; a preview never becomes configuration.
 import { t } from './naming.js';
+import { needsLine } from './prereqs.js';
 
 function el(tag, cls, text) {
   const node = document.createElement(tag);
@@ -132,6 +133,8 @@ function nativeCard(item, review) {
     action.disabled = item.availability !== 'local-candidate'; actions.append(action);
   }
   if (item.heldReason) node.append(el('p', 'skl-warn small', t(item.heldReason)));
+  // PRQ: programs its jobs run beyond Sara's own Node (npm), found or not on this computer.
+  if (item.needs?.length) node.append(needsLine(item.needs, () => {}));
   const disclosure = details(t('Details and limits')); facts(item, disclosure);
   node.append(actions, disclosure); return node;
 }

@@ -42,7 +42,12 @@ companion and every household member. They only make things stricter:
 | Keep private local mode on | *Nothing leaves this computer* can't be turned off (if it is off now, the safety check-up says so). |
 | Sara Store | *Signed Store items only* (no community items) or *No installs*. |
 | Audit trail retention | Fixes how long the trail is kept. |
+| Turn off shared links | No one can share a conversation as a link, and existing links stop opening while it is on. See [SHARING.md](SHARING.md). |
 | Program installs | *Ask first* (Sara always shows the commands and waits) or *Off* (Sara never installs programs add-ons need). See [PREREQUISITES.md](PREREQUISITES.md). |
+| Require the container sandbox | Commands and add-on jobs run only in a container (Podman or Docker); without a working one they are refused. JSON: `"containerSandbox": true`. See [SANDBOX_AND_EGRESS.md](SANDBOX_AND_EGRESS.md). |
+| Only these sites for sandboxed work | Sandboxed work with internet reaches only the listed sites (empty: none). JSON: `"egressAllowlist": ["registry.npmjs.org"]`. Refusals are `egress.refused` rows. |
+| Crews | *Off*: no crews can be made, run, scheduled or started by mail. See [CREWS.md](CREWS.md). |
+| Overnight memory tidy | *Models on this computer only* or *Off*. See [MEMORY_TIDY.md](MEMORY_TIDY.md). |
 
 A pinned setting shows **Set by your admin** in Settings. The server refuses a change with
 "Set by your admin (*policy name*). Change the policy first." (HTTP 409, `policy.key` names the pin),

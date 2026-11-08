@@ -7,6 +7,9 @@ import { spawn, spawnSync } from 'node:child_process';
 import { chmodSync, chownSync, existsSync, lstatSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, posix, win32 } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { containerRunArgv, containerUser } from '../container.ts';
+import { egressAllowlist, engineEnv, openEgress, sandboxNode } from '../egress-run.ts';
 import { privateLocalOn } from '../net-guard.ts';
 
 /**
@@ -109,18 +112,30 @@ export function lockDataDir(dataDir: string): void {
   for (const d of skip) if (existsSync(d)) chmodSync(d, (statSync(d).mode & 0o7770) | 0o001);
 }
 
-export type SandboxMode = 'bwrap' | 'user' | 'seatbelt' | 'none';
+export type SandboxMode = 'bwrap' | 'user' | 'seatbelt' | 'container' | 'none';
 
 export interface SandboxInfo {
   mode: SandboxMode;
   /** Allow network access inside the sandbox (git clone, npm install, curl). */
   network: boolean;
   detail: string;
+  /** EC8 'container' mode: the engine and its local image. */
+  container?: { engine: 'podman' | 'docker'; exe: string; rootless: boolean; image: string; pre?: string[] };
+  /** EC8: the admin requires a container sandbox and none works: every command is refused with this. */
+  refuse?: string;
+  /** EC8 'container' mode: the computer's own sandbox, for what keeps running outside containers
+   * (tool servers, plugin processes, the testing browser, coding agents). */
+  native?: SandboxInfo;
   /** 'user' mode: the unprivileged account commands run as. */
   uid?: number;
   gid?: number;
   /** 'seatbelt' mode: Sara's data folder, which commands may not read. */
   dataDir?: string;
+}
+
+/** EC8: the sandbox for things that are not run in a container (the container's native fallback). */
+export function nativeOf(sb: SandboxInfo): SandboxInfo {
+  return sb.mode === 'container' && sb.native ? { ...sb.native, network: sb.network } : sb;
 }
 
 /** The macOS sandbox tool (ships with every macOS). */
@@ -192,6 +207,8 @@ export interface SeatbeltPaths {
   binds?: Bind[];
   /** Node's (and Sara's) own program folder: readable even when it is under the home folder. */
   runtime?: string;
+  /** EC9: network off except this local egress proxy port. */
+  proxyPort?: number;
 }
 
 /** Mach services a sandboxed command may look up on macOS (everything else is denied). */
@@ -266,6 +283,7 @@ export function seatbeltProfile(p: SeatbeltPaths, network: boolean): string {
     '(allow file-write* (literal "/dev/null") (literal "/dev/zero") (literal "/dev/dtracehelper") (regex #"^/dev/tty") (regex #"^/dev/fd/") (regex #"^/dev/ttys"))',
     '(allow file-ioctl (regex #"^/dev/"))',
     network ? '(allow network*)' : '(allow network* (remote unix-socket (path-literal "/private/var/run/mDNSResponder")))',
+    ...(!network && p.proxyPort ? [`(allow network-outbound (remote ip "localhost:${Math.trunc(p.proxyPort)}"))`] : []),
   ].join('\n');
 }
 
@@ -437,7 +455,34 @@ export const PRIVATE_LOCAL_ENV: Readonly<Record<string, string>> = {
   SARA_PRIVATE_LOCAL: '1',
 };
 
-export function runCommand(command: string, workspace: string, sandbox: SandboxInfo, opts: RunOptions): Promise<RunResult> {
+/** EC8: a refused sandbox (the admin requires containers and none works) never runs anything. */
+export function refusedRun(why: string): RunResult {
+  return { exitCode: null, output: why, timedOut: false, ms: 0 };
+}
+
+/**
+ * Runs a shell command in the workspace. EC9: when the egress allowlist is on and the command has
+ * network, it only reaches listed hosts, through a proxy enforced by the strongest boundary the
+ * sandbox has (src/egress-run.ts).
+ */
+export async function runCommand(command: string, workspace: string, sandbox: SandboxInfo, opts: RunOptions): Promise<RunResult> {
+  if (sandbox.refuse) return refusedRun(sandbox.refuse);
+  const allow = sandbox.network && !privateLocalOn() ? egressAllowlist() : undefined;
+  if (!allow) return runPrepared(command, workspace, sandbox, opts, {});
+  let eg;
+  try {
+    eg = await openEgress(sandbox, allow, { who: 'command', node: sandboxNode(process.execPath, runtimeMountArgs().length > 0, RUNTIME_MOUNT) });
+  } catch (err) {
+    return refusedRun(`The egress allowlist could not be set up, so the command did not run: ${(err as Error).message}`);
+  }
+  try {
+    return await runPrepared(`${eg.prefix ?? ''}${command}`, workspace, eg.sandbox, { ...opts, env: { ...opts.env, ...eg.env }, binds: [...(opts.binds ?? []), ...eg.binds] }, { ...(eg.network ? { network: eg.network } : {}), ...(eg.proxyPort ? { proxyPort: eg.proxyPort } : {}) });
+  } finally {
+    await eg.close();
+  }
+}
+
+function runPrepared(command: string, workspace: string, sandbox: SandboxInfo, opts: RunOptions, extra: { network?: string; proxyPort?: number }): Promise<RunResult> {
   // Phase 67: private local mode: no network for any command, whatever the caller asked for.
   const noNet = privateLocalOn();
   if (noNet) sandbox = { ...sandbox, network: false };
@@ -455,17 +500,18 @@ export function runCommand(command: string, workspace: string, sandbox: SandboxI
   let args: string[];
   let cwd: string;
   let env: NodeJS.ProcessEnv;
+  let containerName: string | undefined;
   // macOS and Windows: each run gets its own temporary folder (bubblewrap has its own /tmp; Linux
   // without it keeps the system one, which the separate tools user can write to).
   let runTmp: string | undefined;
-  if (sandbox.mode === 'seatbelt' || (sandbox.mode === 'none' && process.platform !== 'linux')) {
+  if (sandbox.mode === 'seatbelt' || sandbox.mode === 'container' || (sandbox.mode === 'none' && process.platform !== 'linux')) {
     try {
       runTmp = mkdtempSync(join(tmpdir(), 'sara-run-'));
     } catch {
       runTmp = undefined;
     }
   }
-  const tmpEnv = runTmp ? (process.platform === 'win32' ? { TMPDIR: runTmp, TEMP: runTmp, TMP: runTmp } : { TMPDIR: runTmp }) : {};
+  const tmpEnv = runTmp && sandbox.mode !== 'container' ? (process.platform === 'win32' ? { TMPDIR: runTmp, TEMP: runTmp, TMP: runTmp } : { TMPDIR: runTmp }) : {};
   if (sandbox.mode === 'bwrap') {
     file = 'bwrap';
     args = [...bwrapArgs(workspace, sandbox.network, opts.binds), '/bin/sh', '-c', command];
@@ -480,9 +526,21 @@ export function runCommand(command: string, workspace: string, sandbox: SandboxI
   } else if (sandbox.mode === 'seatbelt') {
     file = SANDBOX_EXEC;
     const ws = realOr(workspace);
-    args = ['-p', seatbeltProfile({ workspace: ws, tmp: realOr(runTmp ?? tmpdir()), runtime: realOr(dirname(dirname(process.execPath))), ...(sandbox.dataDir ? { dataDir: realOr(sandbox.dataDir) } : {}), ...(opts.binds ? { binds: opts.binds } : {}) }, sandbox.network), '/bin/sh', '-c', command];
+    args = ['-p', seatbeltProfile({ workspace: ws, tmp: realOr(runTmp ?? tmpdir()), runtime: realOr(dirname(dirname(process.execPath))), ...(sandbox.dataDir ? { dataDir: realOr(sandbox.dataDir) } : {}), ...(opts.binds ? { binds: opts.binds } : {}), ...(extra.proxyPort ? { proxyPort: extra.proxyPort } : {}) }, sandbox.network), '/bin/sh', '-c', command];
     cwd = ws;
     env = SAFE_ENV(ws);
+  } else if (sandbox.mode === 'container' && sandbox.container) {
+    // EC8: the engine CLI, no host shell. The variables go in a private env file (no values in argv,
+    // and the CLI keeps its own HOME/PATH); the container is named so a stop can kill it.
+    const c = sandbox.container;
+    containerName = `sara-${randomUUID().slice(0, 13)}`;
+    const inner: Record<string, string> = { HOME: '/workspace', LANG: 'C.UTF-8', TERM: 'dumb', GIT_TERMINAL_PROMPT: '0', ...(opts.gitName ? { GIT_AUTHOR_NAME: opts.gitName, GIT_COMMITTER_NAME: opts.gitName } : {}), ...opts.env, ...(noNet ? PRIVATE_LOCAL_ENV : {}) };
+    const envFile = join(runTmp ?? mkdtempSync(join(tmpdir(), 'sara-run-')), 'env');
+    writeFileSync(envFile, Object.entries(inner).filter(([k, v]) => /^[A-Za-z_]\w*$/.test(k) && !/[\r\n\0]/.test(v)).map(([k, v]) => `${k}=${v}`).join('\n') + '\n', { mode: 0o600 });
+    file = c.exe;
+    args = [...(c.pre ?? []), ...containerRunArgv({ name: containerName, image: c.image, workspace, mounts: (opts.binds ?? []).map((b) => ({ src: b.src, dest: b.dest, ...(b.rw ? { rw: true } : {}) })), network: extra.network ?? (sandbox.network ? 'default' : 'none'), env: [], envFile, ...(containerUser(c) ? { user: containerUser(c) } : {}), argv: ['/bin/sh', '-c', command] })];
+    cwd = workspace;
+    env = engineEnv();
   } else if (process.platform === 'win32') {
     file = winShell!.file;
     args = winShell!.args(command);
@@ -497,9 +555,12 @@ export function runCommand(command: string, workspace: string, sandbox: SandboxI
 
   return new Promise((resolvePromise) => {
   // Commits made in the workspace carry the companion's name (repo config still wins for user.name).
-  if (opts.gitName) env = { ...env, GIT_AUTHOR_NAME: opts.gitName, GIT_COMMITTER_NAME: opts.gitName };
-  if (opts.env) env = { ...env, ...opts.env };
-  env = { ...env, ...tmpEnv, ...(noNet ? PRIVATE_LOCAL_ENV : {}) };
+  // (A container gets these through its env file; the engine CLI keeps its own environment.)
+  if (sandbox.mode !== 'container') {
+    if (opts.gitName) env = { ...env, GIT_AUTHOR_NAME: opts.gitName, GIT_COMMITTER_NAME: opts.gitName };
+    if (opts.env) env = { ...env, ...opts.env };
+    env = { ...env, ...tmpEnv, ...(noNet ? PRIVATE_LOCAL_ENV : {}) };
+  }
     const child = spawn(file, args, { cwd, env, detached: process.platform !== 'win32', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], ...(sandbox.mode === 'user' ? { uid: sandbox.uid, gid: sandbox.gid } : {}) });
     if (child.pid) opts.onSpawn?.(child.pid);
     const chunks: Buffer[] = [];
@@ -518,6 +579,15 @@ export function runCommand(command: string, workspace: string, sandbox: SandboxI
     child.stderr.on('data', take);
     let timedOut = false;
     const kill = () => {
+      // EC8: stopping the CLI does not stop its container: ask the engine to kill it by name.
+      if (containerName && sandbox.container) {
+        const c = sandbox.container;
+        try {
+          spawn(c.exe, [...(c.pre ?? []), 'kill', containerName], { stdio: 'ignore', windowsHide: true, shell: false, env: engineEnv() }).on('error', () => {});
+        } catch {
+          /* the CLI kill below still ends the wait */
+        }
+      }
       try {
         if (child.pid && process.platform !== 'win32') process.kill(-child.pid, 'SIGKILL');
         // Windows: the whole tree (bash and whatever it started), not just the shell.

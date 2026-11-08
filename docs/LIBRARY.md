@@ -142,6 +142,12 @@ and press **Open**.
 - Code: `src/feed-together.ts` (the guarded fetch and the RSS/Atom/RDF reader),
   `POST /api/read-together/<chat>/feed`; the share and section as above.
 
+## Research a question
+
+*Research a question…* in the Library window plans web searches with you, reads public pages and
+writes a report where every sentence links a page she read; the report is kept here and downloads
+as PDF or Word. See [Research a question](RESEARCH.md).
+
 ## Where things are
 
 | What | Where |

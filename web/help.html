@@ -282,6 +282,9 @@
 <h4 id="howto-co-slack">Slack</h4>
 <details class="howto-q" id="howto-co-slack-connect"><summary>How do I talk to her in Slack?</summary><ol><li>Press Start on the Slack card, then copy the app manifest it shows.</li><li>At api.slack.com/apps, create an app from that manifest, make the two tokens and paste them into the card.</li><li>Press Link my Slack and send her the code in a Slack DM.</li></ol></details>
 <details class="howto-q" id="howto-co-slack-channel"><summary>How do I let her answer in a Slack channel?</summary><ol><li>In the channel, type /invite and her name.</li><li>In Settings → Chat apps → Slack, press Answer here next to that channel.</li><li>Mention her in the channel; she answers in a thread.</li></ol></details>
+<h4 id="howto-co-teams">Microsoft Teams</h4>
+<details class="howto-q" id="howto-co-teams-connect"><summary>How do I talk to her in Microsoft Teams?</summary><ol><li>Press Start on the Microsoft Teams card and make the free Azure Bot it describes.</li><li>Paste the App ID, the tenant ID and a client secret, give Teams a public address and paste the messaging endpoint into the bot.</li><li>Download the Teams app package, upload it in Teams, then press Link my Teams and send her the code.</li></ol></details>
+<details class="howto-q" id="howto-co-teams-channel"><summary>How do I let her answer in a Teams channel?</summary><ol><li>Add her app to the team (Apps → her app → Add to a team).</li><li>Mention her once in the channel, then press Answer here next to it in Settings → Chat apps → Microsoft Teams.</li><li>Mention her again; she answers in that thread.</li></ol></details>
 <h3>Add-ons</h3>
 <h4 id="howto-ab-store">Get more</h4>
 <details class="howto-q" id="howto-ab-store-get"><summary>How do I add something from the store?</summary><ol><li>Search or pick it on a shelf, then open it.</li><li>Read what it can do, then press Get.</li><li>Read its card and press Install: it stays off until you switch it on.</li></ol></details>
@@ -398,6 +401,14 @@
 <details class="howto-q" id="howto-dh-operations-measurements"><summary>How do I check local operations?</summary><ol><li>Open Operations and press Refresh operations.</li><li>Read the measurement window and sample count. HTTP timings are not model reply timings.</li><li>A configured model and a saved backup do not prove inference or recovery.</li></ol></details>
 <details class="howto-q" id="howto-dh-operations-active-work"><summary>How do I tell active work from historical records?</summary><ol><li>Record totals include finished history. State counts show queued and running work; delivery records can include archived evidence.</li><li>RSS and event-loop lag are process-wide, including other spaces and HTTP servers in this process. They are not current-space usage.</li></ol></details>
 <h3>Household</h3>
+<h4 id="howto-dh-usage-report">Usage reports</h4>
+<details class="howto-q" id="howto-dh-usage-report-report"><summary>How do I see who used how much?</summary><ol><li>Open Settings → Household → Usage reports.</li><li>Pick Daily, Weekly or Monthly.</li><li>Tick Who, Workspace, Project or Model to split the rows.</li></ol></details>
+<details class="howto-q" id="howto-dh-usage-report-csv"><summary>How do I get the numbers into a spreadsheet?</summary><ol><li>Set the period and what to split by.</li><li>Press Download CSV.</li></ol></details>
+<details class="howto-q" id="howto-dh-usage-report-budget"><summary>How do I get warned before a budget runs out?</summary><ol><li>Under Monthly budgets, pick a person or a workspace.</li><li>Enter dollars or tokens for the month.</li><li>Pick when to warn and press Add budget.</li></ol></details>
+<h4 id="howto-dh-shares">Shared links</h4>
+<details class="howto-q" id="howto-dh-shares-share"><summary>How do I share a conversation?</summary><ol><li>Open the chat and its settings.</li><li>Press Share….</li><li>Check the preview, pick how long the link works and press Make link.</li><li>Copy the link and send it privately.</li></ol></details>
+<details class="howto-q" id="howto-dh-shares-revoke"><summary>How do I stop a link from working?</summary><ol><li>Open Settings → Household → Shared links.</li><li>Press Revoke next to the link.</li></ol></details>
+<details class="howto-q" id="howto-dh-shares-private"><summary>How do I share a private chat?</summary><ol><li>Open Settings → Household → Shared links.</li><li>Tick Allow sharing private chats.</li><li>Share it from the chat as usual.</li></ol></details>
 <h4 id="howto-dh-audit">Audit trail</h4>
 <details class="howto-q" id="howto-dh-audit-find"><summary>How do I see who changed a setting?</summary><ol><li>Open Settings → Household → Audit trail.</li><li>Pick Settings under What, or a person under Who.</li><li>Each row says when, what, who and where, and whether it was done or refused.</li></ol></details>
 <details class="howto-q" id="howto-dh-audit-export"><summary>How do I give a reviewer a copy?</summary><ol><li>Set the filters to what the reviewer asked for.</li><li>Press Export JSONL or Export CSV.</li><li>Give them the ZIP: its manifest holds the SHA-256 and the signature.</li></ol></details>
@@ -602,6 +613,28 @@
   <li><strong>Channels:</strong> invite her (<code>/invite</code> and her name), then press <em>Answer here</em> on the Slack card. She answers mentions in a thread, without tools or anything private, unless <em>Owners can use her tools in groups</em> is on.</li>
   <li><strong>While she works:</strong> one progress message she edits, with a ⏹ button that stops her. A reply in a thread of her DM is its own session. <code>/sara help</code>, <code>/sara new</code> and the other commands work.</li>
   <li><strong>Who can read it:</strong> Slack keeps the messages in your workspace, so whoever runs it can read them. For private chats use Signal.</li>
+</ul>
+
+<h2 id="teams">Microsoft Teams</h2>
+<ul>
+  <li><strong>What it is:</strong> talk to her in Microsoft Teams, in her personal chat and, when someone mentions her, in the channels and group chats you choose. You make a free Azure Bot and upload a small Teams app package Sara builds. Teams comes with Sara as a plugin and stays off until you add it.</li>
+  <li><strong>Teams must reach Sara:</strong> Microsoft sends every message to a public https address. If Sara already has one (your own domain, <code>SARA_HOOK_URL</code>, or the public door), the card shows the address to paste. If not, open the Tailscale Funnel door from the card (free) or paste a tunnel address (Cloudflare Tunnel or another https proxy) that forwards <code>/hook/</code> to Sara. Only that path is public; Sara checks Microsoft's signature on every call.</li>
+  <li><strong>Set it up:</strong> <em>Settings → Chat apps → Microsoft Teams</em> and press <em>Start</em>. Seven steps follow, each ✓ when Sara has checked it.</li>
+</ul>
+<ol>
+  <li>At portal.azure.com: <em>Create a resource → Azure Bot</em>, Free tier, <em>Single Tenant</em>, a new Microsoft App ID.</li>
+  <li>On the bot's <em>Configuration</em> page copy <em>Microsoft App ID</em> and <em>App Tenant ID</em>; under <em>Manage Password → Certificates &amp; secrets</em> make a client secret and copy its <em>Value</em>. Paste the three and press <em>Save and check</em>.</li>
+  <li>Give Teams a way in (see above).</li>
+  <li>Paste the <em>Messaging endpoint</em> from the card into the bot's <em>Configuration</em>, then <em>Channels → Microsoft Teams → Apply</em>.</li>
+  <li>Download the Teams app package and upload it in Teams (<em>Apps → Manage your apps → Upload an app</em>). If that option is missing, your Teams admin must allow custom apps.</li>
+  <li>Press <em>Link my Teams</em> and send her <code>link</code> and the code in her Teams chat.</li>
+  <li>Press <em>Test</em>.</li>
+</ol>
+<ul>
+  <li><strong>Approvals:</strong> when she needs your OK for a tool, a card has <em>Allow</em> and <em>Deny</em>. Only you can answer; anyone else is told so.</li>
+  <li><strong>Channels:</strong> add her app to the team, mention her once, then press <em>Answer here</em> on the card. She answers mentions in their thread, without tools or anything private, unless <em>Owners can use her tools in groups</em> is on.</li>
+  <li><strong>Files:</strong> your files and pictures reach her (20 MB each). Hers come in your personal chat as a card: tap <em>Allow</em> and Teams puts the file in your OneDrive. In channels she can't send files.</li>
+  <li><strong>Who can read it:</strong> Teams keeps the messages in your Microsoft 365 organization, so whoever runs it can read them. For private chats use Signal.</li>
 </ul>
 
 <h2 id="voice">Voice and calls</h2>

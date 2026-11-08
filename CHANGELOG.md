@@ -5,6 +5,97 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.83.0 (2026-11-07): research, Teams, crews and safer sandboxes
+
+### Added
+
+- **Store listings in your language:** Get more shows a companion's tagline and description in
+  Spanish, French, German, Brazilian Portuguese or Italian when the Sara Store publishes translations
+  (a separate signed file next to the list, which older Saras never read; a missing or bad one just
+  means English). Translations for the 21 first-party companions are ready; they appear once the
+  Store publishes them.
+
+### Fixed
+
+- Slack: an edit to her progress message that arrives while Slack is still answering the post (a slow
+  Slack or a busy computer) now waits for the message instead of being dropped, so the ⏹ message is
+  always updated in place.
+- `scripts/qualify-addons-native.mjs` checks the download hash of the Store index's `latest` version
+  (it took the oldest, so a plugin with two versions wrongly failed).
+- `tools/developer-data/verify-qualified.ts` also verifies Data Contract Validator 1.0.1 (the security
+  rebuild's recorded hashes and the signed package), not only the 1.0.0 receipts.
+- Prerequisites (PRQ): every Store install card detects catalog programs the catalog's way, also when
+  it is built outside Settings (a companion's suggested add-on, a plugin's Store install), so Chrome on
+  Linux shows *found* or *not found* instead of no answer. Local workflow candidates whose jobs run
+  npm show whether npm is there (beside Sara's own Node) before you review them.
+- Red-team mode on a busy Windows PC: stopping the app between probes no longer depends on `taskkill`
+  finishing within 10 s (it could take longer just to start, the app stayed on its port and the fresh
+  restart dropped a real break as "did not happen again"); after a fatal error the driver waits for
+  the app's exit and its output instead of a fixed 200 ms.
+- Test reliability: the performance lab's injected-regression fixture is now about 4x slower (was 2x),
+  so it stays conclusive on a busy host.
+- **Research a question (EC6, owner request; `docs/RESEARCH.md`):** *Library → Research a question…*
+  drafts a plan (steps and web searches) that you edit and start; while she reads, every page read
+  and every page that failed is listed with the reason; **Write the report now** stops reading early
+  and **Stop** still saves a report of what was found and what is missing. Every sentence of the
+  report links a page fetched in that run (the server checks each one and leaves out the rest,
+  counting them). The report is kept in her Library and downloads as PDF, Word or Markdown (new
+  small writers, no new dependency). Owner only; refused when web search or web pages are off.
+- **Microsoft Teams (EC7, `docs/TEAMS.md`):** talk to her in Teams through a free Azure Bot of your own
+  and a Teams app package the new *Settings → Chat apps → Microsoft Teams* card builds (a zip you upload
+  in Teams). Her personal chat is your own chat with tools, pictures and files; her requests for your OK
+  come as an Adaptive Card with **Allow / Deny** that only you can answer; a progress card with ⏹. In
+  channels and group chats you switch on she answers mentions in their thread (no tools unless *Owners
+  can use her tools in groups*). Her files reach your OneDrive after you tap Allow. Teams must reach Sara:
+  the card says plainly what that needs (a public https address, or the Tailscale Funnel door or a
+  tunnel). Sara checks Microsoft's signed token on every call before the plugin reads it. Rate limits
+  waited out, token retries with backoff, secret errors in plain words. The client secret lives in Sara's
+  vault and goes, with the public hook, when the plugin is removed. Off until you add it. Tested against
+  a stand-in Microsoft; a real tenant is an owner check.
+- **Webhooks and plugins (EC7):** a chat plugin's bridge hook may be of kind `botframework`
+  (`permissions.webhooks: {"bridge": ["botframework"]}`, on the review card): Sara validates the Bot
+  Framework JWT (OpenID metadata, keys with a rotation cooldown, RS256, issuer, App ID, time, channel
+  endorsement, serviceUrl) and answers 401 otherwise. Logs mask Microsoft Entra client secrets.
+- **Container sandbox (EC8, owner request; `docs/SANDBOX_AND_EGRESS.md`):** Settings → Tools and
+  approvals → *Isolation* runs shell commands, sandbox tries and add-on jobs in a throwaway rootless
+  Podman or Docker container when you pick it, or automatically where nothing else isolates (Windows).
+  Only the workspace is mounted; read-only root, no capabilities, no network unless allowed; the local
+  image is never downloaded. Commands are built as argument lists (no host shell). bubblewrap stays the
+  Linux default. *Install Docker for me* and *Look again* without a restart. Admin pin *Require the
+  container sandbox*: without a working engine commands and jobs are refused.
+- **Allowed sites for sandboxed work (EC9):** *Only the sites listed* limits commands, add-on jobs and
+  (with bubblewrap or the macOS sandbox) tool servers to a list of hosts through a small proxy, enforced
+  by the container network, the bubblewrap network namespace or the macOS sandbox; a key named for a
+  site is added by Sara so it never enters the sandbox; every refused site is an `egress.refused` audit
+  row. Admin pin *Only these sites for sandboxed work*.
+- **Add-on jobs on Windows have no network unless their plan asks for it:** a Node guard now blocks
+  connections, local pipes, UDP and DNS (before: proxy settings only).
+- **Share a conversation (EC11; `docs/SHARING.md`):** a chat's settings → **Share…** makes a read-only
+  link that expires (1 hour to 30 days) and can be revoked at once. A preview shows exactly what is
+  shared: keys, vault secrets, e-mail addresses and phone numbers are hidden; tool results and
+  pictures only when ticked. Off-the-record, partner, adult, group and imported chats are never
+  shared; private chats (and everything in private local mode) only when allowed. The page is
+  never indexed, has no script, carries the AI disclosure and is rate-limited. Settings → Household → Shared links lists opens and revokes; a policy pin turns sharing off; audit rows for
+  create, first view and revoke.
+- **Usage and cost reports (EC15; `docs/USAGE_REPORTS.md`):** Settings → Household → Usage
+  reports: daily, weekly or monthly tables by person, workspace, project and model from the token
+  meter's own records, CSV download, and monthly budgets per person or workspace that warn once when
+  nearly used and once when reached (push notification and audit row). The owner sees everyone; a
+  household member only their own.
+- **Crews (EC12, owner request; `docs/CREWS.md`):** standing specialist helpers. Team → Crews: one
+  to four of your helpers with standing parts, a brief, a budget and a time (by hand, daily, weekly,
+  or when your own mail to Sara's mailbox has the crew's subject words). Sara leads each run as a
+  team task: one board card per member with its receipts, one summary, a crew card in the crew's
+  chat, a report file in the crew's folder and, if you like, your Telegram. *Stop all* stops and
+  pauses every crew. Three templates: Research desk, Code review crew, Weekly planner. Owner only;
+  policy pin *Crews: Off*; audited.
+- **Overnight memory tidy (EC13, owner request; `docs/MEMORY_TIDY.md`):** opt-in (Memory →
+  Overnight tidy). Once a night in your quiet hours she merges duplicate notes, asks about notes
+  that disagree (Keep the newer / older / both) and sums up old threads; she never deletes, and the
+  morning card has Undo for every change. Models on this computer only by default; private chats
+  and sensitive person facts never go to a cloud model; each household member's tidy keeps to
+  their own notes. Policy pin *Overnight memory tidy: local / off*.
+
 ## 2.82.0 (2026-11-07): one-click programs and 21 companions
 
 ### Fixed
