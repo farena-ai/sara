@@ -32,7 +32,8 @@ const status = (text) => {
 /** The app around the page, if any: the Windows app or the Android app. */
 function native() {
   const d = window.SaraDesktop;
-  if (d && d.platform === 'windows' && typeof d.call === 'function') return { kind: 'windows', call: (op, a = {}) => d.call('wake', { op, ...a }) };
+  // C17: the Mac app answers the same calls as the Windows app.
+  if (d && (d.platform === 'windows' || d.platform === 'mac') && typeof d.call === 'function') return { kind: d.platform, call: (op, a = {}) => d.call('wake', { op, ...a }) };
   const p = window.SaraPhone;
   if (p && typeof p.wake === 'function') return { kind: 'android', call: async (op, a = {}) => JSON.parse(p.wake(op, JSON.stringify(a)) || 'null') };
   return null;
@@ -51,6 +52,9 @@ const PAUSE_WORDS = () => ({
   hour: t('Paused for an hour.'),
   offline: t('Paused: Sara’s server isn’t answering.'),
   pack: t('Needs the download first.'),
+  quiet: t('Resting in your quiet hours.'),
+  charging: t('Paused until the phone is charging.'),
+  open: t('Paused while Sara isn’t on the screen.'),
 });
 const STATE_WORDS = () => ({ off: t('Off'), asleep: t('Listening for “Hey Sara”'), woken: t('Listening…'), hearing: t('Listening…'), thinking: t('Thinking…'), speaking: t('Speaking'), paused: t('Paused') });
 
@@ -146,6 +150,8 @@ async function renderThis() {
   $('#wk-locked').checked = dev.locked !== false;
   $('#wk-charging-row').hidden = !phone;
   $('#wk-charging').checked = Boolean(dev.onlyCharging);
+  $('#wk-open-row').hidden = !phone;
+  $('#wk-open').checked = Boolean(dev.onlyOpen);
   const sc = $('#wk-shortcut');
   sc.closest('label').hidden = phone;
   sc.replaceChildren(...(dev.shortcuts ?? []).map((s) => new Option(s.label, s.id)));
@@ -206,7 +212,7 @@ function wire() {
     await devSet('on', on ? '1' : '0');
   });
   for (const [id, key] of [['#wk-mic', 'mic'], ['#wk-sens', 'sensitivity'], ['#wk-shortcut', 'shortcut']]) $(id).addEventListener('change', (e) => void devSet(key, e.target.value));
-  for (const [id, key] of [['#wk-chime', 'chime'], ['#wk-personal', 'personal'], ['#wk-locked', 'locked'], ['#wk-charging', 'onlyCharging']]) $(id).addEventListener('change', (e) => void devSet(key, e.target.checked ? '1' : '0'));
+  for (const [id, key] of [['#wk-chime', 'chime'], ['#wk-personal', 'personal'], ['#wk-locked', 'locked'], ['#wk-charging', 'onlyCharging'], ['#wk-open', 'onlyOpen']]) $(id).addEventListener('change', (e) => void devSet(key, e.target.checked ? '1' : '0'));
   $('#wk-try').addEventListener('click', async () => {
     const n = native();
     if (!n) return;
@@ -246,6 +252,7 @@ function wire() {
   $('#wk-talks').addEventListener('change', (e) => void save({ talksIn: e.target.value }));
   $('#wk-starts').addEventListener('change', (e) => void save({ starts: e.target.value }));
   $('#wk-follow').addEventListener('change', (e) => void save({ followUpSeconds: Number(e.target.value) }));
+  $('#wk-quiet').addEventListener('change', (e) => void save({ quietHours: e.target.checked }));
   $('#wk-off-all').addEventListener('click', async () => {
     await api('/wake/off', { method: 'POST', body: {} });
     if (data.server && !data.member && window.confirm(t('Also turn Hey Sara off for everyone on this server?'))) await api('/wake/server', { method: 'PUT', body: { allowed: false } });
@@ -269,6 +276,7 @@ export async function loadWakePage() {
   $('#wk-starts').value = data.settings.starts;
   $('#wk-starts').querySelector('option[value="call"]').disabled = !data.liveCalls;
   $('#wk-follow').value = String(data.settings.followUpSeconds);
+  $('#wk-quiet').checked = Boolean(data.settings.quietHours);
   $('#wk-server').hidden = !data.server;
   if (data.server) {
     $('#wk-allow').checked = data.server.allowed;

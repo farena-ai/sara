@@ -1,5 +1,6 @@
 // One conversational turn: disclosure, safety checks, provider routing, then the agent loop
 // (model → tool calls → results → model …) with streaming and persistence.
+import { existsSync } from 'node:fs';
 import { withKeyRotation } from './key-rotation.ts';
 import { audit } from './audit-trail.ts';
 import { policy } from './policy-profile.ts';
@@ -208,6 +209,11 @@ export interface AppContext {
   team?: import('./team.ts').TeamManager;
   /** Phase 99 (ST4): the board over the planner's tasks (src/board.ts; one per planner). */
   board?: import('./board.ts').BoardStore;
+  /** C13: task worktrees (src/worktrees.ts) and the language-server engine (src/lsp.ts); the owner's space only. */
+  worktrees?: import('./worktrees.ts').Worktrees;
+  lsp?: import('./lsp.ts').LspEngine;
+  /** C13 (tests): the fetch the worktree's Open PR uses for GitHub (default: net-guard's). */
+  githubFetch?: import('./tools/github.ts').FetchLike;
   /** Phase 99: cards she (or a helper) works in the background (src/board-work.ts). */
   cardWork?: import('./board-work.ts').CardWorker;
   /** Phase 100: A2A, Sara as a server (the owner's; src/a2a.ts) and as a client (src/a2a-client.ts). */
@@ -332,6 +338,8 @@ export interface AppContext {
   reports?: import('./reports.ts').ReportStore;
   /** Gmail and Google Calendar on the owner's own Google sign-in (Phase 14). */
   google?: import('./google.ts').GoogleAccount;
+  /** C14: Spotify on the owner's own Spotify app (owner only; never a member's space). */
+  spotify?: import('./spotify.ts').SpotifyAccount;
   /** Gmail organizing (archive, labels, trash…): the undo log and bulk runs. Owner only, never the demo. */
   gmail?: import('./gmail-organize.ts').GmailOrganizer;
   /** Phase 111 (TD1): Today's cached outside parts and their generations (src/today.ts; per companion). */
@@ -2107,9 +2115,23 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // Private conversations: commands get no network either (nothing leaves the server).
   const sandbox: SandboxInfo = { ...app.sandbox, network: conv.private || privateLocalOn() ? false : (s.shellNetwork ?? true) };
   let wsDir = '';
+  let wsRoot = '';
+  /** C13: the folder her tools work in: the active task worktree's, else the workspace. */
+  const worktreeFolder = (): string => {
+    const t = !opts.replay && conv.mode === 'coding' ? app.worktrees?.active(conv.id) : undefined;
+    const d = t ? app.worktrees!.dirOf(t, wsRoot) : '';
+    return d && existsSync(d) ? d : wsRoot;
+  };
   try {
     // Phase 83: a branch works in its own copy of the workspace, never the real one.
     wsDir = opts.replay?.workspaceDir ?? workspaceDir(app.rootDir ?? app.dataDir, conv.workspace);
+    // C13: a coding task with its own worktree: her file and command tools work in that folder.
+    wsRoot = wsDir;
+    const tree = !opts.replay && conv.mode === 'coding' ? app.worktrees?.active(conv.id) : undefined;
+    if (tree) {
+      wsDir = worktreeFolder();
+      safetyNotes.push(`(This coding task works in its own git worktree: branch ${tree.branch}, made from ${tree.base}. Your file and command tools work in that folder. Commit as you go; when the task is done, offer to finish it with worktree_finish: merge, open a pull request, or discard.)`);
+    }
   } catch (err) {
     yield { type: 'error', message: (err as Error).message };
     return;
@@ -3605,6 +3627,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const loadedSkill = call.name === 'skill_use' && status === 'ok' ? /^<skill name="([^"]+)"/.exec(output)?.[1] : undefined;
       if (loadedSkill) turnSkills.add(loadedSkill);
       if (status !== 'denied' && WORKSPACE_TOOLS.test(call.name)) projectRefDue = true;
+      // C13: starting or finishing a task worktree moves her tools for the rest of the turn.
+      if (status === 'ok' && (call.name === 'worktree_start' || call.name === 'worktree_finish')) wsDir = worktreeFolder();
       if (!store.getConversation(conv.id)) return 'end';
       const toolMsg = store.addMessage(conv.id, 'tool', stored, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status, ms, ...(loadedSkill ? { skill: loadedSkill } : {}), ...(snapshotId ? { snapshotId } : {}), ...(shown.length ? { images: shown } : {}), ...(card ? { card } : {}), ...(flagged?.length ? { contradiction: flagged[0] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(advisoryStop ? { advisory: { ...advisoryStop, ...(advisoryAnswer ? { answer: advisoryAnswer } : {}) } } : {}), ...(guardRec ? { guard: { kind: guardRec.kind, quote: guardRec.quote } } : {}), ...(checksCard ? { checksCard } : {}), ...(checkBlock ? { checked: true } : {}), ...(codeInner ? { inner: codeInner } : {}), ...(parent ? { codeOf: parent } : {}) });
       receipts.push({ name: call.name, status, args: call.arguments, output });

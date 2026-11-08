@@ -2,6 +2,7 @@ import { t, initializeLanguage, attachTips } from './business-i18n.js';
 import { passkey } from './business-auth.js';
 import { BusinessDrafts } from './business-state.js';
 import { renderManagement, roleName } from './business-admin.js';
+import { createPages } from './business-pages.js';
 
 const $ = id => document.getElementById(id);
 let self, drafts, spaces = [], workspace = '', conversation = '', policy = {}, audience, epoch = 0, stream, expiry, screen = 'content';
@@ -16,6 +17,9 @@ let selectionNonce = 0, mountedEditor = '';
 let refreshNonce = 0;
 let ssoEnabled = false;
 let backgroundRefresh = true;
+// C16: a team page handed to the composer as context ("Ask Sara about this page").
+let contextPages = [];
+let pages;
 const text = (id, value) => { $(id).textContent = value; };
 const notice = value => text('notice', value);
 function composerNotice(value) {
@@ -31,7 +35,7 @@ function clearProtected(clearDrafts = false, preserveRequests = false) {
   epoch++; selectionNonce++; mountedEditor = ''; stream?.close(); stream = undefined;
   if (!preserveRequests) { clearTimeout(expiry); for (const controller of posts.values()) controller.abort(); posts.clear(); }
   if (clearDrafts) drafts?.clear();
-  workspace = ''; conversation = ''; spaces = []; policy = {}; audience = undefined;
+  workspace = ''; conversation = ''; spaces = []; policy = {}; audience = undefined; contextPages = []; pages?.clear(); renderPageContext();
   for (const id of ['messages', 'audience', 'conversations', 'document-list', 'document-body', 'management-body', 'workspace-name', 'organization', 'actor', 'conversation-name', 'file-preview', 'model-destination', 'request-state', 'composer-notice', 'next-step']) $(id).replaceChildren();
   for (const id of ['workspace', 'selected-documents']) $(id).replaceChildren();
   $('draft').value = ''; $('file').value = ''; $('conversation-title').value = ''; $('person-name').value = ''; $('code').value = ''; $('acknowledge').checked = false;
@@ -198,7 +202,7 @@ function renderAudience(people) {
 }
 async function switchWorkspace(id, targetConversation = '') {
   saveDraft(); const version = ++epoch; selectionNonce++; mountedEditor = ''; stream?.close(); stream = undefined;
-  workspace = id; conversation = ''; screen = 'content'; policy = {}; audience = undefined;
+  workspace = id; conversation = ''; screen = 'content'; policy = {}; audience = undefined; contextPages = []; renderPageContext();
   for (const key of ['messages', 'conversations', 'audience', 'document-list', 'document-body', 'management-body', 'selected-documents', 'conversation-name', 'file-preview', 'model-destination', 'composer-notice']) $(key).replaceChildren();
   $('draft').value = ''; $('file').value = ''; $('conversation-title').value = ''; $('acknowledge').checked = false; $('workspace').value = id;
   text('document-selection-count', t('Selected documents: {count}/8', { count: 0 }));
@@ -226,7 +230,7 @@ async function switchWorkspace(id, targetConversation = '') {
     stream = new EventSource(`/api/business/workspaces/${id}/events`);
     stream.addEventListener('workspace', event => {
       if (version !== epoch) return; const data = JSON.parse(event.data);
-      if (data.kind === 'content.changed') void run(() => loadMessages());
+      if (data.kind === 'content.changed') { void run(() => loadMessages()); if (screen === 'pages') pages.refresh(); }
       else {
         audience = undefined; updateComposer();
         void run(async () => {
@@ -264,14 +268,14 @@ async function loadMessages(toLatest = false) {
   const atEnd = messages.scrollHeight - messages.clientHeight - messages.scrollTop < 48;
   const anchor = [...messages.children].find(node => node.getBoundingClientRect().bottom > top);
   const anchorId = anchor?.dataset.messageId; const offset = anchor ? anchor.getBoundingClientRect().top - top : 0; const position = messages.scrollTop;
-  messages.replaceChildren(...rows.map(row => { const article = document.createElement('article'); article.className = 'message'; article.dataset.messageId = row.id; const heading = document.createElement('strong'); heading.textContent = row.role === 'assistant' ? t('Sara · AI assistant') : row.actorId === self.principal.identityId ? self.identity.name : t('Colleague'); const body = document.createElement('p'); body.textContent = row.body; article.append(heading, body); return article; }));
+  messages.replaceChildren(...rows.map(row => { const article = document.createElement('article'); article.className = 'message'; article.dataset.messageId = row.id; const heading = document.createElement('strong'); heading.textContent = row.role === 'assistant' ? t('Sara · AI assistant') : row.actorId === self.principal.identityId ? self.identity.name : t('Colleague'); const body = document.createElement('p'); body.textContent = row.body; article.append(heading, body); if (row.role === 'assistant' && writable()) { const save = document.createElement('button'); save.type = 'button'; save.textContent = t('Save as a page'); save.onclick = () => run(async () => { await openPages(); pages.openDraft(row.body); }); article.append(save); } return article; }));
   if (toLatest || atEnd) messages.scrollTop = messages.scrollHeight;
   else { messages.scrollTop = position; const retained = [...messages.children].find(node => node.dataset.messageId === anchorId); if (retained) messages.scrollTop += retained.getBoundingClientRect().top - top - offset; }
 }
 function showPanel(name) {
   managementEpoch++;
-  screen = name; for (const id of ['content', 'documents', 'management']) $(id).hidden = id !== name;
-  for (const id of ['content', 'documents', 'members', 'org', 'audit']) $(`tab-${id}`).removeAttribute('aria-current');
+  screen = name; for (const id of ['content', 'documents', 'pages', 'management']) $(id).hidden = id !== name;
+  for (const id of ['content', 'documents', 'pages', 'members', 'org', 'audit']) $(`tab-${id}`).removeAttribute('aria-current');
   $(`tab-${name === 'management' ? 'members' : name}`).setAttribute('aria-current', 'page');
 }
 async function manage(kind) {
@@ -302,12 +306,12 @@ async function send() {
   if (!message.isWellFormed() || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(message) || new TextEncoder().encode(message).length > 8192) { composerNotice(t('Shorten your message to 8 KB of text and remove unsupported control characters. Your draft is still editable.')); return; }
   saveDraft(); const id = workspace; const cid = conversation; const key = scope(); const currentDrafts = drafts; const controller = new AbortController();
   if (drafts.pending(id, cid) && !drafts.ready(id, cid)) return;
-  const payload = drafts.begin(id, cid, { text: $('draft').value, documentIds: [...$('selected-documents').querySelectorAll('input:checked')].map(x => x.value), modelPolicy: policy.policyHash, acknowledgeDisclosure: true });
+  const payload = drafts.begin(id, cid, { text: $('draft').value, documentIds: [...$('selected-documents').querySelectorAll('input:checked')].map(x => x.value), modelPolicy: policy.policyHash, acknowledgeDisclosure: true, ...(contextPages.length ? { pageIds: contextPages.map(page => page.id) } : {}) });
   const attempt = drafts.dispatch(id, cid, payload.requestId);
   drafts.markReady(id, cid, false, payload.requestId); posts.set(key, controller); updateComposer();
   try {
     const result = await api(`/workspaces/${id}/conversations/${cid}/messages`, payload, controller.signal);
-    if (['completed', 'blocked'].includes(result.state)) currentDrafts.finish(id, cid, payload.requestId);
+    if (['completed', 'blocked'].includes(result.state)) { currentDrafts.finish(id, cid, payload.requestId); if (key === scope()) { contextPages = []; renderPageContext(); } }
     if (key === scope()) {
       restoreDraft(); await loadMessages();
       if (result.answer && result.state === 'blocked') notice(result.answer);
@@ -368,6 +372,23 @@ $('auth-mode').onchange = () => { previewNonce++; reviewedInvite = undefined; te
 $('workspace').onchange = () => run(() => { history.pushState(null, '', '#workspace=' + $('workspace').value); return switchWorkspace($('workspace').value); });
 $('join-team').onclick = () => { $('auth').hidden = false; $('auth').querySelector('details').open = true; $('auth-mode').value = 'join'; updateAuthMode(); $('code').focus(); };
 for (const kind of ['content', 'documents']) $(`tab-${kind}`).onclick = () => showPanel(kind);
+function renderPageContext() {
+  $('page-context').hidden = $('page-context-clear').hidden = !contextPages.length;
+  text('page-context', contextPages.length ? t('Sara will read this team page and its open comments: {title}', { title: contextPages.map(page => page.title).join(', ') }) : '');
+}
+async function openPages() {
+  saveDraft(); showPanel('pages');
+  pages ||= createPages({ api, run, host: $('pages'), ask: askAboutPage });
+  await pages.show(workspace, role(), self.principal.identityId);
+}
+function askAboutPage(page, prompt) {
+  showPanel('content');
+  if (!conversation) { notice(t('Start or choose a shared conversation first, then ask Sara again.')); return; }
+  contextPages = page ? [{ id: page.id, title: page.title }] : []; renderPageContext();
+  if (!$('draft').disabled) { $('draft').value = prompt; saveDraft(); $('draft').focus(); }
+}
+$('tab-pages').onclick = () => run(openPages);
+$('page-context-clear').onclick = () => { contextPages = []; renderPageContext(); };
 for (const kind of ['members', 'org', 'audit']) $(`tab-${kind}`).onclick = () => run(() => manage(kind));
 $('draft').oninput = saveDraft; $('selected-documents').onchange = event => { let count = $('selected-documents').querySelectorAll('input:checked').length; if (count > 8) { event.target.checked = false; count--; notice(t('Choose up to 8 documents.')); } text('document-selection-count', t('Selected documents: {count}/8', { count })); saveDraft(); }; $('acknowledge').onchange = () => { acknowledgedAt = $('acknowledge').checked ? Date.now() : 0; clearTimeout(acknowledgementTimer); if (acknowledgedAt) acknowledgementTimer = setTimeout(updateComposer, 3 * 60 * 60 * 1000); updateComposer(); };
 $('composer').onsubmit = event => { event.preventDefault(); void run(() => send(), undefined, true); }; $('retry').onclick = () => run(checkOriginal, undefined, true);

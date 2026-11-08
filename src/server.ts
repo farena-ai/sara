@@ -102,6 +102,7 @@ import { createGovernanceRoutes } from './routes/governance.ts';
 import { createSharePublic, createShareRoutes } from './routes/share.ts';
 import { createMcpAppRoutes } from './routes/mcp-apps.ts';
 import { createEditorRoutes } from './routes/editor.ts';
+import { createWorktreeRoutes } from './routes/worktrees.ts';
 import { cleanEditorLink } from './editor-link.ts';
 import { policy } from './policy-profile.ts';
 import { shares } from './share.ts';
@@ -402,7 +403,7 @@ export function createSaraServer(opts: ServerOptions): Server {
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'memory-tidy', 'working-style', 'readiness']);
+  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -1003,6 +1004,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const mcpAppRoutes = createMcpAppRoutes(ctx);
   // EC14: editors (ACP): editor sessions and the editor's answers (src/routes/editor.ts).
   const editorRoutes = createEditorRoutes(ctx);
+  // C13: task worktrees, the co-author setting and the Workspace view (src/routes/worktrees.ts).
+  const worktreeRoutes = createWorktreeRoutes(ctx);
   // EC15: usage and cost reports and budgets (src/routes/usage-report.ts).
   const usageReportRoutes = createUsageReportRoutes(ctx);
   // C8: spend limits and Token Saver, the owner's only (src/routes/spend.ts).
@@ -1293,6 +1296,24 @@ export function createSaraServer(opts: ServerOptions): Server {
       return void res.end(`<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/#google=${result}"><title>Google</title><p>Back to the app… <a href="/#google=${result}">continue</a></p>`);
     }
 
+    // C14: Spotify sends the browser back here (same one-time `state` proof as Google above).
+    if (a === 'spotify' && b === 'callback' && method === 'GET' && app.spotify) {
+      const url = new URL(req.url ?? '/', 'http://x');
+      let result = 'connected';
+      const error = url.searchParams.get('error');
+      if (error) result = error === 'access_denied' ? 'refused' : 'failed';
+      else {
+        try {
+          await app.spotify.finish(url.searchParams.get('code') ?? '', url.searchParams.get('state') ?? '');
+        } catch (err) {
+          result = 'failed';
+          console.warn(`spotify sign-in: ${(err as Error).message}`);
+        }
+      }
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...SECURITY_HEADERS });
+      return void res.end(`<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/#spotify=${result}"><title>Spotify</title><p>Back to the app… <a href="/#spotify=${result}">continue</a></p>`);
+    }
+
     if (a === 'demo' && b === 'start' && method === 'POST' && opts.demo) {
       sameSiteOnly();
       const ip = clientIp(req, opts.trustProxy);
@@ -1384,6 +1405,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await shareRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await mcpAppRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await editorRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await worktreeRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await deliveryRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await operationsRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await readinessRoutes(req, res, method, parts)) !== NEXT) return;

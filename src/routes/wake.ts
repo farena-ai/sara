@@ -7,7 +7,8 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { SESSION_COOKIE } from '../auth.ts';
+import { DEVICE_TOKEN_PREFIX, SESSION_COOKIE } from '../auth.ts';
+import { callRules, inQuietHours } from '../calls.ts';
 import type { ChatEvent } from '../chat.ts';
 import { isGroupChannel } from '../group.ts';
 import { cookies, HttpError, readJson, readRaw, send } from '../http.ts';
@@ -42,7 +43,7 @@ import {
   wavSeconds,
   withSensitivity,
 } from '../wake.ts';
-import { LEXICON, packFor, PACK_LICENCE, WAKE_PACK_VERSION } from '../wake-pack.ts';
+import { LEXICON, MODEL_FILES, packFor, PACK_LICENCE, WAKE_PACK_VERSION } from '../wake-pack.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 /** The server-wide lexicon folder (set by src/main.ts to <data>/voice/wake-lexicon; one copy for every space). */
@@ -56,6 +57,7 @@ let lexJob: { state: 'downloading' | 'failed'; error?: string } | undefined;
 export const IPHONE_NOTE = 'On iPhone, say “Hey Siri, ask Sara”: Apple doesn’t let apps listen for their own name.';
 export const BROWSER_NOTE = 'In a browser, use the 🎙 button: a web page can’t listen when it’s closed.';
 const MEMBERS_OFF = 'Hey Sara is off for members on this server. Ask the owner.';
+const QUIET = 'Hey Sara is resting in your quiet hours. Press Talk to ask her anyway.';
 const NOT_READY = 'Hey Sara needs her hearing and her voice: Settings → Voice.';
 const PRIVATE_HEARING = 'Hey Sara is paused while Nothing leaves this computer is on, because her hearing uses the internet. Install hearing on this computer (Settings → Voice) to keep it.';
 
@@ -65,9 +67,39 @@ export function createWakeRoutes(ctx: RouteCtx): RouteHandler {
   const store = new WakeStore(root, () => app.now());
   const me = app.companionId ?? 'main';
   const alive = (id: string) => auth.devices().some((d) => d.id === id);
-  const sidOf = (req: Parameters<RouteHandler>[0]) => auth.sessionId(cookies(req)[SESSION_COOKIE]);
+  // C17: the app's own sign-in, or a device-code app token (`sara wake` on Linux pairs that way);
+  // API keys, hands and Home Assistant tokens are never wake devices.
+  const sidOf = (req: Parameters<RouteHandler>[0]) => {
+    const fromCookie = auth.sessionId(cookies(req)[SESSION_COOKIE]);
+    if (fromCookie) return fromCookie;
+    const h = req.headers.authorization;
+    if (!h?.startsWith(`Bearer ${DEVICE_TOKEN_PREFIX}`)) return undefined;
+    const id = auth.deviceTokenId(h.slice(7));
+    return id && auth.deviceKind(id) === 'app' ? id : undefined;
+  };
+  /** C17: his quiet hours (Settings → Calls from her) when he chose "never in quiet hours". */
+  const quietNow = (): { start: string; end: string } | undefined => {
+    if (!view().quietHours) return undefined;
+    const r = callRules(app);
+    return inQuietHours(r, app.now(), app.settings.get().timeZone) ? { start: r.quietStart, end: r.quietEnd } : undefined;
+  };
   const companions = (): { id: string; name: string }[] => (opts.companions ? opts.companions.all().map((c) => ({ id: c.id, name: c.app.persona.name })) : [{ id: me, name: app.persona.name }]);
   const lexFile = () => join(lexiconDir ?? join(root, 'voice', 'wake-lexicon'), LEXICON.name);
+  /** C17: the keyword model files, unpacked from the same pinned tarball as the lexicon (for phones and Macs). */
+  const modelFile = (name: string) => join(lexFile(), '..', 'model', name);
+  const modelChecked = new Map<string, number>();
+  /** The model file's bytes when it is there and its SHA-256 matches the pin (checked once per change). */
+  const modelBytes = (name: string): Buffer | undefined => {
+    const pin = MODEL_FILES.find((f) => f.name === name);
+    const file = pin && modelFile(pin.name);
+    if (!pin || !file || !existsSync(file)) return undefined;
+    const buf = readFileSync(file);
+    const mtime = statSync(file).mtimeMs;
+    if (modelChecked.get(name) === mtime) return buf;
+    if (buf.length !== pin.size || createHash('sha256').update(buf).digest('hex') !== pin.sha256) return undefined;
+    modelChecked.set(name, mtime);
+    return buf;
+  };
 
   /** The lexicon, checked against its SHA-256 once per change of the file. */
   const lexicon = (): Lexicon | undefined => {
@@ -155,9 +187,10 @@ export function createWakeRoutes(ctx: RouteCtx): RouteHandler {
     const platform = cleanPlatform(url.searchParams.get('platform') ?? d?.platform);
     const phrases = phrasesWithLines(s);
     const pack = packFor(platform, url.searchParams.get('arch') ?? 'x64');
+    const quiet = paused ? undefined : quietNow();
     return {
       on: Boolean(d?.on) && paused !== 'server-off' && paused !== 'members-off',
-      ...(paused ? { paused } : d?.paused ? { paused: d.paused } : {}),
+      ...(paused ? { paused } : quiet ? { paused: 'quiet', quiet } : d?.paused ? { paused: d.paused } : {}),
       phrases: phrases.map(({ label, companionId, name, lines }) => ({ label, companionId, name, lines })),
       stop: stopLines(phrases.map((p) => p.name), lexicon(), s),
       sensitivity: s,
@@ -208,6 +241,7 @@ export function createWakeRoutes(ctx: RouteCtx): RouteHandler {
       if (body.starts !== undefined) next.starts = body.starts === 'call' ? 'call' : 'question';
       if (body.followUpSeconds !== undefined) next.followUpSeconds = body.followUpSeconds === 5 || body.followUpSeconds === 8 ? body.followUpSeconds : 0;
       if (body.sensitivity !== undefined) next.sensitivity = cleanSensitivity(body.sensitivity);
+      if (body.quietHours !== undefined) next.quietHours = body.quietHours === true;
       if (Array.isArray(body.phrases)) {
         if (body.phrases.length > 4) throw new HttpError(400, 'Up to 4 phrases. Remove one first.', { errors: [{ index: 4, why: 'Up to 4 phrases. Remove one first.' }] });
         const known = new Set(companions().map((x) => x.id));
@@ -251,10 +285,37 @@ export function createWakeRoutes(ctx: RouteCtx): RouteHandler {
       if (!next.allowed) for (const id of Object.keys(store.read().devices)) publish(id, 'off', 'server-off');
       return send(res, 200, { server: server() });
     }
+    // C17: the keyword model for devices that can't unpack the upstream tarball (Android) or shouldn't
+    // reach a third party (the device talks only to its own server). Same pins as the device checks.
+    if (b === 'model' && c && method === 'GET') {
+      if (!sid) throw new HttpError(401, 'Sign in first.');
+      const buf = modelBytes(c);
+      if (!buf) throw new HttpError(404, MODEL_FILES.some((f) => f.name === c) ? 'The speech model isn’t on your server yet.' : 'Not found', { missing: true });
+      res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': buf.length, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+      res.end(buf);
+      return;
+    }
+    if (b === 'model' && !c && method === 'POST') {
+      if (!sid) throw new HttpError(401, 'Sign in first.');
+      if (MODEL_FILES.every((f) => modelBytes(f.name))) return send(res, 200, { installed: true });
+      if (privateLocalOn()) throw new HttpError(409, 'Nothing leaves this computer is on, so nothing is downloaded. Switch it off for the download (Settings → Privacy).');
+      if (lexJob?.state !== 'downloading') {
+        lexJob = { state: 'downloading' };
+        void fetchLexicon(lexFile()).then(
+          () => {
+            lexJob = undefined;
+          },
+          (err: Error) => {
+            lexJob = { state: 'failed', error: err.message };
+          },
+        );
+      }
+      return send(res, 202, { installed: false, state: lexJob.state, ...(lexJob.error ? { error: lexJob.error } : {}) });
+    }
     if (b === 'lexicon' && method === 'POST') {
       if (opts.member) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
       if (privateLocalOn()) throw new HttpError(409, 'Nothing leaves this computer is on, so nothing is downloaded. Switch it off for the download (Settings → Privacy).');
-      if (lexicon()) return send(res, 200, { installed: true });
+      if (lexicon() && MODEL_FILES.every((f) => modelBytes(f.name))) return send(res, 200, { installed: true });
       if (lexJob?.state !== 'downloading') {
         lexJob = { state: 'downloading' };
         void fetchLexicon(lexFile()).then(
@@ -353,6 +414,8 @@ export function createWakeRoutes(ctx: RouteCtx): RouteHandler {
       const label = String(body.label ?? '');
       // Push-to-talk ("TALK") needs no phrase; a phrase label must be one the server knows.
       if (label !== 'TALK' && !view().phrases.some((x) => x.label === label)) throw new HttpError(409, 'Hey Sara’s words changed: reload them.', { config: config(sid, url) });
+      // C17: in his quiet hours the phrase never wakes her (a deliberate Talk press still does).
+      if (label !== 'TALK' && quietNow()) throw new HttpError(409, QUIET, { paused: 'quiet' });
       const r = store.claim(sid, label, labelOf);
       store.update((f) => {
         const d = f.devices[sid];
@@ -480,7 +543,7 @@ export function createWakeRoutes(ctx: RouteCtx): RouteHandler {
   }
 }
 
-/** Downloads the pinned model tarball once and keeps only en.phone (checked) on the server. */
+/** Downloads the pinned model tarball once and keeps en.phone and (C17) the four keyword model files, each checked. */
 async function fetchLexicon(file: string, fetchImpl?: typeof fetch): Promise<void> {
   const dir = join(file, '..');
   const tmp = join(dir, '.download');

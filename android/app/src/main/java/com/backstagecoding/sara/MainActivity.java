@@ -67,6 +67,7 @@ public class MainActivity extends Activity {
     private static final int REQ_PERMS = 1;
     /** EC24: location for one Allow once in Sara's own helper prompt. */
     private static final int REQ_HELPER_GEO = 241;
+    private static final int REQ_HELPER_FIX = 242;
     private static final int REQ_FILE = 2;
     private static final int REQ_CALL = 4;
     private static final int REQ_UNLOCK = 5;
@@ -87,6 +88,8 @@ public class MainActivity extends Activity {
     private String pendingShare;
     private PermissionRequest pendingPermission;
     private GeolocationPermissions.Callback pendingGeo;
+    /** C18: a native one-shot fix for the phone-helper prompt is waiting for the permission (precise?). */
+    private Boolean pendingHelperFix;
     private String pendingGeoOrigin;
     private ValueCallback<Uri[]> fileCallback;
 
@@ -1125,6 +1128,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
+        WakeService.appVisible = true; // C17: "only while Sara is open"
         applySecureFlag();
         LiveInbox.sync(this);
         if (lockOn() && (backgroundAt == 0 || SystemClock.elapsedRealtime() - backgroundAt > RELOCK_MS)) lock();
@@ -1133,6 +1137,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onStop() {
         backgroundAt = SystemClock.elapsedRealtime();
+        WakeService.appVisible = false;
         super.onStop();
     }
 
@@ -1207,6 +1212,90 @@ public class MainActivity extends Activity {
         }
     }
 
+    /**
+     * C18 (EC24): one location fix for the phone-helper prompt, after the owner tapped Allow once.
+     * Native, because the web view gives navigator.geolocation only to https pages and a server at
+     * home is often http://192.168.x.x. Never repeated, never stored; the answer goes only to the page.
+     */
+    private void helperLocate(boolean precise) {
+        if (!has(Manifest.permission.ACCESS_COARSE_LOCATION) && !has(Manifest.permission.ACCESS_FINE_LOCATION)) {
+            pendingHelperFix = precise;
+            String[] want = precise
+                    ? new String[] {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}
+                    : new String[] {Manifest.permission.ACCESS_COARSE_LOCATION};
+            requestPermissions(want, REQ_HELPER_FIX);
+            return;
+        }
+        helperFix(precise);
+    }
+
+    private void helperFix(boolean precise) {
+        android.location.LocationManager lm = getSystemService(android.location.LocationManager.class);
+        if (lm == null) {
+            helperLocated(null, "unsupported");
+            return;
+        }
+        boolean fine = has(Manifest.permission.ACCESS_FINE_LOCATION);
+        boolean gps = fine && lm.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER);
+        boolean net = lm.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER);
+        // Android 12+: the fused provider (GPS and network together; works with approximate only).
+        boolean fused = Build.VERSION.SDK_INT >= 31 && lm.isProviderEnabled(android.location.LocationManager.FUSED_PROVIDER);
+        String provider = fused ? android.location.LocationManager.FUSED_PROVIDER
+                : precise && gps ? android.location.LocationManager.GPS_PROVIDER
+                : net ? android.location.LocationManager.NETWORK_PROVIDER
+                : gps ? android.location.LocationManager.GPS_PROVIDER : null;
+        if (provider == null) {
+            helperLocated(null, "off");
+            return;
+        }
+        java.util.function.Consumer<android.location.Location> got = (loc) -> {
+            // No fresh fix (indoors, no network location): a recent one (10 minutes) is still "here".
+            if (loc == null) loc = recentFix(lm);
+            helperLocated(loc, loc == null ? "failed" : null);
+        };
+        try {
+            if (Build.VERSION.SDK_INT >= 30) lm.getCurrentLocation(provider, null, getMainExecutor(), got);
+            else lm.requestSingleUpdate(provider, new android.location.LocationListener() {
+                @Override
+                public void onLocationChanged(android.location.Location l) {
+                    got.accept(l);
+                }
+            }, android.os.Looper.getMainLooper());
+        } catch (SecurityException e) {
+            helperLocated(null, "denied");
+        }
+    }
+
+    private android.location.Location recentFix(android.location.LocationManager lm) {
+        android.location.Location best = null;
+        try {
+            for (String p : lm.getProviders(true)) {
+                android.location.Location l = lm.getLastKnownLocation(p);
+                if (l == null || System.currentTimeMillis() - l.getTime() > 10 * 60_000L) continue;
+                if (best == null || l.getTime() > best.getTime()) best = l;
+            }
+        } catch (SecurityException e) {
+            return null;
+        }
+        return best;
+    }
+
+    private void helperLocated(android.location.Location loc, String error) {
+        String json;
+        try {
+            org.json.JSONObject o = new org.json.JSONObject();
+            if (loc != null) o.put("lat", loc.getLatitude()).put("lon", loc.getLongitude()).put("accuracy", (double) loc.getAccuracy());
+            else o.put("error", error == null ? "failed" : error);
+            json = o.toString();
+        } catch (org.json.JSONException e) {
+            json = "{\"error\":\"failed\"}";
+        }
+        String js = "window.saraHelperLocated&&window.saraHelperLocated(" + json + ")";
+        runOnUiThread(() -> {
+            if (web != null) web.evaluateJavascript(js, null);
+        });
+    }
+
     private void beginCall(String conv) {
         beginCall(conv, null);
     }
@@ -1255,14 +1344,19 @@ public class MainActivity extends Activity {
                             p.edit().putBoolean("on", false).apply();
                             runOnUiThread(() -> WakeService.start(MainActivity.this, WakeService.ACTION_STOP));
                         }
-                    } else if ("chime".equals(key) || "personal".equals(key) || "onlyCharging".equals(key)) p.edit().putBoolean(key, "1".equals(v)).apply();
+                    } else if ("chime".equals(key) || "personal".equals(key) || "onlyCharging".equals(key) || "onlyOpen".equals(key)) p.edit().putBoolean(key, "1".equals(v)).apply();
+                    else if ("remove".equals(key)) {
+                        Kws.remove(MainActivity.this);
+                        p.edit().putBoolean("on", false).apply();
+                        runOnUiThread(() -> WakeService.start(MainActivity.this, WakeService.ACTION_STOP));
+                    }
                     else if ("sensitivity".equals(key)) p.edit().putString("sensitivity", v).apply();
                 }
                 org.json.JSONObject s = new org.json.JSONObject();
-                s.put("available", true).put("on", p.getBoolean("on", false)).put("state", WakeService.state).put("label", android.os.Build.MODEL).put("platform", "android");
-                // The keyword model comes with a later 2.59.x app: Talk and the tile work without it.
-                s.put("pack", new org.json.JSONObject().put("installed", false).put("mb", 5));
-                s.put("sensitivity", p.getString("sensitivity", "normal")).put("chime", p.getBoolean("chime", true)).put("personal", p.getBoolean("personal", true)).put("onlyCharging", p.getBoolean("onlyCharging", false));
+                s.put("available", true).put("on", p.getBoolean("on", false)).put("state", WakeService.reason.isEmpty() ? WakeService.state : "paused").put("reason", WakeService.reason).put("label", android.os.Build.MODEL).put("platform", "android");
+                // C17: the engine is in the app (when this build has it); the model comes checked from her server.
+                s.put("engine", Kws.available()).put("pack", new org.json.JSONObject().put("installed", Kws.ready(MainActivity.this)).put("mb", Kws.megabytes()));
+                s.put("sensitivity", p.getString("sensitivity", "normal")).put("chime", p.getBoolean("chime", true)).put("personal", p.getBoolean("personal", true)).put("onlyCharging", p.getBoolean("onlyCharging", false)).put("onlyOpen", p.getBoolean("onlyOpen", false));
                 if ("try".equals(op)) return new org.json.JSONObject().put("hits", new org.json.JSONArray()).toString();
                 return s.toString();
             } catch (org.json.JSONException e) {
@@ -1417,6 +1511,12 @@ public class MainActivity extends Activity {
             runOnUiThread(MainActivity.this::askPlacePermissions);
         }
 
+        /** C18 (EC24): one location fix for the phone-helper prompt; answers window.saraHelperLocated. */
+        @JavascriptInterface
+        public void helperLocate(boolean precise) {
+            runOnUiThread(() -> MainActivity.this.helperLocate(precise));
+        }
+
         /** Saves the phone's current location as a named place on the server. */
         @JavascriptInterface
         public void savePlaceHere(String name) {
@@ -1482,6 +1582,13 @@ public class MainActivity extends Activity {
 
     @Override
     public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
+        if (code == REQ_HELPER_FIX && pendingHelperFix != null) {
+            boolean precise = pendingHelperFix;
+            pendingHelperFix = null;
+            if (has(Manifest.permission.ACCESS_COARSE_LOCATION) || has(Manifest.permission.ACCESS_FINE_LOCATION)) helperFix(precise);
+            else helperLocated(null, "denied");
+            return;
+        }
         if (code == REQ_HELPER_GEO && pendingGeo != null) {
             boolean ok = has(Manifest.permission.ACCESS_COARSE_LOCATION) || has(Manifest.permission.ACCESS_FINE_LOCATION);
             pendingGeo.invoke(pendingGeoOrigin, ok, false);

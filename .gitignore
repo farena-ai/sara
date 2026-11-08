@@ -27,3 +27,7 @@ desktop/mac/build/
 # Python caches (scripts/make-app-icons.py, integrations tests)
 __pycache__/
 *.pyc
+# C17: the Hey Sara engine and header, fetched and checked by android/fetch-wake-libs.sh
+android/app/src/main/jniLibs/
+android/app/src/main/cpp/include/
+android/app/.cxx/

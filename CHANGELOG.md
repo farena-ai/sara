@@ -5,6 +5,42 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.88.0 (2026-11-08): coding workspace, Spotify, team pages and Hey Sara everywhere
+
+- **Team pages (C16, business instance):** a *Pages* tab in each workspace. Markdown pages with search
+  (title and text), every saved version kept in *History* (append-only; a stale save is refused, not
+  overwritten), threaded comments with Reply and Resolve, and `@Name` mentions that show the member
+  *Mentions for you*. View only reads and comments, Contributors create and edit, Managers delete.
+  Export a page as Markdown or PDF. *Ask Sara about this page* hands the page and its open comments to
+  the composer as context; *Save as a page* under her answer opens the editor, and nothing is saved
+  until the member chooses Create page. Organization administration gets a legal hold per workspace
+  (nothing in it can be deleted while on) and per-person page export/delete. Audit rows for create,
+  edit, delete, comment, resolve, hold and person delete. Guide: BUSINESS.md → Team pages.
+- **Coding depth (C13):** a coding task can run in its own git worktree (branch `sara/<task>` in
+  `.sara-worktrees`, the main checkout untouched); finish with Merge, Open PR (pushed and opened
+  through your GitHub connection, title and body drafted from the commits) or Discard (never deletes
+  uncommitted or unmerged work without asking; links such as `node_modules` junctions are unlinked
+  first). Language servers on your PATH (typescript-language-server, pyright, gopls, rust-analyzer;
+  none bundled) give her read-only diagnostics, go-to-definition, references and hover, with time and
+  memory caps. Her commits carry a `Co-authored-by` line (Settings → Coding → GitHub → Her commits).
+  Project page → **Workspace**: files, an editor with line numbers, Problems, a terminal (her shell's
+  rules and sandbox) and a chat that sees the open file. Guide: docs/CODING_DEPTH.md.
+- **Music: Spotify (C14):** Settings → Connections → Spotify connects your own Spotify developer app
+  (Client ID only, sign-in with PKCE; tokens in the vault, renewed by themselves). She searches songs,
+  albums, artists and playlists, says what's playing, reads your playlists and most-played music and
+  your devices. *Let her make and change playlists* adds making a private playlist and adding songs
+  (each asks first); *Let her control playback* adds play, pause, skip, volume, shuffle and queue on a
+  chosen device, only when you ask for music; "needs Spotify Premium" comes back as a plain answer.
+  Read-only permissions unless you tick more. Spotify now runs developer apps only for owners with
+  Premium. Guide: docs/MUSIC.md.
+- **Hey Sara on Mac, Android and Linux (C17):** the same on-device keyword spotter as Windows
+  (sherpa-onnx, Apache-2.0). **Android** listens for her phrase in its opt-in foreground service (off by
+  default; notification with Talk, Pause 1 h, Stop), with *Only while charging*, *Only while Sara is
+  open*, and pauses on low battery or Battery Saver. **Mac**: the engine is in the signed app; menu item
+  *Listen for “Hey Sara”*. **Linux**: `sara wake --server URL` in a terminal (PipeWire, PulseAudio or
+  ALSA). New: *Never in my quiet hours* (Settings → Hey Sara). Phones and Linux get the checked speech
+  model from your own server; nothing is sent anywhere until she hears her name.
+
 ## 2.87.0 (2026-11-08): workers, spend control and safer updates
 
 - **Bring your companion (C7):** Settings → Her → Companions → *Bring your companion from another app*

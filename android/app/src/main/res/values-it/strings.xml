@@ -116,4 +116,12 @@
     <string name="hey_after_boot">Hey Sara è spento da quando il telefono si è riavviato. Tocca per riaccenderlo.</string>
     <string name="hey_no_server">Apri Sara e accedi prima al tuo server.</string>
     <string name="hey_tile">Parla con Sara</string>
+    <string name="hey_listening_wake">Di’ «Hey Sara» o tocca Parla. Prima di allora nulla lascia il telefono.</string>
+    <string name="hey_paused_charging">In attesa del caricatore (hai scelto «solo durante la ricarica»).</string>
+    <string name="hey_paused_battery">In pausa per risparmiare batteria (batteria scarica o Risparmio energetico).</string>
+    <string name="hey_paused_open">Ascolta solo mentre Sara è sullo schermo.</string>
+    <string name="hey_paused_quiet">A riposo nelle tue ore di silenzio. Parla funziona comunque.</string>
+    <string name="hey_paused_mic">Un’altra app sta usando il microfono.</string>
+    <string name="hey_heard_you">Ti ho sentito</string>
+    <string name="hey_pack">Scarico il modello vocale dal tuo server…</string>
 </resources>

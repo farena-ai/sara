@@ -57,6 +57,7 @@ on (it can't be released until the pin goes); `personDelete: false` refuses per-
 
 ## Not covered
 
-Business instances keep shared workspace content without any delete path today, so nothing there
-can be lost; retention and per-person export for business workspaces is BACKLOG. Backups made
+Business instances keep shared messages and documents without any delete path today, so nothing there
+can be lost; retention and per-person export of those is BACKLOG. Team pages (C16) have their own
+per-workspace legal hold and per-person page export/delete: BUSINESS.md → Team pages. Backups made
 before a deletion still contain the data until they rotate out (Data & health → Backups).

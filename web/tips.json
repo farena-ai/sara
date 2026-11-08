@@ -481,6 +481,18 @@
       "The workspace whose projects you want to see. Each conversation's work happens in a workspace.",
       "workflows"
     ],
+    "spo-client-id": [
+      "The Client ID of your own Spotify app (developer.spotify.com, your app, Settings). No secret is needed: Sara signs in with PKCE.",
+      "spotify"
+    ],
+    "spo-playlists": [
+      "She may make new private playlists and add songs to yours. Each change still asks you first. Press Connect Spotify again after ticking it.",
+      "spotify"
+    ],
+    "spo-playback": [
+      "She may play, pause, skip, set the volume, shuffle and queue songs on a device you choose, only when you ask for music. Spotify needs Premium for this. Connect again after ticking it.",
+      "spotify"
+    ],
     "ha-url": [
       "Your Home Assistant address as this server reaches it. Example: https://xyz.ui.nabu.casa.",
       "home"
@@ -1574,6 +1586,10 @@
     "ab-google": [
       "Connect Gmail and Calendar so she can find mail, draft replies and handle your calendar. Sending and adding events ask you first.",
       "accounts"
+    ],
+    "co-spotify": [
+      "Spotify: she can search, see what is playing and your playlists, and if you allow it make playlists or control playback.",
+      "spotify"
     ],
     "ab-home": [
       "Home Assistant: she can see your lights, sensors and thermostat, and change things after you approve.",

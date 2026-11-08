@@ -99,6 +99,8 @@ export interface Settings {
   memoryTidy?: { on?: boolean; model?: 'local' | 'any' };
   /** Phase 99 (ST4): the board (how many cards she works at once; 2 by default). */
   board?: { concurrent?: number };
+  /** C13: the Co-authored-by trailer on her commits (on by default; the companion with a noreply address). */
+  coAuthor?: Partial<import('./coding-depth.ts').CoAuthor>;
   /** C15: approve a new device from chat (src/device-approval.ts). */
   deviceApproval?: { on?: boolean; allowedHosts?: string[]; maxDevices?: number; notice?: boolean };
   /** Phase 52: the owner's own model prices (USD per 1M tokens; they win over the shipped defaults). */

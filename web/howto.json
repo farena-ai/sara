@@ -659,6 +659,29 @@
    "show": "#pr-on"
   }
  ],
+ "co-spotify": [
+  {
+   "id": "connect",
+   "q": "How do I connect Spotify?",
+   "steps": [
+    "Make an app at developer.spotify.com.",
+    "Add the redirect address this page shows.",
+    "Paste its Client ID and press Save.",
+    "Press Connect Spotify and allow access."
+   ],
+   "show": "#spo-connect"
+  },
+  {
+   "id": "playback",
+   "q": "How do I let her play music?",
+   "steps": [
+    "Tick Let her control playback.",
+    "Press Connect again.",
+    "Ask her to play, pause or queue a song."
+   ],
+   "show": "#spo-playback"
+  }
+ ],
  "ab-mcp": [
   {
    "id": "add",

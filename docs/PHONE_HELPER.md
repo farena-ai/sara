@@ -57,5 +57,8 @@ Never the picture, never coordinates.
 
 ## The phone apps
 
-The Android and iPhone apps show the same prompt (they show Sara's web app). The Android app needs a
-build with location for the prompt (this release); camera already worked. See OWNER_CHECKS.md.
+The Android and iPhone apps show the same prompt (they show Sara's web app). The Android app 2.87.0
+(C18) takes the location fix itself after *Allow once* (`SaraPhone.helperLocate`), because Android's
+web view gives location only to https pages and a server at home is often plain http; approximate
+requests ask Android only for approximate location. Older app builds can't answer location requests
+(she's told it didn't work). Camera works in every build. See OWNER_CHECKS.md.

@@ -1213,6 +1213,42 @@ p:has(> #dc-status:empty):not(:has(> button:not([hidden]))) { display: none; }
 .pm-dir > :not(summary) { margin-left: 14px; width: calc(100% - 14px); }
 .pm-dir { margin: 0; }
 .pp-map .add-row select { flex: 0 0 auto; width: auto; }
+/* C13: the project page's Workspace tab (web/workspace-view.js). */
+.wv { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr); }
+.wv-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.wv-bar label { display: flex; align-items: center; gap: 6px; }
+.wv-bar select { width: auto; }
+.wv-start input { flex: 1 1 220px; min-width: 0; }
+.wv-trees { display: grid; gap: 4px; }
+.wv-tree { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.wv-tree > span { flex: 1 1 200px; }
+.wv-tree:not(.wv-tree-active) { opacity: .7; }
+.wv-cols { display: grid; grid-template-columns: minmax(150px, .7fr) minmax(0, 2.2fr) minmax(220px, 1fr); gap: 10px; min-height: 420px; }
+@media (max-width: 900px) { .wv-cols { grid-template-columns: minmax(0, 1fr); } .wv-files { max-height: 180px; } }
+.wv-files { overflow: auto; max-height: 560px; border: 1px solid var(--line); border-radius: 8px; padding: 4px; }
+.wv-file { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 2px 6px; border-radius: 6px; cursor: pointer; font: 12px ui-monospace, Consolas, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wv-file:hover, .wv-file.active { background: var(--panel-2); }
+.wv-main { display: grid; gap: 6px; grid-template-rows: auto minmax(260px, 1fr) auto auto; min-width: 0; }
+.wv-edit-bar { display: flex; align-items: center; gap: 6px; }
+.wv-edit-bar span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wv-editor { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; align-items: start; }
+.wv-lines { margin: 0; padding: 8px 6px; text-align: right; color: var(--muted); background: var(--panel-2); font: 12px/1.5 ui-monospace, Consolas, monospace; overflow: hidden; height: 100%; max-height: 420px; user-select: none; }
+.wv-editor textarea { border: none; border-radius: 0; resize: vertical; min-height: 260px; height: 420px; padding: 8px; font: 12px/1.5 ui-monospace, Consolas, monospace; white-space: pre; tab-size: 2; background: var(--panel); color: var(--text); }
+.wv-editor .tip { margin: 6px; }
+.wv-problems { margin: 0; padding: 4px 8px; list-style: none; border: 1px solid var(--line); border-radius: 8px; max-height: 140px; overflow: auto; font: 12px ui-monospace, Consolas, monospace; }
+.wv-problems li { cursor: pointer; padding: 1px 0; }
+.wv-problems .wv-error { color: var(--danger); }
+.wv-term { display: grid; gap: 4px; }
+.wv-out { margin: 0; min-height: 70px; max-height: 200px; overflow: auto; padding: 6px 8px; border-radius: 8px; background: var(--panel-2); font: 12px/1.4 ui-monospace, Consolas, monospace; white-space: pre-wrap; }
+.wv-term input { flex: 1 1 200px; min-width: 0; font-family: ui-monospace, Consolas, monospace; }
+.wv-chat { display: grid; grid-template-rows: minmax(200px, 1fr) auto; gap: 6px; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
+.wv-msgs { overflow: auto; max-height: 520px; display: grid; gap: 6px; align-content: start; }
+.wv-msg { padding: 6px 8px; border-radius: 8px; white-space: pre-wrap; font-size: 13px; }
+.wv-msg.me { background: var(--panel-2); justify-self: end; }
+.wv-msg.step { padding: 0 8px; }
+.wv-ask-card { border: 1px solid var(--line); }
+.wv-chat .add-row { flex-wrap: nowrap; align-items: flex-end; }
+.wv-chat textarea { flex: 1 1 140px; min-width: 0; resize: vertical; }
 .pm-file, .pm-hit, .pm-link { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 3px 6px; border-radius: 6px; cursor: pointer; font: 13px ui-monospace, Consolas, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pm-file:hover, .pm-hit:hover, .pm-link:hover { background: var(--panel-2); }
 .pm-hit { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; white-space: normal; }

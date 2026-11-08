@@ -346,6 +346,9 @@
 <details class="howto-q" id="howto-ab-ssh-fail"><summary>What if it doesn't work?</summary><ol><li>Read the box under the button you pressed.</li><li>Press the button it offers, like Find the port or Check now.</li></ol></details>
 <details class="howto-q" id="howto-ab-ssh-safe"><summary>Does she ask before running commands there?</summary><ol><li>Yes, every command asks first by default.</li><li>Change it in Tools and approvals.</li></ol></details>
 <h3>Connections</h3>
+<h4 id="howto-co-spotify">Spotify</h4>
+<details class="howto-q" id="howto-co-spotify-connect"><summary>How do I connect Spotify?</summary><ol><li>Make an app at developer.spotify.com.</li><li>Add the redirect address this page shows.</li><li>Paste its Client ID and press Save.</li><li>Press Connect Spotify and allow access.</li></ol></details>
+<details class="howto-q" id="howto-co-spotify-playback"><summary>How do I let her play music?</summary><ol><li>Tick Let her control playback.</li><li>Press Connect again.</li><li>Ask her to play, pause or queue a song.</li></ol></details>
 <h4 id="howto-co-phone">Phone and notifications</h4>
 <details class="howto-q" id="howto-co-phone-install"><summary>How do I put her on my phone?</summary><ol><li>Open Sara in your phone's browser and sign in.</li><li>Press Install Sara as an app (or Add to Home Screen).</li><li>Then turn on notifications.</li></ol></details>
 <details class="howto-q" id="howto-co-phone-push"><summary>How do I get notifications?</summary><ol><li>Press Turn on for this device.</li><li>Press Send a test.</li></ol></details>
@@ -955,6 +958,13 @@
   <li><strong>Place reminders</strong>: "remind me when I get to the store" or "…when I leave work". Save places in <em>Planner → Reminders → Places</em>: by address, or with "Save where I am" in the phone app. Then switch on <em>Place reminders</em> in <em>Settings → Connections → Phone and notifications</em> on your phone, and allow location "all the time".</li>
   <li>Your location stays on the phone. The phone only tells your server "arrived at Store" or "left Work". Looking up an address asks OpenStreetMap.</li>
   <li><strong>Presence</strong> (<em>Settings → Add-ons → Home Assistant → Presence</em>, off until you switch it on): she notices through Home Assistant when someone gets home or leaves, at bedtime, or when a light goes on in the morning, and says a short word as a message or on a speaker. Each kind at most once every few hours, never in the quiet hours of <em>Calls from her</em>.</li>
+</ul>
+
+<h2 id="spotify">Music: Spotify</h2>
+<ul>
+  <li><strong>Spotify</strong> (<em>Settings → Connections → Spotify</em>): make a free app at developer.spotify.com, add the redirect address Sara shows, paste its Client ID and press Connect Spotify. Spotify only runs developer apps for owners with Spotify Premium.</li>
+  <li>She can search songs, albums, artists and playlists, tell you what is playing, and read your playlists and most-played music on her own. Ask "what am I listening to?" or "find me something like Debussy".</li>
+  <li>Making or changing a playlist needs <em>Let her make and change playlists</em> and asks you each time. Play, pause, skip, volume, shuffle and queue need <em>Let her control playback</em>; she only does them when you ask for music.</li>
 </ul>
 
 <h2 id="ssh">Your other servers over SSH</h2>

@@ -44,6 +44,8 @@ export function initProjectMap(ws) {
 /** The project page opened (again): back to Overview; the Map tab only with a workspace. */
 export function resetProjectMap(ws) {
   $('#pp-map-tab').hidden = !ws;
+  const workTab = $('#pp-work-tab');
+  if (workTab) workTab.hidden = !ws || document.body.classList.contains('member') || document.body.classList.contains('demo');
   if (cur.ws !== ws) {
     cur = { ws: null, files: [] };
     $('#pm-results').hidden = true;
@@ -59,6 +61,10 @@ function selectTab(name) {
   }
   $('#pp-overview').hidden = name !== 'overview';
   $('#pp-map').hidden = name !== 'map';
+  // C13: the Workspace tab (web/workspace-view.js) loads when shown.
+  const work = $('#pp-work');
+  if (work) work.hidden = name !== 'workspace';
+  if (name !== 'overview') document.dispatchEvent(new CustomEvent('pp-tab', { detail: name }));
   const ws = getWs();
   if (name === 'map' && ws && cur.ws !== ws) void load(false);
 }

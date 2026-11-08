@@ -20,6 +20,8 @@ import { BusinessModels, configureBusinessModels, primeOperatorSecrets } from '.
 import { BusinessDocuments } from './documents.ts';
 import { BusinessChat } from './chat.ts';
 import { createBusinessWriteRouter } from './write-routes.ts';
+import { BusinessPages } from './pages.ts';
+import { createBusinessPagesRouter } from './page-routes.ts';
 import { envMode } from '../private-local.ts';
 import { BusinessSso } from './sso.ts';
 import { SSO_BINDING_COOKIE, ssoRoutes } from './sso-routes.ts';
@@ -92,6 +94,8 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
     const audit = new BusinessAudit(control, workspaces);
     const content = createBusinessContentRouter({ control, workspaces, retrieval, events: workspaceEvents, audit, json });
     const writes = createBusinessWriteRouter({ control, chat, documents, models, events: workspaceEvents, body, json });
+    const pages = new BusinessPages({ profile: options.profile, control, workspaces });
+    const pageRoutes = createBusinessPagesRouter({ control, pages, events: workspaceEvents, body, json });
     const server = createServer((req, res) => {
       res.setHeader('x-content-type-options', 'nosniff');
       res.setHeader('x-frame-options', 'DENY');
@@ -126,7 +130,7 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
         if (path === '/api/business/org/audit' || BUSINESS_USAGE_PATHS.includes(path)) allowed.add(path);
         if (path === '/api/business/scim/config' || path === '/api/business/scim/token') allowed.add(path);
         if (['/api/business/sso/status', '/api/business/sso/start', '/api/business/sso/config', '/api/business/sso/test'].includes(path)) allowed.add(path);
-        if (!allowed.has(path) && !management.matches(path) && !content.matches(path) && !writes.matches(path)) return json(res, 404, { error: 'Not found.' });
+        if (!allowed.has(path) && !management.matches(path) && !content.matches(path) && !writes.matches(path) && !pageRoutes.matches(path)) return json(res, 404, { error: 'Not found.' });
         if (req.method !== 'GET' && (req.method !== 'POST' || req.headers.origin !== origin)) return json(res, 403, { error: 'Origin denied.' });
         const cookies = (req.headers.cookie ?? '').split(';').map(s => s.trim()).filter(s => s.startsWith(`${BUSINESS_COOKIE}=`));
         const principal = cookies.length === 1 ? auth.principal(cookies[0].slice(BUSINESS_COOKIE.length + 1)) : undefined;
@@ -134,6 +138,7 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
         // This expectation only narrows the verified cookie principal; it never grants authority.
         if (req.headers['x-sara-business-session'] !== undefined && req.headers['x-sara-business-session'] !== principal?.sessionId) return json(res, 409, { error: 'Business session changed.' });
         if (writes.matches(path) && (req.method === 'POST' || path.endsWith('/model-policy'))) return writes.handle(req, res, path, principal);
+        if (pageRoutes.matches(path)) return pageRoutes.handle(req, res, path, principal);
         if (content.matches(path)) return content.handle(req, res, path, principal);
         if (management.matches(path)) return management.handle(req, res, path, principal);
         if (path === '/api/business/org/audit' && req.method === 'GET') {
@@ -217,7 +222,7 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
     };
     sso.startTimer();
     let closing: Promise<void> | undefined;
-    return { sso, scim, configureModels: (input: unknown, keys: Record<string, string> = {}) => configureBusinessModels(options.profile, input, keys, writer), backup: (file: string, passphrase: string) => createBusinessBackup(options.profile, control, file, passphrase), lifecycle, audit, server, auth, identities, control, policy: control.policy, workspaces, retrieval, events: workspaceEvents, budget, models, documents, chat, origin, close(): Promise<void> {
+    return { sso, scim, configureModels: (input: unknown, keys: Record<string, string> = {}) => configureBusinessModels(options.profile, input, keys, writer), backup: (file: string, passphrase: string) => createBusinessBackup(options.profile, control, file, passphrase), lifecycle, audit, server, auth, identities, control, policy: control.policy, workspaces, retrieval, events: workspaceEvents, budget, models, documents, chat, pages, origin, close(): Promise<void> {
       if (closing) return closing;
       lifecycle.closeAdmission(); unsubscribeAuth(); chat.close(); workspaceEvents.close(); sso.close();
       closing = (async () => {

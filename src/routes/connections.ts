@@ -443,6 +443,51 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         }
       }
     }
+    // C14: Spotify on the owner's own Spotify app (PKCE: a Client ID only).
+    if (a === 'spotify') {
+      const sp = app.spotify;
+      if (!sp) throw new HttpError(404, 'Not available');
+      const origin = typeof req.headers.origin === 'string' && req.headers.origin !== 'null' ? req.headers.origin : `${opts.trustProxy && req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http'}://${req.headers.host}`;
+      const redirect = `${origin}/api/spotify/callback`;
+      // Spotify accepts https addresses, or plain http only on a loopback IP (127.0.0.1, not "localhost").
+      const redirectOk = /^https:\/\//.test(redirect) || /^http:\/\/(127\.0\.0\.1|\[::1\])(:\d+)?\//.test(redirect);
+      const view = () => ({ ...sp.status(), redirect, redirectOk });
+      const flags = (body: Record<string, unknown>) => ({ ...(typeof body.playback === 'boolean' ? { playback: body.playback } : {}), ...(typeof body.playlists === 'boolean' ? { playlists: body.playlists } : {}) });
+      if (!b && method === 'GET') return send(res, 200, view());
+      if (!b && method === 'DELETE') {
+        sp.disconnect();
+        return send(res, 200, view());
+      }
+      if (b === 'client' && method === 'PUT') {
+        const body = await readJson(req);
+        try {
+          sp.setClient(String(body.clientId ?? ''), flags(body));
+        } catch (err) {
+          throw as400(err);
+        }
+        return send(res, 200, view());
+      }
+      if (b === 'options' && method === 'PUT') {
+        const body = await readJson(req);
+        try {
+          sp.setOptions(flags(body));
+        } catch (err) {
+          throw as400(err);
+        }
+        return send(res, 200, view());
+      }
+      if (b === 'client' && method === 'DELETE') {
+        sp.forgetClient();
+        return send(res, 200, view());
+      }
+      if (b === 'connect' && method === 'POST') {
+        try {
+          return send(res, 200, { url: sp.authUrl(redirect) });
+        } catch (err) {
+          throw as400(err);
+        }
+      }
+    }
     // "Report this reply" (Phase 19).
     if (a === 'reports' && app.reports) {
       if (!b && method === 'GET') {

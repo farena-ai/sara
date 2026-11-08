@@ -102,6 +102,16 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Coding workspace, Spotify, team pages and Hey Sara everywhere in 2.88.0
+
+Coding tasks can run in their own branch and folder (Merge, Open PR or Discard at the end), with
+language-server diagnostics, go-to-definition and references, co-authored commits and a pull-request
+helper, and a Workspace view with files, editor, terminal and chat. Spotify connects with your own
+developer app (search, now playing, playlists, playback with Premium). Business workspaces get team
+pages with history, comments and mentions, and a per-workspace legal hold. Hey Sara now listens on
+Mac, Android and Linux with the same offline engine as Windows. Her editor connection was proven with
+Zed and the official ACP client.
+
 ## Workers, spend control and safer updates in 2.87.0
 
 Bring your companion from Character.AI, Replika, Kindroid or Nomi, with a preview of what comes over.

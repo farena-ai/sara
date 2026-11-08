@@ -116,4 +116,12 @@
     <string name="hey_after_boot">Hey Sara est désactivé depuis le redémarrage du téléphone. Touchez pour le réactiver.</string>
     <string name="hey_no_server">Ouvrez Sara et connectez-vous d’abord à votre serveur.</string>
     <string name="hey_tile">Parler à Sara</string>
+    <string name="hey_listening_wake">Dis « Hey Sara » ou touche Parler. Rien ne quitte le téléphone avant.</string>
+    <string name="hey_paused_charging">En attente du chargeur (tu as choisi « seulement pendant la charge »).</string>
+    <string name="hey_paused_battery">En pause pour économiser la batterie (batterie faible ou économiseur).</string>
+    <string name="hey_paused_open">N’écoute que lorsque Sara est à l’écran.</string>
+    <string name="hey_paused_quiet">Au repos pendant tes heures calmes. Parler fonctionne toujours.</string>
+    <string name="hey_paused_mic">Une autre app utilise le micro.</string>
+    <string name="hey_heard_you">Entendu</string>
+    <string name="hey_pack">Récupération du modèle vocal depuis ton serveur…</string>
 </resources>

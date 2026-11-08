@@ -184,6 +184,9 @@ async function allow() {
 }
 
 function locate(req) {
+  // C18: the Android app (new build) takes the fix natively, because its web view gives
+  // navigator.geolocation only to https pages and a server at home is often plain http.
+  if (typeof window.SaraPhone?.helperLocate === 'function') return nativeLocate(req);
   if (!navigator.geolocation) throw new Error('unsupported');
   return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(
@@ -191,6 +194,22 @@ function locate(req) {
       (e) => reject(e),
       { enableHighAccuracy: Boolean(req.precise), timeout: 20_000, maximumAge: 60_000 },
     );
+  });
+}
+
+/** One fix from the Android app: it answers window.saraHelperLocated once (20 s at most). */
+function nativeLocate(req) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => done({ error: 'failed' }), 20_000);
+    function done(r) {
+      clearTimeout(timer);
+      window.saraHelperLocated = undefined;
+      if (r && Number.isFinite(r.lat) && Number.isFinite(r.lon)) {
+        resolve(answer({ allow: true, lat: r.lat, lon: r.lon, accuracy: r.accuracy }));
+      } else reject(new Error(r?.error === 'unsupported' ? 'unsupported' : 'failed'));
+    }
+    window.saraHelperLocated = done;
+    window.SaraPhone.helperLocate(Boolean(req.precise));
   });
 }
 

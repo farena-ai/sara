@@ -29,6 +29,7 @@ import { DEFAULT_SECURITY, mergeSecurity, REVIEW_BUDGET_CHOICES, SECURITY_MODES,
 import { DEFAULT_THREATS, mergeThreats, THREAT_MODES, threatSettings } from '../security/threats.ts';
 import { DEFAULT_REDTEAM, mergeRedteam, redteamSettings, RT_BUDGET_CHOICES, RT_MINUTE_CHOICES, SCRIPT_CHOICES, SHIP_MODES } from '../redteam.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { hashOf } from './worktrees.ts';
 import { CheckpointError, checkpointKeys, projectRef } from '../project-checkpoints.ts';
 import { otherWork, projectNowPath } from '../project-now.ts';
 
@@ -537,7 +538,8 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
         closeSync(fd);
       }
       const binary = buf.subarray(0, 8000).includes(0);
-      return send(res, 200, { path: rel, size: st.size, binary, text: binary ? '' : buf.toString('utf8'), truncated: st.size > 200_000 });
+      // C13: the hash lets the Workspace editor refuse to save over a file that changed meanwhile.
+      return send(res, 200, { path: rel, size: st.size, binary, text: binary ? '' : buf.toString('utf8'), truncated: st.size > 200_000, ...(st.size <= 200_000 ? { hash: hashOf(buf) } : {}) });
     }
     if (a === 'workspaces' && !b && method === 'GET') {
       const dir = join(rootDir, 'workspaces');

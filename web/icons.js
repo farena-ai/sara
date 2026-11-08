@@ -122,6 +122,7 @@ export const ICONS = {
   copy: '<rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/>',
   flag: '<path d="M5 21V4.5M5 4.5h11l-2 4 2 4H5"/>',
   play: '<path d="M8 5.5v13l10.5-6.5z"/>',
+  music: '<path d="M9 17.5V5.5l10-2v12"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="15.5" r="2.5"/>',
 };
 
 /** A new icon element, or null for a name that isn't in the set. */
@@ -167,7 +168,7 @@ export function paintIcons(root = document) {
 export const TOOL_ICONS = {
   remind: 'reminder', todo: 'todo', note: 'note', recall: 'recall', web_search: 'search', web_fetch: 'globe',
   calendar: 'calendar', calendar_add: 'calendar', calendar_events: 'calendar', email: 'mail', gmail_search: 'mail',
-  gmail_thread: 'mail', gmail_needs_answer: 'mail', gmail_organize: 'archive', gmail_undo: 'undo', gmail_labels: 'mail', gmail_senders: 'mail', gmail_unsubscribe_info: 'mail', home_control: 'home', home_status: 'home', ssh_servers: 'server',
+  gmail_thread: 'mail', gmail_needs_answer: 'mail', gmail_organize: 'archive', gmail_undo: 'undo', gmail_labels: 'mail', gmail_senders: 'mail', gmail_unsubscribe_info: 'mail', home_control: 'home', home_status: 'home', spotify_search: 'music', spotify_now_playing: 'music', spotify_my_playlists: 'music', spotify_top: 'music', spotify_devices: 'speaker', spotify_playlist_create: 'music', spotify_playlist_add: 'music', spotify_playback: 'play', ssh_servers: 'server',
   ssh_connect: 'server', ssh_run: 'server', ssh_forget_password: 'server', ssh_revoke_key: 'server', ssh_remove_server: 'server',
   take_photo: 'photo', share_photo: 'photo', change_outfit: 'shirt', scrapbook: 'scrapbook', shared_list: 'dice',
   settings_guide: 'help', tune_personality: 'sliders', team_task: 'team', work_on_issue: 'team', start_job: 'job',

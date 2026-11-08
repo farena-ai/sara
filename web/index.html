@@ -1785,7 +1785,33 @@
       <div class="tabs pp-tabs" role="tablist">
         <button type="button" class="tab active" data-pp-tab="overview" role="tab">Overview</button>
         <button type="button" class="tab" data-pp-tab="map" role="tab" id="pp-map-tab">Map</button>
+        <button type="button" class="tab" data-pp-tab="workspace" role="tab" id="pp-work-tab">Workspace</button>
       </div>
+      <!-- C13: the Workspace view (web/workspace-view.js): files, editor, terminal, chat, task worktrees. -->
+      <section id="pp-work" class="wv" hidden>
+        <div class="wv-bar">
+          <label>Folder <select id="wv-root"><option value="">Main checkout</option></select> <button type="button" class="tip" data-tip="Work on this project with her: open and edit files, run commands (the same rules as her shell: off when commands are off, same sandbox), and ask her about the open file. Folder picks the main checkout or one of her task worktrees.">?</button></label>
+          <span id="wv-status" class="muted small" role="status"></span>
+        </div>
+        <div class="add-row wv-start"><input id="wv-task" maxlength="300" placeholder="New task, e.g. Fix the login page"><button id="wv-start" type="button" class="ghost">Start in a worktree</button><button type="button" class="tip" data-tip="She makes a branch sara/… in its own folder (.sara-worktrees) and works there in this chat. Finish with Merge, Open PR or Discard; nothing unsaved is deleted without asking.">?</button></div>
+        <div id="wv-trees" class="wv-trees" hidden></div>
+        <div class="wv-cols">
+          <nav id="wv-files" class="wv-files" aria-label="Files"></nav>
+          <div class="wv-main">
+            <div class="wv-edit-bar"><span id="wv-path" class="muted small">Pick a file.</span><button id="wv-check" type="button" class="ghost small">Problems</button><button id="wv-save" type="button" class="small" disabled>Save</button></div>
+            <div class="wv-editor"><pre id="wv-lines" class="wv-lines" aria-hidden="true">1</pre><textarea id="wv-text" spellcheck="false" wrap="off" aria-label="File"></textarea><button type="button" class="tip" data-tip="The open file. Ctrl+S saves. If she or a command changed it since you opened it, Save says so instead of writing over it. Problems asks the language server (when one is installed).">?</button></div>
+            <ul id="wv-problems" class="wv-problems" hidden></ul>
+            <div class="wv-term">
+              <pre id="wv-out" class="wv-out" role="log" aria-live="polite"></pre>
+              <div class="add-row"><input id="wv-cmd" autocomplete="off" placeholder="Run a command, e.g. npm test"><button id="wv-run" type="button">Run</button><button type="button" class="tip" data-tip="Runs in the folder above, in her sandbox, for up to 2 minutes. For long builds ask her to start a background job.">?</button></div>
+            </div>
+          </div>
+          <aside class="wv-chat" aria-label="Chat">
+            <div id="wv-msgs" class="wv-msgs" role="log" aria-live="polite"></div>
+            <div class="add-row"><textarea id="wv-ask" rows="2" placeholder="Ask her about this file"></textarea><button id="wv-send" type="button">Send</button><button type="button" class="tip" data-tip="A coding chat for this workspace. She sees the open file with each message, and asks before she changes anything.">?</button></div>
+          </aside>
+        </div>
+      </section>
       <section id="pp-map" class="pp-map" hidden>
         <div class="add-row"><input id="pm-q" type="search" maxlength="300" placeholder="Find a function, a file, or what the code does"><select id="pm-kind"><option value="">Best guess</option><option value="symbol">Names</option><option value="text">Words</option><option value="meaning">Meaning</option></select><button id="pm-find" type="button">Find</button></div>
         <div class="pm-bar"><span id="pm-status" class="muted small" role="status"></span><button id="pm-refresh" type="button" class="ghost small">Look again</button><button type="button" class="tip" data-tip="Her map of this workspace: every source file with its functions, classes and imports. It updates by itself when she changes files or a job finishes. She uses the same map with her code tools.">?</button></div>
@@ -2538,7 +2564,7 @@
       <p class="muted small page-lead">Say “Hey Sara” and talk, without touching anything. Off until you turn it on, on each device. <button type="button" class="tip" data-tip="Say her name and talk, hands-free. A small model on the device listens only for the words; nothing is sent until you say them. Off until you turn it on, separately on each device.">?</button></p>
       <div id="wk-this" class="sub-card wk-block">
         <strong class="wk-head">This device <span id="wk-this-name" class="muted small"></span></strong>
-        <p id="wk-no-app" class="muted small">This browser can’t listen for Hey Sara: use the Windows or Android app.</p>
+        <p id="wk-no-app" class="muted small">This browser can’t listen for Hey Sara: use the Windows, Mac or Android app. On Linux, run <code>sara wake</code> in a terminal.</p>
         <div id="wk-app" class="wk-app" hidden>
           <label class="row wk-switch"><input id="wk-on" type="checkbox"> <span id="wk-on-label">Listen for “Hey Sara” on this computer</span> <button type="button" class="tip" data-tip="Opens the microphone and listens for “Hey Sara” on this device only. A dot on her icon shows when the mic is open. Switch it off here, in the tray or notification, or from any of your devices.">?</button></label>
           <p class="wk-dots muted small"><span class="wk-dot" aria-hidden="true"></span> dim dot = waiting · <span class="wk-dot wk-bright" aria-hidden="true"></span> bright = hearing</p>
@@ -2553,6 +2579,7 @@
           <label class="row"><input id="wk-personal" type="checkbox"> <span id="wk-personal-label">This computer is just mine</span> <button type="button" class="tip" data-tip="Off: she treats this like a speaker in a room (never explicit, your private things only if you raise them). On: a normal private chat with her, for headphones or your own room.">?</button></label>
           <label class="row" id="wk-locked-row"><input id="wk-locked" type="checkbox" checked> Pause while the screen is locked <button type="button" class="tip" data-tip="Stops listening when you lock the computer, and starts again when you unlock it.">?</button></label>
           <label class="row" id="wk-charging-row" hidden><input id="wk-charging" type="checkbox"> Only while charging <button type="button" class="tip" data-tip="Listens only while the phone charges, for bedside or desk use. Saves battery.">?</button></label>
+          <label class="row" id="wk-open-row" hidden><input id="wk-open" type="checkbox"> Only while Sara is open <button type="button" class="tip" data-tip="Listens only while the Sara app is on the screen. Uses the least battery: the microphone closes as soon as you leave the app.">?</button></label>
           <p id="wk-today" class="muted small"></p>
           <p id="wk-hint" class="wk-hint small" hidden></p>
           <div class="wk-actions">
@@ -2579,6 +2606,7 @@
           <label>She answers in <button type="button" class="tip" data-tip="Her “Hey Sara” conversation keeps all your spoken questions together. Or use the one open on this device, or a new one each time.">?</button> <select id="wk-talks"><option value="own">Her “Hey Sara” conversation</option><option value="open">The conversation open on the device</option><option value="new">A new conversation each time</option></select></label>
           <label>The phrase starts <button type="button" class="tip" data-tip="One question: you ask, she answers, she goes back to listening. A live call: a full voice call starts, until you hang up (needs live calls).">?</button> <select id="wk-starts"><option value="question">One question</option><option value="call">A live call</option></select></label>
           <label>Keep listening after her answer <button type="button" class="tip" data-tip="Listens a few seconds more for a follow-up without her name. The dot stays bright while it does. Off by default.">?</button> <select id="wk-follow"><option value="0">Off</option><option value="5">5 seconds</option><option value="8">8 seconds</option></select></label>
+          <label class="row"><input id="wk-quiet" type="checkbox"> Never in my quiet hours <button type="button" class="tip" data-tip="Her phrase doesn’t wake her during your quiet hours (Settings → Calls from her), on every device. Pressing Talk still works. Off by default.">?</button></label>
         </div>
       </div>
       <div class="sub-card wk-block">
@@ -3119,6 +3147,15 @@
         <button id="ghw-check" type="button" class="ghost">Look now</button>
       </div>
       <p id="ghw-status" class="muted small" role="status"></p>
+      <h3>Her commits <button type="button" class="tip" data-tip="Her commits end with a Co-authored-by line naming her, so GitHub shows who helped. Leave name and email empty for her name and an address that reaches nobody.">?</button></h3>
+      <label class="row"><input id="ca-on" type="checkbox"> Name her as co-author</label>
+      <div class="add-row">
+        <label>Name <input id="ca-name" maxlength="80"></label>
+        <label>Email <input id="ca-email" maxlength="254" type="email"></label>
+        <button id="ca-save" type="button">Save</button>
+      </div>
+      <p id="ca-status" class="muted small" role="status"></p>
+      <p id="ca-servers" class="muted small"></p>
         </section>
         <section class="settings-page" data-page="ab-projects" data-group="Coding" data-title="Coding projects" data-owner-only hidden>
       <p class="muted small page-lead">What she knows about the code in each workspace: how to build and test it, its layout and rules, and the notes she keeps (decisions, conventions, commands). She looks again by herself every hour; coding conversations and her team use it.</p>
@@ -3820,7 +3857,32 @@
       <p class="muted small">The app is always in. In any of your chats you can type /continue.</p>
       </div>
         </section>
-<section class="settings-page" data-page="co-apps" data-group="Connections" data-title="Other apps" hidden>
+<section class="settings-page" data-page="co-spotify" data-group="Connections" data-title="Spotify" data-owner-only hidden>
+      <p class="muted small page-lead">Let her search Spotify, see what you're listening to, your playlists and your favourites, and, if you allow it, play, pause, skip and queue songs. It uses a small Spotify developer app that <strong>you</strong> own, so nothing goes through anyone else.</p>
+      <p id="spo-status" class="muted small" role="status"></p>
+      <div id="spo-connected" class="add-row" hidden><button id="spo-disconnect" type="button" class="ghost">Disconnect Spotify</button></div>
+      <details id="spo-setup" data-noauto open>
+        <summary>Set it up (about 5 minutes, once)</summary>
+        <p class="muted small">Spotify only runs developer apps for people with Spotify Premium (since March 2026). Making the app is free.</p>
+        <ol class="small setup-steps">
+          <li>Open the <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify developer dashboard</a>, sign in and press "Create app" (any name, e.g. "Sara").</li>
+          <li>Under "Redirect URIs" add exactly:<br><code id="spo-redirect"></code> <button id="spo-copy" type="button" class="ghost small">Copy</button></li>
+          <li>Tick "Web API", accept the terms and press "Save".</li>
+          <li>Open the app's "Settings", copy the <strong>Client ID</strong> into the box below and press Save. No secret is needed.</li>
+          <li>Press <strong>Connect Spotify</strong> and allow access.</li>
+        </ol>
+        <p id="spo-redirect-warn" class="small warn" hidden>Spotify only accepts an https address here, or http://127.0.0.1. Open Sara through her https address (for example Tailscale Serve or your own domain) and set it up from there.</p>
+        <div class="add-row"><label>Client ID <input id="spo-client-id" autocomplete="off" spellcheck="false" maxlength="32" size="36" placeholder="32 letters and digits"></label><button id="spo-save" type="button">Save</button></div>
+      </details>
+      <h3>What she may do</h3>
+      <p class="muted small">She can always search and look. Anything more is up to you:</p>
+      <label class="row"><input id="spo-playlists" type="checkbox"> <span>Let her make and change playlists</span></label>
+      <label class="row"><input id="spo-playback" type="checkbox"> <span>Let her control playback</span></label>
+      <p id="spo-reconnect" class="small warn" hidden>You allowed more than your last sign-in. Press Connect Spotify again so Spotify asks you.</p>
+      <div class="add-row"><button id="spo-connect" type="button" disabled>Connect Spotify</button><button id="spo-forget" type="button" class="ghost small" hidden>Remove the Spotify app</button></div>
+      <p class="muted small">Disconnecting makes Sara forget the sign-in. To take her access away on Spotify's side too, open spotify.com/account/apps and remove it there.</p>
+        </section>
+        <section class="settings-page" data-page="co-apps" data-group="Connections" data-title="Other apps" hidden>
       <p class="muted small page-lead">Talk to her from other apps, with her own memory and personality: chat apps like SillyTavern and Open WebUI (they speak the OpenAI way), and MCP apps like Claude Code, Cursor and Claude Desktop (they can use her memory, planner, library and notes). Give each app its own API key. Her safety rules and the AI notice always apply.</p>
       <h3>Her addresses <button type="button" class="tip" data-tip="Paste these into the other app. The first is for chat apps that work with OpenAI (pick the model sara). The second is for MCP apps. If you reach her another way (Tailscale, your own web address), use that address instead.">?</button></h3>
       <p class="small">For chat apps (OpenAI-compatible): <code id="oa-v1"></code> <button id="oa-v1-copy" type="button" class="ghost small">Copy</button></p>

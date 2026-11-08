@@ -69,6 +69,33 @@ Organization admins invite new accounts separately. Access removal names the per
 confirmation and retains records; the UI does not offer casual organization self-offboarding.
 Managers can inspect their workspace's bounded metadata audit without message/file contents.
 
+## Team pages
+
+**Pages** holds the workspace's shared Markdown pages. Search finds words in titles and text. Open a
+page to read it, see who wrote it and its revision, and read the comments under it.
+
+- **Who can do what:** View only reads pages, comments and resolves their own comments. Contributors
+  also create and edit pages and resolve any comment. Managers also delete a page (with its history
+  and comments).
+- **History:** every saved version is kept and can't be changed. If someone saved while you were
+  editing, your save is refused with a note to reload: nothing is overwritten.
+- **Comments:** reply to a comment to start a thread; Resolve hides nothing but marks it done (Reopen
+  undoes it). Type `@` and a member's name (for example `@Casey Reed`) to notify them: they see it
+  under *Mentions for you* in Pages. Only members of this workspace can be mentioned.
+- **Export:** Export Markdown or Export PDF downloads the page.
+- **Sara:** *Ask Sara about this page* puts the page and its open comments into your next message in
+  the current conversation (for example, to summarize the comments). *Draft a page with Sara* starts
+  a request for a draft. Under her answer, *Save as a page* opens the editor with her text: nothing is
+  saved until you choose Create page. Sara never edits pages herself.
+
+**Organization administrators** find *Team pages: legal hold and personal data* in Organization
+administration. A legal hold on a workspace stops any delete there (pages, comments and other
+content) until released; editing stays possible and every version is kept. For one person,
+*Download their pages* gives a JSON file of the pages they created, the versions they saved and their
+comments; *Delete their comments and name* removes their comments and mentions and their name from
+pages they wrote (the pages stay for the team). It is refused while a workspace they wrote in is held.
+Pages follow the workspace's retention: kept until deleted. Design: ops/C16_DESIGN.md.
+
 ## What stays separate
 
 Business has its own data root, service account, browser origin, identities, authentication keys

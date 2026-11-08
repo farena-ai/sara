@@ -615,10 +615,12 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
   };
   // The app's Hey Sara gets its keyword lines and the server's word from here (every 60 s): the lines
   // (her phrases and the stop lines), which companion each label wakes, a remote off. No text, no audio.
+  // C17: the Mac app loads this page too; its pack is the model only (the engine is in the app).
+  const wakePlatform = /SaraDesktop\/1 \(Mac\)/.test(navigator.userAgent) ? 'mac' : 'windows&arch=x64';
   const wakeSync = async () => {
     if (blocked()) return;
     try {
-      const res = await fetch('/api/wake/config?platform=windows&arch=x64', { credentials: 'same-origin' });
+      const res = await fetch('/api/wake/config?platform=' + wakePlatform, { credentials: 'same-origin' });
       if (!res.ok) return;
       const c = await res.json();
       const lines = [...(c.phrases || []).flatMap((p) => p.lines), ...(c.stop || [])].join('\n');

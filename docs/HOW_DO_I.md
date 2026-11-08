@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 207 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 209 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -945,6 +945,21 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Change it in Tools and approvals.
 
 ## Settings → Connections
+
+### Spotify
+
+**How do I connect Spotify?**
+
+1. Make an app at developer.spotify.com.
+2. Add the redirect address this page shows.
+3. Paste its Client ID and press Save.
+4. Press Connect Spotify and allow access.
+
+**How do I let her play music?**
+
+1. Tick Let her control playback.
+2. Press Connect again.
+3. Ask her to play, pause or queue a song.
 
 ### Phone and notifications
 

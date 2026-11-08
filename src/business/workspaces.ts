@@ -1,4 +1,5 @@
-import { initializeAudit, appendAudit, readAudit } from './audit.ts';
+import { initializeAudit, appendAudit, readAudit, type AuditRecord } from './audit.ts';
+import { installPages } from './pages-schema.ts';
 import { closeSync, existsSync, lstatSync, mkdirSync, openSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -15,6 +16,8 @@ export interface WorkspaceMemory { id: string; body: string; createdAt: string }
 export interface WorkspaceCitation { id: string; documentId: string; excerpt: string }
 export interface WorkspaceNotification { id: string; kind: 'document.changed' | 'conversation.changed'; resourceId: string; createdAt: string }
 export interface WorkspaceSearchHit { kind: 'message' | 'document' | 'memory'; id: string; text: string }
+export interface WorkspacePage { id: string; title: string; body: string; updatedAt: string }
+export interface WorkspacePageComment { actorId: string; body: string }
 export interface WorkspaceAudience { count: number; members: { name: string; role: string }[] }
 
 /** Independent content schema: deliberately contains no owner settings, tools or personal imports. */
@@ -64,6 +67,7 @@ export function openWorkspaceDatabase(profile: BusinessProfile, workspaceId: str
     if (scope.length !== 1 || scope[0].singleton !== 1 || scope[0].profile !== 'business' || scope[0].workspace_id !== workspaceId || scope[0].schema_version !== 1) throw new BusinessAccessError(404);
     db.exec("CREATE TABLE IF NOT EXISTS content_authorship (kind TEXT NOT NULL CHECK(kind IN ('document','upload','conversation')),resource_id TEXT NOT NULL,actor_id TEXT NOT NULL,PRIMARY KEY(kind,resource_id));");
     initializeAudit(db);
+    installPages(db);
     return db;
   } catch (error) { db?.close(); throw error; }
 }
@@ -107,6 +111,22 @@ export class BusinessWorkspaces {
       } catch (error) { db.exec('ROLLBACK'); throw error; }
     });
   }
+  /** C16 team pages: one read (or write transaction with its audit row) under a revalidated role. */
+  pages<T>(context: WorkspaceContext, action: 'read' | 'document' | 'manage', operation: (db: DatabaseSync) => T, audit?: Omit<AuditRecord, 'actorId' | 'workspaceId'>): T {
+    this.#control.policy.revalidateWorkspace(context, action);
+    return this.#read(context, db => {
+      if (!audit) { const value = operation(db); this.#control.policy.revalidateWorkspace(context, action); return value; }
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        this.#control.policy.revalidateWorkspace(context, action);
+        const result = operation(db);
+        if (result && typeof result === 'object' && 'then' in result) throw new BusinessAccessError(400);
+        this.#control.policy.revalidateWorkspace(context, action);
+        appendAudit(db, { ...audit, actorId: context.principal.identityId, workspaceId: context.workspaceId });
+        db.exec('COMMIT'); return result;
+      } catch (error) { db.exec('ROLLBACK'); throw error; }
+    });
+  }
   openWorkspace(context: WorkspaceContext): WorkspaceReader {
     this.revalidate(context);
     const read = async <T>(operation: (db: DatabaseSync) => T): Promise<T> => {
@@ -128,6 +148,8 @@ export class BusinessWorkspaces {
       memories: () => read(db => all<WorkspaceMemory>(db, 'SELECT id,body,created_at AS createdAt FROM memories ORDER BY created_at DESC,id LIMIT 100')),
       citation: (id: string) => read(db => one<WorkspaceCitation>(db, 'SELECT id,document_id AS documentId,excerpt FROM citations WHERE id=?', id)),
       upload: (id: string) => read(db => one<WorkspaceUpload>(db, "SELECT u.id,u.name,u.mime,u.body,u.created_at AS createdAt,a.actor_id AS actorId FROM uploads u LEFT JOIN content_authorship a ON a.kind='upload' AND a.resource_id=u.id WHERE u.id=?", id)),
+      page: (id: string) => read(db => one<WorkspacePage>(db, 'SELECT id,title,body,updated_at AS updatedAt FROM pages WHERE id=?', id)),
+      openComments: (pageId: string) => read(db => { one<WorkspacePage>(db, 'SELECT id FROM pages WHERE id=?', pageId); return all<WorkspacePageComment>(db, 'SELECT author_id AS actorId,body FROM page_comments WHERE page_id=? AND resolved_at IS NULL ORDER BY created_at,id LIMIT 100', pageId); }),
       notifications: () => read(db => all<WorkspaceNotification>(db, 'SELECT id,kind,resource_id AS resourceId,created_at AS createdAt FROM notifications ORDER BY created_at DESC,id LIMIT 100')),
       search: (query: string) => {
         if (typeof query !== 'string' || !query.trim() || query.length > 256) return Promise.reject(new BusinessAccessError(400));
@@ -159,5 +181,7 @@ export interface WorkspaceReader {
   citation(id: string): Promise<WorkspaceCitation>;
   upload(id: string): Promise<WorkspaceUpload>;
   notifications(): Promise<WorkspaceNotification[]>;
+  page(id: string): Promise<WorkspacePage>;
+  openComments(pageId: string): Promise<WorkspacePageComment[]>;
   search(query: string): Promise<WorkspaceSearchHit[]>;
 }

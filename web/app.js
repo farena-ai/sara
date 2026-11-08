@@ -14,6 +14,7 @@ import { autoSave, initDialogs, markDirty, onSave, runSave, saved } from './dial
 import { isDocFile, loadLibrarySettings, openArchives, openLibrary, saveLibrarySettings, uploadDoc, waitRead } from './library.js';
 import { initRooms, loadRoomList, openRoom } from './rooms.js';
 import { initProjectMap, resetProjectMap } from './codemap.js';
+import { initWorkspaceView, loadCoAuthor } from './workspace-view.js';
 import { initSkills, loadSkills, skillApproval } from './skills.js';
 import { initLearning, learnCard, loadLearning } from './learned-skills.js';
 import { loadWhatsAppPage } from './whatsapp.js';
@@ -40,6 +41,7 @@ import { initPeople, peopleEvent, peopleOnOpen, showPerson } from './people.js';
 import { initOtherApps, keyUse, loadOtherApps } from './other-apps.js';
 import { initAlexa, loadAlexa } from './alexa.js';
 import { focusSshServer, initSsh, loadSsh } from './ssh.js';
+import { initSpotify, loadSpotify } from './spotify.js';
 import { initPresence, loadPresence } from './home-presence.js';
 import { initBring } from './bring.js';
 import { initCards } from './cards.js';
@@ -3353,6 +3355,14 @@ const TOOL_WORDS = {
   github_comment: 'Comment on GitHub.',
   github_open_pr: 'Open a pull request on GitHub.',
   home_status: 'See your smart home (Home Assistant).',
+  spotify_search: 'Search Spotify for songs, albums, artists and playlists.',
+  spotify_now_playing: 'See what you are listening to on Spotify.',
+  spotify_my_playlists: 'See your Spotify playlists.',
+  spotify_top: 'See your most-played songs and artists on Spotify.',
+  spotify_devices: 'See your Spotify devices (phone, computer, speakers).',
+  spotify_playlist_create: 'Make a new private Spotify playlist.',
+  spotify_playlist_add: 'Add songs to one of your Spotify playlists.',
+  spotify_playback: 'Play, pause, skip, set the volume, shuffle and queue songs on Spotify, when you ask for music.',
   home_control: 'Switch things in your smart home (Home Assistant).',
   gmail_search: 'Search your Gmail.',
   gmail_read: 'Read an email.',
@@ -3400,6 +3410,7 @@ const TOOL_NAME = {
   gmail_organize: 'Organize your Gmail', gmail_undo: 'Undo a Gmail change', gmail_labels: 'See Gmail labels', gmail_senders: 'Gmail clean-up summary', gmail_unsubscribe_info: 'Find unsubscribe links',
   calendar_events: 'See your calendar', calendar_add: 'Add a calendar event', calendar_remove: 'Delete a calendar event',
   home_status: 'See your smart home', home_control: 'Switch things at home',
+  spotify_search: 'Search Spotify', spotify_now_playing: 'What is playing', spotify_my_playlists: 'Your playlists', spotify_top: 'Your most-played music', spotify_devices: 'Your Spotify devices', spotify_playlist_create: 'Make a playlist', spotify_playlist_add: 'Add songs to a playlist', spotify_playback: 'Control playback',
   ssh_servers: 'List your servers', ssh_connect: 'Add a server', ssh_run: 'Run commands on a server', ssh_forget_password: 'Forget a server password', ssh_revoke_key: 'Remove her key from a server', ssh_remove_server: 'Remove a server',
   tune_personality: 'Adjust her personality', settings_guide: 'Look up how the app works',
   board_list: 'Look at your board', card_add: 'Put a card on your board', card_move: 'Move a card on your board', card_comment: 'Comment on a card', card_ask: 'Ask you about a card', card_assign: 'Assign a card',
@@ -3423,17 +3434,18 @@ const TOOL_GROUP_OF = {
   preview_start: 'browser', preview_stop: 'browser', browser_open: 'browser', browser_screenshot: 'browser', browser_click: 'browser', browser_type: 'browser', browser_read: 'browser', browser_check: 'browser',
   ssh_servers: 'ssh', ssh_connect: 'ssh', ssh_run: 'ssh', ssh_forget_password: 'ssh', ssh_revoke_key: 'ssh', ssh_remove_server: 'ssh',
   tune_personality: 'her', settings_guide: 'her',
+  spotify_search: 'music', spotify_now_playing: 'music', spotify_my_playlists: 'music', spotify_top: 'music', spotify_devices: 'music', spotify_playlist_create: 'music', spotify_playlist_add: 'music', spotify_playback: 'music',
 };
-const TOOL_GROUP_ORDER = ['plan', 'memory', 'pictures', 'web', 'mail', 'home', 'her', 'files', 'run', 'git', 'team', 'browser', 'ssh', 'mcp', 'other'];
-const TOOL_GROUP_ICON = { plan: 'todo', memory: 'recall', pictures: 'photo', web: 'globe', mail: 'mail', home: 'home', her: 'sliders', files: 'folder', run: 'terminal', git: 'branch', team: 'team', browser: 'compass', ssh: 'server', mcp: 'puzzle', other: 'tool' };
+const TOOL_GROUP_ORDER = ['plan', 'memory', 'pictures', 'web', 'mail', 'home', 'music', 'her', 'files', 'run', 'git', 'team', 'browser', 'ssh', 'mcp', 'other'];
+const TOOL_GROUP_ICON = { plan: 'todo', memory: 'recall', pictures: 'photo', web: 'globe', mail: 'mail', home: 'home', music: 'music', her: 'sliders', files: 'folder', run: 'terminal', git: 'branch', team: 'team', browser: 'compass', ssh: 'server', mcp: 'puzzle', other: 'tool' };
 const TOOL_GROUP_TEXT = {
-  plan: 'Planner and notes', memory: 'Memory and know-how', pictures: 'Pictures and keepsakes', web: 'The web', mail: 'Email and calendar', home: 'Smart home',
+  plan: 'Planner and notes', memory: 'Memory and know-how', pictures: 'Pictures and keepsakes', web: 'The web', mail: 'Email and calendar', home: 'Smart home', music: 'Music',
   her: 'Her and this app', files: 'Files and code', run: 'Running commands', git: 'Git and GitHub', team: 'Her team', browser: 'Test browser and previews',
   ssh: 'Servers over SSH', mcp: 'Other programs (MCP)', other: 'Other tools',
 };
 const TOOL_GROUP_ABOUT = {
   plan: 'Your to-dos, notes, reminders and shared lists.', memory: 'Looking back at your chats, your documents and how she did tricky jobs.', pictures: 'Her pictures, outfits, the scrapbook and your album.',
-  web: 'Searching the web and reading public pages.', mail: 'Your Gmail and Google Calendar. Sending, organizing mail and adding events ask first.', home: 'Lights, sensors and switches through Home Assistant.',
+  web: 'Searching the web and reading public pages.', mail: 'Your Gmail and Google Calendar. Sending, organizing mail and adding events ask first.', home: 'Lights, sensors and switches through Home Assistant.', music: 'Spotify: search, what is playing, your playlists. Changing playlists asks first.',
   her: 'Changing her personality dials and looking up how the app works.', files: 'Reading and changing files in her workspace.', run: 'Commands and long tasks on this server.',
   git: 'Project history and GitHub: commits, branches, issues and pull requests.', team: 'Helpers she leads on bigger jobs.', browser: 'A browser without a window she tests her web apps in.',
   ssh: 'Your other servers over SSH. Commands ask first.', mcp: 'Tools from other programs you added.', other: 'Tools that fit no other group.',
@@ -3443,13 +3455,14 @@ const TOOL_NEEDS = {
   web_search: 'search', github_list: 'github', github_read: 'github', github_create_issue: 'github', github_comment: 'github', github_open_pr: 'github', github_post_review: 'github', work_on_issue: 'github',
   gmail_search: 'google', gmail_read: 'google', gmail_thread: 'google', gmail_needs_answer: 'google', gmail_draft: 'google', gmail_send: 'google', calendar_events: 'google', calendar_add: 'google', calendar_remove: 'google',
   gmail_organize: 'google', gmail_undo: 'google', gmail_labels: 'google', gmail_senders: 'google', gmail_unsubscribe_info: 'google',
+  spotify_search: 'spotify', spotify_now_playing: 'spotify', spotify_my_playlists: 'spotify', spotify_top: 'spotify', spotify_devices: 'spotify', spotify_playlist_create: 'spotify', spotify_playlist_add: 'spotify', spotify_playback: 'spotify',
   home_status: 'home', home_control: 'home', take_photo: 'pictures', change_outfit: 'looks', delegate_task: 'agents', moments: 'moments',
 };
 const TOOL_NEED_TEXT = {
-  search: 'Needs a web search service first.', github: 'Needs your GitHub token first.', google: 'Needs Gmail and Calendar connected first.', home: 'Needs Home Assistant connected first.',
+  search: 'Needs a web search service first.', github: 'Needs your GitHub token first.', google: 'Needs Gmail and Calendar connected first.', home: 'Needs Home Assistant connected first.', spotify: 'Needs Spotify connected first (playlists and playback need their tick too).',
   pictures: 'Needs pictures from her set up first.', looks: 'Needs saved looks in her closet first.', agents: 'Needs Claude Code or Grok Build signed in first.', moments: 'Our moments is off.', none: 'Not set up yet',
 };
-const TOOL_NEED_PAGE = { search: 'ab-search', github: 'ab-github', google: 'ab-google', home: 'ab-home', pictures: 'her-pictures', looks: 'her-look', agents: 'models-subs' };
+const TOOL_NEED_PAGE = { search: 'ab-search', github: 'ab-github', google: 'ab-google', home: 'ab-home', spotify: 'co-spotify', pictures: 'her-pictures', looks: 'her-look', agents: 'models-subs' };
 const PERM_LABEL = { auto: 'Allowed', ask: 'Ask me first', never: 'Off' };
 const toolGroupsOpen = () => {
   try {
@@ -6271,6 +6284,7 @@ $('#ha-clear').addEventListener('click', async () => {
 
 // ---------- GitHub token (Phase 13) ----------
 async function loadGitHub() {
+  void loadCoAuthor();
   const g = await api('/github').catch(() => ({ hasToken: false }));
   $('#gh-token').value = '';
   $('#gh-token').placeholder = g.hasToken ? 'saved (leave empty to keep)' : 'not set';
@@ -8239,7 +8253,7 @@ async function loadSettingsPages() {
   // Phase 71: a household member's space answers only their own pages; the owner's are skipped.
   if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop()]));
   await loadTools();
-  await Promise.all([loadDevices().catch(() => {}), loadDeviceApproval(), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadWhileBusy(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets()]);
+  await Promise.all([loadDevices().catch(() => {}), loadDeviceApproval(), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadWhileBusy(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadSpotify(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets()]);
 }
 /**
  * M9: text drawn from data before a language change stays in the old language, so the open
@@ -9460,6 +9474,8 @@ function taskRow(tk) {
   return row;
 }
 initProjectMap(() => pageProject?.workspace ?? null);
+// C13: the project page's Workspace tab and Settings → GitHub → Her commits (web/workspace-view.js).
+initWorkspaceView({ api, el, workspace: () => pageProject?.workspace ?? null, projectId: () => pageProject?.id ?? null });
 initSkills();
 initPlugins();
 // Phase 116: the split Send button, the waiting chips and the side question's card.
@@ -11249,6 +11265,8 @@ initMoveIn({
 });
 initAlexa({ copyText });
 initSsh();
+// C14: Settings → Connections → Spotify.
+initSpotify(api);
 initPresence();
 initLocalModels({ openSettings: (page) => void openSettings(page) });
 initImport();

@@ -172,6 +172,8 @@ export interface WakeSettings {
   starts?: 'question' | 'call';
   followUpSeconds?: 0 | 5 | 8;
   sensitivity?: Sensitivity;
+  /** C17: never listen for the phrase in the quiet hours (Settings → Calls from her); off by default. */
+  quietHours?: boolean;
 }
 export const TALKS_IN: readonly TalksIn[] = ['own', 'open', 'new'];
 export interface WakeView {
@@ -180,6 +182,7 @@ export interface WakeView {
   starts: 'question' | 'call';
   followUpSeconds: 0 | 5 | 8;
   sensitivity: Sensitivity;
+  quietHours: boolean;
 }
 /** The settings with the defaults (§19): own conversation, one question, no follow-up, Normal. */
 export function wakeView(s: WakeSettings | undefined, fallback: () => WakePhrase[]): WakeView {
@@ -190,6 +193,7 @@ export function wakeView(s: WakeSettings | undefined, fallback: () => WakePhrase
     starts: s?.starts === 'call' ? 'call' : 'question',
     followUpSeconds: s?.followUpSeconds === 5 || s?.followUpSeconds === 8 ? s.followUpSeconds : 0,
     sensitivity: cleanSensitivity(s?.sensitivity),
+    quietHours: s?.quietHours === true,
   };
 }
 /** The first free label W1…W4. */

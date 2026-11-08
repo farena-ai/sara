@@ -14,9 +14,15 @@ import { createBrowserTools } from './tools/browser.ts';
 import { PreviewManager } from './preview.ts';
 import { BrowserManager } from './browser.ts';
 import { GoogleAccount, googleApiBase } from './google.ts';
+import { SpotifyAccount, spotifyApiBase } from './spotify.ts';
+import { createSpotifyTools } from './tools/spotify.ts';
 import { GmailOrganizer } from './gmail-organize.ts';
 import { createGmailOrganizeTools } from './tools/gmail-organize.ts';
 import { createGitHubTools } from './tools/github.ts';
+import { createWorktreeTools } from './tools/worktrees.ts';
+import { createLspTools } from './tools/lsp.ts';
+import { gitRunner, Worktrees } from './worktrees.ts';
+import { LspEngine } from './lsp.ts';
 import { createHomeTools } from './tools/home.ts';
 import { createGoogleTools } from './tools/google.ts';
 import { WeeklyWorker } from './weekly.ts';
@@ -456,6 +462,8 @@ const log = new Log(dataDir, (s) => redactor.redact(s), undefined, logOptions())
 log.useSaved(settings.get().logLevel);
 log.captureConsole();
 const isDemo = process.env.SARA_DEMO === '1';
+// C13: one language-server engine for the process (servers start on first use, stop when idle).
+const lspEngine = new LspEngine();
 // EC28: a restore drill boots a throwaway copy of a backup (src/restore-drill.ts): it answers
 // /api/health and sign-in, but starts no workers, bridges, plugins, tool servers or backups.
 const isDrill = process.env.SARA_RESTORE_DRILL === '1';
@@ -532,6 +540,9 @@ const subscriptions = new Subscriptions(vault, dataDir);
 // SARA_GOOGLE_API_BASE (loopback only) points the Google APIs at a local fake for tests.
 const googleBase = googleApiBase();
 const google = new GoogleAccount(vault, googleBase ? { apiBase: googleBase } : {});
+// C14: Spotify (the owner's own Spotify app; off until he connects it).
+const spotifyBase = spotifyApiBase();
+const spotify = new SpotifyAccount(vault, spotifyBase ? { apiBase: spotifyBase } : {});
 // Local voice tools are Linux only for now (deploy/install-voice.sh).
 // Phase 126 part C: on Windows and macOS her voice lives in <data>/voice (`sara voice install`).
 const voiceDir = resolve(process.env.SARA_VOICE_DIR ?? (process.platform === 'linux' ? '/opt/sara-voice' : join(dataDir, 'voice')));
@@ -1028,6 +1039,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     voice,
     subscriptions,
     ...(isMember ? {} : { google }),
+    ...(isMember || isDemo ? {} : { spotify }),
     ...(isMember || !sshManager ? {} : { ssh: sshManager }),
   };
   if (space.member) app.member = space.member;
@@ -1179,10 +1191,19 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isMember) {
     for (const t of createBrowserTools(app)) tools.add(t);
     for (const t of createGitHubTools(app)) tools.add(t);
+    // C13: task worktrees and the pull-request helper; the language-server tools (read only).
+    if (!isDemo) {
+      app.worktrees = new Worktrees(store.db, () => app.now(), gitRunner(app.persona.name !== 'Sara' ? { GIT_AUTHOR_NAME: app.persona.name, GIT_COMMITTER_NAME: app.persona.name } : {}));
+      app.lsp = lspEngine;
+      for (const t of createWorktreeTools(app)) tools.add(t);
+      for (const t of createLspTools(() => app.lsp)) tools.add(t);
+    }
     // Phase 29: Home Assistant (off until the owner connects it).
     for (const t of createHomeTools(app)) tools.add(t);
     // Phase 14: Gmail and Google Calendar (the owner's own Google app; off until they sign in).
     for (const t of createGoogleTools(google, () => settingsC.get().timeZone)) tools.add(t);
+    // C14: Spotify (search, what's playing, playlists; playback only when the owner allowed it). Never the demo.
+    if (!isDemo) for (const t of createSpotifyTools(spotify)) tools.add(t);
     // Gmail organizing (archive, labels, trash…, with Undo): the owner's own Gmail only; never the demo.
     if (!isDemo) {
       app.gmail = new GmailOrganizer(google, store.db, { timeZone: () => settingsC.get().timeZone, now: () => app.now(), jobs: () => app.jobs, workspaceOf: (id) => store.getConversation(id)?.workspace, onChange: gmailTodayHook(app) });
@@ -1712,6 +1733,7 @@ server.listen(port, host, () => {
 
 let shuttingDown = false;
 async function shutdown(): Promise<void> {
+  lspEngine.stopAll();
   if (shuttingDown) return;
   shuttingDown = true;
   for (const c of companions.all()) await c.stop();
