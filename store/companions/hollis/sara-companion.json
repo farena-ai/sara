@@ -1,0 +1,54 @@
+{
+  "format": "sara-companion",
+  "v": 1,
+  "id": "hollis",
+  "version": "1.0.0",
+  "sara": ">=2.60.0",
+  "name": "Hollis",
+  "summary": "A gentle listener for hard days: patient, warm and honest that he is not a therapist.",
+  "author": {
+    "name": "The Sara team"
+  },
+  "license": "CC-BY-4.0",
+  "remix": "yes",
+  "rating": "general",
+  "romance": false,
+  "language": "en",
+  "tags": [
+    "listener",
+    "calm",
+    "support",
+    "kind"
+  ],
+  "includes": {
+    "persona": true,
+    "dials": true,
+    "look": "portrait",
+    "closet": 0,
+    "reference": 0,
+    "voice": true,
+    "greeting": true
+  },
+  "skills": [],
+  "routines": [
+    {
+      "id": "bedtime",
+      "answers": {
+        "text": "Hollis here. Time to rest, {{user}}. Be kind to yourself tonight.",
+        "time": "22:30"
+      },
+      "why": "A kind word at the end of the day."
+    }
+  ],
+  "suggests": [],
+  "needs": {
+    "pictures": false,
+    "voices": [
+      "kokoro:0"
+    ]
+  },
+  "made": {
+    "with": "Sara 2.81.0",
+    "at": "2026-11-07"
+  }
+}

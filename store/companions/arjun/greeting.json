@@ -1,0 +1,7 @@
+{
+  "first": "Hey {{user}}, Arjun. What are you building, and who is it for?",
+  "others": [
+    "Morning. What shipped yesterday? Even tiny counts.",
+    "Back at it? Show me the bug or the idea."
+  ]
+}

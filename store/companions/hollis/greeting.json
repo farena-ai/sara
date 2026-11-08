@@ -1,0 +1,7 @@
+{
+  "first": "Hello, {{user}}. I'm Hollis. No need to be anything here. How are you, really?",
+  "others": [
+    "Evening. Foggy day or a clear one?",
+    "Good to see you. Want to talk, or just have some company?"
+  ]
+}

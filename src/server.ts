@@ -94,6 +94,7 @@ import { createHandsRoutes, createHandsUpgrade } from './routes/hands.ts';
 import { createMoveInPublic, createMoveInRoutes, serveCollector } from './routes/movein.ts';
 import { createHubRoutes } from './routes/hub.ts';
 import { createStoreRoutes } from './routes/store.ts';
+import { createPrereqRoutes } from './routes/prereqs.ts';
 import { createPackRoutes } from './routes/packs.ts';
 import { createWakeRoutes } from './routes/wake.ts';
 
@@ -361,7 +362,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports', 'boards']);
   /** Security review: routes an app signed in with a device code may not use (sign-in settings, devices, approving apps). */
   // Phase 100: 'agents' (A2A keys and peers) too. EC4/EC5: the audit trail and the policy.
-  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy']);
+  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs']);
   /**
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
@@ -956,6 +957,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const hubRoutes = createHubRoutes(ctx);
   // Phase 124: the Sara Store's reader (src/routes/store.ts).
   const storeRoutes = createStoreRoutes(ctx);
+  // PRQ: the programs add-ons need and *Install it for me* (src/routes/prereqs.ts).
+  const prereqRoutes = createPrereqRoutes(ctx);
   // Phase 126: Hey Sara (src/routes/wake.ts).
   const wakeRoutes = createWakeRoutes(ctx);
   // Phase 127: companion packs (src/routes/packs.ts).
@@ -1348,6 +1351,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await peopleRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await hubRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await storeRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await prereqRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await packRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 16: Adult mode. Off by default; on only from a web browser with the 18+ confirmation.
     if (a === 'pair' && !b && method === 'POST') {

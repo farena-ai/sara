@@ -13,7 +13,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const TOKEN_KEY = 'sara.deviceToken';
-const VERSION = '0.81.0';
+const VERSION = '0.82.0';
 /** Files that are never sent (env files, keys, credentials). */
 const SECRET_FILE = /(^\.env($|\.)|^\.npmrc$|^\.netrc$|^id_(rsa|dsa|ecdsa|ed25519)|\.(pem|key|p12|pfx|jks|keystore|kdbx|asc|gpg)$|^credentials(\.\w+)?$|secret|password|\.tfstate$)/i;
 

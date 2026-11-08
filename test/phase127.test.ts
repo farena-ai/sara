@@ -667,17 +667,26 @@ test('36 /api/packs/* is owner-only (not a member family) and the demo refuses w
   }
 });
 
-test('39 the four starter packs pass the store checks with no warnings; every picture has a rights row', async () => {
-  const { checkStarters, STARTER_IDS } = await import('../scripts/starter-packs.ts');
+test('39 every first-party companion pack passes the store checks with no warnings; every picture has a rights row', async () => {
+  const { checkStarters, STARTER_IDS, PACK_IDS } = await import('../scripts/starter-packs.ts');
   assert.deepEqual(STARTER_IDS, ['juniper', 'rowan', 'vesper', 'jax']);
-  for (const r of checkStarters()) {
+  assert.deepEqual([...PACK_IDS].sort(), readdirSync(join(ROOT, 'store', 'companions')).sort(), 'every pack folder is written by the script');
+  assert.ok(PACK_IDS.length >= 20);
+  const results = checkStarters();
+  assert.equal(results.length, PACK_IDS.length);
+  for (const r of results) {
     assert.equal(r.ready, true, r.text);
     assert.equal(r.warnings, 0, r.text);
   }
-  for (const id of STARTER_IDS) {
-    const m = JSON.parse(readFileSync(join(ROOT, 'store', 'companions', id, 'sara-companion.json'), 'utf8'));
-    assert.deepEqual([m.rating, m.romance, m.license, m.remix], ['general', false, 'CC-BY-4.0', 'yes']);
-    assert.ok(statSync(join(ROOT, 'store', 'companions', id, 'rights.json')).size > 0);
+  for (const id of PACK_IDS) {
+    const dir = join(ROOT, 'store', 'companions', id);
+    const m = JSON.parse(readFileSync(join(dir, 'sara-companion.json'), 'utf8'));
+    assert.deepEqual([m.rating, m.romance, m.license, m.remix], ['general', false, 'CC-BY-4.0', 'yes'], id);
+    const p = JSON.parse(readFileSync(join(dir, 'persona.json'), 'utf8'));
+    assert.ok(p.age >= 21, `${id} is clearly an adult`);
+    assert.equal(m.includes.look, 'portrait', `${id} has her portrait and avatar`);
+    const rights = JSON.parse(readFileSync(join(dir, 'rights.json'), 'utf8'));
+    assert.deepEqual(rights.map((x: Any) => [x.files, x.made, x.model, x.from]), [[['look/*', 'cover.png'], 'ai', 'gpt-image-2', 'words']], id);
   }
 });
 

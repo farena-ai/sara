@@ -728,9 +728,9 @@ export const discoveryData ={
       ],
       "cost": "No model or API requests. Local machine resources only.",
       "privacy": "local",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "tool": "analyze",
-      "contentSha": "809b4ad8ef8d1181bb545d7a6fa4f3b0f62d2b3c5122ade358d70e4cace4c407"
+      "contentSha": "00b3d225764ce8de6258401452cd78111dafb756a4aa784774bc961601301694"
     },
     {
       "id": "change-impact-analyzer",

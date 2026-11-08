@@ -39,6 +39,7 @@ import { STORE_COMPANION_LIMITS } from '../packs/format.ts';
 import { ownerNames } from '../packs/scrub.ts';
 import { adultModeOn } from '../settings.ts';
 import { packInstallerFor } from './packs.ts';
+import { prereqService } from './prereqs.ts';
 import { smokeFence } from '../store/pack-cli.ts';
 import { authorKey, DeskError, deskDown, refreshSubmission, replySubmission, sendReport, submissions, submit } from '../store/submit.ts';
 import { sha256, StoreRefused } from '../store/verify.ts';
@@ -150,7 +151,7 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
     const installer = () => {
       if (!client || !app.storeInstalls) throw new HttpError(404, en('The Sara Store is not available here.'));
       const packs = packInstallerFor(ctx);
-      return new StoreInstaller({ app, client, installs: app.storeInstalls, ...(app.pluginManager ? { plugins: app.pluginManager } : {}), ...(packs ? { packs } : {}) });
+      return new StoreInstaller({ app, client, installs: app.storeInstalls, ...(app.pluginManager ? { plugins: app.pluginManager } : {}), ...(packs ? { packs } : {}), programs: prereqService(app) });
     };
     const url = new URL(req.url ?? '/', 'http://x');
     const desk = () => {
@@ -261,6 +262,13 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, r);
       }
       if (!d && method === 'DELETE') return send(res, 200, { ok: ins.mcpCancel(c) });
+      // PRQ: look again for what it needs (after *Install it for me*), then *Continue install*.
+      if (d === 'recheck' && method === 'POST') {
+        await readJson(req).catch(() => undefined);
+        const r = ins.mcpRecheck(c);
+        if (!r) throw new HttpError(404, en('That review has expired.'));
+        return send(res, 200, r);
+      }
       if (d === 'approve' && method === 'POST') {
         const body = await readJson(req);
         try {

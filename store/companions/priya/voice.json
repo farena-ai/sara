@@ -1,0 +1,9 @@
+{
+  "tts": "local",
+  "localVoice": "kokoro:4",
+  "speed": 1,
+  "openaiVoice": "nova",
+  "elevenlabsVoice": "",
+  "xaiVoice": "ara",
+  "xaiLanguage": "en"
+}

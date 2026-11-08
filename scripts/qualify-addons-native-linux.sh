@@ -3,7 +3,7 @@
 # Sara and the script run as the `sara` user from a read-only source tree, with SARA_DATA, HOME and
 # TMPDIR in a fresh folder under /dev/shm (never /tmp, never /var/lib/sara), on 127.0.0.1:7872,
 # niced, and removed again on exit (stopped by PID). It never touches the live service.
-#   bash qualify-addons-native-linux.sh <source-tree> <script> <results.json> [--only a,b]
+#   [STORE_URL=http://127.0.0.1:<port>] bash qualify-addons-native-linux.sh <source-tree> <script> <results.json> [--only a,b]
 set -euo pipefail
 SRC=${1:?source tree}; SCRIPT=${2:?script}; OUT=${3:?results file}; shift 3
 NODE=/opt/sara/node/bin/node; PORT=7872
@@ -18,7 +18,7 @@ install -o sara -g sara -m 600 "$SCRIPT" "$WORK/qualify.mjs"
 sudo -u sara mkdir -p "$WORK/data" "$WORK/home" "$WORK/tmp"
 cd "$SRC"
 sudo -u sara env -i PATH=/usr/bin:/bin HOME="$WORK/home" TMPDIR="$WORK/tmp" NODE_ENV=production \
-  SARA_DATA="$WORK/data" SARA_HOST=127.0.0.1 SARA_PORT=$PORT \
+  SARA_DATA="$WORK/data" SARA_HOST=127.0.0.1 SARA_PORT=$PORT ${STORE_URL:+SARA_STORE_URL=$STORE_URL} \
   nice -n 15 ionice -c 3 "$NODE" --disable-warning=ExperimentalWarning "$SRC/src/main.ts" > "$WORK/server.log" 2>&1 &
 PID=$!
 for _ in $(seq 60); do grep -q "listening on" "$WORK/server.log" 2>/dev/null && break; sleep 1; done

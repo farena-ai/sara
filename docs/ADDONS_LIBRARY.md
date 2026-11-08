@@ -7,6 +7,8 @@ Sara's add-ons extend the existing harness rather than replacing its memory, saf
 
 Browse the [Sara Add-ons website](https://backstagecoding.com/sara/store/) for each entry's current qualification and publication state. A source folder, successful local test or attractive listing is not a published signed store package. New connection previews are not production-ready integrations.
 
+A tool server that needs a program Sara's computer lacks (Chrome, uv, Docker, Node.js, Blender…) says so on its card, with **Install it for me**: see [Programs add-ons need](PREREQUISITES.md).
+
 ## What Sara shows today
 
 Every entry in the library appears in Sara once, in the place it can actually be used:

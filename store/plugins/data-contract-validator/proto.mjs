@@ -24,5 +24,5 @@ export function protoAnalyze(args,bounded){const a=parse(args.before),b=parse(ar
  }
  const type=b.root.lookupType(args.message);if(!b.messages.has(type.fullName))throw Error('message');
  const payloads=args.payloads.map(text=>{const value=JSON.parse(text);bounded(value);const valid=validPayload(type,value);if(!valid)return {valid:false,errors:[{keyword:'protobuf-payload'}]};const bytes=type.encode(type.create(value)).finish(),decoded=type.decode(bytes);for(const f of type.fieldsArray){if(!Object.hasOwn(value,f.name))continue;const original=f.repeated?value[f.name]:[value[f.name]],roundtrip=f.repeated?decoded[f.name]:[decoded[f.name]];if(original.length!==roundtrip.length||original.some((v,i)=>roundtrip[i]!== (f.type==='float'?Math.fround(v):v)))return {valid:false,errors:[{keyword:'protobuf-wire-identity'}]};}return {valid:true,errors:[],wireBytes:bytes.length};});
- return {format:'protobuf',compatible:breaking.length===0,breaking,payloads,validator:'protobufjs 7.5.4 / bounded flat scalar+enum subset'};
+ return {format:'protobuf',compatible:breaking.length===0,breaking,payloads,validator:'protobufjs 7.6.6 / bounded flat scalar+enum subset'};
 }

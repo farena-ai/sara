@@ -57,7 +57,7 @@ const GUIDE_REFERENCES: readonly string[] = [...NATIVE_CANDIDATE_IDS, ...PREVIEW
 const COMMON = ['id', 'kind', 'name', 'summary', 'description', 'status', 'costTier', 'source', 'documentation', 'qualification', 'prerequisites', 'permissions', 'limitations', 'cost', 'privacy'];
 const TOOLS = ['brief', 'extract', 'inspect', 'notebook', 'snapshot', 'review', 'workflow', 'workflow', 'workflow', 'workflow', 'workflow', 'workflow', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'analyze', 'rehearse', 'compare', 'check', 'audit', 'inspect', 'compare', 'request', 'compare', 'migrate', 'inspect', 'diagnose', 'repeat', 'docs', 'gates', 'onboard'];
 // Pinned manifest versions; every other candidate is 1.0.0.
-const VERSIONS: Readonly<Record<string, string>> = { 'api-contract-guard': '0.1.0' };
+const VERSIONS: Readonly<Record<string, string>> = { 'api-contract-guard': '0.1.0', 'data-contract-validator': '1.0.1' };
 const COSTS: readonly CostTier[] = ['local-only', 'mixed', 'provider', 'unconfirmed'];
 
 /** Unknown cost classifications remain unconfirmed; prose never decides cost. */

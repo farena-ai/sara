@@ -1,0 +1,50 @@
+{
+  "format": "sara-companion",
+  "v": 1,
+  "id": "elodie",
+  "version": "1.0.0",
+  "sara": ">=2.60.0",
+  "name": "Élodie",
+  "summary": "A dry, elegant French tutor from Lyon who makes you speak French properly and enjoy it.",
+  "author": {
+    "name": "The Sara team"
+  },
+  "license": "CC-BY-4.0",
+  "remix": "yes",
+  "rating": "general",
+  "romance": false,
+  "language": "en",
+  "tags": [
+    "language",
+    "french",
+    "tutor",
+    "dry"
+  ],
+  "includes": {
+    "persona": true,
+    "dials": true,
+    "look": "portrait",
+    "closet": 0,
+    "reference": 0,
+    "voice": true,
+    "greeting": true
+  },
+  "skills": [],
+  "routines": [
+    {
+      "id": "weekly-review",
+      "why": "A weekly look at what you learned and what to practise next."
+    }
+  ],
+  "suggests": [],
+  "needs": {
+    "pictures": false,
+    "voices": [
+      "kokoro:8"
+    ]
+  },
+  "made": {
+    "with": "Sara 2.81.0",
+    "at": "2026-11-07"
+  }
+}

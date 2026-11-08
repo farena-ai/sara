@@ -22,6 +22,7 @@ import { loadIMessagePage } from './imessage.js';
 import { loadSlackPage } from './slack.js';
 import { initPlugins, loadPlugins, pluginAskLine, pluginNotice, pluginResultCard, pluginStepWords } from './plugins.js';
 import { loadMcpDiscovery } from './addons-discovery.js';
+import { loadPrograms, wirePrograms } from './prereqs.js';
 import { loadSignalPage } from './signal.js';
 import { loadEmailPage } from './email.js';
 import { renderTelegramSetup } from './telegram-setup.js';
@@ -7538,8 +7539,11 @@ function renderMcp(list) {
 async function loadMcp() {
   renderMcp(await api('/mcp'));
   mcpRows();
+  // PRQ: the programs add-ons need, and *Install it for me*.
+  void loadPrograms();
   await loadMcpDiscovery();
 }
+wirePrograms();
 
 function parseSecrets(text) {
   const env = {};

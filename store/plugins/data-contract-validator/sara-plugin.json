@@ -2,7 +2,7 @@
   "manifest": 1,
   "id": "data-contract-validator",
   "name": "Schema and Data Contract Validator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Validate explicit payloads and compare bounded JSON Schema draft-07 or Protobuf contracts using pinned libraries. Unsupported constructs are refused.",
   "author": "Sara team",
   "license": "MIT",

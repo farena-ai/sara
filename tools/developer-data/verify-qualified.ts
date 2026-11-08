@@ -1,5 +1,7 @@
 /// <reference path="../../node_modules/@types/node/index.d.ts" />
 // Exact-byte readback after the focused actual-manager/official-packer gate.
+// Historical: binds the 1.0.0 receipts (Ajv 8.17.1 / protobufjs 7.5.4 bytes). Data Contract Validator 1.0.1
+// is bound by the sequence-5 checks recorded in docs/ops/DEVELOPER_DATA_QUALIFICATION.md.
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';

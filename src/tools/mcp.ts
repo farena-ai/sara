@@ -329,7 +329,7 @@ export class McpConnection {
     };
     const net = !privateLocalOn();
     if (opts.sandbox.mode === 'bwrap') {
-      return new StdioTransport('bwrap', [...bwrapArgs(home, net, mcpBinds(c, opts.dataDir)), c.command, ...(c.args ?? [])], { ...baseEnv, HOME: '/workspace' }, home);
+      return new StdioTransport('bwrap', [...bwrapArgs(home, net, [...mcpBinds(c, opts.dataDir), ...mcpBrowserBinds()]), c.command, ...(c.args ?? [])], { ...baseEnv, HOME: '/workspace' }, home);
     }
     if (opts.sandbox.mode === 'seatbelt') {
       // macOS: the add-on runs inside the sandbox too, with its own folder as home (network on).
@@ -500,6 +500,13 @@ export function mcpBinds(cfg: McpServerConfig, dataDir: string): Bind[] {
     const inData = rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
     return !inData && existsSync(f);
   }).map((f) => ({ src: f, dest: f, rw: true }));
+}
+
+/** Installed browsers' system folders, mounted read-only so browser tool servers (Playwright, Chrome
+ *  DevTools) find the Chrome the owner installed instead of reporting it missing. */
+const BROWSER_DIRS = ['/opt/google/chrome', '/opt/microsoft/msedge', '/usr/lib/chromium', '/usr/lib64/chromium-browser'];
+export function mcpBrowserBinds(exists: (p: string) => boolean = existsSync): Bind[] {
+  return BROWSER_DIRS.filter((d) => exists(d)).map((d) => ({ src: d, dest: d, rw: false }));
 }
 
 /** Splits a command-line string into arguments, honouring simple quotes. */

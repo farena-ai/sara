@@ -1,7 +1,7 @@
 # Pinned runtime third-party licenses
 
 
-## ajv 8.17.1
+## ajv 8.18.0
 
 The MIT License (MIT)
 
@@ -110,7 +110,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## protobufjs 7.5.4
+## protobufjs 7.6.6
 
 This license applies to all parts of protobuf.js except those files
 either explicitly including or referencing a different license or

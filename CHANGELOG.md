@@ -5,6 +5,37 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.82.0 (2026-11-07): one-click programs and 21 companions
+
+### Fixed
+
+- Playwright and Chrome DevTools tool servers on Linux find an installed Google Chrome (or Edge/Chromium): its system folder is now visible, read-only, inside the tool-server sandbox.
+
+- **Programs add-ons need, installed with one click (PRQ, owner request; `docs/PREREQUISITES.md`):** a
+  tool server's card and Settings → Add-ons → Other programs show what is missing on the computer
+  where Sara runs (Google Chrome, uv, Docker, Node.js, Python, Blender, FFmpeg), and **Install it for
+  me** installs it with the system's own installer (winget, Homebrew, apt/dnf/zypper/pacman, or a
+  pinned vendor archive checked by sha256): a card with the exact commands first, then live progress
+  with Stop, then a re-check and **Continue install**. Owner only; *Program installs: Ask first /
+  Allowed / Off*, pinnable by the policy; every outcome is an audit row. Docker Desktop, Linux without
+  root or password-less sudo, and other cases Sara can't install show the exact manual steps.
+- **21 companions in the Sara Store (signed sequence 6):** Settings → Add-ons → Get more → Companions now
+  lists the four starters (Juniper, Rowan, Vesper, Jax, which were never actually published) and 17 new
+  first-party companions with different styles and interests: Marisol (Spanish tutor), Élodie (French
+  tutor), Kenji (Japanese tutor), Dex (blunt fitness coach), Lucia (chef), Priya (study buddy), Wren
+  (writing partner), Hollis (a listener, not a therapist), Inês (budget planner, not financial advice),
+  Tavi (gamer), Nia (music producer), Ambrose (history buff), Bram (gardener), Zara (travel planner),
+  Arjun (startup co-founder who codes), Theodora (philosopher) and Kestrel (SFW fantasy role-play
+  captain). Every one is an adult, rated for everyone and not romantic, with a portrait and avatar made
+  with OpenAI GPT Image 2 (`docs/images/companions/PROVENANCE.md`), a built-in voice, a hello and
+  boundaries. *Add* shows her card first and makes a new companion; *Retire her* removes her. The add-ons
+  website shows each companion's portrait and an example exchange.
+
+- **Security:** the Schema and Data Contract Validator add-on 1.0.1 ships rebuilt bundles of protobufjs
+  7.6.6 and Ajv 8.18.0 (1.0.0 carried 7.5.4 and 8.17.1: code execution from a crafted schema,
+  CVE-2026-41242; a hang on a truncated `.proto` option; Ajv `$data` ReDoS). Signed Store sequence 5
+  lists 1.0.1 (1.0.0 kept); *Update* in Settings → Add-ons installs it. Behaviour is unchanged.
+
 ## 2.81.0 (2026-11-07): ready for work and teams
 
 - **Security:** developer qualification tool locks bumped for the 26 open Dependabot alerts: protobufjs

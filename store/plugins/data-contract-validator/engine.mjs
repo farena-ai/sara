@@ -34,5 +34,5 @@ export function analyze(args){validateInput(args,parameters);bounded(args);if(ar
  const a=JSON.parse(args.before),b=JSON.parse(args.after);bounded(a);bounded(b);schemaGuard(a);schemaGuard(b);
  const ajv=new Ajv({strict:true,allErrors:false,ownProperties:true,validateFormats:false,logger:false});ajv.compile(a);const validate=ajv.compile(b),breaking=[];compare(a,b,'$',breaking);
  const payloads=args.payloads.map(text=>{const value=JSON.parse(text);bounded(value);const valid=validate(value);return {valid,errors:valid?[]:validate.errors.map(e=>({path:e.instancePath,keyword:e.keyword}))};});
- return {format:args.format,compatible:breaking.length===0,breaking,payloads,validator:'Ajv 8.17.1 / bounded draft-07 subset'};
+ return {format:args.format,compatible:breaking.length===0,breaking,payloads,validator:'Ajv 8.18.0 / bounded draft-07 subset'};
 }

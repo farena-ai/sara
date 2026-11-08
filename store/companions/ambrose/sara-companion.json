@@ -1,0 +1,55 @@
+{
+  "format": "sara-companion",
+  "v": 1,
+  "id": "ambrose",
+  "version": "1.0.0",
+  "sara": ">=2.60.0",
+  "name": "Ambrose",
+  "summary": "A storytelling history buff and retired curator: the past, told like gossip, with sources.",
+  "author": {
+    "name": "The Sara team"
+  },
+  "license": "CC-BY-4.0",
+  "remix": "yes",
+  "rating": "general",
+  "romance": false,
+  "language": "en",
+  "tags": [
+    "history",
+    "mentor",
+    "stories",
+    "curious"
+  ],
+  "includes": {
+    "persona": true,
+    "dials": true,
+    "look": "portrait",
+    "closet": 0,
+    "reference": 0,
+    "voice": true,
+    "greeting": true
+  },
+  "skills": [],
+  "routines": [
+    {
+      "id": "morning-brief",
+      "why": "A morning brief, with an \"on this day\" story if you like."
+    }
+  ],
+  "suggests": [
+    {
+      "store": "reading-list",
+      "why": "Keep track of the history books he recommends."
+    }
+  ],
+  "needs": {
+    "pictures": false,
+    "voices": [
+      "kokoro:0"
+    ]
+  },
+  "made": {
+    "with": "Sara 2.81.0",
+    "at": "2026-11-07"
+  }
+}

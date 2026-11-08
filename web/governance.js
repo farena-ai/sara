@@ -150,6 +150,7 @@ export async function loadPolicy() {
   $('#po-local').checked = pins.privateLocal === true;
   $('#po-store').value = pins.store ?? '';
   $('#po-retention').value = pins.auditRetentionDays === undefined ? '' : String(pins.auditRetentionDays);
+  $('#po-programs').value = pins.programInstalls ?? '';
   for (const c of document.querySelectorAll('.po-page input, .po-page select, .po-page button')) c.disabled = !d.canEdit;
 }
 
@@ -169,6 +170,7 @@ function readForm() {
     ...($('#po-local').checked ? { privateLocal: true } : {}),
     ...($('#po-store').value ? { store: $('#po-store').value } : {}),
     ...($('#po-retention').value !== '' ? { auditRetentionDays: Number($('#po-retention').value) } : {}),
+    ...($('#po-programs').value ? { programInstalls: $('#po-programs').value } : {}),
   };
   return { name: $('#po-name').value.trim() || t('Policy'), pins };
 }
@@ -209,6 +211,7 @@ const LOCKS = {
   store: ['#sto-community'],
   alwaysAllow: ['#cu-level option[value="always"]'],
   auditRetentionDays: ['#au-keep'],
+  programInstalls: ['#prq-installs'],
 };
 const NOTES = { providers: 'models-providers', tools: 'ab-tools' };
 

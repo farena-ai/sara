@@ -170,8 +170,10 @@ Locked tool versions (2026-11-07 security bump, Dependabot): `tools/developer-da
 protobufjs 7.6.6, `tools/developer-security` Ajv 8.18.0, `tools/developer-mcp-public` Vite 7.3.7
 (esbuild 0.28.2), `tools/developer-mcp-mongodb` basic-ftp 6.2.6 via an npm override (mongodb-mcp-server
 3.2.2 still asks for basic-ftp 5). These are qualification tools only. The shipped Data Contract
-Validator still vendors the Ajv 8.17.1 and protobufjs 7.5.4 bytes it was qualified with, until it is
-rebuilt with `tools/developer-data/vendor.mjs` and re-qualified.
+Validator was rebuilt from them with `tools/developer-data/vendor.mjs` as 1.0.1 (Ajv 8.18.0, protobufjs
+7.6.6; 2026-11-07), re-qualified and published in signed Store sequence 5
+(`docs/ops/DEVELOPER_DATA_QUALIFICATION.md`). After any future lock bump, re-vendor shipped bundles too:
+Dependabot reads lockfiles, not `store/plugins/*` copies.
 
 These run actual analyzers, native subprocesses, official packaging/smoke and registered-host
 lifecycles against synthetic data. Windows Node permission tests do not establish an OS sandbox.

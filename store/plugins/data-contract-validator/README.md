@@ -1,6 +1,6 @@
 # Schema and Data Contract Validator
 
-Explicit-input offline contract comparison and actual payload validation. Register `analyze` with Ask permission. No file, network, model or broker grants. Uses pinned Ajv 8.17.1 (MIT) and protobufjs 7.5.4 (BSD-3-Clause); retained notices in THIRD_PARTY_LICENSES.md.
+Explicit-input offline contract comparison and actual payload validation. Register `analyze` with Ask permission. No file, network, model or broker grants. Uses pinned Ajv 8.18.0 (MIT) and protobufjs 7.6.6 (BSD-3-Clause); retained notices in THIRD_PARTY_LICENSES.md.
 
 ```json
 {"format":"json-schema","before":"{\"type\":\"integer\"}","after":"{\"type\":\"string\"}","payloads":["1","\"synthetic\""]}

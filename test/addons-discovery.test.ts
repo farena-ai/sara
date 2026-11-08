@@ -33,7 +33,7 @@ test('discovery has exact native, preview, blocked and guide identity sets', asy
   assert.deepEqual(sorted(a.PUBLIC_MCP_INVESTIGATIONS.filter((x: any) => x.status === 'needs-account').map((x: any) => x.id)), ['firecrawl', 'linear', 'tavily']);
   assert.deepEqual(sorted(a.PUBLIC_GUIDED_PACKS.map((x: any) => x.id)), sorted(guideIds));
   for (const x of a.PUBLIC_NATIVE_CANDIDATES) {
-    assert.equal(x.kind, 'plugin'); assert.equal(x.status, devIds.includes(x.id) ? 'tested' : 'in-testing'); assert.equal(x.version, x.id === 'api-contract-guard' ? '0.1.0' : '1.0.0');
+    assert.equal(x.kind, 'plugin'); assert.equal(x.status, devIds.includes(x.id) ? 'tested' : 'in-testing'); assert.equal(x.version, ({ 'api-contract-guard': '0.1.0', 'data-contract-validator': '1.0.1' } as Record<string, string>)[x.id] ?? '1.0.0');
     assert.equal(a.getNativeCandidate(x.id), x);
     for (const key of ['installable', 'available', 'signed', 'firstParty', 'origin', 'packageUrl']) assert.equal(Object.hasOwn(x, key), false);
   }

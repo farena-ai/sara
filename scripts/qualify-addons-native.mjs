@@ -270,14 +270,19 @@ for (const e of ENTRIES) {
 }
 listener?.close();
 
-// Companion packs: not in the live signed index, so Get more cannot offer them. Their pack (the
-// starter source in store/companions) still goes through the real "Add her" route as a file.
+// Companion packs (every folder in store/companions): the real "Add her" route from the pack file, and,
+// when the signed index lists her, Get more's own path (POST /api/store/install → the pack card →
+// Add her → Retire her), checking the card carries the signed content hash. Each is added and retired
+// twice in a row (the retire-within-20-s crash regression).
 if (!ONLY.length || ONLY.includes('companions')) {
   const { zipStored } = await imp('src/zip-write.ts');
   const { readdirSync, statSync } = await import('node:fs');
   const walk = (d, rel = '') => readdirSync(d).flatMap((n) => statSync(join(d, n)).isDirectory() ? walk(join(d, n), `${rel}${n}/`) : [{ path: `${rel}${n}`, data: readFileSync(join(d, n)) }]);
+  // The Store client's verified copy of the signed index (fetched at start; asked for if not there yet).
+  for (let i = 0; i < 30 && !existsSync(join(DATA, 'store/index.json')); i++) { await api('POST', '/api/store/check', {}).catch(() => {}); await sleep(2000); }
   const signed = json(join(DATA, 'store/index.json')).items.filter((x) => x.kind === 'companion').map((x) => x.id);
-  for (const id of ['jax', 'juniper', 'rowan', 'vesper']) {
+  const signedItems = json(join(DATA, 'store/index.json')).items;
+  for (const id of readdirSync(join(ROOT, 'store/companions')).filter((n) => statSync(join(ROOT, 'store/companions', n)).isDirectory()).sort()) {
     const out = { id, os: OS, source: 'companion-pack-file', steps: {}, inSignedIndex: signed.includes(id) };
     const step = async (name, fn) => { try { out.steps[name] = { ok: true, evidence: await fn() }; } catch (err) { out.steps[name] = { ok: false, error: String(err.message).slice(0, 400) }; throw err; } };
     let made;
@@ -299,7 +304,38 @@ if (!ONLY.length || ONLY.includes('companions')) {
       await step('retire', async () => {
         await api('DELETE', `/api/companions/${made.id}`);
         check(!(await api('GET', '/api/companions')).companions.some((c) => c.id === made.id), 'she is gone from the list');
+        made = undefined;
         return 'retired; no longer listed'; });
+      if (out.inSignedIndex) {
+        const item = signedItems.find((x) => x.id === id && x.kind === 'companion');
+        const v = item.versions.find((x) => x.version === item.latest);
+        for (const round of [1, 2]) {
+          let card;
+          await step(`store-card-${round}`, async () => {
+            const r = await api('POST', '/api/store/install', { id });
+            check(r.kind === 'companion' && r.token, 'a companion card from the Store');
+            card = r;
+            check(r.card.fingerprint === v.contentSha, `the card's fingerprint is the signed contentSha (${String(r.card.fingerprint).slice(0, 12)})`);
+            return `Store card "${r.card.name}" ${item.latest} (signed sha256 ${v.sha256.slice(0, 12)}, content ${v.contentSha.slice(0, 12)})`;
+          });
+          await step(`store-add-${round}`, async () => {
+            const before = (await api('GET', '/api/companions')).companions.map((c) => c.id);
+            const r = await api('POST', `/api/packs/${card.token}/install`, {});
+            const after = (await api('GET', '/api/companions')).companions;
+            made = after.find((c) => !before.includes(c.id)); check(made, 'a new companion from the Store');
+            const mine = await api('GET', '/api/packs/installed');
+            const row = mine.installs.find((x) => x.companion_id === made.id);
+            check(row && row.origin === 'store' && row.content_sha === v.contentSha, `pack_installs row origin store, content ${v.contentSha.slice(0, 12)}: ${JSON.stringify(row).slice(0, 200)}`);
+            return `added ${made.id} "${made.name}" from the Store; ${before.length} → ${after.length}; installed content = signed contentSha; follow-ups ${(r.followUps ?? []).length}`;
+          });
+          await step(`store-retire-${round}`, async () => {
+            await api('DELETE', `/api/companions/${made.id}`);
+            check(!(await api('GET', '/api/companions')).companions.some((c) => c.id === made.id), 'she is gone from the list');
+            made = undefined;
+            return 'retired; no longer listed';
+          });
+        }
+      }
       out.result = out.inSignedIndex ? 'pass' : 'held-unpublished (file path passes)';
     } catch (err) { out.result = "fail"; out.error ??= String(err.message).slice(0, 300); if (made) await api('DELETE', `/api/companions/${made.id}`).catch(() => {}); }
     const i = results.findIndex((x) => x.id === out.id && x.os === OS);
@@ -314,7 +350,7 @@ if (!ONLY.length || ONLY.includes('held')) {
   const inv = json(join(ROOT, 'docs/ops/A2_INVENTORY.json'));
   const candidates = (await api('GET', '/api/plugins/candidates')).candidates;
   const shelf = (await api('GET', '/api/store')).items;
-  const notInstallable = [...inv.entries.filter((x) => /^no/.test(x.installable)).map((x) => x.id), ...inv.entries.filter((x) => x.kind === 'companion').map((x) => x.id)];
+  const notInstallable = inv.entries.filter((x) => /^no/.test(x.installable)).map((x) => x.id);
   const offered = notInstallable.filter((id) => candidates.some((c) => c.id === id && c.availability === 'local-candidate') || shelf.some((s) => s.id === id && s.canRun));
   const held = { id: 'held-entries', os: OS, checked: notInstallable, candidateCount: candidates.length, shelfIds: shelf.map((s) => s.id), offered, result: offered.length ? 'fail' : 'pass' };
   const i = results.findIndex((x) => x.id === held.id && x.os === OS);

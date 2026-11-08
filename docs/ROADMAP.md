@@ -102,6 +102,16 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## One-click programs and 21 companions in 2.82.0
+
+When an add-on needs a program the computer lacks (Google Chrome, uv, Node, Python, Blender, ffmpeg),
+Settings says what is missing and offers *Install it for me*: you approve the exact command, watch it
+run, and the add-on install continues. Twenty-one companions, each with a portrait, a voice and clear
+boundaries, are in the signed Store: language tutors, a fitness coach, a chef, a study buddy, a
+writing partner, a listener, a budget planner, a music producer, a gardener, a travel planner, a
+startup co-founder, a philosopher, a sky-ship captain and more. On Linux, browser tool servers now
+find an installed Chrome.
+
 ## Ready for work and teams in 2.81.0
 
 Sara joins Slack (direct messages, mentions, threads, Allow and Deny buttons, files both ways).

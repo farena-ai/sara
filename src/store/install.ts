@@ -20,6 +20,8 @@ import { pluginInstallation, type StoreClient } from './client.ts';
 import { parseRecipe, type McpRecipe, type RecipeField, type StoreEntry, type StoreItem, type StoreVersion } from './format.ts';
 import type { StoreInstallRow, StoreInstalls } from './installs.ts';
 import { StoreRefused } from './verify.ts';
+import { programFor, type ProgramId } from '../prereqs/catalog.ts';
+import type { Detection } from '../prereqs/detect.ts';
 
 export const MCP_REVIEW_MS = 3600_000;
 export const TEST_MS = 30_000;
@@ -39,6 +41,10 @@ export class InstallError extends Error {
 export interface Need {
   what: string;
   found: boolean | null;
+  /** PRQ: the catalog program this need is (the card offers *Install it for me*). */
+  program?: ProgramId;
+  /** Found but older than add-ons need (e.g. Node < 22). */
+  old?: boolean;
 }
 export interface McpReview {
   id: string;
@@ -92,6 +98,8 @@ export interface InstallerDeps {
   testMs?: number;
   /** Phase 127: companion packs (the card and the new companion). */
   packs?: import('../packs/install.ts').PackInstaller;
+  /** PRQ: finds catalog programs (Chrome, uv, Docker, …) where Sara runs (src/prereqs/service.ts). */
+  programs?: { detect(id: ProgramId): Detection };
 }
 
 const which = (cmd: string, pathVar: string | undefined, platform: NodeJS.Platform): boolean => {
@@ -251,9 +259,7 @@ export class StoreInstaller {
     const plat = this.#platform;
     const pathVar = this.d.pathVar ?? process.env.PATH;
     const win = plat === 'win32' ? recipeCommand(recipe, { platform: 'win32', pathVar }) : undefined;
-    const needs: Need[] = [];
-    if (recipe.transport === 'stdio' && recipe.command) needs.push({ what: recipe.command === 'npx' ? 'node' : recipe.command, found: which(recipe.command === 'npx' ? 'node' : recipe.command, pathVar, plat) });
-    for (const n of recipe.needs ?? []) if (!needs.some((x) => x.what === n)) needs.push({ what: n, found: n.startsWith('app:') ? null : which(n, pathVar, plat) });
+    const needs = this.#needs(recipe);
     const fence = this.#fence();
     const changes = updating && row.recipe ? recipeDiff(JSON.parse(row.recipe) as McpRecipe, recipe) : [];
     const secretKeys = new Set([...recipe.secrets, ...recipe.fields.filter((x) => x.kind === 'secret')].map((f) => f.key));
@@ -289,6 +295,30 @@ export class StoreInstaller {
     for (const [k, s] of staged) if (s.review.expires < Date.now()) staged.delete(k);
     staged.set(review.id, { review, recipe, entrySha: v.entrySha });
     return review;
+  }
+  /** What a recipe needs on this computer; catalog programs are detected (PRQ), the rest looked up on PATH. */
+  #needs(recipe: McpRecipe): Need[] {
+    const plat = this.#platform;
+    const pathVar = this.d.pathVar ?? process.env.PATH;
+    const needs: Need[] = [];
+    const add = (what: string) => {
+      const id = programFor(what);
+      if (needs.some((x) => x.what === what || (id && x.program === id))) return;
+      if (id && this.d.programs) {
+        const d = this.d.programs.detect(id);
+        needs.push({ what, found: d.found && !d.old, program: id, ...(d.old ? { old: true } : {}) });
+      } else needs.push({ what, found: what.startsWith('app:') ? null : which(what, pathVar, plat) });
+    };
+    if (recipe.transport === 'stdio' && recipe.command) add(recipe.command === 'npx' ? 'node' : recipe.command);
+    for (const n of recipe.needs ?? []) add(n);
+    return needs;
+  }
+  /** PRQ: after *Install it for me*, the card looks again (then *Continue install*). */
+  mcpRecheck(id: string): McpReview | undefined {
+    const s = staged.get(id);
+    if (!s || s.review.expires < Date.now()) return undefined;
+    s.review.needs = this.#needs(s.recipe);
+    return s.review;
   }
   mcpPending(id: string): McpReview | undefined {
     const s = staged.get(id);

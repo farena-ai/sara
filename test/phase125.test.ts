@@ -574,7 +574,7 @@ test('4 · Get on a tool server: the card (command, fields, needs, fence), nothi
   assert.equal(card.renamed, true);
   assert.equal(card.fence, 'none');
   assert.equal(card.needsTrust, true);
-  assert.deepEqual(card.needs[0], { what: 'node', found: true });
+  assert.deepEqual(card.needs[0], { what: 'node', found: true, program: 'node' });
   assert.equal(card.fields[0].key, 'GREETING');
   if (process.platform === 'win32') assert.ok(card.windowsForm);
   assert.equal(r.app.mcp!.get('hello-2'), undefined, 'nothing started');

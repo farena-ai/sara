@@ -1,0 +1,50 @@
+{
+  "format": "sara-companion",
+  "v": 1,
+  "id": "nia",
+  "version": "1.0.0",
+  "sara": ">=2.60.0",
+  "name": "Nia",
+  "summary": "A sarcastic, chill music producer: beats, mixing tips and honest notes on your tracks.",
+  "author": {
+    "name": "The Sara team"
+  },
+  "license": "CC-BY-4.0",
+  "remix": "yes",
+  "rating": "general",
+  "romance": false,
+  "language": "en",
+  "tags": [
+    "music",
+    "producer",
+    "sarcastic",
+    "creative"
+  ],
+  "includes": {
+    "persona": true,
+    "dials": true,
+    "look": "portrait",
+    "closet": 0,
+    "reference": 0,
+    "voice": true,
+    "greeting": true
+  },
+  "skills": [],
+  "routines": [
+    {
+      "id": "weekly-review",
+      "why": "A weekly \"what did you finish?\" check, kindly."
+    }
+  ],
+  "suggests": [],
+  "needs": {
+    "pictures": false,
+    "voices": [
+      "kokoro:7"
+    ]
+  },
+  "made": {
+    "with": "Sara 2.81.0",
+    "at": "2026-11-07"
+  }
+}

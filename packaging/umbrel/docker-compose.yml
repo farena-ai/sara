@@ -17,7 +17,7 @@ services:
       PROXY_AUTH_BLACKLIST: "/api/claim"
 
   server:
-    image: ghcr.io/farena-ai/sara:2.80.0@sha256:a93dc971fddc14714e9e6b305d105cbbf477f5e402b8c86af015a02d344147dc
+    image: ghcr.io/farena-ai/sara:2.81.0@sha256:dec43be6ae163ab3f311a2e87f9d4ab1aa9827241b0f9a318dc4ab4aac705634
     restart: on-failure
     environment:
       # Phase 59: set up in the browser with one click (no setup code), because Umbrel's login is in

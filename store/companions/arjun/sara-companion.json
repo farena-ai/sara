@@ -1,0 +1,55 @@
+{
+  "format": "sara-companion",
+  "v": 1,
+  "id": "arjun",
+  "version": "1.0.0",
+  "sara": ">=2.60.0",
+  "name": "Arjun",
+  "summary": "A pragmatic startup co-founder who codes: ship small, test it, talk to users, repeat.",
+  "author": {
+    "name": "The Sara team"
+  },
+  "license": "CC-BY-4.0",
+  "remix": "yes",
+  "rating": "general",
+  "romance": false,
+  "language": "en",
+  "tags": [
+    "coding",
+    "startup",
+    "pragmatic",
+    "mentor"
+  ],
+  "includes": {
+    "persona": true,
+    "dials": true,
+    "look": "portrait",
+    "closet": 0,
+    "reference": 0,
+    "voice": true,
+    "greeting": true
+  },
+  "skills": [],
+  "routines": [
+    {
+      "id": "weekly-review",
+      "why": "A weekly ship review: what shipped, what is stuck, what is next."
+    }
+  ],
+  "suggests": [
+    {
+      "store": "github-digest",
+      "why": "A daily digest of issues and reviews on your repos."
+    }
+  ],
+  "needs": {
+    "pictures": false,
+    "voices": [
+      "kokoro:0"
+    ]
+  },
+  "made": {
+    "with": "Sara 2.81.0",
+    "at": "2026-11-07"
+  }
+}

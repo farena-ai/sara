@@ -11,6 +11,7 @@ import { showStoreImport } from './skills.js';
 import { proposalCard } from './proposal-card.js';
 import { openCard } from './packs.js';
 import { icon as lineIcon } from './icons.js';
+import { needsLine } from './prereqs.js';
 
 const $ = (sel) => document.querySelector(sel);
 async function api(path, opts = {}) {
@@ -546,7 +547,8 @@ export function mcpCard(r) {
     const spec = (r.args ?? []).find((a) => /@\d|==\d/.test(a));
     if (spec) body.push(el('p', 'muted small', t('Its code comes from {where}, version {version}. We tested that version.', { where: r.command === 'uvx' ? 'PyPI' : r.command === 'docker' ? 'Docker' : 'npm', version: spec.split(/@|==/).pop() })));
   } else body.push(el('p', 'small', t('It talks to {url}', { url: r.url })));
-  if (r.needs?.length) body.push(el('p', 'small', t('It needs: {list}', { list: r.needs.map((n) => (n.found === true ? t('{what} (found)', { what: n.what.replace(/^app:/, '') }) : n.found === false ? t('{what} (not found)', { what: n.what }) : n.what.replace(/^app:/, ''))).join(' · ') })));
+  // PRQ: a missing program gets *Install it for me*; afterwards the card looks again (Continue install).
+  if (r.needs?.length) body.push(needsLine(r.needs, () => void recheckMcp(r)));
   if (r.reaches?.length) body.push(el('p', 'small', t('It reaches: {list}', { list: r.reaches.join(' · ') })));
   body.push(el('p', `small${r.fence === 'none' ? ' skl-warn' : ''}`, t('Fence: {line}', { line: FENCE_LINE[r.fence]?.() ?? r.fence })));
   if (r.renamed) body.push(el('p', 'muted small', t('You already have one with this name, so this one is called {name}.', { name: r.serverName })));
@@ -601,14 +603,22 @@ export function mcpCard(r) {
     warn: r.guide ?? [],
     body,
     buttons: [
-      { label: r.mode === 'update' ? t('Update and start') : t('Add and start'), onClick: (b) => void approveMcp(b) },
+      { label: r.continued ? t('Continue install') : r.mode === 'update' ? t('Update and start') : t('Add and start'), onClick: (b) => void approveMcp(b) },
       { label: t('Cancel'), cls: 'ghost', onClick: () => cancelPanel() },
     ],
   });
 }
-function showMcp(r) {
+function showMcp(r, o = {}) {
   g.mcp = r;
-  panel(r.name, [mcpCard(r)]);
+  panel(r.name, [mcpCard(r)], o);
+}
+async function recheckMcp(r) {
+  try {
+    const next = await api(`/store/mcp/${enc(r.id)}/recheck`, { method: 'POST', body: {} });
+    showMcp({ ...next, continued: true }, { push: false });
+  } catch (err) {
+    say(err.message);
+  }
 }
 async function approveMcp(b) {
   const r = g.mcp;

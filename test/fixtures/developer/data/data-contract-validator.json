@@ -30,7 +30,7 @@
         "errors": []
       }
     ],
-    "validator": "Ajv 8.17.1 / bounded draft-07 subset",
+    "validator": "Ajv 8.18.0 / bounded draft-07 subset",
     "message": "Local analysis complete."
   }
 }

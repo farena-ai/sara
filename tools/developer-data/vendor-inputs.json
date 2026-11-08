@@ -604,12 +604,17 @@
       "format": "cjs"
     },
     "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/pattern.js": {
-      "bytes": 905,
+      "bytes": 1323,
       "imports": [
         {
           "path": "tools/developer-data/node_modules/ajv/dist/vocabularies/code.js",
           "kind": "require-call",
           "original": "../code"
+        },
+        {
+          "path": "tools/developer-data/node_modules/ajv/dist/compile/util.js",
+          "kind": "require-call",
+          "original": "../../compile/util"
         },
         {
           "path": "tools/developer-data/node_modules/ajv/dist/compile/codegen/index.js",
@@ -1431,7 +1436,7 @@
           "bytesInOutput": 629
         },
         "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/pattern.js": {
-          "bytesInOutput": 496
+          "bytesInOutput": 705
         },
         "tools/developer-data/node_modules/ajv/dist/vocabularies/validation/limitProperties.js": {
           "bytesInOutput": 549
@@ -1536,7 +1541,7 @@
           "bytesInOutput": 18
         }
       },
-      "bytes": 124322
+      "bytes": 124531
     }
   }
 }

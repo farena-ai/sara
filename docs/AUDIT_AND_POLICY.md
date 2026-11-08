@@ -42,6 +42,7 @@ companion and every household member. They only make things stricter:
 | Keep private local mode on | *Nothing leaves this computer* can't be turned off (if it is off now, the safety check-up says so). |
 | Sara Store | *Signed Store items only* (no community items) or *No installs*. |
 | Audit trail retention | Fixes how long the trail is kept. |
+| Program installs | *Ask first* (Sara always shows the commands and waits) or *Off* (Sara never installs programs add-ons need). See [PREREQUISITES.md](PREREQUISITES.md). |
 
 A pinned setting shows **Set by your admin** in Settings. The server refuses a change with
 "Set by your admin (*policy name*). Change the policy first." (HTTP 409, `policy.key` names the pin),

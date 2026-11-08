@@ -108,6 +108,21 @@
 @media (max-width: 900px) { .sto-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .sto-row { grid-template-columns: minmax(0, 1fr); } .sto-seg { display: flex; } .sto-seg button { flex: 1 1 0; padding: 0 8px; } }
 
+/* PRQ: programs add-ons need (the store card's "It needs" line, Settings → Other programs). */
+.prq-needs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0; }
+.prq-need { display: inline-flex; align-items: center; gap: 6px; }
+.prq-missing { color: var(--warn); }
+.prq-host { flex-basis: 100%; min-width: 0; }
+.prq-host:empty { display: none; }
+.prq-card { margin-top: 8px; }
+.prq-steps { display: grid; gap: 6px; margin: 0; padding-inline-start: 20px; min-width: 0; }
+.prq-lines { max-height: 180px; margin: 0; }
+.prq-lines:empty { display: none; }
+.prq-list { display: grid; gap: 6px; margin: 8px 0 16px; }
+.prq-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-height: 44px; }
+.prq-name { min-width: 9em; font-weight: 600; }
+.prq-row button, .prq-need button { min-height: 44px; }
+
 /* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
    Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
    specificity: each ties the rule it replaces and wins by coming later); decoration by

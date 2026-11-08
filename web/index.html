@@ -3380,6 +3380,11 @@
         <label class="row"><input id="mcp-enabled" type="checkbox" checked> Enabled</label>
         <button id="mcp-save" type="button">Save and connect</button>
       </details>
+      <h3>Programs add-ons need</h3>
+      <p class="muted small">Some add-ons need a program on the computer where Sara runs. Sara can install a missing one with this system's normal installer, after you approve the exact commands.</p>
+      <label class="row">Program installs <select id="prq-installs" data-nodirty><option value="ask">Ask first</option><option value="allowed">Allowed (one click)</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Ask first: Sara shows the exact commands and waits for Install. Allowed: Install it for me starts at once (you still see every command). Off: Sara never installs programs. Your admin's policy can tighten this.">?</button></label>
+      <p id="prq-status" class="small" role="status"></p>
+      <div id="prq-list" class="prq-list" data-noauto></div>
       <div id="mcp-discovery" class="addon-discovery" data-noauto></div>
         </section>
         <section class="settings-page" data-page="co-phone" data-group="Connections" data-title="Phone and notifications" hidden>
@@ -3826,6 +3831,7 @@
         <label class="row"><input id="po-net" type="checkbox"> No internet for her commands <button type="button" class="tip" data-tip="Her shell commands never reach the internet (builds that download packages then fail).">?</button></label>
         <label class="row"><input id="po-local" type="checkbox"> Keep private local mode on <button type="button" class="tip" data-tip="Once Nothing leaves this computer is on, it can't be turned off. If it's off now, the safety check-up says so until you turn it on.">?</button></label>
         <label class="row">Sara Store <select id="po-store"><option value="">No limit</option><option value="official">Signed Store items only</option><option value="off">No installs</option></select> <button type="button" class="tip" data-tip="Signed Store items only: no community items. No installs: nothing can be installed or updated from the Store.">?</button></label>
+        <label class="row">Program installs <select id="po-programs"><option value="">No limit</option><option value="ask">Ask first</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Programs add-ons need (Chrome, uv, Docker…). Ask first: Sara always shows the commands and waits. Off: Sara never installs programs on this server.">?</button></label>
         <label class="row">Audit trail retention <select id="po-retention"><option value="">Not pinned</option><option value="30">30 days</option><option value="90">90 days</option><option value="365">A year</option><option value="0">Keep everything</option></select> <button type="button" class="tip" data-tip="Pins how long the audit trail is kept. Not pinned: you choose on the Audit trail page.">?</button></label>
         <div class="add-row"><button id="po-save" type="button" class="primary">Save the policy</button> <button id="po-export" type="button" class="ghost">Export JSON</button> <button id="po-import" type="button" class="ghost">Import JSON</button> <button type="button" class="tip" data-tip="Export saves this policy as a JSON file; Import applies one, for setting up another server the same way. Importing replaces every pin.">?</button> <input id="po-file" type="file" accept="application/json,.json" hidden></div>
         <p id="po-status" class="small" role="status"></p>

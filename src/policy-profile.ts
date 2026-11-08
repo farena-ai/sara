@@ -27,9 +27,11 @@ export interface PolicyPins {
   /** off: no Store installs; official: signed Store shelf only (no community items). */
   store?: 'off' | 'official';
   auditRetentionDays?: (typeof RETENTION_CHOICES)[number];
+  /** PRQ: installing programs add-ons need (Settings → Add-ons): ask first, or off. */
+  programInstalls?: 'ask' | 'off';
 }
 export type PinKey = keyof PolicyPins;
-export const PIN_KEYS: readonly PinKey[] = ['providers', 'tools', 'alwaysAllow', 'adultMode', 'shellNetwork', 'privateLocal', 'store', 'auditRetentionDays'];
+export const PIN_KEYS: readonly PinKey[] = ['providers', 'tools', 'alwaysAllow', 'adultMode', 'shellNetwork', 'privateLocal', 'store', 'auditRetentionDays', 'programInstalls'];
 export interface Policy {
   version: 1;
   name: string;
@@ -80,6 +82,10 @@ export function validatePolicy(input: unknown): { name: string; pins: PolicyPins
       case 'store':
         if (v !== 'off' && v !== 'official') throw new HttpError(400, 'store must be off or official.');
         pins.store = v;
+        break;
+      case 'programInstalls':
+        if (v !== 'ask' && v !== 'off') throw new HttpError(400, 'programInstalls must be ask or off.');
+        pins.programInstalls = v;
         break;
       case 'auditRetentionDays':
         if (!(RETENTION_CHOICES as readonly unknown[]).includes(v)) throw new HttpError(400, 'Pick 30, 90 or 365 days, or keep everything.');

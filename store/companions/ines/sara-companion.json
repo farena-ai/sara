@@ -1,0 +1,50 @@
+{
+  "format": "sara-companion",
+  "v": 1,
+  "id": "ines",
+  "version": "1.0.0",
+  "sara": ">=2.60.0",
+  "name": "Inês",
+  "summary": "A brisk, practical money planner: budgets, savings goals and plain talk, not financial advice.",
+  "author": {
+    "name": "The Sara team"
+  },
+  "license": "CC-BY-4.0",
+  "remix": "yes",
+  "rating": "general",
+  "romance": false,
+  "language": "en",
+  "tags": [
+    "money",
+    "planning",
+    "budget",
+    "practical"
+  ],
+  "includes": {
+    "persona": true,
+    "dials": true,
+    "look": "portrait",
+    "closet": 0,
+    "reference": 0,
+    "voice": true,
+    "greeting": true
+  },
+  "skills": [],
+  "routines": [
+    {
+      "id": "weekly-review",
+      "why": "A weekly money check-in, five minutes."
+    }
+  ],
+  "suggests": [],
+  "needs": {
+    "pictures": false,
+    "voices": [
+      "kokoro:3"
+    ]
+  },
+  "made": {
+    "with": "Sara 2.81.0",
+    "at": "2026-11-07"
+  }
+}
