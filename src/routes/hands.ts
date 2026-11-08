@@ -92,6 +92,8 @@ export function createHandsRoutes(ctx: RouteCtx): RouteHandler {
         // Phase 88: "Always allowed" shows its warning once (the page asks before sending this).
         if (body.level !== undefined) {
           policy().guard('alwaysAllow', body.level === 'always');
+          // C15: Always allowed, from a remote device, asks the owner first.
+          if (body.level === 'always' && cu.level !== 'always') ctx.askFirst(req, 'allow-all');
           if (body.level === 'always' && body.warned !== true && cu.alwaysWarned !== true) throw new HttpError(400, 'Always allowed needs the warning first.');
           cu.level = body.level as ActLevel;
           if (body.level === 'always') cu.alwaysWarned = true;

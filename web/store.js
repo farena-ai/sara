@@ -693,6 +693,8 @@ export async function openMine(o = {}) {
   }
   const nodes = [];
   if (!r.addons.length) nodes.push(el('p', 'muted', t('Nothing added from outside yet.')));
+  // C8: add-on auto-update (off by default): all Store plugins, or one at a time below.
+  if (r.addons.some((a) => a.kind === 'plugin' && a.item)) nodes.push(autoUpdateBox(r.autoUpdate));
   for (const a of r.addons) {
     const row = el('article', 'stp-addon');
     const line = el('div', 'stp-addon-head');
@@ -709,6 +711,7 @@ export async function openMine(o = {}) {
       if (a.origin === 'candidate') document.dispatchEvent(new CustomEvent('sara:focus-plugin', { detail: a.ref }));
     }));
     if (!a.installHeld && a.item && a.canGoBack) acts.append(btn(t('Go back'), 'ghost', (b) => void storeAct('goback', a.item, b)));
+    if (a.kind === 'plugin' && a.item && a.auto !== undefined) acts.append(autoSwitch(t('Update by itself'), a.auto, (on) => ({ item: a.item, on }), 'au-item'));
     if (a.item) acts.append(btn(t('Report this'), 'ghost', () => openReport(a.item, a.version)));
     if (a.item && a.state === 'blocked') acts.append(btn(t('Switch it on anyway'), 'ghost', (b) => {
       if (window.confirm(t('The Sara team found a serious problem with this add-on. Switch it on anyway?'))) void storeAct('override', a.item, b, { confirm: true });
@@ -723,6 +726,33 @@ export async function openMine(o = {}) {
     nodes.push(row);
   }
   show(t('My add-ons'), nodes, { push: o.push, redo: () => openMine({ push: false }) });
+}
+function autoSwitch(label, on, body, cls) {
+  const lab = el('label', `row small ${cls}`);
+  const box = Object.assign(document.createElement('input'), { type: 'checkbox', checked: Boolean(on) });
+  box.addEventListener('change', async () => {
+    box.disabled = true;
+    try {
+      await api('/store/auto-update', { method: 'PUT', body: body(box.checked) });
+      await openMine({ push: false });
+    } catch (err) {
+      say(err.message);
+      box.checked = !box.checked;
+    } finally {
+      box.disabled = false;
+    }
+  });
+  lab.append(box, ` ${label}`);
+  return lab;
+}
+const AUTO_OUTCOME = { updated: () => t('updated'), asked: () => t('needs your OK'), 'rolled-back': () => t('went back'), failed: () => t('failed') };
+function autoUpdateBox(au = { all: false, last: [] }) {
+  const box = el('div', 'au-box');
+  const head = autoSwitch(t('Update my Sara Store plugins by themselves'), au.all, (on) => ({ all: on }), 'au-all');
+  head.append(' ', tipBtn(t('Off by default. Once a day Sara checks the signed Store list, installs a newer version, checks it starts, and puts the old one back if it does not. An update that asks for more permissions always waits for you.')));
+  box.append(head);
+  for (const o of au.last ?? []) box.append(el('p', 'muted small', `${o.name} ${o.from} → ${o.to}: ${AUTO_OUTCOME[o.outcome]?.() ?? o.outcome} (${new Date(o.at).toLocaleDateString()})`));
+  return box;
 }
 async function storeAct(what, item, b, extra = {}) {
   b.disabled = true;

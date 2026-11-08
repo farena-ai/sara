@@ -703,6 +703,14 @@ dialog:not(.settings-dialog) .settings-body > :is(.error, p[role="status"]):empt
 .side-update[hidden] { display: none; }
 .side-update svg.ic { width: 18px; height: 18px; flex: none; }
 .side-update:hover, .side-update:focus-visible { background: var(--update-soft); color: var(--update-accent); text-decoration: underline; }
+/* C9: the top bar's Update button; the colour rises with the release's age. */
+.head-update { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; margin-left: auto; border-radius: 999px; border: 1px solid var(--border); background: transparent; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.head-update[hidden] { display: none; }
+.head-update svg.ic { width: 16px; height: 16px; flex: none; }
+.head-update.upd-grey { color: var(--muted); }
+.head-update.upd-accent { color: var(--accent-text); border-color: var(--accent-line); background: var(--accent-soft); }
+.head-update.upd-amber { color: var(--warn); border-color: var(--warn); background: var(--warn-soft); }
+.head-update.upd-red { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
 .update-pop { max-width: min(480px, calc(100vw - 24px)); }
 .update-pop-title { display: flex; align-items: center; gap: var(--s-2); }
 .update-pop-title svg.ic { width: 22px; height: 22px; color: var(--update-accent); flex: none; }

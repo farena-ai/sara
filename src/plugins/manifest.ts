@@ -121,6 +121,8 @@ export interface PluginManifest {
   schedules: PluginSchedule[];
   settings: PluginSetting[];
   i18n: Record<string, Record<string, string>>;
+  /** C8: what a call of one of its tools costs, US dollars (null = it costs money, amount unknown). */
+  costs?: Record<string, number | null>;
 }
 
 export class ManifestError extends Error {
@@ -130,7 +132,7 @@ export class ManifestError extends Error {
   }
 }
 
-const TOP_KEYS = new Set(['manifest', 'id', 'name', 'version', 'description', 'author', 'license', 'homepage', 'sara', 'main', 'permissions', 'schedules', 'settings', 'i18n', '$schema']);
+const TOP_KEYS = new Set(['manifest', 'id', 'name', 'version', 'description', 'author', 'license', 'homepage', 'sara', 'main', 'permissions', 'schedules', 'settings', 'i18n', 'costs', '$schema']);
 const PERMISSION_KEYS = new Set(['hooks', 'tools', 'callTools', 'network', 'files', 'settings', 'cards', 'bridges', 'bridgeFiles', 'bridgeApprovals', 'model', 'memory', 'connect', 'webhooks', 'webhookKinds', 'doorbell', 'run']);
 
 function parseRun(v: unknown): RunPermission | null {
@@ -504,7 +506,21 @@ export function parseManifest(raw: unknown, opts: { saraVersion: string; files?:
     }
   }
   const i18n = parseI18n(m.i18n);
-  return { manifest: 1, id, name, version, description, ...(author ? { author } : {}), ...(license ? { license } : {}), ...(homepage ? { homepage } : {}), ...(sara ? { sara } : {}), main, permissions, schedules, settings, i18n };
+  const costs = parseCosts(m.costs, permissions.tools);
+  return { ...(costs ? { costs } : {}), manifest: 1, id, name, version, description, ...(author ? { author } : {}), ...(license ? { license } : {}), ...(homepage ? { homepage } : {}), ...(sara ? { sara } : {}), main, permissions, schedules, settings, i18n };
+}
+
+/** C8: `costs` maps its own tools (permissions.tools) to dollars per call, or null for "costs money, unknown". */
+function parseCosts(v: unknown, tools: string[]): Record<string, number | null> | undefined {
+  if (v === undefined) return undefined;
+  if (!v || typeof v !== 'object' || Array.isArray(v)) throw new ManifestError('costs must map tool names to dollars per call (or null when unknown).');
+  const out: Record<string, number | null> = {};
+  for (const [k, c] of Object.entries(v as Record<string, unknown>)) {
+    if (!tools.includes(k)) throw new ManifestError(`costs names "${k.slice(0, 40)}", which isn't one of its tools.`);
+    if (c !== null && (typeof c !== 'number' || !Number.isFinite(c) || c < 0 || c > 1000)) throw new ManifestError(`costs.${k} must be dollars per call (0 to 1000) or null.`);
+    out[k] = c as number | null;
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 /** The namespaced name a plugin tool is registered under: weather-alerts + check → weather_alerts__check. */

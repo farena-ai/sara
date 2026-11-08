@@ -117,3 +117,30 @@ check the app's help.
 `src/companion-import/` (readers, chunking and prompts, the session), routes under `/api/import/*`
 (see [ARCHITECTURE.md](ARCHITECTURE.md)); tests in `test/companion-import.test.ts` with invented
 fixtures in `test/companion-import-fixtures.ts`.
+
+## Bring your companion (Character.AI, Replika, Kindroid, Nomi)
+
+This makes a **new** companion from what another companion app lets you take with you: her
+character, her memories and, if you like, your chats. Where: **Settings → Her → Companions → Bring
+your companion from another app**.
+
+1. Choose where she comes from (or leave *Find out from the files*), then choose her files (up to 10,
+   50 MB together: a zip, `.json`, `.jsonl`, `.csv`, `.txt`, `.md` or a saved chat page `.html`) and/or
+   paste her notes.
+2. **See what comes over** shows her name (you can change it), pronouns, age, backstory, greeting,
+   example lines, every memory (with what it was in the other app and its date) and how many chat
+   messages there are. Untick anything you don't want.
+3. **Bring her over** makes the companion. Memories say *Imported from Kindroid (journal entry) on
+   2026-11-08* (for example); kept chats are archived and read-only.
+
+| App | What to give her |
+|---|---|
+| Character.AI | *Profile → Settings → Account → Manage account & data → Export data*. The zip is password-protected: unzip it, then choose the JSON files (or a new zip of them). |
+| Replika | There is no export button. Paste her **Memory** and **Diary** (headings `Memory:` and `Diary:`), or a file a chat-export tool saved (JSON, CSV, HTML). You can also ask Replika for your data (my@replika.com). |
+| Kindroid | Paste her **Backstory**, **Key memories**, **Example message**, **Response directive** and **Journal entries** under those headings; a date at the start of a journal entry (`2024-06-12: …`) is kept. |
+| Nomi | Paste her **Backstory+** notes under their headings (Backstory, Inclination, Current roleplay, Your appearance, Nomi's appearance, Nicknames, Preferences, Desires, Boundaries) and, for chats, a saved chat page or text. |
+
+Safety: the files are read on your server only and nothing in them is run (a saved web page is
+reduced to its text). A character under 18, or anything sexual involving minors, is refused or left
+out; explicit lines and memories need Adult mode on. Keys and passwords are blanked. Her safety rules
+and the AI notice always stay.

@@ -35,6 +35,9 @@ export const PINS = [
   { key: 'workMode', label: () => t('Keep work mode on everywhere'), form: '#po-workmode', kind: 'flag', value: true, locks: ['#atw-on'] },
   { key: 'triggers', label: () => t('Turn off event triggers'), form: '#po-triggers', kind: 'flag', value: false },
   { key: 'learning', label: () => t('Turn off Learn a topic'), form: '#po-learning', kind: 'flag', value: false, locks: ['#lib-topics-open'] },
+  { key: 'workingStyle', label: () => t('Turn off How she works with you'), form: '#po-workstyle', kind: 'flag', value: false, locks: ['#ws-on'] },
+  { key: 'spendCap', label: () => t('Hard daily spending cap'), form: '#po-spendcap', kind: 'number' },
+  { key: 'deviceApproval', label: () => t('Keep new-device approval on'), form: '#po-devapproval', kind: 'flag', value: true, locks: ['#dap-on'] },
 ];
 
 /** Shows `pins` in the policy form (`q` finds one element, `qa` all). */

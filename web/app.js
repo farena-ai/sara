@@ -34,12 +34,14 @@ import { initEventTriggers, loadEventTriggers } from './event-triggers.js';
 import { alwaysAllowButton, serverPolicyRows } from './tool-policy.js';
 import { initMoveIn, loadMoveIn, moveInEvent } from './movein.js';
 import { boardEvent, initBoard, openCardOnBoard, plannerView, rememberView } from './board.js';
+import { checkPrompts as checkDevicePrompts, initDeviceApproval, loadDeviceApproval, waitForApproval, waitOnSignIn } from './device-approval.js';
 import { agendaEvent, agendaNotice, agendaWhy, initAgenda, loadAgenda, openHerPlans, renderPlansTile } from './agenda.js';
 import { initPeople, peopleEvent, peopleOnOpen, showPerson } from './people.js';
 import { initOtherApps, keyUse, loadOtherApps } from './other-apps.js';
 import { initAlexa, loadAlexa } from './alexa.js';
 import { focusSshServer, initSsh, loadSsh } from './ssh.js';
 import { initPresence, loadPresence } from './home-presence.js';
+import { initBring } from './bring.js';
 import { initCards } from './cards.js';
 import { initImport, loadImport } from './import.js';
 import { initLocalModels, loadLocalModels, setPrivateBadge } from './local-models.js';
@@ -50,14 +52,16 @@ import { closeToday, drawSkeleton, initToday, reloadParts, renderToday, showToda
 import { editing as todayEditing, initTodayLayout, layoutPrefs, openSheet as openTodayCustomise, saveCollapsed as saveTodayCollapsed, savePrefs, setPrefs as setTodayPrefs, tileMenu, tileTitle } from './today-layout.js';
 import { initBottomBar } from './bottom-bar.js';
 import { startsOnToday } from './start-view.js';
-import { DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNote, updatesShown, versionChanged } from './update-check.js';
+import { DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNote, updatesShown, updateTone, versionChanged } from './update-check.js';
 import { initHousehold, joinFromLink, loadAccount, loadHousehold, showPaused } from './household.js';
 import { compactNotice, dimFolded, initLean, loadLean, paintSheet } from './lean.js';
 import { initPersist, loadPersistSettings, loadRepeats, openGoalCard, openLoopCard, persistEvent, persistMessage, persistOpen, savePersistSettings } from './persist.js';
 import { initRoutines, loadRoutines, openRoutinesAt, setRoutinesOpener, todayRoutineCards } from './routines.js';
 import { initWatches, watchNotice } from './watches.js';
 import { crewNotice, initCrews, loadCrews } from './crews.js';
+import { initWorkers, loadWorkers } from './workers.js';
 import { initMemoryTidy, loadMemoryTidy, memoryTidyNotice } from './memory-tidy.js';
+import { initWorkingStyle, loadWorkingStyle } from './working-style.js';
 import { helperEvent, initPhoneHelper, loadPhoneHelper } from './phone-helper.js';
 import { initReadTogether, readTogetherSwitched } from './read-together.js';
 import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-check.js';
@@ -66,6 +70,7 @@ import { initSharing, openShare } from './sharing.js';
 import { initDataRights } from './data-rights.js';
 import { initWorkProfile } from './work-profile.js';
 import { initUsageReport } from './usage-report.js';
+import { initSpend, priceText, refreshSaverBadge, spendLines } from './spend.js';
 import { initTrustReport } from './trust-report.js';
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
@@ -147,6 +152,8 @@ async function api(path, opts = {}) {
   });
   if (opts.raw) return res;
   const data = await res.json().catch(() => ({}));
+  // C15: a sensitive action from a remote device: wait for the owner's OK elsewhere, then once more.
+  if (res.status === 428 && data.approval && !opts.approvalRetry && (await waitForApproval(data.approval))) return api(path, { ...opts, approvalRetry: true });
   if (!res.ok) throw Object.assign(new Error(serverText(data, `HTTP ${res.status}`)), { data, status: res.status });
   return data;
 }
@@ -213,6 +220,8 @@ async function boot() {
   // Phase 71: the owner, or a household member in their own space.
   document.body.classList.toggle('member', session.role === 'member');
   buildSettingsNav(); // the nav was built before we knew who signed in: owner or member pages
+  // C15: a device waiting for approval right now gets its prompt here.
+  if (session.role === 'owner') void checkDevicePrompts();
   if (session.role === 'member' && session.member?.status !== 'active') return showPaused(session.member);
   const langChanged = await applyLanguage(session.language, session.appLanguage);
   setIdentity(session.identity);
@@ -324,8 +333,10 @@ $('#login-form').addEventListener('submit', async (e) => {
   $('#login-error').textContent = '';
   try {
     const code = $('#login-code').hidden ? undefined : $('#login-code').value.trim();
-    await api('/login', { method: 'POST', body: { token: $('#login-token').value.trim(), ...(code ? { code } : {}) } });
+    const r = await api('/login', { method: 'POST', body: { token: $('#login-token').value.trim(), ...(code ? { code } : {}) } });
     $('#login-token').value = '';
+    // C15: from elsewhere, this device waits for the owner's approval first.
+    if (r.pendingApproval && !(await waitOnSignIn(r.pendingApproval))) return;
     $('#login-code').value = '';
     $('#login-code').hidden = true;
     await boot();
@@ -347,10 +358,11 @@ $('#login-passkey').addEventListener('click', async () => {
     const o = await api('/passkey/signin-options', { method: 'POST', body: {} });
     const cred = await navigator.credentials.get({ publicKey: { challenge: b64u.dec(o.challenge), rpId: o.rpId, userVerification: o.userVerification, timeout: o.timeout, allowCredentials: [] } });
     if (!cred) return;
-    await api('/passkey/signin', {
+    const r = await api('/passkey/signin', {
       method: 'POST',
       body: { id: cred.id, clientDataJSON: b64u.enc(cred.response.clientDataJSON), authenticatorData: b64u.enc(cred.response.authenticatorData), signature: b64u.enc(cred.response.signature) },
     });
+    if (r.pendingApproval && !(await waitOnSignIn(r.pendingApproval))) return;
     await boot();
   } catch (err) {
     $('#login-error').textContent = err.name === 'NotAllowedError' ? t('Passkey sign-in was cancelled.') : err.message;
@@ -2152,7 +2164,7 @@ function commandNotice(m) {
 // Phase 113: /bug and /idea open the report sheet (the server answers with what to fill in).
 // Phase 123: /compact and /tools.
 // Phase 128 (PL2b): /problems from the / menu too.
-const CHAT_COMMAND = /^\/(new|reset|stop|status|help|model|remember|bug|idea|when|continue|compact|tools|problems|learn)(?:\s[\s\S]*)?$/i;
+const CHAT_COMMAND = /^\/(new|reset|stop|status|help|model|remember|bug|idea|when|continue|compact|tools|problems|learn|saver)(?:\s[\s\S]*)?$/i;
 /** C6: "learn about X" / "keep up with X" is /learn X (the server reads it the same way: learnAsk in src/learn.ts). */
 const LEARN_ASK = /^\s*(?:(?:hey\s+\w+,?\s+)?(?:please\s+|can you\s+|could you\s+|would you\s+)?)(?:learn(?: all| everything)? about|keep up(?: to date)? (?:with|on)|study up on|read up on)\s+(.{2,200}?)\s*[.!?]*\s*$/i;
 async function runChatCommand(text) {
@@ -2234,7 +2246,7 @@ async function send(text) {
     return persistCmd[1].toLowerCase() === 'goal' ? openGoalCard((persistCmd[2] ?? '').trim()) : openLoopCard((persistCmd[2] ?? '').trim());
   }
   // Phase 107: a command never goes to her as a message (photos and documents need a real one).
-  if ((CHAT_COMMAND.test(text.trim()) || LEARN_ASK.test(text)) && !state.editing && !state.photos.length && !state.docs.length && !state.conv?.partner) return runChatCommand(text.trim());
+  if ((CHAT_COMMAND.test(text.trim()) || LEARN_ASK.test(text)) && !state.editing && !state.photos.length && !state.docs.length && !state.conv?.partner) return runChatCommand(text.trim()).finally(() => /^\/saver\b/i.test(text.trim()) && void refreshSaverBadge());
   if (!state.currentId) {
     const conv = await api('/conversations', { method: 'POST', body: {} });
     state.conversations.unshift(conv);
@@ -2581,6 +2593,8 @@ async function runStream(path, body, userBubble) {
             building.delete(live[0]);
             live[1].remove();
           }
+          // C8: a paid step says what it costs before it runs.
+          if (ev.price) ev.summary = `${ev.summary} · ${priceText(ev.price)}`;
           addStep(ensureSteps(), { id: ev.id, name: ev.name, summary: ev.summary, args: ev.args, status: 'running' });
           setActivity('running', ev.summary);
         } else if (ev.type === 'budget') {
@@ -3140,7 +3154,8 @@ function approvalCard(ev, block) {
     what.hidden = true;
     card.classList.add('approval-gmail');
   }
-  card.append(title, ...(untrustedNote ? [untrustedNote] : []), ...(c ? [contradictionSection(c)] : []), ...(adv ? [advisorySection(adv)] : []), ...(rtg && !c && !adv ? [redteamGateSection(rtg)] : []), ...(ev.budget ? [budgetMeter(ev.budget)] : []), ...(gm ? [gm] : []), what, ...(ev.sandboxFirst ? [sandboxFirstNote(ev.sandboxFirst)] : []), row);
+  // C8: what this step costs, and the spend limit it reached (Allow = this one call).
+  card.append(title, ...(ev.price || ev.spend ? spendLines(ev) : []), ...(untrustedNote ? [untrustedNote] : []), ...(c ? [contradictionSection(c)] : []), ...(adv ? [advisorySection(adv)] : []), ...(rtg && !c && !adv ? [redteamGateSection(rtg)] : []), ...(ev.budget ? [budgetMeter(ev.budget)] : []), ...(gm ? [gm] : []), what, ...(ev.sandboxFirst ? [sandboxFirstNote(ev.sandboxFirst)] : []), row);
   if (card.classList.contains('approval-tidy')) {
     if (TOOL_WORDS[ev.name]) title.after(el('p', 'approval-about muted small', t(TOOL_WORDS[ev.name])));
     row.append(el('span', 'tool-raw approval-raw', ev.name));
@@ -6550,6 +6565,8 @@ function startEvents() {
   });
   // Phase 99: a board changed (another tab, her work on a card, a shared board): the open board follows.
   let todayBoardTimer = 0;
+  // C15: a device asks to sign in (or for a sensitive action): the prompt on this device.
+  es.addEventListener('device-approval', () => void checkDevicePrompts());
   es.addEventListener('board', () => {
     boardEvent();
     // Today's "On the board" tile (waiting cards, her work) follows too, at most every 2 s.
@@ -7138,6 +7155,8 @@ async function openMemory(opts = {}) {
   const s = await api('/memory/settings');
   // EC13: Overnight tidy (web/memory-tidy.js).
   void loadMemoryTidy();
+  // C12: How she works with you (web/working-style.js).
+  void loadWorkingStyle();
   $('#mem-enabled').checked = s.enabled;
   $('#mem-quiet').value = String([10, 30, 60, 120].reduce((b, v) => (Math.abs(v - s.quietMinutes) < Math.abs(b - s.quietMinutes) ? v : b), 30));
   $('#mem-fade').value = s.fade ?? 'never';
@@ -8220,7 +8239,7 @@ async function loadSettingsPages() {
   // Phase 71: a household member's space answers only their own pages; the owner's are skipped.
   if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop()]));
   await loadTools();
-  await Promise.all([loadDevices().catch(() => {}), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadWhileBusy(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets()]);
+  await Promise.all([loadDevices().catch(() => {}), loadDeviceApproval(), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadWhileBusy(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets()]);
 }
 /**
  * M9: text drawn from data before a language change stays in the old language, so the open
@@ -8488,6 +8507,7 @@ $('#usage-price-add').addEventListener('click', () => {
 
 /** The line under the chat: tokens and estimated cost of this conversation so far. */
 async function updateConvUsage() {
+  void refreshSaverBadge();
   const id = state.currentId;
   const box = $('#conv-usage');
   if (!id || state.conv?.offRecord) return void (box.hidden = true);
@@ -9455,8 +9475,12 @@ initReadTogether({ api, current: () => state.currentId });
 // E4: Watch a file (web/watches.js): Ask about this puts his own question in the message box of the watch's chat.
 // EC12: Team → Crews (web/crews.js); its chat card opens the Team dialog or the crew's chat.
 initCrews({ api, el, openConversation: (id) => openConversation(id), openTeam: () => openTeam() });
+// C10: Team → Workers that stay (web/workers.js).
+initWorkers({ api, el, openConversation: (id) => openConversation(id) });
 // EC13: Memory → Overnight tidy and its morning card (web/memory-tidy.js).
 initMemoryTidy({ api, el, openMemory: () => $('#open-memory').click() });
+// C12: Memory → How she works with you (web/working-style.js).
+initWorkingStyle({ api, el });
 initPhoneHelper({ api });
 initWatches({
   api,
@@ -9482,6 +9506,8 @@ initDataRights({ api, el, openSettings: (page) => void openSettings(page) });
 // EC26: Settings → Her → At work (web/work-profile.js).
 initWorkProfile({ api, el });
 initUsageReport({ api, el, isMember });
+// C8: spend limits, Token Saver and its badge (web/spend.js).
+initSpend({ api, el, isMember });
 // EC25: Settings → Household → Trust report (web/trust-report.js).
 initTrustReport({ api, el });
 // Phase 120: the @ menu and chips; who may use references here is decided again by the server.
@@ -9516,6 +9542,7 @@ initSessionContinuity({ api });
 initScenes({ api, openSettings: (page) => openSettings(page) });
 initPickup({ api, el, state, reload: (id) => void openConversation(id) });
 initLearning();
+initDeviceApproval();
 initBoard({ fmtDue: (iso) => fmtDue(iso, false), openConversation: (id) => openConversation(id), openPlanner: async (tab) => {
   if (!$('#planner').open) await openPlanner();
   document.querySelector(`#planner .tab[data-tab="${tab}"]`)?.click();
@@ -9825,7 +9852,7 @@ async function loadUpdates() {
   const st = u.status;
   if (upWait && (Date.now() > upWait.until || (st.at ?? '') !== upWait.at || st.state !== upWait.state)) upWait = null;
   if (upWait && !st.pending && st.state !== 'checking' && st.state !== 'updating') st.pending = upWait.action;
-  const busy = Boolean(st.pending) || st.state === 'checking' || st.state === 'updating';
+  const busy = Boolean(st.pending) || st.state === 'checking' || st.state === 'updating' || st.state === 'downloading';
   $('#up-check').disabled = busy;
   $('#up-go').hidden = !u.available || st.state !== 'available';
   $('#up-go').disabled = busy;
@@ -9833,8 +9860,12 @@ async function loadUpdates() {
   $('#up-message').textContent = msg ? `${msg}${st.at && !busy ? ` (${new Date(st.at).toLocaleString()})` : ''}` : u.available ? t('Press Check for updates to see if there is a new version.') : '';
   // Phase 46: Windows and macOS update with the installer from the download page.
   const release = u.how === 'release';
-  if (release) $('#up-go').hidden = true;
-  $('#up-download-row').hidden = !release || !['available', 'failed'].includes(st.state) || !st.downloadUrl;
+  // C9: with a signed notice Windows (per-user install) and macOS update here; otherwise the download page.
+  const auto = release && Boolean(st.auto);
+  if (release && !auto) $('#up-go').hidden = true;
+  $('#up-auto').hidden = !release || !st.autoWhy || st.state !== 'available';
+  $('#up-auto').textContent = st.autoWhy ?? '';
+  $('#up-download-row').hidden = !release || auto || !['available', 'failed', 'rolledback'].includes(st.state) || !st.downloadUrl;
   if (st.downloadUrl) $('#up-download').href = st.downloadUrl;
   $('#up-download').textContent = st.state === 'available' && st.latest ? t('Download Sara {latest}', { latest: st.latest }) : t('Open the download page');
   $('#up-changes').hidden = st.state !== 'available' || !st.changes?.length;
@@ -9942,7 +9973,21 @@ function paintUpdateLink() {
   const on = updatesShown(upx) && s.state === 'available' && Boolean(s.latest);
   $('#side-update').hidden = !on;
   if (on) $('#side-update').title = t('Sara {latest} is available: open Settings → Updates', { latest: s.latest });
+  // C9: the top bar's Update button; its colour rises with the release's age (web/update-check.js).
+  const tone = updatesShown(upx) ? updateTone(s) : null;
+  const head = $('#head-update');
+  head.hidden = !tone;
+  if (tone) {
+    head.className = `head-update upd-${tone.tone}`;
+    $('#head-update-text').textContent = tone.required ? t('Update required') : t('Update');
+    head.title = tone.required
+      ? t('This version is no longer supported: update to Sara {latest}', { latest: s.latest })
+      : s.security
+        ? t('Sara {latest} fixes a security problem: update soon', { latest: s.latest })
+        : t('Sara {latest} is available: open Settings → Updates', { latest: s.latest });
+  }
 }
+$('#head-update').addEventListener('click', () => void openSettings('dh-updates'));
 function offerUpdate() {
   const s = upx.status ?? {};
   if (!updatesShown(upx) || !shouldRemind({ status: s, version: upx.version, dismissed: store(localStorage, DISMISS_KEY), later: store(sessionStorage, LATER_KEY) })) return;
@@ -9951,7 +9996,8 @@ function offerUpdate() {
   $('#upp-title-text').textContent = t('Sara {latest} is available', { latest: s.latest });
   $('#upp-changes').replaceChildren(...(s.changes ?? []).slice(0, 8).map((c) => el('li', '', c)));
   $('#upp-dismiss').checked = false;
-  const release = upx.how === 'release';
+  // C9: a signed notice lets Windows (per-user) and macOS update here; else the download page.
+  const release = upx.how === 'release' && !s.auto;
   $('#upp-go').hidden = release;
   $('#upp-download').hidden = !release;
   if (release && s.downloadUrl) $('#upp-download').href = s.downloadUrl;
@@ -11148,6 +11194,8 @@ async function galleryUse(g) {
 // UX 6: the one Import button for both kinds of file lives in cards.js (Sara files go to #char-file).
 // L12: a ready-made character keeps her current picture; a new look is one click away.
 $('#gallery-look').addEventListener('click', () => showSettingsTab('her-look', { focus: true }));
+// C7: bring your companion from Character.AI, Replika, Kindroid or Nomi (Settings → Her → Companions).
+initBring({ refresh: () => renderCompanionsPage().catch(() => {}), switchTo: (id) => switchCompanion(id) });
 // Phase 57: character cards (import with a preview first, export as a card) and Settings → Other apps.
 initCards({
   onImported: async (r) => {
@@ -13189,6 +13237,8 @@ async function openTeam(taskId) {
   await loadTeam();
   // EC12: the Crews section of the Team dialog (web/crews.js).
   void loadCrews();
+  // C10: the Workers that stay section (web/workers.js).
+  void loadWorkers();
   if (taskId) team.current = taskId;
   else team.current ??= team.data?.tasks[0]?.id ?? null;
   await renderTeamDetail();

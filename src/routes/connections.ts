@@ -294,6 +294,8 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       if (!c && method === 'PUT') {
         const body = await readJson(req);
         let tokenChanged = false;
+        // C15: a channel token from a remote device asks the owner first.
+        if (typeof body.token === 'string') ctx.askFirst(req, 'channel-token');
         if (typeof body.token === 'string') {
           const t = body.token.trim();
           if (t && !/^[\w-]{20,}\.[\w-]{4,}\.[\w-]{20,}$/.test(t)) throw new HttpError(400, 'That does not look like a Discord bot token.');
@@ -355,6 +357,8 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       if (!c && method === 'PUT') {
         const body = await readJson(req);
         let tokenChanged = false;
+        // C15: a channel token from a remote device asks the owner first.
+        if (typeof body.token === 'string') ctx.askFirst(req, 'channel-token');
         if (typeof body.token === 'string') {
           const t = body.token.trim();
           if (t && !/^\d{5,}:[\w-]{30,}$/.test(t)) throw new HttpError(400, 'That does not look like a bot token from @BotFather.');

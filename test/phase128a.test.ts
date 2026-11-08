@@ -229,7 +229,9 @@ test('128a.3 N2: the consent step and the page wiring', async () => {
   assert.match(sc, /body: \{ review: review\.id, consent: true \}/);
   assert.match(sc, /consentKind\(review\) === 'full'\) return void \(await o\.full\(id\)\)/, 'anything else: the full card');
   const route = readFileSync(join(ROOT, 'src', 'routes', 'plugins.ts'), 'utf8');
-  assert.match(route, /pm\.approve\(r\.id, \{\s*trust: body\.trust === true, consent: body\.consent === true,\s*onCommitted: row => \{/);
+  // C8 moved the approval into approveReview (also used by automatic updates); the route passes the page's two ticks.
+  assert.match(route, /approveReview\(app, pm, r, \{ trust: body\.trust === true, consent: body\.consent === true \}\)/);
+  assert.match(route, /pm\.approve\(r\.id, \{\s*trust: o\.trust === true, consent: o\.consent === true,\s*onCommitted: row => \{/);
 });
 
 test('128a.4 N3: Signal steps have an install line for Windows, macOS and Linux and Copy rows; daemon not reachable is one plain sentence', async (t) => {

@@ -36,6 +36,11 @@ of that chat, and a note tied to a private or sensitive person fact with none.
 Each member has their own tidy over their own notes (Memory → Overnight tidy in their space).
 Nothing crosses from one space to another.
 
+## How she works with you
+
+The same night slot also lets the beliefs about how you like to work fade and notices your usual
+hours (code only, no model, whether or not the tidy is on). See [WORKING_STYLE.md](WORKING_STYLE.md).
+
 ## For admins
 
 Policy pin **Overnight memory tidy**: *Models on this computer only* (nobody may pick *Any

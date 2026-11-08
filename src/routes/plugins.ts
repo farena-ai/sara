@@ -61,6 +61,8 @@ import { bridgeWindowOpen } from '../plugins/bridge-db.ts';
 import { en } from '../i18n.ts';
 import { InstallError, StoreInstaller } from '../store/install.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import type { AppContext } from '../chat.ts';
+import type { PluginManager, Review } from '../plugins/manager.ts';
 
 const IMAGE_TYPES: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' };
 
@@ -116,6 +118,8 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
               return send(res, 200, pm.stage(fromFolder(dir, PLUGIN_LIMITS), { kind: 'folder', where: dir }));
             }
             if (typeof body.url === 'string' && body.url.trim()) {
+              // C15: an add-on from a web address, asked for by a remote device: the owner approves first.
+              ctx.askFirst(req, 'addon-url');
               const files = await fromGit(body.url, join(app.dataDir, 'cache', 'plugin-imports'), PLUGIN_LIMITS);
               return send(res, 200, pm.stage(files, { kind: 'git', where: body.url.trim() }));
             }
@@ -316,28 +320,7 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
       const r = pm.review(String(body.review ?? ''));
       if (!r || r.manifest.id !== id) throw new HttpError(404, 'That review has expired. Add the plugin again.');
       try {
-        // PL2a (N2): Sara's own plugins install from the short consent step (`consent`); the manager
-        // honours it only for a review it marked first-party itself, never for anything the page says.
-        const strip = r.store;
-        const installs = app.storeInstalls;
-        if (strip && installs && installs.db !== pm.store.db) throw new HttpError(409, en('The plugin store association is unavailable. Try again later.'));
-        await pm.approve(r.id, {
-          trust: body.trust === true, consent: body.consent === true,
-          onCommitted: row => {
-            const index = app.storeClient?.current()?.index;
-            const block = index?.blocked.find(entry => (entry.id === row.id && (entry.versions === '*' || entry.versions.includes(row.version))) || entry.contentShas?.includes(row.approved_sha));
-            if (block) throw new HttpError(403, en('This version was pulled from the store: {reason}'), { params: { reason: block.reason } });
-            if (!strip || !installs) return;
-            if (app.storeClient?.held().some(entry => entry.id === strip.item)) throw new HttpError(409, en('Being checked by the Sara team'));
-            const item = index?.items.find(entry => entry.id === strip.item);
-            const version = item?.versions.find(entry => entry.version === strip.version);
-            if (!item || item.kind !== 'plugin' || strip.item !== row.id || strip.version !== row.version || !version || version.contentSha !== row.approved_sha || item.trust !== strip.trust || (version.yanked ?? null) !== (strip.yanked ?? null)) {
-              throw new HttpError(409, en('That review has expired. Add the plugin again.'));
-            }
-            const at = app.now().toISOString();
-            installs.upsert({ item: item.id, kind: 'plugin', version: row.version, trust: item.trust, local_ref: row.id, content_sha: row.approved_sha, entry_sha: version.entrySha, installed_at: at, updated_at: at, ...(version.yanked ? { state: 'yanked' as const, state_note: version.yanked } : {}) });
-          },
-        });
+        await approveReview(app, pm, r, { trust: body.trust === true, consent: body.consent === true });
       } catch (err) {
         return asHttp(err);
       }
@@ -490,4 +473,33 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
     }
     throw new HttpError(405, 'Method not allowed');
   };
+}
+
+/**
+ * Approves a staged review (Install / Update on the card, or C8's automatic update) and keeps the
+ * Sara Store's record of the installed bytes in step (the same checks either way).
+ */
+export async function approveReview(app: AppContext, pm: PluginManager, r: Review, o: { trust?: boolean; consent?: boolean }): Promise<void> {
+  // PL2a (N2): Sara's own plugins install from the short consent step (`consent`); the manager
+  // honours it only for a review it marked first-party itself, never for anything the page says.
+  const strip = r.store;
+  const installs = app.storeInstalls;
+  if (strip && installs && installs.db !== pm.store.db) throw new HttpError(409, en('The plugin store association is unavailable. Try again later.'));
+  await pm.approve(r.id, {
+    trust: o.trust === true, consent: o.consent === true,
+    onCommitted: row => {
+      const index = app.storeClient?.current()?.index;
+      const block = index?.blocked.find(entry => (entry.id === row.id && (entry.versions === '*' || entry.versions.includes(row.version))) || entry.contentShas?.includes(row.approved_sha));
+      if (block) throw new HttpError(403, en('This version was pulled from the store: {reason}'), { params: { reason: block.reason } });
+      if (!strip || !installs) return;
+      if (app.storeClient?.held().some(entry => entry.id === strip.item)) throw new HttpError(409, en('Being checked by the Sara team'));
+      const item = index?.items.find(entry => entry.id === strip.item);
+      const version = item?.versions.find(entry => entry.version === strip.version);
+      if (!item || item.kind !== 'plugin' || strip.item !== row.id || strip.version !== row.version || !version || version.contentSha !== row.approved_sha || item.trust !== strip.trust || (version.yanked ?? null) !== (strip.yanked ?? null)) {
+        throw new HttpError(409, en('That review has expired. Add the plugin again.'));
+      }
+      const at = app.now().toISOString();
+      installs.upsert({ item: item.id, kind: 'plugin', version: row.version, trust: item.trust, local_ref: row.id, content_sha: row.approved_sha, entry_sha: version.entrySha, installed_at: at, updated_at: at, ...(version.yanked ? { state: 'yanked' as const, state_note: version.yanked } : {}) });
+    },
+  });
 }

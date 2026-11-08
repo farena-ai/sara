@@ -1,4 +1,5 @@
 import { sendDelivery, formReview, DeliveryRejected, DeliveryUncertain } from './delivery.ts';
+import { answerFromChat, fill as fillSaid } from '../device-approval.ts';
 import { PRIO_EDIT, type Priority } from './sendq.ts';
 // Phase 6: Telegram bridge. Long polling (no public webhook needed). The owner links their account
 // with a one-time code; their DMs go to one owner conversation with everything (tools via
@@ -500,6 +501,9 @@ export class TelegramBridge {
       return;
     }
 
+    // C15: "approve K7Q2M" / "deny K7Q2M" from the verified owner, in his private chat only.
+    const approvalSaid = isPrivate && isTelegramOwner(cfg, msg.from.id) && !msg.document ? answerFromChat(this.#app.deviceApprovals, text, 'telegram') : undefined;
+    if (approvalSaid) return void (await this.send(msg.chat.id, fillSaid(approvalSaid, (t) => this.#tr(t))));
     const fromOwner = isTelegramOwner(cfg, msg.from.id);
     const isOwnerChat = isPrivate && fromOwner;
     // Phase 43: an owner working with her in a group (tools, her memory).

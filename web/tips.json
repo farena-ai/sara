@@ -89,6 +89,18 @@
       "Shared: every companion sees the same to-dos and reminders. Separate: each keeps their own. Takes effect after a restart.",
       "companions"
     ],
+    "bring-source": [
+      "The app she lived in. Leave it on Find out from the files and Sara guesses from the section names, for example Key memories means Kindroid.",
+      "bring"
+    ],
+    "bring-files": [
+      "Her export files: a zip, JSON, CSV, text or a saved chat page, up to 10 files and 50 MB. Unzip a password-locked Character.AI export first.",
+      "bring"
+    ],
+    "bring-text": [
+      "Paste her notes under their headings, for example Backstory:, Key memories: or Journal entries:. One memory per line; a date at the start of an entry is kept.",
+      "bring"
+    ],
     "look-desc": [
       "Describe her in plain words: age, hair, eyes, build, style. Example: \"late 20s, freckles, auburn bob, green eyes, cozy sweaters\".",
       "look"

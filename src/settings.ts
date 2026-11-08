@@ -99,6 +99,8 @@ export interface Settings {
   memoryTidy?: { on?: boolean; model?: 'local' | 'any' };
   /** Phase 99 (ST4): the board (how many cards she works at once; 2 by default). */
   board?: { concurrent?: number };
+  /** C15: approve a new device from chat (src/device-approval.ts). */
+  deviceApproval?: { on?: boolean; allowedHosts?: string[]; maxDevices?: number; notice?: boolean };
   /** Phase 52: the owner's own model prices (USD per 1M tokens; they win over the shipped defaults). */
   prices?: import('./usage.ts').PriceRow[];
   /** Phase 52: default budget for a background job that uses a model (Claude Code / Grok Build). */
@@ -150,6 +152,12 @@ export interface Settings {
    * Phase 79: per-reply budgets (Settings → Coding → Budgets): coding chats and everyday chats
    * (tokens, steps, optional $ and minutes, on/off), the quick-model step and what happens at the limit.
    */
+  /** C8: spend limits and the owner's own tool prices (src/spend.ts). */
+  spend?: Partial<import('./spend.ts').SpendSettings>;
+  /** C8: Token Saver (src/spend.ts): off / on / auto and auto's daily line. */
+  tokenSaver?: Partial<import('./spend.ts').SaverSettings>;
+  /** C8: add-on auto-update (src/addon-autoupdate.ts): off by default; all, or per add-on. */
+  addonAutoUpdate?: Partial<import('./addon-autoupdate.ts').AutoUpdateSettings>;
   /** C6: Learn a topic (src/learn.ts): the monthly learning budget in estimated tokens. */
   learn?: { monthlyTokens?: number };
   turnBudgets?: Partial<Omit<import('./budget.ts').TurnBudgetSettings, 'coding' | 'chat'>> & { coding?: Partial<import('./budget.ts').TurnLimits>; chat?: Partial<import('./budget.ts').TurnLimits> };

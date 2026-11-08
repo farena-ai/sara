@@ -44,6 +44,53 @@ import { smokeFence } from '../store/pack-cli.ts';
 import { authorKey, DeskError, deskDown, refreshSubmission, replySubmission, sendReport, submissions, submit } from '../store/submit.ts';
 import { sha256, StoreRefused } from '../store/verify.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { autoUpdateOn, autoUpdateSettings, type AutoUpdateDeps } from '../addon-autoupdate.ts';
+import { trOwner } from '../i18n.ts';
+import type { AppContext } from '../chat.ts';
+import { approveReview } from './plugins.ts';
+
+/**
+ * C8: what the auto-updater needs for the owner's Store plugins (src/addon-autoupdate.ts), or
+ * undefined where there is no Store or no plugin manager. The review, approval and go-back paths are
+ * the ones the owner's own buttons use.
+ */
+export function storeAutoUpdateDeps(app: AppContext, notify: (title: string, line: string) => void): AutoUpdateDeps | undefined {
+  const client = app.storeClient;
+  const installs = app.storeInstalls;
+  const pm = app.pluginManager;
+  if (!client || !installs || !pm) return undefined;
+  const installer = () => new StoreInstaller({ app, client, installs, plugins: pm, programs: prereqService(app) });
+  return {
+    settings: () => app.settings.get(),
+    save: (patch) => app.settings.update(patch),
+    now: () => app.now(),
+    candidates: () => {
+      if (!client.installAllowed()) return [];
+      const shelf = shelfView(client, { saraVersion: pm.version, installs, plugins: pm, ...storeSettings(app.settings.get() as never) }).items as { id: string; name?: string; version: string; updateAvailable: boolean }[];
+      return installs.all().flatMap((r) => {
+        const s = shelf.find((x) => x.id === r.item && x.updateAvailable);
+        const local = pm.store.get(r.local_ref);
+        if (r.kind !== 'plugin' || r.state !== 'ok' || !s || !local || pluginInstallation(pm, r.local_ref, r).installHeld) return [];
+        return [{ item: r.item, name: local.name || s.name || r.item, current: local.version, version: s.version }];
+      });
+    },
+    stage: async (item) => {
+      const r = await installer().update(item, { community: storeSettings(app.settings.get() as never).community });
+      if (r.kind !== 'plugin') throw new Error('Only plugins update by themselves.');
+      return r.review;
+    },
+    cancel: (id) => void pm.cancel(id),
+    apply: async (st) => {
+      const r = pm.review(st.id);
+      if (!r) throw new Error('That review has expired.');
+      await approveReview(app, pm, r, { consent: true });
+    },
+    healthy: (item) => pm.healthy(installs.get(item)?.local_ref ?? item),
+    rollback: async (item) => void (await installer().goBack(item)),
+    notify,
+    tr: (text, params) => trOwner(text, app.settings.get(), params),
+  };
+}
 
 export interface StoreSettings {
   on: boolean;
@@ -111,7 +158,7 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
       if (origin === 'builtin') continue;
       const r = rows.get(`plugin:${p.id}`);
       const source = pluginInstallation(app.pluginManager, p.id, r);
-      out.push({ kind: 'plugin', ref: p.id, name: p.name, version: p.version, origin, item: r?.item ?? null, trust: r?.trust ?? null, status: p.status, note: p.status_note ?? null, state: r?.state ?? null, stateNote: r?.state_note ?? null, update: source.installHeld ? null : upd(r?.item), ...(source.installHeld ? { installHeld: source.installHeld, installHeldCode: source.installHeldCode } : {}), canGoBack: Boolean(p.prev_version) });
+      out.push({ kind: 'plugin', ref: p.id, name: p.name, version: p.version, origin, item: r?.item ?? null, ...(r?.item ? { auto: autoUpdateOn(autoUpdateSettings(app.settings.get()), r.item) } : {}), trust: r?.trust ?? null, status: p.status, note: p.status_note ?? null, state: r?.state ?? null, stateNote: r?.state_note ?? null, update: source.installHeld ? null : upd(r?.item), ...(source.installHeld ? { installHeld: source.installHeld, installHeldCode: source.installHeldCode } : {}), canGoBack: Boolean(p.prev_version) });
     }
     for (const s of app.skills?.list() ?? []) {
       if (s.source !== 'imported') continue;
@@ -125,7 +172,8 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
       const conn = app.mcp?.get(m.name);
       out.push({ kind: 'mcp', ref: m.name, name: m.name, version: r?.version ?? '', origin: r ? 'store' : 'typed', item: r?.item ?? null, trust: r?.trust ?? null, status: m.enabled ? (conn?.status ?? 'stopped') : 'disabled', tools: conn?.tools.length ?? 0, note: conn?.error || null, state: r?.state ?? null, stateNote: r?.state_note ?? null, update: upd(r?.item), canGoBack: Boolean(r?.prev_recipe) });
     }
-    return { addons: out, updates: out.filter((x) => x.update).length };
+    const au = autoUpdateSettings(app.settings.get());
+    return { addons: out, updates: out.filter((x) => x.update).length, autoUpdate: { all: au.all, last: au.last.slice(0, 5) } };
   };
 
   return async (req, res, method, parts) => {
@@ -311,6 +359,20 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
       }
     }
     if (b === 'mine' && !c && method === 'GET') return send(res, 200, mine());
+    // C8: auto-update switches: {all: bool} or {item, on: bool | null} (null = follow "all").
+    if (b === 'auto-update' && !c && method === 'PUT') {
+      const body = (await readJson(req)) as { all?: unknown; item?: unknown; on?: unknown };
+      const cur = autoUpdateSettings(app.settings.get());
+      const items = { ...cur.items };
+      if (body.item !== undefined) {
+        const item = String(body.item);
+        if (!app.storeInstalls?.get(item)) throw new HttpError(404, en('That add-on was not installed from the store.'));
+        if (body.on === null) delete items[item];
+        else items[item] = body.on === true;
+      }
+      app.settings.update({ addonAutoUpdate: { ...cur, all: body.all === undefined ? cur.all : body.all === true, items } });
+      return send(res, 200, mine());
+    }
 
     // ---- reports ----
     if (b === 'report' && !c && method === 'POST') {

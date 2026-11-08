@@ -237,6 +237,28 @@ export class UsageStore {
     return { id: Number(r.lastInsertRowid), at, providerId: config.id, providerLabel: config.label, model, billing, purpose: where.purpose, conversationId: where.conversationId ?? null, jobId: where.jobId ?? null, teamTaskId: where.teamTaskId ?? null, input, output, cached, usd };
   }
 
+  /**
+   * C8: one paid tool call (a picture, an add-on that costs money) on the same ledger. Its row has
+   * provider `tool`, the tool's name as the model and purpose `tool`; `usd` null = price unknown.
+   */
+  recordTool(name: string, usd: number | null, where: UsageScope = {}): UsageRow {
+    const at = this.#now().toISOString();
+    const cost = usd === null || !Number.isFinite(usd) ? null : Math.max(0, Math.min(10_000, usd));
+    const r = this.#db
+      .prepare("INSERT INTO usage (at, provider_id, provider_label, model, billing, purpose, conversation_id, job_id, team_task_id, input, output, cached, usd, run_id) VALUES (?, 'tool', 'Paid tool', ?, 'api', 'tool', ?, ?, ?, 0, 0, 0, ?, ?)")
+      .run(at, name.slice(0, 200), where.conversationId ?? null, where.jobId ?? null, where.teamTaskId ?? null, cost, where.runId || null);
+    const sc = usageScope.getStore();
+    if (cost && sc) sc.usd = (sc.usd ?? 0) + cost;
+    return { id: Number(r.lastInsertRowid), at, providerId: 'tool', providerLabel: 'Paid tool', model: name, billing: 'api', purpose: 'tool', conversationId: where.conversationId ?? null, jobId: where.jobId ?? null, teamTaskId: where.teamTaskId ?? null, input: 0, output: 0, cached: 0, usd: cost };
+  }
+
+  /** C8: dollars and tokens since a time (all rows), and the dollars of one paid tool. */
+  spentSince(sinceIso: string, tool?: string): { usd: number; tokens: number; toolUsd: number } {
+    const r = this.#db.prepare("SELECT COALESCE(SUM(usd),0) AS usd, COALESCE(SUM(input + output),0) AS tokens, COALESCE(SUM(CASE WHEN provider_id = 'tool' AND purpose = 'tool' AND model = ? THEN usd ELSE 0 END),0) AS tool FROM usage WHERE at >= ?").get(tool ?? '', sinceIso) as Row;
+    const round = (n: unknown) => Math.round(Number(n) * 1e6) / 1e6;
+    return { usd: round(r.usd), tokens: Number(r.tokens), toolUsd: round(r.tool) };
+  }
+
   #totals(where: string, args: (string | number)[]): UsageTotals {
     const r = this.#db.prepare(`SELECT COUNT(*) AS calls, COALESCE(SUM(input),0) AS input, COALESCE(SUM(output),0) AS output, COALESCE(SUM(cached),0) AS cached, COALESCE(SUM(usd),0) AS usd, COALESCE(SUM(CASE WHEN usd IS NULL THEN 1 ELSE 0 END),0) AS unpriced, GROUP_CONCAT(DISTINCT billing) AS billing FROM usage WHERE ${where}`).get(...args) as Row;
     const input = Number(r.input);

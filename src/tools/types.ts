@@ -88,6 +88,8 @@ export interface Tool {
    * `refuse` ends the call with that text (nothing asked, nothing changed).
    */
   prepare?: (args: Record<string, unknown>, ctx: { signal: AbortSignal; conversationId?: string; replay?: boolean }) => Promise<Prepared>;
+  /** C8: what one call costs in US dollars (null = it costs money, amount unknown; 0 or unset = free). */
+  cost?: number | null;
   /** Source label for the settings UI, e.g. "built-in" or "MCP: github". */
   source?: string;
   /** Short human-readable description of a call, for the activity log and approval cards. */

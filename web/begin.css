@@ -146,6 +146,18 @@ button.rt-setup-first:hover { background: var(--accent-soft); filter: none; }
 #team .rt-field input, #team .rt-field select, #team .rt-field textarea { flex: 1 1 12rem; min-height: 44px; width: auto; min-width: 0; }
 #team .rt-field input[type="checkbox"] { flex: none; width: 22px; height: 22px; min-height: 22px; }
 .crew-add .rt-more-acts, .crews-box > div > .rt-more-acts { align-items: center; }
+/* C10: Team → Workers that stay (web/workers.js). */
+.workers-box { margin: 12px 0; }
+.wr-char, .wr-needs { margin: 2px 0; overflow-wrap: anywhere; }
+.wr-needs, .wr-risky { color: var(--warn, inherit); }
+.wr-groups { display: flex; flex-wrap: wrap; gap: 4px 14px; flex: 1 1 12rem; }
+#team .wr-groups .wr-group { display: inline-flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 6px; flex: 0 0 auto; width: auto; }
+.wr-row .rt-row-head { justify-content: flex-start; }
+.wr-row .rt-row-head .wt-state { margin-left: auto; }
+.wr-failed-list, .wr-preview-list { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.wr-failed-list > li, .wr-preview-list > li { border-top: 1px solid var(--line); padding-top: 4px; }
+.wr-failed-list p, .wr-preview-list p { margin: 2px 0; overflow-wrap: anywhere; }
+.wr-import { display: inline-flex; align-items: center; gap: 4px; }
 @media (max-width: 600px) {
   #team .rt-field > span:first-child { min-width: 0; flex: 1 1 100%; }
 }
@@ -153,6 +165,11 @@ button.rt-setup-first:hover { background: var(--accent-soft); filter: none; }
 .mt-changes { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .mt-change { border-top: 1px solid var(--line); padding-top: 4px; }
 .mt-change p { margin: 2px 0; overflow-wrap: anywhere; }
+/* C12 (web/working-style.js): How she works with you. */
+.ws-list { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ws-item { border-top: 1px solid var(--line); padding-top: 4px; }
+.ws-item p { margin: 2px 0; overflow-wrap: anywhere; }
+.ws-item .rt-more-acts { display: flex; flex-wrap: wrap; gap: 6px; }
 .msg.notice.mem-tidy, .msg.notice.crew { text-align: left; }
 
 /* C4: "When this happens" event triggers (web/event-triggers.js), on the Webhooks page. */
@@ -169,6 +186,28 @@ button.rt-setup-first:hover { background: var(--accent-soft); filter: none; }
 }
 .et-run-list { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .et-run { display: flex; flex-wrap: wrap; gap: 4px 8px; border-top: 1px solid var(--line); padding-top: 4px; overflow-wrap: anywhere; }
+
+/* C8 (web/spend.js, web/store.js): spend limits, paid tools, Token Saver's badge, add-on auto-update. */
+.sp-tools .sp-tool { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.sp-tools .sp-tool-label { display: inline-flex; align-items: center; gap: 6px; }
+.saver-badge { font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--accent-to); color: var(--text-2); white-space: nowrap; }
+.saver-badge[hidden] { display: none; }
+#sp-box label.row select { flex: 0 1 12rem; width: auto; }
+.au-box { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin: 0 0 10px; }
+.au-box .row, .stp-addon-acts .au-item { display: inline-flex; align-items: center; gap: 6px; }
+/* C15 (web/device-approval.js): approve a new device: the code, the prompt, the settings section. */
+.dap-pop { max-width: min(480px, calc(100vw - 24px)); padding: var(--s-4, 16px) var(--s-5, 20px); }
+.dap-pop label { display: grid; gap: 6px; }
+.dap-pop input, .dap-box input, .dap-box select { min-height: 44px; font-size: 16px; }
+#dap-pop-code { letter-spacing: 0.3em; text-transform: uppercase; font-family: var(--font-mono, monospace); }
+.dap-code { font-family: var(--font-mono, monospace); font-size: 2rem; letter-spacing: 0.35em; font-weight: 700; margin: var(--s-2, 8px) 0; }
+.dap-box { display: grid; gap: var(--s-2, 8px); margin-top: var(--s-3, 12px); }
+.dap-box[hidden], .login-wait[hidden], .dap-notice[hidden] { display: none; }
+.dap-box .row { display: flex; align-items: center; gap: var(--s-2, 8px); flex-wrap: wrap; }
+.dap-box #dap-hosts { flex: 1 1 14em; min-width: 0; }
+.dap-box select { width: auto; flex: none; }
+.dap-notice { background: var(--surface-2); border-radius: var(--r-control, 8px); padding: 8px 12px; }
+.login-wait { display: grid; gap: 4px; }
 
 /* EC4/EC5 (web/governance.js): the audit trail, the policy page, and "Set by your admin". */
 .au-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: var(--s-2) var(--s-3); margin: var(--s-2) 0; }

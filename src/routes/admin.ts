@@ -588,6 +588,8 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       if (method === 'GET') return send(res, 200, await view());
       if (method === 'POST') {
         if (opts.demo) throw new HttpError(403, 'Not in the demo.');
+        // C15: from a remote device, an update (it restarts her) asks the owner first.
+        ctx.askFirst(req, 'restart');
         if (privateLocalOn()) throw new HttpError(409, 'Paused in private local mode: checking for updates needs the internet.');
         const body = await readJson(req);
         // Phase 46: Windows and macOS check the release page; the installer does the update.

@@ -5,6 +5,67 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.87.0 (2026-11-08): workers, spend control and safer updates
+
+- **Bring your companion (C7):** Settings → Her → Companions → *Bring your companion from another app*
+  makes a new companion from Character.AI (the account export), Replika, Kindroid or Nomi: export files
+  (zip, JSON, CSV, text, a saved chat page) and pasted backstory, key memories, journal, diary or
+  Backstory+ notes. A preview shows her name, backstory, greeting, example lines, each memory and the
+  number of chat messages; untick anything, then bring her over. Memories are marked imported with the
+  app and the day; chats are kept archived and read-only. Read on the server only, size-capped, HTML
+  never run, the minors check and Adult mode apply. Guide: IMPORT.md → Bring your companion.
+- **How she works with you (C12):** Sara notices how you like to work (short or long answers, one
+  pick or options, asking first per project, tone, what you're new to or know well, usual hours,
+  feedback) from your own messages only, holds each as a belief with evidence (message numbers, never
+  copied text) and a confidence that fades unless she sees it again, and tells you once when one
+  changes how she answers. Never health, religion, politics, sexuality, personality types,
+  credentials or generalisations about others; nothing from private, partner, imported or adult
+  chats. Memory → *How she works with you* lists them with Confirm, Not true and Forget; admins can
+  pin it off. Guide: docs/WORKING_STYLE.md.
+- **Workers that stay (C10):** Team → *Workers that stay*. A worker is one of your helpers, or a crew
+  member, that keeps going: a name and a character, its own chat in the conversation list (its results
+  land there, not in the chat you are in), the groups of tools it may use, its own daily token budget
+  and a job queue that survives a restart. It does one job at a time, retries a failing job after 1, 5
+  and 30 minutes, and stops a job that runs past its time. Jobs that keep failing go to *Failed jobs*:
+  read why, then replay a copy or drop it. When a worker is blocked (an approval waiting, its budget
+  used up, a job that keeps failing, a stop you did not ask for) it sends you one alert to the chat app
+  you used last (Telegram, Discord) or the app, held in quiet hours, never twice. A lead hands jobs to
+  the workers under it and their results come back to the lead's chat. Export a worker (and the
+  workers it leads) as a file without secrets (its memories only if you tick it) and import one with a
+  look at what it may do first; imported workers start paused. Owner only, audited; the Crews pin
+  turns workers off too. Guide: [WORKERS.md](docs/WORKERS.md).
+- **Spend control (C8):** paid steps show their price before they run (*about $0.07* for a Grok
+  picture, *cost unknown* when nobody knows); add-ons can declare `costs` in `plugin.json`. Spend limits
+  per day, per month and per tool on Usage and costs stop paid steps with a plain card (Allow = one
+  call); a policy pin sets a hard daily cap with no override. Paid tool calls go on the usage record.
+  **Token Saver** (`/saver on|off|auto`, Settings row, header badge): shorter replies, a smaller history,
+  fewer tool steps and the Quick model; auto turns on near a daily line and off at the reset. Off
+  changes nothing. **Add-on auto-update** (off by default, all or per add-on): installs, checks it
+  starts, rolls back by itself and tells you; never when a new version asks for more permissions.
+- **Updates that roll back on Windows and Mac (C9):** every release now publishes a signed update notice
+  (`update-notice.json`, Ed25519: version, date, oldest supported version, security flag, each
+  installer's SHA-256). On Windows (the *only while I'm signed in* install) and the Mac app, **Update
+  now** downloads the installer in the background, checks it against the notice, keeps the previous
+  version (its installer, or the old Sara.app), installs silently, restarts and checks
+  `/api/health`; if the new version doesn't come up within 3 minutes the previous one goes back and
+  Settings says so. Unsigned or older notices are refused; without a notice Sara falls back to
+  GitHub's newest release and the download page. A new **Update** button in the top bar turns from
+  grey to blue (2 days), amber (4) and red (7), red at once for a security release, and says **Update
+  required** below the oldest supported version. Linux keeps its root helper and reads the same
+  notice for the button.
+- **Board questions (C11):** when she works a card and needs your input she parks it in *question*
+  (not failed, and it no longer holds a work slot); answer on the card or in chat (`card_answer`), and
+  the work resumes with your answer. Boards show a question count; an unanswered question gets one
+  reminder after a day (outside quiet hours), then at most one a day. **Make a board from a
+  description**: she drafts columns and cards with dependencies, you edit the preview, then create it.
+- **Approve a new device from chat (C15):** a password or passkey sign-in from elsewhere (another
+  computer, or any tunnel or proxy, even from 127.0.0.1) waits until you type its 5-character code on a
+  device you already use or reply `approve K7Q2M` in Telegram or Discord; 10 minutes = no. From such a
+  device, Always allowed, a new owner token, add-ons from a URL, chat tokens, updates and turning this
+  off ask you first. Allowed addresses (DNS rebinding check), Devices at most, 30-day sign-out, a
+  notice on a new address, and signing out cuts open connections. On for new servers; existing servers
+  get a one-time notice instead. Pairing codes, device codes, API keys, Alexa and the demo unchanged.
+
 ## 2.86.0 (2026-11-08): learn a topic, triggers and tool apps
 
 - **Stop works at once on a busy Windows PC (C2):** stopping a background job or command used to wait

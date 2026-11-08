@@ -102,6 +102,18 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Workers, spend control and safer updates in 2.87.0
+
+Bring your companion from Character.AI, Replika, Kindroid or Nomi, with a preview of what comes over.
+Prices show before paid steps, with daily and monthly spend limits and a Token Saver mode; add-ons can
+update themselves and roll back. Windows and Mac updates are checked against a signed notice and put
+the old version back if the new one doesn't start. Workers that stay have their own thread, a job
+queue that survives restarts, a failed-jobs list you can replay and one "needs you" alert. Board cards
+can wait on a question for you, and a board can be drafted from a description. A new device signing
+in from elsewhere waits for a code you approve from a trusted device, Telegram or Discord. She learns
+how you like to work (reply length, options or one pick, tone) from evidence, and never anything about
+health, religion, politics or sexuality.
+
 ## Learn a topic, triggers and tool apps in 2.86.0
 
 Learn a topic: ask her to learn about something, or give her a website; she researches it with
@@ -174,6 +186,11 @@ tool servers are explained in plain words; a Store add-on removed from its card 
 again; retiring a companion right after adding her no longer stops the server.
 
 ## Next
+
+How she works with you: Sara notices how you like to work (short answers, one recommendation,
+asking first) from your own messages, lets it fade unless she sees it again, never learns anything
+about health, religion, politics or sexuality, and tells you once when it changes how she answers.
+Built, coming with a later release.
 
 Read-only share links for a conversation (expiring, revocable, scrubbed, never indexed) and usage
 and cost reports per person, workspace and project with CSV export and monthly budget warnings are
@@ -387,6 +404,7 @@ In build order; one release per phase. The computer use track is complete (2.20â
 | 128 | A second polish pass | 2.61 |
 | V1 | A professional new look: palettes (Graphite, Midnight, Slate, Nord, Solarized, Paper, Ember, High contrast, Sara Classic) in Night and Day, your own accent colour, compact layout | next |
 | C5 | Open Responses (`/v1/responses`) for apps on the Responses API, and a single-replica Helm chart for Kubernetes | next |
+| C7 | Bring your companion from Character.AI, Replika, Kindroid or Nomi: her character, memories and chats | next |
 
 Ideas and requests are welcome in [Discussions](https://github.com/farena-ai/sara/discussions)
 and [issues](https://github.com/farena-ai/sara/issues). See [CONTRIBUTING.md](../CONTRIBUTING.md).

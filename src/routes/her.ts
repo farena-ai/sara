@@ -10,6 +10,7 @@ import { CardError, type CardImport, cardPng, cardToCharacter, isPng, MAX_CARD_J
 import { type CharacterChoices, quickCharacter, RELATIONSHIPS, TALK, VIBES, writeCharacter } from '../character.ts';
 import { exportCharacter, parseCharacter, withCharacterVoice } from '../characterfile.ts';
 import { bondContext } from '../chat.ts';
+import { applyBring, BRING_SOURCE_NAME, BringError, type BringPlan, type BringRead, MAX_BRING_BYTES, MAX_BRING_FILES, MAX_PASTE, planBring, readBring } from '../companion-import/bring.ts';
 import { createCompanionDir, newCompanionPersona, retireCompanionDir } from '../companions.ts';
 import { galleryEntry, galleryLine, galleryList, NoBrainError } from '../gallery.ts';
 import { as400, AVATAR_TYPES, fromPhoneApp, fromSaraApp, HttpError, MAX_AVATAR, MAX_CHARACTER, readJson, readRaw, SECURITY_HEADERS, send } from '../http.ts';
@@ -40,6 +41,8 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
   }
   // Phase 57: character cards being previewed (in memory, 15 minutes, up to 5).
   const cardDrafts = new Map<string, { imp: CardImport; png: Buffer | undefined; expires: number }>();
+  // C7: companions being brought from another app (in memory, 30 minutes, up to 3; never written or logged).
+  const bringDrafts = new Map<string, { read: BringRead; expires: number }>();
   return async (req, res, method, parts) => {
     const [a, b, c] = parts;
     // Phase 31: companions (more than one on this server).
@@ -70,6 +73,85 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
           throw err;
         }
         return send(res, 200, { ...view(), id });
+      }
+      // C7: bring your companion from Character.AI, Replika, Kindroid or Nomi (src/companion-import/bring.ts).
+      if (b === 'bring' && (c === 'preview' || c === 'import') && !parts[3] && method === 'POST') {
+        const bad = (err: unknown) => (err instanceof BringError ? new HttpError(400, err.message, err.params ? { params: err.params } : undefined) : err);
+        const now = Date.now();
+        for (const [k, v] of bringDrafts) if (v.expires < now) bringDrafts.delete(k);
+        if (c === 'preview') {
+          const body = await readJson(req, Math.ceil(MAX_BRING_BYTES * 1.4) + 2 * MAX_PASTE);
+          const list = Array.isArray(body.files) ? body.files : [];
+          if (list.length > MAX_BRING_FILES) throw new HttpError(400, 'Choose up to 10 files at a time.');
+          const files = list.map((f) => {
+            const o = (f && typeof f === 'object' ? f : {}) as { name?: unknown; data?: unknown };
+            return { name: String(o.name ?? 'file').slice(0, 200), bytes: Buffer.from(String(o.data ?? ''), 'base64') };
+          });
+          const settings = app.settings.get();
+          let read: BringRead;
+          let plan: BringPlan;
+          try {
+            read = readBring({ files, text: typeof body.text === 'string' ? body.text : '', source: String(body.source ?? ''), name: typeof body.name === 'string' ? body.name : undefined }, app.now());
+            plan = planBring(read, { adultOn: adultModeOn(settings), ownerName: settings.ownerName });
+          } catch (err) {
+            throw bad(err);
+          }
+          while (bringDrafts.size >= 3) bringDrafts.delete(bringDrafts.keys().next().value!);
+          const token = randomBytes(12).toString('base64url');
+          bringDrafts.set(token, { read, expires: now + 30 * 60_000 });
+          const p = plan.persona;
+          return send(res, 200, {
+            token,
+            preview: {
+              source: read.source,
+              sourceName: BRING_SOURCE_NAME[read.source],
+              sourceChosen: read.sourceChosen,
+              name: p.name,
+              pronouns: p.pronouns ?? 'she',
+              age: p.age,
+              summary: p.summary,
+              personality: p.personality.slice(0, 6),
+              appearance: p.appearance ?? '',
+              greeting: plan.greeting.slice(0, 1200),
+              examples: plan.examples.slice(0, 6).map((x) => x.slice(0, 600)),
+              memories: plan.memories.map((m) => ({ index: m.index, text: app.redactor.redact(m.text), label: m.label, about: m.about, date: m.date ?? null })),
+              conversations: plan.conversations.length,
+              messages: plan.messages,
+              notes: plan.notes,
+              nsfw: plan.nsfw,
+              canAdd: Boolean(cm.build) && cm.all().length < 8 && !cm.all().some((x) => x.app.persona.name.toLowerCase() === p.name.toLowerCase()),
+            },
+          });
+        }
+        const body = await readJson(req);
+        const d = bringDrafts.get(String(body.token ?? ''));
+        if (!d) throw new HttpError(404, 'This preview has expired. Choose the files again.');
+        if (!cm.build) throw new HttpError(400, 'More companions are not available on this server.');
+        if (cm.all().length >= 8) throw new HttpError(400, 'Up to 8 companions on one server.');
+        const settings = app.settings.get();
+        let plan: BringPlan;
+        try {
+          const picks = { backstory: body.backstory !== false, greeting: body.greeting !== false, examples: body.examples !== false, ...(Array.isArray(body.memories) ? { memories: body.memories.map(Number).filter(Number.isInteger) } : {}) };
+          plan = planBring(d.read, { adultOn: adultModeOn(settings), ownerName: settings.ownerName, picks, name: typeof body.name === 'string' ? body.name : undefined });
+        } catch (err) {
+          throw bad(err);
+        }
+        const name = plan.persona.name;
+        if (cm.all().some((x) => x.app.persona.name.toLowerCase() === name.toLowerCase())) throw new HttpError(400, 'There\'s already a companion called {name}.', { params: { name } });
+        const { id, dir } = createCompanionDir(rootDir, plan.persona as unknown as Record<string, unknown>, app.now());
+        let comp;
+        try {
+          comp = cm.build(id, dir);
+          cm.add(comp);
+          comp.start();
+        } catch (err) {
+          retireCompanionDir(rootDir, id, app.now());
+          throw err;
+        }
+        bringDrafts.delete(String(body.token));
+        const saved = applyBring(comp.app, d.read, plan, { chats: body.chats === true });
+        writeFileSync(join(comp.app.dataDir, 'character-card.json'), JSON.stringify({ spec: 'imported', first_mes: plan.greeting, mes_example: d.read.profile.examples, importedFrom: plan.source, importedAt: app.now().toISOString() }, null, 2) + '\n', { mode: 0o600 });
+        return send(res, 200, { ...view(), companion: id, name, ...saved });
       }
       // Phase 66: another companion's face (her own picture or look), for group chat bubbles.
       if (b && c === 'face' && !parts[3] && method === 'GET') {

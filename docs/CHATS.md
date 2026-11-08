@@ -75,6 +75,7 @@ done…** and **+ → Repeat this…**. The table is generated from the same lis
 | `/tools` | Which tools she has in this chat (all, lean, +name, -name) | You, in your own chats |
 | `/when` | Reminders for when a person or topic comes up (list, add, forget) | You, in your own chats |
 | `/learn` | Learn a topic or a website, with sources (add daily, weekly or monthly to keep it fresh) | You, in your own chats |
+| `/saver` | Token Saver: shorter replies and cheaper calls (on, off, auto) | You, in your own chats |
 | `/continue` | Pick up our chat from your other app here | You, in your own chats |
 | `/btw` | A quick side question while she works (not saved) | You and household members |
 | `/queue` | Queue a message for when she has finished | You and household members |

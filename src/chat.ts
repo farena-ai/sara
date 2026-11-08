@@ -3,6 +3,7 @@
 import { withKeyRotation } from './key-rotation.ts';
 import { audit } from './audit-trail.ts';
 import { policy } from './policy-profile.ts';
+import { priceTagFor, SAVER, saverNow, spendCheck, spendSettings, spentNow, stoppedOutput, type PriceTag } from './spend.ts';
 import { captureToolScope, assertCurrentScope, assertToolAdmission, ToolAdmissionError } from './tool-admission.ts';
 import { legacyInnerConversation, ownerEvidenceConversation } from './owner-evidence.ts';
 import { packPaused } from './packs/install.ts';
@@ -78,6 +79,7 @@ import { SNAPSHOT_TOOLS, type SnapshotStore } from './snapshots.ts';
 import { applySandbox, changesLine, discardSandbox, gateVerdict, sandboxCard, sandboxOutput, sandboxRecord, type ApplyResult, type CommandRisk, type SandboxCard, type SandboxDecision, type SandboxGate, type SandboxPlan, type SandboxRecord, type SandboxResult } from './sandbox-run.ts';
 import { datesNote, followUps, followUpsNote, selectMemories, type Injection, type MemoryStore } from './memory.ts';
 import { ownerCueNote } from './owner-cues.ts';
+import { workingStyleNote } from './working-style.ts';
 import { OWNER_CUES_MARK } from './attunement.ts';
 import { autoRecall, lastTimeNote, sharedOwnerFacts, sharedWithApps } from './recall.ts';
 import { checkReply, driftMode, shouldCheck } from './drift.ts';
@@ -228,10 +230,14 @@ export interface AppContext {
   meetings?: import('./meetings.ts').Meetings;
   /** EC12: the owner's crews (src/crews.ts). Checked on the reminder tick. */
   crews?: import('./crews.ts').Crews;
+  /** C10: the owner's workers that stay (src/workers.ts). Driven by the reminder tick. */
+  workers?: import('./workers.ts').Workers;
   /** C4: the owner's event triggers (src/event-triggers.ts). */
   eventTriggers?: import('./event-triggers.ts').EventTriggers;
   /** EC13: the overnight memory tidy of this space (src/memory-tidy.ts). Checked on the reminder tick. */
   memoryTidy?: import('./memory-tidy.ts').MemoryTidy;
+  /** C12: how he likes to work (beliefs with evidence; src/working-style.ts). Each space its own. */
+  workingStyle?: import('./working-style.ts').WorkingStyle;
   /** Phase 99: shared household boards (src/shared-boards.ts) and who this space is. Never on the demo. */
   sharedBoards?: import('./shared-boards.ts').SharedBoardsAccess;
   /** Set by the server: stops the turn running in a conversation (a card's Stop). */
@@ -250,6 +256,8 @@ export interface AppContext {
   stopAllTurns?: () => Promise<void>;
   /** Chat bridges (Telegram, Discord). */
   bridges?: { telegram?: TelegramBridge; discord?: DiscordBridge };
+  /** C15: open requests to approve a new device or a sensitive action (src/device-approval.ts). */
+  deviceApprovals?: import('./device-approval.ts').DeviceApprovals;
   /** Projects, tasks, notes, reminders (Phase 3.7). */
   planner?: PlannerStore;
   /** Push channel to open browser tabs. */
@@ -355,13 +363,14 @@ export type ChatEvent =
   /** Phase 61: `key` + `params` (fallback notices) let the app and the bridges word it in the owner's language; `text` is the English. */
   | { type: 'notice'; kind: 'disclosure' | 'crisis' | 'fallback' | 'compact' | 'continuity'; text: string; key?: string; params?: Record<string, unknown> }
   | { type: 'token'; text: string }
-  | { type: 'tool_call'; id: string; name: string; summary: string; args: Record<string, unknown> }
+  /** C8: `price` = this tool costs money ("about $X", or null = unknown), shown on the step before it runs. */
+  | { type: 'tool_call'; id: string; name: string; summary: string; args: Record<string, unknown>; price?: PriceTag }
   /** A long tool call is still being written by the model (chars so far). */
   | { type: 'tool_progress'; name: string; chars: number; path?: string }
   /** Phase 63: a tool call the model is still writing (throttled; see src/tool-stream.ts). Shown only, never run. */
   | ToolBuilding
   /** Phase 77: `contradiction` = the card's \"This goes against something you decided\" section (a stop). */
-  | { type: 'approval'; approvalId: string; id: string; name: string; summary: string; args: Record<string, unknown>; detail?: ApprovalDetail; computer?: import('./tools/types.ts').ComputerApproval; skill?: import('./tools/types.ts').SkillCard; contradiction?: ContradictionCard; budget?: BudgetState; sandbox?: SandboxCard; sandboxFirst?: { label: string; isolated: boolean }; advisory?: AdvisoryCard; redteam?: import('./redteam.ts').RedTeamGateCard; plugin?: { name: string; reason: string }; untrusted?: boolean; alwaysOk?: boolean }
+  | { type: 'approval'; approvalId: string; id: string; name: string; summary: string; args: Record<string, unknown>; detail?: ApprovalDetail; computer?: import('./tools/types.ts').ComputerApproval; skill?: import('./tools/types.ts').SkillCard; contradiction?: ContradictionCard; budget?: BudgetState; sandbox?: SandboxCard; sandboxFirst?: { label: string; isolated: boolean }; advisory?: AdvisoryCard; redteam?: import('./redteam.ts').RedTeamGateCard; plugin?: { name: string; reason: string }; untrusted?: boolean; alwaysOk?: boolean; price?: PriceTag; spend?: { message: string; limit: string } }
   /** Phase 81: the install check's outcome for a call (not checked offline, installed anyway, not installed). */
   | { type: 'advisory'; id: string; state: 'offline' | 'override' | 'declined'; packages: string[] }
   | { type: 'redteam'; id: string; runId: number; workspace: string }
@@ -1915,6 +1924,14 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   if (!opts.resume && !opts.group && directOwnerInput && ownerEvidenceConversation(app, conv.id, opts)) {
     store.markDirectOwnerMessage(userMsg.id);
   }
+  // C12: the cheap per-turn pass over his own new message (usually nothing; src/working-style.ts gates the rest).
+  if (!opts.resume && !opts.group && (directOwnerInput || app.member) && app.workingStyle) {
+    try {
+      app.workingStyle.learnFrom(conv, userMsg, opts);
+    } catch (err) {
+      console.warn(`working style: ${(err as Error).message}`);
+    }
+  }
   rec.setUserMessage(userMsg.id);
   if (opts.pendingId && !opts.resume) app.pending?.stored(opts.pendingId, userMsg.id);
   // Phase 4: her inner state reacts to the message; time since the last one.
@@ -2017,6 +2034,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   let job: Job = 'turn';
   let explicitTurn = false;
   let privateVisionOff = false;
+  // C8: Token Saver (src/spend.ts). Off (the default) changes nothing in the requests; a replay never uses it.
+  const saver = opts.replay ? { on: false } : saverNow(app);
+  const saverQuick = saver.on && Boolean(jobRoutes.quick) && !opts.quickModel;
   try {
     // Adult turns (this message or any of the last few) go to the owner's adult route, if set.
     const recentUser = store.messages(conv.id).filter((m) => m.role === 'user' && !isForgotten(m)).slice(-6);
@@ -2025,7 +2045,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // Phase 115 (BR1, §4.5): a private conversation with a picture model that isn't on this computer
     // stays on its local chain; the talking model gets a note instead of the picture (no throw).
     privateVisionOff = Boolean(conv.private && photosNow && visionSet && !visionOnThisComputer(app, jobRoutes.vision!));
-    job = adult && jobRoutes.adult ? 'turn' : photosNow && visionSet && !privateVisionOff ? 'vision' : conv.mode !== 'coding' && jobRoutes.research && RESEARCH_RE.test(text) ? 'research' : opts.quickModel ? 'quick' : 'turn';
+    job = adult && jobRoutes.adult ? 'turn' : photosNow && visionSet && !privateVisionOff ? 'vision' : conv.mode !== 'coding' && jobRoutes.research && RESEARCH_RE.test(text) ? 'research' : opts.quickModel || saverQuick ? 'quick' : 'turn';
     chain = resolveChain(app, conv, job, adult);
     // Phase 78: every provider of the chain is recorded (model, tokens, cost, latency per call).
     if (rec.on) chain = chain.map((c) => ({ ...c, provider: rec.wrap(c.provider) }));
@@ -2066,7 +2086,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   }
 
   const s = app.settings.get();
-  const authorityInput = { photos: photosNow, explicit: explicitTurn, text, quick: Boolean(opts.quickModel) };
+  const authorityInput = { photos: photosNow, explicit: explicitTurn, text, quick: Boolean(opts.quickModel) || saverQuick };
   const initialModelAuthority = sessionContinuity ? modelAuthorityOf(app, s, conv, authorityInput, opts) : undefined;
   const modelKey = `${provider.config.id}/${model}`;
   const noTools = app.noToolModels ?? (app.noToolModels = new Set());
@@ -2112,7 +2132,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   /** Phase 85: the meaning matches of the message (reused by the recall triggers' task match). */
   let relatedNotes: Awaited<ReturnType<MemoryVectors['related']>> = [];
   const memCfg = memorySettings(app);
-  const budget = s.historyBudgetChars ?? HISTORY_BUDGET_CHARS;
+  const budget0 = s.historyBudgetChars ?? HISTORY_BUDGET_CHARS;
+  const budget = saver.on ? Math.round(budget0 * SAVER.historyShare) : budget0;
   // Hardening M3: what another app's turn may draw on (notes from conversations it may know about).
   const appSafe0 = opts.externalApp ? (m: { conversationId: string | null }) => !m.conversationId || sharedWithApps(store.getConversation(m.conversationId)) : undefined;
   // Phase 101 (ST6, STAPLES §9.6): people cards never leave her space. Other apps' turns (/v1, MCP,
@@ -2289,7 +2310,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     : undefined;
   // With a step line in the budget, the budget decides (the summary is its last step); without one,
   // the old stops (25 steps, 80 in coding) still hold.
-  const stepCap = () => (meter?.budget.steps ? meter.maxSteps : conv.mode === 'coding' ? MAX_STEPS_CODING : MAX_STEPS);
+  const stepCap0 = () => (meter?.budget.steps ? meter.maxSteps : conv.mode === 'coding' ? MAX_STEPS_CODING : MAX_STEPS);
+  const stepCap = () => (saver.on ? Math.min(stepCap0(), SAVER.steps) : stepCap0());
   let maxSteps = stepCap();
   // Phase 77 (harness M2): planned tool calls are checked against the owner's decisions. Clear
   // conflicts stop with an approval card in coding and work conversations (strictness \"stop\");
@@ -2778,6 +2800,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // Phase 116: the steer note and the loop guard's one-time notes (never stored).
     for (const n of steerNotes) messages.push({ role: 'system', content: n });
     for (const n of guardNotes.splice(0)) messages.push({ role: 'system', content: n });
+    if (saver.on) messages.push({ role: 'system', content: SAVER.note });
     if (checkNote) {
       messages.push({ role: 'user', content: checkNote });
       checkNote = undefined;
@@ -2936,6 +2959,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       : undefined;
     if (followUp) messages.push({ role: 'system', content: `${FOLLOW_UP_NOTE_MARK}${followUp}` });
     if (cue) messages.push({ role: 'system', content: cue });
+    // C12: "How to work with <name>" (held/confirmed working traits, capped; a new one is announced once).
+    const style = directOwnerInput || app.member ? workingStyleNote(app, store.getConversation(conv.id) ?? conv, opts) : undefined;
+    if (style) messages.push({ role: 'system', content: style });
     // The recorder opened its existing step before the caller's hook. Refresh that step,
     // including late hook notes, without rerunning hooks or creating another step.
     const finalLean = turnTools.lean ? turnTools.stepRecord(tools) : undefined;
@@ -2963,7 +2989,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const codeOffered = tools.some((t) => t.spec.name === RUN_CODE) && codeModeOffer({ on: true, mode: conv.mode === 'coding' || isWorkChannel(conv.channel) ? 'coding' : 'chat', callsThisTurn, partner: Boolean(conv.partner), group: Boolean(opts.group) });
       const offered = codeOffered ? [...baseSpecs, runCodeSpec(baseSpecs.filter((sp) => sp.name !== FIND_TOOLS))] : baseSpecs;
       providerStarted = true;
-      for await (const ev of streamWithin((sig) => p.stream({ model: m, messages, tools: offered, signal: sig, ...(callMax ? { maxTokens: callMax } : {}), ...(callThink ? { reasoning: callThink } : {}) }), signal, fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }))) {
+      const outMax = saver.on ? Math.min(callMax ?? SAVER.replyTokens, SAVER.replyTokens) : callMax;
+      for await (const ev of streamWithin((sig) => p.stream({ model: m, messages, tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}) }), signal, fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }))) {
         if (ev.type === 'text') {
           reply += ev.text;
           yield { type: 'token', text: ev.text };
@@ -3119,11 +3146,14 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       let summary = app.redactor.redact(tool?.summarize(call.arguments) ?? call.name);
       if (SESSION_TOOLS.has(call.name) || call.name === SCENE_CANON_TOOL) summary = trOwner(summary, app.settings.get());
       const shownArgs = app.redactor.redactValue(call.arguments);
-      yield { type: 'tool_call', id: call.id, name: call.name, summary, args: shownArgs };
+      // C8: a paid tool's price tag (none for free tools: their step is unchanged).
+      const price = tool ? priceTagFor({ settings: app.settings.get(), tool }, call.name) : undefined;
+      yield { type: 'tool_call', id: call.id, name: call.name, summary, args: shownArgs, ...(price ? { price } : {}) };
       const started = Date.now();
       let status: 'ok' | 'error' | 'denied' = 'ok';
       let output: string;
       let snapshotId: string | undefined;
+      let spendNote: string | undefined;
       let snapshotNote = '';
       const shown: string[] = [];
       const newProof: string[] = [];
@@ -3267,6 +3297,15 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
             allowed = false;
             approval = 'refused';
           }
+          // C8: a paid call past a spend limit stops; the owner may allow this one call on its card
+          // (never past the admin's hard cap, and never where nobody can answer a card).
+          const spendStop = price && !pluginDeny ? spendCheck(spendSettings(app.settings.get()), spentNow(app.usage, app.now(), app.settings.get().timeZone, call.name), price, call.name, policy().get().pins.spendCap) : undefined;
+          if (spendStop && (spendStop.hard || opts.persist?.unattended || opts.outside || opts.externalApp || external)) {
+            allowed = false;
+            approval = 'refused';
+            spendNote = stoppedOutput(spendStop, app.settings.get());
+          }
+          const spendAsk = spendStop && !spendNote ? spendStop : undefined;
           const stopFor = pre.stopFor;
           const gate = pre.sandbox;
           // Phase 81: a known-vulnerable install stops first (an explicit override goes on).
@@ -3275,13 +3314,13 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           const redteamCard = pre.redteam?.ask ? pre.redteam : undefined;
           // Phase 80: with an isolated sandbox try, the try's card is the approval; without isolation
           // (Windows copy mode) a tool that asks first still asks before the try.
-          const firstCard = !pluginDeny && (Boolean(stopFor) || Boolean(advisoryStop) || Boolean(redteamCard) || Boolean(pluginAsk) || (permission === 'ask' && (!gate || gate.askFirst)));
+          const firstCard = !pluginDeny && !spendNote && (Boolean(spendAsk) || Boolean(stopFor) || Boolean(advisoryStop) || Boolean(redteamCard) || Boolean(pluginAsk) || (permission === 'ask' && (!gate || gate.askFirst)));
           if (firstCard) {
             const { id, decision } = app.approvals.request(conv.id, signal);
             const stops = (turnContradictions.get(call.id) ?? []).filter((c) => c.act === 'stop');
             // E7 (A1): "Always allow this tool" only on a plain ask in the owner's own app (the tool's own setting is Ask).
-            const alwaysOk = set === 'ask' && permission === 'ask' && !stopFor && !advisoryStop && !redteamCard && !pluginAsk && !gate && !prepComputer && !prepSkill && !prep?.ask && !tool?.asksFirst?.(call.arguments) && !opts.untrusted && !opts.outside && !opts.externalApp && !external && !conv.partner && !app.member && !app.demo && !app.offRecord && policy().alwaysAllowOn;
-            yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(alwaysOk ? { alwaysOk: true } : {}), ...(prepDetail ? { detail: prepDetail } : {}), ...(prepComputer ? { computer: prepComputer } : {}), ...(prepSkill ? { skill: prepSkill } : {}), ...(stopFor ? { contradiction: cardOf(stopFor, stops.filter((c) => c !== stopFor)) } : {}), ...(gate ? { sandboxFirst: { label: gate.isolation.label, isolated: gate.isolation.isolated } } : {}), ...(advisoryStop ? { advisory: advisoryStop } : {}), ...(redteamCard ? { redteam: redteamCard } : {}), ...(pluginAsk ? { plugin: { name: pluginAsk.name, reason: pluginAsk.reason } } : {}), ...(opts.untrusted ? { untrusted: true } : {}) };
+            const alwaysOk = set === 'ask' && permission === 'ask' && !spendAsk && !stopFor && !advisoryStop && !redteamCard && !pluginAsk && !gate && !prepComputer && !prepSkill && !prep?.ask && !tool?.asksFirst?.(call.arguments) && !opts.untrusted && !opts.outside && !opts.externalApp && !external && !conv.partner && !app.member && !app.demo && !app.offRecord && policy().alwaysAllowOn;
+            yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(alwaysOk ? { alwaysOk: true } : {}), ...(prepDetail ? { detail: prepDetail } : {}), ...(prepComputer ? { computer: prepComputer } : {}), ...(prepSkill ? { skill: prepSkill } : {}), ...(stopFor ? { contradiction: cardOf(stopFor, stops.filter((c) => c !== stopFor)) } : {}), ...(gate ? { sandboxFirst: { label: gate.isolation.label, isolated: gate.isolation.isolated } } : {}), ...(advisoryStop ? { advisory: advisoryStop } : {}), ...(redteamCard ? { redteam: redteamCard } : {}), ...(pluginAsk ? { plugin: { name: pluginAsk.name, reason: pluginAsk.reason } } : {}), ...(opts.untrusted ? { untrusted: true } : {}), ...(price ? { price } : {}), ...(spendAsk ? { spend: { message: trOwner(spendAsk.message, app.settings.get(), spendAsk.params), limit: spendAsk.limit } } : {}) };
             allowed = await decision;
             explicitlyApproved = allowed;
             approval = allowed ? 'allowed' : 'denied';
@@ -3399,7 +3438,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
             output = sandboxOutput(tried, sbDecision, applied);
           } else if (!allowed) {
             status = 'denied';
-            output = signal.aborted ? 'Cancelled.' : pluginDeny ? `Stopped by the plugin ${pluginDeny.name}: ${pluginDeny.reason}` : redteamNote ? redteamNote : stopFor ? declinedOutput(stopFor, ownerWord) : advisoryStop ? declinedInstallOutput(advisoryStop) : 'The owner declined this action.';
+            output = signal.aborted ? 'Cancelled.' : spendNote ? spendNote : pluginDeny ? `Stopped by the plugin ${pluginDeny.name}: ${pluginDeny.reason}` : redteamNote ? redteamNote : stopFor ? declinedOutput(stopFor, ownerWord) : advisoryStop ? declinedInstallOutput(advisoryStop) : 'The owner declined this action.';
           } else {
             admit();
             if (SNAPSHOT_TOOLS.has(call.name) && conv.mode !== 'coding' && !opts.replay) {
@@ -3504,6 +3543,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       }
       if (!store.getConversation(conv.id)) return 'end';
       const ms = Date.now() - started;
+      // C8: a paid call that ran goes on the usage ledger (null = its price is unknown).
+      if (price && ranTool && status === 'ok') app.usage?.recordTool(call.name, price.usd, { conversationId: conv.id, ...(rec.on ? { runId: rec.id } : {}) });
       let scopeValid = true;
       try { currentScope(); } catch (err) {
         if (!(err instanceof ToolAdmissionError)) throw err;

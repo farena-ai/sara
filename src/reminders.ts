@@ -65,7 +65,15 @@ export class ReminderScheduler {
     this.#app.learnTopics?.due(now);
     // EC12/EC13: crews' slots and the overnight memory tidy ride the same tick.
     this.#app.crews?.due(now);
+    // C10: workers' queues (time limits, the next job, held alerts).
+    this.#app.workers?.tick(now);
     void this.#app.memoryTidy?.due(now).catch((err: Error) => console.warn(`memory tidy: ${err.message}`));
+    // C12: the working-style night pass (fading, usual hours) on the same tick and quiet hours.
+    try {
+      this.#app.workingStyle?.due(now);
+    } catch (err) {
+      console.warn(`working style: ${(err as Error).message}`);
+    }
     return delivered;
   }
 

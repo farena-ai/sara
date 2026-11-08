@@ -1239,6 +1239,7 @@ export class PluginManager {
       spec: { name: full, description: `${description || name} (from the plugin ${label})`, parameters },
       defaultPermission: perm,
       source: `Plugin: ${label}`,
+      ...(run.manifest.costs?.[name] !== undefined ? { cost: run.manifest.costs[name] } : {}),
       isAvailable: () => run.proc.state === 'ready' && this.#current(a, run),
       summarize: (args) => cut(`${label}: ${name}${Object.keys(args).length ? ` ${JSON.stringify(args)}` : ''}`, 160),
       run: async (args, ctx) => {
@@ -1317,6 +1318,24 @@ export class PluginManager {
       await Promise.all([...this.#attached.values()].flatMap((a) => [...a.procs.keys()].map((id) => this.#stop(a, id))));
     } finally {
       for (const a of this.#attached.values()) { a.unsub?.(); this.#unobserveSettings(a); }
+    }
+  }
+
+  /**
+   * C8: after an automatic update: every companion that has it on runs it (its process is ready)
+   * within `waitMs`. A crash, a failed start or a timeout is unhealthy.
+   */
+  async healthy(id: string, waitMs = 15_000, stepMs = 200): Promise<{ ok: boolean; why?: string }> {
+    const row = this.store.get(id);
+    if (!row || row.status !== 'installed') return { ok: false, why: row?.status_note ?? 'it is not installed' };
+    const until = Date.now() + waitMs;
+    for (;;) {
+      const procs = [...this.#attached.values()].filter((a) => this.enabledFor(id, a.id)).map((a) => a.procs.get(id)?.proc);
+      const bad = procs.find((p) => !p || p.state === 'crashed' || p.state === 'stopped');
+      if (procs.every((p) => p?.state === 'ready')) return { ok: true };
+      if (procs.some((p) => p?.state === 'crashed' || p?.state === 'waiting')) return { ok: false, why: en('it crashed after starting') };
+      if (Date.now() >= until) return { ok: false, why: bad ? en('it did not start') : en('it did not get ready in time') };
+      await new Promise((r) => setTimeout(r, stepMs));
     }
   }
 

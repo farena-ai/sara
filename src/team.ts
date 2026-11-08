@@ -72,12 +72,14 @@ export const BUILTIN_HELPERS: HelperDef[] = [
 ];
 
 /** Built-in helpers plus the owner's own (theirs can replace a built-in by using its id). */
-export function teamHelpers(app: AppContext): HelperDef[] {
+export function teamHelpers(app: AppContext, o: { workers?: boolean } = {}): HelperDef[] {
   const own = (app.settings.get().helpers ?? []).map((c): HelperDef => {
     const base = ROLES[c.role] ?? ROLES.coder;
     return { ...base, id: c.id, name: c.name, instructions: [base.instructions, c.instructions?.trim()].filter(Boolean).join('\n'), tools: c.tools?.length ? c.tools : base.tools, ...(c.model ? { model: c.model } : {}), custom: true };
   });
-  return [...BUILTIN_HELPERS.filter((b) => !own.some((o) => o.id === b.id)), ...own];
+  const all = [...BUILTIN_HELPERS.filter((b) => !own.some((x) => x.id === b.id)), ...own];
+  // C10: each worker that stays is one more helper (`worker-<id>`) built on one of these.
+  return o.workers === false || !app.workers ? all : [...all, ...app.workers.helperDefs(all)];
 }
 
 export function cleanHelpers(v: unknown, toolNames: string[]): CustomHelper[] {

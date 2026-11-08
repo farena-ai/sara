@@ -50,3 +50,8 @@ starts again until you turn a crew on.
   scheduling and mail-starting crews on the server. See [AUDIT_AND_POLICY.md](AUDIT_AND_POLICY.md).
 - Every change is an audit row (`crews.do`, `crews.change`, `crews.remove`); scheduled and
   mail-started runs write `crew.run` (role system), and each run is also `run.team`.
+
+## Members that stay
+
+A crew member can become a **worker that stays**: its own chat, queue, budget and alerts. See
+[WORKERS.md](WORKERS.md).

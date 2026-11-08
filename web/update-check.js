@@ -86,3 +86,19 @@ export function reloadNow({ composer = '', dialogOpen = false, startedHere = fal
 export function updatedNote(seen, version) {
   return Boolean(seen && version && compareVersions(version, seen) > 0);
 }
+
+/**
+ * C9: the top bar's Update button. Its colour rises with the release's age: grey under 2 days,
+ * accent 2 to 4, amber 4 to 7, red after 7; red at once for a security release. Below the
+ * notice's minimum supported version it says "Update required" (red). null = no update waiting.
+ * @param {{ state?: string, latest?: string, releasedAt?: string, security?: boolean, required?: boolean } | null} status
+ * @returns {{ tone: 'grey' | 'accent' | 'amber' | 'red', required: boolean } | null}
+ */
+export function updateTone(status, now = Date.now()) {
+  if (status?.state !== 'available' || !status.latest) return null;
+  const required = Boolean(status.required);
+  if (required || status.security) return { tone: 'red', required };
+  const at = Date.parse(status.releasedAt ?? '');
+  const days = Number.isFinite(at) ? (now - at) / 86_400_000 : 0;
+  return { tone: days >= 7 ? 'red' : days >= 4 ? 'amber' : days >= 2 ? 'accent' : 'grey', required };
+}

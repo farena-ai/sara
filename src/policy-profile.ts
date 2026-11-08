@@ -36,7 +36,7 @@ export interface PolicyPins {
   egressAllowlist?: EgressInput[];
   /** EC11: false = no shared conversation links (new ones refused, existing ones stop answering). */
   sharing?: false;
-  /** EC12: off: no crews are made, run, scheduled or started by mail. */
+  /** EC12: off: no crews are made, run, scheduled or started by mail. C10: nor workers (their queues wait). */
   crews?: 'off';
   /** C4: false: no event triggers are made or run ("When this happens"). */
   triggers?: false;
@@ -62,9 +62,15 @@ export interface PolicyPins {
   workMode?: true;
   /** C6: false = she learns no new topics or sites and refreshes none (learned skills stay). */
   learning?: false;
+  /** C12: false = she learns nothing about how the owner likes to work and uses none of it. */
+  workingStyle?: false;
+  /** C8: a hard daily cap in US dollars: past it paid tools stop, with no owner override. */
+  spendCap?: number;
+  /** C15: true = new-device approval stays on (a remote sign-in waits for the owner's OK). */
+  deviceApproval?: true;
 }
 export type PinKey = keyof PolicyPins;
-export const PIN_KEYS: readonly PinKey[] = ['providers', 'tools', 'alwaysAllow', 'adultMode', 'shellNetwork', 'privateLocal', 'store', 'auditRetentionDays', 'programInstalls', 'containerSandbox', 'egressAllowlist', 'sharing', 'crews', 'memoryTidy', 'externalSecrets', 'editors', 'legalHold', 'personDelete', 'codeMode', 'parallelReplies', 'meetings', 'phoneHelper', 'workMode', 'triggers', 'learning'];
+export const PIN_KEYS: readonly PinKey[] = ['providers', 'tools', 'alwaysAllow', 'adultMode', 'shellNetwork', 'privateLocal', 'store', 'auditRetentionDays', 'programInstalls', 'containerSandbox', 'egressAllowlist', 'sharing', 'crews', 'memoryTidy', 'externalSecrets', 'editors', 'legalHold', 'personDelete', 'codeMode', 'parallelReplies', 'meetings', 'phoneHelper', 'workMode', 'triggers', 'learning', 'workingStyle', 'spendCap', 'deviceApproval'];
 export interface Policy {
   version: 1;
   name: string;
@@ -113,12 +119,14 @@ export function validatePolicy(input: unknown): { name: string; pins: PolicyPins
       case 'phoneHelper':
       case 'triggers':
       case 'learning':
+      case 'workingStyle':
         if (v !== false) throw new HttpError(400, '{key} can only be pinned off.', { params: { key: k } });
         pins[k] = false;
         break;
       case 'privateLocal':
       case 'legalHold':
       case 'workMode':
+      case 'deviceApproval':
         if (v !== true) throw new HttpError(400, '{key} can only be pinned on.', { params: { key: k } });
         pins[k] = true;
         break;
@@ -158,6 +166,10 @@ export function validatePolicy(input: unknown): { name: string; pins: PolicyPins
       case 'parallelReplies':
         if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > 8) throw new HttpError(400, 'parallelReplies must be a whole number from 1 to 8.');
         pins.parallelReplies = v;
+        break;
+      case 'spendCap':
+        if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0 || v > 10_000) throw new HttpError(400, 'spendCap must be dollars a day (more than 0, up to 10000).');
+        pins.spendCap = Math.round(v * 100) / 100;
         break;
       case 'auditRetentionDays':
         if (!(RETENTION_CHOICES as readonly unknown[]).includes(v)) throw new HttpError(400, 'Pick 30, 90 or 365 days, or keep everything.');

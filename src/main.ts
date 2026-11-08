@@ -2,6 +2,7 @@ import { asyncAutoBackupTick, beginBackupShutdown } from './backup-async.ts';
 // Entry point: `node src/main.ts`. Admin flags (the `sara` command on each system wraps them):
 //   --version · --status · --doctor · --backup [file] · --restore <file> · --reset-token
 //   --tailscale-status (JSON, for the installers' "How will you reach her?" question)
+import { initialDeviceApproval } from './device-approval.ts';
 import { netFetch } from './net-guard.ts';
 import { randomBytes } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
@@ -63,10 +64,14 @@ import { Loops } from './loops.ts';
 import { Watches } from './watch.ts';
 import { Research } from './research.ts';
 import { Learning } from './learn.ts';
+import { runAutoUpdates } from './addon-autoupdate.ts';
+import { storeAutoUpdateDeps } from './routes/store.ts';
 import { Meetings } from './meetings.ts';
 import { Crews } from './crews.ts';
+import { Workers } from './workers.ts';
 import { broadcastEvent, EventTriggers, mcpEventOf, registerTriggers, subscribeWanted } from './event-triggers.ts';
 import { MemoryTidy } from './memory-tidy.ts';
+import { WorkingStyle } from './working-style.ts';
 import { ReminderScheduler } from './reminders.ts';
 import { CompanionHub, EventHub } from './events.ts';
 import { InnerStore } from './inner.ts';
@@ -270,6 +275,9 @@ if (process.argv.includes('--status')) {
 
 if (existsSync(dataDir) && !statSync(dataDir).isDirectory()) throw new StartupError(`Her data folder ${dataDir} (SARA_DATA) is a file, not a folder.`);
 mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+// C15: was this server set up before (an owner file already there)? Then new-device approval
+// starts off with a one-time notice instead of locking anyone out; a new install starts with it on.
+const existingInstall = existsSync(join(dataDir, 'owner.json'));
 const auth = new OwnerAuth(dataDir, undefined, { resetIfDamaged: process.argv.includes('--reset-token') });
 
 /** The newest owner token, kept only until it's used once (the installer shows it from here). */
@@ -350,6 +358,7 @@ if (process.argv.includes('--restore')) {
 
 const sandboxPref = (process.env.SARA_SANDBOX ?? 'auto') as SandboxPreference;
 const settings = new SettingsStore(dataDir);
+if (settings.get().deviceApproval === undefined) settings.update({ deviceApproval: initialDeviceApproval(existingInstall) });
 {
   const renamed = migrateProviderLabels(settings.get());
   if (renamed) settings.update({ providers: renamed.providers });
@@ -577,6 +586,12 @@ if (storeClient) {
         if (storeOwnerApp && storeInstalls) await new StoreInstaller({ app: storeOwnerApp, client: storeClient, installs: storeInstalls, ...(pluginManager ? { plugins: pluginManager } : {}), ...(packs ? { packs } : {}) }).blockOther(row, reason);
       },
     });
+    // C8: add-on auto-update (off by default) after each look at the signed index.
+    if (storeOwnerApp) {
+      const owner = storeOwnerApp;
+      const deps = storeAutoUpdateDeps(owner, (title, line) => void owner.push?.notifyOwner(title, line, '', 'addon-update').catch(() => {}));
+      if (deps) await runAutoUpdates(deps).catch((err: Error) => console.warn(`auto-update: ${err.message}`));
+    }
   };
   if (pluginManager) pluginManager.storeMatch = (sha) => storeClient.match(sha);
 }
@@ -1225,6 +1240,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isMember) app.team = new TeamManager(app, store.db);
   // EC12: crews (standing helpers the lead hands board cards to; the owner's only, never the demo).
   if (!isMember && !isDemo) app.crews = new Crews(app, store.db);
+  // C10: workers that stay (crew members or standalone helpers with their own queue and thread).
+  if (!isMember && !isDemo) app.workers = new Workers(app, store.db);
   // C4: "When this happens" event triggers (the owner's only, never the demo or a member's space).
   if (!isMember && !isDemo) {
     app.eventTriggers = new EventTriggers(app, store.db);
@@ -1232,6 +1249,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   }
   // EC13: the overnight memory tidy (each space and companion tidies only its own notes; off until turned on).
   if (!isDemo) app.memoryTidy = new MemoryTidy(app, store.db);
+  // C12: how he likes to work (each space and companion keeps its own beliefs; never the demo).
+  if (!isDemo) app.workingStyle = new WorkingStyle(app, store.db);
   if (!isMember) for (const t of createTeamTools(() => app)) tools.add(t);
   // Phase 99 (ST4): the board over the planner, her card tools and the card worker (in the space that
   // owns the planner; companions sharing it use the main companion's worker).
@@ -1334,7 +1353,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       // Interrupted team work stays held until an explicit recovery review.
       startupTimers.push(setTimeout(indexVectors, 5_000).unref());
       reminders.start();
-      if (!sharedPlanner) app.cardWork?.start();
+      // C11: start() also checks hourly for questions parked over a day (a reminder outside quiet hours).
+      if (!sharedPlanner) app.cardWork?.start({ remind: !isDemo });
       // Phase 100: open tasks she gave other agents are followed again (their board cards).
       if (main && !isMember) app.a2aClient?.start();
       lifeWorker.start();

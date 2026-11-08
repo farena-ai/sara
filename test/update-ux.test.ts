@@ -75,7 +75,7 @@ test('the update UI is the owner\'s only, never in the demo; the page wires it u
   assert.equal(updatesShown({ available: true, demo: true }), false);
   assert.equal(updatesShown({ available: false }), false);
   const app = web('app.js');
-  assert.match(app, /import \{ DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNote, updatesShown, versionChanged \} from '\.\/update-check\.js';/);
+  assert.match(app, /import \{ DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNote, updatesShown, updateTone, versionChanged \} from '\.\/update-check\.js';/);
   const init = app.slice(app.indexOf('function startUpdateChecks'), app.indexOf('async function updateTick'));
   assert.match(init, /if \(!upx\.version \|\| upx\.demo \|\| upx\.member \|\| upx\.tick\) return;/, 'no checks for members or in the demo; started once');
   assert.match(app, /initUpdates\(session\);/);
@@ -169,8 +169,9 @@ test('checking: refused in private local mode; on Windows/macOS several pages at
   assert.equal(r.status.latest, '9.0.0');
   assert.deepEqual(r.status.changes, ['One', 'Two']);
   let calls = 0;
-  const u = new Updater({ dataDir: dir, platform: 'win32', version: '2.17.2', fetch: (async () => {
-    calls++;
+  const u = new Updater({ dataDir: dir, platform: 'win32', version: '2.17.2', fetch: (async (url: string) => {
+    // C9: the signed notice is asked first; this counts the GitHub requests.
+    if (!String(url).endsWith('/update-notice.json')) calls++;
     await new Promise((res) => setTimeout(res, 20));
     return new Response(JSON.stringify({ tag_name: 'v2.18.0' }));
   }) as never });

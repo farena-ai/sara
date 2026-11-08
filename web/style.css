@@ -822,6 +822,18 @@ dialog.ring::backdrop { background: transparent; }
 .companion-menu button.ghost { color: var(--muted); border-top: 1px solid var(--hairline); border-radius: 0 0 7px 7px; margin-top: 4px; }
 .cmp-list { list-style: none; padding: 0; margin: 0 0 8px; }
 .cmp-list button.danger { background: none; color: var(--danger); border: 1px solid currentColor; }
+.bring-draft { border: 1px solid var(--hairline); border-radius: 10px; padding: 10px 12px; margin: 6px 0 10px; }
+.bring-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bring-head input { max-width: 14em; }
+.bring-part { padding: 6px 0; border-top: 1px solid var(--hairline); }
+.bring-part blockquote { margin: 4px 0 4px 1.6em; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bring-memories { list-style: none; padding: 0; margin: 4px 0; max-height: 16em; overflow: auto; }
+.bring-memories li { padding: 3px 0; overflow-wrap: anywhere; }
+.bring-draft label { display: flex; align-items: flex-start; gap: 8px; margin: 0; }
+.bring-draft input[type='checkbox'] { width: auto; flex: none; margin-top: 3px; }
+.bring-memories label { font-weight: normal; }
+.bring-check { font-weight: 600; }
+.bring textarea { width: 100%; box-sizing: border-box; }
 .cmp-list li { padding: 7px 0; border-bottom: 1px solid var(--hairline); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .other-note { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 60; max-width: min(560px, calc(100vw - 24px)); display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 14px; background: var(--glass-strong); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); border: 1px solid var(--hairline-strong); border-radius: 14px; box-shadow: var(--shadow-2); font-size: 0.9rem; }
 .other-note #other-note-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }

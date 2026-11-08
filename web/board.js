@@ -92,6 +92,7 @@ export async function loadBoard() {
       st.settings = list.settings ?? st.settings;
       st.colors = list.labelColors ?? [];
       st.demo = list.demo === true;
+      st.questions = list.questions ?? 0;
       const saved = localStorage.getItem(BOARD_KEY);
       const want = st.boardId !== null && st.boards.some((b) => String(b.id) === String(st.boardId)) ? st.boardId : saved !== null && st.boards.some((b) => String(b.id) === saved) ? saved : st.demo ? st.boards[1]?.id ?? 0 : 0;
       st.boardId = want;
@@ -135,12 +136,17 @@ function render() {
   const pick = $('#bd-board');
   pick.replaceChildren(
     ...st.boards.map((b) => {
-      const o = new Option(`${boardName(b)}${b.kind === 'shared' ? ` · ${t('shared')}` : ''}${b.open ? ` (${b.open})` : ''}`, String(b.id));
+      const q = b.questions ? ` · ${b.questions === 1 ? t('1 question') : t('{n} questions', { n: b.questions })}` : '';
+      const o = new Option(`${boardName(b)}${b.kind === 'shared' ? ` · ${t('shared')}` : ''}${b.open ? ` (${b.open})` : ''}${q}`, String(b.id));
       o.selected = String(b.id) === String(st.boardId);
       return o;
     }),
   );
   $('#bd-shared').textContent = isShared() ? sharedLine(v.board) : '';
+  const qn = st.questions ?? 0;
+  const badge = $('#bd-questions');
+  badge.hidden = !qn;
+  badge.textContent = qn === 1 ? t('1 question for you') : t('{n} questions for you', { n: qn });
   $('#bd-gear').hidden = v.board.kind === 'everything';
   renderInvites();
   renderColumns();
@@ -331,13 +337,13 @@ function cardEl(c, places) {
     live.append(el('span', 'bd-progress'), el('span', 'bd-line', w.line || t('Working on it')));
     li.append(live);
   } else if (w?.state === 'queued') li.append(el('div', 'bd-line muted', t('Queued ({place})', { place: ordinal(places.get(c.ref) ?? 1) })));
-  else if (w?.state === 'waiting') li.append(askEl(c));
+  else if (w?.state === 'waiting' || w?.state === 'question') li.append(askEl(c));
   if (w?.suggest === 'done' && c.status === 'open') {
     const row = el('div', 'bd-suggest');
     row.append(el('span', '', t('Move to Done?')), btn(t('Yes'), 'small', () => answerSuggest(c, 'yes')), btn(t('No'), 'ghost small', () => answerSuggest(c, 'no')));
     li.append(row);
   }
-  const parts = [c.title, ...c.labels, c.dueAt ? t('due {date}', { date: fmtDay(c.dueAt) }) : '', w?.state === 'waiting' ? t('waiting on you') : w?.state === 'running' ? t('she is working on it') : ''].filter(Boolean);
+  const parts = [c.title, ...c.labels, c.dueAt ? t('due {date}', { date: fmtDay(c.dueAt) }) : '', w?.state === 'question' ? t('her question waits for your answer') : w?.state === 'waiting' ? t('waiting on you') : w?.state === 'running' ? t('she is working on it') : ''].filter(Boolean);
   li.setAttribute('aria-label', parts.join(', '));
   li.addEventListener('click', () => {
     if (li.dataset.justDragged) return;
@@ -839,13 +845,13 @@ function renderWork(c) {
   const w = c.work;
   const out = [];
   if (w?.state) {
-    const words = { queued: t('Queued'), running: t('Working on it'), waiting: t('Waiting on you'), done: t('Done'), stopped: t('Stopped'), failed: t('Stopped with a problem'), interrupted: t('Stopped by a restart') };
+    const words = { queued: t('Queued'), running: t('Working on it'), waiting: t('Waiting on you'), question: t('Her question for you'), done: t('Done'), stopped: t('Stopped'), failed: t('Stopped with a problem'), interrupted: t('Stopped by a restart') };
     const head = el('div', `cd-state state-${w.state}`);
     head.append(el('span', 'cd-dot'), el('strong', '', words[w.state] ?? w.state));
     if (w.used?.tokens) head.append(el('span', 'muted small', t('{tokens} tokens, {steps} steps', { tokens: w.used.tokens.toLocaleString(), steps: w.used.steps })));
     out.push(head);
     if (w.line) out.push(el('p', 'cd-line', w.line));
-    if (w.state === 'waiting') {
+    if (w.state === 'waiting' || w.state === 'question') {
       out.push(askEl(c));
       if (!w.ask?.approvalId && w.ask?.kind !== 'budget') {
         const ta = el('textarea', 'cd-answer');
@@ -875,7 +881,7 @@ function renderWork(c) {
       $('#planner').close();
       ctx.openConversation(w.conversationId);
     }));
-    if (['running', 'queued', 'waiting'].includes(w.state) && (!w.by || w.by === st.view.me)) row.append(btn(t('Stop'), 'ghost small danger', async () => {
+    if (['running', 'queued', 'waiting', 'question'].includes(w.state) && (!w.by || w.by === st.view.me)) row.append(btn(t('Stop'), 'ghost small danger', async () => {
       try {
         await api(`/tasks/${encodeURIComponent(c.ref)}/work/stop`, { method: 'POST', body: {} });
         announce(t('Stopped.'));
@@ -1043,6 +1049,117 @@ async function newBoard() {
   }
 }
 
+// ---------------- C11: a board from a description ----------------
+
+const ROLE_WORDS = () => ({ todo: t('To do'), doing: t('Doing'), waiting: t('Waiting on you'), done: t('Done'), other: t('Other') });
+
+function openDescribe() {
+  const box = $('#bd-describe');
+  box.hidden = false;
+  $('#bd-draft').replaceChildren();
+  $('#bd-draft-status').textContent = '';
+  $('#bd-draft-create').hidden = true;
+  $('#bd-describe-text').focus();
+}
+
+async function makeDraft() {
+  const description = $('#bd-describe-text').value.trim();
+  if (!description) return $('#bd-describe-text').focus();
+  $('#bd-draft-status').textContent = t('She is drafting the board…');
+  $('#bd-draft-make').disabled = true;
+  try {
+    const r = await api('/boards/draft', { method: 'POST', body: { description } });
+    st.draft = r.draft;
+    renderDraft();
+    $('#bd-draft-status').textContent = t('Check it, change what you like, then create it.');
+  } catch (err) {
+    $('#bd-draft-status').textContent = err.message;
+  } finally {
+    $('#bd-draft-make').disabled = false;
+  }
+}
+
+/** The editable preview: the board's name, its columns, and each card's title, column and what it waits for. */
+function renderDraft() {
+  const d = st.draft;
+  const host = $('#bd-draft');
+  if (!d) return host.replaceChildren();
+  const roles = ROLE_WORDS();
+  const name = el('input', 'bd-draft-name');
+  name.value = d.name;
+  name.maxLength = 80;
+  name.setAttribute('aria-label', t('Board name'));
+  name.addEventListener('input', () => (d.name = name.value));
+  const cols = el('ol', 'bd-draft-cols');
+  d.columns.forEach((c) => {
+    const li = el('li', `bd-draft-col role-${c.role}`);
+    const inp = el('input');
+    inp.value = c.name;
+    inp.maxLength = 40;
+    inp.setAttribute('aria-label', t('Column name'));
+    inp.addEventListener('input', () => {
+      c.name = inp.value;
+      renderDraftCards();
+    });
+    li.append(el('span', `bd-role-dot role-${c.role}`), inp, el('span', 'muted small', roles[c.role] ?? c.role));
+    cols.append(li);
+  });
+  const cards = el('ol', 'bd-draft-cards');
+  cards.id = 'bd-draft-cards';
+  host.replaceChildren(el('h4', 'cd-sub', t('Board name')), name, el('h4', 'cd-sub', t('Columns')), cols, el('h4', 'cd-sub', t('Cards')), cards);
+  renderDraftCards();
+  $('#bd-draft-create').hidden = false;
+}
+
+function renderDraftCards() {
+  const d = st.draft;
+  const host = $('#bd-draft-cards');
+  if (!d || !host) return;
+  host.replaceChildren(...d.cards.map((c, i) => {
+    const li = el('li', 'bd-draft-card');
+    const title = el('input');
+    title.value = c.title;
+    title.maxLength = 300;
+    title.setAttribute('aria-label', t('Card title'));
+    title.addEventListener('input', () => (c.title = title.value));
+    const col = el('select');
+    col.setAttribute('aria-label', t('Column'));
+    d.columns.forEach((x, k) => {
+      if (x.role === 'done') return;
+      const o = new Option(x.name, String(k));
+      o.selected = k === c.column;
+      col.append(o);
+    });
+    col.addEventListener('change', () => (c.column = Number(col.value)));
+    const drop = btn(t('Remove'), 'ghost small', () => {
+      d.cards.splice(i, 1);
+      // Later cards' dependencies shift with the removed card.
+      for (const x of d.cards) x.after = x.after.filter((a) => a !== i).map((a) => (a > i ? a - 1 : a));
+      renderDraftCards();
+    });
+    drop.setAttribute('aria-label', t('Remove "{title}"', { title: c.title }));
+    li.append(title, col, drop);
+    if (c.after.length) li.append(el('span', 'bd-draft-after muted small', t('Waits for: {cards}', { cards: c.after.map((a) => d.cards[a]?.title ?? '').filter(Boolean).join(', ') })));
+    return li;
+  }));
+}
+
+async function createDraft() {
+  if (!st.draft?.cards.length) return;
+  try {
+    const r = await api('/boards/from-draft', { method: 'POST', body: { draft: st.draft } });
+    st.draft = null;
+    $('#bd-describe').hidden = true;
+    $('#bd-describe-text').value = '';
+    st.boardId = r.board.id;
+    localStorage.setItem(BOARD_KEY, String(r.board.id));
+    announce(t('Board created.'));
+    await loadBoard();
+  } catch (err) {
+    $('#bd-draft-status').textContent = err.message;
+  }
+}
+
 /** Opens Planner → Board on a card (Today's Needs you / Doing). */
 export async function openCardOnBoard(boardId, ref) {
   st.boardId = boardId;
@@ -1061,6 +1178,21 @@ export function initBoard(c) {
     await loadBoard();
   });
   $('#bd-new').addEventListener('click', newBoard);
+  $('#bd-describe-open').addEventListener('click', openDescribe);
+  $('#bd-draft-make').addEventListener('click', makeDraft);
+  $('#bd-draft-create').addEventListener('click', createDraft);
+  $('#bd-draft-cancel').addEventListener('click', () => {
+    st.draft = null;
+    $('#bd-describe').hidden = true;
+  });
+  $('#bd-questions').addEventListener('click', () => {
+    const first = st.view?.cards.find((x) => x.work?.state === 'question');
+    if (first) openDetail(first.ref, true);
+    else {
+      st.boardId = 0;
+      void loadBoard();
+    }
+  });
   $('#bd-gear').addEventListener('click', () => {
     const s = $('#bd-settings');
     s.hidden = !s.hidden;

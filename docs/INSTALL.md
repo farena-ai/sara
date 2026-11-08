@@ -265,6 +265,17 @@ sara update              opens the download page
 sara uninstall [--delete-data]
 ```
 
+**Updating from Sara herself (C9):** when a new version is out, an **Update** button appears in the top
+bar. It starts grey and gets more insistent as the release ages (blue after 2 days, amber after 4, red
+after 7); a security release is red at once, and **Update required** means your version is older than
+the oldest one still supported. Press it, then **Update now** in Settings → Data & health → Updates:
+Sara downloads the installer, checks it against the release's signed update notice, keeps the
+installer of the version you have, installs silently and restarts. If the new version doesn't answer
+within 3 minutes she reinstalls the previous one and tells you. This works for the *only while I'm
+signed in* install and on the Mac app. A Windows service install needs an administrator, so there the
+button leads to the download page. Without a signed notice (for example a release page that can't be
+reached) Sara also only offers the download page.
+
 **Updating:** run a newer `Sara-Setup.exe`. The first page already has what you installed chosen. It
 stops her, makes a backup (`<data>\backups`), replaces the program and starts her again; her data,
 settings, how she runs and how she's reached stay as they are. An app-only install stays app-only;

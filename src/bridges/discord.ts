@@ -1,4 +1,5 @@
 import { sendDelivery, formReview, DeliveryRejected, DeliveryUncertain } from './delivery.ts';
+import { answerFromChat, fill as fillSaid } from '../device-approval.ts';
 import { PRIO_EDIT, type Priority } from './sendq.ts';
 // Phase 6: Discord bridge. Gateway WebSocket (Node's built-in client) for incoming messages, REST
 // for replies. The owner links their account with a one-time code in a DM; owner DMs go to one
@@ -791,6 +792,10 @@ export class DiscordBridge {
       if (!this.#botMayCall(msg, cfg)) return;
     } else if (!isDm) this.#personSpoke(msg.channel_id);
     const text = msg.content.trim();
+    // C15: "approve K7Q2M" / "deny K7Q2M" from the verified owner, in a DM only.
+    const guildId = msg.guild_id;
+    const approvalSaid = !isBot && !guildId && isDiscordOwner(cfg, msg.author.id) ? answerFromChat(this.#app.deviceApprovals, text, 'discord') : undefined;
+    if (approvalSaid) return void (await this.send(msg.channel_id, fillSaid(approvalSaid, (t) => this.#tr(t))));
     const link = text.match(/^[/!]link\s+(\d{6})$/);
     if (isDm && link) {
       if (this.#link && this.#link.code === link[1] && Date.now() < this.#link.expires) {

@@ -200,3 +200,19 @@
   #planner.bd-detail-open .bd-main { grid-template-columns: minmax(0, 1fr); }
   .bd-detail { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; max-height: 86dvh; border-radius: var(--r-card) var(--r-card) 0 0; border-bottom: 0; padding: var(--s-3) var(--s-4) calc(var(--s-4) + var(--safe-b)); box-shadow: var(--shadow-up); }
 }
+
+/* C11: the questions badge and "Make a board from a description" (its editable preview). */
+.bd-questions { min-height: 44px; border-radius: 999px; background: var(--warn); color: var(--on-accent, var(--text-1)); font-weight: 600; padding: 0 var(--s-3); }
+.bd-questions[hidden] { display: none; }
+.bd-describe textarea { width: 100%; min-height: 72px; font-size: 16px; }
+.bd-draft { display: grid; gap: var(--s-2); }
+.bd-draft:empty { display: none; }
+.bd-draft-name { min-height: 44px; font-size: 16px; max-width: 420px; }
+.bd-draft-cols, .bd-draft-cards { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.bd-draft-cards { flex-direction: column; flex-wrap: nowrap; }
+.bd-draft-col { display: flex; align-items: center; gap: var(--s-2); background: var(--surface-2); border-radius: var(--r-control); padding: 4px 8px; }
+.bd-draft-col input { width: 10em; min-height: 40px; }
+.bd-draft-card { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); background: var(--surface-2); border-radius: var(--r-control); padding: 6px 8px; }
+.bd-draft-card input { flex: 1 1 14em; min-width: 0; min-height: 44px; }
+.bd-draft-card select { min-height: 44px; max-width: 12em; }
+.bd-draft-after { flex-basis: 100%; }
