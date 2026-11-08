@@ -605,6 +605,7 @@ of it; `node_modules` and similar rebuildable folders in workspaces are left out
 | `SARA_ACCESS` / `SARA_PUBLIC_URL` | (none) | How she's reached (`local`, `tailscale`, `domain`, `lan`) and her address; written by the installer and `sara access` |
 | `SARA_SECURE_COOKIES` | `0` | `1` behind HTTPS |
 | `SARA_TRUST_PROXY` | `0` | `1` behind a reverse proxy on this machine |
+| `SARA_PROGRAM_PATH` | (none) | Extra program folders for Sara alone, first in her command path (e.g. `/usr/local/sara/bin` holding a newer `python3` where the system one must stay old, as on cPanel). On Linux only folders under `/usr` count, so the sandbox sees them too. |
 | `SARA_SETUP` | `code` | First sign-in in the browser on a new server: `code` (the setup code from her log), `browser` (no code; **only** behind a proxy that makes people sign in first, as Umbrel's does), `off` (owner token only) |
 | `SARA_SETUP_MINUTES` | `60` | How long after each start browser setup stays open on a server nobody has signed in to yet (5–1440) |
 | `SARA_DATA` | `/var/lib/sara` | Data directory |

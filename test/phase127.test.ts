@@ -532,10 +532,10 @@ function signedShelf(items: Any[], files: Map<string, Buffer>, blocked: Any[] = 
   files.set('/v1/index.json', j);
   files.set('/v1/index.sig', Buffer.from(JSON.stringify({ v: 1, key: 'store-2026a', sig: sign(null, j, PRIV).toString('base64') })));
 }
-function companionItem(files: Map<string, Buffer>, id: string, pack: PackageFile[], o: { rating?: string; trust?: string; tamper?: boolean } = {}): Any {
+function companionItem(files: Map<string, Buffer>, id: string, pack: PackageFile[], o: { rating?: string; trust?: string; tamper?: boolean; about?: string[]; description?: string } = {}): Any {
   const m = JSON.parse(pack.find((f) => f.path === 'sara-companion.json')!.data.toString('utf8'));
   const zip = zipOf(pack);
-  const entry = { format: 'sara-store-entry', v: 1, id, kind: 'companion', version: m.version, name: m.name, description: `${m.name}, a companion for the tests.`, about: ['A companion.'], author: { name: 'The Sara team', key: FP }, license: 'CC-BY-4.0', shots: [], changes: ['First.'], checks: { ran: '2026-11-19T22:10:00Z', by: `sara-store-check ${V}`, results: [{ id: 'minors', ok: true }] }, tested: [], needs: [], works: ['windows', 'macos', 'linux'], companion: m };
+  const entry = { format: 'sara-store-entry', v: 1, id, kind: 'companion', version: m.version, name: m.name, description: o.description ?? `${m.name}, a companion for the tests.`, about: o.about ?? ['A companion.'], author: { name: 'The Sara team', key: FP }, license: 'CC-BY-4.0', shots: [], changes: ['First.'], checks: { ran: '2026-11-19T22:10:00Z', by: `sara-store-check ${V}`, results: [{ id: 'minors', ok: true }] }, tested: [], needs: [], works: ['windows', 'macos', 'linux'], companion: m };
   const et = Buffer.from(`${JSON.stringify(entry, null, 1)}\n`);
   files.set(`/v1/entries/${id}/${m.version}.json`, et);
   files.set(`/v1/packages/${id}-${m.version}.zip`, o.tamper ? Buffer.concat([zip, Buffer.from('x')]) : zip);
@@ -557,6 +557,35 @@ test('31–33 the index and entries: a 2.59 reader skips companions; 2.60 reads 
   assert.equal(parseEntry(entry, { id: 'juniper', version: '1.0.0', kind: 'companion' }).companion?.id, 'juniper');
   assert.throws(() => parseEntry({ ...entry, extra: 1 }), /unknown field/);
   assert.throws(() => parseEntry({ ...entry, companion: undefined }), /carries her pack manifest/);
+});
+
+test('MNT2: Get more speaks to the reader: {{user}} in a companion page reads "you", as on the store website', async () => {
+  const files = new Map<string, Buffer>();
+  const about = ["Juniper is {{user}}'s cozy friend. She helps {{user}} slow down, and {{user}} is always welcome.", 'She checks how {{user}} feels.'];
+  signedShelf([companionItem(files, 'juniper', packFilesOf(), { about, description: 'A friend for {{user}}.' })], files);
+  const server = createServer((req, res) => {
+    const f = files.get((req.url ?? '').replace(/^\/store/, ''));
+    if (!f) return res.writeHead(404).end();
+    res.writeHead(200, { 'Content-Type': 'application/octet-stream' }).end(f);
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  const storeBase = `http://127.0.0.1:${(server.address() as AddressInfo).port}/store`;
+  const before = mainApp.storeClient;
+  // Its own cache folder: the shelf's sequence number must not collide with the next test's.
+  const own = tempDir();
+  mainApp.storeClient = new StoreClient({ dataDir: own.dir, base: storeBase, keys: KEYS, blocked: () => storeBlocked({ on: true, base: storeBase }), held: async () => [] });
+  try {
+    assert.equal((await mainApp.storeClient.check()).ok, true);
+    const page = (await call('GET', '/api/store/items/juniper')).json;
+    assert.deepEqual(page.entry.about, ["Juniper is your cozy friend. She helps you slow down, and you are always welcome.", 'She checks how you feel.']);
+    assert.equal(page.entry.description, 'A friend for you.');
+    assert.ok(!JSON.stringify([page.item, page.entry.description, page.entry.about]).includes('{{user}}'));
+  } finally {
+    mainApp.storeClient = before;
+    own.cleanup();
+    server.closeAllConnections();
+    await new Promise<void>((r) => server.close(() => r()));
+  }
 });
 
 test('25, 31–35 a store round trip on a TEST-signed local shelf: listed, Add her, a store_installs row, a mismatch thrown away, a pulled pack paused', async () => {

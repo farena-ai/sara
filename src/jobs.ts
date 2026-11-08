@@ -83,6 +83,8 @@ export class JobManager {
   readonly #app: AppContext;
   readonly #db: DatabaseSync;
   readonly #running = new Map<number, AbortController>();
+  /** MNT2: each started job's `done`, until it has settled (stopAll waits on these). */
+  readonly #done = new Map<number, Promise<unknown>>();
   readonly #live = new Map<number, Job>();
   /** Phase 49: the process each running job started (previews check who listens on a port). */
   readonly #pids = new Map<number, number>();
@@ -262,6 +264,7 @@ export class JobManager {
       rec.close(job.status === 'ok' ? 'ok' : job.status === 'budget' ? 'budget' : job.status === 'stopped' ? 'stopped' : 'error');
       return { ...job };
     });
+    this.#track(id, done);
     return { job: { ...job }, done };
   }
 
@@ -311,7 +314,13 @@ export class JobManager {
       await this.#report(job, { exitCode: job.exitCode, output: out.output, timedOut: false, ms: Date.now() - ranAt }).catch((err: Error) => console.warn(`jobs: report failed: ${err.message}`));
       return { ...job };
     })();
+    this.#track(id, done);
     return { job: { ...job }, done };
+  }
+
+  #track(id: number, done: Promise<unknown>): void {
+    this.#done.set(id, done);
+    void done.then(() => this.#done.delete(id), () => this.#done.delete(id));
   }
 
   /** Arbitrary commands have no durable execution cursor; review a fresh attempt instead. */
@@ -335,8 +344,15 @@ export class JobManager {
     return true;
   }
 
-  stopAll(): void {
+  /** Stops every job. MNT2: resolves when each has saved its result and report (at most `waitMs`),
+   * so a shutdown or a test can close the database without a late write. */
+  stopAll(waitMs = 15_000): Promise<void> {
     for (const ac of this.#running.values()) ac.abort();
+    const pending = [...this.#done.values()];
+    if (!pending.length) return Promise.resolve();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const limit = new Promise<void>((r) => { timer = setTimeout(r, waitMs); timer.unref?.(); });
+    return Promise.race([Promise.allSettled(pending).then(() => {}), limit]).finally(() => clearTimeout(timer));
   }
 
   /** Saves the result in the conversation, lets her say what happened, and pings the owner. */

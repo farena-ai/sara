@@ -102,6 +102,7 @@ export function createGovernanceRoutes(ctx: RouteCtx): RouteHandler {
         res.writeHead(200, { 'content-type': 'application/zip', 'content-disposition': `attachment; filename="${name}"`, 'cache-control': 'no-store', ...SECURITY_HEADERS });
         return void res.end(zip);
       }
+      if (b === 'history' && method === 'GET') return send(res, 200, d.personEditHistory(new URL(req.url ?? '/', 'http://x').searchParams.get('person')));
       if (b === 'delete' && method === 'POST') {
         const body = await readJson(req);
         return send(res, 200, { receipt: await d.deletePerson(body.person, body.confirm) });

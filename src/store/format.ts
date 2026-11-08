@@ -492,3 +492,16 @@ export function parseEntry(json: string | unknown, expect?: { id: string; versio
   if (expect && (e.id !== expect.id || e.version !== expect.version || e.kind !== expect.kind)) bad("The entry doesn't match the store's list.");
   return e;
 }
+
+/**
+ * MNT2: a companion's sheet speaks of {{user}}; a Store page speaks to the reader (the same words the
+ * store website uses): "{{user}}'s" → "your", "{{user}} is/has" → "you are/have", "{{user}} feels" →
+ * "you feel", any other {{user}} → "you". In another language the owner's name is used instead
+ * (those pronouns do not translate word for word); with no name yet, the same English rule.
+ */
+export function speakToReader(text: string, o: { lang?: string; name?: string } = {}): string {
+  if (!text.includes('{{')) return text;
+  const name = o.name?.trim();
+  if (o.lang && !/^en\b/i.test(o.lang) && name) return text.replace(/\{\{user\}\}/gi, name);
+  return text.replace(/\{\{user\}\}'s\b/gi, 'your').replace(/\{\{user\}\} is\b/gi, 'you are').replace(/\{\{user\}\} has\b/gi, 'you have').replace(/\{\{user\}\} (\w+?[^s])s\b/gi, 'you $1').replace(/\{\{user\}\}/gi, 'you');
+}

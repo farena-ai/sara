@@ -21,12 +21,77 @@ export function isLegalHold(err: unknown): boolean {
   return err instanceof LegalHoldError || String((err as Error)?.message ?? '').includes(LEGAL_HOLD_ERROR);
 }
 
+export const EDIT_HISTORY_ERROR = 'SARA_EDIT_HISTORY';
+/** Tables whose in-place text rewrites keep the previous version while held (kind → table). */
+const EDITED = { message: 'messages', memory: 'memories' } as const;
+
 /** Creates the hold table and a trigger on every protected table that exists in this database. */
 export function installHold(db: DatabaseSync): void {
   db.exec('CREATE TABLE IF NOT EXISTS sara_legal_hold (scope TEXT PRIMARY KEY, since TEXT NOT NULL)');
   for (const table of HELD_TABLES) {
     if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table)) continue;
     db.exec(`CREATE TRIGGER IF NOT EXISTS sara_hold_${table} BEFORE DELETE ON ${table} WHEN EXISTS (SELECT 1 FROM sara_legal_hold) BEGIN SELECT RAISE(ABORT, '${LEGAL_HOLD_ERROR}'); END;`);
+  }
+  installEditHistory(db);
+}
+
+/**
+ * Edit history while held: an AFTER UPDATE trigger copies the previous text of a message or memory
+ * into `sara_edit_history` whenever it changes under a hold, whatever code path wrote it. The table is
+ * append-only (never updated; deletes refused while held). Once released, a message's or memory's
+ * history goes when it is deleted, so no orphan copy of deleted text stays behind. A rewrite the
+ * safety layer made (`withholdEdit`) is recorded without the blocked text.
+ */
+function installEditHistory(db: DatabaseSync): void {
+  db.exec(`CREATE TABLE IF NOT EXISTS sara_edit_history (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, row_id INTEGER NOT NULL,
+      conversation_id TEXT, previous TEXT, withheld INTEGER NOT NULL DEFAULT 0, edited_at TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS sara_edit_history_row ON sara_edit_history(kind, row_id);
+    CREATE TABLE IF NOT EXISTS sara_edit_withhold (kind TEXT NOT NULL, row_id INTEGER NOT NULL, PRIMARY KEY (kind, row_id));
+    CREATE TRIGGER IF NOT EXISTS sara_edit_history_append BEFORE UPDATE ON sara_edit_history BEGIN SELECT RAISE(ABORT, '${EDIT_HISTORY_ERROR}'); END;
+    CREATE TRIGGER IF NOT EXISTS sara_edit_history_keep BEFORE DELETE ON sara_edit_history WHEN EXISTS (SELECT 1 FROM sara_legal_hold) BEGIN SELECT RAISE(ABORT, '${LEGAL_HOLD_ERROR}'); END;`);
+  for (const [kind, table] of Object.entries(EDITED)) {
+    if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table)) continue;
+    const skip = `EXISTS (SELECT 1 FROM sara_edit_withhold WHERE kind = '${kind}' AND row_id = OLD.id)`;
+    db.exec(`CREATE TRIGGER IF NOT EXISTS sara_edit_${table} AFTER UPDATE OF content ON ${table}
+        WHEN EXISTS (SELECT 1 FROM sara_legal_hold) AND OLD.content IS NOT NEW.content
+      BEGIN INSERT INTO sara_edit_history (kind, row_id, conversation_id, previous, withheld, edited_at)
+        VALUES ('${kind}', OLD.id, OLD.conversation_id, CASE WHEN ${skip} THEN NULL ELSE OLD.content END, CASE WHEN ${skip} THEN 1 ELSE 0 END, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')); END;
+      CREATE TRIGGER IF NOT EXISTS sara_edit_gone_${table} AFTER DELETE ON ${table}
+      BEGIN DELETE FROM sara_edit_history WHERE kind = '${kind}' AND row_id = OLD.id; END;`);
+  }
+}
+
+export interface EditHistoryRow { id: number; kind: 'message' | 'memory'; rowId: number; conversationId: string | null; previous: string | null; withheld: boolean; editedAt: string }
+/** Every kept previous version, oldest first. */
+export function editHistory(db: DatabaseSync, limit = 10_000): EditHistoryRow[] {
+  try {
+    return (db.prepare('SELECT id, kind, row_id, conversation_id, previous, withheld, edited_at FROM sara_edit_history ORDER BY id LIMIT ?').all(limit) as Record<string, unknown>[]).map((r) => ({
+      id: Number(r.id), kind: r.kind as EditHistoryRow['kind'], rowId: Number(r.row_id), conversationId: (r.conversation_id as string | null) ?? null, previous: (r.previous as string | null) ?? null, withheld: Number(r.withheld) === 1, editedAt: String(r.edited_at),
+    }));
+  } catch {
+    return []; // No table yet.
+  }
+}
+export function editHistoryCount(db: DatabaseSync): number {
+  try {
+    return Number((db.prepare('SELECT COUNT(*) AS n FROM sara_edit_history').get() as { n: number }).n);
+  } catch {
+    return 0;
+  }
+}
+/** Runs a rewrite the safety layer made: the history records that it happened, not the blocked text. */
+export function withholdEdit(db: DatabaseSync, kind: keyof typeof EDITED, rowId: number, write: () => void): void {
+  let marked = false;
+  try {
+    db.prepare('INSERT OR IGNORE INTO sara_edit_withhold (kind, row_id) VALUES (?, ?)').run(kind, rowId);
+    marked = true;
+  } catch {
+    /* No table yet: nothing is held, nothing is kept. */
+  }
+  try {
+    write();
+  } finally {
+    if (marked) db.prepare('DELETE FROM sara_edit_withhold WHERE kind = ? AND row_id = ?').run(kind, rowId);
   }
 }
 /** Puts this database under hold (or releases it). Installs the triggers first. */

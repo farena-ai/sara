@@ -44,7 +44,8 @@ import {
   ADULT_OFF_NOTE,
 } from './safety.ts';
 import { elsewhereNote } from './elsewhere.ts';
-import { continuityAllowed, continuityForTurn, SESSION_CONTINUITY_MARK, SessionContinuityError, type SessionContinuity } from './session-continuity.ts';
+import { continuityAllowed, continuityForTurn, continuityParallel, SESSION_CONTINUITY_MARK, SessionContinuityError, type SessionContinuity } from './session-continuity.ts';
+import { atWork, memoryGate, nameAt, spaceOf, stampWork, workPinned, workProfile, workProfileNote, workTools } from './work-profile.ts';
 import { acquireSessionStep } from './session-step-gate.ts';
 import { pauseSceneForStopWord, sceneCanonForTurn, sceneContextForTurn, sceneSeatFor, SceneError, SHARED_SCENE_MARK } from './shared-scenes-policy.ts';
 import { SCENE_CANON_TOOL } from './shared-scenes-tools.ts';
@@ -221,6 +222,8 @@ export interface AppContext {
   watches?: import('./watch.ts').Watches;
   /** EC6: the owner's research runs (owner space only; src/research.ts). */
   research?: import('./research.ts').Research;
+  /** EC19: the owner's meeting rooms and meeting notes (owner space only; src/meetings.ts). */
+  meetings?: import('./meetings.ts').Meetings;
   /** EC12: the owner's crews (src/crews.ts). Checked on the reminder tick. */
   crews?: import('./crews.ts').Crews;
   /** EC13: the overnight memory tidy of this space (src/memory-tidy.ts). Checked on the reminder tick. */
@@ -329,6 +332,8 @@ export interface AppContext {
   browsers?: import('./browser.ts').BrowserManager;
   /** Phase 87: Sara's hands on the owner's computers (one hub per person, shared by their companions). */
   hands?: import('./hands.ts').HandsHub;
+  /** EC24: the owner's helper devices (camera, location, screen on request; the owner's space only). */
+  phoneHelper?: import('./phone-helper.ts').PhoneHelper;
   /** Phase 113: the hub (check-in settings for the owner; Report a problem and My reports for everyone; src/hub.ts). */
   hub?: import('./hub.ts').HubSpace;
   /** Phase 124: the Sara Store's reader (the owner's server only; src/store/client.ts). */
@@ -414,7 +419,8 @@ const UI_OUTPUT_LIMIT = 4_000;
 export const vaultKeyFor = (providerId: string) => `provider:${providerId}`;
 
 /** Inner life is on unless the owner turned it off. */
-export const innerEnabled = (app: AppContext) => app.settings.get().persona?.innerLife !== false;
+// EC26: under the work-mode pin there is no inner life (moods, her day, messages and pictures on her own).
+export const innerEnabled = (app: AppContext) => app.settings.get().persona?.innerLife !== false && !workPinned();
 
 /** Whole local days since the first owner message (null on day one). */
 export function daysKnown(store: Store, now: Date, timeZone?: string): number | null {
@@ -1667,6 +1673,8 @@ function scopeTools(app: AppContext, conv: Conversation, opts: TurnOptions, x: S
   if (opts.editor) tools = editorTools(tools, opts.editor);
   // Phase 66: group chats get read-only tools only, and only those that run without asking (no approvals mid-round).
   if (opts.group) tools = tools.filter((t) => GROUP_TOOLS.has(t.spec.name) && app.tools.permission(t.spec.name, app.settings.get().toolPermissions) === 'auto');
+  // EC26: at work, her work tools only (research, the work workspace's files, calendar; commands when allowed).
+  if (atWork(app, conv)) tools = workTools(tools, workProfile(app));
   return tools;
 }
 
@@ -1677,13 +1685,17 @@ function scopeTools(app: AppContext, conv: Conversation, opts: TurnOptions, x: S
  */
 function scopeAdult(app: AppContext, conv: Conversation, opts: TurnOptions): { voiceRoom: boolean; adultOn: boolean } {
   const voiceRoom = isVoiceRoomChannel(conv.channel) || Boolean(opts.voiceRoom);
-  const adultOn = adultModeOn(app.settings.get()) && (!opts.group || opts.group.adult) && !voiceRoom && !opts.outside && conv.channel !== 'a2a';
+  // EC26: never at work, whatever Adult mode says.
+  const adultOn = adultModeOn(app.settings.get()) && (!opts.group || opts.group.adult) && !voiceRoom && !opts.outside && conv.channel !== 'a2a' && !atWork(app, conv);
   return { voiceRoom, adultOn };
 }
 
 /** R2a: the turn's base safety notes (who she talks with, rooms, Adult mode off); crisis and stop word stay per turn. */
 function scopeSafetyNotes(app: AppContext, conv: Conversation, text: string, opts: TurnOptions, adultOn: boolean, voiceRoom: boolean): string[] {
   const safetyNotes: string[] = [];
+  // EC26: her work profile (work name, tone, what stays out) comes first at work.
+  const work = atWork(app, conv);
+  if (work) safetyNotes.push(workProfileNote(app, conv, app.settings.get().ownerName?.trim() || 'the owner'));
   if (conv.partner) {
     // Phase 47: bots in the chat (recently, or this message) get one more sentence.
     const bots = isBotLine(text) || app.store.messagesPage(conv.id, { limit: 30 }).messages.some((m) => m.role === 'user' && isBotLine(m.content));
@@ -1692,7 +1704,7 @@ function scopeSafetyNotes(app: AppContext, conv: Conversation, text: string, opt
   else {
     if (isWorkChannel(conv.channel)) safetyNotes.push(workNote(app.settings.get().ownerName?.trim() || 'the owner', conv.channel, adultOn));
     if (voiceRoom) safetyNotes.push(voiceRoomNote(app.settings.get().ownerName?.trim() || 'the owner', isVoiceRoomChannel(conv.channel) ? conv.channel : 'wake'));
-    if (!adultOn) safetyNotes.push(ADULT_OFF_NOTE);
+    if (!adultOn && !work) safetyNotes.push(ADULT_OFF_NOTE);
   }
   if (opts.group) safetyNotes.push(opts.group.note);
   // Phase 100: who is asking, and that its words are data (the first safety note she reads after hers).
@@ -1759,7 +1771,9 @@ export function turnScope(app: AppContext, conv: Conversation, opts: TurnOptions
   const memCfg = memorySettings(app);
   if (app.memory && memCfg.enabled && !conv.partner && !external && !turn.group && !turn.outside && !turn.replay) {
     const s = app.settings.get();
-    const memoryInput = ownerMemoryInput(app, conv, text, app.now(), { related: [], oldestHistoryId: historyFloor(app, conv, s.historyBudgetChars ?? HISTORY_BUDGET_CHARS).oldestHistoryId, budgetChars: memCfg.injectBudgetChars, extra: sharedOwnerFacts(app, text, turn.externalApp) });
+    const space = spaceOf(app, conv);
+    const gate = memoryGate(app, space);
+    const memoryInput = ownerMemoryInput(app, conv, text, app.now(), { related: [], oldestHistoryId: historyFloor(app, conv, s.historyBudgetChars ?? HISTORY_BUDGET_CHARS).oldestHistoryId, budgetChars: memCfg.injectBudgetChars, extra: sharedOwnerFacts(app, text, turn.externalApp, space), ...(gate ? { allow: (m: { conversationId: string | null; id?: number }) => gate({ id: m.id ?? -1, conversationId: m.conversationId }) } : {}) });
     const memories = call ? '' : selectMemories(app.memory, memoryInput).text;
     if (memories) sections.memories = memories;
     return { ...scopeRest(app, conv, turn, continuity, checkpointExternal, sections), adultOn, voiceRoom, tools, memoryInput };
@@ -1821,6 +1835,15 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     yield { type: 'error', message: 'Conversation not found.' };
     return;
   }
+  // EC26 (docs/ops/EC26_DESIGN.md): a chat at work joins the work space and uses the work workspace
+  // (before the tool scope is captured, so her file tools only ever see the work files).
+  const workNow = atWork(app, conv);
+  if (workNow) stampWork(app, conv.id);
+  const workP = workNow ? workProfile(app) : undefined;
+  if (workP && conv.workspace !== workP.workspace) {
+    store.updateConversation(conv.id, { workspace: workP.workspace });
+    conv.workspace = workP.workspace;
+  }
   // R1B: set only when this step's request carried the shared-scene block (memory labels it fiction).
   let sceneTag: { id: number; revision: number } | undefined;
   // Bind audit identity at insertion; finalization must not edit dialogue or overwrite later edits.
@@ -1864,9 +1887,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
 
   // Other people (bridges) get their own disclosure schedule per conversation.
   // Phase 66: in a group chat the round shows each companion's notice (src/group-round.ts).
-  if (!opts.group && disclosureDue(store.lastDisclosureAt(conv.partner ? conv.id : undefined), now)) {
-    store.addMessage(conv.id, 'notice', `disclosure:${disclosureText(app.persona.name, appLanguage(app.settings.get()))}`);
-    yield { type: 'notice', kind: 'disclosure', text: disclosureText(app.persona.name, appLanguage(app.settings.get())) };
+  // EC26: each work chat gets its own disclosure, in her work name.
+  if (!opts.group && disclosureDue(store.lastDisclosureAt(conv.partner || workNow ? conv.id : undefined), now)) {
+    const shown = disclosureText(nameAt(app, conv), appLanguage(app.settings.get()));
+    store.addMessage(conv.id, 'notice', `disclosure:${shown}`);
+    yield { type: 'notice', kind: 'disclosure', text: shown };
   }
 
   const isFirst = store.messages(conv.id).every((m) => m.role === 'notice');
@@ -1888,7 +1913,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // Phase 4: her inner state reacts to the message; time since the last one.
   const prevOwnerAt = directOwnerInput ? store.lastOwnerMessageAt(userMsg.id) : null;
   const gapHours = prevOwnerAt ? (now.getTime() - prevOwnerAt.getTime()) / 3_600_000 : null;
-  let innerState = directOwnerInput && app.inner && innerEnabled(app)
+  let innerState = directOwnerInput && app.inner && innerEnabled(app) && !workNow
     ? (Object.hasOwn(opts, 'resume') ? app.inner.get() : app.inner.onOwnerMessage(text, gapHours, now, app.persona.name))
     : undefined;
   if (isFirst && conv.title === 'New conversation' && !opts.group) {
@@ -2087,7 +2112,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // Home Assistant), other agents (A2A, even with shared notes) and group chats get no memory linked
   // to a person and no note, "last time" or recalled line that names one.
   const peopleGate = app.people && (external || opts.group) ? app.people.gate() : undefined;
-  const appSafe = appSafe0 || peopleGate ? (m: { conversationId: string | null; id?: number; content?: string }) => (!appSafe0 || appSafe0(m)) && (!peopleGate || peopleGate.memory(m)) : undefined;
+  // EC26: work and personal notes never meet (a copy by the owner is the only way across).
+  const turnSpace = spaceOf(app, conv);
+  const spaceGate0 = memoryGate(app, turnSpace);
+  const spaceGate = spaceGate0 ? (m: { conversationId: string | null; id?: number }) => spaceGate0({ id: m.id ?? -1, conversationId: m.conversationId }) : undefined;
+  const appSafe = appSafe0 || peopleGate || spaceGate ? (m: { conversationId: string | null; id?: number; content?: string }) => (!appSafe0 || appSafe0(m)) && (!peopleGate || peopleGate.memory(m)) && (!spaceGate || spaceGate(m)) : undefined;
   if (opts.replay) {
     // Phase 83: the recorded (or edited) picks; nothing is marked as used on a branch.
     injection = opts.replay.injection;
@@ -2119,8 +2148,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // her "which Jeff?"); the People section for the people it names comes out of the same budget.
     if (app.people && !peopleGate) {
       try {
-        if (!opts.resume && userMsg) peopleFound = app.people.noteMessage(conv.id, userMsg.id, text, now.toISOString(), { work: isWorkChannel(conv.channel) }).found;
-        const sec = app.people.section(text, { conversationId: conv.id, work: isWorkChannel(conv.channel), owner: s.ownerName?.trim() || 'the owner', private: Boolean(conv.private), maxChars: Math.floor(memCfg.injectBudgetChars * 0.4), today: localDate(now.toISOString(), s.timeZone), ...(opts.roomId !== undefined ? { roomId: opts.roomId } : {}) });
+        if (!opts.resume && userMsg) peopleFound = app.people.noteMessage(conv.id, userMsg.id, text, now.toISOString(), { work: isWorkChannel(conv.channel) || workNow }).found;
+        const sec = app.people.section(text, { conversationId: conv.id, work: isWorkChannel(conv.channel) || workNow, owner: s.ownerName?.trim() || 'the owner', private: Boolean(conv.private), maxChars: Math.floor(memCfg.injectBudgetChars * 0.4), today: localDate(now.toISOString(), s.timeZone), ...(opts.roomId !== undefined ? { roomId: opts.roomId } : {}) });
         if (sec.text) peopleText = sec.text;
       } catch (err) {
         console.warn(`people: ${(err as Error).message}`);
@@ -2130,7 +2159,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       related,
       oldestHistoryId,
       budgetChars: Math.max(200, memCfg.injectBudgetChars - (peopleText ? peopleText.length + 1 : 0)),
-      extra: sharedOwnerFacts(app, text, opts.externalApp).filter((l) => !peopleGate || peopleGate.text(l)),
+      extra: sharedOwnerFacts(app, text, opts.externalApp, turnSpace).filter((l) => !peopleGate || peopleGate.text(l)),
       ...(appSafe ? { allow: appSafe } : {}),
     }));
     // Phase 32: pick up from last time at the start of a conversation, and look up what the
@@ -2399,7 +2428,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     for (const u of app.memory.upcoming(today, 0)) if (u.memory.mentionedOn !== today) app.memory.markMentioned(u.memory.id, today);
   }
   // Phase 44: what's in her library, what was shared in this chat, and passages for this message.
-  const libraryText = conv.partner || opts.outside || !app.library || opts.replay ? undefined : await librarySection(app, conv, text).catch((err: Error) => (console.warn(`library: ${err.message}`), undefined));
+  const libraryText = conv.partner || opts.outside || !app.library || opts.replay || workNow ? undefined : await librarySection(app, conv, text).catch((err: Error) => (console.warn(`library: ${err.message}`), undefined));
   let projectText: string | undefined;
   if (!app.offRecord && conv.mode === 'coding' && app.projects && !opts.replay) {
     try {
@@ -2560,7 +2589,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       if (ownerSteer && ownerEvidenceConversation(app, conv.id, opts)) {
         store.markDirectOwnerMessage(sm.id);
       }
-      if (ownerSteer && !Object.hasOwn(opts, 'resume') && app.inner && innerEnabled(app)) {
+      if (ownerSteer && !Object.hasOwn(opts, 'resume') && app.inner && innerEnabled(app) && !workNow) {
         const steerNow = app.now();
         const previous = store.lastOwnerMessageAt(sm.id);
         innerState = app.inner.onOwnerMessage(said, previous ? (steerNow.getTime() - previous.getTime()) / 3_600_000 : null, steerNow, app.persona.name);
@@ -2621,8 +2650,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       workspace: conv.workspace,
       coding: conv.mode === 'coding',
       // Phase 51: short commands in a coding conversation (for "Quiet when I'm focused").
-      work: isWorkChannel(conv.channel),
-      focused: (conv.mode === 'coding' || isWorkChannel(conv.channel)) && app.persona.quietFocus === true ? ownerFocused(store.messagesPage(conv.id, { limit: 12 }).messages.filter((m) => m.role === 'user' && !m.meta?.importedFrom).map((m) => m.content)) : undefined,
+      work: isWorkChannel(conv.channel) || workNow,
+      atWork: workNow,
+      focused: (conv.mode === 'coding' || isWorkChannel(conv.channel) || workNow) && app.persona.quietFocus === true ? ownerFocused(store.messagesPage(conv.id, { limit: 12 }).messages.filter((m) => m.role === 'user' && !m.meta?.importedFrom).map((m) => m.content)) : undefined,
       // Phase 40: what she knows about the projects in this workspace (coding conversations).
       project: projectText,
       recipes: recipesText,
@@ -2636,16 +2666,16 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       day: innerState ? app.life?.get(localDate(now.toISOString(), s.timeZone)) : undefined,
       inner: innerState ? describeInner(innerState, now, s.timeZone, s.ownerName?.trim() || 'the owner', { gapHours, daysKnown: daysKnown(store, now, s.timeZone), away: awayLine(app.persona.away), conflict: app.persona.conflict ? CONFLICT[app.persona.conflict]?.line : undefined }) : undefined,
       // His upcoming reminders stay out of work rooms (others read her replies there) and private/partner turns.
-      agenda: !opts.outside && !isWorkChannel(conv.channel) && !conv.partner && app.planner && tools.some((t) => t.spec.name === 'todo' || t.spec.name === 'remind') ? app.planner.agenda(now, s.timeZone) : undefined,
+      agenda: !opts.outside && !isWorkChannel(conv.channel) && !workNow && !conv.partner && app.planner && tools.some((t) => t.spec.name === 'todo' || t.spec.name === 'remind') ? app.planner.agenda(now, s.timeZone) : undefined,
       // Phase 12: dates that matter to the owner (never in chats with other people) and her own threads.
       dates: !conv.partner && !opts.outside && app.memory && memCfg.enabled ? joinNotes(datesNote(app.memory, localDate(now.toISOString(), s.timeZone), undefined, appSafe), peopleGate ? undefined : birthdaysNote(app.people, localDate(now.toISOString(), s.timeZone))) : undefined,
       threads: innerState ? threadsNote(app.life) : undefined,
       stayYourself: nudge ? nudge.note || 'it sounded generic, not like you' : undefined,
-      ...(opts.outside ? {} : bondContext(app, innerState?.closeness)),
+      ...(opts.outside || workNow ? {} : bondContext(app, innerState?.closeness)),
       ...(opts.group ? { adultOn } : {}),
       partner: Boolean(conv.partner),
       // Phase 37: an activity you're doing together in this conversation (games, journaling…).
-      together: conv.partner || opts.outside ? undefined : activityNote(app.together?.activity(conv.id), s.ownerName?.trim() || 'the owner'),
+      together: conv.partner || opts.outside || workNow ? undefined : activityNote(app.together?.activity(conv.id), s.ownerName?.trim() || 'the owner'),
       pickup: pickupNote,
       // Phase 119: a reminder he asked for that came up in this message (his own chats only).
       mentions: mentionText,
@@ -2811,12 +2841,14 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       yield { type: 'error', message: signal.aborted ? 'Stopped.' : err.message };
       return;
     }
-    const sceneStep = Boolean(sceneDatabase && store.db === sceneDatabase && sceneSeatFor(app, store.getConversation(conv.id) ?? conv, opts));
+    const sceneSeat = sceneDatabase && store.db === sceneDatabase ? sceneSeatFor(app, store.getConversation(conv.id) ?? conv, opts) : undefined;
+    const sceneStep = Boolean(sceneSeat);
     if ((sessionCurrent && sessionContinuity && continuityAllowed(app, conv, opts)) || sceneStep) {
       try {
         currentScope();
-        // Seats of one scene share the per-database gate, so each step sees the canon committed before it.
-        const ticket = acquireSessionStep(database ?? sceneDatabase!, conv.id, gateAbort.signal);
+        // mnt2: one step at a time per conversation, up to the owner's parallel cap. Seats of one
+        // scene share one key, so each seat's step still sees the canon committed before it.
+        const ticket = acquireSessionStep(database ?? sceneDatabase!, conv.id, gateAbort.signal, { parallel: continuityParallel(app), ...(sceneSeat ? { key: `scene:${sceneSeat.scene.id}` } : {}) });
         // Attach both handlers before yielding: the consumer can leave the generator paused.
         void ticket.ready.then(release => { releaseStep = release; if (gateClosed || signal.aborted) releaseSessionStep(); }, () => {});
         const waitFrom = Date.now();
@@ -3015,7 +3047,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     const herMatch = reply && reply.trim() !== MINOR_BLOCK_REPLY ? minorSexualMatch(reply, ownerApp ? { fromHer: true } : {}) : null;
     if (reply && reply.trim() !== MINOR_BLOCK_REPLY && (herMatch || (await classify(app, reply, rec)) === 'MINOR_SEXUAL')) {
       store.recordSafetyEvent('minor_sexual_block', conv.id);
-      store.updateMessageContent(saved.id, MINOR_BLOCK_REPLY);
+      store.updateMessageContent(saved.id, MINOR_BLOCK_REPLY, { withhold: true });
       // Only which words matched is kept (not the reply), so a wrong block can be looked into.
       store.updateMessageMeta(saved.id, { toolCalls: undefined, blocked: 'minor_sexual', blockedBy: herMatch ? `words: ${herMatch.minor} + ${herMatch.sexual}` : 'classifier' });
       yield { type: 'replace', messageId: saved.id, text: MINOR_BLOCK_REPLY };

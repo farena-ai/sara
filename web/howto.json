@@ -127,6 +127,28 @@
    "show": "#wk-off-all"
   }
  ],
+ "her-work": [
+  {
+   "id": "on",
+   "q": "How do I use her at work in Slack or Teams?",
+   "steps": [
+    "Open Settings → Her → At work.",
+    "Tick Use a work profile, and the chats that are work (Slack and Teams are ticked).",
+    "Give her a name and tone at work if you like, then press Save."
+   ],
+   "show": "#atw-on"
+  },
+  {
+   "id": "copy",
+   "q": "How do I let her know something at work and at home?",
+   "steps": [
+    "Open Settings → Her → At work.",
+    "Under Work memories, find the note.",
+    "Press Copy to work or Copy to personal. The original stays where it is."
+   ],
+   "show": "#atw-space"
+  }
+ ],
  "her-calls": [
   {
    "id": "when",

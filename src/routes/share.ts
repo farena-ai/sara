@@ -1,6 +1,7 @@
 // EC11 (docs/ops/EC1115_DESIGN.md): share a conversation. The owner's routes (preview, create,
 // list, revoke, settings) and the public read-only page `/s/<token>`: server-rendered and escaped,
-// no script, never indexed, rate-limited per address. Household members and the demo can't share.
+// no script, never indexed, rate-limited per address. Household members share their own chats unless
+// the owner turned that off (settings `members`); the demo can't share.
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { audit } from '../audit-trail.ts';
 import { LoginLimiter } from '../auth.ts';
@@ -24,8 +25,16 @@ export function originOf(req: IncomingMessage, trustProxy: ServerOptions['trustP
 
 export function createShareRoutes(ctx: RouteCtx): RouteHandler {
   const { opts, app, ctxOf, spaceId } = ctx;
+  const isMember = () => Boolean(opts.member || app.member);
+  /** Audit rows name the member who made or revoked a link (never the token or text). */
+  const by = () => (isMember() ? { who: `member:${spaceId}`, role: 'member' as const } : {});
   const ownerOnly = () => {
-    if (opts.member || app.member || opts.demo || app.demo) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+    if (isMember() || opts.demo || app.demo) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+  };
+  /** The owner always; a household member while the owner allows member links; never the demo. */
+  const canShare = () => {
+    if (opts.demo || app.demo) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+    if (isMember() && !store().settings().members) throw new HttpError(403, 'The owner has turned off share links for household members.', { membersOff: true });
   };
   const store = () => {
     const s = shares();
@@ -46,38 +55,42 @@ export function createShareRoutes(ctx: RouteCtx): RouteHandler {
   return async (req, res, method, parts) => {
     const [a, b, c, d] = parts;
     if (a === 'conversations' && b && c === 'share' && d === 'preview' && method === 'POST') {
-      ownerOnly();
+      canShare();
       const { snapshot } = snapshotFor(b, optionsOf(await readJson(req)));
       return send(res, 200, { snapshot, expiries: Object.keys(SHARE_EXPIRY), defaultExpiry: DEFAULT_EXPIRY });
     }
     if (a !== 'shares') return NEXT;
-    ownerOnly();
+    if (opts.demo || app.demo) ownerOnly();
     const s = store();
     if (b === 'settings') {
-      if (method === 'GET') return send(res, 200, { ...s.settings(), sharing: policy().sharingOn });
+      if (method === 'GET') return send(res, 200, { ...s.settings(), sharing: policy().sharingOn, ...(isMember() ? { member: true } : { memberLinks: s.memberLinks() }) });
       if (method === 'PUT') {
+        ownerOnly();
         const body = await readJson(req);
-        s.setSettings({ allowPrivate: body.allowPrivate === true });
-        audit({ action: 'share.settings', keys: ['allowPrivate'] });
-        return send(res, 200, s.settings());
+        const keys = (['allowPrivate', 'members'] as const).filter((k) => typeof body[k] === 'boolean');
+        s.setSettings(Object.fromEntries(keys.map((k) => [k, body[k] === true])));
+        audit({ action: 'share.settings', keys: [...keys] });
+        return send(res, 200, { ...s.settings(), memberLinks: s.memberLinks() });
       }
     }
-    if (!b && method === 'GET') return send(res, 200, { shares: s.list(spaceId), sharing: policy().sharingOn, ...s.settings() });
+    // A member's own links stay listed (and revocable) while member links are off.
+    if (!b && method === 'GET') return send(res, 200, { shares: s.list(spaceId), sharing: policy().sharingOn, ...s.settings(), ...(isMember() ? { member: true } : {}) });
     if (!b && method === 'POST') {
+      canShare();
       const body = await readJson(req);
       const expires = String(body.expires ?? DEFAULT_EXPIRY) as ShareExpiry;
       if (!(expires in SHARE_EXPIRY)) throw new HttpError(400, 'Pick an expiry: 1 hour, 1 day, 7 days or 30 days.');
       const o = optionsOf(body);
       const { cx, snapshot, pictures } = snapshotFor(String(body.conversationId ?? ''), o);
       const made = s.create({ space: spaceId, companion: cx.companionId ?? 'main', conversationId: String(body.conversationId), expires, options: o, snapshot, pictures });
-      audit({ action: 'share.create', target: `share:${made.id}`, keys: [`expires:${expires}`, ...(o.tools ? ['tools'] : []), ...(o.pictures ? ['pictures'] : [])] });
+      audit({ action: 'share.create', target: `share:${made.id}`, keys: [`expires:${expires}`, ...(o.tools ? ['tools'] : []), ...(o.pictures ? ['pictures'] : [])], ...by() });
       return send(res, 201, { id: made.id, link: `${originOf(req, opts.trustProxy)}/s/${made.token}`, expiresAt: made.expiresAt });
     }
     if (b && !c && method === 'DELETE') {
       const row = s.get(b);
       if (!row || row.space !== spaceId) throw new HttpError(404, 'Not found');
       const r = s.revoke(b)!;
-      audit({ action: 'share.revoke', target: `share:${b} views:${r.views}` });
+      audit({ action: 'share.revoke', target: `share:${b} views:${r.views}`, ...by() });
       return send(res, 200, { ok: true });
     }
     throw new HttpError(404, 'Not found');
@@ -143,16 +156,18 @@ export function createSharePublic(o: { opts: ServerOptions; ownerLang: () => Lan
       plain(404, tr('This link has expired or was revoked.', lang));
       return true;
     };
-    if (!s || o.opts.demo || o.opts.member || !policy().sharingOn) return gone();
+    if (!s || o.opts.demo || !policy().sharingOn) return gone();
+    // Household members' links answer only while the owner allows member links.
+    const allow = (space: string) => space === 'owner' || s.settings().members;
     const token = m[1];
     if (m[2] !== undefined) {
-      const pic = s.picture(token, Number(m[2]));
+      const pic = s.picture(token, Number(m[2]), allow);
       if (!pic) return gone();
       res.writeHead(200, { 'content-type': pic.mime, 'content-length': pic.data.length, ...PUBLIC_HEADERS });
       res.end(method === 'HEAD' ? undefined : pic.data);
       return true;
     }
-    const open = s.open(token);
+    const open = s.open(token, allow);
     if (!open) return gone();
     if (open.first) audit({ action: 'share.view', target: `share:${open.share.id}`, role: 'system', who: 'visitor', channel: 'web' });
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', ...PUBLIC_HEADERS });

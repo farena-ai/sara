@@ -7,6 +7,8 @@ import { BusinessAccessError, validId } from './policy.ts';
 export interface BusinessBudgetBounds {
   instanceAllowanceNanoUsd: number; workspaceAllowanceNanoUsd: number; maxConcurrent: number;
   maxInputTokens: number; maxOutputTokens: number; inputNanoUsdPerToken: number; outputNanoUsdPerToken: number;
+  /** The configured model name, kept on the ledger row for the usage report (EC15). */
+  modelName?: string;
 }
 export interface BusinessRequestKey { requestId: string; actorId: string; workspaceId: string; conversationId: string; payloadHash: string; policyHash: string }
 export interface BusinessRequestRecord extends BusinessRequestKey {
@@ -51,6 +53,8 @@ export class BusinessBudget {
         created_at INTEGER NOT NULL,accepted_at INTEGER,policy_hash TEXT,additional_exposure INTEGER CHECK(additional_exposure>=0)
       );
       CREATE TABLE IF NOT EXISTS business_disclosures (session_id TEXT NOT NULL,actor_id TEXT NOT NULL,acknowledged_at INTEGER NOT NULL,PRIMARY KEY(session_id,actor_id));`);
+    // EC15: the model each request used (older rows have none and report as unknown).
+    if (!db.prepare('SELECT 1 FROM pragma_table_info(?) WHERE name=?').get('business_model_requests', 'model')) db.exec('ALTER TABLE business_model_requests ADD COLUMN model TEXT');
     db.exec(`CREATE TRIGGER IF NOT EXISTS audit_model_reserve AFTER INSERT ON business_model_requests BEGIN INSERT INTO business_audit(at,action,actor_id,workspace_id,subject_id) VALUES (unixepoch()*1000,'model.reserve',NEW.actor_id,NEW.workspace_id,NEW.request_id); END;
       CREATE TRIGGER IF NOT EXISTS audit_model_state AFTER UPDATE ON business_model_requests BEGIN INSERT INTO business_audit(at,action,actor_id,workspace_id,subject_id) VALUES (unixepoch()*1000,'model.state',NEW.actor_id,NEW.workspace_id,NEW.request_id); END;`);
     // Upgrade existing paused ledgers conservatively; do not alter request costs or clear a pause.
@@ -92,8 +96,9 @@ export class BusinessBudget {
       if (exposure.instanceNanoUsd + reserved > limits.instanceAllowanceNanoUsd || exposure.workspaceNanoUsd + reserved > limits.workspaceAllowanceNanoUsd) throw new BusinessAdmissionError('Budget allowance exhausted.');
       const active = Number(this.#db.prepare("SELECT count(*) AS n FROM business_model_requests WHERE state='pending'").get()!.n);
       if (active >= limits.maxConcurrent || this.#db.prepare("SELECT request_id FROM business_model_requests WHERE workspace_id=? AND conversation_id=? AND state='pending'").get(key.workspaceId, key.conversationId)) throw new BusinessAdmissionError('Another model request is in progress.');
-      this.#db.prepare(`INSERT INTO business_model_requests(request_id,actor_id,workspace_id,conversation_id,payload_hash,policy_hash,state,reserved,input_rate,output_rate,max_input,max_output,created_at)
-        VALUES (?,?,?,?,?,?,'pending',?,?,?,?,?,?)`).run(key.requestId, key.actorId, key.workspaceId, key.conversationId, key.payloadHash, key.policyHash, reserved, limits.inputNanoUsdPerToken, limits.outputNanoUsdPerToken, limits.maxInputTokens, limits.maxOutputTokens, Date.now());
+      const model = typeof limits.modelName === 'string' && /^[\w.\-/:]{1,150}$/.test(limits.modelName) ? limits.modelName : null;
+      this.#db.prepare(`INSERT INTO business_model_requests(request_id,actor_id,workspace_id,conversation_id,payload_hash,policy_hash,state,reserved,input_rate,output_rate,max_input,max_output,created_at,model)
+        VALUES (?,?,?,?,?,?,'pending',?,?,?,?,?,?,?)`).run(key.requestId, key.actorId, key.workspaceId, key.conversationId, key.payloadHash, key.policyHash, reserved, limits.inputNanoUsdPerToken, limits.outputNanoUsdPerToken, limits.maxInputTokens, limits.maxOutputTokens, Date.now(), model);
       guard();
       return { ...this.lookup(key)!, existing: false };
     });

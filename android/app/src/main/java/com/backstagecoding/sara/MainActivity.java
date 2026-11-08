@@ -30,6 +30,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.webkit.CookieManager;
+import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
@@ -64,6 +65,8 @@ public class MainActivity extends Activity {
     static final String DEMO_SERVER = "https://demo.sara.backstagecoding.com";
 
     private static final int REQ_PERMS = 1;
+    /** EC24: location for one Allow once in Sara's own helper prompt. */
+    private static final int REQ_HELPER_GEO = 241;
     private static final int REQ_FILE = 2;
     private static final int REQ_CALL = 4;
     private static final int REQ_UNLOCK = 5;
@@ -83,6 +86,8 @@ public class MainActivity extends Activity {
     /** Text/photos shared from another app, waiting for the page (JSON for window.saraShare). */
     private String pendingShare;
     private PermissionRequest pendingPermission;
+    private GeolocationPermissions.Callback pendingGeo;
+    private String pendingGeoOrigin;
     private ValueCallback<Uri[]> fileCallback;
 
     /** Night or Day: the theme the page showed last (the app's own screens, bars and first paint). */
@@ -568,6 +573,8 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setMediaPlaybackRequiresUserGesture(false);
+        // EC24: the page asks for one location fix only after Allow once in Sara's helper prompt.
+        s.setGeolocationEnabled(true);
         s.setUserAgentString(s.getUserAgentString() + " SaraPhone/1");
         CookieManager.getInstance().setAcceptCookie(true);
         final String host = Uri.parse(server).getHost();
@@ -621,6 +628,18 @@ public class MainActivity extends Activity {
                 } else {
                     pendingPermission = request;
                     requestPermissions(need.toArray(new String[0]), REQ_PERMS);
+                }
+            }
+
+            // EC24: one location fix for Sara's own page (never remembered: retain = false).
+            @Override
+            public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
+                if (has(Manifest.permission.ACCESS_COARSE_LOCATION) || has(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                    callback.invoke(origin, true, false);
+                } else {
+                    pendingGeo = callback;
+                    pendingGeoOrigin = origin;
+                    requestPermissions(new String[] {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, REQ_HELPER_GEO);
                 }
             }
 
@@ -1463,6 +1482,13 @@ public class MainActivity extends Activity {
 
     @Override
     public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
+        if (code == REQ_HELPER_GEO && pendingGeo != null) {
+            boolean ok = has(Manifest.permission.ACCESS_COARSE_LOCATION) || has(Manifest.permission.ACCESS_FINE_LOCATION);
+            pendingGeo.invoke(pendingGeoOrigin, ok, false);
+            pendingGeo = null;
+            pendingGeoOrigin = null;
+            return;
+        }
         if (code == REQ_CALL && pendingCall != null) {
             String conv = pendingCall;
             pendingCall = null;

@@ -3,7 +3,8 @@ import type { AppContext, TurnOptions } from './chat.ts';
 import type { Conversation } from './store.ts';
 import { adultModeOn } from './settings.ts';
 import { SessionHandoffStore, type SessionHandoff, type SessionHandoffHeader } from './session-handoffs.ts';
-import { sessionStepBusy } from './session-step-gate.ts';
+import { clampParallel, PARALLEL_DEFAULT, sessionStepBusy } from './session-step-gate.ts';
+import { policy } from './policy-profile.ts';
 import { en } from './i18n.ts';
 
 export const SESSION_CONTINUITY_MARK = '[SARA-LIVE-SESSION-CONTINUITY]';
@@ -27,6 +28,14 @@ export function continuityEnabled(app: AppContext): boolean {
   if (!Object.hasOwn(chats, 'continuity')) return true;
   const value: unknown = (chats as Record<string, unknown>).continuity;
   return Boolean(value && typeof value === 'object' && !Array.isArray(value) && Object.hasOwn(value, 'enabled') && (value as Record<string, unknown>).enabled === true);
+}
+/** mnt2: provider steps that may run at once across the owner's chats (one per chat). The policy pin
+ * `parallelReplies` is a ceiling; the owner's own setting can only be lower. */
+export function continuityParallel(app: AppContext): number {
+  const chats = app.settings.get().chats as { continuity?: { parallel?: unknown } } | undefined;
+  const own = clampParallel(chats?.continuity?.parallel, PARALLEL_DEFAULT);
+  const pin = policy().pins.parallelReplies;
+  return pin ? Math.min(own, pin) : own;
 }
 function channelAllowed(app: AppContext, c: Conversation, history: boolean): boolean {
   if (c.private || c.partner || c.archivedAt || (!history && c.endedAt) || !['chat', 'coding'].includes(c.mode)) return false;

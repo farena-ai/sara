@@ -2,7 +2,7 @@
 // Moved from src/server.ts unchanged (wave 3); shared state comes from the RouteCtx (src/routes/context.ts).
 import { createReadStream } from 'node:fs';
 import { vaultKeyFor } from '../chat.ts';
-import { cleanWorkflow, PHOTO_ENGINES, type PhotoEngine, promptNodes } from '../image-engines.ts';
+import { cleanWorkflow, listComfyWorkflows, loadComfyWorkflow, PHOTO_ENGINES, type PhotoEngine, promptNodes } from '../image-engines.ts';
 import { mcpToolName } from '../tools/mcp.ts';
 import { maybeOwnPhoto, monthlyEstimate, OWN_PACES, type OwnPhotoPace, ownPhotoSettings } from '../own-photos.ts';
 import { findEverything } from '../find.ts';
@@ -347,6 +347,17 @@ export function createMemoryRoutes(ctx: RouteCtx): RouteHandler {
       if (app.member || app.demo) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
       return send(res, 200, await maybeOwnPhoto(app, { force: true }));
     }
+    // MNT2 (E7 follow-up): the workflows saved inside ComfyUI, to pick one instead of pasting the export.
+    const comfyDeps = () => ({ tools: { get: (n: string) => app.tools.get(n), permission: (n: string) => app.tools.permission(n, app.settings.get().toolPermissions) } });
+    if (a === 'photos' && b === 'comfy' && c === 'workflows' && method === 'GET') {
+      if (app.member || app.demo) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+      const server = (new URL(req.url ?? '/', 'http://x').searchParams.get('server') ?? 'comfyui').replace(/[^\w-]/g, '').slice(0, 31) || 'comfyui';
+      try {
+        return send(res, 200, { server, workflows: await listComfyWorkflows(comfyDeps(), server) });
+      } catch (err) {
+        throw new HttpError(400, (err as Error).message);
+      }
+    }
     if (a === 'photos' && !b) {
       const view = () => {
         const p = photoSettings(app.settings);
@@ -357,9 +368,9 @@ export function createMemoryRoutes(ctx: RouteCtx): RouteHandler {
         const comfyServers = (app.settings.get().mcpServers ?? []).filter((m) => app.tools.get(mcpToolName(m.name, 'enqueue_workflow'))).map((m) => m.name);
         return { mode: p.mode, model: p.model || DEFAULT_IMAGE_MODEL, hasKey: app.vault.has(PHOTO_KEY_VAULT), grokSubscription: app.subscriptions?.grokStatus().signedIn ?? false, providerKey: Boolean(xai && app.vault.get(vaultKeyFor(xai.id))), taken: (p.taken ?? []).slice(0, 12),
           engine: p.engine ?? 'grok', openaiKey: Boolean(openai && app.vault.get(vaultKeyFor(openai.id))), comfyServers, imageTools: mcpTools.map((t) => t.spec.name),
-          comfy: p.comfy ? { server: p.comfy.server, node: p.comfy.node, input: p.comfy.input ?? 'text', seed: Boolean(p.comfy.seed), nodes: promptNodes(p.comfy.workflow) } : null, tool: p.tool ?? null,
+          comfy: p.comfy ? { server: p.comfy.server, node: p.comfy.node, input: p.comfy.input ?? 'text', seed: Boolean(p.comfy.seed), saved: p.comfy.saved ?? null, nodes: promptNodes(p.comfy.workflow) } : null, tool: p.tool ?? null,
           // E7 (B2s): pictures on her own, and about what they cost a month.
-          own: (({ on, often, monthlyCap, sent }) => ({ on, often, monthlyCap, sentThisMonth: (sent ?? []).filter((x) => x.slice(0, 7) === app.now().toISOString().slice(0, 7)).length }))(ownPhotoSettings(app)),
+          own: (({ on, often, monthlyCap, sent, toApps }) => ({ on, often, monthlyCap, toApps: Boolean(toApps), sentThisMonth: (sent ?? []).filter((x) => x.slice(0, 7) === app.now().toISOString().slice(0, 7)).length }))(ownPhotoSettings(app)),
           estimate: monthlyEstimate(p.engine ?? 'grok', ownPhotoSettings(app), (app.subscriptions?.grokStatus().signedIn ?? false) && !app.vault.has(PHOTO_KEY_VAULT)) };
       };
       if (method === 'GET') return send(res, 200, await view());
@@ -374,19 +385,26 @@ export function createMemoryRoutes(ctx: RouteCtx): RouteHandler {
         if (body.engine !== undefined && !engine) throw new HttpError(400, 'Pick Grok, OpenAI, ComfyUI or an image tool.');
         let comfy = cur.comfy;
         if (body.comfy && typeof body.comfy === 'object') {
-          const c = body.comfy as { server?: unknown; workflow?: unknown; node?: unknown; input?: unknown; seed?: unknown };
+          const c = body.comfy as { server?: unknown; workflow?: unknown; saved?: unknown; node?: unknown; input?: unknown; seed?: unknown };
           let workflow = comfy?.workflow;
+          let saved = comfy?.saved;
+          const server = String(c.server ?? comfy?.server ?? 'comfyui').slice(0, 31);
+          const fresh = c.workflow !== undefined && c.workflow !== null && c.workflow !== '';
+          const picked = typeof c.saved === 'string' && c.saved !== '' && c.saved !== comfy?.saved;
           try {
-            if (c.workflow !== undefined && c.workflow !== null && c.workflow !== '') workflow = cleanWorkflow(c.workflow);
+            // MNT2: a workflow saved inside ComfyUI, read in API format through its tool server (Sara keeps a copy).
+            if (typeof c.saved === 'string' && c.saved !== '' && !fresh) { workflow = await loadComfyWorkflow(comfyDeps(), server, c.saved); saved = c.saved; }
+            else if (fresh) { workflow = cleanWorkflow(c.workflow); saved = undefined; }
           } catch (err) {
             throw new HttpError(400, (err as Error).message);
           }
           if (!workflow) throw new HttpError(400, 'Paste the workflow in API format (ComfyUI: Workflow → Export (API)).');
           const nodes = promptNodes(workflow);
-          const node = String(c.node ?? comfy?.node ?? nodes[0]?.id ?? '');
+          // A newly picked workflow starts at its first prompt node unless one is given.
+          const node = String(c.node ?? (picked ? undefined : comfy?.node) ?? nodes[0]?.id ?? '');
           const input = String(c.input ?? nodes.find((n) => n.id === node)?.input ?? 'text');
           if (!nodes.some((n) => n.id === node && n.input === input)) throw new HttpError(400, 'Pick the node that takes the prompt.');
-          comfy = { server: String(c.server ?? comfy?.server ?? 'comfyui').slice(0, 31), workflow, node, input, seed: c.seed === undefined ? Boolean(comfy?.seed) : Boolean(c.seed) };
+          comfy = { server, workflow, node, input, seed: c.seed === undefined ? Boolean(comfy?.seed) : Boolean(c.seed), ...(saved ? { saved } : {}) };
         }
         let tool = cur.tool;
         if (body.tool && typeof body.tool === 'object') {
@@ -397,9 +415,9 @@ export function createMemoryRoutes(ctx: RouteCtx): RouteHandler {
         }
         let own = cur.own;
         if (body.own && typeof body.own === 'object') {
-          const o = body.own as { on?: unknown; often?: unknown; monthlyCap?: unknown };
+          const o = body.own as { on?: unknown; often?: unknown; monthlyCap?: unknown; toApps?: unknown };
           const was = ownPhotoSettings(app);
-          own = { ...was, on: o.on === undefined ? was.on : o.on === true, often: OWN_PACES.includes(o.often as OwnPhotoPace) ? (o.often as OwnPhotoPace) : was.often, monthlyCap: o.monthlyCap === undefined ? was.monthlyCap : Math.max(0, Math.min(31, Math.round(Number(o.monthlyCap) || 0))) };
+          own = { ...was, on: o.on === undefined ? was.on : o.on === true, toApps: o.toApps === undefined ? Boolean(was.toApps) : o.toApps === true, often: OWN_PACES.includes(o.often as OwnPhotoPace) ? (o.often as OwnPhotoPace) : was.often, monthlyCap: o.monthlyCap === undefined ? was.monthlyCap : Math.max(0, Math.min(31, Math.round(Number(o.monthlyCap) || 0))) };
         }
         app.settings.update({ photos: { ...cur, mode, model, engine, comfy, tool, own } });
         return send(res, 200, await view());

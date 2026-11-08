@@ -501,6 +501,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'security', 'passkey', 'two-step', 'owner-token', 'devices', 'device', 'pair',
   // talking
   'conversations', 'live', 'events', 'approvals', 'uploads', 'video', 'calls', 'voice', 'wake', 'tags', 'find', 'reports',
+  // EC11: share links of their own chats (the share routes refuse when the owner turned it off)
+  'shares',
   // Phase 123: Undo on a tidy divider in their own chats
   'compactions',
   // Phase 128 (PL2b): the / menu's list (read-only; GET /api/chat-menu filters it for a member)

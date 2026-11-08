@@ -32,7 +32,7 @@ import { SARA_VERSION } from '../plugins/manager.ts';
 import { checkServerFolder } from '../skill-store.ts';
 import { imageType, STORE_PLUGIN_LIMITS } from '../store/checks.ts';
 import { pluginInstallation, shelfView } from '../store/client.ts';
-import { isStoreId, shortKey } from '../store/format.ts';
+import { isStoreId, shortKey, speakToReader } from '../store/format.ts';
 import { entryLines, InstallError, StoreInstaller } from '../store/install.ts';
 import { packFiles, packPath, readStoreZip, type Pack } from '../store/pack.ts';
 import { STORE_COMPANION_LIMITS } from '../packs/format.ts';
@@ -214,10 +214,12 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
       const held = client.held().some((h) => h.id === c);
       // A translated listing: the tagline (summary, the entry's description) and the longer text (about[0]).
       const tr = client.translations(ownerLang())[c];
-      const description = tr?.summary ?? entry.description;
-      const about = tr?.description ? [tr.description, ...entry.about.slice(1)] : entry.about;
+      // MNT2: a companion's text speaks of {{user}}; the page speaks to the reader.
+      const reader = (s: string) => speakToReader(s, { lang: ownerLang(), name: (app.settings.get() as { ownerName?: string }).ownerName });
+      const description = reader(tr?.summary ?? entry.description);
+      const about = (tr?.description ? [tr.description, ...entry.about.slice(1)] : entry.about).map(reader);
       return send(res, 200, {
-        item: { id: hit.item.id, kind: hit.item.kind, name: hit.item.name, summary: tr?.summary ?? hit.item.summary, trust: hit.item.trust, category: hit.item.category ?? 'more', author: { name: hit.item.author.name, key: shortKey(hit.item.author.key) }, ...(hit.item.iconSha ? { icon: hit.item.iconSha } : {}), ...(hit.item.kind === 'companion' ? { rating: hit.item.rating, romance: hit.item.romance } : {}) },
+        item: { id: hit.item.id, kind: hit.item.kind, name: hit.item.name, summary: reader(tr?.summary ?? hit.item.summary), trust: hit.item.trust, category: hit.item.category ?? 'more', author: { name: hit.item.author.name, key: shortKey(hit.item.author.key) }, ...(hit.item.iconSha ? { icon: hit.item.iconSha } : {}), ...(hit.item.kind === 'companion' ? { rating: hit.item.rating, romance: hit.item.romance } : {}) },
         version: hit.v.version,
         versions: hit.item.versions.map((v) => ({ version: v.version, published: v.published, ...(v.yanked ? { yanked: v.yanked } : {}) })),
         size: hit.v.size ?? null,

@@ -57,3 +57,47 @@ test('exactly twenty waiters per actual database object; other database objects 
   release();
   for (const waiter of waiters) (await waiter.ready)();
 });
+
+test('mnt2: a parallel cap lets different conversations step together, one step per conversation, FIFO when full', async () => {
+  const db = {};
+  const opts = { parallel: 2 };
+  const a = gate!.acquireSessionStep(db, 'a', signal(), opts);
+  const b = gate!.acquireSessionStep(db, 'b', signal(), opts);
+  assert.equal(a.waiting, false); assert.equal(b.waiting, false, 'a second conversation is not held behind the first');
+  const releaseA = await a.ready; const releaseB = await b.ready;
+  const a2 = gate!.acquireSessionStep(db, 'a', signal(), { parallel: 4 });
+  assert.equal(a2.waiting, true, 'the same conversation never runs two steps at once');
+  const c = gate!.acquireSessionStep(db, 'c', signal(), opts);
+  assert.equal(c.waiting, true, 'the owner-wide cap holds the third conversation');
+  assert.equal(gate!.sessionStepBusy(db, 'a'), true); assert.equal(gate!.sessionStepBusy(db, 'c'), false);
+  const order: string[] = [];
+  const seen = [a2.ready.then(r => { order.push('a2'); return r; }), c.ready.then(r => { order.push('c'); return r; })];
+  releaseB(); releaseB();
+  await seen[1];
+  assert.deepEqual(order, ['c'], 'a free slot skips a waiter whose conversation is still busy');
+  releaseA();
+  const releaseA2 = await seen[0]; (await seen[1])();
+  assert.deepEqual(order, ['c', 'a2']); releaseA2();
+  assert.equal(gate!.acquireSessionStep(db, 'z', signal(), opts).waiting, false, 'empty queues are cleaned up');
+});
+
+test('mnt2: a shared key (one scene) keeps its seats one at a time while busy shows the seat conversation', async () => {
+  const db = {};
+  const seat1 = gate!.acquireSessionStep(db, 'seat-1', signal(), { parallel: 4, key: 'scene:7' });
+  const release1 = await seat1.ready;
+  assert.equal(gate!.sessionStepBusy(db, 'seat-1'), true);
+  const seat2 = gate!.acquireSessionStep(db, 'seat-2', signal(), { parallel: 4, key: 'scene:7' });
+  assert.equal(seat2.waiting, true);
+  assert.equal(gate!.acquireSessionStep(db, 'other', signal(), { parallel: 4 }).waiting, false);
+  release1(); (await seat2.ready)();
+});
+
+test('mnt2: the waiting limit grows with the cap (twenty per parallel step) and the refusal says to retry', async () => {
+  const db = {};
+  const holds = await Promise.all(['h1', 'h2'].map(k => gate!.acquireSessionStep(db, k, signal(), { parallel: 2 }).ready));
+  const waiters = Array.from({ length: 40 }, (_, i) => gate!.acquireSessionStep(db, `w${i}`, signal(), { parallel: 2 }));
+  assert.ok(waiters.every(w => w.waiting));
+  await assert.rejects(gate!.acquireSessionStep(db, 'overflow', signal(), { parallel: 2 }).ready, /Too many replies are waiting/);
+  for (const h of holds) h();
+  for (const w of waiters) (await w.ready)();
+});

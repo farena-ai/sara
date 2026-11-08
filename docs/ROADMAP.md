@@ -102,6 +102,16 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Meetings, phone helper and her at work in 2.85.0
+
+Meetings: a room inside Sara where she announces she is an AI taking notes, answers briefly when
+named, and writes a summary with decisions and action items (also from an uploaded recording). Your
+phone can lend her its camera, location or one screenshot, with a full-screen Allow once or Deny
+every time. At work she has her own name, tone, memory and tools in Slack and Teams, with companion
+features off. Several chats now get replies at the same time (four by default), household members
+can share their own chats, business admins get a spending report, and a legal hold keeps the earlier
+text of anything edited.
+
 ## Enterprise controls, editors and code mode in 2.84.0
 
 Keys can live in HashiCorp Vault, 1Password, environment variables, mounted secret files or the

@@ -30,11 +30,21 @@ code asks. Everything that deletes is listed in `DELETE_PATHS` (`src/data-rights
 A refused delete answers "This data is under a legal hold" (409). Holds and releases are audit rows
 (`data.hold`). A damaged settings file holds everything until it is saved again.
 
+**Edit history while held.** A hold keeps content, not only existence: while a space is held,
+every in-place rewrite of a message or memory (a memory edit, a reply rewritten after the fact,
+renaming the companion in notes) first copies the previous text into an append-only edit
+history in that space's database (`sara_edit_history`, written by a database trigger, so every
+code path is covered). Rows can never be changed, and can't be deleted while held. A reply the
+safety layer replaced is recorded as an edit without the blocked text. Each person's row shows
+*N earlier versions kept under hold*; **Show edit history** lists them (one `data.edit-history`
+audit row, never the text), and the person's download includes `edit-history.json`. After the hold
+is released, a message's or memory's history is deleted together with it.
+
 ## One person's data
 
 - **Download their data:** a ZIP with, per companion, `export.json` (chats, memories, notes,
   library text; secrets scrubbed), their photos and library files, and `manifest.json` with the
-  SHA-256 of every file. Only that person's space is read. Audit row `data.person-export`.
+  SHA-256 of every file, plus `edit-history.json` when a hold kept earlier versions. Only that person's space is read. Audit row `data.person-export`.
 - **Delete their data** (household members only; the owner's data goes with the whole server):
   refused while they are held. Otherwise their space is stopped and deleted and you get a receipt:
   how many chats, messages, memories and files there were, that the folder and the member record are

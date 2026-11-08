@@ -52,7 +52,10 @@ companion and every household member. They only make things stricter:
 | Turn off editors | Code editors (Zed, JetBrains and other ACP editors) can't use Sara as their coding agent: new editor sessions and editor turns are refused. JSON: `"editors": false`. Each new editor session is an `editor.session` row. See [EDITORS.md](EDITORS.md). |
 | Crews | *Off*: no crews can be made, run, scheduled or started by mail. See [CREWS.md](CREWS.md). |
 | Turn off Code mode | No one can turn on Code mode; `run_code` is never offered. JSON: `"codeMode": false`. Each script run is a `code.run` row (call count, fence, why it stopped; never the script). See [CODE_MODE.md](CODE_MODE.md). |
+| Turn off Phone as a helper | Sara never asks a phone or browser for its camera, location or screen; no device can be switched on and waiting prompts close. JSON: `"phoneHelper": false`. Each request is a `phone.camera`, `phone.location` or `phone.screen` row (never the picture or coordinates). See [PHONE_HELPER.md](PHONE_HELPER.md). |
+| Keep work mode on everywhere | Every chat on the server is a work chat for every companion (Settings → Her → At work can't be turned off): work name and tone, work tools and work memory only, no moods, romance, adult content or pictures on her own. JSON: `"workMode": true`. See [AT_WORK.md](AT_WORK.md). |
 | Overnight memory tidy | *Models on this computer only* or *Off*. See [MEMORY_TIDY.md](MEMORY_TIDY.md). |
+| Turn off meetings (EC19) | No one can start a meeting room or get notes from a recording; joins and sound are refused. Notes already written stay in the Library. JSON: `"meetings": false`. Rows: `meeting.start`, `meeting.join`, `meeting.file`, `meeting.end`, `meeting.notes`, `meeting.todos`, `meeting.recording`, `meeting.delete`. See [MEETINGS.md](MEETINGS.md). |
 
 A pinned setting shows **Set by your admin** in Settings. The server refuses a change with
 "Set by your admin (*policy name*). Change the policy first." (HTTP 409, `policy.key` names the pin),

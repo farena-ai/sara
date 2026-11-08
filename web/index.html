@@ -39,6 +39,7 @@
   <link rel="stylesheet" href="/begin.css">
   <link rel="stylesheet" href="/refs.css">
   <link rel="stylesheet" href="/research.css">
+  <link rel="stylesheet" href="/meetings.css">
   <link rel="stylesheet" href="/recall.css">
   <link rel="stylesheet" href="/v3.css">
   <link rel="stylesheet" href="/sharing.css">
@@ -751,6 +752,21 @@
 
   <!-- Phase 16: asked once on servers that had adult content before the switch existed -->
   <!-- 2.18: "Sara X is available" when the app opens (and every 12 hours while open; owner only). -->
+  <!-- EC24: Sara asks this device (a helper she may borrow) for its camera, location or screen. Never silent; outside #chat so Today never hides it. -->
+  <dialog id="helper-ask" class="ring helper-ask" aria-labelledby="helper-title" aria-describedby="helper-reason" data-required="1">
+    <span id="helper-icon" class="helper-icon"><i class="ic" data-icon="camera"></i></span>
+    <strong id="helper-title">Sara wants to use your camera</strong>
+    <p id="helper-reason" class="helper-reason"></p>
+    <p id="helper-what" class="muted small"></p>
+    <video id="helper-video" class="helper-video" playsinline muted hidden></video>
+    <p id="helper-status" class="small" role="status"></p>
+    <div class="helper-actions">
+      <button id="helper-deny" type="button" class="ghost">Deny</button>
+      <button id="helper-allow" type="button">Allow once</button>
+      <button id="helper-shoot" type="button" hidden>Take picture</button>
+    </div>
+    <p id="helper-left" class="muted small"></p>
+  </dialog>
   <dialog id="update-pop" class="update-pop" aria-labelledby="upp-title">
     <div class="settings-body">
       <h2 id="upp-title" class="update-pop-title"><i class="ic" data-icon="update"></i><span id="upp-title-text">A new version is available</span></h2>
@@ -1532,6 +1548,7 @@
         <progress id="lib-upload-bar" class="lib-progress" max="1" value="0" hidden></progress>
         <p class="small"><button id="lib-feed-together" type="button" class="ghost small" title="Opens a public RSS or Atom feed above your chat so you can share one of its items with her." data-owner-only>Read a feed together</button></p>
         <p class="small"><button id="lib-research-open" type="button" class="ghost small" data-owner-only>Research a question…</button> <button type="button" class="tip" data-tip="She plans the searches with you, reads public pages, lists every page she read or couldn't read, and writes a report where each sentence links its page. Kept here; downloads as PDF or Word.">?</button></p>
+        <p class="small"><button id="lib-meetings-open" type="button" class="ghost small" data-owner-only>Meetings…</button> <button type="button" class="tip" data-tip="She listens in a room you start (everyone is told first) or reads a recorded meeting, then writes a summary, decisions and action items. Notes are kept here; to-dos go to the Planner only when you add them.">?</button></p>
         <div class="lib-tools" data-nodirty>
           <input id="lib-q" type="search" placeholder="Search her library">
         </div>
@@ -1552,6 +1569,12 @@
         <p><button id="lib-r-back" type="button" class="ghost small">← All documents</button></p>
         <h2>Research a question <button type="button" class="tip" data-tip="A plan you approve or edit, then she searches and reads. Write the report now stops reading early; Stop still gives a report of what was found and what is missing.">?</button></h2>
         <div id="lib-r-body" class="rs-body" data-nodirty></div>
+      </section>
+      <!-- EC19 (docs/MEETINGS.md): meeting rooms and meeting notes (web/meetings.js). -->
+      <section id="lib-meetings" hidden>
+        <p><button id="lib-m-back" type="button" class="ghost small">← All documents</button></p>
+        <h2>Meetings <button type="button" class="tip" data-tip="Sara listens only after an announced notice, answers only when called by name, and keeps no recording unless you choose to. Transcripts stay on this server.">?</button></h2>
+        <div id="lib-m-body" class="ms-body" data-nodirty></div>
       </section>
       <section id="lib-doc" hidden>
         <p><button id="lib-back" type="button" class="ghost small">← All documents</button></p>
@@ -1889,7 +1912,7 @@
       <p class="muted small cs-summary">Sara writes a dated summary of this conversation after it's been quiet for a while. <button id="cs-remember" type="button" class="ghost small">Write summary now</button></p>
       <p id="cs-error" class="error" role="alert"></p>
       <div class="actions tidy-foot">
-        <button id="cs-share" type="button" class="ghost" data-owner-only>Share…</button>
+        <button id="cs-share" type="button" class="ghost">Share…</button>
         <button id="cs-archive" type="button" class="ghost">Archive</button>
         <button id="cs-delete" type="button" class="ghost danger-text">Delete…</button>
       </div>
@@ -2228,6 +2251,37 @@
       </div>
       <p id="cu-status" class="muted small" role="status"></p>
         </section>
+        <!-- EC26 (docs/ops/EC26_DESIGN.md): her work profile and work memories (web/work-profile.js). -->
+        <section class="settings-page" data-page="her-work" data-group="Her" data-title="At work" data-owner-only hidden>
+      <div class="atw-page" data-noauto data-nodirty>
+        <p class="muted small page-lead">The same companion at work: in Slack, Teams and any chat you choose she uses her work name and tone, work tools only, and a separate work memory. <button type="button" class="tip" data-tip="Work and personal never mix: what she learns at work stays at work, and your personal chats and notes never reach a work chat. Copy a note across by hand when you want one in both.">?</button></p>
+        <p id="atw-pinned" class="muted small" hidden>Your admin's policy keeps work mode on for every chat on this server.</p>
+        <label class="row"><input id="atw-on" type="checkbox"> Use a work profile <button type="button" class="tip" data-tip="Off: nothing changes. On: the chats ticked below are work chats. A chat that was ever a work chat keeps its notes at work, even after you turn this off.">?</button></label>
+        <label class="row">Name at work <input id="atw-name" type="text" maxlength="40" autocomplete="off" placeholder="Her own name"> <button type="button" class="tip" data-tip="What she calls herself at work, for example Ava from IT. Empty: her own name. The name people see on Slack or Teams is the bot's name set there.">?</button></label>
+        <label class="row">Tone at work <select id="atw-tone"><option value="professional">Friendly and professional</option><option value="formal">Formal</option><option value="brief">Brief and to the point</option></select> <button type="button" class="tip" data-tip="How she talks in work chats. Her character stays the same; only the tone changes.">?</button></label>
+        <h3>Which chats are work <button type="button" class="tip" data-tip="Her chats in the app are never work chats.">?</button></h3>
+        <div class="po-kinds">
+          <label><input type="checkbox" data-channel="plugin-slack"> Slack</label>
+          <label><input type="checkbox" data-channel="plugin-teams"> Microsoft Teams</label>
+          <label><input type="checkbox" data-channel="plugin-matrix"> Matrix</label>
+          <label><input type="checkbox" data-channel="plugin-email"> Email</label>
+          <label><input type="checkbox" data-channel="discord-work"> Discord work channels</label>
+          <label><input type="checkbox" data-channel="telegram-work"> Telegram work groups</label>
+        </div>
+        <h3>What she may use at work <button type="button" class="tip" data-tip="Only these tools in work chats. Her album, pictures, outfits, plans, reminders, computer, servers and mail stay out.">?</button></h3>
+        <label class="row"><input id="atw-research" type="checkbox"> Research: web search and reading pages <button type="button" class="tip" data-tip="She can search the web and read pages to answer work questions.">?</button></label>
+        <label class="row"><input id="atw-files" type="checkbox"> Files in the work workspace <button type="button" class="tip" data-tip="She reads and writes files only in the work workspace, never in your own.">?</button></label>
+        <label class="row">Work workspace <input id="atw-workspace" type="text" maxlength="64" autocomplete="off"> <button type="button" class="tip" data-tip="The folder her work files live in (letters, digits, dots, dashes). Every work chat uses it.">?</button></label>
+        <label class="row"><input id="atw-calendar" type="checkbox"> Calendar <button type="button" class="tip" data-tip="She can read and add events when Google is connected (Settings → Add-ons → Google).">?</button></label>
+        <label class="row"><input id="atw-commands" type="checkbox"> Commands <button type="button" class="tip" data-tip="Off by default. On: she can run commands and git in the work workspace, still asking as your approval rules say.">?</button></label>
+        <p class="muted small">Always off at work: her moods, pictures on her own, romance and adult content, role-play and her diary.</p>
+        <div class="add-row"><button id="atw-save" type="button" class="primary">Save</button></div>
+        <h3>Work memories <button type="button" class="tip" data-tip="Notes from work chats, and your personal notes. Copy to work or Copy to personal makes a copy in the other space; the original stays where it is.">?</button></h3>
+        <div class="add-row"><select id="atw-space" aria-label="Which notes"><option value="work">Work notes</option><option value="personal">Personal notes</option></select> <input id="atw-q" type="search" placeholder="Search notes" aria-label="Search notes"> <button type="button" class="tip" data-tip="Pick work or personal notes, and type words to find one.">?</button></div>
+        <div id="atw-memories" class="sl-list"></div>
+        <p id="atw-status" class="muted small" role="status"></p>
+      </div>
+        </section>
         <section class="settings-page" data-page="her-companions" data-group="Her" data-title="Companions" hidden>
       <p class="muted small page-lead">You can have more than one companion on this server. Each has her own name, character, look, voice, conversations and memories. They share your sign-in, devices, keys, models, tools and backups. Switch between them with ⇄ at the top of the sidebar.</p>
       <ul id="cmp-list" class="cmp-list"></ul>
@@ -2523,6 +2577,8 @@
         <p id="ph-status" class="muted small"></p>
         <div id="ph-comfy" hidden>
           <label>ComfyUI tool server <button type="button" class="tip" data-tip="The connected ComfyUI tool server (Settings → Add-ons → Other programs (MCP)). Her pictures come back through it.">?</button> <select id="ph-comfy-server"></select></label>
+          <label>Saved in ComfyUI <button type="button" class="tip" data-tip="Pick a workflow you saved in ComfyUI. Sara reads it through the tool server, converted to API format, and keeps a copy. Pick it again after you change it in ComfyUI.">?</button> <select id="ph-comfy-saved"><option value="">Paste one below instead</option></select> <button id="ph-comfy-list" type="button" class="ghost small" data-noauto>Load the list</button></label>
+          <p id="ph-comfy-saved-status" class="muted small" role="status"></p>
           <label>Workflow (API format) <button type="button" class="tip" data-tip="In ComfyUI open your workflow, then Workflow → Export (API) and paste the file here. Sara keeps a copy; leave it empty to keep the one saved.">?</button> <textarea id="ph-comfy-wf" rows="4" spellcheck="false"></textarea></label>
           <label>Node that takes the prompt <button type="button" class="tip" data-tip="The text box her description goes into, usually the positive CLIP Text Encode. Her name, look, clothes and the scene are written there each time.">?</button> <select id="ph-comfy-node"></select></label>
           <label class="row"><input id="ph-comfy-seed" type="checkbox"> New random seed each time <button type="button" class="tip" data-tip="On: every seed in the workflow is new for each picture, so no two pictures are the same. Off: the seeds stay as saved.">?</button></label>
@@ -2533,6 +2589,7 @@
         </div>
         <h4>Pictures on her own</h4>
         <label class="row"><input id="ph-own-on" type="checkbox"> She sends pictures on her own <button type="button" class="tip" data-tip="Now and then she sends you a picture of what she's doing, with one line, like a person would. Only in your own chat here, never at quiet hours, and it counts as one of her own messages for the day.">?</button></label>
+        <label class="row"><input id="ph-own-apps" type="checkbox"> Also send them to my chat apps <button type="button" class="tip" data-tip="Her pictures on her own also arrive as a picture in your own Telegram or Discord chat with her, if that app is connected. Off: they stay in the app only.">?</button></label>
         <label>How often <button type="button" class="tip" data-tip="Never more than one a day. She skips it when you haven't written for a week or didn't answer her last message of her own.">?</button>
           <select id="ph-own-often">
             <option value="rarely">Rarely (about once a week)</option>
@@ -3666,6 +3723,7 @@
           <div id="continuity-settings" class="tidy-card tidy-stack" hidden>
             <h3>Session continuity</h3>
             <label class="row"><input id="continuity-enabled" name="continuity-enabled" type="checkbox" aria-labelledby="continuity-enabled-label"> <span id="continuity-enabled-label">Use context across my sessions</span> <span><button type="button" class="tip" data-tip="On: eligible sessions can use recent context and saved notes. Off stops new continuity context; saved records stay. Notes are eligible for 24 hours; expired rows are pruned on the next write. Inspect or clear in This conversation.">?</button></span></label>
+            <label class="row">Replies at the same time <input id="continuity-parallel" name="continuity-parallel" type="number" min="1" max="8" step="1" inputmode="numeric"> <button type="button" class="tip" data-tip="How many of your chats the model can work on at once (1 to 8). Each chat still answers one step at a time and sees what the others have saved. Lower it if your model handles one request at a time.">?</button></label>
             <p class="muted small">Turning this off keeps saved notes. Clear saved context in This conversation; original chats, old run records, exports and backups stay.</p>
             <p class="muted small">Only your own eligible sessions with this companion take part. Notes are context, never proof that a message was delivered or work was checked.</p>
             <p id="continuity-status" class="muted small" role="status"></p>
@@ -3888,6 +3946,8 @@
         <h3>People</h3>
         <div id="dr-people" class="sl-list"></div>
         <p id="dr-status" class="muted small" role="status"></p>
+        <h3>Edit history <button type="button" class="tip" data-tip="While a hold is on, changing a message or memory keeps the earlier text here too, so a hold keeps what was said, not only that it existed. It is in the person's data download and can't be changed.">?</button></h3>
+        <div id="dr-history" class="dr-history"></div>
       </div>
         </section>
         <!-- EC5: the policy profile (web/governance.js). Pins only tighten; the server enforces them. -->
@@ -3917,7 +3977,11 @@
         <label>Sites, one per line <textarea id="po-egress" rows="3" placeholder="registry.npmjs.org"></textarea> <button type="button" class="tip" data-tip="One site per line: example.com, or *.example.com for its subdomains, or example.com:8443 for another port.">?</button></label>
         <label class="row"><input id="po-local" type="checkbox"> Keep private local mode on <button type="button" class="tip" data-tip="Once Nothing leaves this computer is on, it can't be turned off. If it's off now, the safety check-up says so until you turn it on.">?</button></label>
         <label class="row">Sara Store <select id="po-store"><option value="">No limit</option><option value="official">Signed Store items only</option><option value="off">No installs</option></select> <button type="button" class="tip" data-tip="Signed Store items only: no community items. No installs: nothing can be installed or updated from the Store.">?</button></label>
+        <label class="row">Replies at the same time <select id="po-parallel"><option value="">No limit</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="6">6</option><option value="8">8</option></select> <button type="button" class="tip" data-tip="The most chats one person's model can work on at once. They can choose fewer in Session continuity, never more. Busy chats wait their turn.">?</button></label>
+        <label class="row"><input id="po-phone" type="checkbox"> Turn off Phone as a helper <button type="button" class="tip" data-tip="Sara can never ask a phone or browser for its camera, location or screen on this server, and no device can be switched on for it.">?</button></label>
+        <label class="row"><input id="po-workmode" type="checkbox"> Keep work mode on everywhere <button type="button" class="tip" data-tip="Every chat on this server is a work chat, for every companion: work name and tone, work tools and work memory only, no moods, romance, adult content or pictures on her own.">?</button></label>
         <label class="row"><input id="po-codemode" type="checkbox"> Turn off Code mode <button type="button" class="tip" data-tip="No one on this server can turn on Code mode: she always calls her tools one at a time.">?</button></label>
+        <label class="row"><input id="po-meetings" type="checkbox"> Turn off meetings <button type="button" class="tip" data-tip="No one can start a meeting room or get notes from a recording: Sara never listens in a meeting. Notes already written stay in the Library.">?</button></label>
         <label class="row"><input id="po-sharing" type="checkbox"> Turn off shared links <button type="button" class="tip" data-tip="No one can make a link to share a conversation, and links already made stop opening until this is unticked.">?</button></label>
         <label class="row">Program installs <select id="po-programs"><option value="">No limit</option><option value="ask">Ask first</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Programs add-ons need (Chrome, uv, Docker…). Ask first: Sara always shows the commands and waits. Off: Sara never installs programs on this server.">?</button></label>
         <label class="row"><input id="po-editors" type="checkbox"> Turn off editors <button type="button" class="tip" data-tip="Code editors such as Zed and JetBrains can't use Sara as their coding agent: new editor sessions and editor turns are refused. Sara's own coding chats keep working.">?</button></label>
@@ -4030,6 +4094,13 @@
           </div>
         </div>
         <p id="pair-done" class="small" role="status"></p>
+      </div>
+      <div id="hd-box" class="hd-box" data-nodirty hidden>
+        <h3>Phone as a helper <button type="button" class="tip" data-tip="Sara may ask this phone or browser for one picture, its location or one screen picture when you ask her for help. Each time it shows a full-screen prompt here: nothing is taken unless you tap Allow once.">?</button></h3>
+        <label class="row"><input id="hd-on" type="checkbox"> Sara may ask this device for its camera, location or screen <button type="button" class="tip" data-tip="Only while Sara is open on this device, never in the background. Location is approximate (about 1 km) unless she asks for the exact spot, and the prompt says which. Signing this device out turns it off.">?</button></label>
+        <p id="hd-pinned" class="muted small" hidden>Turned off by your admin's policy.</p>
+        <p id="hd-devices" class="muted small"></p>
+        <p id="hd-status" class="small" role="status"></p>
       </div>
       <div id="devreq-box" class="devreq-box" data-nodirty hidden>
         <h3>Apps asking to sign in <button type="button" class="tip" data-tip="The terminal client (sara-chat) and the VS Code extension sign in with a short code instead of the owner token. Approve only a code you see in your own terminal or editor right now. Each app is then listed below and can be signed out there.">?</button></h3>
@@ -4188,11 +4259,14 @@
       <p id="up-manual" class="muted small" hidden><span data-admin-when="known">To update her: <code data-admin="update">sudo sara update</code>.</span><span data-admin-when="unknown">This server updates from the command line. On the server run <code>sudo sara update</code> (Docker: <code>docker compose pull &amp;&amp; docker compose up -d</code>).</span></p>
         </section>
         <!-- EC11: links the owner shared (web/sharing.js). -->
-        <section class="settings-page" data-page="dh-shares" data-group="Household" data-title="Shared links" data-owner-only hidden>
+        <section class="settings-page" data-page="dh-shares" data-group="Household" data-title="Shared links" hidden>
       <div class="sl-page" data-noauto data-nodirty>
         <p class="muted small page-lead">Conversations you shared as read-only links. Revoke a link and it stops working at once. <button type="button" class="tip" data-tip="Make a link from a chat's settings (Share…). Each link is a copy made when you shared it; it expires by itself.">?</button></p>
         <p id="sl-pinned" class="muted small" hidden>Shared links are turned off by your admin's policy.</p>
-        <label class="row"><input id="sl-private" type="checkbox"> Allow sharing private chats <button type="button" class="tip" data-tip="Off: private chats, and every chat while private local mode is on, can't be shared. Off-the-record chats and chats with other people are never shared.">?</button></label>
+        <p id="sl-members-off" class="muted small" hidden>The owner has turned off share links for household members. Your links below don't open until it is on again; you can still revoke them.</p>
+        <label class="row" data-owner-only><input id="sl-private" type="checkbox"> Allow sharing private chats <button type="button" class="tip" data-tip="Off: private chats, and every chat while private local mode is on, can't be shared. Off-the-record chats and chats with other people are never shared.">?</button></label>
+        <label class="row" data-owner-only><input id="sl-members" type="checkbox"> Household members can share their own chats <button type="button" class="tip" data-tip="On: each member can make links of their own chats, with the same hiding, expiry and refusals as yours. Off: they can't make new ones and their existing links stop opening. You never see their chats or titles.">?</button></label>
+        <p id="sl-member-count" class="muted small" data-owner-only hidden></p>
         <div id="sl-list" class="sl-list"></div>
       </div>
         </section>

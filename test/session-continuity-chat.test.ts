@@ -24,7 +24,9 @@ const NOW = '2026-11-05T15:00:00.000Z';
 function fixture() {
   const temp = tempDir(); const clock = { now: new Date(NOW) };
   const app = makeApp(temp.dir, clock);
-  app.settings.update({ providers: [{ id: 'p', label: 'Fixture', kind: 'openai-compatible', baseUrl: 'http://127.0.0.1:1', local: true }], defaultProviderId: 'p', defaultModel: 'fixture', ownerName: 'Alex', disclosureAcceptedAt: NOW, memory: { enabled: false } } as never);
+  app.settings.update({ providers: [{ id: 'p', label: 'Fixture', kind: 'openai-compatible', baseUrl: 'http://127.0.0.1:1', local: true }], defaultProviderId: 'p', defaultModel: 'fixture', ownerName: 'Alex', disclosureAcceptedAt: NOW, memory: { enabled: false },
+    // mnt2: these R1 seams test the strict one-step-at-a-time queue (parallel 1, still a valid setting).
+    chats: { continuity: { enabled: true, parallel: 1 } } } as never);
   app.runs = new RunStore(app.store.db, () => clock.now);
   const web = app.store.createConversation();
   const dm = app.store.createConversation({ channel: 'discord', channelKey: 'fixture-dm' });
@@ -532,4 +534,27 @@ test('R1 replay omits only generated marked extras with no source/gate access, p
     assert.equal(events.find(e => e.type === 'branch')?.exact, false);
     assert.deepEqual(f.app.runs!.step(rec.id, 0), retained, 'original audit bytes remain inspectable');
   } finally { SessionHandoffStore.prototype.headers = headers; release?.(); f.close(); }
+});
+
+test('mnt2: with the default cap web and DM steps overlap; a second step in the same chat still waits', async () => {
+  const f = fixture(); f.app.settings.update({ chats: { continuity: { enabled: true } } } as never);
+  const firstIn = deferred(); const finish = deferred();
+  const original = f.app.providerFactory!; let streamed = 0;
+  f.app.providerFactory = config => {
+    const p = original(config); return { ...p, config, listModels: p.listModels.bind(p), async *stream(req) {
+      f.app.requests.push(structuredClone({ ...req, signal: undefined }));
+      if (++streamed === 1) { firstIn.resolve(); await finish.promise; yield { type: 'text' as const, text: 'Web answer.' }; }
+      else yield { type: 'text' as const, text: 'DM answer.' };
+    } };
+  };
+  const a = collect(runTurn(f.app, f.web.id, 'First request.', undefined, { noTools: true }));
+  try {
+    await firstIn.promise;
+    const events = await collect(runTurn(f.app, f.dm.id, 'Second request.', undefined, { noTools: true }));
+    assert.equal(streamed, 2, 'the DM step ran while the web step was still streaming');
+    assert.ok(!events.some(e => e.type === 'notice' && e.kind === 'continuity'), 'no wait notice for another chat');
+    assert.ok(events.some(e => e.type === 'done'));
+    // The DM note still comes from committed dialogue only: the web reply was not finished yet.
+    assert.ok(!liveNotes(f, 1).some(m => m.content.includes('Web answer.')));
+  } finally { finish.resolve(); await a; f.close(); }
 });

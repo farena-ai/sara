@@ -97,3 +97,8 @@ reply. It uses the server the app is on now. It comes with the next iPhone app u
   phone's settings, and on iPhone that you opened Sara from the Home Screen.
 
 More: [INSTALL.md](INSTALL.md), [FAQ.md](FAQ.md).
+
+## Lend Sara your phone
+
+Sara can ask your phone for one picture, your location or a screen picture, approved on the phone
+each time. See [PHONE_HELPER.md](PHONE_HELPER.md).

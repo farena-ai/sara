@@ -136,6 +136,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^preview_/, 'preview', 'preview'],
   [/^browser_/, 'browser', 'testing browser'],
   [/^pc_/, 'computer', 'your computer'],
+  [/^phone_(camera|location|screen)$/, 'phone', 'your phone'],
   [/^team/, 'team', 'team'],
   [/^(board_|card_)/, 'board', 'board'],
   [/^(gmail_|calendar_|calendar$)/, 'google', 'Google (email, calendar)'],

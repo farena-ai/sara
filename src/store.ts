@@ -1,5 +1,5 @@
 // Conversation storage on SQLite (built into Node 24). One owner per server.
-import { assertNotHeld, installHold } from './legal-hold.ts';
+import { assertNotHeld, installHold, withholdEdit } from './legal-hold.ts';
 import { ensureLeanTables } from './lean.ts';
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
@@ -542,9 +542,14 @@ export class Store {
     return { id: Number(r.lastInsertRowid), conversationId, role, content, createdAt: ts, ...(meta ? { meta } : {}) };
   }
 
-  /** Replaces a message's text (Phase 28: a blocked reply is replaced, not kept). */
-  updateMessageContent(id: number, content: string): void {
-    this.db.prepare('UPDATE messages SET content = ? WHERE id = ?').run(content, id);
+  /**
+   * Replaces a message's text (Phase 28: a blocked reply is replaced, not kept). Under a legal hold
+   * the previous text goes to the edit history; `withhold` (a safety replacement) records only that it happened.
+   */
+  updateMessageContent(id: number, content: string, o: { withhold?: boolean } = {}): void {
+    const write = () => void this.db.prepare('UPDATE messages SET content = ? WHERE id = ?').run(content, id);
+    if (o.withhold) withholdEdit(this.db, 'message', id, write);
+    else write();
   }
 
   /** Merges keys into a message's meta. */

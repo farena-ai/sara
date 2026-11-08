@@ -26,5 +26,18 @@ set up), and an audit row `usage.budget.alert`. A dollar budget does not count s
 local calls. A household member's **daily** spending limit (People on this server) still stops
 their companions; the monthly budget is the early warning.
 
+## Business instances
+
+Organization administrators of a business instance get **Usage reports** at the end of the
+organization page: the spending ledger (every admitted model request, per person, workspace and
+model) by day, week or month, in the browser's time zone, over the last 30 days. Cost is what
+the ledger charged; requests held for the operator to reconcile count under *Unknown cost* until
+settled. Turns refused before any model call are not counted. **Download CSV** has the same columns
+as above (without *project*) and writes a `usage.export` row to the organization audit. Read-only:
+nothing here changes allowances (those stay with the host operator). API:
+`GET /api/business/usage/report` and `/api/business/usage/report.csv` (`period`, `by` =
+`person,workspace,model`, `from`, `to`, `tz`). Requests from before this version have no model name
+and show as *(unknown)*.
+
 Storage: `<data>/usage-budgets.json`. API: `GET /api/usage/report`, `GET /api/usage/report.csv`
 (`period`, `from`, `to`, `by`), `GET|PUT /api/usage/budgets`.

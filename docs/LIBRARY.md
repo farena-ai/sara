@@ -148,6 +148,12 @@ and press **Open**.
 writes a report where every sentence links a page she read; the report is kept here and downloads
 as PDF or Word. See [Research a question](RESEARCH.md).
 
+## Meetings
+
+*Meetings…* in the Library window listens in a meeting room you start (everyone is told first) or
+reads a recorded meeting, and writes notes with a summary, decisions and action items; the notes are
+kept here and action items go to the Planner when you add them. See [Meetings](MEETINGS.md).
+
 ## Where things are
 
 | What | Where |

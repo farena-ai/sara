@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 205 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 207 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -282,6 +282,20 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Press Stop listening next to it under Your devices, from any of your devices.
 2. Or Turn off everywhere for all of them.
 3. Only the device itself can switch it on again.
+
+### At work
+
+**How do I use her at work in Slack or Teams?**
+
+1. Open Settings → Her → At work.
+2. Tick Use a work profile, and the chats that are work (Slack and Teams are ticked).
+3. Give her a name and tone at work if you like, then press Save.
+
+**How do I let her know something at work and at home?**
+
+1. Open Settings → Her → At work.
+2. Under Work memories, find the note.
+3. Press Copy to work or Copy to personal. The original stays where it is.
 
 ### Calls from her
 

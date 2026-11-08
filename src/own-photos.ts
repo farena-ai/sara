@@ -28,6 +28,8 @@ export interface OwnPhotoSettings {
   monthlyCap: number;
   /** When she sent them (ISO, newest first, kept 40). */
   sent?: string[];
+  /** MNT2: also to the owner's Telegram/Discord DM (as a picture, off by default). */
+  toApps?: boolean;
 }
 
 export const DEFAULT_OWN_PHOTOS: OwnPhotoSettings = { on: false, often: 'rarely', monthlyCap: 8 };

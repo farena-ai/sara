@@ -62,6 +62,7 @@ import { Goals } from './goals.ts';
 import { Loops } from './loops.ts';
 import { Watches } from './watch.ts';
 import { Research } from './research.ts';
+import { Meetings } from './meetings.ts';
 import { Crews } from './crews.ts';
 import { MemoryTidy } from './memory-tidy.ts';
 import { ReminderScheduler } from './reminders.ts';
@@ -99,6 +100,8 @@ import { createSaraServer, proxyTrust } from './server.ts';
 import { setWakeLexiconDir } from './routes/wake.ts';
 import { HandsHub } from './hands.ts';
 import { createComputerTools } from './tools/computer.ts';
+import { PhoneHelper } from './phone-helper.ts';
+import { createPhoneTools } from './tools/phone.ts';
 import { UploadStore } from './uploads.ts';
 import { BriefingWorker } from './briefing.ts';
 import { gmailTodayHook, todayChanged } from './today.ts';
@@ -117,7 +120,7 @@ import { AuditTrail, setAuditTrail } from './audit-trail.ts';
 import { PolicyStore, setPolicy } from './policy-profile.ts';
 import { DataRights, dataRights, setDataRights } from './data-rights.ts';
 import { assertDirNotHeld } from './legal-hold.ts';
-import { setShares, ShareStore } from './share.ts';
+import { setShares, shares, ShareStore } from './share.ts';
 import { budgetAlerter, UsageBudgets, type ReportSource } from './usage-report.ts';
 import { Store } from './store.ts';
 import { Vault } from './vault.ts';
@@ -609,6 +612,8 @@ interface Space {
   member?: MemberPolicy;
   /** Phase 87: this person's hands devices (computer use), shared by their companions. */
   hands?: HandsHub;
+  /** EC24: the owner's helper devices (camera, location, screen on request); never a member's. */
+  phoneHelper?: PhoneHelper;
 }
 /** Phase 87: one hands hub per person; a member's works only with the owner's switch on (never on the demo). */
 function handsFor(sp: Space, member: boolean): HandsHub | undefined {
@@ -623,11 +628,18 @@ function handsFor(sp: Space, member: boolean): HandsHub | undefined {
 }
 const ownerSpace: Space = { id: 'owner', dir: dataDir, auth, settings, vault, events, companions };
 ownerSpace.hands = handsFor(ownerSpace, false);
+// EC24: only browser sign-ins that are still signed in count as helper devices.
+if (!isDemo) {
+  const browserSession = (id: string) => auth.devices().find((d) => d.id === id && d.kind === 'browser');
+  ownerSpace.phoneHelper = new PhoneHelper({ dir: dataDir, events, alive: (id) => Boolean(browserSession(id)), label: (id) => browserSession(id)?.label });
+}
 const memberSpaces = new Map<string, Space>();
 // EC5: a saved policy brings every companion's and member's settings in line (only ever tighter).
 policyStore.onApply = (p) => {
   // EC8: a container pin (or its removal) takes effect at once.
   isolationSvc.recheck();
+  // EC24: pinned off: every waiting phone prompt closes at once.
+  if (p.pins.phoneHelper === false) ownerSpace.phoneHelper?.cancelAll();
   for (const sp of [ownerSpace, ...memberSpaces.values()]) {
     for (const c of sp.companions.all()) {
       const s = c.app.settings.get();
@@ -1017,6 +1029,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.watches = new Watches(app, store.db);
     // EC6: research runs; one that was working before the restart becomes a stopped report.
     app.research = new Research(app, store.db);
+    // EC19: meeting rooms and notes; a room live before the restart is ended (notes can be written).
+    app.meetings = new Meetings(app, store.db);
     const g = app.goals.startupSweep();
     const l = app.loops.startupSweep();
     if (g || l) console.log(`Keep going and repeats: ${g} goal(s) and ${l} repeat(s) from before the restart are paused.`);
@@ -1116,6 +1130,11 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (space.hands) {
     app.hands = space.hands;
     for (const t of createComputerTools(app)) tools.add(t);
+  }
+  // EC24: her borrowed phone (the owner's space only; each use approved on the phone).
+  if (space.phoneHelper && !isMember) {
+    app.phoneHelper = space.phoneHelper;
+    for (const t of createPhoneTools(app)) tools.add(t);
   }
   // Phase 113: Report a problem and My reports (each person's own); the check-in settings (the owner's).
   if (!isDemo) app.hub = hubFor(space, store.db);
@@ -1317,7 +1336,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       if (!isDemo) startupTimers.push(setTimeout(() => app.historyImport?.start(), 20_000).unref());
     },
     async stop() {
-      app.jobs?.stopAll();
+      // MNT2: wait (bounded) until stopped jobs have saved, so nothing writes after the store closes.
+      const jobsStopped = app.jobs?.stopAll(5_000);
       // Running replies stop and save what they have (the app then offers Continue).
       await app.stopAllTurns?.().catch(() => {});
       memoryWorker.stop();
@@ -1341,6 +1361,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       app.companionImport?.stop();
       if (!isMember) await pluginManager?.detach(id).catch(() => undefined);
       if (main && !isMember) app.a2aClient?.stopAll();
+      await jobsStopped?.catch(() => {});
     },
   };
 }
@@ -1398,6 +1419,7 @@ async function deleteMemberSpace(id: string): Promise<void> {
   }
   household.deleteMember(id);
   alexa.links.removeSpace(id);
+  shares()?.revokeSpace(id); // EC11: their share links (snapshots of their chats) go with them.
   console.log('Household: a member\'s space was deleted.');
 }
 const householdHooks: HouseholdHooks = {

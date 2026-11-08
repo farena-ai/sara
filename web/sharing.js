@@ -18,6 +18,8 @@ export function initSharing(c) {
     void navigator.clipboard?.writeText(v).then(() => ($('#shd-copy').textContent = t('Copied')));
   });
   $('#sl-private')?.addEventListener('change', () => void ctx.api('/shares/settings', { method: 'PUT', body: { allowPrivate: $('#sl-private').checked } }).catch((e) => alert(e.message)));
+  // EC11: the owner decides whether household members may share their own chats.
+  $('#sl-members')?.addEventListener('change', () => void ctx.api('/shares/settings', { method: 'PUT', body: { members: $('#sl-members').checked } }).then(() => loadShares()).catch((e) => alert(e.message)));
   const page = document.querySelector('.settings-page[data-page="dh-shares"]');
   if (page) new MutationObserver(() => !page.hidden && void loadShares()).observe(page, { attributes: true, attributeFilter: ['hidden'] });
 }
@@ -96,6 +98,13 @@ export async function loadShares() {
   }
   $('#sl-private').checked = Boolean(d.allowPrivate);
   $('#sl-pinned').hidden = d.sharing !== false;
+  if ($('#sl-members')) $('#sl-members').checked = d.members !== false;
+  if ($('#sl-members-off')) $('#sl-members-off').hidden = !(d.member && d.members === false);
+  if ($('#sl-member-count') && !d.member) {
+    const st = await ctx.api('/shares/settings').catch(() => null);
+    $('#sl-member-count').hidden = !st || !st.memberLinks;
+    if (st?.memberLinks) $('#sl-member-count').textContent = t('Household members have {n} links open right now.', { n: st.memberLinks });
+  }
   const el = ctx.el;
   if (!d.shares.length) {
     $('#sl-list').replaceChildren(el('p', 'muted small', t('No shared links right now.')));

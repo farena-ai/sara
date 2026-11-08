@@ -431,6 +431,20 @@ export class Outgoing {
   }
 }
 
+/**
+ * MNT2 (E7 follow-up): a picture she sent on her own, for the owner's Telegram/Discord DM. Undefined:
+ * not one of hers (mirror as usual). 'skip': hers, but the owner didn't choose to get them there (or
+ * sending pictures to chat apps is off), so the caption alone isn't mirrored either.
+ */
+export function ownPictureOut(app: AppContext, message: { content: string; meta?: Record<string, unknown> }): { files: { path: string; mime: string; name: string }[]; caption: string } | 'skip' | undefined {
+  const meta = message.meta as { proactive?: { reason?: string }; images?: unknown } | undefined;
+  if (meta?.proactive?.reason !== 'picture' || !Array.isArray(meta.images) || !meta.images.length) return undefined;
+  const own = (app.settings.get() as { photos?: { own?: { toApps?: boolean } } }).photos?.own;
+  if (own?.toApps !== true || !mediaSettings(app).send) return 'skip';
+  const files = meta.images.filter((id): id is string => typeof id === 'string').map((id) => ({ id, f: app.uploads?.get(id) })).filter((x) => x.f && existsSync(x.f.path)).slice(0, MAX_PHOTOS_IN).map((x) => ({ path: x.f!.path, mime: x.f!.mime, name: x.id }));
+  return files.length ? { files, caption: message.content } : 'skip';
+}
+
 /** How a bridge sends pictures and files (multipart, as its voice notes already do). */
 export interface MediaPort {
   /** 1–4 pictures; `caption` is her reply when it fits. Returns the platform's ids (Telegram file_id). */

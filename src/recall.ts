@@ -7,6 +7,16 @@ import { localDate } from './memory-worker.ts';
 import { importedName, isImportChannel, NOT_IMPORTED, type Store } from './store.ts';
 import type { Tool } from './tools/types.ts';
 import { ToolError } from './tools/types.ts';
+import { spaceOf, spaceView, type Space } from './work-profile.ts';
+
+/** EC26: only conversations of this space (SQL on a conversation row `c`), when spaces are used. */
+export type SpaceSql = { where: string; args: string[] } | undefined;
+export const spaceSql = (app: AppContext, space: Space): SpaceSql => spaceView(app).sql(space);
+/** EC26: the space SQL for a turn of this conversation. */
+export function turnSpaceSql(app: AppContext, conversationId: string | undefined): SpaceSql {
+  const c = conversationId ? app.store.getConversation(conversationId) : undefined;
+  return c ? spaceSql(app, spaceOf(app, c)) : spaceSql(app, 'personal');
+}
 
 /**
  * Hardening M3: conversations whose notes and lines may reach another app (the OpenAI-compatible
@@ -172,7 +182,7 @@ function localStamp(iso: string, timeZone?: string): string {
  */
 export function recallMessages(
   store: Store,
-  opts: { query?: string; span?: Span; exclude?: { conversationId: string; fromId: number }; limit?: number; timeZone?: string; appSafe?: boolean },
+  opts: { query?: string; span?: Span; exclude?: { conversationId: string; fromId: number }; limit?: number; timeZone?: string; appSafe?: boolean; space?: SpaceSql },
 ): RecallHit[] {
   const limit = opts.limit ?? 5;
   const q = opts.query ? ftsQuery(opts.query) : null;
@@ -180,6 +190,11 @@ export function recallMessages(
   // Hardening M3: another app's turn: nothing from private, imported or adult-channel conversations.
   if (opts.appSafe) where.push(APP_SAFE_SQL);
   const args: (string | number)[] = [];
+  // EC26: work and personal conversations never look into each other.
+  if (opts.space) {
+    where.push(opts.space.where);
+    args.push(...opts.space.args);
+  }
   if (opts.span) {
     where.push('m.created_at >= ? AND m.created_at < ?');
     args.push(opts.span.from, opts.span.to);
@@ -250,7 +265,7 @@ export function formatHits(hits: RecallHit[], owner: string): string {
 }
 
 /** Summaries she wrote of conversations in a time span (what happened then, in short). */
-export function summariesIn(mem: MemoryStore, span: Span, limit = 4, store?: Store, appSafe = false): string[] {
+export function summariesIn(mem: MemoryStore, span: Span, limit = 4, store?: Store, appSafe = false, allow?: (m: { id: number; conversationId: string | null }) => boolean): string[] {
   // Phase 51: notes learned from imported history were written now about long ago: they count
   // for the day it happened, and say where they came from.
   const from = (m: { conversationId: string | null }) => (store && m.conversationId ? importedName(store.getConversation(m.conversationId)?.channel) : undefined);
@@ -258,6 +273,7 @@ export function summariesIn(mem: MemoryStore, span: Span, limit = 4, store?: Sto
     .list({ kind: 'summary', limit: 200 })
     .filter((m) => {
       if (m.supersededBy !== null) return false;
+      if (allow && !allow(m)) return false;
       if (appSafe && (!store || (m.conversationId && !sharedWithApps(store.getConversation(m.conversationId))))) return false;
       if (from(m)) return m.happenedOn >= span.from.slice(0, 10) && m.happenedOn < span.to.slice(0, 10);
       return m.createdAt >= span.from && m.createdAt < new Date(Date.parse(span.to) + 2 * DAY).toISOString();
@@ -273,13 +289,14 @@ export function summariesIn(mem: MemoryStore, span: Span, limit = 4, store?: Sto
  */
 export function lastTimeNote(app: AppContext, currentId: string, owner: string, maxDays = 21, appSafe = false): string | undefined {
   const store = app.store;
+  const sp = turnSpaceSql(app, currentId);
   // Hardening M3: for another app's turn, the last conversation it may know about.
   const row = store.db
     .prepare(
       `SELECT c.id, c.title, MAX(m.created_at) AS last FROM conversations c JOIN messages m ON m.conversation_id = c.id
-       WHERE c.id != ? AND c.partner IS NULL AND m.role = 'user' AND ${NOT_IMPORTED}${appSafe ? ` AND ${APP_SAFE_SQL}` : ''} GROUP BY c.id ORDER BY last DESC LIMIT 1`,
+       WHERE c.id != ? AND c.partner IS NULL AND m.role = 'user' AND ${NOT_IMPORTED}${appSafe ? ` AND ${APP_SAFE_SQL}` : ''}${sp ? ` AND ${sp.where}` : ''} GROUP BY c.id ORDER BY last DESC LIMIT 1`,
     )
-    .get(currentId) as { id: string; title: string; last: string } | undefined;
+    .get(currentId, ...(sp?.args ?? [])) as { id: string; title: string; last: string } | undefined;
   if (!row || app.now().getTime() - Date.parse(row.last) > maxDays * DAY) return undefined;
   const tz = app.settings.get().timeZone;
   const summary = app.memory?.list({ kind: 'summary', limit: 50 }).find((m) => m.conversationId === row.id && m.supersededBy === null);
@@ -304,16 +321,26 @@ export function autoRecall(app: AppContext, text: string, exclude: { conversatio
   const span = parseWhen(text, app.now(), tz);
   const topic = topicOf(text);
   if (!ftsQuery(topic) && !span) return undefined;
-  const hits = recallMessages(app.store, { query: topic, ...(span ? { span } : {}), exclude, limit: 4, timeZone: tz, appSafe });
+  const space = turnSpaceSql(app, exclude.conversationId);
+  const allow = spaceAllow(app, exclude.conversationId);
+  const hits = recallMessages(app.store, { query: topic, ...(span ? { span } : {}), exclude, limit: 4, timeZone: tz, appSafe, space });
   // Nothing in that time window with those words: try the words alone (dates are often off).
-  const more = !hits.length && span && ftsQuery(topic) ? recallMessages(app.store, { query: topic, exclude, limit: 3, timeZone: tz, appSafe }) : [];
-  const sums = span && app.memory ? summariesIn(app.memory, span, 3, app.store, appSafe) : [];
+  const more = !hits.length && span && ftsQuery(topic) ? recallMessages(app.store, { query: topic, exclude, limit: 3, timeZone: tz, appSafe, space }) : [];
+  const sums = span && app.memory ? summariesIn(app.memory, span, 3, app.store, appSafe, allow) : [];
   const out: string[] = [];
   if (sums.length) out.push(`Your notes from ${span!.label}:\n${sums.join('\n')}`);
   if (hits.length || more.length) out.push(`From your past conversations (this is what really was said; rely on it over vague impressions):\n${formatHits(hits.length ? hits : more, owner)}`);
   // Looked and found nothing: say so, so she neither denies it nor pretends to remember details.
   if (!out.length && ftsQuery(topic)) out.push(`You looked through your past conversations for this and found nothing about it. It may have happened somewhere you can't see, so don't deny it. But you don't remember it, so don't add a single detail of your own (where, when, who was there, what you did, said or felt, how it went), not even as a joke: say honestly it isn't coming back to you and ask ${owner} to tell you about it.`);
   return out.length ? out.join('\n') : undefined;
+}
+
+/** EC26: the memory gate of a turn of this conversation (undefined when no space was ever used). */
+export function spaceAllow(app: AppContext, conversationId: string | undefined): ((m: { id: number; conversationId: string | null }) => boolean) | undefined {
+  const c = conversationId ? app.store.getConversation(conversationId) : undefined;
+  const space: Space = c ? spaceOf(app, c) : 'personal';
+  const v = spaceView(app);
+  return v.active ? (m) => v.ofMemory(m) === space : undefined;
 }
 
 /** The recall tool: she looks things up herself. */
@@ -343,18 +370,20 @@ export function createRecallTool(app: () => AppContext): Tool {
       if (whenText && !span && !query) throw new ToolError(`I couldn't understand the time "${whenText}". Try "yesterday", "last week", "3 days ago", "in March" or a date like 2026-10-01.`);
       const owner = a.settings.get().ownerName?.trim() || 'the owner';
       const exclude = ctx.conversationId ? { conversationId: ctx.conversationId, fromId: 0 } : undefined;
-      let hits = recallMessages(a.store, { query, ...(span ? { span } : {}), ...(exclude ? { exclude } : {}), limit: 6, timeZone: tz });
+      const space = turnSpaceSql(a, ctx.conversationId);
+      const allow = spaceAllow(a, ctx.conversationId);
+      let hits = recallMessages(a.store, { query, ...(span ? { span } : {}), ...(exclude ? { exclude } : {}), limit: 6, timeZone: tz, space });
       let note = '';
       if (!hits.length && span && query) {
-        hits = recallMessages(a.store, { query, ...(exclude ? { exclude } : {}), limit: 4, timeZone: tz });
+        hits = recallMessages(a.store, { query, ...(exclude ? { exclude } : {}), limit: 4, timeZone: tz, space });
         if (hits.length) note = `Nothing with those words ${span.label}; these are from other times:\n`;
       }
-      const sums = span && a.memory ? summariesIn(a.memory, span, 4, a.store) : [];
+      const sums = span && a.memory ? summariesIn(a.memory, span, 4, a.store, false, allow) : [];
       const out: string[] = [];
       if (sums.length) out.push(`Your notes from ${span!.label}:\n${sums.join('\n')}`);
       if (hits.length) out.push(`${note}${formatHits(hits, owner)}`);
       // Phase 38: your notes close in meaning (when the embeddings job is set), for other wording.
-      const near = query && a.vectors ? await a.vectors.related(query, 5).catch(() => []) : [];
+      const near = (query && a.vectors ? await a.vectors.related(query, 5).catch(() => []) : []).filter((r) => !allow || allow(r.memory));
       if (near.length) out.push(`Your notes that are close in meaning:\n${near.map((r) => `- (${r.memory.happenedOn}) ${r.memory.content}`).join('\n')}`);
       if (!out.length) return `Nothing found${query ? ` for “${query}”` : ''}${span ? ` ${span.label}` : ''} in your past conversations. It may have been said somewhere you can't see (a call before transcripts, another app), or put differently: try other words. If ${owner} says it happened, believe them and ask about it.`;
       return out.join('\n\n');
@@ -367,16 +396,20 @@ export function createRecallTool(app: () => AppContext): Tool {
  * the other companions learned come to mind too. Only facts about the owner: never their
  * conversations, summaries or what they said about themselves.
  */
-export function sharedOwnerFacts(app: AppContext, text: string, appSafe = false): string[] {
+export function sharedOwnerFacts(app: AppContext, text: string, appSafe = false, space: Space = 'personal'): string[] {
   if (app.settings.get().memorySharing !== 'shared' || !app.companions) return [];
+  // EC26: at work, nothing from the other companions (they are his personal side).
+  if (space === 'work') return [];
   const out: string[] = [];
   const seen = new Set<string>();
   for (const c of app.companions.all()) {
     if (c.app === app || !c.app.memory) continue;
+    const theirs = spaceView(c.app);
     const mine = [...c.app.memory.list({ kind: 'fact', q: text, limit: 4 }), ...c.app.memory.list({ kind: 'fact', limit: 3 })];
     for (const m of mine) {
       const key = m.content.toLowerCase();
       if (m.supersededBy !== null || seen.has(key) || out.length >= 6) continue;
+      if (theirs.active && theirs.ofMemory(m) === 'work') continue;
       if (appSafe && m.conversationId && !sharedWithApps(c.app.store.getConversation(m.conversationId))) continue;
       seen.add(key);
       out.push(`- (${m.happenedOn}) ${m.content.replace(/\s+/g, ' ').trim()}`);

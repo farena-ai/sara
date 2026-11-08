@@ -18,7 +18,7 @@ function fixture(t: { after(fn: () => void): void }) {
   // Failed synthetic fixtures may be retained for investigation without touching owner data.
   const temp = tempDir();
   const app = makeApp(temp.dir, { now: new Date(NOW) });
-  app.settings.update({ providers: [{ id: 'p', label: 'Synthetic local fake', kind: 'openai-compatible', baseUrl: 'http://127.0.0.1:1', local: true }], defaultProviderId: 'p', defaultModel: 'fixture', ownerName: 'Alex', disclosureAcceptedAt: NOW, memory: { enabled: false } });
+  app.settings.update({ providers: [{ id: 'p', label: 'Synthetic local fake', kind: 'openai-compatible', baseUrl: 'http://127.0.0.1:1', local: true }], defaultProviderId: 'p', defaultModel: 'fixture', ownerName: 'Alex', disclosureAcceptedAt: NOW, memory: { enabled: false }, chats: { continuity: { enabled: true, parallel: 1 } } });
   app.runs = new RunStore(app.store.db, app.now);
   for (const tool of createSessionContinuityTools()) app.tools.add(tool);
   t.after(() => { app.store.close(); if (!process.env.SARA_KEEP_BOUNDARY_FIXTURES) temp.cleanup(); });

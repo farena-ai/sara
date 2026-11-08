@@ -1,7 +1,9 @@
 import { HttpError, readJson, send } from '../http.ts';
 import { en } from '../i18n.ts';
 import { adultModeOn } from '../settings.ts';
-import { clearSessionHandoffs, continuityEnabled, inspectSessionHandoffs, SessionContinuityError } from '../session-continuity.ts';
+import { clearSessionHandoffs, continuityEnabled, continuityParallel, inspectSessionHandoffs, SessionContinuityError } from '../session-continuity.ts';
+import { PARALLEL_MAX } from '../session-step-gate.ts';
+import { policy } from '../policy-profile.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 const unavailable = () => new HttpError(403, en('Session continuity is unavailable in this context.'));
@@ -24,15 +26,23 @@ export function createSessionContinuityRoutes(ctx: RouteCtx): RouteHandler {
       if (method === 'PUT') {
         const body = await readJson(req);
         requireOwner();
-        if (!body || Array.isArray(body) || Object.keys(body).length !== 1 || typeof body.enabled !== 'boolean') throw new HttpError(400, en('Use only an enabled boolean for session continuity.'));
+        const keys = body && !Array.isArray(body) && typeof body === 'object' ? Object.keys(body) : [];
+        if (!keys.length || keys.some(k => k !== 'enabled' && k !== 'parallel') || (Object.hasOwn(body, 'enabled') && typeof body.enabled !== 'boolean')) throw new HttpError(400, en('Use only an enabled boolean for session continuity.'));
+        if (Object.hasOwn(body, 'parallel') && (typeof body.parallel !== 'number' || !Number.isInteger(body.parallel) || body.parallel < 1 || body.parallel > PARALLEL_MAX)) throw new HttpError(400, en('Replies at the same time must be a whole number from 1 to 8.'));
+        // mnt2: the policy pin is a ceiling; asking for more is refused, never silently lowered.
+        const pin = policy().pins.parallelReplies;
+        const parallel = Object.hasOwn(body, 'parallel') ? body.parallel as number : undefined;
+        const enabled = Object.hasOwn(body, 'enabled') ? body.enabled as boolean : continuityEnabled(app);
+        if (parallel !== undefined && pin && parallel > pin) throw policy().refusal('parallelReplies');
         const chats = app.settings.get().chats;
         const previous = chats?.continuity;
+        const base = previous && typeof previous === 'object' && !Array.isArray(previous) ? previous : {};
         app.settings.update({ chats: {
           ...(chats && typeof chats === 'object' && !Array.isArray(chats) ? chats : {}),
-          continuity: { ...(previous && typeof previous === 'object' && !Array.isArray(previous) ? previous : {}), enabled: body.enabled },
+          continuity: { ...base, enabled, ...(parallel !== undefined ? { parallel } : {}) },
         } });
       } else if (method !== 'GET') throw new HttpError(405, 'Method not allowed');
-      return send(res, 200, { enabled: continuityEnabled(app) });
+      return send(res, 200, { enabled: continuityEnabled(app), parallel: continuityParallel(app), parallelMax: policy().pins.parallelReplies ?? PARALLEL_MAX });
     }
     if (!targetId) throw unavailable();
     // Refuse another store and obvious forbidden audiences before invoking the continuity service.

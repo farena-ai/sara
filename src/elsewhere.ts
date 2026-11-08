@@ -8,6 +8,7 @@ import { isWorkChannel } from './safety.ts';
 import type { AppContext } from './chat.ts';
 import type { Conversation } from './store.ts';
 import { mentionOf, ownChat } from './mentions.ts';
+import { spaceOf, spaceView } from './work-profile.ts';
 
 /** Phase 119: the messages that set a pending "when it comes up" reminder. */
 function reminderLines(app: AppContext): Set<number> {
@@ -48,8 +49,12 @@ export function elsewhereNote(app: AppContext, current: Conversation, now: Date,
   const own = ownChat(app, current);
   // Adult channels only reach her own chats with the owner, and only with Adult mode on.
   const adultOk = adultModeOn(s) && !isWorkChannel(current.channel) && !current.private;
+  // EC26: work chats hear only of work chats, personal chats only of personal ones.
+  const spaces = spaceView(app);
+  const here = spaces.active ? spaceOf(app, current) : undefined;
   const others = app.store
     .listConversations()
+    .filter((c) => !here || spaces.ofConversation(c.id) === here)
     // Phase 119: a chat picked up here is carried by its own note, not repeated here.
     .filter((c) => c.id !== current.id && c.id !== skip && !c.archivedAt && !c.private && now.getTime() - Date.parse(c.updatedAt) < WITHIN_MS)
     .filter((c) => adultOk || !c.channel.endsWith('-nsfw'))

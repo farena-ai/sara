@@ -187,18 +187,18 @@ export class ShareStore {
   }
 
   /** Opens a link (counts a view). `first` = this was its first view (one audit row). */
-  open(token: string): { share: ShareRow & { snapshot: ShareSnapshot }; first: boolean } | undefined {
+  open(token: string, allow: (space: string) => boolean = () => true): { share: ShareRow & { snapshot: ShareSnapshot }; first: boolean } | undefined {
     const r = this.#live(token);
-    if (!r) return undefined;
+    if (!r || !allow(String(r.space))) return undefined;
     const at = this.#now().toISOString();
     this.db.prepare('UPDATE shares SET views = views + 1, last_view_at = ? WHERE id = ?').run(at, String(r.id));
     const views = Number(r.views) + 1;
     return { share: { ...this.#view({ ...r, views, last_view_at: at }), snapshot: JSON.parse(String(r.snapshot)) as ShareSnapshot }, first: views === 1 };
   }
 
-  picture(token: string, n: number): SharePicture | undefined {
+  picture(token: string, n: number, allow: (space: string) => boolean = () => true): SharePicture | undefined {
     const r = this.#live(token);
-    if (!r) return undefined;
+    if (!r || !allow(String(r.space))) return undefined;
     const p = this.db.prepare('SELECT mime, data FROM share_pics WHERE share_id = ? AND n = ?').get(String(r.id), Math.floor(n)) as Row | undefined;
     return p ? { mime: String(p.mime), data: Buffer.from(p.data as Uint8Array) } : undefined;
   }
@@ -235,6 +235,18 @@ export class ShareStore {
     return ids.length;
   }
 
+  /** A deleted household member's links all stop at once. Returns how many were live. */
+  revokeSpace(space: string): number {
+    const ids = (this.db.prepare('SELECT id FROM shares WHERE space = ? AND revoked_at IS NULL').all(space) as Row[]).map((r) => String(r.id));
+    for (const id of ids) this.revoke(id);
+    return ids.length;
+  }
+
+  /** How many live links household members have (the owner sees the count, never the titles). */
+  memberLinks(): number {
+    return Number((this.db.prepare("SELECT count(*) AS n FROM shares WHERE space <> 'owner' AND revoked_at IS NULL AND expires_at > ?").get(this.#now().toISOString()) as Row).n);
+  }
+
   /** Expired links lose their snapshot; revoked and expired rows go after 30 days. */
   purge(): void {
     const now = this.#now();
@@ -245,12 +257,15 @@ export class ShareStore {
     this.db.prepare('DELETE FROM shares WHERE expires_at <= ? OR revoked_at <= ?').run(old, old);
   }
 
-  settings(): { allowPrivate: boolean } {
-    const r = this.db.prepare("SELECT value FROM share_meta WHERE key = 'allowPrivate'").get() as Row | undefined;
-    return { allowPrivate: r?.value === '1' };
+  /** `allowPrivate` off by default; `members` (household members may share their own chats) on by default. */
+  settings(): { allowPrivate: boolean; members: boolean } {
+    const get = (k: string) => (this.db.prepare('SELECT value FROM share_meta WHERE key = ?').get(k) as Row | undefined)?.value;
+    return { allowPrivate: get('allowPrivate') === '1', members: get('members') !== '0' };
   }
-  setSettings(s: { allowPrivate: boolean }): void {
-    this.db.prepare("INSERT INTO share_meta (key, value) VALUES ('allowPrivate', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(s.allowPrivate ? '1' : '0');
+  setSettings(s: { allowPrivate?: boolean; members?: boolean }): void {
+    const put = this.db.prepare('INSERT INTO share_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
+    if (s.allowPrivate !== undefined) put.run('allowPrivate', s.allowPrivate ? '1' : '0');
+    if (s.members !== undefined) put.run('members', s.members ? '1' : '0');
   }
 }
 

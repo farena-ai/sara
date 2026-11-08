@@ -67,6 +67,7 @@ import { createHookRoutes } from './routes/hooks.ts';
 import { createPersistRoutes } from './routes/persist.ts';
 import { createPreciseRoutes } from './routes/precise.ts';
 import { createLeanRoutes } from './routes/lean.ts';
+import { createWorkProfileRoutes } from './routes/work-profile.ts';
 import { compactNow, foldView, listFolds } from './compact.ts';
 import { ensureLeanTables, setChatPin, setLeanOff, toolsView } from './lean.ts';
 import { createSafetyCheckRoutes } from './routes/safety-check.ts';
@@ -74,6 +75,7 @@ import { createReadinessRoutes } from './routes/readiness.ts';
 import { createRoutineRoutes } from './routes/routines.ts';
 import { createWatchRoutes } from './routes/watches.ts';
 import { createResearchRoutes } from './routes/research.ts';
+import { createMeetingRoutes } from './routes/meetings.ts';
 import { createCrewRoutes } from './routes/crews.ts';
 import { createMemoryTidyRoutes } from './routes/memory-tidy.ts';
 import { createReadTogetherRoutes } from './routes/read-together.ts';
@@ -98,6 +100,7 @@ import { policy } from './policy-profile.ts';
 import { shares } from './share.ts';
 import { createUsageReportRoutes } from './routes/usage-report.ts';
 import { createTrustReportRoutes } from './routes/trust-report.ts';
+import { createPhoneHelperRoutes } from './routes/phone-helper.ts';
 import type { ReportSource, UsageBudgets } from './usage-report.ts';
 import { createModelsRoutes } from './routes/models.ts';
 import { createHerRoutes } from './routes/her.ts';
@@ -381,7 +384,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports', 'boards']);
   /** Security review: routes an app signed in with a device code may not use (sign-in settings, devices, approving apps). */
   // Phase 100: 'agents' (A2A keys and peers) too. EC4/EC5: the audit trail and the policy.
-  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews', 'secrets', 'data-rights', 'readiness']);
+  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews', 'secrets', 'data-rights', 'readiness', 'phone-helper']);
   /**
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
@@ -936,6 +939,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const preciseRoutes = createPreciseRoutes(ctx);
   // Phase 123: the lean tool list and /compact (src/routes/lean.ts).
   const leanRoutes = createLeanRoutes(ctx);
+  const workProfileRoutes = createWorkProfileRoutes(ctx);
   // Phase 121: the safety check-up and the routines gallery (src/routes/safety-check.ts, src/routes/routines.ts).
   const safetyCheckRoutes = createSafetyCheckRoutes(ctx);
   const routineRoutes = createRoutineRoutes(ctx);
@@ -943,6 +947,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const watchRoutes = createWatchRoutes(ctx);
   // EC6: research runs with a report, the owner's only (src/routes/research.ts).
   const researchRoutes = createResearchRoutes(ctx);
+  // EC19: meeting rooms and meeting notes, the owner's only (src/routes/meetings.ts).
+  const meetingRoutes = createMeetingRoutes(ctx);
   // EC12: crews, the owner's only (src/routes/crews.ts).
   const crewRoutes = createCrewRoutes(ctx);
   // EC13: the overnight memory tidy of this space (src/routes/memory-tidy.ts).
@@ -974,6 +980,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const usageReportRoutes = createUsageReportRoutes(ctx);
   // EC25: the trust report (src/routes/trust-report.ts).
   const trustReportRoutes = createTrustReportRoutes(ctx);
+  // EC24: phone as a helper device (src/routes/phone-helper.ts).
+  const phoneHelperRoutes = createPhoneHelperRoutes(ctx);
   const sharePublic = createSharePublic({ opts, ownerLang: () => appLanguage(app.settings.get()) });
   const deliveryRoutes = createDeliveryRoutes(ctx);
   const operationsRoutes = createOperationsRoutes(ctx, operations);
@@ -1329,6 +1337,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     // Models: providers, model jobs, subscriptions, local models, private local mode, usage: src/routes/models.ts.
     if ((await usageReportRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await trustReportRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await phoneHelperRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await modelsRoutes(req, res, method, parts)) !== NEXT) return;
     // Admin: settings, backups, logs, doctor, status, health history, updates, access, desktop apps, safety stats, search, tools, MCP, checklist: src/routes/admin.ts.
     if ((await adminRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1355,10 +1364,12 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await persistRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await preciseRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await leanRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await workProfileRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await safetyCheckRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await routineRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await watchRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await researchRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await meetingRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await crewRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await tidyRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await readTogetherRoutes(req, res, method, parts)) !== NEXT) return;

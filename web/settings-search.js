@@ -51,6 +51,7 @@ export const SETTINGS_KEYWORDS = {
   'dh-trust': ['trust report', 'what she claimed', 'receipts', 'claims', 'failed tools', 'reviewer', 'export pdf'],
   'dh-shares': ['share', 'share link', 'shared links', 'revoke link', 'public link'],
   'dh-audit': ['audit', 'audit log', 'audit trail', 'who changed', 'export log', 'compliance'],
+  'her-work': ['at work', 'work profile', 'work mode', 'work memory', 'office', 'colleagues', 'workplace', 'professional tone'],
   'dh-retention': ['retention', 'legal hold', 'litigation hold', 'delete my data', 'export person', 'gdpr', 'data deletion', 'keep chats'],
   'dh-policy': ['policy', 'admin', 'pinned', 'managed settings', 'lock settings'],
   'dh-privacy': ['privacy', 'store data', 'what leaves'],

@@ -113,7 +113,7 @@ export class BusinessChat {
     if (Buffer.byteLength(JSON.stringify(messages), 'utf8') + 512 > plan.model.maxInputTokens) throw new BusinessAdmissionError('Conversation context exceeds the configured input bound. Start a new shared conversation or select fewer documents.');
     this.#authorize(context, guard); this.#models.revalidate(context.workspaceId, plan); options.signal?.throwIfAborted();
     if (due) this.#budget.acknowledgeDisclosure(context.principal.sessionId, context.principal.identityId);
-    const reserved = this.#budget.reserve(key, { ...plan.model, ...plan }, () => { this.#authorize(context, guard); this.#models.revalidate(context.workspaceId, plan); options.signal?.throwIfAborted(); });
+    const reserved = this.#budget.reserve(key, { ...plan.model, ...plan, modelName: plan.model.model }, () => { this.#authorize(context, guard); this.#models.revalidate(context.workspaceId, plan); options.signal?.throwIfAborted(); });
     if (reserved.existing) return this.#result(context, reserved, guard);
     const abort = new AbortController(); const active: ActiveTurn = { context, plan, abort }; this.#active.add(active);
     const stop = () => abort.abort(); options.signal?.addEventListener('abort', stop, { once: true });

@@ -780,6 +780,13 @@ dialog.ring::backdrop { background: transparent; }
 .ring strong { font-size: 1.35rem; }
 .ring p { margin: 0; max-width: 28rem; }
 .ring-actions { display: flex; gap: 40px; margin-top: 18px; }
+/* EC24: Sara asks this device for its camera, location or screen (full screen, never silent). */
+.helper-icon { display: inline-flex; align-items: center; justify-content: center; width: 96px; height: 96px; border-radius: 50%; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.helper-icon svg.ic { width: 44px; height: 44px; }
+.helper-reason { font-size: 1.05rem; overflow-wrap: anywhere; }
+.helper-video { width: min(100%, 28rem); max-height: 45vh; border-radius: 12px; background: var(--call-bg); object-fit: cover; }
+.helper-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; margin-top: 12px; }
+.helper-actions button { min-width: 140px; min-height: 48px; font-size: 1rem; }
 .ring-btn { width: 88px; height: 88px; border-radius: 50%; border: 0; font-weight: 600; color: var(--on-photo); cursor: pointer; }
 .ring-btn.answer { background: var(--call-answer); }
 .ring-btn.decline { background: var(--call-decline); }

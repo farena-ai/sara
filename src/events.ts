@@ -63,6 +63,8 @@ export type HubEvent = (
   | { type: 'goal'; conversationId: string; goal: import('./goals.ts').GoalView | null }
   /** Phase 118: a goal's check finished (the step line, the progress message). */
   | { type: 'goal_check'; conversationId: string; goalId: number; round: number; ok: boolean; passed?: number; failed?: number; quote?: string }
+  /** EC24: Sara asks a helper device (camera, location, screen), or the ask ended. Sent only to opted-in devices. */
+  | { type: 'helper'; id: string; kind: import('./phone-helper.ts').HelperKind; state: 'asking' | 'done' | 'expired' | 'cancelled'; reason?: string; precise?: boolean; facing?: 'back' | 'front'; expiresAt?: string }
   /** Phase 118 (§5.13): a loop changed state or its next tick moved. */
   | { type: 'loop'; conversationId: string; loop: import('./loops.ts').LoopView | null }
 ) & {

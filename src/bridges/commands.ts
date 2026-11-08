@@ -106,7 +106,8 @@ export const OTHER_LANGS = ['es', 'fr', 'de', 'pt-BR', 'it'] as const;
 
 /** Owner settings for commands (Settings → Telegram / Discord → Commands). */
 export interface ChatsSettings {
-  continuity?: { enabled?: boolean };
+  /** mnt2: `parallel` = model steps at once across the owner's chats (1–8, default 4). */
+  continuity?: { enabled?: boolean; parallel?: number };
   /** R1B: shared roleplay scenes (default on; malformed fails closed in shared-scenes-policy.ts). */
   scenes?: { enabled?: boolean };
   commands?: { native?: boolean; namePrefix?: boolean };

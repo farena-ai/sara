@@ -287,6 +287,16 @@ export function seatbeltProfile(p: SeatbeltPaths, network: boolean): string {
   ].join('\n');
 }
 
+/** SARA_PROGRAM_PATH: extra program folders an operator gives Sara alone (a newer Python on a server
+ *  whose system python3 must stay old). Absolute, no `..`; on Linux only under /usr, the part of the
+ *  host the sandbox shows. */
+function programPath(platform: NodeJS.Platform): string[] {
+  return (process.env.SARA_PROGRAM_PATH ?? '')
+    .split(':')
+    .map((d) => d.trim())
+    .filter((d) => d.startsWith('/') && !d.split('/').includes('..') && (platform !== 'linux' || d.startsWith('/usr/')));
+}
+
 /** Where commands find programs when they run outside bubblewrap. */
 export function commandPath(platform: NodeJS.Platform = process.platform, execPath = process.execPath): string {
   // Sara's own Node first (the installers bring a private one), so node/npm/npx are current.
@@ -295,8 +305,9 @@ export function commandPath(platform: NodeJS.Platform = process.platform, execPa
   // temporary folder, which the sandbox doesn't allow (a planted cache could redirect the owner's
   // own tools). The real programs in the developer folder come first instead.
   const dev = platform === 'darwin' ? developerBin() : undefined;
-  if (platform === 'darwin') return [own, '/opt/homebrew/bin', '/opt/homebrew/sbin', '/usr/local/bin', ...(dev ? [dev] : []), '/usr/bin', '/bin', '/usr/sbin', '/sbin'].join(':');
-  return `${runtimeMountArgs().length ? `${RUNTIME_MOUNT}/bin:` : ''}/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`;
+  const extra = programPath(platform);
+  if (platform === 'darwin') return [own, ...extra, '/opt/homebrew/bin', '/opt/homebrew/sbin', '/usr/local/bin', ...(dev ? [dev] : []), '/usr/bin', '/bin', '/usr/sbin', '/sbin'].join(':');
+  return `${runtimeMountArgs().length ? `${RUNTIME_MOUNT}/bin:` : ''}${extra.map((d) => `${d}:`).join('')}/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`;
 }
 
 let devBin: string | null | undefined;
@@ -591,8 +602,16 @@ function runPrepared(command: string, workspace: string, sandbox: SandboxInfo, o
       try {
         if (child.pid && process.platform !== 'win32') process.kill(-child.pid, 'SIGKILL');
         // Windows: the whole tree (bash and whatever it started), not just the shell.
-        else if (child.pid) spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }).on('error', () => child.kill('SIGKILL'));
-        else child.kill('SIGKILL');
+        else if (child.pid) {
+          // MNT2: on a busy PC taskkill can take 15 s or more and sometimes gives up ("Call
+          // cancelled"), which left the command running until its timeout. Try the tree once more,
+          // then end the process itself (the exit grace below stops reading what it started). The
+          // shell is never ended first: taskkill /T needs it alive to find its children.
+          const alive = () => child.exitCode === null && child.signalCode === null;
+          const direct = () => { if (alive()) child.kill('SIGKILL'); };
+          const tree = (again: boolean) => spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }).on('error', direct).on('exit', (code) => { if (code !== 0 && alive()) { if (again) tree(false); else direct(); } });
+          tree(true);
+        } else child.kill('SIGKILL');
       } catch {
         // already gone
       }
@@ -603,6 +622,9 @@ function runPrepared(command: string, workspace: string, sandbox: SandboxInfo, o
     }, opts.timeoutMs);
     const onAbort = () => kill();
     opts.signal.addEventListener('abort', onAbort, { once: true });
+    // MNT2: a stop that came while the command was being prepared (egress, container checks) fires
+    // no 'abort' event any more; without this the process ran until its timeout.
+    if (opts.signal.aborted) kill();
     let done = false;
     let graceTimer: ReturnType<typeof setTimeout> | undefined;
     const finish = (exitCode: number | null, extra = '') => {

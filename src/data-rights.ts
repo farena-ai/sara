@@ -10,7 +10,7 @@ import type { AppContext } from './chat.ts';
 import { exportAll } from './export.ts';
 import { writeFileAtomic } from './fs-util.ts';
 import { HttpError } from './http.ts';
-import { LegalHoldError, setDbHold, setHoldResolver } from './legal-hold.ts';
+import { editHistory, editHistoryCount, LegalHoldError, setDbHold, setHoldResolver } from './legal-hold.ts';
 import { policy } from './policy-profile.ts';
 import { zipStored, type ZipFileIn } from './zip-write.ts';
 
@@ -231,6 +231,9 @@ export class DataRights {
       const rel = relative(space.dir, app.dataDir).split(sep).filter(Boolean);
       const base = rel.length ? `companions/${rel[rel.length - 1]}` : 'main';
       add(`${base}/export.json`, Buffer.from(JSON.stringify(exportAll(app), null, 2) + '\n'));
+      // Previous versions kept while held (only when there are some).
+      const edits = editHistory(app.store.db);
+      if (edits.length) add(`${base}/edit-history.json`, Buffer.from(JSON.stringify({ format: 'sara-edit-history', version: 1, edits }, null, 2) + '\n'));
       const up = app.uploads?.dir;
       if (up && existsSync(up)) for (const name of readdirSync(up).sort()) add(`${base}/photos/${name}`, readFileSync(join(up, name)));
       // A companion that shares the main library is exported once.
@@ -247,6 +250,19 @@ export class DataRights {
     add('manifest.json', Buffer.from(JSON.stringify(manifest, null, 2) + '\n'));
     audit({ action: 'data.person-export', target: space.person, keys: [`files_${files.length}`] });
     return { zip: zipStored(files), name: `sara-${space.person === OWNER ? 'owner' : 'member'}-${at.slice(0, 10)}.zip` };
+  }
+  /** The previous versions kept under hold for one person (owner view). One audit row, never the text. */
+  personEditHistory(person: unknown, limit = 500): { person: string; total: number; edits: (ReturnType<typeof editHistory>[number] & { companion: string })[] } {
+    const space = this.#space(person);
+    const edits: (ReturnType<typeof editHistory>[number] & { companion: string })[] = [];
+    let total = 0;
+    for (const app of space.apps()) {
+      total += editHistoryCount(app.store.db);
+      for (const e of editHistory(app.store.db)) edits.push({ ...e, companion: app.companionId ?? 'main' });
+    }
+    edits.sort((a, b) => b.editedAt.localeCompare(a.editedAt) || b.id - a.id);
+    audit({ action: 'data.edit-history', target: space.person, keys: [`edits_${total}`] });
+    return { person: space.person, total, edits: edits.slice(0, limit) };
   }
   /** Deletes a household member's whole space (never the owner's) and returns the proof. */
   async deletePerson(person: unknown, confirm: unknown): Promise<DeletionReceipt> {
@@ -268,7 +284,7 @@ export class DataRights {
   }
 
   view() {
-    const people = (this.#host?.spaces() ?? []).map((s) => ({ person: s.person, name: s.name, held: this.held(s.dir), counts: this.counts(s) }));
+    const people = (this.#host?.spaces() ?? []).map((s) => ({ person: s.person, name: s.name, held: this.held(s.dir), counts: this.counts(s), edits: s.apps().reduce((n, app) => n + editHistoryCount(app.store.db), 0) }));
     return { retention: this.retention, holds: this.holds, choices: KEEP_DAYS, people, pinned: { legalHold: policy().pins.legalHold === true, personDelete: policy().pins.personDelete === false }, deletePaths: DELETE_PATHS.length, updatedAt: this.#cur.updatedAt };
   }
 }

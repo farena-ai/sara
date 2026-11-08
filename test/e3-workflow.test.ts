@@ -49,14 +49,12 @@ async function setup(t: { after: (fn: () => void | Promise<void>) => void }, che
   const ws = workspaceDir(dir, conv.workspace);
   cpSync(FIXTURE, ws, { recursive: true });
   t.after(async () => {
-    // Stop the job (a stopped job is not announced) and let it finish writing before the store closes.
-    const ids = app.jobs!.running().map((j) => j.id);
-    app.jobs!.stopAll();
-    for (let i = 0; i < 400 && ids.some((id) => app.jobs!.get(id)?.status === 'running'); i++) await new Promise((r) => setTimeout(r, 25));
+    // Stop the job (a stopped job is not announced). MNT2: stopAll resolves once it has saved its
+    // result and report, so the store is never closed under a late write.
+    await app.jobs!.stopAll(150_000);
     await app.browsers?.closeAll();
     cdp.close();
     app.store.close();
-    await new Promise((r) => setTimeout(r, 200));
     cleanup();
   });
   return { app, conv, ws, cdp };

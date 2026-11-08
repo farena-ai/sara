@@ -50,9 +50,17 @@ export interface PolicyPins {
   personDelete?: false;
   /** EC21: false = no code mode (run_code) for anyone on this server. */
   codeMode?: false;
+  /** mnt2: the most model steps one owner may run at once across their chats (1–8). */
+  parallelReplies?: number;
+  /** EC19: false = no meeting rooms or meeting notes from recordings (new ones, joins, audio refused). */
+  meetings?: false;
+  /** EC24: false = Sara never asks a phone for its camera, location or screen (helper devices off). */
+  phoneHelper?: false;
+  /** EC26: true = work mode everywhere (every chat on this server is a work chat). */
+  workMode?: true;
 }
 export type PinKey = keyof PolicyPins;
-export const PIN_KEYS: readonly PinKey[] = ['providers', 'tools', 'alwaysAllow', 'adultMode', 'shellNetwork', 'privateLocal', 'store', 'auditRetentionDays', 'programInstalls', 'containerSandbox', 'egressAllowlist', 'sharing', 'crews', 'memoryTidy', 'externalSecrets', 'editors', 'legalHold', 'personDelete', 'codeMode'];
+export const PIN_KEYS: readonly PinKey[] = ['providers', 'tools', 'alwaysAllow', 'adultMode', 'shellNetwork', 'privateLocal', 'store', 'auditRetentionDays', 'programInstalls', 'containerSandbox', 'egressAllowlist', 'sharing', 'crews', 'memoryTidy', 'externalSecrets', 'editors', 'legalHold', 'personDelete', 'codeMode', 'parallelReplies', 'meetings', 'phoneHelper', 'workMode'];
 export interface Policy {
   version: 1;
   name: string;
@@ -97,11 +105,14 @@ export function validatePolicy(input: unknown): { name: string; pins: PolicyPins
       case 'editors':
       case 'personDelete':
       case 'codeMode':
+      case 'meetings':
+      case 'phoneHelper':
         if (v !== false) throw new HttpError(400, '{key} can only be pinned off.', { params: { key: k } });
         pins[k] = false;
         break;
       case 'privateLocal':
       case 'legalHold':
+      case 'workMode':
         if (v !== true) throw new HttpError(400, '{key} can only be pinned on.', { params: { key: k } });
         pins[k] = true;
         break;
@@ -137,6 +148,10 @@ export function validatePolicy(input: unknown): { name: string; pins: PolicyPins
       case 'memoryTidy':
         if (v !== 'local' && v !== 'off') throw new HttpError(400, 'memoryTidy must be local or off.');
         pins.memoryTidy = v;
+        break;
+      case 'parallelReplies':
+        if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > 8) throw new HttpError(400, 'parallelReplies must be a whole number from 1 to 8.');
+        pins.parallelReplies = v;
         break;
       case 'auditRetentionDays':
         if (!(RETENTION_CHOICES as readonly unknown[]).includes(v)) throw new HttpError(400, 'Pick 30, 90 or 365 days, or keep everything.');
@@ -247,8 +262,16 @@ export class PolicyStore {
     return this.#cur.pins.editors !== false;
   }
   /** EC21: code mode may be used (no `codeMode: false` pin). */
+  /** EC19: meetings may be started (no `meetings: false` pin). */
+  get meetingsOn(): boolean {
+    return this.#cur.pins.meetings !== false;
+  }
   get codeModeOn(): boolean {
     return this.#cur.pins.codeMode !== false;
+  }
+  /** EC24: Sara may ask a helper device (no `phoneHelper: false` pin). */
+  get phoneHelperOn(): boolean {
+    return this.#cur.pins.phoneHelper !== false;
   }
   get alwaysAllowOn(): boolean {
     return this.#cur.pins.alwaysAllow !== false;

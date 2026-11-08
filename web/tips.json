@@ -1495,6 +1495,10 @@
       "More than one companion on this server: each with her own character, look, voice, conversations and memories. Add, switch and remove them here.",
       "start"
     ],
+    "her-work": [
+      "Her work profile for Slack, Teams and other work chats: her work name and tone, work tools only, a separate work memory, and no moods, romance or pictures on her own.",
+      "slack"
+    ],
     "her-calls": [
       "When she may ring you: reminders, finished tasks, the morning briefing; quiet hours and a daily limit. Missed calls become messages.",
       "voice"

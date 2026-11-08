@@ -57,11 +57,13 @@ import { initRoutines, loadRoutines, openRoutinesAt, setRoutinesOpener, todayRou
 import { initWatches, watchNotice } from './watches.js';
 import { crewNotice, initCrews, loadCrews } from './crews.js';
 import { initMemoryTidy, loadMemoryTidy, memoryTidyNotice } from './memory-tidy.js';
+import { helperEvent, initPhoneHelper, loadPhoneHelper } from './phone-helper.js';
 import { initReadTogether, readTogetherSwitched } from './read-together.js';
 import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-check.js';
 import { initGovernance } from './governance.js';
 import { initSharing, openShare } from './sharing.js';
 import { initDataRights } from './data-rights.js';
+import { initWorkProfile } from './work-profile.js';
 import { initUsageReport } from './usage-report.js';
 import { initTrustReport } from './trust-report.js';
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
@@ -229,6 +231,8 @@ async function boot() {
   // 2.18: "Sara was updated to X", the on-open update check and the version watch (web/update-check.js).
   initUpdates(session);
   startEvents();
+  // EC24: a helper prompt that was asked before this page opened shows now (owner only).
+  if (session.role === 'owner') void loadPhoneHelper();
   void api('/settings').then((s) => {
     applyAdminHelp(s.admin);
     // V1: a device that never chose starts from "Use on all my devices"; otherwise the one-time notice.
@@ -6542,6 +6546,8 @@ function startEvents() {
   es.addEventListener('goal', (e) => persistEvent('goal', JSON.parse(e.data)));
   es.addEventListener('loop', (e) => persistEvent('loop', JSON.parse(e.data)));
   es.addEventListener('ring', (e) => onRing(JSON.parse(e.data).ring));
+  // EC24: Sara asks this device for its camera, location or screen (only helper devices get these).
+  es.addEventListener('helper', (e) => helperEvent(JSON.parse(e.data)));
   // Phase 87: her hands on a computer: live-view frames, Stop pressed there, computers coming and going.
   es.addEventListener('computer', (e) => onComputerEvent(JSON.parse(e.data)));
   // A turn started or ended somewhere else (another device, Telegram, Discord): follow along.
@@ -6631,6 +6637,7 @@ async function catchUp(away) {
     startEvents();
   }
   await loadConversations().catch(() => {});
+  if (!isMember()) void loadPhoneHelper();
   if (state.streaming || state.watch) return;
   const latest = state.conversations.find((c) => !c.archivedAt && !c.partner);
   const typing = $('#input').value.trim();
@@ -9425,6 +9432,7 @@ initReadTogether({ api, current: () => state.currentId });
 initCrews({ api, el, openConversation: (id) => openConversation(id), openTeam: () => openTeam() });
 // EC13: Memory → Overnight tidy and its morning card (web/memory-tidy.js).
 initMemoryTidy({ api, el, openMemory: () => $('#open-memory').click() });
+initPhoneHelper({ api });
 initWatches({
   api,
   el,
@@ -9446,6 +9454,8 @@ initGovernance({ api, el, openSettings: (page) => void openSettings(page) });
 initSharing({ api, el });
 // EC17: Retention and legal hold (web/data-rights.js).
 initDataRights({ api, el, openSettings: (page) => void openSettings(page) });
+// EC26: Settings → Her → At work (web/work-profile.js).
+initWorkProfile({ api, el });
 initUsageReport({ api, el, isMember });
 // EC25: Settings → Household → Trust report (web/trust-report.js).
 initTrustReport({ api, el });
@@ -10346,6 +10356,14 @@ function renderPhotoEngine(p) {
   if (p.tool?.name) $('#ph-tool-name').value = p.tool.name;
   $('#ph-tool-arg').value = p.tool?.arg ?? '';
   $('#ph-own-on').checked = Boolean(p.own?.on);
+  $('#ph-own-apps').checked = Boolean(p.own?.toApps);
+  // MNT2: a workflow saved inside ComfyUI (the list loads on request).
+  const savedName = p.comfy?.saved ?? '';
+  const keep = [...$('#ph-comfy-saved').options].map((o) => o.value).filter((v) => v);
+  $('#ph-comfy-saved').replaceChildren(new Option(t('Paste one below instead'), ''), ...[...new Set([...keep, ...(savedName ? [savedName] : [])])].map((n) => new Option(n, n)));
+  $('#ph-comfy-saved').value = savedName;
+  $('#ph-comfy-saved').dataset.current = savedName;
+  $('#ph-comfy-saved-status').textContent = savedName ? t('Using “{name}” from ComfyUI (a copy is kept).', { name: savedName }) : '';
   $('#ph-own-often').value = p.own?.often ?? 'rarely';
   $('#ph-own-cap').value = String(p.own?.monthlyCap ?? 8);
   const est = p.estimate;
@@ -10374,10 +10392,13 @@ function pastedNodes(text) {
 }
 function photoEngineBody() {
   const engine = $('#ph-engine').value;
-  const body = { engine, own: { on: $('#ph-own-on').checked, often: $('#ph-own-often').value, monthlyCap: Number($('#ph-own-cap').value) } };
-  if (engine === 'comfyui' && ($('#ph-comfy-wf').value.trim() || $('#ph-comfy-node').value)) {
+  const body = { engine, own: { on: $('#ph-own-on').checked, toApps: $('#ph-own-apps').checked, often: $('#ph-own-often').value, monthlyCap: Number($('#ph-own-cap').value) } };
+  const pasted = $('#ph-comfy-wf').value.trim();
+  const saved = $('#ph-comfy-saved').value;
+  if (engine === 'comfyui' && (pasted || saved || $('#ph-comfy-node').value)) {
     const [node, input] = ($('#ph-comfy-node').value || '|').split('|');
-    body.comfy = { server: $('#ph-comfy-server').value || 'comfyui', ...($('#ph-comfy-wf').value.trim() ? { workflow: $('#ph-comfy-wf').value.trim() } : {}), ...(node ? { node, input } : {}), seed: $('#ph-comfy-seed').checked };
+    const changed = !pasted && saved && saved !== ($('#ph-comfy-saved').dataset.current ?? '');
+    body.comfy = { server: $('#ph-comfy-server').value || 'comfyui', ...(pasted ? { workflow: pasted } : saved ? { saved } : {}), ...(node && !changed ? { node, input } : {}), seed: $('#ph-comfy-seed').checked };
   }
   if (engine === 'tool' && $('#ph-tool-name').value) body.tool = { name: $('#ph-tool-name').value, arg: $('#ph-tool-arg').value.trim() || 'prompt' };
   return body;
@@ -10397,6 +10418,19 @@ function ownSkip(why) {
   return why.replace(/^no picture: /, '');
 }
 $('#ph-engine').addEventListener('change', () => photoEngineShow());
+$('#ph-comfy-list').addEventListener('click', async () => {
+  const status = $('#ph-comfy-saved-status');
+  status.textContent = t('Asking ComfyUI…');
+  try {
+    const r = await api(`/photos/comfy/workflows?server=${encodeURIComponent($('#ph-comfy-server').value || 'comfyui')}`);
+    const cur = $('#ph-comfy-saved').value;
+    $('#ph-comfy-saved').replaceChildren(new Option(t('Paste one below instead'), ''), ...r.workflows.map((n) => new Option(n, n)));
+    $('#ph-comfy-saved').value = r.workflows.includes(cur) ? cur : '';
+    status.textContent = r.workflows.length ? t('{n} saved workflows found. Pick one, then save.', { n: r.workflows.length }) : t('No saved workflows found. Save one in ComfyUI first, or paste the export below.');
+  } catch (err) {
+    status.textContent = err.message;
+  }
+});
 $('#ph-comfy-wf').addEventListener('input', () => photoNodes(pastedNodes($('#ph-comfy-wf').value), ''));
 $('#ph-own-test').addEventListener('click', async () => {
   const b = $('#ph-own-test');
@@ -11951,6 +11985,7 @@ initSetupWizard({ refreshModelSettings, openSubscriptions: () => showSettingsTab
 // ---------- signed-in devices and owner token ----------
 async function loadDevices() {
   const { devices } = await api('/devices');
+  if (!isMember()) void loadPhoneHelper();
   // Phase 52: apps (terminal, VS Code) waiting for your OK with a device code.
   const waiting = (await api('/device/pending').catch(() => ({ pending: [] }))).pending ?? [];
   $('#devreq-box').hidden = !waiting.length;

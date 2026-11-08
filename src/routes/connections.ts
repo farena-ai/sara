@@ -14,7 +14,8 @@ import { TEST_PICTURE } from '../bridges/test-picture.ts';
 import { cheapRoute } from '../cheap.ts';
 import { CAP_MAX, CAP_MIN, titleSettings, titleUsage } from '../titles.ts';
 import type { TurnOptions } from '../chat.ts';
-import { as400, fromPhoneApp, fromSaraApp, HttpError, readJson, safeDecode, SECURITY_HEADERS, send } from '../http.ts';
+import { SESSION_COOKIE } from '../auth.ts';
+import { as400, cookies, fromPhoneApp, fromSaraApp, HttpError, readJson, safeDecode, SECURITY_HEADERS, send } from '../http.ts';
 import { appLanguage } from '../i18n.ts';
 import { netFetch, privateLocalOn } from '../net-guard.ts';
 import { cleanOrigins, otherAppsSettings } from '../other-apps.ts';
@@ -42,7 +43,14 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       if (!res.destroyed && !res.writableEnded) res.write(chunk);
     };
     const me = app.companionId ?? 'main';
+    // EC24: a helper prompt goes only to the browser sign-ins switched on as helper devices.
+    const session = auth.sessionId(cookies(req)[SESSION_COOKIE]);
     const off = app.events?.subscribeAll((ev) => {
+      if (ev.type === 'helper') {
+        if (ev.companion && ev.companion !== me) return;
+        if (!app.phoneHelper?.isDevice(session)) return;
+        return write(`event: helper\ndata: ${JSON.stringify(ev)}\n\n`);
+      }
       // Phase 31: another companion's message or call shows as a notice (switch to her to see it).
       if (ev.companion && ev.companion !== me && ev.type !== 'planner' && ev.type !== 'board') {
         if (ev.type !== 'message' && ev.type !== 'ring') return;

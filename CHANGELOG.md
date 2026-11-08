@@ -5,6 +5,63 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 2.85.0 (2026-11-08): meetings, phone helper and her at work
+
+### Added
+
+- `SARA_PROGRAM_PATH`: extra program folders for Sara alone, first in her command path inside and outside the Linux sandbox (for example a newer Python on a cPanel server whose system `python3` must stay 3.6).
+### Changed
+
+- Owner-session continuity no longer lets only one model step run at a time across all of your
+  chats: each chat answers one step at a time and up to 4 chats can work at once (Settings → Chat
+  apps → Session continuity → *Replies at the same time*, 1 to 8; policy pin `parallelReplies`). At 20
+  busy chats a turn took 1.8 s instead of 6.6 s, and at 50 none were refused (half before).
+- Pictures from her: pick a ComfyUI workflow you saved inside ComfyUI instead of pasting the API
+  export, and optionally get her pictures on her own in your Telegram or Discord chat too.
+
+### Fixed
+
+- Get more showed `{{user}}` in a companion's description; it now reads "you", as on the Store website.
+- Stopping a background job on a busy Windows PC could leave its program running until its time limit
+  (taskkill can take 15 s or more, or give up); Sara now retries and then ends the program itself.
+- **Meetings and meeting notes (EC19):** Library → *Meetings…* (owner only). Start a meeting room:
+  after a consent tick Sara shows and says *"I'm Sara, an AI. I'm listening and taking notes"*, each
+  of your devices that joins shows the notice and opens its microphone only after *I understand*; she
+  turns what is said into a transcript and answers briefly when called by name (no tools). Or give her
+  a recorded call (WAV up to 3 hours, MP3/OGG/M4A up to 25 MB). The notes (summary, decisions, action
+  items with owners and dates) are kept in her Library; an action item becomes a Planner to-do only
+  when you press *Add to Planner*. No recording kept unless chosen; transcripts stay on the server;
+  private local mode needs the local hearing engine; policy pin *Turn off meetings*; audit rows for
+  start, join, end, notes, to-dos, downloads and deletes. Joining Discord voice itself is not built
+  (Discord's DAVE encryption is required since March 2026); record the call and use *Notes from a
+  recording*. Guide: docs/MEETINGS.md.
+- **Phone as a helper (EC24):** Sara can ask a phone or browser you switched on (Settings → Devices
+  and sign-in → *Phone as a helper*) for one picture from its camera, your location once
+  (approximate unless she needs the exact spot) or one screen picture. Each use is a full-screen
+  prompt on the device with her reason, **Allow once** and **Deny**; nothing is captured before the
+  tap, and no answer in 90 seconds ends it. Owner only; private local mode is respected; one audit
+  row per request (never the picture or coordinates); policy pin *Turn off Phone as a helper*.
+  Android: location for the prompt in the app (new build). Guide: `docs/PHONE_HELPER.md`.
+- **Her at work (EC26):** Settings → Her → *At work*: one companion for you and your workplace. Chats you
+  tick as work (Slack and Teams by default; Matrix, Email, Discord and Telegram work channels optional)
+  get her work name and tone (friendly and professional, formal, or brief), work tools only (research,
+  files in a chosen work workspace, the calendar; commands only when allowed), a separate work memory
+  (notes, recall, "last time" and other chats never cross between work and personal; *Copy to work* /
+  *Copy to personal* is the only way across) and no companion features (moods, diary, romance, adult
+  content, role-play, pictures on her own). Each work chat gets its own AI disclosure in her work name.
+  Policy pin *Keep work mode on everywhere* makes every chat on a business server a work chat. Audit rows
+  `work-profile.change` and `memory.copy-space`. Guide: `docs/AT_WORK.md`.
+- **Business usage reports (EC15):** organization administrators see the spending ledger per
+  person, workspace and model, by day, week or month, with a CSV download (same columns as the
+  personal report; audited). The ledger now records each request's model. Guide:
+  `docs/USAGE_REPORTS.md`.
+- **Household members can share their own chats (EC11):** same hiding, expiry, refusals and
+  revoke as the owner; the owner can turn it off for members (their links then stop opening), sees
+  only how many links members have, and removing a member revokes theirs. Guide: `docs/SHARING.md`.
+- **Edit history while a legal hold is on (EC17):** in-place rewrites of messages and memories
+  keep the previous text in an append-only history (database triggers), exported with the person's
+  data and shown to the owner. Guide: `docs/DATA_RIGHTS.md`.
+
 ## 2.84.0 (2026-11-07): enterprise controls, editors and code mode
 
 ### Added

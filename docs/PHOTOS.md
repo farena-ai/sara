@@ -8,7 +8,9 @@ Settings → Her → **Pictures from her**.
     subscription or an xAI API key.
   - **OpenAI images:** uses the OpenAI key from Settings → Models (billed per picture).
   - **A ComfyUI workflow:** runs on your own ComfyUI through the ComfyUI tool server
-    (Settings → Add-ons → Other programs (MCP)). In ComfyUI open the workflow, choose
+    (Settings → Add-ons → Other programs (MCP)). Either pick a workflow you saved in ComfyUI
+    (**Saved in ComfyUI** → **Load the list**; Sara reads it converted to API format and keeps a copy,
+    so pick it again after you change it in ComfyUI), or open the workflow in ComfyUI, choose
     **Workflow → Export (API)** and paste the file. Pick the node that takes the prompt (usually the
     positive *CLIP Text Encode*) and whether every picture gets a new random seed.
   - **Another image tool:** any connected tool that sends a picture back, and the name of its
@@ -30,6 +32,10 @@ what she's doing, with one line, like a person would.
   how many pictures that is and, for paid engines, a rough monthly cost (an estimate).
 - **Send one now** sends one right away to test it (the monthly limit and every content rule still
   apply).
+- **Also send them to my chat apps** (off by default): each picture also arrives as a
+  picture, with her line as the caption, in your own Telegram or Discord chat with her (whichever is
+  connected; *Sending pictures and files* in Chat apps must be on). Off: they stay in the app, and
+  the line isn't sent there without its picture.
 
 She follows the same rules as her own messages (Settings → Her → Relationship): not during quiet
 hours, inside her daily limit (a picture counts as one of her messages), not while her last message

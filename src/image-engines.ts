@@ -24,6 +24,8 @@ export interface ComfyEngine {
   input?: string;
   /** New random seeds each time (every seed / noise_seed input). */
   seed?: boolean;
+  /** MNT2: the name of the workflow saved inside ComfyUI this copy came from (none when pasted). */
+  saved?: string;
 }
 
 export interface ToolEngine {
@@ -102,6 +104,49 @@ async function runTool(d: EngineDeps, name: string, args: Record<string, unknown
   } as unknown as ToolContext;
   const text = await tool.run(args, ctx);
   return { text, images };
+}
+
+/** MNT2: library names as get_workflow lists them ("1. SDXL/her day.json"); no "..", no absolute paths. */
+const SAVED_NAME = /^(?!.*(?:^|\/)\.\.(?:\/|$))(?![\\/])(?![a-z]:)[^\n\r\u0000]{1,200}\.json$/i;
+
+/** MNT2 (E7 follow-up): the workflows saved inside ComfyUI, through its tool server's get_workflow. */
+export async function listComfyWorkflows(d: EngineDeps, server: string, o: RunOpts = {}): Promise<string[]> {
+  const got = await runTool(d, mcpToolName(server, 'get_workflow'), { action: 'list' }, o);
+  const names = [...got.text.matchAll(/^\s*\d+\.\s+(.+?)\s*$/gm)].map((m) => m[1]).filter((n) => SAVED_NAME.test(n));
+  return [...new Set(names)].slice(0, 500);
+}
+
+/** The first JSON object in a tool's text (get_workflow may add conversion warnings after it). */
+function firstObject(text: string): unknown {
+  const start = text.indexOf('{');
+  if (start < 0) return undefined;
+  let depth = 0;
+  let inString = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (ch === '\\') i++;
+      else if (ch === '"') inString = false;
+    } else if (ch === '"') inString = true;
+    else if (ch === '{') depth++;
+    else if (ch === '}' && --depth === 0) {
+      try {
+        return JSON.parse(text.slice(start, i + 1));
+      } catch {
+        return undefined;
+      }
+    }
+  }
+  return undefined;
+}
+
+/** One saved workflow in API format (ComfyUI converts it), checked like a pasted one. */
+export async function loadComfyWorkflow(d: EngineDeps, server: string, name: string, o: RunOpts = {}): Promise<ComfyWorkflow> {
+  if (!SAVED_NAME.test(name)) throw new ToolError('Pick a workflow by its name from the list.');
+  const got = await runTool(d, mcpToolName(server, 'get_workflow'), { action: 'get', filename: name, format: 'api' }, o);
+  const wf = firstObject(got.text);
+  if (!wf) throw new ToolError(`ComfyUI couldn't read that workflow: ${got.text.slice(0, 200)}`);
+  return cleanWorkflow(wf);
 }
 
 const NO_PICTURE = "The picture was made, but this Sara can't receive pictures from tool servers yet, so nothing was sent.";

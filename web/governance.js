@@ -158,6 +158,10 @@ export async function loadPolicy() {
   if ($('#po-sharing')) $('#po-sharing').checked = pins.sharing === false;
   if ($('#po-editors')) $('#po-editors').checked = pins.editors === false;
   $('#po-codemode').checked = pins.codeMode === false;
+  if ($('#po-parallel')) $('#po-parallel').value = pins.parallelReplies === undefined ? '' : String(pins.parallelReplies);
+  $('#po-meetings').checked = pins.meetings === false;
+  if ($('#po-phone')) $('#po-phone').checked = pins.phoneHelper === false;
+  if ($('#po-workmode')) $('#po-workmode').checked = pins.workMode === true;
   $('#po-crews').value = pins.crews ?? '';
   $('#po-tidy').value = pins.memoryTidy ?? '';
   if ($('#po-hold')) $('#po-hold').checked = pins.legalHold === true;
@@ -182,6 +186,10 @@ function readForm() {
     ...($('#po-sharing')?.checked ? { sharing: false } : {}),
     ...($('#po-editors')?.checked ? { editors: false } : {}),
     ...($('#po-codemode').checked ? { codeMode: false } : {}),
+    ...($('#po-parallel')?.value ? { parallelReplies: Number($('#po-parallel').value) } : {}),
+    ...($('#po-meetings').checked ? { meetings: false } : {}),
+    ...($('#po-phone')?.checked ? { phoneHelper: false } : {}),
+    ...($('#po-workmode')?.checked ? { workMode: true } : {}),
     ...($('#po-store').value ? { store: $('#po-store').value } : {}),
     ...($('#po-retention').value !== '' ? { auditRetentionDays: Number($('#po-retention').value) } : {}),
     ...($('#po-programs').value ? { programInstalls: $('#po-programs').value } : {}),
@@ -237,6 +245,9 @@ const LOCKS = {
   egressAllowlist: ['#eg-mode', '#eg-hosts', '#eg-save'],
   memoryTidy: ['#mt-model'],
   codeMode: ['#lean-codemode'],
+  meetings: ['#lib-meetings-open'],
+  phoneHelper: ['#hd-on'],
+  workMode: ['#atw-on'],
 };
 const NOTES = { providers: 'models-providers', tools: 'ab-tools' };
 

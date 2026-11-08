@@ -40,3 +40,6 @@
 .tr-card li { overflow-wrap: anywhere; margin: 2px 0; }
 .tr-nums { display: flex; flex-wrap: wrap; gap: 6px 16px; }
 .tr-flag { color: var(--danger); font-weight: 600; }
+.dr-history { display: grid; gap: 8px; min-width: 0; }
+.dr-edit { border-left: 2px solid var(--hairline-strong, currentColor); padding: 4px 10px; min-width: 0; }
+.dr-edit-text { white-space: pre-wrap; overflow-wrap: anywhere; }

@@ -1,6 +1,7 @@
 import { t, attachTips } from './business-i18n.js';
 import { renderSsoSettings } from './business-sso.js';
 import { renderScimSettings } from './business-scim.js';
+import { renderUsageReport } from './business-usage.js';
 const element = (tag, text) => { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; return node; };
 const roles = { manager: () => t('Manager'), contributor: () => t('Contributor'), viewer: () => t('View only'), orgadmin: () => t('Organization administrator'), user: () => t('User') };
 export const roleName = role => roles[role]?.() || t('No access');
@@ -38,7 +39,7 @@ export async function renderManagement({ kind, api, workspace, workspaceName, or
       'recovery.reconcile': t('Recovery grants reconciled'), 'recovery.complete': t('Recovery access reopened'), 'backup.stage': t('Backup generation prepared'),
       'sso.configure': t('Company sign-in settings changed'), 'sso.signin': t('Signed in with a company account'), 'sso.refused': t('Company sign-in refused'), 'sso.revoked': t('Company sign-in ended by the session check'), 'sso.link': t('Company account linked'),
       'scim.configure': t('Provisioning turned on or off'), 'scim.token': t('Provisioning token created'), 'scim.user.create': t('Account provisioned'), 'scim.user.update': t('Provisioned account updated'),
-      'scim.user.deactivate': t('Provisioned account disabled'), 'scim.user.delete': t('Provisioned account removed'), 'scim.group': t('Provisioned group changed'), 'scim.refused': t('Provisioning request refused'),
+      'scim.user.deactivate': t('Provisioned account disabled'), 'scim.user.delete': t('Provisioned account removed'), 'scim.group': t('Provisioned group changed'), 'scim.refused': t('Provisioning request refused'), 'usage.export': t('Usage report downloaded'),
     };
     host.append(element('p', t('Latest 100 metadata events. Message and document contents are not included.')));
     for (const row of rows) {
@@ -70,6 +71,7 @@ export async function renderManagement({ kind, api, workspace, workspaceName, or
     host.append(element('p', t('Reapproving a disabled account requires a new passkey first. Its old workspace grants stay closed until a manager approves them separately.')));
     await renderSsoSettings({ api, host, run, current }); if (!current()) return;
     await renderScimSettings({ api, host, run, current }); if (!current()) return;
+    await renderUsageReport({ api, host, run, current }); if (!current()) return;
   } else {
     const guidance = element('section'); guidance.className = 'step-guidance'; guidance.append(element('h3', t('Next steps for workspace managers')), element('p', t('First ask an organization administrator to invite new accounts. Then choose an active colleague below and send a private invitation for this workspace and role. The colleague accepts while signed in.')), element('p', t('Review the listed audience before sharing. Model configuration and backup recovery belong to the host operator; workspace management does not grant operator access.'))); host.append(guidance);
     host.append(element('p', t('Managers control only this workspace. Invite an existing active colleague or adjust a listed member.')));

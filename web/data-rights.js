@@ -46,6 +46,7 @@ function renderPeople() {
     info.append(ctx.el('strong', '', p.person === 'owner' ? t('You') : p.name));
     info.append(ctx.el('span', 'muted small', t('{chats} chats, {memories} memories, {files} files', { chats: p.counts.conversations, memories: p.counts.memories, files: p.counts.files })));
     if (p.held) info.append(ctx.el('span', 'small', view.holds.instance ? t('On hold (whole server)') : t('On hold')));
+    if (p.edits) info.append(ctx.el('span', 'muted small', t('{n} earlier versions kept under hold', { n: p.edits })));
     const actions = ctx.el('div', 'dr-actions');
     const holdLabel = ctx.el('label', 'row');
     const hold = document.createElement('input');
@@ -68,6 +69,12 @@ function renderPeople() {
       status(t('The download includes only this person’s chats, memories, photos and files.'));
     });
     actions.append(holdLabel, download);
+    if (p.edits) {
+      const show = ctx.el('button', 'ghost', t('Show edit history'));
+      show.type = 'button';
+      show.addEventListener('click', () => void showHistory(p));
+      actions.append(show);
+    }
     if (p.person !== 'owner') {
       const del = ctx.el('button', 'danger', t('Delete their data'));
       del.type = 'button';
@@ -80,6 +87,27 @@ function renderPeople() {
     row.append(info, actions);
     list.append(row);
   }
+}
+
+// EC17: the earlier versions a hold kept (read-only; the server writes one audit row per look).
+async function showHistory(p) {
+  const box = $('#dr-history');
+  let d;
+  try {
+    d = await ctx.api(`/data-rights/history?person=${encodeURIComponent(p.person)}`);
+  } catch (e) {
+    status(e.message);
+    return;
+  }
+  const head = ctx.el('p', 'small', t('{name}: {n} earlier versions, newest first.', { name: p.person === 'owner' ? t('You') : p.name, n: d.total }));
+  const rows = d.edits.map((e) => {
+    const row = ctx.el('div', 'dr-edit');
+    row.append(ctx.el('span', 'muted small', `${new Date(e.editedAt).toLocaleString()} · ${e.kind === 'memory' ? t('Memory') : t('Message')}`));
+    row.append(ctx.el('div', 'dr-edit-text', e.withheld ? t('Replaced by the safety layer; the blocked text is not kept.') : e.previous ?? ''));
+    return row;
+  });
+  box.replaceChildren(head, ...rows);
+  box.scrollIntoView({ block: 'nearest' });
 }
 
 async function saveRetention() {

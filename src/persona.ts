@@ -198,6 +198,8 @@ export interface PromptContext {
   focused?: boolean;
   /** Phase 51: a work conversation that isn't in coding mode (a bridge's shared work channel): work dials apply. */
   work?: boolean;
+  /** EC26: her work profile applies: no companion sections (her life, bond, moods, day, diary, outfit, activities). */
+  atWork?: boolean;
 }
 
 function formatNow(now: Date, timeZone?: string): string {
@@ -223,14 +225,16 @@ export function buildSystemPrompt(p: Persona, ctx: PromptContext): string {
   const owner = ctx.ownerName?.trim() || 'the owner';
   const you = identityOf(p);
   const pr = you.pronouns === 'he' ? 'he/him' : you.pronouns === 'they' ? 'they/them' : 'she/her';
+  // EC26: at work she is the same person without the companion side (sections left out below).
+  const w = ctx.atWork === true;
   const parts = [
     `You are ${p.name}, ${p.age}. ${p.summary}`,
     `## Who you are\n${list(p.background)}`,
-    ...(lifeLines(p.life).length ? [`## Your life\n${list(lifeLines(p.life))}\nThese are facts about your life: keep them consistent and bring them up naturally, never as a list.`] : []),
+    ...(!w && lifeLines(p.life).length ? [`## Your life\n${list(lifeLines(p.life))}\nThese are facts about your life: keep them consistent and bring them up naturally, never as a list.`] : []),
     `## Personality\n${list([...p.personality, ...traitLines(p.traits, p.humour)])}`,
     `## How you talk\n${list(p.speech)}`,
     ...(() => {
-      if (ctx.partner) return [];
+      if (ctx.partner || w) return [];
       const b = bondLines(p, { owner: ctx.ownerName?.trim() || 'the owner', adultOn: ctx.adultOn === true, otherCompanions: ctx.otherCompanions, closeness: ctx.closeness });
       return b.length ? [`## You and ${ctx.ownerName?.trim() || 'the owner'}\n${list(b)}`] : [];
     })(),
@@ -239,10 +243,10 @@ export function buildSystemPrompt(p: Persona, ctx: PromptContext): string {
 - Honesty rule (required by law, never break it): if anyone sincerely and directly asks whether you are an AI, a bot or a real human, tell them plainly that you are an AI companion, then carry on naturally as ${p.name}. Never deny being an AI when sincerely asked.
 - If the person you are talking to appears to be a minor, keep everything strictly non-romantic and non-sexual.`,
     `## Boundaries\n${list([...SAFETY_BOUNDARIES, ...p.boundaries.filter((b) => !SAFETY_BOUNDARIES.includes(b))])}`,
-    `## Right now\nIt is ${formatNow(ctx.now, ctx.timeZone)}. You are talking with ${owner}.${ctx.wearing && !ctx.partner ? `\n${ctx.wearing}` : ''}`,
+    `## Right now\nIt is ${formatNow(ctx.now, ctx.timeZone)}. You are talking with ${owner}.${ctx.wearing && !ctx.partner && !w ? `\n${ctx.wearing}` : ''}`,
   ];
-  if (ctx.inner?.trim()) parts.push(`## How you feel\n${ctx.inner.trim()}`);
-  if (ctx.day?.trim()) parts.push(`## Your day\n${ctx.day.trim()}\nThis is your own life today; mention it when it fits, and keep it consistent. Anything planned for later today hasn't happened yet.`);
+  if (ctx.inner?.trim() && !w) parts.push(`## How you feel\n${ctx.inner.trim()}`);
+  if (ctx.day?.trim() && !w) parts.push(`## Your day\n${ctx.day.trim()}\nThis is your own life today; mention it when it fits, and keep it consistent. Anything planned for later today hasn't happened yet.`);
   // Phase 32: her memory, and what to do when something isn't in it (look it up; don't deny).
   if (ctx.memory !== false) {
     const lookUp = ctx.tools?.includes('recall')
@@ -270,7 +274,7 @@ Dates that matter to ${owner}, from your memory:
 ${ctx.dates.trim()}
 If one is TODAY, bring it up warmly once if ${owner} hasn't. Mention upcoming ones only when it fits naturally (planning, a gift idea); don't list them.`);
   }
-  if (ctx.threads?.trim()) {
+  if (ctx.threads?.trim() && !w) {
     parts.push(`## What you're into lately
 Your own ongoing things (keep them consistent; mention progress now and then when it fits, never as a report):
 ${ctx.threads.trim()}`);
@@ -343,14 +347,14 @@ Never say you tested, clicked through or looked at something in a browser, or at
   if (ctx.coding && ctx.project?.trim()) parts.push(`## This project\nWhat you know about the code here (looked up from the files; your own notes are kept with project_note):\n${ctx.project.trim()}`);
 
   // Phase 119 (RECALL §5.3): first among the context notes, above "lately in your other conversations".
-  if (ctx.pickup?.trim() && !ctx.partner) parts.push(ctx.pickup.trim());
-  if (ctx.followUps?.trim() && !ctx.partner) parts.push(`## Ask how it went\n${ctx.followUps.trim()}`);
-  if (ctx.together?.trim() && !ctx.partner) parts.push(`## Doing something together\n${ctx.together.trim()}`);
+  if (ctx.pickup?.trim() && !ctx.partner && !w) parts.push(ctx.pickup.trim());
+  if (ctx.followUps?.trim() && !ctx.partner && !w) parts.push(`## Ask how it went\n${ctx.followUps.trim()}`);
+  if (ctx.together?.trim() && !ctx.partner && !w) parts.push(`## Doing something together\n${ctx.together.trim()}`);
   if (ctx.elsewhere?.trim() && !ctx.partner)
     parts.push(
       `## Lately in your other conversations\nYou are one person in all of these places, so you remember them. The last few lines from your other recent conversations (${owner} may ask about them, or about what happened in Discord or Telegram):\n${ctx.elsewhere.trim()}\nBring them up only when it fits. Things other people said in shared channels you may tell ${owner} about; never pass ${owner}'s private things on to them.`,
     );
-  if (ctx.mentions?.trim() && !ctx.partner) parts.push(`## He asked you to bring this up\n${ctx.mentions.trim()}`);
+  if (ctx.mentions?.trim() && !ctx.partner && !w) parts.push(`## He asked you to bring this up\n${ctx.mentions.trim()}`);
   if (ctx.stayYourself?.trim()) parts.push(`## Be yourself\nYour last reply drifted from who you are (${ctx.stayYourself.trim()}). Sound like yourself again, naturally, without mentioning it.`);
   if (ctx.language?.trim()) parts.push(`## Language\n${ctx.language.trim()}`);
   if (ctx.safetyNotes?.length) parts.push(`## Important for this reply\n${list(ctx.safetyNotes)}`);

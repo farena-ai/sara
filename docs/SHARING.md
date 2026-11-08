@@ -25,7 +25,17 @@ tunnel. The shared page tells the reader that the replies were written by an AI.
   imported chats: never.
 - Private chats, and every chat while *Nothing leaves this computer* (private local mode) is on:
   only after you tick **Allow sharing private chats** in Settings → Household → Shared links.
-- Household members can't make links in this version; the demo has none.
+- The demo has no links.
+
+## Household members
+
+Members share **their own** chats the same way (Share… in a chat's settings), with the same
+hiding, expiry and refusals; private chats follow your *Allow sharing private chats* setting. Each
+member sees and revokes only their own links in Settings → Household → Shared links; you see only
+how many links members have open, never their titles. Turn **Household members can share their
+own chats** off and they can't make new links, and their existing links stop opening (they come
+back, unless expired, when you turn it on again). Removing a member revokes all of their links.
+Audit rows name the member (`member:<id>`).
 
 ## Manage links
 
@@ -38,7 +48,7 @@ Deleting the chat revokes its links too. Expired links are cleaned up by themsel
 - Policy pin **Turn off shared links** (Settings → Household → Policy, `"sharing": false`): no new
   links, and existing links stop opening while the pin is on.
 - Audit trail rows: `share.create` (the choices, never the token), `share.view` (first open),
-  `share.revoke` (with the number of opens), `share.settings`.
+  `share.revoke` (with the number of opens), `share.settings` (which switch changed).
 - The page is sent with `X-Robots-Tag: noindex, nofollow, noarchive`, `no-store` and
   `no-referrer`, has no script, and is rate-limited per address (60 opens a minute; 20 wrong links
   in 15 minutes blocks that address for a while).

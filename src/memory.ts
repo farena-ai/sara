@@ -53,6 +53,8 @@ export interface Memory {
   useCount: number;
   /** Phase 104 (move-in): searchable by recall, never put into a prompt by itself. */
   archived?: boolean;
+  /** EC26: set only on a copy (work or personal); otherwise the source conversation's space. */
+  space?: 'work' | 'personal' | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -115,6 +117,7 @@ function toMemory(r: Row): Memory {
     lastUsedOn: (r.last_used_on as string | null | undefined) ?? null,
     useCount: Number(r.use_count ?? 0),
     archived: Boolean(r.archived),
+    space: r.space === 'work' || r.space === 'personal' ? r.space : null,
     createdAt: String(r.created_at),
     updatedAt: String(r.updated_at),
   };
@@ -142,7 +145,7 @@ export class MemoryStore {
     }
     // Phase 12 columns (added in place on older databases).
     const cols = new Set((db.prepare('PRAGMA table_info(memories)').all() as { name: string }[]).map((c) => c.name));
-    for (const [c, type] of [['on_date', 'TEXT'], ['superseded_by', 'INTEGER'], ['mentioned_on', 'TEXT'], ['resolved_at', 'TEXT'], ['source_doc_id', 'INTEGER'], ['pinned', 'INTEGER NOT NULL DEFAULT 0'], ['last_used_on', 'TEXT'], ['use_count', 'INTEGER NOT NULL DEFAULT 0'], ['archived', 'INTEGER NOT NULL DEFAULT 0']]) if (!cols.has(c)) db.exec(`ALTER TABLE memories ADD COLUMN ${c} ${type}`);
+    for (const [c, type] of [['on_date', 'TEXT'], ['superseded_by', 'INTEGER'], ['mentioned_on', 'TEXT'], ['resolved_at', 'TEXT'], ['source_doc_id', 'INTEGER'], ['pinned', 'INTEGER NOT NULL DEFAULT 0'], ['last_used_on', 'TEXT'], ['use_count', 'INTEGER NOT NULL DEFAULT 0'], ['archived', 'INTEGER NOT NULL DEFAULT 0'], ['space', 'TEXT']]) if (!cols.has(c)) db.exec(`ALTER TABLE memories ADD COLUMN ${c} ${type}`);
     if (!hasOrigin) db.exec("UPDATE memories SET origin = 'derived' WHERE conversation_id IS NOT NULL OR source_message_id IS NOT NULL OR source_from_id IS NOT NULL OR source_doc_id IS NOT NULL");
   }
 

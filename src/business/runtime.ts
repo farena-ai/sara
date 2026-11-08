@@ -15,6 +15,7 @@ import { BusinessRetrieval } from './retrieval.ts';
 import { BusinessEvents } from './events.ts';
 import { createBusinessContentRouter } from './content-routes.ts';
 import { BusinessBudget } from './budget.ts';
+import { BUSINESS_USAGE_PATHS, handleBusinessUsage } from './usage-report.ts';
 import { BusinessModels, configureBusinessModels, primeOperatorSecrets } from './model-config.ts';
 import { BusinessDocuments } from './documents.ts';
 import { BusinessChat } from './chat.ts';
@@ -122,7 +123,7 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
         if (recoveryMode(control.database) && !['/api/business/reenroll', '/api/business/me', '/api/business/logout', '/api/business/passkeys/register/options', '/api/business/passkeys/register/finish', '/api/business/passkeys/login/options', '/api/business/passkeys/login/finish'].includes(path)) return json(res, 503, { error: 'Business recovery requires reconciliation.' });
         if (path === '/api/business/claim' && req.method === 'GET') return json(res, 200, auth.claimStatus());
         const allowed = new Set(['/api/business/reenroll', '/api/business/claim', '/api/business/me', '/api/business/logout', '/api/business/passkeys/register/options', '/api/business/passkeys/register/finish', '/api/business/passkeys/login/options', '/api/business/passkeys/login/finish']);
-        if (path === '/api/business/org/audit') allowed.add(path);
+        if (path === '/api/business/org/audit' || BUSINESS_USAGE_PATHS.includes(path)) allowed.add(path);
         if (path === '/api/business/scim/config' || path === '/api/business/scim/token') allowed.add(path);
         if (['/api/business/sso/status', '/api/business/sso/start', '/api/business/sso/config', '/api/business/sso/test'].includes(path)) allowed.add(path);
         if (!allowed.has(path) && !management.matches(path) && !content.matches(path) && !writes.matches(path)) return json(res, 404, { error: 'Not found.' });
@@ -139,6 +140,7 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
           try { if (!principal) return json(res, 401, { error: 'Sign-in required.' }); return json(res, 200, audit.organization(principal)); }
           catch { return json(res, 403, { error: 'Request denied.' }); }
         }
+        if (BUSINESS_USAGE_PATHS.includes(path)) return handleBusinessUsage({ control, req, res, path, principal: principal && auth.isPrincipalActive(principal) ? principal : undefined, json });
         if (path.startsWith('/api/business/scim/')) {
           try {
             if (!principal || !auth.isPrincipalActive(principal)) return json(res, 401, { error: 'Sign-in required.' });

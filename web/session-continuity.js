@@ -12,6 +12,9 @@ export async function loadSessionContinuitySettings() {
   try {
     const value = await ctx.api('/chats/continuity');
     $('#continuity-enabled').checked = value.enabled;
+    // mnt2: the admin's policy can lower the most replies at the same time.
+    const parallel = $('#continuity-parallel');
+    if (parallel) { parallel.max = String(value.parallelMax ?? 8); parallel.value = String(value.parallel ?? 4); }
     box.dataset.loaded = '1'; box.hidden = false;
     settingsStatus(value.enabled);
   } catch { /* Owner controls are unavailable in other audiences. */ }
@@ -22,12 +25,17 @@ function settingsStatus(enabled) {
 export async function saveSessionContinuitySettings() {
   if (!ctx || !$('#continuity-settings')?.dataset.loaded) return;
   try {
-    const value = await ctx.api('/chats/continuity', { method: 'PUT', body: { enabled: $('#continuity-enabled').checked } });
+    const value = await ctx.api('/chats/continuity', { method: 'PUT', body: { enabled: $('#continuity-enabled').checked, ...parallelChoice() } });
     settingsStatus(value.enabled);
   } catch (error) {
     $('#continuity-status').textContent = t('Could not save session continuity. Your choice is kept; try again.');
     throw error;
   }
+}
+
+function parallelChoice() {
+  const n = Number($('#continuity-parallel')?.value);
+  return Number.isInteger(n) && n >= 1 && n <= 8 ? { parallel: n } : {};
 }
 
 /** Each view closes over one target; a late request cannot install another target's clear action. */

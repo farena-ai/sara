@@ -19,6 +19,16 @@ model boundary. It cannot make an already sent model request unseen. Turning it 
 delete saved notes, chat messages or run history. You can still explicitly inspect or clear
 eligible saved context while it is off.
 
+## Replies at the same time
+
+Each chat answers one step at a time, and up to **Replies at the same time** chats (default 4, 1 to 8)
+can have the model working at once; more wait their turn in arrival order ("Waiting for another
+reply to finish."). Every step still reads the other sessions' saved context after its wait, so a
+reply sees what the others have finished, not what they are still writing. Set 1 for strict
+one-at-a-time replies (or when your model server handles one request at a time). An admin can cap it
+with the policy pin `parallelReplies` (Household → Policy → *Replies at the same time*); you can then
+choose fewer, never more.
+
 ## Inspect saved notes
 
 Open an eligible chat, choose **This conversation** (the model/workspace chip at the top), then

@@ -397,6 +397,15 @@ the card says which); Sara checks Microsoft's signature on every call. Her perso
 answers mentions in their thread, without tools unless *Owners can use her tools in groups* is on.
 Sessions file into the *Teams* project.
 
+## Her at work (unreleased, EC26)
+
+Settings → Her → **At work** turns Slack, Teams and any other chat you tick into work chats: her work
+name and tone, work tools only (research, files in a work workspace, the calendar; commands only when
+you allow them), a separate work memory, and none of the companion side (moods, her diary, romance,
+adult content, role-play, pictures on her own). Work and personal notes never mix unless you copy one
+across on that page. An admin can pin work mode on for a whole business server. See
+[AT_WORK.md](AT_WORK.md).
+
 ## iMessage (2.55.2)
 
 iMessage comes with Sara as a plugin (Settings → Chat apps → iMessage), off until you add it: see

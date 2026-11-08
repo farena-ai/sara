@@ -118,14 +118,14 @@ test('EC11 routes: off-the-record, partner and private chats are refused; privat
   assert.equal((await create({ expires: 'never' })).status, 400);
 });
 
-test('EC11 routes: deleting the conversation revokes its links; members get 403', async () => {
+test('EC11 routes: deleting the conversation revokes its links; members reach their own links', async () => {
   const c = app.store.createConversation({ title: 'Short' });
   app.store.addMessage(c.id, 'user', 'hello');
   const made = await create({ conversationId: c.id });
   assert.equal((await fetch(made.body.link)).status, 200);
   assert.equal((await req(`/api/conversations/${c.id}`, { method: 'DELETE' })).status, 200);
   assert.equal((await fetch(made.body.link)).status, 404);
-  assert.equal(memberRouteCheck({ status: 'active' } as never, 'GET', ['shares'])?.status, 403);
+  assert.equal(memberRouteCheck({ status: 'active', limits: { voice: true, pictures: true } } as never, 'GET', ['shares']), undefined);
 });
 
 test('EC11 routes: the policy pin refuses new links and stops existing ones', async () => {
