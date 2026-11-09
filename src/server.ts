@@ -117,7 +117,7 @@ import { createHerRoutes } from './routes/her.ts';
 import { createVoiceRoutes } from './routes/voice.ts';
 import { createLiveUpgrade } from './routes/live.ts';
 import { createHandsRoutes, createHandsUpgrade } from './routes/hands.ts';
-import { createMoveInPublic, createMoveInRoutes, serveCollector } from './routes/movein.ts';
+import { createMoveInPublic, createMoveInRoutes, serveCollector, serveMoveInFile } from './routes/movein.ts';
 import { createHubRoutes } from './routes/hub.ts';
 import { createStoreRoutes } from './routes/store.ts';
 import { createSpendRoutes } from './routes/spend.ts';
@@ -2399,6 +2399,7 @@ export function createSaraServer(opts: ServerOptions): Server {
       }
       // Phase 104: the move-in collector, plain source (the Move in page shows its SHA-256). Not on the demo.
       if (url.pathname === '/movein/sara-movein.py' && (method === 'GET' || method === 'HEAD') && !opts.demo) return serveCollector(res);
+      if (url.pathname.startsWith('/movein/') && method === 'GET' && !opts.demo && !opts.member && serveMoveInFile(req, res, url.pathname)) return;
       // EC11: a shared conversation (read-only, no sign-in, never indexed).
       if (url.pathname.startsWith('/s/') && sharePublic(req, res, url.pathname)) return;
       if (url.pathname.startsWith('/api/')) {

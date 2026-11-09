@@ -83,7 +83,9 @@ export async function readSkills(b: Bundle, prefixes: string[], emit: (f: Findin
         ...(BUNDLED_AUTHOR.test(author) ? { bundled: true } : {}),
       };
       const itemCats = b.manifest.items.find((it) => it.path === md)?.cats ?? [];
-      const held = categoryOf(text) ?? (itemCats.includes('medical') ? 'medical' : itemCats.includes('intimate') ? 'intimate' : undefined);
+      // What the skill is about (its name and description), not every word of its instructions: a coding
+      // skill that says "diagnose" or "doctor" is not a health record (3.1.1).
+      const held = categoryOf(`${name.replace(/-/g, ' ')}\n${data.description}`) ?? (itemCats.includes('medical') ? 'medical' : itemCats.includes('intimate') ? 'intimate' : undefined);
       emit({ section: 'skills', kind: 'skill', ref: md, title: name, data, ...(held ? { held } : {}) });
       n++;
     }

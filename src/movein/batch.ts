@@ -131,10 +131,12 @@ export function batch(db: DatabaseSync, id: string): BatchRow | undefined {
 }
 
 /** For re-runs (§7.5): what an earlier, not-undone move-in of the same agent brought. */
-export function earlier(db: DatabaseSync, kind: string, agentId: string): { refs: Set<string>; refShas: Set<string> } {
+export function earlier(db: DatabaseSync, kind: string, agentId: string): { refs: Set<string>; refShas: Set<string>; lastAt: Map<string, string> } {
   ensureTables(db);
   const rows = db.prepare("SELECT i.source AS source, i.sha256 AS sha FROM movein_items i JOIN movein_batches b ON b.id = i.batch_id WHERE b.source_kind = ? AND b.agent_id = ? AND b.state IN ('done', 'partial') AND i.source IS NOT NULL").all(kind, agentId) as { source: string; sha: string | null }[];
-  return { refs: new Set(rows.map((r) => r.source)), refShas: new Set(rows.map((r) => `${r.source}|${r.sha ?? ''}`)) };
+  // The newest message each earlier move-in brought of a chat: a re-run only adds what came after.
+  const last = db.prepare("SELECT i.source AS source, MAX(m.created_at) AS at FROM movein_items i JOIN movein_batches b ON b.id = i.batch_id JOIN messages m ON m.conversation_id = i.native_id WHERE b.source_kind = ? AND b.agent_id = ? AND b.state IN ('done', 'partial') AND i.kind = 'conversation' AND i.source IS NOT NULL GROUP BY i.source").all(kind, agentId) as { source: string; at: string | null }[];
+  return { refs: new Set(rows.map((r) => r.source)), refShas: new Set(rows.map((r) => `${r.source}|${r.sha ?? ''}`)), lastAt: new Map(last.filter((r) => r.at).map((r) => [r.source, String(r.at)])) };
 }
 
 const KIND_ORDER: MemoryKind[] = ['fact', 'decision', 'promise', 'self', 'lesson', 'milestone', 'date', 'summary', 'reflection'];

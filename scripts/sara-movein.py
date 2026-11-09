@@ -43,7 +43,7 @@ import sys
 import time
 import zipfile
 
-VERSION = '3.1.0'
+VERSION = '3.1.1'
 FORMAT = 'saramove'
 FORMAT_VERSION = 1
 MiB = 1024 * 1024
@@ -746,6 +746,17 @@ BACKUP_FILE = re.compile(r'(\.bak[^/]*|\.orig|\.migrated|~|\.old|\.prev|\.backup
 OPENCLAW_PERSONA = {'SOUL.md': 'persona', 'IDENTITY.md': 'identity', 'AGENTS.md': 'rules', 'USER.md': 'profile', 'MEMORY.md': 'memory', 'memory.md': 'memory',
                     'BOOT.md': 'boot', 'BOOTSTRAP.md': 'bootstrap', 'HEARTBEAT.md': 'heartbeat', 'DREAMS.md': 'dreams', 'TOOLS.md': 'tools'}
 DAILY = re.compile(r'^memory/(\d{4}-\d{2}-\d{2})(?:[^/]*)\.md$')
+# Only these folders hold the companion. Everything else at the top of an agent's home (its program
+# files, installs, Python/Node environments, caches, browser data...) is named in the plan but never
+# opened: a real Hermes Agent home holds many gigabytes of those (3.1.1).
+KEEP_TOP = {
+    'hermes-home': {'memories', 'skills', 'hooks', 'cron', 'plugins', 'kanban'},
+    'openclaw-state': {'agents', 'cron', 'skills', 'hooks', 'extensions', 'plugins', 'state'},
+    'openclaw-workspace': {'memory', 'skills', '.agents', 'hooks'},
+}
+SECTION_FILES = 20000      # files looked at in one folder (skills, plugins...) before it counts as too large
+SECTION_SECONDS = 30.0     # seconds spent in one folder before it counts as too large
+PEEK_ENTRIES = 400         # a skipped folder's size is counted up to this many entries, then "N+ files"
 
 
 def expand(p, base=None):
@@ -971,18 +982,84 @@ class Plan(object):
         return it
 
 
-def tree_size(path):
+def tree_size(path, limit=PEEK_ENTRIES):
+    """(files, bytes, complete) of a folder that is skipped: at most `limit` entries are looked at, links
+    and junctions are never followed, so a huge program or cache folder costs nothing (3.1.1)."""
     files = 0
     size = 0
-    for dp, dns, fns in os.walk(path, onerror=lambda e: None):
-        for f in fns:
-            try:
-                st = os.lstat(os.path.join(dp, f))
-                files += 1
-                size += st.st_size
-            except OSError:
-                pass
-    return files, size
+    seen = 0
+    todo = [path]
+    while todo:
+        d = todo.pop()
+        try:
+            it = os.scandir(d)
+        except OSError:
+            continue
+        with it:
+            for e in it:
+                seen += 1
+                if seen > limit:
+                    return files, size, False
+                try:
+                    if e.is_symlink() or is_junction(e.path):
+                        continue
+                    if e.is_dir(follow_symlinks=False):
+                        todo.append(e.path)
+                    elif e.is_file(follow_symlinks=False):
+                        files += 1
+                        size += e.stat(follow_symlinks=False).st_size
+                except OSError:
+                    pass
+    return files, size, True
+
+
+def is_junction(path):
+    """A Windows junction (os.path.islink says no to those before Python 3.12)."""
+    j = getattr(os.path, 'isjunction', None)
+    if j:
+        try:
+            return j(path)
+        except OSError:
+            return False
+    if os.name != 'nt':
+        return False
+    try:
+        st = os.lstat(path)
+    except OSError:
+        return False
+    return bool(getattr(st, 'st_file_attributes', 0) & 0x400)  # FILE_ATTRIBUTE_REPARSE_POINT
+
+
+class Progress(object):
+    """One line on stderr so a long read never looks stuck ("Reading past chats... 1,240 so far").
+    --progress json writes one JSON object per line instead (Sara reads it when she collects)."""
+    mode = 'line'
+    last = 0.0
+    shown = False
+
+    @classmethod
+    def say(cls, key, msg, n=None, force=False):
+        now = time.time()
+        if not force and now - cls.last < 0.4:
+            return
+        cls.last = now
+        if cls.mode == 'off':
+            return
+        if cls.mode == 'json':
+            sys.stderr.write(json.dumps({'progress': key, 'text': msg, 'n': n}) + '\n')
+        elif sys.stderr.isatty():
+            sys.stderr.write('\r' + msg[:110].ljust(110))
+            cls.shown = True
+        else:
+            sys.stderr.write(msg + '\n')
+        sys.stderr.flush()
+
+    @classmethod
+    def done(cls):
+        if cls.shown:
+            sys.stderr.write('\r' + ' ' * 110 + '\r')
+            sys.stderr.flush()
+            cls.shown = False
 
 
 def never_file(name):
@@ -1019,6 +1096,8 @@ def classify_dir(role, rel, name, plan):
         return ('code-env', None)
     top = rel.split('/')[0]
     if role == 'hermes-home':
+        if top == 'skills' and name.startswith('.'):
+            return ('derived', 'Hermes Agent\'s own skill bookkeeping')
         if rel == 'profiles':
             return ('other', 'another profile: collect it as its own bundle')
         if rel == 'logs' or low == 'logs':
@@ -1081,6 +1160,8 @@ def classify_file(role, rel, name, size, plan, include_paths):
     if m and m.group('ext') in ('yaml', 'yml', 'json', 'json5') and os.path.exists(os.path.join(plan.root_path, os.path.dirname(rel), '%s.%s' % (m.group('base'), m.group('ext')))):
         return ('backup', 'a dated copy of a config file')
     if role == 'hermes-home':
+        if top == 'skills' and any(x.startswith('.') for x in rel.split('/')[1:]):
+            return ('derived', 'Hermes Agent\'s own skill bookkeeping')
         if rel == 'SOUL.md':
             return ('pack', 'persona')
         if depth == 0 and e == '.md':
@@ -1107,6 +1188,8 @@ def classify_file(role, rel, name, size, plan, include_paths):
             if sqlite_like:
                 return ('store', 'custom')
             return ('pack', 'plugin')
+        if depth == 0 and sqlite_like:
+            return ('other', 'Hermes Agent\'s own bookkeeping')
     elif role == 'openclaw-state':
         if rel == 'openclaw.json' or os.path.abspath(os.path.join(plan.state_root, rel)) in include_paths:
             return ('pack', 'config')
@@ -1117,6 +1200,8 @@ def classify_file(role, rel, name, size, plan, include_paths):
             return ('store', 'openclaw-agent')
         if rel == 'state/openclaw.sqlite':
             return ('store', 'openclaw-state')
+        if top == 'state' and sqlite_like:
+            return ('other', 'OpenClaw\'s own bookkeeping')
         if rel in ('cron/jobs.json', 'cron/jobs-quarantine.json'):
             return ('pack', 'cron')
         if top == 'skills':
@@ -1165,33 +1250,56 @@ def walk_root(plan, root_id, role, path):
     include_paths = set(getattr(plan, 'includes', []))
     ws_paths = set(os.path.abspath(r[2]) for r in plan.cand['roots'] if r[1] == 'openclaw-workspace')
     since = opts.get('since_ts')
+    keep_top = KEEP_TOP.get(role)
+    large = opts.get('include_large')
+    # Per top folder (skills, plugins...): files looked at and when it started (the budget, 3.1.1).
+    budget = {}
+    over = set()
+    started = time.time()
+    seen_files = [0]
     for dp, dns, fns in os.walk(path, onerror=lambda e: plan.skip(posix(os.path.relpath(getattr(e, 'filename', path) or path, path)), 'unreadable', 0, 1, str(e))):
         rel_dir = posix(os.path.relpath(dp, path))
         rel_dir = '' if rel_dir == '.' else rel_dir
+        sec = rel_dir.split('/')[0] if rel_dir else ''
+        if sec in over:
+            dns[:] = []
+            continue
+        if sec:
+            b = budget.setdefault(sec, [0, time.time()])
+            b[0] += len(fns) + len(dns)
+            if not large and (b[0] > SECTION_FILES or time.time() - b[1] > SECTION_SECONDS):
+                over.add(sec)
+                dns[:] = []
+                continue
         keep = []
         for d in sorted(dns):
             full = os.path.join(dp, d)
             rel = (rel_dir + '/' + d) if rel_dir else d
-            if os.path.islink(full):
+            if os.path.islink(full) or is_junction(full):
                 plan.skip('%s/%s' % (root_id, rel), 'other', 0, 1, 'a link (links are never followed)')
                 continue
             if os.path.abspath(full) in ws_paths and role != 'openclaw-workspace':
                 continue
             if owner_never(rel, opts):
-                files, size = tree_size(full)
-                plan.skip('%s/%s/' % (root_id, rel), 'owner-never', size, files)
+                files, size, whole = tree_size(full)
+                plan.skip('%s/%s/' % (root_id, rel), 'owner-never', size, files, None if whole else 'not opened further')
                 continue
             c = classify_dir(role, rel, d, plan)
             if c and matches(rel, opts.get('include')) and c[0] not in ('secret',):
                 c = None
+            if not c and keep_top is not None and not rel_dir and d not in keep_top and not matches(rel, opts.get('include')):
+                # Not one of the folders that hold her (an install, a cache, program files...).
+                c = ('other', 'not part of her (program files, caches or the agent\'s own bookkeeping): never opened')
             if c:
                 if c[0] == 'skip-silent':
                     continue
-                files, size = tree_size(full)
-                plan.skip('%s/%s/' % (root_id, rel), c[0], size, files, c[1])
+                files, size, whole = tree_size(full)
+                plan.skip('%s/%s/' % (root_id, rel), c[0], size, files, c[1] if whole else ((c[1] + '; ' if c[1] else '') + 'big folder, not counted to the end'))
                 continue
             keep.append(d)
         dns[:] = keep
+        seen_files[0] += len(fns)
+        Progress.say('look', 'Looking through %s... %s files so far' % (sec or os.path.basename(path), num(seen_files[0])), seen_files[0])
         for f in sorted(fns):
             full = os.path.join(dp, f)
             rel = (rel_dir + '/' + f) if rel_dir else f
@@ -1243,6 +1351,12 @@ def walk_root(plan, root_id, role, path):
                 plan.dumps.append({'src': full, 'rel': rel})
             else:
                 plan.skip('%s/%s' % (root_id, rel), c[0], st.st_size, 1, c[1])
+    for sec in sorted(over):
+        dropped = [it for it in plan.items if it['root'] == root_id and it['rel'].split('/')[0] == sec]
+        plan.items = [it for it in plan.items if not (it['root'] == root_id and it['rel'].split('/')[0] == sec)]
+        plan.stores = [x for x in plan.stores if not (x['root'] == root_id and x['rel'].split('/')[0] == sec)]
+        plan.skip('%s/%s/' % (root_id, sec), 'too-big', sum(it['bytes'] for it in dropped), budget[sec][0], 'too large to look through (more than %s files or %d seconds)' % (num(SECTION_FILES), SECTION_SECONDS))
+        plan.notes.append('Skipped because it is too large: %s/ (more than %s files). Add --include-large to bring it anyway.' % (sec, num(SECTION_FILES)))
     # Dated copies of a persona file: the newest three are its history, the rest are backups.
     for (root_id2, base), copies in plan.history.items():
         if root_id2 != root_id:
@@ -1266,8 +1380,25 @@ EMBED_COL = re.compile(r'(embedding|vector|^emb$|_emb$)', re.I)
 READER_TABLES = {
     'hermes-state': {'sessions', 'messages', 'schema_version'},
     'hermes-kanban': {'tasks', 'task_links', 'comments', 'task_comments', 'boards', 'attachments', 'task_attachments'},
+    # OpenClaw 2026.10+: chats live in the agent database (the active branch is read from *_active_events).
+    'openclaw-state': {'workspace_generated_bootstrap_hashes'},
+    'openclaw-agent': {'transcript_events', 'session_transcript_active_events', 'session_windows', 'session_nodes', 'session_entry_snapshots', 'session_transcript_archives'},
 }
 AUTOMATION_TABLE = re.compile(r'(automation|cron|job|schedule)', re.I)
+# The columns of a Hermes chat message Sara reads. The rest (the provider copies of each message, tool
+# call ids, reasoning blobs, display data) doubles the size of a real state.db for nothing (3.1.1).
+HERMES_MESSAGE_COLS = {'id', 'session_id', 'role', 'content', 'tool_calls', 'tool_name', 'timestamp', 'reasoning', 'active', 'compacted', 'message_uid'}
+SHORT_MARK = '\u2026'
+
+
+def slim_hermes_message(row):
+    """A tool result or a long tool-call/reasoning blob only needs to say it was there."""
+    if row.get('role') == 'tool' and isinstance(row.get('content'), str) and row['content']:
+        row['content'] = {'$skipped': 'tool output', 'bytes': len(row['content'])}
+    for k in ('tool_calls', 'reasoning'):
+        if isinstance(row.get(k), str) and len(row[k]) > 1:
+            row[k] = SHORT_MARK
+    return row
 
 
 def sqlite_uri(path, stopped):
@@ -1532,17 +1663,18 @@ def cell(col, v):
     return scrub_text(s)
 
 
-def iter_table(conn, table, cols, without_rowid, limit=None):
+def iter_table(conn, table, cols, without_rowid, limit=None, where=''):
     names = [c['name'] for c in cols]
     order = 'rowid'
     if without_rowid:
         pk = [c['name'] for c in cols if c['pk']]
         order = ', '.join(qident(x) for x in pk) if pk else '1'
-    sql = 'SELECT %s FROM %s ORDER BY %s%s' % (', '.join(qident(x) for x in names) or '*', qident(table), order, ' LIMIT %d' % limit if limit else '')
+    w_ = (' WHERE ' + where) if where else ''
+    sql = 'SELECT %s FROM %s%s ORDER BY %s%s' % (', '.join(qident(x) for x in names) or '*', qident(table), w_, order, ' LIMIT %d' % limit if limit else '')
     try:
         cur = conn.execute(sql)
     except sqlite3.Error:
-        cur = conn.execute('SELECT %s FROM %s%s' % (', '.join(qident(x) for x in names) or '*', qident(table), ' LIMIT %d' % limit if limit else ''))
+        cur = conn.execute('SELECT %s FROM %s%s%s' % (', '.join(qident(x) for x in names) or '*', qident(table), w_, ' LIMIT %d' % limit if limit else ''))
     while True:
         batch = cur.fetchmany(FETCH)
         if not batch:
@@ -2285,6 +2417,7 @@ def build_plan(cand, opts):
     taken = set()
     for spec in plan.stores:
         spec['id'] = store_id(spec, taken)
+        Progress.say('count', 'Counting what is in %s...' % os.path.basename(spec['rel']), None, True)
         spec['info'] = analyze_sqlite(spec, plan)
         if spec['info']['error']:
             plan.skip('%s/%s' % (spec['root'], spec['rel']), 'unreadable', spec['bytes'], 1, spec['info']['error'])
@@ -2554,9 +2687,8 @@ class Entry(object):
         self.hashes.append((self.h.hexdigest(), self.n, self.name))
 
 
-def progress(msg):
-    sys.stderr.write('\r' + msg[:110].ljust(110))
-    sys.stderr.flush()
+def progress(msg, key='write', n=None):
+    Progress.say(key, msg.strip(), n)
 
 
 def safe_entry_name(p):
@@ -2647,7 +2779,15 @@ def write_store(zf, hashes, spec, opts, manifest_items):
                 e = Entry(zf, base + 'rows/%s.%d.jsonl' % (fname, part), hashes)
                 size = 0
                 n = 0
-                for row in iter_table(conn, t['name'], t['columns'], t['withoutRowid']):
+                where = chats_where(spec, t, opts)
+                slim = spec['reader'] == 'hermes-state' and t['name'] == 'messages'
+                label = 'Reading past chats' if slim else 'Reading %s' % t['name']
+                cols = [c for c in t['columns'] if c['name'] in HERMES_MESSAGE_COLS] if slim else t['columns']
+                if slim and len(cols) < len(t['columns']):
+                    t['slim'] = sorted(c['name'] for c in t['columns'] if c['name'] not in HERMES_MESSAGE_COLS)
+                for row in iter_table(conn, t['name'], cols, t['withoutRowid'], None, where):
+                    if slim:
+                        row = slim_hermes_message(row)
                     line = json.dumps({'t': t['name'], 'r': row}, ensure_ascii=False) + '\n'
                     if size + len(line) > ROWS_PART_BYTES and n:
                         e.close()
@@ -2657,8 +2797,8 @@ def write_store(zf, hashes, spec, opts, manifest_items):
                     e.write(line)
                     size += len(line)
                     n += 1
-                    if n % 5000 == 0:
-                        progress('  %s: %s %s / %s' % (sid, t['name'], num(n), num(t['rows'])))
+                    if n % 500 == 0:
+                        progress('%s... %s of %s' % (label, num(n), num(t['rows'])), 'rows', n)
                 e.close()
                 written[t['name']] = n
         finally:
@@ -2675,6 +2815,21 @@ def write_store(zf, hashes, spec, opts, manifest_items):
     e.write(json.dumps(schema, ensure_ascii=False, indent=1))
     e.close()
     manifest_items.append({'path': base, 'kind': 'postgres' if is_pg else 'sqlite', 'source': schema['source'], 'reader': spec['reader'], 'tables': len(tables), 'rows': sum(written.values())})
+
+
+def chats_where(spec, t, opts):
+    """--max-chats N: only the newest N past chats (and their messages) of a Hermes state.db."""
+    n = opts.get('max_chats')
+    if not n or spec.get('reader') != 'hermes-state':
+        return ''
+    cols = [c['name'] for c in t['columns']]
+    order = 'started_at' if t['name'] == 'sessions' and 'started_at' in cols else 'rowid'
+    newest = 'SELECT id FROM sessions ORDER BY %s DESC LIMIT %d' % (order if t['name'] == 'sessions' else 'started_at', int(n))
+    if t['name'] == 'sessions' and 'id' in cols:
+        return 'id IN (%s)' % newest
+    if t['name'] == 'messages' and 'session_id' in cols:
+        return 'session_id IN (%s)' % newest
+    return ''
 
 
 def write_bundle(plan, out_path):
@@ -2757,7 +2912,7 @@ def write_bundle(plan, out_path):
                 os.remove(tmp)
             except OSError:
                 pass
-    sys.stderr.write('\n')
+    Progress.done()
     return out_path
 
 
@@ -2833,15 +2988,25 @@ def send(path, to, code):
     except ImportError:  # pragma: no cover
         raise SystemExit('This Python has no urllib.request.')
     base = to.rstrip('/')
-    if not base.startswith('https://') and not re.match(r'^http://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$', base):
-        raise SystemExit('Use the https:// address of your Sara (plain http only for this computer).')
+    if not base.startswith('https://') and not re.match(r'^http://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$', base) and not re.match(r'^http://(10|192\.168|172\.(1[6-9]|2\d|3[01]))\.[\d.]+(:\d+)?$', base):
+        raise SystemExit('Use the https:// address of your Sara (plain http only on this computer or your home network).')
     size = os.path.getsize(path)
     hdr = {'content-type': 'application/json', 'x-movein-code': code}
 
     def call(method, url, body=None, headers=None):
         req = Request(base + url, data=body, method=method, headers=headers or hdr)
-        with urlopen(req, timeout=120) as r:
-            return json.loads(r.read().decode('utf-8') or '{}')
+        try:
+            with urlopen(req, timeout=120) as r:
+                return json.loads(r.read().decode('utf-8') or '{}')
+        except Exception as e:  # noqa: BLE001 - Sara's own words when she answered
+            body_ = getattr(e, 'read', None)
+            if body_ and getattr(e, 'code', 0) in (400, 401, 403, 413):
+                try:
+                    msg = json.loads(e.read().decode('utf-8')).get('error')
+                except Exception:  # noqa: BLE001
+                    msg = None
+                raise SystemExit(msg or str(e))
+            raise
     up = call('POST', '/api/movein/send', json.dumps({'code': code, 'name': os.path.basename(path), 'size': size}).encode('utf-8'))
     uid = up['id']
     chunk = int(up.get('chunk') or 8 * MiB)
@@ -2929,6 +3094,13 @@ def main(argv=None):
     ap.add_argument('--include-table', action='append', default=[], help='db:table to pack although it looks like telemetry')
     ap.add_argument('--since', help='only sessions changed since YYYY-MM-DD')
     ap.add_argument('--max-size', help='stop if the bundle would be bigger, e.g. 2G')
+    ap.add_argument('--max-chats', type=int, default=0, help='only the newest N past chats (default: all of them)')
+    ap.add_argument('--include-large', action='store_true', help='also look through folders that are too large to look through by default')
+    ap.add_argument('--progress', choices=['line', 'json', 'off'], default='line', help='how to show progress on stderr')
+    ap.add_argument('--section-files', type=int, default=0, help=argparse.SUPPRESS)
+    ap.add_argument('--send-to', help='send the bundle straight to your Sara (the address on its Move in page) and delete it here')
+    ap.add_argument('--code', help='the move-in code shown on Sara\'s Move in page (with --send-to)')
+    ap.add_argument('--keep', action='store_true', help='with --send-to: keep the bundle file here too')
     ap.add_argument('--lang', help='en, es, fr, de, pt-BR or it')
     ap.add_argument('--allow-root', action='store_true', help='run as root anyway (then only the given homes are read)')
     a = ap.parse_args(argv)
@@ -2944,7 +3116,12 @@ def main(argv=None):
         return 2
     opts = {'hermes_home': a.hermes_home, 'openclaw_state': a.openclaw_state, 'workspace': a.workspace, 'scan': a.scan, 'postgres': a.postgres,
             'postgres_dump': a.postgres_dump, 'pg_client': a.pg_client, 'schema_only': a.schema_only,
-            'stopped': a.stopped, 'include': a.include, 'exclude': a.exclude, 'never': a.never, 'include_table': a.include_table}
+            'stopped': a.stopped, 'include': a.include, 'exclude': a.exclude, 'never': a.never, 'include_table': a.include_table,
+            'max_chats': max(0, a.max_chats or 0), 'include_large': a.include_large}
+    Progress.mode = a.progress
+    if a.section_files:
+        global SECTION_FILES
+        SECTION_FILES = a.section_files
     if a.since:
         try:
             opts['since_ts'] = time.mktime(time.strptime(a.since, '%Y-%m-%d'))
@@ -2974,6 +3151,9 @@ def main(argv=None):
         if len(cands) > 1 and not a.json:
             print('Several agents found; packing %s. Pick another with --agent: %s' % (cand['agentId'], ', '.join(c['agentId'] for c in cands)))
     plan = build_plan(cand, opts)
+    Progress.done()
+    if opts['max_chats']:
+        plan.notes.append('Only the newest %s past chats are packed (--max-chats).' % num(opts['max_chats']))
     for inc in a.include_table:
         db, _, tname = inc.partition(':')
         for s in plan.stores:
@@ -2984,7 +3164,7 @@ def main(argv=None):
     plan.cat_counts = category_counts(plan)
     stamp = time.strftime('%Y-%m-%d')
     slug = re.sub(r'[^A-Za-z0-9_\-]+', '-', plan.display).strip('-').lower() or 'agent'
-    out = a.out or '.'
+    out = a.out or (__import__('tempfile').gettempdir() if a.send_to else '.')
     plan.out_path = os.path.abspath(os.path.join(out, '%s-%s.saramove' % (slug, stamp)) if os.path.isdir(out) else out)
     if a.plan_only:
         chosen = set(c for c in DEFAULT_CATEGORIES_ON if c not in a.exclude_category) | set(a.include_category)
@@ -3010,6 +3190,20 @@ def main(argv=None):
         return 0
     path = write_bundle(plan, plan.out_path)
     print('%s: %s (%s)' % (w('written'), path, human(os.path.getsize(path))))
+    if a.send_to:
+        try:
+            send(path, a.send_to, a.code or '')
+        except (Exception, SystemExit) as e:  # noqa: BLE001 - say what to do instead
+            print('Not sent: %s' % e)
+            print('The file is still here: %s. On the Move in page, choose "Upload a file" and pick it.' % path)
+            return 1
+        if not a.keep:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        print('Sent to Sara. Look at your Sara: the move-in carries on there.')
+        return 0
     print(w('diary'))
     return 0
 

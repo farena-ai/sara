@@ -1480,6 +1480,8 @@ initCommandBar({
     { key: 'place:her', icon: 'heart', label: t('Her page'), sub: t('Her day, mood and character'), hint: 'Alt+H', run: () => openSara() },
     { key: 'place:settings', icon: 'settings', label: t('Settings'), hint: 'Ctrl+,', run: () => openSettings() },
     { key: 'place:help', icon: 'help', label: t('Help'), sub: t('Tours and the guide'), run: () => $('#open-help').click() },
+    // 3.1.1: Ctrl K finds the move-in by "move in", "import hermes", "import openclaw" (owner only).
+    ...(isMember() ? [] : [{ key: 'place:movein', icon: 'heart', label: t('Move in from another agent'), sub: t('Bring her over from Hermes Agent or OpenClaw'), words: 'move in import hermes agent openclaw migrate bring her over old assistant', run: () => openSettings('dh-movein') }]),
     // Phase 111 (TD1): Customise Today (reorder, resize and hide its tiles).
     { key: 'place:today-customise', icon: 'sliders', label: t('Customize Today'), sub: t('Move, resize or hide tiles'), run: async () => { await openToday(); openTodayCustomise(); } },
   ],

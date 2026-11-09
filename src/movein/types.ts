@@ -153,6 +153,8 @@ export interface Finding {
   held?: Category;
   /** MI2: the mapping card (store + family) that made this finding (re-mapping replaces them). */
   card?: string;
+  /** What "the same as last time" is measured on, when the data also depends on Sara (a persona draft). */
+  same?: unknown;
 }
 
 /** A finding as staged (with its id, hash and state). */

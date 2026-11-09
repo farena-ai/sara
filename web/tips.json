@@ -1764,7 +1764,7 @@
       "care"
     ],
     "dh-movein": [
-      "Bring a Hermes Agent, OpenClaw or custom companion over, one step at a time: pick the agent, run the collector on the old computer, bring its file here, check the preview and import. Undo removes it all.",
+      "Bring your old assistant over from Hermes Agent or OpenClaw: one button when it is on this computer, one pasted line when it is on another. You see everything before it comes in, and Undo takes it all back.",
       "move-in"
     ],
     "dh-updates": [

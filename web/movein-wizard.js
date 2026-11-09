@@ -4,6 +4,15 @@
 // source); web/movein.js does the page. No imports and no DOM work at import time, so the tests
 // check the commands in Node.
 
+/** 3.1.1: the old agents' names as their makers write them (brand names, never translated). */
+export const AGENT_LABEL = { hermes: 'Hermes Agent', openclaw: 'OpenClaw' };
+
+/** "Memories: 10 · Skills: 17 · Past chats: 107" for a found agent (no plural forms to get wrong). */
+export function countsLine(c, t) {
+  const n = (x) => String(Math.max(0, Math.trunc(Number(x) || 0))).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return t('Memories: {m} · Skills: {s} · Past chats: {c}', { m: n(c?.memories), s: n(c?.skills), c: n(c?.chats) });
+}
+
 /** The five steps, in order (the labels are translated by the page). */
 export const STEPS = ['source', 'run', 'file', 'check', 'done'];
 
@@ -53,6 +62,7 @@ export function fallbackCommand({ system, source }) {
 /** The step a bundle's state belongs to (null: no bundle yet, the person walks steps 1–3). */
 export function stepForState(state) {
   if (!state) return null;
+  // 'collecting' (3.1.1, Sara packs an agent on this computer) shows its progress where the check is.
   return state === 'imported' ? 'done' : 'check';
 }
 

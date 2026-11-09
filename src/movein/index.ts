@@ -4,7 +4,8 @@
 // 48 h, at Undo, or on demand). Owner-only (src/household.ts never lists "movein" as a member route);
 // never in the demo.
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, statSync, writeSync } from 'node:fs';
+import { type ChildProcess, spawn } from 'node:child_process';
+import { closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +19,7 @@ import { normMapping } from './mapping.ts';
 import { customReader } from './readers/custom.ts';
 import { rebuildTask } from './report.ts';
 import { Translations } from './translate.ts';
+import { collectArgs, type LocalTarget } from './local.ts';
 import { hermesReader } from './readers/hermes.ts';
 import { openclawReader } from './readers/openclaw.ts';
 import { ACTIVE_NOTES, type Choices, LEARN_DAYS, Staging } from './staging.ts';
@@ -53,7 +55,7 @@ const LEFT_REASON: Record<string, string> = {
   since: 'older than --since',
 };
 
-export type BundleState = 'uploading' | 'checking' | 'reading' | 'ready' | 'importing' | 'imported' | 'failed';
+export type BundleState = 'collecting' | 'uploading' | 'checking' | 'reading' | 'ready' | 'importing' | 'imported' | 'failed';
 interface Session {
   id: string;
   name: string;
@@ -69,6 +71,10 @@ interface Session {
   progress?: { done: number; total: number };
   abort?: AbortController;
   sha?: string;
+  /** 3.1.1: how it came: packed here (same computer), sent with a code, or uploaded as a file. */
+  via?: 'local' | 'code' | 'upload';
+  /** The child process packing it (same computer). */
+  child?: ChildProcess;
 }
 
 interface Code {
@@ -120,7 +126,7 @@ export class MoveIn {
     }
   }
   #save(s: Session): void {
-    const { abort: _a, ...rest } = s;
+    const { abort: _a, child: _c, ...rest } = s;
     try {
       const fd = openSync(this.#metaPath(s.id), 'w', 0o600);
       writeSync(fd, JSON.stringify(rest));
@@ -176,7 +182,7 @@ export class MoveIn {
     if (free !== undefined && free < size * 1.1) throw new BundleError('There is not enough free space on the server for this bundle.');
     const id = randomUUID();
     closeSync(openSync(this.#file(id), 'w', 0o600));
-    const s: Session = { id, name: name.slice(0, 200), size, received: 0, state: 'uploading', line: 'Uploading', createdAt: Date.now(), ...(code ? { code: hashCode(code).toString('hex') } : {}) };
+    const s: Session = { id, name: name.slice(0, 200), size, received: 0, state: 'uploading', line: 'Uploading', createdAt: Date.now(), via: code ? 'code' : 'upload', ...(code ? { code: hashCode(code).toString('hex') } : {}) };
     this.#sessions.set(id, s);
     this.#save(s);
     return { id, chunk: CHUNK, received: 0 };
@@ -226,6 +232,70 @@ export class MoveIn {
     return s;
   }
 
+  /**
+   * 3.1.1, same computer: pack a found agent here (the Node collector in a child process, so Sara stays
+   * responsive), with its progress as the session's line; then check and read it like any upload.
+   */
+  collectLocal(target: LocalTarget, node = process.execPath): Session {
+    for (const x of this.#sessions.values()) if (x.state === 'collecting') throw new BundleError('Sara is already packing an agent. Wait for it to finish.');
+    const id = randomUUID();
+    const out = join(this.dir, `${id}.collect.saramove`);
+    const s: Session = { id, name: `${target.kind}-${target.agentId}.saramove`, size: 0, received: 0, state: 'collecting', line: 'Looking for her things', createdAt: Date.now(), via: 'local' };
+    this.#sessions.set(id, s);
+    this.#save(s);
+    const child = spawn(node, collectArgs(target, out), { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env: { ...process.env, NODE_NO_WARNINGS: '1' } });
+    s.child = child;
+    let tail = '';
+    let errText = '';
+    let last = 0;
+    child.stdout.on('data', (b: Buffer) => (tail = (tail + b.toString('utf8')).slice(-4000)));
+    child.stderr.on('data', (b: Buffer) => {
+      for (const line of b.toString('utf8').split('\n')) {
+        if (!line.startsWith('{')) {
+          if (line.trim()) errText = (errText + line + '\n').slice(-2000);
+          continue;
+        }
+        try {
+          const p = JSON.parse(line) as { text?: string };
+          if (p.text) s.line = p.text;
+        } catch {
+          /* half a line */
+        }
+      }
+      if (Date.now() - last > 500) {
+        last = Date.now();
+        this.#save(s);
+      }
+    });
+    child.on('close', (code) => {
+      s.child = undefined;
+      if (s.state !== 'collecting') return;
+      if (code !== 0 || !existsSync(out)) {
+        rmSync(out, { force: true });
+        s.state = 'failed';
+        const why = (errText.trim().split('\n').at(-1) || tail.trim().split('\n').at(-1) || '').slice(0, 300);
+        s.error = why ? `Packing her things stopped: ${why}` : 'Packing her things stopped. Try again, or use “Upload a file” instead.';
+        s.line = s.error;
+        this.#save(s);
+        return;
+      }
+      try {
+        renameSync(out, this.#file(id));
+        s.size = s.received = statSync(this.#file(id)).size;
+        s.state = 'checking';
+        s.line = 'Checking the bundle';
+        this.#save(s);
+        void this.#read(s).catch(() => undefined);
+      } catch (err) {
+        s.state = 'failed';
+        s.error = `Packing her things stopped: ${(err as Error).message}`;
+        s.line = s.error;
+        this.#save(s);
+      }
+    });
+    return s;
+  }
+
   /** Adds a bundle already on the server (tests, `sara movein import <file>`). */
   async addFile(path: string): Promise<Session> {
     const size = statSync(path).size;
@@ -242,7 +312,7 @@ export class MoveIn {
   async idle(id: string): Promise<Session | undefined> {
     for (let i = 0; i < 6000; i++) {
       const s = this.#sessions.get(id);
-      if (!s || !['checking', 'reading', 'importing'].includes(s.state)) return s;
+      if (!s || !['collecting', 'checking', 'reading', 'importing'].includes(s.state)) return s;
       await new Promise((r) => setTimeout(r, 20));
     }
     return this.#sessions.get(id);
@@ -291,6 +361,7 @@ export class MoveIn {
       st.settle({
         already: (ref, sha) => prev.refShas.has(`${ref}|${sha}`),
         alreadyRef: (ref) => prev.refs.has(ref),
+        lastAt: (ref) => prev.lastAt.get(ref),
         existing: (text) => (app.memory ? app.memory.search(text, 5).map((r) => ({ id: r.memory.id, content: r.memory.content })) : []),
       });
       st.setMeta('summary', summary);
@@ -610,7 +681,16 @@ export class MoveIn {
   }
 
   stop(id: string): void {
-    this.#sessions.get(id)?.abort?.abort();
+    const s = this.#sessions.get(id);
+    if (s?.state === 'collecting' && s.child) {
+      s.state = 'failed';
+      s.error = 'Stopped. Nothing was changed.';
+      s.line = s.error;
+      s.child.kill();
+      this.#save(s);
+      return;
+    }
+    s?.abort?.abort();
   }
 
   batches(): BatchRow[] {
@@ -642,8 +722,8 @@ export class MoveIn {
     return this.#sessions.delete(id);
   }
 
-  list(): { id: string; name: string; size: number; received: number; state: BundleState; line: string; error: string | null; batchId: string | null; createdAt: string }[] {
-    return [...this.#sessions.values()].sort((a, b) => b.createdAt - a.createdAt).map((s) => ({ id: s.id, name: s.name, size: s.size, received: s.received, state: s.state, line: s.line, error: s.error ?? null, batchId: s.batchId ?? null, createdAt: new Date(s.createdAt).toISOString() }));
+  list(): { id: string; name: string; size: number; received: number; state: BundleState; line: string; error: string | null; batchId: string | null; createdAt: string; via: string | null }[] {
+    return [...this.#sessions.values()].sort((a, b) => b.createdAt - a.createdAt).map((s) => ({ id: s.id, name: s.name, size: s.size, received: s.received, state: s.state, line: s.line, error: s.error ?? null, batchId: s.batchId ?? null, createdAt: new Date(s.createdAt).toISOString(), via: s.via ?? null }));
   }
 
   /** §7.4 / §11.11: a bundle and its staging go 48 h after its move-in, unfinished uploads after a day. */
@@ -686,6 +766,7 @@ function leftBehind(b: Bundle, skipped: Record<string, number>): ReportLine[] {
   const out: ReportLine[] = [...by.entries()].map(([reason, o]) => ({ key: reason, count: o.files, text: `${reason}: ${o.files} files, ${Math.round(o.bytes / 1024)} KB: ${LEFT_REASON[reason] ?? 'left behind'}`, examples: o.examples, bytes: o.bytes } as ReportLine));
   if (skipped['safety-layer']) out.push({ key: 'safety-layer', count: skipped['safety-layer'], text: `${skipped['safety-layer']} lines conflicted with Sara's safety layer` });
   if (skipped['minors-check']) out.push({ key: 'minors-check', count: skipped['minors-check'], text: `${skipped['minors-check']} items failed the minors check (not shown)` });
+  if (skipped.helpers) out.push({ key: 'skip-helpers', count: skipped.helpers, text: `${skipped.helpers} helper chats (her own background work, not chats with you)` });
   for (const k of ['tool', 'system', 'hidden', 'compacted', 'duplicates', 'side-branches', 'custom', 'automation-runs']) if (skipped[k]) out.push({ key: `skip-${k}`, count: skipped[k], text: `${skipped[k]} ${k.replace('-', ' ')} entries in sessions` });
   return out;
 }

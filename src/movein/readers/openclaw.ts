@@ -4,6 +4,7 @@
 // (superseded ones kept as superseded notes); MEMORY.md and memory/YYYY-MM-DD.md → notes; sessions
 // from the per-agent SQLite (current layout) and the legacy JSONL trees (active branch only) → past
 // conversations; skills; cron (legacy jobs.json and the automations table) → scheduled tasks.
+import { createHash } from 'node:crypto';
 import { mapJob, normalizeJob, validZone } from '../schedules.ts';
 import { classifyNote, draftPersona, isoDay, markdownItems, personaRefusal, userDirectives, workingRules, type PersonaFile } from '../text.ts';
 import type { ConversationData, MoveInReader, PersonaDraft } from '../types.ts';
@@ -44,11 +45,20 @@ export const openclawReader: MoveInReader = {
     const today = ctx.now.toISOString().slice(0, 10);
     const top = items.filter((it) => it.path.startsWith(WS) && !it.path.slice(WS.length).includes('/') && it.path.endsWith('.md'));
     const fileOf = async (p: string): Promise<PersonaFile> => ({ path: p, name: p.split('/').at(-1)!, text: await b.text(p, 1024 * 1024) });
+    // 3.1.1: workspace files OpenClaw wrote at setup and nobody changed since (its own records of their
+    // hashes): its default AGENTS.md / SOUL.md are not her rules or her personality.
+    const generated = new Set<string>();
+    for (const store of storesOf(b, 'openclaw-state')) for await (const r of rows(b, store, 'workspace_generated_bootstrap_hashes', signal)) generated.add(`${str(r.filename)}|${str(r.sha256)}`);
+    const untouched = async (p: string) => generated.size > 0 && generated.has(`${p.split('/').at(-1)}|${createHash('sha256').update(await b.text(p, 1024 * 1024)).digest('hex')}`);
+    const templates = new Set<string>();
+    for (const it of top) if (await untouched(it.path)) templates.add(it.path);
+    if (templates.size) skipped.templates = templates.size;
 
     // ---------------- personality (§6.3) ----------------
-    const soul = top.find((it) => it.path === `${WS}SOUL.md`);
-    const identity = top.find((it) => it.path === `${WS}IDENTITY.md`);
-    const extra = top.filter((it) => !NOT_PERSONA.has(it.path.slice(WS.length)) && it !== soul && it !== identity && it.kind !== 'history');
+    const mine = top.filter((it) => !templates.has(it.path));
+    const soul = mine.find((it) => it.path === `${WS}SOUL.md`);
+    const identity = mine.find((it) => it.path === `${WS}IDENTITY.md`);
+    const extra = mine.filter((it) => !NOT_PERSONA.has(it.path.slice(WS.length)) && it !== soul && it !== identity && it.kind !== 'history');
     if (soul || identity || extra.length) {
       const files: PersonaFile[] = [];
       for (const it of [identity, soul, ...extra]) if (it) files.push(await fileOf(it.path));
@@ -67,11 +77,11 @@ export const openclawReader: MoveInReader = {
           if (text && !personaRefusal(hf)) drafts.push(draftPersona(`Earlier version (${h.path.split('/').at(-1)})`, hf, ctx.current, opts));
         }
       }
-      emit({ section: 'persona', kind: 'persona', ref: soul?.path ?? identity?.path ?? extra[0].path, title: drafts[0]?.sheet.name ?? name ?? 'SOUL.md', data: { drafts, history, ...(refusal ? { refused: refusal } : {}) } });
+      emit({ section: 'persona', kind: 'persona', ref: soul?.path ?? identity?.path ?? extra[0].path, title: drafts[0]?.sheet.name ?? name ?? 'SOUL.md', data: { drafts, history, ...(refusal ? { refused: refusal } : {}) }, same: { files: files.map((f) => [f.path, f.text]), history: history.map((h) => h.path) } });
       facts.push('workspace persona');
     }
     // AGENTS.md: working rules (pinned lessons); its ## Tools section is for MI3.
-    if (b.has(`${WS}AGENTS.md`)) {
+    if (b.has(`${WS}AGENTS.md`) && !templates.has(`${WS}AGENTS.md`)) {
       const f = await fileOf(`${WS}AGENTS.md`);
       const r = workingRules(f, ctx.scrub);
       for (const rule of r.rules) note(emit, skipped, ctx, { section: 'memories', ref: rule.from, text: rule.text, kind: 'lesson', happenedOn: isoDay(items.find((it) => it.path === f.path)?.mtime, today), pinned: true, tag: 'working rule' });
@@ -80,7 +90,7 @@ export const openclawReader: MoveInReader = {
     }
 
     // ---------------- the profile: USER.md directives (§6.4, [O4]) ----------------
-    if (b.has(`${WS}USER.md`)) {
+    if (b.has(`${WS}USER.md`) && !templates.has(`${WS}USER.md`)) {
       const day = isoDay(items.find((it) => it.path === `${WS}USER.md`)?.mtime, today);
       for (const d of userDirectives(await b.text(`${WS}USER.md`))) {
         note(emit, skipped, ctx, { section: 'profile', ref: `${WS}USER.md#L${d.line}`, text: d.text, kind: 'fact', happenedOn: d.observed ?? day, ...(d.status === 'superseded' ? { superseded: true } : {}) });
@@ -109,7 +119,7 @@ export const openclawReader: MoveInReader = {
     for (const it of items.filter((x) => x.kind === 'ws-dreams' || x.kind === 'dreams')) {
       for (const x of markdownItems(await b.text(it.path, 1024 * 1024))) note(emit, skipped, ctx, { section: 'reflections', ref: `${it.path}#L${x.line}`, text: x.text, kind: 'reflection', happenedOn: isoDay(/(\d{4}-\d{2}-\d{2})/.exec(it.path)?.[1] ?? it.mtime, today) });
     }
-    if (b.has(`${WS}HEARTBEAT.md`)) emit({ section: 'later', kind: 'later', ref: `${WS}HEARTBEAT.md`, title: 'HEARTBEAT.md', data: { code: 'agenda', what: 'HEARTBEAT.md check-ins', why: 'Her own plans (Settings → Her → Her own plans) are off until you switch them on; add these there if you want them.' } });
+    if (b.has(`${WS}HEARTBEAT.md`) && !templates.has(`${WS}HEARTBEAT.md`)) emit({ section: 'later', kind: 'later', ref: `${WS}HEARTBEAT.md`, title: 'HEARTBEAT.md', data: { code: 'agenda', what: 'HEARTBEAT.md check-ins', why: 'Her own plans (Settings → Her → Her own plans) are off until you switch them on; add these there if you want them.' } });
     if (b.has(`${WS}BOOT.md`)) emit({ section: 'later', kind: 'later', ref: `${WS}BOOT.md`, title: 'BOOT.md', data: { code: 'boot', what: 'BOOT.md start-up checklist', why: 'Sara starts every chat with her memory and greets you herself; keep anything still useful as a note or a scheduled task.' } });
 
     // ---------------- sessions (§6.6): legacy JSONL trees ----------------
@@ -203,7 +213,9 @@ export const openclawReader: MoveInReader = {
       // The live layout (seen on a real OpenClaw, 2026.10): transcript_events(session_id, seq,
       // event_json) holds the same entries as the old JSONL files; session_transcript_active_events
       // lists the active branch; session_windows gives each session its key.
-      const ev = schema.tables.find((t) => t.verdict === 'data' && ['session_id', 'event_json'].every((c) => t.columns.some((x) => x.name === c)) && t.columns.some((x) => x.name === 'seq'));
+      // transcript_events by name first: other tables (acp_parent_stream_events...) have the same columns.
+      const evs = schema.tables.filter((t) => t.verdict === 'data' && ['session_id', 'event_json'].every((c) => t.columns.some((x) => x.name === c)) && t.columns.some((x) => x.name === 'seq'));
+      const ev = evs.find((t) => t.name === 'transcript_events') ?? [...evs].sort((x, y) => (y.rows ?? 0) - (x.rows ?? 0))[0];
       if (ev) {
         const db = ctx.scratch;
         db.exec('DROP TABLE IF EXISTS o_ev; CREATE TABLE o_ev (session TEXT, seq INTEGER, json TEXT); CREATE INDEX o_ev_s ON o_ev(session, seq); DROP TABLE IF EXISTS o_act; CREATE TABLE o_act (session TEXT, pos INTEGER, seq INTEGER); CREATE INDEX o_act_s ON o_act(session, pos);');
@@ -335,7 +347,21 @@ export const openclawReader: MoveInReader = {
     for (const store of storesOf(b, 'openclaw-state')) {
       const schema = await schemaOf(b, store);
       for (const t of schema?.tables.filter((x) => x.verdict === 'data') ?? []) {
-        for await (const r of rows(b, store, t.name, signal)) {
+        for await (const r0 of rows(b, store, t.name, signal)) {
+          // OpenClaw 2026.11: cron_jobs keeps each job as job_json; jobs it declares itself (memory
+          // dreaming, heartbeat) are its own machinery, not your schedules.
+          if (str(r0.declaration_key)) {
+            skipped['system-jobs'] = (skipped['system-jobs'] ?? 0) + 1;
+            continue;
+          }
+          let r = r0;
+          if (typeof r0.job_json === 'string') {
+            try {
+              r = { ...(JSON.parse(r0.job_json) as Row), ...(r0.enabled === 0 ? { enabled: false } : {}) };
+            } catch {
+              /* the row as it is */
+            }
+          }
           const job = normalizeJob(r, tz);
           if (!job || (!job.expr && !job.everyMs && !job.at)) continue;
           const data = mapJob(job, ctx.now, validZone(tz) ?? ctx.timeZone, 'OpenClaw');

@@ -1181,6 +1181,42 @@ decisions, and the four-list report. Later work belongs to the features the repo
 
 ---
 
+## 15b. As built in 3.1.1: fast, one button, one paste
+
+- **Root cause of "it never finishes":** the collector walked the whole agent home. A real Hermes
+  Agent home holds gigabytes of Python environments, caches, browser profiles, logs and backups; the
+  plan ran for 25+ minutes with no output. Now each source has an allowlist of the folders that hold
+  the companion (Hermes: memories, skills, hooks, cron, plugins, kanban + top-level files and
+  `state.db`; OpenClaw: agents, cron, skills, hooks, extensions, plugins, state + workspace memory,
+  skills, .agents, hooks). Other folders are named in the plan with a reason and never walked;
+  links/junctions are never followed. Each folder has a budget (20,000 files, 30 s); over it the plan
+  says *skipped because too large* and `--include-large` brings it. Progress lines (`--progress
+  line|json|off`) show the count while chats are read. Real install: plan 0.4 s, full pack ~6 s.
+- **Smaller bundles:** only the message columns Sara reads are packed; tool output is counted, not
+  copied (real install 259 MB → 13 MB).
+- **Chats:** helper (subagent) sessions are left out and counted; a chat continued after
+  compression joins its parent; a chat opened from another stays its own. A re-run brings only
+  messages after the last import (`lastAt`), and an unchanged personality is *already here*.
+- **OpenClaw 2026.10+:** chats from `agents/<id>/agent/openclaw-agent.sqlite` (`transcript_events`
+  on the active branch), schedules from `state/openclaw.sqlite` `cron_jobs.job_json` (OpenClaw's own
+  declared jobs such as memory dreaming and heartbeat left behind), and workspace files OpenClaw
+  wrote at setup and nobody changed (its `workspace_generated_bootstrap_hashes`) are not her rules or
+  personality.
+- **Node collector:** `scripts/sara-movein.mjs`, zero dependencies, same bundle as the Python one
+  (parity tests). Shipped with every install.
+- **Same computer:** `src/movein/local.ts` looks (read-only, owner only) in `%LOCALAPPDATA%\hermes`,
+  `~/.hermes`, `$HERMES_HOME`, `~/.openclaw`, `~/.openclaw-*`, `$OPENCLAW_STATE_DIR` and counts
+  memories, skills and chats. The page sends back a key, never a path; Sara runs the Node collector
+  as a child process (state `collecting`, progress on the bundle line) and the usual preview follows.
+- **Another computer:** `POST /api/movein/oneline` mints a one-time code and returns one line per OS
+  that downloads `go.sh`/`go.ps1`, which fetch the collector (Python, else Node) and run it with
+  `--send-to` and `--code`. The page polls/listens and moves on when the bundle arrives. When the
+  page was opened as localhost and Sara does not listen on the network, it says another computer
+  can't reach this address.
+- **Page:** `#mi-easy` comes first (found → *Bring her over*; *On another computer*; *I have a
+  move-in file*; *Step by step, by hand* opens the old wizard). The plan and the optional settings
+  cards are folded in the preview. Ctrl K, Settings search and first-run setup find it.
+
 ## 16. Sources
 
 Public documentation read on 2026-10-31 (layouts only; no code taken):

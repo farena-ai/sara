@@ -4430,7 +4430,9 @@
         </section>
         <section class="settings-page" data-page="dh-movein" data-group="Data & health" data-title="Move in from another agent" data-owner-only hidden>
       <h3>How it works <button type="button" class="tip" data-tip="Bring a Hermes Agent, OpenClaw or custom companion over: personality, notes, past chats, people, skills, schedules and her old databases. The old computer is not changed. Undo removes it all for 30 days.">?</button></h3>
-      <p class="muted small">Five short steps. Nothing is changed on the old computer, keys and passwords are never collected, and you see everything before it is imported.</p>
+      <p class="muted small">Bring your old assistant's memories, past chats, skills and schedules into Sara. Nothing on the old computer is changed, passwords and keys are never copied, and you see everything before it comes in.</p>
+      <!-- 3.1.1: the easy way in first (web/movein.js renderStart); the step-by-step wizard stays below for files and by-hand runs. -->
+      <div id="mi-easy" class="mi-easy" data-noauto></div>
       <!-- V4e: a guided wizard (web/movein.js + web/movein-wizard.js). Every earlier control keeps its id. -->
       <div id="mi-wizard" class="mi-wizard" data-noauto data-step="source">
         <ol class="mi-progress" aria-label="Move-in steps">

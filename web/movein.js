@@ -10,7 +10,7 @@
 // column map (no SQL), Looks right / Skip, progress while the rows stream, and saved mappings.
 import { serverText, t } from './naming.js';
 import { emptyState } from './tidy.js';
-import { collectorCommand, EXAMPLE_OUTPUT, fallbackCommand, guessSystem, STEPS, stepForState } from './movein-wizard.js';
+import { AGENT_LABEL, collectorCommand, countsLine, EXAMPLE_OUTPUT, fallbackCommand, guessSystem, STEPS, stepForState } from './movein-wizard.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -146,6 +146,8 @@ export function initMoveIn(h) {
 /** Server events: a bundle's state moved on. */
 export function moveInEvent(ev) {
   if (!document.querySelector('[data-page="dh-movein"]:not([hidden])')) return;
+  // 3.1.1: the one-paste line delivered while the page waits: move on by itself.
+  if (!state.bundle && ev?.id && easy.waiting && ev.state && ev.state !== 'uploading' && ev.state !== 'collecting') return void arrived(ev.id);
   // V4e: a bundle sent with a move-in code arrives while the person waits on step 3: show it.
   if (!state.bundle && ev?.id && wiz.step === 'file') {
     state.bundle = ev.id;
@@ -170,9 +172,188 @@ export async function loadMoveIn() {
   renderBatches();
   void renderMappings();
   const live = state.overview.bundles.find((b) => b.state !== 'imported') ?? state.overview.bundles[0];
-  if (live && !state.bundle && !wiz.fresh) state.bundle = live.id;
-  if (state.bundle) await refresh();
-  else work();
+  if (live && !state.bundle && !wiz.fresh && live.state !== 'imported') state.bundle = live.id;
+  if (state.bundle) {
+    easyMode(true);
+    $('#mi-easy')?.replaceChildren();
+    await refresh();
+  } else {
+    work();
+    await renderStart();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// 3.1.1: the easy way in. Same computer: Sara found her → one button. Another computer: one line to
+// paste (with a one-time code); the page waits and moves on by itself. A file stays as a fallback.
+// ---------------------------------------------------------------------------------------------
+const easy = { waiting: null, poll: 0, system: null };
+/** Easy mode hides the step-by-step wizard's own steps; the check-and-import part stays. */
+function easyMode(on) {
+  const box = $('#mi-wizard');
+  if (box) box.dataset.easy = on ? '1' : '';
+}
+function bigChoice(title, text, onClick) {
+  const b = btn('', 'mi-src mi-choice', onClick);
+  b.replaceChildren(el('strong', '', title), el('span', 'muted small', text));
+  return b;
+}
+function startOver() {
+  clearTimeout(easy.poll);
+  easy.waiting = null;
+  state.bundle = null;
+  state.choices = null;
+  state.preview = null;
+  wiz.fresh = true;
+  work();
+  void renderStart();
+}
+async function renderStart() {
+  const box = $('#mi-easy');
+  if (!box) return;
+  clearTimeout(easy.poll);
+  easy.waiting = null;
+  easyMode(true);
+  setStep('source');
+  box.hidden = false;
+  box.replaceChildren(progressCard(t('Looking for your old assistant on this computer…'), false));
+  let agents = [];
+  try {
+    agents = (await api('/movein/local')).agents ?? [];
+  } catch {
+    agents = [];
+  }
+  const kids = [];
+  for (const a of agents) {
+    const c = el('section', 'mi-card mi-found');
+    const who = a.name ? `${a.name} (${AGENT_LABEL[a.kind]})` : AGENT_LABEL[a.kind];
+    c.append(el('h4', '', t('Found {who} on this computer', { who })), el('p', 'mi-found-counts', countsLine(a.counts, t)), el('p', 'muted small', t('In {where}. Nothing there is changed: Sara only reads a copy.', { where: a.where })));
+    const go = btn(t('Bring her over'), 'primary mi-big', async (b) => {
+      b.disabled = true;
+      try {
+        const r = await api('/movein/local/collect', { method: 'POST', body: { key: a.key } });
+        state.bundle = r.id;
+        wiz.fresh = false;
+        box.replaceChildren();
+        await refresh();
+      } catch (err) {
+        b.disabled = false;
+        c.append(errorCard(err.message));
+      }
+    });
+    c.append(el('p', 'mi-nav', ''));
+    c.lastChild.append(go);
+    kids.push(c);
+  }
+  const q = el('section', 'mi-card mi-where');
+  q.append(el('h4', '', agents.length ? t('Somewhere else?') : t('Where does your old assistant live?')));
+  if (!agents.length) q.append(el('p', 'muted small', t('Sara looked on this computer and found no Hermes Agent or OpenClaw.')));
+  const row = el('div', 'mi-sources');
+  row.append(
+    bigChoice(t('On another computer'), t('You paste one line there. Sara waits here and carries on by herself.'), () => void otherComputer()),
+    bigChoice(t('I have a move-in file'), t('A .saramove file you already made. Choose it and Sara does the rest.'), () => {
+      easyMode(false);
+      box.replaceChildren(backRow());
+      setStep('file');
+    }),
+  );
+  q.append(row);
+  if (!agents.length) q.append(el('p', 'mi-nav', ''), btn(t('Look again'), 'ghost small', () => void renderStart()));
+  const manual = el('p', 'muted small mi-manual');
+  manual.append(btn(t('Step by step, by hand'), 'ghost small', () => {
+    easyMode(false);
+    box.replaceChildren(backRow());
+    setStep('source');
+  }));
+  q.append(manual);
+  box.replaceChildren(...kids, q);
+}
+function backRow() {
+  const p = el('p', 'mi-nav');
+  p.append(btn(t('← Back'), 'ghost', () => startOver()));
+  return p;
+}
+
+/** Another computer: one line with a fresh code; wait for it here and move on when it arrives. */
+async function otherComputer() {
+  const box = $('#mi-easy');
+  let r;
+  try {
+    r = await api('/movein/oneline', { method: 'POST', body: { system: easy.system ?? guessSystem() } });
+  } catch (err) {
+    box.replaceChildren(errorCard(err.message), backRow());
+    return;
+  }
+  easy.waiting = r;
+  const system = easy.system ?? guessSystem();
+  const c = el('section', 'mi-card mi-paste');
+  c.append(el('h4', '', t('On the old computer, paste this one line')));
+  const tabs = el('div', 'mi-os tabs');
+  tabs.setAttribute('role', 'tablist');
+  for (const [os, label] of [['windows', t('Windows')], ['mac', t('Mac')], ['linux', t('Linux')]]) {
+    const b = btn(label, 'tab', () => {
+      easy.system = os;
+      void paint();
+    });
+    b.setAttribute('role', 'tab');
+    b.dataset.easyOs = os;
+    tabs.append(b);
+  }
+  const how = el('p', 'small mi-open');
+  const pre = el('pre', 'mi-cmd mi-oneline');
+  pre.setAttribute('translate', 'no');
+  const copy = btn(t('Copy the line'), 'primary mi-big', (b) => helpers.copyText(pre.textContent, b));
+  const wait = el('div', 'mi-wait');
+  wait.setAttribute('role', 'status');
+  const bar = el('progress', '');
+  bar.removeAttribute('value');
+  const waitLine = el('p', 'small', t('Waiting for your old computer…'));
+  wait.append(bar, waitLine);
+  const det = el('details', 'mi-whatif');
+  det.append(el('summary', '', t('What does this line do?')));
+  det.append(el('p', 'small', t('It downloads Sara’s small, read-only packing program from this Sara, finds Hermes Agent or OpenClaw on that computer, packs a copy of her memories, chats, skills and schedules (never passwords or keys) and sends it here. It needs Python 3 or Node there; if neither is installed it says so. The line works once, for 30 minutes.')));
+  const paint = async () => {
+    const os = easy.system ?? system;
+    for (const b of tabs.querySelectorAll('[data-easy-os]')) b.setAttribute('aria-selected', String(b.dataset.easyOs === os));
+    how.textContent = OPEN_HOW[os]();
+    pre.textContent = r.lines[os];
+  };
+  void paint();
+  const far = r.reachable === false ? el('p', 'small mi-far', t('Sara only answers on this computer right now, so another computer can’t send to this address. Open Sara on the old computer with the address you use from elsewhere (for example your https:// one) and make the line there, or use “I have a move-in file”.')) : null;
+  c.append(...[far, tabs, how, pre, el('p', 'mi-nav', ''), wait, det].filter(Boolean));
+  c.querySelector('.mi-nav').append(copy);
+  box.replaceChildren(c, backRow());
+  const expires = Date.parse(r.expiresAt);
+  const tick = async () => {
+    if (easy.waiting !== r) return;
+    if (Date.now() > expires) {
+      waitLine.textContent = t('This line has expired. Make a new one.');
+      bar.hidden = true;
+      wait.append(btn(t('Make a new line'), 'ghost small', () => void otherComputer()));
+      return;
+    }
+    try {
+      const ov = await api('/movein');
+      const got = ov.bundles.find((b) => b.via === 'code' && b.createdAt >= r.since);
+      if (got) {
+        if (got.state === 'uploading') waitLine.textContent = t('Your old computer is sending her things… {p}%', { p: Math.floor((100 * got.received) / Math.max(1, got.size)) });
+        else return void arrived(got.id);
+      }
+    } catch {
+      /* try again */
+    }
+    easy.poll = setTimeout(() => void tick(), 2000);
+  };
+  easy.poll = setTimeout(() => void tick(), 2000);
+}
+function arrived(id) {
+  clearTimeout(easy.poll);
+  easy.waiting = null;
+  state.bundle = id;
+  wiz.fresh = false;
+  $('#mi-easy')?.replaceChildren();
+  easyMode(true);
+  void refresh();
 }
 
 function work(...nodes) {
@@ -257,6 +438,7 @@ function initWizard() {
   $('#mi-next-2').addEventListener('click', () => setStep('file'));
   for (const b of box.querySelectorAll('.mi-back')) b.addEventListener('click', () => setStep(STEPS[Math.max(0, STEPS.indexOf(wiz.step) - 1)]));
   $('#mi-again').addEventListener('click', () => {
+    queueMicrotask(() => void renderStart());
     wiz.fresh = true;
     state.bundle = null;
     state.choices = null;
@@ -337,8 +519,8 @@ async function refresh() {
   }
   state.preview = pv;
   setStep(stepForState(pv.state) ?? wiz.step);
-  if (['checking', 'reading', 'uploading'].includes(pv.state)) {
-    work(progressCard(pv.line || t('Checking the bundle…'), false));
+  if (['collecting', 'checking', 'reading', 'uploading'].includes(pv.state)) {
+    work(progressCard(plainLine(pv), pv.state === 'collecting'));
     state.poll = setTimeout(() => void refresh(), 1200);
     return;
   }
@@ -350,7 +532,12 @@ async function refresh() {
   }
   if (pv.state === 'failed') {
     const c = errorCard(pv.error || t("The bundle couldn't be read."));
-    c.append(btn(t('Delete the bundle now'), 'ghost small', deleteBundle));
+    const acts = el('div', 'mi-actions');
+    acts.append(btn(t('Try again'), 'primary', async () => {
+      await api(`/movein/bundles/${enc(state.bundle)}`, { method: 'DELETE' }).catch(() => {});
+      startOver();
+    }), btn(t('Delete the bundle now'), 'ghost small', deleteBundle));
+    c.append(acts);
     work(c);
     return;
   }
@@ -366,6 +553,20 @@ async function refresh() {
   }
   state.choices ??= defaults(pv);
   renderPreview(pv);
+}
+
+/** The progress line in plain words (the server's English line, translated where it is a known one). */
+function plainLine(pv) {
+  const l = String(pv.line ?? '');
+  if (pv.state === 'collecting') {
+    const m = /^Reading past chats\.\.\. ([\d ]+) of ([\d ]+)/.exec(l);
+    if (m) return t('Packing her things: reading past chats, {n} of {total}', { n: m[1].trim(), total: m[2].trim() });
+    return t('Packing her things… (this computer, read-only)');
+  }
+  if (pv.state === 'uploading') return t('Your old computer is sending her things…');
+  if (/^Checking the bundle/.test(l)) return t('Checking that everything arrived whole…');
+  if (pv.state === 'reading') return t('Sorting what she brought…');
+  return serverText({ error: l }, l) || t('Checking the bundle…');
 }
 
 function progressCard(line, stoppable) {
@@ -386,9 +587,9 @@ function defaults(pv) {
 function planCard(pv) {
   const plan = pv.plan;
   const c = el('details', 'mi-card mi-plan');
-  c.open = true;
+  c.open = false;
   const sum = el('summary', 'mi-plan-head');
-  sum.append(el('strong', '', t("Here's what the collector packed")), tip(t('The plan the collector showed on the old computer: what it packed, and what it skipped with the reason. Secrets were never opened.')));
+  sum.append(el('strong', '', t('Details: everything that was packed or left behind')), tip(t('The plan the collector showed on the old computer: what it packed, and what it skipped with the reason. Secrets were never opened.')));
   c.append(sum);
   if (!plan) {
     c.append(el('p', 'muted small', t('This bundle has no plan.')));
@@ -416,7 +617,8 @@ function renderPreview(pv) {
   const ch = state.choices;
   const root = el('div', 'mi-preview');
   const head = el('div', 'mi-card mi-head');
-  head.append(el('h4', '', t('Moving in: {name} ({agent})', { name: pv.source.displayName, agent: pv.source.agent })), el('p', 'muted small', t('Bundle from {date}', { date: fmtDate(pv.createdAt) })));
+  const named = pv.source.displayName && pv.source.displayName !== pv.source.agentId;
+  head.append(el('h4', '', named ? t('Moving in: {name} ({agent})', { name: pv.source.displayName, agent: pv.source.agent }) : t('Moving in from {agent}', { agent: pv.source.agent })), el('p', 'muted small', t('Packed on {date}. Look it over, then press Import at the bottom.', { date: fmtDate(pv.createdAt) })));
   // "Was this her?" (§6.5)
   const her = el('fieldset', 'mi-her');
   const lg = el('legend', '', t("Is this Sara's past (she moved here), or another assistant you used?"));
@@ -440,12 +642,12 @@ function renderPreview(pv) {
   root.append(planCard(pv), head);
   if (pv.persona) root.append(personaCard(pv));
   if (pv.stores?.cards) root.append(storesBox(pv));
-  if (pv.translations?.config || pv.translations?.code) root.append(translationsBox());
   for (const key of ['memories', 'profile', 'people', 'conversations', 'skills', 'schedules', 'tasks', 'board', 'agenda', 'reflections']) {
     const s = pv.sections[key];
     if (!s || (!s.found && key !== 'memories')) continue;
     root.append(sectionCard(pv, key, s));
   }
+  if (pv.translations?.config || pv.translations?.code) root.append(translationsBox());
   if (Object.values(pv.held).some((n) => n > 0)) root.append(heldCard(pv));
   if (pv.sections.later?.list?.length) root.append(laterCard(pv.sections.later.list));
   root.append(leftCard(pv.leftBehind));
@@ -1356,13 +1558,17 @@ function pageButton(page, label) {
 }
 
 function translationsBox() {
-  const box = el('section', 'mi-card mi-trans');
+  // 3.1.1: folded (optional): her old settings, channels and add-ons are not what most people move for.
+  const wrap = el('details', 'mi-card mi-trans-wrap');
+  wrap.append(el('summary', '', t('Optional: her old settings and add-ons')));
+  const box = el('section', 'mi-trans');
   box.id = 'mi-trans';
+  wrap.append(box);
   const h = el('h4', '', t('Settings, channels, hooks and plugins'));
   h.append(tip(t('Her old settings as cards. Confirm what you want, skip the rest. Keys never move: you paste them again. Hooks and plugins were read as text and never run.')));
   box.append(h, el('p', 'muted small', t('Loading the cards…')));
   void loadTranslations();
-  return box;
+  return wrap;
 }
 
 async function loadTranslations() {

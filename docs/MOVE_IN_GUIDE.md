@@ -5,28 +5,34 @@ It carries her personality, notes, what she knew about you, past conversations, 
 and board cards. The old agent is not changed. Everything comes in as one batch that **Undo**
 removes for 30 days. (Design: [design/MOVE_IN.md](design/MOVE_IN.md).)
 
-## The steps
+## The easy way
 
-Open **Settings → Data & health → Move in from another agent**. The page walks you through five
-steps with a progress bar: pick the agent, run the collector, bring the file, check and import, done.
-Step 2 shows the exact command for **Windows (PowerShell)**, **Mac** or **Linux** and an example of
-what you'll see when it runs; step 3 unlocks once you tick *I ran it and have the .saramove file*. If
-your Sara doesn't have the collector, the page shows a command that downloads it from GitHub instead.
-In short:
+Open **Settings → Data & health → Move in from another agent** (or press **Ctrl K** and type
+*move in*, *import hermes* or *import openclaw*).
 
-1. **Get the collector.** Copy the command shown on the page. It downloads `sara-movein.py` from
-   your Sara and checks its SHA-256 before running it. The collector is one Python file with no
-   installs. It needs Python 3.6 or newer. It only reads.
-2. **Run it on the old agent's computer.** Open a terminal there, for example with
-   `ssh you@old-computer`. Paste the command and press Enter. The collector finds the agent
-   (`~/.hermes`, or `~/.openclaw` plus its workspace) and shows a **plan** of what it will pack
-   and what it will skip, with reasons. It asks before writing anything. To only look, add
-   `--plan-only` (or `--plan-only --json`) and nothing is written.
-3. **Upload the file.** Choose the `.saramove` file it made. Big files upload in 8 MB pieces and
-   carry on after a dropped connection. You can also send it straight from the old computer: click
-   **Make a move-in code** and run
-   `python3 sara-movein.py send FILE.saramove --to https://your-sara --code "six words"`.
-   The code is valid for 30 minutes and opens only that upload.
+- **Old assistant on this computer.** Sara looks for it by herself and shows, for example,
+  *Found Hermes Agent on this computer — Memories: 10 · Skills: 17 · Past chats: 107*. Press
+  **Bring her over**. Sara packs a read-only copy (a few seconds; a progress line shows how far she
+  is), then shows what comes over. Press **Import**. That's it.
+- **Old assistant on another computer.** Choose **On another computer**. Sara shows one line for
+  Windows, Mac or Linux. Copy it, paste it into a terminal on the old computer (PowerShell on
+  Windows, Terminal on a Mac) and press Enter. This page waits and moves on by itself when her
+  things arrive. The line works once, for 30 minutes. The old computer needs Python 3 or Node
+  (OpenClaw machines always have Node). If Sara only answers on this computer, the page says so:
+  use your https:// address there, or the file way below.
+- **You already have a `.saramove` file.** Choose **I have a move-in file**.
+
+Sara looks only where an assistant keeps her companion (memories, skills, chats, schedules,
+settings) and names everything else she leaves alone (programs, caches, browser data, logs,
+backups) without opening it. Passwords and keys are never copied.
+
+## By hand (step by step)
+
+**Step by step, by hand** on the first screen opens the five-step wizard: pick the agent, run the
+packing program (`sara-movein.py`, or `sara-movein.mjs` with Node), bring the file, check, import.
+Useful flags: `--plan-only` (only look), `--max-chats N` (newest N chats), `--include-large`
+(bring a folder that was too big), `--send-to https://your-sara --code "six words"` (send straight
+to Sara with a move-in code).
 
 Sara then checks every file's hash and reads the bundle. She shows:
 
@@ -126,8 +132,13 @@ bundle now**. It is as private as a diary, so delete your own copy too.
 
 ## If something goes wrong
 
-- **No Python on the old computer.** Install it from python.org, or run the collector on any
-  computer that can read the agent's folder.
+- **No Python on the old computer.** The one line uses Node instead when Python is missing. With
+  neither, install Python from python.org.
+- **The page keeps waiting.** Check that the line ran without an error on the old computer and that
+  the old computer can open your Sara's address in a browser. A line older than 30 minutes no
+  longer works: press **Make a new line**.
+- **A folder was too big.** The plan says *skipped because too large* and names it. Run by hand
+  with `--include-large` to bring it.
 - **Permission denied.** The agent runs as another user. The collector prints the exact `sudo`
   line to use.
 - **It found the wrong agent,** or there are several (Hermes profiles, OpenClaw agents). Point at

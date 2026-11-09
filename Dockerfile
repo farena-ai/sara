@@ -92,6 +92,7 @@ COPY store/plugins/repository-onboarding ./store/plugins/repository-onboarding
 COPY desktop/shared/page-agent.js ./desktop/shared/page-agent.js
 # Phase 104: the move-in collector Sara serves (Settings → Data & health → Move in from another agent).
 COPY scripts/sara-movein.py ./scripts/sara-movein.py
+COPY scripts/sara-movein.mjs ./scripts/sara-movein.mjs
 
 # Root on purpose, but not a full root: the server starts as the container's root only so it can
 # run her commands (shell, MCP servers) as the separate "sara-tools" user, which can't read Sara's

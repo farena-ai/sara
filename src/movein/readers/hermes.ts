@@ -57,7 +57,7 @@ export const hermesReader: MoveInReader = {
           if (text && !personaRefusal([{ path: h.path, name: 'SOUL.md', text }])) drafts.push(draftPersona(`Earlier version (${h.path.split('/').at(-1)})`, [{ path: h.path, name: 'SOUL.md', text }], ctx.current, opts));
         }
       }
-      emit({ section: 'persona', kind: 'persona', ref: soulPath, title: drafts[0]?.sheet.name ?? name ?? 'SOUL.md', data: { drafts, history, ...(refusal ? { refused: refusal } : {}) } });
+      emit({ section: 'persona', kind: 'persona', ref: soulPath, title: drafts[0]?.sheet.name ?? name ?? 'SOUL.md', data: { drafts, history, ...(refusal ? { refused: refusal } : {}) }, same: { soul: soul.text, history: history.map((h) => h.path) } });
       facts.push('SOUL.md');
     }
     // Context files in the home (AGENTS.md and the like): her working rules.
@@ -84,23 +84,32 @@ export const hermesReader: MoveInReader = {
       if (signal.aborted) break;
       const schema = await schemaOf(b, store);
       const mcols = cols(schema, 'messages');
-      const sessions = new Map<string, { source: string; parent: string | null; title: string; started: string; ended: string; users: Set<string> }>();
+      const sessions = new Map<string, { source: string; parent: string | null; title: string; started: string; ended: string; endReason: string; users: Set<string> }>();
       for await (const r of rows(b, store, 'sessions', signal)) {
-        sessions.set(str(r.id), { source: str(r.source), parent: str(r.parent_session_id) || null, title: str(r.title), started: when(r.started_at, ctx.now.toISOString()), ended: when(r.ended_at ?? r.started_at, ctx.now.toISOString()), users: new Set(str(r.user_id) ? [str(r.user_id)] : []) });
+        sessions.set(str(r.id), { source: str(r.source), parent: str(r.parent_session_id) || null, title: str(r.title), started: when(r.started_at, ctx.now.toISOString()), ended: when(r.ended_at ?? r.started_at, ctx.now.toISOString()), endReason: str(r.end_reason), users: new Set(str(r.user_id) ? [str(r.user_id)] : []) });
       }
+      // Her helpers' work (delegated subagent sessions) is not a chat with the owner: left behind, counted.
+      const helper = (s?: { source: string }) => Boolean(s && /^(subagent|delegate|delegation|worker)$/i.test(s.source));
+      // A child session continues its parent's chat only after a context compression (the parent ended
+      // for that, or ended before the child began when the reason isn't recorded). A chat opened from
+      // another one (Hermes desktop keeps the old one as its parent) stays its own conversation (3.1.1).
+      const continues = (child: { started: string }, parent: { ended: string; endReason: string }) =>
+        (!parent.endReason || /compress|compact|context|summar|rollover|continu/i.test(parent.endReason)) && Date.parse(child.started) >= Date.parse(parent.ended) - 60_000;
       const db = ctx.scratch;
       db.exec('DROP TABLE IF EXISTS h_msgs; CREATE TABLE h_msgs (root TEXT, session TEXT, ts TEXT, seq INTEGER, role TEXT, content TEXT, uid TEXT); CREATE INDEX h_msgs_root ON h_msgs(root, ts, seq);');
       const rootOf = (id: string): string => {
         let cur = id;
         for (let k = 0; k < 200; k++) {
-          const p = sessions.get(cur)?.parent;
-          if (!p || !sessions.has(p) || p === cur) return cur;
+          const me = sessions.get(cur);
+          const p = me?.parent;
+          if (!p || !sessions.has(p) || p === cur || !continues(me!, sessions.get(p)!)) return cur;
           cur = p;
         }
         return cur;
       };
       const ins = db.prepare('INSERT INTO h_msgs VALUES (?, ?, ?, ?, ?, ?, ?)');
       const seenUid = new Set<string>();
+      const helperSessions = new Set<string>();
       let seq = 0;
       db.exec('BEGIN');
       for await (const r of rows(b, store, 'messages', signal)) {
@@ -134,6 +143,10 @@ export const hermesReader: MoveInReader = {
         }
         if (str(r.reasoning)) skipped.reasoning = (skipped.reasoning ?? 0) + 1;
         const sid = str(r.session_id);
+        if (helper(sessions.get(sid))) {
+          helperSessions.add(sid);
+          continue;
+        }
         ins.run(rootOf(sid), sid, when(r.timestamp, ctx.now.toISOString()), seq, role, content, uid || null);
         if (seq % 5000 === 0) {
           db.exec('COMMIT');
@@ -141,6 +154,7 @@ export const hermesReader: MoveInReader = {
         }
       }
       db.exec('COMMIT');
+      if (helperSessions.size) skipped.helpers = (skipped.helpers ?? 0) + helperSessions.size;
       const roots = db.prepare('SELECT root, MIN(ts) AS a, MAX(ts) AS z, COUNT(*) AS n FROM h_msgs GROUP BY root ORDER BY a').all() as { root: string; a: string; z: string; n: number }[];
       const msgsOf = db.prepare('SELECT role, content, ts FROM h_msgs WHERE root = ? ORDER BY ts, seq');
       for (const r of roots) {

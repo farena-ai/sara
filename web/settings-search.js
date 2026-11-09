@@ -22,6 +22,7 @@ export const SETTINGS_KEYWORDS = {
   'her-voice': ['voice', 'voice notes', 'tts', 'speech', 'local voice', 'kokoro', 'piper', 'hearing'],
   'her-companions': ['companion packs', 'pack', 'packs', 'share her', 'character card', 'charx', 'tavern', 'store companions'],
   'her-import': ['character card', 'import her', 'bring her'],
+  'dh-movein': ['move in', 'import hermes', 'import openclaw', 'hermes agent', 'openclaw', 'migrate', 'old assistant'],
   'you-about': ['use path', 'company or coding', 'language', 'time zone'],
   'you-appearance': ['appearance', 'theme', 'palette', 'dark mode', 'light mode', 'night', 'day', 'colour', 'color', 'accent', 'high contrast', 'classic', 'compact', 'density', 'font size', 'portrait', 'decoration', 'glass', 'glow', 'blur', 'text size', 'sessions shown', 'reset look', 'look and feel'],
   'ab-when': ['when it comes up', 'mention', 'mentions', 'person comes up', 'remind me when'],

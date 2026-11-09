@@ -4,7 +4,7 @@
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { squash } from '../companion-import/learn.ts';
-import type { Category, Finding, MemoryData, PersonaFinding, ScheduleData, Section, SkillData, Staged } from './types.ts';
+import type { Category, ConversationData, Finding, MemoryData, PersonaFinding, ScheduleData, Section, SkillData, Staged } from './types.ts';
 import { CATEGORIES, DEFAULT_ON, SECTIONS } from './types.ts';
 
 /** §15 Q5: at most this many imported notes are active; the rest arrive archived (searchable, never auto-injected). */
@@ -88,7 +88,7 @@ export class Staging {
   add(f: Finding): void {
     this.#ins ??= this.db.prepare('INSERT INTO findings (section, kind, ref, sha, title, data, held, card) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     if (!this.#pending) this.db.exec('BEGIN');
-    this.#ins.run(f.section, f.kind, f.ref, sha(f.data), f.title.slice(0, 300), JSON.stringify(f.data), f.held ?? null, f.card ?? null);
+    this.#ins.run(f.section, f.kind, f.ref, sha(f.same ?? f.data), f.title.slice(0, 300), JSON.stringify(f.data), f.held ?? null, f.card ?? null);
     if (++this.#pending >= 5000) this.flush();
   }
   flush(): void {
@@ -116,7 +116,7 @@ export class Staging {
    * After the readers: duplicates inside the bundle and against her own notes, and what an earlier
    * move-in of the same agent already brought (§6.4 dedupe, §7.5 re-runs).
    */
-  settle(opts: { already: (ref: string, sha: string) => boolean; alreadyRef: (ref: string) => boolean; existing: (text: string) => { id: number; content: string }[]; card?: string }): void {
+  settle(opts: { already: (ref: string, sha: string) => boolean; alreadyRef: (ref: string) => boolean; existing: (text: string) => { id: number; content: string }[]; card?: string; lastAt?: (ref: string) => string | undefined }): void {
     this.flush();
     const seen = new Map<string, number>();
     const index = new Map<string, number[]>();
@@ -125,7 +125,23 @@ export class Staging {
     try {
       // MI2: settling one mapping card's rows only re-checks those (the rest were settled when read).
       const heads = (opts.card ? this.db.prepare("SELECT id, kind, ref, sha FROM findings WHERE card = ? ORDER BY id").all(opts.card) : this.db.prepare("SELECT id, kind, ref, sha FROM findings WHERE section != 'later' ORDER BY id").all()) as { id: number; kind: string; ref: string; sha: string }[];
-      for (const f of heads) if (f.kind === 'conversation' ? opts.alreadyRef(f.ref) : opts.already(f.ref, f.sha)) this.setState(f.id, 'already', 'brought in by an earlier move-in');
+      for (const f of heads) {
+        if (f.kind === 'conversation' && opts.alreadyRef(f.ref) && !opts.already(f.ref, f.sha) && opts.lastAt) {
+          // A chat that went on after the last move-in: only its new messages come over (3.1.1).
+          const last = opts.lastAt(f.ref);
+          const full = this.get(f.id);
+          const data = full?.data as ConversationData | undefined;
+          const fresh = last && data ? data.messages.filter((m) => m.at > last) : [];
+          if (data && fresh.length) {
+            const next: ConversationData = { ...data, title: `${data.title} (continued)`.slice(0, 120), createdAt: fresh[0].at, messages: fresh };
+            this.db.prepare('UPDATE findings SET data = ?, why = ? WHERE id = ?').run(JSON.stringify(next), `${fresh.length} new messages since the last move-in`, f.id);
+            continue;
+          }
+          this.setState(f.id, 'already', 'brought in by an earlier move-in');
+          continue;
+        }
+        if (f.kind === 'conversation' ? opts.alreadyRef(f.ref) : opts.already(f.ref, f.sha)) this.setState(f.id, 'already', 'brought in by an earlier move-in');
+      }
       const notes = this.db.prepare("SELECT id, data, card FROM findings WHERE kind = 'memory' AND state = 'new' ORDER BY id").all() as { id: number; data: string; card: string | null }[];
       for (const f of notes) {
         const m = JSON.parse(f.data) as MemoryData;

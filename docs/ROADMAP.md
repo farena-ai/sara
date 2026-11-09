@@ -102,6 +102,14 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Moving in from Hermes or OpenClaw, made easy, in 3.1.1
+
+When Hermes Agent or OpenClaw is on the same computer, Sara finds it and brings her over with one
+button: personality, memories, what she knew about you, past chats with their dates, skills and
+schedules, with a preview first and Undo after. From another computer it is one line to paste (Python
+or Node, whichever is there) and Sara's page moves on by itself. Packing is fast and small (seconds,
+not minutes), newer OpenClaw versions are read, and running it again only brings what's new.
+
 ## Email beyond Gmail in 3.1.0
 
 Outlook.com and Microsoft 365 (mail and calendar), Yahoo, AOL, iCloud, Fastmail, Zoho, GMX, WEB.DE,

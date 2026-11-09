@@ -2,6 +2,10 @@
 // The owner's only (household.ts never lists "movein" as a member route), never in the demo.
 //   GET    /api/movein                          the collector (hash, command), bundles, past move-ins
 //   GET    /api/movein/collector                the collector file (download)
+//   GET    /api/movein/local                    3.1.1: old agents found on this computer (counts only)
+//   POST   /api/movein/local/collect {key}      pack a found agent here (progress on the bundle's line)
+//   POST   /api/movein/oneline {system}         a move-in code + the one line to paste on another computer
+//   (public) GET /movein/go.sh, /movein/go.ps1?c=CODE, /movein/sara-movein.mjs: what that line fetches
 //   POST   /api/movein/code                     a six-word code for `sara-movein.py send` (30 minutes)
 //   POST   /api/movein/uploads                  {name, size} → an upload (8 MB chunks, resumable)
 //   PUT    /api/movein/uploads/:id?offset=N     one chunk
@@ -38,7 +42,9 @@ import { createReadStream } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { HttpError, readJson, send } from '../http.ts';
 import { BundleError } from '../movein/bundle.ts';
+import { networkInterfaces } from 'node:os';
 import { COLLECTOR_PATH, MoveIn } from '../movein/index.ts';
+import { findLocalAgents, goPs1, goSh, NODE_COLLECTOR_PATH, oneLine, publicAgent, type System } from '../movein/local.ts';
 import { reportMarkdown } from '../movein/report.ts';
 import type { ImportChoices } from '../movein/batch.ts';
 import { CATEGORIES, SECTIONS, type Section } from '../movein/types.ts';
@@ -84,6 +90,41 @@ function command(origin: string, sha: string): string {
 export function serveCollector(res: ServerResponse): void {
   res.writeHead(200, { 'content-type': 'text/x-python; charset=utf-8', 'content-disposition': 'attachment; filename="sara-movein.py"', 'x-content-type-options': 'nosniff', 'cache-control': 'no-store' });
   createReadStream(COLLECTOR_PATH).on('error', () => res.end()).pipe(res);
+}
+
+/** This computer's first private IPv4 address (home network), if any. */
+function lanAddress(): string | undefined {
+  for (const list of Object.values(networkInterfaces())) for (const a of list ?? []) if (a.family === 'IPv4' && !a.internal && /^(10|192\.168|172\.(1[6-9]|2\d|3[01]))\./.test(a.address)) return a.address;
+  return undefined;
+}
+
+/** This Sara's address as the browser reached it (the one-paste line and its scripts use it). */
+export function originOf(req: IncomingMessage): string {
+  const host = String(req.headers.host ?? 'localhost');
+  const proto = String(req.headers['x-forwarded-proto'] ?? '').split(',')[0] || ((req.socket as { encrypted?: boolean }).encrypted ? 'https' : 'http');
+  return `${proto}://${host}`;
+}
+
+/** 3.1.1 public files for the one-paste move-in: the Node collector and the two small scripts. */
+export function serveMoveInFile(req: IncomingMessage, res: ServerResponse, pathname: string): boolean {
+  const head = { 'x-content-type-options': 'nosniff', 'cache-control': 'no-store' };
+  if (pathname === '/movein/sara-movein.mjs') {
+    res.writeHead(200, { ...head, 'content-type': 'text/javascript; charset=utf-8', 'content-disposition': 'attachment; filename="sara-movein.mjs"' });
+    createReadStream(NODE_COLLECTOR_PATH).on('error', () => res.end()).pipe(res);
+    return true;
+  }
+  if (pathname === '/movein/go.sh') {
+    res.writeHead(200, { ...head, 'content-type': 'text/x-shellscript; charset=utf-8' });
+    res.end(goSh(originOf(req)));
+    return true;
+  }
+  if (pathname === '/movein/go.ps1') {
+    const c = new URL(req.url ?? '/', 'http://x').searchParams.get('c') ?? '';
+    res.writeHead(200, { ...head, 'content-type': 'text/plain; charset=utf-8' });
+    res.end(goPs1(originOf(req), c.slice(0, 120)));
+    return true;
+  }
+  return false;
 }
 
 /** Code-authenticated requests from the collector's `send`, before the sign-in check (NEXT otherwise). */
@@ -142,6 +183,31 @@ export function createMoveInRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, { collector: col ? { ...col, url: `${origin}/movein/sara-movein.py`, command: command(origin, col.sha256) } : null, bundles: mi.list(), batches: mi.batches().map((x) => ({ ...x, report: undefined, hasReport: Boolean(x.report) })) });
       }
       if (b === 'collector' && !c && method === 'GET') return serveCollector(res);
+      if (b === 'local' && !c && method === 'GET') return send(res, 200, { agents: (await findLocalAgents({ fresh: new URL(req.url ?? '/', 'http://x').searchParams.get('fresh') === '1' })).map(publicAgent) });
+      if (b === 'local' && c === 'collect' && method === 'POST') {
+        const body = await readJson(req, 4096);
+        const target = (await findLocalAgents()).find((x) => x.key === String(body.key ?? ''));
+        if (!target) throw new HttpError(404, 'That agent is not on this computer any more. Look again.');
+        const s = mi.collectLocal(target);
+        return send(res, 202, { id: s.id, state: s.state, line: s.line });
+      }
+      if (b === 'oneline' && !c && method === 'POST') {
+        const body = await readJson(req, 4096);
+        const system = (['windows', 'mac', 'linux'] as const).find((x) => x === body.system) ?? 'linux';
+        const code = mi.mintCode();
+        // Opened as localhost: another computer can't reach that address. When Sara listens on the
+        // network, use this computer's LAN address; otherwise the page says so (and offers the file).
+        let origin = originOf(req);
+        let reachable = true;
+        const u = new URL(origin);
+        if (/^(localhost|127\.\d+\.\d+\.\d+|\[::1\])$/.test(u.hostname)) {
+          const lan = lanAddress();
+          const listensWide = /^(0\.0\.0\.0|::|)$/.test(process.env.SARA_HOST ?? '127.0.0.1');
+          if (lan && listensWide) origin = `${u.protocol}//${lan}${u.port ? `:${u.port}` : ''}`;
+          else reachable = false;
+        }
+        return send(res, 200, { ...code, since: new Date().toISOString(), origin, reachable, system, line: oneLine(origin, code.code, system as System), lines: Object.fromEntries((['windows', 'mac', 'linux'] as const).map((s) => [s, oneLine(origin, code.code, s)])) });
+      }
       if (b === 'code' && !c && method === 'POST') return send(res, 200, mi.mintCode());
       if (b === 'uploads') {
         if (!c && method === 'POST') {

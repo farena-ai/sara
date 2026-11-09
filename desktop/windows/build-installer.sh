@@ -55,7 +55,7 @@ cp "$NODE_DIR/node.exe" "$STAGE/node/"
 cp "$NODE_DIR/LICENSE" "$STAGE/node/LICENSE.txt"
 cp -r "$ROOT/src" "$ROOT/web" "$ROOT/persona" "$ROOT/templates" "$ROOT/skills" "$ROOT/plugins" "$STAGE/server/"
 # V4e: the move-in collector Sara serves (Settings → Data & health → Move in from another agent).
-mkdir -p "$STAGE/server/scripts" && cp "$ROOT/scripts/sara-movein.py" "$STAGE/server/scripts/"
+mkdir -p "$STAGE/server/scripts" && cp "$ROOT/scripts/sara-movein.py" "$STAGE/server/scripts/" && cp "$ROOT/scripts/sara-movein.mjs" "$STAGE/server/scripts/"
 # Local workflow candidates remain untrusted packages, reviewed separately before installation.
 CANDIDATE_PLUGINS=(
   daily-briefing meeting-assistant document-desk research-notebook project-handoff weekly-review

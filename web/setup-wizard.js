@@ -190,6 +190,19 @@ function suStepFour() {
     su.starter = c;
     return suFinish();
   })));
+  // 3.1.1: an old assistant on this computer (Hermes Agent, OpenClaw): offer to bring her over first.
+  void api('/movein/local').then((r) => {
+    const a = r?.agents?.[0];
+    if (!a || $('#su-starters [data-movein]')) return;
+    const c = { kind: 'page', label: t('Bring her over from {agent}', { agent: a.kind === 'hermes' ? 'Hermes Agent' : 'OpenClaw' }), page: 'dh-movein' };
+    const b = starterButton(c, () => {
+      su.starter = c;
+      return suFinish();
+    });
+    b.dataset.movein = '1';
+    $('#su-starters').prepend(b);
+    $('#su-starters-note').hidden = false;
+  }).catch(() => {});
   $('#su-starters-note').hidden = !chips.length;
   // Phase 121 (BEGIN §4.9): one quiet link under the chips; the gallery opens after the wizard closes.
   const rt = $('#su-routine');

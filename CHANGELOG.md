@@ -5,8 +5,20 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.1.1 (2026-11-09): moving in made easy
+
 ## 3.1.0 (2026-11-09): email beyond Gmail
 
+- **Move in from Hermes Agent and OpenClaw, made easy and fast:** the packing program no longer runs
+  for ever on a real Hermes Agent install (it looked through every program, cache and browser folder;
+  now it reads only the companion's own folders: 0.4 s to plan, about 6 s to pack, bundles 20x
+  smaller). On the same computer Sara finds the old assistant by herself (*Found Hermes Agent on this
+  computer: memories, skills, past chats*) and one **Bring her over** button does the rest; from
+  another computer you paste one line and the page moves on by itself when her things arrive. Helper
+  sessions stay behind, continued chats stay one chat, re-runs bring only what's new, OpenClaw
+  2026.10+ chats and schedules come over, and a Node version of the packing program works where
+  there is no Python. Ctrl K finds it (*move in*, *import hermes*, *import openclaw*) and first-run
+  setup offers it.
 - **Email beyond Gmail (M1):** Sara now reads, searches, answers and tidies **Outlook.com, Hotmail and
   Microsoft 365** (through Microsoft Graph, with a free app you register yourself; mail and
   calendar) and **Yahoo, AOL, iCloud, Fastmail, Zoho, GMX, WEB.DE, Proton Mail (Bridge)** or any
