@@ -1,4 +1,4 @@
-// Phase 20: leave-by reminders. For today's Google Calendar events that have a street address,
+// Phase 20: leave-by reminders. For today's calendar events (M1: the default mailbox's Outlook calendar or Google's) that have a street address,
 // Sara works out the travel time from home (OpenStreetMap: Nominatim to find the address, the
 // public OSRM routers for the time, both free, no key) and texts the owner when it's time to go:
 // travel time + a buffer before the start. Online meetings and events without an address are
@@ -9,6 +9,7 @@ import { appLanguage } from './i18n.ts';
 import { targetConversation } from './life.ts';
 import { localDate } from './memory-worker.ts';
 import { disclosureDue, disclosureText } from './safety.ts';
+import { calendarEvents, hasCalendar, type TodayEvent } from './today.ts';
 
 export type TravelMode = 'car' | 'bike' | 'foot';
 export interface LeaveBySettings {
@@ -54,14 +55,6 @@ export async function travelMinutes(from: Place, to: Place, mode: TravelMode, fe
   const r = (await res.json()) as { code?: string; routes?: { duration: number }[] };
   const s = r.routes?.[0]?.duration;
   return r.code === 'Ok' && s !== undefined ? Math.max(1, Math.round(s / 60)) : undefined;
-}
-
-interface CalItem {
-  id: string;
-  summary?: string;
-  location?: string;
-  start?: { dateTime?: string };
-  status?: string;
 }
 
 export class LeaveByWorker {
@@ -123,20 +116,19 @@ export class LeaveByWorker {
   async tick(): Promise<string[]> {
     const app = this.#app;
     const cfg = leaveBySettings(app);
-    if (!cfg.enabled || !cfg.home || this.#running || !app.google?.status().calendar) return [];
+    if (!cfg.enabled || !cfg.home || this.#running || !hasCalendar(app)) return [];
     this.#running = true;
     try {
       const now = app.now();
       const tz = app.settings.get().timeZone;
       const day = localDate(now.toISOString(), tz);
       const sentIds = cfg.sent?.day === day ? cfg.sent.ids : [];
-      const q = new URLSearchParams({ timeMin: now.toISOString(), timeMax: new Date(now.getTime() + 4 * 3600_000).toISOString(), singleEvents: 'true', orderBy: 'startTime', maxResults: '20' });
-      const r = (await app.google.api(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${q}`, { signal: AbortSignal.timeout(15_000) })) as { items?: CalItem[] };
+      const events = await calendarEvents(app, now, new Date(now.getTime() + 4 * 3600_000), 20, 15_000);
       const out: string[] = [];
-      for (const e of r.items ?? []) {
+      for (const e of events) {
         const loc = e.location?.trim() ?? '';
-        if (!e.start?.dateTime || e.status === 'cancelled' || sentIds.includes(e.id) || ONLINE.test(loc)) continue;
-        const start = Date.parse(e.start.dateTime);
+        if (e.allDay || !e.start || sentIds.includes(e.id) || ONLINE.test(loc)) continue;
+        const start = Date.parse(e.start);
         if (start <= now.getTime()) continue;
         let route = this.#routes.get(e.id);
         if (!route || route.location !== loc) {
@@ -164,11 +156,11 @@ export class LeaveByWorker {
     }
   }
 
-  #message(e: CalItem, start: number, minutes: number, cfg: LeaveBySettings, tz: string | undefined, late: boolean): string {
+  #message(e: TodayEvent, start: number, minutes: number, cfg: LeaveBySettings, tz: string | undefined, late: boolean): string {
     const at = new Date(start).toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
     const how = cfg.mode === 'car' ? 'drive' : cfg.mode === 'bike' ? 'bike ride' : 'walk';
     const icon = cfg.mode === 'car' ? '🚗' : cfg.mode === 'bike' ? '🚲' : '🚶';
-    const title = (e.summary ?? 'your event').slice(0, 120);
+    const title = (e.title || 'your event').slice(0, 120);
     return `${icon} ${late ? 'Leave now' : 'Time to leave'} for “${title}” at ${at}: it's about a ${minutes}-minute ${how} to ${(e.location ?? '').split(',')[0].slice(0, 120)}${cfg.mode === 'car' ? ' without traffic' : ''}.`;
   }
 

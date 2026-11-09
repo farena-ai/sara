@@ -4,6 +4,9 @@ Sara works with your Gmail through Google's own APIs, signed in with a small Goo
 client) that **you** own. Nothing goes through anyone else's servers. Set it up once in
 **Settings → Add-ons → Gmail and Calendar** (the steps are on that page, about 10 minutes).
 
+Outlook, Microsoft 365, Yahoo, iCloud, Fastmail and other mailboxes work the same way through the
+`mail_*` tools: see [EMAIL.md](EMAIL.md). The `gmail_*` tools below are unchanged.
+
 ## What she can do
 
 | Ask her… | Tool | Asks you first? |

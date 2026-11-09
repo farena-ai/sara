@@ -17,7 +17,7 @@ export type Card =
   | { kind: 'home'; entity: string; service: string; name?: string; state?: string }
   | { kind: 'photo'; caption: string }
   | { kind: 'search'; query: string; results: { title: string; url: string; host: string }[] }
-  | { kind: 'gmail'; id: string; action: string; done: number; failed: number; total: number; query: string; link?: string; label?: string; stopped?: boolean; undoOf?: string }
+  | { kind: 'gmail'; id: string; action: string; done: number; failed: number; total: number; query: string; link?: string; label?: string; stopped?: boolean; undoOf?: string; provider?: string }
   /** Phase 87: a page in the Sara browser on the owner's computer (with the step's thumbnail hash). */
   | { kind: 'computer'; action: 'open' | 'navigate' | 'look'; url: string; title: string; computer?: string; problems?: string; thumb?: string }
   /** Phase 87: no computer connected: "Get the app" (COMPUTER_USE.md §9.4). */
@@ -116,6 +116,8 @@ function build({ name, args, output, thumb }: CardInput): Card | undefined {
       return /^Photo sent/.test(output) ? { kind: 'photo', caption: '' } : undefined;
     case 'gmail_organize':
     case 'gmail_undo':
+    case 'mail_organize':
+    case 'mail_undo':
       return gmailCard(output);
     case 'web_search':
       return searchCard(arg(args, 'query'), output);
@@ -138,18 +140,21 @@ function gmailCard(output: string): Card | undefined {
   if (started) return { kind: 'job', id: Number(started[1]), label: cut(started[2]), status: 'running' };
   const m = /^\[gmail-result (\{.*\})\]$/m.exec(output);
   if (!m) return undefined;
-  const j = JSON.parse(m[1]) as { id?: string; action?: string; done?: number; failed?: number; total?: number; query?: string; label?: string; stopped?: boolean; undoOf?: string };
+  const j = JSON.parse(m[1]) as { id?: string; action?: string; done?: number; failed?: number; total?: number; query?: string; label?: string; stopped?: boolean; undoOf?: string; provider?: string };
+  // M1: a change in another mailbox (Outlook, IMAP) has an m_ undo id and no Gmail link.
+  const gmail = !j.provider || j.provider === 'google';
   const count = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.round(v)) : 0);
   const query = cut(j.query ?? '', 300);
   return {
     kind: 'gmail',
-    id: /^g_[\w]{4,20}$/.test(j.id ?? '') ? j.id! : '',
+    id: /^[gm]_[\w]{4,20}$/.test(j.id ?? '') ? j.id! : '',
     action: cut(j.action ?? '', 20),
     done: count(j.done),
     failed: count(j.failed),
     total: count(j.total),
     query,
-    ...(query ? { link: `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(query)}` } : {}),
+    ...(query && gmail ? { link: `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(query)}` } : {}),
+    ...(!gmail ? { provider: cut(j.provider ?? '', 20) } : {}),
     ...(j.label ? { label: cut(j.label, 80) } : {}),
     ...(j.stopped ? { stopped: true } : {}),
     ...(j.undoOf ? { undoOf: cut(j.undoOf, 20) } : {}),

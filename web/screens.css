@@ -358,6 +358,25 @@ dialog .saved-tag { color: var(--success); }
 .wa-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; white-space: pre-wrap; }
 .wa-nav { display: flex; gap: var(--s-2, 8px); flex-wrap: wrap; }
 .wa-terms .row { align-items: center; min-height: 44px; }
+
+/* M1 (web/mail-accounts.js): Settings → Add-ons → Email and calendar: the mailbox list, the
+   Microsoft steps' fields and the other-provider form, at a readable width. */
+#ma-status:empty { display: none; }
+.ma-list { list-style: none; margin: 0 0 var(--s-3, 12px); padding: 0; display: grid; gap: var(--s-2, 8px); max-width: 760px; }
+.ma-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2, 8px); padding: var(--s-2, 8px) var(--s-3, 12px); border: 1px solid var(--hairline-strong); border-radius: 10px; }
+.ma-row.bad { border-inline-start: 3px solid var(--warn); }
+.ma-name { flex: 1 1 16em; min-width: 0; overflow-wrap: anywhere; }
+.ma-address { color: var(--text-2); }
+.ma-acts { display: flex; gap: var(--s-1, 4px); flex-wrap: wrap; margin-inline-start: auto; }
+.ma-acts > button { min-height: 36px; }
+.ma-empty { padding: var(--s-3, 12px); border: 1px dashed var(--hairline-strong); border-radius: 10px; color: var(--text-2); }
+#ma-page > .add-row { margin-bottom: var(--s-3, 12px); }
+#ma-page .wa-step-body .plg-field, .ma-other .plg-field { justify-self: stretch; max-width: 560px; display: grid; gap: 4px; }
+#ma-page .plg-field input, #ma-page .plg-field select { width: 100%; box-sizing: border-box; min-height: 44px; }
+.ma-other { display: grid; gap: var(--s-2, 8px); max-width: 760px; }
+.ma-other > button, .ma-steps .button-link { justify-self: start; min-height: 44px; }
+.ma-steps .button-link { display: flex; width: fit-content; align-items: center; margin-top: 6px; }
+.ma-other .wa-check { justify-self: stretch; }
 .wa-test { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-1, 4px); }
 .wa-test .grey { color: var(--text-3); }
 .wa-test .bad { font-weight: 600; }

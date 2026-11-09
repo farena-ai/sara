@@ -5,8 +5,9 @@ Sara can have **her own email address**. You write to it (or forward a mail to i
 (`plugins/email`), installed from Settings through the normal review card. Design and reasons:
 `docs/design/BRIDGES3.md` §5 and its *As built (2.50.0), part B* note.
 
-This is **her** mailbox, not yours. Reading and organising **your** inbox is a different feature:
-Settings → Google (Gmail) or the *Email* MCP server. The email bridge adds no inbox tools.
+This is **her** mailbox, not yours. Reading and organising **your** inbox (Gmail, Outlook, Yahoo,
+iCloud and more) is a different feature: Settings → Add-ons → Email and calendar
+([EMAIL.md](EMAIL.md)). The email bridge adds no inbox tools.
 
 ## What you need
 
@@ -23,7 +24,8 @@ Settings → Google (Gmail) or the *Email* MCP server. The email bridge adds no 
 | **iCloud Mail** | account.apple.com → Sign-In and Security → **App-Specific Passwords** → Generate. | IMAP `imap.mail.me.com` 993, SMTP `smtp.mail.me.com` 587 |
 | **Fastmail** | Settings → Privacy & Security → **Manage app passwords** → New app password (access: IMAP and SMTP). | IMAP `imap.fastmail.com` 993, SMTP `smtp.fastmail.com` 465 |
 | **Your host / a self-hosted server** | Your host's control panel (often called *app password*, *application password* or *device password*). | Type them yourself (*Mail provider*: Other) |
-| **Outlook.com / Hotmail** | Not supported yet: Microsoft switched app passwords off for IMAP/SMTP; it needs a Microsoft sign-in Sara doesn't do yet. | — |
+| **Outlook.com / Hotmail** | Not for her own mailbox: Microsoft switched app passwords off for IMAP/SMTP. (Your own Outlook mailbox works through the Microsoft sign-in: [EMAIL.md](EMAIL.md).) | — |
+| **More providers** | Yahoo, AOL, Zoho, GMX, WEB.DE and Proton Mail Bridge servers and app-password steps: the table in [EMAIL.md](EMAIL.md) and `src/mail/presets.ts`. | Type them yourself (*Other*) |
 
 Your normal password won't work. The app password goes **only into Sara's encrypted vault**
 (`plugin:email:password`): it is never shown again, never in settings, logs or exports.

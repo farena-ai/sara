@@ -2,8 +2,8 @@
 # as Casks/sara.rb; scripts/update-packaging.ts fills version and sha256 from the release's SHA256SUMS.
 #   brew install --cask farena-ai/tap/sara
 cask "sara" do
-  version "3.0.2"
-  sha256 "ce58e6995f55942fac64378a60b9eb7841e48ba44edc5244e377cfba57b96db1"
+  version "3.0.3"
+  sha256 "bf140c1d716454923ebd1e923da688124ba9590b5a557e4e86ee60457b4bebf0"
 
   url "https://github.com/farena-ai/sara/releases/download/v#{version}/Sara-#{version}.dmg",
       verified: "github.com/farena-ai/sara/"

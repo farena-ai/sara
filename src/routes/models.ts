@@ -92,7 +92,7 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
     const s = app.settings.get();
     const here = await modelsOnThisComputer().catch(() => []);
     const facts = {
-      google: Boolean(app.google?.status().connected),
+      google: Boolean(app.google?.status().connected) || Boolean(app.mailAccounts?.hasOthers()),
       github: Boolean(app.vault.get(GITHUB_VAULT)),
       pushDevices: app.push?.list().length ?? 0,
       apns: Boolean(app.vault.get(APNS_VAULT)),

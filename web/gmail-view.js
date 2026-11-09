@@ -64,7 +64,9 @@ export function gmailApproval(d) {
   if (d.capped) notes.append(el('li', '', t('That is the most for one go ({cap}). Ask her again for the rest.', { cap: num(d.cap) })));
   if (d.background) notes.append(el('li', '', t('This is a big one: it runs in the background with progress above the chat, and you can stop it.')));
   if (d.alwaysAsks) notes.append(el('li', '', t('Trash and spam always ask you first.')));
-  if (d.action === 'trash') notes.append(el('li', '', t('Nothing is deleted for good: Gmail empties its trash after 30 days.')));
+  // M1: another mailbox (Outlook, IMAP): which one, and where trash really goes.
+  if (d.provider && d.provider !== 'Gmail' && d.account) box.prepend(el('p', 'gm-line', t('Mailbox: {account}', { account: d.account })));
+  if (d.action === 'trash') notes.append(el('li', '', d.provider && d.provider !== 'Gmail' ? t('Nothing is deleted for good: it goes to the Deleted Items or Trash folder.') : t('Nothing is deleted for good: Gmail empties its trash after 30 days.')));
   if (d.action !== 'undo') notes.append(el('li', '', t('You can undo this for 30 days.')));
   box.append(notes);
   return box;

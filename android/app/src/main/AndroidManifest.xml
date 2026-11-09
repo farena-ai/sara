@@ -49,6 +49,20 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="sara" android:host="pair" />
             </intent-filter>
+            <!-- The same pairing link on the web, https://backstagecoding.com/sara/pair#s=<server>&c=<code>
+                 (after # so the code never reaches the website),
+                 as a verified App Link: backstagecoding.com serves /.well-known/assetlinks.json
+                 (docs/store/website/.well-known/assetlinks.json). Only this https host is claimed
+                 with autoVerify; the custom sara:// scheme above stays in its own filter. Without
+                 the app the page explains how to get it (docs/store/website/sara/pair/). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="backstagecoding.com" />
+                <data android:pathPrefix="/sara/pair" />
+            </intent-filter>
             <!-- Share text, links or photos to her from any app (Phase 18) -->
             <intent-filter android:label="@string/share_label">
                 <action android:name="android.intent.action.SEND" />

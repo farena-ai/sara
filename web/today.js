@@ -274,7 +274,7 @@ export function needsItems(d, now = Date.now()) {
   const overdue = (d?.agenda?.tasks ?? []).filter((x) => x.overdue && x.dueAt && Date.parse(x.dueAt) < start).sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt));
   for (const x of overdue) out.push({ kind: 'overdue', key: `task:${x.id}`, title: x.title, why: '', at: x.dueAt, ref: x });
   for (const c of d?.board?.waiting ?? []) out.push({ kind: 'board', key: `card:${c.id}`, title: c.title, why: c.question ?? '', at: null, ref: c });
-  if (n.includeMail !== false) for (const m of d?.mail?.important ?? []) out.push({ kind: 'mail', key: `mail:${m.id}`, title: m.subject, why: m.from, at: m.at ?? null, ref: m });
+  if (n.includeMail !== false) for (const m of d?.mail?.important ?? []) out.push({ kind: 'mail', key: `mail:${m.id}`, title: m.subject, why: m.from, at: m.at ?? null, ref: d.mail.provider ? { ...m, provider: d.mail.provider } : m });
   for (const h of d?.hooks ?? []) out.push({ kind: 'hook', key: `hook:${h.id}`, title: h.kind === 'limit' ? '' : h.text, why: h.name, at: h.at, ref: h });
   for (const p of d?.plans?.expired ?? []) out.push({ kind: 'plan', key: `plan:${p.id}`, title: p.what, why: '', at: null, ref: p });
   for (const m of n.models ?? []) out.push({ kind: 'model', key: m.key, title: m.text, why: '', at: null, ref: m });
@@ -900,7 +900,9 @@ function needsRow(x, d) {
       acts.append(btn('ghost small', t('Answer'), () => ctx.openCard?.(x.ref.boardId, x.ref.id)));
       break;
     case 'mail':
-      acts.append(gmailLink(x.ref.threadId ? `https://mail.google.com/mail/u/0/#inbox/${x.ref.threadId}` : 'https://mail.google.com/mail/u/0/#inbox', t('Open in Gmail')));
+      // M1: an Outlook or IMAP mailbox links to its own web app (when it has one), never to Gmail.
+      if (x.ref.webUrl) acts.append(gmailLink(x.ref.webUrl, t('Open')));
+      else if (!x.ref.provider) acts.append(gmailLink(x.ref.threadId ? `https://mail.google.com/mail/u/0/#inbox/${x.ref.threadId}` : 'https://mail.google.com/mail/u/0/#inbox', t('Open in Gmail')));
       break;
     case 'hook':
       acts.append(btn('ghost small', t('Open'), () => (x.ref.conversationId ? ctx.openConversation(x.ref.conversationId) : ctx.openSettings('co-hooks'))));
@@ -977,7 +979,10 @@ export function renderMail(m) {
   if (!m) return;
   const body = tile.querySelector('.td-body');
   const counts = typeof m.total === 'number' ? t('{total} in inbox · {unread} unread', { total: num(m.total), unread: num(m.unread) }) : t('Unread: {n}', { n: num(m.unread) });
-  tileHead(tile, t('Mail'), m.error ? null : el('span', 'td-count td-mail-counts', counts));
+  // M1: the mailbox in its own case next to the title (the title is set in capitals).
+  const acct = m.provider && m.account ? el('span', 'td-mail-account', m.account) : null;
+  if (acct) acct.title = t('Mail: {account}', { account: m.account });
+  tileHead(tile, t('Mail'), [acct, m.error ? null : el('span', 'td-count td-mail-counts', counts)]);
   const out = [];
   if (m.error) {
     out.push(el('p', 'error small', m.error));
@@ -999,7 +1004,7 @@ export function renderMail(m) {
       for (const x of m.important.slice(0, big ? 4 : 3)) {
         const li = el('li', 'td-mail-row');
         const a = el('a', 'td-mail-link');
-        a.href = x.threadId ? `https://mail.google.com/mail/u/0/#inbox/${x.threadId}` : 'https://mail.google.com/mail/u/0/#inbox';
+        a.href = x.webUrl ?? (m.provider ? '#' : x.threadId ? `https://mail.google.com/mail/u/0/#inbox/${x.threadId}` : 'https://mail.google.com/mail/u/0/#inbox');
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
         a.append(raw(el('span', 'td-mail-from', x.from)), raw(el('span', 'td-mail-subj', x.subject)));
@@ -1038,7 +1043,7 @@ export function renderMail(m) {
     }
     if (!m.important?.length && !org.length && !m.change) out.push(el('p', 'muted small', t('Nothing important waiting.')));
   }
-  out.push(freshFoot(m.at, 10 * 60_000, [gmailLink('https://mail.google.com/mail/u/0/#inbox', t('Open Gmail'))]));
+  out.push(freshFoot(m.at, 10 * 60_000, m.provider ? (m.webUrl ? [gmailLink(m.webUrl, m.provider === 'Outlook' ? t('Open Outlook') : t('Open'))] : []) : [gmailLink('https://mail.google.com/mail/u/0/#inbox', t('Open Gmail'))]));
   body.replaceChildren(...out);
 }
 

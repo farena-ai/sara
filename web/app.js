@@ -29,6 +29,7 @@ import { loadPrograms, wirePrograms } from './prereqs.js';
 import { loadIsolation, wireIsolation } from './isolation.js';
 import { loadSignalPage } from './signal.js';
 import { loadEmailPage } from './email.js';
+import { loadMailAccounts } from './mail-accounts.js';
 import { renderTelegramSetup } from './telegram-setup.js';
 import { initAgents, loadAgents } from './agents.js';
 import { hookNotice, initHooks, loadHooks } from './hooks.js';
@@ -3641,6 +3642,19 @@ const TOOL_WORDS = {
   calendar_events: 'See your Google Calendar.',
   calendar_add: 'Add an event to your Google Calendar.',
   calendar_remove: 'Delete an event from your Google Calendar.',
+  mail_accounts: 'See which mailboxes are connected.',
+  mail_search: 'Search any of your mailboxes (Gmail, Outlook, Yahoo, iCloud…).',
+  mail_read: 'Read an email.',
+  mail_thread: 'Read a whole email conversation.',
+  mail_needs_answer: 'Find emails waiting for your answer.',
+  mail_draft: 'Write an email draft for you to check and send.',
+  mail_send: 'Send an email when you clearly ask her to.',
+  mail_organize: 'Archive, mark read, flag, categorize, move, trash or mark spam on many emails at once. Shows the count first; Undo for 30 days.',
+  mail_undo: 'Undo a change she made to your mail.',
+  mail_folders: 'See the folders and categories of a mailbox.',
+  mail_senders: 'See who sends you the most email, to tidy up.',
+  mail_unsubscribe_info: 'Find the unsubscribe link of a sender (you open it yourself).',
+  calendar_update: 'Change an event on your Outlook calendar.',
   team_task: 'Lead a team of helpers on a bigger job.',
   team_status: 'Check on a team task.',
   starter_create: 'Start a new project from a ready-made template.',
@@ -3671,7 +3685,9 @@ const TOOL_NAME = {
   scrapbook: 'Scrapbook', moments: 'Our moments', share_photo: 'Send her pictures', take_photo: 'Make a new picture', change_outfit: 'Change her outfit',
   gmail_search: 'Search Gmail', gmail_read: 'Read an email', gmail_thread: 'Read an email conversation', gmail_needs_answer: 'Find emails to answer', gmail_draft: 'Draft an email', gmail_send: 'Send an email',
   gmail_organize: 'Organize your Gmail', gmail_undo: 'Undo a Gmail change', gmail_labels: 'See Gmail labels', gmail_senders: 'Gmail clean-up summary', gmail_unsubscribe_info: 'Find unsubscribe links',
-  calendar_events: 'See your calendar', calendar_add: 'Add a calendar event', calendar_remove: 'Delete a calendar event',
+  calendar_events: 'See your calendar', calendar_add: 'Add a calendar event', calendar_remove: 'Delete a calendar event', calendar_update: 'Change a calendar event',
+  mail_accounts: 'See your mailboxes', mail_search: 'Search your mail', mail_read: 'Read an email', mail_thread: 'Read an email conversation', mail_needs_answer: 'Find emails to answer', mail_draft: 'Draft an email', mail_send: 'Send an email',
+  mail_organize: 'Organize your mail', mail_undo: 'Undo a mail change', mail_folders: 'See mail folders', mail_senders: 'Mail clean-up summary', mail_unsubscribe_info: 'Find unsubscribe links',
   home_status: 'See your smart home', home_control: 'Switch things at home',
   spotify_search: 'Search Spotify', spotify_now_playing: 'What is playing', spotify_my_playlists: 'Your playlists', spotify_top: 'Your most-played music', spotify_devices: 'Your Spotify devices', spotify_playlist_create: 'Make a playlist', spotify_playlist_add: 'Add songs to a playlist', spotify_playback: 'Control playback',
   ssh_servers: 'List your servers', ssh_connect: 'Add a server', ssh_run: 'Run commands on a server', ssh_forget_password: 'Forget a server password', ssh_revoke_key: 'Remove her key from a server', ssh_remove_server: 'Remove a server',
@@ -3688,7 +3704,8 @@ const TOOL_GROUP_OF = {
   scrapbook: 'pictures', moments: 'pictures', share_photo: 'pictures', take_photo: 'pictures', change_outfit: 'pictures',
   web_search: 'web', web_fetch: 'web',
   gmail_search: 'mail', gmail_read: 'mail', gmail_thread: 'mail', gmail_needs_answer: 'mail', gmail_draft: 'mail', gmail_send: 'mail', calendar_events: 'mail', calendar_add: 'mail', calendar_remove: 'mail',
-  gmail_organize: 'mail', gmail_undo: 'mail', gmail_labels: 'mail', gmail_senders: 'mail', gmail_unsubscribe_info: 'mail',
+  gmail_organize: 'mail', gmail_undo: 'mail', gmail_labels: 'mail', gmail_senders: 'mail', gmail_unsubscribe_info: 'mail', calendar_update: 'mail',
+  mail_accounts: 'mail', mail_search: 'mail', mail_read: 'mail', mail_thread: 'mail', mail_needs_answer: 'mail', mail_draft: 'mail', mail_send: 'mail', mail_organize: 'mail', mail_undo: 'mail', mail_folders: 'mail', mail_senders: 'mail', mail_unsubscribe_info: 'mail',
   home_status: 'home', home_control: 'home',
   list_dir: 'files', read_file: 'files', write_file: 'files', edit_file: 'files', search: 'files', code_map: 'files', code_find: 'files', code_refs: 'files', code_deps: 'files', starter_create: 'files', project_note: 'files', review_code: 'files',
   shell: 'run', start_job: 'run', job_status: 'run', stop_job: 'run', delegate_task: 'run',
@@ -3718,14 +3735,15 @@ const TOOL_NEEDS = {
   web_search: 'search', github_list: 'github', github_read: 'github', github_create_issue: 'github', github_comment: 'github', github_open_pr: 'github', github_post_review: 'github', work_on_issue: 'github',
   gmail_search: 'google', gmail_read: 'google', gmail_thread: 'google', gmail_needs_answer: 'google', gmail_draft: 'google', gmail_send: 'google', calendar_events: 'google', calendar_add: 'google', calendar_remove: 'google',
   gmail_organize: 'google', gmail_undo: 'google', gmail_labels: 'google', gmail_senders: 'google', gmail_unsubscribe_info: 'google',
+  mail_accounts: 'mail', mail_search: 'mail', mail_read: 'mail', mail_thread: 'mail', mail_needs_answer: 'mail', mail_draft: 'mail', mail_send: 'mail', mail_organize: 'mail', mail_undo: 'mail', mail_folders: 'mail', mail_senders: 'mail', mail_unsubscribe_info: 'mail', calendar_update: 'mail',
   spotify_search: 'spotify', spotify_now_playing: 'spotify', spotify_my_playlists: 'spotify', spotify_top: 'spotify', spotify_devices: 'spotify', spotify_playlist_create: 'spotify', spotify_playlist_add: 'spotify', spotify_playback: 'spotify',
   home_status: 'home', home_control: 'home', take_photo: 'pictures', change_outfit: 'looks', delegate_task: 'agents', moments: 'moments',
 };
 const TOOL_NEED_TEXT = {
-  search: 'Needs a web search service first.', github: 'Needs your GitHub token first.', google: 'Needs Gmail and Calendar connected first.', home: 'Needs Home Assistant connected first.', spotify: 'Needs Spotify connected first (playlists and playback need their tick too).',
+  search: 'Needs a web search service first.', github: 'Needs your GitHub token first.', google: 'Needs Gmail and Calendar connected first.', mail: 'Needs a mailbox besides Gmail connected first (Outlook, Yahoo, iCloud…).', home: 'Needs Home Assistant connected first.', spotify: 'Needs Spotify connected first (playlists and playback need their tick too).',
   pictures: 'Needs pictures from her set up first.', looks: 'Needs saved looks in her closet first.', agents: 'Needs Claude Code or Grok Build signed in first.', moments: 'Our moments is off.', none: 'Not set up yet',
 };
-const TOOL_NEED_PAGE = { search: 'ab-search', github: 'ab-github', google: 'ab-google', home: 'ab-home', spotify: 'co-spotify', pictures: 'her-pictures', looks: 'her-look', agents: 'models-subs' };
+const TOOL_NEED_PAGE = { search: 'ab-search', github: 'ab-github', google: 'ab-google', mail: 'ab-mail', home: 'ab-home', spotify: 'co-spotify', pictures: 'her-pictures', looks: 'her-look', agents: 'models-subs' };
 const PERM_LABEL = { auto: 'Allowed', ask: 'Ask me first', never: 'Off' };
 const toolGroupsOpen = () => {
   try {
@@ -6526,6 +6544,9 @@ $('#g-forget').addEventListener('click', async () => {
   await api('/google/client', { method: 'DELETE' });
   loadGoogle();
 });
+// M1: coming back from Microsoft's sign-in page: Settings → Email and calendar says how it went.
+if (/^#microsoft=\w+/.test(location.hash)) setTimeout(() => void openSettings('ab-mail'), 300);
+globalThis.openSettingsPage = (page) => void openSettings(page);
 // Coming back from Google's sign-in page.
 {
   const m = /^#google=(\w+)/.exec(location.hash);
@@ -8471,6 +8492,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'her-hey') void loadWakePage();
   if (pick === 'co-signal') void loadSignalPage();
   if (pick === 'co-email') void loadEmailPage();
+  if (pick === 'ab-mail') void loadMailAccounts();
   if (pick === 'co-whatsapp') void loadWhatsAppPage();
   if (pick === 'co-matrix') void loadMatrixPage();
   if (pick === 'co-imessage') void loadIMessagePage();

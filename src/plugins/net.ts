@@ -388,12 +388,12 @@ export class PluginSockets {
   }
 }
 
-async function defaultLookup(host: string): Promise<string[]> {
+export async function defaultLookup(host: string): Promise<string[]> {
   const { lookup } = await import('node:dns/promises');
   return (await lookup(host, { all: true })).map((x) => x.address);
 }
 
-function connectTcp(ip: string, port: number): Promise<Socket> {
+export function connectTcp(ip: string, port: number): Promise<Socket> {
   return new Promise((resolveConn, reject) => {
     const s = new Socket();
     const timer = setTimeout(() => {
@@ -455,7 +455,7 @@ function readUntil(s: Socket, done: (lines: string[]) => boolean): Promise<strin
  * IMAP: greeting, `a0 STARTTLS`, `a0 OK`. SMTP: 220 greeting, EHLO, 250 with STARTTLS, `STARTTLS`,
  * 220. Returns the greeting (the plugin re-sends CAPABILITY / EHLO over TLS as the RFCs say).
  */
-async function startTls(s: Socket, kind: 'imap' | 'smtp', ehlo: string): Promise<string> {
+export async function startTls(s: Socket, kind: 'imap' | 'smtp', ehlo: string): Promise<string> {
   if (kind === 'imap') {
     const g = await readUntil(s, (l) => l.length >= 1);
     if (!/^\* (OK|PREAUTH)\b/i.test(g[0])) throw new Error('the mail server did not greet as IMAP');
@@ -476,10 +476,14 @@ async function startTls(s: Socket, kind: 'imap' | 'smtp', ehlo: string): Promise
   return g.join('\n');
 }
 
-function upgrade(s: Socket, host: string, ca: NetDeps['ca']): Promise<TLSSocket> {
+/** M1 (src/mail/socket.ts) reuses these for the owner's own mailboxes. `pin`: loopback only (Proton Mail Bridge's own certificate). */
+export function upgrade(s: Socket, host: string, ca: NetDeps['ca'], pin?: { loopback: true; fingerprint?: string }): Promise<TLSSocket> {
   return new Promise((resolveTls, reject) => {
     // The certificate is checked against the host the owner typed (SNI only for names).
-    const t = tlsConnect({ socket: s, host, ...(isIP(host) ? {} : { servername: host }), rejectUnauthorized: true, minVersion: 'TLSv1.2', ...(ca ? { ca } : {}) });
+    // A pinned loopback server (Proton Mail Bridge) has a self-signed certificate: its fingerprint is
+    // checked instead (trusted on first use, then it must stay the same). Never for a remote host.
+    const pinned = Boolean(pin?.loopback && isLoopbackAddress(s.remoteAddress ?? ''));
+    const t = tlsConnect({ socket: s, host, ...(isIP(host) ? {} : { servername: host }), rejectUnauthorized: !pinned, minVersion: 'TLSv1.2', ...(ca ? { ca } : {}) });
     const timer = setTimeout(() => {
       t.destroy();
       reject(new Error('the encrypted connection did not start within 15 s'));
@@ -487,6 +491,16 @@ function upgrade(s: Socket, host: string, ca: NetDeps['ca']): Promise<TLSSocket>
     t.once('secureConnect', () => {
       clearTimeout(timer);
       t.removeAllListeners('error');
+      if (pinned) {
+        const fp = t.getPeerCertificate?.()?.fingerprint256 ?? '';
+        if (pin?.fingerprint && fp !== pin.fingerprint) {
+          t.destroy();
+          reject(new Error("the program on this computer showed a different certificate than before (if you reinstalled Proton Mail Bridge, remove and add the account again)"));
+          return;
+        }
+        resolveTls(t);
+        return;
+      }
       if (!t.authorized) {
         t.destroy();
         reject(new Error(`the server's certificate isn't valid (${String(t.authorizationError)})`));

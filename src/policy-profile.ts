@@ -68,9 +68,11 @@ export interface PolicyPins {
   spendCap?: number;
   /** C15: true = new-device approval stays on (a remote sign-in waits for the owner's OK). */
   deviceApproval?: true;
+  /** M1: false = household members can't connect or use mailboxes of their own (the owner's mail is unchanged). */
+  memberMail?: false;
 }
 export type PinKey = keyof PolicyPins;
-export const PIN_KEYS: readonly PinKey[] = ['providers', 'tools', 'alwaysAllow', 'adultMode', 'shellNetwork', 'privateLocal', 'store', 'auditRetentionDays', 'programInstalls', 'containerSandbox', 'egressAllowlist', 'sharing', 'crews', 'memoryTidy', 'externalSecrets', 'editors', 'legalHold', 'personDelete', 'codeMode', 'parallelReplies', 'meetings', 'phoneHelper', 'workMode', 'triggers', 'learning', 'workingStyle', 'spendCap', 'deviceApproval'];
+export const PIN_KEYS: readonly PinKey[] = ['providers', 'tools', 'alwaysAllow', 'adultMode', 'shellNetwork', 'privateLocal', 'store', 'auditRetentionDays', 'programInstalls', 'containerSandbox', 'egressAllowlist', 'sharing', 'crews', 'memoryTidy', 'externalSecrets', 'editors', 'legalHold', 'personDelete', 'codeMode', 'parallelReplies', 'meetings', 'phoneHelper', 'workMode', 'triggers', 'learning', 'workingStyle', 'spendCap', 'deviceApproval', 'memberMail'];
 export interface Policy {
   version: 1;
   name: string;
@@ -120,6 +122,7 @@ export function validatePolicy(input: unknown): { name: string; pins: PolicyPins
       case 'triggers':
       case 'learning':
       case 'workingStyle':
+      case 'memberMail':
         if (v !== false) throw new HttpError(400, '{key} can only be pinned off.', { params: { key: k } });
         pins[k] = false;
         break;
@@ -290,6 +293,10 @@ export class PolicyStore {
   /** EC24: Sara may ask a helper device (no `phoneHelper: false` pin). */
   get phoneHelperOn(): boolean {
     return this.#cur.pins.phoneHelper !== false;
+  }
+  /** M1: household members may use mailboxes of their own (no `memberMail: false` pin). */
+  get memberMailOn(): boolean {
+    return this.#cur.pins.memberMail !== false;
   }
   get alwaysAllowOn(): boolean {
     return this.#cur.pins.alwaysAllow !== false;

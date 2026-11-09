@@ -628,7 +628,7 @@ test('no prompt to a model ever mixes two people, and members get no server tool
   }
   const memberTurns = llmRequests.filter((r) => r.text.includes(M.a) || r.text.includes(M.b));
   assert.ok(memberTurns.length >= 2);
-  const forbidden = ['shell', 'write_file', 'read_file', 'edit_file', 'list_dir', 'search', 'web_fetch', 'web_search', 'run_job', 'github_issue', 'gmail_search', 'home_state', 'preview_start', 'browser_open', 'team_start', 'code_map', 'delegate'];
+  const forbidden = ['shell', 'write_file', 'read_file', 'edit_file', 'list_dir', 'search', 'web_fetch', 'web_search', 'run_job', 'github_issue', 'gmail_search', 'mail_search', 'mail_send', 'mail_organize', 'mail_accounts', 'calendar_update', 'home_state', 'preview_start', 'browser_open', 'team_start', 'code_map', 'delegate'];
   for (const r of memberTurns) for (const t of r.tools) assert.ok(!forbidden.some((f) => t === f || t.startsWith('mcp_') || t.startsWith('git_') || t.startsWith('github') || t.startsWith('browser_') || t.startsWith('preview_')), `a member's turn offered the tool ${t}`);
 });
 

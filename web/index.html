@@ -3195,6 +3195,11 @@
       <p id="browser-status" class="muted small" role="status"></p>
       <div class="add-row"><button id="browser-recheck" type="button" class="ghost small">Look again</button></div>
         </section>
+        <section class="settings-page" data-page="ab-mail" data-group="Add-ons" data-title="Email and calendar" hidden>
+      <p class="muted small page-lead">Your own mailboxes: Gmail, Outlook.com and Microsoft 365, Yahoo, iCloud, Fastmail and more. She reads and searches them; drafting, sending, organizing and calendar changes always ask you first, and nothing is ever deleted for good.</p>
+      <p id="ma-status" class="muted small" role="status"></p>
+      <div id="ma-page"></div>
+        </section>
         <section class="settings-page" data-page="ab-google" data-group="Add-ons" data-title="Gmail and Calendar" data-owner-only hidden>
       <p id="g-status" class="muted small" role="status"></p>
       <div id="g-connected" class="add-row" hidden><button id="g-disconnect" type="button" class="ghost">Sign out of Google</button></div>
@@ -3215,7 +3220,7 @@
         <div class="add-row"><label>Client ID <input id="g-client-id" autocomplete="off" placeholder="…apps.googleusercontent.com"></label><label>Client secret <input id="g-client-secret" type="password" autocomplete="off" placeholder="GOCSPX-…"></label><button id="g-save" type="button">Save</button></div>
         <div class="add-row"><button id="g-connect" type="button" disabled>Sign in with Google</button><button id="g-forget" type="button" class="ghost small" hidden>Remove the Google app</button></div>
       </details>
-      <p class="muted small">Using another email provider? Email and calendar with an app password are under "Tools from other programs" below (Fastmail, iCloud, Outlook and more).</p>
+      <p class="muted small">Using Outlook, Yahoo, iCloud or another provider? Add it under Settings → Add-ons → Email and calendar.</p>
         </section>
         <section class="settings-page" data-page="ab-github" data-group="Coding" data-title="GitHub" data-owner-only hidden>
       <p class="muted small page-lead">Only needed if you want her to push to GitHub. Make a <strong>fine-grained token</strong> at github.com → Settings → Developer settings → Personal access tokens, for just the repositories you choose, with <em>Contents: Read and write</em>. Pushing still asks you first. Delegating to Claude Code or Grok Build needs those subscriptions signed in (Models → Subscriptions).</p>
@@ -4194,6 +4199,7 @@
         <label class="row"><input id="po-learning" type="checkbox"> Turn off Learn a topic <button type="button" class="tip" data-tip="Sara learns no new topics or websites on this server and refreshes none. What she already learned stays as skills.">?</button></label>
         <label class="row"><input id="po-workstyle" type="checkbox"> Turn off How she works with you <button type="button" class="tip" data-tip="Sara learns nothing about how people on this server like to work and uses none of what she learned. Their lists stay until they forget them.">?</button></label>
         <label class="row">Hard daily spending cap <select id="po-spendcap"><option value="">No cap</option><option value="1">$1</option><option value="2">$2</option><option value="5">$5</option><option value="10">$10</option><option value="25">$25</option><option value="50">$50</option><option value="100">$100</option></select> <button type="button" class="tip" data-tip="Dollars a day across model calls and paid tools. Past it, paid tools such as new pictures stop until tomorrow, and nobody can allow one more call.">?</button></label>
+        <label class="row"><input id="po-membermail" type="checkbox"> Turn off household members' own mailboxes <button type="button" class="tip" data-tip="Household members can't connect or use mailboxes of their own: their Outlook and other mailboxes stay hidden from them and their companions until the pin is lifted (they can still remove them). The owner's mail is not affected.">?</button></label>
         <label class="row"><input id="po-phone" type="checkbox"> Turn off Phone as a helper <button type="button" class="tip" data-tip="Sara can never ask a phone or browser for its camera, location or screen on this server, and no device can be switched on for it.">?</button></label>
         <label class="row"><input id="po-workmode" type="checkbox"> Keep work mode on everywhere <button type="button" class="tip" data-tip="Every chat on this server is a work chat, for every companion: work name and tone, work tools and work memory only, no moods, romance, adult content or pictures on her own.">?</button></label>
         <label class="row"><input id="po-devapproval" type="checkbox"> Keep new-device approval on <button type="button" class="tip" data-tip="A sign-in from another address, a tunnel or a proxy waits until the owner approves it from a device already in use or from Telegram or Discord. Pinned, nobody can switch it off.">?</button></label>

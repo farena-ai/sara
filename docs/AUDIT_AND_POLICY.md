@@ -57,6 +57,7 @@ companion and every household member. They only make things stricter:
 | Turn off Learn a topic | Sara learns no new topics or websites and refreshes none; what she already learned stays as skills. JSON: `"learning": false`. Runs are `learn.create`, `learn.refresh` and `learn.run` rows. See [LEARN.md](LEARN.md). |
 | Keep work mode on everywhere | Every chat on the server is a work chat for every companion (Settings → Her → At work can't be turned off): work name and tone, work tools and work memory only, no moods, romance, adult content or pictures on her own. JSON: `"workMode": true`. See [AT_WORK.md](AT_WORK.md). |
 | Overnight memory tidy | *Models on this computer only* or *Off*. See [MEMORY_TIDY.md](MEMORY_TIDY.md). |
+| Turn off household members' own mailboxes (M1) | Household members can't connect or use mailboxes of their own: their lists, Today mail and mail tools go away, adding answers 409 with the policy's name; removing still works. The owner's mail is not affected. JSON: `"memberMail": false`. See [EMAIL.md](EMAIL.md#who-can-use-it). |
 | Turn off meetings (EC19) | No one can start a meeting room or get notes from a recording; joins and sound are refused. Notes already written stay in the Library. JSON: `"meetings": false`. Rows: `meeting.start`, `meeting.join`, `meeting.file`, `meeting.end`, `meeting.notes`, `meeting.todos`, `meeting.recording`, `meeting.delete`. See [MEETINGS.md](MEETINGS.md). |
 
 A pinned setting shows **Set by your admin** in Settings. The server refuses a change with

@@ -274,7 +274,7 @@ export function shotWidth(r: Receipt): 'phone' | 'desktop' | undefined {
 /** Clause edges: punctuation and "but" words; negation counts only in the verb's own clause. */
 const CLAUSE = /\s*[,;:–—]\s*|\s+-\s+|\s+(?:but|however|pero|aunque|sin embargo|mais|cependant|aber|jedoch|doch|mas|porém|però|ma)\s+/i;
 /** Read-only tools: they never back an action claim. */
-const READ_ONLY = /^(?:read_file|list_dir|search|web_search|web_fetch|gmail_read|gmail_search|gmail_thread|gmail_needs_answer|calendar_events|github_list|github_read|home_status|job_status|browser_read|recall|find|ssh_servers)$/;
+const READ_ONLY = /^(?:read_file|list_dir|search|web_search|web_fetch|gmail_read|gmail_search|gmail_thread|gmail_needs_answer|mail_read|mail_search|mail_thread|mail_needs_answer|mail_accounts|mail_folders|calendar_events|github_list|github_read|home_status|job_status|browser_read|recall|find|ssh_servers)$/;
 
 const WRITE_TOOLS = new Set(['write_file', 'edit_file']);
 /** Phase 73: a command on one of the owner's servers counts like her shell; these change her server list. */
@@ -357,7 +357,7 @@ function backing(receipts: Receipt[]) {
       return last((r) => (r.name === 'browser_screenshot' && (!width || shotWidth(r) === width)) || (!width && r.name === 'browser_check' && !/^FAIL\b/m.test(r.output))) > last((r) => WRITE_TOOLS.has(r.name));
     },
     // Phase 62: sending (mail, a GitHub comment / issue / pull request, an MCP tool, a mail command).
-    hasSend: mcp || ok.some((r) => r.name === 'gmail_send' || r.name === 'github_comment' || r.name === 'github_create_issue' || r.name === 'github_open_pr') || shells.some((r) => /\b(?:mail|sendmail|msmtp|mutt|curl|gh)\b/.test(cmd(r))),
+    hasSend: mcp || ok.some((r) => r.name === 'gmail_send' || r.name === 'mail_send' || r.name === 'github_comment' || r.name === 'github_create_issue' || r.name === 'github_open_pr') || shells.some((r) => /\b(?:mail|sendmail|msmtp|mutt|curl|gh)\b/.test(cmd(r))),
     // Phase 62: a calendar entry (or a reminder set for it).
     hasSchedule: mcp || ok.some((r) => r.name === 'calendar_add' || (r.name === 'remind' && String(r.args.action) === 'set')),
     // Anything that did something (not just reading) backs the judge's generic "action".

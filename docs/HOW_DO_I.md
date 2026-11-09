@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 209 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 212 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -787,6 +787,24 @@ them in one place. In the app, open the box and press **Show me** to see the con
 **How do I disconnect Google?**
 
 1. Press Sign out of Google.
+
+### Email and calendar
+
+**How do I add an Outlook or Microsoft 365 mailbox?**
+
+1. Under Microsoft, follow the numbered steps to make your own Microsoft app.
+2. Paste its client ID and secret, then press Save.
+3. Press Sign in with Microsoft and allow Sara.
+
+**How do I add Yahoo, iCloud or another mailbox?**
+
+1. Under Add another provider, pick your provider.
+2. Make an app password with the steps shown, then paste it.
+3. Press Add and check.
+
+**How do I choose which mailbox she uses first?**
+
+1. In the list of mailboxes, press Make default on the one you want.
 
 ### Home Assistant
 

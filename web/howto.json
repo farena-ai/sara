@@ -637,6 +637,36 @@
    "show": "#g-disconnect"
   }
  ],
+ "ab-mail": [
+  {
+   "id": "outlook",
+   "q": "How do I add an Outlook or Microsoft 365 mailbox?",
+   "steps": [
+    "Under Microsoft, follow the numbered steps to make your own Microsoft app.",
+    "Paste its client ID and secret, then press Save.",
+    "Press Sign in with Microsoft and allow Sara."
+   ],
+   "show": "#ma-page"
+  },
+  {
+   "id": "other",
+   "q": "How do I add Yahoo, iCloud or another mailbox?",
+   "steps": [
+    "Under Add another provider, pick your provider.",
+    "Make an app password with the steps shown, then paste it.",
+    "Press Add and check."
+   ],
+   "show": "#ma-page"
+  },
+  {
+   "id": "default",
+   "q": "How do I choose which mailbox she uses first?",
+   "steps": [
+    "In the list of mailboxes, press Make default on the one you want."
+   ],
+   "show": "#ma-page"
+  }
+ ],
  "ab-home": [
   {
    "id": "connect",

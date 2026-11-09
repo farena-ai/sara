@@ -194,6 +194,9 @@ export type GmailApproval = {
   alwaysAsks: boolean;
   /** For an undo: what it reverses. */
   undoOf?: string;
+  /** M1: another mailbox than Gmail ("Outlook", "Mail") and its address. */
+  provider?: string;
+  account?: string;
 };
 
 /** An error whose message is shown to the model as the tool result. */

@@ -145,7 +145,7 @@ export function whatWouldLeave(s: Settings, facts: LeaveFacts = {}): LeaveItem[]
     { id: 'reports', label: 'Sending a reported reply to the developer (it is still kept here)', active: true },
     { id: 'telegram', label: 'Telegram', active: s.telegram?.enabled === true },
     { id: 'discord', label: 'Discord', active: s.discord?.enabled === true },
-    { id: 'google', label: 'Gmail and Google Calendar', active: facts.google === true },
+    { id: 'google', label: 'Gmail, Outlook and other mailboxes, and their calendars', active: facts.google === true },
     { id: 'github', label: 'GitHub', active: facts.github === true },
     { id: 'push', label: 'Notifications to phones and browsers', active: (facts.pushDevices ?? 0) > 0 || facts.apns === true },
     { id: 'offsite', label: 'Off-server backup copies (S3)', active: offsite },

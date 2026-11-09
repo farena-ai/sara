@@ -38,6 +38,7 @@ export const PINS = [
   { key: 'workingStyle', label: () => t('Turn off How she works with you'), form: '#po-workstyle', kind: 'flag', value: false, locks: ['#ws-on'] },
   { key: 'spendCap', label: () => t('Hard daily spending cap'), form: '#po-spendcap', kind: 'number' },
   { key: 'deviceApproval', label: () => t('Keep new-device approval on'), form: '#po-devapproval', kind: 'flag', value: true, locks: ['#dap-on'] },
+  { key: 'memberMail', label: () => t("Turn off household members' own mailboxes"), form: '#po-membermail', kind: 'flag', value: false },
 ];
 
 /** Shows `pins` in the policy form (`q` finds one element, `qa` all). */

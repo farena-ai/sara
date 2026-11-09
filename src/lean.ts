@@ -139,7 +139,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^phone_(camera|location|screen)$/, 'phone', 'your phone'],
   [/^team/, 'team', 'team'],
   [/^(board_|card_)/, 'board', 'board'],
-  [/^(gmail_|calendar_|calendar$)/, 'google', 'Google (email, calendar)'],
+  [/^(gmail_|mail_|calendar_|calendar$)/, 'google', 'Email and calendar'],
   [/^(github_|work_on_issue$)/, 'github', 'GitHub (built-in)'],
   [/^home_/, 'home', 'Home Assistant'],
   [/^(share_photo|take_photo|change_outfit)$/, 'photos', 'photos'],
@@ -215,7 +215,7 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   browser: ['browser', 'click', 'screenshot', 'web page', 'navegador', 'clic', 'captura', 'navigateur', 'cliquer', 'capture d ecran', 'klicken', 'bildschirmfoto', 'navegador', 'clicar', 'captura de tela', 'clicca', 'schermata', 'pagina web', 'webseite'],
   ssh: ['ssh', 'server', 'servers', 'servidor', 'servidores', 'serveur', 'serveurs', 'servidor', 'server remoto'],
   board: ['board', 'card', 'cards', 'kanban', 'tablero', 'tarjeta', 'tableau', 'carte', 'tafel', 'karte', 'quadro', 'cartao', 'bacheca', 'scheda'],
-  google: ['email', 'emails', 'gmail', 'calendar', 'inbox', 'correo', 'calendario', 'courriel', 'calendrier', 'agenda google', 'e mail', 'kalender', 'posteingang', 'caixa de entrada', 'posta'],
+  google: ['email', 'emails', 'gmail', 'calendar', 'inbox', 'correo', 'calendario', 'courriel', 'calendrier', 'agenda google', 'outlook', 'hotmail', 'yahoo', 'icloud', 'e mail', 'kalender', 'posteingang', 'caixa de entrada', 'posta'],
   home: ['home assistant', 'lights', 'light', 'thermostat', 'luces', 'lumiere', 'lumieres', 'licht', 'lichter', 'luzes', 'luci', 'termostato'],
   computer: ['my computer', 'my pc', 'desktop', 'mi ordenador', 'mi computadora', 'mon ordinateur', 'mein computer', 'meu computador', 'il mio computer'],
   preview: ['preview', 'vista previa', 'apercu', 'vorschau', 'pre visualizacao', 'anteprima'],
@@ -652,7 +652,7 @@ export function argErrorHint(tool: Tool, output: string): string {
 export function eligibleFor(app: AppContext, conv: Pick<Conversation, 'private' | 'partner' | 'channel' | 'mode'> & Partial<Pick<Conversation, 'channelKey' | 'id'>>): Tool[] {
   if (conv.partner) return [];
   const s = app.settings.get();
-  const OFF = (n: string) => n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'delegate_task' || n === 'git_push' || /^(home_|mcp_|gmail_|calendar_|github_)/.test(n);
+  const OFF = (n: string) => n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'delegate_task' || n === 'git_push' || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n);
   const work = conv.channel.endsWith('-work');
   let tools = app.tools.enabled(s.toolPermissions).filter((t) => !(conv.private && OFF(t.spec.name)));
   if (!checkpointAllowed(app, conv)) tools = tools.filter(t => t.spec.name !== 'project_checkpoint');

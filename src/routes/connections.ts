@@ -17,6 +17,7 @@ import type { TurnOptions } from '../chat.ts';
 import { SESSION_COOKIE } from '../auth.ts';
 import { as400, cookies, fromPhoneApp, fromSaraApp, HttpError, readJson, safeDecode, SECURITY_HEADERS, send } from '../http.ts';
 import { appLanguage } from '../i18n.ts';
+import { policy } from '../policy-profile.ts';
 import { netFetch, privateLocalOn } from '../net-guard.ts';
 import { cleanOrigins, otherAppsSettings } from '../other-apps.ts';
 import { cleanPresence, PRESENCE_KINDS, presenceSettings } from '../presence.ts';
@@ -24,6 +25,7 @@ import { DEFAULT_REPORT_INBOX, REASON_LABELS, validReason } from '../reports.ts'
 import { disclosureText } from '../safety.ts';
 import { adultModeOn } from '../settings.ts';
 import { clearTodayCache, todayChanged } from '../today.ts';
+import { IMAP_PRESETS } from '../mail/presets.ts';
 import { getLayout } from '../today-layout.ts';
 import { ACTION_WORDS, RECONNECT_TEXT } from '../gmail-organize.ts';
 import { sceneAllowed, ENTITY_ID, haCall, switchPlan } from '../home-switch.ts';
@@ -390,6 +392,132 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, { code: tg.newLinkCode(), bot: st.bot });
       }
     }
+    /** M1: Undo of a change in an Outlook or IMAP mailbox (the result card's and Today's button; /api/google/undo/m_… too). */
+    const mailUndo = async (c: string) => {
+      const accts = app.mailAccounts;
+      const mo = app.mailOrganizer;
+      if (!accts || !mo) throw new HttpError(404, 'Not available');
+      const problem = mo.undoProblem(c);
+      if (problem) throw new HttpError(409, problem);
+      const r = mo.get(c)!;
+      const account = accts.list().find((x) => x.id === r.accountId);
+      if (!account) throw new HttpError(409, 'That mailbox was removed, so the change can no longer be undone.');
+      try {
+        const p = accts.provider(account.id);
+        const out = await mo.execute(`Mail: undo on ${r.count.toLocaleString('en-US')} emails`, r.count, r.conversationId ?? undefined, undefined, (signal, progress) => mo.undo(c, account, p, { ...(signal ? { signal } : {}), progress }), { action: r.action });
+        const done = /^\[gmail-result (\{.*\})\]$/m.exec(out.text);
+        return send(res, 200, { ...(out.job ? { job: out.job } : {}), ...(done ? (JSON.parse(done[1]) as Record<string, unknown>) : {}) });
+      } catch (err) {
+        throw as400(err);
+      }
+    };
+    // M1: every mailbox (Settings → Email and calendar). Each person's own: the owner's list, or a
+    // household member's own (their vault, their companions); the demo has none. Secrets go into
+    // the vault and never come back out. A member can't set up the Microsoft app (the owner's), and
+    // the admin's `memberMail: false` pin stops members adding or using mailboxes (removing still works).
+    if (a === 'mail' && app.mailAccounts) {
+      const accts = app.mailAccounts;
+      const member = accts.member || Boolean(opts.member || app.member);
+      const memberOff = member && !policy().memberMailOn;
+      const guardOn = () => {
+        if (memberOff) throw policy().refusal('memberMail');
+      };
+      const appOwnerOnly = () => {
+        if (member) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+      };
+      const origin = typeof req.headers.origin === 'string' && req.headers.origin !== 'null' ? req.headers.origin : `${opts.trustProxy && req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http'}://${req.headers.host}`;
+      const msRedirect = `${origin}/api/mail/microsoft/callback`;
+      const forget = () => {
+        for (const cx of opts.companions?.all() ?? []) clearTodayCache(cx.app);
+        clearTodayCache(app);
+      };
+      const view = () => ({ accounts: accts.list(), default: accts.default()?.id ?? null, ...(member ? { member: true, google: false, ...(memberOff ? { off: true } : {}) } : {}), microsoft: { configured: Boolean(accts.ms.clientId()), clientId: member ? null : (accts.ms.clientId() ?? null), redirect: msRedirect, ...(member ? { ownerApp: true } : {}) }, presets: IMAP_PRESETS.map((p) => ({ id: p.id, name: p.name, imap: p.imap, smtp: p.smtp, passwordUrl: p.passwordUrl ?? null, passwordHow: p.passwordHow, enableImap: p.enableImap ?? null, loopback: Boolean(p.loopback) })) });
+      if (b === 'accounts' && !c && method === 'GET') return send(res, 200, view());
+      if (b === 'default' && method === 'PUT') {
+        guardOn();
+        const body = await readJson(req);
+        try {
+          accts.setDefault(String(body.id ?? ''));
+        } catch (err) {
+          throw as400(err);
+        }
+        forget();
+        return send(res, 200, view());
+      }
+      if (b === 'accounts' && c && method === 'DELETE') {
+        try {
+          await accts.remove(c);
+        } catch (err) {
+          throw as400(err);
+        }
+        forget();
+        return send(res, 200, view());
+      }
+      if (b === 'accounts' && c && parts[3] === 'test' && method === 'POST') {
+        try {
+          if (c === 'google') return send(res, 200, { ok: true, text: app.google?.status().connected ? 'Gmail is connected.' : 'Gmail is not connected.' });
+          const p = accts.provider(c);
+          const text = await p.test(AbortSignal.timeout(30_000));
+          return send(res, 200, { ok: true, text });
+        } catch (err) {
+          return send(res, 200, { ok: false, text: (err as Error).message.slice(0, 300) });
+        }
+      }
+      if (b === 'microsoft' && c === 'client' && method === 'PUT') {
+        appOwnerOnly();
+        const body = await readJson(req);
+        try {
+          accts.ms.setClient(String(body.clientId ?? ''), String(body.clientSecret ?? ''));
+        } catch (err) {
+          throw as400(err);
+        }
+        return send(res, 200, view());
+      }
+      if (b === 'microsoft' && c === 'client' && method === 'DELETE') {
+        appOwnerOnly();
+        accts.ms.forgetClient();
+        return send(res, 200, view());
+      }
+      if (b === 'microsoft' && c === 'connect' && method === 'POST') {
+        guardOn();
+        const body = await readJson(req).catch(() => ({}) as Record<string, unknown>);
+        try {
+          return send(res, 200, { url: accts.ms.authUrl(msRedirect, typeof body.address === 'string' && /@/.test(body.address) ? body.address : undefined) });
+        } catch (err) {
+          throw as400(err);
+        }
+      }
+      if (b === 'imap' && method === 'POST') {
+        guardOn();
+        const body = await readJson(req);
+        let draft: ReturnType<typeof accts.imapDraft>;
+        try {
+          draft = accts.imapDraft({ preset: String(body.preset ?? 'other'), address: String(body.address ?? ''), password: String(body.password ?? ''), ...(body.imapHost ? { imapHost: String(body.imapHost) } : {}), ...(body.imapPort ? { imapPort: Number(body.imapPort) } : {}), ...(body.smtpHost ? { smtpHost: String(body.smtpHost) } : {}), ...(body.smtpPort ? { smtpPort: Number(body.smtpPort) } : {}), ...(body.user ? { user: String(body.user) } : {}) });
+        } catch (err) {
+          throw as400(err);
+        }
+        // Signed in to both servers before anything is saved (nothing is sent). iCloud: the
+        // whole address first, then the name before @.
+        let last = '';
+        for (const user of draft.users) {
+          const { info: tried, provider } = accts.imapDraft({ preset: String(body.preset ?? 'other'), address: draft.info.address, password: draft.password, user, ...(body.imapHost ? { imapHost: String(body.imapHost) } : {}), ...(body.imapPort ? { imapPort: Number(body.imapPort) } : {}), ...(body.smtpHost ? { smtpHost: String(body.smtpHost) } : {}), ...(body.smtpPort ? { smtpPort: Number(body.smtpPort) } : {}) });
+          try {
+            const text = await provider.test();
+            await provider.testSmtp();
+            const info = accts.saveImap({ ...tried, id: draft.info.id }, draft.password);
+            forget();
+            return send(res, 200, { ...view(), added: info.id, text });
+          } catch (err) {
+            last = (err as Error).message;
+          }
+        }
+        throw new HttpError(400, `Couldn't sign in: ${last.slice(0, 300)}`);
+      }
+      if (b === 'undo' && c && method === 'POST') {
+        guardOn();
+        return mailUndo(c);
+      }
+    }
     // Phase 14: Google (Gmail + Calendar) on the owner's own Google app.
     if (a === 'google') {
       const g = app.google;
@@ -419,6 +547,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, g.status());
       }
       // Gmail organizing: the result card's Undo button (exactly the emails that change touched).
+      if (b === 'undo' && c && method === 'POST' && c.startsWith('m_')) return mailUndo(c);
       if (b === 'undo' && c && method === 'POST') {
         const gm = app.gmail;
         if (!gm) throw new HttpError(404, 'Not available');

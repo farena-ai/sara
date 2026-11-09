@@ -102,7 +102,7 @@ export interface Preview {
 }
 
 /** Tools a loop routine may name (read-only: nothing that sends, writes, organizes, buys or runs commands). */
-export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set(['web_fetch', 'web_search', 'gmail_search', 'gmail_read', 'gmail_thread', 'gmail_needs_answer', 'calendar_list', 'recall']);
+export const READ_ONLY_TOOLS: ReadonlySet<string> = new Set(['web_fetch', 'web_search', 'gmail_search', 'gmail_read', 'gmail_thread', 'gmail_needs_answer', 'mail_search', 'mail_read', 'mail_thread', 'mail_needs_answer', 'calendar_list', 'recall']);
 
 // ------------------------------------------------------------------ R1 the catalog
 

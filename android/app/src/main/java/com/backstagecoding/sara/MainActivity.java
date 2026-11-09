@@ -163,15 +163,27 @@ public class MainActivity extends Activity {
         showWeb(p.url, intent);
     }
 
+    /** sara://pair, or https://backstagecoding.com/sara/pair (the App Link; nothing else on the web). */
+    static boolean isPairLink(Uri u) {
+        String scheme = u.getScheme();
+        String host = u.getHost();
+        if ("sara".equals(scheme)) return "pair".equals(host);
+        String path = u.getPath();
+        return "https".equals(scheme) && "backstagecoding.com".equalsIgnoreCase(host) && path != null && (path.equals("/sara/pair") || path.equals("/sara/pair/"));
+    }
+
     /**
-     * sara://pair?s=<server>&c=<code> (from the pairing page): connects to that server and signs
+     * sara://pair?s=<server>&c=<code> (from the pairing page), or the same link on the web
+     * (https://backstagecoding.com/sara/pair#s=…&c=…, a verified App Link): connects to that server and signs
      * in with the one-time code. Without c (the access QR's sign-in page) it connects and shows
      * that server's sign-in. Always asks first, so a link can't quietly switch servers. Phase 68:
      * another server is added next to the ones already here (nobody is signed out).
      */
     private boolean handlePairLink(Intent intent) {
         Uri u = intent == null ? null : intent.getData();
-        if (u == null || !"sara".equals(u.getScheme()) || !"pair".equals(u.getHost())) return false;
+        if (u == null || !isPairLink(u)) return false;
+        // The web form carries the server and code after # (never sent to the website): read them like a query.
+        if ("https".equals(u.getScheme()) && u.getEncodedFragment() != null) u = Uri.parse("sara://pair?" + u.getEncodedFragment());
         String server = u.getQueryParameter("s");
         String given = u.getQueryParameter("c");
         final String code = given == null || given.trim().isEmpty() ? null : given.trim();

@@ -32,6 +32,8 @@ export interface TodayMail {
   /** TD1: the thread (for the Gmail link) and when it arrived. */
   threadId?: string;
   at?: string;
+  /** M1: another mailbox than Gmail: its web app (the tile links there instead of Gmail). */
+  webUrl?: string;
 }
 export interface MailOrganised {
   action: string;
@@ -55,7 +57,7 @@ export interface Today {
   day: string;
   agenda: { tasks: { id: number; title: string; dueAt: string | null; overdue: boolean; project: string | null }[]; reminders: { id: number; text: string; dueAt: string }[]; doneToday?: number };
   calendar?: { events: TodayEvent[]; error?: string; leaveBy?: { eventId: string; leaveAt: string; minutes: number }[] };
-  mail?: { unread: number; important: TodayMail[]; error?: string; total?: number; change?: { total: number; unread: number }; organised?: MailOrganised[]; at?: string; reconnect?: boolean };
+  mail?: { unread: number; important: TodayMail[]; error?: string; total?: number; change?: { total: number; unread: number }; organised?: MailOrganised[]; at?: string; reconnect?: boolean; provider?: string; account?: string; webUrl?: string };
   her?: { name: string; mood: string; energy: string; expression: string; day: string | null };
   /** Phase 101 (ST6): a date about someone on a people card names them (the tile opens the card). */
   dates: { what: string; inDays: number; years: number | null; personId?: number; person?: string }[];
@@ -208,16 +210,39 @@ const toEvent = (e: CalItem): TodayEvent => ({
   ...(e.location ? { location: e.location } : {}),
 });
 
-async function calendarBetween(app: AppContext, from: Date, to: Date, max: number): Promise<TodayEvent[]> {
+/** M1: an Outlook calendar is used when its mailbox is the default, or when Google's calendar isn't connected. */
+function msCalendar(app: AppContext): import('./mail/types.ts').MailAccountInfo | undefined {
+  const ok = (a?: import('./mail/types.ts').MailAccountInfo) => (a && a.kind === 'microsoft' && a.calendar && !a.problem ? a : undefined);
+  const def = ok(app.mailAccounts?.default());
+  if (def) return def;
+  return app.google?.status().calendar ? undefined : app.mailAccounts?.list().find((a) => ok(a));
+}
+/** Whether Today and the briefing have a calendar (Google's or Outlook's). */
+export const hasCalendar = (app: AppContext): boolean => Boolean(msCalendar(app) || app.google?.status().calendar);
+const calendarKey = (app: AppContext): string => msCalendar(app)?.address ?? app.google?.status().email ?? '';
+
+/**
+ * M1: events between two times from the calendar Sara uses everywhere (the default mailbox's
+ * Outlook calendar, else Google's): Today, the briefing, leave-by reminders and the weekly review.
+ */
+export async function calendarEvents(app: AppContext, from: Date, to: Date, max: number, timeoutMs = 8000): Promise<TodayEvent[]> {
+  return calendarBetween(app, from, to, max, timeoutMs);
+}
+
+async function calendarBetween(app: AppContext, from: Date, to: Date, max: number, timeoutMs = 8000): Promise<TodayEvent[]> {
   countCall(app, 'calendar');
+  const ms = msCalendar(app);
+  if (ms) {
+    const list = await app.mailAccounts!.provider(ms.id).calendar!.events(from, to, undefined, AbortSignal.timeout(timeoutMs));
+    return list.slice(0, max).map((e) => ({ id: e.id, title: e.title, start: e.start, ...(e.end ? { end: e.end } : {}), allDay: e.allDay, ...(e.location ? { location: e.location } : {}) }));
+  }
   const q = new URLSearchParams({ timeMin: from.toISOString(), timeMax: to.toISOString(), singleEvents: 'true', orderBy: 'startTime', maxResults: String(max) });
-  const r = (await app.google!.api(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${q}`, { signal: AbortSignal.timeout(8000) })) as { items?: CalItem[] };
+  const r = (await app.google!.api(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${q}`, { signal: AbortSignal.timeout(timeoutMs) })) as { items?: CalItem[] };
   return (r.items ?? []).filter((e) => e.status !== 'cancelled').map(toEvent);
 }
 
 export async function calendarToday(app: AppContext, now: Date, tz?: string): Promise<Today['calendar']> {
-  const g = app.google;
-  if (!g?.status().calendar) return undefined;
+  if (!hasCalendar(app)) return undefined;
   const { start, end } = dayBounds(now, tz);
   try {
     return { events: await calendarBetween(app, start, end, 25) };
@@ -228,7 +253,7 @@ export async function calendarToday(app: AppContext, now: Date, tz?: string): Pr
 
 /** Coming up (§4.3): the calendar from tomorrow for `days` days (10 at most). */
 export async function comingEvents(app: AppContext, now: Date, tz: string | undefined, days: number): Promise<TodayEvent[] | undefined> {
-  if (!app.google?.status().calendar) return undefined;
+  if (!hasCalendar(app)) return undefined;
   const { end } = dayBounds(now, tz);
   try {
     return await calendarBetween(app, end, new Date(end.getTime() + days * 86_400_000), 10);
@@ -241,7 +266,11 @@ const GMAIL = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
 /** Mail 2.0 (§5.3): inbox total and unread, important unread with time and thread, what she organised today. */
 export async function mailToday(app: AppContext): Promise<Today['mail']> {
-  const g = app.google;
+  // M1: the default mailbox (Gmail when it is the default: exactly as before).
+  const def = app.mailAccounts?.default();
+  if (def && def.kind !== 'google') return otherMailToday(app, def);
+  // Gmail's sign-in is the owner's only: a member's Today never reads it, even if one were attached.
+  const g = app.member ? undefined : app.google;
   if (!g?.status().gmail) return undefined;
   try {
     countCall(app, 'gmail');
@@ -269,8 +298,34 @@ export async function mailToday(app: AppContext): Promise<Today['mail']> {
   }
 }
 
-/** The mail cache key: this companion, the local day and the Google account (§5.2). */
-export const mailKey = (app: AppContext, day: string): string => `${app.companionId ?? 'main'}|${day}|${app.google?.status().email ?? ''}`;
+/** M1: Today's Mail for an Outlook or IMAP default mailbox: the same shape as Gmail's. */
+async function otherMailToday(app: AppContext, a: import('./mail/types.ts').MailAccountInfo): Promise<Today['mail']> {
+  const head = { provider: a.kind === 'microsoft' ? 'Outlook' : 'Mail', account: a.address };
+  if (a.problem) return { unread: 0, important: [], error: a.problem, ...head };
+  try {
+    countCall(app, 'mail');
+    const p = app.mailAccounts!.provider(a.id);
+    const signal = AbortSignal.timeout(8000);
+    const webUrl = p.webLink?.('') ?? undefined;
+    const [c, imp] = await Promise.all([p.inboxCounts(signal), p.important(5, signal)]);
+    return {
+      unread: c.unread,
+      total: c.total,
+      important: imp.map((m) => ({ id: m.id, from: m.from.replace(/\s*<[^>]+>$/, '').replace(/^"|"$/g, ''), subject: m.subject || en('(no subject)'), ...(m.date ? { at: m.date } : {}), ...(webUrl ? { webUrl } : {}) })),
+      ...head,
+      ...(webUrl ? { webUrl } : {}),
+    };
+  } catch (err) {
+    return { unread: 0, important: [], error: (err as Error).message, ...head };
+  }
+}
+
+/** The mail cache key: this companion, the local day and the mailbox (§5.2). */
+export const mailKey = (app: AppContext, day: string): string => `${app.companionId ?? 'main'}|${day}|${mailAddress(app)}`;
+const mailAddress = (app: AppContext): string => {
+  const def = app.mailAccounts?.default();
+  return def && def.kind !== 'google' ? def.address : (app.google?.status().email ?? '');
+};
 
 /** What the route adds (it knows the request): weather, moments, approvals, the demo and the phone apps. */
 export interface TodayExtras {
@@ -347,8 +402,8 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean; parts
 
   const builders: Partial<Record<TodayPartName, () => Promise<void> | void>> = {
     day: async () => {
-      if (!app.google?.status().calendar) return void meta('day');
-      const r = await cachedPart(app, 'day', `${app.companionId ?? 'main'}|${today}|${app.google.status().email ?? ''}`, () => calendarToday(app, now, tz), { fresh });
+      if (!hasCalendar(app)) return void meta('day');
+      const r = await cachedPart(app, 'day', `${app.companionId ?? 'main'}|${today}|${calendarKey(app)}`, () => calendarToday(app, now, tz), { fresh });
       if (r.value) {
         const cal = r.value as NonNullable<Today['calendar']>;
         const leaveBy = demo ? [] : await (app.leaveBy?.planFor?.(cal.events) ?? Promise.resolve([])).catch(() => []);
@@ -358,22 +413,23 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean; parts
     },
     coming: async () => {
       out.dates = comingDates(app, today, prefs.comingDays);
-      if (app.google?.status().calendar && !demo) {
-        const r = await cachedPart(app, 'coming', `${app.companionId ?? 'main'}|${today}|${prefs.comingDays}|${app.google.status().email ?? ''}`, () => comingEvents(app, now, tz, prefs.comingDays), { fresh });
+      if (hasCalendar(app) && !demo) {
+        const r = await cachedPart(app, 'coming', `${app.companionId ?? 'main'}|${today}|${prefs.comingDays}|${calendarKey(app)}`, () => comingEvents(app, now, tz, prefs.comingDays), { fresh });
         if (r.value) out.coming = { events: r.value as TodayEvent[], days: prefs.comingDays };
         return void meta('coming', { at: new Date(r.at).toISOString(), cached: r.cached, stale: r.stale });
       }
       meta('coming');
     },
     mail: async () => {
-      // Subjects and senders are the owner's: only for the companion that has Gmail (never members, never the demo).
-      if (member || demo || !app.google?.status().gmail) return;
+      // Subjects and senders are this person's own: the owner's mailboxes, or a member's own (their
+      // app only ever holds their own accounts; no Gmail sign-in for members). Never the demo.
+      if (demo || !(app.google?.status().gmail || app.mailAccounts?.hasOthers())) return;
       const r = await cachedPart(app, 'mail', mailKey(app, today), () => mailToday(app), { fresh });
       const m = r.value as Today['mail'];
       if (!m) return;
-      const email = app.google.status().email ?? '';
+      const email = mailAddress(app);
       const change = !m.error && typeof m.total === 'number' ? recordMail(app, email, m.total, m.unread) : undefined;
-      const organised = app.gmail?.organisedSince(dayBounds(now, tz).start.toISOString()) ?? [];
+      const organised = m.provider ? [] : (app.gmail?.organisedSince(dayBounds(now, tz).start.toISOString()) ?? []);
       out.mail = { ...m, ...(change ? { change } : {}), organised, at: new Date(r.at).toISOString(), ...(m.error && /gmail\.modify|insufficient|scope/i.test(m.error) ? { reconnect: true } : {}) };
       meta('mail', { at: new Date(r.at).toISOString(), cached: r.cached, stale: r.stale, error: m.error });
     },

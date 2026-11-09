@@ -1599,6 +1599,10 @@
       "Installed plugins, five included chat apps, local workflow candidates and starter guides. Candidates use the normal permission review and stay off until enabled for each companion.",
       "plugins"
     ],
+    "ab-mail": [
+      "Connect Gmail, Outlook and other mailboxes so she can find mail, draft replies, tidy up and handle your calendar. Sending, organizing and calendar changes ask you first.",
+      "accounts"
+    ],
     "ab-google": [
       "Connect Gmail and Calendar so she can find mail, draft replies and handle your calendar. Sending and adding events ask you first.",
       "accounts"

@@ -463,7 +463,7 @@ export function answerFire(app: AppContext, fireId: number, answer: 'done' | 'ag
 
 /** Tools that send something to someone else (email, bridge messages, invites, other agents). */
 export const SENDING_TOOL = /(^|_)(send|email|mail|gmail|message|post|invite|share|forward|reply|a2a|calendar|event)(_|$)|^a2a_|^gmail_|^email_/i;
-const NOT_SENDING = new Set(['send_file', 'remind', 'todo', 'note', 'recall', 'memory', 'calendar_list', 'gmail_search', 'gmail_read']);
+const NOT_SENDING = new Set(['send_file', 'remind', 'todo', 'note', 'recall', 'memory', 'calendar_list', 'gmail_search', 'gmail_read', 'mail_search', 'mail_read', 'mail_accounts', 'mail_folders']);
 /** In a turn where a reminder fired: the reminder an outgoing call's text holds (the call then asks). */
 export function outgoingHolds(hits: MentionHit[], name: string, args: unknown): MentionHit | undefined {
   if (!hits.length || NOT_SENDING.has(name) || !SENDING_TOOL.test(name)) return undefined;

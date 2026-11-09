@@ -25,6 +25,10 @@ import { gitRunner, Worktrees } from './worktrees.ts';
 import { LspEngine } from './lsp.ts';
 import { createHomeTools } from './tools/home.ts';
 import { createGoogleTools } from './tools/google.ts';
+import { createMailTools, routeCalendarTools } from './tools/mail.ts';
+import { MailAccounts } from './mail/accounts.ts';
+import { MicrosoftAuth, msBases } from './mail/graph.ts';
+import { MailOrganizer } from './mail/organize.ts';
 import { WeeklyWorker } from './weekly.ts';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { copyOffsite, offsiteTestDue, testOffsite } from './offsite-run.ts';
@@ -118,7 +122,7 @@ import { PhoneHelper } from './phone-helper.ts';
 import { createPhoneTools } from './tools/phone.ts';
 import { UploadStore } from './uploads.ts';
 import { BriefingWorker } from './briefing.ts';
-import { gmailTodayHook, todayChanged } from './today.ts';
+import { clearTodayCache, gmailTodayHook, todayChanged } from './today.ts';
 import { LeaveByWorker } from './leaveby.ts';
 import { ReviewWorker } from './review.ts';
 import { createPhotoTools, DEFAULT_IMAGE_MODEL, photoSettings, xaiImageKey } from './photos.ts';
@@ -458,7 +462,15 @@ if (sandbox.mode === 'user') {
   process.umask(0o007);
   lockDataDir(dataDir);
 }
-const redactor = new Redactor(() => vaultSecretValues(vault.values()));
+// M1: household members' mail tokens and app passwords live in their own vaults; hide them too.
+const memberMailVaults = new Set<Vault>();
+const redactor = new Redactor(() => vaultSecretValues([...vault.values(), ...[...memberMailVaults].flatMap((v) => {
+  try {
+    return v.values();
+  } catch {
+    return []; // a removed member's folder is gone
+  }
+})]));
 // Phase 30: a copy of everything Sara prints goes to <data>/logs/sara.log (secrets hidden).
 // Phase 63: SARA_LOG_FORMAT / SARA_LOG_LEVEL / SARA_LOG_FILE (+ _MAX_MB, _KEEP), see src/log.ts.
 const log = new Log(dataDir, (s) => redactor.redact(s), undefined, logOptions());
@@ -544,6 +556,12 @@ const subscriptions = new Subscriptions(vault, dataDir);
 // SARA_GOOGLE_API_BASE (loopback only) points the Google APIs at a local fake for tests.
 const googleBase = googleApiBase();
 const google = new GoogleAccount(vault, googleBase ? { apiBase: googleBase } : {});
+// M1: the owner's other mailboxes: Outlook / Microsoft 365 (Graph, the owner's own Microsoft app)
+// and IMAP providers (app passwords). SARA_MS_GRAPH_BASE / SARA_MS_LOGIN_BASE (loopback only) are
+// for tests.
+const msBase = msBases();
+const msOpts = { ...(msBase.graph ? { graphBase: msBase.graph } : {}), ...(msBase.login ? { loginBase: msBase.login } : {}) };
+const mailAccounts = new MailAccounts(vault, google, new MicrosoftAuth(vault, msOpts), { ms: msOpts, imap: { timeZone: () => settings.get().timeZone } });
 // C14: Spotify (the owner's own Spotify app; off until he connects it).
 const spotifyBase = spotifyApiBase();
 const spotify = new SpotifyAccount(vault, spotifyBase ? { apiBase: spotifyBase } : {});
@@ -652,6 +670,10 @@ interface Space {
   hands?: HandsHub;
   /** EC24: the owner's helper devices (camera, location, screen on request); never a member's. */
   phoneHelper?: PhoneHelper;
+  /** M1: this person's own mailboxes (the owner's, or a member's in members/<id>/mail). Never the demo's. */
+  mail?: MailAccounts;
+  /** M1: a member's own vault for their mailboxes (their tokens and app passwords; nobody else's). */
+  mailVault?: VaultT;
 }
 /** Phase 87: one hands hub per person; a member's works only with the owner's switch on (never on the demo). */
 function handsFor(sp: Space, member: boolean): HandsHub | undefined {
@@ -664,7 +686,28 @@ function handsFor(sp: Space, member: boolean): HandsHub | undefined {
     tunnels: { ownPorts: () => [port] },
   });
 }
-const ownerSpace: Space = { id: 'owner', dir: dataDir, auth, settings, vault, events, companions };
+const ownerSpace: Space = { id: 'owner', dir: dataDir, auth, settings, vault, events, companions, mail: mailAccounts };
+mailAccounts.onChange = () => {
+  for (const c of companions.all()) clearTodayCache(c.app);
+};
+/**
+ * M1: a member's own mailboxes. Their list, tokens and app passwords are in their own vault
+ * (members/<id>/mail, sealed with the server's key so their folder alone holds no key); the
+ * Microsoft app is the owner's (read only). The admin's `memberMail: false` pin switches it off.
+ */
+function memberMailFor(space: Space): void {
+  if (isDemo) return;
+  const mdir = join(space.dir, 'mail');
+  mkdirSync(mdir, { recursive: true, mode: 0o700 });
+  const serverKey = process.env.SARA_MASTER_KEY ?? readFileSync(join(dataDir, 'master.key'), 'utf8').trim();
+  const mv = new Vault(mdir, serverKey);
+  space.mailVault = mv;
+  memberMailVaults.add(mv);
+  space.mail = new MailAccounts(mv, undefined, new MicrosoftAuth(mv, { ...msOpts, clientVault: vault }), { ms: msOpts, imap: { timeZone: () => space.settings.get().timeZone }, off: () => !policyStore.memberMailOn });
+  space.mail.onChange = () => {
+    for (const c of space.companions.all()) clearTodayCache(c.app);
+  };
+}
 ownerSpace.hands = handsFor(ownerSpace, false);
 // EC24: only browser sign-ins that are still signed in count as helper devices.
 if (!isDemo) {
@@ -847,7 +890,7 @@ function hubFacts(): HubFacts {
     ...on(safe(() => (hookManager?.store.all().length ?? 0) > 0), 'webhooks'),
     ...on((s.mcpServers ?? []).some((m) => m.enabled), 'mcp'),
     ...on(Boolean(s.search?.provider) && String(s.search?.provider) !== 'none', 'web_search'),
-    ...on(safe(() => google.status().connected === true), 'gmail'),
+    ...on(safe(() => google.status().connected === true || mailAccounts.hasOthers()), 'gmail'),
     ...on(Boolean(s.githubWatch), 'github'),
     ...on(safe(() => (sshManager?.list().length ?? 0) > 0), 'ssh'),
     ...on(s.agenda?.enabled === true, 'agenda'),
@@ -1043,6 +1086,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     voice,
     subscriptions,
     ...(isMember ? {} : { google }),
+    // M1: this person's own mailboxes (the owner's, or the member's own; never someone else's).
+    ...(space.mail ? { mailAccounts: space.mail } : {}),
     ...(isMember || isDemo ? {} : { spotify }),
     ...(isMember || !sshManager ? {} : { ssh: sshManager }),
   };
@@ -1207,14 +1252,31 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     // Phase 29: Home Assistant (off until the owner connects it).
     for (const t of createHomeTools(app)) tools.add(t);
     // Phase 14: Gmail and Google Calendar (the owner's own Google app; off until they sign in).
-    for (const t of createGoogleTools(google, () => settingsC.get().timeZone)) tools.add(t);
+    // M1: the calendar tools take `account` (Google as before, Outlook through Graph).
+    const googleTools = createGoogleTools(google, () => settingsC.get().timeZone);
+    const calendarNames = new Set(['calendar_events', 'calendar_add', 'calendar_remove']);
+    for (const t of googleTools) if (isDemo || !calendarNames.has(t.spec.name)) tools.add(t);
+    if (!isDemo) for (const t of routeCalendarTools(googleTools.filter((x) => calendarNames.has(x.spec.name)), mailAccounts, () => settingsC.get().timeZone)) tools.add(t);
     // C14: Spotify (search, what's playing, playlists; playback only when the owner allowed it). Never the demo.
     if (!isDemo) for (const t of createSpotifyTools(spotify)) tools.add(t);
     // Gmail organizing (archive, labels, trash…, with Undo): the owner's own Gmail only; never the demo.
     if (!isDemo) {
       app.gmail = new GmailOrganizer(google, store.db, { timeZone: () => settingsC.get().timeZone, now: () => app.now(), jobs: () => app.jobs, workspaceOf: (id) => store.getConversation(id)?.workspace, onChange: gmailTodayHook(app) });
-      for (const t of createGmailOrganizeTools({ google, organizer: app.gmail })) tools.add(t);
+      const gmailOrganize = createGmailOrganizeTools({ google, organizer: app.gmail });
+      for (const t of gmailOrganize) tools.add(t);
+      // M1: mail_* for every mailbox (a Gmail account is handed to the gmail_* tools above).
+      app.mailOrganizer = new MailOrganizer(store.db, { timeZone: () => settingsC.get().timeZone, now: () => app.now(), jobs: () => app.jobs, workspaceOf: (id) => store.getConversation(id)?.workspace, onChange: gmailTodayHook(app) });
+      for (const t of createMailTools({ accounts: mailAccounts, organizer: app.mailOrganizer, google: new Map([...googleTools, ...gmailOrganize].map((t) => [t.spec.name, t])), timeZone: () => settingsC.get().timeZone })) tools.add(t);
     }
+  } else if (space.mail && space.mailVault && !isDemo) {
+    // M1: a member's own mailboxes (Outlook / Microsoft 365 and IMAP; Gmail through an app password).
+    // Google's sign-in stays the owner's: these Google tools only lend the calendar tools their
+    // shape (a Google account read from the member's own vault is never signed in).
+    const calendarNames = new Set(['calendar_events', 'calendar_add', 'calendar_remove']);
+    const shapes = createGoogleTools(new GoogleAccount(space.mailVault), () => settingsC.get().timeZone).filter((x) => calendarNames.has(x.spec.name));
+    for (const t of routeCalendarTools(shapes, space.mail, () => settingsC.get().timeZone)) tools.add(t);
+    app.mailOrganizer = new MailOrganizer(store.db, { timeZone: () => settingsC.get().timeZone, now: () => app.now(), jobs: () => app.jobs, workspaceOf: (id) => store.getConversation(id)?.workspace, onChange: gmailTodayHook(app) });
+    for (const t of createMailTools({ accounts: space.mail, organizer: app.mailOrganizer, google: new Map(), timeZone: () => settingsC.get().timeZone })) tools.add(t);
   }
 
   // Phase 38: meaning search (vectors made a few at a time while the embeddings job is set).
@@ -1461,6 +1523,7 @@ function buildMemberSpace(member: MemberRecord, dir: string, givenAuth?: OwnerAu
   };
   space.member = new MemberPolicy(household, member.id, () => space.companions.all().map((c) => c.app));
   space.hands = handsFor(space, true);
+  memberMailFor(space);
   space.companions.build = (id, d) => buildCompanion(space, id, d);
   space.companions.add(buildCompanion(space, MAIN_ID, dir));
   for (const c of companionDirs(dir)) space.companions.add(buildCompanion(space, c.id, c.dir));

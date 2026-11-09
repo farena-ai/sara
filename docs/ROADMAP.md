@@ -102,6 +102,15 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Email beyond Gmail in 3.1.0
+
+Outlook.com and Microsoft 365 (mail and calendar), Yahoo, AOL, iCloud, Fastmail, Zoho, GMX, WEB.DE,
+Proton Mail (through its Bridge) and any other mail server: she searches, reads whole threads, finds
+what needs an answer, drafts and sends replies and organizes, with the same approvals, counts and Undo
+as Gmail and never a permanent delete. Several mailboxes at once with one default for Today and the
+morning briefing; the Outlook calendar works everywhere Google's does. Each household member can
+connect their own mailboxes, private to them. Android: pairing links open the app directly.
+
 ## Faster, steadier and easier to find in 3.0.3
 
 Settings opens at once, one search box, and an approval you can always reach (answer it from the bar

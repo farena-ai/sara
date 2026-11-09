@@ -149,7 +149,7 @@ export function learnable(c: Conversation | undefined): c is Conversation {
 export type AskTopic = 'coding' | 'mail' | 'planner' | 'web' | 'home' | 'writing';
 export const ASK_TOPICS: readonly AskTopic[] = ['coding', 'mail', 'planner', 'web', 'home', 'writing'];
 const TOPIC_TOOLS: [AskTopic, RegExp][] = [
-  ['mail', /^(gmail_|email$)/],
+  ['mail', /^(gmail_|mail_|email$)/],
   ['home', /^home_/],
   ['planner', /^(add_task|update_task|complete_task|delete_task|list_tasks|remind|add_note|update_note|delete_note|read_note|list_notes|calendar|calendar_add|calendar_events|calendar_remove|shared_list|todo|tasks|note|get_today|today)$/],
   ['web', /^(web_search|web_fetch|browser_|pc_browser_)/],

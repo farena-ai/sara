@@ -12,6 +12,7 @@ import type { Task } from './planner.ts';
 import { zonedParts } from './planner.ts';
 import { checkClaims } from './receipts.ts';
 import { detectMinorSexualContent, disclosureDue, disclosureText } from './safety.ts';
+import { calendarEvents, hasCalendar } from './today.ts';
 
 export interface ReviewSettings {
   enabled: boolean;
@@ -65,16 +66,13 @@ export async function gatherReview(app: AppContext, now: Date): Promise<ReviewFa
     .sort((a, b) => a.at.localeCompare(b.at))
     .map((x) => x.text);
   let calendar: string[] | undefined;
-  if (app.google?.status().calendar) {
+  // M1: the calendar of the default mailbox (Outlook) or Google's, the same one Today shows.
+  if (hasCalendar(app)) {
     try {
-      const q = new URLSearchParams({ timeMin: now.toISOString(), timeMax: nextWeekEnd.toISOString(), singleEvents: 'true', orderBy: 'startTime', maxResults: '40' });
-      const r = (await app.google.api(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${q}`, { signal: AbortSignal.timeout(15_000) })) as { items?: { summary?: string; status?: string; start?: { dateTime?: string; date?: string } }[] };
-      calendar = (r.items ?? [])
-        .filter((e) => e.status !== 'cancelled')
-        .map((e) => {
-          const s = e.start?.dateTime ?? (e.start?.date ? `${e.start.date}T12:00:00Z` : '');
-          return `${s ? fmt(new Date(s), e.start?.dateTime ? { weekday: 'short', hour: 'numeric', minute: '2-digit' } : { weekday: 'short' }) : '?'}: ${(e.summary ?? '(no title)').slice(0, 120)}`;
-        });
+      calendar = (await calendarEvents(app, now, nextWeekEnd, 40, 15_000)).map((e) => {
+        const s = e.allDay ? (/^\d{4}-\d{2}-\d{2}$/.test(e.start) ? `${e.start}T12:00:00Z` : e.start) : e.start;
+        return `${s ? fmt(new Date(s), e.allDay ? { weekday: 'short' } : { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '?'}: ${(e.title || '(no title)').slice(0, 120)}`;
+      });
     } catch (err) {
       console.warn(`review: calendar failed: ${(err as Error).message}`);
     }

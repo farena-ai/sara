@@ -4,6 +4,7 @@ import { needsYouMap, wireNeedsYou, type NeedsYou } from './needs-you.ts';
 import { countModels } from './model-names.ts';
 import { usePathOf } from './settings.ts';
 import { clearTodayCache } from './today.ts';
+import { mailAccountsForState } from './mail/accounts.ts';
 import { netFetch, privateLocalOn } from './net-guard.ts';
 import { createReadStream, existsSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { appLanguage, en, trOwner } from './i18n.ts';
@@ -406,7 +407,7 @@ export function createSaraServer(opts: ServerOptions): Server {
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces']);
+  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -1297,6 +1298,28 @@ export function createSaraServer(opts: ServerOptions): Server {
       }
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...SECURITY_HEADERS });
       return void res.end(`<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/#google=${result}"><title>Google</title><p>Back to the app… <a href="/#google=${result}">continue</a></p>`);
+    }
+
+    // M1: Microsoft sends the browser back here (the same one-time `state` proof as Google above).
+    if (a === 'mail' && b === 'microsoft' && parts[2] === 'callback' && method === 'GET' && app.mailAccounts) {
+      const url = new URL(req.url ?? '/', 'http://x');
+      // A household member's sign-in ends here too: the one-time `state` says whose mailboxes it joins.
+      const accts = mailAccountsForState(url.searchParams.get('state') ?? '') ?? app.mailAccounts;
+      let result = 'connected';
+      const error = url.searchParams.get('error');
+      if (error) result = error === 'access_denied' ? 'refused' : 'failed';
+      else {
+        try {
+          const tokens = await accts.ms.finish(url.searchParams.get('code') ?? '', url.searchParams.get('state') ?? '');
+          accts.addMicrosoft(tokens);
+          if (accts === app.mailAccounts) for (const cx of opts.companions?.all() ?? [{ app }]) clearTodayCache(cx.app);
+        } catch (err) {
+          result = 'failed';
+          console.warn(`microsoft sign-in: ${(err as Error).message}`);
+        }
+      }
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...SECURITY_HEADERS });
+      return void res.end(`<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/#microsoft=${result}"><title>Microsoft</title><p>Back to the app… <a href="/#microsoft=${result}">continue</a></p>`);
     }
 
     // C14: Spotify sends the browser back here (same one-time `state` proof as Google above).

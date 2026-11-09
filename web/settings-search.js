@@ -29,7 +29,9 @@ export const SETTINGS_KEYWORDS = {
   'co-telegram': ['botfather', 'bot token', 'chat app', 'chat apps', 'progress message', 'voice notes'],
   'co-discord': ['bot token', 'server', 'chat app', 'chat apps', 'progress message'],
   'co-signal': ['signal-cli', 'chat app', 'chat apps', 'daemon', 'link qr'],
-  'co-email': ['mail', 'imap', 'smtp', 'app password', 'gmail', 'icloud', 'fastmail', 'chat app'],
+  'co-email': ['mail', 'smtp', 'chat app', 'chat apps', 'email her', 'write to her'],
+  // M1: every mailbox provider finds Email and calendar (Ctrl+K uses the same index).
+  'ab-mail': ['outlook', 'outlook.com', 'hotmail', 'live.com', 'msn', 'microsoft 365', 'office 365', 'exchange', 'outlook calendar', 'yahoo', 'yahoo mail', 'aol', 'icloud', 'icloud mail', 'fastmail', 'zoho', 'gmx', 'web.de', 'proton', 'proton mail', 'proton bridge', 'imap', 'app password', 'email account', 'email accounts', 'mail account', 'mailbox', 'mailboxes', 'add email', 'other email', 'default mailbox', 'inbox'],
   'co-whatsapp': ['meta', 'cloud api', 'tailscale', 'funnel', 'public address', 'chat app', 'chat apps', 'webhook'],
   'co-teams': ['teams', 'microsoft teams', 'azure bot', 'bot framework', 'microsoft 365'],
   'co-matrix': ['element', 'homeserver', 'tailscale', 'funnel', 'chat app', 'chat apps'],

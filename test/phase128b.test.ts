@@ -55,7 +55,7 @@ test('128b.1 N29: every page id in SETTINGS_ORDER is in exactly one group; 8 gro
   for (const [g, ids] of byGroup) assert.ok(ids.filter((x) => x !== 'ab-recipes' && x !== 'account').length <= (g === 'Data & health' || g === 'Chat apps' ? 12 : 10), `${g}: ${ids.length} pages`);
   const want: Record<string, string[]> = {
     'Chat apps': ['co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-slack', 'co-teams', 'co-pickup', 'co-continuity'],
-    'Add-ons': ['ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-recipes'],
+    'Add-ons': ['ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-search', 'ab-library', 'ab-mail', 'ab-google', 'ab-home', 'ab-recipes'],
     Coding: ['ab-projects', 'ab-precise', 'ab-persist', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-tools'],
     // V1 (docs/ops/V1_DESIGN.md §7): Appearance became its own page in You.
     You: ['you-about', 'you-appearance', 'you-briefing', 'you-leave-by', 'ab-when', 'you-adult'],
@@ -148,6 +148,8 @@ test('128b.3 N30: search returns the expected first page for 30 terms; routine a
   first.push(['slack', 'co-slack']);
   // EC7: Microsoft Teams too.
   first.push(['teams', 'co-teams']);
+  // M1: every mailbox provider finds Settings → Email and calendar.
+  for (const q of ['outlook', 'hotmail', 'yahoo', 'imap', 'email account', 'icloud mail', 'fastmail', 'proton mail', 'microsoft 365 mail', 'app password']) first.push([q, 'ab-mail']);
   for (const [q, want] of first) {
     const got = search.rankPages(q, records).map((r: Any) => r.id);
     const top = Array.isArray(want) ? got.slice(0, want.length).sort() : got[0];

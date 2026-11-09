@@ -5,6 +5,33 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.1.0 (2026-11-09): email beyond Gmail
+
+- **Email beyond Gmail (M1):** Sara now reads, searches, answers and tidies **Outlook.com, Hotmail and
+  Microsoft 365** (through Microsoft Graph, with a free app you register yourself; mail and
+  calendar) and **Yahoo, AOL, iCloud, Fastmail, Zoho, GMX, WEB.DE, Proton Mail (Bridge)** or any
+  IMAP host (with an app password). One page for all of them: Settings → Add-ons → **Email and
+  calendar** (accounts, default, Test, Remove, step-by-step Microsoft setup with the redirect address
+  to copy). New `mail_*` tools work on any mailbox (`account` picks one; Gmail goes to the unchanged
+  `gmail_*` tools); the calendar tools take `account` too, and `calendar_update` changes an Outlook
+  event. Same safety as Gmail: count first, trash and spam ask every time, Undo for 30 days, never a
+  permanent delete. Today's Mail card, the morning briefing, leave-by reminders and the
+  weekly review follow the default mailbox (its Outlook calendar, else Google's). Settings search
+  and Ctrl+K find the page by provider (outlook, hotmail, yahoo, icloud mail, imap…). Guide:
+  [docs/EMAIL.md](docs/EMAIL.md).
+- **Everyone in the household gets their own mailboxes:** a household member can now connect their own
+  Outlook (with *Sign in with Microsoft*, through the Microsoft app the owner set up once), Gmail
+  (with a Google app password) or Yahoo, iCloud and the rest, on the same Email and calendar page in
+  their own space. Their mailboxes are kept in their own encrypted vault and only their companions,
+  their Today card and their morning briefing use them: nobody else on the server sees them, the owner
+  included, and the owner's mail stays out of members' reach. Sending and tidying ask the member on
+  their own approval cards. Google's own sign-in (labels, Google Calendar) stays the owner's. An admin
+  can switch members' mail off with the new policy pin *Turn off household members' own mailboxes*.
+- **Android pairing links can open the app from the web:** links like
+  `https://backstagecoding.com/sara/pair#…` now open Sara on Android (verified for backstagecoding.com
+  once the site serves its Digital Asset Links file), and without the app the page explains how to get
+  it. This answers the Play Console notice about the web domain not being associated with the app.
+
 ## 3.0.3 (2026-11-09): faster, steadier and easier to find
 
 - **An approval can't get lost below the fold any more:** in a long chat her run card could shrink to

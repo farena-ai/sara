@@ -343,6 +343,9 @@ export interface AppContext {
   spotify?: import('./spotify.ts').SpotifyAccount;
   /** Gmail organizing (archive, labels, trash…): the undo log and bulk runs. Owner only, never the demo. */
   gmail?: import('./gmail-organize.ts').GmailOrganizer;
+  /** M1: the owner's other mailboxes (Outlook, IMAP) and their organizer (the owner only, never members or the demo). */
+  mailAccounts?: import('./mail/accounts.ts').MailAccounts;
+  mailOrganizer?: import('./mail/organize.ts').MailOrganizer;
   /** Phase 111 (TD1): Today's cached outside parts and their generations (src/today.ts; per companion). */
   todayState?: import('./today.ts').TodayState;
   /** Phase 73: the owner's servers over SSH (owner space only; never members or the demo). */
@@ -818,7 +821,7 @@ export function visionOnThisComputer(app: AppContext, route: { providerId: strin
 
 // Phase 115: send_file shares a file out of the server (a chat app), so it is off in private chats too.
 export const OFFSERVER_TOOL = (name: string) =>
-  name === 'send_file' || name === 'web_fetch' || name === 'web_search' || name === 'delegate_task' || name === 'git_push' || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('calendar_') || name.startsWith('github_');
+  name === 'send_file' || name === 'web_fetch' || name === 'web_search' || name === 'delegate_task' || name === 'git_push' || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('mail_') || name.startsWith('calendar_') || name.startsWith('github_');
 
 /** Default size of the conversation history sent to the model (characters, about 4 per token). */
 export const HISTORY_BUDGET_CHARS = 48_000;

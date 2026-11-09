@@ -538,6 +538,9 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'hub',
   // EC5: what the owner's policy pins (read-only: Settings shows "Set by your admin")
   'policy',
+  // M1: their own mailboxes (Outlook, IMAP) in their own vault; the Microsoft app stays the owner's
+  // (src/routes/connections.ts answers its setup 403 ownerOnly), and the admin can pin it off.
+  'mail',
 ]);
 
 /** Families a member may write to only partly: GET-only for members. */

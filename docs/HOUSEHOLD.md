@@ -156,6 +156,7 @@ is a convenience and the space's own auth is the gate: a wrong route gives 401/4
 | Local voice engine, subscriptions as models | Used by the member's turns when the owner allowed that model / voice |
 | Private local mode | Server-wide: it applies to members too; only the owner switches it |
 | Log, redactor, sandbox detection | Server-wide; the log never holds message text (unchanged rule) |
+| The owner's Microsoft app (M1 mail) | Read only: a member's *Sign in with Microsoft* uses it; their mailboxes, tokens and app passwords are in their own vault (`members/<id>/mail`), never the owner's. Google's sign-in is not shared (members add Gmail with an app password). The policy pin `memberMail: false` switches members' mail off. See [EMAIL.md](EMAIL.md#who-can-use-it) |
 | Device-code requests, pairing codes, passkey challenges | One registry for the server; the code itself grants nothing; the person who approves or makes it decides whose space the token belongs to |
 
 Everything else (stores, memory, planner, library, moments, scrapbook, uploads, look, approvals,
@@ -168,7 +169,8 @@ A member's server answers only an **allowlist** of route families (`MEMBER_ROUTE
 and studios, look and pictures, voice, memories, planner (projects, tasks, notes, reminders, places),
 today/briefing/review, library, moments, scrapbook, story, together, find, uploads, reports, usage
 (their own), export, settings (their own keys), providers (read-only, filtered), adult mode,
-companions, group chats, character files and the gallery, push and phone helpers, Your account.
+companions, group chats, character files and the gallery, push and phone helpers, their own
+mailboxes (`mail`, except setting up the Microsoft app), Your account.
 Every other family (backups, updates, doctor, logs, status, health history, access, private local
 mode switch, local models, subscriptions, providers' writes, tools and approvals settings, search,
 MCP, bridges, GitHub, Google, Home Assistant, workspaces, jobs, previews, team, code map, coding
