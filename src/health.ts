@@ -43,7 +43,7 @@ export function healthReport(app: AppContext, info: AppInfo) {
     const [key, params] = typeof detail === 'string' ? [detail, undefined] : detail;
     checks.push({ name, ok, detail: fill(key, params), ...(params ? { detailKey: key, params } : {}), ...(items ? { items } : {}) });
   };
-  add(en('Model'), Boolean(s.providers.length && s.defaultModel), s.providers.length ? (s.defaultModel ?? en('no default model')) : en('No model provider set up'));
+  add(en('Model'), Boolean(s.providers.length && s.defaultModel), s.providers.length ? (s.defaultModel ?? en('No default model: pick one in Settings → Models → Default model.')) : en('No model provider set up'));
   add(en('Disk space'), !disk || disk.freeBytes > 1e9, disk ? [en('{gb} GB free'), { gb: (disk.freeBytes / 1e9).toFixed(1) }] : en('unknown'));
   const last = backups[0];
   const backupAgeH = last ? (now.getTime() - Date.parse(last.createdAt)) / 3600_000 : Infinity;

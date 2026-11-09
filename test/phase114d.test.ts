@@ -186,8 +186,10 @@ test('PL1d: screenshots are listed in the manifest, from the 2.80.0 UI, small an
     const size = statSync(join(dir, f)).size;
     if (f !== 'demo.png') assert.ok(size < 300 * 1024, `${f}: ${size} bytes (keep under 300 KB)`);
   }
-  // The views retaken in the 2.80 UI (everything under Start here and in the docs pages).
-  for (const f of ['first-run.webp', 'connect-brain.webp', 'getting-started.webp', 'companion.webp', 'today.webp', 'phone.webp', 'planner.webp', 'dials.webp', 'howto.webp', 'work-dials.webp', 'ask-first.webp', 'coding.webp', 'command-bar.webp', 'library.webp', 'voice.webp', 'everywhere.webp']) assert.equal(manifest.files[f]?.ui, '2.80.0', f);
+  // The views retaken in the 2.80 UI that the 3.0 look hasn't replaced yet (setup, coding, library).
+  for (const f of ['first-run.webp', 'connect-brain.webp', 'ask-first.webp', 'coding.webp', 'library.webp', 'everywhere.webp']) assert.equal(manifest.files[f]?.ui, '2.80.0', f);
+  // 3.0.3: Today (the README picture), the docs pages' Today, Planner, chat, command bar, Settings and phone in the 3.0.2 look.
+  for (const f of ['v3-today.webp', 'getting-started.webp', 'today.webp', 'phone.webp', 'planner.webp', 'v3-planner.webp', 'companion.webp', 'command-bar.webp', 'dials.webp', 'howto.webp', 'voice.webp', 'work-dials.webp']) assert.equal(manifest.files[f]?.ui, '3.0.2', f);
 });
 
 // ---------- the docs site ----------

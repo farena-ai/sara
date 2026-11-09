@@ -2,7 +2,7 @@
 
 A small native app (Swift, no libraries) around Sara's web app, like the Android app. It adds:
 
-- **Sign in with a code**: scan the QR code from Settings → Data & health → Devices and sign-in →
+- **Sign in with a code**: scan the QR code from Settings → Connections → Devices and sign-in →
   *Add a phone or computer* with the Camera and choose *Open in the Sara app*, or type your server's address and
   the short code. (Without a code you sign in with the owner token.)
 - **Instant notifications** through Apple's push service, sent by your own server (set up once in

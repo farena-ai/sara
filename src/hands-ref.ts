@@ -37,6 +37,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { createServer as createNetServer, type AddressInfo, type Server as NetServer, type Socket } from 'node:net';
 import { hostname, tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
@@ -480,8 +481,11 @@ export class SaraBrowser {
       }
     }
     this.tabs.clear();
-    if (this.#tempProfile) setTimeout(() => rmSync(this.#profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }), 800).unref();
-    if (this.#tempFolder) rmSync(this.folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    // The browser's helper processes can hold its profile for a moment after it exits (Windows:
+    // EPERM). Remove it with retries and wait for that, and never throw: a timer that threw here
+    // used to crash the process after close() had already returned.
+    if (this.#tempProfile) await rm(this.#profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }).catch(() => {});
+    if (this.#tempFolder) await rm(this.folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }).catch(() => {});
   }
 }
 

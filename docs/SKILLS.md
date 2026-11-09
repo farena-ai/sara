@@ -24,6 +24,19 @@ can also say "use the weekly review skill"). Which skills a step used is shown i
 - **From a recipe:** your old recipes were turned into skills automatically.
 - **Export:** any skill as a zip, to share or keep.
 
+## Saving and changing skills (3.0.3)
+
+When she saves a skill (you asked her to, or a tricky job went well) or changes one of her own, she
+does it without an approval card: the step in her reply says **Saved skill: name** or **Changed
+skill: name**, with **Open skill** and **Undo**. Undo moves a new skill to the trash, or puts a
+changed one back to the version kept before the change (every change keeps the old version; see
+Settings → Skills → the skill → versions). `/learn` works the same way.
+
+Want to approve each one? Settings → Tools and approvals → *Save a skill* / *Change a skill* →
+**Ask me first**. Your choice there always wins, and an admin's policy pin can make them ask on
+every install it covers. A household member's space still asks. Running a skill's **scripts** still
+asks (below).
+
 ## Scripts
 
 A skill may include scripts. They never run on their own: each run shows a card with the start of the

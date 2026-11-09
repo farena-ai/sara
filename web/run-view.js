@@ -52,7 +52,7 @@ const STATUS = {
   blocked: () => t('blocked by a safety check'),
 };
 const STOPPED = { contradiction: () => t('stopped: goes against a decision'), minors: () => t('stopped: safety check'), steps: () => t('stopped: step limit'), budget: () => t('stopped: budget'), gate: () => t('stopped: waiting for your OK') };
-const APPROVAL = { auto: () => t('ran without asking'), allowed: () => t('you allowed it'), denied: () => t('you said no'), refused: () => t('not allowed here') };
+const APPROVAL = { auto: () => t('ran without asking'), allowed: () => t('you allowed it'), denied: () => t('you said no'), refused: () => t('not allowed here'), timeout: () => t('not answered in time') };
 const TOOL_STATUS = { ok: () => t('done'), error: () => t('failed'), denied: () => t('not run') };
 const SURE = { high: () => t('sure: high'), medium: () => t('sure: medium'), low: () => t('sure: low') };
 const PURPOSE = { 'safety check': () => t('safety check'), 'claim check': () => t('claim check'), 'claim judge': () => t('claim check'), 'plan judge': () => t('plan check'), agent: () => t('agent') };
@@ -126,7 +126,7 @@ function stepCard(run, step, api, named, branchable, ctx, replan = false) {
   // What the step did, in words (the tools' verbs, or her answer); the model goes on the line below.
   const did = step.tools.map((x) => {
     const [, done] = stepWords(x.name, x.args, named(x.name));
-    return x.status === 'ok' ? done : x.status === 'denied' ? t('Not allowed: {what}', { what: done }) : t("Didn't work: {what}", { what: done });
+    return x.status === 'ok' ? done : x.status === 'denied' && x.approval === 'timeout' ? t('Not approved in time: {what}', { what: done }) : x.status === 'denied' ? t('Not allowed: {what}', { what: done }) : t("Didn't work: {what}", { what: done });
   });
   const title = el('span', 'run-step-title', labelText(step.label) || (did.length ? did.join(' · ') : step.replyMessageId ? t('Answered') : t('Step {n}', { n: step.idx + 1 })));
   const meta = el('span', 'run-step-meta muted small', [time(step.at), step.label ? '' : step.model, step.calls.length ? `${tokens(step.tokensIn)} ${t('in')} · ${tokens(step.tokensOut)} ${t('out')}` : '', costWords(step.calls), step.ms ? fmtDuration(step.ms) : ''].filter(Boolean).join(' · '));

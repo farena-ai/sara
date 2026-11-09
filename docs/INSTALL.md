@@ -209,7 +209,7 @@ The first page asks **How do you want to use Sara?**
   Sara?**: type the address you open her at in a browser, like `sara.example.com` (HTTPS is assumed;
   addresses at home like `192.168.1.20:7860`, `*.local` and Tailscale's `100.x` addresses use plain
   HTTP). Then open Sara and sign in with a code: on a phone or computer where you're already signed
-  in, Settings → Data & health → Devices and sign-in → **Add a phone or computer**. Moved, or a different Sara?
+  in, Settings → Connections → Devices and sign-in → **Add a phone or computer**. Moved, or a different Sara?
   Right-click her icon next to the clock → **Connect to a different Sara…**. If she can't be reached,
   the app says so, with the address, *Try again* and *Change address*.
 
@@ -261,7 +261,8 @@ sara reset-token         a new owner token (signs out every browser), then resta
 sara logs [N]            the last lines of her logs
 sara access [how]        how you reach her; change it: local | tailscale | lan | domain --domain D [--port N]
 sara start | stop | restart
-sara update              opens the download page
+sara update              opens the download page (or: Settings → Updates → Update now)
+sara updater-task status is the Sara Update task (service installs) set up
 sara uninstall [--delete-data]
 ```
 
@@ -272,8 +273,13 @@ the oldest one still supported. Press it, then **Update now** in Settings → Da
 Sara downloads the installer, checks it against the release's signed update notice, keeps the
 installer of the version you have, installs silently and restarts. If the new version doesn't answer
 within 3 minutes she reinstalls the previous one and tells you. This works for the *only while I'm
-signed in* install and on the Mac app. A Windows service install needs an administrator, so there the
-button leads to the download page. Without a signed notice (for example a release page that can't be
+signed in* install, the Windows service install and the Mac app. A service install (since 3.0.3's
+Setup) has the **Sara Update** task: Sara, which runs as the limited `NT SERVICE\Sara` account,
+downloads and checks the installer and leaves it with the signed notice; Windows runs the task as
+the system, which checks the notice and the installer again in the program folder, installs for
+all users, waits for her to answer and goes back to the kept previous installer if she doesn't (no
+NSSM, no administrator prompt). A service installed by an older Setup shows *Run the newest Sara-Setup
+once as administrator*; after that, Update now works there too (`sara updater-task status`). Without a signed notice (for example a release page that can't be
 reached) Sara also only offers the download page.
 
 **Updating:** run a newer `Sara-Setup.exe`. The first page already has what you installed chosen. It
@@ -430,7 +436,7 @@ Sara checks each list once a day. Nothing is sent anywhere for this but the list
 
 - **Phones**: step by step in [PHONE.md](PHONE.md). In short: open Sara on your phone (the web
   app works now; the iPhone and Android apps are coming soon to the App Store and Google Play),
-  then in Settings → Data & health → Devices and sign-in press **Add a phone or computer** and scan
+  then in Settings → Connections → Devices and sign-in press **Add a phone or computer** and scan
   the code: no typing the token.
 
 | Extra | How |
@@ -678,7 +684,7 @@ needed.
    straight from the DMG, she offers to move herself first.)
 2. **How do you want to use Sara?** *Run Sara on this Mac* (her server runs on this Mac while you're
    signed in) or *Connect to a Sara somewhere else* (type the address of a Sara on another computer
-   or server, then sign in with a code from Settings → Data & health → Devices and sign-in → *Add a
+   or server, then sign in with a code from Settings → Connections → Devices and sign-in → *Add a
    phone or computer*). *Run Sara on this Mac* asks two things, with the usual answers already picked (if
    Sara's switch under System Settings → General → **Login Items** → *Allow in the Background* is
    off, the app opens it: turn on **Sara**):

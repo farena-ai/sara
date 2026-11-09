@@ -364,6 +364,11 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     return [...(this.#runs.get(taskId)?.approvals.values() ?? [])];
   }
 
+  /** 3.0.3: conversations where a team task waits at a checkpoint for the person's OK. */
+  waitingConversations(): string[] {
+    return (this.#db.prepare("SELECT DISTINCT conversation_id AS c FROM team_tasks WHERE status = 'waiting'").all() as { c: string }[]).map((r) => String(r.c));
+  }
+
   running(): TeamTask[] {
     return [...this.#runs.keys()].map((id) => this.get(id)!).filter(Boolean);
   }

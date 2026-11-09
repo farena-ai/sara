@@ -101,9 +101,11 @@
    "Planner",
    "Planner",
    "Press Ctrl+K (⌘K on a Mac) or this button to jump to any place, conversation, setting or action.",
+   "Press Ctrl+K (⌘K on a Mac) or this button to jump to any place, conversation, setting or action.",
    "Press a tile to open its place. Tiles with nothing in them stay away; Add to your day sets up the weather, your calendar or your home.",
    "Progress and receipts",
    "Saving settings",
+   "Search and go",
    "Search and go",
    "Settings",
    "Show me around",
@@ -212,7 +214,8 @@
    "team-issue",
    "team-tasks",
    "today",
-   "tool-list"
+   "tool-list",
+   "v4-cmd"
   ]
  },
  "setup-wizard.js": {
@@ -300,6 +303,7 @@
    "su-error",
    "su-error",
    "su-error",
+   "su-error",
    "su-found",
    "su-gallery",
    "su-gallery",
@@ -311,6 +315,7 @@
    "su-later",
    "su-later",
    "su-local-none",
+   "su-model",
    "su-model",
    "su-model",
    "su-model",
@@ -336,6 +341,7 @@
    "su-next",
    "su-next",
    "su-next",
+   "su-owner",
    "su-owner",
    "su-owner",
    "su-owner",

@@ -161,12 +161,13 @@ async function drain(gen: AsyncGenerator<ChatEvent>): Promise<ChatEvent[]> {
 
 // ------------------------------------------------------------------------------------------------
 
-test('pairing needs a fresh confirmation; the hands token is its own kind, listed, and opens nothing else', async () => {
+test('pairing: the owner signed in on this computer needs no token prompt; the hands token is its own kind, listed, and opens nothing else', async () => {
   const e = await env();
   try {
-    const no = await api(e, 'POST', '/api/hands/pair', { name: 'Laptop' });
-    assert.equal(no.status, 403, 'a session (or the token as a header) alone is not enough');
-    assert.equal(no.json.confirm, 'token');
+    // 3.0.3 (owner): being signed in as the owner is enough on this computer; a device signed in
+    // elsewhere waits for an OK through new-device approval ('hands' is a sensitive action).
+    const direct = await api(e, 'POST', '/api/hands/pair', { name: 'Desk' });
+    assert.equal(direct.status, 200, 'no owner-token prompt for the owner on this computer');
     const { token, id } = await pair(e, 'Laptop');
     assert.match(token, /^sara_hands\.[\w-]+\.[\w-]+$/);
     const devs = await api(e, 'GET', '/api/devices');

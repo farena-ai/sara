@@ -19,7 +19,7 @@ The whole app is about 100 KB.
 1. Get the APK file: build it (below), or download it from wherever your server's owner shares it.
 2. Open it on the phone. Android asks to allow installs from that app (your browser or Files):
    allow it once.
-3. Open **Sara**. Easiest: on your computer open Settings → Data & health → Devices and sign-in →
+3. Open **Sara**. Easiest: on your computer open Settings → Connections → Devices and sign-in →
    **Add a phone or computer**, then scan the code with the phone's camera and choose **Open in the Sara app**.
    Or type your server's address and the short code, and press **Connect**. (Without a code you
    sign in with the owner token.) No server yet? Press **Try the demo**.

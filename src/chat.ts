@@ -88,6 +88,7 @@ import { awayLine, CONFLICT, STOP_NOTE, usedStopWord } from './bond.ts';
 import { wearingLine } from './wardrobe.ts';
 import { activityNote } from './together.ts';
 import { isForgotten, localDate, memorySettings } from './memory-worker.ts';
+import { addSaved, memoryMark, savedSince } from './memory-saved.ts';
 import { decayPolicy } from './memory-rank.ts';
 import type { McpManager } from './tools/mcp.ts';
 import type { PlannerStore } from './planner.ts';
@@ -399,7 +400,7 @@ export type ChatEvent =
   /** An approved tool has started running. */
   | { type: 'tool_running'; id: string; name: string; summary: string }
   /** Phase 75: `card` is a small structured result (src/cards.ts) the app draws as a result card. */
-  | { type: 'tool_result'; id: string; name: string; status: 'ok' | 'error' | 'denied'; output: string; ms: number; snapshotId?: string; card?: Card }
+  | { type: 'tool_result'; id: string; name: string; status: 'ok' | 'error' | 'denied'; output: string; ms: number; snapshotId?: string; card?: Card; timedOut?: true }
   /** Receipt check: claims in a reply that the tool log does not support. */
   | { type: 'claim_check'; messageId: number; claims: Claim[]; correcting: boolean }
   /** Phase 28: her reply failed a safety check and was replaced (show `text` instead). */
@@ -436,6 +437,8 @@ export const MAX_STEPS = 25;
 export const MAX_STEPS_CODING = 80;
 const TOOL_RESULT_LIMIT = 40_000;
 const UI_OUTPUT_LIMIT = 4_000;
+/** 3.0.3: a step whose approval card nobody answered in time (the broker's wait ran out). */
+export const NOT_IN_TIME = 'Not approved in time: nobody answered the approval card before it ran out, so this did not run. Ask again if it is still needed.';
 
 export const vaultKeyFor = (providerId: string) => `provider:${providerId}`;
 
@@ -461,7 +464,7 @@ export function resolveProvider(app: AppContext, providerId: string | null, mode
   // EC5: a provider kind the admin's policy doesn't allow is never used (chat, jobs, bridges, the API).
   policy().checkProvider(config);
   const chosen = model ?? (providerId ? undefined : s.defaultModel) ?? config.defaultModel;
-  if (!chosen) throw new Error(`Choose a model for ${config.label} in Settings.`);
+  if (!chosen) throw new Error(`No default model is set for ${config.label}. Pick one in Settings → Models → Default model.`);
   // Phase 71: a household member only uses the models the owner allowed, within their daily limits.
   if (app.member) {
     app.member.checkModel(config.id, chosen);
@@ -1316,7 +1319,8 @@ export interface AfterTool {
   /** Scrubbed output (before clipping for storage). */
   output: string;
   ms: number;
-  approval: 'auto' | 'allowed' | 'denied' | 'refused';
+  /** 3.0.3: 'timeout' = nobody answered the approval card in time (refused, not a "no"). */
+  approval: 'auto' | 'allowed' | 'denied' | 'refused' | 'timeout';
   snapshotId?: string;
   messageId: number;
   contradictions?: Contradiction[];
@@ -1854,6 +1858,8 @@ function freshSessionNote(app: AppContext, conv: Conversation, service: SessionC
 
 async function* runTurnInner(app: AppContext, conversationId: string, userText: string, signal: AbortSignal, opts: TurnOptions, rec: RunRecorder): AsyncGenerator<ChatEvent> {
   const { store } = app;
+  // 3.0.3: notes her tools write during this turn go on the reply ("Saved n new memories").
+  const memMark = app.memory ? memoryMark(app) : 0;
   const conv = store.getConversation(conversationId);
   if (!conv) {
     yield { type: 'error', message: 'Conversation not found.' };
@@ -3257,6 +3263,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       };
       /** Phase 78: how the call got (or didn't get) to run, for the run record. */
       let approval: AfterTool['approval'] = 'refused';
+      // 3.0.3: the approval card's wait ran out (the broker refused it): the step says "Not approved in time".
+      let timedOut = false;
       if (admissionFailure) {
         status = 'denied';
         output = admissionFailure.message;
@@ -3345,7 +3353,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
             yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(alwaysOk ? { alwaysOk: true } : {}), ...(prepDetail ? { detail: prepDetail } : {}), ...(prepComputer ? { computer: prepComputer } : {}), ...(prepSkill ? { skill: prepSkill } : {}), ...(stopFor ? { contradiction: cardOf(stopFor, stops.filter((c) => c !== stopFor)) } : {}), ...(gate ? { sandboxFirst: { label: gate.isolation.label, isolated: gate.isolation.isolated } } : {}), ...(advisoryStop ? { advisory: advisoryStop } : {}), ...(redteamCard ? { redteam: redteamCard } : {}), ...(pluginAsk ? { plugin: { name: pluginAsk.name, reason: pluginAsk.reason } } : {}), ...(opts.untrusted ? { untrusted: true } : {}), ...(price ? { price } : {}), ...(spendAsk ? { spend: { message: trOwner(spendAsk.message, app.settings.get(), spendAsk.params), limit: spendAsk.limit } } : {}) };
             allowed = await decision;
             explicitlyApproved = allowed;
-            approval = allowed ? 'allowed' : 'denied';
+            timedOut = !allowed && !signal.aborted && app.approvals.timedOut(id);
+            approval = allowed ? 'allowed' : timedOut ? 'timeout' : 'denied';
             const how = app.approvals.takeHow(id);
             admit();
             // EC4: one audit row per decided card (the tool, the answer, where; the summary only as redacted content).
@@ -3416,7 +3425,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
                 explicitlyApproved = ok;
                 meter?.waited(Date.now() - waitFrom);
                 const how = app.approvals.takeHow(id);
-                approval = ok ? 'allowed' : 'denied';
+                timedOut = !ok && !signal.aborted && app.approvals.timedOut(id);
+                approval = ok ? 'allowed' : timedOut ? 'timeout' : 'denied';
                 admit();
                 if (!ok) {
                   discardSandbox(tried);
@@ -3446,7 +3456,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
               yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(prepDetail ? { detail: prepDetail } : {}), ...(prepSkill ? { skill: prepSkill } : {}) };
               allowed = await decision;
               explicitlyApproved = allowed;
-              approval = allowed ? 'allowed' : 'denied';
+              timedOut = !allowed && !signal.aborted && app.approvals.timedOut(id);
+              approval = allowed ? 'allowed' : timedOut ? 'timeout' : 'denied';
               app.approvals.takeHow(id);
               admit();
               if (allowed) yield { type: 'tool_running', id: call.id, name: call.name, summary };
@@ -3458,9 +3469,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
             // Applied (only the diff), discarded or cancelled: the command never ran in the workspace.
             if (sbDecision !== 'applied' && sbDecision !== 'auto-applied') status = 'denied';
             output = sandboxOutput(tried, sbDecision, applied);
+            if (timedOut) output = `${NOT_IN_TIME}\n${output}`;
           } else if (!allowed) {
             status = 'denied';
-            output = signal.aborted ? 'Cancelled.' : spendNote ? spendNote : pluginDeny ? `Stopped by the plugin ${pluginDeny.name}: ${pluginDeny.reason}` : redteamNote ? redteamNote : stopFor ? declinedOutput(stopFor, ownerWord) : advisoryStop ? declinedInstallOutput(advisoryStop) : 'The owner declined this action.';
+            output = signal.aborted ? 'Cancelled.' : timedOut ? NOT_IN_TIME : spendNote ? spendNote : pluginDeny ? `Stopped by the plugin ${pluginDeny.name}: ${pluginDeny.reason}` : redteamNote ? redteamNote : stopFor ? declinedOutput(stopFor, ownerWord) : advisoryStop ? declinedInstallOutput(advisoryStop) : 'The owner declined this action.';
           } else {
             admit();
             if (SNAPSHOT_TOOLS.has(call.name) && conv.mode !== 'coding' && !opts.replay) {
@@ -3630,7 +3642,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // C13: starting or finishing a task worktree moves her tools for the rest of the turn.
       if (status === 'ok' && (call.name === 'worktree_start' || call.name === 'worktree_finish')) wsDir = worktreeFolder();
       if (!store.getConversation(conv.id)) return 'end';
-      const toolMsg = store.addMessage(conv.id, 'tool', stored, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status, ms, ...(loadedSkill ? { skill: loadedSkill } : {}), ...(snapshotId ? { snapshotId } : {}), ...(shown.length ? { images: shown } : {}), ...(card ? { card } : {}), ...(flagged?.length ? { contradiction: flagged[0] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(advisoryStop ? { advisory: { ...advisoryStop, ...(advisoryAnswer ? { answer: advisoryAnswer } : {}) } } : {}), ...(guardRec ? { guard: { kind: guardRec.kind, quote: guardRec.quote } } : {}), ...(checksCard ? { checksCard } : {}), ...(checkBlock ? { checked: true } : {}), ...(codeInner ? { inner: codeInner } : {}), ...(parent ? { codeOf: parent } : {}) });
+      const toolMsg = store.addMessage(conv.id, 'tool', stored, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status, ms, ...(timedOut ? { timedOut: true } : {}), ...(loadedSkill ? { skill: loadedSkill } : {}), ...(snapshotId ? { snapshotId } : {}), ...(shown.length ? { images: shown } : {}), ...(card ? { card } : {}), ...(flagged?.length ? { contradiction: flagged[0] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(advisoryStop ? { advisory: { ...advisoryStop, ...(advisoryAnswer ? { answer: advisoryAnswer } : {}) } } : {}), ...(guardRec ? { guard: { kind: guardRec.kind, quote: guardRec.quote } } : {}), ...(checksCard ? { checksCard } : {}), ...(checkBlock ? { checked: true } : {}), ...(codeInner ? { inner: codeInner } : {}), ...(parent ? { codeOf: parent } : {}) });
       receipts.push({ name: call.name, status, args: call.arguments, output });
       if (checkBlock && rec.on) rec.tool({ id: `${call.id}-diagnostics`, name: 'diagnostics', summary: 'Checked her edits', args: { files: [...(checks?.touched ?? [])] }, status: 'ok', output: app.redactor.redact(checkBlock), ms: 0, messageId: toolMsg.id });
       // Phase 78 seam 3: the call is done (the recorder keeps the scrubbed result).
@@ -3647,7 +3659,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       }
       if (sbRecord) yield { type: 'sandbox', id: call.id, record: sbRecord };
       if (status === 'ok' && PEER_ANSWER_TOOLS.has(call.name)) peerAnswered = true;
-      yield { type: 'tool_result', id: call.id, name: call.name, status, output: clip(output, UI_OUTPUT_LIMIT), ms, ...(snapshotId ? { snapshotId } : {}), ...(card ? { card } : {}) };
+      yield { type: 'tool_result', id: call.id, name: call.name, status, output: clip(output, UI_OUTPUT_LIMIT), ms, ...(snapshotId ? { snapshotId } : {}), ...(card ? { card } : {}), ...(timedOut ? { timedOut: true } : {}) };
       try { currentScope(); } catch (err) {
         if (!(err instanceof ToolAdmissionError)) throw err;
         yield { type: 'error', message: signal.aborted ? 'Stopped.' : err.message };
@@ -3754,6 +3766,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     store.updateMessageMeta(lastAssistantId, { checks: chip });
     yield { type: 'checks', messageId: lastAssistantId, chip };
   }
+  // 3.0.3: the memories written in this chat during the turn, on the step line after the redraw.
+  if (lastAssistantId && app.memory) addSaved(app, lastAssistantId, savedSince(app, conversationId, memMark));
   yield { type: 'done', messageId: lastAssistantId };
   } finally {
     gateClosed = true;

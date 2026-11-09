@@ -57,6 +57,8 @@ export interface Settings {
   usePath?: UsePath;
   /** Per-tool permission overrides (tool name → auto/ask/never). */
   toolPermissions?: Record<string, Permission>;
+  /** 3.0.3: the one-time move of skill saves to "no OK needed" ran (migrateSkillSaveDefault). */
+  skillSaveDefault?: 'auto';
   /** E7 (A2): one choice per tool server (Ask me first / safe ones / everything / Never). */
   mcpPolicy?: Record<string, import('./tool-policy.ts').ServerPolicy>;
   /** Allow shell commands network access inside the sandbox. Default true. */
@@ -300,6 +302,25 @@ const RENAMED_LABELS: Record<string, string> = { 'Ollama (this server)': 'Ollama
 export function migrateProviderLabels(s: Settings): Settings | undefined {
   if (!s.providers.some((p) => RENAMED_LABELS[p.label])) return undefined;
   return { ...s, providers: s.providers.map((p) => (RENAMED_LABELS[p.label] ? { ...p, label: RENAMED_LABELS[p.label] } : p)) };
+}
+
+/** 3.0.3: the skill tools that save or change her skills; they no longer ask by default. */
+export const SKILL_SAVE_TOOLS = ['skill_save', 'skill_update', 'recipe_save'] as const;
+
+/**
+ * 3.0.3, once per install: Settings → Tools used to save every tool's shown value, so an install that
+ * ever pressed Save there holds skill_save: 'ask' (the old default) without having chosen it. A saved
+ * list that covers many tools is such a whole-page save: its 'ask' on the skill save tools goes, and
+ * they follow the new default. A short list is the owner's own picks and stays. Members, private
+ * modes and admin pins are not touched (they resolve elsewhere).
+ */
+export function migrateSkillSaveDefault(s: Settings): Partial<Settings> | undefined {
+  if (s.skillSaveDefault === 'auto') return undefined;
+  const perms = s.toolPermissions ?? {};
+  const wholePage = Object.keys(perms).length >= 12;
+  const next = { ...perms };
+  if (wholePage) for (const n of SKILL_SAVE_TOOLS) if (next[n] === 'ask') delete next[n];
+  return { skillSaveDefault: 'auto', ...(s.toolPermissions ? { toolPermissions: next } : {}) };
 }
 
 /** A problem at start-up that the owner can fix (shown as a plain message, not a stack trace). */

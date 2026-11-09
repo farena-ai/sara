@@ -16,7 +16,24 @@ import { cleanLimits } from '../team.ts';
 import { GITHUB_VAULT } from '../tools/coding.ts';
 import { HOME_VAULT } from '../tools/home.ts';
 import { cleanBudget, cleanPrices, DEFAULT_PRICES, mergeSummaries, priceTable, usageLine } from '../usage.ts';
+import { suggestModel } from '../../web/model-suggest.js';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+
+/**
+ * 3.0.3: a provider that is the default but has no default model (it just became the default: the
+ * first provider of a fresh install, a subscription sign-in) gets one from its model list, so chat
+ * never stops on "Choose a model" and Settings → Default model shows a model that is really saved.
+ * An explicit pick (PUT /settings defaultModel) always wins; this only fills an empty one.
+ */
+export function adoptDefaultModel(app: RouteCtx['app'], providerId: string, models: string[]): void {
+  const s = app.settings.get();
+  if (s.defaultProviderId !== providerId || s.defaultModel) return;
+  const prov = s.providers.find((p) => p.id === providerId);
+  const pick = prov?.defaultModel ?? suggestModel(models);
+  // Private local mode: never a model that would leave this computer (the owner picks one).
+  if (!prov || !pick || (privateLocalOn() && !onThisComputer(prov, pick))) return;
+  app.settings.update({ defaultModel: pick });
+}
 
 export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
   const { app, opts, rootDir } = ctx;
@@ -231,6 +248,10 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
         if (s.providers.some((p) => p.id === presetId)) return;
         const preset = PROVIDER_PRESETS.find((p) => p.id === presetId)!;
         app.settings.update({ providers: [...s.providers, { ...preset }], ...(s.defaultProviderId ? {} : { defaultProviderId: preset.id, defaultModel: preset.defaultModel }) });
+        // 3.0.3: ChatGPT and Grok have no preset model: take one from their list once it is known.
+        if (app.modelCatalog && !app.settings.get().defaultModel && app.settings.get().defaultProviderId === preset.id) {
+          void app.modelCatalog.refresh(preset.id).then((v) => adoptDefaultModel(app, preset.id, v.models), () => undefined);
+        }
       };
       const view = () => ({ chatgpt: subs.chatgpt.status(), claude: subs.claudeStatus(), grok: subs.grokStatus() });
       if (!b && method === 'GET') return send(res, 200, await view());
@@ -406,6 +427,8 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
           await Promise.race([check, new Promise<void>((r) => (timer = setTimeout(r, 5000)))]);
           clearTimeout(timer);
         }
+        // 3.0.3: the provider that became the default gets a default model from the list just checked.
+        if (app.modelCatalog?.known(b)) adoptDefaultModel(app, b, app.modelCatalog.view(b).models);
         return send(res, 200, providerView());
       }
       if (b && !c && method === 'DELETE') {

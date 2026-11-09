@@ -105,6 +105,7 @@ Filename: "{app}\Sara.exe"; Parameters: "{code:OpenParams}"; Description: "Open 
 Type: files; Name: "{usersendto}\Sara.lnk"
 Type: files; Name: "{app}\sara.env"
 Type: filesandordirs; Name: "{app}\server"
+Type: filesandordirs; Name: "{app}\updater"
 Type: dirifempty; Name: "{app}\bin"
 Type: dirifempty; Name: "{app}\node"
 Type: dirifempty; Name: "{app}"
@@ -657,7 +658,7 @@ begin
   RemotePage := CreateInputQueryPage(RunPage.ID, 'Where is your Sara?',
     'Type the address you open her at in a web browser.',
     'For example sara.example.com or https://sara.example.com. An address at home like 192.168.1.20:7860 works too.' + #13#10#13#10 +
-    'After installing, you sign in with a code: on a phone or computer where you''re already signed in, open Settings → Devices and sign-in → Add a phone or computer.');
+    'After installing, you sign in with a code: on a phone or computer where you''re already signed in, open Settings → Connections → Devices and sign-in → Add a phone or computer.');
   RemotePage.Add('Address:', False);
   Addr := ExpandConstant('{param:SERVER|}');
   if Addr = '' then Addr := AppServer;
@@ -1087,6 +1088,13 @@ begin
   if IsAdminInstallMode then begin
     WizardForm.StatusLabel.Caption := 'Setting up the Sara service...';
     if Run(App + '\SaraService.exe', '--install-service', App, O) <> 0 then SetupNote := SetupNote + #13#10 + 'The service could not be set up: ' + O;
+    // C9 for the service: the Sara Update task (SYSTEM, on demand; the service may only start it) runs
+    // server\src\update-service.ts, so Settings → Updates → Update now works without the download page.
+    // This installer is kept in {app}\updater\keep for going back (only administrators can change it).
+    ForceDirectories(App + '\updater\keep');
+    if not FileCopy(ExpandConstant('{srcexe}'), App + '\updater\keep\Sara-Setup-{#AppVersion}.exe', False) then Log('Could not keep this installer for going back.');
+    if Run(Node, '--disable-warning=ExperimentalWarning ' + Cli + ' updater-task install', App + '\server', O) <> 0 then
+      SetupNote := SetupNote + #13#10 + 'Updates from Settings could not be set up (' + Trim(O) + '); download new versions from the release page instead.';
     // Only the service, administrators and Windows itself may read her data (keys, conversations):
     // owner Administrators, nothing inherited, a protected list (NT SERVICE\Sara:(OI)(CI)M).
     SecureDataDir(Data, True);
@@ -1126,7 +1134,7 @@ begin
   if (CurPageID = wpFinished) and IsRemote then begin
     WizardForm.FinishedHeadingLabel.Caption := 'The Sara app is installed';
     WizardForm.FinishedLabel.Caption := 'It connects to ' + ChosenServer + '.' + #13#10#13#10 +
-      'Next: open Sara and sign in with a code. On a phone or computer where you''re already signed in to her, open Settings → Devices and sign-in → Add a phone or computer, and type the code in the app.' + #13#10#13#10 +
+      'Next: open Sara and sign in with a code. On a phone or computer where you''re already signed in to her, open Settings → Connections → Devices and sign-in → Add a phone or computer, and type the code in the app.' + #13#10#13#10 +
       'Moved, or a different Sara? Right-click her icon next to the clock → Connect to a different Sara…';
     // The longer text pushes "Open Sara" down instead of covering it.
     WizardForm.FinishedLabel.AdjustHeight;
@@ -1255,6 +1263,9 @@ begin
         Run(App + '\SaraService.exe', '--stop', App, O);
         if IsAdminInstallMode then Run(App + '\SaraService.exe', '--remove-service', App, O);
       end;
+      // The Sara Update task (service installs) and the installers it kept.
+      if IsAdminInstallMode and FileExists(App + '\node\node.exe') then
+        Run(App + '\node\node.exe', '--disable-warning=ExperimentalWarning ' + Q(App + '\server\src\sara-windows.ts') + ' updater-task remove', App + '\server', O);
       RemoveFromPath(App + '\bin');
     end;
   end;

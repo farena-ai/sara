@@ -1,7 +1,7 @@
 # After installing: a five-minute security checklist
 
 Sara holds your private conversations and the keys to your other accounts. These steps keep them
-safe. Most are in **Settings → Data & health → Devices and sign-in**.
+safe. Most are in **Settings → Connections → Devices and sign-in**.
 
 1. **Keep the owner token safe.** Put it in a password manager, not in a note or a chat. If
    someone else may have seen it, make a new one: *Make a new owner token* on the same page (or

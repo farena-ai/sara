@@ -106,7 +106,7 @@ data cannot be recalled. Final qualification and its limits are recorded separat
   code when two-step is on. A stolen cookie can't create a lasting way back in.
 - Turning two-step on signs every other device out. A new owner token signs every device out and,
   by default, removes passkeys.
-- Settings → Data & health → Devices and sign-in lists every signed-in device and app, with sign
+- Settings → Connections → Devices and sign-in lists every signed-in device and app, with sign
   out for each.
 - **(1.0)** Approving a new app or device needs re-authentication (the owner token, a current
   two-step code or a passkey), so a stolen cookie alone can't add a lasting device. Device tokens
@@ -321,7 +321,7 @@ provider sees each member's messages like the owner's; private local mode is ser
   same per-address limit as sign-in attempts, and the routes are off on the demo.
 - Device tokens look like `sara_dev.<id>.<secret>`; the server keeps only a hash. They work with
   two-step on (the owner approved them while signed in), stop after 30 days without use, can be
-  signed out one by one in Settings → Data & health → Devices and sign-in, and an app can't approve
+  signed out one by one in Settings → Connections → Devices and sign-in, and an app can't approve
   another app.
 - **(1.0)** The owner types the code shown by the app on the approval page (it isn't taken from a
   link, so a link someone sends the owner can't approve their app), and approving needs

@@ -1036,6 +1036,18 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Open the webhook's card.
 2. Look at its deliveries.
 
+### Devices and sign-in
+
+**How do I sign in on another phone or computer?**
+
+1. Press Add a phone or computer.
+2. Scan the code or type it there.
+
+**How do I lock out a lost device?**
+
+1. Press Sign out all other devices.
+2. Or make a new token with Make a new token.
+
 ## Settings → Data & health
 
 ### Safety check-up
@@ -1094,18 +1106,6 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Pick how long to Keep runs.
 2. Or press Delete run history.
-
-### Devices and sign-in
-
-**How do I sign in on another phone or computer?**
-
-1. Press Add a phone or computer.
-2. Scan the code or type it there.
-
-**How do I lock out a lost device?**
-
-1. Press Sign out all other devices.
-2. Or make a new token with Make a new token.
 
 ### Backups
 

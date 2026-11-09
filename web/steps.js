@@ -74,7 +74,7 @@ function rowFor(box, step) {
 function fillRow(step) {
   const li = step.li;
   li.className = `step ${step.status}`;
-  const verb = step.status === 'running' ? step.now : step.status === 'waiting' ? t('Waiting for your OK: {what}', { what: step.done }) : step.status === 'denied' ? t('Not allowed: {what}', { what: step.done }) : step.status === 'error' ? t("Didn't work: {what}", { what: step.done }) : step.done;
+  const verb = step.status === 'running' ? step.now : step.status === 'waiting' ? t('Waiting for your OK: {what}', { what: step.done }) : step.status === 'denied' && step.timedOut ? t('Not approved in time: {what}', { what: step.done }) : step.status === 'denied' ? t('Not allowed: {what}', { what: step.done }) : step.status === 'error' ? t("Didn't work: {what}", { what: step.done }) : step.done;
   li.querySelector('.step-verb').textContent = verb;
   li.querySelector('.step-ms').textContent = step.ms !== undefined && step.status !== 'running' && step.status !== 'waiting' ? fmtDuration(step.ms) : '';
   const body = step.body;
@@ -94,6 +94,58 @@ function fillRow(step) {
     }
     out.textContent = String(step.output ?? '').slice(0, DETAIL_LIMIT) || t('(no output)');
   }
+  if (step.status === 'ok' && SKILL_SAVES.has(step.name)) skillActions(step);
+}
+
+// 3.0.3: a skill she saved or changed (no OK needed by default): Open it, or Undo (a new skill goes
+// to the trash; a change goes back to the version kept before it).
+const SKILL_SAVES = new Set(['skill_save', 'recipe_save', 'skill_update']);
+const SAVED_RE = /^(Saved|Updated|Changed) skill "([a-z0-9-]{1,64})"/;
+async function skillApi(path, method = 'GET', body) {
+  const res = await fetch(`/api${path}`, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+function skillActions(step) {
+  const m = SAVED_RE.exec(String(step.output ?? ''));
+  if (!m || step.li.querySelector('.skill-saved-acts')) return;
+  const [, how, name] = m;
+  const row = step.li.querySelector('.step-head');
+  if (!row) return;
+  const box = el('span', 'skill-saved-acts');
+  const open = el('a', 'step-link small', t('Open skill'));
+  open.href = '/#view=settings:ab-skills';
+  const undo = el('button', 'step-link small linkish', t('Undo'));
+  undo.type = 'button';
+  undo.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    undo.disabled = true;
+    try {
+      const enc = encodeURIComponent;
+      let scope = 'companion';
+      let v = await skillApi(`/skills/companion/${enc(name)}`).catch(() => null);
+      if (!v && how === 'Changed') {
+        scope = 'shared';
+        v = await skillApi(`/skills/shared/${enc(name)}`);
+      }
+      if (!v) throw new Error(t('That skill is gone already.'));
+      if (how === 'Saved') await skillApi(`/skills/${scope}/${enc(name)}`, 'DELETE');
+      else {
+        const prev = v.versions?.[0]?.version;
+        if (!prev) throw new Error(t('No earlier version to go back to.'));
+        await skillApi(`/skills/${scope}/${enc(name)}/restore`, 'POST', { version: prev });
+      }
+      box.replaceChildren(el('span', 'small muted', how === 'Saved' ? t('Undone: the skill is in the trash.') : t('Undone: back to the version before.')));
+    } catch (err) {
+      undo.disabled = false;
+      undo.title = err.message;
+      box.append(el('span', 'small muted', ` ${err.message}`));
+    }
+  });
+  box.append(open, ' ', undo);
+  row.append(box);
 }
 
 function render(box) {
@@ -108,7 +160,7 @@ function render(box) {
       g.ms = (g.ms ?? 0) + (s.ms ?? 0);
     } else groups.push({ ...s, n: 1 });
   }
-  const said = (s) => (s.status === 'error' ? t("Didn't work: {what}", { what: s.done }) : s.status === 'denied' ? t('Not allowed: {what}', { what: s.done }) : s.done);
+  const said = (s) => (s.status === 'error' ? t("Didn't work: {what}", { what: s.done }) : s.status === 'denied' && s.timedOut ? t('Not approved in time: {what}', { what: s.done }) : s.status === 'denied' ? t('Not allowed: {what}', { what: s.done }) : s.done);
   const parts = groups.map((s) => (s.status === 'running' ? s.now : s.status === 'waiting' ? t('Waiting for your OK') : `${s.n > 1 ? `${said(s)} ×${s.n}` : said(s)}${s.ms !== undefined && s.kind !== 'memory' ? ` ${fmtDuration(s.ms)}` : ''}`));
   // Long turns: the first two, the one running now, then "+3 more".
   const runningAt = groups.findIndex((s) => s.status === 'running' || s.status === 'waiting');
@@ -124,11 +176,11 @@ function render(box) {
 }
 
 /** A tool call starts (or comes from history with its result already). */
-export function addStep(box, { id, name, summary, args, status = 'running', output, ms, snapshotId }) {
+export function addStep(box, { id, name, summary, args, status = 'running', output, ms, snapshotId, timedOut }) {
   const named = box._named(name) || '';
   const [now, done, icon] = stepWords(name, args, named);
   const command = name === 'shell' ? String(args?.command ?? '') : '';
-  const step = { kind: 'tool', id, name, args, now, done, icon, status, what: command || summary || name, output, ms };
+  const step = { kind: 'tool', id, name, args, now, done, icon, status, what: command || summary || name, output, ms, ...(timedOut ? { timedOut: true } : {}) };
   rowFor(box, step);
   box._steps.push(step);
   fillRow(step);
@@ -158,10 +210,12 @@ export function runStep(box, id) {
 }
 
 /** A call's result arrived. */
-export function finishStep(box, { id, status, output, ms, snapshotId }) {
+export function finishStep(box, { id, status, output, ms, snapshotId, timedOut }) {
   const s = find(box, id);
   if (!s) return null;
   s.status = status;
+  // 3.0.3: the approval card ran out unanswered ("Not approved in time"), not a "no".
+  if (timedOut) s.timedOut = true;
   s.output = output;
   s.ms = ms;
   fillRow(s);
@@ -197,6 +251,44 @@ export function memoryStep(box, count, { ids = [], open } = {}) {
   step.li = li;
   box.querySelector('.steps-list').prepend(li);
   box._steps.unshift(step);
+  render(box);
+}
+
+/**
+ * 3.0.3: the notes she saved from this turn (her tools during the reply, or the memory worker once the
+ * chat went quiet: `meta.savedMemoryIds`), right after "Used n memories". The link opens Memory with
+ * exactly those notes highlighted.
+ */
+export function savedStep(box, count, { ids = [], open } = {}) {
+  if (!count || box._steps.some((s) => s.kind === 'saved')) return;
+  const done = count === 1 ? t('Saved 1 new memory') : t('Saved {n} new memories', { n: count });
+  const why = t('New things she noted about you from this conversation.');
+  const step = { kind: 'saved', name: 'saved', now: done, done, icon: 'memory', status: 'ok' };
+  const li = el('li', 'step ok memory saved');
+  const row = el('div', 'step-head');
+  const verb = el('span', 'step-verb', done);
+  verb.title = why;
+  row.append(stepIcon('memory'), verb);
+  const link = el('a', 'step-link small', t('See them in Memory'));
+  link.href = '/#view=memory';
+  if (ids.length && open) {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      open(ids);
+    });
+  }
+  row.append(link);
+  li.append(row, el('p', 'step-sub muted small', why));
+  step.li = li;
+  // After "Used n memories" when there is one, else first.
+  const used = box._steps.findIndex((s) => s.kind === 'memory' && s.name === 'memory');
+  if (used >= 0) {
+    box._steps[used].li.after(li);
+    box._steps.splice(used + 1, 0, step);
+  } else {
+    box.querySelector('.steps-list').prepend(li);
+    box._steps.unshift(step);
+  }
   render(box);
 }
 

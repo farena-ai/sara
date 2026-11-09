@@ -117,7 +117,9 @@ test('128d.6 C1: the split moved code only: the modules\' keys and ids equal the
   const moved: Record<string, string[]> = {
     'settings-nav.js': ['OLD_TABS', 'settingsPages', 'SETTINGS_GROUPS', 'SETTINGS_WAS', 'SETTINGS_ORDER', 'setGroupOpen', 'buildSettingsNav', 'openGroupOf', 'clearSettingsSearch', 'settingsRecord', 'matchSettings', 'restoreSettingsOrder', 'paintElsewhere'],
     'tours.js': ['closeOpenDialogs', 'settingsAt', 'makeTours', 'runTour', 'tourFromHash', 'offerFirstTour', 'queueTourOffer'],
-    'setup-wizard.js': ['su', 'suShow', 'suPathCards', 'suWho', 'suPing', 'openSetup', 'suConnect', 'suggestModel', 'suFinish'],
+    'setup-wizard.js': ['su', 'suShow', 'suPathCards', 'suWho', 'suPing', 'openSetup', 'suConnect', 'suFinish'],
+    // 3.0.3: suggestModel moved on to web/model-suggest.js (the server uses it too).
+    'model-suggest.js': ['suggestModel'],
   };
   const defines = (src: string, n: string) => new RegExp(`^(?:export )?(?:async function|function|const|let) ${n}\\b`, 'm').test(src);
   for (const [f, names] of Object.entries(moved)) {

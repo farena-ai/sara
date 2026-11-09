@@ -102,6 +102,15 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Faster, steadier and easier to find in 3.0.3
+
+Settings opens at once, one search box, and an approval you can always reach (answer it from the bar
+above the message box or Ctrl K). Saving her own skills no longer asks first, and a timed-out approval
+says so. A red dot marks chats that need you, and her reply says how many new memories she saved.
+Adding a phone or computer is easy to find, computer use on your own computer needs no token, and a
+model picked during setup stays the default. Store listings for plugins and tool servers are
+translated, every store page is refreshed, and the Windows service updates itself.
+
 ## Polish, Violet and an easy move-in in 3.0.2
 
 Settings opens as a centered panel, Violet is the default color, and picking a palette resets the color

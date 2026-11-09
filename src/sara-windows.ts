@@ -20,7 +20,7 @@
 import { netFetch } from './net-guard.ts';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, win32 } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export type Mode = 'service' | 'user';
@@ -389,6 +389,56 @@ function positional(args: string[]): string[] {
   return out;
 }
 
+/**
+ * The Windows service install's update task (src/update-service.ts): \Sara\Update runs as SYSTEM, on
+ * demand only, the update runner from the program folder; its permissions let the service account
+ * (NT SERVICE\Sara) read and start it and nothing else (Full control stays with SYSTEM and
+ * Administrators). No NSSM or other helper: Task Scheduler, through PowerShell's ScheduledTasks module.
+ */
+export function updaterTaskScript(action: 'install' | 'remove', o: { app: string; folder?: string; name?: string; account?: string; command?: string; args?: string; runAs?: string }): string {
+  const q = (x: string) => `'${x.replace(/'/g, "''")}'`;
+  const folder = o.folder ?? 'Sara';
+  const name = o.name ?? 'Update';
+  const lines = ["$ErrorActionPreference = 'Stop'"];
+  if (action === 'remove') {
+    lines.push(`Unregister-ScheduledTask -TaskPath ${q(`\\${folder}\\`)} -TaskName ${q(name)} -Confirm:$false -ErrorAction SilentlyContinue`);
+    lines.push(`try { $svc = New-Object -ComObject Schedule.Service; $svc.Connect(); $svc.GetFolder('\\').DeleteFolder(${q(folder)}, 0) } catch { }`);
+    lines.push("'TASK=removed'");
+    return lines.join('\n');
+  }
+  // Windows paths whatever runs this (the tests also run on Linux): win32.join, never the host's.
+  const command = o.command ?? win32.join(o.app, 'node', 'node.exe');
+  const args = o.args ?? `--disable-warning=ExperimentalWarning "${win32.join(o.app, 'server', 'src', 'update-service.ts')}"`;
+  lines.push(
+    `$a = New-ScheduledTaskAction -Execute ${q(command)} -Argument ${q(args)} -WorkingDirectory ${q(win32.join(o.app, 'server'))}`,
+    // SYSTEM (tests on a PC without administrator rights run it as themselves instead).
+    o.runAs ? `$p = New-ScheduledTaskPrincipal -UserId ${q(o.runAs)} -LogonType Interactive -RunLevel Limited` : "$p = New-ScheduledTaskPrincipal -UserId 'S-1-5-18' -LogonType ServiceAccount -RunLevel Highest",
+    '$s = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 30) -MultipleInstances IgnoreNew -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries',
+    `Register-ScheduledTask -TaskPath ${q(`\\${folder}\\`)} -TaskName ${q(name)} -Action $a -Principal $p -Settings $s -Description 'Installs a Sara update that Sara downloaded and the signed update notice vouches for (Settings, Updates, Update now). Started by the Sara service only.' -Force | Out-Null`,
+    `$sid = (New-Object System.Security.Principal.NTAccount(${q(o.account ?? 'NT SERVICE\\Sara')})).Translate([System.Security.Principal.SecurityIdentifier]).Value`,
+    '$svc = New-Object -ComObject Schedule.Service; $svc.Connect()',
+    `$t = $svc.GetFolder(${q(`\\${folder}`)}).GetTask(${q(name)})`,
+    '$t.SetSecurityDescriptor("D:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;GRGX;;;$sid)", 0)',
+    "'TASK=ok'",
+  );
+  return lines.join('\n');
+}
+
+function updaterTask(action: string, print: boolean): void {
+  if (action !== 'install' && action !== 'remove' && action !== 'status') fail('updater-task install|remove|status [--print]', 2);
+  if (action === 'status') {
+    const r = spawnSync(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'schtasks.exe'), ['/query', '/tn', '\\Sara\\Update'], { encoding: 'utf8', windowsHide: true });
+    say(r.status === 0 ? 'The Sara Update task is set up: Settings → Updates → Update now installs updates for the service.' : 'The Sara Update task is not set up (run the newest Sara-Setup as administrator).');
+    return;
+  }
+  const script = updaterTaskScript(action, { app: APP });
+  if (print) return say(script);
+  const r = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], { encoding: 'utf8', windowsHide: true, timeout: 120_000 });
+  const out = `${r.stdout ?? ''}${r.stderr ?? ''}`.trim();
+  if (r.status !== 0 || !/TASK=(ok|removed)/.test(out)) fail(`The Sara Update task could not be ${action === 'install' ? 'set up' : 'removed'}: ${out.split(/\r?\n/).find((l) => l.trim()) ?? `exit ${r.status}`}${/denied|0x80070005/i.test(out) ? ` ${needAdmin()}` : ''}`);
+  say(action === 'install' ? 'The Sara Update task is set up.' : 'The Sara Update task is removed.');
+}
+
 function help(): void {
   const src = readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n');
   for (const l of src.slice(1)) {
@@ -511,6 +561,7 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case 'update': {
+      if (readConfig().SARA_MODE === 'service' && spawnSync(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'schtasks.exe'), ['/query', '/tn', '\\Sara\\Update'], { windowsHide: true }).status === 0) say('Sara can update herself: Settings → Updates → Update now (Windows installs it for the service with the Sara Update task). Or:');
       say('Updates come as a newer installer. Download Sara-Setup.exe from the release page and run it:');
       say(`  ${DOWNLOAD_PAGE}`);
       say('It makes a backup first and keeps your data, settings and how she runs.');
@@ -558,6 +609,10 @@ export async function main(argv: string[]): Promise<void> {
       say(`ACCESS=${now.SARA_ACCESS}`);
       say(`URL=${now.SARA_PUBLIC_URL}`);
       return;
+    }
+    case 'updater-task': {
+      // updater-task install|remove|status [--print]: the service install's update task (Setup runs it).
+      return updaterTask(args[0] ?? '', args.includes('--print'));
     }
     case 'unconfigure': {
       const c = readConfig();

@@ -5,6 +5,7 @@ import { setIdentity, t } from './naming.js';
 import { icon } from './icons.js';
 import { normPath, pathChoices, starterChips } from './first-run.js';
 import { CLOUD_TAG, countWords, modelCounts } from './model-count.js';
+import { suggestModel } from './model-suggest.js';
 import { foldFirstRun, unfoldFirstRun } from './hub.js';
 import { todayOpen } from './today.js';
 import { queueTourOffer } from './tours.js';
@@ -37,7 +38,7 @@ let modelCache = null;
 // Phase 114 (PL1b): `path` = the use choice of step 1; `brainOk` = the picked model answered a test
 // ping; `ping` numbers the pings (a newer one wins); `coderPick` = the model Models → Which model does
 // what would pick for coding.
-const su = { step: 1, info: null, provider: null, openSubs: false, original: null, changed: false, path: 'both', brainOk: false, ping: 0, coderPick: '', local: false, who: 'keep', way: '', recovery: false, connect: 0 };
+const su = { step: 1, info: null, provider: null, openSubs: false, original: null, changed: false, path: 'both', brainOk: false, ping: 0, coderPick: '', local: false, who: 'keep', way: '', recovery: false, connect: 0, saved: null };
 
 function suShow(step) {
   su.step = step;
@@ -221,6 +222,8 @@ export async function openSetup(info) {
   suWay(info.ollama?.[0] ? 'local' : '');
   suShow(1);
   $('#setup').showModal();
+  // Fresh pass: start in the name field (the dialog would otherwise focus "Set up later" and ring it).
+  $('#su-owner').focus();
 }
 
 /** Reuse only the model step; owner identity and character are never revisited. */
@@ -287,18 +290,18 @@ function suShowLocal(found) {
 }
 
 /**
- * A sensible first model for a beginner from a provider's list: a well-known general model of a
- * medium size, not an embedding, vision-only, uncensored or test build. (They can pick any.)
+ * 3.0.3: in the first-run guide the picked model is the default model from the moment it is picked
+ * (the connection was already made the default), not only after its test answered and Next was
+ * pressed: a slow first answer + Connect a brain later / Set up later left no default model.
+ * Model recovery (su.recovery) still changes nothing until Use this model.
  */
-function suggestModel(models) {
-  const bad = /embed|bge|nomic|minilm|rerank|whisper|tts|vision-only|uncensor|abliterat|^hf\.co\/|nvfp4|test|preview|-base\b|guard/i;
-  const order = [/^gpt-5(\.\d)?$/, /^gpt-5[\w.-]*mini/, /claude-.*sonnet|^sonnet$/, /^grok-4[\w.]*$/, /gemma\d*:(12|27|31)b|gemma\d*:\d+b-cloud/, /gpt-oss/, /qwen\d[\w.]*:(14|30|32)b/, /llama\d[\w.]*:(8|70)b/, /mistral/, /gemma|qwen|llama|glm|deepseek|kimi/];
-  const ok = models.filter((m) => !bad.test(m));
-  for (const re of order) {
-    const hit = ok.find((m) => re.test(m));
-    if (hit) return hit;
-  }
-  return ok[0] ?? models[0];
+function suSaveDefault(model) {
+  if (su.recovery || !su.provider || !model) return Promise.resolve();
+  const body = { defaultProviderId: su.provider, defaultModel: model };
+  su.saved = (su.saved ?? Promise.resolve()).then(() => api('/settings', { method: 'PUT', body })).then(() => {
+    Object.assign(state.providers, body);
+  }, (err) => void ($('#su-error').textContent = err.message));
+  return su.saved;
 }
 
 async function suConnect(config, apiKey) {
@@ -340,6 +343,8 @@ async function suConnect(config, apiKey) {
     const counted = countWords(modelCounts(models), Boolean(config.local), t);
     $('#su-model-note').textContent = `${config.label}: ${counted}. ${models.length > 1 ? t('Any of them works; you can change it now or later.') : t('You can change it later.')}`;
     su.provider = config.id;
+    await suSaveDefault(pick);
+    if (run !== su.connect) return;
     suPicked(pick);
     $('#su-model-pick').hidden = true;
     $('#su-change').hidden = models.length < 2;
@@ -395,6 +400,7 @@ export function initSetupWizard(c) {
   });
   $('#su-model').addEventListener('change', () => {
     suPicked($('#su-model').value);
+    void suSaveDefault($('#su-model').value);
     void suPing();
   });
   $('#su-rescan').addEventListener('click', async () => {

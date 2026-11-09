@@ -1,6 +1,6 @@
 # Approve new devices
 
-Settings → **Devices and sign-in** → **Approve new devices**.
+Settings → Connections → **Devices and sign-in** → **Approve new devices**.
 
 When it is on, a sign-in with the owner token or a passkey from **somewhere other than this computer**
 waits for your OK. "Somewhere else" includes another computer or phone, and anything that comes
@@ -24,7 +24,9 @@ The first device of a brand-new server doesn't wait either (there is nothing to 
 
 From a device signed in from elsewhere, these ask you first in the same way (the device shows a code):
 turning on **Always allowed**, a new owner token, installing an add-on from a web address, changing
-the Telegram or Discord token, updating (restarting) Sara, and turning this switch off.
+the Telegram or Discord token, updating (restarting) Sara, turning on **computer use** (Let Sara
+use this computer), and turning this switch off. On this computer none of these asks for the owner
+token: being signed in as the owner is enough.
 
 ## Also on this page
 

@@ -49,7 +49,8 @@ test('128b.1 N29: every page id in SETTINGS_ORDER is in exactly one group; 8 gro
   // The retired Recipes page and the member-only account page aren't in the owner's list.
   // Q3 adds Recovery and Q4 adds Operations; EC7 adds Microsoft Teams as the eleventh chat app (Chat
   // apps keeps its chat apps together rather than splitting them); other groups retain the ten-page cap.
-  assert.equal(byGroup.get('Data & health')?.length, 12);
+  // 3.0.3: Devices and sign-in moved to Connections (people look there to add a phone or computer).
+  assert.equal(byGroup.get('Data & health')?.length, 11);
   assert.ok(byGroup.get('Data & health')?.includes('dh-operations'));
   for (const [g, ids] of byGroup) assert.ok(ids.filter((x) => x !== 'ab-recipes' && x !== 'account').length <= (g === 'Data & health' || g === 'Chat apps' ? 12 : 10), `${g}: ${ids.length} pages`);
   const want: Record<string, string[]> = {
@@ -58,7 +59,7 @@ test('128b.1 N29: every page id in SETTINGS_ORDER is in exactly one group; 8 gro
     Coding: ['ab-projects', 'ab-precise', 'ab-persist', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-tools'],
     // V1 (docs/ops/V1_DESIGN.md §7): Appearance became its own page in You.
     You: ['you-about', 'you-appearance', 'you-briefing', 'you-leave-by', 'ab-when', 'you-adult'],
-    Connections: ['co-phone', 'co-computer', 'desktop-app', 'co-apps', 'co-agents', 'co-hooks', 'co-spotify'],
+    Connections: ['dh-devices', 'co-phone', 'co-computer', 'desktop-app', 'co-apps', 'co-agents', 'co-hooks', 'co-spotify'],
   };
   for (const [g, ids] of Object.entries(want)) assert.deepEqual([...byGroup.get(g)!].sort(), [...ids].sort(), g);
   // Inside each group the nav follows SETTINGS_ORDER, so a group's pages are next to each other.

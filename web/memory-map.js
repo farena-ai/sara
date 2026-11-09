@@ -19,8 +19,7 @@ function colours() {
   const cs = getComputedStyle(document.documentElement);
   const h = parseFloat(cs.getPropertyValue('--acc-h'));
   const acc = Number.isFinite(h) ? `hsl(${h} ${cs.getPropertyValue('--acc-s').trim() || '76%'} 62%)` : cs.getPropertyValue('--accent-solid').trim() || '#6d8cff';
-  const acc2 = Number.isFinite(h) ? `hsl(${h + 38} 70% 68%)` : cs.getPropertyValue('--accent-to').trim() || acc;
-  return { acc, acc2, ink: cs.getPropertyValue('--text-2').trim() || '#b4b5bb', dim: cs.getPropertyValue('--text-3').trim() || '#8b8c94', line: cs.getPropertyValue('--hairline-strong').trim() || '#34353c', warn: cs.getPropertyValue('--warn').trim() || '#fbbf24' };
+  return { acc, ink: cs.getPropertyValue('--text-2').trim() || '#b4b5bb', dim: cs.getPropertyValue('--text-3').trim() || '#8b8c94', line: cs.getPropertyValue('--hairline-strong').trim() || '#34353c', warn: cs.getPropertyValue('--warn').trim() || '#fbbf24' };
 }
 
 async function load(force = false) {
@@ -126,7 +125,7 @@ class MapView {
         ctx.fill();
       }
       ctx.globalAlpha = dimmed ? 0.15 : n.fading ? 0.3 : 0.72 + n.weight * 0.28;
-      ctx.fillStyle = n.fading ? col.dim : n.hub || n.pinned ? col.acc : i % 3 ? col.ink : col.acc2;
+      ctx.fillStyle = n.fading ? col.dim : n.hub || n.pinned ? col.acc : col.ink; // every colour on the map is one the legend names
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fill();

@@ -5,7 +5,7 @@ agent, plus `sara.send_message` for automations, `notify.sara_note` for notes, a
 her last reply.
 
 Sign-in uses Sara's device code: Home Assistant shows a code, you approve it in Sara
-(**Settings → Data & health → Devices and sign-in**). No owner token is typed into Home Assistant.
+(**Settings → Connections → Devices and sign-in**). No owner token is typed into Home Assistant.
 
 Sara's safety layer (AI disclosure, crisis resources, hard blocks) runs on your Sara server and
 applies here unchanged.

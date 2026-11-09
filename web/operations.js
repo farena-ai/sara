@@ -11,6 +11,8 @@ export function createOperations({ root, api, isOwner }) {
   refreshButton.type = 'button';
   refreshButton.addEventListener('click', refresh);
   const count = (n) => Number.isFinite(n) && n >= 0 ? String(Math.round(n * 100) / 100) : t('Unavailable');
+  // Fresh pass: times read as the owner's local date and time, not as raw ISO strings.
+  const when = (iso) => { const d = iso ? new Date(iso) : null; return d && Number.isFinite(d.getTime()) ? d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'medium' }) : t('Unknown'); };
   const state = (s, configured = false) => ({ ready: configured ? t('Configured') : t('Ready'), not_configured: t('Not configured'), unavailable: t('Unavailable'), unknown: t('Unknown') })[s] ?? t('Unknown');
   function card(title, entries) {
     const box = node('section', '', 'recovery-card'); box.append(node('h3', title));
@@ -32,7 +34,7 @@ export function createOperations({ root, api, isOwner }) {
       if (request !== generation || !isOwner()) return;
       const r = data.requests ?? {}, p = data.process ?? {}, q = data.queues ?? {}, ready = data.readiness ?? {};
       status.textContent = t('Current server only. HTTP response measurements do not measure model reply latency.');
-      card(t('Measurement window'), [[t('Since'), data.since ?? t('Unknown')], [t('Sampled at'), data.sampledAt ?? t('Unknown')], [t('Completed request samples'), count(r.sampleCount)], [t('Completed requests since start'), count(r.total)]]);
+      card(t('Measurement window'), [[t('Since'), when(data.since)], [t('Sampled at'), when(data.sampledAt)], [t('Completed request samples'), count(r.sampleCount)], [t('Completed requests since start'), count(r.total)]]);
       card(t('HTTP responses'), [[t('Median / p95 / maximum (ms)'), [r.p50Ms,r.p95Ms,r.maxMs].map(count).join(' / ')], [t('In flight / peak'), [r.inFlight,r.peakInFlight].map(count).join(' / ')], [t('Client errors / server errors / aborted'), [r.clientErrors,r.serverErrors,r.aborted].map(count).join(' / ')]]);
       card(t('Readiness evidence'), [[t('Database'),state(ready.database?.status)], [t('Storage'),state(ready.storage?.status)], [t('Model configuration'),state(ready.model?.status,true)], [t('Native bridges'),state(ready.bridges?.status)], [t('Backup evidence'),ready.backup?.status === 'ready' ? t('Recorded evidence') : state(ready.backup?.status)], [t('Last recorded offsite restore'),state(ready.backup?.offsiteRestore?.status) + ' · ' + (ready.backup?.offsiteRestore?.lastTestAt ?? t('Unknown'))]]);
       card(t('Current-space records and active work'), [[t('Queued user inputs'),state(q.pending?.status)+' · '+count(q.pending?.total)], [t('Jobs'),state(q.jobs?.status)+' · '+count(q.jobs?.total)], [t('Teams'),state(q.teams?.status)+' · '+count(q.teams?.total)], [t('Native message deliveries'),state(q.deliveries?.status)+' · '+count(q.deliveries?.total)], [t('Database size (bytes)'),count(q.databaseBytes)]]);

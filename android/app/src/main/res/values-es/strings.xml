@@ -50,7 +50,7 @@
     <string name="setup_add_help">Escribe la dirección de otra Sara. Tus otras Saras siguen con la sesión iniciada.</string>
     <string name="setup_address">Dirección</string>
     <string name="setup_code">Código de vinculación (opcional)</string>
-    <string name="setup_code_help">Consigue un código en un dispositivo donde ya iniciaste sesión: Ajustes → Datos y salud → Dispositivos e inicio de sesión → Añadir un teléfono u ordenador. Sin código, inicias sesión con tu token de propietario.</string>
+    <string name="setup_code_help">Consigue un código en un dispositivo donde ya iniciaste sesión: Ajustes → Conexiones → Dispositivos e inicio de sesión → Añadir un teléfono u ordenador. Sin código, inicias sesión con tu token de propietario.</string>
     <string name="setup_connect">Conectar</string>
     <string name="setup_checking">Comprobando…</string>
     <string name="setup_unreachable">No se pudo conectar. Revisa la dirección y que Sara esté funcionando allí.</string>
@@ -64,7 +64,7 @@
     <string name="offline_others">Tus otras Saras</string>
     <!-- Pairing links (sara://pair) and several Saras (Phase 68) -->
     <string name="pair_refused_title">No se puede usar este enlace</string>
-    <string name="pair_refused_message">El enlace de vinculación no contiene una dirección de servidor simple, así que la app no lo abre. Crea un código nuevo en Sara en tu ordenador: Ajustes → Datos y salud → Dispositivos e inicio de sesión → Añadir un teléfono u ordenador.</string>
+    <string name="pair_refused_message">El enlace de vinculación no contiene una dirección de servidor simple, así que la app no lo abre. Crea un código nuevo en Sara en tu ordenador: Ajustes → Conexiones → Dispositivos e inicio de sesión → Añadir un teléfono u ordenador.</string>
     <string name="pair_code_title">Iniciar sesión con un código</string>
     <string name="pair_open_title">Abrir tu Sara</string>
     <string name="pair_sign_in_message">¿Iniciar sesión en %1$s?</string>

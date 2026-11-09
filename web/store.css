@@ -133,13 +133,23 @@
 .v1-notice > span { flex: 1 1 260px; }
 
 /* ---------- V2 · add-ons and the Sara Store (V1 §5) ----------
-   Outside Sara Classic: underline tabs instead of the pill switch, small radii on icons and shots. */
-:where(:root:not([data-palette="classic"])) .sto-seg { display: flex; gap: 2px; padding: 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; }
-:where(:root:not([data-palette="classic"])) .sto-seg button { margin-bottom: -1px; padding: 0 12px; border-bottom: 2px solid transparent; border-radius: 0; color: var(--text-2); font-weight: 550; }
-:where(:root:not([data-palette="classic"])) .sto-seg button:hover { background: transparent; color: var(--text-1); }
-:where(:root:not([data-palette="classic"])) .sto-seg button[aria-selected="true"] { background: transparent; color: var(--text-1); border-bottom-color: var(--accent-solid); box-shadow: none; }
+   Outside Sara Classic: small radii on icons and shots. 3.0.3 (owner): the tabs are the V4 segmented
+   control every other page uses (web/v4-pages.css .tabs), and a card's Add/Get is a normal-size quiet
+   button, left-aligned (each card has one, so none is the page's main action; the item panel's Add stays
+   the primary). Touch keeps 44 px targets. */
+:where(:root:not([data-palette="classic"])) .sto-seg { display: flex; flex-wrap: wrap; gap: 2px; width: fit-content; max-width: 100%; margin: 8px 0 12px; padding: 3px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-2); }
+:where(:root:not([data-palette="classic"])) .sto-seg button { margin: 0; padding: 0 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--text-2); font-size: 13px; font-weight: 500; box-shadow: none; }
+:where(:root:not([data-palette="classic"])) .sto-seg button:hover { background: var(--surface-3); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) .sto-seg button[aria-selected="true"] { border-color: var(--acc-line); background: var(--accent-soft); color: var(--text-1); box-shadow: 0 0 14px -6px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) .sto-card > button.sto-act { align-self: flex-start; min-width: 84px; padding: 0 14px; border: 1px solid var(--line); border-radius: var(--v4-r-ctl, 9px); background: var(--surface-2); color: var(--text-1); font-size: 13px; font-weight: 500; box-shadow: none; }
+:where(:root:not([data-palette="classic"])) .sto-card > button.sto-act:hover:not(:disabled) { background: var(--surface-3); border-color: color-mix(in srgb, var(--line) 50%, var(--text-3)); }
+:where(:root:not([data-palette="classic"])) .sto-card > button.sto-act:disabled { background: transparent; color: var(--text-3); }
 @media (pointer: fine) {
-  :where(:root:not([data-palette="classic"])) .sto-seg button { min-height: var(--h-control); }
+  :where(:root:not([data-palette="classic"])) .sto-seg button { height: 30px; min-height: 0; }
+  :where(:root:not([data-palette="classic"])) .sto-card > button.sto-act { height: 32px; min-height: 0; }
+}
+@media (max-width: 600px) {
+  :where(:root:not([data-palette="classic"])) .sto-seg { width: auto; }
 }
 :where(:root:not([data-palette="classic"])) .sto-icon { border-radius: var(--r-2); }
 :where(:root:not([data-palette="classic"])) :is(.stp-shot, .stp-msg) { border-radius: var(--r-3); }

@@ -433,7 +433,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     <p>\(here == nil ? "Type the address you open Sara at in a web browser." : "Type the address of another Sara. Your other Saras stay signed in.")</p>
     <label for=u>Address</label><input id=u autofocus spellcheck=false placeholder='sara.example.com' value='\(value)'><p class=e id=e role=alert>\(htmlEscape(error))</p>
     <div class=row><button id=b>Continue</button>\(back)</div>
-    <div class=sep><p class=small>Next you sign in with a code: on a device where you're signed in, open Settings → Data &amp; health → Devices and sign-in → <b>Add a phone or computer</b>.</p>\(local.hasBundledServer ? "<button class=g id=l>Run Sara on this Mac instead</button>" : "")</div></div><script>
+    <div class=sep><p class=small>Next you sign in with a code: on a device where you're signed in, open Settings → Connections → Devices and sign-in → <b>Add a phone or computer</b>.</p>\(local.hasBundledServer ? "<button class=g id=l>Run Sara on this Mac instead</button>" : "")</div></div><script>
     const $=(i)=>document.getElementById(i);
     const k=$('k');if(k)k.onclick=()=>webkit.messageHandlers.sara.postMessage({m:'retry'});
     const l=$('l');if(l)l.onclick=()=>webkit.messageHandlers.sara.postMessage({m:'setupLocal'});

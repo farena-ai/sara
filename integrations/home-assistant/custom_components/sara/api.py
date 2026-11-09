@@ -240,7 +240,7 @@ class SaraClient:
             code=str(d["code"]),
             poll_token=str(d["pollToken"]),
             verify_url=str(d.get("verifyUrl") or f"{self.url}/device"),
-            approve_in=str(d.get("approveIn") or "Settings → Data & health → Devices and sign-in"),
+            approve_in=str(d.get("approveIn") or "Settings → Connections → Devices and sign-in"),
             interval=float(d.get("interval") or 2),
             expires_at=str(d.get("expiresAt") or ""),
         )

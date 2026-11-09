@@ -100,7 +100,8 @@ export function trustReport(sources: readonly TrustSource[], scope: TrustScope, 
           const row = tools.get(t.name) ?? { name: t.name, ok: 0, error: 0, denied: 0 };
           row[t.status === 'ok' ? 'ok' : t.status === 'error' ? 'error' : 'denied']++;
           tools.set(t.name, row);
-          if (t.approval) r.approvals[t.approval]++;
+          // 3.0.3: an approval nobody answered in time counts with the no's (it did not run).
+          if (t.approval) r.approvals[t.approval === 'timeout' ? 'denied' : t.approval]++;
           const call = { run: run.id, name: t.name, summary: clip(t.summary, 160), output: clip(t.output, 300), at: st.at };
           if (t.status === 'error') {
             s.failedTools++;

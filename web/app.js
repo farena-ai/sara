@@ -50,6 +50,8 @@ import { initImport, loadImport } from './import.js';
 import { initLocalModels, loadLocalModels, setPrivateBadge } from './local-models.js';
 import { faceUrl, groupTag, initGroups, isGroup, openGroupDialog, showGroupButton, speakerHeader } from './group.js';
 import { appLink, inPhoneApp, phoneKind } from './pair-link.js';
+import { DEVICES_PAGE, devicesPath } from './devices-path.js';
+import { STORY_RANGE_KEY, storyRange } from './story-range.js';
 import { addToMomentsButton, initMoments, loadMoments, openMoments, renderTodayMoments, renderTodayPhotos } from './moments.js';
 import { closeToday, drawSkeleton, initToday, reloadParts, renderToday, showToday, todayData, todayOpen, todayPartChanged } from './today.js';
 import { editing as todayEditing, initTodayLayout, layoutPrefs, openSheet as openTodayCustomise, saveCollapsed as saveTodayCollapsed, savePrefs, setPrefs as setTodayPrefs, tileMenu, tileTitle } from './today-layout.js';
@@ -89,7 +91,7 @@ import { rankElsewhere } from './settings-search.js';
 import { initSlash, loadSlash, slashCommands } from './slash.js';
 import { NEXT_HIDDEN_KEY, nextSteps } from './next-steps.js';
 import { choices } from './kit.js';
-import { addStep, finishStep, hasSteps, memoryStep, pluginStep, recallStep, runLink, runStep, setBudget, skillStep, stepLine, waitStep } from './steps.js';
+import { addStep, finishStep, hasSteps, memoryStep, pluginStep, recallStep, runLink, runStep, savedStep, setBudget, skillStep, stepLine, waitStep } from './steps.js';
 import { budgetCard, budgetMeter, fillBudgetSelect, overrideNote } from './budget-view.js';
 import { loadLearnBudget, saveLearnBudget } from './learn.js';
 import { sandboxButtons, sandboxFirstNote, sandboxFlag, sandboxSection, teamSandboxRow } from './sandbox-view.js';
@@ -195,7 +197,7 @@ function offerPhoneApp(session) {
   $('#login-app-block').hidden = !link;
   if (link) {
     $('#login-app').href = link;
-    $('#login-app-note').textContent = t('The app opens with this server filled in; sign it in there with a code from Settings → Devices and sign-in.');
+    $('#login-app-note').textContent = t('The app opens with this server filled in; sign it in there with a code from {path}.', { path: devicesPath(t) });
   }
   $('#login-paircode').hidden = Boolean(session.demo) || !(inPhoneApp(ua) || phoneKind(ua, navigator.maxTouchPoints));
 }
@@ -519,6 +521,11 @@ function channelTitle(c) {
 }
 const channelIcon = (p) => (p?.channel?.kind === 'telegram' ? 'telegram' : p?.channel?.kind === 'discord' ? 'discord' : 'plug');
 
+/** 3.0.3: why a chat needs you, in words (the red dot's label). */
+function needsLabel(n) {
+  return n.reason === 'approval' ? t('An approval is waiting for you') : n.reason === 'question' ? t('She asked you something') : t('Something failed here');
+}
+
 function convRow(c, o = {}) {
   const a = document.createElement('a');
   a.href = '#';
@@ -558,6 +565,18 @@ function convRow(c, o = {}) {
     const dot = el('span', 'working-dot');
     dot.title = t('Sara is working here');
     a.prepend(dot);
+  }
+  // 3.0.3: this chat needs you (an approval, her question, a failure you haven't seen): a red dot
+  // with its reason for screen readers and on hover (the new look paints the row's own dot red).
+  if (c.needsYou) {
+    a.dataset.needs = c.needsYou.reason;
+    const label = needsLabel(c.needsYou);
+    const dot = el('span', 'conv-needs');
+    dot.setAttribute('role', 'img');
+    dot.setAttribute('aria-label', label);
+    dot.title = label;
+    a.title = a.title ? `${a.title} · ${label}` : label;
+    title.after(dot);
   }
   // Phase 108: ended sessions of this chat sit under it, one press away.
   if (o.earlier?.length) {
@@ -689,6 +708,15 @@ function group(key, label, convs, opts = {}) {
   toggle.append(localStorage.getItem('sara.palette') === 'classic' ? document.createTextNode(label) : nameEl);
   const unloaded = opts.groupKey ? (state.unloaded?.[opts.groupKey] ?? 0) : 0;
   toggle.append(el('small', 'muted group-n', ` ${convs.length + unloaded}`));
+  // 3.0.3: how many chats in this folder need you (a small red count).
+  const needing = convs.filter((c) => c.needsYou).length;
+  if (needing) {
+    const nb = el('small', 'group-needs', String(needing));
+    const label = needing === 1 ? t('1 chat needs you') : t('{n} chats need you', { n: needing });
+    nb.setAttribute('aria-label', label);
+    nb.title = label;
+    toggle.append(nb);
+  }
   const flip = () => {
     collapsed.has(key) ? collapsed.delete(key) : collapsed.add(key);
     saveCollapsed();
@@ -1020,6 +1048,13 @@ function convMenu(c, anchor) {
 
 async function newConversation(projectId = null, offRecord = false) {
   if (todayOpen()) closeToday({ focus: false });
+  // Fresh pass: + New while the open chat is still empty (same project, nothing said yet) stays in it,
+  // so pressing it twice doesn't leave a row of empty "New conversation" chats in the sidebar.
+  const cur = state.conv;
+  if (!offRecord && cur && cur.id === state.currentId && !cur.offRecord && (cur.projectId ?? null) === (projectId ?? null) && !state.messages?.length && !$('#messages')?.querySelector('.msg')) {
+    $('#input').focus();
+    return;
+  }
   const conv = await api('/conversations', { method: 'POST', body: offRecord ? { offRecord: true } : projectId ? { projectId } : {} });
   state.conversations.unshift(conv);
   if (projectId) collapsed.delete(`p${projectId}`);
@@ -1257,7 +1292,12 @@ function watchConversation(conv) {
   const show = (c) => {
     setActivity(c.activity.status, c.activity.detail, Date.parse(c.activity.startedAt));
     for (const ev of c.activity.approvals) {
-      if (!document.querySelector(`.approval[data-call="${CSS.escape(ev.id)}"]`)) append(approvalCard(ev));
+      if (document.querySelector(`#messages .approval[data-call="${CSS.escape(ev.id)}"]`)) continue;
+      // 3.0.3: after a reload the waiting card comes back at the end of the chat, in view. Only a card in
+      // the chat counts as shown (her panel's copy of it no longer hides the chat's own card).
+      const card = approvalCard(ev);
+      append(card);
+      revealApproval(card);
     }
   };
   show(conv);
@@ -1322,6 +1362,7 @@ function setActivity(status, detail = '', startedAt) {
     document.title = t('Sara');
     setLookBusy(null);
     panelNow(null);
+    syncActivityAnswers();
     return;
   }
   if (!activity.timer) activity.startedAt = startedAt ?? Date.now();
@@ -1335,6 +1376,7 @@ function setActivity(status, detail = '', startedAt) {
   renderActivity();
   if (!activity.timer) activity.timer = setInterval(renderActivity, 1000);
   document.title = (status === 'waiting' ? t('(!) Sara needs your OK') : t('Sara is working…'));
+  syncActivityAnswers();
 }
 
 function renderActivity() {
@@ -1491,6 +1533,8 @@ initCommandBar({
   actions: () => {
     const list = [];
     const add = (key, icon, label, run, hint = '', words = '', preview = undefined) => list.push({ key: `action:${key}`, icon, label, run, hint, words, ...(preview ? { preview } : {}) });
+    // 3.0.3: a step waiting for your OK can always be answered from here, wherever its card is.
+    for (const a of approvalAnswers()) add(`approval:${a.key}`, a.icon, a.label, a.run, '', t('waiting approvals approve allow deny ok'), () => ({ lines: [a.what] }));
     if (usable($('#new-chat'))) add('new', 'edit', t('New conversation'), () => $('#new-chat').click(), 'Alt+N');
     if (usable($('#new-project'))) add('project', 'project', t('New project'), () => $('#new-project').click());
     if (usable($('#new-offrecord'))) add('offrecord', 'offrecord', t('Off the record'), () => $('#new-offrecord').click(), '', t('private conversation not saved'));
@@ -1526,6 +1570,8 @@ initCommandBar({
       await openSettings('you-appearance');
       $('#ap-swatches')?.scrollIntoView({ block: 'center' });
     }, '', t('accent color color hue her color'), () => ({ kv: [[t('Now'), $('#ap-accent')?.selectedOptions?.[0]?.textContent ?? '']], lines: [t('One color for the whole app, her glow and the background. Text stays readable whatever you pick.')] }));
+    // 3.0.3: making a sign-in code for a new phone or computer, from anywhere (it starts the code).
+    if (!isMember() && !document.body.classList.contains('demo')) add('pair', 'phone', t('Add a phone or computer'), () => startPairing(), '', t('pair pairing code sign in another device add device add phone add computer desktop app QR'), () => ({ lines: [t('Makes a one-time code and QR that sign in your phone or another computer, without the owner token.')], kv: [[t('Where'), devicesPath(t)]] }));
     // V3 §2: the Settings home, Appearance and Find a setting, wherever you are.
     add('settings-home', 'settings', t('All settings'), () => openSettings('home'), 'Ctrl+,', t('settings home index every page'));
     add('appearance', 'sliders', t('Appearance'), () => openSettings('you-appearance'), '', t('theme palette color dark light look'));
@@ -1538,7 +1584,8 @@ initCommandBar({
       $('#settings-search').focus();
     });
     if (usable($('#server-btn'))) add('servers', 'server', t('Open Your Saras'), () => $('#server-btn').click(), '', t('servers switch'));
-    add('search', 'search', t('Search messages, memories and notes'), () => {
+    // 3.0.3: outside Classic on wider screens the bar itself is the search (the sidebar box is gone).
+    if (usable($('.side-search'))) add('search', 'search', t('Search messages, memories and notes'), () => {
       sidebarUI.open();
       $('#conv-search').focus();
     });
@@ -1975,10 +2022,12 @@ function renderMessages(messages, opts = {}) {
   // Phase 75: what she did in a turn (tools, memories) becomes one step line under the reply that
   // ends it; result cards sit where the result came; the files she changed form one card.
   let turn = null;
-  const newTurn = () => ({ steps: null, files: [], filesSlot: null, mem: new Set(), runId: 0, budget: null, budgetMsg: null });
+  const newTurn = () => ({ steps: null, files: [], filesSlot: null, mem: new Set(), saved: new Set(), runId: 0, budget: null, budgetMsg: null });
   const flush = () => {
     if (!turn) return;
     if (turn.mem.size) memoryStep((turn.steps ??= newSteps()), turn.mem.size, { ids: [...turn.mem], open: (ids) => void openMemory({ focusIds: ids }) });
+    // 3.0.3: the notes she saved from this turn (now or once the memory worker read it).
+    if (turn.saved.size) savedStep((turn.steps ??= newSteps()), turn.saved.size, { ids: [...turn.saved], open: (ids) => void openMemory({ focusIds: ids }) });
     // Phase 79: the reply's budget meter on its step line.
     if (turn.budget && turn.steps) setBudget(turn.steps, budgetMeter(turn.budget, { compact: true }));
     // Phase 78: "Show the run" (not on the demo, which keeps no run history for visitors).
@@ -2003,6 +2052,7 @@ function renderMessages(messages, opts = {}) {
     if (m.role === 'user') flush();
     turn ??= newTurn();
     if (m.role === 'assistant' && Array.isArray(m.meta?.memoryIds)) for (const id of m.meta.memoryIds) turn.mem.add(id);
+    if (m.role === 'assistant' && Array.isArray(m.meta?.savedMemoryIds)) for (const id of m.meta.savedMemoryIds) turn.saved.add(id);
     if (m.role === 'assistant' && m.meta?.runId) turn.runId = m.meta.runId;
     if (m === lastAssistant) turn.last = true;
     // V4b: the turn's clean checks verify the files she wrote (web/run-model.js).
@@ -2039,8 +2089,10 @@ function renderMessages(messages, opts = {}) {
       els.push(row);
     }
     if (m.role === 'tool') {
-      addStep((turn.steps ??= newSteps()), { id: m.meta?.toolCallId, name: m.meta?.name, summary: m.meta?.summary ?? m.meta?.name, args: m.meta?.args, status: m.meta?.status ?? 'ok', output: m.content, ms: m.meta?.ms, snapshotId: m.meta?.snapshotId });
+      addStep((turn.steps ??= newSteps()), { id: m.meta?.toolCallId, name: m.meta?.name, summary: m.meta?.summary ?? m.meta?.name, args: m.meta?.args, status: m.meta?.status ?? 'ok', output: m.content, ms: m.meta?.ms, snapshotId: m.meta?.snapshotId, timedOut: m.meta?.timedOut });
       if (m.meta?.sandbox?.decision) runEvidence(turn.steps, 'sandbox', m.meta.sandbox, m.meta.toolCallId);
+      // 3.0.3: an approval nobody answered in time stays visible as its quiet, resolved card.
+      if (m.meta?.timedOut && m.meta?.status === 'denied') els.push(lateApprovalCard(m.meta));
       const card = (m.meta?.status ?? 'ok') === 'ok' ? m.meta?.card : null;
       if (card?.kind === 'file') {
         turn.files.push(card);
@@ -2727,7 +2779,7 @@ async function runStream(path, body, userBubble) {
           const card = approvalCard(ev);
           // V4b: her approval card sits inside the run it belongs to.
           if (ev.budget || !runApproval(steps, card)) place(card);
-          card.scrollIntoView({ block: 'nearest' });
+          revealApproval(card);
           setActivity('waiting', ev.summary);
           if (voice.call?.active) callApprovals.shown(ev.id, card);
         } else if (ev.type === 'contradiction') {
@@ -2805,7 +2857,11 @@ async function runStream(path, body, userBubble) {
               if (!state.previewUrl && matchMedia('(min-width: 761px)').matches) openPreview(card.dataset.url);
             }
           }
-          document.querySelector(`.approval[data-call="${CSS.escape(ev.id)}"]`)?.remove();
+          // 3.0.3: an approval nobody answered in time stays as a quiet, resolved card.
+          const asked = document.querySelector(`.approval[data-call="${CSS.escape(ev.id)}"]`);
+          if (ev.timedOut && asked) approvalTimedOut(asked);
+          else asked?.remove();
+          callApprovals.done(ev.id);
           setActivity('thinking');
         } else if (ev.type === 'token') {
           if (groupSpeaker) setActivity('answering', groupSpeaker.name);
@@ -3150,6 +3206,90 @@ function appApprovalText(ev) {
   return t('{app} wants to save a note: {what}', { app, what });
 }
 
+/** 3.0.3: the card's wait ran out: no buttons, one quiet line, kept where it was (it did not run). */
+function approvalTimedOut(card) {
+  card.classList.add('approval-resolved');
+  card.dataset.late = '';
+  for (const b of card.querySelectorAll('button')) b.remove();
+  card.querySelector('.approval-late-note')?.remove();
+  const note = el('p', 'approval-late-note muted small', t('Not approved in time, so it did not run. Ask her again if you still want it.'));
+  note.setAttribute('role', 'status');
+  card.append(note);
+}
+/** 3.0.3: the resolved card of a timed-out approval, drawn again from the saved step. */
+function lateApprovalCard(meta) {
+  const card = el('div', 'approval');
+  card.dataset.call = meta.toolCallId ?? '';
+  const title = el('p', 'approval-title');
+  title.append(el('span', 'approval-what', TOOL_NAME[meta.name] ? t('{app} wants to: {what}', { app: currentIdentity().name || t('Sara'), what: t(TOOL_NAME[meta.name]) }) : t('{name} wants to use {tool}:', { name: currentIdentity().name || t('Sara'), tool: meta.name })));
+  title.dataset.raw = '';
+  card.append(title);
+  approvalTimedOut(card);
+  return card;
+}
+// ---------- 3.0.3: a waiting approval is always within reach ----------
+/** Opens the run (and any fold) a waiting card sits in and scrolls it, with its buttons, into view. */
+function revealApproval(card, { focus = false } = {}) {
+  if (!card?.isConnected) return;
+  for (let d = card.parentElement?.closest('details'); d; d = d.parentElement?.closest('details')) d.open = true;
+  const go = () => {
+    card.scrollIntoView({ block: 'nearest' });
+    // A card taller than the chat: its buttons win.
+    card.querySelector(':scope > .row')?.scrollIntoView({ block: 'nearest' });
+    if (focus) card.querySelector(':scope > .row > button:not([disabled])')?.focus({ preventScroll: true });
+  };
+  go();
+  requestAnimationFrame(go);
+  syncActivityAnswers();
+}
+/** The card's own two answers (the same buttons her panel mirrors), its plain words, and Show. */
+function waitingCards() {
+  // A card whose wait ran out (approval-resolved) is no longer waiting.
+  return [...document.querySelectorAll('#messages .approval')].filter((c) => c.isConnected && !c.classList.contains('approval-resolved'));
+}
+/** Its Allow and Deny (marked on the card; else the row's first and last button). */
+function answerButtons(card) {
+  const row = [...card.querySelectorAll(':scope > .row > button')];
+  return [card.querySelector(':scope > .row > button[data-answer="yes"]') ?? row[0], card.querySelector(':scope > .row > button[data-answer="no"]') ?? (row.length > 1 ? row.at(-1) : undefined)];
+}
+function cardWords(card) {
+  return ((card.querySelector('.approval-what') ?? card.querySelector('p'))?.textContent ?? '').trim();
+}
+function approvalAnswers() {
+  const card = waitingCards()[0];
+  if (!card) return [];
+  const what = cardWords(card) || t('She asks before a step.');
+  const [yes, no] = answerButtons(card);
+  const out = [{ key: 'show', icon: 'warn', label: t('Waiting for your OK: show it'), what, run: () => revealApproval(card, { focus: true }) }];
+  if (yes && !yes.disabled) out.push({ key: 'yes', icon: 'check', label: `${yes.textContent.trim()}: ${what}`, what, run: () => yes.click() });
+  if (no && !no.disabled) out.push({ key: 'no', icon: 'close', label: `${no.textContent.trim()}: ${what}`, what, run: () => no.click() });
+  return out;
+}
+/** The "Waiting for your OK" line above the box gets the card's answers and Show. */
+function syncActivityAnswers() {
+  const box = $('#activity-act');
+  if (!box) return;
+  const card = activity.status === 'waiting' || waitingCards().length ? waitingCards()[0] : null;
+  box.hidden = !card;
+  if (!card) return box.replaceChildren();
+  const [yes, no] = answerButtons(card);
+  const mirror = (src, cls) => {
+    const b = el('button', cls, src.textContent.trim());
+    b.type = 'button';
+    b.disabled = src.disabled;
+    b.addEventListener('click', () => {
+      b.disabled = true;
+      src.click();
+      setTimeout(syncActivityAnswers, 400);
+    });
+    return b;
+  };
+  const show = el('button', 'ghost small', t('Show'));
+  show.type = 'button';
+  show.addEventListener('click', () => revealApproval(card, { focus: true }));
+  box.replaceChildren(...(yes ? [mirror(yes, 'small')] : []), ...(no ? [mirror(no, 'ghost small')] : []), show);
+}
+
 function approvalCard(ev, block) {
   const card = document.createElement('div');
   card.className = 'approval';
@@ -3248,6 +3388,8 @@ function approvalCard(ev, block) {
   no.className = 'ghost';
   no.textContent = c ? t("Don't") : adv ? t("Don't install") : ev.budget ? t('Wrap up') : t('Deny');
   no.addEventListener('click', () => decide(false, c || adv ? 'deny' : undefined));
+  yes.dataset.answer = 'yes';
+  no.dataset.answer = 'no';
   row.append(yes, no);
   // E7 (A1): a plain ask can be answered once for good (Undo on the card, or Settings → Tools).
   if (ev.alwaysOk && !c && !adv && !rtg && !ev.budget && !ev.sandboxFirst) yes.after(alwaysAllowButton(ev, card));
@@ -3442,8 +3584,8 @@ const TOOL_WORDS = {
   skill_read: 'Read a file that comes with one of her skills.',
   skill_find: 'Look through her skills.',
   skill_run: 'Run a script that comes with one of her skills (asks you first).',
-  skill_save: 'Save a new skill or change one (asks you first).',
-  skill_update: 'Change one of her skills when a step was wrong (asks you first).',
+  skill_save: 'Save a new skill or change one (you see it in the steps and can undo it).',
+  skill_update: 'Change one of her skills when a step was wrong (the old version is kept; you can undo it).',
   recipe_find: 'Look through the recipes she saved.',
   recipe_use: 'Follow a saved recipe.',
   share_photo: 'Send you one of her own pictures.',
@@ -3755,6 +3897,9 @@ function renderConvSummary() {
   // Phase 71: members have no workspace folders (the file tools are the owner's), so no folder part.
   const ws = c.workspace === 'main' ? t('main folder') : c.workspace;
   const folder = isMember() ? '' : `${ws} · `;
+  // 3.0.3 (owner): a coding chat (or a chat in a coding project) is about the work: no mood line under
+  // the title, and the AI notice as the short "AI" pill (web/style.css), never removed.
+  $('#main').classList.toggle('coding-chat', c.mode === 'coding' || Boolean(c.projectId && (state.projects ?? []).find((p) => p.id === c.projectId)?.workspace));
   setConvSummary(`${c.mode === 'coding' ? `${t('Coding')} · ` : ''}${folder}${model || label}${plan}`, [model || label, isMember() ? '' : ws].filter(Boolean).join(' · '));
   panelConv();
 }
@@ -6633,6 +6778,28 @@ $('#cl-test').addEventListener('click', async () => {
 });
 
 // ---------- live events (reminders, proactive messages) ----------
+/** 3.0.3: redraw the open chat in place (same length, scroll kept) after its memories landed. */
+async function redrawSaved(id) {
+  try {
+    const box = $('#messages');
+    const top = box.scrollTop;
+    const c = await api(`/conversations/${id}?limit=${Math.max(PAGE, state.messages?.length ?? 0)}`);
+    if (id !== state.currentId || state.streaming || state.watch || c.activity) return;
+    renderMessages(c.messages);
+    box.scrollTop = top;
+  } catch {
+    /* the next open shows it */
+  }
+}
+/** 3.0.3: the sidebar's needs-you dots follow at most every 1.5 s (board and team events come in bursts). */
+let needsTimer = 0;
+function needsReload() {
+  if (needsTimer) return;
+  needsTimer = setTimeout(() => {
+    needsTimer = 0;
+    void loadConversations().catch(() => {});
+  }, 1500);
+}
 function startEvents() {
   if (state.events) return;
   // B1 follow-up: one stream for all tabs (browsers allow six connections per server).
@@ -6753,8 +6920,20 @@ function startEvents() {
     void refreshPending();
     if (ev.line === 'moved' && ev.item?.kind === 'steer') append(bubble('notice', t("She'd already finished; she'll answer your note now."), 'pending-moved'));
   });
+  // 3.0.3: the memory worker saved notes from the open chat: its run cards show "Saved n new memories".
+  es.addEventListener('memory', (e) => {
+    const ev = JSON.parse(e.data);
+    if (ev.saved > 0 && ev.conversationId === state.currentId && !state.streaming && !state.watch) void redrawSaved(ev.conversationId);
+  });
+  // 3.0.3: what needs you changed (an approval waits or ended, a chat was opened elsewhere); her
+  // questions on board cards and team checkpoints come with the board and team events.
+  es.addEventListener('needs', () => needsReload());
+  es.addEventListener('board', () => needsReload());
+  es.addEventListener('team', () => needsReload());
   es.addEventListener('turn', (e) => {
-    const { conversationId } = JSON.parse(e.data);
+    const { conversationId, state: turnState } = JSON.parse(e.data);
+    // 3.0.3: a turn that failed while this chat was open in front of you has been seen.
+    if (turnState === 'ended' && conversationId === state.currentId && !document.hidden) void api(`/conversations/${conversationId}/seen`, { method: 'POST', body: {} }).catch(() => {});
     void loadConversations();
     // Phase 111: Today stays open (it is often left open on a second screen); the chat underneath reloads when he goes back to it.
     if (conversationId === state.currentId && !state.streaming && !state.watch) {
@@ -6782,7 +6961,7 @@ function startEvents() {
   es.addEventListener('device', (e) => {
     const { pending } = JSON.parse(e.data);
     if ($('#settings').open) void loadDevices().catch(() => {});
-    if (pending > 0 && !$('#settings').open) notify(t('An app asks to sign in'), t('Approve it in Settings → Devices and sign-in if you just started it.'));
+    if (pending > 0 && !$('#settings').open) notify(t('An app asks to sign in'), t('Approve it in {path} if you just started it.', { path: devicesPath(t) }));
   });
   // Phase 36: she changed outfit (dressing for the scenario, or her own choice).
   es.addEventListener('look', () => {
@@ -8150,12 +8329,22 @@ async function loadModels(fresh) {
     const current = $('#default-model').value.trim();
     fillModelOptions(select, view, current);
     select.append(new Option(t('Other (type a name)…'), ''));
-    select.value = current || models[0] || '';
-    $('#default-model').value = select.value;
-    $('#default-model').hidden = Boolean(select.value);
+    // 3.0.3: with no saved default model, the list showed its first model as if it were the default
+    // (and choosing that same model again saved nothing). Now it says so and waits for a pick.
+    const none = !current && models.length > 0;
+    if (none) {
+      const ask = new Option(t('Pick a model…'), '');
+      ask.disabled = true;
+      select.prepend(ask);
+    }
+    select.value = none ? '' : current || models[0] || '';
+    if (none) select.selectedIndex = 0;
+    $('#default-model').value = none ? '' : select.value;
+    $('#default-model').hidden = none || Boolean(select.value);
     select.hidden = false;
     const fresh_ = view.entries.filter((e) => e.new).length;
     status.textContent = [modelCountWords(view, id), fresh_ ? t('{n} new', { n: fresh_ }) : '', checkedAgo(view.checkedAt), view.error ?? ''].filter(Boolean).join(' · ');
+    if (none) status.textContent = `${t('No default model is saved yet: pick one in this list (it is saved when you pick it).')} ${status.textContent}`;
   } catch (err) {
     select.hidden = true;
     $('#default-model').hidden = false;
@@ -8172,6 +8361,9 @@ $('#default-provider').addEventListener('change', () => {
 $('#model-select').addEventListener('change', () => {
   defaultModelRevision++;
   const v = $('#model-select').value;
+  // 3.0.3: once a model is picked (and saved), the "no default model" line goes.
+  const warn = t('No default model is saved yet: pick one in this list (it is saved when you pick it).');
+  if (v && $('#models-status').textContent.startsWith(warn)) $('#models-status').textContent = $('#models-status').textContent.slice(warn.length).trim();
   $('#default-model').value = v;
   $('#default-model').hidden = Boolean(v);
   if (!v) $('#default-model').focus();
@@ -8361,6 +8553,24 @@ $('#settings-results-back').addEventListener('click', () => paintSettingsResults
 $('#settings-back').addEventListener('click', () => $('#settings').classList.remove('page-open'));
 buildSettingsNav();
 
+// 3.0.3 (owner decision): Settings opens at once. The dialog shows on the click; pages whose data is
+// still on its way carry a skeleton (`.st-loading`, inert so nothing half-filled can be changed or
+// saved) and fill in as their part arrives: the core pages (name, language, models) first, the rest
+// when every loader is back. The nav, the search and the Settings home work from the first frame.
+// Pages that load their own data when picked (the store) never wait.
+const OWN_LOADER_PAGES = new Set(['ab-store']);
+const CORE_FIELDS = ['#owner-name', '#time-zone', '#use-path', '#ui-language', '#talk-language', '#story-yearly', '#model-auto-switch', '#history-budget', '#default-provider', '#my-face'];
+let settingsLoad = 0;
+function settingsLoading(state) {
+  const pages = [...document.querySelectorAll('#settings .settings-page')];
+  const core = new Set(CORE_FIELDS.map((s) => document.querySelector(s)?.closest('.settings-page')).filter(Boolean));
+  for (const p of pages) {
+    const wait = state === 'all' ? !OWN_LOADER_PAGES.has(p.dataset.page) : state === 'rest' ? !OWN_LOADER_PAGES.has(p.dataset.page) && !core.has(p) : false;
+    p.classList.toggle('st-loading', wait);
+    p.inert = wait;
+  }
+  $('#settings').setAttribute('aria-busy', String(Boolean(state)));
+}
 async function openSettings(tab, opts = {}) {
   $('#settings-search').value = '';
   $('#settings-elsewhere').hidden = true;
@@ -8372,14 +8582,29 @@ async function openSettings(tab, opts = {}) {
   if (typeof tab !== 'string') $('#settings').classList.remove('page-open');
   modelCache.clear();
   $('#settings-error').textContent = '';
-  await loadSettingsPages();
-  $('#settings').showModal();
+  const run = ++settingsLoad;
+  settingsLoading('all');
+  if (!$('#settings').open) $('#settings').showModal();
+  // A loader that never answers must not leave a page grey for good.
+  const cap = setTimeout(() => run === settingsLoad && settingsLoading(''), 15000);
+  try {
+    await loadSettingsPages(() => run === settingsLoad && settingsLoading('rest'));
+  } catch (err) {
+    $('#settings-error').textContent = err?.message ?? String(err);
+  } finally {
+    clearTimeout(cap);
+    if (run === settingsLoad) settingsLoading('');
+  }
   loadModels();
 }
-/** Fills every Settings page from the server (on open, and again after the app language changes). */
-async function loadSettingsPages() {
-  const s = await api('/settings');
-  await Promise.all([loadProviders(), loadYours()]);
+/**
+ * Fills every Settings page from the server (on open, and again after the app language changes).
+ * The core read and the tool list go out together; `onCore` runs once the core pages are filled.
+ */
+async function loadSettingsPages(onCore = () => {}) {
+  const tools = isMember() ? null : loadTools();
+  tools?.catch(() => {}); // still thrown below; this only keeps an early core failure from leaving it unhandled
+  const [s] = await Promise.all([api('/settings'), loadProviders(), loadYours()]);
   $('#owner-name').value = s.ownerName;
   $('#time-zone').value = s.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   $('#use-path').value = normPath(s.usePath);
@@ -8395,9 +8620,10 @@ async function loadSettingsPages() {
   }
   renderProviders();
   savedDefaultModelRevision = defaultModelRevision;
+  onCore();
   // Phase 71: a household member's space answers only their own pages; the owner's are skipped.
   if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop()]));
-  await loadTools();
+  await tools;
   await Promise.all([loadDevices().catch(() => {}), loadDeviceApproval(), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadWhileBusy(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadSpotify(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets()]);
 }
 /**
@@ -8768,6 +8994,16 @@ function stopPairing() {
   clearInterval(pairTimer);
   $('#pair-show').hidden = true;
 }
+/** 3.0.3: open Devices and sign-in and make a code straight away (command bar, Help). */
+async function startPairing() {
+  await openSettings(DEVICES_PAGE);
+  if ($('#pair-show').hidden) $('#pair-new').click();
+  $('#pair-new').scrollIntoView({ block: 'center' });
+}
+$('#help-pair')?.addEventListener('click', () => {
+  $('#help-menu').close();
+  void startPairing();
+});
 $('#pair-new').addEventListener('click', async () => {
   $('#pair-done').textContent = '';
   const p = await api('/pair', { method: 'POST', body: {} });
@@ -10048,8 +10284,10 @@ async function loadUpdates() {
   // C9: with a signed notice Windows (per-user install) and macOS update here; otherwise the download page.
   const auto = release && Boolean(st.auto);
   if (release && !auto) $('#up-go').hidden = true;
-  $('#up-auto').hidden = !release || !st.autoWhy || st.state !== 'available';
-  $('#up-auto').textContent = st.autoWhy ?? '';
+  // The Windows service install: Windows installs the update with the Sara Update task (no download page).
+  const via = st.via === 'service-task' ? t('Sara runs as a Windows service: Windows installs the update for her with the Sara Update task, so no administrator prompt is needed here.') : st.via === 'service-setup' ? t('Sara runs as a Windows service. Run the newest Sara-Setup once as administrator: it sets up the Sara Update task, and from then on Update now works here.') : '';
+  $('#up-auto').hidden = !release || !(via || st.autoWhy) || !(st.state === 'available' || (via && st.state === 'updating'));
+  $('#up-auto').textContent = via || (st.autoWhy ?? '');
   $('#up-download-row').hidden = !release || auto || !['available', 'failed', 'rolledback'].includes(st.state) || !st.downloadUrl;
   if (st.downloadUrl) $('#up-download').href = st.downloadUrl;
   $('#up-download').textContent = st.state === 'available' && st.latest ? t('Download Sara {latest}', { latest: st.latest }) : t('Open the download page');
@@ -10928,11 +11166,14 @@ function lookbackCard(lb) {
 async function loadStory() {
   const d = await api(`/story?filter=${storyState.filter}`);
   for (const b of document.querySelectorAll('[data-story]')) b.classList.toggle('active', b.dataset.story === storyState.filter);
-  if (!$('#story-to').value) $('#story-to').value = d.today;
-  if (!$('#story-from').value) {
-    const from = new Date(`${d.today}T12:00:00`);
-    from.setFullYear(from.getFullYear() - 1);
-    $('#story-from').value = d.firstDay && d.firstDay > isoDay(from) ? d.firstDay : isoDay(from);
+  if (!$('#story-to').value || !$('#story-from').value) {
+    let saved = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(STORY_RANGE_KEY) ?? 'null');
+    } catch {}
+    const range = storyRange(d.today, saved);
+    $('#story-from').value = range.from;
+    $('#story-to').value = range.to;
   }
   $('#story-lookbacks').replaceChildren(...d.lookbacks.slice(0, 3).map(lookbackCard));
   $('#story-write').disabled = d.running;
@@ -10976,6 +11217,8 @@ for (const b of document.querySelectorAll('[data-story]')) {
     void loadStory();
   });
 }
+// 3.0.3: the range the person picks is kept on this device.
+for (const id of ['#story-from', '#story-to']) $(id).addEventListener('change', () => localStorage.setItem(STORY_RANGE_KEY, JSON.stringify({ from: $('#story-from').value, to: $('#story-to').value })));
 $('#story-write').addEventListener('click', async () => {
   const from = $('#story-from').value;
   const to = $('#story-to').value;
@@ -12898,8 +13141,7 @@ $('#cu-optin').addEventListener('change', async () => {
         return;
       }
       const p = await handsPrefs();
-      const proof = await confirmProof();
-      const r = await api('/hands/pair', { method: 'POST', body: { ...proof, name: p?.computerName || '' } });
+      const r = await api('/hands/pair', { method: 'POST', body: { name: p?.computerName || '' } });
       const done = await d.call('handsPair', { token: r.token, id: r.id, expiresAt: r.expiresAt });
       if (done?.error) throw new Error(done.error);
       st.textContent = t('On: connecting…');

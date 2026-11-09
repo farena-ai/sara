@@ -5,6 +5,7 @@
 // /pair?noapp=1 when the app isn't installed.
 import { savedLang, setLanguage, t } from './naming.js';
 import { PLAY_URL, appLink, hasApp, inPhoneApp, phoneKind } from './pair-link.js';
+import { devicesPath } from './devices-path.js';
 
 const $ = (s) => document.querySelector(s);
 const code = decodeURIComponent(location.hash.slice(1));
@@ -15,7 +16,7 @@ const show = (sel, on = true) => ($(sel).hidden = !on);
 
 // The page's own text goes through t(), so it follows the app language.
 $('#pair-title').textContent = t('Sign in this device');
-$('#pair-intro').textContent = t('A code from Settings → Devices and sign-in signs this phone or computer in, without the owner token.');
+$('#pair-intro').textContent = t('A code from {path} signs this phone or computer in, without the owner token.', { path: devicesPath(t) });
 $('#pair-code-label').textContent = t('Code');
 $('#pair-browser').textContent = t('Sign in this browser');
 $('#pair-app').textContent = t('Open in the Sara app');
@@ -24,7 +25,7 @@ $('#pair-or').textContent = t('Or use the phone app');
 // Phase 33: inside the desktop app this page signs in the app itself.
 if (/\bSaraDesktop\/\d/.test(navigator.userAgent)) {
   $('#pair-browser').textContent = t('Sign in');
-  $('#pair-intro').textContent = t('Type the code from Settings → Devices and sign-in on a device where you are already signed in (or open Sara in a browser with your owner token to make one).');
+  $('#pair-intro').textContent = t('Type the code from {path} on a device where you are already signed in (or open Sara in a browser with your owner token to make one).', { path: devicesPath(t) });
 }
 // Inside the phone app the button signs in the app, not "this browser".
 if (inApp) $('#pair-browser').textContent = t('Sign in');
@@ -37,7 +38,7 @@ async function redeem() {
     // Came here from the sign-in page's app button (no code): back to the normal sign-in.
     if (noApp) return void location.assign('/');
     show('#pair-code-row');
-    return void ($('#pair-status').textContent = t('Type the code from Settings → Devices and sign-in.'));
+    return void ($('#pair-status').textContent = t('Type the code from {path}.', { path: devicesPath(t) }));
   }
   $('#pair-status').textContent = t('Signing in…');
   $('#pair-browser').disabled = true;

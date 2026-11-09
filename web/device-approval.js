@@ -23,6 +23,7 @@ const ACTIONS = {
   'channel-token': () => t('change a chat channel token'),
   restart: () => t('restart or update Sara'),
   'approval-off': () => t('turn off new-device approval'),
+  hands: () => t('let Sara use a computer (computer use)'),
 };
 export function requestLine(r) {
   if (r.kind === 'sign-in') return t('{label} wants to sign in, from {ip}.', { label: r.label, ip: r.ip });

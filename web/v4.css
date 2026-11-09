@@ -70,6 +70,9 @@ html.shell:where(:not([data-palette="classic"])) .shell-drag { display: none; }
 :where(:root:not([data-palette="classic"])) :is(.side-go, .side-more) .ic { color: var(--text-3); }
 :where(:root:not([data-palette="classic"])) .side-go:hover .ic { color: var(--text-2); }
 
+/* Fresh pass: with More open the places list scrolls inside the sidebar, so her face, Help and Settings
+   stay in the sidebar (on a phone they slid under the bottom bar). */
+:where(:root:not([data-palette="classic"])) #side-nav.more-open { min-height: 0; overflow-y: auto; scrollbar-width: thin; }
 /* ---------- conversation header ---------- */
 :where(:root:not([data-palette="classic"])) #chat-head { gap: 12px; padding: 12px 22px; border-bottom: 1px solid var(--line); background: transparent; }
 :where(:root:not([data-palette="classic"])) #chat-title { font: 600 16px var(--font-ui); letter-spacing: -.01em; }
@@ -78,6 +81,8 @@ html.shell:where(:not([data-palette="classic"])) .shell-drag { display: none; }
 :where(:root:not([data-palette="classic"])) .head-face { box-shadow: 0 0 0 1px var(--line), 0 0 18px -4px var(--acc-glow); }
 :where(:root:not([data-palette="classic"]))[data-busy="answering"] .head-face { box-shadow: 0 0 0 2px var(--acc-line), 0 0 22px -2px var(--acc-glow); }
 
+/* Fresh pass: a long model and folder name in the header pill ends in "…" instead of a cut word. */
+:where(:root:not([data-palette="classic"])) #conv-settings-btn > #conv-summary { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* ---------- the transcript ---------- */
 :where(:root:not([data-palette="classic"])) #messages { scrollbar-width: thin; scrollbar-color: var(--surface-3) transparent; }
 /* V4c: your turns get a quiet person mark in the avatar circle (drawn from theme tokens, so it
@@ -88,6 +93,9 @@ html.shell:where(:not([data-palette="classic"])) .shell-drag { display: none; }
 
 /* ---------- composer ---------- */
 :where(:root:not([data-palette="classic"])) #composer { max-width: 780px; margin: 0 auto 18px; width: calc(100% - 48px); padding: 8px 8px 8px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--glass); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: none; transition: border-color var(--dur-3), box-shadow var(--dur-3); }
+/* Fresh pass: the bars above the composer (her activity line, editing, off the record, jobs, files) sit
+   in the composer's column, not wider than it. */
+:where(:root:not([data-palette="classic"])) :is(#activity, .editing-bar, .offrecord-bar, .jobs-strip, #attachments) { max-width: 780px; width: calc(100% - 48px); }
 :where(:root:not([data-palette="classic"])) #composer:focus-within { border-color: var(--acc-line); box-shadow: 0 0 0 4px var(--accent-soft), 0 12px 40px -18px var(--acc-glow); }
 :where(:root:not([data-palette="classic"])) #composer #input { border: 0; background: none; box-shadow: none; font-size: 14px; }
 :where(:root:not([data-palette="classic"])) #composer #input:focus { box-shadow: none; outline: none; }
@@ -110,6 +118,14 @@ html.shell:where(:not([data-palette="classic"])) .shell-drag { display: none; }
 }
 
 /* ---------- buttons, inputs, cards (the base look, everywhere) ---------- */
+/* Fresh pass: a visible file picker ("Choose Files") wears the V4 button, not the browser's grey one. */
+:where(:root:not([data-palette="classic"])) input[type="file"]::file-selector-button { height: 32px; margin-right: 10px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--r-3, 8px); background: var(--surface-2); color: var(--text-1); font: 500 13px var(--font-ui); cursor: pointer; }
+:where(:root:not([data-palette="classic"])) input[type="file"]::file-selector-button:hover { background: var(--surface-3); }
+:where(:root:not([data-palette="classic"])) input[type="file"] { color: var(--text-2); font-size: 13px; }
+/* Fresh pass: a button whose icon is followed by bare words ("Off the record", "Review my week") keeps a
+   gap between them (the 6 px margin in polish.css misses them: the words are a text node, so the icon is
+   the only element child). Zero specificity, so any button with its own layout keeps it. */
+:where(:root:not([data-palette="classic"]) button:has(> svg.ic:first-child:only-child)) { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 :where(:root:not([data-palette="classic"])) :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), select, textarea):focus-visible { border-color: var(--accent-solid); box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--acc-glow); outline: none; }
 :where(:root:not([data-palette="classic"])) .hp-sec { border: 1px solid var(--line); border-radius: 14px; background: var(--glass); padding: 12px 14px; }
 :where(:root:not([data-palette="classic"])) .hp-h { color: var(--text-3); font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
@@ -174,6 +190,17 @@ html.shell:where(:not([data-palette="classic"])) .shell-drag { display: none; }
 :where(:root:not([data-palette="classic"])) .cmd-pv .pv-kv dd { color: var(--text-1); font-weight: 600; font-variant-numeric: tabular-nums; }
 :where(:root:not([data-palette="classic"])) .cmd-pv .pv-foot { margin-top: 14px; color: var(--text-3); font-size: 12px; }
 
+/* 3.0.3 (owner decision): one search entry and one her-panel toggle. Wider screens: the top bar's
+   "Ask or do anything" is the search (the sidebar's search box and the header's search icon go) and the
+   header's panel button the one toggle (the top bar's At a glance button goes; the card folds itself).
+   Phones: the top bar shows only while something runs, so the header's search icon stays and the top
+   bar's goes; the drawer keeps its search box. Ctrl K works everywhere. Classic is unchanged. */
+@media (min-width: 761px) {
+  :where(:root:not([data-palette="classic"])) :is(#sidebar .side-search, #chat-head #cmd-open, #v4-strip #v4-glance-btn) { display: none; }
+}
+@media (max-width: 760px) {
+  :where(:root:not([data-palette="classic"])) #v4-strip #v4-cmd { display: none; }
+}
 /* ---------- phones: a compact strip, only when something is running ---------- */
 @media (max-width: 760px) {
   :where(:root:not([data-palette="classic"])) { --v4-strip-h: 36px; }
@@ -186,6 +213,7 @@ html.shell:where(:not([data-palette="classic"])) .shell-drag { display: none; }
   html:not(.v4-has-chips):where(:not([data-palette="classic"])) #main:not([hidden]) > .v4-strip { display: none; }
   html:not(.v4-has-chips):where(:not([data-palette="classic"])) #main:not([hidden]) { padding-top: var(--safe-t); }
   :where(:root:not([data-palette="classic"])) #composer { width: calc(100% - 16px); margin-bottom: max(8px, var(--safe-b)); }
+  :where(:root:not([data-palette="classic"])) :is(#activity, .editing-bar, .offrecord-bar, .jobs-strip, #attachments) { width: calc(100% - 16px); }
   :where(:root:not([data-palette="classic"])) #chat-head { gap: 6px; padding: 10px 12px; }
   :where(:root:not([data-palette="classic"])) .cmd-res { grid-template-columns: minmax(0, 1fr); }
   :where(:root:not([data-palette="classic"])) .cmd-pv { display: none; }

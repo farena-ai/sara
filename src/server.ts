@@ -1,5 +1,6 @@
 // HTTP API + static web UI. No framework; node:http only.
 import { assertNotHeld, isLegalHold, LegalHoldError } from './legal-hold.ts';
+import { needsYouMap, wireNeedsYou, type NeedsYou } from './needs-you.ts';
 import { countModels } from './model-names.ts';
 import { usePathOf } from './settings.ts';
 import { clearTodayCache } from './today.ts';
@@ -286,6 +287,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const deviceLimiter = new LoginLimiter(20);
   const active = new Map<string, ActiveTurn>();
   app.isBusy = (id) => active.has(id);
+  // 3.0.3: a waiting approval starting or ending tells the sidebar (the needs-you dot).
+  wireNeedsYou(app);
   const webRoot = resolve(opts.webDir);
   // Built-in wording names the owner's companion (written for "Sara"/she, see identity.ts).
   const me = (t: string) => personalize(t, identityOf(app.persona));
@@ -1089,7 +1092,7 @@ export function createSaraServer(opts: ServerOptions): Server {
         const origin = `${isHttps(req) ? 'https' : 'http'}://${req.headers.host}`;
         app.events?.publish({ type: 'device', pending: deviceFlow.pending().length });
         // Security review: no code in the link: the owner types the code the app shows.
-        return send(res, 200, { ...r, verifyUrl: `${origin}/device`, approveIn: 'Settings → Data & health → Devices and sign-in' });
+        return send(res, 200, { ...r, verifyUrl: `${origin}/device`, approveIn: 'Settings → Connections → Devices and sign-in' });
       }
       const r = deviceFlow.poll(String(body.pollToken ?? ''));
       if (r.status === 'expired') deviceLimiter.fail(ip, Date.now(), 0.2);
@@ -1771,7 +1774,9 @@ export function createSaraServer(opts: ServerOptions): Server {
         if (!r) throw new HttpError(401, 'That computer is no longer signed in: switch "Let Sara use this computer" off and on again.');
         return send(res, 200, r);
       }
-      confirmIdentity(body, { passkey: true });
+      // Being signed in as the owner on this computer is enough (no token prompt); from a device
+      // signed in elsewhere it waits for an OK like every other sensitive switch (new-device approval).
+      gate.askFirst(req, 'hands');
       const computer = String(body.name ?? '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40) || 'this computer';
       try {
         const r = auth.createHandsToken(`Sara's hands on ${computer}`);
@@ -1897,9 +1902,12 @@ export function createSaraServer(opts: ServerOptions): Server {
         const off = offStore.listConversations().filter((c) => mine(c.id)).map((c) => ({ ...c, offRecord: true, working: active.has(c.id) }));
         // Phase 108 (CH2): each bridge session carries its room chip (B3: "DM", "#general · My Server", "Book club (group)").
         const roomMap = opts.demo ? undefined : roomsByKey(app);
+        // 3.0.3: what needs the person in each chat (a waiting approval, her question, a failed run not seen yet).
+        const needs = opts.demo ? new Map<string, NeedsYou>() : needsYouMap(app);
         const view = (c: Conversation) => {
           const chip = roomMap && roomChip(roomOfConversation(app, c, roomMap));
-          return { ...c, working: active.has(c.id) || (isGroupChannel(c.channel) && rooms().isBusy(String(c.channelKey))), ...groupInfo(c), ...(chip ? { room: chip } : {}) };
+          const n = needs.get(c.id);
+          return { ...c, working: active.has(c.id) || (isGroupChannel(c.channel) && rooms().isBusy(String(c.channelKey))), ...groupInfo(c), ...(chip ? { room: chip } : {}), ...(n ? { needsYou: n } : {}) };
         };
         const q = new URL(req.url ?? '/', 'http://x').searchParams;
         const activeProjects = () => (app.planner?.projects() ?? []).map((p) => p.id);
@@ -2063,7 +2071,14 @@ export function createSaraServer(opts: ServerOptions): Server {
           const { limit } = pageOpts();
           const page = limit ? cx.store.messagesPage(b, { limit }) : { messages: cx.store.messages(b), earlier: 0 };
           const ts = cx.store.titleState(b);
+          // 3.0.3: opening it is seeing it: a failed run here no longer needs the person (other tabs follow).
+          if (!offRecord && app.runs?.markSeen(b)) app.events?.publish({ type: 'needs', conversationId: b });
           return send(res, 200, { ...conv, ...(offRecord ? { offRecord: true } : {}), ...titleView(cx, conv, ts), ...(offRecord ? { titleNever: 'off-record' } : {}), ...groupInfo(conv), ...sceneInfo(cx, conv), messages: page.messages.map(view), earlier: page.earlier, pinned: pins(), activity: activityView(b), together: cx.together?.activity(b) ?? null, pending: pendOf(b).list(b) });
+        }
+        // 3.0.3: the open chat watched her turn end (a failure seen live doesn't light the needs-you dot).
+        if (c === 'seen' && !parts[3] && method === 'POST') {
+          if (!offRecord && app.runs?.markSeen(b)) app.events?.publish({ type: 'needs', conversationId: b });
+          return send(res, 200, { ok: true });
         }
         if (c === 'messages' && !parts[3] && method === 'GET') {
           const { limit, before } = pageOpts();

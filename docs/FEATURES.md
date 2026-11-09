@@ -25,7 +25,7 @@ leaves this computer** ([PRIVATE_LOCAL.md](PRIVATE_LOCAL.md)).
 
 ### Today
 
-<img src="screenshots/today.webp" alt="Today: Good morning, Alex with her portrait and a happy mood, a How do I…? box, routines to add, Your day as one timeline (release review at 4 PM, the flaky date test at 6 PM, no screens after nine at 8:45 PM) and Needs you" width="760">
+<img src="screenshots/today.webp" alt="Today, further down: Your day as one timeline (the release review at 4 PM, the flaky date test at 6 PM, no screens after nine at 8:45 PM), Needs you with nothing waiting, She remembered and Work" width="760">
 
 Where Sara opens: her face, mood and a greeting, then *Your day* as one timeline (events, reminders and to-dos with the weather), *Needs you* (approvals, failed work, overdue items and mail), *With her*, *Work* and *Home & more*. Empty tiles fold away and *Customise* moves, resizes or hides any of them. On a phone it opens with a *Now* card ([TODAY.md](TODAY.md)).
 
@@ -69,7 +69,7 @@ to talk hands-free in the Windows app ([HEY_SARA.md](HEY_SARA.md)).
 
 ### On your phone
 
-<img src="screenshots/phone.webp" alt="Two phone screens: Today opening with a Now card (next things, her mood) and Your day; a chat with Reminder set and To-do added cards above the message bar and the bottom bar" width="860">
+<img src="screenshots/phone.webp" alt="Two phone screens: Today opening with a Now card (next things, her mood) and Getting started; a chat with To-do added and Reminder set cards above the message bar and the bottom bar" width="860">
 
 The same look on phones: a floating bottom bar (Chat, Today, Planner, More), her presence as a sheet
 you pull up from her face, and the message bar above the keyboard. Night by default, Day or *follow

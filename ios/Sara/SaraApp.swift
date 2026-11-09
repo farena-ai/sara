@@ -218,7 +218,7 @@ extension RootView {
 
     private func pairMessage(_ link: AppModel.PairLink) -> String {
         if link.refused {
-            return "The pairing link doesn't hold a plain server address, so the app won't open it. Make a new code in Sara on your computer: Settings → Data & health → Devices and sign-in → Add a phone or computer."
+            return "The pairing link doesn't hold a plain server address, so the app won't open it. Make a new code in Sara on your computer: Settings → Connections → Devices and sign-in → Add a phone or computer."
         }
         var m = switching(link)
             ? "Add \(link.server) to this app? Your other Saras stay signed in; switch between them from the ⇄ button at the top."

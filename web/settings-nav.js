@@ -67,8 +67,10 @@ const SETTINGS_ORDER = [
   'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-slack', 'co-teams', 'co-pickup', 'co-continuity',
   'ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-recipes',
   'ab-projects', 'ab-precise', 'ab-persist', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-tools',
-  'co-phone', 'co-computer', 'desktop-app', 'co-apps', 'co-agents', 'co-hooks', 'co-spotify',
-  'dh-safety', 'dh-health', 'dh-operations', 'dh-recovery', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
+  // 3.0.3: Devices and sign-in (where codes for a new phone or computer are made) leads Connections;
+  // it sat deep in Data & health and the owner could not find it. Its id stays dh-devices.
+  'dh-devices', 'co-phone', 'co-computer', 'desktop-app', 'co-apps', 'co-agents', 'co-hooks', 'co-spotify',
+  'dh-safety', 'dh-health', 'dh-operations', 'dh-recovery', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
   'household', 'dh-usage-report', 'dh-trust', 'dh-shares', 'dh-policy', 'dh-audit', 'dh-retention', 'account',
 ];
 // A small heading inside a group, before the first of these pages (none since the Coding group).

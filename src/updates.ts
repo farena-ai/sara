@@ -16,11 +16,12 @@
 // GitHub's newest release and the download page, as before. Linux keeps the root helper and reads
 // the notice for the button (its age, security flag and minimum version).
 import { assertOnline, netFetch } from './net-guard.ts';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import type { UpdatePlan } from './update-apply.ts';
+import { REQUEST_FILE, TASK_FULL } from './update-service.ts';
 import { assetKey, NOTICE_KEYS, NOTICE_URL, noticeUrlFor, verifyNotice, type NoticePayload } from './update-notice.ts';
 
 export type UpdateState = 'idle' | 'checking' | 'available' | 'current' | 'downloading' | 'updating' | 'updated' | 'rolledback' | 'failed';
@@ -49,7 +50,27 @@ export interface UpdateStatus {
   auto?: boolean;
   /** C9: why it can't (shown under the button). */
   autoWhy?: string;
+  /** Windows service install: what Update needs ('service-task' = the Sara Update task installs it; 'service-setup' = that task isn't set up yet). */
+  via?: 'service-task' | 'service-setup';
 }
+
+/** The Windows service install's update task (\Sara\Update, run as SYSTEM; src/update-service.ts). */
+export interface ServiceTask {
+  /** The task exists and this account may start it. */
+  present(): boolean;
+  /** Starts it (it reads the request Sara left in her data folder). */
+  run(): Promise<void>;
+}
+
+const schtasks = (args: string[]) => spawnSync(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'schtasks.exe'), args, { encoding: 'utf8', windowsHide: true, timeout: 30_000 });
+/** The real task, through schtasks.exe (the task's permissions let NT SERVICE\Sara read and run it). */
+export const windowsServiceTask: ServiceTask = {
+  present: () => schtasks(['/query', '/tn', TASK_FULL]).status === 0,
+  run: async () => {
+    const r = schtasks(['/run', '/tn', TASK_FULL]);
+    if (r.status !== 0) throw new Error(`Windows didn't start the Sara Update task (${(r.stderr || r.stdout || '').trim().split(/\r?\n/)[0] || `exit ${r.status}`}). Nothing was installed.`);
+  },
+};
 
 export interface UpdaterOptions {
   dataDir: string;
@@ -79,6 +100,8 @@ export interface UpdaterOptions {
   runnerNode?: string;
   /** C9: how long the new version gets to come up (default 3 minutes). */
   healthTimeoutMs?: number;
+  /** Windows service install: the update task (tests use a fake). */
+  serviceTask?: ServiceTask;
 }
 
 /** Several Saras on one server: the instance's name (its unit sets SARA_INSTANCE; default "sara"). */
@@ -194,7 +217,8 @@ export class Updater {
       const changes = await this.#changes(f, version).catch(() => []);
       const info = this.#noticeInfo(p.version);
       const why = this.#autoWhy(p);
-      const base = { at, version, latest: p.version, downloadUrl: DOWNLOAD_PAGE, ...info, auto: !why, ...(why ? { autoWhy: why } : {}), ...(changes.length ? { changes } : {}) };
+      const via = this.#isService() ? { via: why ? ('service-setup' as const) : ('service-task' as const) } : {};
+      const base = { at, version, latest: p.version, downloadUrl: DOWNLOAD_PAGE, ...info, auto: !why, ...(why ? { autoWhy: why } : {}), ...via, ...(changes.length ? { changes } : {}) };
       this.#last =
         compareVersions(p.version, version) > 0
           ? { state: 'available', message: why ? `Sara ${p.version} is available. ${why}` : `Sara ${p.version} is available. Update downloads it, checks it, installs it and restarts Sara; if she doesn't start properly she goes back to ${version}.`, ...base }
@@ -250,6 +274,8 @@ export class Updater {
   /** The last trusted notice (release mode). */
   #notice: NoticePayload | undefined;
   #noticeAt: NoticePayload | undefined;
+  /** The signed notice as read (the service's update task verifies it again). */
+  #noticeRaw: unknown;
 
   get #dir(): string {
     return join(this.#o.dataDir, 'updates');
@@ -288,6 +314,7 @@ export class Updater {
     }
     this.#notice = v.notice;
     this.#noticeAt = v.notice;
+    this.#noticeRaw = raw;
     return { ok: true, notice: v.notice };
   }
 
@@ -303,10 +330,18 @@ export class Updater {
     const env = this.#o.env ?? process.env;
     const plat = this.#platform;
     if (!p.assets[assetKey(plat, this.#o.arch ?? process.arch)]) return 'There is no installer for this computer in the release: download it from the release page.';
-    if (plat === 'win32' && env.SARA_MODE !== 'user')
-      return env.SARA_MODE === 'service' ? 'Sara runs as a Windows service, so the installer needs an administrator: download it and run it.' : 'This Sara was not installed with Sara-Setup: download the installer from the release page.';
+    if (plat === 'win32' && env.SARA_MODE === 'service')
+      return this.#serviceTask.present() ? '' : 'Sara runs as a Windows service. Run the newest Sara-Setup once as administrator: it sets up the Sara Update task, and from then on Update now works here.';
+    if (plat === 'win32' && env.SARA_MODE !== 'user') return 'This Sara was not installed with Sara-Setup: download the installer from the release page.';
     if (plat === 'darwin' && !/\.app$/.test(this.#appDir)) return 'This Sara is not the Mac app: download it from the release page.';
     return '';
+  }
+
+  get #serviceTask(): ServiceTask {
+    return this.#o.serviceTask ?? windowsServiceTask;
+  }
+  #isService(): boolean {
+    return this.#platform === 'win32' && (this.#o.env ?? process.env).SARA_MODE === 'service';
   }
 
   get #appDir(): string {
@@ -362,6 +397,18 @@ export class Updater {
     const keep = join(this.#dir, 'keep');
     const installer = join(dl, asset.name);
     await this.#fetchFile(asset.url, installer, asset.sha256);
+    if (plat === 'win32' && this.#isService()) {
+      // The service account can't install: it leaves the signed notice and the download for the
+      // Sara Update task (SYSTEM), which checks both again, keeps its own previous installer and runs it.
+      rmSync(join(this.#dir, 'update-result.json'), { force: true });
+      writeFileSync(join(this.#dir, REQUEST_FILE), `${JSON.stringify({ notice: this.#noticeRaw, installer }, null, 2)}\n`);
+      await this.#serviceTask.run().catch((err: Error) => {
+        rmSync(join(this.#dir, REQUEST_FILE), { force: true });
+        throw err;
+      });
+      this.#last = { ...this.#last, state: 'updating', via: 'service-task', message: `Windows is installing Sara ${p.version} for the Sara service. Sara restarts in a minute or two; if she doesn't start properly she goes back to ${from}.`, at: new Date().toISOString() };
+      return;
+    }
     let previous = join(keep, 'Sara.app');
     if (plat === 'win32') {
       const name = `Sara-Setup-${from}.exe`;

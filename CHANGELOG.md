@@ -5,6 +5,92 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.0.3 (2026-11-09): faster, steadier and easier to find
+
+- **An approval can't get lost below the fold any more:** in a long chat her run card could shrink to
+  a thin line and hide the approval inside it, so you couldn't scroll to it and the chat stayed stuck on
+  "Waiting for your OK". Now the card always opens and scrolls into view, the "Waiting for your OK" line
+  above the message box has the card's own buttons (for example *Save it* / *Don't save*) and **Show**,
+  Ctrl K lists the waiting step to show or answer it, and after a reload the card comes back in the chat.
+  Her panel's *Deny* on a card with *Always allow this tool* no longer presses the wrong button.
+- **Skills save without asking:** when she saves a new skill or changes one of her own (also with
+  `/learn`), there's no approval card any more. The step in her reply names the skill, with **Open
+  skill** and **Undo** (a new skill goes to the trash; a change goes back to the version before). If
+  you'd rather approve each one, set *Save a skill* / *Change a skill* to *Ask me first* in Settings →
+  Tools and approvals; a choice you already made there stays, an admin's policy can still make them ask,
+  and household members' spaces still ask. Running a skill's scripts still asks first.
+- **Computer use without the token prompt:** turning on *Let Sara use this computer* no longer asks
+  for the owner token when you're signed in as the owner on that computer. From a device signed in
+  somewhere else it waits for your OK on a device you already use, like the other sensitive switches.
+- **Approvals that time out say so:** when nobody answers an approval card in time, the step now reads
+  "Not approved in time", the run card opens to show it, and the card stays as a quiet "did not run" note
+  instead of disappearing.
+- **A calmer store:** the big violet "Add" bars on every store card are now normal-size buttons, and the
+  store's tabs look like the tabs everywhere else in the new look.
+- **"Write our year" covers a year:** Your story's From and To now start at one year ago and today (on a
+  new install both were today). A range you pick is remembered on that device.
+- **Coding chats look like work:** her mood line under the chat title is gone in coding chats, and the
+  "AI companion" badge becomes the short "AI" pill there (it is never removed).
+- **One search box, one panel button:** in the new look the top bar's "Ask or do anything" is the one
+  search (the sidebar's duplicate search box and the extra search icon are gone) and her panel has one
+  button. On phones the search icon in the header and the search box in the menu stay. Ctrl K works as
+  before; Sara Classic is unchanged.
+- **Adding a phone or computer is easy to find:** *Devices and sign-in* now sits at the top of Settings →
+  Connections (it was buried under Data & health). Searching Settings or Ctrl K for "code", "pair", "add
+  phone", "QR" and similar finds it, Ctrl K and Help have an *Add a phone or computer* entry that makes the
+  code straight away, and the desktop and phone apps point to the new place.
+- **Settings opens instantly:** the gear, Add-ons and every other way into Settings now show the window
+  on the click (about 0.1 s instead of 0.6-2.4 s). Pages still loading show a quiet placeholder and fill
+  in as their part arrives; the page list and the search work straight away.
+- **The performance-lab test runs on its own:** it is timing-sensitive, so `npm test` (and the server
+  suite) now run it alone after the parallel batch instead of next to it, where a busy PC starved it.
+- **Steadier on a busy Windows PC:** a preview or dev tunnel of her app is no longer refused when the
+  computer is busy (the process check now waits for a slow answer instead of giving up), a program a
+  sandbox try left running is found and stopped even then, and closing her browser no longer crashes
+  when the browser is slow to let go of its files. The tests that used to need reruns under load now
+  pass reliably.
+- **A red dot when a chat needs you:** in the sidebar, a chat where an approval waits, she asked you
+  something (a board card or a team checkpoint), or something failed that you haven't looked at yet shows
+  a red dot (hover or a screen reader says why), and its folder shows a small red count. It clears when you
+  answer or open the chat, and follows live on every device.
+- **"Saved n new memories" under her reply:** the run card now says when she noted something new about
+  you from that turn (right away when she saved it herself, or a little later once she has read back over
+  the conversation). *See them in Memory* opens Memory with exactly those notes highlighted.
+- **Fresh pictures in the README and guides:** Today, the Planner, a chat, the command bar, the
+  personality, voice and coding dials, How do I…? and the phone view are retaken in the current look
+  (Graphite with Violet, Night), with made-up example data.
+- **A fresh-eyes pass over every page:** her "waiting for your OK" line and the bars above the message
+  box line up with it; icons and their words no longer touch ("Off the record", "Review my week"); the
+  memory map only uses colors its legend explains; the Library's other ways in sit in one row; Memory's
+  two labels sit on one line; Team's empty list is one panel, not two; Evals keeps its words off the card
+  edge; Webhooks shows one "New webhook" button when there are none; pressing + New again in a chat you
+  haven't used yet stays in it instead of adding empty chats; Operations shows times as dates; setup
+  starts in the name field; a long model and folder name ends in "…"; file pickers match the other
+  buttons; and on a phone, opening More in the menu no longer pushes her face, Help and Settings under
+  the bottom bar. Sara Classic is unchanged.
+
+- **Update now for the Windows service install:** no more download page. Setup (as administrator) sets up
+  the *Sara Update* task, which Windows runs as the system when you press Update now: it checks the
+  signed update notice and the installer again in the program folder, installs, waits for Sara to answer
+  and goes back to the previous version if she doesn't. A service from an older Setup says to run the new
+  Setup once; `sara updater-task status` shows whether the task is there.
+- **Store item pages refreshed (website, ready to deploy):** every `backstagecoding.com/sara/store/items/<id>/`
+  page rebuilt from the signed list in the current look (studio chrome, Sara's Violet accent): the exact
+  latest version (ComfyUI and Playwright pages said 1.0.0 although 1.0.1 is listed), Sara's own
+  permission lines, the signed screenshots plus a picture of the item in today's Sara, checks and
+  versions; no scripts, no install buttons (`scripts/build-store-items.ts`).
+- **Store listings in your language for plugins and tool servers too:** taglines and descriptions of
+  every plugin and tool server in Spanish, French, German, Portuguese (Brazil) and Italian (the signed
+  `v1/locales.json`, read by Sara 2.83+), and a second signed file for the rest of a listing (every
+  *about* paragraph, search words, and the setting and field names in *What it can do*), read by this
+  version (Store sequence 8, docs/ops/STORE_SEQ8.md).
+- **The model you pick during first setup stays the default:** picking a model in the setup guide
+  saves it right away, even if its first test answer is slow and you go on with "Connect a brain
+  later" or "Set up later". Before, a fresh install could end up with no default model, and Settings
+  → Models → Default model showed the first model of the list as if it were chosen. A provider that
+  becomes the default (an added provider, a ChatGPT or Grok sign-in) now always gets a model, and if
+  none is saved Settings says so and saves the model you pick.
+
 ## 3.0.2 (2026-11-08): polish, Violet and an easy move-in
 
 - **Settings opens in the middle:** on a computer Settings is a centered panel instead of a sheet

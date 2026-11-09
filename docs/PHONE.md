@@ -35,7 +35,7 @@ notifications won't work, and it doesn't work away from home.)
 
 ## Step 2: sign in without typing the token
 
-1. On your computer, signed in to Sara, open **Settings → Data & health → Devices and sign-in**
+1. On your computer, signed in to Sara, open **Settings → Connections → Devices and sign-in**
    and press **Add a phone or computer**. A QR code and a short code appear (they last 10 minutes
    and work once).
 2. On the phone, point the camera at the QR code and open the link. On Android, tap **Open in the

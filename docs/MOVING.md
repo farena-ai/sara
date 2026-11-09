@@ -50,8 +50,8 @@ deleted) and starts her again.
    address changed in Settings → Models → Model providers.
 3. **Passkeys belong to a web address.** If Sara's address changed, sign in with the owner token
    (and your two-step code, if on) and add the passkey again.
-4. **Phones and apps** remember the old address. If it changed, pair them again (Settings → Data &
-   health → Devices and sign-in → *Add a phone or computer*) and sign out the old entries.
+4. **Phones and apps** remember the old address. If it changed, pair them again (Settings → Connections →
+   Devices and sign-in → *Add a phone or computer*) and sign out the old entries.
 5. **Subscriptions:** on Linux, run `sudo /opt/sara-src/deploy/install-agents.sh` again on the new
    server. If a subscription shows as signed out, sign in again in Settings → Models →
    Subscriptions.

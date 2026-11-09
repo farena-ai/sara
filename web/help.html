@@ -102,7 +102,7 @@
 
 <h2 id="start">Getting started</h2>
 <ol>
-  <li><strong>Sign in.</strong> Use the owner token your server printed when it was installed (on the server: <code>sudo sara reset-token</code> makes a new one). A brand-new server can also be set up in the browser: open her page and type the short setup code from her log (on Umbrel no code is needed); she then shows you your owner token once to save. New phones and computers don't need it: in <em>Settings → Data &amp; health → Devices and sign-in</em> press <em>Add a phone or computer</em> and scan the code.</li>
+  <li><strong>Sign in.</strong> Use the owner token your server printed when it was installed (on the server: <code>sudo sara reset-token</code> makes a new one). A brand-new server can also be set up in the browser: open her page and type the short setup code from her log (on Umbrel no code is needed); she then shows you your owner token once to save. New phones and computers don't need it: in <em>Settings → Connections → Devices and sign-in</em> press <em>Add a phone or computer</em> and scan the code.</li>
   <li><strong>Connect a brain</strong> (the AI model she thinks with). See <a href="#brain">Choosing a brain</a>.</li>
   <li><strong>Say hello.</strong> Just type. Ask a question, tell her about your day, or ask her to plan something.</li>
   <li><strong>Make her yours</strong> in <em>Settings → Her</em>: name, personality, look and voice.</li>
@@ -367,6 +367,9 @@
 <h4 id="howto-co-hooks">Webhooks</h4>
 <details class="howto-q" id="howto-co-hooks-new"><summary>How do I make a webhook?</summary><ol><li>Press New webhook.</li><li>Pick what sends it and what she does.</li><li>Copy its address into the other app.</li></ol></details>
 <details class="howto-q" id="howto-co-hooks-test"><summary>How do I see what a webhook got?</summary><ol><li>Open the webhook's card.</li><li>Look at its deliveries.</li></ol></details>
+<h4 id="howto-dh-devices">Devices and sign-in</h4>
+<details class="howto-q" id="howto-dh-devices-add"><summary>How do I sign in on another phone or computer?</summary><ol><li>Press Add a phone or computer.</li><li>Scan the code or type it there.</li></ol></details>
+<details class="howto-q" id="howto-dh-devices-lost"><summary>How do I lock out a lost device?</summary><ol><li>Press Sign out all other devices.</li><li>Or make a new token with Make a new token.</li></ol></details>
 <h3>Data &amp; health</h3>
 <h4 id="howto-dh-safety">Safety check-up</h4>
 <details class="howto-q" id="howto-dh-safety-check"><summary>How do I check that my setup is safe?</summary><ol><li>Open Settings and pick Safety check-up (the first page under its group).</li><li>Read the top line: Looks safe, Mostly safe or Fix these first.</li><li>Each row says what's true now; the ? says why it matters.</li></ol></details>
@@ -380,9 +383,6 @@
 <h4 id="howto-dh-health">Health</h4>
 <details class="howto-q" id="howto-dh-health-check"><summary>How do I check everything works?</summary><ol><li>Press Run full check.</li><li>Fix anything marked red with its button.</li></ol></details>
 <details class="howto-q" id="howto-dh-health-runs"><summary>How do I clear old run history?</summary><ol><li>Pick how long to Keep runs.</li><li>Or press Delete run history.</li></ol></details>
-<h4 id="howto-dh-devices">Devices and sign-in</h4>
-<details class="howto-q" id="howto-dh-devices-add"><summary>How do I sign in on another phone or computer?</summary><ol><li>Press Add a phone or computer.</li><li>Scan the code or type it there.</li></ol></details>
-<details class="howto-q" id="howto-dh-devices-lost"><summary>How do I lock out a lost device?</summary><ol><li>Press Sign out all other devices.</li><li>Or make a new token with Make a new token.</li></ol></details>
 <h4 id="howto-dh-backups">Backups</h4>
 <details class="howto-q" id="howto-dh-backups-now"><summary>How do I make a backup now?</summary><ol><li>Press Back up now.</li></ol></details>
 <details class="howto-q" id="howto-dh-backups-offsite"><summary>How do I keep a copy somewhere else?</summary><ol><li>Pick where under Copy backups to.</li><li>Fill in the folder or bucket and a passphrase.</li><li>Press Copy the latest backup now, then Test restore now.</li></ol></details>
@@ -503,7 +503,7 @@
 
 <h2 id="phone">Phone and notifications</h2>
 <ul>
-  <li><strong>Phone apps:</strong> install Sara for iPhone or Android, then scan the code from <em>Settings → Data &amp; health → Devices and sign-in → Add a phone or computer</em>. Or open your server's address in the phone's browser and use <em>Add to Home Screen</em>.</li>
+  <li><strong>Phone apps:</strong> install Sara for iPhone or Android, then scan the code from <em>Settings → Connections → Devices and sign-in → Add a phone or computer</em>. Or open your server's address in the phone's browser and use <em>Add to Home Screen</em>.</li>
   <li><strong>Notifications:</strong> <em>Settings → Connections → Phone and notifications</em>. You can reply from the notification.</li>
   <li><strong>Share to Sara:</strong> share text or a photo from any app and pick <em>Send to Sara</em>.</li>
   <li><strong>Pick up anywhere:</strong> your conversations live on your server, so the phone apps, the desktop apps and a web browser all show the same ones. A conversation going on elsewhere updates as she answers, and when you come back after a while the app opens the one you used last.</li>
@@ -1039,7 +1039,7 @@
 
 <h2 id="clients">In your terminal and editor</h2>
 <ul>
-  <li><strong>Terminal:</strong> <code>sara-chat login https://your-server</code> shows a short code. Approve it in <em>Settings → Data &amp; health → Devices and sign-in</em> (or open the link it shows while you're signed in). Then <code>sara-chat</code> chats, <code>sara-chat ask "question" --dir .</code> asks about a folder (secrets, <code>.git</code> and <code>node_modules</code> are never sent), <code>sara-chat send file.pdf</code> shares a file. Approvals show as y/n questions.</li>
+  <li><strong>Terminal:</strong> <code>sara-chat login https://your-server</code> shows a short code. Approve it in <em>Settings → Connections → Devices and sign-in</em> (or open the link it shows while you're signed in). Then <code>sara-chat</code> chats, <code>sara-chat ask "question" --dir .</code> asks about a folder (secrets, <code>.git</code> and <code>node_modules</code> are never sent), <code>sara-chat send file.pdf</code> shares a file. Approvals show as y/n questions.</li>
   <li><strong>VS Code:</strong> the Sara panel in the activity bar is the same companion with the same memory and personality. <em>Sara: Sign in</em> uses the same code. <em>Ask about selection</em> and <em>Explain this file</em> send the open file's name and the selection (size-limited; you see what is sent).</li>
   <li>Each app is listed under Devices like a phone, and signing it out there ends it. Details: <code>docs/clients.md</code>.</li>
 </ul>
@@ -1270,7 +1270,7 @@
 <h2 id="signin">Signing in safely</h2>
 <ul>
   <li><strong>The owner token</strong> is the master key to your Sara. Keep it in a password manager; don't share it.</li>
-  <li><strong>New devices</strong> don't need the token: <em>Settings → Data &amp; health → Devices and sign-in → Add a phone or computer</em> makes a one-time code that works for 10 minutes.</li>
+  <li><strong>New devices</strong> don't need the token: <em>Settings → Connections → Devices and sign-in → Add a phone or computer</em> makes a one-time code that works for 10 minutes.</li>
   <li><strong>Passkeys</strong> (same page): sign in with your fingerprint, face or device PIN. Nothing secret leaves your device.</li>
   <li><strong>Two-step sign-in</strong> (same page): signing in with the token also asks for a 6-digit code from an authenticator app.</li>
   <li>See every signed-in device on that page and sign out any you don't recognize.</li>

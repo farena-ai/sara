@@ -6,7 +6,7 @@ with the same memory and personality as in the web app, talking to **your own Sa
 ## Sign in
 
 1. Run **Sara: Sign in** (Command Palette) and type your server's address.
-2. VS Code shows a short code. Approve it in Sara: **Settings → Data & health → Devices and
+2. VS Code shows a short code. Approve it in Sara: **Settings → Connections → Devices and
    sign-in** (or open the link it offers while you're signed in to Sara in a browser).
 3. Done. The editor is listed there like a phone; signing it out there ends it. The token is kept
    in VS Code's secret storage.

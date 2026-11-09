@@ -25,7 +25,7 @@ first (passkey, owner token or two-step code), like approving an app's sign-in.
 
 - A key works only on `/v1` and `/mcp`. It can't open the rest of the app (`/api/…`): not her
   conversations list, settings, backups, devices or the vault.
-- Keys don't run out; remove one in the same place (or under Data & health → Devices and
+- Keys don't run out; remove one in the same place (or under Connections → Devices and
   sign-in) and the app using it stops working at once.
 - Up to 20 keys. Each key may make 60 requests a minute and run two replies at once.
 

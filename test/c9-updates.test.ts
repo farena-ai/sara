@@ -228,10 +228,12 @@ test('Updater: a valid notice → available with its date, security flag and the
     const st2 = await u2.check();
     assert.equal(st2.auto, false);
     assert.equal(st2.trusted, false);
-    // Service install: needs an administrator, so the download page stays the way.
-    const svc = new Updater({ dataDir: join(dir, 's'), platform: 'win32', arch: 'x64', version: '2.86.0', fetch: n.f, noticeKeys: keys, env: { SARA_MODE: 'service' } });
+    // Service install without the Sara Update task (set up by Setup 3.0.3+): the download page, and why.
+    const svc = new Updater({ dataDir: join(dir, 's'), platform: 'win32', arch: 'x64', version: '2.86.0', fetch: n.f, noticeKeys: keys, env: { SARA_MODE: 'service' }, serviceTask: { present: () => false, run: async () => {} } });
     mkdirSync(join(dir, 's'));
-    assert.equal((await svc.check()).auto, false);
+    const sst = await svc.check();
+    assert.deepEqual([sst.auto, sst.via], [false, 'service-setup']);
+    assert.match(sst.autoWhy ?? '', /Run the newest Sara-Setup once as administrator/);
   } finally {
     cleanup();
   }

@@ -50,7 +50,7 @@
     <string name="setup_add_help">Digite o endereço de outra Sara. Suas outras Saras continuam conectadas.</string>
     <string name="setup_address">Endereço</string>
     <string name="setup_code">Código de pareamento (opcional)</string>
-    <string name="setup_code_help">Pegue um código em um dispositivo em que você já entrou: Configurações → Dados e saúde → Dispositivos e login → Adicionar um celular ou computador. Sem código, você entra com o seu token de proprietário.</string>
+    <string name="setup_code_help">Pegue um código em um dispositivo em que você já entrou: Configurações → Conexões → Dispositivos e login → Adicionar um celular ou computador. Sem código, você entra com o seu token de proprietário.</string>
     <string name="setup_connect">Conectar</string>
     <string name="setup_checking">Verificando…</string>
     <string name="setup_unreachable">Não deu para conectar. Confira o endereço e se a Sara está rodando lá.</string>
@@ -64,7 +64,7 @@
     <string name="offline_others">Suas outras Saras</string>
     <!-- Pairing links (sara://pair) and several Saras (Phase 68) -->
     <string name="pair_refused_title">Este link não pode ser usado</string>
-    <string name="pair_refused_message">O link de pareamento não traz um endereço de servidor simples, então o app não o abre. Crie um código novo na Sara no seu computador: Configurações → Dados e saúde → Dispositivos e login → Adicionar um celular ou computador.</string>
+    <string name="pair_refused_message">O link de pareamento não traz um endereço de servidor simples, então o app não o abre. Crie um código novo na Sara no seu computador: Configurações → Conexões → Dispositivos e login → Adicionar um celular ou computador.</string>
     <string name="pair_code_title">Entrar com um código</string>
     <string name="pair_open_title">Abrir a sua Sara</string>
     <string name="pair_sign_in_message">Entrar em %1$s?</string>

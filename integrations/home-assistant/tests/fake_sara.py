@@ -75,7 +75,7 @@ class FakeSara:
         self.asked_scope = body.get("scope")
         self.started += 1
         host = req.headers["host"]
-        return web.json_response({"code": "K7QM-3XTP", "pollToken": "poll-1", "expiresAt": "2099-01-01T00:00:00Z", "interval": 0.01, "verifyUrl": f"http://{host}/device", "approveIn": "Settings → Data & health → Devices and sign-in"})
+        return web.json_response({"code": "K7QM-3XTP", "pollToken": "poll-1", "expiresAt": "2099-01-01T00:00:00Z", "interval": 0.01, "verifyUrl": f"http://{host}/device", "approveIn": "Settings → Connections → Devices and sign-in"})
 
     async def poll(self, req: web.Request) -> web.Response:
         body = await req.json()

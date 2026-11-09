@@ -53,7 +53,7 @@
     <string name="setup_add_help">Type the address of another Sara. Your other Saras stay signed in.</string>
     <string name="setup_address">Address</string>
     <string name="setup_code">Pairing code (optional)</string>
-    <string name="setup_code_help">Get a code on a device where you\'re signed in: Settings → Data &amp; health → Devices and sign-in → Add a phone or computer. Without one, you sign in with your owner token.</string>
+    <string name="setup_code_help">Get a code on a device where you\'re signed in: Settings → Connections → Devices and sign-in → Add a phone or computer. Without one, you sign in with your owner token.</string>
     <string name="setup_connect">Connect</string>
     <string name="setup_checking">Checking…</string>
     <string name="setup_unreachable">Couldn\'t reach it. Check the address, and that Sara is running there.</string>
@@ -67,7 +67,7 @@
     <string name="offline_others">Your other Saras</string>
     <!-- Pairing links (sara://pair) and several Saras (Phase 68) -->
     <string name="pair_refused_title">This link can\'t be used</string>
-    <string name="pair_refused_message">The pairing link doesn\'t hold a plain server address, so the app won\'t open it. Make a new code in Sara on your computer: Settings → Data &amp; health → Devices and sign-in → Add a phone or computer.</string>
+    <string name="pair_refused_message">The pairing link doesn\'t hold a plain server address, so the app won\'t open it. Make a new code in Sara on your computer: Settings → Connections → Devices and sign-in → Add a phone or computer.</string>
     <string name="pair_code_title">Sign in with a code</string>
     <string name="pair_open_title">Open your Sara</string>
     <string name="pair_sign_in_message">Sign in to %1$s?</string>

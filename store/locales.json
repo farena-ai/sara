@@ -1,6 +1,6 @@
 {
  "format": "sara-store-locales-source",
- "note": "Listing translations of the first-party companions (tagline = summary, description = the persona summary shown under What it does). The publisher turns this into the signed v1/locales.json sidecar; nothing here changes a pack folder or its contentSha.",
+ "note": "Listing translations of the first-party companions (tagline = summary, description = the persona summary shown under What it does), plugins (summary = the tagline, description = the manifest description) and tool servers (summary = the tagline, description = the first about paragraph). The publisher turns this into the signed v1/locales.json sidecar; nothing here changes a pack folder or its contentSha. The rest of a plugin or tool-server listing (more about paragraphs, tags, permission-line words) is in locales-extra.json.",
  "items": {
   "ambrose": {
    "es": {
@@ -462,6 +462,1326 @@
    "it": {
     "summary": "Un'organizzatrice di viaggi avventurosa: itinerari furbi, consigli locali e piani che lasciano spazio per girovagare.",
     "description": "Zara è una scrittrice di viaggio di Marrakech che ha visitato sessanta paesi con un budget modesto. Aiuta {{user}} a pianificare i viaggi: percorsi, budget, bagagli, usanze locali e i posticini che le guide ignorano, lasciando sempre spazio per girovagare. Avventurosa, solare e sincera su ciò che è sopravvalutato."
+   }
+  },
+  "weather-alerts": {
+   "es": {
+    "summary": "Te avisa la tarde anterior si viene una tormenta un día que quizá pases fuera.",
+    "description": "Te avisa la tarde anterior de una tormenta, lluvia fuerte o nieve, para que el tiempo no te estropee los planes al aire libre. Usa Open-Meteo (gratis para uso personal, sin clave)."
+   },
+   "fr": {
+    "summary": "Vous prévient la veille au soir d'un orage un jour où vous serez peut-être dehors.",
+    "description": "Vous prévient la veille au soir d'un orage, de fortes pluies ou de neige, pour que la météo ne gâche pas vos projets en plein air. Utilise Open-Meteo (gratuit pour un usage personnel, sans clé)."
+   },
+   "de": {
+    "summary": "Warnt dich am Vorabend vor einem Unwetter an einem Tag, an dem du vielleicht draußen bist.",
+    "description": "Warnt dich am Vorabend vor Gewitter, Starkregen oder Schnee, damit das Wetter deine Pläne im Freien nicht durchkreuzt. Nutzt Open-Meteo (für den privaten Gebrauch kostenlos, ohne Schlüssel)."
+   },
+   "pt-BR": {
+    "summary": "Avisa na noite anterior quando vem tempestade num dia em que você talvez esteja na rua.",
+    "description": "Avisa na noite anterior sobre tempestade, chuva forte ou neve, para o tempo não estragar seus planos ao ar livre. Usa o Open-Meteo (grátis para uso pessoal, sem chave)."
+   },
+   "it": {
+    "summary": "Ti avvisa la sera prima se arriva un temporale in un giorno in cui potresti essere fuori.",
+    "description": "Ti avvisa la sera prima di temporali, pioggia forte o neve, così il meteo non ti rovina i programmi all'aperto. Usa Open-Meteo (gratis per uso personale, senza chiave)."
+   }
+  },
+  "focus": {
+   "es": {
+    "summary": "25 minutos de trabajo, 5 de descanso: ella guarda silencio mientras te concentras y te avisa cuándo estirarte.",
+    "description": "Un temporizador Pomodoro: 25 minutos de trabajo, 5 de descanso. No te interrumpe con el temporizador mientras te concentras y te avisa cuándo toca estirarse."
+   },
+   "fr": {
+    "summary": "25 minutes de travail, 5 de pause : elle se fait discrète pendant que vous vous concentrez et vous dit quand vous étirer.",
+    "description": "Un minuteur Pomodoro : 25 minutes de travail, 5 de pause. Elle ne vous parle pas du minuteur pendant que vous vous concentrez et vous dit quand il est temps de vous étirer."
+   },
+   "de": {
+    "summary": "25 Minuten arbeiten, 5 Pause: Sie hält sich zurück, während du dich konzentrierst, und sagt dir, wann du dich strecken sollst.",
+    "description": "Ein Pomodoro-Timer: 25 Minuten arbeiten, 5 Minuten Pause. Während du dich konzentrierst, stört sie dich nicht mit dem Timer, und sie sagt dir, wann es Zeit zum Strecken ist."
+   },
+   "pt-BR": {
+    "summary": "25 minutos de foco, 5 de pausa: ela fica quietinha enquanto você se concentra e avisa a hora de se alongar.",
+    "description": "Um timer Pomodoro: 25 minutos de foco, 5 de pausa. Ela não fala do timer enquanto você se concentra e avisa quando é hora de se alongar."
+   },
+   "it": {
+    "summary": "25 minuti di lavoro, 5 di pausa: lei resta in silenzio mentre ti concentri e ti dice quando sgranchirti.",
+    "description": "Un timer Pomodoro: 25 minuti di lavoro, 5 di pausa. Mentre ti concentri non ti parla del timer e ti dice quando è ora di sgranchirti."
+   }
+  },
+  "home-scenes": {
+   "es": {
+    "summary": "Di «noche de cine» y ella pone las luces tal como lo guardaste en Home Assistant.",
+    "description": "Guarda cómo deben quedar tus luces e interruptores como una escena con nombre; luego di «noche de cine» y ella la aplica con tu Home Assistant. Cada cambio te pide permiso primero."
+   },
+   "fr": {
+    "summary": "Dites « soirée ciné » et elle règle les lumières comme vous l'avez enregistré dans Home Assistant.",
+    "description": "Enregistrez l'état de vos lumières et interrupteurs sous forme de scène nommée, puis dites « soirée ciné » et elle l'applique via votre Home Assistant. Chaque changement vous demande d'abord votre accord."
+   },
+   "de": {
+    "summary": "Sag „Filmabend“ und sie stellt das Licht so ein, wie du es in Home Assistant gespeichert hast.",
+    "description": "Speichere, wie deine Lichter und Schalter stehen sollen, als Szene mit Namen; sag dann „Filmabend“ und sie stellt sie über dein Home Assistant ein. Jede Änderung fragt dich vorher."
+   },
+   "pt-BR": {
+    "summary": "Diga “noite de cinema” e ela ajusta as luzes do jeito que você salvou no Home Assistant.",
+    "description": "Salve como suas luzes e interruptores devem ficar numa cena com nome; depois diga “noite de cinema” e ela aplica pelo seu Home Assistant. Cada mudança pede sua permissão antes."
+   },
+   "it": {
+    "summary": "Di' «serata film» e lei regola le luci come le hai salvate in Home Assistant.",
+    "description": "Salva come devono stare luci e interruttori in una scena con un nome, poi di' «serata film» e lei la applica tramite il tuo Home Assistant. Ogni modifica ti chiede prima il permesso."
+   }
+  },
+  "github-digest": {
+   "es": {
+    "summary": "Cada mañana: issues nuevos, revisiones que te esperan y comprobaciones fallidas en tus repositorios.",
+    "description": "Cada mañana: issues y pull requests nuevos en los repositorios públicos que sigues, los que esperan tu revisión y las comprobaciones que han fallado."
+   },
+   "fr": {
+    "summary": "Chaque matin : nouvelles issues, revues qui vous attendent et vérifications en échec sur vos dépôts.",
+    "description": "Chaque matin : les nouvelles issues et pull requests des dépôts publics que vous suivez, celles qui attendent votre revue, et les vérifications en échec."
+   },
+   "de": {
+    "summary": "Jeden Morgen: neue Issues, Reviews, die auf dich warten, und fehlgeschlagene Checks in deinen Repositorys.",
+    "description": "Jeden Morgen: neue Issues und Pull Requests in den öffentlichen Repositorys, denen du folgst, die, die auf dein Review warten, und fehlgeschlagene Checks."
+   },
+   "pt-BR": {
+    "summary": "Toda manhã: issues novas, revisões esperando por você e verificações que falharam nos seus repositórios.",
+    "description": "Toda manhã: issues e pull requests novos nos repositórios públicos que você segue, os que esperam sua revisão e as verificações que falharam."
+   },
+   "it": {
+    "summary": "Ogni mattina: nuove issue, revisioni che ti aspettano e controlli falliti nei tuoi repository.",
+    "description": "Ogni mattina: nuove issue e pull request nei repository pubblici che segui, quelle che aspettano la tua revisione e i controlli falliti."
+   }
+  },
+  "reading-list": {
+   "es": {
+    "summary": "Mándale enlaces o feeds: ella lleva tu lista de lectura y te da una selección semanal.",
+    "description": "Mándale enlaces o feeds RSS: ella lleva tu lista de lectura y te da una breve selección cada semana. Los feeds solo se leen cuando lo pides, y cada lectura te pide permiso primero."
+   },
+   "fr": {
+    "summary": "Envoyez-lui des liens ou des flux : elle tient votre liste de lecture et vous fait une sélection chaque semaine.",
+    "description": "Envoyez-lui des liens ou des flux RSS : elle tient votre liste de lecture et vous propose une courte sélection chaque semaine. Les flux ne sont lus que quand vous le demandez, et chaque lecture vous demande d'abord votre accord."
+   },
+   "de": {
+    "summary": "Schick ihr Links oder Feeds: Sie führt deine Leseliste und gibt dir jede Woche einen Tipp.",
+    "description": "Schick ihr Links oder RSS-Feeds: Sie führt deine Leseliste und gibt dir jede Woche eine kurze Auswahl. Feeds werden nur gelesen, wenn du darum bittest, und jedes Lesen fragt dich vorher."
+   },
+   "pt-BR": {
+    "summary": "Mande links ou feeds: ela cuida da sua lista de leitura e te dá uma sugestão por semana.",
+    "description": "Mande links ou feeds RSS: ela cuida da sua lista de leitura e te dá uma seleção curta toda semana. Os feeds só são lidos quando você pede, e cada leitura pede sua permissão antes."
+   },
+   "it": {
+    "summary": "Mandale link o feed: lei tiene la tua lista di lettura e ti propone una scelta ogni settimana.",
+    "description": "Mandale link o feed RSS: lei tiene la tua lista di lettura e ti propone una breve scelta ogni settimana. I feed si leggono solo quando lo chiedi, e ogni lettura ti chiede prima il permesso."
+   }
+  },
+  "webhook-notes": {
+   "es": {
+    "summary": "Cuando salta uno de tus webhooks, ella toma una nota ordenada y te avisa si importa.",
+    "description": "Lleva notas ordenadas de tus webhooks: los eventos importantes te los cuenta al momento y el resto va a un breve resumen por la mañana. Se guardan los últimos 50."
+   },
+   "fr": {
+    "summary": "Quand un de vos webhooks se déclenche, elle en garde une note claire et vous dit si c'est important.",
+    "description": "Garde des notes claires de vos webhooks : les événements importants vous sont signalés tout de suite, les autres vont dans un court résumé du matin. Les 50 derniers sont conservés."
+   },
+   "de": {
+    "summary": "Wenn einer deiner Webhooks auslöst, macht sie sich eine saubere Notiz und sagt dir, ob es wichtig ist.",
+    "description": "Führt saubere Notizen zu deinen Webhooks: Wichtige Ereignisse meldet sie sofort, der Rest kommt in eine kurze Morgenübersicht. Die letzten 50 werden aufbewahrt."
+   },
+   "pt-BR": {
+    "summary": "Quando um dos seus webhooks dispara, ela anota tudo direitinho e avisa se for importante.",
+    "description": "Mantém anotações organizadas dos seus webhooks: os eventos importantes ela conta na hora, o resto vai para um resumo curto pela manhã. Os últimos 50 ficam guardados."
+   },
+   "it": {
+    "summary": "Quando scatta uno dei tuoi webhook, lei prende una nota ordinata e ti dice se è importante.",
+    "description": "Tiene note ordinate dei tuoi webhook: gli eventi importanti te li dice subito, il resto finisce in un breve riepilogo del mattino. Conserva gli ultimi 50."
+   }
+  },
+  "comfyui": {
+   "es": {
+    "summary": "Ejecuta tus flujos de ComfyUI para crear y cambiar imágenes en tu propio ordenador.",
+    "description": "ComfyUI es un programa gratuito que crea imágenes con modelos de IA en tu propio ordenador. Con este servidor de herramientas ella puede listar tus flujos, ejecutar uno con tus palabras y enseñarte el resultado."
+   },
+   "fr": {
+    "summary": "Lancez vos workflows ComfyUI pour créer et retoucher des images sur votre propre ordinateur.",
+    "description": "ComfyUI est un programme gratuit qui crée des images avec des modèles d'IA sur votre propre ordinateur. Avec ce serveur d'outils, elle peut lister vos workflows, en lancer un avec vos mots et vous montrer le résultat."
+   },
+   "de": {
+    "summary": "Führe deine ComfyUI-Workflows aus, um Bilder auf deinem eigenen Computer zu erstellen und zu bearbeiten.",
+    "description": "ComfyUI ist ein kostenloses Programm, das mit KI-Modellen Bilder auf deinem eigenen Computer erstellt. Mit diesem Tool-Server kann sie deine Workflows auflisten, einen mit deinen Worten ausführen und dir das Ergebnis zeigen."
+   },
+   "pt-BR": {
+    "summary": "Rode seus fluxos do ComfyUI para criar e editar imagens no seu próprio computador.",
+    "description": "O ComfyUI é um programa gratuito que cria imagens com modelos de IA no seu próprio computador. Com este servidor de ferramentas ela pode listar seus fluxos, rodar um com as suas palavras e mostrar o resultado."
+   },
+   "it": {
+    "summary": "Esegui i tuoi flussi ComfyUI per creare e modificare immagini sul tuo computer.",
+    "description": "ComfyUI è un programma gratuito che crea immagini con modelli di IA sul tuo computer. Con questo server di strumenti lei può elencare i tuoi flussi, eseguirne uno con le tue parole e mostrarti il risultato."
+   }
+  },
+  "blender": {
+   "es": {
+    "summary": "Crea y cambia escenas 3D en Blender mientras lo ves.",
+    "description": "Blender es el programa 3D gratuito. Este servidor de herramientas habla con un pequeño complemento dentro de Blender, así que ella puede mirar tu escena y cambiarla paso a paso."
+   },
+   "fr": {
+    "summary": "Créez et modifiez des scènes 3D dans Blender sous vos yeux.",
+    "description": "Blender est le logiciel 3D gratuit. Ce serveur d'outils parle à un petit module complémentaire dans Blender, pour qu'elle puisse regarder votre scène et la modifier pas à pas."
+   },
+   "de": {
+    "summary": "Baue und verändere 3D-Szenen in Blender, während du zusiehst.",
+    "description": "Blender ist das kostenlose 3D-Programm. Dieser Tool-Server spricht mit einem kleinen Add-on in Blender, damit sie deine Szene ansehen und Schritt für Schritt verändern kann."
+   },
+   "pt-BR": {
+    "summary": "Monte e altere cenas 3D no Blender enquanto você assiste.",
+    "description": "O Blender é o programa 3D gratuito. Este servidor de ferramentas conversa com um pequeno complemento dentro do Blender, assim ela pode olhar sua cena e mudá-la passo a passo."
+   },
+   "it": {
+    "summary": "Crea e modifica scene 3D in Blender mentre guardi.",
+    "description": "Blender è il programma 3D gratuito. Questo server di strumenti parla con un piccolo componente aggiuntivo dentro Blender, così lei può guardare la tua scena e modificarla passo dopo passo."
+   }
+  },
+  "playwright": {
+   "es": {
+    "summary": "Abre páginas web en un navegador real, hace clic, rellena formularios y te enseña lo que ve.",
+    "description": "El servidor de herramientas de Playwright maneja un navegador en este ordenador. Lee las páginas a través de su árbol de accesibilidad, así que es rápido y no necesita imágenes."
+   },
+   "fr": {
+    "summary": "Ouvre des pages web dans un vrai navigateur, clique, remplit des formulaires et vous montre ce qu'il voit.",
+    "description": "Le serveur d'outils de Playwright pilote un navigateur sur cet ordinateur. Il lit les pages via leur arbre d'accessibilité : c'est rapide et il n'a pas besoin d'images."
+   },
+   "de": {
+    "summary": "Öffnet Webseiten in einem echten Browser, klickt, füllt Formulare aus und zeigt dir, was er sieht.",
+    "description": "Der Tool-Server von Playwright steuert einen Browser auf diesem Computer. Er liest Seiten über ihren Barrierefreiheitsbaum, ist daher schnell und braucht keine Bilder."
+   },
+   "pt-BR": {
+    "summary": "Abre páginas num navegador de verdade, clica, preenche formulários e mostra o que vê.",
+    "description": "O servidor de ferramentas do Playwright controla um navegador neste computador. Ele lê as páginas pela árvore de acessibilidade, então é rápido e não precisa de imagens."
+   },
+   "it": {
+    "summary": "Apre pagine web in un vero browser, clicca, compila moduli e ti mostra ciò che vede.",
+    "description": "Il server di strumenti di Playwright guida un browser su questo computer. Legge le pagine tramite l'albero di accessibilità, quindi è veloce e non ha bisogno di immagini."
+   }
+  },
+  "github": {
+   "es": {
+    "summary": "Lee y trabaja en issues, pull requests y código de tus repositorios.",
+    "description": "El servidor de herramientas oficial de GitHub, ejecutado en Docker desde la imagen que publica GitHub, fijado por su digest (versión 0.20.1)."
+   },
+   "fr": {
+    "summary": "Consultez et faites avancer issues, pull requests et code dans vos dépôts.",
+    "description": "Le serveur d'outils officiel de GitHub, lancé dans Docker depuis l'image publiée par GitHub et épinglé par son empreinte (version 0.20.1)."
+   },
+   "de": {
+    "summary": "Lies und bearbeite Issues, Pull Requests und Code in deinen Repositorys.",
+    "description": "Der offizielle Tool-Server von GitHub, in Docker aus dem von GitHub veröffentlichten Image gestartet und über seinen Digest festgelegt (Version 0.20.1)."
+   },
+   "pt-BR": {
+    "summary": "Leia e trabalhe em issues, pull requests e código dos seus repositórios.",
+    "description": "O servidor de ferramentas oficial do GitHub, rodando no Docker a partir da imagem que o GitHub publica, fixado pelo digest (versão 0.20.1)."
+   },
+   "it": {
+    "summary": "Leggi e lavora su issue, pull request e codice dei tuoi repository.",
+    "description": "Il server di strumenti ufficiale di GitHub, eseguito in Docker dall'immagine pubblicata da GitHub e fissato tramite il suo digest (versione 0.20.1)."
+   }
+  },
+  "filesystem": {
+   "es": {
+    "summary": "Lee y edita archivos en la única carpeta que elijas.",
+    "description": "El servidor de archivos de referencia del proyecto Model Context Protocol. Solo ve la carpeta que le das."
+   },
+   "fr": {
+    "summary": "Lit et modifie les fichiers du seul dossier que vous choisissez.",
+    "description": "Le serveur de fichiers de référence du projet Model Context Protocol. Il ne voit que le dossier que vous lui donnez."
+   },
+   "de": {
+    "summary": "Liest und bearbeitet Dateien in dem einen Ordner, den du auswählst.",
+    "description": "Der Referenz-Dateiserver des Model-Context-Protocol-Projekts. Er sieht nur den Ordner, den du ihm gibst."
+   },
+   "pt-BR": {
+    "summary": "Lê e edita arquivos na única pasta que você escolher.",
+    "description": "O servidor de arquivos de referência do projeto Model Context Protocol. Ele só enxerga a pasta que você der."
+   },
+   "it": {
+    "summary": "Legge e modifica i file nell'unica cartella che scegli.",
+    "description": "Il server di file di riferimento del progetto Model Context Protocol. Vede solo la cartella che gli dai."
+   }
+  },
+  "context7": {
+   "es": {
+    "summary": "Consulta la documentación actual de las bibliotecas con las que programas.",
+    "description": "Context7 ofrece documentación y ejemplos de código al día para miles de bibliotecas. Ella lo consulta cuando escribe código con una biblioteca."
+   },
+   "fr": {
+    "summary": "Consulte la documentation à jour des bibliothèques avec lesquelles vous codez.",
+    "description": "Context7 fournit une documentation et des exemples de code à jour pour des milliers de bibliothèques. Elle le consulte quand elle écrit du code avec une bibliothèque."
+   },
+   "de": {
+    "summary": "Schlägt die aktuelle Dokumentation der Bibliotheken nach, mit denen du programmierst.",
+    "description": "Context7 liefert aktuelle Dokumentation und Codebeispiele für Tausende von Bibliotheken. Sie fragt dort nach, wenn sie Code mit einer Bibliothek schreibt."
+   },
+   "pt-BR": {
+    "summary": "Consulta a documentação atual das bibliotecas com que você programa.",
+    "description": "O Context7 oferece documentação e exemplos de código atualizados para milhares de bibliotecas. Ela consulta quando escreve código com uma biblioteca."
+   },
+   "it": {
+    "summary": "Consulta la documentazione aggiornata delle librerie con cui programmi.",
+    "description": "Context7 offre documentazione ed esempi di codice aggiornati per migliaia di librerie. Lei lo consulta quando scrive codice con una libreria."
+   }
+  },
+  "secret-scanner": {
+   "es": {
+    "summary": "Detecta patrones de credenciales en archivos de texto que le das tú; devuelve ubicaciones e IDs de hallazgo sin los valores. Nunca escanea el disco por su cuenta.",
+    "description": "Detecta patrones de credenciales en archivos de texto que le das tú; devuelve ubicaciones e IDs de hallazgo sin los valores. Nunca escanea el disco por su cuenta."
+   },
+   "fr": {
+    "summary": "Repère des motifs d'identifiants dans les fichiers texte que vous fournissez ; renvoie les emplacements et des identifiants de résultat sans les valeurs. Aucune analyse automatique du disque.",
+    "description": "Repère des motifs d'identifiants dans les fichiers texte que vous fournissez ; renvoie les emplacements et des identifiants de résultat sans les valeurs. Aucune analyse automatique du disque."
+   },
+   "de": {
+    "summary": "Findet Zugangsdaten-Muster in Textdateien, die du ausdrücklich übergibst; liefert Fundstellen und Fund-IDs ohne die Werte. Kein automatischer Festplatten-Scan.",
+    "description": "Findet Zugangsdaten-Muster in Textdateien, die du ausdrücklich übergibst; liefert Fundstellen und Fund-IDs ohne die Werte. Kein automatischer Festplatten-Scan."
+   },
+   "pt-BR": {
+    "summary": "Encontra padrões de credenciais nos arquivos de texto que você fornece; devolve locais e IDs de achado sem os valores. Nada de varredura automática do disco.",
+    "description": "Encontra padrões de credenciais nos arquivos de texto que você fornece; devolve locais e IDs de achado sem os valores. Nada de varredura automática do disco."
+   },
+   "it": {
+    "summary": "Trova schemi di credenziali nei file di testo che fornisci tu; restituisce posizioni e ID dei risultati senza i valori. Nessuna scansione automatica del disco.",
+    "description": "Trova schemi di credenziali nei file di testo che fornisci tu; restituisce posizioni e ID dei risultati senza i valori. Nessuna scansione automatica del disco."
+   }
+  },
+  "license-auditor": {
+   "es": {
+    "summary": "Revisa las licencias de un lockfile npm v2/v3 y sus expresiones SPDX según tu política explícita de permitidas y prohibidas. Lo desconocido queda para revisar; no es asesoría legal.",
+    "description": "Revisa las licencias de un lockfile npm v2/v3 y sus expresiones SPDX según tu política explícita de permitidas y prohibidas. Lo desconocido queda para revisar; no es asesoría legal."
+   },
+   "fr": {
+    "summary": "Contrôle les licences d'un lockfile npm v2/v3 et leurs expressions SPDX selon votre politique explicite d'autorisation et d'interdiction. L'inconnu est à revoir ; ce n'est pas un avis juridique.",
+    "description": "Contrôle les licences d'un lockfile npm v2/v3 et leurs expressions SPDX selon votre politique explicite d'autorisation et d'interdiction. L'inconnu est à revoir ; ce n'est pas un avis juridique."
+   },
+   "de": {
+    "summary": "Prüft Lizenzangaben und SPDX-Ausdrücke aus npm-Lockfiles v2/v3 gegen deine ausdrückliche Erlauben/Verbieten-Regel. Unbekanntes muss geprüft werden; keine Rechtsberatung.",
+    "description": "Prüft Lizenzangaben und SPDX-Ausdrücke aus npm-Lockfiles v2/v3 gegen deine ausdrückliche Erlauben/Verbieten-Regel. Unbekanntes muss geprüft werden; keine Rechtsberatung."
+   },
+   "pt-BR": {
+    "summary": "Confere as licenças de um lockfile npm v2/v3 e as expressões SPDX contra a sua política explícita de permitidas e proibidas. O desconhecido fica para revisão; não é consultoria jurídica.",
+    "description": "Confere as licenças de um lockfile npm v2/v3 e as expressões SPDX contra a sua política explícita de permitidas e proibidas. O desconhecido fica para revisão; não é consultoria jurídica."
+   },
+   "it": {
+    "summary": "Controlla le licenze di un lockfile npm v2/v3 e le espressioni SPDX rispetto alla tua politica esplicita di licenze ammesse e vietate. Le sconosciute vanno riviste; non è una consulenza legale.",
+    "description": "Controlla le licenze di un lockfile npm v2/v3 e le espressioni SPDX rispetto alla tua politica esplicita di licenze ammesse e vietate. Le sconosciute vanno riviste; non è una consulenza legale."
+   }
+  },
+  "sbom-builder": {
+   "es": {
+    "summary": "Genera un inventario npm CycloneDX 1.5 reproducible a partir de tu lockfile v2/v3, con identidades anidadas, purls y hashes SRI. No instala dependencias.",
+    "description": "Genera un inventario npm CycloneDX 1.5 reproducible a partir de tu lockfile v2/v3, con identidades anidadas, purls y hashes SRI. No instala dependencias."
+   },
+   "fr": {
+    "summary": "Produit un inventaire npm CycloneDX 1.5 reproductible à partir de votre lockfile v2/v3, avec identités imbriquées, purls et empreintes SRI. N'installe aucune dépendance.",
+    "description": "Produit un inventaire npm CycloneDX 1.5 reproductible à partir de votre lockfile v2/v3, avec identités imbriquées, purls et empreintes SRI. N'installe aucune dépendance."
+   },
+   "de": {
+    "summary": "Erstellt aus deinem Lockfile v2/v3 ein reproduzierbares CycloneDX-1.5-Inventar für npm, mit verschachtelten Identitäten, purls und SRI-Hashes. Installiert keine Abhängigkeiten.",
+    "description": "Erstellt aus deinem Lockfile v2/v3 ein reproduzierbares CycloneDX-1.5-Inventar für npm, mit verschachtelten Identitäten, purls und SRI-Hashes. Installiert keine Abhängigkeiten."
+   },
+   "pt-BR": {
+    "summary": "Gera um inventário npm CycloneDX 1.5 reproduzível a partir do seu lockfile v2/v3, com identidades aninhadas, purls e hashes SRI. Não instala dependências.",
+    "description": "Gera um inventário npm CycloneDX 1.5 reproduzível a partir do seu lockfile v2/v3, com identidades aninhadas, purls e hashes SRI. Não instala dependências."
+   },
+   "it": {
+    "summary": "Crea un inventario npm CycloneDX 1.5 riproducibile dal tuo lockfile v2/v3, con identità annidate, purl e hash SRI. Non installa dipendenze.",
+    "description": "Crea un inventario npm CycloneDX 1.5 riproducibile dal tuo lockfile v2/v3, con identità annidate, purl e hash SRI. Non installa dipendenze."
+   }
+  },
+  "artifact-provenance-verifier": {
+   "es": {
+    "summary": "Verifica los bytes de un artefacto con SHA-256, Ed25519, la huella de una clave pública fijada y la identidad esperada. Solo sobres locales v1, no Sigstore/SLSA.",
+    "description": "Verifica los bytes de un artefacto con SHA-256, Ed25519, la huella de una clave pública fijada y la identidad esperada. Solo sobres locales v1, no Sigstore/SLSA."
+   },
+   "fr": {
+    "summary": "Vérifie les octets d'un artefact avec SHA-256, Ed25519, l'empreinte d'une clé publique épinglée et l'identité attendue. Enveloppes locales v1 uniquement, pas Sigstore/SLSA.",
+    "description": "Vérifie les octets d'un artefact avec SHA-256, Ed25519, l'empreinte d'une clé publique épinglée et l'identité attendue. Enveloppes locales v1 uniquement, pas Sigstore/SLSA."
+   },
+   "de": {
+    "summary": "Prüft übergebene Artefakt-Bytes mit SHA-256, Ed25519, dem Fingerabdruck eines festgelegten öffentlichen Schlüssels und der erwarteten Identität. Nur lokale Umschläge v1, nicht Sigstore/SLSA.",
+    "description": "Prüft übergebene Artefakt-Bytes mit SHA-256, Ed25519, dem Fingerabdruck eines festgelegten öffentlichen Schlüssels und der erwarteten Identität. Nur lokale Umschläge v1, nicht Sigstore/SLSA."
+   },
+   "pt-BR": {
+    "summary": "Verifica os bytes de um artefato com SHA-256, Ed25519, a impressão de uma chave pública fixada e a identidade esperada. Só envelopes locais v1, não Sigstore/SLSA.",
+    "description": "Verifica os bytes de um artefato com SHA-256, Ed25519, a impressão de uma chave pública fixada e a identidade esperada. Só envelopes locais v1, não Sigstore/SLSA."
+   },
+   "it": {
+    "summary": "Verifica i byte di un artefatto con SHA-256, Ed25519, l'impronta di una chiave pubblica fissata e l'identità attesa. Solo buste locali v1, non Sigstore/SLSA.",
+    "description": "Verifica i byte di un artefatto con SHA-256, Ed25519, l'impronta di una chiave pubblica fissata e l'identità attesa. Solo buste locali v1, non Sigstore/SLSA."
+   }
+  },
+  "coverage-explorer": {
+   "es": {
+    "summary": "Lee el LCOV, el código y los rangos cambiados que le das, y señala las ramas cambiadas sin pruebas.",
+    "description": "Lee el LCOV, el código y los rangos cambiados que le das, y señala las ramas cambiadas sin pruebas."
+   },
+   "fr": {
+    "summary": "Lit le LCOV, le code et les plages modifiées que vous fournissez, et repère les branches modifiées non testées.",
+    "description": "Lit le LCOV, le code et les plages modifiées que vous fournissez, et repère les branches modifiées non testées."
+   },
+   "de": {
+    "summary": "Liest übergebenes LCOV, Quellcode und geänderte Bereiche und findet ungetestete geänderte Zweige.",
+    "description": "Liest übergebenes LCOV, Quellcode und geänderte Bereiche und findet ungetestete geänderte Zweige."
+   },
+   "pt-BR": {
+    "summary": "Lê o LCOV, o código e os trechos alterados que você fornece e aponta os ramos alterados sem teste.",
+    "description": "Lê o LCOV, o código e os trechos alterados que você fornece e aponta os ramos alterados sem teste."
+   },
+   "it": {
+    "summary": "Legge LCOV, codice e intervalli modificati che fornisci e trova i rami modificati senza test.",
+    "description": "Legge LCOV, codice e intervalli modificati che fornisci e trova i rami modificati senza test."
+   }
+  },
+  "log-explorer": {
+   "es": {
+    "summary": "Busca en los logs estructurados y de líneas que le das, con los mensajes censurados y citas de archivo y hora.",
+    "description": "Busca en los logs estructurados y de líneas que le das, con los mensajes censurados y citas de archivo y hora."
+   },
+   "fr": {
+    "summary": "Cherche dans les logs structurés ou en lignes que vous fournissez, avec messages masqués et références de fichier et d'heure.",
+    "description": "Cherche dans les logs structurés ou en lignes que vous fournissez, avec messages masqués et références de fichier et d'heure."
+   },
+   "de": {
+    "summary": "Durchsucht übergebene strukturierte und zeilenweise Logs, mit geschwärzten Meldungen und Datei- und Zeitangaben.",
+    "description": "Durchsucht übergebene strukturierte und zeilenweise Logs, mit geschwärzten Meldungen und Datei- und Zeitangaben."
+   },
+   "pt-BR": {
+    "summary": "Busca nos logs estruturados e de linhas que você fornece, com mensagens ocultadas e citações de arquivo e horário.",
+    "description": "Busca nos logs estruturados e de linhas que você fornece, com mensagens ocultadas e citações de arquivo e horário."
+   },
+   "it": {
+    "summary": "Cerca nei log strutturati e a righe che fornisci, con messaggi oscurati e riferimenti a file e orario.",
+    "description": "Cerca nei log strutturati e a righe che fornisci, con messaggi oscurati e riferimenti a file e orario."
+   }
+  },
+  "incident-workbench": {
+   "es": {
+    "summary": "Monta una cronología con citas a partir de las pruebas de despliegues, métricas, alertas y operadores que le das; nunca deduce causas.",
+    "description": "Monta una cronología con citas a partir de las pruebas de despliegues, métricas, alertas y operadores que le das; nunca deduce causas."
+   },
+   "fr": {
+    "summary": "Construit une chronologie sourcée à partir des preuves de déploiement, métriques, alertes et opérateurs que vous fournissez ; ne déduit jamais de causes.",
+    "description": "Construit une chronologie sourcée à partir des preuves de déploiement, métriques, alertes et opérateurs que vous fournissez ; ne déduit jamais de causes."
+   },
+   "de": {
+    "summary": "Stellt aus übergebenen Belegen zu Deployments, Metriken, Alarmen und Bedienern eine belegte Chronologie zusammen; leitet nie Ursachen ab.",
+    "description": "Stellt aus übergebenen Belegen zu Deployments, Metriken, Alarmen und Bedienern eine belegte Chronologie zusammen; leitet nie Ursachen ab."
+   },
+   "pt-BR": {
+    "summary": "Monta uma cronologia com fontes a partir das evidências de deploys, métricas, alertas e operadores que você fornece; nunca deduz causas.",
+    "description": "Monta uma cronologia com fontes a partir das evidências de deploys, métricas, alertas e operadores que você fornece; nunca deduz causas."
+   },
+   "it": {
+    "summary": "Ricostruisce una cronologia con fonti dalle prove di deploy, metriche, allarmi e operatori che fornisci; non deduce mai le cause.",
+    "description": "Ricostruisce una cronologia con fonti dalle prove di deploy, metriche, allarmi e operatori che fornisci; non deduce mai le cause."
+   }
+  },
+  "environment-config-doctor": {
+   "es": {
+    "summary": "Valida archivos dotenv o JSON que le das contra reglas tipadas; devuelve números de regla, nunca valores ni resúmenes de ellos.",
+    "description": "Valida archivos dotenv o JSON que le das contra reglas tipadas; devuelve números de regla, nunca valores ni resúmenes de ellos."
+   },
+   "fr": {
+    "summary": "Valide les fichiers dotenv ou JSON que vous fournissez selon des règles typées ; renvoie des numéros de règle, jamais de valeurs ni d'empreintes.",
+    "description": "Valide les fichiers dotenv ou JSON que vous fournissez selon des règles typées ; renvoie des numéros de règle, jamais de valeurs ni d'empreintes."
+   },
+   "de": {
+    "summary": "Prüft ausdrücklich übergebene dotenv- oder JSON-Dateien gegen typisierte Regeln; liefert Regelnummern, nie Werte oder deren Hashes.",
+    "description": "Prüft ausdrücklich übergebene dotenv- oder JSON-Dateien gegen typisierte Regeln; liefert Regelnummern, nie Werte oder deren Hashes."
+   },
+   "pt-BR": {
+    "summary": "Valida arquivos dotenv ou JSON fornecidos contra regras tipadas; devolve números de regra, nunca valores nem resumos deles.",
+    "description": "Valida arquivos dotenv ou JSON fornecidos contra regras tipadas; devolve números de regra, nunca valores nem resumos deles."
+   },
+   "it": {
+    "summary": "Valida file dotenv o JSON forniti esplicitamente con regole tipizzate; restituisce i numeri delle regole, mai valori o loro hash.",
+    "description": "Valida file dotenv o JSON forniti esplicitamente con regole tipizzate; restituisce i numeri delle regole, mai valori o loro hash."
+   }
+  },
+  "database-fixture-studio": {
+   "es": {
+    "summary": "Genera filas relacionales sintéticas con semilla y SQL de SQLite ejecutable desde un esquema acotado. Sin conexión a bases de datos ni importación de datos personales.",
+    "description": "Genera filas relacionales sintéticas con semilla y SQL de SQLite ejecutable desde un esquema acotado. Sin conexión a bases de datos ni importación de datos personales."
+   },
+   "fr": {
+    "summary": "Génère des lignes relationnelles synthétiques reproductibles et du SQL SQLite exécutable à partir d'un schéma borné. Sans connexion à une base ni import de données personnelles.",
+    "description": "Génère des lignes relationnelles synthétiques reproductibles et du SQL SQLite exécutable à partir d'un schéma borné. Sans connexion à une base ni import de données personnelles."
+   },
+   "de": {
+    "summary": "Erzeugt reproduzierbare synthetische relationale Zeilen und ausführbares SQLite-SQL aus einem begrenzten Schema. Keine Datenbankverbindung, kein Import persönlicher Daten.",
+    "description": "Erzeugt reproduzierbare synthetische relationale Zeilen und ausführbares SQLite-SQL aus einem begrenzten Schema. Keine Datenbankverbindung, kein Import persönlicher Daten."
+   },
+   "pt-BR": {
+    "summary": "Gera linhas relacionais sintéticas com semente e SQL de SQLite executável a partir de um esquema limitado. Sem conexão com banco de dados nem importação de dados pessoais.",
+    "description": "Gera linhas relacionais sintéticas com semente e SQL de SQLite executável a partir de um esquema limitado. Sem conexão com banco de dados nem importação de dados pessoais."
+   },
+   "it": {
+    "summary": "Genera righe relazionali sintetiche riproducibili e SQL SQLite eseguibile da uno schema limitato. Nessuna connessione a database né importazione di dati personali.",
+    "description": "Genera righe relazionali sintetiche riproducibili e SQL SQLite eseguibile da uno schema limitato. Nessuna connessione a database né importazione di dati personali."
+   }
+  },
+  "data-contract-validator": {
+   "es": {
+    "summary": "Valida datos concretos y compara contratos acotados de JSON Schema draft-07 o Protobuf con bibliotecas fijadas. Rechaza lo que no admite.",
+    "description": "Valida datos concretos y compara contratos acotados de JSON Schema draft-07 o Protobuf con bibliotecas fijadas. Rechaza lo que no admite."
+   },
+   "fr": {
+    "summary": "Valide des données précises et compare des contrats bornés JSON Schema draft-07 ou Protobuf avec des bibliothèques épinglées. Ce qui n'est pas pris en charge est refusé.",
+    "description": "Valide des données précises et compare des contrats bornés JSON Schema draft-07 ou Protobuf avec des bibliothèques épinglées. Ce qui n'est pas pris en charge est refusé."
+   },
+   "de": {
+    "summary": "Prüft konkrete Daten und vergleicht begrenzte Verträge in JSON Schema draft-07 oder Protobuf mit festgelegten Bibliotheken. Nicht unterstützte Konstrukte werden abgelehnt.",
+    "description": "Prüft konkrete Daten und vergleicht begrenzte Verträge in JSON Schema draft-07 oder Protobuf mit festgelegten Bibliotheken. Nicht unterstützte Konstrukte werden abgelehnt."
+   },
+   "pt-BR": {
+    "summary": "Valida dados específicos e compara contratos limitados de JSON Schema draft-07 ou Protobuf com bibliotecas fixadas. O que não é suportado é recusado.",
+    "description": "Valida dados específicos e compara contratos limitados de JSON Schema draft-07 ou Protobuf com bibliotecas fixadas. O que não é suportado é recusado."
+   },
+   "it": {
+    "summary": "Valida dati specifici e confronta contratti limitati JSON Schema draft-07 o Protobuf con librerie fissate. I costrutti non supportati vengono rifiutati.",
+    "description": "Valida dati specifici e confronta contratti limitati JSON Schema draft-07 o Protobuf con librerie fissate. I costrutti non supportati vengono rifiutati."
+   }
+  },
+  "change-impact-analyzer": {
+   "es": {
+    "summary": "Relaciona una función cambiada con sus llamadas resueltas estáticamente, paquetes y pruebas que le das. Solo una instantánea explícita del código; sin ejecutar ni prometer cobertura real.",
+    "description": "Relaciona una función cambiada con sus llamadas resueltas estáticamente, paquetes y pruebas que le das. Solo una instantánea explícita del código; sin ejecutar ni prometer cobertura real."
+   },
+   "fr": {
+    "summary": "Relie une fonction modifiée à ses appelants résolus statiquement, à ses paquets et aux tests fournis. Un instantané explicite du code seulement ; aucune exécution ni promesse de couverture réelle.",
+    "description": "Relie une fonction modifiée à ses appelants résolus statiquement, à ses paquets et aux tests fournis. Un instantané explicite du code seulement ; aucune exécution ni promesse de couverture réelle."
+   },
+   "de": {
+    "summary": "Ordnet eine geänderte Funktion ihren statisch aufgelösten Aufrufern, Paketen und übergebenen Tests zu. Nur ein ausdrücklicher Code-Stand; keine Ausführung, keine Aussage über echte Abdeckung.",
+    "description": "Ordnet eine geänderte Funktion ihren statisch aufgelösten Aufrufern, Paketen und übergebenen Tests zu. Nur ein ausdrücklicher Code-Stand; keine Ausführung, keine Aussage über echte Abdeckung."
+   },
+   "pt-BR": {
+    "summary": "Liga uma função alterada a quem a chama (resolvido estaticamente), aos pacotes e aos testes fornecidos. Só um retrato explícito do código; sem execução nem promessa de cobertura real.",
+    "description": "Liga uma função alterada a quem a chama (resolvido estaticamente), aos pacotes e aos testes fornecidos. Só um retrato explícito do código; sem execução nem promessa de cobertura real."
+   },
+   "it": {
+    "summary": "Collega una funzione modificata ai chiamanti risolti staticamente, ai pacchetti e ai test forniti. Solo un'istantanea esplicita del codice; nessuna esecuzione né promessa di copertura reale.",
+    "description": "Collega una funzione modificata ai chiamanti risolti staticamente, ai pacchetti e ai test forniti. Solo un'istantanea esplicita del codice; nessuna esecuzione né promessa di copertura reale."
+   }
+  },
+  "architecture-guard": {
+   "es": {
+    "summary": "Comprueba los imports estáticos entre módulos contra imports prohibidos y reglas de capas explícitas, y muestra ciclos de dependencias con pruebas. Solo el código que le das.",
+    "description": "Comprueba los imports estáticos entre módulos contra imports prohibidos y reglas de capas explícitas, y muestra ciclos de dependencias con pruebas. Solo el código que le das; nunca ejecuta un proyecto."
+   },
+   "fr": {
+    "summary": "Vérifie les imports statiques entre modules face à des imports interdits et des règles de couches explicites, et montre les cycles de dépendances avec preuves. Code fourni seulement, jamais exécuté.",
+    "description": "Vérifie les imports statiques entre modules face à des imports interdits et des règles de couches explicites, et montre les cycles de dépendances avec preuves. Code fourni seulement, jamais exécuté."
+   },
+   "de": {
+    "summary": "Prüft statische Modul-Imports gegen ausdrücklich verbotene Imports und Schichtregeln und zeigt Abhängigkeitszyklen mit Belegen. Nur übergebener Code; führt nie ein Projekt aus.",
+    "description": "Prüft statische Modul-Imports gegen ausdrücklich verbotene Imports und Schichtregeln und zeigt Abhängigkeitszyklen mit Belegen. Nur übergebener Code; führt nie ein Projekt aus."
+   },
+   "pt-BR": {
+    "summary": "Confere os imports estáticos entre módulos contra imports proibidos e regras de camadas explícitas, e mostra ciclos de dependência com evidência. Só o código fornecido; nunca executa um projeto.",
+    "description": "Confere os imports estáticos entre módulos contra imports proibidos e regras de camadas explícitas, e mostra ciclos de dependência com evidência. Só o código fornecido; nunca executa um projeto."
+   },
+   "it": {
+    "summary": "Controlla gli import statici tra moduli rispetto a import vietati e regole di livello esplicite, e mostra i cicli di dipendenze con prove. Solo codice fornito; non esegue mai un progetto.",
+    "description": "Controlla gli import statici tra moduli rispetto a import vietati e regole di livello esplicite, e mostra i cicli di dipendenze con prove. Solo codice fornito; non esegue mai un progetto."
+   }
+  },
+  "sql-migration-reviewer": {
+   "es": {
+    "summary": "Ensaya DDL aditivo y acotado de SQLite en memoria desechable, con filas sintéticas y prueba de vuelta atrás. Sin base de datos real ni acceso al espacio de trabajo.",
+    "description": "Ensaya DDL aditivo y acotado de SQLite en memoria desechable, con filas sintéticas y prueba de vuelta atrás. Sin base de datos real ni acceso al espacio de trabajo."
+   },
+   "fr": {
+    "summary": "Répète un DDL SQLite additif et borné en mémoire jetable, avec des lignes synthétiques et une preuve de retour arrière. Sans base réelle ni accès à l'espace de travail.",
+    "description": "Répète un DDL SQLite additif et borné en mémoire jetable, avec des lignes synthétiques et une preuve de retour arrière. Sans base réelle ni accès à l'espace de travail."
+   },
+   "de": {
+    "summary": "Probt begrenzte, additive SQLite-DDL in einem Wegwerf-Speicher mit synthetischen Zeilen und Rückroll-Beleg. Keine echte Datenbank, kein Zugriff auf den Arbeitsbereich.",
+    "description": "Probt begrenzte, additive SQLite-DDL in einem Wegwerf-Speicher mit synthetischen Zeilen und Rückroll-Beleg. Keine echte Datenbank, kein Zugriff auf den Arbeitsbereich."
+   },
+   "pt-BR": {
+    "summary": "Ensaia DDL de SQLite aditivo e limitado em memória descartável, com linhas sintéticas e prova de reversão. Sem banco real nem acesso ao espaço de trabalho.",
+    "description": "Ensaia DDL de SQLite aditivo e limitado em memória descartável, com linhas sintéticas e prova de reversão. Sem banco real nem acesso ao espaço de trabalho."
+   },
+   "it": {
+    "summary": "Prova DDL SQLite additivo e limitato in memoria usa e getta, con righe sintetiche e prova di ripristino. Nessun database reale né accesso all'area di lavoro.",
+    "description": "Prova DDL SQLite additivo e limitato in memoria usa e getta, con righe sintetiche e prova di ripristino. Nessun database reale né accesso all'area di lavoro."
+   }
+  },
+  "visual-regression": {
+   "es": {
+    "summary": "Compara pares de PNG que le das, sin conexión, en tamaños de escritorio y móvil. Solo píxeles exactos; no captura ni abre URLs. Las imágenes pueden ser sensibles.",
+    "description": "Compara pares de PNG que le das, sin conexión, en tamaños de escritorio y móvil. Solo píxeles exactos; no captura ni abre URLs. Las imágenes pueden ser sensibles."
+   },
+   "fr": {
+    "summary": "Compare hors ligne des paires de PNG fournies, en tailles ordinateur et téléphone. Pixels exacts uniquement ; ni capture ni URL. Les images peuvent être sensibles.",
+    "description": "Compare hors ligne des paires de PNG fournies, en tailles ordinateur et téléphone. Pixels exacts uniquement ; ni capture ni URL. Les images peuvent être sensibles."
+   },
+   "de": {
+    "summary": "Vergleicht übergebene PNG-Paare offline in Desktop- und Handygröße. Nur exakte Pixel; keine Aufnahme, keine URLs. Die Bilder können vertraulich sein.",
+    "description": "Vergleicht übergebene PNG-Paare offline in Desktop- und Handygröße. Nur exakte Pixel; keine Aufnahme, keine URLs. Die Bilder können vertraulich sein."
+   },
+   "pt-BR": {
+    "summary": "Compara pares de PNG fornecidos, offline, em tamanhos de desktop e celular. Só pixels exatos; sem captura nem URLs. As imagens podem ser sensíveis.",
+    "description": "Compara pares de PNG fornecidos, offline, em tamanhos de desktop e celular. Só pixels exatos; sem captura nem URLs. As imagens podem ser sensíveis."
+   },
+   "it": {
+    "summary": "Confronta offline coppie di PNG fornite, in formato desktop e telefono. Solo pixel esatti; nessuna cattura né URL. Le immagini possono essere riservate.",
+    "description": "Confronta offline coppie di PNG fornite, in formato desktop e telefono. Solo pixel esatti; nessuna cattura né URL. Le immagini possono essere riservate."
+   }
+  },
+  "localization-qa": {
+   "es": {
+    "summary": "Revisa catálogos planos, marcadores con nombre y las medidas de renderizado de tus propios ejemplos. Sin capturas en vivo ni acceso al espacio de trabajo.",
+    "description": "Revisa catálogos planos, marcadores con nombre y las medidas de renderizado de tus propios ejemplos. Sin capturas en vivo ni acceso al espacio de trabajo."
+   },
+   "fr": {
+    "summary": "Contrôle les catalogues plats, les espaces réservés nommés et les mesures de rendu de vos propres exemples. Ni capture en direct ni accès à l'espace de travail.",
+    "description": "Contrôle les catalogues plats, les espaces réservés nommés et les mesures de rendu de vos propres exemples. Ni capture en direct ni accès à l'espace de travail."
+   },
+   "de": {
+    "summary": "Prüft flache Kataloge, benannte Platzhalter und Render-Messungen deiner eigenen Beispiele. Keine Live-Aufnahme, kein Zugriff auf den Arbeitsbereich.",
+    "description": "Prüft flache Kataloge, benannte Platzhalter und Render-Messungen deiner eigenen Beispiele. Keine Live-Aufnahme, kein Zugriff auf den Arbeitsbereich."
+   },
+   "pt-BR": {
+    "summary": "Confere catálogos simples, marcadores com nome e medidas de renderização dos seus próprios exemplos. Sem captura ao vivo nem acesso ao espaço de trabalho.",
+    "description": "Confere catálogos simples, marcadores com nome e medidas de renderização dos seus próprios exemplos. Sem captura ao vivo nem acesso ao espaço de trabalho."
+   },
+   "it": {
+    "summary": "Controlla cataloghi piatti, segnaposto con nome e misure di rendering dei tuoi esempi. Nessuna cattura dal vivo né accesso all'area di lavoro.",
+    "description": "Controlla cataloghi piatti, segnaposto con nome e misure di rendering dei tuoi esempi. Nessuna cattura dal vivo né accesso all'area di lavoro."
+   }
+  },
+  "accessibility-auditor": {
+   "es": {
+    "summary": "Analiza el HTML que le das, sin conexión. Solo hallazgos de estructura: no captura, no renderiza ni da un veredicto WCAG. El HTML puede ser sensible.",
+    "description": "Analiza el HTML que le das, sin conexión. Solo hallazgos de estructura: no captura, no renderiza ni da un veredicto WCAG. El HTML puede ser sensible."
+   },
+   "fr": {
+    "summary": "Analyse hors ligne le HTML fourni. Constats de structure uniquement : ni capture, ni rendu, ni verdict WCAG. Le HTML peut être sensible.",
+    "description": "Analyse hors ligne le HTML fourni. Constats de structure uniquement : ni capture, ni rendu, ni verdict WCAG. Le HTML peut être sensible."
+   },
+   "de": {
+    "summary": "Analysiert übergebenes HTML offline. Nur Befunde zur Struktur; keine Aufnahme, kein Rendern, kein WCAG-Urteil. Das HTML kann vertraulich sein.",
+    "description": "Analysiert übergebenes HTML offline. Nur Befunde zur Struktur; keine Aufnahme, kein Rendern, kein WCAG-Urteil. Das HTML kann vertraulich sein."
+   },
+   "pt-BR": {
+    "summary": "Analisa offline o HTML fornecido. Só achados de estrutura: sem captura, sem renderização e sem veredito WCAG. O HTML pode ser sensível.",
+    "description": "Analisa offline o HTML fornecido. Só achados de estrutura: sem captura, sem renderização e sem veredito WCAG. O HTML pode ser sensível."
+   },
+   "it": {
+    "summary": "Analizza offline l'HTML fornito. Solo risultati strutturali: nessuna cattura, nessun rendering, nessun verdetto WCAG. L'HTML può essere riservato.",
+    "description": "Analizza offline l'HTML fornito. Solo risultati strutturali: nessuna cattura, nessun rendering, nessun verdetto WCAG. L'HTML può essere riservato."
+   }
+  },
+  "build-cache-inspector": {
+   "es": {
+    "summary": "Mide una caché nativa preparada por el operador y muestra qué se podría podar. No cambia nada ni accede al proyecto seleccionado.",
+    "description": "Mide una caché nativa preparada por el operador y muestra qué se podría podar. No cambia nada ni accede al proyecto seleccionado."
+   },
+   "fr": {
+    "summary": "Mesure un cache natif préparé par l'opérateur et prévisualise le nettoyage. Ne change rien et n'accède pas au projet choisi.",
+    "description": "Mesure un cache natif préparé par l'opérateur et prévisualise le nettoyage. Ne change rien et n'accède pas au projet choisi."
+   },
+   "de": {
+    "summary": "Misst einen vom Bediener bereitgestellten nativen Cache und zeigt vorab, was sich aufräumen ließe. Ändert nichts, kein Zugriff auf das gewählte Projekt.",
+    "description": "Misst einen vom Bediener bereitgestellten nativen Cache und zeigt vorab, was sich aufräumen ließe. Ändert nichts, kein Zugriff auf das gewählte Projekt."
+   },
+   "pt-BR": {
+    "summary": "Mede um cache nativo preparado pelo operador e mostra o que daria para limpar. Não muda nada nem acessa o projeto selecionado.",
+    "description": "Mede um cache nativo preparado pelo operador e mostra o que daria para limpar. Não muda nada nem acessa o projeto selecionado."
+   },
+   "it": {
+    "summary": "Misura una cache nativa preparata dall'operatore e mostra in anteprima cosa si potrebbe ripulire. Non cambia nulla e non accede al progetto scelto.",
+    "description": "Misura una cache nativa preparata dall'operatore e mostra in anteprima cosa si potrebbe ripulire. Non cambia nulla e non accede al progetto scelto."
+   }
+  },
+  "api-contract-guard": {
+   "es": {
+    "summary": "Compara contratos OpenAPI JSON acotados, sin conexión.",
+    "description": "Compara contratos OpenAPI JSON acotados, sin conexión."
+   },
+   "fr": {
+    "summary": "Compare hors ligne des contrats OpenAPI JSON bornés.",
+    "description": "Compare hors ligne des contrats OpenAPI JSON bornés."
+   },
+   "de": {
+    "summary": "Vergleicht begrenzte OpenAPI-JSON-Verträge offline.",
+    "description": "Vergleicht begrenzte OpenAPI-JSON-Verträge offline."
+   },
+   "pt-BR": {
+    "summary": "Compara contratos OpenAPI JSON limitados, offline.",
+    "description": "Compara contratos OpenAPI JSON limitados, offline."
+   },
+   "it": {
+    "summary": "Confronta offline contratti OpenAPI JSON limitati.",
+    "description": "Confronta offline contratti OpenAPI JSON limitati."
+   }
+  },
+  "http-webhook-workbench": {
+   "es": {
+    "summary": "Envía una petición HTTP a loopback y, si quieres, la repite una vez. Las llamadas pueden tener efectos. Los campos sensibles se censuran.",
+    "description": "Envía una petición HTTP a loopback y, si quieres, la repite una vez. Las llamadas pueden tener efectos. Los campos sensibles se censuran."
+   },
+   "fr": {
+    "summary": "Envoie une requête HTTP en loopback et peut la rejouer une fois. Les appels peuvent avoir des effets. Les champs sensibles sont masqués.",
+    "description": "Envoie une requête HTTP en loopback et peut la rejouer une fois. Les appels peuvent avoir des effets. Les champs sensibles sont masqués."
+   },
+   "de": {
+    "summary": "Sendet eine HTTP-Anfrage an Loopback und wiederholt sie auf Wunsch einmal. Aufrufe können Folgen haben. Vertrauliche Felder werden geschwärzt.",
+    "description": "Sendet eine HTTP-Anfrage an Loopback und wiederholt sie auf Wunsch einmal. Aufrufe können Folgen haben. Vertrauliche Felder werden geschwärzt."
+   },
+   "pt-BR": {
+    "summary": "Envia uma requisição HTTP para loopback e, se quiser, repete uma vez. As chamadas podem ter efeitos. Campos sensíveis são ocultados.",
+    "description": "Envia uma requisição HTTP para loopback e, se quiser, repete uma vez. As chamadas podem ter efeitos. Campos sensíveis são ocultados."
+   },
+   "it": {
+    "summary": "Invia una richiesta HTTP in loopback e, se vuoi, la ripete una volta. Le chiamate possono avere effetti. I campi sensibili vengono oscurati.",
+    "description": "Invia una richiesta HTTP in loopback e, se vuoi, la ripete una volta. Le chiamate possono avere effetti. I campi sensibili vengono oscurati."
+   }
+  },
+  "build-reproducibility-inspector": {
+   "es": {
+    "summary": "Compila dos veces un ejemplo preparado en entornos aislados, compara los hashes de los artefactos y explica las diferencias por fechas o rutas.",
+    "description": "Compila dos veces un ejemplo preparado en entornos aislados, compara los hashes de los artefactos y explica las diferencias por fechas o rutas."
+   },
+   "fr": {
+    "summary": "Compile deux fois un exemple préparé dans des contextes isolés, compare les empreintes des artefacts et explique les écarts dus aux dates ou aux chemins.",
+    "description": "Compile deux fois un exemple préparé dans des contextes isolés, compare les empreintes des artefacts et explique les écarts dus aux dates ou aux chemins."
+   },
+   "de": {
+    "summary": "Baut ein bereitgestelltes Beispiel zweimal in abgeschotteten Umgebungen, vergleicht die Hashes der Artefakte und erklärt Abweichungen durch Zeitstempel oder Pfade.",
+    "description": "Baut ein bereitgestelltes Beispiel zweimal in abgeschotteten Umgebungen, vergleicht die Hashes der Artefakte und erklärt Abweichungen durch Zeitstempel oder Pfade."
+   },
+   "pt-BR": {
+    "summary": "Compila duas vezes um exemplo preparado em ambientes isolados, compara os hashes dos artefatos e explica diferenças causadas por datas ou caminhos.",
+    "description": "Compila duas vezes um exemplo preparado em ambientes isolados, compara os hashes dos artefatos e explica diferenças causadas por datas ou caminhos."
+   },
+   "it": {
+    "summary": "Compila due volte un esempio preparato in ambienti isolati, confronta gli hash degli artefatti e spiega le differenze dovute a date o percorsi.",
+    "description": "Compila due volte un esempio preparato in ambienti isolati, confronta gli hash degli artefatti e spiega le differenze dovute a date o percorsi."
+   }
+  },
+  "code-migration-studio": {
+   "es": {
+    "summary": "Previsualiza el cambio de nombre de un import basado en el AST en un espacio preparado por el operador y aplica solo el parche aprobado y ligado a su hash.",
+    "description": "Previsualiza el cambio de nombre de un import basado en el AST en un espacio preparado por el operador y aplica solo el parche aprobado y ligado a su hash."
+   },
+   "fr": {
+    "summary": "Prévisualise le renommage d'un import basé sur l'AST dans un espace préparé par l'opérateur et n'applique que le correctif approuvé, lié à son empreinte.",
+    "description": "Prévisualise le renommage d'un import basé sur l'AST dans un espace préparé par l'opérateur et n'applique que le correctif approuvé, lié à son empreinte."
+   },
+   "de": {
+    "summary": "Zeigt eine AST-basierte Import-Umbenennung in einem vom Bediener bereitgestellten Arbeitsbereich vorab und wendet nur den genehmigten, an seinen Hash gebundenen Patch an.",
+    "description": "Zeigt eine AST-basierte Import-Umbenennung in einem vom Bediener bereitgestellten Arbeitsbereich vorab und wendet nur den genehmigten, an seinen Hash gebundenen Patch an."
+   },
+   "pt-BR": {
+    "summary": "Mostra uma prévia da renomeação de um import baseada em AST num espaço preparado pelo operador e aplica só o patch aprovado, preso ao seu hash.",
+    "description": "Mostra uma prévia da renomeação de um import baseada em AST num espaço preparado pelo operador e aplica só o patch aprovado, preso ao seu hash."
+   },
+   "it": {
+    "summary": "Mostra in anteprima la rinomina di un import basata sull'AST in un'area preparata dall'operatore e applica solo la patch approvata, legata al suo hash.",
+    "description": "Mostra in anteprima la rinomina di un import basata sull'AST in un'area preparata dall'operatore e applica solo la patch approvata, legata al suo hash."
+   }
+  },
+  "content-studio": {
+   "es": {
+    "summary": "Crea borradores revisables a partir de un encargo, en local o con una petición explícita al modelo. Exporta texto; nunca publica.",
+    "description": "Crea borradores revisables a partir de un encargo, en local o con una petición explícita al modelo. Exporta texto; nunca publica."
+   },
+   "fr": {
+    "summary": "Crée des brouillons à relire à partir d'une consigne, en local ou par une demande explicite au modèle. Exporte du texte, ne publie jamais.",
+    "description": "Crée des brouillons à relire à partir d'une consigne, en local ou par une demande explicite au modèle. Exporte du texte, ne publie jamais."
+   },
+   "de": {
+    "summary": "Erstellt prüfbare Entwürfe aus einer Vorgabe, lokal oder per ausdrücklicher Modellanfrage. Exportiert Text, veröffentlicht nie.",
+    "description": "Erstellt prüfbare Entwürfe aus einer Vorgabe, lokal oder per ausdrücklicher Modellanfrage. Exportiert Text, veröffentlicht nie."
+   },
+   "pt-BR": {
+    "summary": "Cria rascunhos para revisar a partir de um briefing, localmente ou com um pedido explícito ao modelo. Exporta texto, nunca publica.",
+    "description": "Cria rascunhos para revisar a partir de um briefing, localmente ou com um pedido explícito ao modelo. Exporta texto, nunca publica."
+   },
+   "it": {
+    "summary": "Crea bozze da rivedere a partire da un brief, in locale o con una richiesta esplicita al modello. Esporta testo, non pubblica mai.",
+    "description": "Crea bozze da rivedere a partire da un brief, in locale o con una richiesta esplicita al modello. Esporta testo, non pubblica mai."
+   }
+  },
+  "daily-briefing": {
+   "es": {
+    "summary": "Prepara un resumen del día cuando lo pides, con la agenda, prioridades y notas que le das. No lee cuentas en vivo.",
+    "description": "Prepara un resumen del día cuando lo pides, con la agenda, prioridades y notas que le das. No lee cuentas en vivo."
+   },
+   "fr": {
+    "summary": "Prépare à la demande un point du jour à partir de l'agenda, des priorités et des notes que vous fournissez. Aucune lecture de compte en direct.",
+    "description": "Prépare à la demande un point du jour à partir de l'agenda, des priorités et des notes que vous fournissez. Aucune lecture de compte en direct."
+   },
+   "de": {
+    "summary": "Stellt auf Wunsch einen Tagesüberblick aus übergebenem Kalender, Prioritäten und Notizen zusammen. Liest keine Konten live.",
+    "description": "Stellt auf Wunsch einen Tagesüberblick aus übergebenem Kalender, Prioritäten und Notizen zusammen. Liest keine Konten live."
+   },
+   "pt-BR": {
+    "summary": "Monta um resumo do dia quando você pede, com a agenda, prioridades e notas que você fornece. Não lê contas ao vivo.",
+    "description": "Monta um resumo do dia quando você pede, com a agenda, prioridades e notas que você fornece. Não lê contas ao vivo."
+   },
+   "it": {
+    "summary": "Prepara su richiesta un riepilogo del giorno con l'agenda, le priorità e le note che fornisci. Non legge account dal vivo.",
+    "description": "Prepara su richiesta un riepilogo del giorno con l'agenda, le priorità e le note che fornisci. Non legge account dal vivo."
+   }
+  },
+  "document-desk": {
+   "es": {
+    "summary": "Compara dos textos que le das línea a línea o extrae coincidencias literales, con sus etiquetas de origen y números de línea. No convierte archivos.",
+    "description": "Compara dos textos que le das línea a línea o extrae coincidencias literales, con sus etiquetas de origen y números de línea. No convierte archivos."
+   },
+   "fr": {
+    "summary": "Compare deux textes fournis ligne à ligne ou extrait des correspondances littérales, avec leurs étiquettes de source et numéros de ligne. Aucune conversion de fichier.",
+    "description": "Compare deux textes fournis ligne à ligne ou extrait des correspondances littérales, avec leurs étiquettes de source et numéros de ligne. Aucune conversion de fichier."
+   },
+   "de": {
+    "summary": "Vergleicht zwei übergebene Texte zeilengenau oder zieht wörtliche Treffer heraus, mit Quellenangabe und Zeilennummern. Keine Dateikonvertierung.",
+    "description": "Vergleicht zwei übergebene Texte zeilengenau oder zieht wörtliche Treffer heraus, mit Quellenangabe und Zeilennummern. Keine Dateikonvertierung."
+   },
+   "pt-BR": {
+    "summary": "Compara dois textos fornecidos linha a linha ou extrai trechos literais, com o rótulo da fonte e o número da linha. Não converte arquivos.",
+    "description": "Compara dois textos fornecidos linha a linha ou extrai trechos literais, com o rótulo da fonte e o número da linha. Não converte arquivos."
+   },
+   "it": {
+    "summary": "Confronta riga per riga due testi forniti o estrae corrispondenze letterali, con l'etichetta della fonte e i numeri di riga. Nessuna conversione di file.",
+    "description": "Confronta riga per riga due testi forniti o estrae corrispondenze letterali, con l'etichetta della fonte e i numeri di riga. Nessuna conversione di file."
+   }
+  },
+  "documentation-doctor": {
+   "es": {
+    "summary": "Revisa los enlaces Markdown y los comandos documentados de un proyecto preparado, y ejecuta un comando documentado en una copia desechable cuando lo pides.",
+    "description": "Revisa los enlaces Markdown y los comandos documentados de un proyecto preparado, y ejecuta un comando documentado en una copia desechable cuando lo pides."
+   },
+   "fr": {
+    "summary": "Vérifie les liens Markdown et les commandes documentées d'un projet préparé, et lance une commande documentée dans une copie jetable quand vous le demandez.",
+    "description": "Vérifie les liens Markdown et les commandes documentées d'un projet préparé, et lance une commande documentée dans une copie jetable quand vous le demandez."
+   },
+   "de": {
+    "summary": "Prüft Markdown-Links und dokumentierte Befehle eines bereitgestellten Projekts und führt auf Wunsch einen dokumentierten Befehl in einer Wegwerf-Kopie aus.",
+    "description": "Prüft Markdown-Links und dokumentierte Befehle eines bereitgestellten Projekts und führt auf Wunsch einen dokumentierten Befehl in einer Wegwerf-Kopie aus."
+   },
+   "pt-BR": {
+    "summary": "Confere os links Markdown e os comandos documentados de um projeto preparado e roda um comando documentado numa cópia descartável quando você pede.",
+    "description": "Confere os links Markdown e os comandos documentados de um projeto preparado e roda um comando documentado numa cópia descartável quando você pede."
+   },
+   "it": {
+    "summary": "Controlla i link Markdown e i comandi documentati di un progetto preparato ed esegue un comando documentato in una copia usa e getta quando lo chiedi.",
+    "description": "Controlla i link Markdown e i comandi documentati di un progetto preparato ed esegue un comando documentato in una copia usa e getta quando lo chiedi."
+   }
+  },
+  "flaky-test-lab": {
+   "es": {
+    "summary": "Repite una prueba con nombre exacto de un proyecto preparado en una copia desechable y distingue fallos intermitentes de fallos estables, con el resultado de cada semilla.",
+    "description": "Repite una prueba con nombre exacto de un proyecto preparado en una copia desechable y distingue fallos intermitentes de fallos estables, con el resultado de cada semilla."
+   },
+   "fr": {
+    "summary": "Répète un test au nom exact d'un projet préparé dans une copie jetable et distingue échecs intermittents et échecs stables, avec le résultat de chaque graine.",
+    "description": "Répète un test au nom exact d'un projet préparé dans une copie jetable et distingue échecs intermittents et échecs stables, avec le résultat de chaque graine."
+   },
+   "de": {
+    "summary": "Wiederholt einen genau benannten Test eines bereitgestellten Projekts in einer Wegwerf-Kopie und unterscheidet wackelige von stabilen Fehlern, mit dem Ergebnis jedes Seeds.",
+    "description": "Wiederholt einen genau benannten Test eines bereitgestellten Projekts in einer Wegwerf-Kopie und unterscheidet wackelige von stabilen Fehlern, mit dem Ergebnis jedes Seeds."
+   },
+   "pt-BR": {
+    "summary": "Repete um teste de nome exato de um projeto preparado numa cópia descartável e separa falhas intermitentes de falhas estáveis, com o resultado de cada semente.",
+    "description": "Repete um teste de nome exato de um projeto preparado numa cópia descartável e separa falhas intermitentes de falhas estáveis, com o resultado de cada semente."
+   },
+   "it": {
+    "summary": "Ripete un test dal nome esatto di un progetto preparato in una copia usa e getta e distingue i fallimenti instabili da quelli stabili, con l'esito di ogni seed.",
+    "description": "Ripete un test dal nome esatto di un progetto preparato in una copia usa e getta e distingue i fallimenti instabili da quelli stabili, con l'esito di ogni seed."
+   }
+  },
+  "home-dashboard": {
+   "es": {
+    "summary": "Muestra los datos aprobados de dispositivos y escenas que le das, como una instantánea sin conexión en vivo. Solo preparación; no controla la casa.",
+    "description": "Muestra los datos aprobados de dispositivos y escenas que le das, como una instantánea sin conexión en vivo. Solo preparación; no controla la casa."
+   },
+   "fr": {
+    "summary": "Liste les données approuvées d'appareils et de scènes que vous fournissez, comme un instantané hors direct. Préparation seulement, aucun pilotage de la maison.",
+    "description": "Liste les données approuvées d'appareils et de scènes que vous fournissez, comme un instantané hors direct. Préparation seulement, aucun pilotage de la maison."
+   },
+   "de": {
+    "summary": "Listet genehmigte, übergebene Geräte- und Szenendaten als Momentaufnahme ohne Live-Verbindung. Nur Vorbereitung, keine Haussteuerung.",
+    "description": "Listet genehmigte, übergebene Geräte- und Szenendaten als Momentaufnahme ohne Live-Verbindung. Nur Vorbereitung, keine Haussteuerung."
+   },
+   "pt-BR": {
+    "summary": "Lista os dados aprovados de dispositivos e cenas que você fornece, como um retrato sem conexão ao vivo. Só preparação, sem controlar a casa.",
+    "description": "Lista os dados aprovados de dispositivos e cenas que você fornece, como um retrato sem conexão ao vivo. Só preparação, sem controlar a casa."
+   },
+   "it": {
+    "summary": "Elenca i dati approvati di dispositivi e scene che fornisci, come un'istantanea non in tempo reale. Solo preparazione, nessun controllo della casa.",
+    "description": "Elenca i dati approvati di dispositivi e scene che fornisci, come un'istantanea non in tempo reale. Solo preparazione, nessun controllo della casa."
+   }
+  },
+  "image-workshop": {
+   "es": {
+    "summary": "Prepara y guarda encargos de imagen estructurados, ajustes y prompts. Solo preparación: no genera imágenes.",
+    "description": "Prepara y guarda encargos de imagen estructurados, ajustes y prompts. Solo preparación: no genera imágenes."
+   },
+   "fr": {
+    "summary": "Prépare et enregistre des consignes d'image structurées, des réglages et des prompts. Préparation seulement : aucune génération d'image.",
+    "description": "Prépare et enregistre des consignes d'image structurées, des réglages et des prompts. Préparation seulement : aucune génération d'image."
+   },
+   "de": {
+    "summary": "Bereitet strukturierte Bildvorgaben, Voreinstellungen und Prompts vor und speichert sie. Nur Vorbereitung: keine Bilderzeugung.",
+    "description": "Bereitet strukturierte Bildvorgaben, Voreinstellungen und Prompts vor und speichert sie. Nur Vorbereitung: keine Bilderzeugung."
+   },
+   "pt-BR": {
+    "summary": "Prepara e salva briefings de imagem estruturados, predefinições e prompts. Só preparação: não gera imagens.",
+    "description": "Prepara e salva briefings de imagem estruturados, predefinições e prompts. Só preparação: não gera imagens."
+   },
+   "it": {
+    "summary": "Prepara e salva brief di immagini strutturati, preimpostazioni e prompt. Solo preparazione: nessuna generazione di immagini.",
+    "description": "Prepara e salva brief di immagini strutturati, preimpostazioni e prompt. Solo preparazione: nessuna generazione di immagini."
+   }
+  },
+  "inbox-triage": {
+   "es": {
+    "summary": "Clasifica los mensajes que le das y prepara borradores de respuesta sin enviar. Sin conexión al buzón ni envíos.",
+    "description": "Clasifica los mensajes que le das y prepara borradores de respuesta sin enviar. Sin conexión al buzón ni envíos."
+   },
+   "fr": {
+    "summary": "Classe les messages fournis et prépare des brouillons de réponse non envoyés. Aucune connexion à la messagerie, aucun envoi.",
+    "description": "Classe les messages fournis et prépare des brouillons de réponse non envoyés. Aucune connexion à la messagerie, aucun envoi."
+   },
+   "de": {
+    "summary": "Ordnet übergebene Nachrichten ein und bereitet nicht gesendete Antwortentwürfe vor. Keine Postfachverbindung, kein Versand.",
+    "description": "Ordnet übergebene Nachrichten ein und bereitet nicht gesendete Antwortentwürfe vor. Keine Postfachverbindung, kein Versand."
+   },
+   "pt-BR": {
+    "summary": "Classifica as mensagens fornecidas e prepara rascunhos de resposta não enviados. Sem conexão com a caixa de entrada nem envio.",
+    "description": "Classifica as mensagens fornecidas e prepara rascunhos de resposta não enviados. Sem conexão com a caixa de entrada nem envio."
+   },
+   "it": {
+    "summary": "Classifica i messaggi forniti e prepara bozze di risposta non inviate. Nessuna connessione alla casella né invio.",
+    "description": "Classifica i messaggi forniti e prepara bozze di risposta non inviate. Nessuna connessione alla casella né invio."
+   }
+  },
+  "meeting-assistant": {
+   "es": {
+    "summary": "Extrae de una transcripción que le das las decisiones, tareas y preguntas marcadas explícitamente, con números de línea. Nunca graba ni crea tareas.",
+    "description": "Extrae de una transcripción que le das las decisiones, tareas y preguntas marcadas explícitamente, con números de línea. Nunca graba ni crea tareas."
+   },
+   "fr": {
+    "summary": "Extrait d'une transcription fournie les décisions, actions et questions marquées explicitement, avec numéros de ligne. N'enregistre jamais et ne crée aucune tâche.",
+    "description": "Extrait d'une transcription fournie les décisions, actions et questions marquées explicitement, avec numéros de ligne. N'enregistre jamais et ne crée aucune tâche."
+   },
+   "de": {
+    "summary": "Zieht aus einem übergebenen Transkript ausdrücklich markierte Entscheidungen, Aufgaben und Fragen mit Zeilennummern. Nimmt nie auf und legt keine Aufgaben an.",
+    "description": "Zieht aus einem übergebenen Transkript ausdrücklich markierte Entscheidungen, Aufgaben und Fragen mit Zeilennummern. Nimmt nie auf und legt keine Aufgaben an."
+   },
+   "pt-BR": {
+    "summary": "Extrai de uma transcrição fornecida as decisões, ações e perguntas marcadas explicitamente, com números de linha. Nunca grava nem cria tarefas.",
+    "description": "Extrai de uma transcrição fornecida as decisões, ações e perguntas marcadas explicitamente, com números de linha. Nunca grava nem cria tarefas."
+   },
+   "it": {
+    "summary": "Estrae da una trascrizione fornita le decisioni, le azioni e le domande segnate esplicitamente, con i numeri di riga. Non registra mai e non crea attività.",
+    "description": "Estrae da una trascrizione fornita le decisioni, le azioni e le domande segnate esplicitamente, con i numeri di riga. Non registra mai e non crea attività."
+   }
+  },
+  "performance-regression-lab": {
+   "es": {
+    "summary": "Ejecuta pruebas de rendimiento de la versión base y la candidata, intercaladas en un entorno aislado, e informa de regresiones a partir de las muestras.",
+    "description": "Ejecuta pruebas de rendimiento de la versión base y la candidata, intercaladas en un entorno aislado, e informa de regresiones a partir de las muestras."
+   },
+   "fr": {
+    "summary": "Lance en alternance les mesures de la version de référence et de la candidate dans un contexte isolé, et signale les régressions à partir des échantillons bruts.",
+    "description": "Lance en alternance les mesures de la version de référence et de la candidate dans un contexte isolé, et signale les régressions à partir des échantillons bruts."
+   },
+   "de": {
+    "summary": "Führt Benchmarks der Basis- und der Kandidatenversion abwechselnd in einer abgeschotteten Umgebung aus und meldet Regressionen anhand der Rohmessungen.",
+    "description": "Führt Benchmarks der Basis- und der Kandidatenversion abwechselnd in einer abgeschotteten Umgebung aus und meldet Regressionen anhand der Rohmessungen."
+   },
+   "pt-BR": {
+    "summary": "Roda benchmarks da versão base e da candidata, intercalados num ambiente isolado, e aponta regressões a partir das amostras brutas.",
+    "description": "Roda benchmarks da versão base e da candidata, intercalados num ambiente isolado, e aponta regressões a partir das amostras brutas."
+   },
+   "it": {
+    "summary": "Esegue benchmark della versione di base e della candidata, alternati in un ambiente isolato, e segnala le regressioni dai campioni grezzi.",
+    "description": "Esegue benchmark della versione di base e della candidata, alternati in un ambiente isolato, e segnala le regressioni dai campioni grezzi."
+   }
+  },
+  "project-handoff": {
+   "es": {
+    "summary": "Prepara un traspaso con pruebas a partir de lo cambiado, probado, pendiente y bloqueado que le cuentas. No escanea proyectos ni da nada por verificado.",
+    "description": "Prepara un traspaso con pruebas a partir de lo cambiado, probado, pendiente y bloqueado que le cuentas. No escanea proyectos ni da nada por verificado."
+   },
+   "fr": {
+    "summary": "Prépare une passation étayée à partir de ce qui a changé, été testé, reste en attente ou bloque. N'analyse aucun projet et ne déclare rien vérifié.",
+    "description": "Prépare une passation étayée à partir de ce qui a changé, été testé, reste en attente ou bloque. N'analyse aucun projet et ne déclare rien vérifié."
+   },
+   "de": {
+    "summary": "Erstellt eine belegte Übergabe aus dem, was du als geändert, getestet, offen oder blockiert angibst. Durchsucht keine Projekte und erklärt nichts für geprüft.",
+    "description": "Erstellt eine belegte Übergabe aus dem, was du als geändert, getestet, offen oder blockiert angibst. Durchsucht keine Projekte und erklärt nichts für geprüft."
+   },
+   "pt-BR": {
+    "summary": "Monta uma passagem de bastão com evidências a partir do que você diz que mudou, foi testado, está pendente ou bloqueado. Não varre projetos nem dá nada como verificado.",
+    "description": "Monta uma passagem de bastão com evidências a partir do que você diz que mudou, foi testado, está pendente ou bloqueado. Não varre projetos nem dá nada como verificado."
+   },
+   "it": {
+    "summary": "Prepara un passaggio di consegne con prove a partire da ciò che indichi come cambiato, testato, in sospeso o bloccato. Non analizza progetti e non dichiara nulla verificato.",
+    "description": "Prepara un passaggio di consegne con prove a partire da ciò che indichi come cambiato, testato, in sospeso o bloccato. Non analizza progetti e non dichiara nulla verificato."
+   }
+  },
+  "release-readiness": {
+   "es": {
+    "summary": "Ejecuta las comprobaciones de publicación configuradas de un proyecto preparado, cada una como un trabajo que apruebas en una copia desechable, y frena la publicación si falla una obligatoria.",
+    "description": "Ejecuta las comprobaciones de publicación configuradas de un proyecto preparado, cada una como un trabajo que apruebas en una copia desechable, y frena la publicación si falla una obligatoria."
+   },
+   "fr": {
+    "summary": "Lance les contrôles de publication configurés d'un projet préparé, chacun comme une tâche que vous approuvez dans une copie jetable, et bloque la publication si un contrôle obligatoire échoue.",
+    "description": "Lance les contrôles de publication configurés d'un projet préparé, chacun comme une tâche que vous approuvez dans une copie jetable, et bloque la publication si un contrôle obligatoire échoue."
+   },
+   "de": {
+    "summary": "Führt die lokalen Release-Prüfungen eines bereitgestellten Projekts als von dir genehmigte Aufträge in Wegwerf-Kopien aus und stoppt das Release, wenn eine Pflichtprüfung fehlschlägt.",
+    "description": "Führt die eingerichteten lokalen Release-Prüfungen eines bereitgestellten Projekts aus, jede als von dir genehmigter Auftrag in einer Wegwerf-Kopie, und stoppt das Release, wenn eine Pflichtprüfung fehlschlägt."
+   },
+   "pt-BR": {
+    "summary": "Roda as verificações locais de lançamento configuradas de um projeto preparado, cada uma como um trabalho que você aprova numa cópia descartável, e trava o lançamento se uma obrigatória falhar.",
+    "description": "Roda as verificações locais de lançamento configuradas de um projeto preparado, cada uma como um trabalho que você aprova numa cópia descartável, e trava o lançamento se uma obrigatória falhar."
+   },
+   "it": {
+    "summary": "Esegue i controlli di rilascio locali configurati di un progetto preparato, ognuno come lavoro che approvi in una copia usa e getta, e blocca il rilascio se un controllo obbligatorio fallisce.",
+    "description": "Esegue i controlli di rilascio locali configurati di un progetto preparato, ognuno come lavoro che approvi in una copia usa e getta, e blocca il rilascio se un controllo obbligatorio fallisce."
+   }
+  },
+  "repository-onboarding": {
+   "es": {
+    "summary": "Hace un mapa de un repositorio preparado y reproduce su compilación tal como está documentada, en una copia desechable, cuando lo pides.",
+    "description": "Hace un mapa de un repositorio preparado y reproduce su compilación tal como está documentada, en una copia desechable, cuando lo pides."
+   },
+   "fr": {
+    "summary": "Cartographie un dépôt préparé et reproduit sa compilation exactement comme documentée, dans une copie jetable, quand vous le demandez.",
+    "description": "Cartographie un dépôt préparé et reproduit sa compilation exactement comme documentée, dans une copie jetable, quand vous le demandez."
+   },
+   "de": {
+    "summary": "Kartiert ein bereitgestelltes Repository und baut es auf Wunsch genau wie dokumentiert in einer Wegwerf-Kopie nach.",
+    "description": "Kartiert ein bereitgestelltes Repository und baut es auf Wunsch genau wie dokumentiert in einer Wegwerf-Kopie nach."
+   },
+   "pt-BR": {
+    "summary": "Mapeia um repositório preparado e reproduz a compilação exatamente como documentada, numa cópia descartável, quando você pede.",
+    "description": "Mapeia um repositório preparado e reproduz a compilação exatamente como documentada, numa cópia descartável, quando você pede."
+   },
+   "it": {
+    "summary": "Mappa un repository preparato e ne riproduce la build esattamente come documentata, in una copia usa e getta, quando lo chiedi.",
+    "description": "Mappa un repository preparato e ne riproduce la build esattamente come documentata, in una copia usa e getta, quando lo chiedi."
+   }
+  },
+  "research-notebook": {
+   "es": {
+    "summary": "Lleva un cuaderno acotado con las fuentes que le das: crear, editar y borrar, sin duplicados exactos, exportación a Markdown y síntesis opcional con citas comprobadas. No busca en la web.",
+    "description": "Lleva un cuaderno acotado con las fuentes que le das: crear, editar y borrar, sin duplicados exactos, exportación a Markdown y síntesis opcional con citas comprobadas. No busca en la web."
+   },
+   "fr": {
+    "summary": "Tient un carnet borné de sources fournies : création, modification, suppression, sans doublons exacts, export Markdown et synthèse facultative aux citations vérifiées. Aucune recherche web.",
+    "description": "Tient un carnet borné de sources fournies : création, modification, suppression, sans doublons exacts, export Markdown et synthèse facultative aux citations vérifiées. Aucune recherche web."
+   },
+   "de": {
+    "summary": "Führt ein begrenztes Notizbuch mit übergebenen Quellen: anlegen, ändern, löschen, ohne exakte Dubletten, Markdown-Export und optionale Zusammenfassung mit geprüften Zitaten. Keine Websuche.",
+    "description": "Führt ein begrenztes Notizbuch mit übergebenen Quellen: anlegen, ändern, löschen, ohne exakte Dubletten, Markdown-Export und optionale Zusammenfassung mit geprüften Zitaten. Keine Websuche."
+   },
+   "pt-BR": {
+    "summary": "Mantém um caderno limitado com as fontes que você fornece: criar, editar e apagar, sem duplicatas exatas, exportação Markdown e síntese opcional com citações conferidas. Sem busca na web.",
+    "description": "Mantém um caderno limitado com as fontes que você fornece: criar, editar e apagar, sem duplicatas exatas, exportação Markdown e síntese opcional com citações conferidas. Sem busca na web."
+   },
+   "it": {
+    "summary": "Tiene un quaderno limitato con le fonti che fornisci: crea, modifica ed elimina, senza duplicati esatti, esportazione Markdown e sintesi facoltativa con citazioni verificate. Nessuna ricerca sul web.",
+    "description": "Tiene un quaderno limitato con le fonti che fornisci: crea, modifica ed elimina, senza duplicati esatti, esportazione Markdown e sintesi facoltativa con citazioni verificate. Nessuna ricerca sul web."
+   }
+  },
+  "spreadsheet-assistant": {
+   "es": {
+    "summary": "Valida y perfila el CSV que le das, filtra filas y exporta CSV seguro frente a fórmulas. Sin XLSX ni evaluación de fórmulas.",
+    "description": "Valida y perfila el CSV que le das, filtra filas y exporta CSV seguro frente a fórmulas. Sin XLSX ni evaluación de fórmulas."
+   },
+   "fr": {
+    "summary": "Valide et profile le CSV fourni, filtre des lignes et exporte un CSV protégé contre les formules. Ni XLSX ni calcul de formules.",
+    "description": "Valide et profile le CSV fourni, filtre des lignes et exporte un CSV protégé contre les formules. Ni XLSX ni calcul de formules."
+   },
+   "de": {
+    "summary": "Prüft und analysiert übergebenes CSV, filtert Zeilen und exportiert formelsicheres CSV. Kein XLSX, keine Formelauswertung.",
+    "description": "Prüft und analysiert übergebenes CSV, filtert Zeilen und exportiert formelsicheres CSV. Kein XLSX, keine Formelauswertung."
+   },
+   "pt-BR": {
+    "summary": "Valida e analisa o CSV fornecido, filtra linhas e exporta CSV protegido contra fórmulas. Sem XLSX nem cálculo de fórmulas.",
+    "description": "Valida e analisa o CSV fornecido, filtra linhas e exporta CSV protegido contra fórmulas. Sem XLSX nem cálculo de fórmulas."
+   },
+   "it": {
+    "summary": "Valida e analizza il CSV fornito, filtra righe ed esporta CSV protetto dalle formule. Niente XLSX né calcolo di formule.",
+    "description": "Valida e analizza il CSV fornito, filtra righe ed esporta CSV protetto dalle formule. Niente XLSX né calcolo di formule."
+   }
+  },
+  "test-doctor": {
+   "es": {
+    "summary": "Ejecuta una prueba con nombre exacto de un proyecto preparado en una copia desechable y señala la aserción que falla y el código al que llama.",
+    "description": "Ejecuta una prueba con nombre exacto de un proyecto preparado en una copia desechable y señala la aserción que falla y el código al que llama."
+   },
+   "fr": {
+    "summary": "Lance un test au nom exact d'un projet préparé dans une copie jetable et indique l'assertion en échec et le code qu'elle appelle.",
+    "description": "Lance un test au nom exact d'un projet préparé dans une copie jetable et indique l'assertion en échec et le code qu'elle appelle."
+   },
+   "de": {
+    "summary": "Führt einen genau benannten Test eines bereitgestellten Projekts in einer Wegwerf-Kopie aus und zeigt die fehlschlagende Assertion und den aufgerufenen Code.",
+    "description": "Führt einen genau benannten Test eines bereitgestellten Projekts in einer Wegwerf-Kopie aus und zeigt die fehlschlagende Assertion und den aufgerufenen Code."
+   },
+   "pt-BR": {
+    "summary": "Roda um teste de nome exato de um projeto preparado numa cópia descartável e aponta a asserção que falha e o código que ela chama.",
+    "description": "Roda um teste de nome exato de um projeto preparado numa cópia descartável e aponta a asserção que falha e o código que ela chama."
+   },
+   "it": {
+    "summary": "Esegue un test dal nome esatto di un progetto preparato in una copia usa e getta e indica l'asserzione che fallisce e il codice che richiama.",
+    "description": "Esegue un test dal nome esatto di un progetto preparato in una copia usa e getta e indica l'asserzione che fallisce e il codice che richiama."
+   }
+  },
+  "travel-planner": {
+   "es": {
+    "summary": "Ordena las opciones confirmadas que le das en un itinerario con fechas y presupuesto. Solo estimaciones; nunca precios en vivo ni reservas.",
+    "description": "Ordena las opciones confirmadas que le das en un itinerario con fechas y presupuesto. Solo estimaciones; nunca precios en vivo ni reservas."
+   },
+   "fr": {
+    "summary": "Organise les options confirmées que vous fournissez en itinéraire daté avec budget. Estimations seulement, jamais de tarifs en direct ni de réservations.",
+    "description": "Organise les options confirmées que vous fournissez en itinéraire daté avec budget. Estimations seulement, jamais de tarifs en direct ni de réservations."
+   },
+   "de": {
+    "summary": "Ordnet übergebene, bestätigte Optionen zu einem datierten Reiseplan mit Budget. Nur Schätzungen, nie Live-Preise oder Buchungen.",
+    "description": "Ordnet übergebene, bestätigte Optionen zu einem datierten Reiseplan mit Budget. Nur Schätzungen, nie Live-Preise oder Buchungen."
+   },
+   "pt-BR": {
+    "summary": "Organiza as opções confirmadas que você fornece num roteiro com datas e orçamento. Só estimativas; nunca preços ao vivo nem reservas.",
+    "description": "Organiza as opções confirmadas que você fornece num roteiro com datas e orçamento. Só estimativas; nunca preços ao vivo nem reservas."
+   },
+   "it": {
+    "summary": "Ordina le opzioni confermate che fornisci in un itinerario con date e budget. Solo stime, mai prezzi dal vivo né prenotazioni.",
+    "description": "Ordina le opzioni confermate che fornisci in un itinerario con date e budget. Solo stime, mai prezzi dal vivo né prenotazioni."
+   }
+  },
+  "weekly-review": {
+   "es": {
+    "summary": "Convierte tus logros y los compromisos hechos, pendientes o bloqueados en una propuesta de plan siguiente. Nunca cambia tareas ni calendarios.",
+    "description": "Convierte tus logros y los compromisos hechos, pendientes o bloqueados en una propuesta de plan siguiente. Nunca cambia tareas ni calendarios."
+   },
+   "fr": {
+    "summary": "Transforme vos réussites et vos engagements faits, en attente ou bloqués en proposition de plan pour la suite. Ne modifie jamais tâches ni agendas.",
+    "description": "Transforme vos réussites et vos engagements faits, en attente ou bloqués en proposition de plan pour la suite. Ne modifie jamais tâches ni agendas."
+   },
+   "de": {
+    "summary": "Macht aus deinen Erfolgen und erledigten, offenen oder blockierten Zusagen einen Vorschlag für den nächsten Plan. Ändert nie Aufgaben oder Kalender.",
+    "description": "Macht aus deinen Erfolgen und erledigten, offenen oder blockierten Zusagen einen Vorschlag für den nächsten Plan. Ändert nie Aufgaben oder Kalender."
+   },
+   "pt-BR": {
+    "summary": "Transforma suas conquistas e compromissos feitos, pendentes ou bloqueados numa proposta de próximo plano. Nunca muda tarefas nem agendas.",
+    "description": "Transforma suas conquistas e compromissos feitos, pendentes ou bloqueados numa proposta de próximo plano. Nunca muda tarefas nem agendas."
+   },
+   "it": {
+    "summary": "Trasforma i tuoi risultati e gli impegni fatti, in sospeso o bloccati in una proposta di piano successivo. Non modifica mai attività o calendari.",
+    "description": "Trasforma i tuoi risultati e gli impegni fatti, in sospeso o bloccati in una proposta di piano successivo. Non modifica mai attività o calendari."
+   }
+  },
+  "chrome-devtools": {
+   "es": {
+    "summary": "Inspecciona y automatiza un navegador Chrome de pruebas aparte. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente.",
+    "description": "Inspecciona y automatiza un navegador Chrome de pruebas aparte. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente."
+   },
+   "fr": {
+    "summary": "Inspecte et automatise un navigateur Chrome de test séparé. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement.",
+    "description": "Inspecte et automatise un navigateur Chrome de test séparé. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement."
+   },
+   "de": {
+    "summary": "Untersucht und automatisiert einen separaten Test-Chrome-Browser. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab.",
+    "description": "Untersucht und automatisiert einen separaten Test-Chrome-Browser. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab."
+   },
+   "pt-BR": {
+    "summary": "Inspeciona e automatiza um navegador Chrome de teste separado. O que ele faz depende do provedor e das permissões concedidas explicitamente.",
+    "description": "Inspeciona e automatiza um navegador Chrome de teste separado. O que ele faz depende do provedor e das permissões concedidas explicitamente."
+   },
+   "it": {
+    "summary": "Ispeziona e automatizza un browser Chrome di prova separato. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente.",
+    "description": "Ispeziona e automatizza un browser Chrome di prova separato. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente."
+   }
+  },
+  "dbhub": {
+   "es": {
+    "summary": "Explora una base de datos dedicada con herramientas SQL. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente.",
+    "description": "Explora una base de datos dedicada con herramientas SQL. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente."
+   },
+   "fr": {
+    "summary": "Explore une base de données dédiée avec des outils SQL. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement.",
+    "description": "Explore une base de données dédiée avec des outils SQL. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement."
+   },
+   "de": {
+    "summary": "Erkundet eine eigene Datenbank mit SQL-Werkzeugen. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab.",
+    "description": "Erkundet eine eigene Datenbank mit SQL-Werkzeugen. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab."
+   },
+   "pt-BR": {
+    "summary": "Explora um banco de dados dedicado com ferramentas SQL. O que ele faz depende do provedor e das permissões concedidas explicitamente.",
+    "description": "Explora um banco de dados dedicado com ferramentas SQL. O que ele faz depende do provedor e das permissões concedidas explicitamente."
+   },
+   "it": {
+    "summary": "Esplora un database dedicato con strumenti SQL. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente.",
+    "description": "Esplora un database dedicato con strumenti SQL. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente."
+   }
+  },
+  "drawio": {
+   "es": {
+    "summary": "Prepara diagramas editables y referencias de diagramas. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente.",
+    "description": "Prepara diagramas editables y referencias de diagramas. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente."
+   },
+   "fr": {
+    "summary": "Prépare des diagrammes modifiables et des références de diagrammes. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement.",
+    "description": "Prépare des diagrammes modifiables et des références de diagrammes. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement."
+   },
+   "de": {
+    "summary": "Bereitet bearbeitbare Diagramme und Diagrammverweise vor. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab.",
+    "description": "Bereitet bearbeitbare Diagramme und Diagrammverweise vor. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab."
+   },
+   "pt-BR": {
+    "summary": "Prepara diagramas editáveis e referências de diagramas. O que ele faz depende do provedor e das permissões concedidas explicitamente.",
+    "description": "Prepara diagramas editáveis e referências de diagramas. O que ele faz depende do provedor e das permissões concedidas explicitamente."
+   },
+   "it": {
+    "summary": "Prepara diagrammi modificabili e riferimenti a diagrammi. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente.",
+    "description": "Prepara diagrammi modificabili e riferimenti a diagrammi. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente."
+   }
+  },
+  "firecrawl": {
+   "es": {
+    "summary": "Convierte páginas públicas elegidas en documentos legibles. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente.",
+    "description": "Convierte páginas públicas elegidas en documentos legibles. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente."
+   },
+   "fr": {
+    "summary": "Transforme des pages publiques choisies en documents lisibles. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement.",
+    "description": "Transforme des pages publiques choisies en documents lisibles. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement."
+   },
+   "de": {
+    "summary": "Macht aus ausgewählten öffentlichen Seiten lesbare Dokumente. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab.",
+    "description": "Macht aus ausgewählten öffentlichen Seiten lesbare Dokumente. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab."
+   },
+   "pt-BR": {
+    "summary": "Transforma páginas públicas escolhidas em documentos legíveis. O que ele faz depende do provedor e das permissões concedidas explicitamente.",
+    "description": "Transforma páginas públicas escolhidas em documentos legíveis. O que ele faz depende do provedor e das permissões concedidas explicitamente."
+   },
+   "it": {
+    "summary": "Trasforma pagine pubbliche scelte in documenti leggibili. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente.",
+    "description": "Trasforma pagine pubbliche scelte in documenti leggibili. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente."
+   }
+  },
+  "linear": {
+   "es": {
+    "summary": "Busca issues y prepara novedades del proyecto. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente.",
+    "description": "Busca issues y prepara novedades del proyecto. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente."
+   },
+   "fr": {
+    "summary": "Trouve des issues et prépare des points d'avancement du projet. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement.",
+    "description": "Trouve des issues et prépare des points d'avancement du projet. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement."
+   },
+   "de": {
+    "summary": "Findet Issues und bereitet Projekt-Updates vor. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab.",
+    "description": "Findet Issues und bereitet Projekt-Updates vor. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab."
+   },
+   "pt-BR": {
+    "summary": "Encontra issues e prepara atualizações do projeto. O que ele faz depende do provedor e das permissões concedidas explicitamente.",
+    "description": "Encontra issues e prepara atualizações do projeto. O que ele faz depende do provedor e das permissões concedidas explicitamente."
+   },
+   "it": {
+    "summary": "Trova issue e prepara aggiornamenti del progetto. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente.",
+    "description": "Trova issue e prepara aggiornamenti del progetto. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente."
+   }
+  },
+  "markitdown": {
+   "es": {
+    "summary": "Convierte un documento elegido a Markdown. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente.",
+    "description": "Convierte un documento elegido a Markdown. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente."
+   },
+   "fr": {
+    "summary": "Convertit un document choisi en Markdown. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement.",
+    "description": "Convertit un document choisi en Markdown. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement."
+   },
+   "de": {
+    "summary": "Wandelt ein ausgewähltes Dokument in Markdown um. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab.",
+    "description": "Wandelt ein ausgewähltes Dokument in Markdown um. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab."
+   },
+   "pt-BR": {
+    "summary": "Converte um documento escolhido para Markdown. O que ele faz depende do provedor e das permissões concedidas explicitamente.",
+    "description": "Converte um documento escolhido para Markdown. O que ele faz depende do provedor e das permissões concedidas explicitamente."
+   },
+   "it": {
+    "summary": "Converte in Markdown un documento scelto. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente.",
+    "description": "Converte in Markdown un documento scelto. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente."
+   }
+  },
+  "qdrant": {
+   "es": {
+    "summary": "Busca por significado en una colección local de Qdrant. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente.",
+    "description": "Busca por significado en una colección local de Qdrant. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente."
+   },
+   "fr": {
+    "summary": "Cherche par le sens dans une collection Qdrant locale. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement.",
+    "description": "Cherche par le sens dans une collection Qdrant locale. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement."
+   },
+   "de": {
+    "summary": "Sucht nach Bedeutung in einer lokalen Qdrant-Sammlung. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab.",
+    "description": "Sucht nach Bedeutung in einer lokalen Qdrant-Sammlung. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab."
+   },
+   "pt-BR": {
+    "summary": "Busca por significado numa coleção local do Qdrant. O que ele faz depende do provedor e das permissões concedidas explicitamente.",
+    "description": "Busca por significado numa coleção local do Qdrant. O que ele faz depende do provedor e das permissões concedidas explicitamente."
+   },
+   "it": {
+    "summary": "Cerca per significato in una raccolta Qdrant locale. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente.",
+    "description": "Cerca per significato in una raccolta Qdrant locale. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente."
+   }
+  },
+  "storybook": {
+   "es": {
+    "summary": "Encuentra las historias de un componente en tu propio Storybook en marcha y obtén enlaces de vista previa. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente.",
+    "description": "Encuentra las historias de un componente en tu propio Storybook en marcha y obtén enlaces de vista previa. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente."
+   },
+   "fr": {
+    "summary": "Trouve les stories d'un composant dans votre propre Storybook en marche et donne des liens d'aperçu. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement.",
+    "description": "Trouve les stories d'un composant dans votre propre Storybook en marche et donne des liens d'aperçu. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement."
+   },
+   "de": {
+    "summary": "Findet die Stories einer Komponente in deinem eigenen laufenden Storybook und liefert Vorschau-Links. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab.",
+    "description": "Findet die Stories einer Komponente in deinem eigenen laufenden Storybook und liefert Vorschau-Links. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab."
+   },
+   "pt-BR": {
+    "summary": "Encontra as stories de um componente no seu próprio Storybook em execução e dá links de prévia. O que ele faz depende do provedor e das permissões concedidas explicitamente.",
+    "description": "Encontra as stories de um componente no seu próprio Storybook em execução e dá links de prévia. O que ele faz depende do provedor e das permissões concedidas explicitamente."
+   },
+   "it": {
+    "summary": "Trova le storie di un componente nel tuo Storybook in esecuzione e fornisce link di anteprima. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente.",
+    "description": "Trova le storie di un componente nel tuo Storybook in esecuzione e fornisce link di anteprima. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente."
+   }
+  },
+  "tavily": {
+   "es": {
+    "summary": "Busca en la web y extrae el contenido de las páginas. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente.",
+    "description": "Busca en la web y extrae el contenido de las páginas. Lo que puede hacer depende del proveedor y de los permisos que concedas expresamente."
+   },
+   "fr": {
+    "summary": "Cherche sur le web et extrait le contenu des pages. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement.",
+    "description": "Cherche sur le web et extrait le contenu des pages. Ce qu'il peut faire dépend du fournisseur et des autorisations accordées explicitement."
+   },
+   "de": {
+    "summary": "Durchsucht das Web und zieht Seiteninhalte heraus. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab.",
+    "description": "Durchsucht das Web und zieht Seiteninhalte heraus. Was er kann, hängt vom Anbieter und den ausdrücklich erteilten Berechtigungen ab."
+   },
+   "pt-BR": {
+    "summary": "Busca na web e extrai o conteúdo das páginas. O que ele faz depende do provedor e das permissões concedidas explicitamente.",
+    "description": "Busca na web e extrai o conteúdo das páginas. O que ele faz depende do provedor e das permissões concedidas explicitamente."
+   },
+   "it": {
+    "summary": "Cerca sul web ed estrae il contenuto delle pagine. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente.",
+    "description": "Cerca sul web ed estrae il contenuto delle pagine. Cosa può fare dipende dal fornitore e dai permessi concessi esplicitamente."
    }
   }
  }

@@ -170,7 +170,7 @@ test('installer: the first question, worded for beginners, and the remote page',
   assert.match(iss, /DisableWelcomePage=yes/, 'the first page is the question');
   assert.match(iss, /'Where is your Sara\?'/);
   assert.match(iss, /sara\.example\.com/);
-  assert.match(iss, /Settings → Devices and sign-in → Add a phone or computer/, 'the finished page says what to do next');
+  assert.match(iss, /Settings → Connections → Devices and sign-in → Add a phone or computer/, 'the finished page says what to do next');
   // Silent: /MODE=remote /SERVER=<address>, checked; never with /ALLUSERS.
   assert.ok(iss.includes("{param:SERVER|}"));
   assert.match(iss, /\/MODE=remote needs \/SERVER=<address>/);

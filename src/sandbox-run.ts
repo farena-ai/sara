@@ -25,6 +25,7 @@ import { SNAPSHOT_SKIP } from './snapshots.ts';
 import { workspaceRef, type WorkspaceRef } from './runs.ts';
 import { PRIVATE_LOCAL_ENV, runCommand, windowsShell, type Bind, type RunResult, type SandboxInfo } from './tools/sandbox.ts';
 import { resolveInside } from './tools/workspace.ts';
+import { killTreeWindows, windowsProcesses } from './win-processes.ts';
 
 // ------------------------------------------------------------------------------------------------
 // 1. Which commands are risky (code only; no model call)
@@ -939,7 +940,7 @@ export async function runInSandbox(workspaceDir: string, command: string, opts: 
     // The list is read from the command's own output, which the command could fake: only processes
     // that were started after the try began are ever stopped (never one that was already running).
     const born = await bornSince(pids, started);
-    for (const p of born) spawnSync('taskkill', ['/PID', String(p), '/T', '/F'], { windowsHide: true, stdio: 'ignore', timeout: 10_000 });
+    await Promise.all(born.map((p) => killTreeWindows(p)));
     left += born.length;
     run = { ...run, output: (run.output.slice(0, pmark) + run.output.slice(pmark).replace(/\[sara-sandbox-pids:[\d ]*\]\n?/, '')).trimEnd() };
   } else if (winProbe) {
@@ -1052,7 +1053,7 @@ async function stopLeftovers(rootPid: number, since: number): Promise<number> {
     return 1;
   }
   const pids = await windowsDescendants(rootPid, since);
-  for (const p of pids) spawnSync('taskkill', ['/PID', String(p), '/T', '/F'], { windowsHide: true, stdio: 'ignore', timeout: 10_000 });
+  await Promise.all(pids.map((p) => killTreeWindows(p)));
   return pids.length;
 }
 
@@ -1069,7 +1070,7 @@ async function stopMsysGroup(pgid: number, since: number): Promise<number> {
     .map((c) => Number(c[3]))
     .filter((n) => n !== process.pid);
   const born = await bornSince(wins, since);
-  for (const w of born) spawnSync('taskkill', ['/PID', String(w), '/T', '/F'], { windowsHide: true, stdio: 'ignore', timeout: 10_000 });
+  await Promise.all(born.map((w) => killTreeWindows(w)));
   return born.length;
 }
 
@@ -1083,63 +1084,35 @@ export async function bornSince(pids: number[], since: number): Promise<number[]
   if (!pids.length) return [];
   const want = new Set(pids.filter((p) => Number.isInteger(p) && p > 0 && p !== process.pid && p !== process.ppid));
   if (!want.size) return [];
-  const script = "Get-CimInstance Win32_Process -Property ProcessId,CreationDate | ForEach-Object { '{0} {1}' -f $_.ProcessId, ([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds() }";
-  const out = await new Promise<string>((res) => {
-    const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
-    let text = '';
-    ps.stdout.on('data', (d: Buffer) => (text += d.toString('utf8')));
-    const timer = setTimeout(() => ps.kill(), 20_000);
-    ps.on('close', () => {
-      clearTimeout(timer);
-      res(text);
-    });
-    ps.on('error', () => res(''));
-  });
+  // Complete or empty, with a deadline a loaded PC still meets (a 20 s cut-off came back empty
+  // under load, so a process the try left running was neither stopped nor flagged).
+  const list = await windowsProcesses({ withCreation: true });
   const born: number[] = [];
-  for (const line of out.split(/\r?\n/)) {
-    const [p, at] = line.trim().split(/\s+/).map(Number);
-    if (want.has(p) && Number.isFinite(at) && at + 1000 >= since) born.push(p);
-  }
+  for (const { pid: p, createdMs: at } of list) if (want.has(p) && Number.isFinite(at) && at + 1000 >= since) born.push(p);
   return born;
 }
 
 /** Windows: processes under `rootPid` (by parent id, even after the parent ended) created since `since`. */
 export async function windowsDescendants(rootPid: number, since: number): Promise<number[]> {
-  const script = "Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,CreationDate | ForEach-Object { '{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, ([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds() }";
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const out = await new Promise<string>((res) => {
-      const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
-      let s = '';
-      ps.stdout.on('data', (d: Buffer) => (s += d.toString('utf8')));
-      const timer = setTimeout(() => ps.kill(), 20_000);
-      ps.on('close', () => {
-        clearTimeout(timer);
-        res(s);
-      });
-      ps.on('error', () => res(''));
-    });
-    const rows = out.split(/\r?\n/).map((l) => l.trim().split(/\s+/).map(Number)).filter((r) => r.length === 3 && r.every(Number.isFinite));
-    // A cut list (WMI under load) misses our own process: ask again.
-    if (!rows.some((r) => r[0] === process.pid)) continue;
-    const kids = new Map<number, { pid: number; at: number }[]>();
-    for (const [p, pp, at] of rows) kids.set(pp, [...(kids.get(pp) ?? []), { pid: p, at }]);
-    const found: number[] = [];
-    const queue = [rootPid];
-    const seen = new Set<number>();
-    while (queue.length) {
-      const cur = queue.shift()!;
-      if (seen.has(cur)) continue;
-      seen.add(cur);
-      for (const k of kids.get(cur) ?? []) {
-        // Process ids are reused on Windows: only children born after the try started count.
-        if (k.at + 1000 < since || k.pid === process.pid) continue;
-        found.push(k.pid);
-        queue.push(k.pid);
-      }
+  // Complete or empty (a cut list misses our own process and is asked for again): src/win-processes.ts.
+  const rows = await windowsProcesses({ withCreation: true });
+  const kids = new Map<number, { pid: number; at: number }[]>();
+  for (const { pid: p, ppid: pp, createdMs: at } of rows) kids.set(pp, [...(kids.get(pp) ?? []), { pid: p, at }]);
+  const found: number[] = [];
+  const queue = [rootPid];
+  const seen = new Set<number>();
+  while (queue.length) {
+    const cur = queue.shift()!;
+    if (seen.has(cur)) continue;
+    seen.add(cur);
+    for (const k of kids.get(cur) ?? []) {
+      // Process ids are reused on Windows: only children born after the try started count.
+      if (k.at + 1000 < since || k.pid === process.pid) continue;
+      found.push(k.pid);
+      queue.push(k.pid);
     }
-    return found.filter((p) => p !== rootPid);
   }
-  return [];
+  return found.filter((p) => p !== rootPid);
 }
 
 /** Deletes a try's folder (and the worktree registration, when the copy was a worktree). */

@@ -269,7 +269,7 @@ function card(i) {
   open.append(head, el('span', 'sto-summary small', i.summary), kindTag(i.kind), el('span', `sto-badge small trust-${i.trust}`, TRUST[i.trust]?.() ?? i.trust));
   if (i.qualified) open.append(el('span', 'sto-qualified small', qualifiedLine(i.qualified)));
   const a = actionFor(i);
-  const act = btn(a.label, a.go === 'get' ? '' : 'ghost', (b) => (a.go === 'update' ? void update(i.id, b) : void get(i.id, b)));
+  const act = btn(a.label, a.go === 'get' ? 'sto-act' : 'ghost sto-act', (b) => (a.go === 'update' ? void update(i.id, b) : void get(i.id, b)));
   act.disabled = Boolean(a.off) || !g.shelf?.installAllowed;
   if (a.why) act.title = a.why;
   c.append(open, act);
@@ -429,7 +429,7 @@ export async function openItem(id, o = {}) {
       location.hash = '#view=settings:ab-plugins';
       document.dispatchEvent(new CustomEvent('sara:focus-plugin', { detail: i.id }));
     }));
-  } else if (!r.installed || updatable) go.append(btn(updatable ? t('Update') : t('Get'), '', (b) => void (updatable ? update(i.id, b) : get(i.id, b))));
+  } else if (!r.installed || updatable) go.append(btn(updatable ? t('Update') : i.kind === 'companion' ? t('Add') : t('Get'), '', (b) => void (updatable ? update(i.id, b) : get(i.id, b))));
   else go.append(el('span', 'muted', t('Installed ({version})', { version: r.installed.version })));
   if (!r.installHeld) for (const b of go.querySelectorAll('button')) b.disabled = !r.installAllowed;
   nodes.push(go);

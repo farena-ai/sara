@@ -725,7 +725,7 @@ export function todaySafetyLine(app: AppContext): { red: number; line: string } 
 
 // ------------------------------------------------------------------ the CLI (§5.7)
 
-const PAGE_NAMES: Record<string, string> = { 'dh-devices': 'Data & health → Devices and sign-in', 'dh-backups': 'Data & health → Backups', 'dh-updates': 'Data & health → Updates', 'co-phone': 'Connections → Phone', 'co-hooks': 'Connections → Webhooks' };
+const PAGE_NAMES: Record<string, string> = { 'dh-devices': 'Connections → Devices and sign-in', 'dh-backups': 'Data & health → Backups', 'dh-updates': 'Data & health → Updates', 'co-phone': 'Connections → Phone', 'co-hooks': 'Connections → Webhooks' };
 export function formatSafety(r: SafetyReport, o: { fixes?: boolean } = {}): string {
   const icon = { green: '✓', amber: '!', red: '✗', skip: '-' } as const;
   const lines = r.checks.map((c) => {

@@ -1,6 +1,6 @@
 {
   "name": "sara",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "private": true,
   "license": "MIT",
   "description": "Sara — a self-hosted AI companion and assistant for coding, creating and managing things.",
@@ -12,7 +12,9 @@
     "start": "node src/main.ts",
     "dev": "node --watch src/main.ts",
     "sdk:sync": "node scripts/sdk-sync.ts",
-    "test": "node --test --test-reporter=spec --test-concurrency=4 \"test/**/*.test.ts\"",
+    "test": "npm run test:parallel && npm run test:serial",
+    "test:parallel": "node --test --test-reporter=spec --test-concurrency=4 \"test/**/*.test.ts\"",
+    "test:serial": "node --test --test-reporter=spec \"test/**/*.serial.ts\"",
     "test:sandbox": "node --test --test-reporter=spec test/sandbox.linux.test.ts",
     "typecheck": "tsc -p tsconfig.json",
     "check": "npm run typecheck && npm test",

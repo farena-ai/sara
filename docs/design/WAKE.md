@@ -575,7 +575,7 @@ avoid it, and never records through a path that would hide it.
   a person: all of their own devices). A remote off reaches the device through its next
   `/api/wake/config` poll (every 60 s while listening, and on every `/api/events` `wake` event when
   the app's event connection is up), so it takes effect within a minute.
-- **Signing a device out** (Settings → Data & health → Devices) ends its Hey Sara: its session id is
+- **Signing a device out** (Settings → Connections → Devices) ends its Hey Sara: its session id is
   gone, its `/api/wake/config` answers 401, the device stops listening and closes the mic.
 - **Uninstalling or removing the pack** stops it for good; *Remove Hey Sara from this device* deletes
   the pack folder and the device record.

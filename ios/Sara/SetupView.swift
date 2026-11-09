@@ -59,7 +59,7 @@ struct SetupView: View {
                 .onSubmit(connect)
                 .modifier(FieldStyle(look: look, focused: focus == .code))
                 .accessibilityIdentifier("code")
-            Text("Get a code on a device where you're signed in: Settings → Data & health → Devices and sign-in → Add a phone or computer. Without one, you sign in with your owner token.")
+            Text("Get a code on a device where you're signed in: Settings → Connections → Devices and sign-in → Add a phone or computer. Without one, you sign in with your owner token.")
                 .font(.footnote)
                 .foregroundStyle(look.text2)
             if let e = model.setupError {

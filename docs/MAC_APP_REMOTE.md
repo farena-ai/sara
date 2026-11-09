@@ -17,7 +17,7 @@ settings stay on the server. Takes about five minutes.
 1. Open the latest release: <https://github.com/farena-ai/sara/releases/latest>.
 2. Under **Assets**, download **`Sara-<version>.dmg`** (about 110 MB).
    - Or, if the server's owner put the app on the server: in a browser on the Mac, signed in to Sara,
-     Settings → Data & health → Devices and sign-in → **Download for Mac**.
+     Settings → Connections → Devices and sign-in → **Download for Mac**.
    - Or with Homebrew: `brew install --cask farena-ai/tap/sara`.
 
 ## 2. Install
@@ -46,7 +46,7 @@ still asks *"Sara is an app downloaded from the Internet. Are you sure you want 
 
 The app now opens that Sara's **sign in with a code** page (a *Code* box).
 
-1. On the device that is already signed in, open **Settings → Data & health → Devices and sign-in** and
+1. On the device that is already signed in, open **Settings → Connections → Devices and sign-in** and
    press **Add a phone or computer**. It shows a QR code and a short code like `ABCD-EFGH-JKLM`.
    The code works once and for 10 minutes.
 2. On the Mac, type the code in the **Code** box and confirm.

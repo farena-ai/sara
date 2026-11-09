@@ -2,6 +2,7 @@
 // and pulls out a few owner facts. Every fact must cite the owner's message and quote his exact
 // words; anything that can't be verified against the transcript is dropped (receipts for memory).
 import { dropFoldsCovering } from './compact.ts';
+import { attachSaved } from './memory-saved.ts';
 import { guard } from './log.ts';
 import type { MemoryKind } from './memory.ts';
 import { resolveFor, type AppContext } from './chat.ts';
@@ -424,7 +425,14 @@ export async function summarizeConversation(app: AppContext, mem: MemoryStore, c
     if (it.promise !== undefined && relatedIds.has(it.promise) && !overridden.has(it.promise) && quoted(it, ['user', 'assistant'])) mem.supersede(it.promise, newest);
   }
   mem.setState(conversationId, { summarizedThrough: last.id, lastAttemptAt: attempt, lastError: null });
-  app.events?.publish({ type: 'memory', conversationId });
+  // 3.0.3: each new note on the reply of the turn it came from ("Saved n new memories"); the open chat redraws.
+  let saved = 0;
+  try {
+    saved = attachSaved(app, conversationId, [...factIds, ...selfIds, ...dateIds, ...ledgerIds].map((id) => ({ id, sourceMessageId: mem.get(id)?.sourceMessageId ?? null })));
+  } catch (err) {
+    console.warn(`saved memories: ${(err as Error).message}`);
+  }
+  app.events?.publish({ type: 'memory', conversationId, ...(saved ? { saved } : {}) });
   return { summaryId: summary.id, factIds, selfIds, dateIds, droppedFacts: dropped, through: last.id };
 }
 

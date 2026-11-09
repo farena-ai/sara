@@ -7,7 +7,8 @@ export type HubEvent = (
   /** A background job started, made progress or ended (Phase 13). */
   | { type: 'job'; job: import('./jobs.ts').Job }
   | { type: 'planner'; what: 'tasks' | 'reminders' | 'notes' }
-  | { type: 'memory'; conversationId: string }
+  /** 3.0.3: `saved` = new notes the memory worker put on this chat's replies (the open chat redraws). */
+  | { type: 'memory'; conversationId: string; saved?: number }
   /** Phase 101 (ST6): people cards changed (proposed, facts added, edited, forgotten). Never names or facts. */
   | { type: 'people'; what?: string }
   /** Phase 26: she is calling (or the ring ended: answered, missed, declined, cancelled). */
@@ -68,6 +69,8 @@ export type HubEvent = (
   | { type: 'helper'; id: string; kind: import('./phone-helper.ts').HelperKind; state: 'asking' | 'done' | 'expired' | 'cancelled'; reason?: string; precise?: boolean; facing?: 'back' | 'front'; expiresAt?: string }
   /** Phase 118 (§5.13): a loop changed state or its next tick moved. */
   | { type: 'loop'; conversationId: string; loop: import('./loops.ts').LoopView | null }
+  /** 3.0.3: what needs the person in a conversation changed (an approval waits or ended, it was opened): the sidebar reloads. */
+  | { type: 'needs'; conversationId: string }
 ) & {
   /** Phase 31: which companion it came from (set by her CompanionHub). */
   companion?: string;

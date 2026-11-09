@@ -1,0 +1,1358 @@
+{
+ "format": "sara-store-locales-extra-source",
+ "note": "Store sequence 8: the parts of a plugin or tool-server listing the v1/locales.json sidecar has no room for (Sara 2.83+ refuses unknown fields there). about = every about paragraph, in order; tags = search words; terms = translations of the English words a listing puts in its permission lines (setting and field labels, what a tool server reaches). scripts/store-locales-extra.ts signs it into v1/locales-extra.json for Sara 3.0.3+.",
+ "items": {
+  "weather-alerts": {
+   "es": {
+    "tags": [
+     "tiempo",
+     "planificador"
+    ],
+    "terms": {
+     "Your city": "Tu ciudad"
+    }
+   },
+   "fr": {
+    "tags": [
+     "météo",
+     "planning"
+    ],
+    "terms": {
+     "Your city": "Votre ville"
+    }
+   },
+   "de": {
+    "tags": [
+     "wetter",
+     "planer"
+    ],
+    "terms": {
+     "Your city": "Deine Stadt"
+    }
+   },
+   "pt-BR": {
+    "tags": [
+     "clima",
+     "planejador"
+    ],
+    "terms": {
+     "Your city": "Sua cidade"
+    }
+   },
+   "it": {
+    "tags": [
+     "meteo",
+     "agenda"
+    ],
+    "terms": {
+     "Your city": "La tua città"
+    }
+   }
+  },
+  "focus": {
+   "es": {
+    "tags": [
+     "pomodoro",
+     "concentración",
+     "temporizador"
+    ],
+    "terms": {
+     "Minutes of break": "Minutos de descanso",
+     "Minutes of focus": "Minutos de concentración"
+    }
+   },
+   "fr": {
+    "tags": [
+     "pomodoro",
+     "concentration",
+     "minuteur"
+    ],
+    "terms": {
+     "Minutes of break": "Minutes de pause",
+     "Minutes of focus": "Minutes de concentration"
+    }
+   },
+   "de": {
+    "tags": [
+     "pomodoro",
+     "konzentration",
+     "timer"
+    ],
+    "terms": {
+     "Minutes of break": "Minuten Pause",
+     "Minutes of focus": "Minuten Konzentration"
+    }
+   },
+   "pt-BR": {
+    "tags": [
+     "pomodoro",
+     "foco",
+     "timer"
+    ],
+    "terms": {
+     "Minutes of break": "Minutos de pausa",
+     "Minutes of focus": "Minutos de foco"
+    }
+   },
+   "it": {
+    "tags": [
+     "pomodoro",
+     "concentrazione",
+     "timer"
+    ],
+    "terms": {
+     "Minutes of break": "Minuti di pausa",
+     "Minutes of focus": "Minuti di concentrazione"
+    }
+   }
+  },
+  "home-scenes": {
+   "es": {
+    "tags": [
+     "home assistant",
+     "luces",
+     "escenas"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "home assistant",
+     "lumières",
+     "scènes"
+    ]
+   },
+   "de": {
+    "tags": [
+     "home assistant",
+     "licht",
+     "szenen"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "home assistant",
+     "luzes",
+     "cenas"
+    ]
+   },
+   "it": {
+    "tags": [
+     "home assistant",
+     "luci",
+     "scene"
+    ]
+   }
+  },
+  "github-digest": {
+   "es": {
+    "tags": [
+     "github",
+     "resumen"
+    ],
+    "terms": {
+     "Repositories": "Repositorios",
+     "Your GitHub name": "Tu nombre en GitHub"
+    }
+   },
+   "fr": {
+    "tags": [
+     "github",
+     "résumé"
+    ],
+    "terms": {
+     "Repositories": "Dépôts",
+     "Your GitHub name": "Votre nom GitHub"
+    }
+   },
+   "de": {
+    "tags": [
+     "github",
+     "übersicht"
+    ],
+    "terms": {
+     "Repositories": "Repositorys",
+     "Your GitHub name": "Dein GitHub-Name"
+    }
+   },
+   "pt-BR": {
+    "tags": [
+     "github",
+     "resumo"
+    ],
+    "terms": {
+     "Repositories": "Repositórios",
+     "Your GitHub name": "Seu nome no GitHub"
+    }
+   },
+   "it": {
+    "tags": [
+     "github",
+     "riepilogo"
+    ],
+    "terms": {
+     "Repositories": "Repository",
+     "Your GitHub name": "Il tuo nome GitHub"
+    }
+   }
+  },
+  "reading-list": {
+   "es": {
+    "tags": [
+     "lectura",
+     "rss",
+     "enlaces"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "lecture",
+     "rss",
+     "liens"
+    ]
+   },
+   "de": {
+    "tags": [
+     "lesen",
+     "rss",
+     "links"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "leitura",
+     "rss",
+     "links"
+    ]
+   },
+   "it": {
+    "tags": [
+     "lettura",
+     "rss",
+     "link"
+    ]
+   }
+  },
+  "webhook-notes": {
+   "es": {
+    "tags": [
+     "webhooks",
+     "notas"
+    ],
+    "terms": {
+     "Events that matter": "Eventos importantes"
+    }
+   },
+   "fr": {
+    "tags": [
+     "webhooks",
+     "notes"
+    ],
+    "terms": {
+     "Events that matter": "Événements importants"
+    }
+   },
+   "de": {
+    "tags": [
+     "webhooks",
+     "notizen"
+    ],
+    "terms": {
+     "Events that matter": "Wichtige Ereignisse"
+    }
+   },
+   "pt-BR": {
+    "tags": [
+     "webhooks",
+     "notas"
+    ],
+    "terms": {
+     "Events that matter": "Eventos importantes"
+    }
+   },
+   "it": {
+    "tags": [
+     "webhook",
+     "note"
+    ],
+    "terms": {
+     "Events that matter": "Eventi importanti"
+    }
+   }
+  },
+  "comfyui": {
+   "es": {
+    "about": [
+     "ComfyUI es un programa gratuito que crea imágenes con modelos de IA en tu propio ordenador. Con este servidor de herramientas ella puede listar tus flujos, ejecutar uno con tus palabras y enseñarte el resultado.",
+     "Habla con la dirección de ComfyUI que le des; algunas de sus herramientas pueden descargar modelos o nodos personalizados, y esas te piden permiso primero. Su código viene de npm (el paquete comfyui-mcp, versión 0.52.206); probamos esa versión."
+    ],
+    "tags": [
+     "imágenes",
+     "comfyui",
+     "arte"
+    ],
+    "terms": {
+     "ComfyUI address": "Dirección de ComfyUI",
+     "the ComfyUI address you give it": "la dirección de ComfyUI que le des",
+     "the internet, when you let a tool download a model or a custom node (those ask you first)": "internet, cuando dejas que una herramienta descargue un modelo o un nodo personalizado (esas te piden permiso primero)"
+    }
+   },
+   "fr": {
+    "about": [
+     "ComfyUI est un programme gratuit qui crée des images avec des modèles d'IA sur votre propre ordinateur. Avec ce serveur d'outils, elle peut lister vos workflows, en lancer un avec vos mots et vous montrer le résultat.",
+     "Il parle à l'adresse ComfyUI que vous lui donnez ; quelques-uns de ses outils peuvent télécharger des modèles ou des nœuds personnalisés, et ceux-là vous demandent d'abord votre accord. Son code vient de npm (le paquet comfyui-mcp, version 0.52.206) ; nous avons testé cette version."
+    ],
+    "tags": [
+     "images",
+     "comfyui",
+     "art"
+    ],
+    "terms": {
+     "ComfyUI address": "Adresse de ComfyUI",
+     "the ComfyUI address you give it": "l'adresse ComfyUI que vous lui donnez",
+     "the internet, when you let a tool download a model or a custom node (those ask you first)": "internet, quand vous laissez un outil télécharger un modèle ou un nœud personnalisé (ceux-là vous demandent d'abord)"
+    }
+   },
+   "de": {
+    "about": [
+     "ComfyUI ist ein kostenloses Programm, das mit KI-Modellen Bilder auf deinem eigenen Computer erstellt. Mit diesem Tool-Server kann sie deine Workflows auflisten, einen mit deinen Worten ausführen und dir das Ergebnis zeigen.",
+     "Er spricht mit der ComfyUI-Adresse, die du ihm gibst; einige seiner Werkzeuge können Modelle oder Custom Nodes herunterladen, und die fragen dich vorher. Sein Code kommt von npm (Paket comfyui-mcp, Version 0.52.206); wir haben diese Version getestet."
+    ],
+    "tags": [
+     "bilder",
+     "comfyui",
+     "kunst"
+    ],
+    "terms": {
+     "ComfyUI address": "ComfyUI-Adresse",
+     "the ComfyUI address you give it": "die ComfyUI-Adresse, die du ihm gibst",
+     "the internet, when you let a tool download a model or a custom node (those ask you first)": "das Internet, wenn du ein Werkzeug ein Modell oder einen Custom Node herunterladen lässt (die fragen dich vorher)"
+    }
+   },
+   "pt-BR": {
+    "about": [
+     "O ComfyUI é um programa gratuito que cria imagens com modelos de IA no seu próprio computador. Com este servidor de ferramentas ela pode listar seus fluxos, rodar um com as suas palavras e mostrar o resultado.",
+     "Ele conversa com o endereço do ComfyUI que você der; algumas ferramentas podem baixar modelos ou nós personalizados, e essas pedem sua permissão antes. O código vem do npm (pacote comfyui-mcp, versão 0.52.206); testamos essa versão."
+    ],
+    "tags": [
+     "imagens",
+     "comfyui",
+     "arte"
+    ],
+    "terms": {
+     "ComfyUI address": "Endereço do ComfyUI",
+     "the ComfyUI address you give it": "o endereço do ComfyUI que você der",
+     "the internet, when you let a tool download a model or a custom node (those ask you first)": "a internet, quando você deixa uma ferramenta baixar um modelo ou nó personalizado (essas pedem antes)"
+    }
+   },
+   "it": {
+    "about": [
+     "ComfyUI è un programma gratuito che crea immagini con modelli di IA sul tuo computer. Con questo server di strumenti lei può elencare i tuoi flussi, eseguirne uno con le tue parole e mostrarti il risultato.",
+     "Parla con l'indirizzo di ComfyUI che gli dai; alcuni strumenti possono scaricare modelli o nodi personalizzati, e quelli ti chiedono prima il permesso. Il codice viene da npm (pacchetto comfyui-mcp, versione 0.52.206); abbiamo provato quella versione."
+    ],
+    "tags": [
+     "immagini",
+     "comfyui",
+     "arte"
+    ],
+    "terms": {
+     "ComfyUI address": "Indirizzo di ComfyUI",
+     "the ComfyUI address you give it": "l'indirizzo di ComfyUI che gli dai",
+     "the internet, when you let a tool download a model or a custom node (those ask you first)": "internet, quando lasci che uno strumento scarichi un modello o un nodo personalizzato (quelli chiedono prima)"
+    }
+   }
+  },
+  "blender": {
+   "es": {
+    "about": [
+     "Blender es el programa 3D gratuito. Este servidor de herramientas habla con un pequeño complemento dentro de Blender, así que ella puede mirar tu escena y cambiarla paso a paso.",
+     "Instala el complemento desde la página del proyecto (Editar → Preferencias → Complementos → Instalar desde el disco), actívalo y pulsa Connect en el panel lateral de Blender. El servidor se ejecuta con uv (uvx), versión 2.2.6 de mcp-for-blender."
+    ],
+    "tags": [
+     "3d",
+     "blender"
+    ],
+    "terms": {
+     "Blender on this computer (its add-on's local port)": "Blender en este ordenador (el puerto local de su complemento)"
+    }
+   },
+   "fr": {
+    "about": [
+     "Blender est le logiciel 3D gratuit. Ce serveur d'outils parle à un petit module complémentaire dans Blender, pour qu'elle puisse regarder votre scène et la modifier pas à pas.",
+     "Installez le module depuis la page du projet (Édition → Préférences → Modules complémentaires → Installer depuis le disque), activez-le et appuyez sur Connect dans le panneau latéral de Blender. Le serveur tourne avec uv (uvx), version 2.2.6 de mcp-for-blender."
+    ],
+    "tags": [
+     "3d",
+     "blender"
+    ],
+    "terms": {
+     "Blender on this computer (its add-on's local port)": "Blender sur cet ordinateur (le port local de son module)"
+    }
+   },
+   "de": {
+    "about": [
+     "Blender ist das kostenlose 3D-Programm. Dieser Tool-Server spricht mit einem kleinen Add-on in Blender, damit sie deine Szene ansehen und Schritt für Schritt verändern kann.",
+     "Installiere das Add-on von der Projektseite (Bearbeiten → Einstellungen → Add-ons → Von Datenträger installieren), schalte es ein und drücke Connect in Blenders Seitenleiste. Der Server läuft mit uv (uvx), Version 2.2.6 von mcp-for-blender."
+    ],
+    "tags": [
+     "3d",
+     "blender"
+    ],
+    "terms": {
+     "Blender on this computer (its add-on's local port)": "Blender auf diesem Computer (der lokale Port seines Add-ons)"
+    }
+   },
+   "pt-BR": {
+    "about": [
+     "O Blender é o programa 3D gratuito. Este servidor de ferramentas conversa com um pequeno complemento dentro do Blender, assim ela pode olhar sua cena e mudá-la passo a passo.",
+     "Instale o complemento pela página do projeto (Editar → Preferências → Complementos → Instalar do disco), ative-o e clique em Connect no painel lateral do Blender. O servidor roda com uv (uvx), versão 2.2.6 do mcp-for-blender."
+    ],
+    "tags": [
+     "3d",
+     "blender"
+    ],
+    "terms": {
+     "Blender on this computer (its add-on's local port)": "o Blender neste computador (a porta local do complemento)"
+    }
+   },
+   "it": {
+    "about": [
+     "Blender è il programma 3D gratuito. Questo server di strumenti parla con un piccolo componente aggiuntivo dentro Blender, così lei può guardare la tua scena e modificarla passo dopo passo.",
+     "Installa il componente dalla pagina del progetto (Modifica → Preferenze → Add-on → Installa da disco), attivalo e premi Connect nel pannello laterale di Blender. Il server gira con uv (uvx), versione 2.2.6 di mcp-for-blender."
+    ],
+    "tags": [
+     "3d",
+     "blender"
+    ],
+    "terms": {
+     "Blender on this computer (its add-on's local port)": "Blender su questo computer (la porta locale del suo componente)"
+    }
+   }
+  },
+  "playwright": {
+   "es": {
+    "about": [
+     "El servidor de herramientas de Playwright maneja un navegador en este ordenador. Lee las páginas a través de su árbol de accesibilidad, así que es rápido y no necesita imágenes.",
+     "Mirar una página funciona solo; hacer clic, escribir y ejecutar scripts te piden permiso primero. Su código viene de npm (@playwright/mcp, versión 0.0.84); probamos esa versión."
+    ],
+    "tags": [
+     "navegador",
+     "pruebas",
+     "web"
+    ],
+    "terms": {
+     "the web pages she opens": "las páginas web que ella abre"
+    }
+   },
+   "fr": {
+    "about": [
+     "Le serveur d'outils de Playwright pilote un navigateur sur cet ordinateur. Il lit les pages via leur arbre d'accessibilité : c'est rapide et il n'a pas besoin d'images.",
+     "Regarder une page se fait tout seul ; cliquer, taper et lancer des scripts vous demandent d'abord votre accord. Son code vient de npm (@playwright/mcp, version 0.0.84) ; nous avons testé cette version."
+    ],
+    "tags": [
+     "navigateur",
+     "tests",
+     "web"
+    ],
+    "terms": {
+     "the web pages she opens": "les pages web qu'elle ouvre"
+    }
+   },
+   "de": {
+    "about": [
+     "Der Tool-Server von Playwright steuert einen Browser auf diesem Computer. Er liest Seiten über ihren Barrierefreiheitsbaum, ist daher schnell und braucht keine Bilder.",
+     "Eine Seite ansehen läuft von allein; Klicken, Tippen und Skripte ausführen fragen dich vorher. Sein Code kommt von npm (@playwright/mcp, Version 0.0.84); wir haben diese Version getestet."
+    ],
+    "tags": [
+     "browser",
+     "testen",
+     "web"
+    ],
+    "terms": {
+     "the web pages she opens": "die Webseiten, die sie öffnet"
+    }
+   },
+   "pt-BR": {
+    "about": [
+     "O servidor de ferramentas do Playwright controla um navegador neste computador. Ele lê as páginas pela árvore de acessibilidade, então é rápido e não precisa de imagens.",
+     "Olhar uma página acontece sozinho; clicar, digitar e rodar scripts pedem sua permissão antes. O código vem do npm (@playwright/mcp, versão 0.0.84); testamos essa versão."
+    ],
+    "tags": [
+     "navegador",
+     "testes",
+     "web"
+    ],
+    "terms": {
+     "the web pages she opens": "as páginas que ela abre"
+    }
+   },
+   "it": {
+    "about": [
+     "Il server di strumenti di Playwright guida un browser su questo computer. Legge le pagine tramite l'albero di accessibilità, quindi è veloce e non ha bisogno di immagini.",
+     "Guardare una pagina avviene da solo; cliccare, scrivere ed eseguire script ti chiedono prima il permesso. Il codice viene da npm (@playwright/mcp, versione 0.0.84); abbiamo provato quella versione."
+    ],
+    "tags": [
+     "browser",
+     "test",
+     "web"
+    ],
+    "terms": {
+     "the web pages she opens": "le pagine web che apre"
+    }
+   }
+  },
+  "github": {
+   "es": {
+    "about": [
+     "El servidor de herramientas oficial de GitHub, ejecutado en Docker desde la imagen que publica GitHub, fijado por su digest (versión 0.20.1).",
+     "Crea un token de acceso detallado en GitHub (Settings → Developer settings) solo con los repositorios y permisos que quieras darle. Se guarda en la caja fuerte de Sara y no se vuelve a mostrar."
+    ],
+    "tags": [
+     "github",
+     "issues",
+     "código"
+    ],
+    "terms": {
+     "GitHub token": "Token de GitHub"
+    }
+   },
+   "fr": {
+    "about": [
+     "Le serveur d'outils officiel de GitHub, lancé dans Docker depuis l'image publiée par GitHub et épinglé par son empreinte (version 0.20.1).",
+     "Créez sur GitHub un jeton à accès précis (Settings → Developer settings) avec seulement les dépôts et autorisations que vous voulez lui donner. Il va dans le coffre de Sara et n'est plus jamais affiché."
+    ],
+    "tags": [
+     "github",
+     "issues",
+     "code"
+    ],
+    "terms": {
+     "GitHub token": "Jeton GitHub"
+    }
+   },
+   "de": {
+    "about": [
+     "Der offizielle Tool-Server von GitHub, in Docker aus dem von GitHub veröffentlichten Image gestartet und über seinen Digest festgelegt (Version 0.20.1).",
+     "Erstelle auf GitHub einen fein abgestuften Token (Settings → Developer settings) nur mit den Repositorys und Rechten, die sie haben soll. Er kommt in Saras Tresor und wird nie wieder angezeigt."
+    ],
+    "tags": [
+     "github",
+     "issues",
+     "code"
+    ],
+    "terms": {
+     "GitHub token": "GitHub-Token"
+    }
+   },
+   "pt-BR": {
+    "about": [
+     "O servidor de ferramentas oficial do GitHub, rodando no Docker a partir da imagem que o GitHub publica, fixado pelo digest (versão 0.20.1).",
+     "Crie no GitHub um token refinado (Settings → Developer settings) só com os repositórios e permissões que você quer dar a ela. Ele vai para o cofre da Sara e nunca mais é mostrado."
+    ],
+    "tags": [
+     "github",
+     "issues",
+     "código"
+    ],
+    "terms": {
+     "GitHub token": "Token do GitHub"
+    }
+   },
+   "it": {
+    "about": [
+     "Il server di strumenti ufficiale di GitHub, eseguito in Docker dall'immagine pubblicata da GitHub e fissato tramite il suo digest (versione 0.20.1).",
+     "Crea su GitHub un token a grana fine (Settings → Developer settings) con solo i repository e i permessi che vuoi darle. Finisce nella cassaforte di Sara e non viene più mostrato."
+    ],
+    "tags": [
+     "github",
+     "issue",
+     "codice"
+    ],
+    "terms": {
+     "GitHub token": "Token GitHub"
+    }
+   }
+  },
+  "filesystem": {
+   "es": {
+    "about": [
+     "El servidor de archivos de referencia del proyecto Model Context Protocol. Solo ve la carpeta que le das.",
+     "Sara rechaza una carpeta que sea su propia carpeta de datos o un disco entero. Su código viene de npm (@modelcontextprotocol/server-filesystem, versión 2.1.0); probamos esa versión."
+    ],
+    "tags": [
+     "archivos",
+     "carpetas"
+    ],
+    "terms": {
+     "The folder": "La carpeta",
+     "only the folder you pick": "solo la carpeta que elijas"
+    }
+   },
+   "fr": {
+    "about": [
+     "Le serveur de fichiers de référence du projet Model Context Protocol. Il ne voit que le dossier que vous lui donnez.",
+     "Sara refuse un dossier qui serait son propre dossier de données ou un disque entier. Son code vient de npm (@modelcontextprotocol/server-filesystem, version 2.1.0) ; nous avons testé cette version."
+    ],
+    "tags": [
+     "fichiers",
+     "dossiers"
+    ],
+    "terms": {
+     "The folder": "Le dossier",
+     "only the folder you pick": "uniquement le dossier que vous choisissez"
+    }
+   },
+   "de": {
+    "about": [
+     "Der Referenz-Dateiserver des Model-Context-Protocol-Projekts. Er sieht nur den Ordner, den du ihm gibst.",
+     "Sara lehnt einen Ordner ab, der ihr eigener Datenordner oder ein ganzes Laufwerk ist. Sein Code kommt von npm (@modelcontextprotocol/server-filesystem, Version 2.1.0); wir haben diese Version getestet."
+    ],
+    "tags": [
+     "dateien",
+     "ordner"
+    ],
+    "terms": {
+     "The folder": "Der Ordner",
+     "only the folder you pick": "nur den Ordner, den du auswählst"
+    }
+   },
+   "pt-BR": {
+    "about": [
+     "O servidor de arquivos de referência do projeto Model Context Protocol. Ele só enxerga a pasta que você der.",
+     "A Sara recusa uma pasta que seja a própria pasta de dados dela ou um disco inteiro. O código vem do npm (@modelcontextprotocol/server-filesystem, versão 2.1.0); testamos essa versão."
+    ],
+    "tags": [
+     "arquivos",
+     "pastas"
+    ],
+    "terms": {
+     "The folder": "A pasta",
+     "only the folder you pick": "só a pasta que você escolher"
+    }
+   },
+   "it": {
+    "about": [
+     "Il server di file di riferimento del progetto Model Context Protocol. Vede solo la cartella che gli dai.",
+     "Sara rifiuta una cartella che sia la sua cartella dei dati o un intero disco. Il codice viene da npm (@modelcontextprotocol/server-filesystem, versione 2.1.0); abbiamo provato quella versione."
+    ],
+    "tags": [
+     "file",
+     "cartelle"
+    ],
+    "terms": {
+     "The folder": "La cartella",
+     "only the folder you pick": "solo la cartella che scegli"
+    }
+   }
+  },
+  "context7": {
+   "es": {
+    "about": [
+     "Context7 ofrece documentación y ejemplos de código al día para miles de bibliotecas. Ella lo consulta cuando escribe código con una biblioteca.",
+     "Funciona sin clave; una clave gratuita de context7.com amplía sus límites. Su código viene de npm (@upstash/context7-mcp, versión 4.4.4); probamos esa versión."
+    ],
+    "tags": [
+     "documentación",
+     "bibliotecas",
+     "programación"
+    ],
+    "terms": {
+     "Context7 key (optional)": "Clave de Context7 (opcional)"
+    }
+   },
+   "fr": {
+    "about": [
+     "Context7 fournit une documentation et des exemples de code à jour pour des milliers de bibliothèques. Elle le consulte quand elle écrit du code avec une bibliothèque.",
+     "Il fonctionne sans clé ; une clé gratuite de context7.com relève ses limites. Son code vient de npm (@upstash/context7-mcp, version 4.4.4) ; nous avons testé cette version."
+    ],
+    "tags": [
+     "documentation",
+     "bibliothèques",
+     "programmation"
+    ],
+    "terms": {
+     "Context7 key (optional)": "Clé Context7 (facultative)"
+    }
+   },
+   "de": {
+    "about": [
+     "Context7 liefert aktuelle Dokumentation und Codebeispiele für Tausende von Bibliotheken. Sie fragt dort nach, wenn sie Code mit einer Bibliothek schreibt.",
+     "Er funktioniert ohne Schlüssel; ein kostenloser Schlüssel von context7.com hebt seine Grenzen an. Sein Code kommt von npm (@upstash/context7-mcp, Version 4.4.4); wir haben diese Version getestet."
+    ],
+    "tags": [
+     "dokumentation",
+     "bibliotheken",
+     "programmieren"
+    ],
+    "terms": {
+     "Context7 key (optional)": "Context7-Schlüssel (optional)"
+    }
+   },
+   "pt-BR": {
+    "about": [
+     "O Context7 oferece documentação e exemplos de código atualizados para milhares de bibliotecas. Ela consulta quando escreve código com uma biblioteca.",
+     "Funciona sem chave; uma chave gratuita do context7.com aumenta os limites. O código vem do npm (@upstash/context7-mcp, versão 4.4.4); testamos essa versão."
+    ],
+    "tags": [
+     "documentação",
+     "bibliotecas",
+     "programação"
+    ],
+    "terms": {
+     "Context7 key (optional)": "Chave do Context7 (opcional)"
+    }
+   },
+   "it": {
+    "about": [
+     "Context7 offre documentazione ed esempi di codice aggiornati per migliaia di librerie. Lei lo consulta quando scrive codice con una libreria.",
+     "Funziona senza chiave; una chiave gratuita di context7.com alza i limiti. Il codice viene da npm (@upstash/context7-mcp, versione 4.4.4); abbiamo provato quella versione."
+    ],
+    "tags": [
+     "documentazione",
+     "librerie",
+     "programmazione"
+    ],
+    "terms": {
+     "Context7 key (optional)": "Chiave Context7 (facoltativa)"
+    }
+   }
+  },
+  "secret-scanner": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "license-auditor": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "sbom-builder": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "artifact-provenance-verifier": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "coverage-explorer": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "log-explorer": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "incident-workbench": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "environment-config-doctor": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "database-fixture-studio": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "data-contract-validator": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "change-impact-analyzer": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "architecture-guard": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "sql-migration-reviewer": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "visual-regression": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "localization-qa": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "accessibility-auditor": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "build-cache-inspector": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "api-contract-guard": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "solo local"
+    ]
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local uniquement"
+    ]
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "nur lokal"
+    ]
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "só local"
+    ]
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "solo locale"
+    ]
+   }
+  },
+  "http-webhook-workbench": {
+   "es": {
+    "tags": [
+     "desarrollo",
+     "local",
+     "http",
+     "webhook",
+     "repetir"
+    ],
+    "terms": {
+     "Loopback endpoint": "Dirección loopback"
+    }
+   },
+   "fr": {
+    "tags": [
+     "développeur",
+     "local",
+     "http",
+     "webhook",
+     "rejouer"
+    ],
+    "terms": {
+     "Loopback endpoint": "Adresse loopback"
+    }
+   },
+   "de": {
+    "tags": [
+     "entwicklung",
+     "lokal",
+     "http",
+     "webhook",
+     "wiederholen"
+    ],
+    "terms": {
+     "Loopback endpoint": "Loopback-Adresse"
+    }
+   },
+   "pt-BR": {
+    "tags": [
+     "desenvolvimento",
+     "local",
+     "http",
+     "webhook",
+     "repetir"
+    ],
+    "terms": {
+     "Loopback endpoint": "Endereço loopback"
+    }
+   },
+   "it": {
+    "tags": [
+     "sviluppo",
+     "locale",
+     "http",
+     "webhook",
+     "ripeti"
+    ],
+    "terms": {
+     "Loopback endpoint": "Indirizzo loopback"
+    }
+   }
+  }
+ }
+}

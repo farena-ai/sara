@@ -84,7 +84,11 @@ export class ApprovalBroker {
   readonly #how = new Map<string, ApprovalHow>();
   /** Requests that ended unanswered (their turn, task step or call ended, or the wait ran out). */
   readonly #expired = new Map<string, number>();
+  /** 3.0.3: the expired requests whose wait ran out (nobody answered in time), not ended by their caller. */
+  readonly #timedOut = new Set<string>();
   readonly #timeoutMs: number;
+  /** 3.0.3: told when a conversation's waiting approvals change (the sidebar's needs-you dot). */
+  readonly #listeners = new Set<(conversationId: string) => void>();
 
   constructor(timeoutMs = 10 * 60 * 1000) {
     this.#timeoutMs = timeoutMs;
@@ -93,13 +97,15 @@ export class ApprovalBroker {
   request(conversationId: string, signal: AbortSignal): { id: string; decision: Promise<boolean> } {
     const id = randomUUID();
     const decision = new Promise<boolean>((resolve) => {
-      const done = (v: boolean, ended = false) => {
+      const done = (v: boolean, ended = false, late = false) => {
         const p = this.#pending.get(id);
         if (!p) return;
         clearTimeout(p.timer);
         this.#pending.delete(id);
         signal.removeEventListener('abort', onAbort);
         if (ended) this.#expire(id);
+        if (late) this.#timedOut.add(id);
+        this.#changed(conversationId);
         resolve(v);
       };
       // The wait belongs to its caller: when the caller ends, the request ends with it at once.
@@ -110,20 +116,46 @@ export class ApprovalBroker {
         return;
       }
       signal.addEventListener('abort', onAbort, { once: true });
-      this.#pending.set(id, { conversationId, resolve: done, timer: setTimeout(() => done(false, true), this.#timeoutMs) });
+      this.#pending.set(id, { conversationId, resolve: done, timer: setTimeout(() => done(false, true, true), this.#timeoutMs) });
+      this.#changed(conversationId);
     });
     return { id, decision };
   }
 
+  /** 3.0.3: listen for waiting approvals starting or ending (returns the unsubscribe). */
+  onChange(fn: (conversationId: string) => void): () => void {
+    this.#listeners.add(fn);
+    return () => this.#listeners.delete(fn);
+  }
+
+  #changed(conversationId: string): void {
+    for (const fn of this.#listeners) {
+      try {
+        fn(conversationId);
+      } catch {
+        /* a listener never breaks an approval */
+      }
+    }
+  }
+
   #expire(id: string): void {
     const t = Date.now();
-    for (const [k, at] of this.#expired) if (t - at > this.#timeoutMs || this.#expired.size > 500) this.#expired.delete(k);
+    for (const [k, at] of this.#expired)
+      if (t - at > this.#timeoutMs || this.#expired.size > 500) {
+        this.#expired.delete(k);
+        this.#timedOut.delete(k);
+      }
     this.#expired.set(id, t);
   }
 
   /** 'waiting', 'expired' (its caller ended or the wait ran out; a late answer runs nothing) or 'unknown'. */
   state(id: string): 'waiting' | 'expired' | 'unknown' {
     return this.#pending.has(id) ? 'waiting' : this.#expired.has(id) ? 'expired' : 'unknown';
+  }
+
+  /** 3.0.3: true when this request was refused because nobody answered within the wait (not a "no"). */
+  timedOut(id: string): boolean {
+    return this.#timedOut.has(id);
   }
 
   decide(id: string, approved: boolean, how?: ApprovalHow): boolean {
@@ -142,6 +174,13 @@ export class ApprovalBroker {
     const h = this.#how.get(id);
     this.#how.delete(id);
     return h;
+  }
+
+  /** 3.0.3: how many approvals wait in each conversation. */
+  pendingByConversation(): Map<string, number> {
+    const out = new Map<string, number>();
+    for (const p of this.#pending.values()) out.set(p.conversationId, (out.get(p.conversationId) ?? 0) + 1);
+    return out;
   }
 
   pendingFor(conversationId: string): string[] {

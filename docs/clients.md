@@ -2,14 +2,14 @@
 
 Two small clients talk to your own Sara server with the same API as the web app, so it is the
 same companion: same memory, same personality, same conversations. Both sign in with a **device
-code** (no owner token typed anywhere) and are listed under **Settings → Data & health → Devices
+code** (no owner token typed anywhere) and are listed under **Settings → Connections → Devices
 and sign-in**, where signing one out ends it.
 
 ## How device sign-in works
 
 1. The app asks the server for a code (`POST /api/device/start` with the app's name). It shows
    the code (like `K7QM-3XTP`) and where to approve it (Settings, or the `/device` page).
-2. You approve it, either in **Settings → Data & health → Devices and sign-in** ("Apps asking to
+2. You approve it, either in **Settings → Connections → Devices and sign-in** ("Apps asking to
    sign in") or on the `/device` page in a browser where you're signed in. The page names the app;
    nothing happens until you press **Approve**. In 1.0 you type the code yourself (it isn't taken
    from the link, so a link someone sends you can't approve their app) and confirm it's you with

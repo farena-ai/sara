@@ -30,6 +30,8 @@ works without web search.
   anything else is left out. The notes are a skill (Settings → Skills, marked as a learned topic):
   a summary, key facts with dates, a glossary, how to answer questions on it, and the sources list
   with the date each page was fetched.
+- Writing or refreshing that skill needs no approval card (3.0.3): it shows up in Settings → Skills
+  with its versions, and you can delete it or go back to an earlier version there.
 
 ## Asking about it
 

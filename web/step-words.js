@@ -120,11 +120,12 @@ export function stepWordsWith(t, name, args = {}, named = '') {
       return pair(t('Looking for a skill…'), t('Looked for a skill'), 'search');
     case 'skill_run':
       return pair(t("Running a skill's script…"), t("Ran a skill's script"), 'terminal');
+    // 3.0.3: saves need no OK by default, so the step names the skill (with Open and Undo on the step).
     case 'skill_save':
     case 'recipe_save':
-      return pair(t('Saving a skill…'), t('Saved a skill'), 'book');
+      return a.name || a.title ? pair(t('Saving a skill…'), t('Saved skill: {name}', { name: String(a.name ?? a.title).slice(0, 64) }), 'book') : pair(t('Saving a skill…'), t('Saved a skill'), 'book');
     case 'skill_update':
-      return pair(t('Changing a skill…'), t('Changed a skill'), 'book');
+      return a.name ? pair(t('Changing a skill…'), t('Changed skill: {name}', { name: String(a.name).slice(0, 64) }), 'book') : pair(t('Changing a skill…'), t('Changed a skill'), 'book');
     case 'settings_guide':
       return pair(t('Looking up how the app works…'), t('Looked up how the app works'), 'help');
     // Phase 115: a file she shares into the chat.

@@ -34,6 +34,7 @@ import { imageType, STORE_PLUGIN_LIMITS } from '../store/checks.ts';
 import { pluginInstallation, shelfView } from '../store/client.ts';
 import { isStoreId, shortKey, speakToReader } from '../store/format.ts';
 import { entryLines, InstallError, StoreInstaller } from '../store/install.ts';
+import { translateLineParams } from '../store/locales.ts';
 import { packFiles, packPath, readStoreZip, type Pack } from '../store/pack.ts';
 import { STORE_COMPANION_LIMITS } from '../packs/format.ts';
 import { ownerNames } from '../packs/scrub.ts';
@@ -258,14 +259,17 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
       if (hit.item.icon && hit.item.iconSha) remember(hit.item.iconSha, hit.item.icon);
       const row = app.storeInstalls?.get(c);
       const source = hit.item.kind === 'plugin' ? pluginInstallation(app.pluginManager, c, row) : undefined;
-      const { lines, error } = entryLines(entry, saraVersion);
+      const { lines: enLines, error } = entryLines(entry, saraVersion);
       const held = client.held().some((h) => h.id === c);
       // A translated listing: the tagline (summary, the entry's description) and the longer text (about[0]).
       const tr = client.translations(ownerLang())[c];
       // MNT2: a companion's text speaks of {{user}}; the page speaks to the reader.
       const reader = (s: string) => speakToReader(s, { lang: ownerLang(), name: (app.settings.get() as { ownerName?: string }).ownerName });
       const description = reader(tr?.summary ?? entry.description);
-      const about = (tr?.description ? [tr.description, ...entry.about.slice(1)] : entry.about).map(reader);
+      // Store sequence 8: every about paragraph (when the count matches) and the words in the permission lines.
+      const trx = client.translationsExtra(ownerLang())[c];
+      const about = (trx?.about && trx.about.length === entry.about.length ? trx.about : tr?.description ? [tr.description, ...entry.about.slice(1)] : entry.about).map(reader);
+      const lines = enLines.map((l) => translateLineParams(l, trx?.terms));
       return send(res, 200, {
         item: { id: hit.item.id, kind: hit.item.kind, name: hit.item.name, summary: reader(tr?.summary ?? hit.item.summary), trust: hit.item.trust, category: hit.item.category ?? 'more', author: { name: hit.item.author.name, key: shortKey(hit.item.author.key) }, ...(hit.item.iconSha ? { icon: hit.item.iconSha } : {}), ...(hit.item.kind === 'companion' ? { rating: hit.item.rating, romance: hit.item.romance } : {}) },
         version: hit.v.version,

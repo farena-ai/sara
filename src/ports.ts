@@ -5,14 +5,15 @@
 // macOS: lsof + ps. Anything that can't be checked counts as "not owned" (fail closed).
 import { execFile } from 'node:child_process';
 import { readdirSync, readFileSync, readlinkSync } from 'node:fs';
+import { windowsProcesses } from './win-processes.ts';
 
-const run = (file: string, args: string[], timeoutMs = 8000): Promise<string> =>
+const run = (file: string, args: string[], timeoutMs = 8000, signal?: AbortSignal): Promise<string> =>
   new Promise((resolve) => {
-    execFile(file, args, { timeout: timeoutMs, windowsHide: true, maxBuffer: 8 * 1024 * 1024 }, (err, stdout) => resolve(err && !stdout ? '' : String(stdout)));
+    execFile(file, args, { timeout: timeoutMs, windowsHide: true, maxBuffer: 8 * 1024 * 1024, ...(signal ? { signal } : {}) }, (err, stdout) => resolve(err && !stdout ? '' : String(stdout)));
   });
 
 /** Parent of every process (pid → ppid). */
-export async function processParents(platform: NodeJS.Platform = process.platform): Promise<Map<number, number>> {
+export async function processParents(platform: NodeJS.Platform = process.platform, signal?: AbortSignal): Promise<Map<number, number>> {
   const out = new Map<number, number>();
   if (platform === 'linux') {
     for (const name of readdirSync('/proc')) {
@@ -29,19 +30,8 @@ export async function processParents(platform: NodeJS.Platform = process.platfor
     return out;
   }
   if (platform === 'win32') {
-    // WMI now and then answers "Call cancelled" or "Quota violation" part-way through on a busy
-    // machine (a cut list): a complete list always has this process in it, so try again until it does.
-    // Asking for only the two fields keeps the query small, which is what fails far less often.
-    let text = '';
-    const self = new RegExp(`^${process.pid} \\d+\\s*$`, 'm');
-    for (let i = 0; i < 3 && !self.test(text); i++) {
-      if (i) await new Promise((r) => setTimeout(r, 300 * i));
-      text = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', 'Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId)" }'], 20_000);
-    }
-    for (const line of text.split(/\r?\n/)) {
-      const m = /^(\d+) (\d+)$/.exec(line.trim());
-      if (m) out.set(Number(m[1]), Number(m[2]));
-    }
+    // Complete or empty, with a deadline that a slow (loaded) PC still meets: src/win-processes.ts.
+    for (const p of await windowsProcesses(signal ? { signal } : {})) out.set(p.pid, p.ppid);
     return out;
   }
   const text = await run('/bin/ps', ['-axo', 'pid=,ppid=']);
@@ -203,12 +193,12 @@ export async function portListeners(port: number, platform: NodeJS.Platform = pr
     return out;
   }
   if (platform === 'win32') {
-    const text = await run('netstat.exe', ['-ano', '-p', 'TCP']);
-    const text6 = await run('netstat.exe', ['-ano', '-p', 'TCPv6']);
+    // Both tables at once: each netstat takes seconds on a busy PC.
+    const [text, text6] = await Promise.all([run('netstat.exe', ['-ano', '-p', 'TCP'], 30_000), run('netstat.exe', ['-ano', '-p', 'TCPv6'], 30_000)]);
     const found = parseNetstat(`${text}\n${text6}`, port);
     if (found.length) return found;
     // Phase 89: some Windows 11 builds leave listeners out of netstat: ask the TCP table another way.
-    const ps = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Get-NetTCPConnection -LocalPort ${Math.trunc(port)} -ErrorAction SilentlyContinue | ForEach-Object { "$($_.LocalAddress) $($_.LocalPort) $($_.RemoteAddress) $($_.RemotePort) [$($_.State)] $($_.OwningProcess)" }`], 15_000);
+    const ps = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Get-NetTCPConnection -LocalPort ${Math.trunc(port)} -ErrorAction SilentlyContinue | ForEach-Object { "$($_.LocalAddress) $($_.LocalPort) $($_.RemoteAddress) $($_.RemotePort) [$($_.State)] $($_.OwningProcess)" }`], 45_000);
     return parseNetTcp(ps, port);
   }
   return parseLsof(await run('/usr/sbin/lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-Fptn']));
@@ -226,12 +216,19 @@ export function ownsPort(listeners: Listener[], tree: Set<number>): boolean {
 
 /** True when `root`'s tree (and nobody else) listens on 127.0.0.1:`port` (or a socket that 127.0.0.1 reaches). */
 export async function treeListensOn(root: number, port: number, platform: NodeJS.Platform = process.platform): Promise<boolean> {
+  const stop = new AbortController();
   try {
+    // Windows: both queries take seconds under load; ask them side by side, and stop the process
+    // list when nobody listens there after all.
+    const parents = platform === 'win32' ? processParents(platform, stop.signal) : undefined;
+    parents?.catch(() => {});
     const listeners = await portListeners(port, platform);
     if (!listeners.some((l) => l.reaches)) return false;
-    const tree = processTree(root, await processParents(platform));
+    const tree = processTree(root, await (parents ?? processParents(platform)));
     return ownsPort(listeners, tree);
   } catch {
     return false;
+  } finally {
+    stop.abort();
   }
 }

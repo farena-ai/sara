@@ -29,7 +29,7 @@ installable with HACS) makes Sara:
   attribute, which Home Assistant doesn't keep in its history).
 
 It signs in like the terminal client and the VS Code extension ([clients.md](clients.md)): Home
-Assistant shows a code, you approve it in Sara under **Settings → Data & health → Devices and
+Assistant shows a code, you approve it in Sara under **Settings → Connections → Devices and
 sign-in** (or on the `/device` page), confirming with your owner token, two-step code or passkey.
 Home Assistant then has its own device token, listed as "Home Assistant"; sign it out there to end
 it. That token only reaches Home Assistant's own conversations (titled "Home Assistant" in Sara):

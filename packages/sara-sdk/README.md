@@ -36,7 +36,7 @@ const token = await sara.auth.signIn({
 // Keep the token (a secret) and pass it next time: new Sara({ server, token })
 ```
 
-The person approves the code in Sara: Settings → Data & health → Devices and sign-in. Sara asks
+The person approves the code in Sara: Settings → Connections → Devices and sign-in. Sara asks
 them to confirm it is really them. `sara.auth.signOut()` ends the token.
 
 ## Stream a reply and answer an approval

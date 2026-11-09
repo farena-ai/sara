@@ -281,13 +281,25 @@
 :where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #settings) :is(th, td) { padding: 8px 10px; border-bottom: 1px solid var(--line); }
 :where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #settings) tr:last-child > td { border-bottom: 0; }
 /* Empty states: a quiet dashed panel instead of a lone grey line. */
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) :is(.empty, .lib-empty, .is-empty, #lib-summary:not(:empty), .ev-empty, .fd-empty) {
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) :is(.empty, .lib-empty, .is-empty:not(.team-cols), #lib-summary:not(:empty), .ev-empty, .fd-empty) {
   padding: 16px; border: 1px dashed color-mix(in srgb, var(--line) 40%, var(--text-3)); border-radius: 12px; background: color-mix(in srgb, var(--surface-2) 60%, transparent); color: var(--text-3); text-align: center;
 }
 /* Library: the drop zone as a V4 panel. */
 :where(:root:not([data-palette="classic"])) #library .lib-drop { border: 1px dashed var(--acc-line); border-radius: 14px; background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--surface-2); box-shadow: none; }
+/* Fresh pass: the Library's other ways in (feed, research, learned topics, meetings) as one row of
+   buttons, not four stacked lines. */
+:where(:root:not([data-palette="classic"])) #library .lib-ways { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 10px 0; }
+:where(:root:not([data-palette="classic"])) #library .lib-ways > p { display: inline-flex; align-items: center; gap: 4px; margin: 0; }
+/* Fresh pass: Memory's add row: the date column as wide as its label and tip, so both labels sit on one line. */
+@media (min-width: 600px) {
+  :where(:root:not([data-palette="classic"])) #memory .mem-add { grid-template-columns: minmax(0, 1fr) auto auto auto; }
+}
+/* Fresh pass: her page's two picture links read as two links, not one. */
+:where(:root:not([data-palette="classic"])) #avatar-ap-link { margin-left: 12px; }
 /* Evals: its sections as V4 cards. */
 :where(:root:not([data-palette="classic"])) #evals :is(.ev-new, .ev-past, .ev-report, .ev-card) { border: 1px solid var(--line); border-radius: var(--v4-r-card); background: var(--v4-card-bg); box-shadow: var(--v4-card-shadow); }
+/* Fresh pass: the words and controls inside those cards keep off the card edge. */
+:where(:root:not([data-palette="classic"])) #evals :is(.ev-new, .ev-past) { padding: 14px 16px; }
 /* "How do I…?" bars inside the places. */
 :where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) :is(.howto, details.howto) { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); box-shadow: none; }
 
@@ -338,6 +350,10 @@
 :where(:root:not([data-palette="classic"])) #conversations a.conv[data-state="open"]::before { background: var(--accent-solid); opacity: 1; box-shadow: 0 0 8px var(--acc-glow); }
 :where(:root:not([data-palette="classic"])) #conversations a.conv[data-state="working"]::before { background: var(--accent-solid); opacity: 1; box-shadow: 0 0 8px var(--acc-glow); animation: v4d-breathe 1.6s ease-in-out infinite; }
 :where(:root:not([data-palette="classic"])) #conversations a.conv[data-state="ended"]::before { border: 1px solid var(--text-3); background: none; opacity: .7; }
+/* 3.0.3: a chat that needs you: the row's dot turns red (its reason stays in .conv-needs for screen readers and on hover). */
+:where(:root:not([data-palette="classic"])) #conversations a.conv[data-needs]::before { border: 0; background: var(--danger); opacity: 1; box-shadow: 0 0 0 3px var(--danger-soft); animation: none; }
+:where(:root:not([data-palette="classic"])) #conversations a.conv > .conv-needs { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); }
+:where(:root:not([data-palette="classic"])) #conversations .group-needs { flex: none; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--danger-fill); color: var(--on-danger); font-size: 10.5px; font-weight: 650; line-height: 16px; text-align: center; font-variant-numeric: tabular-nums; }
 :where(:root:not([data-palette="classic"])) #conversations a.conv.active[data-state]::before { left: auto; top: auto; bottom: auto; width: 6px; height: 6px; border-radius: 50%; }
 :where(:root:not([data-palette="classic"]))[data-motion="off"] #conversations a.conv[data-state="working"]::before { animation: none; }
 @media (prefers-reduced-motion: reduce) { :where(:root:not([data-palette="classic"])) #conversations a.conv[data-state="working"]::before { animation: none; } }

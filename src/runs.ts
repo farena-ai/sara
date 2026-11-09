@@ -62,7 +62,7 @@ export interface ToolStep {
   outputChars: number;
   ms: number;
   /** auto (ran without asking) · allowed / denied (the owner answered) · refused (never / not available here). */
-  approval?: 'auto' | 'allowed' | 'denied' | 'refused';
+  approval?: 'auto' | 'allowed' | 'denied' | 'refused' | 'timeout';
   /** Phase 77 findings for this call (flags and stops with the owner's answer). */
   contradictions?: unknown[];
   /** Paths the call names (file tools), relative to the workspace. */
@@ -339,12 +339,44 @@ export class RunStore {
       PRIMARY KEY (run_id, id)
     );
     CREATE INDEX IF NOT EXISTS runs_parent ON runs(parent_run_id);`);
+    // 3.0.3: the newest finished run each conversation was opened after (the needs-you dot for failed runs).
+    db.exec('CREATE TABLE IF NOT EXISTS run_seen (conversation_id TEXT PRIMARY KEY, run_id INTEGER NOT NULL)');
     // Runs that were open when the server stopped did not finish.
     try {
       db.prepare("UPDATE runs SET status = 'interrupted', ended_at = COALESCE(ended_at, ?) WHERE status = 'running'").run(now().toISOString());
     } catch {
       /* read-only copy */
     }
+  }
+
+  /** 3.0.3: the person opened this conversation: its finished runs so far are seen. */
+  markSeen(conversationId: string): boolean {
+    try {
+      const r = this.#db.prepare("SELECT MAX(id) AS id FROM runs WHERE conversation_id = ? AND status <> 'running'").get(conversationId) as { id: number | null } | undefined;
+      if (!r?.id) return false;
+      const prev = this.#db.prepare('SELECT run_id FROM run_seen WHERE conversation_id = ?').get(conversationId) as { run_id: number } | undefined;
+      if (prev && prev.run_id >= r.id) return false;
+      this.#db.prepare('INSERT INTO run_seen (conversation_id, run_id) VALUES (?, ?) ON CONFLICT(conversation_id) DO UPDATE SET run_id = excluded.run_id').run(conversationId, r.id);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * 3.0.3: conversations whose newest finished turn, job or team run (of the last three days) failed
+   * after the person last opened them. Restarts ('interrupted') and stops don't count.
+   */
+  failedUnseen(now: Date = this.#now()): string[] {
+    const cut = new Date(now.getTime() - 3 * 86_400_000).toISOString();
+    return (
+      this.#db
+        .prepare(
+          `SELECT r.conversation_id AS c FROM runs r WHERE r.id IN (SELECT MAX(id) FROM runs WHERE conversation_id IS NOT NULL AND kind IN ('turn', 'job', 'team') AND status <> 'running' AND ended_at >= ? GROUP BY conversation_id)
+           AND r.status = 'error' AND r.id > COALESCE((SELECT s.run_id FROM run_seen s WHERE s.conversation_id = r.conversation_id), 0)`,
+        )
+        .all(cut) as { c: string }[]
+    ).map((x) => String(x.c));
   }
 
   /** Opens a run (0 when it can't be recorded: the conversation is gone, the disk is full…). */

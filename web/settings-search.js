@@ -56,6 +56,10 @@ export const SETTINGS_KEYWORDS = {
   'dh-policy': ['policy', 'admin', 'pinned', 'managed settings', 'lock settings'],
   'dh-privacy': ['privacy', 'store data', 'what leaves'],
   'dh-reports': ['report', 'bug', 'idea', 'takedown', 'report an add-on'],
+  // 3.0.3: where a new phone or computer gets its sign-in code. Words in all six app languages (the
+  // titles and labels are matched in the app's language already; these are what people type instead).
+  'dh-devices': ['code', 'sign-in code', 'pairing', 'pair', 'pair a device', 'add device', 'add a device', 'add computer', 'add phone', 'add a phone or computer', 'new device', 'sign in another device', 'another device', 'desktop apps', 'qr', 'qr code', 'passkey', 'two-step',
+    'codigo', 'emparejar', 'vincular', 'anadir dispositivo', 'otro dispositivo', 'jumeler', 'appairer', 'ajouter un appareil', 'autre appareil', 'koppeln', 'gerat hinzufugen', 'anderes gerat', 'codice', 'associa', 'abbina', 'aggiungi dispositivo', 'altro dispositivo', 'parear', 'emparelhar', 'adicionar dispositivo', 'outro dispositivo'],
   'co-phone': ['notifications', 'push', 'phone app', 'android', 'iphone', 'talk tile'],
   'desktop-app': ['windows app', 'desktop app', 'mac app', 'tray', 'shortcut'],
 };

@@ -86,7 +86,9 @@ test('panel styles: 320 px column from 1100 px, an overlay below, a sheet on pho
 
 test('panel behaviour: approvals reuse the chat card, memories never in private chats, 403 hides a part quietly', () => {
   // Allow / Deny press the chat card's own buttons: the panel never decides an approval itself.
-  assert.match(panelJs, /const \[yes, no\] = card\.querySelectorAll\(':scope > \.row > button'\)/);
+  // 3.0.3: the card's marked Allow / Deny (else the row's first and last button).
+  assert.match(panelJs, /const all = \[\.\.\.card\.querySelectorAll\(':scope > \.row > button'\)\]/);
+  assert.match(panelJs, /const no = card\.querySelector\(':scope > \.row > button\[data-answer="no"\]'\) \?\? \(all\.length > 1 \? all\.at\(-1\) : undefined\)/);
   assert.match(panelJs, /src\?\.click\(\)/);
   assert.doesNotMatch(panelJs, /\/approvals/, 'no approval requests of its own');
   assert.match(panelJs, /if \(!conv \|\| conv\.offRecord \|\| conv\.private\) \{\s*sec\.hidden = true;/, 'no memories in off-the-record or private conversations');

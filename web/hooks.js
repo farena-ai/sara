@@ -214,6 +214,9 @@ function renderReach() {
 
 function renderList() {
   const box = $('#hk-list');
+  // With no webhooks yet the empty state carries the one New webhook button (no second one above it).
+  const top = $('#hk-new')?.closest('.add-row');
+  if (top) top.hidden = !state.hooks.length;
   if (!state.hooks.length) {
     box.replaceChildren(emptyState({ icon: 'plug', text: t('No webhooks yet.'), why: t('A webhook lets another app or service tell her something happened.'), action: { label: t('New webhook'), run: () => document.querySelector('#hk-new')?.click() }, howto: true }));
     return;

@@ -691,8 +691,13 @@ export function skillApproval(card, title, ev, decide) {
   title.dataset.raw = '';
   const sec = el('div', 'skl-approval');
   const row = el('div', 'row');
-  const yes = (label, how) => btn(label, '', () => decide(true, how));
-  const no = (label) => btn(label, 'ghost', () => decide(false));
+  // 3.0.3: the first Allow and the Deny are marked, so the panel, the activity line and Ctrl K answer with them.
+  const mark = (b, answer) => {
+    if (answer) b.dataset.answer = answer;
+    return b;
+  };
+  const yes = (label, how) => mark(btn(label, '', () => decide(true, how)), how ? '' : 'yes');
+  const no = (label) => mark(btn(label, 'ghost', () => decide(false)), 'no');
   if (k.kind === 'skill') {
     title.textContent = t('{name} wants to run a script from the skill “{skill}”', { name: herName(), skill: k.skill });
     sec.append(el('p', 'small', t('Where it lives: {where}', { where: scopeWords(k.scope) })));

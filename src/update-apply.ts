@@ -72,10 +72,10 @@ function versionIn(file: string): string {
   }
 }
 
-/** Windows: the Inno Setup installer, silent, for the signed-in user (the per-user install). */
-export function windowsDriver(plan: Pick<UpdatePlan, 'appDir' | 'port' | 'resultFile'>, run: Run = realRun): UpdateDriver {
+/** Windows: the Inno Setup installer, silent, for the signed-in user (the per-user install) or, from the service's update task, for all users. */
+export function windowsDriver(plan: Pick<UpdatePlan, 'appDir' | 'port' | 'resultFile'>, run: Run = realRun, scope: 'user' | 'all' = 'user'): UpdateDriver {
   const go = async (file: string) => {
-    await run(file, ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', `/LOG=${join(dirname(plan.resultFile), `install-${basename(file)}.log`)}`]);
+    await run(file, ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', ...(scope === 'all' ? ['/ALLUSERS', '/MODE=service'] : ['/CURRENTUSER']), `/LOG=${join(dirname(plan.resultFile), `install-${basename(file)}.log`)}`]);
   };
   return {
     install: go,

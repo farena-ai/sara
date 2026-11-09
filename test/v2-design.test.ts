@@ -104,8 +104,9 @@ test('V2 sidebar (V4d): one project list; the V2 Projects section was folded int
 test('V2 styling pass: add-ons and the store (underline tabs, quiet notes), first run (no emoji tiles), offline (flat card)', () => {
   const store = web('store.css');
   const s = store.slice(store.indexOf('/* ---------- V2 '));
-  assert.match(s, /\.sto-seg button\[aria-selected="true"\] \{ background: transparent; color: var\(--text-1\); border-bottom-color: var\(--accent-solid\); box-shadow: none; \}/);
-  assert.match(s, /@media \(pointer: fine\) \{\s*:where\(:root:not\(\[data-palette="classic"\]\)\) \.sto-seg button \{ min-height: var\(--h-control\); \}/, 'touch keeps 44 px');
+  // 3.0.3 (owner): the store's tabs became the V4 segmented control (test/store-buttons.test.ts).
+  assert.match(s, /\.sto-seg button\[aria-selected="true"\] \{ border-color: var\(--acc-line\); background: var\(--accent-soft\);/);
+  assert.match(s, /@media \(pointer: fine\) \{\s*:where\(:root:not\(\[data-palette="classic"\]\)\) \.sto-seg button \{ height: 30px; min-height: 0; \}/, 'touch keeps 44 px');
   assert.match(web('screens.css'), /:where\(:root:not\(\[data-palette="classic"\]\)\) \.skl-note \{ border-color: var\(--line\);/);
   const fr = web('first-run.css');
   const f = fr.slice(fr.indexOf('/* ---------- V2 '));

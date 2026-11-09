@@ -241,6 +241,9 @@ test('c6 learn: /learn and the natural ask, owner only; delete forgets the skill
   assert.equal(cmd.name, 'learn');
   app.script.push(text(JSON.stringify({ searches: ['comet scheduler'] })));
   app.script.push(text('## Summary\n\nModern cold-climate heat pumps keep heating at minus twenty-five degrees [1].\n'));
+  // 3.0.3: /learn makes and changes its skill without an approval card.
+  let approvalsAsked = 0;
+  app.approvals.onChange(() => approvalsAsked++);
   const r = await runCommand({ app, bridge: 'web', place: 'owner-dm', who: 'owner', lang: 'en', cmd, adapter });
   assert.match(r.text, /comet scheduler/);
   assert.match(r.text, /What she has learned/);
@@ -256,6 +259,7 @@ test('c6 learn: /learn and the natural ask, owner only; delete forgets the skill
   learning.refresh(topic.id);
   await idle(learning, topic.id);
   assert.equal(app.skills!.detail('companion', v.name)!.versions.length, 1);
+  assert.equal(approvalsAsked, 0, 'no approval for the learned skill or its refresh');
   assert.ok(learning.delete(topic.id));
   assert.equal(learning.get(topic.id), undefined);
   assert.equal(app.skills!.get('companion', v.name), undefined);

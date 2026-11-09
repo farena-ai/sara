@@ -5,12 +5,13 @@ import assert from 'node:assert/strict';
 import { generateKeyPairSync, sign, type KeyObject } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test, type TestContext } from 'node:test';
 import { shelfView, StoreClient } from '../src/store/client.ts';
 import { parseIndex } from '../src/store/format.ts';
-import { LOCALE_LANGS, LOCALE_LIMITS, parseLocales } from '../src/store/locales.ts';
+import { LOCALE_LANGS, LOCALE_LIMITS, parseLocales, parseLocalesExtra, translateLineParams } from '../src/store/locales.ts';
+import { buildLocalesExtra } from '../scripts/store-locales-extra.ts';
 import { ROOT, tempDir } from './helpers.ts';
 
 type Any = any;
@@ -103,7 +104,7 @@ test('the repo\'s companion translations: every first-party companion, five lang
   const src = JSON.parse(readFileSync(join(ROOT, 'store', 'locales.json'), 'utf8'));
   const ids = readdirSync(join(ROOT, 'store', 'companions')).sort();
   assert.equal(ids.length, 21);
-  assert.deepEqual(Object.keys(src.items).sort(), ids);
+  for (const id of ids) assert.ok(src.items[id], id);
   parseLocales(JSON.stringify({ format: 'sara-store-locales', v: 1, seq: 1, items: src.items }), 1);
   for (const id of ids) {
     const persona = JSON.parse(readFileSync(join(ROOT, 'store', 'companions', id, 'persona.json'), 'utf8'));
@@ -114,4 +115,125 @@ test('the repo\'s companion translations: every first-party companion, five lang
       assert.notEqual(tr.summary, JSON.parse(readFileSync(join(ROOT, 'store', 'companions', id, 'sara-companion.json'), 'utf8')).summary, `${id} ${lang}: translated`);
     }
   }
+});
+
+// Store sequence 8: plugins and tool servers.
+const pluginIds = () => readdirSync(join(ROOT, 'store', 'plugins')).filter((d) => existsSync(join(ROOT, 'store', 'plugins', d, 'sara-plugin.json'))).sort();
+const mcpIds = () => readdirSync(join(ROOT, 'store', 'mcp')).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort();
+const recipe = (id: string) => JSON.parse(readFileSync(join(ROOT, 'store', 'mcp', `${id}.json`), 'utf8'));
+const manifest = (id: string) => JSON.parse(readFileSync(join(ROOT, 'store', 'plugins', id, 'sara-plugin.json'), 'utf8'));
+
+test('the repo\'s plugin and tool-server translations: every one, five languages, tagline and description, translated, in the v1 format older Saras read', () => {
+  const src = JSON.parse(readFileSync(join(ROOT, 'store', 'locales.json'), 'utf8'));
+  const all = [...pluginIds(), ...mcpIds()];
+  assert.ok(all.length >= 50, 'the shelf has its plugins and tool servers');
+  const companions = readdirSync(join(ROOT, 'store', 'companions'));
+  assert.deepEqual(Object.keys(src.items).sort(), [...companions, ...all].sort(), 'nothing else, nothing missing');
+  // The exact v1 shape: summary + description only (2.83 to 3.0.2 refuse any other field and would drop every translation).
+  parseLocales(JSON.stringify({ format: 'sara-store-locales', v: 1, seq: 1, items: src.items }), 1);
+  for (const id of all) {
+    const en = pluginIds().includes(id) ? manifest(id).description : recipe(id).description;
+    for (const lang of LOCALE_LANGS) {
+      const tr = src.items[id][lang];
+      assert.ok(tr?.summary && tr?.description, `${id} ${lang}`);
+      assert.notEqual(tr.description, en, `${id} ${lang}: translated`);
+      assert.ok(tr.summary.length <= LOCALE_LIMITS.summary, `${id} ${lang}: short tagline`);
+    }
+    // Product and format names stay as they are.
+    for (const word of ['ComfyUI', 'Blender', 'Playwright', 'GitHub', 'SPDX', 'CycloneDX', 'OpenAPI', 'SQLite', 'Home Assistant']) {
+      if (src.items[id].es.description.includes(word)) for (const lang of LOCALE_LANGS) assert.ok(`${src.items[id][lang].summary} ${src.items[id][lang].description}`.includes(word), `${id} ${lang}: ${word} kept`);
+    }
+  }
+});
+
+test('the extra sidecar source: about paragraphs line up with the recipe, tags and permission-line words come from the real listing', () => {
+  const src = JSON.parse(readFileSync(join(ROOT, 'store', 'locales-extra.json'), 'utf8'));
+  parseLocalesExtra(JSON.stringify({ format: 'sara-store-locales-extra', v: 1, seq: 3, items: src.items }), 3);
+  const loc = JSON.parse(readFileSync(join(ROOT, 'store', 'locales.json'), 'utf8'));
+  for (const [id, langs] of Object.entries(src.items as Record<string, Record<string, Any>>)) {
+    const isMcp = mcpIds().includes(id);
+    assert.ok(isMcp || pluginIds().includes(id), id);
+    const english = new Set<string>();
+    if (isMcp) {
+      const r = recipe(id);
+      for (const x of r.mcp.reaches ?? []) english.add(x);
+      for (const f of [...(r.mcp.fields ?? []), ...(r.mcp.secrets ?? [])]) english.add(f.label);
+    } else for (const st of manifest(id).settings ?? []) english.add(st.label);
+    for (const lang of LOCALE_LANGS) {
+      const x = langs[lang];
+      assert.ok(x, `${id} ${lang}`);
+      if (x.about) {
+        assert.equal(x.about.length, recipe(id).about.length, `${id} ${lang}: one translation per about paragraph`);
+        assert.equal(x.about[0], loc.items[id][lang].description, `${id} ${lang}: the first paragraph is the v1 description`);
+      }
+      for (const [en, tr] of Object.entries((x.terms ?? {}) as Record<string, string>)) {
+        assert.ok(english.has(en), `${id} ${lang}: ${en} is a word the listing really uses`);
+        assert.notEqual(tr, en);
+      }
+      if (x.tags) assert.equal(x.tags.length, (isMcp ? recipe(id).tags : x.tags).length);
+    }
+  }
+  for (const id of ['comfyui', 'blender', 'playwright', 'github', 'filesystem', 'context7']) assert.ok(src.items[id]?.de?.about, `${id}: the live tool servers have every paragraph`);
+});
+
+test('the extra sidecar: signed and tied to the list; Get more search and the item page words use it; old v1 files can\'t carry it', async (t) => {
+  // Why a second file: the v1 parser (2.83 to 3.0.2) refuses these fields outright.
+  assert.throws(() => parseLocales(JSON.stringify(locales(7, { items: { juniper: { fr: { summary: 'x', tags: ['y'] } } } })), 7), /unknown/);
+  const extra = (seq: number) => ({ format: 'sara-store-locales-extra', v: 1, seq, items: { juniper: { fr: { tags: ['thé', 'douceur'], about: ['Juniper est une amie douce.'], terms: { 'Your city': 'Votre ville' } } } } });
+  assert.throws(() => parseLocalesExtra(JSON.stringify(extra(6)), 7), /another list/);
+  assert.throws(() => parseLocalesExtra(JSON.stringify({ ...extra(7), items: { juniper: { fr: { tags: ['<b>'] } } } }), 7), /markup/);
+  assert.throws(() => parseLocalesExtra(JSON.stringify({ ...extra(7), items: { juniper: { fr: { script: 'x' } } } }), 7), /unknown/);
+  assert.throws(() => parseLocalesExtra(JSON.stringify({ ...extra(7), items: { juniper: { fr: { tags: [] } } } }), 7), /short list/);
+  const f = await fake(t);
+  const { dir, cleanup } = tempDir();
+  t.after(cleanup);
+  const i = signedBytes(index(7));
+  f.files.set('/v1/index.json', i.json);
+  f.files.set('/v1/index.sig', i.sig);
+  const x = signedBytes(extra(7));
+  f.files.set('/v1/locales-extra.json', x.json);
+  f.files.set('/v1/locales-extra.sig', x.sig);
+  const c = new StoreClient({ dataDir: dir, base: f.base, keys: KEYS, blocked: () => undefined });
+  assert.equal((await c.check()).ok, true);
+  assert.deepEqual(c.translationsExtra('fr').juniper?.tags, ['thé', 'douceur']);
+  assert.deepEqual(c.translationsExtra('fr-CA').juniper?.tags, ['thé', 'douceur'], 'fr-CA reads fr');
+  assert.deepEqual(c.translationsExtra('en'), {});
+  const view = shelfView(c, { saraVersion: '2.82.0', on: true, community: false, lang: 'fr' }) as { items: Any[] };
+  assert.deepEqual(view.items[0].tags, ['thé', 'douceur'], 'search finds the translated words too');
+  // Signed by someone else: not used, the check still passes.
+  const bad = signedBytes(extra(7), generateKeyPairSync('ed25519').privateKey);
+  f.files.set('/v1/locales-extra.sig', bad.sig);
+  const fresh = new StoreClient({ dataDir: join(dir, 'b'), base: f.base, keys: KEYS, blocked: () => undefined });
+  assert.equal((await fresh.check()).ok, true);
+  assert.deepEqual(fresh.translationsExtra('fr'), {});
+  // The words in a permission line: labels (also a comma list) swap; commands and unknown words stay.
+  const terms = { 'Minutes of focus': 'Minutes de concentration', 'Minutes of break': 'Minutes de pause', 'ComfyUI address': 'Adresse de ComfyUI' };
+  assert.equal(translateLineParams({ key: 'Has its own settings: {names}', params: { names: 'Minutes of focus, Minutes of break' } }, terms).params.names, 'Minutes de concentration, Minutes de pause');
+  assert.equal(translateLineParams({ key: 'Asks you for: {label}', params: { label: 'ComfyUI address' } }, terms).params.label, 'Adresse de ComfyUI');
+  assert.equal(translateLineParams({ key: 'Runs a program on this computer: {command}', params: { command: 'npx -y comfyui-mcp@0.52.206' } }, terms).params.command, 'npx -y comfyui-mcp@0.52.206');
+  assert.equal(translateLineParams({ key: 'Can use her model up to {n} times a day (billed to you)', params: { n: 5 } }, terms).params.n, 5);
+});
+
+test('scripts/store-locales-extra.ts signs the sidecar for the list the publisher built (and only its items); a foreign list is refused', (t) => {
+  const { dir, cleanup } = tempDir();
+  t.after(cleanup);
+  mkdirSync(join(dir, 'v1'), { recursive: true });
+  const i = signedBytes({ ...index(8), items: [{ ...index(8).items[0], id: 'focus' }] });
+  writeFileSync(join(dir, 'v1', 'index.json'), i.json);
+  writeFileSync(join(dir, 'v1', 'index.sig'), i.sig);
+  const checked = buildLocalesExtra({ out: dir, publicKeys: KEYS, checkOnly: true });
+  assert.equal(checked.seq, 8);
+  assert.equal(checked.items, 1, 'only the listed item (focus), not every source entry');
+  assert.equal(existsSync(join(dir, 'v1', 'locales-extra.json')), false, '--check-only writes nothing');
+  const r = buildLocalesExtra({ out: dir, publicKeys: KEYS, key: privateKey });
+  assert.deepEqual(r.written, ['v1/locales-extra.json', 'v1/locales-extra.sig']);
+  const parsed = parseLocalesExtra(readFileSync(join(dir, 'v1', 'locales-extra.json'), 'utf8'), 8);
+  assert.equal(parsed.items.focus?.de?.terms?.['Minutes of focus'], 'Minuten Konzentration');
+  const sig = JSON.parse(readFileSync(join(dir, 'v1', 'locales-extra.sig'), 'utf8'));
+  assert.equal(sig.key, 'store-2026a');
+  // An index signed by a key Sara doesn't ship: refused before anything is signed.
+  const foreign = signedBytes(index(9), generateKeyPairSync('ed25519').privateKey);
+  writeFileSync(join(dir, 'v1', 'index.json'), foreign.json);
+  writeFileSync(join(dir, 'v1', 'index.sig'), foreign.sig);
+  assert.throws(() => buildLocalesExtra({ out: dir, publicKeys: KEYS, key: privateKey }));
 });

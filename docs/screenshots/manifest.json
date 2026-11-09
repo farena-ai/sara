@@ -14,44 +14,44 @@
    "bytes": 25160
   },
   "getting-started.webp": {
-   "ui": "2.80.0",
-   "what": "Today with the Getting started list (company order)",
-   "bytes": 73002
+   "ui": "3.0.2",
+   "what": "Today with the Getting started list (2 of 7 done), presence orb and her mood",
+   "bytes": 65992
   },
   "companion.webp": {
-   "ui": "2.80.0",
+   "ui": "3.0.2",
    "what": "A companion chat: two to-dos and a reminder as cards, with the step line",
-   "bytes": 71218
+   "bytes": 63152
   },
   "today.webp": {
-   "ui": "2.80.0",
-   "what": "Today on a desktop (1440 wide)",
-   "bytes": 66834
+   "ui": "3.0.2",
+   "what": "Today on a desktop (1440 wide), further down: Your day, Needs you, She remembered and Work",
+   "bytes": 48800
   },
   "phone.webp": {
-   "ui": "2.80.0",
+   "ui": "3.0.2",
    "what": "Today and a chat on a phone (390 wide), side by side",
-   "bytes": 91710
+   "bytes": 75162
   },
   "planner.webp": {
-   "ui": "2.80.0",
-   "what": "Planner, To-do tab",
-   "bytes": 33432
+   "ui": "3.0.2",
+   "what": "Planner, To-do tab (the dialog)",
+   "bytes": 30558
   },
   "dials.webp": {
-   "ui": "2.80.0",
-   "what": "Name and personality: the personality dials with their sample lines",
-   "bytes": 53822
+   "ui": "3.0.2",
+   "what": "Name and personality: the personality dials with their sample lines (the Settings panel)",
+   "bytes": 55288
   },
   "howto.webp": {
-   "ui": "2.80.0",
+   "ui": "3.0.2",
    "what": "The How do I…? box, open, on Name and personality",
-   "bytes": 58130
+   "bytes": 60904
   },
   "work-dials.webp": {
-   "ui": "2.80.0",
+   "ui": "3.0.2",
    "what": "Coding projects: the While you code dials",
-   "bytes": 47992
+   "bytes": 50318
   },
   "ask-first.webp": {
    "ui": "2.80.0",
@@ -64,9 +64,9 @@
    "bytes": 77180
   },
   "command-bar.webp": {
-   "ui": "2.80.0",
+   "ui": "3.0.2",
    "what": "The Ctrl+K command bar over Today, typing pla",
-   "bytes": 30386
+   "bytes": 26654
   },
   "library.webp": {
    "ui": "2.80.0",
@@ -74,9 +74,9 @@
    "bytes": 38394
   },
   "voice.webp": {
-   "ui": "2.80.0",
+   "ui": "3.0.2",
    "what": "Settings, Voice",
-   "bytes": 47808
+   "bytes": 47212
   },
   "everywhere.webp": {
    "ui": "2.80.0",
@@ -129,14 +129,14 @@
    "bytes": 67794
   },
   "v3-today.webp": {
-   "ui": "3.0.0",
-   "what": "Today on a desktop with Getting started and routines",
-   "bytes": 70962
+   "ui": "3.0.2",
+   "what": "Today on a desktop in the 3.0.2 look: the presence orb, How do I…?, Getting started and routines to add",
+   "bytes": 65992
   },
   "v3-planner.webp": {
-   "ui": "3.0.0",
-   "what": "The Planner, To-do tab",
-   "bytes": 41274
+   "ui": "3.0.2",
+   "what": "The Planner, To-do tab (the dialog)",
+   "bytes": 30558
   },
   "v3-phone.webp": {
    "ui": "3.0.0",
@@ -147,5 +147,23 @@
  "v3": {
   "taken": "2026-11-08",
   "method": "Retaken for 3.0.0 (the V4 look) on a throwaway server from the 3.0 source (fresh SARA_DATA, deleted afterwards), a scripted OpenAI-compatible model on 127.0.0.1 and made-up data for the example user Alex (a habit-tracker workspace with a made-up duration parser, two idle workers, ten made-up memories); Graphite, the default Blue accent, the owner defaults; 1440x900 desktop, 390x844 phone at 2x; WebP quality 82. The file names stay v3-* so links keep working."
+ },
+ "v302": {
+  "taken": "2026-11-09",
+  "files": [
+   "command-bar.webp",
+   "companion.webp",
+   "dials.webp",
+   "getting-started.webp",
+   "howto.webp",
+   "phone.webp",
+   "planner.webp",
+   "today.webp",
+   "v3-planner.webp",
+   "v3-today.webp",
+   "voice.webp",
+   "work-dials.webp"
+  ],
+  "method": "Retaken for 3.0.3 in the 3.0.2 look (Graphite, the default Violet accent, Night) on a throwaway server from the 3.0.3 source (fresh SARA_DATA, deleted afterwards), a scripted OpenAI-compatible model on 127.0.0.1 and the same made-up data for the example user Alex (planner items, two idle workers, ten made-up memories, the calmer-week chat); a morning in Europe/Berlin; 1440x900 desktop (Settings and Planner cropped to the dialog), 390x844 phone at 2x; WebP quality 82. File names unchanged so links keep working."
  }
 }

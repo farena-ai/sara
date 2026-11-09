@@ -42,7 +42,7 @@ configuration (next to `configuration.yaml`) and restart Home Assistant.
 1. **Settings → Devices & services → Add integration → Sara.**
 2. Enter your Sara address as you open it in a browser (for example `http://192.168.1.20:7860`
    or `https://sara.example.com`).
-3. Home Assistant shows a code like `K7QM-3XTP`. In Sara, open **Settings → Data & health →
+3. Home Assistant shows a code like `K7QM-3XTP`. In Sara, open **Settings → Connections →
    Devices and sign-in** (or the `/device` page), type the code, confirm it's you (owner token,
    two-step code or passkey) and press **Approve**. Home Assistant continues by itself.
 4. The first time, Sara's AI disclosure is shown: accept it to continue.

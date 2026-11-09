@@ -241,7 +241,7 @@ function renderNow() {
   const line = $('#hp-now-line');
   if (!line) return;
   const { status, text, startedAt } = ui.activity;
-  const approvals = document.querySelectorAll('#messages .approval').length;
+  const approvals = document.querySelectorAll('#messages .approval:not(.approval-resolved)').length;
   // The live step line has the friendliest words ("Checking the weather…").
   const live = [...document.querySelectorAll('#messages .steps.live .steps-text')].pop()?.textContent?.trim();
   let words;
@@ -259,7 +259,7 @@ function renderStatus() {
   const box = $('#hp-status');
   if (!box) return;
   const { status } = ui.activity;
-  const approvals = document.querySelectorAll('#messages .approval').length;
+  const approvals = document.querySelectorAll('#messages .approval:not(.approval-resolved)').length;
   const words = approvals || status === 'waiting' ? t('Waiting for your OK') : status ? statusWords(status) : t('Here with you');
   box.textContent = words;
   box.dataset.state = approvals || status === 'waiting' ? 'waiting' : status ? 'busy' : 'idle';
@@ -269,7 +269,7 @@ function renderStatus() {
 function renderApprovals() {
   const box = $('#hp-approvals');
   if (!box) return;
-  const cards = [...document.querySelectorAll('#messages .approval')];
+  const cards = [...document.querySelectorAll('#messages .approval:not(.approval-resolved)')];
   box.replaceChildren(
     ...cards.map((card) => {
       const row = el('div', 'hp-appr');
@@ -292,7 +292,10 @@ function renderApprovals() {
         row.append(d);
       }
       const btns = el('div', 'hp-appr-btns');
-      const [yes, no] = card.querySelectorAll(':scope > .row > button');
+      // 3.0.3: the card's marked Allow / Deny ("Always allow this tool" sits between them on plain cards).
+      const all = [...card.querySelectorAll(':scope > .row > button')];
+      const yes = card.querySelector(':scope > .row > button[data-answer="yes"]') ?? all[0];
+      const no = card.querySelector(':scope > .row > button[data-answer="no"]') ?? (all.length > 1 ? all.at(-1) : undefined);
       const mirror = (src, cls, label) => {
         const b = el('button', cls, label);
         b.type = 'button';
@@ -842,8 +845,8 @@ export function initHerPanel(ctx) {
       queued = true;
       requestAnimationFrame(() => {
         queued = false;
-        const n = document.querySelectorAll('#messages .approval').length;
-        if (n !== ($('#hp-approvals')?.children.length ?? 0) || [...document.querySelectorAll('#hp-approvals .hp-appr')].some((r) => !document.querySelector(`#messages .approval[data-call="${CSS.escape(r.dataset.call)}"]`))) renderApprovals();
+        const n = document.querySelectorAll('#messages .approval:not(.approval-resolved)').length;
+        if (n !== ($('#hp-approvals')?.children.length ?? 0) || [...document.querySelectorAll('#hp-approvals .hp-appr')].some((r) => !document.querySelector(`#messages .approval:not(.approval-resolved)[data-call="${CSS.escape(r.dataset.call)}"]`))) renderApprovals();
         else renderNow();
       });
     }).observe(box, { childList: true, subtree: true, characterData: true });

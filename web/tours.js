@@ -48,7 +48,8 @@ function makeTours() {
       { sel: '#new-chat', title: t('New conversation'), text: t('Start a fresh chat any time. Old ones stay in the list below, with search.'), before: sidebar(true) },
       { before: sidebar(false), sel: '#input', title: t('Talk to her'), text: t('Type here, or use the microphone. The + button attaches a photo or a file, or starts something to do together.') },
       { before: sidebar(false), sel: '#her-face', title: t('Her panel'), text: t('Her face opens her panel: her mood, what she is doing right now, approvals waiting, your day and what she remembered for this reply. On a phone it slides up from the bottom.') },
-      { before: sidebar(false), sel: '#cmd-open', title: t('Search and go'), text: t('Press Ctrl+K (⌘K on a Mac) or this button to jump to any place, conversation, setting or action.') },
+      { when: () => !topSearch(), before: sidebar(false), sel: '#cmd-open', title: t('Search and go'), text: t('Press Ctrl+K (⌘K on a Mac) or this button to jump to any place, conversation, setting or action.') },
+      { when: () => topSearch(), before: sidebar(false), sel: '#v4-cmd', title: t('Search and go'), text: t('Press Ctrl+K (⌘K on a Mac) or this button to jump to any place, conversation, setting or action.') },
       { before: async () => { sidebar(false)(); await showHeadChips(); }, sel: '#conv-settings-btn', title: t('This conversation'), text: t('The model, workspace and mode (chat or coding) for this conversation only. Private keeps everything on your server.') },
       { when: () => !phoneWidth(), before: navStep('#open-today'), sel: '#open-today', title: t('Today'), text: t('Your home screen: the weather, your day, the Planner, what she remembered, photos, background work and your home, as tiles. Her face at the top of the list opens it too.') },
       { when: () => phoneWidth(), before: sidebar(false), sel: '#bottom-bar', title: t('The bar at the bottom'), text: t('Chat, Today, the Planner, and More for every other place. ☰ at the top still lists your conversations.') },
@@ -107,6 +108,8 @@ function makeTours() {
     ],
   };
 }
+/** 3.0.3: outside Classic on wider screens the top bar's search is the one search entry (web/v4.css). */
+const topSearch = () => document.documentElement.dataset.palette !== 'classic' && matchMedia('(min-width: 761px)').matches;
 /** The phone layout (the bottom bar shows): some tour steps are for it, some for wider screens. */
 const phoneWidth = () => matchMedia('(max-width: 720px)').matches;
 export function runTour(name) {

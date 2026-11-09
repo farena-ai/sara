@@ -2462,7 +2462,7 @@ static void showSetup(const std::wstring& error = L"", const std::wstring& typed
                       L"</p><div class=row><button id=b>Continue</button>" +
                       (adding ? L"<button class=g id=k>Back to " + htmlEscape(here.name) + L"</button>" : L"") +
                       L"</div><div class=sep><p class=small>Next you sign in with a code: on a device where you're signed in, open "
-                      L"Settings → Data &amp; health → Devices and sign-in → <b>Add a phone or computer</b>.</p>" +
+                      L"Settings → Connections → Devices and sign-in → <b>Add a phone or computer</b>.</p>" +
                       (port.empty() ? L"" : L"<button class=g id=l>Use the Sara on this computer</button>") +
                       L"</div></div><script>const $=(i)=>document.getElementById(i);const k=$('k');if(k)k.onclick=()=>chrome.webview.postMessage({m:'retry'});"
                       L"const go=()=>chrome.webview.postMessage({m:'setServer',url:$('u').value});"

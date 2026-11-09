@@ -276,15 +276,19 @@ export function createSkillTools(app: () => AppContext, deps: Deps = {}): Tool[]
     });
   }
 
+  // 3.0.3: saving and changing her own skills needs no OK by default (the step shows it, with Open and
+  // Undo; every change keeps the old version). Settings → Tools and an admin's policy pin can still make
+  // them ask. A household member's space keeps asking. skill_run (scripts) always asks by default.
+  const savePermission = deps.member ? 'ask' : 'auto';
   const saveTool = (name: 'skill_save' | 'recipe_save'): Tool => ({
-    defaultPermission: 'ask',
+    defaultPermission: savePermission,
     isAvailable: () => Boolean(app().skills),
     spec:
       name === 'skill_save'
         ? {
             name,
             description:
-              "Save a skill: how you do a kind of task, so you can follow it next time (e.g. after a tricky job went well). Name in lower-case-with-hyphens, a description of what it does AND when to use it, and the steps that worked as Markdown. Saving again with the same name changes it. The owner approves each save.",
+              "Save a skill: how you do a kind of task, so you can follow it next time (e.g. after a tricky job went well). Name in lower-case-with-hyphens, a description of what it does AND when to use it, and the steps that worked as Markdown. Saving again with the same name changes it (the old version is kept). The owner sees each save and can undo it.",
             parameters: {
               type: 'object',
               properties: {
@@ -299,7 +303,7 @@ export function createSkillTools(app: () => AppContext, deps: Deps = {}): Tool[]
           }
         : {
             name,
-            description: 'Save how you did a tricky job (older name of skill_save; it saves a skill). Title, when to use it, and the steps that worked. The owner approves each save.',
+            description: 'Save how you did a tricky job (older name of skill_save; it saves a skill). Title, when to use it, and the steps that worked. The owner sees each save and can undo it.',
             parameters: {
               type: 'object',
               properties: { title: { type: 'string' }, when_to_use: { type: 'string' }, steps: { type: 'string' }, workspace: { type: 'string' }, tags: { type: 'array', items: { type: 'string' } } },
@@ -335,11 +339,11 @@ export function createSkillTools(app: () => AppContext, deps: Deps = {}): Tool[]
   });
   tools.push(saveTool('skill_save'));
   tools.push({
-    defaultPermission: 'ask',
+    defaultPermission: savePermission,
     isAvailable: () => Boolean(app().skills),
     spec: {
       name: 'skill_update',
-      description: 'Change one of your own skills when a step turned out wrong or out of date: give the new description and/or body (the whole new text) and why. The owner approves each change; the old version is kept.',
+      description: 'Change one of your own skills when a step turned out wrong or out of date: give the new description and/or body (the whole new text) and why. The old version is kept; the owner sees each change and can undo it.',
       parameters: {
         type: 'object',
         properties: { name: { type: 'string' }, description: { type: 'string' }, body: { type: 'string' }, why: { type: 'string', description: 'One line: what changed and why.' } },

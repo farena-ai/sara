@@ -59,6 +59,8 @@ export function timelineModel(steps = [], evidence = {}) {
     waiting: list.some((s) => s.status === 'waiting'),
     errors: list.filter((s) => s.status === 'error').length,
     denied: list.filter((s) => s.status === 'denied').length,
+    // 3.0.3: approvals nobody answered in time (the card opens for them, like a failure).
+    timedOut: list.filter((s) => s.status === 'denied' && s.timedOut).length,
     verified: marks.filter(Boolean).length,
     marks,
     progress: live ? null : list.length ? 1 : 0,

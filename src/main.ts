@@ -54,6 +54,7 @@ import { createBoardTools, setUpBoard } from './board-work.ts';
 import { SharedBoardStore, type SharedBoardsAccess } from './shared-boards.ts';
 import { priceTable, UsageStore } from './usage.ts';
 import { RunStore, runSettings } from './runs.ts';
+import { wireNeedsYou } from './needs-you.ts';
 import { createStarterTool } from './starters.ts';
 import { createProjectNoteTool, ProjectKnowledgeStore } from './projectknow.ts';
 import { createProjectCheckpointTool } from './project-checkpoints.ts';
@@ -128,7 +129,7 @@ import { createSharedListTool, TogetherStore } from './together.ts';
 import { ReadTogether } from './read-together.ts';
 import { createScrapbookTool, Scrapbook } from './scrapbook.ts';
 import { createMomentsTool, MomentsStore, MomentsWorker } from './moments.ts';
-import { migrateProviderLabels, type Settings, SettingsStore, StartupError } from './settings.ts';
+import { migrateProviderLabels, migrateSkillSaveDefault, type Settings, SettingsStore, StartupError } from './settings.ts';
 import { AuditTrail, setAuditTrail } from './audit-trail.ts';
 import { PolicyStore, setPolicy } from './policy-profile.ts';
 import { DataRights, dataRights, setDataRights } from './data-rights.ts';
@@ -368,6 +369,9 @@ if (settings.get().deviceApproval === undefined) settings.update({ deviceApprova
 {
   const renamed = migrateProviderLabels(settings.get());
   if (renamed) settings.update({ providers: renamed.providers });
+  // 3.0.3: skill saves no longer ask by default; a whole-page Tools save no longer pins the old 'ask'.
+  const skillSaves = migrateSkillSaveDefault(settings.get());
+  if (skillSaves) settings.update(skillSaves);
   // Phase 16: adult content became a switch (off by default). Servers set up before it existed
   // had adult content available, so they ask the owner once.
   if (!settings.get().adultMode) settings.update({ adultMode: settings.get().disclosureAcceptedAt ? { on: false, ask: true } : { on: false } });
@@ -1090,6 +1094,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   app.usage.prices = () => priceTable(settingsC.get().prices);
   // Phase 78: run snapshots (every step of turns, jobs and team runs), with retention and a size cap.
   app.runs = new RunStore(store.db, app.now);
+  // 3.0.3: waiting approvals reach the sidebar's needs-you dot live (every companion and member space).
+  wireNeedsYou(app);
   app.runs.usage = app.usage;
   app.runs.settings = () => runSettings(app.settings.get());
   app.runs.prune(true);

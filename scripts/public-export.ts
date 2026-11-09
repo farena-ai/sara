@@ -65,6 +65,9 @@ export const PRIVATE = [/^AGENTS\.md$/, /^docs\/handoffs\//, /^docs\/SOURCE_OF_T
   /^test\/addons-discovery-parity\.test\.ts$/,
   /^test\/developer-catalog-site\.test\.ts$/,
   /^test\/ec27-addons-site\.test\.ts$/,
+  // Store item pages: built from the private studio chrome in docs/store/website (Store sequence 8).
+  /^scripts\/(?:build-store-items\.ts|capture-store-items\.mjs)$/,
+  /^test\/store-items-site\.test\.ts$/,
   // A2's per-entry inventory test reads private authoring records (docs/ops, store/addons).
   /^test\/addons-a2-inventory\.test\.ts$/,
   /^store\/addons\//,

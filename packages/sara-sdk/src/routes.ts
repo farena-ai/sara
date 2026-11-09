@@ -17,7 +17,7 @@ export interface Route {
 }
 
 export const ROUTES: readonly Route[] = [
-  { sdk: 'auth.start', method: 'POST', path: '/api/device/start', auth: 'none', summary: 'Start a device-code sign-in. Show `code` to the person; they approve it in Sara (Settings → Data & health → Devices and sign-in, or `verifyUrl`).', body: '{ name: string; scope?: "full" }', returns: '{ code, pollToken, verifyUrl, interval, expiresAt, approveIn }' },
+  { sdk: 'auth.start', method: 'POST', path: '/api/device/start', auth: 'none', summary: 'Start a device-code sign-in. Show `code` to the person; they approve it in Sara (Settings → Connections → Devices and sign-in, or `verifyUrl`).', body: '{ name: string; scope?: "full" }', returns: '{ code, pollToken, verifyUrl, interval, expiresAt, approveIn }' },
   { sdk: 'auth.poll', method: 'POST', path: '/api/device/poll', auth: 'none', summary: 'Poll the sign-in every `interval` seconds until it is approved, denied or expired (410).', body: '{ pollToken: string }', returns: '{ status: "pending" | "approved" | "denied" | "expired"; token?; deviceId? }' },
   { sdk: 'auth.whoami', method: 'GET', path: '/api/device/whoami', auth: 'device', summary: 'Who this token belongs to, and whether the AI notice was accepted.', returns: '{ companion, device: { id, label, scope } | null, disclosureAccepted, disclosure }' },
   { sdk: 'auth.signOut', method: 'POST', path: '/api/device/logout', auth: 'device', summary: 'Sign this app out (the token stops working).', body: '{}', returns: '{ ok: true }' },

@@ -35,7 +35,7 @@ why. Paused means the microphone is closed.
 ## Linux
 
 In a terminal, as your desktop user (no sudo): `sara wake --server https://your-sara-address`. The
-first time it shows a code to approve in Sara (Settings → Data & health → Devices and sign-in). It
+first time it shows a code to approve in Sara (Settings → Connections → Devices and sign-in). It
 downloads the engine (about 25 MB, checked), gets the model from your server, and listens through
 your desktop's microphone (PipeWire, PulseAudio or ALSA; `--device` picks another ALSA device). The
 terminal says when it listens; **Ctrl+C** stops it and switches Hey Sara off on that computer.

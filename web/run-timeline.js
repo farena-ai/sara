@@ -98,8 +98,8 @@ function update(box) {
   bar.classList.toggle('bad', !m.live && m.errors > 0);
   bar.style.setProperty('--p', m.progress === null ? '0' : String(m.progress));
   // Something needs the person (live, an approval, a failure): open once when it starts to.
-  const need = m.live || m.waiting || m.errors > 0 ? `${m.waiting ? 'w' : ''}${m.errors}${m.live ? 'l' : ''}` : '';
-  if (need && need !== box._need) setOpen(box, foldStart({ pref: foldPref(), card: cardPref(box), live: m.live, waiting: m.waiting, errors: m.errors }));
+  const need = m.live || m.waiting || m.errors > 0 || m.timedOut > 0 ? `${m.waiting ? 'w' : ''}${m.errors}${m.live ? 'l' : ''}${m.timedOut ? `t${m.timedOut}` : ''}` : '';
+  if (need && need !== box._need) setOpen(box, foldStart({ pref: foldPref(), card: cardPref(box), live: m.live, waiting: m.waiting, errors: m.errors + m.timedOut }));
   box._need = need;
   foldWords(box);
   // Marks: verified only from the evidence; everything else stays a plain done.
@@ -166,7 +166,7 @@ export function runTimeline(box, { api, live = false } = {}) {
 export function runLatest(box) {
   if (!box?._timeline) return;
   const m = timelineModel(box._steps, box._evidence);
-  setOpen(box, foldStart({ pref: foldPref(), card: cardPref(box), live: m.live, waiting: m.waiting, errors: m.errors }));
+  setOpen(box, foldStart({ pref: foldPref(), card: cardPref(box), live: m.live, waiting: m.waiting, errors: m.errors + m.timedOut }));
   update(box);
 }
 

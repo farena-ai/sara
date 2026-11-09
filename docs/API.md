@@ -37,7 +37,7 @@ route on a throwaway server, so this list matches what Sara serves.
 
 ## POST /api/device/start
 
-Start a device-code sign-in. Show `code` to the person; they approve it in Sara (Settings → Data & health → Devices and sign-in, or `verifyUrl`).
+Start a device-code sign-in. Show `code` to the person; they approve it in Sara (Settings → Connections → Devices and sign-in, or `verifyUrl`).
 
 - Auth: none
 - Body: `{ name: string; scope?: "full" }`

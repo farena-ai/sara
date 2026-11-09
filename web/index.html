@@ -98,7 +98,7 @@
       <button id="login-passkey" type="button" class="ghost" hidden>Sign in with a passkey</button>
       <button id="demo-start" type="button" class="ghost" hidden>Try the demo (no sign-in)</button>
       <p id="demo-note" class="muted small" hidden>This is Sara's demo server: conversations aren't saved and disappear after a few hours. Please don't share personal information.</p>
-      <p id="login-paircode" class="small" hidden><a href="/pair">Have a code from Settings → Devices and sign-in? Sign in with it</a></p>
+      <p id="login-paircode" class="small" hidden><a href="/pair">Have a code from Settings → Connections → Devices and sign-in? Sign in with it</a></p>
       <!-- Phase 71: joining a household with an invite (docs/HOUSEHOLD.md) -->
       <p id="join-open" class="small"><button id="join-show" type="button" class="linkish">I have an invite</button></p>
       <div id="join" class="join-box" hidden>
@@ -112,7 +112,7 @@
       <div id="login-app-block" class="login-app-block" hidden>
         <p class="or-divider"><span>Or use the phone app</span></p>
         <a id="login-app" class="button-link pair-app ghost">Open in the Sara app</a>
-        <p id="login-app-note" class="muted small">The app opens with this server filled in; sign it in there with a code from Settings → Devices and sign-in.</p>
+        <p id="login-app-note" class="muted small">The app opens with this server filled in; sign it in there with a code from Settings → Connections → Devices and sign-in.</p>
       </div>
       <p id="login-error" class="error" role="alert"></p>
       <div id="login-wait" class="login-wait" hidden>
@@ -353,6 +353,7 @@
         <span class="spinner" aria-hidden="true"></span>
         <span id="activity-text"></span>
         <span id="activity-time"></span>
+        <span id="activity-act" hidden></span>
       </div>
       <div id="editing" class="editing-bar" hidden>Editing your last message <button id="edit-cancel" type="button" class="ghost small">Cancel</button></div>
       <div id="demo-bar" class="offrecord-bar" hidden>👋 <strong>Demo.</strong> Conversations here aren't saved and disappear after a few hours; please don't share personal information. On your own server Sara also remembers, plans, codes and connects to your mail, calendar and phone.</div>
@@ -778,6 +779,10 @@
         <button type="button" class="pick-card" data-tour="models"><strong>A model for each job</strong><span class="muted small">Which model chats, codes, sees pictures and plans.</span></button>
         <button type="button" class="pick-card" data-tour="team"><strong>The team</strong><span class="muted small">Bigger jobs: her helpers plan, build, test and review.</span></button>
       </div>
+      <h3 data-owner-only>Your other devices</h3>
+      <div class="pick-cards" role="list" data-owner-only>
+        <button id="help-pair" type="button" class="pick-card"><strong>Add a phone or computer</strong><span class="muted small">A one-time code or QR signs it in, no owner token needed.</span></button>
+      </div>
       <h3>Ask her</h3>
       <p class="muted small">She knows her own settings. Ask in any chat, for example “what does jealousy do?” or “which model should I use for pictures?”; she explains and gives you a link to the right page.</p>
       <h3>Problems and ideas</h3>
@@ -837,7 +842,7 @@
     <h2 id="dap-ask-title">Your OK is needed</h2>
     <p id="dap-ask-what"></p>
     <p class="dap-code" id="dap-ask-code"></p>
-    <p class="muted small">Type this code on a device you already use (Settings → Devices and sign-in), or send it to her in Telegram or Discord: approve and the code. 10 minutes without an answer is a no.</p>
+    <p class="muted small">Type this code on a device you already use (Settings → Connections → Devices and sign-in), or send it to her in Telegram or Discord: approve and the code. 10 minutes without an answer is a no.</p>
     <p id="dap-ask-status" class="small" role="status"></p>
     <p class="actions-left"><button id="dap-ask-cancel" type="button" class="ghost">Cancel</button></p>
   </dialog>
@@ -1648,10 +1653,12 @@
         </div>
         <p id="lib-upload-status" class="small" role="status"></p>
         <progress id="lib-upload-bar" class="lib-progress" max="1" value="0" hidden></progress>
-        <p class="small"><button id="lib-feed-together" type="button" class="ghost small" title="Opens a public RSS or Atom feed above your chat so you can share one of its items with her." data-owner-only>Read a feed together</button></p>
-        <p class="small"><button id="lib-research-open" type="button" class="ghost small" data-owner-only>Research a question…</button> <button type="button" class="tip" data-tip="She plans the searches with you, reads public pages, lists every page she read or couldn't read, and writes a report where each sentence links its page. Kept here; downloads as PDF or Word.">?</button></p>
-        <p class="small"><button id="lib-topics-open" type="button" class="ghost small" data-owner-only>What she has learned…</button> <button type="button" class="tip" data-tip="Point her at a topic or a website: she reads public pages, keeps what she learned with its sources and dates, can refresh it every day, week or month, and answers your questions from it.">?</button></p>
-        <p class="small"><button id="lib-meetings-open" type="button" class="ghost small" data-owner-only>Meetings…</button> <button type="button" class="tip" data-tip="She listens in a room you start (everyone is told first) or reads a recorded meeting, then writes a summary, decisions and action items. Notes are kept here; to-dos go to the Planner only when you add them.">?</button></p>
+        <div class="lib-ways">
+          <p class="small"><button id="lib-feed-together" type="button" class="ghost small" title="Opens a public RSS or Atom feed above your chat so you can share one of its items with her." data-owner-only>Read a feed together</button></p>
+          <p class="small"><button id="lib-research-open" type="button" class="ghost small" data-owner-only>Research a question…</button> <button type="button" class="tip" data-tip="She plans the searches with you, reads public pages, lists every page she read or couldn't read, and writes a report where each sentence links its page. Kept here; downloads as PDF or Word.">?</button></p>
+          <p class="small"><button id="lib-topics-open" type="button" class="ghost small" data-owner-only>What she has learned…</button> <button type="button" class="tip" data-tip="Point her at a topic or a website: she reads public pages, keeps what she learned with its sources and dates, can refresh it every day, week or month, and answers your questions from it.">?</button></p>
+          <p class="small"><button id="lib-meetings-open" type="button" class="ghost small" data-owner-only>Meetings…</button> <button type="button" class="tip" data-tip="She listens in a room you start (everyone is told first) or reads a recorded meeting, then writes a summary, decisions and action items. Notes are kept here; to-dos go to the Planner only when you add them.">?</button></p>
+        </div>
         <div class="lib-tools" data-nodirty>
           <input id="lib-q" type="search" placeholder="Search her library">
         </div>
@@ -3166,6 +3173,7 @@
         <div class="perm-card perm-never"><strong>Off</strong><span>She can't use it at all.</span></div>
       </div>
       <p class="muted small">Open a group to see each thing she can do, or set the whole group at once.</p>
+      <p class="muted small">Saving or changing her skills is Allowed by default: each save shows in her steps with Open skill and Undo. Set Save a skill and Change a skill to Ask me first to approve each one.</p>
       <div id="tool-list"></div>
       <label class="row"><input id="shell-network" type="checkbox"> Allow internet access for shell commands</label>
       <h3>Isolation <button type="button" class="tip" data-tip="Where her commands and add-on jobs run. A container (Podman or Docker) sees only the workspace: not Sara's data, your files or the rest of the system. Linux keeps bubblewrap unless you pick a container.">?</button></h3>
@@ -4286,7 +4294,7 @@
           <p class="page-lead">Review interrupted work and uncertain native message outcomes before deciding what to do next.</p>
           <div id="recovery-content" aria-live="polite"></div>
         </section>
-        <section class="settings-page" data-page="dh-devices" data-group="Data & health" data-title="Devices and sign-in" hidden>
+        <section class="settings-page" data-page="dh-devices" data-group="Connections" data-title="Devices and sign-in" hidden>
       <div id="desktop-get" class="desktop-get" hidden>
         <p><strong>Sara for this computer</strong> <button type="button" class="tip" data-tip="A real app instead of a browser tab: she sits next to the clock (menu bar on a Mac), notifies you, rings for calls and can start when you sign in. You sign it in with a code from this page.">?</button></p>
         <p class="small"><a id="desktop-get-link" class="button-link" href="#" download></a> <span id="desktop-get-how" class="muted"></span></p>

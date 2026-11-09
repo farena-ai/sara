@@ -260,10 +260,14 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
         const patch: Partial<Settings> = {};
         if (body.permissions !== undefined) {
           if (!body.permissions || typeof body.permissions !== 'object') throw new HttpError(400, 'permissions must be an object');
-          const perms: Record<string, Permission> = { ...app.settings.get().toolPermissions };
+          const saved = app.settings.get().toolPermissions;
+          const perms: Record<string, Permission> = { ...saved };
           for (const [name, value] of Object.entries(body.permissions as Record<string, unknown>)) {
             if (!app.tools.get(name)) throw new HttpError(400, 'Unknown tool {name}', { params: { name } });
             if (!PERMISSIONS.includes(value as Permission)) throw new HttpError(400, 'Invalid permission for {name}', { params: { name } });
+            // 3.0.3: the page sends every tool; only a real choice is kept (a value the owner set
+            // before, or one that differs from what the tool has now), so defaults can still improve.
+            if (!Object.hasOwn(saved ?? {}, name) && value === app.tools.permission(name, saved)) continue;
             perms[name] = value as Permission;
           }
           patch.toolPermissions = perms;

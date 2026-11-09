@@ -70,7 +70,7 @@ the app's guide (Help → *Shaping your companion*).
 
 ## 7. Finish *Getting started* on Today
 
-<img src="screenshots/getting-started.webp" alt="Today: Good morning, Alex with her portrait and mood, and a Getting started list (2 of 7 done) with Connect a brain, Say hello, Make Sara your own, Pick her voice, Put her on your phone, Turn on a routine and Keep a copy somewhere else" width="760">
+<img src="screenshots/getting-started.webp" alt="Today: Good morning, Alex with the presence orb and her mood, and a Getting started list (2 of 7 done) with Connect a brain, Say hello, Make Sara your own, Put her on your phone, Pick her voice, Turn on a routine and Keep a copy somewhere else" width="760">
 
 *Today* is where she opens. Its main button starts with **Connect an AI model**, then **Try a message** until a completed reply. Model configuration is not a live connection test. Before that reply, optional customization, voice and phone choices sit under **Optional setup**; expand it any time. Hiding Getting started and your saved Today layout still work.
 

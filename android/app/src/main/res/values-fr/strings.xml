@@ -50,7 +50,7 @@
     <string name="setup_add_help">Saisissez l\'adresse d\'une autre Sara. Vos autres Saras restent connectées.</string>
     <string name="setup_address">Adresse</string>
     <string name="setup_code">Code d\'association (facultatif)</string>
-    <string name="setup_code_help">Obtenez un code sur un appareil où vous êtes connecté : Réglages → Données et santé → Appareils et connexion → Ajouter un téléphone ou un ordinateur. Sans code, vous vous connectez avec votre jeton propriétaire.</string>
+    <string name="setup_code_help">Obtenez un code sur un appareil où vous êtes connecté : Réglages → Connexions → Appareils et connexion → Ajouter un téléphone ou un ordinateur. Sans code, vous vous connectez avec votre jeton propriétaire.</string>
     <string name="setup_connect">Connecter</string>
     <string name="setup_checking">Vérification…</string>
     <string name="setup_unreachable">Injoignable. Vérifiez l\'adresse et que Sara fonctionne bien là-bas.</string>
@@ -64,7 +64,7 @@
     <string name="offline_others">Vos autres Saras</string>
     <!-- Pairing links (sara://pair) and several Saras (Phase 68) -->
     <string name="pair_refused_title">Ce lien ne peut pas être utilisé</string>
-    <string name="pair_refused_message">Le lien d\'association ne contient pas une simple adresse de serveur, l\'app ne l\'ouvre donc pas. Créez un nouveau code dans Sara sur votre ordinateur : Réglages → Données et santé → Appareils et connexion → Ajouter un téléphone ou un ordinateur.</string>
+    <string name="pair_refused_message">Le lien d\'association ne contient pas une simple adresse de serveur, l\'app ne l\'ouvre donc pas. Créez un nouveau code dans Sara sur votre ordinateur : Réglages → Connexions → Appareils et connexion → Ajouter un téléphone ou un ordinateur.</string>
     <string name="pair_code_title">Se connecter avec un code</string>
     <string name="pair_open_title">Ouvrir votre Sara</string>
     <string name="pair_sign_in_message">Se connecter à %1$s ?</string>

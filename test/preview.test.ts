@@ -335,7 +335,9 @@ test('ports are found in dev-server output', () => {
   assert.deepEqual(portsInOutput('nothing here, port 80'), []);
 });
 
-test('the real operating-system check: a port is "owned" only by the job’s own process tree', { timeout: 90_000 }, async () => {
+// The OS check asks netstat and the Windows process list (PowerShell + WMI); on a loaded PC each
+// answer takes 15-25 s, so these tests get a cap far above that. A quick machine is not slowed.
+test('the real operating-system check: a port is "owned" only by the job’s own process tree', { timeout: 300_000 }, async () => {
   // A child process (like her job) listening on a free port.
   const script = join(dir, 'listen.cjs');
   writeFileSync(script, "require('http').createServer((q,s)=>s.end('ok')).listen(0,'127.0.0.1',function(){console.log('PORT '+this.address().port)});setTimeout(()=>{},60000);");
@@ -350,7 +352,7 @@ test('the real operating-system check: a port is "owned" only by the job’s own
   }
 });
 
-test('ports (M1): only listeners the proxy reaches at 127.0.0.1 count; [::1] next to another program’s 127.0.0.1 is refused', { timeout: 90_000 }, async (t) => {
+test('ports (M1): only listeners the proxy reaches at 127.0.0.1 count; [::1] next to another program’s 127.0.0.1 is refused', { timeout: 300_000 }, async (t) => {
   // Parsers + the decision, on every platform.
   const ns = ['  TCP    0.0.0.0:7931   0.0.0.0:0   LISTENING   11', '  TCP    [::]:7931   [::]:0   LISTENING   11', '  TCP    [::1]:7932   [::]:0   LISTENING   22', '  TCP    127.0.0.1:7932   0.0.0.0:0   LISTENING   33'].join('\r\n');
   assert.deepEqual(parseNetstat(ns, 7931), [{ pid: 11, reaches: true }, { pid: 11, reaches: false }]);
@@ -380,7 +382,7 @@ test('ports (M1): only listeners the proxy reaches at 127.0.0.1 count; [::1] nex
   assert.equal(await treeListensOn(child.pid!, port), false, 'a job on [::1] does not own 127.0.0.1');
 });
 
-test('integration: a real background job, port found in its output, token ends when the job stops', { timeout: 120_000 }, async () => {
+test('integration: a real background job, port found in its output, token ends when the job stops', { timeout: 300_000 }, async () => {
   const jm = new JobManager(app, app.store.db);
   const pm = new PreviewManager();
   jm.onEnd = (j) => pm.jobEnded(j.id, jm);
@@ -388,10 +390,13 @@ test('integration: a real background job, port found in its output, token ends w
   const ws = workspaceDir(dir, c.workspace);
   writeFileSync(join(ws, 'server.cjs'), "require('http').createServer((q,s)=>{s.setHeader('content-type','text/html');s.end('<html><head></head><body>hello from the job</body></html>')}).listen(0,'127.0.0.1',function(){console.log('Local: http://127.0.0.1:'+this.address().port+'/')});");
   const node = process.execPath.replace(/\\/g, '/');
-  const { job, done } = jm.start({ conversationId: c.id, workspace: c.workspace, label: 'dev server', command: `"${node}" server.cjs`, timeoutMs: 60_000 });
+  // The job outlives the test's own cap: it is stopped on purpose below, never by its time limit
+  // (a 60 s limit once ended it while a loaded PC was still checking the port, so the page was gone).
+  const { job, done } = jm.start({ conversationId: c.id, workspace: c.workspace, label: 'dev server', command: `"${node}" server.cjs`, timeoutMs: 600_000 });
   try {
     let port = 0;
-    for (let i = 0; i < 100 && !port; i++) {
+    const printed = Date.now() + 60_000;
+    while (!port && Date.now() < printed) {
       await new Promise((r) => setTimeout(r, 100));
       port = portsInOutput(jm.get(job.id)!.tail)[0] ?? 0;
     }

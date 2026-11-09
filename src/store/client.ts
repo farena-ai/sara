@@ -18,7 +18,7 @@ import type { StoreInstallRow, StoreInstalls } from './installs.ts';
 import { STORE_KEYS } from './keys.ts';
 import { STORE_COMPANION_LIMITS } from '../packs/format.ts';
 import { acceptIndex, checkPackage, checkPinned, indexFresh, sha256, signatureOk, StoreRefused } from './verify.ts';
-import { LOCALE_LIMITS, listingFor, parseLocales, type ListingText, type StoreLocales } from './locales.ts';
+import { extraFor, LOCALE_LIMITS, listingFor, parseLocales, parseLocalesExtra, type ListingExtra, type ListingText, type StoreLocales, type StoreLocalesExtra } from './locales.ts';
 import { parseQualified, QUALIFIED_LIMITS, qualifiedFor, type QualifiedView, type StoreQualified } from './qualified.ts';
 
 export const STORE_DEFAULT = 'https://backstagecoding.com/sara/store';
@@ -132,6 +132,7 @@ export class StoreClient {
   #state: StoreState | undefined;
   #cache: { index: StoreIndex; skipped: string[] } | null | undefined;
   #locales: { seq: number; l: StoreLocales | null } | undefined;
+  #localesExtra: { seq: number; l: StoreLocalesExtra | null } | undefined;
   #qualified: { seq: number; q: StoreQualified | null } | undefined;
   #timer: ReturnType<typeof setTimeout> | undefined;
   #busy: Promise<CheckResult> | undefined;
@@ -308,6 +309,23 @@ export class StoreClient {
       rmSync(ls, { force: true });
     }
     this.#locales = undefined;
+    // Store sequence 8: the rest of a plugin or tool-server listing (about paragraphs, tags, the
+    // words in its permission lines), a second sidecar with the same rules.
+    const xj = join(this.dir, 'locales-extra.json');
+    const xs = join(this.dir, 'locales-extra.sig');
+    try {
+      const json = await this.#get('locales-extra.json', LOCALE_LIMITS.bytes);
+      const sig = await this.#get('locales-extra.sig', SIG_CAP);
+      signatureOk(json.body, sig.body, this.keys, this.state().revokedKeys ?? []);
+      parseLocalesExtra(json.body.toString('utf8'), seq);
+      writeFileAtomic(xs, sig.body);
+      writeFileAtomic(xj, json.body);
+    } catch (err) {
+      if (!/\b404\b/.test((err as Error).message)) this.#o.log?.(`store: listing translations not used (${(err as Error).message})`);
+      rmSync(xj, { force: true });
+      rmSync(xs, { force: true });
+    }
+    this.#localesExtra = undefined;
   }
   /**
    * EC27: the qualification records (src/store/qualified.ts), the second signed sidecar, fetched the
@@ -353,6 +371,32 @@ export class StoreClient {
     for (const it of cur.index.items) {
       const v = qualifiedFor(this.#qualified.q ?? undefined, it.id, it.latest);
       if (v) out[it.id] = v;
+    }
+    return out;
+  }
+  /** The verified extra listing parts (about, tags, permission-line words) for the current list ({} for English or none valid). */
+  translationsExtra(lang: string | undefined): Record<string, ListingExtra> {
+    const cur = this.current();
+    if (!cur || !lang || lang === 'en' || lang.startsWith('en-')) return {};
+    if (this.#localesExtra?.seq !== cur.index.seq) {
+      let l: StoreLocalesExtra | null = null;
+      try {
+        const xj = join(this.dir, 'locales-extra.json');
+        const xs = join(this.dir, 'locales-extra.sig');
+        if (existsSync(xj) && existsSync(xs)) {
+          const bytes = readFileSync(xj);
+          signatureOk(bytes, readFileSync(xs), this.keys, this.state().revokedKeys ?? []);
+          l = parseLocalesExtra(bytes.toString('utf8'), cur.index.seq);
+        }
+      } catch {
+        l = null;
+      }
+      this.#localesExtra = { seq: cur.index.seq, l };
+    }
+    const out: Record<string, ListingExtra> = {};
+    for (const it of cur.index.items) {
+      const t = extraFor(this.#localesExtra.l ?? undefined, it.id, lang);
+      if (t) out[it.id] = t;
     }
     return out;
   }
@@ -630,6 +674,7 @@ export function pluginInstallation(plugins: Pick<PluginManager, 'store'> | undef
 /** The read model of GET /api/store (§6.2). */
 export function shelfView(client: StoreClient, o: { saraVersion: string; platform?: NodeJS.Platform; installs?: StoreInstalls; plugins?: Pick<PluginManager, 'store'>; on: boolean; community: boolean; adultAny?: boolean; lang?: string }): Record<string, unknown> {
   const tr = client.translations(o.lang);
+  const trx = client.translationsExtra(o.lang);
   const qual = client.qualified();
   const blocked = client.blocked();
   const cur = client.current();
@@ -660,7 +705,8 @@ export function shelfView(client: StoreClient, o: { saraVersion: string; platfor
       ...(qual[it.id] ? { qualified: qual[it.id] } : {}),
       trust: it.trust,
       category: it.category ?? 'more',
-      tags: it.tags ?? [],
+      // Search finds an item by its English and its translated words.
+      tags: [...new Set([...(trx[it.id]?.tags ?? []), ...(it.tags ?? [])])],
       author: it.author.name,
       version: v.version,
       permissions: v.permissions,

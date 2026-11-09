@@ -22,8 +22,8 @@ export const GRANT_TTL_MS = 10 * 60_000;
 export const UNUSED_SIGN_OUT_MS = 30 * 24 * 3600_000;
 export const MAX_DEVICE_CHOICES = [0, 3, 5, 10, 20] as const;
 
-export type SensitiveAction = 'allow-all' | 'password' | 'addon-url' | 'channel-token' | 'restart' | 'approval-off';
-export const SENSITIVE_ACTIONS: readonly SensitiveAction[] = ['allow-all', 'password', 'addon-url', 'channel-token', 'restart', 'approval-off'];
+export type SensitiveAction = 'allow-all' | 'password' | 'addon-url' | 'channel-token' | 'restart' | 'approval-off' | 'hands';
+export const SENSITIVE_ACTIONS: readonly SensitiveAction[] = ['allow-all', 'password', 'addon-url', 'channel-token', 'restart', 'approval-off', 'hands'];
 /** What the owner reads in the prompt (English; the app and bridges translate). */
 export const ACTION_WORDS: Record<SensitiveAction, string> = {
   'allow-all': en('turn on Always allow'),
@@ -32,6 +32,7 @@ export const ACTION_WORDS: Record<SensitiveAction, string> = {
   'channel-token': en('change a chat channel token'),
   restart: en('restart or update Sara'),
   'approval-off': en('turn off new-device approval'),
+  hands: en('let Sara use a computer (computer use)'),
 };
 
 export interface DeviceApprovalSettings {
